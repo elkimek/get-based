@@ -722,6 +722,34 @@ export function toggleImportRow(btn: HTMLElement) {
   persistCurrentImportReviewDraft();
 }
 
+/** Mark review rows that block the commit (by original marker index) and bring the first one into view. */
+export function highlightImportErrorRows(indices: readonly number[] = []) {
+  for (const row of (document.querySelectorAll('.import-table tr.import-row-error')) as NodeListOf<HTMLElement>) {
+    row.classList.remove('import-row-error');
+    row.removeAttribute('aria-invalid');
+  }
+  if (!indices.length) return;
+  let first: HTMLElement | null = null;
+  for (const idx of indices) {
+    const row = document.querySelector(`.import-table tr[data-import-idx="${idx}"]`) as HTMLElement | null;
+    if (!row) continue;
+    row.classList.add('import-row-error');
+    row.setAttribute('aria-invalid', 'true');
+    first ??= row;
+  }
+  if (!first) return;
+  if (first.hidden) {
+    // Clear filters/search that hide the offending row, otherwise the highlight is invisible.
+    const search = document.getElementById('import-review-search') as HTMLInputElement | null;
+    if (search) search.value = '';
+    for (const btn of (document.querySelectorAll('.import-filter-btn')) as NodeListOf<HTMLElement>) {
+      btn.classList.toggle('active', btn.dataset.filter === 'all');
+    }
+    applyImportReviewFilters();
+  }
+  if (typeof first.scrollIntoView === 'function') first.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+
 export function getExcludedImportIndices() {
   const excluded = new Set<number>();
   for (const row of (document.querySelectorAll('.import-table tr.import-excluded[data-import-idx]')) as NodeListOf<HTMLElement>) {

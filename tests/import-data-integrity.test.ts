@@ -66,3 +66,21 @@ it('round trips report timestamps and canonicalizes restored insulin aliases', (
   expect(restored.markers!['hormones.insulin']).toBeUndefined();
   expect(restored.markerSources!['diabetes.insulin']).toEqual({ at: 100, snapshotId: 'report', file: 'lab.pdf' });
 });
+it('adopts the incoming unit when the saved custom marker has no unit instead of blocking', () => {
+  const marker = { matched: true, mappedKey: 'iron.latentBic', value: 32.2, unit: 'µmol/l' };
+  for (const saved of ['', '   ']) {
+    const result = prepareImportCommit({ date, markers: [marker] }, new Set(), { 'iron.latentBic': { unit: saved } });
+    expect(result.error).toBeNull();
+    expect(result.markers[0]).toMatchObject({ value: 32.2, unit: 'µmol/l' });
+  }
+});
+it('reports the offending row indices so the review can highlight them', () => {
+  const custom = { 'custom.analyte': { unit: 'mmol/l' } };
+  const bad = { matched: false, suggestedKey: 'custom.analyte', value: 1, unit: 'g/l' };
+  expect(prepareImportCommit({ date, markers: [row, bad] }, new Set(), custom).errorRows).toEqual([1]);
+  expect(prepareImportCommit({ date, markers: [row, { ...row, value: null }] }, new Set()).errorRows).toEqual([1]);
+  const dup = prepareImportCommit({ date, markers: [row, { ...row, mappedKey: 'biochemistry.urea' }, { ...row }] }, new Set());
+  expect(dup.error).toContain('Rows 1 and 3');
+  expect(dup.errorRows).toEqual([0, 2]);
+  expect(prepareImportCommit({ date, markers: [row] }, new Set()).errorRows).toEqual([]);
+});

@@ -558,6 +558,11 @@ select.import-unit-input {
   background: color-mix(in srgb, var(--green) 10%, var(--bg-secondary));
 }
 .import-table tr.import-excluded { opacity: 0.35; }
+.import-table tr.import-row-error td {
+  background: color-mix(in srgb, var(--red, #e5484d) 14%, transparent);
+}
+.import-table tr.import-row-error td:first-child { box-shadow: inset 3px 0 0 var(--red, #e5484d); }
+.import-table tr.import-row-error .import-row-num { color: var(--red, #e5484d); font-weight: 700; }
 .import-table tr.import-excluded td { text-decoration: line-through; }
 .import-table tr.import-excluded .import-exclude-btn { opacity: 1; color: var(--green); text-decoration: none; }
 .import-table tr[hidden] { display: none !important; }
