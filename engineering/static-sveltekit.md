@@ -79,6 +79,15 @@ bytes, input build identity, and deltas against the historical cache limits.
 Browser reports attach the actual cold startup JavaScript requests and decoded
 bytes separately. Output totals and startup requests measure different things.
 
+Focused readiness reports measure host monotonic elapsed time from navigation
+through app-ready, service-worker readiness and controller confirmation. Browser
+`performance.now()` under Playwright's fixed clock is shared across pages and
+includes prior workflow time; older reports using that value are not per-launch
+durations. The [clock-offset regression](../tests/pwa/sveltekit-readiness-clock.spec.ts)
+keeps a synthetic hour of browser-clock age out of the readiness measurement.
+These local automation timings include observer overhead and are not broad
+performance acceptance.
+
 Historical size/cache ceilings are measurements during local Kit evaluation.
 The native build still enforces its committed budgets; its limits and the
 quality/coverage floors are unchanged. Evaluate cold loads and offline cache
