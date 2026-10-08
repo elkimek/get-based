@@ -265,7 +265,21 @@ zero/unknown values, baseline status and original action indices. The stable
 presentation entry; execution, cancellation and encrypted local comparison
 persistence remain with `nutrition-comparison-ui.ts` and the store. Scoped Tailwind
 owns normal result styling; the benchmark shell owns full-screen workspace
-integration.
+integration. `NutritionBenchmark.svelte` owns the shell, optional known-value
+reference forms and stable controller slots. `NutritionComparisonPicker.svelte`
+authors the searchable model cards; `NutritionBenchmarkPhoto.svelte` and
+`NutritionBenchmarkStatus.svelte` author photo thumbnails, saved-history and
+request progress markup. `nutrition-benchmark-model.ts` projects catalog snapshots,
+registry reference fields and progress text without executing requests or writing
+storage. Refreshes use the same synchronous presentation entry and delegated
+controller events. `nutrition-benchmark-workspace.ts` retains object-URL cleanup
+and moves the actual editor nodes into a suspended fragment, preserving draft
+values and file handles across mode changes. Normal workspace styling uses scoped
+Tailwind; the explicit full-screen layout contract lives in
+`css/nutrition.tailwind.css` because it spans the shared modal and result children.
+Progress visuals share the editor's progress primitive until that owner migrates.
+Shared modal initial-focus handoffs preserve focus moved after opening, including
+already-visible overlays reused by editor/benchmark mode changes.
 `NutritionDashboard.svelte` owns the intake and fuel widgets on Dashboard and
 Body, including seven-day coverage, selected nutrient rows and the starter/empty
 states. `nutrition-dashboard-model.ts` projects canonical registry order and

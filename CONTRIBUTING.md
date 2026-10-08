@@ -112,8 +112,10 @@ Benchmark result cards and shared comparison tables are authored in
 The pure result projection is `js/nutrition-comparison-results-model.ts`; model
 execution and encrypted local persistence remain separate. Focused coverage lives
 in `tests/nutrition-comparison-results-model.test.ts`, the existing comparison and
-request-lifecycle suites, `tests/playwright/nutrition-comparison-owned.spec.ts` and
-`tests/pwa/sveltekit-nutrition-comparison.spec.ts`.
+request-lifecycle suites, `tests/playwright/nutrition-comparison-owned.spec.ts`,
+`tests/playwright/nutrition-benchmark-owned.spec.ts` and
+`tests/pwa/sveltekit-nutrition-comparison.spec.ts`. The shared mode-switch focus
+race has a deterministic regression in `tests/modal-focus-handoff.test.ts`.
 
 Saved meal details and check-ins are authored in `js/components/NutritionMealDetail.svelte`
 and `NutritionMealResponse.svelte`, with pure projections and captured commits in

@@ -175,6 +175,10 @@ export function projectNutritionHistory(history: NutritionRenderHistory | null |
 }
 
 export type NutritionPresentationProps =
+  | { kind: 'benchmark'; view: import('./nutrition-benchmark-model.js').NutritionComparisonPickerView }
+  | { kind: 'comparison-picker'; view: import('./nutrition-benchmark-model.js').NutritionComparisonPickerView }
+  | { kind: 'benchmark-photo'; urls: readonly string[] }
+  | { kind: 'benchmark-status'; view: import('./nutrition-benchmark-model.js').NutritionBenchmarkStatusView }
   | { kind: 'comparison-results'; view: import('./nutrition-comparison-results-model.js').NutritionComparisonResultsView }
   | { kind: 'detail'; view: import('./nutrition-meal-detail-model.js').NutritionMealDetailView }
   | { kind: 'dashboard'; view: import('./nutrition-dashboard-model.js').NutritionDashboardView }

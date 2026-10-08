@@ -190,9 +190,9 @@ export function openModalOverlay(overlayOrId: OverlayReference, options: ModalOv
   if (!overlay) return null;
   const showClass = options.showClass || 'show';
   const alreadyShown = overlay.classList.contains(showClass);
-  const activeElement = document.activeElement;
-  if (!alreadyShown && _isRestorableFocusTarget(activeElement)) {
-    _overlayFocusTargets.set(overlay, activeElement);
+  const activeElementAtOpen = document.activeElement;
+  if (!alreadyShown && _isRestorableFocusTarget(activeElementAtOpen)) {
+    _overlayFocusTargets.set(overlay, activeElementAtOpen);
   }
   overlay.classList.add(showClass);
   if (!alreadyShown) {
@@ -208,7 +208,9 @@ export function openModalOverlay(overlayOrId: OverlayReference, options: ModalOv
       if (!currentOverlay || !currentOverlay.classList.contains(showClass)) return;
       const target = _resolveFocusTarget(options.initialFocus, currentOverlay);
       const activeElement = document.activeElement;
-      if (!alreadyShown
+      // A mode switch may reuse a visible overlay. Its delayed handoff must
+      // not override a user or feature that moved focus after opening.
+      if ((!alreadyShown || activeElement !== activeElementAtOpen)
         && activeElement
         && activeElement !== document.body
         && currentOverlay.contains(activeElement)) return;

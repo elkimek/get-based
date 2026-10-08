@@ -8,6 +8,10 @@
   import Entry from './NutritionEntry.svelte';
   import Detail from './NutritionMealDetail.svelte';
   import ComparisonResults from './NutritionComparisonResults.svelte';
+  import Benchmark from './NutritionBenchmark.svelte';
+  import ComparisonPicker from './NutritionComparisonPicker.svelte';
+  import BenchmarkPhoto from './NutritionBenchmarkPhoto.svelte';
+  import BenchmarkStatus from './NutritionBenchmarkStatus.svelte';
   import Dashboard from './NutritionDashboard.svelte';
   let props: NutritionPresentationProps = $props();
 </script>
@@ -18,5 +22,9 @@
 {:else if props.kind === 'history'}<History view={props.view}/>
 {:else if props.kind === 'entry'}<Entry view={props.view}/>
 {:else if props.kind === 'comparison-results'}<ComparisonResults view={props.view}/>
+{:else if props.kind === 'benchmark'}<Benchmark view={props.view}/>
+{:else if props.kind === 'comparison-picker'}<ComparisonPicker view={props.view}/>
+{:else if props.kind === 'benchmark-photo'}<BenchmarkPhoto urls={props.urls}/>
+{:else if props.kind === 'benchmark-status'}<BenchmarkStatus view={props.view}/>
 {:else if props.kind === 'detail'}<Detail view={props.view}/>
 {:else}<Dashboard view={props.view}/>{/if}

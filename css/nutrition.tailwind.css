@@ -13,3 +13,41 @@
 
 @source "../js/nutrition-meal-detail-view.ts";
 @custom-variant nutrition-detail-modal (&[data-nutrition-meal-detail-modal]);
+
+/* Benchmark presentation mode crosses the authored workspace and the shared modal.
+   Keep this owned layout contract together; ordinary workspace styling is in Svelte utilities. */
+body.nutrition-comparison-presenting { overflow: hidden; }
+.nutrition-modal.nutrition-comparison-presentation { position: fixed; inset: 0; z-index: 1; width: 100vw; max-width: none; height: 100dvh; max-height: none; box-sizing: border-box; padding: clamp(10px, 1.4vw, 20px); border: 0; border-radius: 0; overflow: hidden; transform: none !important; transition: none; }
+.nutrition-modal.nutrition-comparison-presentation > :not(#nutrition-model-comparison) { display: none !important; }
+[data-nutrition-benchmark-view].nutrition-model-comparison.is-presentation { height: 100%; min-height: 0; box-sizing: border-box; grid-template-rows: auto minmax(0, 1fr); gap: 8px; margin: 0; padding: 0; border: 0; overflow: hidden; background: transparent; }
+[data-nutrition-benchmark-view].nutrition-model-comparison.is-presentation > .nutrition-comparison-head { z-index: 3; padding-bottom: 2px; background: var(--bg-secondary); }
+[data-nutrition-benchmark-view].nutrition-model-comparison.is-presentation > .nutrition-comparison-setup,
+[data-nutrition-benchmark-view].nutrition-model-comparison.is-presentation > .nutrition-comparison-history,
+[data-nutrition-benchmark-view].nutrition-model-comparison.is-presentation > .nutrition-comparison-method,
+[data-nutrition-benchmark-view].nutrition-model-comparison.is-presentation > .nutrition-comparison-actions,
+[data-nutrition-benchmark-view].nutrition-model-comparison.is-presentation > .nutrition-analysis-progress { display: none !important; }
+[data-nutrition-benchmark-view].nutrition-model-comparison.is-presentation .nutrition-comparison-breakdown,
+[data-nutrition-benchmark-view].nutrition-model-comparison.is-presentation .nutrition-comparison-detailed,
+[data-nutrition-benchmark-view].nutrition-model-comparison.is-presentation .nutrition-comparison-checks,
+[data-nutrition-benchmark-view].nutrition-model-comparison.is-presentation .nutrition-comparison-errors,
+[data-nutrition-benchmark-view].nutrition-model-comparison.is-presentation .nutrition-comparison-card-actions { display: none; }
+[data-nutrition-benchmark-view].nutrition-model-comparison.is-presentation .nutrition-comparison-results { min-height: 0; height: 100%; grid-template-rows: auto minmax(0, 1fr); gap: 8px; overflow: hidden; }
+[data-nutrition-benchmark-view].nutrition-model-comparison.is-presentation .nutrition-comparison-reference-banner { padding: 7px 10px; font-size: 11px; }
+[data-nutrition-benchmark-view].nutrition-model-comparison.is-presentation .nutrition-comparison-card { min-height: 0; align-content: start; gap: 7px; padding: 10px; overflow: hidden; }
+[data-nutrition-benchmark-view].nutrition-model-comparison.is-presentation .nutrition-comparison-score { min-width: 94px; min-height: 50px; padding: 6px 7px; }
+[data-nutrition-benchmark-view].nutrition-model-comparison.is-presentation .nutrition-comparison-score > span,
+[data-nutrition-benchmark-view].nutrition-model-comparison.is-presentation .nutrition-comparison-score > small { font-size: 9px; }
+[data-nutrition-benchmark-view].nutrition-model-comparison.is-presentation .nutrition-comparison-usage { min-height: 38px; padding: 6px 8px; }
+[data-nutrition-benchmark-view].nutrition-model-comparison.is-presentation .nutrition-comparison-usage span { display: -webkit-box; overflow: hidden; font-size: 9px; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+[data-nutrition-benchmark-view].nutrition-model-comparison.is-presentation .nutrition-comparison-identity { min-height: 34px; }
+[data-nutrition-benchmark-view].nutrition-model-comparison.is-presentation .nutrition-comparison-ingredient-panel { min-height: 116px; padding: 7px 8px; }
+[data-nutrition-benchmark-view].nutrition-model-comparison.is-presentation .nutrition-comparison-ingredients { grid-template-rows: repeat(3, 28px); }
+[data-nutrition-benchmark-view].nutrition-model-comparison.is-presentation .nutrition-comparison-ingredients span { padding: 4px 6px; font-size: 9px; line-height: 10px; }
+@media (min-width: 900px) {
+  [data-nutrition-benchmark-view].nutrition-model-comparison.is-presentation .nutrition-comparison-results[data-result-count="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  [data-nutrition-benchmark-view].nutrition-model-comparison.is-presentation .nutrition-comparison-results[data-result-count="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  [data-nutrition-benchmark-view].nutrition-model-comparison.is-presentation .nutrition-comparison-results[data-result-count="4"] .nutrition-comparison-metrics { min-height: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  [data-nutrition-benchmark-view].nutrition-model-comparison.is-presentation .nutrition-comparison-results[data-result-count="4"] .nutrition-comparison-metrics > div { gap: 2px; padding: 6px 7px; border-bottom: 1px solid var(--border); }
+  [data-nutrition-benchmark-view].nutrition-model-comparison.is-presentation .nutrition-comparison-results[data-result-count="4"] .nutrition-comparison-metrics > div:nth-child(2n) { border-right: 0; }
+  [data-nutrition-benchmark-view].nutrition-model-comparison.is-presentation .nutrition-comparison-results[data-result-count="4"] .nutrition-comparison-metrics > div:nth-last-child(-n + 2) { border-bottom: 0; }
+}

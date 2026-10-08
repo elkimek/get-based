@@ -5,7 +5,8 @@ import { exitComparisonPresentation, mountNutritionComparison, rememberNutrition
 import { hasSuspendedNutritionEditor, restoreSuspendedNutritionEditor, suspendNutritionEditor } from './nutrition-editor-navigation.js';
 import { openModalOverlay } from './modal-lifecycle.js';
 import { ensureNutritionStylesheet, renderNutritionBenchmarkModal } from './nutrition-render.js';
-import { escapeAttr, showNotification } from './utils.js';
+import { renderHTML } from './components/NutritionPresentation.svelte.html.js';
+import { showNotification } from './utils.js';
 
 import type { NutritionRequestLifecycleDependencies } from './nutrition-request-lifecycle.js';
 
@@ -77,11 +78,7 @@ function renderBenchmarkPhotoPreview() {
     .map(image => String(image?.thumbnailUrl || image?.dataUrl || ''))
     .filter(Boolean);
   const urls = [...benchmarkPreviewUrls, ...storedUrls].slice(0, 4);
-  if (urls.length) {
-    preview.innerHTML = `<span class="nutrition-benchmark-photo-grid">${urls.map((url, index) => `<img src="${escapeAttr(url)}" alt="Benchmark meal view ${index + 1}">`).join('')}</span><span class="nutrition-benchmark-photo-change">${urls.length} view${urls.length === 1 ? '' : 's'} · replace</span>`;
-  } else {
-    preview.innerHTML = '<span aria-hidden="true">＋</span><strong>Add benchmark photos</strong><small>Up to 4 views</small>';
-  }
+  preview.innerHTML = renderHTML({ kind: 'benchmark-photo', urls });
   if (status) status.textContent = urls.length
     ? benchmarkSource.fromEditor
       ? `Using ${urls.length} view${urls.length === 1 ? '' : 's'} copied from Log meal. Replacing them here will not change the meal draft.`

@@ -28,6 +28,10 @@ test('static authored benchmark restores encrypted results offline through two c
     for (let launch = 0; launch < 3; launch++) {
       const target = launch === 0 ? page : await context.newPage();
       if (launch) { await ready(target, server.origin); await openNutritionBenchmarkFromInsight(target); }
+      await expect(target.locator('[data-nutrition-benchmark-view]')).toBeVisible();
+      await expect(target.locator('[data-nutrition-picker-view]')).toBeVisible();
+      await expect(target.locator('[data-nutrition-reference="vitaminCMg"]')).toHaveValue('0');
+      await expect(target.locator('#nutrition-benchmark-photo-input')).toHaveAttribute('capture', 'environment');
       const area = target.locator('#nutrition-comparison-results'); await expect(area).toHaveAttribute('data-result-count', '3');
       await expect(target.locator('#nutrition-comparison-history')).toContainText('Last comparison restored');
       await expect(area.locator('[data-nutrition-comparison-card="0"]')).toContainText('150 tokens · 100 in / 50 out');

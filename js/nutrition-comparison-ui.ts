@@ -3,8 +3,10 @@
 import { analyzeMealPhoto, mealImagesFromPreparedPhotos, prepareMealPhotos } from './nutrition-analysis.js';
 import { hydrateNutritionLocalAICatalog, listNutritionVisionModels } from './nutrition-ai-settings.js';
 import { parseReferenceIngredients } from './nutrition-comparison.js';
-import { actionAttrs, renderComparisonModelPicker } from './nutrition-render.js';
-import { escapeHTML, isDebugMode, showNotification } from './utils.js';
+import { renderComparisonModelPicker } from './nutrition-render.js';
+import { renderHTML } from './components/NutritionPresentation.svelte.html.js';
+import { projectNutritionComparisonProgress } from './nutrition-benchmark-model.js';
+import { isDebugMode, showNotification } from './utils.js';
 import { getErrorMessage } from './caught-error.js';
 import { getLocalNutritionComparison, setLocalNutritionComparison } from './nutrition-store.js';
 import { NUTRIENT_DEFINITIONS } from './nutrition-nutrient-registry.js';
@@ -226,7 +228,7 @@ function updateComparisonHistoryBanner() {
   const savedLabel = Number.isFinite(date.getTime())
     ? date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
     : 'recently';
-  banner.innerHTML = `<span><strong>${comparisonIsRestored ? 'Last comparison restored' : 'Comparison saved'}</strong> · ${escapeHTML(savedLabel)} · encrypted locally · outside AI context.</span><button type="button" class="nutrition-text-btn" ${actionAttrs('clear-comparison-history')}>Clear</button>`;
+  banner.innerHTML = renderHTML({ kind: 'benchmark-status', view: { kind: 'history', label: comparisonIsRestored ? 'Last comparison restored' : 'Comparison saved', savedLabel } });
 }
 
 async function persistComparisonSnapshot(snapshot: ReturnType<typeof comparisonSnapshot>, profileId = comparisonProfileId || state.currentProfile, revision = comparisonPersistenceRevision) {
@@ -426,11 +428,9 @@ export function updateComparisonControls() {
 function setComparisonProgress(completed: number, total: number, label: unknown, state = 'running') {
   const area = document.getElementById('nutrition-comparison-progress');
   if (!area) return;
-  const complete = state === 'success' || state === 'partial';
-  const percent = complete ? 100 : Math.max(4, Math.min(96, Math.round(completed / Math.max(1, total) * 100)));
   area.hidden = false;
   area.className = `nutrition-analysis-progress is-${state}`;
-  area.innerHTML = `<div class="nutrition-analysis-progress-head"><strong>${escapeHTML(label)}</strong><span>${state === 'running' ? `${completed} of ${total} finished` : state === 'success' ? `${total} model${total === 1 ? '' : 's'} finished` : state === 'partial' ? 'Retry or replace failed models below' : 'Stopped'}</span></div><div class="nutrition-analysis-progress-track" role="progressbar" aria-label="Meal model comparison progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}"><span style="width:${percent}%"></span></div>`;
+  area.innerHTML = renderHTML({ kind: 'benchmark-status', view: projectNutritionComparisonProgress(completed, total, label, state) });
 }
 
 export function mountNutritionComparison() {
@@ -723,7 +723,7 @@ export function replaceComparisonRun(index: number) {
   if (progress) {
     progress.hidden = false;
     progress.className = 'nutrition-analysis-progress is-partial';
-    progress.innerHTML = '<div class="nutrition-analysis-progress-head"><strong>Choose a replacement model</strong><span>Only the new model will run</span></div>';
+    progress.innerHTML = renderHTML({ kind: 'benchmark-status', view: { kind: 'progress', label: 'Choose a replacement model', detail: 'Only the new model will run', percent: null } });
   }
   showNotification('Failed result removed. Choose another model, then run the replacement.', 'info');
   return true;

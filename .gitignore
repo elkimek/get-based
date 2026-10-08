@@ -1979,3 +1979,6 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 
 /js/nutrition-comparison-results-model.js
 /tests/helpers/nutrition-comparison-fixture.js
+
+/js/nutrition-benchmark-model.js
+/tests/modal-focus-handoff.test.js

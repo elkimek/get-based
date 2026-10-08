@@ -3,7 +3,7 @@
 import { state } from './state.js';
 import { getMealAnalysisAvailability } from './nutrition-analysis.js';
 import { getDefaultNutritionComparisonModelValues, getMealAISelection, isNutritionLocalAICatalogLoading, listNutritionVisionModels, nutritionModelPricing } from './nutrition-ai-settings.js';
-import { MEAL_COMPARISON_REFERENCE_FIELDS } from './nutrition-comparison.js';
+import { projectNutritionComparisonPicker } from './nutrition-benchmark-model.js';
 import { assessFuelStrategy, calculateFuelOverlap } from './nutrition-fuel-mix.js';
 import { NUTRIENT_DEFINITIONS, NUTRIENT_GROUPS, nutrientFieldsForGroup } from './nutrition-nutrient-registry.js';
 import { isNutritionContextEnabled } from './lab-context-settings.js';
@@ -15,7 +15,6 @@ import type { StoredNutritionMeal } from './nutrition-sync-sanitize.js';
 import type { MealPhotoAnalysis, analyzeMealPhoto } from './nutrition-analysis.js';
 import type { computeNutritionHistory } from './nutrition-summary.js';
 import type { summarizeFuelResponses } from './nutrition-fuel-mix.js';
-import type { MealComparisonReferenceField } from './nutrition-comparison.js';
 
 // Opaque stored extensions retain their original coercions and field-read errors.
 type RawFields<Value, Fields extends keyof Value = keyof Value> = { [Field in Fields]?: unknown };
@@ -187,58 +186,17 @@ export function renderMealDetail(meal: NutritionRenderMeal, options: { returnTo?
   return renderPresentation({ kind: 'detail', view: projectNutritionMealDetail(meal, options) });
 }
 
-function renderComparisonModelChoices(models: ReturnType<typeof listNutritionVisionModels>, defaults: ReadonlySet<string>) {
-  if (models.length < 2) return '<div class="nutrition-comparison-empty">Connect or load two vision models in AI Settings.</div>';
-  return `<div id="nutrition-comparison-model-list" class="nutrition-comparison-models">${models.map(model => {
-    const routeLabel = model.current ? ' · meal model' : model.providerCurrent ? ' · active model' : '';
-    const searchText = `${model.providerDisplay} ${model.provider} ${model.modelDisplay} ${model.model}`;
-    return `<label class="nutrition-comparison-model${model.current ? ' is-current' : ''}" data-nutrition-model-search="${escapeAttr(searchText)}"><input type="checkbox" data-nutrition-comparison-model value="${escapeAttr(model.value)}"${defaults.has(model.value) ? ' checked' : ''}><span class="nutrition-comparison-model-check" aria-hidden="true">✓</span><span class="nutrition-comparison-model-copy"><span class="nutrition-comparison-model-provider">${escapeHTML(model.providerDisplay)}${routeLabel}</span><strong>${escapeHTML(model.modelDisplay)}</strong><small class="nutrition-model-price">${escapeHTML(model.priceLabel)}</small><em data-nutrition-benchmarked hidden>Compared</em></span></label>`;
-  }).join('')}</div><div class="nutrition-comparison-search-empty" data-nutrition-comparison-search-empty hidden>No models match this search.</div>`;
+function comparisonPickerView(query: unknown = '') {
+  const models = listNutritionVisionModels();
+  return projectNutritionComparisonPicker(models, getDefaultNutritionComparisonModelValues(models), isNutritionLocalAICatalogLoading(), query);
 }
 
 export function renderComparisonModelPicker(query: unknown = '') {
-  const models = listNutritionVisionModels();
-  const defaults = new Set(getDefaultNutritionComparisonModelValues(models));
-  const providerCount = new Set(models.map(model => model.provider)).size;
-  const providerLabel = `${providerCount} ${providerCount === 1 ? 'provider' : 'providers'} available`;
-  let providerSummary = providerLabel;
-  if (isNutritionLocalAICatalogLoading()) providerSummary = `${providerLabel} · checking Local AI…`;
-  else if (providerCount > 1) providerSummary = `${providerLabel} · cross-provider pair selected`;
-  const search = models.length >= 2
-    ? `<label class="nutrition-comparison-model-search"><span>Search models</span><input type="search" data-nutrition-comparison-search value="${escapeAttr(query)}" maxlength="160" autocomplete="off" placeholder="Provider, model name, or ID" aria-controls="nutrition-comparison-model-list"><small data-nutrition-comparison-search-status aria-live="polite">${models.length} available</small></label>`
-    : '';
-  return `<section class="nutrition-comparison-model-picker"><div class="nutrition-comparison-section-title"><div><strong>Models</strong><small>${escapeHTML(providerSummary)}</small></div><span id="nutrition-comparison-model-limit">${defaults.size} of 4 selected</span></div>${search}${renderComparisonModelChoices(models, defaults)}</section>`;
-}
-
-function renderComparisonWorkspace() {
-  const renderReferenceField = ([key, label, unit, , step]: MealComparisonReferenceField) => `<label class="nutrition-field"><span>${escapeHTML(label)} <small>${escapeHTML(unit)}</small></span><input data-nutrition-reference="${escapeAttr(key)}" inputmode="decimal" type="number" min="0" step="${escapeAttr(step || '0.1')}"></label>`;
-  const primaryFields = MEAL_COMPARISON_REFERENCE_FIELDS
-    .filter(([, , , , , group]) => group === 'amount' || group === 'core')
-    .map(renderReferenceField)
-    .join('');
-  const detailedGroups = NUTRIENT_GROUPS.filter(group => group.id !== 'core').map(group => {
-    const fields = MEAL_COMPARISON_REFERENCE_FIELDS
-      .filter(([, , , , , fieldGroup]) => fieldGroup === group.id)
-      .map(renderReferenceField)
-      .join('');
-    return `<fieldset><legend>${escapeHTML(group.label)}</legend><div class="nutrition-comparison-reference-grid">${fields}</div></fieldset>`;
-  }).join('');
-  return `<section id="nutrition-model-comparison" class="nutrition-model-comparison">
-    <div class="nutrition-comparison-head"><div><h4>Compare meal estimates</h4><p>Each model receives the same photos. Selected models run in parallel.</p></div><div class="nutrition-comparison-head-actions"><button type="button" class="nutrition-comparison-presentation-btn" aria-label="Open full-screen comparison" title="Open full-screen comparison" aria-pressed="false" ${actionAttrs('toggle-comparison-presentation')} hidden><span aria-hidden="true">⛶</span><span data-nutrition-presentation-label>Full screen</span></button></div></div>
-    <div id="nutrition-comparison-history" class="nutrition-comparison-history" hidden></div>
-    <div class="nutrition-comparison-setup">
-      <section class="nutrition-comparison-photo-source"><div class="nutrition-comparison-section-title"><div><strong>Photos</strong><small>Benchmark input</small></div><span>Required to run</span></div><div class="nutrition-benchmark-photo-row"><label class="nutrition-benchmark-photo-picker" for="nutrition-benchmark-photo-input"><span id="nutrition-benchmark-photo-preview" class="nutrition-benchmark-photo-preview"><span aria-hidden="true">＋</span><strong>Add benchmark photos</strong><small>Up to 4 views</small></span><input id="nutrition-benchmark-photo-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif" capture="environment" multiple></label><div class="nutrition-benchmark-photo-copy"><strong>One compact source for every selected model</strong><span id="nutrition-benchmark-photo-status" role="status">Choose photos here; no Log meal attachment is required.</span><small>Originals are sent only when you run the benchmark and are not saved.</small><button type="button" class="nutrition-text-btn" ${actionAttrs('clear-benchmark-photos')} hidden>Clear benchmark photos</button></div></div></section>
-      ${renderComparisonModelPicker()}
-      <section class="nutrition-comparison-reference-editor"><details class="nutrition-comparison-known-values"><summary><span><strong>Known values</strong><small>Optional · add only when you have a reliable reference</small></span><span>Expand</span></summary><div class="nutrition-comparison-known-values-body"><p>Every supplied nutrient joins the comparison score.</p><div class="nutrition-comparison-reference-copy"><label class="nutrition-field nutrition-field-wide"><span>Meal</span><input data-nutrition-reference="mealName" maxlength="120"></label><label class="nutrition-field nutrition-field-wide"><span>Ingredients</span><textarea data-nutrition-reference="ingredients" rows="2" maxlength="600" placeholder="One per line"></textarea></label></div><div class="nutrition-comparison-reference-grid">${primaryFields}</div><details class="nutrition-comparison-reference-details"><summary>Detailed nutrition <small>optional</small></summary><div class="nutrition-comparison-reference-groups">${detailedGroups}</div></details></div></details></section>
-    </div>
-    <details class="nutrition-comparison-method"><summary>How ranking works</summary><p>Known-value agreement weights nutrition and amount 70%, ingredients 30%. Every supplied nutrient is weighted equally inside the nutrition score. It is not an accuracy score; model confidence and identity self-checks are excluded.</p></details>
-    <div class="nutrition-comparison-actions"><span class="nutrition-comparison-parallel-note">Selected models run together.</span><button type="button" id="nutrition-run-comparison" class="import-btn import-btn-primary" ${actionAttrs('run-comparison')} disabled>Run comparison</button></div>
-    <div id="nutrition-comparison-progress" class="nutrition-analysis-progress" aria-live="polite" hidden></div><div id="nutrition-comparison-results" class="nutrition-comparison-results" aria-live="polite"></div>
-  </section>`;
+  return renderPresentation({ kind: 'comparison-picker', view: comparisonPickerView(query) });
 }
 
 export function renderNutritionBenchmarkModal() {
-  return `<button type="button" class="modal-close" aria-label="Close Meals & Nutrition" ${actionAttrs('close')}>&times;</button><nav class="nutrition-mode-navigation" aria-label="Meal tool mode"><button type="button" ${actionAttrs('return-editor')}>← Log meal</button><span aria-current="page">Benchmark</span></nav><div class="nutrition-modal-head nutrition-benchmark-head"><div><h3>Meal benchmark</h3><p>Compare up to four vision models, replace individual results, and prepare a clean screenshot.</p></div></div>${renderComparisonWorkspace()}`;
+  return renderPresentation({ kind: 'benchmark', view: comparisonPickerView() });
 }
 
 export function renderMealModelControl() {

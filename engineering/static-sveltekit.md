@@ -305,5 +305,15 @@ that the complete committed profile remains unchanged. Restored failures require
 a new photo to retry and remain explicit about unavailable request costs. Headless
 native checks cover keyboard tables, six themes, responsive result layouts and
 reduced motion alongside the existing retry/cancel/full-screen workflow.
+The benchmark workspace, searchable model picker, photo thumbnails, history
+banner and request progress markup also use the shared authored presentation
+entry. The static offline check asserts both workspace and picker ownership and
+restored zero reference values on each launch. Native
+[`nutrition-benchmark-owned.spec.ts`](../tests/playwright/nutrition-benchmark-owned.spec.ts)
+checks open reference groups and model cards across all six themes, keyboard and
+touch-sized controls, benchmark-only photo replacement/clearing, and preservation
+of the parked editor's draft and file input. Full-screen layout is an explicit
+scoped CSS contract across the shared modal and result children; ordinary workspace
+styles are Tailwind utilities. No rendering backend is introduced.
 This is scoped editor acceptance; final whole-application migration acceptance
 remains required.
