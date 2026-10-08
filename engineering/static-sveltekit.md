@@ -426,4 +426,5 @@ for the first time offline, checks separate sunlight/device labels and charts,
 and retains the full canonical profile over two closed-client cold launches.
 It exercises the shipped static artifact and CSP through real navigation; the
 component contract separately verifies chart coordinates and delegated quick-log
-actions. External research links are inspected without opening browser windows.
+actions. The actual offline UI opens and cancels live Sun and device entry using
+a configured home location, with external weather/provider requests blocked. External research links are inspected without opening browser windows.

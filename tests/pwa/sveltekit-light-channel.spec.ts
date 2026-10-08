@@ -15,7 +15,7 @@ function seed({defaults,now,version}:{defaults:ProfileData;now:number;version:nu
   localStorage.setItem('labcharts-profiles',JSON.stringify([{id:'default',name:'Ada',sex:'male',dob:'1990-01-01',createdAt:1}]));localStorage.setItem('labcharts-active-profile','default');
   for(const key of ['emptyTour','tour'])localStorage.setItem(`labcharts-default-${key}`,'completed');
   const device={id:'channel-panel',brand:'Saved <Panel>',model:'Red & NIR',type:'pbm',channels:['nir_solar','pbm_red'],peakWavelengths:[660,850],mwPerCm2At15cm:20};
-  localStorage.setItem('labcharts-default-imported',JSON.stringify({...defaults,contextNotes:'Keep unrelated channel context',sunDefaults:{fitzpatrick:'II',completedAt:1},lightDevices:[device],
+  localStorage.setItem('labcharts-default-imported',JSON.stringify({...defaults,contextNotes:'Keep unrelated channel context',sunDefaults:{fitzpatrick:'II',completedAt:1,coords:{lat:50.1,lon:14.4}},lightDevices:[device],
     sunSessions:[{id:'channel-sun',startedAt:now-3600000,endedAt:now-2700000,durationMin:15,bodyExposure:{preset:'shorts_top_off',fraction:0.45},eyeExposure:{mode:'direct'},
       doses:{vitamin_d:100,circadian:2000,nir_solar:400,no_cv:20,pomc:100,violet_eye:120},safety:{medFraction:0.1,fitzpatrick:'II'},calculationStatus:'computed'}],
     deviceSessions:[{id:'channel-device',deviceId:device.id,deviceSnapshot:device,startedAt:now-1800000,endedAt:now-1380000,durationMin:7,distanceCm:25,bodyArea:'torso',eyesProtected:true,
@@ -40,7 +40,7 @@ async function inspect(page:Page){
     await expect(detail.locator('[data-light-channel-action="quick-log-device"]')).toHaveCount(channel==='nir_solar'?1:0);
     if(channel==='vitamin_d'||channel==='nir_solar'){
       await detail.locator(`[data-light-channel-action="${channel==='vitamin_d'?'quick-log-sun':'quick-log-device'}"]`).click();
-      const dialog=page.getByRole('dialog',{name:channel==='vitamin_d'?'Past session log':'Log device session',exact:true});
+      const dialog=page.getByRole('dialog',{name:channel==='vitamin_d'?'Start sun session':'Log device session',exact:true});
       await expect(dialog).toBeVisible();
       await dialog.getByRole('button',{name:'Cancel',exact:true}).click();await expect(dialog).not.toBeVisible();
     }
@@ -48,7 +48,7 @@ async function inspect(page:Page){
   }
 }
 test('static channel details first open offline with retained source charts, research and full profile across two cold launches',async({page,context})=>{
-  test.setTimeout(120000);await installDiscussionFixture(context);await installOfflineStartupDiagnostics(context);await context.addInitScript(seed,{defaults:createDefaultProfileData(),now:Date.now(),version:DEVICE_ENGINE_VERSION});
+  test.setTimeout(120000);await installDiscussionFixture(context);await context.route('https://**',route=>route.abort());await installOfflineStartupDiagnostics(context);await context.addInitScript(seed,{defaults:createDefaultProfileData(),now:Date.now(),version:DEVICE_ENGINE_VERSION});
   const errors:string[]=[],csp:string[]=[];const observe=(p:Page)=>p.on('pageerror',error=>errors.push(error.message));observe(page);context.on('page',observe);
   await context.exposeBinding('channelCsp',(_,value:string)=>csp.push(value));await context.addInitScript(()=>document.addEventListener('securitypolicyviolation',event=>{void(window as unknown as{channelCsp(value:string):Promise<void>}).channelCsp(event.violatedDirective);}));
   const server=await startKitServer(process.env.GETBASED_KIT_ARTIFACT||path.resolve('.local-notes/sveltekit-build'));
