@@ -1,3 +1,4 @@
+import type { LightAuditBlockView } from './light-audit-presentation.js';
 // Pure room presentation. Domain reads, callbacks and mutations belong to the adapter.
 import type { EnvironmentRoomOperations, EnvironmentScreenReader, EnvironmentMeasurementOperations, EnvironmentSeverity } from '../types/light-env-view.js';
 import type { EnvironmentScreenView, EnvironmentTodayView, ScreenOptionView } from './light-environment-screen-presentation.js';
@@ -32,7 +33,7 @@ export interface EnvironmentSectionView {
   embedded: boolean; load: Extract<EnvironmentSummaryView,{kind:'load'}>;
   rooms: EnvironmentRoomView[]; roomQuickPicks: EnvironmentQuickPicksView;
   portable: EnvironmentScreenView[]; portableQuickPicks: EnvironmentQuickPicksView;
-  empty: boolean; trustedAuditsHTML: string;
+  empty: boolean; audits: LightAuditBlockView | null;
 }
 export function projectRoomPickers(room: EnvironmentRoomOperations): EnvironmentPickerView[] {
   const id=environmentActionValue(room.id),source=activeSourceArchetype(room.primarySource);

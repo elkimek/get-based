@@ -43,6 +43,15 @@ for(const sample of original.cases)it(`preserves independent room and section co
   // Audit cards now use a native sibling button. Keep the comparator and all
   // unrelated expectations exact; assert the old and new semantic contracts
   // explicitly rather than discarding role, tab order or action text globally.
+  const blockIndex=expected.actions.findIndex(action=>action.attrs['data-light-env-action']==='set-audits-block-open');
+  if(blockIndex!==-1){
+    expect(expected.actions[blockIndex]).toEqual({tag:'DETAILS',attrs:{'data-light-env-action':'set-audits-block-open'},text:undefined});
+    expected.actions[blockIndex]={tag:'BUTTON',attrs:{'aria-expanded':'false','data-light-env-action':'toggle-audits-block'},text:'Light audits'};
+    const parsed=document.createElement('div');parsed.innerHTML=html;
+    const block=parsed.querySelector<HTMLButtonElement>('[data-light-env-action="toggle-audits-block"]')!;
+    expect(block.type).toBe('button');expect(block.tabIndex).toBe(0);
+    expect(parsed.querySelector('.light-audits-body')?.hasAttribute('hidden')).toBe(true);
+  }
   const auditIndex=expected.actions.findIndex(action=>action.attrs['data-light-env-action']==='toggle-audit');
   if(auditIndex!==-1){
     const originalAction=expected.actions[auditIndex]!;
@@ -89,9 +98,9 @@ it('keeps measurement method distinctions and time boundaries independent of ren
   expect(value('flicker',-1)).toBeUndefined();expect(value('flicker',8)).toBe('strong banding');expect(value('cct',4260)).toBe('~4300 K (camera)');expect(value('brightness-proxy',1)).toBe('Relative brightness (camera comparison)');expect(value('glass-transmission',.56)).toBe('~56% camera-visible comparison');expect(value('audit',NaN,{rooms:{length:1}})).toBe('1 room snapshot');expect(value('custom',32)).toBe('32');
   expect([0,1,2,6,7,29].map(days=>formatEnvironmentMeasureTime(original.now-days*86400000))).toEqual(['today','yesterday','2d ago','6d ago','1w ago','4w ago']);
 });
-it('has one authored owner for room/section/modal templates with only named configured or audit slots',()=>{
+it('has one authored owner for room/section/modal templates with only named configured slots and typed audit composition',()=>{
   const adapter=readFileSync('js/light-env.ts','utf8'),room=readFileSync('js/components/LightEnvironmentRoom.svelte','utf8'),section=readFileSync('js/components/LightEnvironmentSection.svelte','utf8'),css=readFileSync('css/light-env.base.css','utf8');
   expect(adapter).not.toContain('let html =');expect(adapter).not.toContain('renderRoomExpandedBody');expect(adapter).not.toContain('renderSourcePicker');expect(adapter).not.toContain('overlay.innerHTML = `');
-  expect(room.match(/\{@html /g)).toHaveLength(2);expect(room).toContain('{@html reading.trustedAIHTML}');expect(room).toContain('{@html body.trustedRoomHTML}');expect(section.match(/\{@html /g)).toHaveLength(1);expect(section).toContain('{@html view.trustedAuditsHTML}');expect(room).toContain('<LightEnvironmentScreen view={screen}/>');
-  expect(css).toContain('.light-env-block-head');expect(css).not.toMatch(/\.light-env-(?:room-|picker|chip|quickpick|tool-pill|reading|assessment|section)/);
+  expect(room.match(/\{@html /g)).toHaveLength(2);expect(room).toContain('{@html reading.trustedAIHTML}');expect(room).toContain('{@html body.trustedRoomHTML}');expect(section.match(/\{@html /g)).toBeNull();expect(section).toContain('<LightAuditBlock view={view.audits}/>');expect(section).not.toContain('trustedAuditsHTML');expect(room).toContain('<LightEnvironmentScreen view={screen}/>');
+  expect(css).not.toContain('.light-env-block-head');expect(css).not.toContain('.light-audit');expect(css).toContain('.dashboard-widget[data-widget-id="light-environment"]');expect(css).not.toMatch(/\.light-env-(?:room-|picker|chip|quickpick|tool-pill|reading|assessment|section)/);
 });

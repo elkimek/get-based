@@ -22,10 +22,13 @@ function seed({ defaults, now }: { defaults: ProfileData; now: number }) {
   const screen = { id: 'cached-screen', roomId: room.id, device: 'phone', hoursPerDay: 2, eveningUseAfterSunset: 1, blueBlockerEnabled: true, aiAnalysis: verdict('Screen') };
   const measurement = { id: 'cached-measurement', roomId: room.id, tool: 'lux', value: 250, capturedAt: now, source: 'manual', confidence: 1, aiAnalysis: verdict('Measurement') };
   const audit = { id: 'cached-audit', date: new Date(now).toISOString().slice(0, 10), label: 'Saved snapshot', rooms: [room], screens: [screen], measurements: [measurement], createdAt: now, aiAnalysis: verdict('Audit') };
+  const priorTime = now - 86400000;
+  const priorAudit = { ...audit, id: 'prior-cached-audit', date: new Date(priorTime).toISOString().slice(0, 10), label: 'Before snapshot',
+    rooms: [{ ...room, name: 'Bedroom before' }], measurements: [{ ...measurement, id: 'prior-cached-measurement', value: 150, capturedAt: priorTime }], createdAt: priorTime };
   localStorage.setItem('labcharts-default-imported', JSON.stringify({
     ...defaults, contextNotes: 'Keep unrelated environment context',
     sunDefaults: { fitzpatrick: 'II', completedAt: 1 },
-    lightEnvironment: { rooms: [room], screens: [screen] }, lightMeasurements: [measurement], lightAudits: [audit],
+    lightEnvironment: { rooms: [room], screens: [screen] }, lightMeasurements: [measurement], lightAudits: [priorAudit, audit],
   }));
 }
 async function inspect(page: Page) {
@@ -33,7 +36,7 @@ async function inspect(page: Page) {
   const summary=page.locator('[data-light-environment-summary].light-env-assessment-summary');
   await expect(summary).toHaveCount(1);
   await expect(summary.locator('.light-env-assessment-metric-label')).toHaveText(['Rooms','Screens','Readings','Audits']);
-  await expect(summary.locator('.light-env-assessment-metric strong')).toHaveText(['1','1','1','1']);
+  await expect(summary.locator('.light-env-assessment-metric strong')).toHaveText(['1','1','1','2']);
   await summary.getByRole('button',{name:'Open assessment',exact:true}).click();
   const dialog = page.getByRole('dialog', { name: 'Indoor Light Assessment', exact: true });
   await expect(dialog.locator('[data-light-environment-summary].light-env-summary')).toHaveCount(1);
@@ -49,9 +52,10 @@ async function inspect(page: Page) {
   await expect(screenToggle).toHaveAttribute('aria-expanded', 'true');
   await expect(screen.locator('.light-env-screen-ai[data-light-environment-ai] .sun-detail-ai-tip')).toHaveText('✓ Screen <literal>');
   await expect(screen.locator('.light-env-screen-ai .sun-detail-ai-body')).toHaveText('Screen detail & retained.');
-  const audits = dialog.locator('[data-light-env-action="set-audits-block-open"]');
-  if (await audits.getAttribute('open') === null) await audits.locator(':scope > summary').click();
-  await expect(audits).toHaveAttribute('open', '');
+  const audits = dialog.locator('[data-light-env-action="toggle-audits-block"]');
+  if (await audits.getAttribute('aria-expanded') !== 'true') await audits.click();
+  await expect(audits).toHaveAttribute('aria-expanded', 'true');
+  await expect(dialog.locator('.light-audits-body')).toBeVisible();
   const audit = dialog.locator('.light-audit-card[data-id="cached-audit"]');
   const auditToggle = audit.locator('[data-light-env-action="toggle-audit"]');
   if (await auditToggle.getAttribute('aria-expanded') !== 'true') await auditToggle.click();
@@ -66,6 +70,28 @@ async function inspect(page: Page) {
   await expect(audit.locator('button button,[role="button"] button')).toHaveCount(0);
   await expect(audit.locator('.light-audit-ai[data-light-environment-ai] .sun-detail-ai-tip')).toHaveText('✓ Audit <literal>');
   await expect(audit.locator('.light-audit-ai .sun-detail-ai-body')).toHaveText('Audit detail & retained.');
+  await dialog.locator('[data-light-env-action="toggle-audit-compare"]').click();
+  const comparison = dialog.locator('.light-audit-compare-rooms');
+  await expect(dialog.locator('.light-audit-compare-label')).toHaveText([/^Before:.*Before snapshot$/, /^After:.*Saved snapshot$/]);
+  await expect(comparison.locator('.light-audit-compare-room-name')).toHaveText('Bedroom');
+  await expect(comparison.locator('.light-audit-compare-channel-label')).toHaveText(['Brightness']);
+  await expect(comparison.locator('.light-audit-compare-channel-before')).toHaveText(['150 lux (method unknown)']);
+  await expect(comparison.locator('.light-audit-compare-channel-after')).toHaveText(['250 lux (method unknown)']);
+  await expect(comparison.locator('.light-audit-compare-channel .light-audit-arrow')).toHaveText(['↑']);
+  await audits.focus();
+  await page.keyboard.press('Space');
+  await expect(audits).toBeFocused();
+  await expect(audits).toHaveAttribute('aria-expanded', 'false');
+  await expect(comparison).toBeHidden();
+  await page.keyboard.press('Enter');
+  await expect(audits).toBeFocused();
+  await expect(audits).toHaveAttribute('aria-expanded', 'true');
+  await expect(comparison).toBeVisible();
+  await expect(comparison.locator('.light-audit-compare-channel-after')).toHaveText(['250 lux (method unknown)']);
+  await dialog.locator('[data-light-env-action="toggle-audit-compare"]').click();
+  await expect(comparison).toHaveCount(0);
+  await auditToggle.click();
+  await expect(audit.getByRole('textbox', {name: 'Audit label', exact: true})).toHaveValue('Saved snapshot');
   await expect(dialog.locator('[data-light-environment-ai] img, [data-light-environment-ai] script')).toHaveCount(0);
   for (const button of await dialog.locator('[data-light-environment-ai] button').all()) {
     await expect(button).toHaveAttribute('data-ai-owner', /^verdict-\d+:control$/);
@@ -73,7 +99,7 @@ async function inspect(page: Page) {
   await dialog.getByRole('button', { name: 'Close', exact: true }).click();
   await expect(dialog).not.toBeVisible();
 }
-test('static cached environment verdicts open first offline and preserve the full profile over two cold launches', async ({ page, context }) => {
+test('static cached environment verdicts and audit comparison preserve the full profile over two offline cold launches', async ({ page, context }) => {
   test.setTimeout(120000);
   await installDiscussionFixture(context); await installOfflineStartupDiagnostics(context);
   await context.addInitScript(seed, { defaults: createDefaultProfileData(), now: Date.now() });

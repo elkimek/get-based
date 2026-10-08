@@ -446,3 +446,13 @@ compares independent frozen layouts across themes and breakpoints, audits visibl
 advanced fields, and checks keyboard focus, touch targets, responsive dialog bounds
 and sync-scroll preservation. These focused checks do not establish whole-app,
 physical installed-PWA, live-provider or update-consent acceptance.
+
+The [saved-audit comparison contract](../tests/light-audit-compare.test.ts) checks
+independent frozen snapshots, historical screen ownership, renamed and duplicate
+room identities, measurement-method copy, camera proxy direction/deadband and exact
+AI handoff prompts. The [audit browser contract](../tests/playwright/light-audit-card-owned.spec.ts)
+compares card, block and comparison layouts across themes and breakpoints and
+checks native disclosure activation, independent AI actions, header-to-content tab
+order and collapsed content. The existing cached-environment PWA acceptance checks
+audit fields, readings, verdicts, renamed-room comparison and modal disclosure focus
+with exact full-profile equality over closed-client offline cold launches. These remain focused checks with the boundaries stated above.

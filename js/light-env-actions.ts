@@ -34,6 +34,7 @@ export interface LightEnvActions {
   interpretLightAuditCompare?: ((oldId: string, newId: string) => unknown) | null | undefined;
   toggleLightAuditCompare?: (() => unknown) | null | undefined;
   toggleLightAuditHistory?: (() => unknown) | null | undefined;
+  toggleLightAuditsBlock?: ((event?: Event) => unknown) | null | undefined;
   setLightAuditsBlockOpen?: ((open: boolean) => unknown) | null | undefined;
 }
 interface ActionElement {
@@ -57,6 +58,7 @@ const PROPAGATION_STOPPING_CLICK_ACTIONS = new Set([
   'toggle-audit-compare',
   'save-audit',
   'toggle-audit-history',
+  'toggle-audits-block',
 ]);
 const PROPAGATION_STOPPING_KEYDOWN_ACTIONS = new Set([
   'toggle-screen-expanded',
@@ -175,6 +177,8 @@ function handleLightEnvAction(actionEl: ActionElement, event: Event, actions: Li
     actions.openLightEnvTool?.(tool, id);
   } else if (action === 'add-room') {
     void actions.addLightEnvRoom?.();
+  } else if (action === 'toggle-audits-block') {
+    actions.toggleLightAuditsBlock?.(event);
   } else if (action === 'toggle-audit') {
     actions.toggleLightAudit?.(id);
   } else if (action === 'update-audit-field') {

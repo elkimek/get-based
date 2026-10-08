@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { expect, it, vi } from 'vitest';
+import { describeAuditComparison } from './helpers/light-audit-comparison-contract.js';
 import { auditActionValue } from '../js/light-audit-presentation.js';
 interface Sample {
   name: string; data: unknown; expanded: string | null; all: boolean;
@@ -16,7 +17,7 @@ function describe(html: string) {
     .filter(attr => !['class', 'style', 'type', 'role', 'tabindex'].includes(attr.name))
     .map(attr => [attr.name, attr.value]));
   return {
-    open: host.querySelector('details')?.hasAttribute('open'),
+    open: host.querySelector('details')?.hasAttribute('open') ?? (host.querySelector('[data-light-env-action="toggle-audits-block"]')?.getAttribute('aria-expanded') === 'true'),
     cards: [...host.querySelectorAll('.light-audit-card')].map(card => {
       const disclosure = card.querySelector('[data-light-env-action="toggle-audit"]')!;
       return {
@@ -31,7 +32,7 @@ function describe(html: string) {
     trusted: [...host.querySelectorAll('[data-fixture-audit-dot],[data-fixture-audit-ai]')].map(node => node.outerHTML),
     history: clean(host.querySelector('[data-light-env-action="toggle-audit-history"]')?.textContent),
     hint: clean(host.querySelector('.light-audit-hint')?.textContent),
-    comparison: host.querySelector('.light-audit-compare-rooms')?.outerHTML,
+    comparison: describeAuditComparison(host),
   };
 }
 async function setup(sample: Sample) {

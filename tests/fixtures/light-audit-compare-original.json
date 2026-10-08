@@ -1,0 +1,2296 @@
+{
+  "revision": "7015e4035b92663d4e992d0592dca320bce11576",
+  "cases": [
+    {
+      "name": "renamed-id",
+      "audits": [
+        {
+          "id": "a",
+          "date": "2026-10-08",
+          "label": "Before lighting change",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [],
+          "measurements": [
+            {
+              "id": "m0",
+              "roomId": "r",
+              "capturedAt": 100,
+              "tool": "lux",
+              "value": 51.5,
+              "extra": {
+                "source": "camera-estimate"
+              }
+            },
+            {
+              "id": "m1",
+              "roomId": "r",
+              "capturedAt": 101,
+              "tool": "darkness",
+              "value": 2.35,
+              "extra": {
+                "method": "meter-entry"
+              }
+            },
+            {
+              "id": "m2",
+              "roomId": "r",
+              "capturedAt": 102,
+              "tool": "flicker",
+              "value": 3
+            },
+            {
+              "id": "m3",
+              "roomId": "r",
+              "capturedAt": 103,
+              "tool": "cct",
+              "value": 5260
+            },
+            {
+              "id": "m4",
+              "roomId": "r",
+              "capturedAt": 104,
+              "tool": "spectrum",
+              "value": 0,
+              "extra": {
+                "cameraBlueRatioProxy": 0.73,
+                "melanopic": 0.1
+              }
+            }
+          ],
+          "createdAt": 100
+        },
+        {
+          "id": "after",
+          "date": "2026-10-09",
+          "label": "After",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Renamed Bedroom",
+              "primarySource": "led-warm",
+              "daylightLevel": "strong",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 0.5
+            }
+          ],
+          "screens": [],
+          "measurements": [
+            {
+              "id": "m0",
+              "roomId": "r",
+              "capturedAt": 100,
+              "tool": "lux",
+              "value": 200,
+              "extra": {
+                "source": "camera-estimate"
+              }
+            },
+            {
+              "id": "m1",
+              "roomId": "r",
+              "capturedAt": 101,
+              "tool": "darkness",
+              "value": 0,
+              "extra": {
+                "method": "meter-entry"
+              }
+            },
+            {
+              "id": "m2",
+              "roomId": "r",
+              "capturedAt": 102,
+              "tool": "flicker",
+              "value": 0
+            },
+            {
+              "id": "m3",
+              "roomId": "r",
+              "capturedAt": 103,
+              "tool": "cct",
+              "value": 2700
+            },
+            {
+              "id": "m4",
+              "roomId": "r",
+              "capturedAt": 104,
+              "tool": "spectrum",
+              "value": 0,
+              "extra": {
+                "cameraBlueRatioProxy": 0.2
+              }
+            }
+          ],
+          "createdAt": 100
+        }
+      ],
+      "provider": true,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"toggle-audit-compare\">Exit compare</button>\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><div class=\"light-audit-compare-head\">\n    <span class=\"light-audit-compare-label\">Before: Oct 8, 2026 — Before lighting change</span>\n    <span class=\"light-audit-compare-arrow\">→</span>\n    <span class=\"light-audit-compare-label\">After: Oct 9, 2026 — After</span>\n    <button class=\"import-btn import-btn-secondary light-audit-interpret-btn\" data-light-env-action=\"interpret-audit-compare\" data-light-env-old-id=\"a\" data-light-env-new-id=\"after\" title=\"Open the chat panel with a pre-filled comparison summary so the AI can interpret what changed.\">✨ Interpret changes</button>\n  </div><div class=\"light-audit-compare-rooms\"><div class=\"light-audit-compare-room light-audit-compare-room-improved\">\n      <div class=\"light-audit-compare-room-head\">\n        <span class=\"light-env-sev-dot light-env-sev-red\" title=\"Before\"></span>\n        <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n        <span class=\"light-env-sev-dot light-env-sev-green\" title=\"After\"></span>\n        <span class=\"light-audit-compare-room-name\">Renamed Bedroom</span>\n        <span class=\"light-audit-compare-verdict light-audit-compare-verdict-improved\">improved</span>\n      </div><div class=\"light-audit-compare-channels\"><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Brightness</span>\n          <span class=\"light-audit-compare-channel-before\">~52 lux (camera estimate)</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">↑</span>\n          <span class=\"light-audit-compare-channel-after\">~200 lux (camera estimate)</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Sleep light</span>\n          <span class=\"light-audit-compare-channel-before\">2.35 lux (meter)</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">0.00 lux (meter)</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Banding</span>\n          <span class=\"light-audit-compare-channel-before\">Strong banding</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--green)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">No banding detected</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Warm / cool</span>\n          <span class=\"light-audit-compare-channel-before\">~5300 K</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">~2700 K</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\" title=\"Normalized phone-camera RGB blue ratio; not CIE melanopic EDI\">Camera blue proxy</span>\n          <span class=\"light-audit-compare-channel-before\">73%</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--green)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">20%</span>\n        </div></div></div></div></details>",
+      "calls": [
+        {
+          "room": "r",
+          "screens": [],
+          "active": true
+        },
+        {
+          "room": "r",
+          "screens": [],
+          "active": true
+        }
+      ],
+      "prompt": "Here is a Light Environment audit comparison from my home. Walk me through what improved, what regressed, and what one or two changes would have the biggest circadian impact next.\n\nLight environment audit comparison\nBefore: 10/8/2026 (Before lighting change)\nAfter:  10/9/2026 (After)\n\nRoom: Bedroom — status Strong signal (room since removed)\n  Brightness: ~52 lux (camera estimate) → —\n  Sleep light: 2.35 lux (meter) → —\n  Banding: Strong banding → —\n  Warm / cool: ~5300 K → —\n  Camera RGB blue-ratio proxy (not melanopic EDI): 73% → —\n\nRoom: Renamed Bedroom — status (new) No concern flagged\n  Brightness: — → ~200 lux (camera estimate)\n  Sleep light: — → 0.00 lux (meter)\n  Banding: — → No banding detected\n  Warm / cool: — → ~2700 K\n  Camera RGB blue-ratio proxy (not melanopic EDI): — → 20%"
+    },
+    {
+      "name": "no-provider",
+      "audits": [
+        {
+          "id": "a",
+          "date": "2026-10-08",
+          "label": "Before lighting change",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [],
+          "measurements": [
+            {
+              "id": "m0",
+              "roomId": "r",
+              "capturedAt": 100,
+              "tool": "lux",
+              "value": 51.5,
+              "extra": {
+                "source": "camera-estimate"
+              }
+            },
+            {
+              "id": "m1",
+              "roomId": "r",
+              "capturedAt": 101,
+              "tool": "darkness",
+              "value": 2.35,
+              "extra": {
+                "method": "meter-entry"
+              }
+            },
+            {
+              "id": "m2",
+              "roomId": "r",
+              "capturedAt": 102,
+              "tool": "flicker",
+              "value": 3
+            },
+            {
+              "id": "m3",
+              "roomId": "r",
+              "capturedAt": 103,
+              "tool": "cct",
+              "value": 5260
+            },
+            {
+              "id": "m4",
+              "roomId": "r",
+              "capturedAt": 104,
+              "tool": "spectrum",
+              "value": 0,
+              "extra": {
+                "cameraBlueRatioProxy": 0.73,
+                "melanopic": 0.1
+              }
+            }
+          ],
+          "createdAt": 100
+        },
+        {
+          "id": "after",
+          "date": "2026-10-09",
+          "label": "After",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Renamed Bedroom",
+              "primarySource": "led-warm",
+              "daylightLevel": "strong",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 0.5
+            }
+          ],
+          "screens": [],
+          "measurements": [
+            {
+              "id": "m0",
+              "roomId": "r",
+              "capturedAt": 100,
+              "tool": "lux",
+              "value": 200,
+              "extra": {
+                "source": "camera-estimate"
+              }
+            },
+            {
+              "id": "m1",
+              "roomId": "r",
+              "capturedAt": 101,
+              "tool": "darkness",
+              "value": 0,
+              "extra": {
+                "method": "meter-entry"
+              }
+            },
+            {
+              "id": "m2",
+              "roomId": "r",
+              "capturedAt": 102,
+              "tool": "flicker",
+              "value": 0
+            },
+            {
+              "id": "m3",
+              "roomId": "r",
+              "capturedAt": 103,
+              "tool": "cct",
+              "value": 2700
+            },
+            {
+              "id": "m4",
+              "roomId": "r",
+              "capturedAt": 104,
+              "tool": "spectrum",
+              "value": 0,
+              "extra": {
+                "cameraBlueRatioProxy": 0.2
+              }
+            }
+          ],
+          "createdAt": 100
+        }
+      ],
+      "provider": false,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"toggle-audit-compare\">Exit compare</button>\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><div class=\"light-audit-compare-head\">\n    <span class=\"light-audit-compare-label\">Before: Oct 8, 2026 — Before lighting change</span>\n    <span class=\"light-audit-compare-arrow\">→</span>\n    <span class=\"light-audit-compare-label\">After: Oct 9, 2026 — After</span>\n    \n  </div><div class=\"light-audit-compare-rooms\"><div class=\"light-audit-compare-room light-audit-compare-room-improved\">\n      <div class=\"light-audit-compare-room-head\">\n        <span class=\"light-env-sev-dot light-env-sev-red\" title=\"Before\"></span>\n        <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n        <span class=\"light-env-sev-dot light-env-sev-green\" title=\"After\"></span>\n        <span class=\"light-audit-compare-room-name\">Renamed Bedroom</span>\n        <span class=\"light-audit-compare-verdict light-audit-compare-verdict-improved\">improved</span>\n      </div><div class=\"light-audit-compare-channels\"><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Brightness</span>\n          <span class=\"light-audit-compare-channel-before\">~52 lux (camera estimate)</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">↑</span>\n          <span class=\"light-audit-compare-channel-after\">~200 lux (camera estimate)</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Sleep light</span>\n          <span class=\"light-audit-compare-channel-before\">2.35 lux (meter)</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">0.00 lux (meter)</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Banding</span>\n          <span class=\"light-audit-compare-channel-before\">Strong banding</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--green)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">No banding detected</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Warm / cool</span>\n          <span class=\"light-audit-compare-channel-before\">~5300 K</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">~2700 K</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\" title=\"Normalized phone-camera RGB blue ratio; not CIE melanopic EDI\">Camera blue proxy</span>\n          <span class=\"light-audit-compare-channel-before\">73%</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--green)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">20%</span>\n        </div></div></div></div></details>",
+      "calls": [
+        {
+          "room": "r",
+          "screens": [],
+          "active": true
+        },
+        {
+          "room": "r",
+          "screens": [],
+          "active": true
+        }
+      ],
+      "prompt": "Here is a Light Environment audit comparison from my home. Walk me through what improved, what regressed, and what one or two changes would have the biggest circadian impact next.\n\nLight environment audit comparison\nBefore: 10/8/2026 (Before lighting change)\nAfter:  10/9/2026 (After)\n\nRoom: Bedroom — status Strong signal (room since removed)\n  Brightness: ~52 lux (camera estimate) → —\n  Sleep light: 2.35 lux (meter) → —\n  Banding: Strong banding → —\n  Warm / cool: ~5300 K → —\n  Camera RGB blue-ratio proxy (not melanopic EDI): 73% → —\n\nRoom: Renamed Bedroom — status (new) No concern flagged\n  Brightness: — → ~200 lux (camera estimate)\n  Sleep light: — → 0.00 lux (meter)\n  Banding: — → No banding detected\n  Warm / cool: — → ~2700 K\n  Camera RGB blue-ratio proxy (not melanopic EDI): — → 20%"
+    },
+    {
+      "name": "proxy--0.03",
+      "audits": [
+        {
+          "id": "a",
+          "date": "2026-10-08",
+          "label": "Before lighting change",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [],
+          "measurements": [
+            {
+              "roomId": "r",
+              "tool": "spectrum",
+              "extra": {
+                "melanopic": 0.5
+              }
+            }
+          ],
+          "createdAt": 100
+        },
+        {
+          "id": "after",
+          "date": "2026-10-09",
+          "label": "After",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Renamed Bedroom",
+              "primarySource": "led-warm",
+              "daylightLevel": "strong",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 0.5
+            }
+          ],
+          "screens": [],
+          "measurements": [
+            {
+              "roomId": "r",
+              "tool": "spectrum",
+              "extra": {
+                "cameraBlueRatioProxy": 0.47,
+                "melanopic": 0.9
+              }
+            }
+          ],
+          "createdAt": 100
+        }
+      ],
+      "provider": true,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"toggle-audit-compare\">Exit compare</button>\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><div class=\"light-audit-compare-head\">\n    <span class=\"light-audit-compare-label\">Before: Oct 8, 2026 — Before lighting change</span>\n    <span class=\"light-audit-compare-arrow\">→</span>\n    <span class=\"light-audit-compare-label\">After: Oct 9, 2026 — After</span>\n    <button class=\"import-btn import-btn-secondary light-audit-interpret-btn\" data-light-env-action=\"interpret-audit-compare\" data-light-env-old-id=\"a\" data-light-env-new-id=\"after\" title=\"Open the chat panel with a pre-filled comparison summary so the AI can interpret what changed.\">✨ Interpret changes</button>\n  </div><div class=\"light-audit-compare-rooms\"><div class=\"light-audit-compare-room light-audit-compare-room-improved\">\n      <div class=\"light-audit-compare-room-head\">\n        <span class=\"light-env-sev-dot light-env-sev-orange\" title=\"Before\"></span>\n        <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n        <span class=\"light-env-sev-dot light-env-sev-green\" title=\"After\"></span>\n        <span class=\"light-audit-compare-room-name\">Renamed Bedroom</span>\n        <span class=\"light-audit-compare-verdict light-audit-compare-verdict-improved\">improved</span>\n      </div><div class=\"light-audit-compare-channels\"><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\" title=\"Normalized phone-camera RGB blue ratio; not CIE melanopic EDI\">Camera blue proxy</span>\n          <span class=\"light-audit-compare-channel-before\">50%</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--green)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">47%</span>\n        </div></div></div></div></details>",
+      "calls": [
+        {
+          "room": "r",
+          "screens": [],
+          "active": true
+        },
+        {
+          "room": "r",
+          "screens": [],
+          "active": true
+        }
+      ],
+      "prompt": "Here is a Light Environment audit comparison from my home. Walk me through what improved, what regressed, and what one or two changes would have the biggest circadian impact next.\n\nLight environment audit comparison\nBefore: 10/8/2026 (Before lighting change)\nAfter:  10/9/2026 (After)\n\nRoom: Bedroom — status Needs attention (room since removed)\n  Camera RGB blue-ratio proxy (not melanopic EDI): 50% → —\n\nRoom: Renamed Bedroom — status (new) No concern flagged\n  Camera RGB blue-ratio proxy (not melanopic EDI): — → 47%"
+    },
+    {
+      "name": "proxy--0.01",
+      "audits": [
+        {
+          "id": "a",
+          "date": "2026-10-08",
+          "label": "Before lighting change",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [],
+          "measurements": [
+            {
+              "roomId": "r",
+              "tool": "spectrum",
+              "extra": {
+                "melanopic": 0.5
+              }
+            }
+          ],
+          "createdAt": 100
+        },
+        {
+          "id": "after",
+          "date": "2026-10-09",
+          "label": "After",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Renamed Bedroom",
+              "primarySource": "led-warm",
+              "daylightLevel": "strong",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 0.5
+            }
+          ],
+          "screens": [],
+          "measurements": [
+            {
+              "roomId": "r",
+              "tool": "spectrum",
+              "extra": {
+                "cameraBlueRatioProxy": 0.49,
+                "melanopic": 0.9
+              }
+            }
+          ],
+          "createdAt": 100
+        }
+      ],
+      "provider": true,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"toggle-audit-compare\">Exit compare</button>\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><div class=\"light-audit-compare-head\">\n    <span class=\"light-audit-compare-label\">Before: Oct 8, 2026 — Before lighting change</span>\n    <span class=\"light-audit-compare-arrow\">→</span>\n    <span class=\"light-audit-compare-label\">After: Oct 9, 2026 — After</span>\n    <button class=\"import-btn import-btn-secondary light-audit-interpret-btn\" data-light-env-action=\"interpret-audit-compare\" data-light-env-old-id=\"a\" data-light-env-new-id=\"after\" title=\"Open the chat panel with a pre-filled comparison summary so the AI can interpret what changed.\">✨ Interpret changes</button>\n  </div><div class=\"light-audit-compare-rooms\"><div class=\"light-audit-compare-room light-audit-compare-room-improved\">\n      <div class=\"light-audit-compare-room-head\">\n        <span class=\"light-env-sev-dot light-env-sev-orange\" title=\"Before\"></span>\n        <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n        <span class=\"light-env-sev-dot light-env-sev-green\" title=\"After\"></span>\n        <span class=\"light-audit-compare-room-name\">Renamed Bedroom</span>\n        <span class=\"light-audit-compare-verdict light-audit-compare-verdict-improved\">improved</span>\n      </div><div class=\"light-audit-compare-channels\"><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\" title=\"Normalized phone-camera RGB blue ratio; not CIE melanopic EDI\">Camera blue proxy</span>\n          <span class=\"light-audit-compare-channel-before\">50%</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">49%</span>\n        </div></div></div></div></details>",
+      "calls": [
+        {
+          "room": "r",
+          "screens": [],
+          "active": true
+        },
+        {
+          "room": "r",
+          "screens": [],
+          "active": true
+        }
+      ],
+      "prompt": "Here is a Light Environment audit comparison from my home. Walk me through what improved, what regressed, and what one or two changes would have the biggest circadian impact next.\n\nLight environment audit comparison\nBefore: 10/8/2026 (Before lighting change)\nAfter:  10/9/2026 (After)\n\nRoom: Bedroom — status Needs attention (room since removed)\n  Camera RGB blue-ratio proxy (not melanopic EDI): 50% → —\n\nRoom: Renamed Bedroom — status (new) No concern flagged\n  Camera RGB blue-ratio proxy (not melanopic EDI): — → 49%"
+    },
+    {
+      "name": "proxy-0",
+      "audits": [
+        {
+          "id": "a",
+          "date": "2026-10-08",
+          "label": "Before lighting change",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [],
+          "measurements": [
+            {
+              "roomId": "r",
+              "tool": "spectrum",
+              "extra": {
+                "melanopic": 0.5
+              }
+            }
+          ],
+          "createdAt": 100
+        },
+        {
+          "id": "after",
+          "date": "2026-10-09",
+          "label": "After",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Renamed Bedroom",
+              "primarySource": "led-warm",
+              "daylightLevel": "strong",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 0.5
+            }
+          ],
+          "screens": [],
+          "measurements": [
+            {
+              "roomId": "r",
+              "tool": "spectrum",
+              "extra": {
+                "cameraBlueRatioProxy": 0.5,
+                "melanopic": 0.9
+              }
+            }
+          ],
+          "createdAt": 100
+        }
+      ],
+      "provider": true,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"toggle-audit-compare\">Exit compare</button>\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><div class=\"light-audit-compare-head\">\n    <span class=\"light-audit-compare-label\">Before: Oct 8, 2026 — Before lighting change</span>\n    <span class=\"light-audit-compare-arrow\">→</span>\n    <span class=\"light-audit-compare-label\">After: Oct 9, 2026 — After</span>\n    <button class=\"import-btn import-btn-secondary light-audit-interpret-btn\" data-light-env-action=\"interpret-audit-compare\" data-light-env-old-id=\"a\" data-light-env-new-id=\"after\" title=\"Open the chat panel with a pre-filled comparison summary so the AI can interpret what changed.\">✨ Interpret changes</button>\n  </div><div class=\"light-audit-compare-rooms\"><div class=\"light-audit-compare-room light-audit-compare-room-improved\">\n      <div class=\"light-audit-compare-room-head\">\n        <span class=\"light-env-sev-dot light-env-sev-orange\" title=\"Before\"></span>\n        <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n        <span class=\"light-env-sev-dot light-env-sev-green\" title=\"After\"></span>\n        <span class=\"light-audit-compare-room-name\">Renamed Bedroom</span>\n        <span class=\"light-audit-compare-verdict light-audit-compare-verdict-improved\">improved</span>\n      </div><div class=\"light-audit-compare-channels\"><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\" title=\"Normalized phone-camera RGB blue ratio; not CIE melanopic EDI\">Camera blue proxy</span>\n          <span class=\"light-audit-compare-channel-before\">50%</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">=</span>\n          <span class=\"light-audit-compare-channel-after\">50%</span>\n        </div></div></div></div></details>",
+      "calls": [
+        {
+          "room": "r",
+          "screens": [],
+          "active": true
+        },
+        {
+          "room": "r",
+          "screens": [],
+          "active": true
+        }
+      ],
+      "prompt": "Here is a Light Environment audit comparison from my home. Walk me through what improved, what regressed, and what one or two changes would have the biggest circadian impact next.\n\nLight environment audit comparison\nBefore: 10/8/2026 (Before lighting change)\nAfter:  10/9/2026 (After)\n\nRoom: Bedroom — status Needs attention (room since removed)\n  Camera RGB blue-ratio proxy (not melanopic EDI): 50% → —\n\nRoom: Renamed Bedroom — status (new) No concern flagged\n  Camera RGB blue-ratio proxy (not melanopic EDI): — → 50%"
+    },
+    {
+      "name": "proxy-0.01",
+      "audits": [
+        {
+          "id": "a",
+          "date": "2026-10-08",
+          "label": "Before lighting change",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [],
+          "measurements": [
+            {
+              "roomId": "r",
+              "tool": "spectrum",
+              "extra": {
+                "melanopic": 0.5
+              }
+            }
+          ],
+          "createdAt": 100
+        },
+        {
+          "id": "after",
+          "date": "2026-10-09",
+          "label": "After",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Renamed Bedroom",
+              "primarySource": "led-warm",
+              "daylightLevel": "strong",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 0.5
+            }
+          ],
+          "screens": [],
+          "measurements": [
+            {
+              "roomId": "r",
+              "tool": "spectrum",
+              "extra": {
+                "cameraBlueRatioProxy": 0.51,
+                "melanopic": 0.9
+              }
+            }
+          ],
+          "createdAt": 100
+        }
+      ],
+      "provider": true,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"toggle-audit-compare\">Exit compare</button>\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><div class=\"light-audit-compare-head\">\n    <span class=\"light-audit-compare-label\">Before: Oct 8, 2026 — Before lighting change</span>\n    <span class=\"light-audit-compare-arrow\">→</span>\n    <span class=\"light-audit-compare-label\">After: Oct 9, 2026 — After</span>\n    <button class=\"import-btn import-btn-secondary light-audit-interpret-btn\" data-light-env-action=\"interpret-audit-compare\" data-light-env-old-id=\"a\" data-light-env-new-id=\"after\" title=\"Open the chat panel with a pre-filled comparison summary so the AI can interpret what changed.\">✨ Interpret changes</button>\n  </div><div class=\"light-audit-compare-rooms\"><div class=\"light-audit-compare-room light-audit-compare-room-improved\">\n      <div class=\"light-audit-compare-room-head\">\n        <span class=\"light-env-sev-dot light-env-sev-orange\" title=\"Before\"></span>\n        <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n        <span class=\"light-env-sev-dot light-env-sev-green\" title=\"After\"></span>\n        <span class=\"light-audit-compare-room-name\">Renamed Bedroom</span>\n        <span class=\"light-audit-compare-verdict light-audit-compare-verdict-improved\">improved</span>\n      </div><div class=\"light-audit-compare-channels\"><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\" title=\"Normalized phone-camera RGB blue ratio; not CIE melanopic EDI\">Camera blue proxy</span>\n          <span class=\"light-audit-compare-channel-before\">50%</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">↑</span>\n          <span class=\"light-audit-compare-channel-after\">51%</span>\n        </div></div></div></div></details>",
+      "calls": [
+        {
+          "room": "r",
+          "screens": [],
+          "active": true
+        },
+        {
+          "room": "r",
+          "screens": [],
+          "active": true
+        }
+      ],
+      "prompt": "Here is a Light Environment audit comparison from my home. Walk me through what improved, what regressed, and what one or two changes would have the biggest circadian impact next.\n\nLight environment audit comparison\nBefore: 10/8/2026 (Before lighting change)\nAfter:  10/9/2026 (After)\n\nRoom: Bedroom — status Needs attention (room since removed)\n  Camera RGB blue-ratio proxy (not melanopic EDI): 50% → —\n\nRoom: Renamed Bedroom — status (new) No concern flagged\n  Camera RGB blue-ratio proxy (not melanopic EDI): — → 51%"
+    },
+    {
+      "name": "proxy-0.03",
+      "audits": [
+        {
+          "id": "a",
+          "date": "2026-10-08",
+          "label": "Before lighting change",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [],
+          "measurements": [
+            {
+              "roomId": "r",
+              "tool": "spectrum",
+              "extra": {
+                "melanopic": 0.5
+              }
+            }
+          ],
+          "createdAt": 100
+        },
+        {
+          "id": "after",
+          "date": "2026-10-09",
+          "label": "After",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Renamed Bedroom",
+              "primarySource": "led-warm",
+              "daylightLevel": "strong",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 0.5
+            }
+          ],
+          "screens": [],
+          "measurements": [
+            {
+              "roomId": "r",
+              "tool": "spectrum",
+              "extra": {
+                "cameraBlueRatioProxy": 0.53,
+                "melanopic": 0.9
+              }
+            }
+          ],
+          "createdAt": 100
+        }
+      ],
+      "provider": true,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"toggle-audit-compare\">Exit compare</button>\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><div class=\"light-audit-compare-head\">\n    <span class=\"light-audit-compare-label\">Before: Oct 8, 2026 — Before lighting change</span>\n    <span class=\"light-audit-compare-arrow\">→</span>\n    <span class=\"light-audit-compare-label\">After: Oct 9, 2026 — After</span>\n    <button class=\"import-btn import-btn-secondary light-audit-interpret-btn\" data-light-env-action=\"interpret-audit-compare\" data-light-env-old-id=\"a\" data-light-env-new-id=\"after\" title=\"Open the chat panel with a pre-filled comparison summary so the AI can interpret what changed.\">✨ Interpret changes</button>\n  </div><div class=\"light-audit-compare-rooms\"><div class=\"light-audit-compare-room light-audit-compare-room-improved\">\n      <div class=\"light-audit-compare-room-head\">\n        <span class=\"light-env-sev-dot light-env-sev-orange\" title=\"Before\"></span>\n        <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n        <span class=\"light-env-sev-dot light-env-sev-green\" title=\"After\"></span>\n        <span class=\"light-audit-compare-room-name\">Renamed Bedroom</span>\n        <span class=\"light-audit-compare-verdict light-audit-compare-verdict-improved\">improved</span>\n      </div><div class=\"light-audit-compare-channels\"><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\" title=\"Normalized phone-camera RGB blue ratio; not CIE melanopic EDI\">Camera blue proxy</span>\n          <span class=\"light-audit-compare-channel-before\">50%</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--red)\">↑</span>\n          <span class=\"light-audit-compare-channel-after\">53%</span>\n        </div></div></div></div></details>",
+      "calls": [
+        {
+          "room": "r",
+          "screens": [],
+          "active": true
+        },
+        {
+          "room": "r",
+          "screens": [],
+          "active": true
+        }
+      ],
+      "prompt": "Here is a Light Environment audit comparison from my home. Walk me through what improved, what regressed, and what one or two changes would have the biggest circadian impact next.\n\nLight environment audit comparison\nBefore: 10/8/2026 (Before lighting change)\nAfter:  10/9/2026 (After)\n\nRoom: Bedroom — status Needs attention (room since removed)\n  Camera RGB blue-ratio proxy (not melanopic EDI): 50% → —\n\nRoom: Renamed Bedroom — status (new) No concern flagged\n  Camera RGB blue-ratio proxy (not melanopic EDI): — → 53%"
+    },
+    {
+      "name": "banding--2",
+      "audits": [
+        {
+          "id": "a",
+          "date": "2026-10-08",
+          "label": "Before lighting change",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [],
+          "measurements": [
+            {
+              "roomId": "r",
+              "tool": "flicker",
+              "value": 3
+            }
+          ],
+          "createdAt": 100
+        },
+        {
+          "id": "after",
+          "date": "2026-10-09",
+          "label": "After",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Renamed Bedroom",
+              "primarySource": "led-warm",
+              "daylightLevel": "strong",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 0.5
+            }
+          ],
+          "screens": [],
+          "measurements": [
+            {
+              "roomId": "r",
+              "tool": "flicker",
+              "value": -2
+            }
+          ],
+          "createdAt": 100
+        }
+      ],
+      "provider": true,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"toggle-audit-compare\">Exit compare</button>\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><div class=\"light-audit-compare-head\">\n    <span class=\"light-audit-compare-label\">Before: Oct 8, 2026 — Before lighting change</span>\n    <span class=\"light-audit-compare-arrow\">→</span>\n    <span class=\"light-audit-compare-label\">After: Oct 9, 2026 — After</span>\n    <button class=\"import-btn import-btn-secondary light-audit-interpret-btn\" data-light-env-action=\"interpret-audit-compare\" data-light-env-old-id=\"a\" data-light-env-new-id=\"after\" title=\"Open the chat panel with a pre-filled comparison summary so the AI can interpret what changed.\">✨ Interpret changes</button>\n  </div><div class=\"light-audit-compare-rooms\"><div class=\"light-audit-compare-room light-audit-compare-room-improved\">\n      <div class=\"light-audit-compare-room-head\">\n        <span class=\"light-env-sev-dot light-env-sev-red\" title=\"Before\"></span>\n        <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n        <span class=\"light-env-sev-dot light-env-sev-green\" title=\"After\"></span>\n        <span class=\"light-audit-compare-room-name\">Renamed Bedroom</span>\n        <span class=\"light-audit-compare-verdict light-audit-compare-verdict-improved\">improved</span>\n      </div><div class=\"light-audit-compare-channels\"><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Banding</span>\n          <span class=\"light-audit-compare-channel-before\">Strong banding</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--green)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">No banding detected</span>\n        </div></div></div></div></details>",
+      "calls": [
+        {
+          "room": "r",
+          "screens": [],
+          "active": true
+        },
+        {
+          "room": "r",
+          "screens": [],
+          "active": true
+        }
+      ],
+      "prompt": "Here is a Light Environment audit comparison from my home. Walk me through what improved, what regressed, and what one or two changes would have the biggest circadian impact next.\n\nLight environment audit comparison\nBefore: 10/8/2026 (Before lighting change)\nAfter:  10/9/2026 (After)\n\nRoom: Bedroom — status Strong signal (room since removed)\n  Banding: Strong banding → —\n\nRoom: Renamed Bedroom — status (new) No concern flagged\n  Banding: — → No banding detected"
+    },
+    {
+      "name": "banding-0.4",
+      "audits": [
+        {
+          "id": "a",
+          "date": "2026-10-08",
+          "label": "Before lighting change",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [],
+          "measurements": [
+            {
+              "roomId": "r",
+              "tool": "flicker",
+              "value": 3
+            }
+          ],
+          "createdAt": 100
+        },
+        {
+          "id": "after",
+          "date": "2026-10-09",
+          "label": "After",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Renamed Bedroom",
+              "primarySource": "led-warm",
+              "daylightLevel": "strong",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 0.5
+            }
+          ],
+          "screens": [],
+          "measurements": [
+            {
+              "roomId": "r",
+              "tool": "flicker",
+              "value": 0.4
+            }
+          ],
+          "createdAt": 100
+        }
+      ],
+      "provider": true,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"toggle-audit-compare\">Exit compare</button>\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><div class=\"light-audit-compare-head\">\n    <span class=\"light-audit-compare-label\">Before: Oct 8, 2026 — Before lighting change</span>\n    <span class=\"light-audit-compare-arrow\">→</span>\n    <span class=\"light-audit-compare-label\">After: Oct 9, 2026 — After</span>\n    <button class=\"import-btn import-btn-secondary light-audit-interpret-btn\" data-light-env-action=\"interpret-audit-compare\" data-light-env-old-id=\"a\" data-light-env-new-id=\"after\" title=\"Open the chat panel with a pre-filled comparison summary so the AI can interpret what changed.\">✨ Interpret changes</button>\n  </div><div class=\"light-audit-compare-rooms\"><div class=\"light-audit-compare-room light-audit-compare-room-improved\">\n      <div class=\"light-audit-compare-room-head\">\n        <span class=\"light-env-sev-dot light-env-sev-red\" title=\"Before\"></span>\n        <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n        <span class=\"light-env-sev-dot light-env-sev-green\" title=\"After\"></span>\n        <span class=\"light-audit-compare-room-name\">Renamed Bedroom</span>\n        <span class=\"light-audit-compare-verdict light-audit-compare-verdict-improved\">improved</span>\n      </div><div class=\"light-audit-compare-channels\"><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Banding</span>\n          <span class=\"light-audit-compare-channel-before\">Strong banding</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--green)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">No banding detected</span>\n        </div></div></div></div></details>",
+      "calls": [
+        {
+          "room": "r",
+          "screens": [],
+          "active": true
+        },
+        {
+          "room": "r",
+          "screens": [],
+          "active": true
+        }
+      ],
+      "prompt": "Here is a Light Environment audit comparison from my home. Walk me through what improved, what regressed, and what one or two changes would have the biggest circadian impact next.\n\nLight environment audit comparison\nBefore: 10/8/2026 (Before lighting change)\nAfter:  10/9/2026 (After)\n\nRoom: Bedroom — status Strong signal (room since removed)\n  Banding: Strong banding → —\n\nRoom: Renamed Bedroom — status (new) No concern flagged\n  Banding: — → No banding detected"
+    },
+    {
+      "name": "banding-1.6",
+      "audits": [
+        {
+          "id": "a",
+          "date": "2026-10-08",
+          "label": "Before lighting change",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [],
+          "measurements": [
+            {
+              "roomId": "r",
+              "tool": "flicker",
+              "value": 3
+            }
+          ],
+          "createdAt": 100
+        },
+        {
+          "id": "after",
+          "date": "2026-10-09",
+          "label": "After",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Renamed Bedroom",
+              "primarySource": "led-warm",
+              "daylightLevel": "strong",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 0.5
+            }
+          ],
+          "screens": [],
+          "measurements": [
+            {
+              "roomId": "r",
+              "tool": "flicker",
+              "value": 1.6
+            }
+          ],
+          "createdAt": 100
+        }
+      ],
+      "provider": true,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"toggle-audit-compare\">Exit compare</button>\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><div class=\"light-audit-compare-head\">\n    <span class=\"light-audit-compare-label\">Before: Oct 8, 2026 — Before lighting change</span>\n    <span class=\"light-audit-compare-arrow\">→</span>\n    <span class=\"light-audit-compare-label\">After: Oct 9, 2026 — After</span>\n    <button class=\"import-btn import-btn-secondary light-audit-interpret-btn\" data-light-env-action=\"interpret-audit-compare\" data-light-env-old-id=\"a\" data-light-env-new-id=\"after\" title=\"Open the chat panel with a pre-filled comparison summary so the AI can interpret what changed.\">✨ Interpret changes</button>\n  </div><div class=\"light-audit-compare-rooms\"><div class=\"light-audit-compare-room light-audit-compare-room-improved\">\n      <div class=\"light-audit-compare-room-head\">\n        <span class=\"light-env-sev-dot light-env-sev-red\" title=\"Before\"></span>\n        <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n        <span class=\"light-env-sev-dot light-env-sev-yellow\" title=\"After\"></span>\n        <span class=\"light-audit-compare-room-name\">Renamed Bedroom</span>\n        <span class=\"light-audit-compare-verdict light-audit-compare-verdict-improved\">improved</span>\n      </div><div class=\"light-audit-compare-channels\"><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Banding</span>\n          <span class=\"light-audit-compare-channel-before\">Strong banding</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--green)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">Clear banding</span>\n        </div></div></div></div></details>",
+      "calls": [
+        {
+          "room": "r",
+          "screens": [],
+          "active": true
+        },
+        {
+          "room": "r",
+          "screens": [],
+          "active": true
+        }
+      ],
+      "prompt": "Here is a Light Environment audit comparison from my home. Walk me through what improved, what regressed, and what one or two changes would have the biggest circadian impact next.\n\nLight environment audit comparison\nBefore: 10/8/2026 (Before lighting change)\nAfter:  10/9/2026 (After)\n\nRoom: Bedroom — status Strong signal (room since removed)\n  Banding: Strong banding → —\n\nRoom: Renamed Bedroom — status (new) Worth checking\n  Banding: — → Clear banding"
+    },
+    {
+      "name": "banding-8",
+      "audits": [
+        {
+          "id": "a",
+          "date": "2026-10-08",
+          "label": "Before lighting change",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [],
+          "measurements": [
+            {
+              "roomId": "r",
+              "tool": "flicker",
+              "value": 3
+            }
+          ],
+          "createdAt": 100
+        },
+        {
+          "id": "after",
+          "date": "2026-10-09",
+          "label": "After",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Renamed Bedroom",
+              "primarySource": "led-warm",
+              "daylightLevel": "strong",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 0.5
+            }
+          ],
+          "screens": [],
+          "measurements": [
+            {
+              "roomId": "r",
+              "tool": "flicker",
+              "value": 8
+            }
+          ],
+          "createdAt": 100
+        }
+      ],
+      "provider": true,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"toggle-audit-compare\">Exit compare</button>\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><div class=\"light-audit-compare-head\">\n    <span class=\"light-audit-compare-label\">Before: Oct 8, 2026 — Before lighting change</span>\n    <span class=\"light-audit-compare-arrow\">→</span>\n    <span class=\"light-audit-compare-label\">After: Oct 9, 2026 — After</span>\n    <button class=\"import-btn import-btn-secondary light-audit-interpret-btn\" data-light-env-action=\"interpret-audit-compare\" data-light-env-old-id=\"a\" data-light-env-new-id=\"after\" title=\"Open the chat panel with a pre-filled comparison summary so the AI can interpret what changed.\">✨ Interpret changes</button>\n  </div><div class=\"light-audit-compare-rooms\"><div class=\"light-audit-compare-room light-audit-compare-room-measured\">\n      <div class=\"light-audit-compare-room-head\">\n        <span class=\"light-env-sev-dot light-env-sev-red\" title=\"Before\"></span>\n        <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n        <span class=\"light-env-sev-dot light-env-sev-red\" title=\"After\"></span>\n        <span class=\"light-audit-compare-room-name\">Renamed Bedroom</span>\n        <span class=\"light-audit-compare-verdict light-audit-compare-verdict-measured\">measured</span>\n      </div><div class=\"light-audit-compare-channels\"><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Banding</span>\n          <span class=\"light-audit-compare-channel-before\">Strong banding</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--red)\">↑</span>\n          <span class=\"light-audit-compare-channel-after\">Strong banding</span>\n        </div></div></div></div></details>",
+      "calls": [
+        {
+          "room": "r",
+          "screens": [],
+          "active": true
+        },
+        {
+          "room": "r",
+          "screens": [],
+          "active": true
+        }
+      ],
+      "prompt": "Here is a Light Environment audit comparison from my home. Walk me through what improved, what regressed, and what one or two changes would have the biggest circadian impact next.\n\nLight environment audit comparison\nBefore: 10/8/2026 (Before lighting change)\nAfter:  10/9/2026 (After)\n\nRoom: Bedroom — status Strong signal (room since removed)\n  Banding: Strong banding → —\n\nRoom: Renamed Bedroom — status (new) Strong signal\n  Banding: — → Strong banding"
+    },
+    {
+      "name": "removed",
+      "audits": [
+        {
+          "id": "a",
+          "date": "2026-10-08",
+          "label": "Before lighting change",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [],
+          "measurements": [
+            {
+              "id": "m0",
+              "roomId": "r",
+              "capturedAt": 100,
+              "tool": "lux",
+              "value": 51.5,
+              "extra": {
+                "source": "camera-estimate"
+              }
+            },
+            {
+              "id": "m1",
+              "roomId": "r",
+              "capturedAt": 101,
+              "tool": "darkness",
+              "value": 2.35,
+              "extra": {
+                "method": "meter-entry"
+              }
+            },
+            {
+              "id": "m2",
+              "roomId": "r",
+              "capturedAt": 102,
+              "tool": "flicker",
+              "value": 3
+            },
+            {
+              "id": "m3",
+              "roomId": "r",
+              "capturedAt": 103,
+              "tool": "cct",
+              "value": 5260
+            },
+            {
+              "id": "m4",
+              "roomId": "r",
+              "capturedAt": 104,
+              "tool": "spectrum",
+              "value": 0,
+              "extra": {
+                "cameraBlueRatioProxy": 0.73,
+                "melanopic": 0.1
+              }
+            }
+          ],
+          "createdAt": 100
+        },
+        {
+          "id": "after",
+          "date": "2026-10-09",
+          "label": "After",
+          "notes": "Stored notes retained",
+          "rooms": [],
+          "screens": [],
+          "measurements": [
+            {
+              "id": "m0",
+              "roomId": "r",
+              "capturedAt": 100,
+              "tool": "lux",
+              "value": 200,
+              "extra": {
+                "source": "camera-estimate"
+              }
+            },
+            {
+              "id": "m1",
+              "roomId": "r",
+              "capturedAt": 101,
+              "tool": "darkness",
+              "value": 0,
+              "extra": {
+                "method": "meter-entry"
+              }
+            },
+            {
+              "id": "m2",
+              "roomId": "r",
+              "capturedAt": 102,
+              "tool": "flicker",
+              "value": 0
+            },
+            {
+              "id": "m3",
+              "roomId": "r",
+              "capturedAt": 103,
+              "tool": "cct",
+              "value": 2700
+            },
+            {
+              "id": "m4",
+              "roomId": "r",
+              "capturedAt": 104,
+              "tool": "spectrum",
+              "value": 0,
+              "extra": {
+                "cameraBlueRatioProxy": 0.2
+              }
+            }
+          ],
+          "createdAt": 100
+        }
+      ],
+      "provider": true,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"toggle-audit-compare\">Exit compare</button>\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><div class=\"light-audit-compare-head\">\n    <span class=\"light-audit-compare-label\">Before: Oct 8, 2026 — Before lighting change</span>\n    <span class=\"light-audit-compare-arrow\">→</span>\n    <span class=\"light-audit-compare-label\">After: Oct 9, 2026 — After</span>\n    <button class=\"import-btn import-btn-secondary light-audit-interpret-btn\" data-light-env-action=\"interpret-audit-compare\" data-light-env-old-id=\"a\" data-light-env-new-id=\"after\" title=\"Open the chat panel with a pre-filled comparison summary so the AI can interpret what changed.\">✨ Interpret changes</button>\n  </div><div class=\"light-audit-compare-rooms\"><div class=\"light-audit-compare-room light-audit-compare-room-measured\">\n      <div class=\"light-audit-compare-room-head\">\n        <span class=\"light-env-sev-dot light-env-sev-red\" title=\"Before\"></span>\n        <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n        <span class=\"light-audit-sev-empty\"></span>\n        <span class=\"light-audit-compare-room-name\">Bedroom</span>\n        <span class=\"light-audit-compare-verdict light-audit-compare-verdict-measured\">measured</span>\n      </div><div class=\"light-audit-compare-channels\"><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Brightness</span>\n          <span class=\"light-audit-compare-channel-before\">~52 lux (camera estimate)</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n          <span class=\"light-audit-compare-channel-after\">—</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Sleep light</span>\n          <span class=\"light-audit-compare-channel-before\">2.35 lux (meter)</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n          <span class=\"light-audit-compare-channel-after\">—</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Banding</span>\n          <span class=\"light-audit-compare-channel-before\">Strong banding</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n          <span class=\"light-audit-compare-channel-after\">—</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Warm / cool</span>\n          <span class=\"light-audit-compare-channel-before\">~5300 K</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n          <span class=\"light-audit-compare-channel-after\">—</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\" title=\"Normalized phone-camera RGB blue ratio; not CIE melanopic EDI\">Camera blue proxy</span>\n          <span class=\"light-audit-compare-channel-before\">73%</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n          <span class=\"light-audit-compare-channel-after\">—</span>\n        </div></div></div></div></details>",
+      "calls": [
+        {
+          "room": "r",
+          "screens": [],
+          "active": true
+        }
+      ],
+      "prompt": "Here is a Light Environment audit comparison from my home. Walk me through what improved, what regressed, and what one or two changes would have the biggest circadian impact next.\n\nLight environment audit comparison\nBefore: 10/8/2026 (Before lighting change)\nAfter:  10/9/2026 (After)\n\nRoom: Bedroom — status Strong signal (room since removed)\n  Brightness: ~52 lux (camera estimate) → —\n  Sleep light: 2.35 lux (meter) → —\n  Banding: Strong banding → —\n  Warm / cool: ~5300 K → —\n  Camera RGB blue-ratio proxy (not melanopic EDI): 73% → —"
+    },
+    {
+      "name": "added",
+      "audits": [
+        {
+          "id": "a",
+          "date": "2026-10-08",
+          "label": "Before lighting change",
+          "notes": "Stored notes retained",
+          "rooms": [],
+          "screens": [],
+          "measurements": [
+            {
+              "id": "m0",
+              "roomId": "r",
+              "capturedAt": 100,
+              "tool": "lux",
+              "value": 51.5,
+              "extra": {
+                "source": "camera-estimate"
+              }
+            },
+            {
+              "id": "m1",
+              "roomId": "r",
+              "capturedAt": 101,
+              "tool": "darkness",
+              "value": 2.35,
+              "extra": {
+                "method": "meter-entry"
+              }
+            },
+            {
+              "id": "m2",
+              "roomId": "r",
+              "capturedAt": 102,
+              "tool": "flicker",
+              "value": 3
+            },
+            {
+              "id": "m3",
+              "roomId": "r",
+              "capturedAt": 103,
+              "tool": "cct",
+              "value": 5260
+            },
+            {
+              "id": "m4",
+              "roomId": "r",
+              "capturedAt": 104,
+              "tool": "spectrum",
+              "value": 0,
+              "extra": {
+                "cameraBlueRatioProxy": 0.73,
+                "melanopic": 0.1
+              }
+            }
+          ],
+          "createdAt": 100
+        },
+        {
+          "id": "after",
+          "date": "2026-10-09",
+          "label": "After",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Renamed Bedroom",
+              "primarySource": "led-warm",
+              "daylightLevel": "strong",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 0.5
+            }
+          ],
+          "screens": [],
+          "measurements": [
+            {
+              "id": "m0",
+              "roomId": "r",
+              "capturedAt": 100,
+              "tool": "lux",
+              "value": 200,
+              "extra": {
+                "source": "camera-estimate"
+              }
+            },
+            {
+              "id": "m1",
+              "roomId": "r",
+              "capturedAt": 101,
+              "tool": "darkness",
+              "value": 0,
+              "extra": {
+                "method": "meter-entry"
+              }
+            },
+            {
+              "id": "m2",
+              "roomId": "r",
+              "capturedAt": 102,
+              "tool": "flicker",
+              "value": 0
+            },
+            {
+              "id": "m3",
+              "roomId": "r",
+              "capturedAt": 103,
+              "tool": "cct",
+              "value": 2700
+            },
+            {
+              "id": "m4",
+              "roomId": "r",
+              "capturedAt": 104,
+              "tool": "spectrum",
+              "value": 0,
+              "extra": {
+                "cameraBlueRatioProxy": 0.2
+              }
+            }
+          ],
+          "createdAt": 100
+        }
+      ],
+      "provider": true,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"toggle-audit-compare\">Exit compare</button>\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><div class=\"light-audit-compare-head\">\n    <span class=\"light-audit-compare-label\">Before: Oct 8, 2026 — Before lighting change</span>\n    <span class=\"light-audit-compare-arrow\">→</span>\n    <span class=\"light-audit-compare-label\">After: Oct 9, 2026 — After</span>\n    <button class=\"import-btn import-btn-secondary light-audit-interpret-btn\" data-light-env-action=\"interpret-audit-compare\" data-light-env-old-id=\"a\" data-light-env-new-id=\"after\" title=\"Open the chat panel with a pre-filled comparison summary so the AI can interpret what changed.\">✨ Interpret changes</button>\n  </div><div class=\"light-audit-compare-rooms\"><div class=\"light-audit-compare-room light-audit-compare-room-measured\">\n      <div class=\"light-audit-compare-room-head\">\n        <span class=\"light-audit-sev-empty\"></span>\n        <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n        <span class=\"light-env-sev-dot light-env-sev-green\" title=\"After\"></span>\n        <span class=\"light-audit-compare-room-name\">Renamed Bedroom</span>\n        <span class=\"light-audit-compare-verdict light-audit-compare-verdict-measured\">measured</span>\n      </div><div class=\"light-audit-compare-channels\"><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Brightness</span>\n          <span class=\"light-audit-compare-channel-before\">—</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n          <span class=\"light-audit-compare-channel-after\">~200 lux (camera estimate)</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Sleep light</span>\n          <span class=\"light-audit-compare-channel-before\">—</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n          <span class=\"light-audit-compare-channel-after\">0.00 lux (meter)</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Banding</span>\n          <span class=\"light-audit-compare-channel-before\">—</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n          <span class=\"light-audit-compare-channel-after\">No banding detected</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Warm / cool</span>\n          <span class=\"light-audit-compare-channel-before\">—</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n          <span class=\"light-audit-compare-channel-after\">~2700 K</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\" title=\"Normalized phone-camera RGB blue ratio; not CIE melanopic EDI\">Camera blue proxy</span>\n          <span class=\"light-audit-compare-channel-before\">—</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n          <span class=\"light-audit-compare-channel-after\">20%</span>\n        </div></div></div></div></details>",
+      "calls": [
+        {
+          "room": "r",
+          "screens": [],
+          "active": true
+        }
+      ],
+      "prompt": "Here is a Light Environment audit comparison from my home. Walk me through what improved, what regressed, and what one or two changes would have the biggest circadian impact next.\n\nLight environment audit comparison\nBefore: 10/8/2026 (Before lighting change)\nAfter:  10/9/2026 (After)\n\nRoom: Renamed Bedroom — status (new) No concern flagged\n  Brightness: — → ~200 lux (camera estimate)\n  Sleep light: — → 0.00 lux (meter)\n  Banding: — → No banding detected\n  Warm / cool: — → ~2700 K\n  Camera RGB blue-ratio proxy (not melanopic EDI): — → 20%"
+    },
+    {
+      "name": "neither",
+      "audits": [
+        {
+          "id": "a",
+          "date": "2026-10-08",
+          "label": "Before lighting change",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [],
+          "measurements": [],
+          "createdAt": 100
+        },
+        {
+          "id": "after",
+          "date": "2026-10-09",
+          "label": "After",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [],
+          "measurements": [],
+          "createdAt": 100
+        }
+      ],
+      "provider": true,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"toggle-audit-compare\">Exit compare</button>\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><div class=\"light-audit-compare-head\">\n    <span class=\"light-audit-compare-label\">Before: Oct 8, 2026 — Before lighting change</span>\n    <span class=\"light-audit-compare-arrow\">→</span>\n    <span class=\"light-audit-compare-label\">After: Oct 9, 2026 — After</span>\n    <button class=\"import-btn import-btn-secondary light-audit-interpret-btn\" data-light-env-action=\"interpret-audit-compare\" data-light-env-old-id=\"a\" data-light-env-new-id=\"after\" title=\"Open the chat panel with a pre-filled comparison summary so the AI can interpret what changed.\">✨ Interpret changes</button>\n  </div><div class=\"light-audit-compare-rooms\"><p class=\"light-audit-empty\">Both audits have rooms but no measurements taken yet — nothing to compare. Use the Light Tools above to capture readings, then save another audit.</p></div></details>",
+      "calls": [
+        {
+          "room": "r",
+          "screens": [],
+          "active": true
+        },
+        {
+          "room": "r",
+          "screens": [],
+          "active": true
+        }
+      ],
+      "prompt": "Here is a Light Environment audit comparison from my home. Walk me through what improved, what regressed, and what one or two changes would have the biggest circadian impact next.\n\nLight environment audit comparison\nBefore: 10/8/2026 (Before lighting change)\nAfter:  10/9/2026 (After)\n\nRoom: Bedroom — status Needs attention → Needs attention\n  (no measurements)"
+    },
+    {
+      "name": "same-name-different-id",
+      "audits": [
+        {
+          "id": "a",
+          "date": "2026-10-08",
+          "label": "Before lighting change",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [],
+          "measurements": [
+            {
+              "id": "m0",
+              "roomId": "r",
+              "capturedAt": 100,
+              "tool": "lux",
+              "value": 51.5,
+              "extra": {
+                "source": "camera-estimate"
+              }
+            },
+            {
+              "id": "m1",
+              "roomId": "r",
+              "capturedAt": 101,
+              "tool": "darkness",
+              "value": 2.35,
+              "extra": {
+                "method": "meter-entry"
+              }
+            },
+            {
+              "id": "m2",
+              "roomId": "r",
+              "capturedAt": 102,
+              "tool": "flicker",
+              "value": 3
+            },
+            {
+              "id": "m3",
+              "roomId": "r",
+              "capturedAt": 103,
+              "tool": "cct",
+              "value": 5260
+            },
+            {
+              "id": "m4",
+              "roomId": "r",
+              "capturedAt": 104,
+              "tool": "spectrum",
+              "value": 0,
+              "extra": {
+                "cameraBlueRatioProxy": 0.73,
+                "melanopic": 0.1
+              }
+            }
+          ],
+          "createdAt": 100
+        },
+        {
+          "id": "after",
+          "date": "2026-10-09",
+          "label": "After",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "other",
+              "name": "Bedroom",
+              "primarySource": "led-warm",
+              "daylightLevel": "strong",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 0.5
+            }
+          ],
+          "screens": [],
+          "measurements": [
+            {
+              "id": "m0",
+              "roomId": "other",
+              "capturedAt": 100,
+              "tool": "lux",
+              "value": 200,
+              "extra": {
+                "source": "camera-estimate"
+              }
+            },
+            {
+              "id": "m1",
+              "roomId": "other",
+              "capturedAt": 101,
+              "tool": "darkness",
+              "value": 0,
+              "extra": {
+                "method": "meter-entry"
+              }
+            },
+            {
+              "id": "m2",
+              "roomId": "other",
+              "capturedAt": 102,
+              "tool": "flicker",
+              "value": 0
+            },
+            {
+              "id": "m3",
+              "roomId": "other",
+              "capturedAt": 103,
+              "tool": "cct",
+              "value": 2700
+            },
+            {
+              "id": "m4",
+              "roomId": "other",
+              "capturedAt": 104,
+              "tool": "spectrum",
+              "value": 0,
+              "extra": {
+                "cameraBlueRatioProxy": 0.2
+              }
+            }
+          ],
+          "createdAt": 100
+        }
+      ],
+      "provider": true,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"toggle-audit-compare\">Exit compare</button>\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><div class=\"light-audit-compare-head\">\n    <span class=\"light-audit-compare-label\">Before: Oct 8, 2026 — Before lighting change</span>\n    <span class=\"light-audit-compare-arrow\">→</span>\n    <span class=\"light-audit-compare-label\">After: Oct 9, 2026 — After</span>\n    <button class=\"import-btn import-btn-secondary light-audit-interpret-btn\" data-light-env-action=\"interpret-audit-compare\" data-light-env-old-id=\"a\" data-light-env-new-id=\"after\" title=\"Open the chat panel with a pre-filled comparison summary so the AI can interpret what changed.\">✨ Interpret changes</button>\n  </div><div class=\"light-audit-compare-rooms\"><div class=\"light-audit-compare-room light-audit-compare-room-measured\">\n      <div class=\"light-audit-compare-room-head\">\n        <span class=\"light-env-sev-dot light-env-sev-red\" title=\"Before\"></span>\n        <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n        <span class=\"light-audit-sev-empty\"></span>\n        <span class=\"light-audit-compare-room-name\">Bedroom</span>\n        <span class=\"light-audit-compare-verdict light-audit-compare-verdict-measured\">measured</span>\n      </div><div class=\"light-audit-compare-channels\"><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Brightness</span>\n          <span class=\"light-audit-compare-channel-before\">~52 lux (camera estimate)</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n          <span class=\"light-audit-compare-channel-after\">—</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Sleep light</span>\n          <span class=\"light-audit-compare-channel-before\">2.35 lux (meter)</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n          <span class=\"light-audit-compare-channel-after\">—</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Banding</span>\n          <span class=\"light-audit-compare-channel-before\">Strong banding</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n          <span class=\"light-audit-compare-channel-after\">—</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Warm / cool</span>\n          <span class=\"light-audit-compare-channel-before\">~5300 K</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n          <span class=\"light-audit-compare-channel-after\">—</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\" title=\"Normalized phone-camera RGB blue ratio; not CIE melanopic EDI\">Camera blue proxy</span>\n          <span class=\"light-audit-compare-channel-before\">73%</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n          <span class=\"light-audit-compare-channel-after\">—</span>\n        </div></div></div><div class=\"light-audit-compare-room light-audit-compare-room-measured\">\n      <div class=\"light-audit-compare-room-head\">\n        <span class=\"light-audit-sev-empty\"></span>\n        <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n        <span class=\"light-env-sev-dot light-env-sev-green\" title=\"After\"></span>\n        <span class=\"light-audit-compare-room-name\">Bedroom</span>\n        <span class=\"light-audit-compare-verdict light-audit-compare-verdict-measured\">measured</span>\n      </div><div class=\"light-audit-compare-channels\"><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Brightness</span>\n          <span class=\"light-audit-compare-channel-before\">—</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n          <span class=\"light-audit-compare-channel-after\">~200 lux (camera estimate)</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Sleep light</span>\n          <span class=\"light-audit-compare-channel-before\">—</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n          <span class=\"light-audit-compare-channel-after\">0.00 lux (meter)</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Banding</span>\n          <span class=\"light-audit-compare-channel-before\">—</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n          <span class=\"light-audit-compare-channel-after\">No banding detected</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Warm / cool</span>\n          <span class=\"light-audit-compare-channel-before\">—</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n          <span class=\"light-audit-compare-channel-after\">~2700 K</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\" title=\"Normalized phone-camera RGB blue ratio; not CIE melanopic EDI\">Camera blue proxy</span>\n          <span class=\"light-audit-compare-channel-before\">—</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n          <span class=\"light-audit-compare-channel-after\">20%</span>\n        </div></div></div></div></details>",
+      "calls": [
+        {
+          "room": "r",
+          "screens": [],
+          "active": true
+        },
+        {
+          "room": "other",
+          "screens": [],
+          "active": true
+        }
+      ],
+      "prompt": "Here is a Light Environment audit comparison from my home. Walk me through what improved, what regressed, and what one or two changes would have the biggest circadian impact next.\n\nLight environment audit comparison\nBefore: 10/8/2026 (Before lighting change)\nAfter:  10/9/2026 (After)\n\nRoom: Bedroom — status Strong signal → No concern flagged\n  Brightness: ~52 lux (camera estimate) → ~200 lux (camera estimate)\n  Sleep light: 2.35 lux (meter) → 0.00 lux (meter)\n  Banding: Strong banding → No banding detected\n  Warm / cool: ~5300 K → ~2700 K\n  Camera RGB blue-ratio proxy (not melanopic EDI): 73% → 20%"
+    },
+    {
+      "name": "legacy-name",
+      "audits": [
+        {
+          "id": "a",
+          "date": "2026-10-08",
+          "label": "Before lighting change",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "name": "Old bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [],
+          "measurements": [
+            {
+              "id": "m0",
+              "capturedAt": 100,
+              "tool": "lux",
+              "value": 51.5,
+              "extra": {
+                "source": "camera-estimate"
+              }
+            },
+            {
+              "id": "m1",
+              "capturedAt": 101,
+              "tool": "darkness",
+              "value": 2.35,
+              "extra": {
+                "method": "meter-entry"
+              }
+            },
+            {
+              "id": "m2",
+              "capturedAt": 102,
+              "tool": "flicker",
+              "value": 3
+            },
+            {
+              "id": "m3",
+              "capturedAt": 103,
+              "tool": "cct",
+              "value": 5260
+            },
+            {
+              "id": "m4",
+              "capturedAt": 104,
+              "tool": "spectrum",
+              "value": 0,
+              "extra": {
+                "cameraBlueRatioProxy": 0.73,
+                "melanopic": 0.1
+              }
+            }
+          ],
+          "createdAt": 100
+        },
+        {
+          "id": "after",
+          "date": "2026-10-09",
+          "label": "After",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "name": "Old bedroom",
+              "primarySource": "led-warm",
+              "daylightLevel": "strong",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 0.5
+            }
+          ],
+          "screens": [],
+          "measurements": [
+            {
+              "id": "m0",
+              "capturedAt": 100,
+              "tool": "lux",
+              "value": 200,
+              "extra": {
+                "source": "camera-estimate"
+              }
+            },
+            {
+              "id": "m1",
+              "capturedAt": 101,
+              "tool": "darkness",
+              "value": 0,
+              "extra": {
+                "method": "meter-entry"
+              }
+            },
+            {
+              "id": "m2",
+              "capturedAt": 102,
+              "tool": "flicker",
+              "value": 0
+            },
+            {
+              "id": "m3",
+              "capturedAt": 103,
+              "tool": "cct",
+              "value": 2700
+            },
+            {
+              "id": "m4",
+              "capturedAt": 104,
+              "tool": "spectrum",
+              "value": 0,
+              "extra": {
+                "cameraBlueRatioProxy": 0.2
+              }
+            }
+          ],
+          "createdAt": 100
+        }
+      ],
+      "provider": true,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"toggle-audit-compare\">Exit compare</button>\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><div class=\"light-audit-compare-head\">\n    <span class=\"light-audit-compare-label\">Before: Oct 8, 2026 — Before lighting change</span>\n    <span class=\"light-audit-compare-arrow\">→</span>\n    <span class=\"light-audit-compare-label\">After: Oct 9, 2026 — After</span>\n    <button class=\"import-btn import-btn-secondary light-audit-interpret-btn\" data-light-env-action=\"interpret-audit-compare\" data-light-env-old-id=\"a\" data-light-env-new-id=\"after\" title=\"Open the chat panel with a pre-filled comparison summary so the AI can interpret what changed.\">✨ Interpret changes</button>\n  </div><div class=\"light-audit-compare-rooms\"><div class=\"light-audit-compare-room light-audit-compare-room-improved\">\n      <div class=\"light-audit-compare-room-head\">\n        <span class=\"light-env-sev-dot light-env-sev-red\" title=\"Before\"></span>\n        <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n        <span class=\"light-env-sev-dot light-env-sev-green\" title=\"After\"></span>\n        <span class=\"light-audit-compare-room-name\">Old bedroom</span>\n        <span class=\"light-audit-compare-verdict light-audit-compare-verdict-improved\">improved</span>\n      </div><div class=\"light-audit-compare-channels\"><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Brightness</span>\n          <span class=\"light-audit-compare-channel-before\">~52 lux (camera estimate)</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">↑</span>\n          <span class=\"light-audit-compare-channel-after\">~200 lux (camera estimate)</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Sleep light</span>\n          <span class=\"light-audit-compare-channel-before\">2.35 lux (meter)</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">0.00 lux (meter)</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Banding</span>\n          <span class=\"light-audit-compare-channel-before\">Strong banding</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--green)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">No banding detected</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Warm / cool</span>\n          <span class=\"light-audit-compare-channel-before\">~5300 K</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">~2700 K</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\" title=\"Normalized phone-camera RGB blue ratio; not CIE melanopic EDI\">Camera blue proxy</span>\n          <span class=\"light-audit-compare-channel-before\">73%</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--green)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">20%</span>\n        </div></div></div></div></details>",
+      "calls": [
+        {
+          "screens": [],
+          "active": true
+        },
+        {
+          "screens": [],
+          "active": true
+        }
+      ],
+      "prompt": "Here is a Light Environment audit comparison from my home. Walk me through what improved, what regressed, and what one or two changes would have the biggest circadian impact next.\n\nLight environment audit comparison\nBefore: 10/8/2026 (Before lighting change)\nAfter:  10/9/2026 (After)\n\nRoom: Old bedroom — status Strong signal → No concern flagged\n  Brightness: ~52 lux (camera estimate) → ~200 lux (camera estimate)\n  Sleep light: 2.35 lux (meter) → 0.00 lux (meter)\n  Banding: Strong banding → No banding detected\n  Warm / cool: ~5300 K → ~2700 K\n  Camera RGB blue-ratio proxy (not melanopic EDI): 73% → 20%"
+    },
+    {
+      "name": "duplicate-names",
+      "audits": [
+        {
+          "id": "a",
+          "date": "2026-10-08",
+          "label": "Before lighting change",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            },
+            {
+              "id": "other",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [],
+          "measurements": [
+            {
+              "id": "m0",
+              "roomId": "r",
+              "capturedAt": 100,
+              "tool": "lux",
+              "value": 51.5,
+              "extra": {
+                "source": "camera-estimate"
+              }
+            },
+            {
+              "id": "m1",
+              "roomId": "r",
+              "capturedAt": 101,
+              "tool": "darkness",
+              "value": 2.35,
+              "extra": {
+                "method": "meter-entry"
+              }
+            },
+            {
+              "id": "m2",
+              "roomId": "r",
+              "capturedAt": 102,
+              "tool": "flicker",
+              "value": 3
+            },
+            {
+              "id": "m3",
+              "roomId": "r",
+              "capturedAt": 103,
+              "tool": "cct",
+              "value": 5260
+            },
+            {
+              "id": "m4",
+              "roomId": "r",
+              "capturedAt": 104,
+              "tool": "spectrum",
+              "value": 0,
+              "extra": {
+                "cameraBlueRatioProxy": 0.73,
+                "melanopic": 0.1
+              }
+            },
+            {
+              "roomId": "other",
+              "tool": "lux",
+              "value": 150
+            }
+          ],
+          "createdAt": 100
+        },
+        {
+          "id": "after",
+          "date": "2026-10-09",
+          "label": "After",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-warm",
+              "daylightLevel": "strong",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 0.5
+            },
+            {
+              "id": "other",
+              "name": "Bedroom",
+              "primarySource": "led-warm",
+              "daylightLevel": "strong",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 0.5
+            }
+          ],
+          "screens": [],
+          "measurements": [
+            {
+              "id": "m0",
+              "roomId": "r",
+              "capturedAt": 100,
+              "tool": "lux",
+              "value": 200,
+              "extra": {
+                "source": "camera-estimate"
+              }
+            },
+            {
+              "id": "m1",
+              "roomId": "r",
+              "capturedAt": 101,
+              "tool": "darkness",
+              "value": 0,
+              "extra": {
+                "method": "meter-entry"
+              }
+            },
+            {
+              "id": "m2",
+              "roomId": "r",
+              "capturedAt": 102,
+              "tool": "flicker",
+              "value": 0
+            },
+            {
+              "id": "m3",
+              "roomId": "r",
+              "capturedAt": 103,
+              "tool": "cct",
+              "value": 2700
+            },
+            {
+              "id": "m4",
+              "roomId": "r",
+              "capturedAt": 104,
+              "tool": "spectrum",
+              "value": 0,
+              "extra": {
+                "cameraBlueRatioProxy": 0.2
+              }
+            },
+            {
+              "roomId": "other",
+              "tool": "lux",
+              "value": 30
+            }
+          ],
+          "createdAt": 100
+        }
+      ],
+      "provider": true,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"toggle-audit-compare\">Exit compare</button>\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><div class=\"light-audit-compare-head\">\n    <span class=\"light-audit-compare-label\">Before: Oct 8, 2026 — Before lighting change</span>\n    <span class=\"light-audit-compare-arrow\">→</span>\n    <span class=\"light-audit-compare-label\">After: Oct 9, 2026 — After</span>\n    <button class=\"import-btn import-btn-secondary light-audit-interpret-btn\" data-light-env-action=\"interpret-audit-compare\" data-light-env-old-id=\"a\" data-light-env-new-id=\"after\" title=\"Open the chat panel with a pre-filled comparison summary so the AI can interpret what changed.\">✨ Interpret changes</button>\n  </div><div class=\"light-audit-compare-rooms\"><div class=\"light-audit-compare-room light-audit-compare-room-improved\">\n      <div class=\"light-audit-compare-room-head\">\n        <span class=\"light-env-sev-dot light-env-sev-red\" title=\"Before\"></span>\n        <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n        <span class=\"light-env-sev-dot light-env-sev-green\" title=\"After\"></span>\n        <span class=\"light-audit-compare-room-name\">Bedroom</span>\n        <span class=\"light-audit-compare-verdict light-audit-compare-verdict-improved\">improved</span>\n      </div><div class=\"light-audit-compare-channels\"><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Brightness</span>\n          <span class=\"light-audit-compare-channel-before\">~52 lux (camera estimate)</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">↑</span>\n          <span class=\"light-audit-compare-channel-after\">~200 lux (camera estimate)</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Sleep light</span>\n          <span class=\"light-audit-compare-channel-before\">2.35 lux (meter)</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">0.00 lux (meter)</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Banding</span>\n          <span class=\"light-audit-compare-channel-before\">Strong banding</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--green)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">No banding detected</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Warm / cool</span>\n          <span class=\"light-audit-compare-channel-before\">~5300 K</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">~2700 K</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\" title=\"Normalized phone-camera RGB blue ratio; not CIE melanopic EDI\">Camera blue proxy</span>\n          <span class=\"light-audit-compare-channel-before\">73%</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--green)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">20%</span>\n        </div></div></div><div class=\"light-audit-compare-room light-audit-compare-room-improved\">\n      <div class=\"light-audit-compare-room-head\">\n        <span class=\"light-env-sev-dot light-env-sev-orange\" title=\"Before\"></span>\n        <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n        <span class=\"light-env-sev-dot light-env-sev-green\" title=\"After\"></span>\n        <span class=\"light-audit-compare-room-name\">Bedroom</span>\n        <span class=\"light-audit-compare-verdict light-audit-compare-verdict-improved\">improved</span>\n      </div><div class=\"light-audit-compare-channels\"><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Brightness</span>\n          <span class=\"light-audit-compare-channel-before\">150 lux (method unknown)</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">30 lux (method unknown)</span>\n        </div></div></div></div></details>",
+      "calls": [
+        {
+          "room": "r",
+          "screens": [],
+          "active": true
+        },
+        {
+          "room": "r",
+          "screens": [],
+          "active": true
+        },
+        {
+          "room": "other",
+          "screens": [],
+          "active": true
+        },
+        {
+          "room": "other",
+          "screens": [],
+          "active": true
+        }
+      ],
+      "prompt": "Here is a Light Environment audit comparison from my home. Walk me through what improved, what regressed, and what one or two changes would have the biggest circadian impact next.\n\nLight environment audit comparison\nBefore: 10/8/2026 (Before lighting change)\nAfter:  10/9/2026 (After)\n\nRoom: Bedroom — status Strong signal → No concern flagged\n  Brightness: ~52 lux (camera estimate) → ~200 lux (camera estimate)\n  Sleep light: 2.35 lux (meter) → 0.00 lux (meter)\n  Banding: Strong banding → No banding detected\n  Warm / cool: ~5300 K → ~2700 K\n  Camera RGB blue-ratio proxy (not melanopic EDI): 73% → 20%"
+    },
+    {
+      "name": "no-measurements",
+      "audits": [
+        {
+          "id": "a",
+          "date": "2026-10-08",
+          "label": "Before lighting change",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [],
+          "measurements": [],
+          "createdAt": 100
+        },
+        {
+          "id": "after",
+          "date": "2026-10-09",
+          "label": "After",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Renamed Bedroom",
+              "primarySource": "led-warm",
+              "daylightLevel": "strong",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 0.5
+            }
+          ],
+          "screens": [],
+          "measurements": [],
+          "createdAt": 100
+        }
+      ],
+      "provider": true,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"toggle-audit-compare\">Exit compare</button>\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><div class=\"light-audit-compare-head\">\n    <span class=\"light-audit-compare-label\">Before: Oct 8, 2026 — Before lighting change</span>\n    <span class=\"light-audit-compare-arrow\">→</span>\n    <span class=\"light-audit-compare-label\">After: Oct 9, 2026 — After</span>\n    <button class=\"import-btn import-btn-secondary light-audit-interpret-btn\" data-light-env-action=\"interpret-audit-compare\" data-light-env-old-id=\"a\" data-light-env-new-id=\"after\" title=\"Open the chat panel with a pre-filled comparison summary so the AI can interpret what changed.\">✨ Interpret changes</button>\n  </div><div class=\"light-audit-compare-rooms\"><div class=\"light-audit-compare-room light-audit-compare-room-improved\">\n      <div class=\"light-audit-compare-room-head\">\n        <span class=\"light-env-sev-dot light-env-sev-orange\" title=\"Before\"></span>\n        <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n        <span class=\"light-env-sev-dot light-env-sev-green\" title=\"After\"></span>\n        <span class=\"light-audit-compare-room-name\">Renamed Bedroom</span>\n        <span class=\"light-audit-compare-verdict light-audit-compare-verdict-improved\">improved</span>\n      </div></div></div></details>",
+      "calls": [
+        {
+          "room": "r",
+          "screens": [],
+          "active": true
+        },
+        {
+          "room": "r",
+          "screens": [],
+          "active": true
+        }
+      ],
+      "prompt": "Here is a Light Environment audit comparison from my home. Walk me through what improved, what regressed, and what one or two changes would have the biggest circadian impact next.\n\nLight environment audit comparison\nBefore: 10/8/2026 (Before lighting change)\nAfter:  10/9/2026 (After)\n\nRoom: Bedroom — status Needs attention (room since removed)\n  (no measurements)\n\nRoom: Renamed Bedroom — status (new) No concern flagged\n  (no measurements)"
+    },
+    {
+      "name": "no-rooms",
+      "audits": [
+        {
+          "id": "a",
+          "date": "2026-10-08",
+          "label": "Before lighting change",
+          "notes": "Stored notes retained",
+          "rooms": [],
+          "screens": [],
+          "measurements": [
+            {
+              "id": "m0",
+              "roomId": "r",
+              "capturedAt": 100,
+              "tool": "lux",
+              "value": 51.5,
+              "extra": {
+                "source": "camera-estimate"
+              }
+            },
+            {
+              "id": "m1",
+              "roomId": "r",
+              "capturedAt": 101,
+              "tool": "darkness",
+              "value": 2.35,
+              "extra": {
+                "method": "meter-entry"
+              }
+            },
+            {
+              "id": "m2",
+              "roomId": "r",
+              "capturedAt": 102,
+              "tool": "flicker",
+              "value": 3
+            },
+            {
+              "id": "m3",
+              "roomId": "r",
+              "capturedAt": 103,
+              "tool": "cct",
+              "value": 5260
+            },
+            {
+              "id": "m4",
+              "roomId": "r",
+              "capturedAt": 104,
+              "tool": "spectrum",
+              "value": 0,
+              "extra": {
+                "cameraBlueRatioProxy": 0.73,
+                "melanopic": 0.1
+              }
+            }
+          ],
+          "createdAt": 100
+        },
+        {
+          "id": "after",
+          "date": "2026-10-09",
+          "label": "After",
+          "notes": "Stored notes retained",
+          "rooms": [],
+          "screens": [],
+          "measurements": [
+            {
+              "id": "m0",
+              "roomId": "r",
+              "capturedAt": 100,
+              "tool": "lux",
+              "value": 200,
+              "extra": {
+                "source": "camera-estimate"
+              }
+            },
+            {
+              "id": "m1",
+              "roomId": "r",
+              "capturedAt": 101,
+              "tool": "darkness",
+              "value": 0,
+              "extra": {
+                "method": "meter-entry"
+              }
+            },
+            {
+              "id": "m2",
+              "roomId": "r",
+              "capturedAt": 102,
+              "tool": "flicker",
+              "value": 0
+            },
+            {
+              "id": "m3",
+              "roomId": "r",
+              "capturedAt": 103,
+              "tool": "cct",
+              "value": 2700
+            },
+            {
+              "id": "m4",
+              "roomId": "r",
+              "capturedAt": 104,
+              "tool": "spectrum",
+              "value": 0,
+              "extra": {
+                "cameraBlueRatioProxy": 0.2
+              }
+            }
+          ],
+          "createdAt": 100
+        }
+      ],
+      "provider": true,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"toggle-audit-compare\">Exit compare</button>\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><div class=\"light-audit-compare-head\">\n    <span class=\"light-audit-compare-label\">Before: Oct 8, 2026 — Before lighting change</span>\n    <span class=\"light-audit-compare-arrow\">→</span>\n    <span class=\"light-audit-compare-label\">After: Oct 9, 2026 — After</span>\n    <button class=\"import-btn import-btn-secondary light-audit-interpret-btn\" data-light-env-action=\"interpret-audit-compare\" data-light-env-old-id=\"a\" data-light-env-new-id=\"after\" title=\"Open the chat panel with a pre-filled comparison summary so the AI can interpret what changed.\">✨ Interpret changes</button>\n  </div><div class=\"light-audit-compare-rooms\"><p class=\"light-audit-empty\">Both audits have rooms but no measurements taken yet — nothing to compare. Use the Light Tools above to capture readings, then save another audit.</p></div></details>",
+      "calls": [],
+      "prompt": "Here is a Light Environment audit comparison from my home. Walk me through what improved, what regressed, and what one or two changes would have the biggest circadian impact next.\n\nLight environment audit comparison\nBefore: 10/8/2026 (Before lighting change)\nAfter:  10/9/2026 (After)"
+    },
+    {
+      "name": "literal",
+      "audits": [
+        {
+          "id": "a",
+          "date": "2026-10-08",
+          "label": "\"><img src=x onerror=alert(1)> & literal",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "r",
+              "name": "\"><img src=x onerror=alert(1)> & literal",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [],
+          "measurements": [
+            {
+              "id": "m0",
+              "roomId": "r",
+              "capturedAt": 100,
+              "tool": "lux",
+              "value": 51.5,
+              "extra": {
+                "source": "camera-estimate"
+              }
+            },
+            {
+              "id": "m1",
+              "roomId": "r",
+              "capturedAt": 101,
+              "tool": "darkness",
+              "value": 2.35,
+              "extra": {
+                "method": "meter-entry"
+              }
+            },
+            {
+              "id": "m2",
+              "roomId": "r",
+              "capturedAt": 102,
+              "tool": "flicker",
+              "value": 3
+            },
+            {
+              "id": "m3",
+              "roomId": "r",
+              "capturedAt": 103,
+              "tool": "cct",
+              "value": 5260
+            },
+            {
+              "id": "m4",
+              "roomId": "r",
+              "capturedAt": 104,
+              "tool": "spectrum",
+              "value": 0,
+              "extra": {
+                "cameraBlueRatioProxy": 0.73,
+                "melanopic": 0.1
+              }
+            }
+          ],
+          "createdAt": 100
+        },
+        {
+          "id": "after",
+          "date": "2026-10-09",
+          "label": "\"><img src=x onerror=alert(1)> & literal",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "r",
+              "name": "\"><img src=x onerror=alert(1)> & literal",
+              "primarySource": "led-warm",
+              "daylightLevel": "strong",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 0.5
+            }
+          ],
+          "screens": [],
+          "measurements": [
+            {
+              "id": "m0",
+              "roomId": "r",
+              "capturedAt": 100,
+              "tool": "lux",
+              "value": 200,
+              "extra": {
+                "source": "camera-estimate"
+              }
+            },
+            {
+              "id": "m1",
+              "roomId": "r",
+              "capturedAt": 101,
+              "tool": "darkness",
+              "value": 0,
+              "extra": {
+                "method": "meter-entry"
+              }
+            },
+            {
+              "id": "m2",
+              "roomId": "r",
+              "capturedAt": 102,
+              "tool": "flicker",
+              "value": 0
+            },
+            {
+              "id": "m3",
+              "roomId": "r",
+              "capturedAt": 103,
+              "tool": "cct",
+              "value": 2700
+            },
+            {
+              "id": "m4",
+              "roomId": "r",
+              "capturedAt": 104,
+              "tool": "spectrum",
+              "value": 0,
+              "extra": {
+                "cameraBlueRatioProxy": 0.2
+              }
+            }
+          ],
+          "createdAt": 100
+        }
+      ],
+      "provider": true,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"toggle-audit-compare\">Exit compare</button>\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><div class=\"light-audit-compare-head\">\n    <span class=\"light-audit-compare-label\">Before: Oct 8, 2026 — &quot;&gt;&lt;img src=x onerror=alert(1)&gt; &amp; literal</span>\n    <span class=\"light-audit-compare-arrow\">→</span>\n    <span class=\"light-audit-compare-label\">After: Oct 9, 2026 — &quot;&gt;&lt;img src=x onerror=alert(1)&gt; &amp; literal</span>\n    <button class=\"import-btn import-btn-secondary light-audit-interpret-btn\" data-light-env-action=\"interpret-audit-compare\" data-light-env-old-id=\"a\" data-light-env-new-id=\"after\" title=\"Open the chat panel with a pre-filled comparison summary so the AI can interpret what changed.\">✨ Interpret changes</button>\n  </div><div class=\"light-audit-compare-rooms\"><div class=\"light-audit-compare-room light-audit-compare-room-improved\">\n      <div class=\"light-audit-compare-room-head\">\n        <span class=\"light-env-sev-dot light-env-sev-red\" title=\"Before\"></span>\n        <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n        <span class=\"light-env-sev-dot light-env-sev-green\" title=\"After\"></span>\n        <span class=\"light-audit-compare-room-name\">&quot;&gt;&lt;img src=x onerror=alert(1)&gt; &amp; literal</span>\n        <span class=\"light-audit-compare-verdict light-audit-compare-verdict-improved\">improved</span>\n      </div><div class=\"light-audit-compare-channels\"><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Brightness</span>\n          <span class=\"light-audit-compare-channel-before\">~52 lux (camera estimate)</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">↑</span>\n          <span class=\"light-audit-compare-channel-after\">~200 lux (camera estimate)</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Sleep light</span>\n          <span class=\"light-audit-compare-channel-before\">2.35 lux (meter)</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">0.00 lux (meter)</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Banding</span>\n          <span class=\"light-audit-compare-channel-before\">Strong banding</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--green)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">No banding detected</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Warm / cool</span>\n          <span class=\"light-audit-compare-channel-before\">~5300 K</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">~2700 K</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\" title=\"Normalized phone-camera RGB blue ratio; not CIE melanopic EDI\">Camera blue proxy</span>\n          <span class=\"light-audit-compare-channel-before\">73%</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--green)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">20%</span>\n        </div></div></div></div></details>",
+      "calls": [
+        {
+          "room": "r",
+          "screens": [],
+          "active": true
+        },
+        {
+          "room": "r",
+          "screens": [],
+          "active": true
+        }
+      ],
+      "prompt": "Here is a Light Environment audit comparison from my home. Walk me through what improved, what regressed, and what one or two changes would have the biggest circadian impact next.\n\nLight environment audit comparison\nBefore: 10/8/2026 (\"><img src=x onerror=alert(1)> & literal)\nAfter:  10/9/2026 (\"><img src=x onerror=alert(1)> & literal)\n\nRoom: \"><img src=x onerror=alert(1)> & literal — status Strong signal → No concern flagged\n  Brightness: ~52 lux (camera estimate) → ~200 lux (camera estimate)\n  Sleep light: 2.35 lux (meter) → 0.00 lux (meter)\n  Banding: Strong banding → No banding detected\n  Warm / cool: ~5300 K → ~2700 K\n  Camera RGB blue-ratio proxy (not melanopic EDI): 73% → 20%"
+    },
+    {
+      "name": "history-note",
+      "audits": [
+        {
+          "id": "a",
+          "date": "2026-10-08",
+          "label": "Before lighting change",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [],
+          "measurements": [
+            {
+              "id": "m0",
+              "roomId": "r",
+              "capturedAt": 100,
+              "tool": "lux",
+              "value": 51.5,
+              "extra": {
+                "source": "camera-estimate"
+              }
+            },
+            {
+              "id": "m1",
+              "roomId": "r",
+              "capturedAt": 101,
+              "tool": "darkness",
+              "value": 2.35,
+              "extra": {
+                "method": "meter-entry"
+              }
+            },
+            {
+              "id": "m2",
+              "roomId": "r",
+              "capturedAt": 102,
+              "tool": "flicker",
+              "value": 3
+            },
+            {
+              "id": "m3",
+              "roomId": "r",
+              "capturedAt": 103,
+              "tool": "cct",
+              "value": 5260
+            },
+            {
+              "id": "m4",
+              "roomId": "r",
+              "capturedAt": 104,
+              "tool": "spectrum",
+              "value": 0,
+              "extra": {
+                "cameraBlueRatioProxy": 0.73,
+                "melanopic": 0.1
+              }
+            }
+          ],
+          "createdAt": 100
+        },
+        {
+          "id": "after",
+          "date": "2026-10-09",
+          "label": "After",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Renamed Bedroom",
+              "primarySource": "led-warm",
+              "daylightLevel": "strong",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 0.5
+            }
+          ],
+          "screens": [],
+          "measurements": [
+            {
+              "id": "m0",
+              "roomId": "r",
+              "capturedAt": 100,
+              "tool": "lux",
+              "value": 200,
+              "extra": {
+                "source": "camera-estimate"
+              }
+            },
+            {
+              "id": "m1",
+              "roomId": "r",
+              "capturedAt": 101,
+              "tool": "darkness",
+              "value": 0,
+              "extra": {
+                "method": "meter-entry"
+              }
+            },
+            {
+              "id": "m2",
+              "roomId": "r",
+              "capturedAt": 102,
+              "tool": "flicker",
+              "value": 0
+            },
+            {
+              "id": "m3",
+              "roomId": "r",
+              "capturedAt": 103,
+              "tool": "cct",
+              "value": 2700
+            },
+            {
+              "id": "m4",
+              "roomId": "r",
+              "capturedAt": 104,
+              "tool": "spectrum",
+              "value": 0,
+              "extra": {
+                "cameraBlueRatioProxy": 0.2
+              }
+            }
+          ],
+          "createdAt": 100
+        },
+        {
+          "id": "older",
+          "date": "2025-01-01",
+          "label": "Before lighting change",
+          "notes": "Stored notes retained",
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [],
+          "measurements": [
+            {
+              "id": "m0",
+              "roomId": "r",
+              "capturedAt": 100,
+              "tool": "lux",
+              "value": 51.5,
+              "extra": {
+                "source": "camera-estimate"
+              }
+            },
+            {
+              "id": "m1",
+              "roomId": "r",
+              "capturedAt": 101,
+              "tool": "darkness",
+              "value": 2.35,
+              "extra": {
+                "method": "meter-entry"
+              }
+            },
+            {
+              "id": "m2",
+              "roomId": "r",
+              "capturedAt": 102,
+              "tool": "flicker",
+              "value": 3
+            },
+            {
+              "id": "m3",
+              "roomId": "r",
+              "capturedAt": 103,
+              "tool": "cct",
+              "value": 5260
+            },
+            {
+              "id": "m4",
+              "roomId": "r",
+              "capturedAt": 104,
+              "tool": "spectrum",
+              "value": 0,
+              "extra": {
+                "cameraBlueRatioProxy": 0.73,
+                "melanopic": 0.1
+              }
+            }
+          ],
+          "createdAt": 100
+        }
+      ],
+      "provider": true,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"toggle-audit-compare\">Exit compare</button>\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><div class=\"light-audit-compare-head\">\n    <span class=\"light-audit-compare-label\">Before: Oct 8, 2026 — Before lighting change</span>\n    <span class=\"light-audit-compare-arrow\">→</span>\n    <span class=\"light-audit-compare-label\">After: Oct 9, 2026 — After</span>\n    <button class=\"import-btn import-btn-secondary light-audit-interpret-btn\" data-light-env-action=\"interpret-audit-compare\" data-light-env-old-id=\"a\" data-light-env-new-id=\"after\" title=\"Open the chat panel with a pre-filled comparison summary so the AI can interpret what changed.\">✨ Interpret changes</button>\n  </div><div class=\"light-audit-compare-note\">Comparing the two most recent audits. 1 earlier audit not shown.</div><div class=\"light-audit-compare-rooms\"><div class=\"light-audit-compare-room light-audit-compare-room-improved\">\n      <div class=\"light-audit-compare-room-head\">\n        <span class=\"light-env-sev-dot light-env-sev-red\" title=\"Before\"></span>\n        <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n        <span class=\"light-env-sev-dot light-env-sev-green\" title=\"After\"></span>\n        <span class=\"light-audit-compare-room-name\">Renamed Bedroom</span>\n        <span class=\"light-audit-compare-verdict light-audit-compare-verdict-improved\">improved</span>\n      </div><div class=\"light-audit-compare-channels\"><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Brightness</span>\n          <span class=\"light-audit-compare-channel-before\">~52 lux (camera estimate)</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">↑</span>\n          <span class=\"light-audit-compare-channel-after\">~200 lux (camera estimate)</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Sleep light</span>\n          <span class=\"light-audit-compare-channel-before\">2.35 lux (meter)</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">0.00 lux (meter)</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Banding</span>\n          <span class=\"light-audit-compare-channel-before\">Strong banding</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--green)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">No banding detected</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Warm / cool</span>\n          <span class=\"light-audit-compare-channel-before\">~5300 K</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">~2700 K</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\" title=\"Normalized phone-camera RGB blue ratio; not CIE melanopic EDI\">Camera blue proxy</span>\n          <span class=\"light-audit-compare-channel-before\">73%</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--green)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">20%</span>\n        </div></div></div></div></details>",
+      "calls": [
+        {
+          "room": "r",
+          "screens": [],
+          "active": true
+        },
+        {
+          "room": "r",
+          "screens": [],
+          "active": true
+        }
+      ],
+      "prompt": "Here is a Light Environment audit comparison from my home. Walk me through what improved, what regressed, and what one or two changes would have the biggest circadian impact next.\n\nLight environment audit comparison\nBefore: 10/8/2026 (Before lighting change)\nAfter:  10/9/2026 (After)\n\nRoom: Bedroom — status Strong signal (room since removed)\n  Brightness: ~52 lux (camera estimate) → —\n  Sleep light: 2.35 lux (meter) → —\n  Banding: Strong banding → —\n  Warm / cool: ~5300 K → —\n  Camera RGB blue-ratio proxy (not melanopic EDI): 73% → —\n\nRoom: Renamed Bedroom — status (new) No concern flagged\n  Brightness: — → ~200 lux (camera estimate)\n  Sleep light: — → 0.00 lux (meter)\n  Banding: — → No banding detected\n  Warm / cool: — → ~2700 K\n  Camera RGB blue-ratio proxy (not melanopic EDI): — → 20%"
+    }
+  ]
+}

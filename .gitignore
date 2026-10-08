@@ -2292,3 +2292,6 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /js/light-audit-classes.js
 /tests/light-audit-card.test.js
 /tests/playwright/light-audit-card-owned.spec.js
+
+/tests/helpers/light-audit-comparison-contract.js
+/tests/light-audit-compare.test.js

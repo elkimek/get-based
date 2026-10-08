@@ -513,14 +513,14 @@ const {
   auditModule.lightEnvAuditActionHandlers.setLightAuditsBlockOpen(true);
   const manuallyOpenAudits = auditModule.renderLightAuditsBlock();
   assert('Audit block can stay open without an expanded audit card',
-    manuallyOpenAudits.includes('class="light-env-block light-audits-block" open') &&
-    manuallyOpenAudits.includes('data-light-env-action="set-audits-block-open"') &&
+    new JSDOM(manuallyOpenAudits).window.document.querySelector('[data-light-env-action="toggle-audits-block"]')?.getAttribute('aria-expanded') === 'true' &&
+    !new JSDOM(manuallyOpenAudits).window.document.querySelector('.light-audits-body')?.hasAttribute('hidden') &&
     !manuallyOpenAudits.includes('ontoggle='));
   auditModule.lightEnvAuditActionHandlers.setLightAuditsBlockOpen(false);
   const manuallyClosedAudits = auditModule.renderLightAuditsBlock();
   assert('Audit block open state can be manually collapsed',
-    manuallyClosedAudits.includes('class="light-env-block light-audits-block"') &&
-    !manuallyClosedAudits.includes('class="light-env-block light-audits-block" open'));
+    new JSDOM(manuallyClosedAudits).window.document.querySelector('[data-light-env-action="toggle-audits-block"]')?.getAttribute('aria-expanded') === 'false' &&
+    new JSDOM(manuallyClosedAudits).window.document.querySelector('.light-audits-body')?.hasAttribute('hidden') === true);
 
   // ─── 11. Assessment surface renderers ───────────────────────────────
   console.log('%c 11. Assessment surface renderers ', 'font-weight:bold;color:#f59e0b');

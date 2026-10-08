@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1315 |
-| Internal import edges | 4548 |
+| Modules | 1317 |
+| Internal import edges | 4552 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -1381,7 +1381,7 @@ Native browser modules shipped with the static application.
 - [`js/light-devices.ts`](js/light-devices.ts) → [`js/components/LightDevicePresentation.svelte`](js/components/LightDevicePresentation.svelte), [`js/components/LightSessionPresentation.svelte`](js/components/LightSessionPresentation.svelte), [`js/light-device-library-presentation.ts`](js/light-device-library-presentation.ts), [`js/light-device-modal-loader.ts`](js/light-device-modal-loader.ts), [`js/light-device-session-engine.ts`](js/light-device-session-engine.ts), [`js/light-device-view-formatters.ts`](js/light-device-view-formatters.ts), [`js/light-devices-actions.ts`](js/light-devices-actions.ts), [`js/light-devices-runtime.ts`](js/light-devices-runtime.ts), [`js/light-devices-store.ts`](js/light-devices-store.ts), [`js/light-session-detail-presentation.ts`](js/light-session-detail-presentation.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/sun-body-silhouette.ts`](js/sun-body-silhouette.ts), [`js/sun-defaults.ts`](js/sun-defaults.ts), [`js/sun-spectrum.ts`](js/sun-spectrum.ts), [`js/sun.ts`](js/sun.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/light-env-actions.ts`](js/light-env-actions.ts) → [`js/utils.ts`](js/utils.ts)
 - [`js/light-env-ai-analysis.ts`](js/light-env-ai-analysis.ts) → [`js/ai-action-delegates.ts`](js/ai-action-delegates.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/ai-verdict-engine.ts`](js/ai-verdict-engine.ts), [`js/ai-verdict-owner.ts`](js/ai-verdict-owner.ts), [`js/components/LightEnvironmentAI.svelte`](js/components/LightEnvironmentAI.svelte), [`js/health-goals-utils.ts`](js/health-goals-utils.ts), [`js/light-env-evening.ts`](js/light-env-evening.ts), [`js/light-env-model.ts`](js/light-env-model.ts), [`js/light-environment-ai-presentation.ts`](js/light-environment-ai-presentation.ts), [`js/lighting-hardware-caveats.ts`](js/lighting-hardware-caveats.ts), [`js/state.ts`](js/state.ts)
-- [`js/light-env-audits.ts`](js/light-env-audits.ts) → [`js/components/LightAuditCard.svelte`](js/components/LightAuditCard.svelte), [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/light-audit-presentation.ts`](js/light-audit-presentation.ts), [`js/light-env-actions.ts`](js/light-env-actions.ts), [`js/state.ts`](js/state.ts), [`js/unique-id.ts`](js/unique-id.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/light-env-audits.ts`](js/light-env-audits.ts) → [`js/components/LightAuditBlock.svelte`](js/components/LightAuditBlock.svelte), [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/light-audit-presentation.ts`](js/light-audit-presentation.ts), [`js/state.ts`](js/state.ts), [`js/unique-id.ts`](js/unique-id.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/light-env-editor.ts`](js/light-env-editor.ts) → [`js/light-env-model.ts`](js/light-env-model.ts), [`js/light-env-screen-ui.ts`](js/light-env-screen-ui.ts), [`js/light-env-store.ts`](js/light-env-store.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/light-env-evening.ts`](js/light-env-evening.ts) → no in-scope imports
 - [`js/light-env-model.ts`](js/light-env-model.ts) → [`js/light-env-evening.ts`](js/light-env-evening.ts)
@@ -1442,9 +1442,21 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>LightAuditBlock.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightAuditBlock.svelte`](js/components/LightAuditBlock.svelte) → [`js/components/LightAuditCard.svelte`](js/components/LightAuditCard.svelte), [`js/components/LightAuditCompare.svelte`](js/components/LightAuditCompare.svelte), [`js/light-audit-classes.ts`](js/light-audit-classes.ts)
+
+</details>
+
 <details><summary><code>LightAuditCard.svelte</code> family — 1 module</summary>
 
 - [`js/components/LightAuditCard.svelte`](js/components/LightAuditCard.svelte) → [`js/components/LightAuditDetail.svelte`](js/components/LightAuditDetail.svelte), [`js/light-audit-classes.ts`](js/light-audit-classes.ts)
+
+</details>
+
+<details><summary><code>LightAuditCompare.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightAuditCompare.svelte`](js/components/LightAuditCompare.svelte) → [`js/light-audit-classes.ts`](js/light-audit-classes.ts)
 
 </details>
 
@@ -1636,7 +1648,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>LightEnvironmentSection.svelte</code> family — 1 module</summary>
 
-- [`js/components/LightEnvironmentSection.svelte`](js/components/LightEnvironmentSection.svelte) → [`js/components/LightEnvironmentQuickPicks.svelte`](js/components/LightEnvironmentQuickPicks.svelte), [`js/components/LightEnvironmentRoom.svelte`](js/components/LightEnvironmentRoom.svelte), [`js/components/LightEnvironmentScreen.svelte`](js/components/LightEnvironmentScreen.svelte), [`js/components/LightEnvironmentSummary.svelte`](js/components/LightEnvironmentSummary.svelte), [`js/light-environment-room-classes.ts`](js/light-environment-room-classes.ts)
+- [`js/components/LightEnvironmentSection.svelte`](js/components/LightEnvironmentSection.svelte) → [`js/components/LightAuditBlock.svelte`](js/components/LightAuditBlock.svelte), [`js/components/LightEnvironmentQuickPicks.svelte`](js/components/LightEnvironmentQuickPicks.svelte), [`js/components/LightEnvironmentRoom.svelte`](js/components/LightEnvironmentRoom.svelte), [`js/components/LightEnvironmentScreen.svelte`](js/components/LightEnvironmentScreen.svelte), [`js/components/LightEnvironmentSummary.svelte`](js/components/LightEnvironmentSummary.svelte), [`js/light-environment-room-classes.ts`](js/light-environment-room-classes.ts)
 
 </details>
 

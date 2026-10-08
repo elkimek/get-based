@@ -4,6 +4,7 @@ import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
 import {scopedFrozenStyles,type FrozenStyleBlock} from '../helpers/frozen-style-scope.js';
 interface Sample{name:string;data:unknown;expanded:boolean;callbacks:boolean;embedded:boolean;section:string}
 const original=JSON.parse(fs.readFileSync('tests/fixtures/light-environment-room-original.json','utf8')) as {now:number;cases:Sample[];styleBlocks:FrozenStyleBlock[]};
+const auditStyles=(JSON.parse(fs.readFileSync('tests/fixtures/light-audit-original.json','utf8')) as {styleBlocks:FrozenStyleBlock[]}).styleBlocks;
 const names=['empty','empty-standalone','Bedroom/false','Bedroom/true','Office/true','source-unknown','hours-0','skipped','nested-and-portable','all-readings','older-and-qualitative'];
 const examples=original.cases.filter(sample=>names.includes(sample.name));
 test('authored rooms preserve independent layouts and readable accessible editor controls',async({page},info)=>{
@@ -33,7 +34,7 @@ test('authored rooms preserve independent layouts and readable accessible editor
       const current=document.createElement('section');current.dataset.current='';current.innerHTML=env.renderEnvironmentSection({embedded:sample.embedded});
       pair.append(reference,current);host.append(pair);
     }}finally{Date.now=clock;env.configureLightEnv(prior);state.importedData=before;}
-  },{examples,css:scopedFrozenStyles(original.styleBlocks),now:original.now});
+  },{examples,css:scopedFrozenStyles([...original.styleBlocks,...auditStyles]),now:original.now});
   const host=page.locator('#environment-room-acceptance');let pairs=0;
   for(const width of [320,375,600,601,700,1100]){await page.setViewportSize({width,height:1000});for(const theme of ['dark','light','glass','synth-sunrise','neuromancer','cyberterm']){
     await page.mouse.move(0,0);await page.evaluate(async theme=>(await import('/js/theme.js')).setTheme(theme),theme);await host.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));

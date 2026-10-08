@@ -5,6 +5,7 @@
   import LightEnvironmentQuickPicks from './LightEnvironmentQuickPicks.svelte';
   import LightEnvironmentScreen from './LightEnvironmentScreen.svelte';
   import LightEnvironmentSummary from './LightEnvironmentSummary.svelte';
+  import LightAuditBlock from './LightAuditBlock.svelte';
   let {view}:{view:EnvironmentSectionView}=$props();
 </script>
 <div data-light-environment-shell class={c(`light-env-section${view.embedded?' light-env-section-embedded':''}`)}>
@@ -28,6 +29,5 @@
       </div>
     {:else}<div class={c('light-env-screen-cards')}>{#each view.portable as screen}<LightEnvironmentScreen view={screen}/>{/each}</div>{/if}
   </div>
-  <!-- The remaining audit shell retains its existing owner until its migration. -->
-  {@html view.trustedAuditsHTML}
+  {#if view.audits}<LightAuditBlock view={view.audits}/>{/if}
 </div>

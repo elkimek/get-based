@@ -1253,11 +1253,11 @@ URLs, domain reads, callback invocation, modal lifecycle and sync/scroll ownersh
 a native button beside today/delete controls, preserving keyboard activation
 without nested interactive elements. Saved fields use escaped interpolation;
 the only raw room slots are configured measurement and room verdict renderers.
-The section has one explicitly named slot for the remaining saved-audit owner.
+The section composes the saved-audit block through a typed view, without an interim
+HTML slot.
 Scoped Tailwind owns room/editor/section/modal styling at the unchanged lazy
-stylesheet URL. Native shared block layout remains only because the audit shell
-still consumes it. Superseded room and modal templates/selectors are removed;
-audit-shell presentation retains its existing owner until migrated.
+stylesheet URL. Superseded room, modal and audit templates/selectors are removed.
+The native environment stylesheet retains only its host widget integration rule.
 
 `LightAuditCard.svelte` and `LightAuditDetail.svelte` own saved-audit card and
 snapshot-detail markup through the `LightAuditCardView` presentation contract.
@@ -1268,8 +1268,18 @@ The two explicit trusted slots accept the configured audit AI dot and verdict;
 stored labels, dates and room names use escaped interpolation. A native card
 disclosure button sits beside the interactive AI dot, avoiding nested buttons.
 Scoped Tailwind replaces card/detail selectors at the established environment
-stylesheet URL. The audit block and comparison presentation remain native owners
-pending their migration.
+stylesheet URL. `LightAuditBlock.svelte` and `LightAuditCompare.svelte` own
+disclosure, history and comparison through typed views. A native disclosure button
+and sibling toolbar actions preserve visual and keyboard order; the outer shell
+owns scroll anchoring.
+Block toggles restore focus through the stable modal/host after a redraw, without
+overriding an explicit new focus target.
+Explicit block-open state persists across re-renders, including when a card is
+expanded. The legacy details toggle action remains supported by the delegate.
+Comparison projection preserves stable room IDs, legacy name fallback, historical
+screens, method labels,
+channel direction and the camera proxy deadband. The AI handoff serializer and
+storage actions retain their domain owner.
 
 Room and screen render-time auto-analysis captures `ai-verdict-owner.ts` before
 queuing. Both the deduplication key and delayed callback belong to that owner;

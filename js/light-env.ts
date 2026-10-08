@@ -31,7 +31,7 @@ import {
   configureLightEnvAudits,
   getLightAudits,
   lightEnvAuditActionHandlers,
-  renderLightAuditsBlock,
+  readLightAuditsView,
 } from './light-env-audits.js';
 import { installLightEnvActionDelegates } from './light-env-actions.js';
 import {
@@ -339,9 +339,9 @@ function readEnvironmentSection(options:{embedded?:unknown}={}):EnvironmentSecti
   const roomQuickPicks=projectRoomQuickPicks(rooms),portable=screens.filter(screen=>!screen.roomId);
   const portableViews=portable.map(screen=>readLightEnvScreen(screen,rooms));
   // Audit callbacks stay last, matching the existing room/screen rendering order.
-  const trustedAuditsHTML=rooms.length?String(renderLightAuditsBlock()):'';
+  const audits=rooms.length?readLightAuditsView():null;
   return {embedded:!!options.embedded,load,rooms:roomViews,roomQuickPicks,portable:portableViews,
-    portableQuickPicks:projectScreenQuickPicks(portable),empty:!rooms.length&&!screens.length,trustedAuditsHTML};
+    portableQuickPicks:projectScreenQuickPicks(portable),empty:!rooms.length&&!screens.length,audits};
 }
 export function renderEnvironmentSection(options:{embedded?:unknown}={}) {
   return renderEnvironmentHTML({kind:'section',view:readEnvironmentSection(options)});

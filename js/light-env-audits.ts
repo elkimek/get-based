@@ -6,23 +6,22 @@
 // without importing light-env.js back into itself.
 
 import { state } from './state.js';
-import { escapeHTML, showNotification, showPromptDialog, showConfirmDialog } from './utils.js';
+import { showNotification, showPromptDialog, showConfirmDialog } from './utils.js';
 import { saveImportedData } from './data.js';
 import { deleteImportedArrayItems } from './data-merge.js';
-import { lightEnvActionAttrs } from './light-env-actions.js';
 import { createUniqueId } from './unique-id.js';
-import { renderHTML as renderAuditCardHTML } from './components/LightAuditCard.svelte.html.js';
-import { auditActionValue, type LightAuditCardView, type LightAuditDetailView } from './light-audit-presentation.js';
+import { renderHTML as renderAuditBlockHTML } from './components/LightAuditBlock.svelte.html.js';
+import { auditActionValue, auditComparisonArrow, type LightAuditBlockView, type LightAuditCardView, type LightAuditDetailView, type LightAuditComparisonView, type LightAuditComparisonRoomView, type LightAuditComparisonRowView } from './light-audit-presentation.js';
 
 // Mirrors the EMF Assessment pattern: each audit is a dated, labeled,
-// immutable snapshot of the rooms + screens + recent measurements at
+// immutable snapshot of the rooms + screens + room-mapped measurements at
 // that point in time. Used for the "measure -> mitigate -> re-measure ->
 // see delta" loop. The live `lightEnvironment.rooms[]` continues to
 // drive AI weighting; audits are pure historical records.
 //
 // Audit shape:
 //   { id, date (YYYY-MM-DD), label, notes, rooms: [...deep-copy],
-//     screens: [...deep-copy], measurements: [...last 30d, deep-copy],
+//     screens: [...deep-copy], measurements: [...room-mapped readings, deep-copy],
 //     createdAt, updatedAt? }
 
 import type { LightRoom, LightScreen, LightMeasurement } from './light-env-model.js';
@@ -38,7 +37,6 @@ interface ArithmeticMeasurementReader extends Omit<AuditMeasurementReader, 'valu
 type AuditDependencyName = 'getEnvironment' | 'computeRoomSeverity' | 'refreshLightEnvironmentUI' | 'hasAIProvider' | 'maybeAnalyzeAuditAfterSave' | 'renderAuditAIBlock' | 'renderAuditAIDot' | 'openChatPanel';
 type AuditDependencies = Record<AuditDependencyName, unknown>;
 interface ComparisonChannel { tool: string; label: string; fmt: (value: unknown, measurement?: AuditMeasurementReader | null) => string; better: string }
-interface ComparisonRow { ch: ComparisonChannel; m1?: AuditMeasurementReader | null | undefined; m2?: AuditMeasurementReader | null | undefined }
 interface KeyedRoom { key: unknown; room: AuditRoomReader }
 const auditDeps: AuditDependencies = {
   getEnvironment: () => state.importedData?.lightEnvironment || null,
@@ -56,7 +54,7 @@ const auditDeps: AuditDependencies = {
   openChatPanel: null,
 };
 
-const LIGHT_AUDITS_ANCHOR = '.light-audits-block';
+const LIGHT_AUDITS_ANCHOR = '.light-audits-shell';
 const AUDITS_DEFAULT_CAP = 2;
 
 let _expandedAuditId: unknown = null;
@@ -283,10 +281,6 @@ function readLightAuditCard(a: AuditReader, expanded: boolean): LightAuditCardVi
   };
 }
 
-function renderLightAuditCard(audit: AuditReader, expanded: boolean) {
-  return renderAuditCardHTML({ view: readLightAuditCard(audit, expanded) });
-}
-
 // Pull the per-channel measurement values for a room inside an audit.
 // Returns null for any tool that has no reading; callers decide whether
 // to render the row at all.
@@ -324,19 +318,9 @@ function readLightAuditDetail(audit: AuditReader): LightAuditDetailView {
   };
 }
 
-// Compare-view directional arrow + color. `better` says which direction
-// improvement looks like ('lower', 'higher', or 'depends' = neutral).
-function _compareArrow(delta: number, better: string) {
-  const arrow = delta < 0 ? '↓' : delta > 0 ? '↑' : '=';
-  let color = 'var(--text-muted)';
-  if (better === 'lower') color = delta < 0 ? 'var(--green)' : delta > 0 ? 'var(--red)' : color;
-  else if (better === 'higher') color = delta > 0 ? 'var(--green)' : delta < 0 ? 'var(--red)' : color;
-  return `<span class="light-audit-arrow" style="color:${color}">${arrow}</span>`;
-}
-
 // Per-channel metadata for compare. `better` is the improvement direction:
-// darkness/flicker/melanopic down = better (sleep-safer); lux/CCT depend
-// on time-of-day so neutral arrow color (we still show direction).
+// flicker down is better; lux, darkness and CCT retain neutral direction.
+// The camera blue proxy has its own two-percentage-point deadband below.
 const COMPARE_CHANNELS: ComparisonChannel[] = [
   { tool: 'lux',      label: 'Brightness', fmt: (_v, m) => fmtAuditLux(m), better: 'depends' },
   { tool: 'darkness', label: 'Sleep light', fmt: (_v, m) => fmtAuditDarkness(m), better: 'depends' },
@@ -397,190 +381,83 @@ function serializeAuditComparison(a1: AuditReader, a2: AuditReader) {
   return lines.join('\n').trim();
 }
 
-function renderLightAuditCompare(audits: AuditReader[]) {
+function readLightAuditComparison(audits: AuditReader[]): LightAuditComparisonView {
   const sorted = sortAuditsNewestFirst(audits);
-  const a2 = sorted[0]!;        // newer (After)
-  const a1 = (sorted[1] || sorted[0])!; // older (Before)
-
-  // Match rooms across both audits by id (rooms deep-copy preserves the
-  // live id, so room.id is stable across snapshots). Name was the
-  // earlier strategy but it broke under two scenarios: (1) renaming
-  // "Bedroom" -> "Master Bedroom" between audits made the after-side
-  // look like a deleted room; (2) two rooms with the same name (guest
-  // bedroom + main bedroom) collided into a single comparison row.
-  // We build a unified key list combining ids from both sides, with
-  // name as a fallback for very-old audits that predated id stability.
-  const _ks1 = (a1.rooms || []).map(r => ({ key: r.id || `name:${r.name}`, room: r }));
-  const _ks2 = (a2.rooms || []).map(r => ({ key: r.id || `name:${r.name}`, room: r }));
-  const roomKeys = [...new Set([..._ks1.map(k => k.key), ..._ks2.map(k => k.key)])];
-  const _findIn = (entries: KeyedRoom[], key: unknown) => entries.find(e => e.key === key)?.room || null;
-
-  // "Interpret changes" — only when we have an AI provider configured.
-  // Opens the chat panel with a pre-filled comparison summary so the
-  // user can ask the AI what shifted + what to try next. Mirrors EMF
-  // assessment's Interpret Comparison flow without the heavyweight
-  // streaming overlay (the chat panel already serves the same purpose).
+  const after = sorted[0]!;
+  const before = (sorted[1] || sorted[0])!;
+  // Stable IDs preserve renamed and same-name rooms; old snapshots fall back
+  // to their historical name key. Preserve first-seen order across both sides.
+  const keyed = (audit: AuditReader): KeyedRoom[] => (audit.rooms || []).map(room => ({ key: room.id || `name:${room.name}`, room }));
+  const oldRooms = keyed(before), newRooms = keyed(after);
+  const keys = [...new Set([...oldRooms.map(entry => entry.key), ...newRooms.map(entry => entry.key)])];
+  const find = (entries: KeyedRoom[], key: unknown) => entries.find(entry => entry.key === key)?.room || null;
   const hasAI = hasAuditAIProvider();
-  let html = `<div class="light-audit-compare-head">
-    <span class="light-audit-compare-label">Before: ${escapeHTML(fmtAuditDate(a1.date))}${a1.label ? ' — ' + escapeHTML(a1.label) : ''}</span>
-    <span class="light-audit-compare-arrow">→</span>
-    <span class="light-audit-compare-label">After: ${escapeHTML(fmtAuditDate(a2.date))}${a2.label ? ' — ' + escapeHTML(a2.label) : ''}</span>
-    ${hasAI ? `<button class="import-btn import-btn-secondary light-audit-interpret-btn" ${lightEnvActionAttrs('interpret-audit-compare', { oldId: a1.id, newId: a2.id })} title="Open the chat panel with a pre-filled comparison summary so the AI can interpret what changed.">✨ Interpret changes</button>` : ''}
-  </div>`;
-
-  if (sorted.length > 2) {
-    html += `<div class="light-audit-compare-note">Comparing the two most recent audits. ${sorted.length - 2} earlier audit${sorted.length > 3 ? 's' : ''} not shown.</div>`;
-  }
-
-  // Stack per-room delta cards — one card per room with measurements.
-  // Rooms with NO data on either side are skipped (a room that exists
-  // in the snapshot but was never measured is just visual noise here).
-  html += `<div class="light-audit-compare-rooms">`;
-
-  let renderedAny = false;
-  for (const key of roomKeys) {
-    const r1 = _findIn(_ks1, key);
-    const r2 = _findIn(_ks2, key);
-    // Display name prefers the after-side (most recent rename wins);
-    // fall back to before-side, then to a literal "?" so a malformed
-    // entry can't crash the loop.
-    const name = (r2 && r2.name) || (r1 && r1.name) || '?';
-    const sev1 = r1 ? computeAuditRoomSeverity(a1, r1) : null;
-    const sev2 = r2 ? computeAuditRoomSeverity(a2, r2) : null;
-
-    // Build the list of comparable rows — only channels that have data
-    // on at least ONE side. A row with both sides null is dropped.
-    const rows: ComparisonRow[] = [];
-    for (const ch of COMPARE_CHANNELS) {
-      const m1 = r1 ? latestInAudit(a1, ch.tool, r1.id) : null;
-      const m2 = r2 ? latestInAudit(a2, ch.tool, r2.id) : null;
-      if (!m1 && !m2) continue;
-      rows.push({ ch, m1, m2 });
+  const rooms: LightAuditComparisonRoomView[] = [];
+  for (const key of keys) {
+    const oldRoom = find(oldRooms, key), newRoom = find(newRooms, key);
+    const oldSeverity = oldRoom ? computeAuditRoomSeverity(before, oldRoom) : null;
+    const newSeverity = newRoom ? computeAuditRoomSeverity(after, newRoom) : null;
+    const rows: LightAuditComparisonRowView[] = [];
+    for (const channel of COMPARE_CHANNELS) {
+      const oldReading = oldRoom ? latestInAudit(before, channel.tool, oldRoom.id) : null;
+      const newReading = newRoom ? latestInAudit(after, channel.tool, newRoom.id) : null;
+      if (!oldReading && !newReading) continue;
+      rows.push({
+        label: channel.label, title: undefined,
+        before: oldReading ? channel.fmt(oldReading.value, oldReading) : '—',
+        after: newReading ? channel.fmt(newReading.value, newReading) : '—',
+        arrow: oldReading && newReading ? auditComparisonArrow(Number(newReading.value) - Number(oldReading.value), channel.better) : { glyph: '→', tone: 'neutral' },
+      });
     }
-    // Historical camera readings used `melanopic`; they were normalized RGB
-    // blue ratios, so prefer the explicit proxy key and label both honestly.
-    const sp1 = r1 ? latestInAudit(a1, 'spectrum', r1.id) : null;
-    const sp2 = r2 ? latestInAudit(a2, 'spectrum', r2.id) : null;
-    const mel1 = (sp1?.extra?.cameraBlueRatioProxy ?? sp1?.extra?.melanopic) as number | null | undefined;
-    const mel2 = (sp2?.extra?.cameraBlueRatioProxy ?? sp2?.extra?.melanopic) as number | null | undefined;
-    const hasMelanopic = mel1 != null || mel2 != null;
-
-    // Skip rooms that have no measurements on either side AND no
-    // severity flip worth surfacing.
-    const sevChange = sev1 && sev2 && sev1.tier !== sev2.tier;
-    if (!rows.length && !hasMelanopic && !sevChange) continue;
-    renderedAny = true;
-
-    // Card header — severity dot before/arrow/dot after, room name,
-    // verdict label. Verdict keys stay single-word so they're valid CSS
-    // class suffixes; the displayed label can differ (`unchanged` ->
-    // "no change" reads more naturally as a verdict).
-    const verdict = sevChange
-      ? (sev2.tier < sev1.tier ? 'improved' : 'regressed')
-      : (rows.length || hasMelanopic ? 'measured' : 'unchanged');
-    const verdictLabel = verdict === 'unchanged' ? 'no change' : verdict;
-    html += `<div class="light-audit-compare-room light-audit-compare-room-${verdict}">
-      <div class="light-audit-compare-room-head">
-        ${sev1 ? `<span class="light-env-sev-dot light-env-sev-${sev1.color}" title="Before"></span>` : '<span class="light-audit-sev-empty"></span>'}
-        <span class="light-audit-arrow" style="color:var(--text-muted)">→</span>
-        ${sev2 ? `<span class="light-env-sev-dot light-env-sev-${sev2.color}" title="After"></span>` : '<span class="light-audit-sev-empty"></span>'}
-        <span class="light-audit-compare-room-name">${escapeHTML(name)}</span>
-        <span class="light-audit-compare-verdict light-audit-compare-verdict-${verdict}">${escapeHTML(verdictLabel)}</span>
-      </div>`;
-
-    // Per-channel rows — `before -> after` with arrow per channel.
-    if (rows.length || hasMelanopic) {
-      html += `<div class="light-audit-compare-channels">`;
-      for (const { ch, m1, m2 } of rows) {
-        const before = m1 ? ch.fmt(m1.value, m1) : '—';
-        const after = m2 ? ch.fmt(m2.value, m2) : '—';
-        const arrow = (m1 && m2) ? _compareArrow((+(m2.value as number)) - (+(m1.value as number)), ch.better) : '<span class="light-audit-arrow" style="color:var(--text-muted)">→</span>';
-        html += `<div class="light-audit-compare-channel">
-          <span class="light-audit-compare-channel-label">${escapeHTML(ch.label)}</span>
-          <span class="light-audit-compare-channel-before">${escapeHTML(before)}</span>
-          ${arrow}
-          <span class="light-audit-compare-channel-after">${escapeHTML(after)}</span>
-        </div>`;
-      }
-      if (hasMelanopic) {
-        const before = mel1 != null ? `${(mel1 * 100).toFixed(0)}%` : '—';
-        const after = mel2 != null ? `${(mel2 * 100).toFixed(0)}%` : '—';
-        let arrow;
-        if (mel1 != null && mel2 != null) {
-          const delta = mel2 - mel1;
-          // +/-2pp deadband -> noise doesn't paint green/red.
-          const better = Math.abs(delta) < 0.02 ? 'depends' : 'lower';
-          arrow = _compareArrow(delta, better);
-        } else {
-          arrow = '<span class="light-audit-arrow" style="color:var(--text-muted)">→</span>';
-        }
-        html += `<div class="light-audit-compare-channel">
-          <span class="light-audit-compare-channel-label" title="Normalized phone-camera RGB blue ratio; not CIE melanopic EDI">Camera blue proxy</span>
-          <span class="light-audit-compare-channel-before">${escapeHTML(before)}</span>
-          ${arrow}
-          <span class="light-audit-compare-channel-after">${escapeHTML(after)}</span>
-        </div>`;
-      }
-      html += `</div>`;
+    const oldSpectrum = oldRoom ? latestInAudit(before, 'spectrum', oldRoom.id) : null;
+    const newSpectrum = newRoom ? latestInAudit(after, 'spectrum', newRoom.id) : null;
+    // Legacy `melanopic` held a camera RGB ratio, not melanopic EDI. Prefer
+    // the explicit proxy key and preserve the original numeric deadband.
+    const oldProxy = (oldSpectrum?.extra?.cameraBlueRatioProxy ?? oldSpectrum?.extra?.melanopic) as number | null | undefined;
+    const newProxy = (newSpectrum?.extra?.cameraBlueRatioProxy ?? newSpectrum?.extra?.melanopic) as number | null | undefined;
+    if (oldProxy != null || newProxy != null) {
+      const delta = oldProxy != null && newProxy != null ? newProxy - oldProxy : null;
+      rows.push({
+        label: 'Camera blue proxy', title: 'Normalized phone-camera RGB blue ratio; not CIE melanopic EDI',
+        before: oldProxy != null ? `${(oldProxy * 100).toFixed(0)}%` : '—',
+        after: newProxy != null ? `${(newProxy * 100).toFixed(0)}%` : '—',
+        arrow: delta == null ? { glyph: '→', tone: 'neutral' } : auditComparisonArrow(delta, Math.abs(delta) < 0.02 ? 'depends' : 'lower'),
+      });
     }
-    html += `</div>`;
+    const severityChanged = oldSeverity && newSeverity && oldSeverity.tier !== newSeverity.tier;
+    if (!rows.length && !severityChanged) continue;
+    const severityView = (severity: SeverityReader | null) => severity ? { color: String(severity.color), label: String(severity.label ?? '') } : null;
+    rooms.push({
+      name: String(newRoom?.name || oldRoom?.name || '?'),
+      before: severityView(oldSeverity), after: severityView(newSeverity), rows,
+      verdict: severityChanged ? (newSeverity.tier < oldSeverity.tier ? 'improved' : 'regressed') : rows.length ? 'measured' : 'unchanged',
+    });
   }
+  return {
+    before: `Before: ${fmtAuditDate(before.date)}${before.label ? ' — ' + before.label : ''}`,
+    after: `After: ${fmtAuditDate(after.date)}${after.label ? ' — ' + after.label : ''}`,
+    oldId: auditActionValue(before.id), newId: auditActionValue(after.id), hasAI, rooms,
+    note: sorted.length > 2 ? `Comparing the two most recent audits. ${sorted.length - 2} earlier audit${sorted.length > 3 ? 's' : ''} not shown.` : '',
+  };
+}
 
-  if (!renderedAny) {
-    html += `<p class="light-audit-empty">Both audits have rooms but no measurements taken yet — nothing to compare. Use the Light Tools above to capture readings, then save another audit.</p>`;
-  }
-
-  html += `</div>`;
-  return html;
+export function readLightAuditsView(): LightAuditBlockView {
+  const audits = getLightAudits() as AuditReader[];
+  const compareMode = _auditCompareMode && audits.length >= 2;
+  const sorted = compareMode ? [] : sortAuditsNewestFirst(audits);
+  const visible = _showAllAudits ? sorted : sorted.slice(0, AUDITS_DEFAULT_CAP);
+  const hidden = sorted.length - visible.length;
+  return {
+    open: _auditsBlockOpen,
+    count: audits.length, compareMode: _auditCompareMode,
+    comparison: compareMode ? readLightAuditComparison(audits) : null,
+    cards: visible.map(audit => readLightAuditCard(audit, _expandedAuditId === audit.id)),
+    historyLabel: hidden > 0 ? `Show ${hidden} older audit${hidden === 1 ? '' : 's'}` : _showAllAudits && sorted.length > AUDITS_DEFAULT_CAP ? `Show only latest ${AUDITS_DEFAULT_CAP} audits` : '',
+  };
 }
 
 export function renderLightAuditsBlock() {
-  const audits = (getLightAudits() as AuditReader[]);
-  // When two or more audits exist, Compare becomes the primary action.
-  // Bumped to import-btn-primary so it is visually weighted ahead of
-  // "Save audit".
-  const compareBtn = audits.length >= 2
-    ? `<button class="import-btn ${_auditCompareMode ? 'import-btn-secondary' : 'import-btn-primary'}" ${lightEnvActionAttrs('toggle-audit-compare')}>${_auditCompareMode ? 'Exit compare' : '⇄ Compare'}</button>`
-    : '';
-  const openAttr = (_auditsBlockOpen || _auditCompareMode || _expandedAuditId) ? ' open' : '';
-  let html = `<details class="light-env-block light-audits-block"${openAttr} ${lightEnvActionAttrs('set-audits-block-open')}>
-    <summary class="light-env-block-head light-audits-summary">
-      <strong>Light audits</strong>
-      <div class="light-audit-actions">
-        ${compareBtn}
-        <button class="import-btn import-btn-secondary" ${lightEnvActionAttrs('save-audit')} title="Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.">+ Save audit</button>
-      </div>
-    </summary>`;
-
-  if (audits.length === 0) {
-    html += `<p class="light-env-empty">Snapshot your rooms + measurements so you can see what a change actually did. Run the tools, save a "Before" audit, make a change (warmer bulbs, blackouts, blue blockers), save an "After". Once you have two, Compare lights up and you'll see the deltas per room.</p>`;
-  } else if (audits.length === 1) {
-    // Surface the "save another to compare" hint inline with the single
-    // saved audit — without it, Compare seems to materialize from nowhere.
-    html += `<p class="light-audit-hint">Save a second audit after making changes to unlock the side-by-side comparison.</p>`;
-  }
-  if (_auditCompareMode && audits.length >= 2) {
-    html += renderLightAuditCompare(audits);
-  } else if (audits.length > 0) {
-    const sorted = sortAuditsNewestFirst(audits);
-    const visibleAudits = _showAllAudits ? sorted : sorted.slice(0, AUDITS_DEFAULT_CAP);
-    const hiddenCount = sorted.length - visibleAudits.length;
-    for (const a of visibleAudits) {
-      html += renderLightAuditCard(a, _expandedAuditId === a.id);
-    }
-    if (hiddenCount > 0) {
-      html += `<button class="light-audit-show-more" ${lightEnvActionAttrs('toggle-audit-history')}>
-        Show ${hiddenCount} older audit${hiddenCount === 1 ? '' : 's'}
-      </button>`;
-    } else if (_showAllAudits && sorted.length > AUDITS_DEFAULT_CAP) {
-      html += `<button class="light-audit-show-more" ${lightEnvActionAttrs('toggle-audit-history')}>
-        Show only latest ${AUDITS_DEFAULT_CAP} audits
-      </button>`;
-    }
-  }
-
-  html += `</details>`;
-  return html;
+  return renderAuditBlockHTML({ view: readLightAuditsView() });
 }
 
 export async function saveLightAuditFromUI() {
@@ -620,6 +497,20 @@ export function toggleLightAuditHistory() {
     if (!visibleIds.has(_expandedAuditId)) _expandedAuditId = null;
   }
   refreshAuditsUI();
+}
+
+export function toggleLightAuditsBlock(event?: Event) {
+  const target = event?.target as Element | null | undefined;
+  const control = target?.closest?.<HTMLButtonElement>('[data-light-env-action="toggle-audits-block"]');
+  const owner = control?.closest('.modal-overlay') || control?.closest('[data-light-audit-block]')?.parentElement;
+  const hadFocus = !!control && typeof document !== 'undefined' && document.activeElement === control;
+  _auditsBlockOpen = !_auditsBlockOpen;
+  refreshLightEnvironmentUI({ scrollAnchor: LIGHT_AUDITS_ANCHOR });
+  // Native details kept focus without a redraw. Preserve that behavior across
+  // the stable owner's replacement, while respecting any explicit new focus.
+  if (hadFocus && owner?.isConnected && (document.activeElement === document.body || document.activeElement === control)) {
+    owner.querySelector<HTMLButtonElement>('[data-light-env-action="toggle-audits-block"]')?.focus({ preventScroll: true });
+  }
 }
 
 export function setLightAuditsBlockOpen(open: unknown) {
@@ -672,6 +563,7 @@ export const lightEnvAuditActionHandlers = Object.freeze({
   toggleLightAuditCompare,
   toggleLightAuditHistory,
   setLightAuditsBlockOpen,
+  toggleLightAuditsBlock,
   updateLightAuditField,
   deleteLightAuditConfirm,
   interpretLightAuditCompare,

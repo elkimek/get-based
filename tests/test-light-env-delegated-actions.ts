@@ -15,7 +15,22 @@ const envShellHooksSrc = readRepositorySource('js/light-env-shell-hooks.js', 'ut
 const lightSunLoaderSrc = readRepositorySource('js/light-sun-loader.js', 'utf8');
 const navSrc = readRepositorySource('js/nav.js', 'utf8');
 const swSrc = readServiceWorkerSource(relative => readRepositorySource(relative, 'utf8'));
-const envUiSrc = `${envSrc}\n${screenSrc}`;
+const authored = (name: string) => readAuthoredRepositorySource(`js/components/${name}.svelte`, 'utf8');
+const roomSource = authored('LightEnvironmentRoom');
+const screenSource = authored('LightEnvironmentScreen');
+const pickerSource = authored('LightEnvironmentPicker');
+const quickSource = authored('LightEnvironmentQuickPicks');
+const todaySource = authored('LightEnvironmentTodayToggle');
+const summarySource = authored('LightEnvironmentSummary');
+const sectionSource = authored('LightEnvironmentSection');
+const modalSource = authored('LightEnvironmentPresentation');
+const auditCardSource = authored('LightAuditCard');
+const auditDetailSource = authored('LightAuditDetail');
+const auditBlockSource = authored('LightAuditBlock');
+const auditCompareSource = authored('LightAuditCompare');
+const roomProjection = readAuthoredRepositorySource('js/light-environment-room-presentation.ts', 'utf8');
+const envUiSrc = [envSrc, screenSrc, roomSource, screenSource, pickerSource, quickSource, todaySource, summarySource, sectionSource, modalSource].join('\n');
+const auditUiSrc = [auditSrc, auditCardSource, auditDetailSource, auditBlockSource, auditCompareSource].join('\n');
 
 const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
 
@@ -27,13 +42,13 @@ const directAssignmentRe = /\.(?:onclick|onchange|oninput|onkeydown)\s*=/;
 assert('light environment UI has no inline event attributes',
   !inlineHandlerRe.test(envUiSrc));
 assert('light-env-audits.js has no inline event attributes',
-  !inlineHandlerRe.test(auditSrc));
+  !inlineHandlerRe.test(auditUiSrc));
 assert('light environment UI avoids direct event property assignment',
   !directAssignmentRe.test(envUiSrc));
 assert('light-env.js imports and installs the delegated action helper',
   envSrc.includes("from './light-env-actions.js'") &&
     envSrc.includes('installLightEnvActionDelegates({') &&
-    envSrc.includes('lightEnvActionAttrs'));
+    envSrc.includes("from './components/LightEnvironmentPresentation.svelte.html.js'") && sectionSource.includes('<LightAuditBlock view={view.audits}/>'));
 assert('light-env-actions defines one shared action attribute helper',
   (actionSrc.match(/\bfunction\s+lightEnvActionAttrs\b/g) || []).length === 1 &&
     actionSrc.includes('data-light-env-action=') &&
@@ -108,7 +123,7 @@ assert('Light environment modal shell actions are wired through startup hooks',
     appUiShellSrc.includes("import './light-env-shell-hooks.js';"));
 assert('light-env screen renderer takes AI renderer from options instead of global lookup',
   screenSrc.includes('opts.renderScreenAIBlock') &&
-    screenSrc.includes('renderScreenAIBlock(s)') &&
+    (screenSrc.includes('(opts.renderScreenAIBlock as ScreenAIRenderer)(screen)') || screenSrc.includes('opts.renderScreenAIBlock(screen)')) &&
     !screenSrc.includes('globalThis.renderScreenAIBlock'));
 assert('light-env form delegates separate live input from change-only controls',
   actionSrc.includes("'update-room-hours', 'update-room-name'") &&
@@ -167,52 +182,129 @@ assert('service worker precaches light environment action/render modules',
     actionSrc.includes(`action === '${action}'`));
 });
 
-[
-  "lightEnvActionAttrs('set-room-source-archetype', { id: r.id, key: a.key })",
-  "lightEnvActionAttrs('update-room-primary-source', { id: r.id })",
-  "lightEnvActionAttrs('set-room-daylight-level', { id: r.id, key: level.key })",
-  "lightEnvActionAttrs('set-room-hours-bucket', { id: r.id, key: b.key })",
-  "lightEnvActionAttrs('update-room-hours', { id: r.id })",
-  "lightEnvActionAttrs('set-room-evening-bucket', { id: r.id, key: b.key })",
-  "lightEnvActionAttrs('set-today-active', { kind, id, active: flipTo })",
-  "lightEnvActionAttrs('toggle-screen-expanded', { id: s.id })",
-  "lightEnvActionAttrs('delete-screen-confirm', { id: s.id })",
-  "lightEnvActionAttrs('set-screen-hours-bucket', { id: s.id, key: b.key })",
-  "lightEnvActionAttrs('set-screen-evening-bucket', { id: s.id, key: b.key })",
-  "lightEnvActionAttrs('update-screen-room', { id: s.id })",
-  "lightEnvActionAttrs('update-screen-device', { id: s.id })",
-  "lightEnvActionAttrs('update-screen-blue-blocker', { id: s.id })",
-  "lightEnvActionAttrs('add-room-named', { name })",
-  "lightEnvActionAttrs('add-room-custom')",
-  "lightEnvActionAttrs('add-screen-with-device', { roomId, device })",
-  "lightEnvActionAttrs('add-screen', { roomId })",
-  "lightEnvActionAttrs('open-assessment')",
-  "lightEnvActionAttrs('open-assessment-save-audit')",
-  "lightEnvActionAttrs('close-assessment')",
-  "lightEnvActionAttrs('toggle-room-expanded', { id: r.id })",
-  "lightEnvActionAttrs('delete-room-confirm', { id: r.id })",
-  "lightEnvActionAttrs('update-room-name', { id: r.id })",
-  "lightEnvActionAttrs('open-tool', { id: r.id, tool: 'spectrum' })",
-  "lightEnvActionAttrs('add-room')",
-].forEach(renderedAction => {
-  assert(`light environment UI renders ${renderedAction}`,
-    envUiSrc.includes(renderedAction));
-});
-
-[
-  "lightEnvActionAttrs('toggle-audit', { id: a.id })",
-  "lightEnvActionAttrs('update-audit-field', { id: a.id, field: 'date' })",
-  "lightEnvActionAttrs('update-audit-field', { id: a.id, field: 'label' })",
-  "lightEnvActionAttrs('delete-audit-confirm', { id: a.id })",
-  "lightEnvActionAttrs('interpret-audit-compare', { oldId: a1.id, newId: a2.id })",
-  "lightEnvActionAttrs('toggle-audit-compare')",
-  "lightEnvActionAttrs('set-audits-block-open')",
-  "lightEnvActionAttrs('save-audit')",
-  "lightEnvActionAttrs('toggle-audit-history')",
-].forEach(renderedAction => {
-  assert(`light-env-audits.js renders ${renderedAction}`,
-    auditSrc.includes(renderedAction));
-});
+// Authored render contracts: action identity and every action-specific datum.
+assert("authored environment renders set-room-source-archetype with its required bindings",
+  roomProjection.includes("action:'set-room-source-archetype'") &&
+  pickerSource.includes("data-light-env-action={view.action}") &&
+  pickerSource.includes("data-light-env-id={view.id}") &&
+  pickerSource.includes("data-light-env-key={choice.key}"));
+assert("authored environment renders set-room-daylight-level with its required bindings",
+  roomProjection.includes("action:'set-room-daylight-level'") &&
+  pickerSource.includes("data-light-env-action={view.action}") &&
+  pickerSource.includes("data-light-env-id={view.id}") &&
+  pickerSource.includes("data-light-env-key={choice.key}"));
+assert("authored environment renders set-room-hours-bucket with its required bindings",
+  roomProjection.includes("action:'set-room-hours-bucket'") &&
+  pickerSource.includes("data-light-env-action={view.action}") &&
+  pickerSource.includes("data-light-env-id={view.id}") &&
+  pickerSource.includes("data-light-env-key={choice.key}"));
+assert("authored environment renders set-room-evening-bucket with its required bindings",
+  roomProjection.includes("action:'set-room-evening-bucket'") &&
+  pickerSource.includes("data-light-env-action={view.action}") &&
+  pickerSource.includes("data-light-env-id={view.id}") &&
+  pickerSource.includes("data-light-env-key={choice.key}"));
+assert("authored environment renders update-room-primary-source with its required bindings",
+  pickerSource.includes("data-light-env-action=\"update-room-primary-source\"") &&
+  pickerSource.includes("data-light-env-id={view.id}"));
+assert("authored environment renders update-room-hours with its required bindings",
+  pickerSource.includes("data-light-env-action=\"update-room-hours\"") &&
+  pickerSource.includes("data-light-env-id={view.id}"));
+assert("authored environment renders set-today-active with its required bindings",
+  todaySource.includes("data-light-env-action=\"set-today-active\"") &&
+  todaySource.includes("data-light-env-kind={view.kind}") &&
+  todaySource.includes("data-light-env-id={view.id}") &&
+  todaySource.includes("data-light-env-active={view.active ? 'false' : 'true'}"));
+assert("authored environment renders toggle-screen-expanded with its required bindings",
+  screenSource.includes("data-light-env-action=\"toggle-screen-expanded\"") &&
+  screenSource.includes("data-light-env-id={view.actionId}"));
+assert("authored environment renders delete-screen-confirm with its required bindings",
+  screenSource.includes("data-light-env-action=\"delete-screen-confirm\"") &&
+  screenSource.includes("data-light-env-id={view.actionId}"));
+assert("authored environment renders update-screen-room with its required bindings",
+  screenSource.includes("data-light-env-action=\"update-screen-room\"") &&
+  screenSource.includes("data-light-env-id={view.actionId}"));
+assert("authored environment renders update-screen-device with its required bindings",
+  screenSource.includes("data-light-env-action=\"update-screen-device\"") &&
+  screenSource.includes("data-light-env-id={view.actionId}"));
+assert("authored environment renders update-screen-blue-blocker with its required bindings",
+  screenSource.includes("data-light-env-action=\"update-screen-blue-blocker\"") &&
+  screenSource.includes("data-light-env-id={view.actionId}"));
+assert("authored environment renders set-screen-hours-bucket with its required bindings",
+  screenSource.includes("action: 'set-screen-hours-bucket'") &&
+  screenSource.includes("data-light-env-action={picker.action}") &&
+  screenSource.includes("data-light-env-id={view.actionId}") &&
+  screenSource.includes("data-light-env-key={bucket.key}"));
+assert("authored environment renders set-screen-evening-bucket with its required bindings",
+  screenSource.includes("action: 'set-screen-evening-bucket'") &&
+  screenSource.includes("data-light-env-action={picker.action}") &&
+  screenSource.includes("data-light-env-id={view.actionId}") &&
+  screenSource.includes("data-light-env-key={bucket.key}"));
+assert("authored environment renders add-room-named with its required bindings",
+  quickSource.includes("'add-room-named'") &&
+  quickSource.includes("data-light-env-room-id={view.roomId}") &&
+  quickSource.includes("data-light-env-name={choice.name}"));
+assert("authored environment renders add-room-custom with its required bindings",
+  quickSource.includes("'add-room-custom'") &&
+  quickSource.includes("data-light-env-room-id={view.roomId}"));
+assert("authored environment renders add-screen-with-device with its required bindings",
+  quickSource.includes("'add-screen-with-device'") &&
+  quickSource.includes("data-light-env-room-id={view.roomId}") &&
+  quickSource.includes("data-light-env-device={choice.device}"));
+assert("authored environment renders add-screen with its required bindings",
+  quickSource.includes("'add-screen'") &&
+  quickSource.includes("data-light-env-room-id={view.roomId}"));
+assert("authored environment renders open-assessment with its required bindings",
+  summarySource.includes("data-light-env-action=\"open-assessment\""));
+assert("authored environment renders open-assessment-save-audit with its required bindings",
+  summarySource.includes("data-light-env-action=\"open-assessment-save-audit\""));
+assert("authored environment renders close-assessment with its required bindings",
+  modalSource.includes("data-light-env-action=\"close-assessment\""));
+assert("authored environment renders toggle-room-expanded with its required bindings",
+  roomSource.includes("data-light-env-action=\"toggle-room-expanded\"") &&
+  roomSource.includes("data-light-env-id={view.actionId}"));
+assert("authored environment renders delete-room-confirm with its required bindings",
+  roomSource.includes("data-light-env-action=\"delete-room-confirm\"") &&
+  roomSource.includes("data-light-env-id={view.actionId}"));
+assert("authored environment renders update-room-name with its required bindings",
+  roomSource.includes("data-light-env-action=\"update-room-name\"") &&
+  roomSource.includes("data-light-env-id={view.actionId}"));
+assert("authored environment renders open-tool with its required bindings",
+  roomSource.includes("data-light-env-action=\"open-tool\"") &&
+  roomSource.includes("data-light-env-id={view.actionId}") &&
+  roomSource.includes("data-light-env-tool={tool.key}"));
+assert("authored environment renders add-room with its required bindings",
+  sectionSource.includes("data-light-env-action=\"add-room\""));
+assert("authored audit renders toggle-audit with its required bindings",
+  auditCardSource.includes("data-light-env-action=\"toggle-audit\"") &&
+  auditCardSource.includes("data-light-env-id={view.actionId}"));
+assert("authored audit renders update-audit-field/date with its required bindings",
+  auditDetailSource.includes("data-light-env-action=\"update-audit-field\"") &&
+  auditDetailSource.includes("data-light-env-id={actionId}") &&
+  auditDetailSource.includes("data-light-env-field=\"date\""));
+assert("authored audit renders update-audit-field/label with its required bindings",
+  auditDetailSource.includes("data-light-env-action=\"update-audit-field\"") &&
+  auditDetailSource.includes("data-light-env-id={actionId}") &&
+  auditDetailSource.includes("data-light-env-field=\"label\""));
+assert("authored audit renders delete-audit-confirm with its required bindings",
+  auditDetailSource.includes("data-light-env-action=\"delete-audit-confirm\"") &&
+  auditDetailSource.includes("data-light-env-id={actionId}"));
+assert("authored audit renders interpret-audit-compare with its required bindings",
+  auditCompareSource.includes("data-light-env-action=\"interpret-audit-compare\"") &&
+  auditCompareSource.includes("data-light-env-old-id={view.oldId}") &&
+  auditCompareSource.includes("data-light-env-new-id={view.newId}"));
+assert("authored audit renders toggle-audit-compare with its required bindings",
+  auditBlockSource.includes("data-light-env-action=\"toggle-audit-compare\""));
+assert("authored audit renders toggle-audits-block with its required bindings",
+  auditBlockSource.includes("data-light-env-action=\"toggle-audits-block\"") &&
+  auditBlockSource.includes("aria-expanded={view.open}"));
+assert("authored audit renders save-audit with its required bindings",
+  auditBlockSource.includes("data-light-env-action=\"save-audit\""));
+assert("authored audit renders toggle-audit-history with its required bindings",
+  auditBlockSource.includes("data-light-env-action=\"toggle-audit-history\""));
+assert('native block action and legacy details action both remain supported',
+  actionSrc.includes("action === 'toggle-audits-block'") &&
+  actionSrc.includes('actions.toggleLightAuditsBlock?.(event)') &&
+  actionSrc.includes('actions.setLightAuditsBlockOpen?.(!!actionEl.open)'));
 
 [
   'setLightEnvRoomSourceArchetype',
