@@ -20,14 +20,10 @@
 import type { LightDeviceRecord, DeviceSessionRecord } from './light-devices-store.js';
 import type { LightDeviceSetupDeps } from './light-device-setup-modal.js';
 
-// Private views describe original unchecked operations, including nullable
-// getter rereads after numeric guards; fetched and configured outputs stay opaque.
-type DetailSessionRead = DeviceSessionRecord & {
-  doses: NonNullable<DeviceSessionRecord['doses']>;
-  metrics: { photopicLux: number; melanopicEdiLux: number; melanopicStatus?: unknown };
-  safety: NonNullable<DeviceSessionRecord['safety']> & { conservativeBaseMedFraction: number };
-};
 type ChannelReader = Record<string, { label?: unknown; icon?: unknown }>;
+
+import { renderHTML } from './components/LightSessionPresentation.svelte.html.js';
+import { detailField, detailChannel, deviceDetailNotices, deviceDetailLightMetric } from './light-session-detail-presentation.js';
 
 import { bindDetachedModalSyncRefresh, escapeHTML, escapeAttr, showNotification, showConfirmDialog } from './utils.js';
 import { state } from './state.js';
@@ -208,24 +204,9 @@ export async function editDeviceSessionMode(id: string) {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   const closeDialog = () => removeModalOverlay(overlay);
-  overlay.innerHTML = `<div class="modal" role="dialog" aria-label="Edit session mode">
-    <div class="modal-header">
-      <h3>Edit mode — ${escapeHTML(device.brand)} ${escapeHTML(device.model)}</h3>
-      <button class="modal-close" data-device-mode-close aria-label="Close">×</button>
-    </div>
-    <div class="modal-body">
-      <p class="modal-body-hint">Pick the LED-group mode that actually fired during this session. Doses will be recomputed on save.</p>
-      <label class="ctx-label">Mode
-        <select id="dev-edit-mode" class="ctx-select">
-          ${validModes.map(m => `<option value="${escapeAttr(m.id)}"${m.id === currentMode ? ' selected' : ''}>${escapeHTML(m.label || m.id)}</option>`).join('')}
-        </select>
-      </label>
-      <div class="modal-actions" style="margin-top:18px">
-        <button class="import-btn import-btn-secondary" data-device-mode-close>Cancel</button>
-        <button class="import-btn import-btn-primary" id="dev-edit-mode-save">Save</button>
-      </div>
-    </div>
-  </div>`;
+  overlay.innerHTML = renderHTML({ kind: 'mode-editor', name: `${device.brand ?? ''} ${device.model ?? ''}`,
+    modes: validModes.map(mode => ({ key: String(mode.id ?? ''), label: String(mode.label || mode.id), selected: mode.id === currentMode })),
+  });
   _wireModal(overlay, closeDialog);
   overlay.querySelectorAll('[data-device-mode-close]').forEach(btn => {
     btn.addEventListener('click', closeDialog);
@@ -293,7 +274,7 @@ function _select(root: ParentNode, selector: string) {
 
 export function openDeviceSessionDetail(id?: string) {
   const sessions = getDeviceSessions();
-  const sess = sessions.find(s => s.id === id) as DetailSessionRead | undefined;
+  const sess = sessions.find(s => s.id === id);
   if (!sess) return;
   const liveDevice = getDevices().find(d => d.id === sess.deviceId) || null;
   const device = liveDevice || sess.deviceSnapshot || null;
@@ -332,28 +313,6 @@ export function openDeviceSessionDetail(id?: string) {
     : isAmbientEyeDevice
       ? (sess.eyesProtected ? 'Eyes shielded' : 'Eyes open to ambient light')
       : (sess.eyesProtected ? 'Eye shielding logged' : 'No eye shielding logged; no eye benefit credited');
-  let deviceSafetyHtml = '';
-  if (sess.safety?.hasUV) {
-    const uvModeled = (sess.safety.uvDoseStatus === 'modeled' || sess.safety.uvDoseStatus == null)
-      && Number.isFinite(sess.safety.erythemalSED);
-    const uvSummary = uvModeled
-      ? `Local erythemal dose: ${Number(sess.safety.erythemalSED).toFixed(2)} SED${Number.isFinite(sess.safety.conservativeBaseMedFraction) ? ` · ${Math.round(/** @type {number} */ (sess.safety.conservativeBaseMedFraction) * 100)}% of a conservative Type I base MED` : ''}${Number(sess.safety.ocularActinicUV) > 0 ? ` · ocular actinic UV: ${Number(sess.safety.ocularActinicUV).toFixed(1)} J/m²` : ''}${Number(sess.safety.ocularUvaJPerM2) > 0 ? ` · ocular UVA: ${Number(sess.safety.ocularUvaJPerM2).toFixed(1)} J/m²` : ''}. This is a model, not a personal threshold.`
-      : 'UV was emitted, but the spectral output, band split, or distance basis is insufficient for a defensible number. Burn dose, ocular dose, and vitamin-D output are not calculated.';
-    deviceSafetyHtml = `<div class="light-device-safety ${sess.safety.unsafeEyeExposure ? 'is-over' : ''}">
-      <strong>${sess.safety.unsafeEyeExposure ? '⚠ UV eye protection was not recorded' : (uvModeled ? 'UV dose model' : 'UV dose unavailable')}</strong>
-      <span>${escapeHTML(uvSummary)} Closed eyelids are not UV protection.</span>
-    </div>`;
-  }
-  const modelWarnings = Array.isArray(sess.calculation?.warnings) ? sess.calculation.warnings : [];
-  const modelWarningsHtml = modelWarnings.length
-    ? `<div class="light-device-safety"><strong>Estimate limits</strong><span>${modelWarnings.map(warning => escapeHTML(warning)).join(' ')}</span></div>`
-    : '';
-  const hasPhotopic = Number.isFinite(sess.metrics?.photopicLux);
-  const hasMelanopic = Number.isFinite(sess.metrics?.melanopicEdiLux);
-  const lightMetricHtml = hasPhotopic || hasMelanopic ? `<div class="light-device-safety">
-    <strong>Eye-level light metric</strong>
-    <span>${hasPhotopic ? `${Math.round(/** @type {number} */ ((/** @type {NonNullable<import('./light-devices-store.js').DeviceSessionRecord['metrics']>} */ (sess.metrics)).photopicLux)).toLocaleString()} photopic lux` : ''}${hasPhotopic && hasMelanopic ? ' · ' : ''}${hasMelanopic ? `${Math.round(/** @type {number} */ ((/** @type {NonNullable<import('./light-devices-store.js').DeviceSessionRecord['metrics']>} */ (sess.metrics)).melanopicEdiLux)).toLocaleString()} lx melanopic EDI${(/** @type {NonNullable<import('./light-devices-store.js').DeviceSessionRecord['metrics']>} */ (sess.metrics)).melanopicStatus === 'device-der' ? ' estimated from the device DER' : ''}` : 'Melanopic EDI unavailable without a measured spectrum or declared melanopic DER'}.</span>
-  </div>` : '';
   // Mode label resolution — surface the human-readable label whenever
   // the device declares modes. Legacy sessions (no `mode` field) and
   // devices without a `modes` array both fall through to null.
@@ -377,24 +336,14 @@ export function openDeviceSessionDetail(id?: string) {
     _sessBodyFrac = sess.bodyAreas.reduce((s, k) => s + (_fracByKey[k] || 0), 0) || null;
   }
   const channelRows = sess.doses ? channelOrder
-    .filter(k => (/** @type {NonNullable<import('./light-devices-store.js').DeviceSessionRecord['doses']>} */ (sess.doses))[k] != null)
+    .filter(k => sess.doses![k] != null)
     .map(k => {
       const meta = channelDisplay[k] || {};
-      const v = (/** @type {NonNullable<import('./light-devices-store.js').DeviceSessionRecord['doses']>} */ (sess.doses))[k] || 0;
-      const hasSignal = Number.isFinite(v) && v > 0;
+      const v = sess.doses![k] || 0;
       const sessionFitz = sess.fitzpatrick || state.importedData?.sunDefaults?.fitzpatrick || 'III';
       const unitText = formatChannelUnit(k, v, sess.durationMin || 0, sessionFitz, null, null, false, _sessBodyFrac);
-      const valueText = unitText || (hasSignal ? 'Device signal logged' : 'Not modeled');
-      const sourceText = hasSignal ? 'Device' : 'No signal';
-      const ariaLabel = `${meta.label || k} — ${valueText}, ${sourceText}. Open channel details.`;
-      return `<div class="sun-detail-channel-row sun-detail-channel-row-clickable sun-chip-tier-${hasSignal ? 2 : 0}" data-channel="${escapeAttr(k)}" role="button" tabindex="0" aria-label="${escapeAttr(ariaLabel)}">
-        <span class="sun-detail-channel-icon" aria-hidden="true">${meta.icon || '·'}</span>
-        <span class="sun-detail-channel-label">${escapeHTML(meta.label || k)}</span>
-        <span class="sun-detail-channel-value">${escapeHTML(valueText)}</span>
-        <span class="sun-detail-channel-tier">${escapeHTML(sourceText)}</span>
-        <span class="sun-detail-channel-chevron" aria-hidden="true">›</span>
-      </div>`;
-    }).join('') : '';
+      return detailChannel(k, meta, v, unitText, 'device');
+    }) : [];
   const aiDetailHtml = typeof lightDevicesDeps.renderDeviceSessionAIDetail === 'function'
     ? (lightDevicesDeps.renderDeviceSessionAIDetail as (session: DeviceSessionRecord) => unknown)(sess)
     : '';
@@ -402,70 +351,27 @@ export function openDeviceSessionDetail(id?: string) {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   const closeDialog = () => removeModalOverlay(overlay);
-  overlay.innerHTML = `<div class="modal sun-detail-modal" data-session-kind="device" role="dialog" aria-label="Device session details">
-    <div class="modal-header">
-      <h3>Device session — ${escapeHTML(stamp.date)}</h3>
-      <button class="modal-close" data-device-session-detail-close aria-label="Close">×</button>
-    </div>
-    <div class="modal-body">
-      <div class="sun-detail-grid">
-        <div title="Local session start time"><span>When</span><strong>${escapeHTML(stamp.time || '—')}</strong></div>
-        <div title="Total session duration. Edit via the action row below if the timer ran past the actual session."><span>Duration</span><strong>${escapeHTML(dur)}</strong></div>
-        <div title="Recorded source"><span>Source</span><strong>${escapeHTML(devName)}</strong></div>
-      </div>
-
-      ${deviceSafetyHtml}
-      ${modelWarningsHtml}
-
-      <div class="sun-detail-section">
-        <div class="sun-detail-section-label">Exposure setup</div>
-        <div class="sun-detail-setup-grid">
-          <div><span>Device</span><strong>${escapeHTML(devName)}${typeLabel !== '—' ? ` · ${escapeHTML(typeLabel)}` : ''}</strong></div>
-          ${modeLabel ? `<div><span>Mode</span><strong>${escapeHTML(modeLabel)}</strong></div>` : ''}
-          <div><span>Distance</span><strong>${escapeHTML(distanceStr)}</strong></div>
-          <div><span>Body area</span><strong>${escapeHTML(areaLabel)}</strong></div>
-          <div><span>Eyes</span><strong>${escapeHTML(eyesLabel)}</strong></div>
-        </div>
-      </div>
-
-      ${aiDetailHtml ? `<div class="sun-detail-section">
-        <div class="sun-detail-section-label">Session interpretation</div>
-        ${aiDetailHtml}
-      </div>` : ''}
-
-      <details class="sun-detail-disclosure">
-        <summary>Modeled light signals</summary>
-        <p>Estimated stimulation from the recorded device setup. These are not universal dose targets.</p>
-        ${lightMetricHtml}
-        ${channelRows ? `<div class="sun-detail-channels">${channelRows}</div>` : '<p class="sun-detail-empty">No modeled light signals are available for this session.</p>'}
-      </details>
-
-      <details class="sun-detail-disclosure">
-        <summary>Device and model inputs</summary>
-        <p>${liveDevice ? 'Technical source values used to calculate the session.' : 'Saved device details retained with this historical session.'}</p>
-        ${device ? `<div class="sun-detail-atm">
-          <div title="Peak emission wavelengths declared by the device"><span>Peaks</span><strong>${escapeHTML(peakStr)}</strong></div>
-          <div title="Stored output at the device reference distance"><span>Reference output</span><strong>${escapeHTML(irradianceStr)}</strong></div>
-          <div><span>Output basis</span><strong>${escapeHTML(_deviceBasisLabel(device.irradianceBasis))}</strong></div>
-          <div><span>Recorded distance</span><strong>${escapeHTML(distanceStr)}</strong></div>
-          ${modeLabel ? `<div><span>Mode</span><strong>${escapeHTML(modeLabel)}</strong></div>` : ''}
-        </div>${_safeHttpUrl(device.specSourceUrl) ? `<p><a href="${escapeAttr(_safeHttpUrl(device.specSourceUrl))}" target="_blank" rel="noopener noreferrer">Open saved specification source ↗</a></p>` : ''}` : '<p class="sun-detail-empty">The device specification is unavailable.</p>'}
-      </details>
-
-      ${sess.notes ? `
-        <div class="sun-detail-section">
-          <div class="sun-detail-section-label">Notes</div>
-          <div class="sun-detail-section-value">${escapeHTML(sess.notes)}</div>
-        </div>
-      ` : ''}
-
-      <div class="modal-actions" style="margin-top:18px">
-        <button class="import-btn import-btn-secondary" id="device-detail-edit-duration" title="Override the session duration. Use when you forgot to stop the timer or stopped late.">Edit duration</button>
-        ${canEditMode ? `<button class="import-btn import-btn-secondary" id="device-detail-edit-mode" title="Change which LED-group mode the session ran in. Doses recompute on save.">Edit mode</button>` : ''}
-        <button class="import-btn import-btn-secondary" id="device-detail-delete" style="color:var(--red);border-color:var(--red)">Delete session</button>
-      </div>
-    </div>
-  </div>`;
+  overlay.innerHTML = renderHTML({ kind: 'detail', aiHTML: aiDetailHtml ? String(aiDetailHtml) : '', view: {
+    kind: 'device', id: sess.id, title: `Device session — ${stamp.date}`,
+    summary: [detailField('When', stamp.time || '—', 'Local session start time'),
+      detailField('Duration', dur, 'Total session duration. Edit via the action row below if the timer ran past the actual session.'),
+      detailField('Source', devName, 'Recorded source')],
+    setup: [detailField('Device', devName + (typeLabel !== '—' ? ` · ${typeLabel}` : '')),
+      ...(modeLabel ? [detailField('Mode', modeLabel)] : []), detailField('Distance', distanceStr),
+      detailField('Body area', areaLabel), detailField('Eyes', eyesLabel)],
+    notices: deviceDetailNotices(sess), calculation: null, channels: channelRows,
+    channelsEmpty: 'No modeled light signals are available for this session.',
+    signalsDescription: 'Estimated stimulation from the recorded device setup. These are not universal dose targets.',
+    lightMetric: deviceDetailLightMetric(sess), inputTitle: 'Device and model inputs',
+    inputDescription: liveDevice ? 'Technical source values used to calculate the session.' : 'Saved device details retained with this historical session.',
+    inputs: device ? [detailField('Peaks', peakStr, 'Peak emission wavelengths declared by the device'),
+      detailField('Reference output', irradianceStr, 'Stored output at the device reference distance'),
+      detailField('Output basis', _deviceBasisLabel(device.irradianceBasis)), detailField('Recorded distance', distanceStr),
+      ...(modeLabel ? [detailField('Mode', modeLabel)] : [])] : [],
+    inputsEmpty: 'The device specification is unavailable.', location: null,
+    sourceUrl: device ? _safeHttpUrl(device.specSourceUrl) || '' : '', notes: sess.notes || '',
+    canEditDuration: true, canEditMode,
+  } });
   _wireModal(overlay, closeDialog);
   overlay.addEventListener('click', (event) => {
     const target = /** @type {Element|null} */ (event.target instanceof Element ? event.target : null);
@@ -500,7 +406,7 @@ export function openDeviceSessionDetail(id?: string) {
     if (event.key !== 'Enter' && event.key !== ' ') return;
     const target = /** @type {Element|null} */ (event.target instanceof Element ? event.target : null);
     const channelRow = target?.closest?.('.sun-detail-channel-row-clickable[data-channel]');
-    if (!channelRow || !overlay.contains(channelRow)) return;
+    if (!channelRow || !overlay.contains(channelRow) || channelRow.matches('button')) return;
     event.preventDefault();
     const channel = channelRow.getAttribute('data-channel') || '';
     closeDialog();

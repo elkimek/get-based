@@ -1139,6 +1139,22 @@ conservative duration default and save/start validation. Scoped Tailwind shares
 the ordered Light stylesheet; native active/setup/illustration styles remain
 restricted to their owning children.
 
+`LightSessionDetail.svelte` owns one rich Sun/device detail layout, shared
+field grids and native channel buttons. `light-session-detail-presentation.ts`
+projects literal field/channel metadata, calculation notices and device safety
+and light-metric copy. The existing Sun/device controllers retain duration,
+body-area weights, spectrum reconstruction, unit conversion, device snapshot
+fallback, mode coupling, edits, deletion and sync-refresh ownership. The sole
+HTML slot accepts the separately owned session-AI renderer; metadata uses Svelte
+escaping. Saved specification links still pass the device controller's HTTP URL
+validator. Device channel keydown ignores native buttons, allowing the browser's
+single generated click to own activation and modal dismissal.
+`DeviceSessionModeForm.svelte` retains the existing coupling-filtered options and
+save handler; the canonical device-session store recomputes doses. Native active
+cards, live readouts, setup forms and body-silhouette rendering remain separate
+owners. Shared native section/disclosure rules remain for Conditions and device
+setup; exclusive detail layout rules are removed.
+
 Settings and Tweaks are loaded through `settings-loader.js` on their first
 shell, startup deep-link, or feature action. Theme-owned accent initialization
 stays in `theme.js`, while the Light page imports its Sun data-source renderer

@@ -43,7 +43,7 @@ test('static device logging and authored history persist offline through closed-
     await dialog.screenshot({ path: test.info().outputPath('actual-device-session-offline.png') });
     await dialog.getByRole('button', { name: 'Save session', exact: true }).click();
     await expect(dialog).not.toBeVisible();
-    const snapshot = await page.evaluate(readComparisonAcceptanceProfile) as ProfileData;
+    let snapshot = await page.evaluate(readComparisonAcceptanceProfile) as ProfileData;
     expect(snapshot.deviceSessions).toHaveLength(1);
     const session = snapshot.deviceSessions![0]!;
     expect(session).toMatchObject({ id: expect.stringMatching(/^devsess_/), deviceId: 'acceptance-panel', durationMin: 7, distanceCm: 25, bodyArea: 'torso', bodyAreas: ['breast-chest'], eyesProtected: true, fitzpatrick: 'II', mode: 'nir', notes: '', deviceSnapshot: { id: 'acceptance-panel', brand: 'Offline <Panel>', model: 'Red & NIR' }, safety: { hasUV: false, unsafeEyeExposure: false } });
@@ -60,11 +60,27 @@ test('static device logging and authored history persist offline through closed-
     const row = page.locator('[data-light-history-row][data-id="'+session.id+'"]');
     await expect(row).toContainText('NIR only'); await row.focus(); await page.keyboard.press('Enter');
     const detail = page.getByRole('dialog', { name: 'Device session details', exact: true }); await expect(detail).toBeVisible();
-    await expect(detail).toContainText('NIR only'); await detail.getByRole('button', { name: 'Close', exact: true }).click();
+    await expect(detail).toContainText('NIR only');
+    await detail.getByText('Modeled light signals', { exact: true }).click();
+    await expect(detail.locator('.sun-detail-channel-row[data-channel="pbm_nir"]')).toBeVisible();
+    await detail.screenshot({ path: test.info().outputPath('actual-device-detail-offline.png') });
+    await detail.getByRole('button', { name: 'Edit mode', exact: true }).click();
+    const modeEditor = page.getByRole('dialog', { name: 'Edit session mode', exact: true });
+    await expect(modeEditor.locator('#dev-edit-mode')).toHaveValue('nir');
+    await modeEditor.locator('#dev-edit-mode').selectOption('red');
+    await modeEditor.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(modeEditor).not.toBeVisible();
+    await expect.poll(async () => ((await page.evaluate(readComparisonAcceptanceProfile)) as ProfileData).deviceSessions?.[0]?.mode).toBe('red');
+    snapshot = await page.evaluate(readComparisonAcceptanceProfile) as ProfileData;
+    const revised = snapshot.deviceSessions![0]!;
+    expect(revised).toMatchObject({ id: session.id, startedAt: session.startedAt, endedAt: session.endedAt, durationMin: 7, distanceCm: 25, bodyAreas: ['breast-chest'], eyesProtected: true, mode: 'red' });
+    expect(Number(revised.doses?.pbm_red)).toBeGreaterThan(0);
+    expect(Number(revised.doses?.pbm_nir)).toBeLessThan(Number(revised.doses?.pbm_red) * 1e-6);
+    expect(snapshot).toEqual({ ...before, deviceSessions: [revised], lightDevices: [device] });
     await page.close();
     for (let launch = 0; launch < 2; launch++) {
       const cold = await context.newPage(); loading.push({ phase: `offline-cold-${launch + 1}`, readyMs: await ready(cold, server.origin) }); await openLight(cold);
-      await expect(cold.locator('[data-light-history-row][data-id="'+session.id+'"]')).toContainText('NIR only');
+      await expect(cold.locator('[data-light-history-row][data-id="'+session.id+'"]')).toContainText('Red only');
       expect(await cold.evaluate(readComparisonAcceptanceProfile)).toEqual(snapshot);
       if (launch === 1) {
         await cold.locator('[data-shell-action="open-settings"]').click(); await cold.locator('#settings-nav-data').click();

@@ -1,3 +1,4 @@
+import type { SessionDetailView } from './light-session-detail-presentation.js';
 import type { SessionReader } from '../types/sun-session-ui.js';
 import type { DeviceSessionRecord, LightDeviceRecord } from './light-devices-store.js';
 
@@ -71,7 +72,9 @@ export function projectDeviceSessionForm(input: { device: LightDeviceRecord; val
     distanceHint: `Vendor reference: ${referenceCm} cm (${inches(referenceCm)} in).${override ? ` You usually log at ${defaultDistanceCm} cm — prefilled below.` : ''} ${modelHint}`,
     eyeLabel: input.isUVDevice ? 'UV-rated goggles worn (closed eyelids are not protection)' : input.isEyeLightDevice ? 'Eyes open to receive ambient light (never stare at lamp)' : 'Device-appropriate eye protection worn', eyesChecked: input.defaultEyeControlChecked };
 }
-export type LightSessionPresentationProps = { kind: 'row'; view: CompletedLightSessionView }
+export type LightSessionPresentationProps = LightSessionDetailProps | { kind: 'row'; view: CompletedLightSessionView }
   | { kind: 'past'; view: PastSessionFormView; silhouetteHTML: string }
   | { kind: 'device'; view: DeviceSessionFormView; silhouetteHTML: string }
   | { kind: 'history'; rowsHTML: string; total: number; sunCount: number; deviceCount: number; modal: boolean; showMore: boolean; emptySun?: boolean };
+
+export type LightSessionDetailProps = { kind: 'detail'; view: SessionDetailView; aiHTML: string } | { kind: 'mode-editor'; name: string; modes: SessionOption[] };

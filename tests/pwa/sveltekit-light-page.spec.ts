@@ -74,6 +74,16 @@ test('static Light route retains offline first use, past-session persistence, di
     expect(session.endedAt! - session.startedAt).toBe(900000);
     expect(snapshot).toEqual({ ...before, sunSessions: [session] });
     await expect(page.locator('.light-summary-tally')).not.toBeAttached();
+    const savedRow = page.locator('[data-light-history-row][data-sun-session-id="'+session.id+'"]');
+    await savedRow.focus(); await page.keyboard.press('Enter');
+    const detail = page.getByRole('dialog', { name: 'Sun session details', exact: true });
+    await expect(detail).toBeVisible(); await expect(detail.locator('[data-sun-session-action="retry-calculation"]')).toBeVisible();
+    await expect(detail).toContainText('Offline session <literal> & retained.');
+    await detail.getByText('Conditions and model inputs', { exact: true }).click();
+    await expect(detail).toContainText('Location not recorded');
+    await detail.screenshot({ path: test.info().outputPath('actual-sun-detail-offline.png') });
+    await detail.getByRole('button', { name: 'Close', exact: true }).click();
+    expect(await page.evaluate(readComparisonAcceptanceProfile)).toEqual(snapshot);
     await page.close();
     for (let launch = 0; launch < 2; launch++) {
       const cold = await context.newPage();

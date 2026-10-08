@@ -19,7 +19,7 @@
   gap: 14px;
   min-width: 0;
 }
-.light-device-safety {
+.light-device-safety:not([data-light-detail-presentation] *) {
   display: grid;
   gap: 4px;
   padding: 10px 12px;
@@ -30,8 +30,8 @@
   font-size: 12px;
   line-height: 1.45;
 }
-.light-device-safety strong { color: var(--text-primary); }
-.light-device-safety.is-over {
+.light-device-safety strong:not([data-light-detail-presentation] *) { color: var(--text-primary); }
+.light-device-safety.is-over:not([data-light-detail-presentation] *) {
   border-color: color-mix(in srgb, var(--red) 55%, var(--border));
   background: color-mix(in srgb, var(--red-bg) 68%, var(--bg-card));
 }
@@ -267,102 +267,24 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
 /* Detailed (past) session modal — silhouette picker + form fields */
 .sun-detailed-modal:not([data-light-session-presentation]), .sun-start-modal { max-width: 560px; }
 
-/* Per-session detail modal — opened by clicking a session row */
-.sun-detail-modal { max-width: 540px; }
-.sun-detail-modal {
-  --session-accent: var(--orange);
-  border-color: color-mix(in srgb, var(--session-accent) 24%, var(--border));
-  box-shadow: var(--shadow-lg), inset 0 3px 0 color-mix(in srgb, var(--session-accent) 78%, transparent);
-}
-.sun-detail-modal[data-session-kind="device"] { --session-accent: var(--red); }
-.sun-detail-modal > .modal-header:first-child {
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--session-accent) 10%, transparent), transparent 58%),
-    color-mix(in srgb, var(--bg-secondary) 92%, var(--bg-card));
-  border-bottom-color: color-mix(in srgb, var(--session-accent) 18%, var(--border));
-}
-.sun-detail-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-  gap: 10px;
-  margin-bottom: 16px;
-}
-.sun-detail-grid > div {
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--session-accent) 6%, transparent), transparent 60%),
-    color-mix(in srgb, var(--bg-secondary) 78%, transparent);
-  border: 1px solid color-mix(in srgb, var(--session-accent) 14%, var(--border));
-  border-radius: var(--radius-sm);
-  padding: 8px 12px;
-  display: flex; flex-direction: column;
-}
-.sun-detail-grid span {
-  font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
-  color: var(--text-muted);
-}
-.sun-detail-grid strong {
-  font-size: 14px; color: var(--text-primary); font-weight: 600;
-  margin-top: 2px;
-}
-.sun-detail-section { margin: 14px 0; }
-.sun-detail-section-label {
+/* Shared native Conditions/AI-extraction sections; authored session details own their utilities. */
+.sun-detail-section:not([data-light-detail-presentation] *) { margin: 14px 0; }
+.sun-detail-section-label:not([data-light-detail-presentation] *) {
   font-size: 11px; color: var(--text-muted);
   text-transform: uppercase; letter-spacing: 0.5px;
   margin-bottom: 6px;
 }
-.sun-detail-section-value {
+.sun-detail-section-value:not([data-light-detail-presentation] *) {
   font-size: 13px; color: var(--text-primary); line-height: 1.5;
 }
-.sun-detail-setup-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 8px;
-}
-.sun-detail-setup-grid > div {
-  min-width: 0;
-  display: grid;
-  gap: 3px;
-  padding: 9px 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--bg-secondary) 72%, transparent);
-}
-.sun-detail-setup-grid span,
-.sun-detail-input-location span {
-  color: var(--text-muted);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-.sun-detail-setup-grid strong,
-.sun-detail-input-location strong {
-  color: var(--text-primary);
-  font-size: 12.5px;
-  font-weight: 600;
-  line-height: 1.4;
-  overflow-wrap: anywhere;
-}
-.sun-calculation-state {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  margin: 0 0 14px;
-  padding: 10px 12px;
-  border: 1px solid color-mix(in srgb, var(--orange) 35%, var(--border));
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--orange-bg) 52%, var(--bg-card));
-  color: var(--text-secondary);
-  font-size: 12px;
-  line-height: 1.4;
-}
-.sun-calculation-state.is-error { border-color: color-mix(in srgb, var(--red) 48%, var(--border)); }
-.sun-calculation-state .import-btn { flex-shrink: 0; }
-.sun-detail-disclosure {
+.sun-detail-disclosure:not([data-light-detail-presentation] *) {
   margin: 12px 0;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--bg-secondary) 48%, transparent);
   overflow: hidden;
 }
-.sun-detail-disclosure > summary {
+.sun-detail-disclosure > summary:not([data-light-detail-presentation] *) {
   padding: 11px 13px;
   color: var(--text-primary);
   font-size: 13px;
@@ -370,155 +292,13 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
   cursor: pointer;
   list-style-position: inside;
 }
-.sun-detail-disclosure[open] > summary { border-bottom: 1px solid var(--border); }
-.sun-detail-disclosure > p,
-.sun-detail-disclosure > .sun-detail-channels,
-.sun-detail-disclosure > .sun-detail-atm,
-.sun-detail-disclosure > .sun-detail-input-location,
-.sun-detail-disclosure > .light-device-safety { margin: 10px 12px; }
-.sun-detail-disclosure > p { color: var(--text-muted); font-size: 12px; line-height: 1.45; }
-.sun-detail-input-location { display: grid; gap: 3px; }
-.sun-detail-channels {
-  display: flex; flex-direction: column; gap: 6px;
-}
-.sun-detail-channel-row {
-  --channel-accent: var(--accent);
-  display: grid;
-  grid-template-columns: 30px minmax(0, 1fr) auto auto 14px;
-  align-items: center;
-  gap: 8px 10px;
-  padding: 10px 12px 10px 14px;
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--channel-accent) 8%, transparent), transparent 58%),
-    color-mix(in srgb, var(--bg-secondary) 72%, transparent);
-  border: 1px solid color-mix(in srgb, var(--channel-accent) 18%, var(--border));
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--channel-accent) 64%, transparent);
-}
-.sun-detail-channel-row[data-channel="vitamin_d"] { --channel-accent: var(--yellow); }
-.sun-detail-channel-row[data-channel="circadian"] { --channel-accent: var(--accent); }
-.sun-detail-channel-row[data-channel="nir_solar"] { --channel-accent: var(--red); }
-.sun-detail-channel-row[data-channel="no_cv"] { --channel-accent: var(--green); }
-.sun-detail-channel-row[data-channel="pomc"] { --channel-accent: var(--orange); }
-.sun-detail-channel-row[data-channel="violet_eye"] { --channel-accent: var(--purple); }
-.sun-detail-channel-row[data-channel="pbm_red"] { --channel-accent: var(--red); }
-.sun-detail-channel-row[data-channel="pbm_nir"] { --channel-accent: var(--orange); }
-.sun-detail-channel-row-clickable {
-  cursor: pointer;
-  transition: background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
-}
-.sun-detail-channel-row-clickable:hover {
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--channel-accent) 12%, transparent), transparent 58%),
-    color-mix(in srgb, var(--bg-hover) 86%, transparent);
-  border-color: color-mix(in srgb, var(--channel-accent) 44%, var(--border));
-  box-shadow:
-    inset 3px 0 0 color-mix(in srgb, var(--channel-accent) 82%, transparent),
-    0 8px 18px color-mix(in srgb, var(--channel-accent) 10%, transparent);
-}
-.sun-detail-channel-row-clickable:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-.sun-detail-channel-chevron {
-  color: var(--text-muted);
-  font-size: 16px;
-  margin-left: 4px;
-  flex-shrink: 0;
-}
-.sun-detail-channel-icon { font-size: 16px; flex-shrink: 0; }
-.sun-detail-channel-label {
-  color: var(--text-primary);
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: 600;
-}
-.sun-detail-channel-value {
-  min-width: 0;
-  text-align: right;
-  font-size: 12px; color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
-}
-.sun-detail-channel-tier {
-  font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;
-  color: var(--text-muted); flex-shrink: 0;
-  min-width: 70px; text-align: center;
-  padding: 3px 8px; border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--bg-secondary);
-}
-@media (max-width: 480px) {
-  .sun-detail-channel-row {
-    grid-template-columns: 30px minmax(0, 1fr) 16px;
-    grid-template-areas:
-      "icon label chevron"
-      "icon value tier";
-  }
-  .sun-detail-channel-icon { grid-area: icon; }
-  .sun-detail-channel-label { grid-area: label; white-space: normal; }
-  .sun-detail-channel-value { grid-area: value; text-align: left; }
-  .sun-detail-channel-tier { grid-area: tier; justify-self: end; }
-  .sun-detail-channel-chevron { grid-area: chevron; justify-self: end; }
-  /* Mobile: shrink the tier pill so longer channel labels (Outdoor eye
-     light, Mood & hormones) don't get squeezed by the chip + chevron. */
-  .sun-detail-channel-tier { min-width: 50px; padding: 3px 6px; font-size: 9px; }
-  /* Modal title — full-day-of-week + 4-digit-year wraps to 2 lines on
-     phones. Drop the day-of-week and year at narrow widths via a smaller
-     font + tighter line-height. */
-  .sun-detail-modal .modal-header h3 { font-size: 15px; line-height: 1.25; }
-  /* Atmosphere "— (default 300)" string is long for the 80px grid cell;
-     allow the cell to be wider on mobile by dropping the auto-fit and
-     using 2 columns so each cell has more breathing room. */
-  .sun-detail-atm { grid-template-columns: 1fr 1fr; }
-  .sun-detail-atm strong { font-size: 12px; }
-}
-/* Channel-row tier chips inside the session detail modal — same scheme
-   as the .light-channel-detail-tierpill in the Light page panel:
-   tier 4 (hit weekly target) is GREEN, not red. Mirrors the chart's
-   green-for-hit-target visual so the user gets one consistent signal. */
-.sun-detail-channel-row.sun-chip-tier-1 .sun-detail-channel-tier {
-  color: var(--text-secondary); border-color: var(--border); background: var(--bg-secondary);
-}
-.sun-detail-channel-row.sun-chip-tier-2 .sun-detail-channel-tier {
-  color: var(--accent);
-  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
-}
-.sun-detail-channel-row.sun-chip-tier-3 .sun-detail-channel-tier {
-  color: var(--accent);
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 15%, transparent);
-}
-.sun-detail-channel-row.sun-chip-tier-4 .sun-detail-channel-tier {
-  color: var(--green);
-  border-color: color-mix(in srgb, var(--green) 40%, transparent);
-  background: color-mix(in srgb, var(--green) 12%, transparent);
-}
-.sun-detail-atm {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-  gap: 6px;
-}
-.sun-detail-atm > div {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 6px 8px;
-  display: flex; flex-direction: column;
-  font-size: 11px;
-}
-.sun-detail-atm span { color: var(--text-muted); font-size: 10px; }
-.sun-detail-atm strong { color: var(--text-primary); font-size: 13px; font-variant-numeric: tabular-nums; }
-.sun-detail-atm-source { grid-column: 1 / -1; }
-/* UV split readout is verbose ("UVB 3.0% (1.0 W/m²) · UVA 97.0% (30.7 W/m²)"); span the full grid row so it doesn't get cropped or overflow into other cells. */
-.sun-detail-atm-uvsplit { grid-column: 1 / -1; }
-.sun-detail-atm-uvsplit strong { font-size: 12px; }
-.sun-detail-empty {
-  font-size: 12px; color: var(--text-muted); font-style: italic;
-}
+.sun-detail-disclosure[open] > summary:not([data-light-detail-presentation] *) { border-bottom: 1px solid var(--border); }
+.sun-detail-disclosure > p:not([data-light-detail-presentation] *),
+.sun-detail-disclosure > .sun-detail-channels:not([data-light-detail-presentation] *),
+.sun-detail-disclosure > .sun-detail-atm:not([data-light-detail-presentation] *),
+.sun-detail-disclosure > .sun-detail-input-location:not([data-light-detail-presentation] *),
+.sun-detail-disclosure > .light-device-safety:not([data-light-detail-presentation] *) { margin: 10px 12px; }
+.sun-detail-disclosure > p:not([data-light-detail-presentation] *) { color: var(--text-muted); font-size: 12px; line-height: 1.45; }
 
 /* ─── Fresco-style body region picker ──────────────────────────────────
    The picker is staged as a small fresco panel — figures rendered as
@@ -1294,21 +1074,21 @@ svg.sun-silhouette text.sun-silhouette-label {
 }
 /* Legacy dots class — kept hidden so any cached HTML still renders. */
 .sun-chip-dots { display: none; }
-.sun-chip-tier-0 {
+.sun-chip-tier-0:not([data-light-detail-presentation] *) {
   opacity: 0.5;
   background: transparent;
   border-color: color-mix(in srgb, var(--border) 82%, transparent);
 }
-.sun-chip-tier-1 { color: var(--text-secondary); }
-.sun-chip-tier-2 {
+.sun-chip-tier-1:not([data-light-detail-presentation] *) { color: var(--text-secondary); }
+.sun-chip-tier-2:not([data-light-detail-presentation] *) {
   color: var(--text-primary);
   border-color: color-mix(in srgb, var(--channel-accent) 30%, var(--border));
 }
-.sun-chip-tier-3 {
+.sun-chip-tier-3:not([data-light-detail-presentation] *) {
   color: var(--channel-accent);
   border-color: color-mix(in srgb, var(--channel-accent) 52%, var(--border));
 }
-.sun-chip-tier-4 { color: var(--green); border-color: var(--green); }
+.sun-chip-tier-4:not([data-light-detail-presentation] *) { color: var(--green); border-color: var(--green); }
 
 .sun-empty {
   background: var(--bg-secondary); border: 1px dashed var(--border);
@@ -1384,6 +1164,5 @@ svg.sun-silhouette text.sun-silhouette-label {
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .sun-calculation-state { align-items: flex-start; flex-direction: column; }
 
 }

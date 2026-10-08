@@ -384,3 +384,11 @@ real canonical session with the origin disabled before first form use, checks
 mode-specific signals and exact unrelated-profile equality, opens the existing
 rich detail and verifies two closed-client launches and backup. AI is paused;
 this does not establish physical-device, live-provider or installed-PWA acceptance.
+
+Sun/device session details share authored field grids, disclosures, safety
+notices and native channel buttons. The mode editor is also authored; existing
+controllers and stores own calculations, coupling and mutations. Static Light
+acceptance opens saved Sun details with the origin disabled and edits a real
+device session from NIR to red, checking recalculated doses, unrelated data,
+offline cold launches and exact backup equality. This extends local evidence;
+remaining active/session setup owners and installed-PWA acceptance stay separate.

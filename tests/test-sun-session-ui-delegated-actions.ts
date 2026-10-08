@@ -5,6 +5,7 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Static sun-session UI delegated-action source guards.
 
 const uiSrc = readRepositorySource('js/sun-session-ui.js', 'utf8');
+const detailSrc = readRepositorySource('js/components/LightSessionDetail.svelte', 'utf8');
 const actionSrc = readRepositorySource('js/sun-session-actions.js', 'utf8');
 const sunSrc = readRepositorySource('js/sun.js', 'utf8');
 const sunAiSrc = readRepositorySource('js/sun-ai-analysis.js', 'utf8');
@@ -22,7 +23,7 @@ console.log('=== Sun Session UI Delegated Actions ===');
 const inlineHandlerRe = /\bon(?:click|keydown|submit|change|input)=/;
 
 assert('sun-session-ui renders no inline event attributes',
-  !inlineHandlerRe.test(uiSrc));
+  !inlineHandlerRe.test(uiSrc) && !inlineHandlerRe.test(detailSrc));
 assert('sun-session-actions defines one shared action attribute helper',
   (actionSrc.match(/\bfunction\s+sunSessionActionAttrs\b/g) || []).length === 1 &&
     actionSrc.includes('data-sun-session-action=') &&
@@ -137,15 +138,27 @@ assert('sun.js configures active sun-session delegated actions',
   "sunSessionActionAttrs('change-coverage', { id: sess.id })",
   "sunSessionActionAttrs('apply-sunscreen', { id: sess.id })",
   "sunSessionActionAttrs('forgot-stop', { id: sess.id })",
-  "sunSessionActionAttrs('open-channel', { channel: k })",
-  "sunSessionActionAttrs('edit-duration', { id: sess.id })",
-  "sunSessionActionAttrs('retry-calculation', { id: sess.id })",
-  "sunSessionActionAttrs('delete-session', { id: sess.id, closeModal: true })",
   "sunSessionActionAttrs('toggle-chips', { hiddenCount })",
 ].forEach(renderedAction => {
   assert(`sun-session-ui renders ${renderedAction}`,
     uiSrc.includes(renderedAction));
 });
+
+assert('authored Sun detail channel buttons retain channel-scoped delegated actions',
+  detailSrc.includes("data-sun-session-action={view.kind === 'sun' ? 'open-channel' : undefined}") &&
+    detailSrc.includes("data-sun-session-channel={view.kind === 'sun' ? item.key : undefined}") &&
+    detailSrc.includes('aria-label={item.ariaLabel}'));
+assert('authored Sun duration action retains the captured session ID',
+  detailSrc.includes("data-sun-session-action={view.kind === 'sun' ? 'edit-duration' : undefined}") &&
+    detailSrc.includes("data-sun-session-id={view.kind === 'sun' ? view.id : undefined}"));
+assert('authored calculation retry retains the captured session ID and existing calculation service',
+  detailSrc.includes('data-sun-session-action="retry-calculation" data-sun-session-id={view.id}') &&
+    uiSrc.includes('sessionCalculationNotice(sess.calculationStatus)') &&
+    actionSrc.includes('actions.retrySunSessionCalculation'));
+assert('authored Sun delete action closes its owning modal and retains the captured session ID',
+  detailSrc.includes("data-sun-session-action={view.kind === 'sun' ? 'delete-session' : undefined}") &&
+    detailSrc.includes("data-sun-session-id={view.kind === 'sun' ? view.id : undefined}") &&
+    detailSrc.includes("data-sun-session-close-modal={view.kind === 'sun' ? 'true' : undefined}"));
 
 console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
 if (legacyAssertions.fail > 0) process.exit(1);

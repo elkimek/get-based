@@ -3,6 +3,7 @@
 import type { SessionReader, SessionCalls, DoseReader, ChipRow, OptionOperations } from '../types/sun-session-ui.js';
 
 import { renderHTML } from './components/LightSessionPresentation.svelte.html.js';
+import { detailField, detailChannel, sessionCalculationNotice, type SessionDetailField } from './light-session-detail-presentation.js';
 import { projectCompletedSunSession } from './light-session-presentation.js';
 
 import { state } from './state.js';
@@ -257,18 +258,8 @@ export function openSunSessionDetail(id: unknown) {
     const meta = uiDeps.channelDisplay[k] || {};
     const v = (sess.doses![k] || 0) as number;
     const unitText = uiDeps.formatChannelUnit(k, v, durationMin || 0, sess.safety?.fitzpatrick || 'I', sess.atmosphere?.uvIndex, sessZenith, !!sess.bodyExposure?.rotatedSides, sess.bodyExposure?.fraction || null);
-    const hasSignal = Number.isFinite(v) && v > 0;
-    const valueText = unitText || (hasSignal ? 'Signal logged' : 'Not modeled');
-    const sourceText = hasSignal ? 'Sunlight' : 'No signal';
-    const ariaLabel = `${meta.label || k} — ${valueText}, ${sourceText}. Open channel details.`;
-    return `<div class="sun-detail-channel-row sun-detail-channel-row-clickable sun-chip-tier-${hasSignal ? 2 : 0}" data-channel="${escapeAttr(k)}" ${sunSessionActionAttrs('open-channel', { channel: k })} role="button" tabindex="0" aria-label="${escapeAttr(ariaLabel)}">
-      <span class="sun-detail-channel-icon" aria-hidden="true">${meta.icon || '·'}</span>
-      <span class="sun-detail-channel-label">${escapeHTML(meta.label || k)}</span>
-      <span class="sun-detail-channel-value">${escapeHTML(valueText)}</span>
-      <span class="sun-detail-channel-tier">${sourceText}</span>
-      <span class="sun-detail-channel-chevron" aria-hidden="true">›</span>
-    </div>`;
-  }).join('') : '<p class="sun-detail-empty">No channel doses computed for this session yet.</p>';
+    return detailChannel(k, meta, v, unitText, 'sun');
+  }) : [];
 
   // Location summary (declared above the atmosphere block so derived metrics
   // can read sess.location for zenith + altitude).
@@ -277,7 +268,7 @@ export function openSunSessionDetail(id: unknown) {
   // Atmosphere snapshot + derived geometry. Surfaces zenith, altitude, and
   // a UVA/UVB split so biohackers can audit the math behind the channels.
   const atm = sess.atmosphere as NonNullable<Parameters<NonNullable<SessionCalls['reconstructSpectrum']>>[0]> & {uvIndex?: number | null; ozoneDU?: number | null; cloudCover?: number | null; source?: unknown; airQuality?: {pm25?: number | null; aod?: number | null} | null} | null | undefined;
-  let atmHtml = '';
+  let atmosphereFields: SessionDetailField[] = [];
   if (atm) {
     const uvi = atm.uvIndex != null ? Math.round(atm.uvIndex * 10) / 10 : '—';
     // Open-Meteo free tier doesn't expose stratospheric ozone DU; engine
@@ -330,16 +321,16 @@ export function openSunSessionDetail(id: unknown) {
     // Source label: pretty-print the raw provider key.
     const sourceLabels: Record<string, unknown> = { open_meteo: 'Open-Meteo', open_meteo_cams: 'Open-Meteo + CAMS context', cams: 'CAMS', cams_satellite: 'CAMS + satellite clouds', noaa_nws: 'NOAA NWS', selfhost: 'Self-hosted', manual: 'Manual entry' };
     const sourceStr = sourceLabels[atm.source as string] || atm.source || 'unknown';
-    atmHtml = `<div class="sun-detail-atm">
-      <div title="WHO UV index at session midpoint"><span>UVI</span><strong>${uvi}</strong></div>
-      <div title="Total stratospheric ozone column (Dobson Units). Lower DU → more UVB through. Engine defaults to 300 DU when source doesn't expose it."><span>Ozone</span><strong>${ozoneStr}</strong></div>
-      <div title="Cloud-cover modifier on direct beam. Diffuse scatter still passes through."><span>Cloud</span><strong>${cloud}</strong></div>
-      <div title="PM2.5 — fine particulate. Affects aerosol optical depth (AOD) and UV scattering."><span>PM2.5</span><strong>${aqPm25}</strong></div>
-      <div title="Solar zenith angle at session midpoint — angle between sun and vertical. 0° = directly overhead, 90° = horizon."><span>Zenith</span><strong>${zenithStr}</strong></div>
-      <div title="Altitude above sea level — UV climbs ~10% per 1000 m."><span>Altitude</span><strong>${altStr}</strong></div>
-      ${uvSplitStr ? `<div class="sun-detail-atm-uvsplit" title="UVB-to-UVA ratio at ground level, computed from the reconstructed Bird-Riordan spectrum. Driven by zenith, ozone, cloud cover, and aerosols."><span>UV split</span><strong>${uvSplitStr}</strong></div>` : ''}
-      <div class="sun-detail-atm-source"><span>Source</span><strong>${escapeHTML(sourceStr)}</strong></div>
-    </div>`;
+    atmosphereFields = [
+      detailField('UVI', uvi, 'WHO UV index at session midpoint'),
+      detailField('Ozone', ozoneStr, "Total stratospheric ozone column (Dobson Units). Lower DU → more UVB through. Engine defaults to 300 DU when source doesn't expose it."),
+      detailField('Cloud', cloud, 'Cloud-cover modifier on direct beam. Diffuse scatter still passes through.'),
+      detailField('PM2.5', aqPm25, 'PM2.5 — fine particulate. Affects aerosol optical depth (AOD) and UV scattering.'),
+      detailField('Zenith', zenithStr, 'Solar zenith angle at session midpoint — angle between sun and vertical. 0° = directly overhead, 90° = horizon.'),
+      detailField('Altitude', altStr, 'Altitude above sea level — UV climbs ~10% per 1000 m.'),
+      ...(uvSplitStr ? [detailField('UV split', uvSplitStr, 'UVB-to-UVA ratio at ground level, computed from the reconstructed Bird-Riordan spectrum. Driven by zenith, ozone, cloud cover, and aerosols.', true)] : []),
+      detailField('Source', sourceStr, '', true),
+    ];
   }
 
   // Location summary string (uses `loc` declared above).
@@ -367,82 +358,31 @@ export function openSunSessionDetail(id: unknown) {
     if (surfLabel) modifierBits.push(surfLabel.split(' (')[0]); // drop the "(~25%)" suffix
   }
   const aiDetailHtml = uiDeps.renderSessionAIDetail(sess);
-  const calculationMessages: Record<string, unknown> = {
-    pending: 'Estimates are being recalculated. Previous derived values are hidden until the new calculation finishes.',
-    'needs-location': 'A location is needed to reconstruct conditions and calculate this session.',
-    'atmosphere-unavailable': 'Conditions could not be loaded for this session. No dose or burn estimate is being shown.',
-    'calculation-error': 'The session could not be calculated. No stale estimate is being shown.',
-  };
-  const calculationMessage = calculationMessages[sess.calculationStatus as string] || '';
-  const canRetryCalculation = ['needs-location', 'atmosphere-unavailable', 'calculation-error'].includes(sess.calculationStatus as string);
-  const calculationStateHtml = calculationMessage ? `<div class="sun-calculation-state${sess.calculationStatus === 'calculation-error' ? ' is-error' : ''}" role="status">
-    <span>${escapeHTML(calculationMessage)}</span>
-    ${canRetryCalculation ? `<button type="button" class="import-btn import-btn-secondary" ${sunSessionActionAttrs('retry-calculation', { id: sess.id })}>Retry calculation</button>` : ''}
-  </div>` : '';
-
-  overlay.innerHTML = `<div class="modal sun-detail-modal" data-session-kind="sun" role="dialog" aria-label="Sun session details">
-    <div class="modal-header">
-      <h3>Sun session · ${escapeHTML(fmtTitleDate(start))}</h3>
-      <button type="button" class="modal-close" ${sunSessionActionAttrs('close-modal')} aria-label="Close">×</button>
-    </div>
-    <div class="modal-body">
-      <div class="sun-detail-grid">
-        <div title="Session start–end and duration"><span>When</span><strong>${escapeHTML(whenStr)}</strong></div>
-        <div title="Cumulative erythemal dose compared with a rough Fitzpatrick base MED. This is not a personal threshold; stop before redness and treat medication warnings separately."><span>Burn dose</span><strong>${escapeHTML(medStr)}</strong></div>
-        ${sess.doses?.vitamin_d ? (() => {
-          const geneInfo = uiDeps.geneticVitaminDMultiplier(state.importedData?.genetics);
-          const geneNote = geneInfo.contributors.length > 0
-            ? ` Separate serum-genetics context (not applied to this skin estimate): ${geneInfo.contributors.map(c => `${c.gene} ${c.genotype}`).join(', ')}.`
-            : '';
-          return `<div title="Modeled vitamin D IU-equivalent from action-weighted incident UVB, exposed area, and a rough Fitzpatrick ${sess.safety?.fitzpatrick || 'I'} central modifier. It is not measured skin absorption or a predicted blood response. Rotation is preserved in session history but does not double dose.${geneNote} Expect broad multi-fold uncertainty."><span>Vitamin D estimate</span><strong>${escapeHTML(uiDeps.formatChannelUnit('vitamin_d', sess.doses.vitamin_d, durationMin || 0, sess.safety?.fitzpatrick || 'I', sess.atmosphere?.uvIndex, sessZenith, !!sess.bodyExposure?.rotatedSides, sess.bodyExposure?.fraction || null))}</strong></div>`;
-        })() : ''}
-      </div>
-
-      ${calculationStateHtml}
-
-      <div class="sun-detail-section">
-        <div class="sun-detail-section-label">Exposure setup</div>
-        <div class="sun-detail-setup-grid">
-          <div><span>Skin · ${fractionPct}%</span><strong>${escapeHTML(regionLabels)}</strong></div>
-          <div><span>Eyes</span><strong>${escapeHTML(eyeMode + lensTintStr)}</strong></div>
-          ${modifierBits.length ? `<div><span>Modifiers</span><strong>${escapeHTML(modifierBits.join(' · '))}</strong></div>` : ''}
-        </div>
-      </div>
-
-      ${aiDetailHtml ? `<div class="sun-detail-section">
-        <div class="sun-detail-section-label">Session interpretation</div>
-        ${aiDetailHtml}
-      </div>` : ''}
-
-      <details class="sun-detail-disclosure">
-        <summary>Modeled light signals</summary>
-        <p>Estimated stimulation from this session. These signals are not daily targets or proof of an endocrine outcome.</p>
-        <div class="sun-detail-channels">${channelRows}</div>
-      </details>
-
-      <details class="sun-detail-disclosure">
-        <summary>Conditions and model inputs</summary>
-        <p>Technical inputs retained so the estimate can be audited without crowding the session summary.</p>
-        ${atmHtml || '<p class="sun-detail-empty">Conditions were not available for this session.</p>'}
-        <div class="sun-detail-input-location">
-          <span>Approx. model location</span>
-          <strong>${escapeHTML(locStr)}</strong>
-        </div>
-      </details>
-
-      ${sess.notes ? `
-        <div class="sun-detail-section">
-          <div class="sun-detail-section-label">Notes</div>
-          <div class="sun-detail-section-value">${escapeHTML(sess.notes)}</div>
-        </div>
-      ` : ''}
-
-      <div class="modal-actions" style="margin-top:18px">
-        ${sess.endedAt ? `<button type="button" class="import-btn import-btn-secondary" ${sunSessionActionAttrs('edit-duration', { id: sess.id })} title="Override the session duration. Use when a re-end on a second device set it wrong, or you forgot to stop on time.">Edit duration</button>` : ''}
-        <button type="button" class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red)" ${sunSessionActionAttrs('delete-session', { id: sess.id, closeModal: true })}>Delete session</button>
-      </div>
-    </div>
-  </div>`;
+  const summary = [
+    detailField('When', whenStr, 'Session start–end and duration'),
+    detailField('Burn dose', medStr, 'Cumulative erythemal dose compared with a rough Fitzpatrick base MED. This is not a personal threshold; stop before redness and treat medication warnings separately.'),
+  ];
+  if (sess.doses?.vitamin_d) {
+    const geneInfo = uiDeps.geneticVitaminDMultiplier(state.importedData?.genetics);
+    const geneNote = geneInfo.contributors.length > 0
+      ? ` Separate serum-genetics context (not applied to this skin estimate): ${geneInfo.contributors.map(c => `${c.gene} ${c.genotype}`).join(', ')}.`
+      : '';
+    summary.push(detailField('Vitamin D estimate', uiDeps.formatChannelUnit('vitamin_d', sess.doses.vitamin_d, durationMin || 0, sess.safety?.fitzpatrick || 'I', sess.atmosphere?.uvIndex, sessZenith, !!sess.bodyExposure?.rotatedSides, sess.bodyExposure?.fraction || null),
+      `Modeled vitamin D IU-equivalent from action-weighted incident UVB, exposed area, and a rough Fitzpatrick ${sess.safety?.fitzpatrick || 'I'} central modifier. It is not measured skin absorption or a predicted blood response. Rotation is preserved in session history but does not double dose.${geneNote} Expect broad multi-fold uncertainty.`));
+  }
+  overlay.innerHTML = renderHTML({ kind: 'detail', aiHTML: aiDetailHtml ? String(aiDetailHtml) : '', view: {
+    kind: 'sun', id: String(sess.id ?? ''), title: `Sun session · ${fmtTitleDate(start)}`, summary,
+    setup: [detailField(`Skin · ${fractionPct}%`, regionLabels), detailField('Eyes', eyeMode + lensTintStr),
+      ...(modifierBits.length ? [detailField('Modifiers', modifierBits.join(' · '))] : [])],
+    notices: [], calculation: sessionCalculationNotice(sess.calculationStatus), channels: channelRows,
+    channelsEmpty: 'No channel doses computed for this session yet.',
+    signalsDescription: 'Estimated stimulation from this session. These signals are not daily targets or proof of an endocrine outcome.',
+    lightMetric: null, inputTitle: 'Conditions and model inputs',
+    inputDescription: 'Technical inputs retained so the estimate can be audited without crowding the session summary.',
+    inputs: atmosphereFields, inputsEmpty: 'Conditions were not available for this session.',
+    location: detailField('Approx. model location', locStr), sourceUrl: '', notes: sess.notes ? String(sess.notes) : '',
+    canEditDuration: !!sess.endedAt, canEditMode: false,
+  } });
   const closeDialog = () => removeModalOverlay(overlay);
   openAppendedModalOverlay(overlay, closeDialog);
   (bindDetachedModalSyncRefresh as (options: Omit<NonNullable<Parameters<typeof bindDetachedModalSyncRefresh>[0]>, 'id' | 'opener' | 'exists'> & {id: unknown; opener(id: unknown): unknown; exists(id: unknown): boolean}) => ReturnType<typeof bindDetachedModalSyncRefresh>)({

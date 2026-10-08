@@ -17,3 +17,8 @@
 @source "../js/components/LightSessionHistory.svelte";
 @source "../js/components/SunPastSessionForm.svelte";
 @source "../js/components/DeviceSessionForm.svelte";
+
+@custom-variant light-detail (&:is([data-light-detail-presentation], [data-light-detail-presentation] *));
+@source "../js/components/LightSessionDetail.svelte";
+@source "../js/components/LightSessionDetailFields.svelte";
+@source "../js/components/DeviceSessionModeForm.svelte";
