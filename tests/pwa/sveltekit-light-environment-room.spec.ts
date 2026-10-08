@@ -23,7 +23,7 @@ async function inspectSaved(page:Page){
   await expect(room.getByRole('textbox',{name:'Room name'})).toHaveValue('Sleep studio');await expect(room.getByRole('combobox',{name:'Primary light source'})).toHaveValue('natural-only');
   await expect(room.locator('[data-light-env-action="set-room-daylight-level"][data-light-env-key="strong"]')).toHaveAttribute('aria-pressed','true');
   await expect(room.locator('[data-light-env-action="set-room-evening-bucket"][data-light-env-key="lt1"]')).toHaveAttribute('aria-pressed','true');
-  await expect(room.locator('[data-light-environment-today]')).toHaveAttribute('aria-pressed','false');await expect(room.locator('[data-light-environment-screen]')).toHaveCount(1);await expect(dialog.locator('[data-light-environment-room]')).toHaveCount(2);
+  await expect(room.locator('[data-light-environment-today][data-light-env-kind="room"]')).toHaveAttribute('aria-pressed','false');await expect(room.locator('[data-light-environment-screen]')).toHaveCount(1);await expect(dialog.locator('[data-light-environment-room]')).toHaveCount(2);
   await room.getByText('Set exact hours…',{exact:true}).click();await expect(room.getByRole('spinbutton',{name:'Hours per day'})).toHaveValue('5.5');
   await dialog.getByRole('button',{name:'Close',exact:true}).click();
   const summary=page.locator('[data-light-environment-summary].light-env-assessment-summary');await expect(summary.locator('.light-env-assessment-metric strong')).toHaveText(['2','1','0','0']);
@@ -44,7 +44,7 @@ test('static room editor edits all picker modes and saves first offline with two
     await room.locator('[data-light-env-action="set-room-daylight-level"][data-light-env-key="strong"]').click();
     await room.locator('[data-light-env-action="set-room-hours-bucket"][data-light-env-key="some"]').click();
     await room.getByText('Set exact hours…',{exact:true}).click();await room.getByRole('spinbutton',{name:'Hours per day'}).fill('5.5');await room.getByRole('spinbutton',{name:'Hours per day'}).press('Tab');
-    await room.locator('[data-light-env-action="set-room-evening-bucket"][data-light-env-key="lt1"]').click();await room.locator('[data-light-environment-today]').click();
+    await room.locator('[data-light-env-action="set-room-evening-bucket"][data-light-env-key="lt1"]').click();await room.locator('[data-light-environment-today][data-light-env-kind="room"]').click();
     await room.locator('[data-light-env-action="add-screen-with-device"][data-light-env-device="phone"]').click();await expect(room.locator('[data-light-environment-screen]')).toHaveCount(1);
     await dialog.locator('[data-light-env-action="add-room-named"][data-light-env-name="Office"]').click();await expect(dialog.locator('[data-light-environment-room]')).toHaveCount(2);
     await expect.poll(async()=>((await page.evaluate(readComparisonAcceptanceProfile)) as Saved).lightEnvironment.rooms.find(room=>room.id==='room-bedroom')).toMatchObject({name:'Sleep studio',primarySource:'natural-only',daylightLevel:'strong',hoursOccupiedPerDay:5.5,eveningHoursAfterSunset:.5,todayOverride:{active:false},annotation:{futureField:'retained'}});
