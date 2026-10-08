@@ -1,5 +1,18 @@
 // Failure-only static PWA evidence. No worker instrumentation or storage writes.
-import type { Page, Request, Response, TestInfo } from '@playwright/test';
+import type { BrowserContext, Page, Request, Response, TestInfo } from '@playwright/test';
+
+/** Record caught preload failures without changing requests, storage or retry behavior. */
+export async function installOfflineStartupDiagnostics(context: BrowserContext): Promise<void> {
+  await context.addInitScript(() => {
+    const errors: { name: string; message: string; stack: string }[] = [];
+    Object.assign(window, { __getbasedOfflineStartupErrors: errors });
+    window.addEventListener('vite:preloadError', event => {
+      const error = (event as Event & { payload?: { name?: unknown; message?: unknown; stack?: unknown } }).payload;
+      if (errors.length === 16) errors.shift();
+      errors.push({ name: String(error?.name || ''), message: String(error?.message || ''), stack: String(error?.stack || '') });
+    });
+  });
+}
 
 /** Observe navigation without retries, page evaluations, or waits on the success path. */
 export async function navigateWithOfflineLaunchDiagnostics(page: Page, url: string, info: TestInfo): Promise<void> {
@@ -54,7 +67,7 @@ export async function captureOfflineLaunchDiagnostics(page: Page, info: TestInfo
         snapshots.push({ key, declaredEntries: shell.length, entries });
       }
       const registrations = await bounded(navigator.serviceWorker.getRegistrations(), 'worker registrations');
-      return { path: location.pathname, readyState: document.readyState, shellFramework: document.documentElement.dataset.shellFramework, appReady: document.documentElement.dataset.appReady,
+      return { startupErrors: (window as unknown as { __getbasedOfflineStartupErrors?: unknown }).__getbasedOfflineStartupErrors, path: location.pathname, readyState: document.readyState, shellFramework: document.documentElement.dataset.shellFramework, appReady: document.documentElement.dataset.appReady,
         controller: navigator.serviceWorker.controller && { scriptURL: navigator.serviceWorker.controller.scriptURL, state: navigator.serviceWorker.controller.state },
         registrations: Array.isArray(registrations) ? registrations.map(registration => ({ scope: registration.scope, active: registration.active?.scriptURL, state: registration.active?.state })) : registrations, caches: snapshots };
     });

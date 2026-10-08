@@ -1178,6 +1178,19 @@ attributed to the dispatched provider/model and originating profile even when
 presentation expires;
 subscription requests stay outside the direct-provider ledger. Shared card
 rendering and editor migration remain separate presentation work.
+`ChatEmptyState.svelte` owns paused, initial/partial/full context, saved/skipped
+handoff, lab-context nudge and general prompt presentation. `chat-empty-presentation.ts`
+projects literal copy and action payloads without storage access. The synchronous
+HTML entry preserves the established empty-state render/delegation contract;
+`chat-empty-state.ts` retains branch decisions, provider/profile routing and service
+calls. Context cards render into a reserved slot through their existing catalog
+owner, retaining notes sessions and delegated actions. Shared persona and progress
+components keep their own presentation contracts. Ordinary empty-state styles are
+scoped Tailwind; superseded empty, context-progress and action-layout CSS is removed.
+Shared extension/cycle/supplement styles remain scoped to their owners. Shell-owned
+import-button rules exclude the migrated empty-state controls; its solid primary
+action and secondary greeting text use theme tokens with verified contrast.
+
 `ChatOptionalSetup.svelte` owns the add-on task catalog, summaries, DNA import
 confirmation and import/re-import controls. `chat-optional-onboarding-presentation.ts`
 projects cycle visibility, current versus historical therapies, saved SNP findings,
@@ -1295,7 +1308,7 @@ containment. It captures the exact profile/thread/history/message before saving
 visibility changes. Finite attention runs for newly completed recommendations,
 never restored history, and releases its observer/frame/listener on retirement;
 reduced motion suppresses the pulse. Catalog card markup, optional context
-onboarding and the remaining empty-conversation views are separate migration boundaries.
+onboarding and empty-conversation views have separate presentation owners.
 Discussion rounds capture profile, thread record and history identity in
 `chat-discussion-origin.ts`. Background rounds may persist to their original
 conversation; profile/history replacement, deletion or a newer controller retires

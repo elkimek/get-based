@@ -77,10 +77,10 @@ body.chat-open .analytics-consent-banner {
 .chat-user a {
   color: var(--on-accent);
 }
-.chat-prompt-btn:where(:not([data-chat-provider-setup-view] *)),
+.chat-prompt-btn:where(:not([data-chat-provider-setup-view] *, [data-chat-empty-view] *)),
 .chat-quiz-option:where(:not([data-chat-provider-view], [data-chat-provider-view] *)),
 .chat-setup-btn:where(:not([data-chat-provider-view], [data-chat-provider-view] *)),
-.chat-onboard-cta:where(:not([data-chat-provider-setup-view] *)) {
+.chat-onboard-cta:where(:not([data-chat-provider-setup-view] *, [data-chat-empty-view] *)) {
   border-radius: var(--radius-sm);
 }
 .chat-msg.chat-ai:not([data-chat-onboarding-message]):has(.chat-quiz-options),
@@ -99,7 +99,7 @@ body.chat-open .analytics-consent-banner {
   border-radius: var(--radius-sm);
   background: var(--bg-primary);
 }
-.chat-onboard-cta:where(:not([data-chat-provider-setup-view] *)),
+.chat-onboard-cta:where(:not([data-chat-provider-setup-view] *, [data-chat-empty-view] *)),
 .chat-setup-btn:where(:not([data-chat-provider-view], [data-chat-provider-view] *)),
 .chat-quiz-option:where(:not([data-chat-provider-view], [data-chat-provider-view] *)) {
   min-height: 38px;

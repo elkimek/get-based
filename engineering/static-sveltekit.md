@@ -333,3 +333,14 @@ checks offline first use, actual save/edit/reuse and closed-client cold launches
 including zero/unknown nutrients, unrelated canonical profile fields and decrypted
 meal-cache equality. These local checks do not replace hosted or physical-device
 release acceptance.
+
+Chat empty-conversation presentation is authored by `ChatEmptyState.svelte` and a
+pure display projection. It shares persona and progress components, retains exact
+prompt and navigation payloads, and reserves context-card markup for the catalog
+owner. Existing controllers retain branch decisions and provider/profile actions.
+[`chat-empty-owned.spec.ts`](../tests/playwright/chat-empty-owned.spec.ts) covers
+all seven branches, supported themes, narrow layouts, keyboard and accessibility.
+[`sveltekit-chat-empty.spec.ts`](../tests/pwa/sveltekit-chat-empty.spec.ts) checks
+offline first use, actual context-note/history commits, skip/return and closed-client
+cold launches with unrelated profile parity. This scoped acceptance does not prove
+whole-app startup stability or physical installed-PWA acceptance.

@@ -534,14 +534,14 @@ body.analytics-consent-visible .version-update-banner { bottom: 78px; }
 
 /* Import action buttons are a shared UI primitive used by Settings, profile,
    marker, Light, DNA, and import surfaces, so they remain shell-owned. */
-.import-btn {
+.import-btn:not([data-chat-empty-view] *) {
   padding: 8px 18px; border-radius: var(--radius-sm); border: 1px solid var(--border);
   font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.15s;
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
 }
-.import-btn-primary { background: var(--accent); color: #07111f; border-color: var(--accent); }
-.import-btn-primary:hover { box-shadow: var(--shadow-glow); transform: translateY(-1px); }
-.import-btn:disabled {
+.import-btn-primary:not([data-chat-empty-view] *) { background: var(--accent); color: #07111f; border-color: var(--accent); }
+.import-btn-primary:hover:not([data-chat-empty-view] *) { box-shadow: var(--shadow-glow); transform: translateY(-1px); }
+.import-btn:disabled:not([data-chat-empty-view] *) {
   opacity: .5;
   cursor: not-allowed;
   box-shadow: none;

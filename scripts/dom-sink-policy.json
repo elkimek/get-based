@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "scope": "Every authored JavaScript, TypeScript and Svelte module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 1130,
-  "sinkCount": 312,
+  "scannedFiles": 1132,
+  "sinkCount": 307,
   "files": {
     "js/biology-scores.js": {
       "count": 1,
@@ -34,10 +34,10 @@
       }
     },
     "js/chat-empty-state.js": {
-      "count": 7,
-      "digest": "eb4e0769c787ab6d61e9c3ff7cfc290661d2c1a019c4d2640a6194f1f23a1df2",
+      "count": 2,
+      "digest": "a241182dc771769a0b78af363cc29977a42690449be684e27a28e81d69e3f540",
       "kinds": {
-        "innerHTML": 7
+        "innerHTML": 2
       }
     },
     "js/chat-onboarding.js": {

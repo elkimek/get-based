@@ -1986,3 +1986,10 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /js/nutrition-editor-model.js
 /js/nutrition-editor-review-model.js
 /tests/helpers/nutrition-meal-cache-fixture.js
+
+/js/chat-empty-presentation.js
+/js/components/ChatEmptyState.svelte.native.js
+/js/components/ChatEmptyState.svelte.native.js.map
+/js/components/ChatEmptyState.svelte.html.js
+/js/components/ChatEmptyState.svelte.html.js.map
+/tests/chat-empty-presentation.test.js

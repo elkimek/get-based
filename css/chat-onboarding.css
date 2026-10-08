@@ -1,9 +1,3 @@
-.chat-empty {
-  flex: 1; display: flex; flex-direction: column; align-items: center;
-  justify-content: center; color: var(--text-muted); font-size: 13px; text-align: center;
-  padding: 20px;
-}
-.chat-empty-icon { font-size: 32px; margin-bottom: 8px; }
 /* App-extension quiz HTML retains its established class contract. First-party quiz uses scoped Tailwind. */
 .chat-quiz-options:where(:not([data-chat-provider-view], [data-chat-provider-view] *)) { display: flex; flex-direction: column; gap: 8px; margin: 12px 0 10px; }
 .chat-quiz-option:where(:not([data-chat-provider-view], [data-chat-provider-view] *)) {
@@ -59,8 +53,8 @@
 .chat-onboard-input:where(:not([data-chat-profile-setup-view] *)):focus { border-color: var(--accent); outline: none; }
 select.chat-onboard-input:where(:not([data-chat-profile-setup-view] *)) { background: var(--bg-input, var(--bg-sidebar)); color: var(--text-primary); }
 select.chat-onboard-input:where(:not([data-chat-profile-setup-view] *)) option { background: var(--select-popup-surface); color: var(--text-primary); }
-.chat-onboard-actions:where(:not([data-chat-provider-setup-view] *, [data-chat-optional-setup-view] *)) { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
-.chat-onboard-complete-label:where(:not([data-chat-provider-setup-view] *, [data-chat-optional-setup-view] *)) {
+.chat-onboard-actions:where(:not([data-chat-provider-setup-view] *, [data-chat-optional-setup-view] *, [data-chat-empty-view] *)) { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.chat-onboard-complete-label:where(:not([data-chat-provider-setup-view] *, [data-chat-optional-setup-view] *, [data-chat-empty-view] *)) {
   display: inline-flex;
   align-items: center;
   width: fit-content;
@@ -75,51 +69,13 @@ select.chat-onboard-input:where(:not([data-chat-profile-setup-view] *)) option {
   text-transform: uppercase;
   letter-spacing: 0.4px;
 }
-.chat-onboard-cta:where(:not([data-chat-provider-setup-view] *, [data-chat-optional-setup-view] *)) {
+.chat-onboard-cta:where(:not([data-chat-provider-setup-view] *, [data-chat-optional-setup-view] *, [data-chat-empty-view] *)) {
   display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px;
   border-radius: 10px; border: 1px solid var(--accent); background: transparent;
   color: var(--accent); font-size: 13px; font-weight: 600; cursor: pointer;
   transition: all 0.2s; text-align: left;
 }
-.chat-onboard-cta:where(:not([data-chat-provider-setup-view] *, [data-chat-optional-setup-view] *)):hover { background: var(--accent); color: #fff; }
-.chat-onboard-step4-actions { gap: 7px; }
-.chat-onboard-primary-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-.chat-onboard-primary-actions-single {
-  grid-template-columns: minmax(0, 1fr);
-}
-.chat-onboard-primary-actions .chat-onboard-cta {
-  justify-content: center;
-  text-align: center;
-  min-width: 0;
-}
-.chat-onboard-tertiary-actions {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  padding-top: 2px;
-}
-.chat-onboard-text-action {
-  appearance: none;
-  border: 0;
-  background: transparent;
-  color: var(--text-muted);
-  font: inherit;
-  font-size: 12px;
-  line-height: 1.3;
-  padding: 3px 2px;
-  cursor: pointer;
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 3px;
-}
-.chat-onboard-text-action:hover { color: var(--accent); }
-.chat-onboard-text-action:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+.chat-onboard-cta:where(:not([data-chat-provider-setup-view] *, [data-chat-optional-setup-view] *, [data-chat-empty-view] *)):hover { background: var(--accent); color: #fff; }
 .chat-onboard-cycle-hint {
   font-size: 12px; color: var(--text-secondary); background: var(--bg-sidebar);
   border-radius: 8px; padding: 10px 12px; margin: 10px 0 0;
@@ -159,18 +115,3 @@ select.chat-onboard-input:where(:not([data-chat-profile-setup-view] *)) option {
   font-size: 16px; padding: 0 4px; line-height: 1;
 }
 .chat-onboard-supp-remove:hover { color: var(--red); }
-.chat-onboard-progress {
-  height: 6px; border-radius: 3px; background: var(--border); margin: 8px 0 4px; overflow: hidden;
-}
-.chat-onboard-progress-bar {
-  height: 100%; border-radius: 3px; background: var(--accent-gradient); transition: width 0.4s ease;
-}
-.chat-context-cards {
-  margin-top: 14px;
-}
-
-@media (max-width: 420px) {
-  .chat-onboard-primary-actions {
-    grid-template-columns: 1fr;
-  }
-}

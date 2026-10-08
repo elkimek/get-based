@@ -249,7 +249,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/components/ChatProviderSetup.svelte.native.js', '/js/components/ChatProviderQuiz.svelte.html.js', '/js/components/ChatOnboardingProgress.svelte.html.js',
   '/js/chat-onboarding-host-bindings.js',
   '/js/chat-loader.js',
-  '/js/chat-empty-state.js',
+  '/js/chat-empty-state.js', '/js/chat-empty-presentation.js', '/js/components/ChatEmptyState.svelte.html.js',
   '/js/chat-layout.js', '/js/chat-model-controls.js', '/js/chat-model-control-state.js', '/js/chat-model-picker-contract.js', '/js/chat-model-picker-view.js', '/js/chat-model-picker-presentation.js', '/js/chat-model-picker-classes.js',
   '/js/chat-personality-models.js', '/js/chat-personality-policy.js', '/js/chat-personality-editing.js', '/js/chat-personality-picker-view.js', '/js/chat-personality-classes.js', '/js/chat-persona-editor-contract.js', '/js/chat-persona-editor-component.js', '/js/components/ChatPersonalityEditor.svelte.native.js',
   '/js/chat-model-preferences.js', '/js/chat-runtime.js',
