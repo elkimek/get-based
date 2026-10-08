@@ -50,7 +50,7 @@ export type RecommendationModuleAPI = Pick<typeof import('./recommendations.js')
   | 'renderRecommendationSection' | 'renderRecommendationSectionSync'
   | 'detectSupplementSlots' | 'detectEMFRelevance'
   | 'getCardSlotKeys' | 'buildDNAHints' | 'renderCardTipsModal'
-  | 'renderLightDeviceAffiliateRow'
+  | 'renderLightDeviceAffiliateRow' | 'getLightDeviceAffiliateView'
 >;
 export interface RecommendationsRuntimeDeps {
   closeModal: (() => unknown) | null;

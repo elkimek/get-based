@@ -1,7 +1,8 @@
 export interface DeviceChannelDisplay { label?: string; what?: string; icon?: string; }
 
 
-import { escapeAttr, escapeHTML, formatDate } from './utils.js';
+import { formatDate } from './utils.js';
+import { renderHTML } from './components/LightDevicePresentation.svelte.html.js';
 
 export function localDeviceSessionStamp(timestamp: number | string | Date): { date: string; time: string } {
   const date = new Date(timestamp);
@@ -39,22 +40,23 @@ export function formatWavelengthSummary(peaks: unknown): string {
   return `${sorted[0]}–${sorted[sorted.length - 1]} nm (${sorted.length} bands)`;
 }
 
-export function renderDeviceChannelChips(channelKeys: unknown, channelDisplay: Record<string, DeviceChannelDisplay>): string {
-  if (!Array.isArray(channelKeys) || channelKeys.length === 0) return '';
+export function projectDeviceChannelChips(channelKeys: unknown, channelDisplay: Record<string, DeviceChannelDisplay>) {
+  if (!Array.isArray(channelKeys) || channelKeys.length === 0) return [];
   const order = ['vitamin_d', 'pomc', 'no_cv', 'violet_eye', 'circadian', 'nir_solar', 'pbm_red', 'pbm_nir'];
   const present = new Set(channelKeys);
   return order.filter(key => present.has(key)).map(key => {
     const meta = channelDisplay[key] || {};
-    return `<span class="light-device-feed-chip" title="${escapeAttr((meta.label || key) + ' — ' + (meta.what || ''))}">
-      <span class="light-device-feed-icon" aria-hidden="true">${meta.icon || '·'}</span>
-      <span class="light-device-feed-label">${escapeHTML(meta.label || key)}</span>
-    </span>`;
-  }).join('');
+    return { title: (meta.label || key) + ' — ' + (meta.what || ''), icon: String(meta.icon || '·'), label: String(meta.label || key) };
+  });
+}
+export function renderDeviceChannelChips(channelKeys: unknown, channelDisplay: Record<string, DeviceChannelDisplay>): string {
+  const chips = projectDeviceChannelChips(channelKeys, channelDisplay);
+  return chips.length ? renderHTML({ kind: 'chips', chips }) : '';
 }
 
-export function relativeTimeShort(timestamp: number | null | undefined): string {
+export function relativeTimeShort(timestamp: number | null | undefined, now = Date.now()): string {
   if (!timestamp) return 'never';
-  const days = Math.floor((Date.now() - timestamp) / (24 * 3600 * 1000));
+  const days = Math.floor((now - timestamp) / (24 * 3600 * 1000));
   if (days <= 0) return 'today';
   if (days === 1) return 'yesterday';
   if (days < 7) return `${days} days ago`;

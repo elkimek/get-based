@@ -1,0 +1,16 @@
+/* Device library and picker at the established ordered lazy stylesheet URL. */
+@import "tailwindcss/theme.css" layer(gb-theme) prefix(gb);
+@import "tailwindcss/utilities.css" prefix(gb) source(none);
+@import "./ui-tokens.tailwind.css";
+@custom-variant device-library (&:where([data-light-device-presentation], [data-light-device-presentation] *));
+@custom-variant device-no-hover (@media (hover: none));
+@custom-variant device-tablet (@media (max-width: 768px));
+@custom-variant device-mobile (@media (max-width: 600px));
+@custom-variant device-narrow (@media (max-width: 375px));
+@custom-variant device-coarse (@media (pointer: coarse));
+@source "../js/light-device-library-classes.ts";
+@source "../js/components/LightDevicePresentation.svelte";
+@source "../js/components/LightDeviceLibrary.svelte";
+@source "../js/components/LightDevicePicker.svelte";
+@source "../js/components/LightDeviceChannelChips.svelte";
+@source "../js/components/LightDeviceAffiliate.svelte";

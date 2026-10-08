@@ -70,6 +70,11 @@ export function loadLightDevicesCatalog() {
   return (getRecommendationModuleFunction('loadCatalog') as (() => unknown) | null)?.();
 }
 
+export function getLightDeviceAffiliateViewRuntime(catalog: unknown, slug: unknown) {
+  const read = getRecommendationModuleFunction('getLightDeviceAffiliateView');
+  return read?.(catalog as Parameters<NonNullable<typeof read>>[0], slug) || null;
+}
+
 export function renderLightDeviceAffiliateRowRuntime(catalog: unknown, slug: unknown) {
   return (getRecommendationModuleFunction('renderLightDeviceAffiliateRow') as ((catalog: unknown, slug: unknown) => unknown) | null)?.(catalog, slug) || '';
 }

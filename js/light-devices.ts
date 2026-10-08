@@ -22,10 +22,12 @@ import type { LightDeviceSetupDeps } from './light-device-setup-modal.js';
 
 type ChannelReader = Record<string, { label?: unknown; icon?: unknown }>;
 
+import { renderHTML as renderDevicePresentation } from './components/LightDevicePresentation.svelte.html.js';
+import { projectDeviceLibrary, projectDevicePicker } from './light-device-library-presentation.js';
 import { renderHTML } from './components/LightSessionPresentation.svelte.html.js';
 import { detailField, detailChannel, deviceDetailNotices, deviceDetailLightMetric } from './light-session-detail-presentation.js';
 
-import { bindDetachedModalSyncRefresh, escapeHTML, escapeAttr, showNotification, showConfirmDialog } from './utils.js';
+import { bindDetachedModalSyncRefresh, showNotification, showConfirmDialog } from './utils.js';
 import { state } from './state.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { CHANNEL_DISPLAY } from './sun.js';
@@ -64,14 +66,11 @@ import {
   openLightDeviceChannel,
   promptLightDeviceSessionDuration,
   refreshLightDevicesView,
-  renderLightDeviceAffiliateRowRuntime,
+  getLightDeviceAffiliateViewRuntime,
 } from './light-devices-runtime.js';
 import {
   deviceBasisLabel as _deviceBasisLabel,
-  formatWavelengthSummary as _formatWavelengthSummary,
   localDeviceSessionStamp as _localDeviceSessionStamp,
-  relativeTimeShort as _relativeTimeShort,
-  renderDeviceChannelChips,
   safeHttpUrl as _safeHttpUrl,
 } from './light-device-view-formatters.js';
 
@@ -79,7 +78,6 @@ import {
 const lightDevicesDeps: { renderDeviceSessionAIDetail: unknown } = {
   renderDeviceSessionAIDetail: () => '',
 };
-const _renderDeviceChannelChips = (channelKeys: unknown) => renderDeviceChannelChips(channelKeys, CHANNEL_DISPLAY);
 
 export function configureLightDevices(deps: unknown = {}) {
   Object.assign(lightDevicesDeps, deps);
@@ -508,77 +506,10 @@ export async function renderDevicesSection() {
     typesMeta = (presetData.types || {}) as ChannelReader;
   } catch { /* presets file unreachable; fallback uses raw type strings */ }
 
-  // Build per-device usage stats from the session log: count + most
-  // recent startedAt. Lets the card show "12 sessions · last 2 days
-  // ago" instead of just "added this device, no idea if you ever used
-  // it."
-  const statsByDevice: Record<string, { count: number; lastAt: number }> = {};
-  for (const s of allSessions) {
-    if (!s.deviceId) continue;
-    const acc = statsByDevice[s.deviceId] = statsByDevice[s.deviceId] || { count: 0, lastAt: 0 };
-    acc.count++;
-    if ((s.startedAt || 0) > acc.lastAt) acc.lastAt = s.startedAt;
-  }
-
-  let html = `<div class="light-devices-section">
-    <div class="light-devices-head">
-      <h3 class="light-section-title">Light devices</h3>
-      <button type="button" class="import-btn import-btn-secondary" data-light-devices-action="add-device">+ Add device</button>
-    </div>`;
-
-  if (devices.length === 0) {
-    html += `<p class="light-section-hint">Add therapy panels, SAD lamps, or dawn simulators to see the light signals their measured or stated output can support. Device light stays distinct from full-spectrum sunlight.</p>
-    </div>`;
-    return html;
-  }
-
-  html += `<div class="light-devices-grid">`;
-  for (const dev of devices) {
-    const slug = dev.catalogSlug || dev.presetId || null;
-    const affRow = slug ? renderLightDeviceAffiliateRowRuntime(catalog, slug) : '';
-    const typeMeta = typesMeta[dev.type as string] || {};
-    const typeIcon = typeMeta.icon || '🔴';
-    const typeLabel = typeMeta.label || dev.type || 'Device';
-    const peaks = Array.isArray(dev.peakWavelengths) ? dev.peakWavelengths : [];
-    const wavelengthStr = _formatWavelengthSummary(peaks);
-    const estimatedOutput = ['curated-estimate', 'unknown'].includes(dev.irradianceBasis || 'unknown');
-    const intensityStr = dev.mwPerCm2At15cm
-      ? `${estimatedOutput ? '~' : ''}${dev.mwPerCm2At15cm} mW/cm² @ ${dev.recommendedDistanceCm || 15} cm`
-      : (dev.lux ? `${dev.lux} photopic lux`
-        : (dev.melanopicEdiLux ? `${dev.melanopicEdiLux} lx M-EDI` : ''));
-    const channelChips = _renderDeviceChannelChips(dev.channels || []);
-    const stats = statsByDevice[dev.id] || { count: 0, lastAt: 0 };
-    const statsLine = stats.count === 0
-      ? 'No sessions yet'
-      : `${stats.count} session${stats.count !== 1 ? 's' : ''} · last ${_relativeTimeShort(stats.lastAt)}`;
-    html += `<div class="light-device-card light-device-card-type-${escapeAttr(dev.type)}" data-id="${escapeAttr(dev.id)}">
-      <div class="light-device-head">
-        <span class="light-device-icon" aria-hidden="true">${typeIcon}</span>
-        <div class="light-device-titleblock">
-          <span class="light-device-name">${escapeHTML(dev.brand)} ${escapeHTML(dev.model)}</span>
-          <span class="light-device-typeline">${escapeHTML(typeLabel)}${wavelengthStr ? ` · ${escapeHTML(wavelengthStr)}` : ''}${intensityStr ? ` · ${escapeHTML(intensityStr)}` : ''}</span>
-        </div>
-        <button type="button" class="light-device-delete" data-light-devices-action="delete-device" data-light-device-id="${escapeAttr(dev.id)}" title="Remove device" aria-label="Remove device">×</button>
-      </div>
-      ${channelChips ? `<div class="light-device-feeds">
-        <span class="light-device-feeds-label">Signals</span>
-        ${channelChips}
-      </div>` : ''}
-      <div class="light-device-stats">${escapeHTML(statsLine)}</div>
-      <div class="light-device-actions">
-        <button type="button" class="import-btn import-btn-secondary light-device-log" data-light-devices-action="log-device-session" data-light-device-id="${escapeAttr(dev.id)}">▶ Log session</button>
-        ${affRow}
-      </div>
-    </div>`;
-  }
-  html += `</div>`;
-
-  // Device sessions live in the unified sessions list higher on the page
-  // (renderUnifiedSessionsList) — no duplicate list here. This subsection
-  // is the device library: panels owned, log-session entry points, add.
-
-  html += `</div>`;
-  return html;
+  return renderDevicePresentation({ kind: 'library', cards: projectDeviceLibrary({
+    devices, sessions: allSessions, types: typesMeta, channels: CHANNEL_DISPLAY,
+    affiliateFor: slug => getLightDeviceAffiliateViewRuntime(catalog, slug), now: Date.now(),
+  }) });
 }
 
 // ─── Quick-log entry point ────────────────────────────────────────────
@@ -596,30 +527,10 @@ export function quickLogDeviceSession() {
 
 function _openDevicePicker(devices: LightDeviceRecord[]) {
   // Most-recently-added first so the user's primary panel is at the top.
-  const ordered = devices.slice().sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   const closeDialog = () => removeModalOverlay(overlay);
-  let rows = '';
-  for (const dev of ordered) {
-    const meta = `${escapeHTML(dev.type || '')}${dev.peakWavelengths?.length ? ' · ' + dev.peakWavelengths.join('/') + 'nm' : ''}${dev.mwPerCm2At15cm ? ' · ' + dev.mwPerCm2At15cm + ' mW/cm²' : ''}`;
-    rows += `<button type="button" class="light-device-picker-row" data-device-id="${escapeAttr(dev.id)}">
-      <span class="light-device-picker-name">${escapeHTML(dev.brand)} ${escapeHTML(dev.model)}</span>
-      <span class="light-device-picker-meta">${meta}</span>
-    </button>`;
-  }
-  overlay.innerHTML = `<div class="modal" role="dialog" aria-label="Pick a device to log a session">
-    <div class="modal-header">
-      <h3>Which device?</h3>
-      <button class="modal-close" data-device-picker-close aria-label="Close">×</button>
-    </div>
-    <div class="modal-body">
-      <div class="light-device-picker-list">${rows}</div>
-      <div class="modal-actions" style="margin-top:14px">
-        <button class="import-btn import-btn-secondary" data-device-picker-close>Cancel</button>
-      </div>
-    </div>
-  </div>`;
+  overlay.innerHTML = renderDevicePresentation({ kind: 'picker', rows: projectDevicePicker(devices) });
   _wireModal(overlay, closeDialog);
   overlay.querySelectorAll('[data-device-picker-close]').forEach(btn => {
     btn.addEventListener('click', closeDialog);

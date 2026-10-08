@@ -436,6 +436,7 @@ configureRecommendationModuleBridge({
   getCardSlotKeys: (...args: unknown[]) => callLoadedRecommendation('getCardSlotKeys', args, []),
   renderCardTipsModal: (...args: unknown[]) => callLoadedRecommendation('renderCardTipsModal', args, ''),
   detectEMFRelevance: (...args: unknown[]) => callLoadedRecommendation('detectEMFRelevance', args, false),
+  getLightDeviceAffiliateView: (...args: unknown[]) => callLoadedRecommendation('getLightDeviceAffiliateView', args, null),
   renderLightDeviceAffiliateRow: (...args: unknown[]) => callLoadedRecommendation(
     'renderLightDeviceAffiliateRow',
     args,

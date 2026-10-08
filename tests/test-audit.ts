@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { sourceFunctionHasInitializer } from './helpers/native-source-contracts.js';
+import { deviceLibraryClasses } from '../js/light-device-library-classes.js';
 import { dataModuleSource } from './helpers/data-module-source.js';
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
@@ -875,10 +876,13 @@ assert('Light channel presentation is owned by authored components and scoped Ta
   !/\.light-channel-mix-ai\s*\{/.test(lightChannelsCss) &&
   !/\.light-channels-section \.light-pill\s*\{/.test(read('css/light-sun.base.css')));
 assert('Light devices CSS owns device cards, picker, and distance controls',
-  /\.light-devices-section\s*\{[\s\S]*margin-top:\s*24px/.test(lightDevicesCss) &&
-  /\.light-device-card\s*\{[\s\S]*display:\s*flex;[\s\S]*flex-direction:\s*column/.test(lightDevicesCss) &&
+  deviceLibraryClasses('light-devices-section').includes('[margin-top:24px]') &&
+  deviceLibraryClasses('light-device-card').includes('[display:flex]') &&
+  deviceLibraryClasses('light-device-card').includes('[flex-direction:column]') &&
+  read('js/components/LightDeviceLibrary.svelte').includes('light-device-card') &&
   /\.dev-distance-row:not\(\[data-light-session-presentation\] \*\)\s*\{[\s\S]*display:\s*flex/.test(lightDevicesCss) &&
-  /\.light-device-picker-row\s*\{[\s\S]*cursor:\s*pointer/.test(lightDevicesCss) &&
+  read('js/components/LightDevicePicker.svelte').includes('light-device-picker-row') &&
+  deviceLibraryClasses('light-device-picker-row').includes('[cursor:pointer]') &&
   !/\.light-device-card\s*\{/.test(lightSunCss) &&
   !/\.dev-distance-row\s*\{/.test(read('css/light-sun.base.css')) &&
   !/\.light-device-picker-row\s*\{/.test(lightSunCss));

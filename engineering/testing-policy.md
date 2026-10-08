@@ -316,3 +316,17 @@ empty/country/precise-location visibility, both dashboard log states, exact
 container resets, axe AA and real keyboard location/dashboard actions. The
 static channel acceptance additionally covers the offline dashboard navigation
 button before exercising all six pathway details and two cold launches.
+
+Device library contracts in
+[`light-device-library.test.ts`](../tests/light-device-library.test.ts) compare
+independently captured original library/picker trees, ordered/deduplicated chips,
+usage history, literal metadata and affiliate policy. The headless
+[`light-device-library-owned.spec.ts`](../tests/playwright/light-device-library-owned.spec.ts)
+compares representative embedded/widget cards and the picker across six themes
+and five widths; every type band is checked separately. It checks real hover,
+axe AA, visible keyboard focus and coarse 44px targets. Explicit reference
+adjustments cover readable link/metadata ink, visible phone delete and larger
+touch targets; assertions and compiler safety remain unchanged.
+[`sveltekit-light-device-library.spec.ts`](../tests/pwa/sveltekit-light-device-library.spec.ts)
+exercises the real owned-device list, picker-to-session path, dismissals and
+complete stored profile through two closed-client offline cold launches.

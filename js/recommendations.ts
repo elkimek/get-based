@@ -65,6 +65,7 @@ import {
   renderEMFMitigationRecs,
   renderEMFMeterRecs,
   renderLightDeviceAffiliateRow,
+  getLightDeviceAffiliateView,
   setProductRecsEnabled,
 } from './recommendations-products.js';
 
@@ -92,6 +93,7 @@ export {
   renderEMFMitigationRecs,
   renderEMFMeterRecs,
   renderLightDeviceAffiliateRow,
+  getLightDeviceAffiliateView,
   setProductRecsEnabled,
 };
 
@@ -625,4 +627,5 @@ configureRecommendationModuleBridge({
   renderCardTipsModal,
   detectEMFRelevance,
   renderLightDeviceAffiliateRow,
+  getLightDeviceAffiliateView,
 });

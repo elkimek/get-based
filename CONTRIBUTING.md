@@ -181,3 +181,14 @@ compose typed children; `js/light-channel-section-classes.ts` owns container sty
 and the headless `tests/playwright/light-channel-owned.spec.ts` and
 `tests/playwright/light-channel-pills-owned.spec.ts` and
 `tests/playwright/light-channel-section-owned.spec.ts`.
+
+Edit the Light device library and picker in `LightDeviceLibrary.svelte`,
+`LightDevicePicker.svelte` and `LightDeviceChannelChips.svelte`; their typed
+projections are in `js/light-device-library-presentation.ts`. The shared affiliate
+component is `LightDeviceAffiliate.svelte`; recommendation policy stays in
+`js/recommendations-products.ts`. Use `js/light-device-library-classes.ts` and
+`css/light-devices.tailwind.css` for styles. The remaining native setup and
+recommendation styles belong to `css/light-devices.base.css`; never edit generated
+`css/light-devices.css`. Focused contracts are in
+`tests/light-device-library.test.ts` and
+`tests/playwright/light-device-library-owned.spec.ts`.

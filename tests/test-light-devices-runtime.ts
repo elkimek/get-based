@@ -14,6 +14,7 @@ import {
   promptLightDeviceSessionDuration,
   refreshLightDevicesView,
   renderLightDeviceAffiliateRowRuntime,
+  getLightDeviceAffiliateViewRuntime,
 } from '../js/light-devices-runtime.js';
 import { configureRecommendationModuleBridge } from '../js/recommendations-runtime.js';
 
@@ -101,6 +102,13 @@ try {
   configureRecommendationModuleBridge({ renderLightDeviceAffiliateRow: null });
   assert('renderLightDeviceAffiliateRowRuntime returns empty string when hook is missing',
     renderLightDeviceAffiliateRowRuntime({}, 'panel-x') === '');
+  const affiliateView = { href: 'https://www.mitochondriak.com/', event: 'fixture', label: 'Saved panel', vendor: 'Vendor' };
+  configureRecommendationModuleBridge({ getLightDeviceAffiliateView: () => affiliateView });
+  assert('getLightDeviceAffiliateViewRuntime forwards typed policy data without HTML',
+    getLightDeviceAffiliateViewRuntime({}, 'panel-x') === affiliateView);
+  configureRecommendationModuleBridge({ getLightDeviceAffiliateView: null });
+  assert('getLightDeviceAffiliateViewRuntime returns null before the lazy module is ready',
+    getLightDeviceAffiliateViewRuntime({}, 'panel-x') === null);
   configureRecommendationModuleBridge(previousRecommendationBridge);
 
   configureLightDevicesRuntimeDeps({

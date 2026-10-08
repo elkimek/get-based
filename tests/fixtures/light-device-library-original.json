@@ -1,0 +1,876 @@
+{
+  "revision": "a33cae2e02170516b3fa30d6992631150f2f48fb",
+  "now": 1801915200000,
+  "catalog": {
+    "vendors": {},
+    "products": {
+      "_internal.lightDevices": [
+        {
+          "key": "fixture-panel",
+          "name": "Saved <Panel> & \"model\"",
+          "vendor": "Mitochondriak",
+          "url": "https://www.mitochondriak.com/maxi-uvb?ref=getbased",
+          "regions": [
+            "INTL"
+          ]
+        }
+      ]
+    }
+  },
+  "types": {
+    "uvb": {
+      "label": "UV phototherapy",
+      "icon": "☀"
+    },
+    "uva": {
+      "label": "UVA panel",
+      "icon": "🟧"
+    },
+    "combined": {
+      "label": "Red + near-IR panel",
+      "icon": "🔴"
+    },
+    "pbm-targeted": {
+      "label": "Targeted PBM device",
+      "icon": "🔴"
+    },
+    "sad": {
+      "label": "SAD light box (10k lux)",
+      "icon": "🌅"
+    },
+    "dawn-sim": {
+      "label": "Dawn simulator",
+      "icon": "🌄"
+    },
+    "full-spectrum": {
+      "label": "Full-spectrum bulb",
+      "icon": "💡"
+    }
+  },
+  "cases": [
+    {
+      "name": "uvb",
+      "devices": [
+        {
+          "id": "device-uvb",
+          "type": "uvb",
+          "brand": "Saved",
+          "model": "Panel uvb",
+          "peakWavelengths": [],
+          "channels": [
+            "vitamin_d",
+            "pomc",
+            "no_cv",
+            "violet_eye",
+            "circadian",
+            "nir_solar",
+            "pbm_red",
+            "pbm_nir"
+          ],
+          "addedAt": 1801915200000,
+          "mwPerCm2At15cm": 20,
+          "recommendedDistanceCm": 25,
+          "irradianceBasis": "measured-radiometer"
+        }
+      ],
+      "sessions": [
+        {
+          "id": "old",
+          "deviceId": "device-uvb",
+          "startedAt": 1801137600000
+        },
+        {
+          "id": "latest",
+          "deviceId": "device-uvb",
+          "startedAt": 1801742400000
+        },
+        {
+          "id": "unrelated",
+          "deviceId": "other",
+          "startedAt": 1801915200000
+        }
+      ],
+      "html": "<div class=\"light-devices-section\">\n    <div class=\"light-devices-head\">\n      <h3 class=\"light-section-title\">Light devices</h3>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-light-devices-action=\"add-device\">+ Add device</button>\n    </div><div class=\"light-devices-grid\"><div class=\"light-device-card light-device-card-type-uvb\" data-id=\"device-uvb\">\n      <div class=\"light-device-head\">\n        <span class=\"light-device-icon\" aria-hidden=\"true\">☀</span>\n        <div class=\"light-device-titleblock\">\n          <span class=\"light-device-name\">Saved Panel uvb</span>\n          <span class=\"light-device-typeline\">UV phototherapy · 20 mW/cm² @ 25 cm</span>\n        </div>\n        <button type=\"button\" class=\"light-device-delete\" data-light-devices-action=\"delete-device\" data-light-device-id=\"device-uvb\" title=\"Remove device\" aria-label=\"Remove device\">×</button>\n      </div>\n      <div class=\"light-device-feeds\">\n        <span class=\"light-device-feeds-label\">Signals</span>\n        <span class=\"light-device-feed-chip\" title=\"Vitamin D — UVB on uncovered skin starts vitamin D production. The estimate is rough, and more sun is not always better.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">☀</span>\n      <span class=\"light-device-feed-label\">Vitamin D</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Skin &amp; mood — Sunlight on skin can start signals involved in pigment, stress response, and how sunlight feels.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">⚡</span>\n      <span class=\"light-device-feed-label\">Skin &amp; mood</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Blood vessels — UVA can release nitric oxide stored in skin, which may temporarily relax blood vessels.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">❤</span>\n      <span class=\"light-device-feed-label\">Blood vessels</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Outdoor eye light — Outdoor light includes violet wavelengths that are reduced by many windows. Their human effects are still being studied.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">👁</span>\n      <span class=\"light-device-feed-label\">Outdoor eye light</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Body clock — Outdoor light reaching your eyes helps your body know when it is day. Timing matters more than a score.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">🌅</span>\n      <span class=\"light-device-feed-label\">Body clock</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Cell energy &amp; repair — May support cell energy and repair signals. This is modeled from red and near-infrared light, and the research is still developing.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">⚡</span>\n      <span class=\"light-device-feed-label\">Cell energy &amp; repair</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Red light device — A device delivers a targeted red-light signal. It is tracked separately from sunlight.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">🔴</span>\n      <span class=\"light-device-feed-label\">Red light device</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Near-IR device — A device delivers a targeted near-infrared signal. It is tracked separately from sunlight.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">🟣</span>\n      <span class=\"light-device-feed-label\">Near-IR device</span>\n    </span>\n      </div>\n      <div class=\"light-device-stats\">2 sessions · last 2 days ago</div>\n      <div class=\"light-device-actions\">\n        <button type=\"button\" class=\"import-btn import-btn-secondary light-device-log\" data-light-devices-action=\"log-device-session\" data-light-device-id=\"device-uvb\">▶ Log session</button>\n        \n      </div>\n    </div></div></div>"
+    },
+    {
+      "name": "uva",
+      "devices": [
+        {
+          "id": "device-uva",
+          "type": "uva",
+          "brand": "Saved",
+          "model": "Panel uva",
+          "peakWavelengths": [
+            365
+          ],
+          "channels": [
+            "vitamin_d",
+            "pomc",
+            "no_cv",
+            "violet_eye",
+            "circadian",
+            "nir_solar",
+            "pbm_red",
+            "pbm_nir"
+          ],
+          "addedAt": 1801828800000,
+          "mwPerCm2At15cm": 20,
+          "recommendedDistanceCm": 25,
+          "irradianceBasis": "curated-estimate"
+        }
+      ],
+      "sessions": [],
+      "html": "<div class=\"light-devices-section\">\n    <div class=\"light-devices-head\">\n      <h3 class=\"light-section-title\">Light devices</h3>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-light-devices-action=\"add-device\">+ Add device</button>\n    </div><div class=\"light-devices-grid\"><div class=\"light-device-card light-device-card-type-uva\" data-id=\"device-uva\">\n      <div class=\"light-device-head\">\n        <span class=\"light-device-icon\" aria-hidden=\"true\">🟧</span>\n        <div class=\"light-device-titleblock\">\n          <span class=\"light-device-name\">Saved Panel uva</span>\n          <span class=\"light-device-typeline\">UVA panel · 365 nm · ~20 mW/cm² @ 25 cm</span>\n        </div>\n        <button type=\"button\" class=\"light-device-delete\" data-light-devices-action=\"delete-device\" data-light-device-id=\"device-uva\" title=\"Remove device\" aria-label=\"Remove device\">×</button>\n      </div>\n      <div class=\"light-device-feeds\">\n        <span class=\"light-device-feeds-label\">Signals</span>\n        <span class=\"light-device-feed-chip\" title=\"Vitamin D — UVB on uncovered skin starts vitamin D production. The estimate is rough, and more sun is not always better.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">☀</span>\n      <span class=\"light-device-feed-label\">Vitamin D</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Skin &amp; mood — Sunlight on skin can start signals involved in pigment, stress response, and how sunlight feels.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">⚡</span>\n      <span class=\"light-device-feed-label\">Skin &amp; mood</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Blood vessels — UVA can release nitric oxide stored in skin, which may temporarily relax blood vessels.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">❤</span>\n      <span class=\"light-device-feed-label\">Blood vessels</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Outdoor eye light — Outdoor light includes violet wavelengths that are reduced by many windows. Their human effects are still being studied.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">👁</span>\n      <span class=\"light-device-feed-label\">Outdoor eye light</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Body clock — Outdoor light reaching your eyes helps your body know when it is day. Timing matters more than a score.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">🌅</span>\n      <span class=\"light-device-feed-label\">Body clock</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Cell energy &amp; repair — May support cell energy and repair signals. This is modeled from red and near-infrared light, and the research is still developing.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">⚡</span>\n      <span class=\"light-device-feed-label\">Cell energy &amp; repair</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Red light device — A device delivers a targeted red-light signal. It is tracked separately from sunlight.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">🔴</span>\n      <span class=\"light-device-feed-label\">Red light device</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Near-IR device — A device delivers a targeted near-infrared signal. It is tracked separately from sunlight.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">🟣</span>\n      <span class=\"light-device-feed-label\">Near-IR device</span>\n    </span>\n      </div>\n      <div class=\"light-device-stats\">No sessions yet</div>\n      <div class=\"light-device-actions\">\n        <button type=\"button\" class=\"import-btn import-btn-secondary light-device-log\" data-light-devices-action=\"log-device-session\" data-light-device-id=\"device-uva\">▶ Log session</button>\n        \n      </div>\n    </div></div></div>"
+    },
+    {
+      "name": "combined",
+      "devices": [
+        {
+          "id": "device-combined",
+          "type": "combined",
+          "brand": "Saved",
+          "model": "Panel combined",
+          "peakWavelengths": [
+            850,
+            660
+          ],
+          "channels": [
+            "vitamin_d",
+            "pomc",
+            "no_cv",
+            "violet_eye",
+            "circadian",
+            "nir_solar",
+            "pbm_red",
+            "pbm_nir"
+          ],
+          "addedAt": 1801742400000,
+          "mwPerCm2At15cm": 20,
+          "recommendedDistanceCm": 25,
+          "irradianceBasis": "measured-radiometer",
+          "catalogSlug": "fixture-panel"
+        }
+      ],
+      "sessions": [
+        {
+          "id": "old",
+          "deviceId": "device-combined",
+          "startedAt": 1801137600000
+        },
+        {
+          "id": "latest",
+          "deviceId": "device-combined",
+          "startedAt": 1801742400000
+        },
+        {
+          "id": "unrelated",
+          "deviceId": "other",
+          "startedAt": 1801915200000
+        }
+      ],
+      "html": "<div class=\"light-devices-section\">\n    <div class=\"light-devices-head\">\n      <h3 class=\"light-section-title\">Light devices</h3>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-light-devices-action=\"add-device\">+ Add device</button>\n    </div><div class=\"light-devices-grid\"><div class=\"light-device-card light-device-card-type-combined\" data-id=\"device-combined\">\n      <div class=\"light-device-head\">\n        <span class=\"light-device-icon\" aria-hidden=\"true\">🔴</span>\n        <div class=\"light-device-titleblock\">\n          <span class=\"light-device-name\">Saved Panel combined</span>\n          <span class=\"light-device-typeline\">Red + near-IR panel · 660 / 850 nm · 20 mW/cm² @ 25 cm</span>\n        </div>\n        <button type=\"button\" class=\"light-device-delete\" data-light-devices-action=\"delete-device\" data-light-device-id=\"device-combined\" title=\"Remove device\" aria-label=\"Remove device\">×</button>\n      </div>\n      <div class=\"light-device-feeds\">\n        <span class=\"light-device-feeds-label\">Signals</span>\n        <span class=\"light-device-feed-chip\" title=\"Vitamin D — UVB on uncovered skin starts vitamin D production. The estimate is rough, and more sun is not always better.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">☀</span>\n      <span class=\"light-device-feed-label\">Vitamin D</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Skin &amp; mood — Sunlight on skin can start signals involved in pigment, stress response, and how sunlight feels.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">⚡</span>\n      <span class=\"light-device-feed-label\">Skin &amp; mood</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Blood vessels — UVA can release nitric oxide stored in skin, which may temporarily relax blood vessels.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">❤</span>\n      <span class=\"light-device-feed-label\">Blood vessels</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Outdoor eye light — Outdoor light includes violet wavelengths that are reduced by many windows. Their human effects are still being studied.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">👁</span>\n      <span class=\"light-device-feed-label\">Outdoor eye light</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Body clock — Outdoor light reaching your eyes helps your body know when it is day. Timing matters more than a score.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">🌅</span>\n      <span class=\"light-device-feed-label\">Body clock</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Cell energy &amp; repair — May support cell energy and repair signals. This is modeled from red and near-infrared light, and the research is still developing.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">⚡</span>\n      <span class=\"light-device-feed-label\">Cell energy &amp; repair</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Red light device — A device delivers a targeted red-light signal. It is tracked separately from sunlight.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">🔴</span>\n      <span class=\"light-device-feed-label\">Red light device</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Near-IR device — A device delivers a targeted near-infrared signal. It is tracked separately from sunlight.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">🟣</span>\n      <span class=\"light-device-feed-label\">Near-IR device</span>\n    </span>\n      </div>\n      <div class=\"light-device-stats\">2 sessions · last 2 days ago</div>\n      <div class=\"light-device-actions\">\n        <button type=\"button\" class=\"import-btn import-btn-secondary light-device-log\" data-light-devices-action=\"log-device-session\" data-light-device-id=\"device-combined\">▶ Log session</button>\n        <a class=\"rec-product-link rec-light-device-link\" href=\"https://www.mitochondriak.com/maxi-uvb?ref=getbased&amp;utm_source=getbased&amp;utm_medium=affiliate&amp;utm_campaign=light-devices&amp;utm_content=light-device-fixture-panel\" target=\"_blank\" rel=\"noopener sponsored\" data-umami-event=\"light-device-rec-fixture-panel\" aria-label=\"View Saved &lt;Panel&gt; &amp; &quot;model&quot; on Mitochondriak, opens in new tab\">View on Mitochondriak →</a>\n      </div>\n    </div></div></div>"
+    },
+    {
+      "name": "pbm-targeted",
+      "devices": [
+        {
+          "id": "device-pbm-targeted",
+          "type": "pbm-targeted",
+          "brand": "Saved",
+          "model": "Panel pbm-targeted",
+          "peakWavelengths": [
+            900,
+            460,
+            630,
+            670,
+            850
+          ],
+          "channels": [
+            "vitamin_d",
+            "pomc",
+            "no_cv",
+            "violet_eye",
+            "circadian",
+            "nir_solar",
+            "pbm_red",
+            "pbm_nir"
+          ],
+          "addedAt": 1801656000000,
+          "mwPerCm2At15cm": 20,
+          "recommendedDistanceCm": 25,
+          "irradianceBasis": "curated-estimate"
+        }
+      ],
+      "sessions": [],
+      "html": "<div class=\"light-devices-section\">\n    <div class=\"light-devices-head\">\n      <h3 class=\"light-section-title\">Light devices</h3>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-light-devices-action=\"add-device\">+ Add device</button>\n    </div><div class=\"light-devices-grid\"><div class=\"light-device-card light-device-card-type-pbm-targeted\" data-id=\"device-pbm-targeted\">\n      <div class=\"light-device-head\">\n        <span class=\"light-device-icon\" aria-hidden=\"true\">🔴</span>\n        <div class=\"light-device-titleblock\">\n          <span class=\"light-device-name\">Saved Panel pbm-targeted</span>\n          <span class=\"light-device-typeline\">Targeted PBM device · 460–900 nm (5 bands) · ~20 mW/cm² @ 25 cm</span>\n        </div>\n        <button type=\"button\" class=\"light-device-delete\" data-light-devices-action=\"delete-device\" data-light-device-id=\"device-pbm-targeted\" title=\"Remove device\" aria-label=\"Remove device\">×</button>\n      </div>\n      <div class=\"light-device-feeds\">\n        <span class=\"light-device-feeds-label\">Signals</span>\n        <span class=\"light-device-feed-chip\" title=\"Vitamin D — UVB on uncovered skin starts vitamin D production. The estimate is rough, and more sun is not always better.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">☀</span>\n      <span class=\"light-device-feed-label\">Vitamin D</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Skin &amp; mood — Sunlight on skin can start signals involved in pigment, stress response, and how sunlight feels.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">⚡</span>\n      <span class=\"light-device-feed-label\">Skin &amp; mood</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Blood vessels — UVA can release nitric oxide stored in skin, which may temporarily relax blood vessels.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">❤</span>\n      <span class=\"light-device-feed-label\">Blood vessels</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Outdoor eye light — Outdoor light includes violet wavelengths that are reduced by many windows. Their human effects are still being studied.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">👁</span>\n      <span class=\"light-device-feed-label\">Outdoor eye light</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Body clock — Outdoor light reaching your eyes helps your body know when it is day. Timing matters more than a score.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">🌅</span>\n      <span class=\"light-device-feed-label\">Body clock</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Cell energy &amp; repair — May support cell energy and repair signals. This is modeled from red and near-infrared light, and the research is still developing.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">⚡</span>\n      <span class=\"light-device-feed-label\">Cell energy &amp; repair</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Red light device — A device delivers a targeted red-light signal. It is tracked separately from sunlight.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">🔴</span>\n      <span class=\"light-device-feed-label\">Red light device</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Near-IR device — A device delivers a targeted near-infrared signal. It is tracked separately from sunlight.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">🟣</span>\n      <span class=\"light-device-feed-label\">Near-IR device</span>\n    </span>\n      </div>\n      <div class=\"light-device-stats\">No sessions yet</div>\n      <div class=\"light-device-actions\">\n        <button type=\"button\" class=\"import-btn import-btn-secondary light-device-log\" data-light-devices-action=\"log-device-session\" data-light-device-id=\"device-pbm-targeted\">▶ Log session</button>\n        \n      </div>\n    </div></div></div>"
+    },
+    {
+      "name": "sad",
+      "devices": [
+        {
+          "id": "device-sad",
+          "type": "sad",
+          "brand": "Saved",
+          "model": "Panel sad",
+          "peakWavelengths": [
+            900,
+            460,
+            630,
+            670,
+            850
+          ],
+          "channels": [
+            "vitamin_d",
+            "pomc",
+            "no_cv",
+            "violet_eye",
+            "circadian",
+            "nir_solar",
+            "pbm_red",
+            "pbm_nir"
+          ],
+          "addedAt": 1801569600000,
+          "lux": 10000
+        }
+      ],
+      "sessions": [
+        {
+          "id": "old",
+          "deviceId": "device-sad",
+          "startedAt": 1801137600000
+        },
+        {
+          "id": "latest",
+          "deviceId": "device-sad",
+          "startedAt": 1801742400000
+        },
+        {
+          "id": "unrelated",
+          "deviceId": "other",
+          "startedAt": 1801915200000
+        }
+      ],
+      "html": "<div class=\"light-devices-section\">\n    <div class=\"light-devices-head\">\n      <h3 class=\"light-section-title\">Light devices</h3>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-light-devices-action=\"add-device\">+ Add device</button>\n    </div><div class=\"light-devices-grid\"><div class=\"light-device-card light-device-card-type-sad\" data-id=\"device-sad\">\n      <div class=\"light-device-head\">\n        <span class=\"light-device-icon\" aria-hidden=\"true\">🌅</span>\n        <div class=\"light-device-titleblock\">\n          <span class=\"light-device-name\">Saved Panel sad</span>\n          <span class=\"light-device-typeline\">SAD light box (10k lux) · 460–900 nm (5 bands) · 10000 photopic lux</span>\n        </div>\n        <button type=\"button\" class=\"light-device-delete\" data-light-devices-action=\"delete-device\" data-light-device-id=\"device-sad\" title=\"Remove device\" aria-label=\"Remove device\">×</button>\n      </div>\n      <div class=\"light-device-feeds\">\n        <span class=\"light-device-feeds-label\">Signals</span>\n        <span class=\"light-device-feed-chip\" title=\"Vitamin D — UVB on uncovered skin starts vitamin D production. The estimate is rough, and more sun is not always better.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">☀</span>\n      <span class=\"light-device-feed-label\">Vitamin D</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Skin &amp; mood — Sunlight on skin can start signals involved in pigment, stress response, and how sunlight feels.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">⚡</span>\n      <span class=\"light-device-feed-label\">Skin &amp; mood</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Blood vessels — UVA can release nitric oxide stored in skin, which may temporarily relax blood vessels.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">❤</span>\n      <span class=\"light-device-feed-label\">Blood vessels</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Outdoor eye light — Outdoor light includes violet wavelengths that are reduced by many windows. Their human effects are still being studied.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">👁</span>\n      <span class=\"light-device-feed-label\">Outdoor eye light</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Body clock — Outdoor light reaching your eyes helps your body know when it is day. Timing matters more than a score.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">🌅</span>\n      <span class=\"light-device-feed-label\">Body clock</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Cell energy &amp; repair — May support cell energy and repair signals. This is modeled from red and near-infrared light, and the research is still developing.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">⚡</span>\n      <span class=\"light-device-feed-label\">Cell energy &amp; repair</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Red light device — A device delivers a targeted red-light signal. It is tracked separately from sunlight.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">🔴</span>\n      <span class=\"light-device-feed-label\">Red light device</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Near-IR device — A device delivers a targeted near-infrared signal. It is tracked separately from sunlight.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">🟣</span>\n      <span class=\"light-device-feed-label\">Near-IR device</span>\n    </span>\n      </div>\n      <div class=\"light-device-stats\">2 sessions · last 2 days ago</div>\n      <div class=\"light-device-actions\">\n        <button type=\"button\" class=\"import-btn import-btn-secondary light-device-log\" data-light-devices-action=\"log-device-session\" data-light-device-id=\"device-sad\">▶ Log session</button>\n        \n      </div>\n    </div></div></div>"
+    },
+    {
+      "name": "dawn-sim",
+      "devices": [
+        {
+          "id": "device-dawn-sim",
+          "type": "dawn-sim",
+          "brand": "Saved",
+          "model": "Panel dawn-sim",
+          "peakWavelengths": [
+            900,
+            460,
+            630,
+            670,
+            850
+          ],
+          "channels": [
+            "vitamin_d",
+            "pomc",
+            "no_cv",
+            "violet_eye",
+            "circadian",
+            "nir_solar",
+            "pbm_red",
+            "pbm_nir"
+          ],
+          "addedAt": 1801483200000,
+          "melanopicEdiLux": 450
+        }
+      ],
+      "sessions": [],
+      "html": "<div class=\"light-devices-section\">\n    <div class=\"light-devices-head\">\n      <h3 class=\"light-section-title\">Light devices</h3>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-light-devices-action=\"add-device\">+ Add device</button>\n    </div><div class=\"light-devices-grid\"><div class=\"light-device-card light-device-card-type-dawn-sim\" data-id=\"device-dawn-sim\">\n      <div class=\"light-device-head\">\n        <span class=\"light-device-icon\" aria-hidden=\"true\">🌄</span>\n        <div class=\"light-device-titleblock\">\n          <span class=\"light-device-name\">Saved Panel dawn-sim</span>\n          <span class=\"light-device-typeline\">Dawn simulator · 460–900 nm (5 bands) · 450 lx M-EDI</span>\n        </div>\n        <button type=\"button\" class=\"light-device-delete\" data-light-devices-action=\"delete-device\" data-light-device-id=\"device-dawn-sim\" title=\"Remove device\" aria-label=\"Remove device\">×</button>\n      </div>\n      <div class=\"light-device-feeds\">\n        <span class=\"light-device-feeds-label\">Signals</span>\n        <span class=\"light-device-feed-chip\" title=\"Vitamin D — UVB on uncovered skin starts vitamin D production. The estimate is rough, and more sun is not always better.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">☀</span>\n      <span class=\"light-device-feed-label\">Vitamin D</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Skin &amp; mood — Sunlight on skin can start signals involved in pigment, stress response, and how sunlight feels.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">⚡</span>\n      <span class=\"light-device-feed-label\">Skin &amp; mood</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Blood vessels — UVA can release nitric oxide stored in skin, which may temporarily relax blood vessels.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">❤</span>\n      <span class=\"light-device-feed-label\">Blood vessels</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Outdoor eye light — Outdoor light includes violet wavelengths that are reduced by many windows. Their human effects are still being studied.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">👁</span>\n      <span class=\"light-device-feed-label\">Outdoor eye light</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Body clock — Outdoor light reaching your eyes helps your body know when it is day. Timing matters more than a score.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">🌅</span>\n      <span class=\"light-device-feed-label\">Body clock</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Cell energy &amp; repair — May support cell energy and repair signals. This is modeled from red and near-infrared light, and the research is still developing.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">⚡</span>\n      <span class=\"light-device-feed-label\">Cell energy &amp; repair</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Red light device — A device delivers a targeted red-light signal. It is tracked separately from sunlight.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">🔴</span>\n      <span class=\"light-device-feed-label\">Red light device</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Near-IR device — A device delivers a targeted near-infrared signal. It is tracked separately from sunlight.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">🟣</span>\n      <span class=\"light-device-feed-label\">Near-IR device</span>\n    </span>\n      </div>\n      <div class=\"light-device-stats\">No sessions yet</div>\n      <div class=\"light-device-actions\">\n        <button type=\"button\" class=\"import-btn import-btn-secondary light-device-log\" data-light-devices-action=\"log-device-session\" data-light-device-id=\"device-dawn-sim\">▶ Log session</button>\n        \n      </div>\n    </div></div></div>"
+    },
+    {
+      "name": "full-spectrum",
+      "devices": [
+        {
+          "id": "device-full-spectrum",
+          "type": "full-spectrum",
+          "brand": "Saved",
+          "model": "Panel full-spectrum",
+          "peakWavelengths": [
+            900,
+            460,
+            630,
+            670,
+            850
+          ],
+          "channels": [
+            "vitamin_d",
+            "pomc",
+            "no_cv",
+            "violet_eye",
+            "circadian",
+            "nir_solar",
+            "pbm_red",
+            "pbm_nir"
+          ],
+          "addedAt": 1801396800000
+        }
+      ],
+      "sessions": [
+        {
+          "id": "old",
+          "deviceId": "device-full-spectrum",
+          "startedAt": 1801137600000
+        },
+        {
+          "id": "latest",
+          "deviceId": "device-full-spectrum",
+          "startedAt": 1801742400000
+        },
+        {
+          "id": "unrelated",
+          "deviceId": "other",
+          "startedAt": 1801915200000
+        }
+      ],
+      "html": "<div class=\"light-devices-section\">\n    <div class=\"light-devices-head\">\n      <h3 class=\"light-section-title\">Light devices</h3>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-light-devices-action=\"add-device\">+ Add device</button>\n    </div><div class=\"light-devices-grid\"><div class=\"light-device-card light-device-card-type-full-spectrum\" data-id=\"device-full-spectrum\">\n      <div class=\"light-device-head\">\n        <span class=\"light-device-icon\" aria-hidden=\"true\">💡</span>\n        <div class=\"light-device-titleblock\">\n          <span class=\"light-device-name\">Saved Panel full-spectrum</span>\n          <span class=\"light-device-typeline\">Full-spectrum bulb · 460–900 nm (5 bands)</span>\n        </div>\n        <button type=\"button\" class=\"light-device-delete\" data-light-devices-action=\"delete-device\" data-light-device-id=\"device-full-spectrum\" title=\"Remove device\" aria-label=\"Remove device\">×</button>\n      </div>\n      <div class=\"light-device-feeds\">\n        <span class=\"light-device-feeds-label\">Signals</span>\n        <span class=\"light-device-feed-chip\" title=\"Vitamin D — UVB on uncovered skin starts vitamin D production. The estimate is rough, and more sun is not always better.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">☀</span>\n      <span class=\"light-device-feed-label\">Vitamin D</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Skin &amp; mood — Sunlight on skin can start signals involved in pigment, stress response, and how sunlight feels.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">⚡</span>\n      <span class=\"light-device-feed-label\">Skin &amp; mood</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Blood vessels — UVA can release nitric oxide stored in skin, which may temporarily relax blood vessels.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">❤</span>\n      <span class=\"light-device-feed-label\">Blood vessels</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Outdoor eye light — Outdoor light includes violet wavelengths that are reduced by many windows. Their human effects are still being studied.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">👁</span>\n      <span class=\"light-device-feed-label\">Outdoor eye light</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Body clock — Outdoor light reaching your eyes helps your body know when it is day. Timing matters more than a score.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">🌅</span>\n      <span class=\"light-device-feed-label\">Body clock</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Cell energy &amp; repair — May support cell energy and repair signals. This is modeled from red and near-infrared light, and the research is still developing.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">⚡</span>\n      <span class=\"light-device-feed-label\">Cell energy &amp; repair</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Red light device — A device delivers a targeted red-light signal. It is tracked separately from sunlight.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">🔴</span>\n      <span class=\"light-device-feed-label\">Red light device</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Near-IR device — A device delivers a targeted near-infrared signal. It is tracked separately from sunlight.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">🟣</span>\n      <span class=\"light-device-feed-label\">Near-IR device</span>\n    </span>\n      </div>\n      <div class=\"light-device-stats\">2 sessions · last 2 days ago</div>\n      <div class=\"light-device-actions\">\n        <button type=\"button\" class=\"import-btn import-btn-secondary light-device-log\" data-light-devices-action=\"log-device-session\" data-light-device-id=\"device-full-spectrum\">▶ Log session</button>\n        \n      </div>\n    </div></div></div>"
+    },
+    {
+      "name": "custom",
+      "devices": [
+        {
+          "id": "device-custom",
+          "type": "custom",
+          "brand": "Literal <brand> & \"quote\"",
+          "model": "Long model with literal <label> & preserved reference text",
+          "peakWavelengths": [
+            900,
+            460,
+            630,
+            670,
+            850
+          ],
+          "channels": [
+            "vitamin_d",
+            "pomc",
+            "no_cv",
+            "violet_eye",
+            "circadian",
+            "nir_solar",
+            "pbm_red",
+            "pbm_nir"
+          ],
+          "addedAt": 1801310400000
+        }
+      ],
+      "sessions": [],
+      "html": "<div class=\"light-devices-section\">\n    <div class=\"light-devices-head\">\n      <h3 class=\"light-section-title\">Light devices</h3>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-light-devices-action=\"add-device\">+ Add device</button>\n    </div><div class=\"light-devices-grid\"><div class=\"light-device-card light-device-card-type-custom\" data-id=\"device-custom\">\n      <div class=\"light-device-head\">\n        <span class=\"light-device-icon\" aria-hidden=\"true\">🔴</span>\n        <div class=\"light-device-titleblock\">\n          <span class=\"light-device-name\">Literal &lt;brand&gt; &amp; &quot;quote&quot; Long model with literal &lt;label&gt; &amp; preserved reference text</span>\n          <span class=\"light-device-typeline\">custom · 460–900 nm (5 bands)</span>\n        </div>\n        <button type=\"button\" class=\"light-device-delete\" data-light-devices-action=\"delete-device\" data-light-device-id=\"device-custom\" title=\"Remove device\" aria-label=\"Remove device\">×</button>\n      </div>\n      <div class=\"light-device-feeds\">\n        <span class=\"light-device-feeds-label\">Signals</span>\n        <span class=\"light-device-feed-chip\" title=\"Vitamin D — UVB on uncovered skin starts vitamin D production. The estimate is rough, and more sun is not always better.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">☀</span>\n      <span class=\"light-device-feed-label\">Vitamin D</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Skin &amp; mood — Sunlight on skin can start signals involved in pigment, stress response, and how sunlight feels.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">⚡</span>\n      <span class=\"light-device-feed-label\">Skin &amp; mood</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Blood vessels — UVA can release nitric oxide stored in skin, which may temporarily relax blood vessels.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">❤</span>\n      <span class=\"light-device-feed-label\">Blood vessels</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Outdoor eye light — Outdoor light includes violet wavelengths that are reduced by many windows. Their human effects are still being studied.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">👁</span>\n      <span class=\"light-device-feed-label\">Outdoor eye light</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Body clock — Outdoor light reaching your eyes helps your body know when it is day. Timing matters more than a score.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">🌅</span>\n      <span class=\"light-device-feed-label\">Body clock</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Cell energy &amp; repair — May support cell energy and repair signals. This is modeled from red and near-infrared light, and the research is still developing.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">⚡</span>\n      <span class=\"light-device-feed-label\">Cell energy &amp; repair</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Red light device — A device delivers a targeted red-light signal. It is tracked separately from sunlight.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">🔴</span>\n      <span class=\"light-device-feed-label\">Red light device</span>\n    </span><span class=\"light-device-feed-chip\" title=\"Near-IR device — A device delivers a targeted near-infrared signal. It is tracked separately from sunlight.\">\n      <span class=\"light-device-feed-icon\" aria-hidden=\"true\">🟣</span>\n      <span class=\"light-device-feed-label\">Near-IR device</span>\n    </span>\n      </div>\n      <div class=\"light-device-stats\">No sessions yet</div>\n      <div class=\"light-device-actions\">\n        <button type=\"button\" class=\"import-btn import-btn-secondary light-device-log\" data-light-devices-action=\"log-device-session\" data-light-device-id=\"device-custom\">▶ Log session</button>\n        \n      </div>\n    </div></div></div>"
+    },
+    {
+      "name": "empty",
+      "devices": [],
+      "sessions": [],
+      "html": "<div class=\"light-devices-section\">\n    <div class=\"light-devices-head\">\n      <h3 class=\"light-section-title\">Light devices</h3>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-light-devices-action=\"add-device\">+ Add device</button>\n    </div><p class=\"light-section-hint\">Add therapy panels, SAD lamps, or dawn simulators to see the light signals their measured or stated output can support. Device light stays distinct from full-spectrum sunlight.</p>\n    </div>"
+    }
+  ],
+  "pickerDevices": [
+    {
+      "id": "device-uvb",
+      "type": "uvb",
+      "brand": "Saved",
+      "model": "Panel uvb",
+      "peakWavelengths": [],
+      "channels": [
+        "vitamin_d",
+        "pomc",
+        "no_cv",
+        "violet_eye",
+        "circadian",
+        "nir_solar",
+        "pbm_red",
+        "pbm_nir"
+      ],
+      "addedAt": 1801915200000,
+      "mwPerCm2At15cm": 20,
+      "recommendedDistanceCm": 25,
+      "irradianceBasis": "measured-radiometer"
+    },
+    {
+      "id": "device-uva",
+      "type": "uva",
+      "brand": "Saved",
+      "model": "Panel uva",
+      "peakWavelengths": [
+        365
+      ],
+      "channels": [
+        "vitamin_d",
+        "pomc",
+        "no_cv",
+        "violet_eye",
+        "circadian",
+        "nir_solar",
+        "pbm_red",
+        "pbm_nir"
+      ],
+      "addedAt": 1801828800000,
+      "mwPerCm2At15cm": 20,
+      "recommendedDistanceCm": 25,
+      "irradianceBasis": "curated-estimate"
+    },
+    {
+      "id": "device-combined",
+      "type": "combined",
+      "brand": "Saved",
+      "model": "Panel combined",
+      "peakWavelengths": [
+        850,
+        660
+      ],
+      "channels": [
+        "vitamin_d",
+        "pomc",
+        "no_cv",
+        "violet_eye",
+        "circadian",
+        "nir_solar",
+        "pbm_red",
+        "pbm_nir"
+      ],
+      "addedAt": 1801742400000,
+      "mwPerCm2At15cm": 20,
+      "recommendedDistanceCm": 25,
+      "irradianceBasis": "measured-radiometer",
+      "catalogSlug": "fixture-panel"
+    }
+  ],
+  "pickerHTML": "<div class=\"modal\" role=\"dialog\" aria-label=\"Pick a device to log a session\">\n    <div class=\"modal-header\">\n      <h3>Which device?</h3>\n      <button class=\"modal-close\" data-device-picker-close=\"\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      <div class=\"light-device-picker-list\"><button type=\"button\" class=\"light-device-picker-row\" data-device-id=\"device-uvb\">\n      <span class=\"light-device-picker-name\">Saved Panel uvb</span>\n      <span class=\"light-device-picker-meta\">uvb · 20 mW/cm²</span>\n    </button><button type=\"button\" class=\"light-device-picker-row\" data-device-id=\"device-uva\">\n      <span class=\"light-device-picker-name\">Saved Panel uva</span>\n      <span class=\"light-device-picker-meta\">uva · 365nm · 20 mW/cm²</span>\n    </button><button type=\"button\" class=\"light-device-picker-row\" data-device-id=\"device-combined\">\n      <span class=\"light-device-picker-name\">Saved Panel combined</span>\n      <span class=\"light-device-picker-meta\">combined · 850/660nm · 20 mW/cm²</span>\n    </button></div>\n      <div class=\"modal-actions\" style=\"margin-top:14px\">\n        <button class=\"import-btn import-btn-secondary\" data-device-picker-close=\"\">Cancel</button>\n      </div>\n    </div>\n  </div>",
+  "styleBlocks": [
+    {
+      "selector": ".light-page .dashboard-widget[data-widget-id=\"light-devices\"] .dashboard-widget-body",
+      "declarations": "gap:0;",
+      "media": null
+    },
+    {
+      "selector": ".light-page .dashboard-widget[data-widget-id=\"light-devices\"] .light-devices-section",
+      "declarations": "margin-top:0;",
+      "media": null
+    },
+    {
+      "selector": ".light-page .dashboard-widget[data-widget-id=\"light-devices\"] .light-section-title",
+      "declarations": "display:none;",
+      "media": null
+    },
+    {
+      "selector": ".light-page .dashboard-widget[data-widget-id=\"light-devices\"] .light-devices-head",
+      "declarations": "margin-bottom:14px;",
+      "media": null
+    },
+    {
+      "selector": ".light-devices-section",
+      "declarations": "margin-top:24px;",
+      "media": null
+    },
+    {
+      "selector": ".light-devices-head",
+      "declarations": "display:flex;align-items:center;gap:12px;margin-bottom:12px;",
+      "media": null
+    },
+    {
+      "selector": ".light-devices-grid",
+      "declarations": "display:grid;grid-template-columns:repeat(auto-fit, minmax(min(280px, 100%), 1fr));gap:14px;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-card",
+      "declarations": "background:color-mix(in srgb, var(--bg-card) 94%, transparent);border:1px solid color-mix(in srgb, var(--border) 82%, transparent);border-radius:var(--radius);padding:14px 16px;display:flex;flex-direction:column;gap:10px;position:relative;overflow:hidden;transition:border-color 0.15s, box-shadow 0.15s;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-card:hover",
+      "declarations": "border-color:var(--accent);box-shadow:0 2px 12px color-mix(in srgb, var(--text-primary) 8%, transparent);",
+      "media": null
+    },
+    {
+      "selector": ".light-device-card::before",
+      "declarations": "content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--text-muted);",
+      "media": null
+    },
+    {
+      "selector": ".light-device-card-type-uvb::before",
+      "declarations": "background:linear-gradient(to bottom, #f59e0b, #ef4444);",
+      "media": null
+    },
+    {
+      "selector": ".light-device-card-type-uva::before",
+      "declarations": "background:#f97316;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-card-type-combined::before",
+      "declarations": "background:#ef4444;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-card-type-pbm-targeted::before",
+      "declarations": "background:linear-gradient(to bottom, #ef4444, #b91c1c);",
+      "media": null
+    },
+    {
+      "selector": ".light-device-card-type-sad::before",
+      "declarations": "background:#fbbf24;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-card-type-dawn-sim::before",
+      "declarations": "background:#fb923c;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-card-type-full-spectrum::before",
+      "declarations": "background:#facc15;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-head",
+      "declarations": "display:flex;align-items:flex-start;gap:10px;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-icon",
+      "declarations": "font-size:22px;line-height:1;flex-shrink:0;margin-top:2px;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-titleblock",
+      "declarations": "flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-name",
+      "declarations": "font-weight:600;color:var(--text-primary);font-size:14px;overflow:hidden;text-overflow:ellipsis;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-typeline",
+      "declarations": "font-size:11px;color:var(--text-muted);",
+      "media": null
+    },
+    {
+      "selector": ".light-device-delete",
+      "declarations": "background:transparent;border:none;color:var(--text-muted);font-size:18px;line-height:1;cursor:pointer;padding:4px 8px;border-radius:4px;flex-shrink:0;opacity:0;transition:opacity 0.15s, color 0.15s, background 0.15s;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-card:hover .light-device-delete,\n.light-device-delete:focus-visible",
+      "declarations": "opacity:1;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-delete:hover",
+      "declarations": "color:var(--red);background:var(--bg-secondary);",
+      "media": null
+    },
+    {
+      "selector": ".light-device-feeds",
+      "declarations": "display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-feeds-label",
+      "declarations": "color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin-right:2px;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-feed-chip",
+      "declarations": "display:inline-flex;align-items:center;gap:4px;padding:3px 8px;background:var(--bg-secondary);border-radius:10px;color:var(--text-secondary);white-space:nowrap;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-feed-icon",
+      "declarations": "font-size:12px;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-feed-label",
+      "declarations": "font-size:11px;font-weight:500;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-stats",
+      "declarations": "font-size:11px;color:var(--text-muted);font-variant-numeric:tabular-nums;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-log",
+      "declarations": "width:100%;padding:8px 14px;font-size:13px;font-weight:600;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-actions",
+      "declarations": "display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:4px;",
+      "media": null
+    },
+    {
+      "selector": ".custom-device-ai-row",
+      "declarations": "display:flex;gap:8px;align-items:stretch;margin-top:8px;",
+      "media": null
+    },
+    {
+      "selector": ".custom-device-form",
+      "declarations": "display:flex;flex-direction:column;gap:10px;margin-top:4px;",
+      "media": null
+    },
+    {
+      "selector": ".custom-device-form .ctx-label",
+      "declarations": "display:block;",
+      "media": null
+    },
+    {
+      "selector": ".custom-device-form .ctx-input,\n.custom-device-form .ctx-select",
+      "declarations": "width:100%;margin-top:4px;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-add-modal,\n.light-device-add-modal .modal-body",
+      "declarations": "min-width:0;overflow-x:hidden;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-add-modal",
+      "declarations": "-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-preset-groups",
+      "declarations": "display:flex;flex-direction:column;gap:12px;margin-top:12px;min-width:0;max-width:100%;overflow:visible;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-preset-group",
+      "declarations": "display:flex;flex-direction:column;gap:6px;min-width:0;max-width:100%;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-preset-heading",
+      "declarations": "margin:0;color:var(--text-secondary);font-family:var(--font-mono);font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-preset-list",
+      "declarations": "display:flex;flex-direction:column;gap:6px;min-width:0;max-width:100%;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-preset-row",
+      "declarations": "display:flex;flex-direction:column;gap:2px;align-items:flex-start;width:100%;min-width:0;max-width:100%;overflow-x:hidden;padding:10px 14px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-secondary);font-family:inherit;cursor:pointer;text-align:left;transition:border-color 0.15s, background 0.15s, box-shadow 0.15s;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-preset-row:hover,\n.light-device-preset-row:focus-visible",
+      "declarations": "border-color:var(--accent);background:var(--bg-card);outline:none;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-preset-row.active",
+      "declarations": "border-color:var(--accent);background:color-mix(in srgb, var(--accent) 10%, var(--bg-card));box-shadow:inset 3px 0 0 var(--accent);",
+      "media": null
+    },
+    {
+      "selector": ".light-device-preset-name",
+      "declarations": "color:var(--text-primary);font-size:14px;font-weight:600;max-width:100%;overflow-wrap:anywhere;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-preset-meta",
+      "declarations": "color:var(--text-secondary);font-size:12px;line-height:1.35;max-width:100%;overflow-wrap:anywhere;word-break:break-word;",
+      "media": null
+    },
+    {
+      "selector": ".dev-session-hint:not([data-light-session-presentation] *)",
+      "declarations": "display:block;font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.4;",
+      "media": null
+    },
+    {
+      "selector": ".dev-distance-row:not([data-light-session-presentation] *)",
+      "declarations": "display:flex;align-items:stretch;gap:8px;margin-top:4px;",
+      "media": null
+    },
+    {
+      "selector": ".dev-distance-row .ctx-input:not([data-light-session-presentation] *)",
+      "declarations": "flex:1;min-width:0;",
+      "media": null
+    },
+    {
+      "selector": ".dev-unit-toggle:not([data-light-session-presentation] *)",
+      "declarations": "display:inline-flex;align-items:stretch;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;background:var(--bg-secondary);",
+      "media": null
+    },
+    {
+      "selector": ".dev-unit-btn:not([data-light-session-presentation] *)",
+      "declarations": "padding:0 12px;font-size:12px;font-weight:600;background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-family:inherit;",
+      "media": null
+    },
+    {
+      "selector": ".dev-unit-btn + .dev-unit-btn:not([data-light-session-presentation] *)",
+      "declarations": "border-left:1px solid var(--border);",
+      "media": null
+    },
+    {
+      "selector": ".dev-unit-btn.active:not([data-light-session-presentation] *)",
+      "declarations": "background:var(--accent);color:#fff;",
+      "media": null
+    },
+    {
+      "selector": ".dev-unit-btn:not(.active):hover:not([data-light-session-presentation] *)",
+      "declarations": "color:var(--text-primary);background:var(--bg-card);",
+      "media": null
+    },
+    {
+      "selector": ".rec-light-device-link",
+      "declarations": "font-size:12px;color:var(--accent);text-decoration:none;",
+      "media": null
+    },
+    {
+      "selector": ".rec-light-device-link:hover",
+      "declarations": "text-decoration:underline;",
+      "media": null
+    },
+    {
+      "selector": ".rec-channel-deficit",
+      "declarations": "margin:16px 0;padding:12px 14px;background:color-mix(in srgb, var(--bg-card) 94%, transparent);border:1px solid color-mix(in srgb, var(--border) 82%, transparent);border-radius:var(--radius);box-shadow:var(--shadow);",
+      "media": null
+    },
+    {
+      "selector": ".rec-channel-deficit-head",
+      "declarations": "font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:8px;",
+      "media": null
+    },
+    {
+      "selector": ".rec-channel-deficit-list",
+      "declarations": "display:flex;flex-direction:column;gap:6px;",
+      "media": null
+    },
+    {
+      "selector": ".rec-light-deficit-link",
+      "declarations": "display:block;padding:8px 10px;font-size:12px;color:var(--text-primary);background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius-xs);text-decoration:none;",
+      "media": null
+    },
+    {
+      "selector": ".rec-light-deficit-link:hover",
+      "declarations": "border-color:var(--accent);",
+      "media": null
+    },
+    {
+      "selector": ".rec-light-deficit-link strong",
+      "declarations": "color:var(--accent);margin-right:4px;",
+      "media": null
+    },
+    {
+      "selector": ".rec-light-deficit-link .rec-vendor",
+      "declarations": "display:inline-block;margin-left:6px;color:var(--text-secondary);font-size:11px;",
+      "media": null
+    },
+    {
+      "selector": ".rec-channel-deficit-foot",
+      "declarations": "margin-top:8px;font-size:11px;color:var(--text-secondary);",
+      "media": null
+    },
+    {
+      "selector": ".rec-channel-deficit-foot a",
+      "declarations": "color:var(--text-secondary);",
+      "media": null
+    },
+    {
+      "selector": ".light-device-picker-list",
+      "declarations": "display:flex;flex-direction:column;gap:6px;margin-top:8px;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-picker-row",
+      "declarations": "display:flex;flex-direction:column;gap:2px;align-items:flex-start;padding:10px 14px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;cursor:pointer;text-align:left;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-picker-row:hover",
+      "declarations": "border-color:var(--accent);background:var(--bg-card);",
+      "media": null
+    },
+    {
+      "selector": ".light-device-picker-name",
+      "declarations": "font-weight:600;color:var(--text-primary);font-size:14px;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-picker-meta",
+      "declarations": "color:var(--text-secondary);font-size:12px;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-delete",
+      "declarations": "opacity:0.5;",
+      "media": "(hover: none)"
+    },
+    {
+      "selector": ".light-device-delete:active",
+      "declarations": "opacity:1;",
+      "media": "(hover: none)"
+    },
+    {
+      "selector": ".light-device-feed-label",
+      "declarations": "display:none;",
+      "media": "(max-width: 768px)"
+    },
+    {
+      "selector": ".light-device-feed-chip",
+      "declarations": "padding:4px 6px;min-width:24px;justify-content:center;",
+      "media": "(max-width: 768px)"
+    },
+    {
+      "selector": ".light-device-feed-icon",
+      "declarations": "font-size:13px;",
+      "media": "(max-width: 768px)"
+    },
+    {
+      "selector": ".light-devices-grid",
+      "declarations": "grid-template-columns:1fr;gap:12px;",
+      "media": "(max-width: 600px)"
+    },
+    {
+      "selector": ".light-device-card",
+      "declarations": "padding:14px 14px 14px 18px;",
+      "media": "(max-width: 600px)"
+    },
+    {
+      "selector": ".light-device-name",
+      "declarations": "white-space:normal;overflow:visible;line-height:1.3;",
+      "media": "(max-width: 600px)"
+    },
+    {
+      "selector": ".light-device-typeline",
+      "declarations": "line-height:1.4;",
+      "media": "(max-width: 600px)"
+    },
+    {
+      "selector": ".light-device-delete",
+      "declarations": "opacity:0.6;",
+      "media": "(max-width: 600px)"
+    },
+    {
+      "selector": ".dev-distance-row:not([data-light-session-presentation] *)",
+      "declarations": "flex-direction:column;align-items:stretch;gap:6px;",
+      "media": "(max-width: 600px)"
+    },
+    {
+      "selector": ".dev-unit-toggle:not([data-light-session-presentation] *)",
+      "declarations": "align-self:flex-start;",
+      "media": "(max-width: 600px)"
+    },
+    {
+      "selector": ".light-device-name",
+      "declarations": "font-size:13px;",
+      "media": "(max-width: 375px)"
+    },
+    {
+      "selector": ".light-device-typeline",
+      "declarations": "font-size:10px;",
+      "media": "(max-width: 375px)"
+    }
+  ]
+}

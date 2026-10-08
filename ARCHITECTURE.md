@@ -1850,3 +1850,23 @@ are consumed without losing later additions or valid in-flight reads. Reads
 also validate the originating component, conversation and model route before
 committing. Original images remain ephemeral; only existing history thumbnails
 are persisted. These services do not require a rendering backend.
+
+`LightDevicePresentation.svelte` composes the authored device library, ordered
+picker and channel-chip views. `light-device-library-presentation.ts` projects
+captured device/session records, specification copy, usage counts and picker
+order without writes or dose calculations. `light-devices.ts` retains async
+catalog/preset loading, stable HTML exports, modal lifecycle and session actions.
+`LightDeviceAffiliate.svelte` receives typed URL/label/event data through the
+existing lazy recommendation bridge. `recommendations-products.ts` continues to
+own consent, regional visibility, trusted-host resolution and UTM attribution;
+its public affiliate HTML export shares the authored component. There is no raw
+child-HTML composition in the library, chips, picker or affiliate component.
+
+`css/light-devices.css` is generated from `light-devices.base.css` and scoped
+`light-devices.tailwind.css` at the unchanged lazy URL. Tailwind owns library and
+picker states, type bands and inclusive 768/600/375px layouts. The base retains
+separate setup/recommendation owners and the shared Lens widget-body gap. Link
+and metadata ink use readable shared semantic tokens; phone delete controls stay
+visible, and authored controls have visible keyboard focus and at least 44px
+targets for coarse pointers. Native library/picker/chip
+and affiliate templates and their superseded styles are removed.

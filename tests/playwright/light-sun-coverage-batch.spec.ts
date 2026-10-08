@@ -845,7 +845,7 @@ test('light devices cover session detail edit log active card and rendered list 
     });
     const previousRecommendationBridge = recommendationRuntime.configureRecommendationModuleBridge({
       loadCatalog: async () => ({ items: [] }),
-      renderLightDeviceAffiliateRow: (_catalog: unknown, slug: unknown) => `<a class="affiliate-test">${slug}</a>`,
+      getLightDeviceAffiliateView: (_catalog: unknown, slug: unknown) => ({href:'https://www.mitochondriak.com/',event:'fixture',label:String(slug),vendor:String(slug)}),
     });
 
     try {
@@ -906,7 +906,7 @@ test('light devices cover session detail edit log active card and rendered list 
       lightDevices.installLightDevicesActionDelegates(devicesHost);
       outcomes.renderDevicesSectionShowsStatsAndAffiliate = devicesHost.textContent.includes('TestLight Panel 900')
         && devicesHost.textContent.includes('1 session')
-        && !!devicesHost.querySelector<HTMLElement>('.affiliate-test')
+        && !!devicesHost.querySelector<HTMLElement>('.rec-light-device-link')
         && devicesHost.textContent.includes('630')
         && devicesHost.textContent.includes('850')
         && !!devicesHost.querySelector<HTMLElement>('.light-device-feed-chip');

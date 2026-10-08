@@ -125,7 +125,7 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
       });
       previousRecommendationBridge = recommendationRuntime.configureRecommendationModuleBridge({
         loadCatalog: async () => ({ products: [] }),
-        renderLightDeviceAffiliateRow: (_catalog:unknown, slug:unknown) => `<a class="affiliate-test">${slug}</a>`,
+        getLightDeviceAffiliateView: (_catalog:unknown, slug:unknown) => ({href:'https://www.mitochondriak.com/',event:'fixture',label:String(slug),vendor:String(slug)}),
       });
 
       state.currentProfile = 'light-devices-browser-coverage';

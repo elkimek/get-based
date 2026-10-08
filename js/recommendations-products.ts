@@ -1,3 +1,5 @@
+import { renderHTML as renderDeviceAffiliate } from './components/LightDeviceAffiliate.svelte.html.js';
+import type { LightDeviceAffiliateView } from './light-device-library-presentation.js';
 import type { LightDeviceRecord } from './light-devices-store.js';
 
 // Catalog scalar fields remain raw; the original renderers escape/coerce them.
@@ -140,19 +142,24 @@ export function getLightDeviceProduct(catalog: CatalogInput, slug: unknown) {
 // Campaign tag is "light-devices" so the partner-side UTM dashboard can
 // attribute device-card traffic separately from the EMF + supplement
 // surfaces.
-export function renderLightDeviceAffiliateRow(catalog: CatalogInput, slug: unknown) {
-  if (!isProductRecsEnabled() || !catalog || !slug) return '';
+export function getLightDeviceAffiliateView(catalog: CatalogInput, slug: unknown): LightDeviceAffiliateView | null {
+  if (!isProductRecsEnabled() || !catalog || !slug) return null;
   const product = getLightDeviceProduct(catalog, slug);
-  if (!product) return '';
+  if (!product) return null;
   const region = getUserRegion();
   const rawUrl = _resolveProductUrlForRegion(product, region) || product.url;
-  if (!_isTrustedAffiliateUrl(rawUrl, catalog)) return '';
-  const productName = escapeHTML(product.name || slug);
-  const vendorName = escapeHTML(product.vendor || product.brand || 'vendor');
+  if (!_isTrustedAffiliateUrl(rawUrl, catalog)) return null;
+  const productName = String(product.name || slug);
+  const vendorName = String(product.vendor || product.brand || 'vendor');
   const slug_ = _eventSlug(product.key || product.name || slug);
   const evtName = `light-device-rec-${slug_}`.slice(0, 50).replace(/-+$/, '');
   const url = _addUTMParams(rawUrl, `light-device-${slug_}`, 'light-devices');
-  return `<a class="rec-product-link rec-light-device-link" href="${escapeHTML(url)}" target="_blank" rel="noopener sponsored" data-umami-event="${escapeHTML(evtName)}" aria-label="View ${productName} on ${vendorName}, opens in new tab">View on ${vendorName} →</a>`;
+  return { href: url == null ? '' : String(url), event: evtName,
+    label: `View ${productName} on ${vendorName}, opens in new tab`, vendor: vendorName };
+}
+export function renderLightDeviceAffiliateRow(catalog: CatalogInput, slug: unknown) {
+  const view = getLightDeviceAffiliateView(catalog, slug);
+  return view ? renderDeviceAffiliate({ view }) : '';
 }
 
 export function getEMFProductsForMitigations(catalog: CatalogInput, tags: string[] | null | undefined) {
