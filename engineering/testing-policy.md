@@ -85,6 +85,16 @@ reduced motion and actual delegated loading, failure, retry and persisted result
 checks offline first use of cached results, setup-save preservation and two cold
 launches with full stored-profile equality. These checks establish their named workflows;
 they do not substitute for whole-application release acceptance.
+[`ai-verdict-ownership.test.ts`](../tests/ai-verdict-ownership.test.ts) checks
+late singleton responses/errors, same-ID work in another profile, queued context,
+retry retirement, profile reload/switch epochs and removed/replaced targets.
+[`light-ai-ownership.spec.ts`](../tests/playwright/light-ai-ownership.spec.ts)
+uses actual profile switching, onboarding requests and canonical storage with
+full unrelated-profile equality. Its static counterpart,
+[`sveltekit-light-ai-ownership.spec.ts`](../tests/pwa/sveltekit-light-ai-ownership.spec.ts),
+checks offline first use and two cold launches retaining both profiles' results.
+These request-ownership checks do not establish failed-write transactional
+publication or whole-application release acceptance.
 [`sveltekit-context-forms.spec.ts`](../tests/pwa/sveltekit-context-forms.spec.ts)
 checks the editors through real catalog actions with the assembled static PWA,
 including offline first use, committed history, Light setup metadata/skin preservation

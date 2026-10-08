@@ -106,7 +106,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/import-drop-zone.js',
   '/js/import-drop-zone-runtime.js',
   '/js/ai-verdict-engine-runtime.js',
-  '/js/ai-verdict-engine.js',
+  '/js/ai-verdict-engine.js', '/js/ai-verdict-owner.js',
   '/js/ai-action-delegates.js',
   '/js/health-goals-utils.js',
   '/js/lab-date-range.js',

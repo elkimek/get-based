@@ -1152,6 +1152,18 @@ marker, including reduced motion, touch targets and theme contrast corrections.
 Shared native AI selectors explicitly exclude that marker until their remaining
 owners migrate. Setup-specific overrides have moved out of the global theme sheets.
 
+The shared `ai-verdict-engine.ts` captures a profile/root identity from
+`ai-verdict-owner.ts` for each request and auto-fire retry sequence. In-flight
+state is keyed by that identity plus the target ID, so singleton IDs cannot
+mark or suppress work in another profile. Context and fingerprint are captured
+before the concurrency wait. Responses, error sidecars, retries and refreshes
+retire when their profile/root or profile-switch epoch changes. A current
+response resolves its target again before writing, so removed records are not
+revived and replacement objects receive the verdict. The existing stale-input
+fingerprint contract remains: later target edits invalidate the cached result.
+An already accepted profile save retains the data layer's captured-profile
+ownership; extra immediate sync runs only for the still-current request owner.
+
 `LightSessionPresentation.svelte` composes the past-Sun and device log forms,
 completed Sun/device rows and shared inline/full history. Its pure
 `light-session-presentation.ts` projections preserve option selection, source

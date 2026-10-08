@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1241 |
-| Internal import edges | 4399 |
+| Modules | 1242 |
+| Internal import edges | 4401 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -66,7 +66,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
 | [`js/utils.ts`](js/utils.ts) | 277 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
-| [`js/state.ts`](js/state.ts) | 242 | [`js/chat-send.ts`](js/chat-send.ts) | 38 |
+| [`js/state.ts`](js/state.ts) | 243 | [`js/chat-send.ts`](js/chat-send.ts) | 38 |
 | [`js/caught-error.ts`](js/caught-error.ts) | 93 | [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) | 36 |
 | [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts) | 84 | [`js/settings.ts`](js/settings.ts) | 35 |
 | [`js/data.ts`](js/data.ts) | 82 | [`js/provider-panels.ts`](js/provider-panels.ts) | 34 |
@@ -155,7 +155,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>ai</code> family — 13 modules</summary>
+<details><summary><code>ai</code> family — 14 modules</summary>
 
 - [`js/ai-action-delegates.ts`](js/ai-action-delegates.ts) → [`js/utils.ts`](js/utils.ts)
 - [`js/ai-action-dialog-classes.ts`](js/ai-action-dialog-classes.ts) → no in-scope imports
@@ -169,7 +169,8 @@ Native browser modules shipped with the static application.
 - [`js/ai-settings-contract.ts`](js/ai-settings-contract.ts) → no in-scope imports
 - [`js/ai-settings-presentation.ts`](js/ai-settings-presentation.ts) → no in-scope imports
 - [`js/ai-verdict-engine-runtime.ts`](js/ai-verdict-engine-runtime.ts) → [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts)
-- [`js/ai-verdict-engine.ts`](js/ai-verdict-engine.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/ai-verdict-engine-runtime.ts`](js/ai-verdict-engine-runtime.ts), [`js/data.ts`](js/data.ts), [`js/sync.ts`](js/sync.ts)
+- [`js/ai-verdict-engine.ts`](js/ai-verdict-engine.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/ai-verdict-engine-runtime.ts`](js/ai-verdict-engine-runtime.ts), [`js/ai-verdict-owner.ts`](js/ai-verdict-owner.ts), [`js/data.ts`](js/data.ts), [`js/sync.ts`](js/sync.ts)
+- [`js/ai-verdict-owner.ts`](js/ai-verdict-owner.ts) → [`js/state.ts`](js/state.ts)
 
 </details>
 

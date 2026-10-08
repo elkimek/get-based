@@ -2102,3 +2102,8 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /js/components/LightOnboardingAI.svelte.html.js.map
 /tests/light-onboarding-ai-presentation.test.js
 /tests/pwa/sveltekit-light-onboarding-ai.spec.js
+
+/js/ai-verdict-owner.js
+/tests/ai-verdict-ownership.test.js
+/tests/helpers/light-ai-ownership-fixture.js
+/tests/pwa/sveltekit-light-ai-ownership.spec.js
