@@ -372,3 +372,15 @@ existing dialog, checks canonical IndexedDB records and unrelated profile data,
 and verifies cached body-picker artwork decoding, two closed-client launches and backup. A session without coordinates
 retains its honest `needs-location` status; this check does not establish live
 atmosphere-provider, remaining Light child, installed-PWA or whole-app acceptance.
+
+The past-Sun/device logging forms and completed history are authored Svelte
+through `LightSessionPresentation.svelte`, using the established synchronous
+controllers and ordered Light utilities. Existing body selection, device mode
+coupling, UV safety gates and canonical stores retain ownership. The
+[session acceptance](../tests/playwright/light-session-owned.spec.ts) checks native
+keyboard activation, radio focus, unit conversion and themes/layout/accessibility.
+The [static device workflow](../tests/pwa/sveltekit-light-sessions.spec.ts) saves a
+real canonical session with the origin disabled before first form use, checks
+mode-specific signals and exact unrelated-profile equality, opens the existing
+rich detail and verifies two closed-client launches and backup. AI is paused;
+this does not establish physical-device, live-provider or installed-PWA acceptance.

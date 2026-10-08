@@ -2,6 +2,9 @@
 
 import type { SessionReader, SessionCalls, DoseReader, ChipRow, OptionOperations } from '../types/sun-session-ui.js';
 
+import { renderHTML } from './components/LightSessionPresentation.svelte.html.js';
+import { projectCompletedSunSession } from './light-session-presentation.js';
+
 import { state } from './state.js';
 import { bindDetachedModalSyncRefresh, escapeHTML, escapeAttr, formatDate, showNotification, showPromptDialog, showConfirmDialog } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
@@ -105,41 +108,7 @@ function renderCompletedSunSessionRow(sess: SessionReader) {
   const vitaminD = sess.doses?.vitamin_d
     ? _sessionChipValue('vitamin_d', sess.doses.vitamin_d, sess)
     : '';
-  const status = sess.calculationStatus as string | null | undefined;
-  let statusBadge = '';
-  if (status && status !== 'computed') {
-    const statusLabels: Record<string, unknown> = {
-      pending: 'Updating estimates…',
-      'needs-location': 'Location needed for estimates',
-      'atmosphere-unavailable': 'Conditions unavailable — retry',
-      'calculation-error': 'Calculation failed — retry',
-    };
-    statusBadge = `<span class="light-session-warning${status === 'calculation-error' ? ' light-session-warning-danger' : ''}">${escapeHTML(statusLabels[status] || 'Estimates unavailable')}</span>`;
-  } else {
-    const med = Number(sess.safety?.medFraction);
-    if (Number.isFinite(med) && med >= 1) {
-      statusBadge = '<span class="light-session-warning light-session-warning-danger">Base burn threshold reached</span>';
-    } else if (Number.isFinite(med) && med >= 0.7) {
-      statusBadge = '<span class="light-session-warning">High modeled burn dose</span>';
-    } else if (sess.safety?.fitzpatrickAssumed || sess.safety?.medicationThresholdUnknown) {
-      statusBadge = '<span class="light-session-warning">Review safety assumptions</span>';
-    }
-  }
-  const ariaLabel = `Open ${stamp.date}${stamp.time ? ` at ${stamp.time}` : ''} outdoor sun session details`;
-  return `<div class="sun-session light-session-row light-session-complete light-session-sun" data-id="${escapeAttr(sess.id)}" role="button" tabindex="0" aria-label="${escapeAttr(ariaLabel)}" ${sunSessionActionAttrs('open-detail', { id: sess.id })}>
-    <span class="light-session-icon" aria-hidden="true">☀</span>
-    <div class="light-session-summary">
-      <div class="light-session-title"><span class="light-session-kind">Outdoor</span>Sunlight</div>
-      <div class="light-session-meta-line">
-        <span class="sun-session-date">${escapeHTML(stamp.date)}</span>
-        ${stamp.time ? `<span>${escapeHTML(stamp.time)}</span>` : ''}
-        <span class="sun-session-duration">${escapeHTML(dur)}</span>
-        ${vitaminD ? `<span class="light-session-outcome">Vitamin D est. ${escapeHTML(vitaminD)}</span>` : ''}
-      </div>
-    </div>
-    ${statusBadge}
-    <span class="light-session-chevron" aria-hidden="true">›</span>
-  </div>`;
+  return renderHTML({ kind: 'row', view: projectCompletedSunSession(sess, stamp, dur, vitaminD) });
 }
 
 export function renderSunSessionRow(sess: SessionReader) {
@@ -227,16 +196,8 @@ export function renderSunSessionRow(sess: SessionReader) {
 
 export function renderSessionsList() {
   const sessions = [...uiDeps.getSessions()].sort((a, b) => ((b.startedAt || 0) as number) - ((a.startedAt || 0) as number));
-  if (sessions.length === 0) {
-    return `<div class="sun-empty">
-      <p>No sun sessions logged yet.</p>
-      <button type="button" class="import-btn import-btn-primary" ${sunSessionActionAttrs('quick-log-sun')}>Log your first session</button>
-    </div>`;
-  }
-  let html = `<div class="sun-sessions-list">`;
-  for (const sess of sessions) html += renderSunSessionRow(sess);
-  html += `</div>`;
-  return html;
+  return renderHTML({ kind: 'history', rowsHTML: sessions.map(renderSunSessionRow).join(''), total: sessions.length,
+    sunCount: sessions.length, deviceCount: 0, modal: false, showMore: false, emptySun: true });
 }
 
 // ─── UI: per-session detail modal ──────────────────────────────────────

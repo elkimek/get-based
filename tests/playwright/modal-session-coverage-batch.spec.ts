@@ -453,7 +453,7 @@ test('device session dialog covers validation unit mode start and save paths', a
         outcomes.unitToggleConvertsBothDirections = distance.dataset.unit === 'in'
           && Math.abs(initialInches - 11.8) < 0.05
           && Math.abs(convertedCm - 30) < 0.05
-          && overlay!.querySelector<HTMLElement>('.dev-unit-btn[data-unit="in"]')?.getAttribute('aria-selected') === 'true';
+          && overlay!.querySelector<HTMLElement>('.dev-unit-btn[data-unit="in"]')?.getAttribute('aria-pressed') === 'true';
       } else {
         outcomes.unitToggleConvertsBothDirections = false;
       }
@@ -614,7 +614,7 @@ test('light sessions view covers all-sessions modal refresh scroll and row event
         : false;
       outcomes.modalWheelIsHandled = outcomes.modalWheelBodyExists && wheelPrevented;
 
-      overlay?.querySelector<HTMLElement>('.light-session-device[role="button"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      overlay?.querySelector<HTMLElement>('.light-session-device:is(button, [role="button"])')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       await delay(0);
       outcomes.deviceRowClickClosesModal = !document.body.contains(overlay)
         && calls.some(call => (call as unknown[])[0] === 'detail');
@@ -622,8 +622,10 @@ test('light sessions view covers all-sessions modal refresh scroll and row event
       sessionsView._openAllSessionsModal();
       overlay = document.querySelector<HTMLElement>('.light-sessions-modal-overlay');
       if (overlay) sessionsView.installLightSessionsActionDelegates(overlay);
-      const keyRow = overlay?.querySelector<HTMLElement>('.light-session-device[role="button"]');
-      keyRow?.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true }));
+      const keyRow = overlay?.querySelector<HTMLElement>('.light-session-device:is(button, [role="button"])');
+      // Native buttons activate through a generated click; raw synthetic keydown is not a browser activation.
+      if (keyRow instanceof HTMLButtonElement) keyRow.click();
+      else keyRow?.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true }));
       await delay(0);
       outcomes.deviceRowKeyboardClosesModal = !(document.body.contains as (node:Node|null|undefined)=>boolean)(overlay);
     } finally {

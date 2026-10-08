@@ -230,78 +230,42 @@
   overflow-wrap: anywhere;
   word-break: break-word;
 }
-.dev-session-hint {
+.dev-session-hint:not([data-light-session-presentation] *) {
   display: block;
   font-size: 11px;
   color: var(--text-muted);
   margin-top: 4px;
   line-height: 1.4;
 }
-.dev-mode-field > span {
-  display: block;
-}
-.dev-mode-picker {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr));
-  gap: 8px;
-  margin-top: 6px;
-}
-.dev-mode-btn {
-  min-width: 0;
-  min-height: 40px;
-  padding: 9px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg-primary);
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.25;
-  text-align: left;
-  transition: border-color 0.15s, background 0.15s, color 0.15s, box-shadow 0.15s;
-}
-.dev-mode-btn:hover {
-  border-color: var(--accent);
-  color: var(--text-primary);
-  background: var(--bg-card);
-}
-.dev-mode-btn.active {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 12%, var(--bg-card));
-  color: var(--text-primary);
-  box-shadow: inset 3px 0 0 var(--accent);
-}
 /* Distance input + per-field cm/in unit toggle. The toggle sits to the
    right of the number input; clicking flips both the visible value and
    the underlying data-unit attribute. Lets a user enter the spec in
    whichever unit their reference happens to be in, regardless of the
    global state.unitSystem default. */
-.dev-distance-row {
+.dev-distance-row:not([data-light-session-presentation] *) {
   display: flex; align-items: stretch; gap: 8px;
   margin-top: 4px;
 }
-.dev-distance-row .ctx-input { flex: 1; min-width: 0; }
-.dev-unit-toggle {
+.dev-distance-row .ctx-input:not([data-light-session-presentation] *) { flex: 1; min-width: 0; }
+.dev-unit-toggle:not([data-light-session-presentation] *) {
   display: inline-flex; align-items: stretch;
   border: 1px solid var(--border); border-radius: var(--radius-sm);
   overflow: hidden;
   background: var(--bg-secondary);
 }
-.dev-unit-btn {
+.dev-unit-btn:not([data-light-session-presentation] *) {
   padding: 0 12px;
   font-size: 12px; font-weight: 600;
   background: transparent; border: none;
   color: var(--text-muted); cursor: pointer;
   font-family: inherit;
 }
-.dev-unit-btn + .dev-unit-btn { border-left: 1px solid var(--border); }
-.dev-unit-btn.active {
+.dev-unit-btn + .dev-unit-btn:not([data-light-session-presentation] *) { border-left: 1px solid var(--border); }
+.dev-unit-btn.active:not([data-light-session-presentation] *) {
   background: var(--accent);
   color: #fff;
 }
-.dev-unit-btn:not(.active):hover { color: var(--text-primary); background: var(--bg-card); }
+.dev-unit-btn:not(.active):hover:not([data-light-session-presentation] *) { color: var(--text-primary); background: var(--bg-card); }
 .rec-light-device-link {
   font-size: 12px; color: var(--accent);
   text-decoration: none;
@@ -408,12 +372,12 @@
 
   /* Session-log dialog inputs — distance + cm/in toggle stack so the
      toggle doesn't get crushed against the right edge. */
-  .dev-distance-row {
+  .dev-distance-row:not([data-light-session-presentation] *) {
     flex-direction: column;
     align-items: stretch;
     gap: 6px;
   }
-  .dev-unit-toggle { align-self: flex-start; }
+  .dev-unit-toggle:not([data-light-session-presentation] *) { align-self: flex-start; }
 }
 
 /* Very narrow phones (<=375px) — device text drops one more notch. */

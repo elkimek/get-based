@@ -2034,3 +2034,19 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /tests/helpers/light-page-fixture.js
 
 /tests/dashboard-onboarding-route.test.js
+
+/js/light-session-presentation.js
+/tests/light-session-presentation.test.js
+/js/components/LightSessionPresentation.svelte.native.js
+/js/components/LightSessionPresentation.svelte.native.js.map
+/js/components/LightSessionRow.svelte.native.js
+/js/components/LightSessionRow.svelte.native.js.map
+/js/components/LightSessionHistory.svelte.native.js
+/js/components/LightSessionHistory.svelte.native.js.map
+/js/components/SunPastSessionForm.svelte.native.js
+/js/components/SunPastSessionForm.svelte.native.js.map
+/js/components/DeviceSessionForm.svelte.native.js
+/js/components/DeviceSessionForm.svelte.native.js.map
+/js/components/LightSessionPresentation.svelte.html.js
+/js/components/LightSessionPresentation.svelte.html.js.map
+/tests/helpers/light-artifact-navigation.js

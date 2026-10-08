@@ -1120,6 +1120,25 @@ conditions, channel SVG/details, source controls and Sun/device widgets. Those
 child owners remain migration work; the authored page shell does not establish
 whole-Light migration or whole-app PWA acceptance.
 
+`LightSessionPresentation.svelte` composes the past-Sun and device log forms,
+completed Sun/device rows and shared inline/full history. Its pure
+`light-session-presentation.ts` projections preserve option selection, source
+metadata, mode resolution and safety notices. Existing session controllers own
+field binding, precise body-region selection, validation, dose calculations,
+canonical writes and modal lifecycle. The only HTML slots accept the separately
+owned body-silhouette renderer and assembled authored rows. Literal metadata is
+escaped by Svelte. Active cards, rich details and the silhouette itself remain
+separate owners.
+
+Completed history rows are native buttons. Document delegates open their
+existing details, and the history overlay closes after the generated click;
+Space keydown cannot retire the button before keyup. Device-mode radios use
+roving focus and arrow/Home/End keys, while distance units use pressed buttons.
+Entering a UV mode still requires fresh UV-goggle confirmation, with the same
+conservative duration default and save/start validation. Scoped Tailwind shares
+the ordered Light stylesheet; native active/setup/illustration styles remain
+restricted to their owning children.
+
 Settings and Tweaks are loaded through `settings-loader.js` on their first
 shell, startup deep-link, or feature action. Theme-owned accent initialization
 stays in `theme.js`, while the Light page imports its Sun data-source renderer

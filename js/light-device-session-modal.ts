@@ -15,8 +15,11 @@ export interface DeviceSessionDialogDeps {
 
 // light-device-session-modal.js — Log/start light therapy device sessions.
 
+import { renderHTML } from './components/LightSessionPresentation.svelte.html.js';
+import { projectDeviceSessionForm } from './light-session-presentation.js';
+
 import { state } from './state.js';
-import { escapeHTML, escapeAttr, showNotification, showConfirmDialog } from './utils.js';
+import { escapeHTML, showNotification, showConfirmDialog } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { BODY_REGIONS, bindBodySilhouette, renderBodySilhouette } from './sun-body-silhouette.js';
 import { validateModeCoupling } from './sun-spectrum.js';
@@ -158,68 +161,10 @@ export async function openDeviceSessionDialog(deviceId: string, deps: DeviceSess
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   const closeDialog = () => removeModalOverlay(overlay);
-  overlay.innerHTML = `<div class="modal" role="dialog" aria-label="Log device session">
-    <div class="modal-header">
-      <h3>Log session — ${escapeHTML(device.brand)} ${escapeHTML(device.model)}</h3>
-      <button class="modal-close" data-device-session-close aria-label="Close">×</button>
-    </div>
-    <div class="modal-body">
-      ${showModePicker ? `
-        <div class="ctx-label dev-mode-field">
-          <span>Mode</span>
-          <input type="hidden" id="dev-session-mode" value="${escapeAttr(defaultMode || '')}" />
-          <div class="dev-mode-picker" role="radiogroup" aria-label="Device mode">
-            ${validModes.map(m => `<button type="button" class="dev-mode-btn${m.id === defaultMode ? ' active' : ''}" data-mode="${escapeAttr(m.id)}" role="radio" aria-checked="${m.id === defaultMode ? 'true' : 'false'}" title="Which LED groups were firing for this session — picked from the device's vendor-defined modes. Affects channel-dose math.">${escapeHTML(m.label || m.id)}</button>`).join('')}
-          </div>
-        </div>
-      ` : ''}
-      <label class="ctx-label">Duration (minutes)
-        <input type="number" id="dev-session-duration" class="ctx-input" min="0.1" max="600" step="0.1" value="${defaultDuration}" />
-        <span class="dev-session-hint">Record the time actually used. This is not a suggested exposure time; follow the device timer and instructions.</span>
-      </label>
-      ${(() => {
-        const useUS = state.unitSystem === 'US';
-        const startUnit = useUS ? 'in' : 'cm';
-        const refCm = device.recommendedDistanceCm || 15;
-        const fmt = (cm: number, u: string) => u === 'in' ? +(cm / 2.54).toFixed(1) : cm;
-        const hasOverride = Number.isFinite(last.distanceCm) && Math.abs(last.distanceCm! - refCm) > 0.5;
-        const overrideHint = hasOverride
-          ? ` You usually log at ${fmt(defaultDistanceCm, 'cm')} cm — prefilled below.`
-          : '';
-        return `<label class="ctx-label">Distance from device
-          <div class="dev-distance-row">
-            <input type="number" id="dev-session-distance" class="ctx-input" min="2" max="200" step="0.5" value="${fmt(defaultDistanceCm, startUnit)}" data-unit="${startUnit}" data-base-cm="${refCm}" />
-            <div class="dev-unit-toggle" role="tablist" aria-label="Distance unit">
-              <button type="button" class="dev-unit-btn${startUnit === 'cm' ? ' active' : ''}" data-unit="cm" role="tab" aria-selected="${startUnit === 'cm'}">cm</button>
-              <button type="button" class="dev-unit-btn${startUnit === 'in' ? ' active' : ''}" data-unit="in" role="tab" aria-selected="${startUnit === 'in'}">in</button>
-            </div>
-          </div>
-          <span class="dev-session-hint">Vendor reference: ${fmt(refCm, 'cm')} cm (${fmt(refCm, 'in')} in).${overrideHint} ${Array.isArray(device.irradianceByDistanceCm) && device.irradianceByDistanceCm.length >= 2 ? 'Dose uses the device\'s measured distance table.' : device.distanceModel === 'point-source' ? 'Dose uses point-source inverse-square scaling declared for this device.' : 'No unverified distance correction is applied; use the vendor reference distance or enter measured irradiance data.'}</span>
-        </label>`;
-      })()}
-      <div class="ctx-label" style="display:block">
-        <span>Body area treated</span>
-        <div class="sun-silhouette-wrap" id="dev-session-silhouette-slot">${renderBodySilhouette ? renderBodySilhouette(new Set(defaultRegions)) : ''}</div>
-        <div class="sun-silhouette-hint-row" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-          <div class="sun-silhouette-hint" id="dev-session-area-hint">Tap regions the panel reaches.</div>
-          <button type="button" class="ctx-btn-option" id="dev-session-clear" style="padding:2px 10px;font-size:11px">Clear</button>
-        </div>
-      </div>
-      <div class="ctx-label" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-        <span style="flex:1;min-width:0" id="dev-session-eye-label">${isUVDevice ? 'UV-rated goggles worn (closed eyelids are not protection)' : isEyeLightDevice ? 'Eyes open to receive ambient light (never stare at lamp)' : 'Device-appropriate eye protection worn'}</span>
-        <label class="toggle-switch">
-          <input type="checkbox" id="dev-session-eyes"${defaultEyeControlChecked ? ' checked' : ''} />
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-      <p class="modal-body-hint" style="margin-top:8px">Save now to log a finished session, or Start to run a live timer (matches the sun-session pattern — handy when you want to walk away and come back).</p>
-      <div class="modal-actions" style="margin-top:18px">
-        <button class="import-btn import-btn-secondary" data-device-session-close>Cancel</button>
-        <button class="import-btn import-btn-secondary" id="dev-session-start">Start timer</button>
-        <button class="import-btn import-btn-primary" id="dev-session-save">Save session</button>
-      </div>
-    </div>
-  </div>`;
+  overlay.innerHTML = renderHTML({ kind: 'device',
+    view: projectDeviceSessionForm({ device, validModes, defaultMode, defaultDuration, defaultDistanceCm, useUS: state.unitSystem === 'US', isUVDevice, isEyeLightDevice, defaultEyeControlChecked }),
+    silhouetteHTML: renderBodySilhouette ? renderBodySilhouette(new Set(defaultRegions)) : '',
+  });
   _wireDeviceSessionModal(overlay, closeDialog);
   overlay.querySelectorAll('[data-device-session-close]').forEach(btn => {
     btn.addEventListener('click', closeDialog);
@@ -261,11 +206,25 @@ export async function openDeviceSessionDialog(deviceId: string, deps: DeviceSess
       const active = b === btn;
       b.classList.toggle('active', active);
       b.setAttribute('aria-checked', active ? 'true' : 'false');
+      (b as HTMLElement).tabIndex = active ? 0 : -1;
     }
     syncEyeControlForMode(mode);
   };
   for (const rawBtn of overlay.querySelectorAll('.dev-mode-btn[data-mode]')) {
     const btn = (rawBtn as HTMLElement);
+    btn.addEventListener('keydown', event => {
+      const keys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
+      if (!keys.includes(event.key)) return;
+      const buttons = Array.from(overlay.querySelectorAll<HTMLElement>('.dev-mode-btn[data-mode]'));
+      const index = buttons.indexOf(btn);
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1
+        : (index + (event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? -1 : 1) + buttons.length) % buttons.length;
+      const target = buttons[next];
+      if (!target) return;
+      event.preventDefault();
+      setMode(target);
+      target.focus();
+    });
     btn.addEventListener('pointerup', (e) => {
       if (((e as PointerEvent)).pointerType === 'mouse') return;
       setMode(btn);
@@ -335,7 +294,7 @@ export async function openDeviceSessionDialog(deviceId: string, deps: DeviceSess
       for (const b of overlay.querySelectorAll('.dev-unit-btn')) {
         const active = b.getAttribute('data-unit') === target;
         b.classList.toggle('active', active);
-        b.setAttribute('aria-selected', active ? 'true' : 'false');
+        b.setAttribute('aria-pressed', active ? 'true' : 'false');
       }
     });
   }

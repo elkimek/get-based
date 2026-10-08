@@ -388,6 +388,7 @@ const _origProfileSex = state ? state.profileSex : null;
   console.log('%c 13. Sessions list: 3 inline + View all modal ', 'font-weight:bold;color:#0891b2');
   {
     const sessionsSrc = fetchSrc('js/light-sessions-view.js');
+    const historyPresentationSrc = fetchSrc('js/components/LightSessionHistory.svelte');
     const viewsSrc = fetchSrc('js/views.js');
     assert('light-sessions-view.js: SESSIONS_DEFAULT_CAP = 3',
       /SESSIONS_DEFAULT_CAP\s*=\s*3/.test(sessionsSrc));
@@ -398,7 +399,7 @@ const _origProfileSex = state ? state.profileSex : null;
     assert('light-sessions-view.js: _renderSessionRowsHTML shared row renderer',
       /function _renderSessionRowsHTML/.test(sessionsSrc));
     assert('light-sessions-view.js: "View all N sessions" button replaces inline expand',
-      /View all \$\{totalCount\} sessions/.test(sessionsSrc));
+      /View all \{total\} sessions/.test(historyPresentationSrc));
     assert('views.js opens the deferred light sessions view through the loader',
       !viewsSrc.includes("from './light-sessions-view.js'")
         && viewsSrc.includes('const module = await loadLightSunUI();')

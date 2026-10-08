@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "scope": "Every authored JavaScript, TypeScript and Svelte module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 1146,
-  "sinkCount": 320,
+  "scannedFiles": 1152,
+  "sinkCount": 323,
   "files": {
     "js/biology-scores.js": {
       "count": 1,
@@ -134,6 +134,13 @@
         "svelte.html": 2
       }
     },
+    "js/components/DeviceSessionForm.svelte.native.js": {
+      "count": 1,
+      "digest": "fbdb577412dadc3e241db4b34d117c619fac4ff6725f876b9e7023d17622fbfa",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
     "js/components/LightDashboardPills.svelte.native.js": {
       "count": 1,
       "digest": "d0994e0035c703363dc26d23095f8d4fc5d9fd50fd6d498f4eaa42b7e22b7b0a",
@@ -155,6 +162,13 @@
         "svelte.html": 7
       }
     },
+    "js/components/LightSessionHistory.svelte.native.js": {
+      "count": 1,
+      "digest": "4bd508b5da522e5bf801f13ce7f2d9e374b6d647c7278ce0c494da721f7a76f5",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
     "js/components/LightTodayStrip.svelte.native.js": {
       "count": 3,
       "digest": "531837e6754c2bd6181c4e239975663783f34221a56dc095c7cc445027a9add2",
@@ -167,6 +181,13 @@
       "digest": "059d3a250f052384afc70a32a3f4b417618ce45b3075d2b37c1d00f8ec07e704",
       "kinds": {
         "svelte.html": 2
+      }
+    },
+    "js/components/SunPastSessionForm.svelte.native.js": {
+      "count": 1,
+      "digest": "fbdb577412dadc3e241db4b34d117c619fac4ff6725f876b9e7023d17622fbfa",
+      "kinds": {
+        "svelte.html": 1
       }
     },
     "js/context-card-editor-ui.js": {
@@ -360,7 +381,7 @@
     },
     "js/light-device-session-modal.js": {
       "count": 2,
-      "digest": "0645fd625bf2e5a3621a2d78fd71a23e92cfa4753bd44ab1bef31c19d3bac2bd",
+      "digest": "e8fb3dd7e441ada80b29deb060667e1e5494cc7cea353167eaa615ff70c25c74",
       "kinds": {
         "innerHTML": 2
       }
@@ -396,7 +417,7 @@
     },
     "js/light-sessions-view.js": {
       "count": 1,
-      "digest": "ed332699327a32a715b0d1a98124bc821b3811b2c10cf88359479a2e2729bbce",
+      "digest": "51efd8c419b0aa27f08361e2ea7b79ed3251b16061893952131b22813bca4501",
       "kinds": {
         "innerHTML": 1
       }

@@ -59,7 +59,6 @@
   box-shadow: none;
 }
 .dashboard-widget[data-widget-id="light-live-session"] .light-active-session-pinned,
-.light-page .dashboard-widget[data-widget-id="light-sessions"] .sun-sessions-list,
 .light-page .dashboard-widget[data-widget-id="light-today"] .light-med-banner {
   margin: 0;
 }
@@ -176,7 +175,6 @@
 /* Completed sun + device history uses one compact scan-row. Rich channel,
    setup, model-input and AI content is intentionally reserved for details. */
 .light-session-row[role="button"] { cursor: pointer; }
-.sun-sessions-list,
 .sun-session {
   min-width: 0;
   max-width: 100%;
@@ -192,79 +190,6 @@
 .light-session-kind { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
 .light-session-device .light-session-icon { color: var(--accent); }
 .light-session-sun .light-session-icon { color: var(--orange); }
-
-/* Mode chip — surfaces the touchscreen LED-group preset that fired
-   during the session. Default-mode rows render quietly so they don't
-   clutter the row; off-default modes get an accent so the user can
-   skim history for non-default sessions at a glance. */
-.light-session-mode-chip {
-  font-size: 10px; color: var(--text-muted);
-  letter-spacing: 0.02em;
-  padding: 2px 7px; border-radius: 9px;
-  border: 1px solid var(--border);
-  background: transparent;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-.light-session-mode-chip-accent {
-  color: var(--accent);
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
-}
-.light-session-complete {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 64px;
-  padding: 11px 14px;
-  background: color-mix(in srgb, var(--bg-card) 96%, transparent);
-  border-color: color-mix(in srgb, var(--border) 88%, transparent);
-  box-shadow: none;
-}
-.light-session-complete:hover {
-  border-color: color-mix(in srgb, var(--session-accent) 32%, var(--border));
-  box-shadow: 0 5px 14px color-mix(in srgb, var(--text-primary) 6%, transparent);
-}
-.light-session-complete:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.light-session-summary { flex: 1; min-width: 0; }
-.light-session-title {
-  display: flex; align-items: baseline; gap: 8px;
-  min-width: 0;
-  color: var(--text-primary);
-  font-size: 13.5px;
-  font-weight: 650;
-  overflow-wrap: anywhere;
-}
-.light-session-meta-line {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 9px;
-  margin-top: 4px;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-.light-session-meta-line > span + span::before {
-  content: '·';
-  margin-right: 9px;
-  color: var(--border-strong, var(--text-muted));
-}
-.light-session-outcome { color: var(--text-secondary); font-weight: 600; }
-.light-session-warning {
-  max-width: 190px;
-  padding: 4px 8px;
-  border: 1px solid color-mix(in srgb, var(--orange) 35%, var(--border));
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--orange-bg) 58%, transparent);
-  color: var(--orange);
-  font-size: 10.5px;
-  line-height: 1.25;
-  text-align: center;
-}
-.light-session-warning-danger {
-  border-color: color-mix(in srgb, var(--red) 45%, var(--border));
-  background: color-mix(in srgb, var(--red-bg) 65%, transparent);
-  color: var(--red);
-}
-.light-session-chevron { color: var(--text-muted); font-size: 21px; line-height: 1; }
 
 /* Reduced motion — strip transforms + transitions for users with the OS
    preference set. Hover lifts and tier-changed badge flashes feel disorienting
@@ -340,7 +265,7 @@
 textarea.ctx-input { resize: vertical; min-height: 56px; }
 
 /* Detailed (past) session modal — silhouette picker + form fields */
-.sun-detailed-modal, .sun-start-modal { max-width: 560px; }
+.sun-detailed-modal:not([data-light-session-presentation]), .sun-start-modal { max-width: 560px; }
 
 /* Per-session detail modal — opened by clicking a session row */
 .sun-detail-modal { max-width: 540px; }
@@ -810,17 +735,17 @@ svg.sun-silhouette text.sun-silhouette-label {
 }
 .sun-start-details summary::before { content: '▸ '; opacity: 0.6; }
 .sun-start-details[open] summary::before { content: '▾ '; }
-.sun-detailed-row {
+.sun-detailed-row:not([data-light-session-presentation] *) {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
   margin-bottom: 8px;
 }
 @media (max-width: 480px) {
-  .sun-detailed-row { grid-template-columns: 1fr; }
+  .sun-detailed-row:not([data-light-session-presentation] *) { grid-template-columns: 1fr; }
 }
-.sun-detailed-glass { display: flex; align-items: center; gap: 8px; }
-.sun-detailed-glass-hint {
+.sun-detailed-glass:not([data-light-session-presentation] *) { display: flex; align-items: center; gap: 8px; }
+.sun-detailed-glass-hint:not([data-light-session-presentation] *) {
   margin: 4px 0 0 24px; font-size: 11px; color: var(--text-muted); line-height: 1.45;
 }
 
@@ -951,15 +876,15 @@ svg.sun-silhouette text.sun-silhouette-label {
 /* Light & Sun page */
 
 /* Sessions list */
-.sun-sessions-list { display: flex; flex-direction: column; gap: 10px; margin: 12px 0; }
-.sun-session {
+
+.sun-session:not([data-light-history-row]) {
   background: color-mix(in srgb, var(--bg-card) 94%, transparent);
   border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
   border-radius: var(--radius);
   padding: 12px 16px;
   box-shadow: var(--shadow);
 }
-.light-session-row {
+.light-session-row:not([data-light-history-row]) {
   --session-accent: var(--orange);
   position: relative;
   padding: 13px 16px 13px 18px;
@@ -972,7 +897,7 @@ svg.sun-silhouette text.sun-silhouette-label {
     var(--shadow);
   transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
 }
-.light-session-row:hover {
+.light-session-row:not([data-light-history-row]):hover {
   border-color: color-mix(in srgb, var(--session-accent) 38%, var(--border));
   box-shadow:
     inset 3px 0 0 color-mix(in srgb, var(--session-accent) 86%, transparent),
@@ -984,20 +909,6 @@ svg.sun-silhouette text.sun-silhouette-label {
   flex-wrap: wrap;
   align-items: flex-start;
   gap: 8px;
-}
-.light-page .dashboard-widget[data-widget-id="light-sessions"] .light-session-row:not(.light-session-complete) .light-session-kind {
-  flex: 1 1 100%;
-  margin-left: 38px;
-  max-width: calc(100% - 38px);
-  white-space: normal;
-  overflow-wrap: anywhere;
-  line-height: 1.35;
-}
-.light-page .dashboard-widget[data-widget-id="light-sessions"] .light-session-row:not(.light-session-complete) .light-session-mode-chip {
-  max-width: calc(100% - 38px);
-  white-space: normal;
-  overflow-wrap: anywhere;
-  line-height: 1.35;
 }
 .light-page .dashboard-widget[data-widget-id="light-sessions"] .sun-session-med {
   margin-left: 0;
@@ -1231,85 +1142,6 @@ svg.sun-silhouette text.sun-silhouette-label {
   color: var(--text-secondary);
 }
 
-/* "Show N older sessions" / "Show only the 10 most recent" toggle —
-   sits below the unified sessions list to keep the historical scroll
-   bounded. Default cap is 10 (SESSIONS_DEFAULT_CAP in views.js). */
-.light-sessions-show-more {
-  display: block;
-  width: 100%;
-  margin-top: 8px;
-  padding: 8px 12px;
-  background: transparent;
-  border: 1px dashed var(--border);
-  border-radius: 6px;
-  color: var(--text-muted);
-  font-size: 12.5px;
-  cursor: pointer;
-  transition: color 0.15s, border-color 0.15s, background 0.15s;
-}
-.light-sessions-show-more:hover {
-  color: var(--accent);
-  border-color: var(--accent);
-  border-style: solid;
-}
-.light-sessions-modal {
-  width: min(94vw, 840px);
-  max-width: 840px;
-  max-height: min(88vh, 780px);
-  padding: 0;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  box-shadow: var(--shadow-lg);
-}
-.light-sessions-modal-head {
-  position: relative;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 18px;
-  padding: 24px 64px 18px 26px;
-  border-bottom: 1px solid var(--border);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--accent) 7%, transparent), transparent 62%),
-    color-mix(in srgb, var(--bg-secondary) 94%, var(--bg-card));
-}
-.light-sessions-modal-head h3 {
-  margin: 0;
-  color: var(--text-primary);
-  font-family: var(--font-display);
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: 0;
-}
-.light-sessions-modal-head p {
-  margin: 5px 0 0;
-  color: var(--text-muted);
-  font-size: 13px;
-  line-height: 1.4;
-}
-.light-sessions-modal-head .modal-close {
-  top: 18px;
-  right: 22px;
-}
-.light-sessions-modal-body {
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: 20px 22px 24px;
-}
-.light-sessions-modal-body .sun-sessions-list {
-  margin: 0;
-}
-.light-sessions-modal .light-session-row {
-  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--session-accent) 70%, transparent);
-}
-.light-sessions-modal .light-session-row:hover {
-  box-shadow:
-    inset 3px 0 0 color-mix(in srgb, var(--session-accent) 86%, transparent),
-    0 8px 18px color-mix(in srgb, var(--session-accent) 10%, transparent);
-}
-
 /* AI verdict block for the DASHBOARD Light Today strip. Sits under
    the head row, above the Conditions Now block. Same cached verdict
    as the Light & Sun page hero — single AI call serves both. Renders
@@ -1513,12 +1345,7 @@ svg.sun-silhouette text.sun-silhouette-label {
 
   /* Sessions list rows — head row wraps cleanly so duration / kind /
      med pill don't overflow. */
-  .sun-sessions-list {
-    width: 100%;
-    min-width: 0;
-    overflow-x: clip;
-  }
-  .sun-session {
+  .sun-session:not([data-light-history-row]) {
     width: 100%;
     min-width: 0;
     padding: 12px;
@@ -1557,60 +1384,6 @@ svg.sun-silhouette text.sun-silhouette-label {
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .light-session-row:not(.light-session-complete) .light-session-kind {
-    flex: 1 1 100%;
-    margin-left: 28px;
-    max-width: calc(100% - 28px);
-    white-space: normal;
-    overflow-wrap: anywhere;
-    line-height: 1.35;
-  }
-  .light-session-row:not(.light-session-complete) .light-session-mode-chip {
-    max-width: 100%;
-    white-space: normal;
-    overflow-wrap: anywhere;
-    line-height: 1.35;
-  }
-  .light-sessions-modal {
-    width: 100%;
-    max-height: 92vh;
-  }
-  .light-sessions-modal-head {
-    padding: 20px 52px 16px 18px;
-  }
-  .light-sessions-modal-head h3 {
-    font-size: 19px;
-  }
-  .light-session-complete {
-    display: grid;
-    grid-template-columns: 30px minmax(0, 1fr) auto;
-    align-items: start;
-    column-gap: 12px;
-    row-gap: 8px;
-  }
-  .light-session-complete .light-session-icon {
-    grid-column: 1;
-    grid-row: 1;
-  }
-  .light-session-complete .light-session-summary {
-    grid-column: 2;
-    grid-row: 1;
-  }
-  .light-session-complete .light-session-chevron {
-    grid-column: 3;
-    grid-row: 1;
-  }
-  .light-session-complete .light-session-mode-chip,
-  .light-session-complete .light-session-warning {
-    grid-column: 2 / -1;
-    justify-self: start;
-    max-width: 100%;
-    white-space: normal;
-    overflow-wrap: anywhere;
-  }
   .sun-calculation-state { align-items: flex-start; flex-direction: column; }
-  .light-sessions-modal-body {
-    padding: 12px;
-  }
 
 }

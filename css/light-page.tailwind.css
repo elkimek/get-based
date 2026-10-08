@@ -10,3 +10,10 @@
 @custom-variant light-page (&:is([data-light-page-presentation], [data-light-page-presentation] *));
 @source "../js/components/LightTodayStrip.svelte";
 @source "../js/components/LightDashboardPills.svelte";
+
+@custom-variant light-session (&:is([data-light-session-presentation], [data-light-session-presentation] *));
+@source "../js/components/LightSessionPresentation.svelte";
+@source "../js/components/LightSessionRow.svelte";
+@source "../js/components/LightSessionHistory.svelte";
+@source "../js/components/SunPastSessionForm.svelte";
+@source "../js/components/DeviceSessionForm.svelte";

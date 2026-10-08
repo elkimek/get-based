@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1206 |
-| Internal import edges | 4329 |
+| Modules | 1212 |
+| Internal import edges | 4339 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -65,7 +65,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.ts`](js/utils.ts) | 281 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
+| [`js/utils.ts`](js/utils.ts) | 280 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
 | [`js/state.ts`](js/state.ts) | 241 | [`js/chat-send.ts`](js/chat-send.ts) | 38 |
 | [`js/caught-error.ts`](js/caught-error.ts) | 93 | [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) | 36 |
 | [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts) | 84 | [`js/settings.ts`](js/settings.ts) | 35 |
@@ -1074,6 +1074,12 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>DeviceSessionForm.svelte</code> family — 1 module</summary>
+
+- [`js/components/DeviceSessionForm.svelte`](js/components/DeviceSessionForm.svelte) → no in-scope imports
+
+</details>
+
 <details><summary><code>diabetes</code> family — 1 module</summary>
 
 - [`js/marker-schema/diabetes.ts`](js/marker-schema/diabetes.ts) → no in-scope imports
@@ -1326,7 +1332,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>light</code> family — 56 modules</summary>
+<details><summary><code>light</code> family — 57 modules</summary>
 
 - [`js/light-ai-save-hooks.ts`](js/light-ai-save-hooks.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/chat-loader.ts`](js/chat-loader.ts), [`js/light-audit-ai-analysis.ts`](js/light-audit-ai-analysis.ts), [`js/light-env-ai-analysis.ts`](js/light-env-ai-analysis.ts), [`js/light-env-audits.ts`](js/light-env-audits.ts), [`js/light-env.ts`](js/light-env.ts), [`js/light-screen-ai-analysis.ts`](js/light-screen-ai-analysis.ts), [`js/light-tools-ai-analysis.ts`](js/light-tools-ai-analysis.ts), [`js/light-tools.ts`](js/light-tools.ts), [`js/sun-defaults.ts`](js/sun-defaults.ts), [`js/sun-onboarding-ai.ts`](js/sun-onboarding-ai.ts), [`js/sun-sessions-store.ts`](js/sun-sessions-store.ts), [`js/sun-uvdata.ts`](js/sun-uvdata.ts), [`js/sun.ts`](js/sun.ts)
 - [`js/light-audit-ai-analysis.ts`](js/light-audit-ai-analysis.ts) → [`js/ai-action-delegates.ts`](js/ai-action-delegates.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/ai-verdict-engine.ts`](js/ai-verdict-engine.ts), [`js/health-goals-utils.ts`](js/health-goals-utils.ts), [`js/light-env-evening.ts`](js/light-env-evening.ts), [`js/light-env-model.ts`](js/light-env-model.ts), [`js/lighting-hardware-caveats.ts`](js/lighting-hardware-caveats.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
@@ -1342,7 +1348,7 @@ Native browser modules shipped with the static application.
 - [`js/light-device-ai-analysis.ts`](js/light-device-ai-analysis.ts) → [`js/ai-action-delegates.ts`](js/ai-action-delegates.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/ai-verdict-engine.ts`](js/ai-verdict-engine.ts), [`js/light-devices-store.ts`](js/light-devices-store.ts), [`js/sun-defaults.ts`](js/sun-defaults.ts), [`js/sun.ts`](js/sun.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/light-device-modal-loader.ts`](js/light-device-modal-loader.ts) → [`js/light-device-session-modal.ts`](js/light-device-session-modal.ts) *(dynamic)*, [`js/light-device-setup-modal.ts`](js/light-device-setup-modal.ts) *(dynamic)*, [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/light-device-session-engine.ts`](js/light-device-session-engine.ts) → [`js/sun-body-silhouette.ts`](js/sun-body-silhouette.ts), [`js/sun-spectrum.ts`](js/sun-spectrum.ts)
-- [`js/light-device-session-modal.ts`](js/light-device-session-modal.ts) → [`js/light-device-session-engine.ts`](js/light-device-session-engine.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/sun-body-silhouette.ts`](js/sun-body-silhouette.ts), [`js/sun-spectrum.ts`](js/sun-spectrum.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/light-device-session-modal.ts`](js/light-device-session-modal.ts) → [`js/components/LightSessionPresentation.svelte`](js/components/LightSessionPresentation.svelte), [`js/light-device-session-engine.ts`](js/light-device-session-engine.ts), [`js/light-session-presentation.ts`](js/light-session-presentation.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/sun-body-silhouette.ts`](js/sun-body-silhouette.ts), [`js/sun-spectrum.ts`](js/sun-spectrum.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/light-device-setup-modal.ts`](js/light-device-setup-modal.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/image-utils.ts`](js/image-utils.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/proxy-runtime.ts`](js/proxy-runtime.ts), [`js/state.ts`](js/state.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/light-device-view-formatters.ts`](js/light-device-view-formatters.ts) → [`js/utils.ts`](js/utils.ts)
 - [`js/light-devices-actions.ts`](js/light-devices-actions.ts) → no in-scope imports
@@ -1364,8 +1370,9 @@ Native browser modules shipped with the static application.
 - [`js/light-page-view-ui-hooks.ts`](js/light-page-view-ui-hooks.ts) → [`js/light-page-view.ts`](js/light-page-view.ts), [`js/views.ts`](js/views.ts)
 - [`js/light-page-view.ts`](js/light-page-view.ts) → [`js/components/LightPagePresentation.svelte`](js/components/LightPagePresentation.svelte), [`js/lens-page-shell.ts`](js/lens-page-shell.ts), [`js/light-channel-view.ts`](js/light-channel-view.ts), [`js/light-conditions-now.ts`](js/light-conditions-now.ts), [`js/light-page-presentation.ts`](js/light-page-presentation.ts), [`js/light-sessions-view.ts`](js/light-sessions-view.ts), [`js/light-today-presentation.ts`](js/light-today-presentation.ts), [`js/state.ts`](js/state.ts)
 - [`js/light-screen-ai-analysis.ts`](js/light-screen-ai-analysis.ts) → [`js/ai-action-delegates.ts`](js/ai-action-delegates.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/ai-verdict-engine.ts`](js/ai-verdict-engine.ts), [`js/health-goals-utils.ts`](js/health-goals-utils.ts), [`js/lighting-hardware-caveats.ts`](js/lighting-hardware-caveats.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/light-session-presentation.ts`](js/light-session-presentation.ts) → no in-scope imports
 - [`js/light-sessions-view-hooks.ts`](js/light-sessions-view-hooks.ts) → [`js/light-device-ai-analysis.ts`](js/light-device-ai-analysis.ts), [`js/light-devices-store.ts`](js/light-devices-store.ts), [`js/light-devices.ts`](js/light-devices.ts), [`js/light-sessions-view.ts`](js/light-sessions-view.ts), [`js/sun-session-ui.ts`](js/sun-session-ui.ts), [`js/sun.ts`](js/sun.ts)
-- [`js/light-sessions-view.ts`](js/light-sessions-view.ts) → [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/light-sessions-view.ts`](js/light-sessions-view.ts) → [`js/components/LightSessionPresentation.svelte`](js/components/LightSessionPresentation.svelte), [`js/light-session-presentation.ts`](js/light-session-presentation.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/light-sun-ai-hooks.ts`](js/light-sun-ai-hooks.ts) → [`js/light-device-ai-analysis.ts`](js/light-device-ai-analysis.ts), [`js/light-devices-store.ts`](js/light-devices-store.ts), [`js/sun-ai-analysis.ts`](js/sun-ai-analysis.ts), [`js/sun-sessions-store.ts`](js/sun-sessions-store.ts)
 - [`js/light-sun-analysis-runtime.ts`](js/light-sun-analysis-runtime.ts) → no in-scope imports
 - [`js/light-sun-loader.ts`](js/light-sun-loader.ts) → [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) *(dynamic)*, [`js/light-device-ai-analysis.ts`](js/light-device-ai-analysis.ts) *(dynamic)*, [`js/light-sun-analysis-runtime.ts`](js/light-sun-analysis-runtime.ts), [`js/state.ts`](js/state.ts), [`js/sun-ai-analysis.ts`](js/sun-ai-analysis.ts) *(dynamic)*
@@ -1414,6 +1421,24 @@ Native browser modules shipped with the static application.
 <details><summary><code>LightSessionActions.svelte</code> family — 1 module</summary>
 
 - [`js/components/LightSessionActions.svelte`](js/components/LightSessionActions.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>LightSessionHistory.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightSessionHistory.svelte`](js/components/LightSessionHistory.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>LightSessionPresentation.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightSessionPresentation.svelte`](js/components/LightSessionPresentation.svelte) → [`js/components/DeviceSessionForm.svelte`](js/components/DeviceSessionForm.svelte), [`js/components/LightSessionHistory.svelte`](js/components/LightSessionHistory.svelte), [`js/components/LightSessionRow.svelte`](js/components/LightSessionRow.svelte), [`js/components/SunPastSessionForm.svelte`](js/components/SunPastSessionForm.svelte)
+
+</details>
+
+<details><summary><code>LightSessionRow.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightSessionRow.svelte`](js/components/LightSessionRow.svelte) → no in-scope imports
 
 </details>
 
@@ -2160,10 +2185,10 @@ Native browser modules shipped with the static application.
 - [`js/sun-runtime.ts`](js/sun-runtime.ts) → [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/sun-session-actions.ts`](js/sun-session-actions.ts) → [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/sun-session-ai-render-hooks.ts`](js/sun-session-ai-render-hooks.ts) → [`js/sun-ai-analysis.ts`](js/sun-ai-analysis.ts), [`js/sun-session-ui.ts`](js/sun-session-ui.ts)
-- [`js/sun-session-log-modal.ts`](js/sun-session-log-modal.ts) → [`js/sun-body-silhouette.ts`](js/sun-body-silhouette.ts), [`js/sun-session-actions.ts`](js/sun-session-actions.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/sun-session-log-modal.ts`](js/sun-session-log-modal.ts) → [`js/components/LightSessionPresentation.svelte`](js/components/LightSessionPresentation.svelte), [`js/light-session-presentation.ts`](js/light-session-presentation.ts), [`js/sun-body-silhouette.ts`](js/sun-body-silhouette.ts)
 - [`js/sun-session-model.ts`](js/sun-session-model.ts) → no in-scope imports
 - [`js/sun-session-ui-hooks.ts`](js/sun-session-ui-hooks.ts) → [`js/sun-session-ui.ts`](js/sun-session-ui.ts), [`js/views.ts`](js/views.ts)
-- [`js/sun-session-ui.ts`](js/sun-session-ui.ts) → [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/sun-body-silhouette.ts`](js/sun-body-silhouette.ts), [`js/sun-session-actions.ts`](js/sun-session-actions.ts), [`js/sun-session-log-modal.ts`](js/sun-session-log-modal.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/sun-session-ui.ts`](js/sun-session-ui.ts) → [`js/components/LightSessionPresentation.svelte`](js/components/LightSessionPresentation.svelte), [`js/light-session-presentation.ts`](js/light-session-presentation.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/sun-body-silhouette.ts`](js/sun-body-silhouette.ts), [`js/sun-session-actions.ts`](js/sun-session-actions.ts), [`js/sun-session-log-modal.ts`](js/sun-session-log-modal.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/sun-sessions-store.ts`](js/sun-sessions-store.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/light-sun-analysis-runtime.ts`](js/light-sun-analysis-runtime.ts), [`js/state.ts`](js/state.ts), [`js/sun-body-silhouette.ts`](js/sun-body-silhouette.ts), [`js/sun-session-model.ts`](js/sun-session-model.ts), [`js/unique-id.ts`](js/unique-id.ts)
 - [`js/sun-spectrum-actions.ts`](js/sun-spectrum-actions.ts) → no in-scope imports
 - [`js/sun-spectrum-device.ts`](js/sun-spectrum-device.ts) → no in-scope imports
@@ -2173,6 +2198,12 @@ Native browser modules shipped with the static application.
 - [`js/sun-uvdata-config.ts`](js/sun-uvdata-config.ts) → [`js/crypto.ts`](js/crypto.ts)
 - [`js/sun-uvdata.ts`](js/sun-uvdata.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/proxy-runtime.ts`](js/proxy-runtime.ts), [`js/sun-runtime.ts`](js/sun-runtime.ts), [`js/sun-uvdata-atmosphere.ts`](js/sun-uvdata-atmosphere.ts), [`js/sun-uvdata-config.ts`](js/sun-uvdata-config.ts), [`js/url-safety.ts`](js/url-safety.ts)
 - [`js/sun.ts`](js/sun.ts) → [`js/ai-verdict-engine-runtime.ts`](js/ai-verdict-engine-runtime.ts), [`js/data.ts`](js/data.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/profile-context.ts`](js/profile-context.ts), [`js/state.ts`](js/state.ts), [`js/sun-active-session.ts`](js/sun-active-session.ts), [`js/sun-body-silhouette.ts`](js/sun-body-silhouette.ts), [`js/sun-channel-metrics.ts`](js/sun-channel-metrics.ts), [`js/sun-defaults-runtime.ts`](js/sun-defaults-runtime.ts), [`js/sun-defaults.ts`](js/sun-defaults.ts), [`js/sun-location.ts`](js/sun-location.ts), [`js/sun-runtime.ts`](js/sun-runtime.ts), [`js/sun-session-model.ts`](js/sun-session-model.ts), [`js/sun-session-ui.ts`](js/sun-session-ui.ts), [`js/sun-sessions-store.ts`](js/sun-sessions-store.ts), [`js/sun-spectrum.ts`](js/sun-spectrum.ts), [`js/sun-uvdata.ts`](js/sun-uvdata.ts), [`js/utils.ts`](js/utils.ts)
+
+</details>
+
+<details><summary><code>SunPastSessionForm.svelte</code> family — 1 module</summary>
+
+- [`js/components/SunPastSessionForm.svelte`](js/components/SunPastSessionForm.svelte) → no in-scope imports
 
 </details>
 

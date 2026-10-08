@@ -20,6 +20,11 @@ const contextLifestyleSrc = [
 ].map(file => fs.readFileSync(path.join(root, 'js', file), 'utf8')).join('\n');
 const contextMedicalSrc = fs.readFileSync(path.join(root, 'js/context-card-medical-history-editor-impl.js'), 'utf8');
 const dashboardAiSrc = fs.readFileSync(path.join(root, 'js/context-card-dashboard-ai-impl.js'), 'utf8');
+const contextHubViewSrc = fs.readFileSync(path.join(root, 'js/context-hub-view.ts'), 'utf8');
+const protectionViewSrc = fs.readFileSync(path.join(root, 'js/data-protection-picker-view.ts'), 'utf8');
+const medicalViewSrc = fs.readFileSync(path.join(root, 'js/context-medical-history-view.ts'), 'utf8');
+const lifestyleViewSrc = fs.readFileSync(path.join(root, 'js/context-lifestyle-form-view.ts'), 'utf8');
+const cardTipsSrc = fs.readFileSync(path.join(root, 'js/components/ContextCardTips.svelte'), 'utf8');
 const dashboardWidgetControlsSrc = fs.readFileSync(path.join(root, 'js/dashboard-widget-controls.js'), 'utf8');
 const cycleSrc = fs.readFileSync(path.join(root, 'js/cycle.ts'), 'utf8');
 const emfSrc = fs.readFileSync(path.join(root, 'js/emf.js'), 'utf8');
@@ -104,29 +109,43 @@ assert('supplements editor opens through shared overlay lifecycle helper',
     supplementsSrc.includes('openModalOverlay(overlay)') &&
     !supplementsSrc.includes('overlay.classList.add("show")'));
 
-assert('dashboard AI pickers use shared overlay lifecycle helpers',
-  dashboardAiSrc.includes("from './modal-lifecycle.js'") &&
-    dashboardAiSrc.includes('openModalOverlay(overlay, {') &&
-    dashboardAiSrc.includes('closeModalOverlay(overlay)') &&
-    !dashboardAiSrc.includes("overlay.classList.add('show')") &&
-    !dashboardAiSrc.includes("overlay.classList.remove('show')"));
+assert('dashboard AI pickers delegate to owned views using shared overlay lifecycle helpers',
+  dashboardAiSrc.includes("from './data-protection-picker-view.js'") &&
+    dashboardAiSrc.includes('return openDataProtectionView({') &&
+    dashboardAiSrc.includes("openContextHub as openContextModal, openContextHub as openPersonalizeAIPicker } from './context-hub-view.js'") &&
+    [contextHubViewSrc, protectionViewSrc].every(source =>
+      source.includes("from './modal-lifecycle.js'") &&
+      source.includes('openModalOverlay(overlay, {') &&
+      source.includes('closeModalOverlay(owned.overlay)') &&
+      !/overlay\.classList\.(?:add|remove)\(['"]show['"]\)/.test(source)) &&
+    contextHubViewSrc.includes('owned.session.retire()') &&
+    protectionViewSrc.includes('trapModalFocus(overlay, { autoFocus: false, onEscape: () => close(owned) })') &&
+    protectionViewSrc.includes('owned.releaseFocus(false)'));
 
 assert('context medical history and card tips open through shared overlay lifecycle helper',
-  contextMedicalSrc.includes("from './modal-lifecycle.js'") &&
+  contextMedicalSrc.includes("from './context-medical-history-view.js'") &&
+    contextMedicalSrc.includes('return openMedicalHistory()') &&
+    medicalViewSrc.includes("from './modal-lifecycle.js'") &&
     contextCardsSrc.includes("from './modal-lifecycle.js'") &&
-    contextMedicalSrc.includes('openModalOverlay(overlay)') &&
+    medicalViewSrc.includes('openModalOverlay(overlay)') &&
     contextCardsSrc.includes('openModalOverlay(overlay)') &&
-    contextMedicalSrc.includes('closeMedicalHistoryEditor();') &&
+    medicalViewSrc.includes('closeModalOverlay(owned.overlay); dispose(owned)') &&
+    medicalViewSrc.includes('owned.afterClose()') &&
+    medicalViewSrc.includes('owned.session.retire()') &&
     contextCardsSrc.includes('close: closeContextCardModal') &&
     !contextMedicalSrc.includes('callUtilsRuntimeFunction') &&
-    !contextMedicalSrc.includes('overlay.classList.add("show")') &&
-    !contextCardsSrc.includes("overlay.classList.add('show')"));
+    !/overlay\.classList\.add\(['"]show['"]\)/.test(medicalViewSrc + contextCardsSrc));
 
-assert('lifestyle context editors open through shared overlay lifecycle helper',
-  contextLifestyleSrc.includes("from './modal-lifecycle.js'") &&
-    (contextLifestyleSrc.match(/openModalOverlay\((?:overlay|document\.getElementById\('modal-overlay'\))\)/g) || []).length >= 10 &&
-    !contextLifestyleSrc.includes('overlay.classList.add("show")') &&
-    !contextLifestyleSrc.includes("overlay.classList.add('show')"));
+assert('all eight lifestyle context editors delegate to one shared overlay lifecycle owner',
+  contextLifestyleSrc.includes("from './context-lifestyle-form-view.js'") &&
+    ['diet', 'sleepRest', 'exercise', 'stress', 'loveLife', 'environment', 'lightCircadian', 'interpretiveLens']
+      .every(key => contextLifestyleSrc.includes(`return openLifestyleForm('${key}')`)) &&
+    lifestyleViewSrc.includes("from './modal-lifecycle.js'") &&
+    lifestyleViewSrc.includes('openModalOverlay(overlay)') &&
+    lifestyleViewSrc.includes('closeModalOverlay(owned.overlay)') &&
+    lifestyleViewSrc.includes('owned.session.retire()') &&
+    lifestyleViewSrc.includes('releaseContextFormDialog(owned.modal, owned.root') &&
+    !/overlay\.classList\.add\(['"]show['"]\)/.test(contextLifestyleSrc + lifestyleViewSrc));
 
 assert('chat summary modal uses shared overlay lifecycle helpers',
   chatSummariesSrc.includes("from './modal-lifecycle.js'") &&
@@ -149,9 +168,11 @@ assert('chat image lightbox uses shared overlay lifecycle helpers',
     lightboxComponentSrc.includes('releaseFocus?.(restoreFocus)'));
 
 
-assert('card tips modal closes through shared detail modal close path',
-  recommendationsSrc.includes("recActionAttrs('close-modal')") &&
-    recommendationsSrc.includes("recActionAttrs('open-emf-assessment')") &&
+assert('authored card tips actions close through the shared detail modal path before opening EMF',
+  cardTipsSrc.includes('data-rec-action="close-modal"') &&
+    cardTipsSrc.includes('data-rec-action="open-emf-assessment"') &&
+    /action === 'close-modal'[\s\S]*?event\.preventDefault\(\);\s*closeRecommendationsModal\(\);/.test(recommendationsSrc) &&
+    /action === 'open-emf-assessment'[\s\S]*?event\.preventDefault\(\);\s*closeRecommendationsModal\(\);\s*scheduleRecommendationsTask\(openRecommendationsEmfAssessment, 100\);/.test(recommendationsSrc) &&
     !recommendationsSrc.includes("document.getElementById('modal-overlay').classList.remove('show')"));
 
 assert('recommendation detail modal opens through shared overlay lifecycle helper',

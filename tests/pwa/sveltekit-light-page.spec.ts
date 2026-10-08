@@ -8,27 +8,9 @@ import { startKitServer } from './kit-server.js';
 import { seedLightPageFixture } from '../helpers/light-page-fixture.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 import { readComparisonAcceptanceProfile } from '../helpers/nutrition-comparison-fixture.js';
-import { navigateWithOfflineLaunchDiagnostics, captureOfflineLaunchDiagnostics, installOfflineStartupDiagnostics } from '../helpers/offline-launch-diagnostics.js';
+import { installOfflineStartupDiagnostics } from '../helpers/offline-launch-diagnostics.js';
 
-async function ready(page: Page, origin: string) {
-  await navigateWithOfflineLaunchDiagnostics(page, origin + '/app?dev-sw=1', test.info());
-  try {
-    await expect(page.locator('html[data-app-ready][data-shell-framework="sveltekit"]')).toBeAttached({ timeout: 30000 });
-  } catch (error) { await captureOfflineLaunchDiagnostics(page, test.info()); throw error; }
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => true));
-  await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
-  return page.evaluate(() => performance.now());
-}
-async function openLight(page: Page) {
-  if (await page.locator('#chat-panel.open').isVisible()) await page.getByRole('button', { name: 'Close chat', exact: true }).click();
-  const menu = page.getByRole('button', { name: 'Menu', exact: true });
-  if (await menu.isVisible()) await menu.click();
-  await page.locator('[data-nav-action="navigate"][data-nav-route="light"]').click();
-  await expect(page.locator('.light-page[data-light-page-presentation]')).toBeVisible();
-  await expect(page.locator('.light-session-log-actions')).toBeVisible();
-  await expect(page.locator('body')).not.toHaveClass(/\bchat-autostart-reserved\b/);
-  await expect(page.locator('.light-page > .category-header')).toHaveCSS('margin-bottom', '0px');
-}
+import { readyLightArtifact as ready, openLightArtifact as openLight } from '../helpers/light-artifact-navigation.js';
 
 test('static Light route retains offline first use, past-session persistence, disclosures, cold launches and backup', async ({ page, context }) => {
   test.setTimeout(120000);
@@ -76,6 +58,7 @@ test('static Light route retains offline first use, past-session persistence, di
     await dialog.locator('label.toggle-switch').click();
     await expect(dialog.locator('#det-glass')).toBeChecked();
     await dialog.locator('#det-notes').fill('Offline session <literal> & retained.');
+    await dialog.screenshot({ path: test.info().outputPath('actual-past-session-offline.png') });
     await dialog.getByRole('button', { name: 'Save session', exact: true }).click();
     await expect(dialog).not.toBeVisible();
     const snapshot = await page.evaluate(readComparisonAcceptanceProfile) as ProfileData;
