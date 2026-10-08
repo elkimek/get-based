@@ -25,7 +25,8 @@ async function inspect(page:Page){
  await expect(answer.locator('.chat-h2')).toHaveText('Cached signal');
  await expect(answer.locator('strong')).toHaveText('Full explanation');
  await expect(answer.locator('li')).toHaveCount(2);
- await expect(answer.locator('a')).toHaveAttribute('href','https://example.com/evidence');
+ await expect(answer.getByRole('link',{name:'source',exact:true})).toHaveAttribute('href','https://example.com/evidence');
+ await expect(answer.getByRole('link',{name:'unsafe',exact:true})).toHaveAttribute('href','#');
  await expect(answer.locator('.biology-ai-provenance')).toContainText('fixture/model');
  await expect(answer.locator('.biology-score-ai-stale')).toContainText('Refresh to use the latest inputs.');
  await expect(answer.locator('script,img,[onerror],a[href^="javascript:"]')).toHaveCount(0);
