@@ -13,7 +13,7 @@ import { escapeAttr, escapeHTML, isDebugMode } from './utils.js';
 import type { NutritionMeal, MealImage, MealComponent } from '../types/nutrition-data.js';
 import type { StoredNutritionMeal } from './nutrition-sync-sanitize.js';
 import type { MealPhotoAnalysis, analyzeMealPhoto } from './nutrition-analysis.js';
-import type { computeNutritionHistory, computeNutritionSummary } from './nutrition-summary.js';
+import type { computeNutritionHistory } from './nutrition-summary.js';
 import type { summarizeFuelResponses } from './nutrition-fuel-mix.js';
 import type { MealComparisonReferenceField } from './nutrition-comparison.js';
 
@@ -46,7 +46,6 @@ export type PeriodReader = RawFields<NativePeriod, 'meals' | 'foodMeals' | 'drin
 export type NutritionRenderHistory = RawFields<NativeHistory, 'rangeKey' | 'rangeLabel' | 'rangeDescription'> & {
   period?: PeriodReader | null; meals?: unknown; coverageBuckets?: NativeHistory['coverageBuckets']; view?: unknown; visibleMealCount?: unknown;
 };
-type SummaryReader = RawFields<ReturnType<typeof computeNutritionSummary>, 'totalMeals'> & {windows?: {d7?: PeriodReader | null} | null};
 type ResolvedTargets = ReturnType<typeof resolveNutritionTargets>;
 export type TargetReader = Partial<ResolvedTargets> & { [key: string]: unknown };
 export interface FuelOverlapRenderOptions {scope?: 'window' | 'meal'; compact?: unknown; fallbackTotalMeals?: unknown; period?: PeriodReader | null | undefined; targets?: Parameters<typeof assessFuelStrategy>[1]}
@@ -55,8 +54,11 @@ export interface NutritionEditorRenderOptions {editingMealId?: unknown; reusedMe
 import { buildNutritionTargetsView, buildNutritionFluidView, localDateTimeValue } from './nutrition-entry-model.js';
 export { localDateTimeValue } from './nutrition-entry-model.js';
 import { renderHTML as renderPresentation } from './components/NutritionPresentation.svelte.html.js';
-import { formatNumber, hasFiniteNumber, MEAL_TYPES, mealTypeLabel, mealImages, projectNutritionGoal, projectNutritionRing, projectNutritionFuel, projectNutritionMealRow, projectNutritionHistory } from './nutrition-presentation-model.js';
+import { formatNumber, hasFiniteNumber, MEAL_TYPES, mealTypeLabel, mealImages, projectNutritionFuel, projectNutritionMealRow, projectNutritionHistory } from './nutrition-presentation-model.js';
 export { formatNumber, hasFiniteNumber, MEAL_TYPES, mealTypeLabel, mealImages, HISTORY_MEAL_PAGE_SIZE } from './nutrition-presentation-model.js';
+
+import { projectNutritionDashboard, projectNutritionFuelDashboard, nutritionDashboardGoalFields } from './nutrition-dashboard-model.js';
+import type { NutritionDashboardSummary } from './nutrition-dashboard-model.js';
 
 const ACTION_ATTR = 'data-nutrition-action';
 const NUTRITION_STYLESHEET_URL = new URL('../css/nutrition.css', import.meta.url).href;
@@ -76,23 +78,6 @@ export const ALL_REVIEW_FIELDS = reviewFields(NUTRIENT_DEFINITIONS);
 const NUTRIENT_DETAILS = Object.freeze(NUTRIENT_DEFINITIONS.map(field => Object.freeze([
   field.key, field.label, field.unit,
 ] as const)));
-const WIDGET_TARGETS = new Map<string, [string, string, string]>([
-  ['proteinG', ['proteinG', 'goal', 'Protein']],
-  ['carbohydrateG', ['carbohydrateG', 'goal', 'Carbohydrate']],
-  ['fatG', ['fatG', 'goal', 'Fat']],
-  ['fiberG', ['fiberG', 'minimum', 'Fiber']],
-  ['fluidMl', ['fluidMl', 'fluid', 'Logged drinks']],
-  ['sugarG', ['sugarG', 'limit', 'Sugar guide']],
-  ['sodiumMg', ['sodiumMg', 'limit', 'Sodium guide']],
-]);
-const DASHBOARD_GOAL_FIELDS: readonly GoalField[] = Object.freeze(NUTRIENT_DETAILS
-  .filter(([key]) => key !== 'energyKcal')
-  .map(([key, label, unit]) => {
-    const [targetKey = '', kind = 'observe', widgetLabel = label] = WIDGET_TARGETS.get(key) || [];
-    return (
-      [key, widgetLabel, unit, targetKey, kind] as const
-    );
-  }));
 
 export function actionAttrs(action: unknown, attrs: Record<string, unknown> = {}) {
   const rest = Object.entries(attrs).map(([key, value]) => ` data-nutrition-${escapeAttr(key)}="${escapeAttr(String(value))}"`).join('');
@@ -126,53 +111,17 @@ export function ensureNutritionStylesheet() {
   return nutritionStylesheetPromise;
 }
 
-function widgetGoalRow(period: PeriodReader | null | undefined, targets: TargetReader | null | undefined, field: GoalField) {
-  return renderPresentation({ kind: 'goal', view: projectNutritionGoal(period, targets, field) });
-}
-
-function localDayKey(date: Date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
-
-function renderSevenDayCoverage(period: PeriodReader | null | undefined, now = new Date()) {
-  const logged = new Set(Array.isArray(period?.loggedDayKeys) ? period.loggedDayKeys as unknown[] : []);
-  const days: string[] = [];
-  for (let offset = 6; offset >= 0; offset -= 1) {
-    const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() - offset);
-    const key = localDayKey(date);
-    const active = logged.has(key);
-    days.push(`<div class="nutrition-day${active ? ' is-logged' : ''}" title="${escapeAttr(`${date.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}: ${active ? 'intake logged' : 'not logged'}`)}"><span>${escapeHTML(date.toLocaleDateString([], { weekday: 'narrow' }))}</span><i></i></div>`);
-  }
-  return `<div class="nutrition-day-coverage"><div><strong>Days with entries</strong><span>${period?.loggedDays || 0} of 7 days</span></div><div class="nutrition-day-strip" aria-label="Entries logged on ${period?.loggedDays || 0} of the last 7 days">${days.join('')}</div><small>A day can still be partial when only some meals were entered.</small></div>`;
-}
-
-function targetRing(label: string, value: unknown, target: unknown, unit: string, accent = false, personal = true) {
-  return renderPresentation({ kind: 'ring', view: projectNutritionRing(label, value, target, unit, accent, personal) });
-}
-
 export function renderFuelOverlapCard(mix: FuelMixReader | null | undefined, options: FuelOverlapRenderOptions = {}) {
   return renderPresentation({ kind: 'fuel', view: projectNutritionFuel(mix, options) });
 }
 
 export function renderNutritionWidget() {
-  const summary = state.nutritionSummary as SummaryReader | null;
-  const hasMeals = Number(summary?.totalMeals || 0) > 0;
-  const period = summary?.windows?.d7;
-  const targets = resolveNutritionTargets();
-  const calorieAverage = period?.dailyAverages?.energyKcal;
-  const selectedNutrients = new Set(targets.widgetNutrients || []);
-  const visibleGoalRows = DASHBOARD_GOAL_FIELDS.filter(([key]) => selectedNutrients.has(key));
-  return `<div class="nutrition-widget">
-    <div class="nutrition-widget-actions-row"><div class="nutrition-widget-actions">${hasMeals ? `<button type="button" class="dashboard-action-btn" ${actionAttrs('open-history')}>History</button>` : ''}<button type="button" class="dashboard-action-btn" ${actionAttrs('open-targets')}>Customize</button><button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${actionAttrs('open')}>Log meal</button></div></div>
-    ${hasMeals && !targets.configured ? `<div class="nutrition-widget-starter-note"><span>Using starter guides</span><button type="button" ${actionAttrs('open-targets')}>Review and personalize</button></div>` : ''}
-    ${hasMeals ? `<div class="nutrition-recorded-notice"><strong>Recorded intake, not verified full days</strong><span>Averages include what you entered; missing meals remain unknown.</span></div><div class="nutrition-dashboard-grid"><section class="nutrition-dashboard-hero"><div class="nutrition-target-rings">${targetRing('Energy', calorieAverage, targets.energyKcal, 'kcal', false, targets.configured)}</div>${renderSevenDayCoverage(period)}</section><section class="nutrition-goal-list"><div class="nutrition-goal-list-head"><strong>Recorded daily averages</strong><span>Last 7 days · ${visibleGoalRows.length} nutrient rows</span></div>${visibleGoalRows.length ? `<div class="nutrition-goal-grid${visibleGoalRows.length > 4 ? ' is-expanded' : ''}">${visibleGoalRows.map(field => widgetGoalRow(period, targets, field)).join('')}</div>` : '<div class="nutrition-comparison-empty">Choose nutrients in Customize.</div>'}</section></div>` : '<div class="nutrition-widget-empty"><span aria-hidden="true">◎</span><div><strong>No intake logged yet</strong><p>Log a meal to start seven-day recorded averages.</p></div></div>'}
-  </div>`;
+  return renderPresentation({ kind: 'dashboard', view: projectNutritionDashboard(state.nutritionSummary as NutritionDashboardSummary | null, resolveNutritionTargets()) });
 }
 
 export function buildNutritionHistoryView(history: NutritionRenderHistory | null | undefined, options: { storageError?: unknown; returnTo?: unknown } = {}) {
   const targets = resolveNutritionTargets();
-  const selected = new Set(getNutritionTargets().widgetNutrients || []);
-  return projectNutritionHistory(history, targets, DASHBOARD_GOAL_FIELDS.filter(([key]) => selected.has(key)), isNutritionContextEnabled(), options);
+  return projectNutritionHistory(history, targets, nutritionDashboardGoalFields(getNutritionTargets().widgetNutrients || []), isNutritionContextEnabled(), options);
 }
 
 export function renderNutritionHistoryModal(history: NutritionRenderHistory | null | undefined, options: { storageError?: unknown; returnTo?: unknown } = {}) {
@@ -180,11 +129,7 @@ export function renderNutritionHistoryModal(history: NutritionRenderHistory | nu
 }
 
 export function renderNutritionFuelWidget() {
-  const summary = state.nutritionSummary as SummaryReader | null;
-  const period = summary?.windows?.d7;
-  const targets = resolveNutritionTargets();
-  const foodMealCount = Number.isFinite(Number(period?.foodMeals)) ? Number(period!.foodMeals) : Number(period?.meals || 0);
-  return `<div class="nutrition-fuel-widget">${renderFuelOverlapCard(period?.fuelOverlap, { scope: 'window', fallbackTotalMeals: foodMealCount, period, targets })}</div>`;
+  return renderPresentation({ kind: 'dashboard', view: projectNutritionFuelDashboard(state.nutritionSummary as NutritionDashboardSummary | null, resolveNutritionTargets()) });
 }
 
 export function renderNutritionCustomizeModal(options: { returnTo?: unknown } = {}) {

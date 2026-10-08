@@ -102,6 +102,11 @@ Nutrition setup and drink forms are authored in `js/components/NutritionEntry.sv
 `NutritionTargets.svelte`, `NutritionFluidLog.svelte` and `NutritionNumberField.svelte`.
 Their pure form projections and captured-profile commits live in `js/nutrition-entry-model.ts`
 and `js/nutrition-entry-session.ts`.
+Nutrition dashboard projections and both authored widget branches are covered by
+`tests/nutrition-dashboard.test.ts`; the browser tests exercise the actual Dashboard
+and Body widgets, six themes, narrow containers, and first offline use through two
+cold launches without profile writes.
+
 Nutrition History and its shared meal, target and fuel displays are authored in
 `js/components/NutritionHistory.svelte` and the shared `Nutrition*.svelte` components.
 Edit `css/nutrition.tailwind.css` and `js/nutrition-view-classes.ts` for their scoped

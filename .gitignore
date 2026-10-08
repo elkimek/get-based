@@ -1967,3 +1967,7 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /js/nutrition-entry-model.js
 /js/nutrition-entry-session.js
 /js/nutrition-entry-view.js
+
+/js/nutrition-dashboard-model.js
+
+/tests/helpers/nutrition-dashboard-fixture.js

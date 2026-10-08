@@ -600,7 +600,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/nutrition-sync-sanitize.js',
   '/js/demo-nutrition.js', '/js/demo-biology-data.js', '/js/demo-biology-insights.js', '/js/nutrition-fuel-mix.js',
   '/js/nutrition-summary.js',
-  '/js/nutrition-summary-context.js', '/js/nutrition-history.js', '/js/nutrition-history-view.js', '/js/route-lifecycle.js', '/js/nutrition-presentation-model.js', '/js/nutrition-view-classes.js', '/js/components/NutritionHistory.svelte.native.js', '/js/components/NutritionPresentation.svelte.html.js',
+  '/js/nutrition-summary-context.js', '/js/nutrition-history.js', '/js/nutrition-history-view.js', '/js/route-lifecycle.js', '/js/nutrition-presentation-model.js', '/js/nutrition-view-classes.js', '/js/nutrition-dashboard-model.js', '/js/components/NutritionHistory.svelte.native.js', '/js/components/NutritionPresentation.svelte.html.js',
   '/js/nutrition-context.js',
   '/js/nutrition-ai-settings.js',
   '/js/nutrition-analysis.js',

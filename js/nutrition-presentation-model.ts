@@ -175,6 +175,7 @@ export function projectNutritionHistory(history: NutritionRenderHistory | null |
 }
 
 export type NutritionPresentationProps =
+  | { kind: 'dashboard'; view: import('./nutrition-dashboard-model.js').NutritionDashboardView }
   | { kind: 'entry'; view: import('./nutrition-entry-model.js').NutritionEntryView }
   | { kind: 'goal'; view: NutritionGoalView } | { kind: 'ring'; view: NutritionRingView }
   | { kind: 'fuel'; view: NutritionFuelView | null } | { kind: 'meal'; view: NutritionMealRowView }

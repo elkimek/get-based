@@ -12,3 +12,6 @@ export const input = `gb:nutrition:box-border gb:nutrition:w-full gb:nutrition:m
 export const summary = `gb:nutrition:min-h-[45px] gb:nutrition:content-center gb:nutrition:cursor-pointer gb:nutrition:text-xs gb:nutrition:font-bold gb:nutrition:text-ink ${focus}`;
 export const formGrid = 'gb:nutrition:grid gb:nutrition:grid-cols-3 gb:nutrition:gap-3 gb:nutrition:max-[720px]:grid-cols-2 gb:nutrition:max-[380px]:grid-cols-1';
 export const formHead = 'gb:nutrition:flex gb:nutrition:flex-wrap gb:nutrition:items-start gb:nutrition:justify-between gb:nutrition:gap-3';
+
+export const rings = 'gb:nutrition:grid gb:nutrition:grid-cols-[repeat(auto-fit,minmax(min(100%,132px),1fr))] gb:nutrition:gap-3 gb:nutrition:justify-items-center';
+export const goalGrid = (expanded: boolean) => `gb:nutrition:grid gb:nutrition:items-start gb:nutrition:gap-3.5 ${expanded ? 'gb:nutrition:grid-cols-[repeat(auto-fit,minmax(min(100%,240px),1fr))]' : 'gb:nutrition:grid-cols-1'}`;

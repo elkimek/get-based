@@ -4,7 +4,7 @@
   import Ring from './NutritionTargetRing.svelte';
   import Fuel from './NutritionFuelCard.svelte';
   import Meal from './NutritionMealRow.svelte';
-  import { button, primary, copy, panel, heading, card } from '../nutrition-view-classes.js';
+  import { rings, goalGrid, button, primary, copy, panel, heading, card } from '../nutrition-view-classes.js';
   let { view, current = () => true }: { view: NutritionHistoryView; current?: () => boolean } = $props();
   let root: HTMLDivElement;
   function guard(event: MouseEvent) {
@@ -41,8 +41,8 @@
         <div class="nutrition-history-coverage-chart gb:nutrition:grid gb:nutrition:grid-cols-[repeat(auto-fit,minmax(38px,1fr))] gb:nutrition:gap-2 gb:nutrition:pb-2" role="img" aria-label="Logging coverage over the selected timeframe">{#each view.coverage as bucket}<div class="nutrition-history-coverage-bar gb:nutrition:grid gb:nutrition:grid-rows-[96px_auto_auto] gb:nutrition:gap-1 gb:nutrition:text-center" title={bucket.title}><i class="gb:nutrition:flex gb:nutrition:items-end gb:nutrition:overflow-hidden gb:nutrition:rounded-md gb:nutrition:bg-hover"><span class="gb:nutrition:w-full gb:nutrition:rounded-md gb:nutrition:bg-accent" style:height="{bucket.height}%"></span></i><span class="gb:nutrition:text-[11px] gb:nutrition:font-bold">{bucket.values}</span><small class="{copy} gb:nutrition:truncate">{bucket.label}</small></div>{/each}</div>
         <p class="nutrition-history-caveat {copy} gb:nutrition:m-0">A day with entries may still be partial. Recorded averages include only entered meals; missing meals and days remain unknown.</p>
       </section>
-      <section class="nutrition-history-averages {panel}"><div class="nutrition-target-rings"><Ring view={view.ring}/></div><div class="nutrition-goal-list-head gb:nutrition:flex gb:nutrition:flex-wrap gb:nutrition:justify-between gb:nutrition:gap-2"><strong class="gb:nutrition:text-xs">Recorded daily averages</strong><span class={copy}>{view.rangeLabel} · {view.goals.length} nutrient rows</span></div>
-        {#if view.goals.length}<div class="nutrition-goal-grid" class:is-expanded={view.goals.length > 4}>{#each view.goals as goal}<Goal view={goal}/>{/each}</div>{:else}<div class="nutrition-comparison-empty {copy}">Choose nutrients in Setup.</div>{/if}
+      <section class="nutrition-history-averages {panel}"><div class="nutrition-target-rings {rings}"><Ring view={view.ring}/></div><div class="nutrition-goal-list-head gb:nutrition:flex gb:nutrition:flex-wrap gb:nutrition:justify-between gb:nutrition:gap-2"><strong class="gb:nutrition:text-xs">Recorded daily averages</strong><span class={copy}>{view.rangeLabel} · {view.goals.length} nutrient rows</span></div>
+        {#if view.goals.length}<div class="nutrition-goal-grid {goalGrid(view.goals.length > 4)}" class:is-expanded={view.goals.length > 4}>{#each view.goals as goal}<Goal view={goal}/>{/each}</div>{:else}<div class="nutrition-comparison-empty {copy}">Choose nutrients in Setup.</div>{/if}
       </section>
       <section class="nutrition-history-timing {panel}"><div class={heading}>Logged meal timing</div><div class="gb:nutrition:grid gb:nutrition:grid-cols-2 gb:nutrition:gap-2 gb:nutrition:max-[380px]:grid-cols-1">{#each view.timing as timing}<div class={card}><span class={copy}>{timing.label}</span><strong class="gb:nutrition:text-sm gb:nutrition:tabular-nums">{timing.value}</strong></div>{/each}</div><small class={copy}>Eating windows require at least two logged meals in a day. Fasting windows use the last and first logged meals on consecutive days. Missing meals remain unknown.</small></section>
       <section class="nutrition-history-fuel {panel}"><div class={heading}>Carbohydrate and fat mix</div><Fuel view={view.fuel}/></section>

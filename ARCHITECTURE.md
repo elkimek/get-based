@@ -231,7 +231,7 @@ without mutating stored meals or changing domain calculations. Shared authored m
 rows, target rings, goal rows and fuel cards are used by History and the remaining
 nutrition renderers through one synchronous `NutritionPresentation.svelte` HTML
 entry. This preserves public render contracts without duplicate native templates.
-`css/nutrition.base.css` retains unmigrated editor/dashboard wrappers, while
+`css/nutrition.base.css` retains unmigrated editor and detail wrappers, while
 `css/nutrition.tailwind.css` provides scoped authored utilities at the unchanged
 lazy `css/nutrition.css` URL. Failed stylesheet attempts can be retried. Meal deletion
 checks its originating profile/modal after confirmation before starting a write.
@@ -248,8 +248,14 @@ atomic field guard and drinks through the encrypted meal queue. Failures retain
 the input; retired forms cannot start writes, while accepted writes finish on their
 originating profile. `nutrition-entry-view.ts` owns modal/route retirement and
 save navigation. Existing renderer/control exports delegate to this implementation.
-The remaining meal editor, details, benchmark and dashboard are subsequent
-migration work.
+`NutritionDashboard.svelte` owns the intake and fuel widgets on Dashboard and
+Body, including seven-day coverage, selected nutrient rows and the starter/empty
+states. `nutrition-dashboard-model.ts` projects canonical registry order and
+local calendar days without changing summary calculations or stored profile data.
+The existing synchronous widget APIs render this authored component through the
+shared presentation entry. Shared ring and goal grids use Tailwind utilities;
+widget layout responds to its container width. Native CSS remains for the meal
+editor, stored details and benchmark workspace.
 `context-notes-session.ts` captures accepted text and originating profile/data,
 serializes debounced scoped writes and retains retry drafts through catalog rebuilds
 and fresh profile reload objects. Failed idle sessions retain draft text without
