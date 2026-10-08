@@ -317,3 +317,19 @@ scoped CSS contract across the shared modal and result children; ordinary worksp
 styles are Tailwind utilities. No rendering backend is introduced.
 This is scoped editor acceptance; final whole-application migration acceptance
 remains required.
+
+The meal editor, entry-method navigation, model choices, photo previews, ingredient
+review, provenance, uncertainty and correction feedback share authored Svelte
+presentation between native adapters and the static application. Shared progress
+uses `NutritionAnalysisProgress.svelte`. Controllers retain input synchronization,
+analysis requests, calculations and canonical/encrypted persistence. Superseded
+native templates and editor CSS are removed; shared modal sizing and explicitly
+owned loading/presentation styles remain. Nutrition controls use a 45px minimum
+to keep the 44px target contract despite browser subpixel rounding.
+[`nutrition-editor-owned.spec.ts`](../tests/playwright/nutrition-editor-owned.spec.ts)
+covers themes, layout, accessibility, entry tabs and draft preservation.
+[`sveltekit-nutrition-editor.spec.ts`](../tests/pwa/sveltekit-nutrition-editor.spec.ts)
+checks offline first use, actual save/edit/reuse and closed-client cold launches,
+including zero/unknown nutrients, unrelated canonical profile fields and decrypted
+meal-cache equality. These local checks do not replace hosted or physical-device
+release acceptance.

@@ -35,10 +35,10 @@ export const nutritionBenchmarkReference = {
 };
 export type NutritionBenchmarkStatusView =
   | { kind: 'history'; label: string; savedLabel: string }
-  | { kind: 'progress'; label: string; detail: string; percent: number | null };
+  | { kind: 'progress'; state: string; label: string; detail: string; percent: number | null };
 export function projectNutritionComparisonProgress(completed: number, total: number, label: unknown, state: string): NutritionBenchmarkStatusView {
   return {
-    kind: 'progress', label: String(label ?? ''),
+    kind: 'progress', state, label: String(label ?? ''),
     detail: state === 'running' ? `${completed} of ${total} finished`
       : state === 'success' ? `${total} model${total === 1 ? '' : 's'} finished`
       : state === 'partial' ? 'Retry or replace failed models below' : 'Stopped',

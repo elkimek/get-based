@@ -58,6 +58,8 @@ test('authored benchmark workspace keeps photos and reference drafts separate, a
   const upload = page.locator('#nutrition-benchmark-photo-input'); await upload.setInputFiles(photo);
   await expect(page.locator('#nutrition-benchmark-photo-status')).toHaveText('1 benchmark view ready. Log meal remains unchanged.');
   await expect(page.locator('#nutrition-benchmark-photo-preview img')).toHaveCount(1);
+  const photoGeometry = await page.locator('#nutrition-benchmark-photo-preview').evaluate(root => ({ available: root.clientWidth, width: root.querySelector('img')!.getBoundingClientRect().width }));
+  expect(photoGeometry.width).toBeGreaterThan(photoGeometry.available * .95);
   await page.locator('[data-nutrition-action="clear-benchmark-photos"]').click();
   await expect(page.locator('#nutrition-benchmark-photo-preview img')).toHaveCount(0);
   await expect(page.locator('[data-nutrition-action="clear-benchmark-photos"]')).toBeHidden();

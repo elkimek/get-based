@@ -231,7 +231,7 @@ without mutating stored meals or changing domain calculations. Shared authored m
 rows, target rings, goal rows and fuel cards are used by History and the remaining
 nutrition renderers through one synchronous `NutritionPresentation.svelte` HTML
 entry. This preserves public render contracts without duplicate native templates.
-`css/nutrition.base.css` retains unmigrated editor and benchmark wrappers, while
+`css/nutrition.base.css` retains shared modal-host sizing, while
 `css/nutrition.tailwind.css` provides scoped authored utilities at the unchanged
 lazy `css/nutrition.css` URL. Failed stylesheet attempts can be retried. Meal deletion
 checks its originating profile/modal after confirmation before starting a write.
@@ -277,7 +277,7 @@ and moves the actual editor nodes into a suspended fragment, preserving draft
 values and file handles across mode changes. Normal workspace styling uses scoped
 Tailwind; the explicit full-screen layout contract lives in
 `css/nutrition.tailwind.css` because it spans the shared modal and result children.
-Progress visuals share the editor's progress primitive until that owner migrates.
+`NutritionAnalysisProgress.svelte` owns shared editor and benchmark progress visuals.
 Shared modal initial-focus handoffs preserve focus moved after opening, including
 already-visible overlays reused by editor/benchmark mode changes.
 `NutritionDashboard.svelte` owns the intake and fuel widgets on Dashboard and
@@ -285,9 +285,27 @@ Body, including seven-day coverage, selected nutrient rows and the starter/empty
 states. `nutrition-dashboard-model.ts` projects canonical registry order and
 local calendar days without changing summary calculations or stored profile data.
 The existing synchronous widget APIs render this authored component through the
-shared presentation entry. Shared ring and goal grids use Tailwind utilities;
-widget layout responds to its container width. Native CSS remains for the meal
-editor, stored details and benchmark workspace.
+shared presentation entry; `nutrition-render.ts` owns publication into widget hosts.
+Shared ring and goal grids use Tailwind utilities; widget layout responds to its
+container width.
+`NutritionMealEditor.svelte` owns photo/label/manual entry, the nutrient registry
+form and review slots. `NutritionMealModelPicker.svelte` authors model choices;
+`NutritionMealPhoto.svelte` authors stored and selected previews.
+`NutritionEditableIngredients.svelte` and `NutritionEditorFeedback.svelte` own
+ingredient editing, historical provenance, corrections, evidence and uncertainty
+markup. Pure editor models project text and display choices; `nutrition-review-ui.ts`
+retains validation, analysis timers, component baselines and controller updates.
+`nutrition.ts` retains analysis requests, nutrient calculations and canonical/encrypted
+meal saves. Catalog refreshes retain photo/label purpose; older serving-unit aliases
+map to existing controls without rewriting stored source metadata. Photo preview
+grids constrain the outer track so percentage-sized thumbnails stay full width.
+Stable render/import APIs use the synchronous authored presentation entry.
+`NutritionEditorNavigation.svelte` authors tabs and the meal-history handoff directly;
+the compatibility enhancer adopts that same markup only for older hosts and preserves
+already-authored nodes. Suspension continues to retain actual inputs and file handles.
+Scoped Tailwind owns editor styling. Necessary loading animations and cross-modal
+benchmark presentation styles are explicitly owned in `css/nutrition.tailwind.css`;
+superseded native editor templates and styles are removed.
 `context-notes-session.ts` captures accepted text and originating profile/data,
 serializes debounced scoped writes and retains retry drafts through catalog rebuilds
 and fresh profile reload objects. Failed idle sessions retain draft text without

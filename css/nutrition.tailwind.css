@@ -1,4 +1,4 @@
-/* Authored nutrition views share scoped utilities without resetting legacy forms. */
+/* Authored nutrition views share scoped utilities and the existing theme tokens. */
 @import "tailwindcss/theme.css" layer(gb-theme) prefix(gb);
 @import "tailwindcss/utilities.css" prefix(gb) source(none);
 @import "./ui-tokens.tailwind.css";
@@ -50,4 +50,13 @@ body.nutrition-comparison-presenting { overflow: hidden; }
   [data-nutrition-benchmark-view].nutrition-model-comparison.is-presentation .nutrition-comparison-results[data-result-count="4"] .nutrition-comparison-metrics > div { gap: 2px; padding: 6px 7px; border-bottom: 1px solid var(--border); }
   [data-nutrition-benchmark-view].nutrition-model-comparison.is-presentation .nutrition-comparison-results[data-result-count="4"] .nutrition-comparison-metrics > div:nth-child(2n) { border-right: 0; }
   [data-nutrition-benchmark-view].nutrition-model-comparison.is-presentation .nutrition-comparison-results[data-result-count="4"] .nutrition-comparison-metrics > div:nth-last-child(-n + 2) { border-bottom: 0; }
+}
+
+/* Loading indicators belong to the meal editor; labels remain controller-owned. */
+[data-nutrition-editor-view] :is(#nutrition-analyze-btn, #nutrition-recalculate-btn).is-loading { cursor: wait; }
+[data-nutrition-editor-view] :is(#nutrition-analyze-btn, #nutrition-recalculate-btn).is-loading::before { content: ''; display: inline-block; width: 10px; height: 10px; margin-right: 7px; border: 2px solid color-mix(in srgb, currentColor 30%, transparent); border-top-color: currentColor; border-radius: 50%; vertical-align: -1px; animation: nutrition-analysis-spin .8s linear infinite; }
+@keyframes nutrition-analysis-shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+@keyframes nutrition-analysis-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  [data-nutrition-editor-view] :is(#nutrition-analyze-btn, #nutrition-recalculate-btn).is-loading::before { animation: none; }
 }

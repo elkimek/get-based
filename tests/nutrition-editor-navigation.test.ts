@@ -135,3 +135,20 @@ it('shows the explicit photo privacy and cloud consent boundary', () => {
   enhanceNutritionEditorNavigation(modal);
   expect(document.getElementById('nutrition-privacy-line')!.textContent).toBe('Sent only when you choose Analyze photo. Full-size originals are not saved; resized copies stay with the meal. First cloud use asks for approval.');
 });
+
+it('keeps authored navigation nodes and listeners when initialized repeatedly', () => {
+  const modal = mount('<div class="nutrition-capture-tabs" data-nutrition-tabs><button data-nutrition-kind="manual">Manual</button></div><section class="nutrition-recent"><button data-nutrition-records>Records</button></section>');
+  const tabs = modal.querySelector('.nutrition-capture-tabs')!, tab = tabs.firstElementChild!, records = modal.querySelector('[data-nutrition-records]')!;
+  const clicked = vi.fn(); tab.addEventListener('click', clicked);
+  enhanceNutritionEditorNavigation(modal); enhanceNutritionEditorNavigation(modal);
+  expect(tabs.firstElementChild).toBe(tab); expect(modal.querySelector('[data-nutrition-records]')).toBe(records);
+  (tab as HTMLButtonElement).click(); expect(clicked).toHaveBeenCalledTimes(1);
+});
+
+it('preserves the selected interpretation when adopting older editor tab markup', () => {
+  const modal = mount('<div class="nutrition-capture-tabs"><button data-nutrition-kind="meal-photo" aria-pressed="false">Photo</button><button data-nutrition-kind="nutrition-label" aria-pressed="true">Nutrition label</button></div>');
+  enhanceNutritionEditorNavigation(modal);
+  expect(modal.querySelector('[data-nutrition-kind="nutrition-label"]')!.getAttribute('aria-selected')).toBe('true');
+  expect(modal.querySelector('[data-nutrition-kind="meal-photo"]')!.getAttribute('aria-selected')).toBe('false');
+  expect(modal.querySelectorAll('[role="tab"]')).toHaveLength(3);
+});

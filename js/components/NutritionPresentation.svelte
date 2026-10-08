@@ -13,9 +13,23 @@
   import BenchmarkPhoto from './NutritionBenchmarkPhoto.svelte';
   import BenchmarkStatus from './NutritionBenchmarkStatus.svelte';
   import Dashboard from './NutritionDashboard.svelte';
+  import Editor from './NutritionMealEditor.svelte';
+  import MealModel from './NutritionMealModelPicker.svelte';
+  import MealPhoto from './NutritionMealPhoto.svelte';
+  import EditorNavigation from './NutritionEditorNavigation.svelte';
+  import AnalysisProgress from './NutritionAnalysisProgress.svelte';
+  import EditableIngredients from './NutritionEditableIngredients.svelte';
+  import EditorFeedback from './NutritionEditorFeedback.svelte';
   let props: NutritionPresentationProps = $props();
 </script>
-{#if props.kind === 'goal'}<Goal view={props.view}/>
+{#if props.kind === 'editable-ingredients'}<EditableIngredients rows={props.rows}/>
+{:else if props.kind === 'editor-feedback'}<EditorFeedback view={props.view}/>
+{:else if props.kind === 'editor'}<Editor view={props.view}/>
+{:else if props.kind === 'meal-model'}<MealModel view={props.view}/>
+{:else if props.kind === 'meal-photo'}<MealPhoto view={props.view}/>
+{:else if props.kind === 'editor-navigation'}<EditorNavigation part={props.part}/>
+{:else if props.kind === 'analysis-progress'}<AnalysisProgress view={props.view}/>
+{:else if props.kind === 'goal'}<Goal view={props.view}/>
 {:else if props.kind === 'ring'}<Ring view={props.view}/>
 {:else if props.kind === 'fuel'}<Fuel view={props.view}/>
 {:else if props.kind === 'meal'}<Meal view={props.view}/>

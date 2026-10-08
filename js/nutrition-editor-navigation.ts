@@ -1,6 +1,7 @@
 // nutrition-editor-navigation.js — entry-method tabs and logger-to-history handoff.
 
-const ACTION_ATTR = 'data-nutrition-action';
+import { renderHTML as renderPresentation } from './components/NutritionPresentation.svelte.html.js';
+import { NUTRITION_PHOTO_PRIVACY } from './nutrition-editor-model.js';
 let suspendedEditor: { content: DocumentFragment; className: string; scrollTop: number; dismissProtected: boolean; hasDraft: boolean } | null = null;
 
 export function hasSuspendedNutritionEditor() {
@@ -80,41 +81,23 @@ export function setManualEntryMode({ focus = true } = {}) {
 
 export function enhanceNutritionEditorNavigation(modal: HTMLElement, { manualDefault = false } = {}) {
   const tabs = modal.querySelector('.nutrition-capture-tabs');
-  if (tabs) {
+  if (tabs && !tabs.hasAttribute('data-nutrition-tabs')) {
+    const selectedKind = tabs.querySelector('[aria-selected="true"], [aria-pressed="true"]')?.getAttribute('data-nutrition-kind');
     tabs.setAttribute('role', 'tablist');
     tabs.setAttribute('aria-label', 'Meal entry method');
-    const existing = [...tabs.querySelectorAll('button')];
-    if (existing[0]) existing[0].textContent = 'Photo';
-    existing.forEach(button => {
-      button.setAttribute('role', 'tab');
-      button.setAttribute('aria-selected', button.getAttribute('aria-pressed') || 'false');
-      button.removeAttribute('aria-pressed');
+    tabs.setAttribute('data-nutrition-tabs', '');
+    tabs.innerHTML = renderPresentation({ kind: 'editor-navigation', part: 'tabs' });
+    if (selectedKind) tabs.querySelectorAll('button').forEach(button => {
+      const selected = button.getAttribute('data-nutrition-kind') === selectedKind;
+      button.setAttribute('aria-selected', String(selected));
+      button.classList.toggle('is-active', selected);
     });
-    const manual = document.createElement('button');
-    manual.type = 'button';
-    manual.textContent = 'Manual';
-    manual.setAttribute('role', 'tab');
-    manual.setAttribute('aria-selected', 'false');
-    manual.setAttribute(ACTION_ATTR, 'set-kind');
-    manual.setAttribute('data-nutrition-kind', 'manual');
-    tabs.appendChild(manual);
   }
   const privacy = document.getElementById('nutrition-privacy-line');
-  if (privacy) privacy.textContent = 'Sent only when you choose Analyze photo. Full-size originals are not saved; resized copies stay with the meal. First cloud use asks for approval.';
+  if (privacy) privacy.textContent = NUTRITION_PHOTO_PRIVACY;
   const recent = modal.querySelector('.nutrition-recent');
-  if (recent) {
-    const title = document.createElement('div');
-    title.className = 'nutrition-section-title';
-    title.textContent = 'Your meal records';
-    const copy = document.createElement('p');
-    copy.className = 'nutrition-meal-records-copy';
-    copy.textContent = 'Browse every saved meal in the chronological Meals view.';
-    const browse = document.createElement('button');
-    browse.type = 'button';
-    browse.className = 'import-btn import-btn-secondary';
-    browse.textContent = 'Browse meals';
-    browse.setAttribute(ACTION_ATTR, 'open-history');
-    recent.replaceChildren(title, copy, browse);
+  if (recent && !recent.querySelector('[data-nutrition-records]')) {
+    recent.innerHTML = renderPresentation({ kind: 'editor-navigation', part: 'records' });
   }
   if (manualDefault) setManualEntryMode({ focus: false });
 }

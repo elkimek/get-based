@@ -175,6 +175,13 @@ export function projectNutritionHistory(history: NutritionRenderHistory | null |
 }
 
 export type NutritionPresentationProps =
+  | { kind: 'editable-ingredients'; rows: import('./nutrition-editor-review-model.js').EditableIngredientView[] }
+  | { kind: 'editor-feedback'; view: import('./nutrition-editor-review-model.js').NutritionEditorFeedbackView }
+  | { kind: 'editor'; view: import('./nutrition-editor-model.js').NutritionEditorView }
+  | { kind: 'meal-model'; view: import('./nutrition-editor-model.js').NutritionMealModelView }
+  | { kind: 'meal-photo'; view: import('./nutrition-editor-model.js').NutritionMealPhotoView }
+  | { kind: 'editor-navigation'; part: 'tabs' | 'records' }
+  | { kind: 'analysis-progress'; view: import('./nutrition-editor-model.js').NutritionProgressView }
   | { kind: 'benchmark'; view: import('./nutrition-benchmark-model.js').NutritionComparisonPickerView }
   | { kind: 'comparison-picker'; view: import('./nutrition-benchmark-model.js').NutritionComparisonPickerView }
   | { kind: 'benchmark-photo'; urls: readonly string[] }

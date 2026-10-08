@@ -723,7 +723,7 @@ export function replaceComparisonRun(index: number) {
   if (progress) {
     progress.hidden = false;
     progress.className = 'nutrition-analysis-progress is-partial';
-    progress.innerHTML = renderHTML({ kind: 'benchmark-status', view: { kind: 'progress', label: 'Choose a replacement model', detail: 'Only the new model will run', percent: null } });
+    progress.innerHTML = renderHTML({ kind: 'benchmark-status', view: { kind: 'progress', state: 'partial', label: 'Choose a replacement model', detail: 'Only the new model will run', percent: null } });
   }
   showNotification('Failed result removed. Choose another model, then run the replacement.', 'info');
   return true;

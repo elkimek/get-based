@@ -5,35 +5,12 @@ import { normalizeNutritionComponent } from './nutrition-food-data.js';
 import { calculateFuelOverlap } from './nutrition-fuel-mix.js';
 import { isNutritionComparisonRunning } from './nutrition-comparison-ui.js';
 import {
-  ALL_REVIEW_FIELDS, MEAL_TYPES, actionAttrs, formatNumber, hasFiniteNumber, renderFuelOverlapCard,
+  ALL_REVIEW_FIELDS, MEAL_TYPES, formatNumber, hasFiniteNumber, renderFuelOverlapCard,
 } from './nutrition-render.js';
-import { escapeAttr, escapeHTML } from './utils.js';
+import { renderHTML as renderPresentation } from './components/NutritionPresentation.svelte.html.js';
+import { projectEditableIngredients, projectReviewEvidence, projectReviewChecks } from './nutrition-editor-review-model.js';
+import type { ReviewResultReader } from './nutrition-editor-review-model.js';
 
-// Private property readers describe the original operations on opaque stored
-// results; they are not validation or canonical producer guarantees.
-interface ReviewComponentReader extends Record<string, unknown> {
-  name?: unknown; quantityG?: unknown; confidence?: unknown; portionReviewed?: unknown;
-  nutrientsPer100g?: unknown;
-  foodData?: { fdcId?: unknown; description?: unknown; dataset?: unknown } | null;
-}
-interface ReviewSourceReader {
-  kind?: unknown; analysisKind?: unknown; modelDisplay?: unknown; model?: unknown; provider?: unknown; usage?: unknown;
-  correction?: unknown;
-  aiNutritionEstimate?: { nutrientKeys?: unknown[] | null } | null;
-  foodComposition?: { completeNutrientKeys?: unknown[] | null; matchedComponents?: unknown; totalComponents?: unknown } | null;
-  review?: { editedNutrients?: unknown[] | null } | null;
-}
-interface ReviewResultReader {
-  analysis: {
-    components?: Array<ReviewComponentReader | null | undefined> | null;
-    mealName?: unknown; nutrients?: Record<string, unknown> | null;
-    warnings: unknown[]; assumptions?: unknown[] | null;
-    label?: { servingSizeText?: unknown; servingsPerContainer?: unknown; consumedAmount?: unknown; consumedUnit?: unknown; labelBasis?: unknown } | null;
-  };
-  source?: ReviewSourceReader | null;
-  images?: Array<{ qualityWarnings?: unknown[] | null } | null | undefined> | null;
-  image?: { qualityWarnings?: unknown[] | null } | null;
-}
 export interface NutritionReviewUIDependencies {
   getPendingAnalysis: () => unknown;
   getComponentIdentityDirty: () => boolean;
@@ -90,7 +67,7 @@ export function isAnalysisProgressRunning() {
 export function setStatus(text: unknown, tone: unknown = '') {
   const status = document.getElementById('nutrition-analysis-status');
   if (!status) return;
-  status.className = `nutrition-analysis-status${tone ? ` is-${tone}` : ''}`;
+  status.className = status.className.split(/\s+/).filter(name => !name.startsWith('is-')).join(' ') + (tone ? ` is-${tone}` : '');
   (status as { textContent: unknown }).textContent = text;
 }
 
@@ -119,10 +96,10 @@ function renderAnalysisProgress(id: number, state = 'running') {
   const slowHint = state === 'running' && elapsedSeconds >= 15 ? ' · The provider is still working.' : '';
   area.hidden = false;
   area.className = `nutrition-analysis-progress is-${state}`;
-  const cancel = state === 'running'
-    ? `<button type="button" class="nutrition-analysis-cancel" ${actionAttrs('cancel-analysis')}>Cancel analysis</button>`
-    : '';
-  area.innerHTML = `<div class="nutrition-analysis-progress-head"><strong>${escapeHTML(label)}</strong><span>${state === 'running' ? `Step ${Math.max(1, phase)} of 4 · ${analysisElapsed(startedAt)}${slowHint}` : state === 'success' ? 'Complete' : 'Stopped'}</span>${cancel}</div><div class="nutrition-analysis-progress-track" role="progressbar" aria-label="Meal photo analysis progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}"><span style="width:${percent}%"></span></div>`;
+  area.innerHTML = renderPresentation({ kind: 'analysis-progress', view: {
+    label, state, percent, cancel: state === 'running', accessibleLabel: 'Meal photo analysis progress',
+    detail: state === 'running' ? `Step ${Math.max(1, phase)} of 4 · ${analysisElapsed(startedAt)}${slowHint}` : state === 'success' ? 'Complete' : 'Stopped',
+  } });
 }
 
 export function startAnalysisProgress(button: HTMLElement | null | undefined, loadingLabel = 'Analyzing…') {
@@ -278,10 +255,8 @@ export function updateCorrectionState() {
     if (reviewDeps.getComponentIdentityDirty()) reasons.push('Ingredient list changed.');
     if (portionDirty) reasons.push('An ingredient amount changed without linked nutrient data.');
     if (contextDirty) reasons.push('Known details changed.');
-    if (nameDirty) reasons.push(`Meal name changed from “${escapeHTML(reviewDeps.getLastAnalyzedMealName())}”.`);
-    copy.innerHTML = dirty
-      ? `<strong>Estimate needs recalculation.</strong> ${reasons.join(' ')}`
-      : '<strong>Wrong identification?</strong> Edit the meal name or food list, then recalculate.';
+    if (nameDirty) reasons.push(`Meal name changed from “${String(reviewDeps.getLastAnalyzedMealName() ?? '')}”.`);
+    copy.innerHTML = renderPresentation({ kind: 'editor-feedback', view: { kind: 'correction', dirty, reasons: reasons.join(' ') } });
   }
   if (recalculate) recalculate.textContent = 'Recalculate estimate';
   if (recalculate) recalculate.disabled = running || !dirty || !name;
@@ -364,27 +339,10 @@ function setInputValue(id: string, value: unknown) {
   if (input && hasFiniteNumber(value)) input.value = String(value);
 }
 
-function componentReviewRead(item: ReviewComponentReader | null | undefined) {
-  const identity = item?.confidence == null ? 'Review identity' : 'Identity estimate';
-  const portion = hasFiniteNumber(item?.quantityG)
-    ? item?.portionReviewed ? 'Portion adjusted' : 'Check portion'
-    : 'Portion missing';
-  return { identity, portion };
-}
-
-function historicalFoodComposition(item: ReviewComponentReader | null | undefined) {
-  if (!item?.foodData?.fdcId) return '';
-  return `<div class="nutrition-component-food-data is-readonly"><span>Historical source</span><strong>${escapeHTML(item.foodData?.description || 'Saved food-composition record')}</strong><small>${escapeHTML(item.foodData?.dataset || 'Legacy database match')} · retained from the saved meal</small></div>`;
-}
-
 export function renderEditableComponents(components: unknown) {
   const area = document.getElementById('nutrition-components');
   if (!area) return;
-  const rows = (Array.isArray(components) ? components as Array<ReviewComponentReader> : []);
-  area.innerHTML = `<div class="nutrition-components-head"><div><strong>Ingredients and portions</strong><span>Changing grams updates linked nutrients.</span></div><button type="button" class="nutrition-text-btn" ${actionAttrs('add-component')}>+ Add ingredient</button></div>${rows.length ? `<div class="nutrition-component-editor"><div class="nutrition-component-columns" aria-hidden="true"><span>Ingredient</span><span>Amount</span><span>Check</span><span></span></div>${rows.map((item, index) => {
-    const review = componentReviewRead(item);
-    return `<div class="nutrition-component-row" data-component-index="${index}"><label class="nutrition-component-ingredient"><span class="sr-only">Ingredient ${index + 1}</span><input data-nutrition-component-name="${index}" value="${escapeAttr(item.name || '')}" maxlength="120" placeholder="Ingredient"></label><label class="nutrition-component-quantity"><span class="sr-only">Amount for ingredient ${index + 1}</span><span class="nutrition-component-amount"><input data-nutrition-component-grams="${index}" type="number" inputmode="decimal" min="0" step="1" value="${item.quantityG == null ? '' : escapeAttr(String(item.quantityG))}" aria-label="Amount in grams"><small>g</small></span></label><span class="nutrition-component-confidence"><strong>${escapeHTML(review.identity)}</strong><small>${escapeHTML(review.portion)}</small></span><button type="button" class="nutrition-icon-btn" aria-label="Remove ${escapeAttr(item.name || 'ingredient')}" ${actionAttrs('remove-component', { index })}>×</button>${historicalFoodComposition(item)}</div>`;
-  }).join('')}</div>` : '<div class="nutrition-empty nutrition-empty-inline">No ingredients yet. Add one or enter nutrient totals.</div>'}`;
+  area.innerHTML = renderPresentation({ kind: 'editable-ingredients', rows: projectEditableIngredients(components) });
 }
 
 function setNutrientSource(input: HTMLInputElement, key: string, label = '', title = '') {
@@ -453,50 +411,16 @@ export function renderNutrientEstimateSummary(result: unknown) {
 export function renderReviewEvidence(result: unknown) {
   const area = document.getElementById('nutrition-review-evidence');
   if (!area) return;
-  const sourceKind = (result as ReviewResultReader | null | undefined)?.source?.kind;
-  const source = sourceKind === 'barcode-database' ? 'Database values'
-    : sourceKind === 'ai-label-scan' ? 'Printed label'
-    : sourceKind === 'ai-photo-estimate' ? 'Photo estimate'
-    : sourceKind === 'reused-meal' ? 'Reviewed meal copy' : 'Manual values';
-  const components = (result as ReviewResultReader | null | undefined)?.analysis?.components || [];
-  const knownWeights = components.filter(item => hasFiniteNumber(item!.quantityG)).length;
-  const linked = components.filter(item => Object.keys(item!.nutrientsPer100g || {}).length).length;
-  const parts = [`${source}`, `${knownWeights}/${components.length || 0} portions quantified`];
-  if (linked) parts.push(`${linked}/${components.length} linked to component nutrients`);
-  const composition = (result as ReviewResultReader | null | undefined)?.source?.foodComposition;
-  if (sourceKind === 'ai-photo-estimate' && composition?.matchedComponents) {
-    parts.push(`historical database provenance retained for ${composition.matchedComponents}/${composition.totalComponents || components.length} ingredients`);
-  }
-  if (sourceKind === 'ai-photo-estimate') {
-    const aiNutrientCount = Array.isArray((result as ReviewResultReader | null | undefined)?.source?.aiNutritionEstimate?.nutrientKeys)
-      ? (result as ReviewResultReader).source!.aiNutritionEstimate!.nutrientKeys!.length : 0;
-    if (aiNutrientCount) parts.push(`${aiNutrientCount} model-estimated nutrients`);
-    parts.push('Uncalibrated identity self-check; verify foods');
-  }
-  const usage = nutritionUsageSummary((result as ReviewResultReader | null | undefined)?.source);
-  const model = (result as ReviewResultReader | null | undefined)?.source?.modelDisplay || (result as ReviewResultReader | null | undefined)?.source?.model || 'Selected model';
-  const usageLine = sourceKind === 'ai-photo-estimate' || sourceKind === 'ai-label-scan'
-    ? usage
-      ? `${model} · ${usage.costLabel} · ${usage.totalTokens.toLocaleString()} tokens (${usage.inputTokens.toLocaleString()} in · ${usage.outputTokens.toLocaleString()} out)`
-      : `${model} · provider did not report token usage`
-    : '';
   area.hidden = false;
-  area.innerHTML = `<strong>${escapeHTML(sourceKind === 'ai-photo-estimate' ? 'Photo estimate' : 'Nutrition source')}</strong><span>${escapeHTML(parts.join(' · '))}</span>${usageLine ? `<span class="nutrition-analysis-usage">${escapeHTML(usageLine)}</span>` : ''}`;
+  area.innerHTML = renderPresentation({ kind: 'editor-feedback', view: projectReviewEvidence(result as ReviewResultReader | null | undefined, nutritionUsageSummary((result as ReviewResultReader | null | undefined)?.source)) });
 }
 
 function renderReviewChecks(result: unknown) {
   const area = document.getElementById('nutrition-review-checks');
   if (!area) return;
-  const imageWarnings = ((result as ReviewResultReader | null | undefined)?.images || ((result as ReviewResultReader | null | undefined)?.image ? [(result as ReviewResultReader).image] : [])).flatMap(image => image?.qualityWarnings || []);
-  const assumptions = [...new Set((result as ReviewResultReader | null | undefined)?.analysis?.assumptions || [])];
-  const warnings = [...new Set([...((result as ReviewResultReader | null | undefined)?.analysis?.warnings || []), ...imageWarnings])];
-  if (!assumptions.length && !warnings.length) {
-    area.hidden = true;
-    area.innerHTML = '';
-    return;
-  }
-  area.hidden = false;
-  area.innerHTML = `<div class="nutrition-review-checks-head"><strong>Assumptions and uncertainties</strong></div>${assumptions.length ? `<div><small>Model assumed</small><ul>${assumptions.map(item => `<li>${escapeHTML(item)}</li>`).join('')}</ul></div>` : ''}${warnings.length ? `<div><small>Still uncertain</small><ul>${warnings.map(item => `<li>${escapeHTML(item)}</li>`).join('')}</ul></div>` : ''}`;
+  const view = projectReviewChecks(result as ReviewResultReader | null | undefined);
+  area.hidden = !view.assumptions.length && !view.warnings.length;
+  area.innerHTML = area.hidden ? '' : renderPresentation({ kind: 'editor-feedback', view });
 }
 
 export function applyAnalysis(result: unknown, { quiet = false } = {}) {

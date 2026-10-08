@@ -605,7 +605,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/nutrition-ai-settings.js',
   '/js/nutrition-analysis.js',
   '/js/nutrition-comparison.js',
-  '/js/nutrition-comparison-results.js', '/js/nutrition-comparison-results-model.js', '/js/nutrition-benchmark-model.js',
+  '/js/nutrition-comparison-results.js', '/js/nutrition-comparison-results-model.js', '/js/nutrition-benchmark-model.js', '/js/nutrition-editor-model.js', '/js/nutrition-editor-review-model.js',
   '/js/nutrition-comparison-ui.js',
   '/js/nutrition-benchmark-workspace.js',
   '/js/nutrition-review-ui.js',
