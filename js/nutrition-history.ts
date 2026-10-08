@@ -1,3 +1,4 @@
+import { routeRevision } from './route-lifecycle.js';
 // nutrition-history.js — on-demand, local-only nutrition history controller.
 
 import { getErrorMessage } from './caught-error.js';
@@ -6,10 +7,12 @@ import { isNutritionContextEnabled } from './lab-context-settings.js';
 import { openModalOverlay } from './modal-lifecycle.js';
 import { closeNutritionEditor } from './nutrition-modal-controller.js';
 import { hasSuspendedNutritionEditor } from './nutrition-editor-navigation.js';
-import { HISTORY_MEAL_PAGE_SIZE, renderNutritionHistoryModal, ensureNutritionStylesheet } from './nutrition-render.js';
+import { HISTORY_MEAL_PAGE_SIZE, buildNutritionHistoryView, ensureNutritionStylesheet } from './nutrition-render.js';
 import { buildNutritionHistoryAnalysisPrompt } from './nutrition-summary-context.js';
 import { computeNutritionHistory, NUTRITION_HISTORY_RANGES } from './nutrition-summary.js';
-import { listActiveProfileMeals } from './nutrition-store.js';
+import { listNutritionMeals } from './nutrition-store.js';
+import { state } from './state.js';
+import { mountNutritionHistory } from './nutrition-history-view.js';
 import { showNotification } from './utils.js';
 
 export interface NutritionHistoryOptions { view?: unknown; focus?: unknown; resetMeals?: unknown; preserveScroll?: unknown; returnTo?: unknown }
@@ -56,47 +59,54 @@ export async function openNutritionHistory(rangeKey: unknown = getNutritionHisto
   const selectedRange = setNutritionHistoryRange(rangeKey);
   const selectedView = setNutritionHistoryView(view);
   if (resetMeals) visibleMealCount = HISTORY_MEAL_PAGE_SIZE;
-  await ensureNutritionStylesheet();
   const modal = document.getElementById('detail-modal');
   const overlay = document.getElementById('modal-overlay');
   if (!modal || !overlay) return false;
+  const profile = state.currentProfile, data = state.importedData;
+  const content = modal.firstElementChild, route = routeRevision();
+  const shown = overlay.classList.contains('show');
+  const pending = () => generation === historyRequestGeneration && state.currentProfile === profile && state.importedData === data
+    && modal.firstElementChild === content && routeRevision() === route
+    && document.getElementById('detail-modal') === modal && document.getElementById('modal-overlay') === overlay
+    && overlay.classList.contains('show') === shown;
+  const stylesheet = await ensureNutritionStylesheet();
+  if (!pending()) return false;
+  if (stylesheet?.type === 'error') { showNotification('Nutrition styles could not be loaded. Try opening History again.', 'error'); return false; }
   const replacingOpenNutrition = overlay.classList.contains('show') && modal.classList.contains('nutrition-modal');
   if (Object.hasOwn(options, 'returnTo')) historyReturnTo = options.returnTo === 'editor' ? 'editor' : '';
   else if (!replacingOpenNutrition) historyReturnTo = '';
-  let meals: Awaited<ReturnType<typeof listActiveProfileMeals>> = [];
+  let meals: Awaited<ReturnType<typeof listNutritionMeals>> = [];
   let storageError = '';
   try {
-    meals = await listActiveProfileMeals({ limit: 10000 });
+    meals = await listNutritionMeals(profile, { limit: 10000 });
   } catch (error) {
     storageError = getErrorMessage(error, 'Nutrition history could not be read from encrypted storage.');
   }
-  if (generation !== historyRequestGeneration
-      || (replacingOpenNutrition
-        ? !overlay.classList.contains('show') || !modal.classList.contains('nutrition-modal')
-        : overlay.classList.contains('show'))) return false;
+  if (!pending()) return false;
   const history = {
     ...computeNutritionHistory(meals, { rangeKey: selectedRange }),
     view: selectedView,
     visibleMealCount,
   };
-  modal.innerHTML = renderNutritionHistoryModal(history, { storageError, returnTo: historyReturnTo });
+  const current = mountNutritionHistory(modal, overlay, buildNutritionHistoryView(history, { storageError, returnTo: historyReturnTo }));
   modal.scrollTop = preserveScroll ? previousScrollTop : 0;
   modal.classList.remove('nutrition-targets-modal', 'nutrition-fluid-modal', 'nutrition-manual-mode');
   modal.classList.add('nutrition-modal', 'nutrition-history-modal');
   if (historyReturnTo === 'editor' && hasSuspendedNutritionEditor()) overlay.setAttribute('data-modal-dismiss-protected', '');
   else overlay.removeAttribute('data-modal-dismiss-protected');
-  openModalOverlay(overlay, {
-    initialFocus: `[data-nutrition-action="set-history-view"][data-nutrition-view="${selectedView}"]`,
-    focusDelay: 30,
-  });
+  openModalOverlay(overlay, { autoFocus: false });
+  if (!preserveScroll) setTimeout(() => {
+    if (current()) modal.querySelector<HTMLElement>(`[data-nutrition-action="set-history-view"][data-nutrition-view="${selectedView}"]`)?.focus();
+  }, 30);
   if (preserveScroll) {
     setTimeout(() => {
+      if (!current()) return;
       modal.scrollTop = previousScrollTop;
       (modal.querySelector('.nutrition-history-more') as HTMLElement | null)?.focus({ preventScroll: true });
     }, 40);
   }
   if (focus === 'timing') {
-    setTimeout(() => document.querySelector('.nutrition-history-timing')?.scrollIntoView({ block: 'start' }), 40);
+    setTimeout(() => { if (current()) modal.querySelector('.nutrition-history-timing')?.scrollIntoView({ block: 'start' }); }, 40);
   }
   return true;
 }
@@ -116,8 +126,15 @@ export async function askAIAboutNutritionHistory(rangeKey: unknown) {
     showNotification('Enable Meals & Nutrition in Manage → Context before sharing this aggregate with AI.', 'info');
     return false;
   }
+  const profile = state.currentProfile, data = state.importedData, content = document.getElementById('detail-modal')?.firstElementChild;
+  const generation = historyRequestGeneration, route = routeRevision(), overlay = document.getElementById('modal-overlay');
+  const shown = !!overlay?.classList.contains('show');
+  const current = () => state.currentProfile === profile && state.importedData === data && generation === historyRequestGeneration && routeRevision() === route
+    && document.getElementById('detail-modal')?.firstElementChild === content && !!overlay?.classList.contains('show') === shown && isNutritionContextEnabled();
   try {
-    const history = (computeNutritionHistory as NutritionHistoryReader)(await listActiveProfileMeals({ limit: 10000 }), { rangeKey });
+    const meals = await listNutritionMeals(profile, { limit: 10000 });
+    if (!current()) return false;
+    const history = (computeNutritionHistory as NutritionHistoryReader)(meals, { rangeKey });
     const prompt = buildNutritionHistoryAnalysisPrompt(history);
     if (!prompt) {
       showNotification('There are no logged meals in this timeframe to analyze.', 'info');
@@ -127,8 +144,11 @@ export async function askAIAboutNutritionHistory(rangeKey: unknown) {
     await openDashboardChatPrompt(prompt);
     return true;
   } catch (error) {
+    if (!current()) return false;
     console.error('Nutrition history could not be prepared for chat', error);
     showNotification(getErrorMessage(error, 'Nutrition history could not be prepared for chat.'), 'error');
     return false;
   }
 }
+
+if (typeof globalThis.addEventListener === 'function') globalThis.addEventListener('labcharts-profile-switched', () => { ++historyRequestGeneration; });

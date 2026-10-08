@@ -218,8 +218,27 @@ the native template, suggestion HTML sinks and superseded medical styles are rem
 text, keyboard focus and scoped Tailwind. Their synchronous renderer preserves
 its trusted internal delegated-action attribute callback; the authored action slot
 is replaced at that boundary. Summary, timeframe and timing calculations remain
-unchanged. Native extension markup and CSS are removed. The meal editor,
-dashboard and history presentation remain separate nutrition migration work.
+unchanged. Native extension markup and CSS are removed.
+
+`NutritionHistory.svelte` owns the Meals timeline, range controls, Trends, coverage,
+timing and aggregate AI handoff. `nutrition-history-view.ts` mounts and retires the
+captured profile/data/modal owner; delayed stylesheet, storage and focus work cannot
+replace another surface. `route-lifecycle.ts` distinguishes real navigation from
+same-route DOM refreshes, so asynchronous Body rendering does not cancel a valid
+open. `nutrition-history.ts` retains range/view preferences and public navigation
+APIs. `nutrition-presentation-model.ts` projects display data
+without mutating stored meals or changing domain calculations. Shared authored meal
+rows, target rings, goal rows and fuel cards are used by History and the remaining
+nutrition renderers through one synchronous `NutritionPresentation.svelte` HTML
+entry. This preserves public render contracts without duplicate native templates.
+`css/nutrition.base.css` retains unmigrated editor/dashboard wrappers, while
+`css/nutrition.tailwind.css` provides scoped authored utilities at the unchanged
+lazy `css/nutrition.css` URL. Failed stylesheet attempts can be retried. Meal deletion
+checks its originating profile/modal after confirmation before starting a write.
+`nutrition-store.ts` completes canonical and encrypted cache commits and summary
+updates independently of the optional browser storage-persistence permission;
+`nutrition-storage-permission.ts` shares a pending request across meal writes.
+The rest of the meal editor and dashboard remains subsequent migration work.
 `context-notes-session.ts` captures accepted text and originating profile/data,
 serializes debounced scoped writes and retains retry drafts through catalog rebuilds
 and fresh profile reload objects. Failed idle sessions retain draft text without

@@ -1,3 +1,4 @@
+import { recordRouteChange } from './route-lifecycle.js';
 // views-router.js — route validation, route persistence, and scroll anchoring
 
 import { state } from './state.js';
@@ -88,6 +89,7 @@ export function createNavigate({ routeHandlers, syncMobileBottomNav, destroyAllC
     // viewport — they'd see a jump even though scrollY was technically
     // preserved.
     const sameView = routeCategory === state.currentView;
+    if (!sameView) recordRouteChange();
     let anchor: ScrollAnchor | null = null;
     // Track whether the caller explicitly requested an anchor — even if
     // the element isn't found, an explicit request means "don't fall

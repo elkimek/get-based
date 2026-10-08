@@ -1,3 +1,4 @@
+import { routeRevision } from './route-lifecycle.js';
 import { createRetryingStylesheetLoader, findStylesheet } from './retrying-module-loader.js';
 // nutrition-context.js — compact summary-only context for chat and source controls.
 
@@ -128,12 +129,22 @@ export async function openNutritionModule(navigate: unknown = null) {
 }
 
 export async function openNutritionHistoryModule({ view = 'meals', focus = '' }: {view?: unknown; focus?: unknown} = {}, navigate: unknown = null) {
+  const profile = state.currentProfile, data = state.importedData, route = state.currentView;
+  let revision = routeRevision();
+  const current = () => state.currentProfile === profile && state.importedData === data && routeRevision() === revision;
   try {
     const module = await loadNutritionFeature();
-    if (typeof navigate === 'function') (navigate as (category: string) => unknown)('body');
-    setTimeout(() => { void module.openNutritionHistoryView?.(view, { focus }); }, 0);
-    return true;
+    if (!current() || state.currentView !== route) return false;
+    if (typeof navigate === 'function') {
+      const navigation = (navigate as (category: string) => unknown)('body');
+      revision = routeRevision();
+      await navigation;
+      if (!current() || state.currentView !== 'body') return false;
+    }
+    if (!current()) return false;
+    return await module.openNutritionHistoryView(view, { focus });
   } catch (error) {
+    if (!current()) return false;
     console.error('Meals & Nutrition history could not be loaded', error);
     showNotification('Meals & Nutrition history could not be loaded. Try again.', 'error');
     return false;

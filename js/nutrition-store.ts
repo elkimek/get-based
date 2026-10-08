@@ -31,6 +31,8 @@ import { computeNutritionSummary, mergeNutritionOperationSurface, NUTRITION_SUMM
 import { getDailyRange } from './wearables-store.js';
 import { clearTombstone, recordTombstone } from './data-merge.js';
 import { sanitizeNutritionMeal } from './nutrition-sync-sanitize.js';
+import { requestPersistentNutritionStorage } from './nutrition-storage-permission.js';
+export { requestPersistentNutritionStorage } from './nutrition-storage-permission.js';
 
 export { sanitizeNutritionMeal } from './nutrition-sync-sanitize.js';
 
@@ -373,15 +375,6 @@ export async function getLocalNutritionComparison(profileId: unknown) {
   const encrypted = await readMeta(profileId, COMPARISON_META);
   if (!encrypted) return null;
   return decryptPayload(profileId, encrypted as MealEnvelope);
-}
-
-export async function requestPersistentNutritionStorage() {
-  try {
-    if (typeof globalThis.navigator?.storage?.persist !== 'function') return false;
-    return await globalThis.navigator.storage.persist();
-  } catch {
-    return false;
-  }
 }
 
 export async function deleteNutritionDB(profileId: unknown): Promise<void> {
@@ -754,7 +747,9 @@ async function saveProfileMeal(profileId: string, importedData: NutritionProfile
   if (committedMeal) await putNutritionMeal(profileId, committedMeal, { preserveUpdatedAt: true });
   else await deleteNutritionMeal(profileId, saved.id);
   await writeMeta(profileId, PROFILE_SYNC_INITIALIZED_META, true);
-  await requestPersistentNutritionStorage();
+  // Canonical and encrypted IndexedDB commits above determine save success.
+  // Optional eviction protection must not hold the save queue or summary open.
+  void requestPersistentNutritionStorage();
   await recomputeActiveSummary(profileId, persistedData);
   return committedMeal || saved;
 }

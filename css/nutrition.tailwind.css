@@ -1,0 +1,9 @@
+/* Authored nutrition views share scoped utilities without resetting legacy forms. */
+@import "tailwindcss/theme.css" layer(gb-theme) prefix(gb);
+@import "tailwindcss/utilities.css" prefix(gb) source(none);
+@import "./ui-tokens.tailwind.css";
+@source "../js/components/Nutrition*.svelte";
+@source "../js/nutrition-view-classes.ts";
+@source "../js/nutrition-history-view.ts";
+@custom-variant nutrition (&:is([data-nutrition-view], [data-nutrition-view] *));
+@custom-variant nutrition-modal (&[data-nutrition-history-modal]);

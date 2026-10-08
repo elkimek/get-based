@@ -90,7 +90,7 @@ function closeContextCardModal() {
   closeContextCardModalRuntime();
 }
 function navigateContextCardView(category: Parameters<typeof navigateContextCardViewRuntime>[0]) {
-  navigateContextCardViewRuntime(category);
+  return navigateContextCardViewRuntime(category);
 }
 function refreshCurrentContextCardView() {
   const activeNav = (document.querySelector<HTMLElement>('.nav-item.active'));

@@ -98,6 +98,11 @@ its existing lazy URL. The shared health-context catalog is authored in
 and `js/context-card-catalog-classes.ts` for its scoped utilities.
 `css/context-profile.base.css` retains the remaining context/editor styles;
 `css/context-profile.css` is generated at its existing eager URL.
+Nutrition History and its shared meal, target and fuel displays are authored in
+`js/components/NutritionHistory.svelte` and the shared `Nutrition*.svelte` components.
+Edit `css/nutrition.tailwind.css` and `js/nutrition-view-classes.ts` for their scoped
+utilities; `css/nutrition.base.css` retains the remaining native nutrition styles.
+The build generates `css/nutrition.css` at its unchanged lazy URL.
 Run `npm run styles:build` after styling edits;
 `npm run styles:check` verifies the bundle. The standard TypeScript build,
 prepare, development, test and production commands also compile these styles

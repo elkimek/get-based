@@ -1952,3 +1952,14 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 
 /js/components/ContextNutritionLink.svelte.html.js
 /js/components/ContextNutritionLink.svelte.html.js.map
+
+# Authored nutrition presentation outputs
+/css/nutrition.css
+/js/nutrition-presentation-model.js
+/js/nutrition-view-classes.js
+/js/nutrition-history-view.js
+/js/nutrition-storage-permission.js
+/js/components/NutritionPresentation.svelte.html.js
+/js/components/NutritionPresentation.svelte.html.js.map
+
+/js/route-lifecycle.js

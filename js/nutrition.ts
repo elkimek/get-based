@@ -1,3 +1,4 @@
+import { state } from './state.js';
 import type { ComponentOperations, SourceOperations, AnalysisOperations, MealOperations, ImageOperations, NutritionEditorOptions, RequestLifecycleReader } from '../types/nutrition-controller.js';
 import { PHOTO_NUTRIENT_KEYS } from './nutrition-analysis.js';
 import { deleteActiveProfileMeal, getActiveProfileMeal, saveActiveProfileMeal } from './nutrition-store.js';
@@ -609,15 +610,21 @@ async function saveMeal() {
 }
 
 async function deleteMeal(id: string, origin = 'history') {
-  if (!id || !await showConfirmDialog('Delete this meal and its thumbnail from synced devices?')) return;
+  const profile = state.currentProfile, data = state.importedData;
+  const content = document.getElementById('detail-modal')?.firstElementChild;
+  const overlay = document.getElementById('modal-overlay');
+  const current = () => state.currentProfile === profile && state.importedData === data
+    && document.getElementById('detail-modal')?.firstElementChild === content && !!overlay?.classList.contains('show');
+  if (!id || !await showConfirmDialog('Delete this meal and its thumbnail from synced devices?') || !current()) return;
   try {
     await deleteActiveProfileMeal(id);
+    if (state.currentProfile !== profile || document.getElementById('detail-modal')?.firstElementChild !== content || !overlay?.classList.contains('show')) return;
     refreshWidget();
     if (origin === 'history') await openNutritionHistory(getNutritionHistoryRange(), { view: 'meals' });
     else await openNutritionEditor();
     showNotification('Meal deletion queued for sync.', 'info');
   } catch (error) {
-    showNotification(getErrorMessage(error, 'Meal could not be deleted.'), 'error');
+    if (state.currentProfile === profile) showNotification(getErrorMessage(error, 'Meal could not be deleted.'), 'error');
   }
 }
 
