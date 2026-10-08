@@ -1,0 +1,26 @@
+<script lang="ts">
+  import type { ActiveSessionView } from '../light-active-session-presentation.js';
+  import LightLiveReadouts from './LightLiveReadouts.svelte';
+  import LightSessionChips from './LightSessionChips.svelte';
+  import LightSessionControls from './LightSessionControls.svelte';
+  let { view }: { view: ActiveSessionView } = $props();
+  const head = 'sun-session-head gb:light-active:flex gb:light-active:flex-wrap gb:light-active:items-center gb:light-active:gap-2 gb:light-active:min-w-0 gb:light-active:w-full gb:light-active:text-left gb:light-active:font-body gb:light-active:bg-transparent gb:light-active:text-ink gb:light-active:p-0 gb:light-active:border-0 gb:light-active:min-h-[45px]';
+  const badge = 'sun-session-paused gb:light-active:inline-flex gb:light-active:items-center gb:light-active:rounded-full gb:light-active:border gb:light-active:border-line gb:light-active:bg-secondary-surface gb:light-active:px-2 gb:light-active:py-0.5 gb:light-active:text-[11px] gb:light-active:text-secondary';
+</script>
+{#snippet heading()}
+  <span class="light-session-icon gb:light-active:inline-flex gb:light-active:items-center gb:light-active:justify-center gb:light-active:size-[30px] gb:light-active:shrink-0 gb:light-active:rounded-full gb:light-active:border gb:light-active:border-line gb:light-active:text-base" aria-hidden="true">{view.kind === 'sun' ? '☀' : '🔴'}</span>
+  <span class="sun-session-date gb:light-active:font-semibold gb:light-active:wrap-anywhere">{view.date}</span>
+  <span class="sun-session-duration gb:light-active:text-secondary gb:light-active:text-[13px] gb:light-active:tabular-nums" data-live-elapsed-for={view.kind === 'device' ? view.id : undefined} aria-live="off">{view.elapsed}</span>
+  {#if view.kind === 'device' || view.paused}<span class={badge} title={view.kind === 'device' ? 'Live device-therapy session' : 'Dose and active-duration accrual are paused.'}>{view.kind === 'device' ? 'LIVE' : '⏸ paused'}</span>{/if}
+{/snippet}
+<section class={`sun-session sun-session-active light-session-row light-session-${view.kind} gb:light-active:relative gb:light-active:w-full gb:light-active:min-w-0 gb:light-active:max-w-full gb:light-active:rounded-[var(--radius)] gb:light-active:border gb:light-active:border-line gb:light-active:bg-surface gb:light-active:p-4 gb:light-active:shadow-[var(--shadow)] gb:light-active:max-[480px]:p-3 ${view.kind === 'sun' ? 'gb:light-active:[--session-accent:var(--yellow)]' : 'gb:light-active:[--session-accent:var(--red)]'} gb:light-active:[border-left:3px_solid_var(--session-accent)] gb:light-active:in-[.light-active-session-pinned]:border-2 gb:light-active:in-[.light-active-session-pinned]:border-accent gb:light-active:in-[.light-active-session-pinned]:shadow-[0_4px_20px_color-mix(in_srgb,var(--accent)_22%,transparent)]`} data-light-active-presentation data-id={view.id} data-sun-session-action={view.kind === 'sun' ? 'open-detail' : undefined} data-sun-session-id={view.kind === 'sun' ? view.id : undefined} aria-label={view.kind === 'sun' ? view.ariaLabel : 'Active device session'}>
+  <span aria-hidden="true" class="gb:light-active:hidden gb:light-active:in-[.light-active-session-pinned]:block gb:light-active:absolute gb:light-active:-top-2.5 gb:light-active:left-3.5 gb:light-active:text-[10px] gb:light-active:font-bold gb:light-active:uppercase gb:light-active:tracking-wide gb:light-active:px-2 gb:light-active:py-0.5 gb:light-active:rounded-full gb:light-active:bg-accent gb:light-active:text-on-accent">Live</span>
+  {#if view.kind === 'sun'}
+    <button type="button" class={`${head} gb:light-active:cursor-pointer gb:light-active:focus-visible:outline-2 gb:light-active:focus-visible:outline-accent`} aria-label={view.ariaLabel} data-sun-session-action="open-detail" data-sun-session-id={view.id}>{@render heading()}</button>
+  {:else}<div class={head}>{@render heading()}</div>{/if}
+  <div class="sun-session-meta gb:light-active:text-xs gb:light-active:text-secondary gb:light-active:mt-1.5 gb:light-active:leading-normal gb:light-active:wrap-anywhere">{view.body}{#if view.kind === 'sun'}{' · '}{#if view.directEye}<span class="sun-eye-warn" title="Never look directly at the sun">⚠</span>{' '}{/if}{view.eyes}{view.suffix}{/if}</div>
+  {#if view.kind === 'sun'}<LightLiveReadouts readouts={view.readouts}/>{/if}
+  {#if view.forgotHours !== null}<button type="button" class="sun-session-forgot gb:light-active:block gb:light-active:w-full gb:light-active:min-h-[45px] gb:light-active:my-2 gb:light-active:px-3 gb:light-active:py-2 gb:light-active:border gb:light-active:border-warning gb:light-active:rounded-control gb:light-active:bg-[var(--yellow-bg)] gb:light-active:text-ink gb:light-active:text-xs gb:light-active:font-body gb:light-active:text-left gb:light-active:leading-normal gb:light-active:cursor-pointer gb:light-active:focus-visible:outline-2 gb:light-active:focus-visible:outline-accent" data-sun-session-action="forgot-stop" data-sun-session-id={view.id}>⚠ This session has been running for {view.forgotHours}h. Tap to end it.</button>{/if}
+  <LightSessionControls {view}/>
+  {#if view.chips !== null}<LightSessionChips chips={view.chips}/>{/if}
+</section>

@@ -1136,7 +1136,7 @@ Space keydown cannot retire the button before keyup. Device-mode radios use
 roving focus and arrow/Home/End keys, while distance units use pressed buttons.
 Entering a UV mode still requires fresh UV-goggle confirmation, with the same
 conservative duration default and save/start validation. Scoped Tailwind shares
-the ordered Light stylesheet; native active/setup/illustration styles remain
+the ordered Light stylesheet; native setup/illustration styles remain
 restricted to their owning children.
 
 `LightSessionDetail.svelte` owns one rich Sun/device detail layout, shared
@@ -1150,10 +1150,36 @@ escaping. Saved specification links still pass the device controller's HTTP URL
 validator. Device channel keydown ignores native buttons, allowing the browser's
 single generated click to own activation and modal dismissal.
 `DeviceSessionModeForm.svelte` retains the existing coupling-filtered options and
-save handler; the canonical device-session store recomputes doses. Native active
-cards, live readouts, setup forms and body-silhouette rendering remain separate
-owners. Shared native section/disclosure rules remain for Conditions and device
-setup; exclusive detail layout rules are removed.
+save handler; the canonical device-session store recomputes doses. Native setup
+forms and body-silhouette rendering remain separate owners. Shared native
+section/disclosure rules remain for Conditions and device setup; exclusive detail
+layout rules are removed.
+
+`LightActiveSession.svelte` and `LightSessionControls.svelte` own active Sun and
+therapy-device cards. The Sun card exposes a native detail button separately
+from its controls; action attributes and the existing delegates retain ownership.
+`LightLiveReadouts.svelte` and `LightSessionChips.svelte` also render synchronous
+fragments for the existing 1Hz ticker. `light-active-session-presentation.ts`
+formats already calculated values and literal metadata; integration, paused-time
+accounting, IU conversion, safety alerts and stored session writes stay in the
+existing Sun/device services. Live patches preserve the readout container and
+control nodes, chip expansion and the focused chip/toggle across replacements.
+The authored chips show the original first three signals by default. Their
+expanded state uses the existing delegate and scoped Tailwind utilities. Active
+controls keep visible labels and minimum 45px targets at narrow widths. Obsolete
+active-card/readout/chip styles and native templates are removed; setup,
+illustration and session-AI styles retain their separate ownership.
+
+The Sun store persists the last `resumedAt` boundary. Cold-client recovery restores
+committed dose/SED/ocular totals from saved exposure slices, and starts fresh
+integration at that boundary rather than replaying the original session start.
+Paused reopening displays those saved totals without requesting weather. Legacy
+records with accumulated pause time and no resume boundary retain saved totals
+and start a new slice at recovery time; no unknown paused span is treated as
+exposure. Manual duration edits retire the resume boundary with the timed slices.
+Completed hydration continues to sum modeled slices; the stop clock separately
+excludes completed/current pauses. Integration formulas and safety thresholds
+remain in their existing services.
 
 Settings and Tweaks are loaded through `settings-loader.js` on their first
 shell, startup deep-link, or feature action. Theme-owned accent initialization

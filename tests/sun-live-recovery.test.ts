@@ -9,7 +9,7 @@ vi.mock('../js/sun-body-silhouette.js', () => ({ BODY_REGIONS: [], renderBodySil
 import { state } from '../js/state.js';
 import * as active from '../js/sun-active-session.js';
 const deferred = () => { let resolve: ((value?: unknown) => void) | undefined, reject: ((reason?: unknown) => void) | undefined; const promise = new Promise<unknown>((yes, no) => { resolve = yes as (value?: unknown) => void; reject = no; }); return { promise, resolve, reject }; };
-type LiveSessionFixture = {id: string; startedAt: number; location: {lat: number; lon: number} | null; bodyExposure: {fraction: number}; endedAt?: unknown; paused?: boolean; updatedAt?: unknown};
+type LiveSessionFixture = {id: string; startedAt: number; location: {lat: number; lon: number} | null; bodyExposure: {fraction: number}; endedAt?: unknown; paused?: boolean; pausedAt?: number; resumedAt?: number; accumulatedPausedMs?: number; exposureSegments?: unknown[]; updatedAt?: unknown};
 type LiveDepsFixture = {getSessions: () => LiveSessionFixture[]; getActiveSession: () => LiveSessionFixture | undefined; getSunCoords: () => unknown; fetchAtmosphere: Mock<() => Promise<unknown>>; applyAtmOverrides: (a: unknown) => unknown; reconstructSpectrum: Mock<() => object>; computeChannelDoses: Mock<() => {vitamin_d: number}>; erythemalSED: () => number; fractionOfMED: () => number; solarZenithAngle: () => number; ocularActinicUVdose: () => number; saveImportedData: Mock<() => Promise<unknown>>; hydrateSession: Mock<() => Promise<unknown>>; renderLightChannelsLive: Mock<() => void>};
 let session: LiveSessionFixture, sessions: LiveSessionFixture[], deps: LiveDepsFixture;
 beforeEach(() => {
@@ -93,10 +93,10 @@ it('a paused session resumes with a fresh request after discarding pending weath
   session.paused = false; await vi.advanceTimersByTimeAsync(1000);
   expect(deps.fetchAtmosphere).toHaveBeenCalledTimes(2); expect((active.liveDosesFor(session)! as {atm: {uvIndex?: unknown}}).atm.uvIndex).toBe(3);
 });
-it.each(['location', 'bodyExposure', 'updatedAt', 'sunDefaults'])('rejects live weather after in-place synchronized %s changes', async field => {
+it.each(['location', 'bodyExposure', 'updatedAt', 'resumedAt', 'sunDefaults'])('rejects live weather after in-place synchronized %s changes', async field => {
   const wait = deferred(); deps.fetchAtmosphere.mockReturnValue(wait.promise); active.ensureActiveTicker();
   if (field === 'sunDefaults') state.importedData.sunDefaults = { fitzpatrick: 'VI' };
-  else (session as Record<string, unknown>)[field] = { location: { lat: 1, lon: 2 }, bodyExposure: { fraction: 0.8 }, updatedAt: 1234 }[field as 'location' | 'bodyExposure' | 'updatedAt'];
+  else (session as Record<string, unknown>)[field] = { location: { lat: 1, lon: 2 }, bodyExposure: { fraction: 0.8 }, updatedAt: 1234, resumedAt: 990000 }[field as 'location' | 'bodyExposure' | 'updatedAt' | 'resumedAt'];
   wait.resolve!({ uvIndex: 99 }); await vi.advanceTimersByTimeAsync(0);
   expect(deps.computeChannelDoses).not.toHaveBeenCalled();
 });
@@ -115,4 +115,31 @@ it('an explicitly installed live rate supersedes pending weather and preserves p
   expect(active.liveDosesFor(session)).toMatchObject({ paused: true, doses: { vitamin_d: 4 }, retinalUV: 2 });
   session.paused = false; wait.resolve!({ uvIndex: 99 }); await vi.advanceTimersByTimeAsync(0);
   expect((active.liveDosesFor(session)! as {atm: {uvIndex?: unknown}}).atm.uvIndex).toBe(3);
+});
+
+it('recovers committed doses after reopening a paused session without requesting weather', () => {
+  session.startedAt = 700000; session.paused = true; session.pausedAt = 820000;
+  session.exposureSegments = [{ startedAt: 700000, endedAt: 820000, durationMin: 2, doses: { vitamin_d: 4 }, sed: 1, ocularActinicUV: 2, atmosphere: { uvIndex: 3 } }];
+  active.ensureActiveTicker();
+  expect(active.liveDosesFor(session)).toMatchObject({ paused: true, doses: { vitamin_d: 4 }, sed: 1, retinalUV: 2, atm: { uvIndex: 3 } });
+  expect(deps.fetchAtmosphere).not.toHaveBeenCalled();
+});
+it('recovers a cold resumed session at its resume boundary without replaying committed or paused exposure', async () => {
+  session.startedAt = 700000; session.resumedAt = 980000; session.accumulatedPausedMs = 160000;
+  session.exposureSegments = [{ startedAt: 700000, endedAt: 820000, durationMin: 2, doses: { vitamin_d: 4 }, sed: 1, ocularActinicUV: 2 }];
+  active.ensureActiveTicker(); await vi.advanceTimersByTimeAsync(0);
+  expect(Number(active.liveDosesFor(session)!.doses.vitamin_d)).toBeCloseTo(4 + 2 / 3, 10);
+  const segment = active.commitSunLiveSlice(session)!;
+  expect(segment).toMatchObject({ startedAt: 980000, endedAt: 1000000 });
+  expect(segment.durationMin).toBeCloseTo(1 / 3, 10);
+  expect(Number(active.liveDosesFor(session)!.doses.vitamin_d)).toBeCloseTo(4 + 2 / 3, 10);
+});
+it('avoids inventing a resume boundary for legacy records with only accumulated pause time', async () => {
+  session.startedAt = 700000; session.accumulatedPausedMs = 160000;
+  session.exposureSegments = [{ startedAt: 700000, endedAt: 820000, durationMin: 2, doses: { vitamin_d: 4 } }];
+  active.ensureActiveTicker(); await vi.advanceTimersByTimeAsync(0);
+  expect(active.liveDosesFor(session)!.doses.vitamin_d).toBe(4);
+  expect(active.commitSunLiveSlice(session)).toBeNull();
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(active.commitSunLiveSlice(session)).toMatchObject({ startedAt: 1000000, endedAt: 1001000 });
 });

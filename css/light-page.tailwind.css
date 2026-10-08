@@ -22,3 +22,9 @@
 @source "../js/components/LightSessionDetail.svelte";
 @source "../js/components/LightSessionDetailFields.svelte";
 @source "../js/components/DeviceSessionModeForm.svelte";
+
+@custom-variant light-active (&:is([data-light-active-presentation], [data-light-active-presentation] *));
+@source "../js/components/LightActiveSession.svelte";
+@source "../js/components/LightSessionControls.svelte";
+@source "../js/components/LightLiveReadouts.svelte";
+@source "../js/components/LightSessionChips.svelte";

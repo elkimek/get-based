@@ -460,20 +460,11 @@ export function renderActiveDeviceSessionCard() {
       ? (sess.eyesProtected ? 'eyes shielded' : 'eyes open to ambient light')
       : (sess.eyesProtected ? 'eye shielding logged' : 'eyes outside the beam');
   const elapsedText = _formatElapsedMs(Date.now() - sess.startedAt);
-  return `<section class="sun-session sun-session-active light-session-device" data-id="${escapeAttr(sess.id)}">
-    <div class="sun-session-head">
-      <span class="light-session-icon" aria-hidden="true">🔴</span>
-      <span class="sun-session-date">Active · ${escapeHTML(devName)}</span>
-      <span class="sun-session-duration" data-live-elapsed-for="${escapeAttr(sess.id)}" aria-live="off">${escapeHTML(elapsedText)}</span>
-      <span class="sun-session-paused" title="Live device-therapy session">LIVE</span>
-    </div>
-    <div class="sun-session-meta">${escapeHTML(distLine)}${distLine && areaLine ? ' · ' : ''}${escapeHTML(areaLine)}${areaLine ? ' · ' : ''}${escapeHTML(eyesLine)}</div>
-    <div class="sun-session-active-controls" data-light-devices-action="suppress">
-      <div class="sun-session-ctl-primary">
-        <button type="button" class="sun-session-ctl sun-session-ctl-stop" data-light-devices-action="stop-device-session" data-light-device-session-id="${escapeAttr(sess.id)}" title="Stop and save the session"><span aria-hidden="true">⏹</span> <span class="sun-session-ctl-label">Stop &amp; save</span></button>
-      </div>
-    </div>
-  </section>`;
+  return renderHTML({ kind: 'active', view: {
+    kind: 'device', id: sess.id, date: `Active · ${devName}`, elapsed: elapsedText, ariaLabel: 'Active device session',
+    body: `${distLine}${distLine && areaLine ? ' · ' : ''}${areaLine}${areaLine ? ' · ' : ''}${eyesLine}`,
+    eyes: '', directEye: false, suffix: '', paused: false, rotated: false, forgotHours: null, readouts: [], chips: null,
+  } });
 }
 
 let _devActiveTicker: ReturnType<typeof setInterval> | null = null;

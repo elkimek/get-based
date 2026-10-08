@@ -8,7 +8,7 @@ import * as store from '../js/sun-sessions-store.js';
 const deferred = () => { let resolve: ((value?: unknown) => void) | undefined, reject: ((reason?: unknown) => void) | undefined; const promise = new Promise<unknown>((yes, no) => { resolve = yes as (value?: unknown) => void; reject = no; }); return { promise, resolve, reject }; };
 const record = (patch: Partial<SessionFixture> = {}): SessionFixture => ({ id: 'sun-a', startedAt: 100000, endedAt: 700000, durationMin: 10, location: { lat: 50, lon: 14 }, bodyExposure: { fraction: 0.1 }, eyeExposure: { mode: 'direct', durationSec: 600 }, ...patch });
 type SaveMockFixture = {mockResolvedValueOnce(value?: unknown): SaveMockFixture;mockRejectedValueOnce(value: unknown): SaveMockFixture;mockReturnValueOnce(value: unknown): SaveMockFixture;mockResolvedValue(value?: unknown): SaveMockFixture;mockClear(): SaveMockFixture};
-type SessionFixture = {id: string; startedAt: unknown; endedAt?: number | null; durationMin: number; location: {lat: number; lon: number} | null; bodyExposure?: {fraction?: number; sunscreenSPF?: number | null; glassBetween?: boolean; regions?: string[]} | null; eyeExposure?: {mode: string; durationSec?: number | null}; atmosphere?: {uvIndex?: unknown} | null; doses?: Record<string, number> | null; safety?: {sed?: number; ocularActinicUV?: number} | null; exposureSegments?: unknown[]; paused?: boolean; pausedAt?: number | null; accumulatedPausedMs?: number; engineVersion?: unknown; calculationStatus?: string; _activeRate?: unknown; _activeRatePending?: boolean; _fractionOfMED?: number; notes?: unknown; aiAnalysis?: unknown; updatedAt?: unknown;};
+type SessionFixture = {id: string; startedAt: unknown; endedAt?: number | null; durationMin: number; location: {lat: number; lon: number} | null; bodyExposure?: {fraction?: number; sunscreenSPF?: number | null; glassBetween?: boolean; regions?: string[]} | null; eyeExposure?: {mode: string; durationSec?: number | null}; atmosphere?: {uvIndex?: unknown} | null; doses?: Record<string, number> | null; safety?: {sed?: number; ocularActinicUV?: number} | null; exposureSegments?: unknown[]; paused?: boolean; pausedAt?: number | null; resumedAt?: number; accumulatedPausedMs?: number; engineVersion?: unknown; calculationStatus?: string; _activeRate?: unknown; _activeRatePending?: boolean; _fractionOfMED?: number; notes?: unknown; aiAnalysis?: unknown; updatedAt?: unknown;};
 type SessionDepsFixture = {fetchAtmosphere: Mock<() => Promise<unknown>>; reconstructSpectrum: Mock<() => object>; computeChannelDoses: Mock<(options: {durationMin: number; eyeExposure: {mode: string}}) => {vitamin_d: number}>; erythemalSED: Mock<() => number>; fractionOfMED: Mock<() => number>; retinalUVdose: Mock<(options: {eyeExposure: {mode: string}}) => number>; solarZenithAngle: Mock<() => number>; maybeAnalyzeSessionAfterFinish: Mock<() => unknown>; commitCurrentSlice: Mock<() => void>; clearLiveState: Mock<() => void>; setLiveState: Mock<() => void>};
 let session: SessionFixture, deps: SessionDepsFixture;
 beforeEach(() => {
@@ -144,7 +144,7 @@ it('stale recovery continues after one record fails', async () => {
 });
 it('pause and resume exclude paused time when stopping', async () => {
   session.endedAt = null; session.startedAt = Date.now(); session.eyeExposure!.durationSec = null;
-  vi.setSystemTime(1060000); await store.pauseSession(session.id); vi.setSystemTime(1180000); await store.resumeSession(session.id); vi.setSystemTime(1240000); await store.stopSession(session.id);
+  vi.setSystemTime(1060000); await store.pauseSession(session.id); vi.setSystemTime(1180000); await store.resumeSession(session.id); expect(session.resumedAt).toBe(1180000); vi.setSystemTime(1240000); await store.stopSession(session.id);
   expect(session.durationMin).toBe(2); expect(session.eyeExposure!.durationSec).toBe(120); expect(session.accumulatedPausedMs).toBe(120000); expect(deps.commitCurrentSlice).toHaveBeenCalledTimes(2);
 });
 it('stopping while paused accounts for the final pause without committing another slice', async () => {
@@ -171,8 +171,8 @@ it('notes edits preserve computed dose inputs and immutable identity', async () 
   expect(session.id).toBe('sun-a'); expect(session.startedAt).toBe(100000); expect(session.doses).toEqual({ vitamin_d: 10 }); expect(deps.fetchAtmosphere).not.toHaveBeenCalled();
 });
 it('an end-time edit clears timed segments and updates eye duration before calculation', async () => {
-  session.exposureSegments = [{ durationMin: 1 }]; session.aiAnalysis = 'old'; session.engineVersion = 1;
-  await store.updateSession(session.id, { endedAt: 1300000 }); expect(session.durationMin).toBe(20); expect(session.eyeExposure!.durationSec).toBe(1200); expect(session.exposureSegments).toEqual([]); expect(session.aiAnalysis).toBeUndefined();
+  session.exposureSegments = [{ durationMin: 1 }]; session.resumedAt = 1100000; session.aiAnalysis = 'old'; session.engineVersion = 1;
+  await store.updateSession(session.id, { endedAt: 1300000 }); expect(session.durationMin).toBe(20); expect(session.eyeExposure!.durationSec).toBe(1200); expect(session.exposureSegments).toEqual([]); expect(session.resumedAt).toBeUndefined(); expect(session.aiAnalysis).toBeUndefined();
 });
 it.each(['startSession', 'stopSession', 'pauseSession', 'markSessionRotated', 'deleteSession', 'updateSession', 'hydrateSession'])('%s reports a false persistence result instead of success', async method => {
   (saveImportedData as unknown as SaveMockFixture).mockResolvedValue(false);

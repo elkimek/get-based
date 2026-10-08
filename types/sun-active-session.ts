@@ -8,7 +8,7 @@ import type { SunStopSummaryOptions } from '../js/sun-active-session-format.js';
 
 // Private views of the original unchecked callback and arithmetic operations.
 // Configuration and persisted inputs are not validated by these annotations.
-export interface SessionOperations extends Pick<SunSessionRecord, 'id' | 'startedAt' | 'endedAt' | 'durationMin' | 'updatedAt' | 'bodyExposure' | 'eyeExposure' | 'posture' | 'surfaceAlbedo' | 'safety' | 'doses' | 'paused' | 'pausedAt' | 'accumulatedPausedMs'> {
+export interface SessionOperations extends Pick<SunSessionRecord, 'id' | 'startedAt' | 'endedAt' | 'durationMin' | 'updatedAt' | 'bodyExposure' | 'eyeExposure' | 'posture' | 'surfaceAlbedo' | 'safety' | 'doses' | 'paused' | 'pausedAt' | 'resumedAt' | 'accumulatedPausedMs'> {
   location?: {lat?: number | undefined; lon?: number | undefined; altitudeM?: number; source?: unknown} | null;
   atmosphere?: AtmosphereOperations | null; exposureSegments?: unknown[];
 }

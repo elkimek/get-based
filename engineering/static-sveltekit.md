@@ -391,4 +391,14 @@ controllers and stores own calculations, coupling and mutations. Static Light
 acceptance opens saved Sun details with the origin disabled and edits a real
 device session from NIR to red, checking recalculated doses, unrelated data,
 offline cold launches and exact backup equality. This extends local evidence;
-remaining active/session setup owners and installed-PWA acceptance stay separate.
+remaining session setup owners and installed-PWA acceptance stay separate.
+
+Active Sun/device cards, live readouts and channel chips use authored Svelte and
+scoped Tailwind, while the existing timer services retain integration and alert
+ownership. The [active-session workflow](../tests/pwa/sveltekit-light-active.spec.ts)
+starts both real timers offline, pauses Sun exposure, closes the client with both
+sessions active, resumes/stops through native keyboard actions, and verifies
+precise paused-time accounting, device doses, unrelated profile equality, two
+saved-session cold launches and exact backup equality. External providers are
+blocked and AI is paused; this is static local acceptance, not live-weather or
+installed-PWA evidence.

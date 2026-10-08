@@ -6,6 +6,9 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 
 const uiSrc = readRepositorySource('js/sun-session-ui.js', 'utf8');
 const detailSrc = readRepositorySource('js/components/LightSessionDetail.svelte', 'utf8');
+const activeSrc = readRepositorySource('js/components/LightActiveSession.svelte', 'utf8');
+const controlsSrc = readRepositorySource('js/components/LightSessionControls.svelte', 'utf8');
+const chipsSrc = readRepositorySource('js/components/LightSessionChips.svelte', 'utf8');
 const actionSrc = readRepositorySource('js/sun-session-actions.js', 'utf8');
 const sunSrc = readRepositorySource('js/sun.js', 'utf8');
 const sunAiSrc = readRepositorySource('js/sun-ai-analysis.js', 'utf8');
@@ -23,7 +26,7 @@ console.log('=== Sun Session UI Delegated Actions ===');
 const inlineHandlerRe = /\bon(?:click|keydown|submit|change|input)=/;
 
 assert('sun-session-ui renders no inline event attributes',
-  !inlineHandlerRe.test(uiSrc) && !inlineHandlerRe.test(detailSrc));
+  !inlineHandlerRe.test(uiSrc) && !inlineHandlerRe.test(detailSrc) && !inlineHandlerRe.test(activeSrc + controlsSrc + chipsSrc));
 assert('sun-session-actions defines one shared action attribute helper',
   (actionSrc.match(/\bfunction\s+sunSessionActionAttrs\b/g) || []).length === 1 &&
     actionSrc.includes('data-sun-session-action=') &&
@@ -130,18 +133,17 @@ assert('sun.js configures active sun-session delegated actions',
 });
 
 [
-  "sunSessionActionAttrs('open-detail', { id: sess.id })",
-  "sunSessionActionAttrs('delete-session', { id: sess.id })",
-  "sunSessionActionAttrs('quick-log-sun')",
-  'sunSessionActionAttrs(pauseAction, { id: sess.id })',
-  "sunSessionActionAttrs('flip-sides', { id: sess.id })",
-  "sunSessionActionAttrs('change-coverage', { id: sess.id })",
-  "sunSessionActionAttrs('apply-sunscreen', { id: sess.id })",
-  "sunSessionActionAttrs('forgot-stop', { id: sess.id })",
-  "sunSessionActionAttrs('toggle-chips', { hiddenCount })",
-].forEach(renderedAction => {
-  assert(`sun-session-ui renders ${renderedAction}`,
-    uiSrc.includes(renderedAction));
+  ['active detail', activeSrc, 'data-sun-session-action="open-detail" data-sun-session-id={view.id}'],
+  ['quick log', controlsSrc, "data-sun-session-action={view.kind === 'sun' ? 'quick-log-sun' : undefined}"],
+  ['pause and resume', controlsSrc, "data-sun-session-action={view.paused ? 'resume-session' : 'pause-session'} data-sun-session-id={view.id}"],
+  ['side change', controlsSrc, "data-sun-session-action={view.rotated ? undefined : 'flip-sides'} data-sun-session-id={view.rotated ? undefined : view.id}"],
+  ['coverage', controlsSrc, 'data-sun-session-action="change-coverage" data-sun-session-id={view.id}'],
+  ['sunscreen', controlsSrc, 'data-sun-session-action="apply-sunscreen" data-sun-session-id={view.id}'],
+  ['ozone', controlsSrc, 'data-sun-session-action="override-ozone"'],
+  ['forgot stop', activeSrc, 'data-sun-session-action="forgot-stop" data-sun-session-id={view.id}'],
+  ['channel expansion', chipsSrc, 'data-sun-session-action="toggle-chips" data-sun-session-hidden-count={chips.length - 3}'],
+].forEach(([name, source, contract]) => {
+  assert(`authored active session retains delegated ${name}`, source!.includes(contract!));
 });
 
 assert('authored Sun detail channel buttons retain channel-scoped delegated actions',

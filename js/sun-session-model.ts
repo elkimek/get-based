@@ -17,7 +17,7 @@ export interface SunSessionExposureInput {
 }
 type SessionInputField = 'id' | 'updatedAt' | 'startedAt' | 'endedAt' | 'durationMin' | 'location'
   | 'bodyExposure' | 'eyeExposure' | 'posture' | 'surfaceAlbedo' | 'exposureSegments'
-  | 'accumulatedPausedMs' | 'paused' | 'pausedAt';
+  | 'accumulatedPausedMs' | 'paused' | 'pausedAt' | 'resumedAt';
 export type SunSessionInputSnapshot = Partial<Record<SessionInputField, unknown>>;
 export interface SunSessionProfileSnapshot { sunDefaults?: unknown; lightCircadian?: { skinType?: unknown } | null }
 
@@ -119,7 +119,7 @@ export function sunSessionInputKey(
   return JSON.stringify([
     ...(['id', 'updatedAt', 'startedAt', 'endedAt', 'durationMin', 'location',
       'bodyExposure', 'eyeExposure', 'posture', 'surfaceAlbedo', 'exposureSegments',
-      'accumulatedPausedMs', 'paused', 'pausedAt'] as const).map(key => session[key]),
+      'accumulatedPausedMs', 'paused', 'pausedAt', 'resumedAt'] as const).map(key => session[key]),
     data?.sunDefaults, data?.lightCircadian?.skinType,
   ]);
 }

@@ -44,7 +44,7 @@ export interface SunSessionRecord extends Omit<SunSessionExposureInput, 'bodyExp
   atmosphere?: SessionAtmosphere | null; doses?: SessionDoses | null;
   safety?: Partial<ReturnType<typeof sessionSafety>> | null;
   exposureSegments?: ExposureSegment[]; accumulatedPausedMs?: number;
-  paused?: boolean; pausedAt?: number; engineVersion?: number; calculationStatus?: string;
+  paused?: boolean; pausedAt?: number; resumedAt?: number; engineVersion?: number; calculationStatus?: string;
   notes?: string; aiAnalysis?: unknown;
   [key: string]: unknown;
   _activeRate?: unknown; _activeRatePending?: unknown; _fractionOfMED?: unknown;
@@ -267,6 +267,7 @@ export async function resumeSession(id: string) {
   sess.accumulatedPausedMs = (sess.accumulatedPausedMs || 0)
     + Math.max(0, now - (sess.pausedAt || now));
   sess.paused = false;
+  sess.resumedAt = now;
   delete sess.pausedAt;
   await persistSessionChanges();
   return sess;
@@ -380,6 +381,7 @@ export async function updateSession(id: string, patch: SessionPatch) {
     // instead of silently retaining segment totals for the old duration.
     sess.exposureSegments = [];
     sess.accumulatedPausedMs = 0;
+    delete sess.resumedAt;
     // Duration is an input to every modeled light and safety value. Never
     // persist the edited time beside estimates derived from the old time,
     // even briefly: the network-backed recalculation may be slow or fail.

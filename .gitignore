@@ -2059,3 +2059,14 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /js/components/LightSessionDetailFields.svelte.native.js.map
 /js/components/DeviceSessionModeForm.svelte.native.js
 /js/components/DeviceSessionModeForm.svelte.native.js.map
+
+/js/light-active-session-presentation.js
+/tests/light-active-session-presentation.test.js
+/js/components/LightActiveSession.svelte.native.js
+/js/components/LightActiveSession.svelte.native.js.map
+/js/components/LightSessionControls.svelte.native.js
+/js/components/LightSessionControls.svelte.native.js.map
+/js/components/LightLiveReadouts.svelte.native.js
+/js/components/LightLiveReadouts.svelte.native.js.map
+/js/components/LightSessionChips.svelte.native.js
+/js/components/LightSessionChips.svelte.native.js.map

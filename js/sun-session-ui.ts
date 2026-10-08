@@ -1,16 +1,17 @@
 // sun-session-ui.js — UI rendering/editing for saved sun sessions.
 
-import type { SessionReader, SessionCalls, DoseReader, ChipRow, OptionOperations } from '../types/sun-session-ui.js';
+import type { SessionReader, SessionCalls, DoseReader, OptionOperations } from '../types/sun-session-ui.js';
 
 import { renderHTML } from './components/LightSessionPresentation.svelte.html.js';
 import { detailField, detailChannel, sessionCalculationNotice, type SessionDetailField } from './light-session-detail-presentation.js';
+import { activeSunSessionView, sessionChannelChip, type SessionChannelChip } from './light-active-session-presentation.js';
 import { projectCompletedSunSession } from './light-session-presentation.js';
 
 import { state } from './state.js';
-import { bindDetachedModalSyncRefresh, escapeHTML, escapeAttr, formatDate, showNotification, showPromptDialog, showConfirmDialog } from './utils.js';
+import { bindDetachedModalSyncRefresh, formatDate, showNotification, showPromptDialog, showConfirmDialog } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { BODY_REGIONS } from './sun-body-silhouette.js';
-import { installSunSessionActionDelegates, sunSessionActionAttrs } from './sun-session-actions.js';
+import { installSunSessionActionDelegates } from './sun-session-actions.js';
 import { bindPastSessionDurationHint, bindPastSessionRegionPicker, renderPastSessionLogModal } from './sun-session-log-modal.js';
 
 const uiDeps: SessionCalls = {
@@ -120,79 +121,10 @@ export function renderSunSessionRow(sess: SessionReader) {
   const now = Date.now();
   const currentPauseMs = sess.paused && Number.isFinite(sess.pausedAt) ? Math.max(0, now - (sess.pausedAt as number)) : 0;
   const activeElapsedMs = Math.max(0, now - (sess.startedAt as number) - ((sess.accumulatedPausedMs || 0) as number) - currentPauseMs);
-  const completedDurationMin = resolvedSessionDurationMin(sess);
-  const dur = isActive
-    ? uiDeps.formatElapsed(activeElapsedMs)
-    : (completedDurationMin != null ? `${Math.round(completedDurationMin)} min` : 'duration unavailable');
-  const med = sess.safety?.medFraction as number | null | undefined;
-  let medStr = '';
-  if (med != null) {
-    const pct = Math.round(med * 100);
-    let label = 'low modeled dose', cls = '';
-    if (med >= 1) { label = 'over threshold'; cls = 'over'; }
-    else if (med >= 0.7) { label = 'high'; cls = 'warn'; }
-    else if (med >= 0.3) { label = 'moderate'; cls = ''; }
-    const medicationCaution = sess.safety?.medicationThresholdUnknown ? ' Medication effects are not included.' : '';
-    const skinAssumption = sess.safety?.fitzpatrickAssumed ? ' Conservative Type I is assumed because skin type was unset.' : '';
-    medStr = `<span class="sun-session-med ${cls}" title="Base skin-type burn dose: ${pct}% of Fitzpatrick ${escapeAttr(sess.safety!.fitzpatrick || 'I')} MED.${escapeAttr(skinAssumption + medicationCaution)}">Base burn dose: ${escapeHTML(label)}${(skinAssumption || medicationCaution) ? ' ⚠' : ''}</span>`;
-  }
-  const channelChips = renderChannelChips(sess.doses, sess);
-  const liveReadouts = isActive
-    ? `<div class="sun-session-live-readouts" aria-label="Live session estimates">
-        <span class="sun-session-vitd sun-session-vitd-idle"><strong>☀ Vitamin D estimate</strong><span>Calculating…</span></span>
-        ${medStr}
-      </div>`
-    : '';
-  // Active-session controls own their delegated actions so tapping them
-  // does not fall through to the row-level open-detail action.
-  let activeControls = '';
-  if (isActive) {
-    const isPaused = !!sess.paused;
-    const pauseAction = isPaused ? 'resume-session' : 'pause-session';
-    const isRotated = !!sess.bodyExposure?.rotatedSides;
-    const flipBtn = isRotated
-      ? `<button type="button" class="sun-session-ctl" disabled title="Side-change timing recorded; it does not multiply the dose." aria-label="Side change recorded"><span aria-hidden="true">🔄</span> <span class="sun-session-ctl-label">Changed ✓</span></button>`
-      : `<button type="button" class="sun-session-ctl" ${sunSessionActionAttrs('flip-sides', { id: sess.id })} title="Record the time you turn over. This closes the current exposure slice without multiplying dose; use Coverage if different skin becomes exposed." aria-label="Record side change"><span aria-hidden="true">🔄</span> <span class="sun-session-ctl-label">Side change</span></button>`;
-    activeControls = `<div class="sun-session-active-controls" ${sunSessionActionAttrs('ignore')}>
-      <div class="sun-session-ctl-primary">
-        <button type="button" class="sun-session-ctl sun-session-ctl-stop" ${sunSessionActionAttrs('quick-log-sun')} title="Stop and save the current session"><span aria-hidden="true">⏹</span> <span class="sun-session-ctl-label">Stop &amp; save</span></button>
-        <button type="button" class="sun-session-ctl" ${sunSessionActionAttrs(pauseAction, { id: sess.id })} title="${isPaused ? 'Resume dose accrual' : 'Pause dose accrual (shade break, indoors)'}" aria-label="${isPaused ? 'Resume' : 'Pause'} session"><span aria-hidden="true">${isPaused ? '▶' : '⏸'}</span> <span class="sun-session-ctl-label">${isPaused ? 'Resume' : 'Pause'}</span></button>
-      </div>
-      <div class="sun-session-ctl-secondary">
-        ${flipBtn}
-        <button type="button" class="sun-session-ctl" ${sunSessionActionAttrs('change-coverage', { id: sess.id })} title="Dressed or undressed — opens the body-region picker, commits the dose accrued so far, applies the new coverage from this moment forward" aria-label="Change coverage"><span aria-hidden="true">👕</span> <span class="sun-session-ctl-label">Coverage</span></button>
-        <button type="button" class="sun-session-ctl" ${sunSessionActionAttrs('apply-sunscreen', { id: sess.id })} title="Record sunscreen reapplication and start a new channel-dose slice. The burn gauge does not credit entered SPF as guaranteed extra safe time." aria-label="Reapply sunscreen"><span aria-hidden="true">🧴</span> <span class="sun-session-ctl-label">Sunscreen</span></button>
-        <button type="button" class="sun-session-ctl" ${sunSessionActionAttrs('override-ozone')} title="Calibrate ozone column from a meter / weather station" aria-label="Override ozone"><span aria-hidden="true">🛰</span> <span class="sun-session-ctl-label">Ozone</span></button>
-      </div>
-    </div>`;
-  }
-  const pausedBadge = isActive && sess.paused ? `<span class="sun-session-paused" title="Dose and active-duration accrual are paused.">⏸ paused</span>` : '';
-  const calculationBadge = !isActive && sess.calculationStatus && sess.calculationStatus !== 'computed'
-    ? `<span class="sun-session-paused" title="This session has no computed dose yet.">⚠ ${escapeHTML(sess.calculationStatus === 'needs-location' ? 'location needed' : 'calculation pending')}</span>`
-    : '';
-  const forgotBanner = isActive && (Date.now() - (sess.startedAt as number) > 12 * 3600 * 1000)
-    ? `<div class="sun-session-forgot" ${sunSessionActionAttrs('forgot-stop', { id: sess.id })} role="button" tabindex="0">⚠ This session has been running for ${Math.round((Date.now() - (sess.startedAt as number)) / 3600000)}h. Tap to end it.</div>`
-    : '';
-  // Click anywhere on the card (except nested delegated controls) to open
-  // the detail modal. Specific controls declare their own data action.
-  return `<div class="sun-session light-session-row light-session-sun" data-id="${escapeAttr(sess.id)}" role="button" tabindex="0" aria-label="Open ${start} session details" ${sunSessionActionAttrs('open-detail', { id: sess.id })}>
-    <div class="sun-session-head">
-      <span class="light-session-icon" aria-hidden="true">☀</span>
-      <span class="sun-session-date">${start}</span>
-      <span class="sun-session-duration"${isActive ? ' aria-live="off"' : ''}>${dur}</span>
-      ${pausedBadge}
-      ${calculationBadge}
-      ${isActive ? '' : medStr}
-      ${isActive ? '' : `<button type="button" class="sun-session-delete" ${sunSessionActionAttrs('delete-session', { id: sess.id })} title="Delete session" aria-label="Delete session">×</button>`}
-    </div>
-    <div class="sun-session-meta">
-      ${escapeHTML(uiDeps.summarizeBodyExposure(sess))} · ${sess.eyeExposure?.mode === 'direct' ? `<span class="sun-eye-warn" title="Never look directly at the sun">⚠</span> ` : ''}${escapeHTML(eyeLabels[sess.eyeExposure?.mode as string] || 'Eyes unset')}${sess.bodyExposure?.glassBetween ? ' · through glass' : ''}${sess.bodyExposure?.sunscreenSPF ? ` · SPF ${sess.bodyExposure.sunscreenSPF}` : ''}
-    </div>
-    ${liveReadouts}
-    ${forgotBanner}
-    ${activeControls}
-    ${channelChips}
-  </div>`;
+  const elapsed = uiDeps.formatElapsed(activeElapsedMs);
+  const chips = sessionChannelChipViews(sess.doses, sess);
+  return renderHTML({ kind: 'active', view: activeSunSessionView(sess, start, elapsed,
+    uiDeps.summarizeBodyExposure(sess), eyeLabels[sess.eyeExposure?.mode as string], chips, now) });
 }
 
 export function renderSessionsList() {
@@ -438,43 +370,17 @@ function _sessionChipValue(channelKey: string, channelAu: unknown, sess: Session
   return '';
 }
 
-export function renderChannelChips(doses: DoseReader | null | undefined, sess: SessionReader | null = null) {
-  if (!doses) return '';
+function sessionChannelChipViews(doses: DoseReader | null | undefined, sess: SessionReader | null): SessionChannelChip[] | null {
+  if (!doses) return null;
   const order = ['vitamin_d', 'pomc', 'no_cv', 'violet_eye', 'circadian', 'nir_solar'];
-  // Top-3 contributing channels for at-a-glance reading. Full grid lives on
-  // the Light & Sun page; per-row noise is what the v1.7.0a UX review flagged.
-  const logged = order
-    .map(key => ({ key, v: doses[key] || 0 }))
-    .filter(row => Number.isFinite(row.v) && (row.v as number) > 0) as ChipRow[];
-  const showAll = logged.length > 3;
-  const visible = showAll ? logged.slice(0, 3) : logged;
-  const chipFor = (r: ChipRow, extraClass = '') => {
-    const meta = uiDeps.channelDisplay[r.key];
-    const label = meta?.label || r.key.replace('_', ' ');
-    const valueStr = _sessionChipValue(r.key, r.v, sess);
-    const tip = valueStr
-      ? `${meta?.what || ''} — this session: ${valueStr}. Open channel details.`
-      : `${meta?.what || ''} — sunlight signal logged. Open channel details.`;
-    const ariaLabel = `${label}${valueStr ? `, this session ${valueStr}` : ', sunlight signal logged'}. Open channel details.`;
-    return `<button type="button" class="sun-chip sun-chip-tier-2${extraClass}" data-channel="${r.key}" ${sunSessionActionAttrs('open-channel', { channel: r.key })} title="${escapeAttr(tip)}" aria-label="${escapeAttr(ariaLabel)}">
-      <span class="sun-chip-icon">${meta?.icon || '·'}</span>
-      <span class="sun-chip-label">${escapeHTML(label)}</span>
-      ${valueStr ? `<span class="sun-chip-value">${escapeHTML(valueStr)}</span>` : ''}
-    </button>`;
-  };
-  let html = `<div class="sun-channel-chips">`;
-  for (const r of visible) html += chipFor(r);
-  if (showAll) {
-    const hiddenCount = logged.length - 3;
-    const channelWord = hiddenCount === 1 ? 'channel' : 'channels';
-    html += `<button type="button" class="sun-chip-more" ${sunSessionActionAttrs('toggle-chips', { hiddenCount })} aria-expanded="false" aria-label="Show ${hiddenCount} additional light ${channelWord}">
-      <span class="sun-chip-more-collapsed">+ ${hiddenCount} more ${channelWord}</span>
-      <span class="sun-chip-more-expanded">Show fewer</span>
-    </button>`;
-    for (const r of logged.slice(3)) html += chipFor(r, ' sun-chip-extra');
-  }
-  html += `</div>`;
-  return html;
+  return order.map(key => ({ key, value: doses[key] || 0 }))
+    .filter(row => Number.isFinite(row.value) && (row.value as number) > 0)
+    .map(row => sessionChannelChip(row.key, uiDeps.channelDisplay[row.key], _sessionChipValue(row.key, row.value, sess)));
+}
+
+export function renderChannelChips(doses: DoseReader | null | undefined, sess: SessionReader | null = null) {
+  const chips = sessionChannelChipViews(doses, sess);
+  return chips === null ? '' : renderHTML({ kind: 'channel-chips', chips });
 }
 
 // ─── UI: detailed session log (anatomical regions + sunscreen + glass) ─

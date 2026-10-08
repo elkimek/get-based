@@ -1,0 +1,21 @@
+<script lang="ts">
+  import type { ActiveSessionView } from '../light-active-session-presentation.js';
+  let { view }: { view: ActiveSessionView } = $props();
+  const group = 'gb:light-active:flex gb:light-active:flex-wrap gb:light-active:gap-1.5';
+  const base = 'sun-session-ctl gb:light-active:inline-flex gb:light-active:items-center gb:light-active:justify-center gb:light-active:gap-1 gb:light-active:min-h-[45px] gb:light-active:min-w-[45px] gb:light-active:px-2.5 gb:light-active:py-1 gb:light-active:border gb:light-active:border-line gb:light-active:rounded-full gb:light-active:text-[11px] gb:light-active:font-body gb:light-active:cursor-pointer gb:light-active:hover:border-accent gb:light-active:focus-visible:outline-2 gb:light-active:focus-visible:outline-accent gb:light-active:disabled:cursor-default';
+  const control = base + ' gb:light-active:bg-secondary-surface gb:light-active:text-ink';
+</script>
+<div class="sun-session-active-controls gb:light-active:flex gb:light-active:flex-wrap gb:light-active:gap-x-3 gb:light-active:gap-y-2 gb:light-active:mt-2 gb:light-active:mb-1" data-sun-session-action={view.kind === 'sun' ? 'ignore' : undefined} data-light-devices-action={view.kind === 'device' ? 'suppress' : undefined}>
+  <div class={`sun-session-ctl-primary ${group}`}>
+    <button type="button" class={`${base} sun-session-ctl-stop gb:light-active:bg-accent gb:light-active:text-on-accent gb:light-active:border-accent gb:light-active:font-semibold`} data-sun-session-action={view.kind === 'sun' ? 'quick-log-sun' : undefined} data-light-devices-action={view.kind === 'device' ? 'stop-device-session' : undefined} data-light-device-session-id={view.kind === 'device' ? view.id : undefined} title={view.kind === 'sun' ? 'Stop and save the current session' : 'Stop and save the session'}><span aria-hidden="true">⏹</span><span class="sun-session-ctl-label">Stop &amp; save</span></button>
+    {#if view.kind === 'sun'}<button type="button" class={control} data-sun-session-action={view.paused ? 'resume-session' : 'pause-session'} data-sun-session-id={view.id} title={view.paused ? 'Resume dose accrual' : 'Pause dose accrual (shade break, indoors)'} aria-label={`${view.paused ? 'Resume' : 'Pause'} session`}><span aria-hidden="true">{view.paused ? '▶' : '⏸'}</span><span class="sun-session-ctl-label">{view.paused ? 'Resume' : 'Pause'}</span></button>{/if}
+  </div>
+  {#if view.kind === 'sun'}
+    <div class={`sun-session-ctl-secondary ${group} gb:light-active:pl-2 gb:light-active:border-l gb:light-active:border-line gb:light-active:max-[480px]:pl-0 gb:light-active:max-[480px]:border-l-0`}>
+      <button type="button" class={control} disabled={view.rotated} data-sun-session-action={view.rotated ? undefined : 'flip-sides'} data-sun-session-id={view.rotated ? undefined : view.id} title={view.rotated ? 'Side-change timing recorded; it does not multiply the dose.' : 'Record the time you turn over. This closes the current exposure slice without multiplying dose; use Coverage if different skin becomes exposed.'} aria-label={view.rotated ? 'Side change recorded' : 'Record side change'}><span aria-hidden="true">🔄</span><span class="sun-session-ctl-label">{view.rotated ? 'Changed ✓' : 'Side change'}</span></button>
+      <button type="button" class={control} data-sun-session-action="change-coverage" data-sun-session-id={view.id} title="Dressed or undressed — opens the body-region picker, commits the dose accrued so far, applies the new coverage from this moment forward" aria-label="Change coverage"><span aria-hidden="true">👕</span><span class="sun-session-ctl-label">Coverage</span></button>
+      <button type="button" class={control} data-sun-session-action="apply-sunscreen" data-sun-session-id={view.id} title="Record sunscreen reapplication and start a new channel-dose slice. The burn gauge does not credit entered SPF as guaranteed extra safe time." aria-label="Reapply sunscreen"><span aria-hidden="true">🧴</span><span class="sun-session-ctl-label">Sunscreen</span></button>
+      <button type="button" class={control} data-sun-session-action="override-ozone" title="Calibrate ozone column from a meter / weather station" aria-label="Override ozone"><span aria-hidden="true">🛰</span><span class="sun-session-ctl-label">Ozone</span></button>
+    </div>
+  {/if}
+</div>

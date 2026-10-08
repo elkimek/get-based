@@ -15,7 +15,7 @@ npm run dev-server
 
 Open `http://localhost:8000/app`. The root URL may serve the sibling `get-based-site` landing page when that repository is present.
 
-Prerequisites: a modern browser (Chrome or Firefox) and Node.js 24. `npm ci` installs dependencies and compiles the TypeScript sources; `npm run dev-server` recompiles them before starting the server. Edit the authored `.ts` and `.mts` files, or `.svelte` components in the Display pilot. When running a Node entry point or Playwright directly after editing, first run `npm run typescript:build`. An AI provider key or a local Ollama instance is optional — only needed for PDF import and chat.
+Prerequisites: a modern browser (Chrome or Firefox) and Node.js 24. `npm ci` installs dependencies and compiles the TypeScript sources; `npm run dev-server` recompiles them before starting the server. Edit the authored `.ts` and `.mts` files, and authored `.svelte` components. When running a Node entry point or Playwright directly after editing, first run `npm run typescript:build`. An AI provider key or a local Ollama instance is optional — only needed for PDF import and chat.
 
 ---
 
