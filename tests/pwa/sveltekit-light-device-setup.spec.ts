@@ -29,7 +29,7 @@ function seed({defaults}:{defaults:ProfileData}) {
 }
 async function profile(page:Page) { return await page.evaluate(readComparisonAcceptanceProfile) as ProfileData; }
 async function openPresetDialog(page:Page) {
-  await page.locator('.light-page .light-devices-section').getByRole('button',{name:'+ Add device',exact:true}).click();
+  await page.locator('.light-page [data-widget-id="light-devices"]').getByRole('button',{name:/^(?:\+ )?Add device$/}).click();
   const dialog=page.getByRole('dialog',{name:'Add light device',exact:true});
   await expect(dialog).toHaveAttribute('data-light-device-setup','');
   await expect(dialog).toBeVisible();
