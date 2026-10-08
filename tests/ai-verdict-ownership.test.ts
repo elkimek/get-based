@@ -1,13 +1,18 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import type { ProfileData } from '../types/app-state.js';
+import { rebaseLiveProfileData, adoptProfileData, rememberProfileData, profileDataBaseline } from '../js/profile-data-writes.js';
 import type { AIVerdictAnalysis } from '../js/ai-verdict-engine.js';
+type Row = { id: string; analysis: AIVerdictAnalysis | null };
+type FixtureRoot = { label: string; analysis: AIVerdictAnalysis | null; rows?: Row[] };
+const root = (data: ProfileData) => data as unknown as FixtureRoot;
 const fixture = vi.hoisted(() => ({
-  state: { currentProfile: 'a', importedData: { label: 'A', analysis: null as AIVerdictAnalysis | null } },
+  state: { currentProfile: 'a', importedData: { label: 'A', analysis: null } as FixtureRoot },
   call: vi.fn(), save: vi.fn(), refresh: vi.fn(), push: vi.fn(),
 }));
 vi.mock('../js/state.js', () => ({ state: fixture.state }));
 vi.mock('../js/ai-feature-routing.js', () => ({ hasAssistantFeatureProvider: () => true, callAssistantFeatureAI: fixture.call }));
-vi.mock('../js/data.js', () => ({ saveImportedData: fixture.save }));
+vi.mock('../js/data.js', () => ({ saveImportedDataForProfile: fixture.save, notifyProfileDataContextChanged: () => {} }));
 vi.mock('../js/sync.js', () => ({ isSyncEnabled: () => true, pushCurrentProfile: fixture.push }));
 vi.mock('../js/ai-verdict-engine-runtime.js', () => ({
   dispatchAIVerdictUpdatedRuntime: () => {}, getAIVerdictConcurrencyCapRuntime: () => 1,
@@ -21,8 +26,8 @@ function engine() {
   const singleton = { id: 'default' };
   return { singleton, engine: createAIVerdict({
     getTarget: () => singleton, getId: target => target.id,
-    getAIAnalysis: () => fixture.state.importedData.analysis,
-    setAIAnalysis: (_, value) => { fixture.state.importedData.analysis = value; },
+    getAIAnalysis: (_, data) => root(data).analysis,
+    setAIAnalysis: (_, value, data) => { root(data).analysis = value; },
     getFingerprint: () => fixture.state.importedData.label,
     buildContext: () => fixture.state.importedData.label,
     systemPrompt: 'Return a verdict', autoFireRetryDelaysMs: [40],
@@ -30,7 +35,14 @@ function engine() {
 }
 beforeEach(() => {
   fixture.state.currentProfile = 'a'; fixture.state.importedData = { label: 'A', analysis: null };
-  fixture.call.mockReset(); fixture.save.mockReset().mockResolvedValue(true);
+  fixture.call.mockReset(); fixture.save.mockReset().mockImplementation(async (profile: string, draft: ProfileData, options: { baseData: ProfileData }) => {
+    if (fixture.state.currentProfile === profile) {
+      const live = fixture.state.importedData;
+      const result = rebaseLiveProfileData(profileDataBaseline(live) || options.baseData, live, draft);
+      adoptProfileData(live, result.data); rememberProfileData(live, result.baseline);
+    }
+    rememberProfileData(draft); return true;
+  });
   fixture.push.mockReset().mockResolvedValue(undefined); fixture.refresh.mockReset();
 });
 afterEach(() => { vi.useRealTimers(); expect(getAIVerdictSlotsDebug()).toMatchObject({ active: 0, waiting: 0 }); });
@@ -112,17 +124,17 @@ it('captures queued context together with its fingerprint before the first async
   expect(value?.fingerprint).toBe('A');
 });
 it('applies a row verdict to its current record and never revives a deleted target', async () => {
-  type Row = { id: string; analysis: AIVerdictAnalysis | null };
   let row: Row | null = { id: 'row', analysis: null };
-  const owner = createAIVerdict<Row>({ getTarget: () => row, getId: value => value.id,
+  fixture.state.importedData.rows = [row];
+  const owner = createAIVerdict<Row>({ getTarget: (id, data) => root(data).rows?.find(value => value.id === id), getId: value => value.id,
     getAIAnalysis: value => value.analysis, setAIAnalysis: (value, analysis) => { value.analysis = analysis; },
     getFingerprint: () => 'same', buildContext: () => 'Record facts', systemPrompt: 'Return a verdict' });
   const original = row, response = gate<string>(); fixture.call.mockReturnValueOnce(response.promise);
   const pending = owner.analyze(row); await vi.waitFor(() => expect(fixture.call).toHaveBeenCalledTimes(1));
-  row = { id: 'row', analysis: null }; response.resolve(verdict()); await pending;
+  row = { id: 'row', analysis: null }; fixture.state.importedData.rows = [row]; response.resolve(verdict()); await pending;
   expect(original.analysis).toBeNull(); expect(row.analysis?.tip).toBe('A result');
   const deletedResponse = gate<string>(); fixture.call.mockReturnValueOnce(deletedResponse.promise);
   const deleted = owner.analyze(row, { force: true }); await vi.waitFor(() => expect(fixture.call).toHaveBeenCalledTimes(2));
-  row = null; fixture.save.mockClear(); deletedResponse.resolve(verdict()); expect(await deleted).toBeNull();
+  row = null; fixture.state.importedData.rows = []; fixture.save.mockClear(); deletedResponse.resolve(verdict()); expect(await deleted).toBeNull();
   expect(fixture.save).not.toHaveBeenCalled();
 });

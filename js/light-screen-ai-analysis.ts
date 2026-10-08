@@ -1,3 +1,4 @@
+import type { ProfileData } from '../types/app-state.js';
 // light-screen-ai-analysis.js — per-screen AI verdict for the Light
 // Environment screens (phone, tablet, laptop, monitor, TV, e-reader).
 //
@@ -20,7 +21,6 @@ import type { AIVerdictAnalysis } from './ai-verdict-engine.js';
 
 export interface AIScreen extends LightScreen { id: string; aiAnalysis?: AIVerdictAnalysis | null; }
 
-function _getScreens() { return (state.importedData?.lightEnvironment?.screens || []) as AIScreen[]; }
 function _getRooms() { return (state.importedData?.lightEnvironment?.rooms || []) as LightRoom[]; }
 function _getRoomFor(s: LightScreen) {
   if (!s?.roomId) return null;
@@ -110,8 +110,10 @@ const SYSTEM_PROMPT = [
   'No "you should" — be observational. No emoji.',
 ].join('\n');
 
+function _getScreens(data: ProfileData = state.importedData) { return (data?.lightEnvironment?.screens || []) as AIScreen[]; }
+
 const engine = createAIVerdict<AIScreen>({
-  getTarget: (id) => _getScreens().find(s => s.id === id),
+  getTarget: (id, data) => _getScreens(data).find(s => s.id === id),
   getId: (s) => s?.id,
   getAIAnalysis: (s) => s?.aiAnalysis || null,
   setAIAnalysis: (s, v) => { if (v == null) delete s.aiAnalysis; else s.aiAnalysis = v; },

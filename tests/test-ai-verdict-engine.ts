@@ -1,3 +1,4 @@
+import type { ProfileData } from '../types/app-state.js';
 import type { AIVerdictConfig, AIVerdictAnalysis } from '../js/ai-verdict-engine.js';
 interface FixtureTarget { id: string }
 type FixtureAnalysis = AIVerdictAnalysis & { extraField?: unknown };
@@ -77,21 +78,37 @@ return (async function () {
   } catch (e) { threw = true; }
   assert('createAIVerdict throws when getAIAnalysis missing', threw);
 
+  const { state } = await import('../js/state.js');
+  const { saveImportedData } = await import('../js/data.js');
+  let sequence = 0;
+  function fixtureStore() {
+    const prefix = `engine-fixture-${++sequence}:`;
+    const values = (data: ProfileData = state.importedData) => data.lightDailyVerdicts ||= {};
+    return {
+      get(id: string, data?: ProfileData) { return values(data)[prefix + id] as FixtureAnalysis | undefined; },
+      set(id: string, value: FixtureAnalysis, data?: ProfileData) { values(data)[prefix + id] = value; },
+      delete(id: string, data?: ProfileData) { delete values(data)[prefix + id]; },
+      has(id: string) { return Object.hasOwn(values(), prefix + id); },
+      entries(data?: ProfileData) { return Object.entries(values(data)).filter(([key]) => key.startsWith(prefix)).map(([key,value]) => [key.slice(prefix.length),value] as const); },
+      get size() { return this.entries().length; },
+    };
+  }
+
   // Minimal valid config
   function makeMinimalEngine(opts: Partial<AIVerdictConfig<FixtureTarget>> = {}) {
-    const store = new Map<string, FixtureAnalysis>(); // id → analysis object
+    const store = fixtureStore(); // id → analysis object
     return {
       store,
       engine: createAIVerdict(Object.assign({
         getTarget: (id: string) => ({ id }),
         getId: (t: FixtureTarget) => t?.id,
-        getAIAnalysis: (t: FixtureTarget) => store.get(t.id) || null,
-        setAIAnalysis: (t: FixtureTarget, v: AIVerdictAnalysis | null) => { if (v == null) store.delete(t.id); else store.set(t.id, v); },
+        getAIAnalysis: (t: FixtureTarget, data: ProfileData) => store.get(t.id, data) || null,
+        setAIAnalysis: (t: FixtureTarget, v: AIVerdictAnalysis | null, data: ProfileData) => { if (v == null) store.delete(t.id, data); else store.set(t.id, v, data); },
         getFingerprint: (t: FixtureTarget) => 'fp_' + t.id,
         buildContext: (t: FixtureTarget) => `### Target ${t.id}`,
         systemPrompt: 'Test system prompt. Return {"dot":"green","tip":"ok","detail":"ok"}.',
         maxTokens: 100,
-        getAllTargets: () => [...store.entries()].map(([id]) => ({ id })),
+        getAllTargets: (data: ProfileData) => [...store.entries(data)].map(([id]) => ({ id })),
       }, opts)),
     };
   }
@@ -518,6 +535,7 @@ return (async function () {
     const { engine, store } = makeMinimalEngine();
     store.set('orphan-1', { status: 'analyzing', fingerprint: 'old' });
     store.set('clean-1',  { status: 'ok', dot: 'green', fingerprint: 'fp_clean-1', tip: 't', detail: 'd' });
+    assert('legacy fixture records persist before purge', await saveImportedData());
     await engine.purgeOrphaned();
     assert('purgeOrphaned wipes status:analyzing rows',
       !store.has('orphan-1'));
@@ -606,7 +624,7 @@ return (async function () {
     const origProvider = localStorage.getItem('labcharts-ai-provider');
     const origModel = localStorage.getItem('labcharts-ollama-model');
     const origFetch = window.fetch;
-    const store = new Map<string, FixtureAnalysis>();
+    const store = fixtureStore();
     const targets = new Map<string, FixtureTarget>();
     let calls = 0;
     const waitFor = async (predicate: () => unknown, timeoutMs = 3000, intervalMs = 25) => {
@@ -635,8 +653,8 @@ return (async function () {
       const engine = createAIVerdict({
         getTarget: id => targets.get(id) || null,
         getId: t => t?.id,
-        getAIAnalysis: t => store.get(t.id) || null,
-        setAIAnalysis: (t: FixtureTarget, v: AIVerdictAnalysis | null) => { if (v == null) store.delete(t.id); else store.set(t.id, v); },
+        getAIAnalysis: (t, data) => store.get(t.id, data) || null,
+        setAIAnalysis: (t: FixtureTarget, v: AIVerdictAnalysis | null, data: ProfileData) => { if (v == null) store.delete(t.id, data); else store.set(t.id, v, data); },
         getFingerprint: t => `fp_${t.id}`,
         buildContext: t => `### Default callback target ${t.id}`,
         systemPrompt: 'Return {"dot":"yellow","tip":"default retry","detail":"default retry recovered"}.',

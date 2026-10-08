@@ -236,7 +236,7 @@ const SYSTEM_PROMPT = [
 ].join('\n');
 
 const engine = createAIVerdict<DeviceSessionRecord>({
-  getTarget: (id) => getDeviceSessions().find(s => s.id === id),
+  getTarget: (id, data) => getDeviceSessions(data).find(s => s.id === id),
   getId: (s) => s?.id,
   getAIAnalysis: (s) => (s?.aiAnalysis || null) as AIVerdictAnalysis | null,
   setAIAnalysis: (s, v) => { if (v == null) delete s.aiAnalysis; else s.aiAnalysis = v; },

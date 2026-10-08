@@ -1,3 +1,4 @@
+import type { ProfileData } from '../types/app-state.js';
 // light-channels-ai-analysis.js — seven-day Light review. It compares the
 // most recent seven days with the seven before them, while keeping sunlight
 // and targeted devices separate and never grading biological completion.
@@ -43,14 +44,13 @@ export function configureLightChannelsAIAnalysisDeps(deps: unknown = {}) {
   return previous;
 }
 
-function _getMix() {
-  return (state.importedData?.channelMixAI || null) as MixRead | null;
+function _getMix(data: ProfileData = state.importedData) {
+  return (data?.channelMixAI || null) as MixRead | null;
 }
 
-function _setMix(v: AIVerdictAnalysis | null) {
-  if (!state.importedData) return;
-  if (v == null) delete state.importedData.channelMixAI;
-  else state.importedData.channelMixAI = v;
+function _setMix(v: AIVerdictAnalysis | null, data: ProfileData) {
+  if (v == null) delete data.channelMixAI;
+  else data.channelMixAI = v;
 }
 
 const _CHANNEL_DEF: Record<string, { label: string; biology: string }> = {
@@ -239,10 +239,10 @@ const SYSTEM_PROMPT = [
 const SINGLETON = { key: 'default', isChannelMixTarget: true };
 
 const engine = createAIVerdict({
-  getTarget: () => (state.importedData ? SINGLETON : null),
+  getTarget: (_id, data) => (data ? SINGLETON : null),
   getId: () => 'default',
-  getAIAnalysis: () => _getMix() as AIVerdictAnalysis | null,
-  setAIAnalysis: (_t, v) => _setMix(v),
+  getAIAnalysis: (_target, data) => _getMix(data) as AIVerdictAnalysis | null,
+  setAIAnalysis: (_t, v, data) => _setMix(v, data),
   getFingerprint: () => getChannelMixFingerprint(),
   buildContext: () => buildChannelMixContext(),
   systemPrompt: SYSTEM_PROMPT,
@@ -255,7 +255,7 @@ const engine = createAIVerdict({
     return sun.some(s => _sessionTime(s) >= cutoff && _sessionTime(s) < now)
       || dev.some(s => _sessionTime(s) >= cutoff && _sessionTime(s) < now);
   },
-  getAllTargets: () => (state.importedData ? [SINGLETON] : []),
+  getAllTargets: data => (data ? [SINGLETON] : []),
 });
 
 export const analyzeChannelMixAI = (opts?: AnalyzeOptions) => engine.analyze(SINGLETON, opts) as Promise<unknown>;

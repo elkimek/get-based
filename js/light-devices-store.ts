@@ -1,3 +1,4 @@
+import type { ProfileData } from '../types/app-state.js';
 // light-devices-store.js - persisted light-device and device-session mutations.
 //
 // UI modules own preset loading, dialogs, rendering, and notifications. This
@@ -183,10 +184,10 @@ export function getDevices(): LightDeviceRecord[] {
   return state.importedData.lightDevices;
 }
 
-export function getDeviceSessions(): DeviceSessionRecord[] {
-  if (!state.importedData) return [];
-  if (!Array.isArray(state.importedData.deviceSessions)) state.importedData.deviceSessions = [];
-  return state.importedData.deviceSessions;
+export function getDeviceSessions(data: Pick<ProfileData, 'deviceSessions'> = state.importedData): DeviceSessionRecord[] {
+  if (!data) return [];
+  if (!Array.isArray(data.deviceSessions)) data.deviceSessions = [];
+  return data.deviceSessions;
 }
 
 export async function addDeviceFromPresetRecord(preset: LightDeviceRecord | null | undefined, overrides: Partial<LightDeviceRecord> = {}, { now = Date.now() } = {}) {

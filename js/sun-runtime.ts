@@ -1,7 +1,7 @@
 interface SunRuntimeDeps {
   buildSidebar: (() => void) | null;
   isDebugMode: (() => boolean) | null;
-  navigate: ((view: string, options?: { scrollAnchor?: string } | undefined) => void) | null;
+  navigate: ((view: string, options?: { scrollAnchor?: string; preserveSidebar?: boolean } | undefined) => void) | null;
   openChannelOnLightPage: ((channel: string) => void) | null;
   renderLightChannelsLive: (() => void) | null;
   renderLightTodayStrip: (() => string) | null;
@@ -63,7 +63,7 @@ export function rebuildSunSidebarRuntime() {
   }
 }
 
-export function navigateSunRuntime(view: string, options?: { scrollAnchor?: string } | undefined) {
+export function navigateSunRuntime(view: string, options?: { scrollAnchor?: string; preserveSidebar?: boolean } | undefined) {
   try {
     sunRuntimeDeps.navigate?.(view, options);
   } catch {

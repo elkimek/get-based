@@ -606,7 +606,7 @@ function _refreshSurfaces(scrollAnchor?: unknown) {
     const view = state.currentView
       || document.querySelector<HTMLElement>('.nav-item.active')?.dataset?.category
       || 'dashboard';
-    const navOpts = anchor ? { scrollAnchor: anchor } : undefined;
+    const navOpts = { preserveSidebar: true, ...(anchor ? { scrollAnchor: anchor } : {}) };
     navigateSunRuntime(view, navOpts as Parameters<typeof navigateSunRuntime>[1]);
     setTimeout(() => _resumeActiveTickerIfNeeded(), 100);
   }, 150);

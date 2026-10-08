@@ -1,3 +1,4 @@
+import type { ProfileData } from '../types/app-state.js';
 // light-audit-ai-analysis.js — per-audit AI verdict for the Light
 // Audit feature (frozen snapshot of rooms + screens + measurements).
 //
@@ -42,11 +43,6 @@ export interface AILightAudit extends AuditContextInput {
 }
 
 
-function _getAudits(): AILightAudit[] {
-  if (!state.importedData) return [];
-  if (!Array.isArray(state.importedData.lightAudits)) state.importedData.lightAudits = [];
-  return state.importedData.lightAudits as AILightAudit[];
-}
 
 const _SCREEN_LABELS: Record<string, unknown> = {
   phone: 'phone', tablet: 'tablet', laptop: 'laptop',
@@ -230,8 +226,14 @@ const SYSTEM_PROMPT = [
   'No "you should" — be observational. No emoji.',
 ].join('\n');
 
+function _getAudits(data: ProfileData = state.importedData): AILightAudit[] {
+  if (!data) return [];
+  if (!Array.isArray(data.lightAudits)) data.lightAudits = [];
+  return data.lightAudits as AILightAudit[];
+}
+
 const engine = createAIVerdict<AILightAudit>({
-  getTarget: (id) => _getAudits().find(a => a.id === id),
+  getTarget: (id, data) => _getAudits(data).find(a => a.id === id),
   getId: (a) => a?.id,
   getAIAnalysis: (a) => a?.aiAnalysis || null,
   setAIAnalysis: (a, v) => { if (v == null) delete a.aiAnalysis; else a.aiAnalysis = v; },

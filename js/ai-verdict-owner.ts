@@ -11,6 +11,8 @@ export function captureAIVerdictOwner() {
   }
   const captured = identity;
   return {
+    profile: captured.profile,
+    root: captured.root,
     key: (id: string) => `${captured.key}:${id}`,
     current: () => identity === captured && captured.profile === state.currentProfile && captured.root === state.importedData,
   };

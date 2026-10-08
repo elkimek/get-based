@@ -1,3 +1,4 @@
+import type { ProfileData } from '../types/app-state.js';
 // light-burden-ai-analysis.js — AI verdict for the live indoor-burden
 // summary at the bottom of the Light Environment block.
 //
@@ -29,13 +30,13 @@ type RawAnalysis = Partial<Record<keyof AIVerdictAnalysis, unknown>>;
 // Private stored-container operations; cache leaves never promise parsed AI output.
 interface BurdenEnvironment { rooms: LightRoom[]; screens?: LightScreen[] | null | undefined; burdenAI?: RawAnalysis | null }
 type BurdenMeasurement = LightMeasurement & {roomId?: unknown; extra?: NonNullable<LightMeasurement['extra']> & {calibrationConfirmed?: unknown} | null};
-type RawVerdictConfig<T> = Omit<AIVerdictConfig<T>, 'getAIAnalysis' | 'setAIAnalysis'> & {getAIAnalysis(target: T): RawAnalysis | null | undefined; setAIAnalysis(target: T, value: RawAnalysis | null): void};
+type RawVerdictConfig<T> = Omit<AIVerdictConfig<T>, 'getAIAnalysis' | 'setAIAnalysis'> & {getAIAnalysis(target: T, data: ProfileData): RawAnalysis | null | undefined; setAIAnalysis(target: T, value: RawAnalysis | null, data: ProfileData): void};
 type RawVerdictEngine<T> = Omit<AIVerdictEngine<T>, 'analyze' | 'refresh'> & {analyze(target: T | null | undefined, options?: Parameters<AIVerdictEngine<T>['analyze']>[1]): Promise<unknown>; refresh(id: string): Promise<unknown>};
 
-function _getEnv() {
-  if (!state.importedData) return null;
-  if (!state.importedData.lightEnvironment) state.importedData.lightEnvironment = { rooms: [], screens: [] };
-  return state.importedData.lightEnvironment as BurdenEnvironment;
+function _getEnv(data: ProfileData = state.importedData) {
+  if (!data) return null;
+  if (!data.lightEnvironment) data.lightEnvironment = { rooms: [], screens: [] };
+  return data.lightEnvironment as BurdenEnvironment;
 }
 
 const _SOURCE_LABELS: Record<string, string> = {
@@ -156,11 +157,11 @@ const SYSTEM_PROMPT = [
 const SINGLETON = { key: 'default', isBurdenTarget: true };
 
 const engine = (createAIVerdict as <T>(config: RawVerdictConfig<T>) => RawVerdictEngine<T>)({
-  getTarget: () => (_getEnv() ? SINGLETON : null),
+  getTarget: (_id, data) => (_getEnv(data) ? SINGLETON : null),
   getId: () => 'default',
-  getAIAnalysis: () => _getEnv()?.burdenAI || null,
-  setAIAnalysis: (_t, v) => {
-    const env = _getEnv();
+  getAIAnalysis: (_target, data) => _getEnv(data)?.burdenAI || null,
+  setAIAnalysis: (_t, v, data) => {
+    const env = _getEnv(data);
     if (!env) return;
     if (v == null) delete env.burdenAI;
     else env.burdenAI = v;
@@ -173,7 +174,7 @@ const engine = (createAIVerdict as <T>(config: RawVerdictConfig<T>) => RawVerdic
     const env = _getEnv();
     return !!env && ((env.rooms || []).length > 0 || (env.screens || []).length > 0);
   },
-  getAllTargets: () => (_getEnv() ? [SINGLETON] : []),
+  getAllTargets: data => (_getEnv(data) ? [SINGLETON] : []),
 });
 
 export const analyzeBurdenAI = (opts?: Parameters<typeof engine.analyze>[1]) => engine.analyze(SINGLETON, opts);

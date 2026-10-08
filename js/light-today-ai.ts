@@ -1,3 +1,4 @@
+import type { ProfileData } from '../types/app-state.js';
 // light-today-ai.js — Light Today daily/weekly hero verdict.
 //
 // Synthesizes one day's full picture (sun + devices + tools) into a single
@@ -62,10 +63,9 @@ function _dayBoundaries(date: Date) {
   return { start, end: start + 86400000 };
 }
 
-function _getDailyVerdicts() {
-  if (!state.importedData) (state as { importedData: unknown }).importedData = ({});
-  if (!state.importedData.lightDailyVerdicts) state.importedData.lightDailyVerdicts = {};
-  return state.importedData.lightDailyVerdicts as Record<string, unknown>;
+function _getDailyVerdicts(data: ProfileData = state.importedData) {
+  if (!data.lightDailyVerdicts) data.lightDailyVerdicts = {};
+  return data.lightDailyVerdicts as Record<string, unknown>;
 }
 
 // Synthetic target wrapper. The engine reads/writes via getAIAnalysis /
@@ -76,8 +76,8 @@ function _wrapDate(date: Date) {
   return { key, date, isLightTodayTarget: true };
 }
 
-function _allDateTargets() {
-  const verdicts = _getDailyVerdicts();
+function _allDateTargets(data: ProfileData = state.importedData) {
+  const verdicts = _getDailyVerdicts(data);
   return Object.keys(verdicts).map(key => {
     const [y, m, d] = key.split('-').map(Number);
     return { key, date: new Date(y as number, (m as number) - 1, d as number), isLightTodayTarget: true };
@@ -294,9 +294,9 @@ const engine = createAIVerdict<DayTarget>({
     return _wrapDate(new Date(y as number, (m as number) - 1, d as number));
   },
   getId: (t) => t?.key,
-  getAIAnalysis: (t) => (_getDailyVerdicts()[t.key] || null) as AIVerdictAnalysis | null,
-  setAIAnalysis: (t, v) => {
-    const verdicts = _getDailyVerdicts();
+  getAIAnalysis: (t, data) => (_getDailyVerdicts(data)[t.key] || null) as AIVerdictAnalysis | null,
+  setAIAnalysis: (t, v, data) => {
+    const verdicts = _getDailyVerdicts(data);
     if (v == null) delete verdicts[t.key];
     else verdicts[t.key] = v;
     // Trim cache: keep last 30 days only — stops the map growing unbounded.

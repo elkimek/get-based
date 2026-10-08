@@ -1,3 +1,4 @@
+import type { ProfileData } from '../types/app-state.js';
 // sun-sessions-store.js — persisted Sun session lifecycle, hydration, and safety.
 //
 // This module owns importedData.sunSessions[] CRUD and dose hydration. UI flows
@@ -100,20 +101,20 @@ function runSessionAnalysis(session: SunSessionRecord) {
   try { Promise.resolve(storeDeps.maybeAnalyzeSessionAfterFinish(session)).catch(() => {}); } catch (_) {}
 }
 
-export function getSessions(): SunSessionRecord[] {
-  if (!state.importedData) return [];
-  if (!Array.isArray(state.importedData.sunSessions)) state.importedData.sunSessions = [];
+export function getSessions(data: Pick<ProfileData, 'sunSessions'> = state.importedData): SunSessionRecord[] {
+  if (!data) return [];
+  if (!Array.isArray(data.sunSessions)) data.sunSessions = [];
   // Strip runtime-only ticker fields that earlier dev builds may have
   // accidentally persisted onto session objects. One-time cleanup on
   // first read; no-op on records written after the fix.
-  for (const sess of state.importedData.sunSessions as SunSessionRecord[]) {
+  for (const sess of data.sunSessions as SunSessionRecord[]) {
     if (sess && (sess._activeRate || sess._activeRatePending || sess._fractionOfMED)) {
       delete sess._activeRate;
       delete sess._activeRatePending;
       delete sess._fractionOfMED;
     }
   }
-  return state.importedData.sunSessions;
+  return data.sunSessions;
 }
 
 export function getActiveSession() {

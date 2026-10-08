@@ -16,7 +16,7 @@ import {
 } from './views-router-runtime.js';
 
 interface ScrollAnchor { selector: string; viewportTop: number }
-interface RouteDataOperations { categories?: Record<string, unknown> | null; preserveScroll?: unknown; scrollAnchor?: string }
+interface RouteDataOperations { categories?: Record<string, unknown> | null; preserveScroll?: unknown; preserveSidebar?: boolean; scrollAnchor?: string }
 type RouteHandler = (data?: unknown) => unknown;
 export interface NavigateDependencies { routeHandlers: Partial<Record<'dashboard' | 'labs' | 'genome' | 'body' | 'insight' | 'recommendations' | 'correlations' | 'compare' | 'light' | 'biologyScores', RouteHandler>> & { category?: (route: string, data?: unknown) => unknown }; syncMobileBottomNav?: ((route: string) => unknown) | null; destroyAllCharts?: (() => unknown) | null }
 
@@ -73,7 +73,7 @@ export function createNavigate({ routeHandlers, syncMobileBottomNav, destroyAllC
   return (function navigate(category: unknown, data?: RouteDataOperations | null) {
     const requestedCategory = String(category || 'dashboard');
     const preserveScroll = !!(data && typeof data === 'object' && data.preserveScroll);
-    const optionsOnlyData = !!(data && typeof data === 'object' && !data.categories && (data.scrollAnchor || data.preserveScroll));
+    const optionsOnlyData = !!(data && typeof data === 'object' && !data.categories && (data.scrollAnchor || data.preserveScroll || data.preserveSidebar));
     const routeData = optionsOnlyData ? undefined : data;
     const routeCategory = isKnownRoute(requestedCategory, routeData) ? requestedCategory : 'dashboard';
     const activeCategory = routeCategory;
@@ -122,8 +122,9 @@ export function createNavigate({ routeHandlers, syncMobileBottomNav, destroyAllC
       }
     }
     _syncSidebarActive(activeCategory);
-    // Close mobile sidebar on navigation
-    closeMobileSidebarFromRuntime();
+    // Background refreshes must not dismiss a menu opened during the debounce.
+    // Explicit navigation, including selecting the current route, still closes it.
+    if (!sameView || data?.preserveSidebar !== true) closeMobileSidebarFromRuntime();
     if (routeCategory !== "dashboard" && typeof document !== 'undefined') {
       // Leaving the welcome route cancels its delayed guided-Chat opening
       // and releases the layout reservation before the new route renders.

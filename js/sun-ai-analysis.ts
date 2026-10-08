@@ -209,7 +209,7 @@ const SYSTEM_PROMPT = [
 // ─── Engine ────────────────────────────────────────────────────────────
 
 const engine = createAIVerdict<SunSessionRecord>({
-  getTarget: (id) => getSessions().find(s => s.id === id),
+  getTarget: (id, data) => getSessions(data).find(s => s.id === id),
   getId: (s) => s?.id,
   getAIAnalysis: (s) => (s?.aiAnalysis || null) as AIVerdictAnalysis | null,
   setAIAnalysis: (s, v) => { if (v == null) delete s.aiAnalysis; else s.aiAnalysis = v; },

@@ -1,3 +1,4 @@
+import type { ProfileData } from '../types/app-state.js';
 // light-env-ai-analysis.js — per-room AI verdict for the Light
 // Environment module. Synthesizes a room's measurements + occupancy +
 // primary source + screens into one circadian-friendliness verdict.
@@ -22,7 +23,6 @@ import type { AIVerdictAnalysis } from './ai-verdict-engine.js';
 export interface AIRoom extends LightRoom { id: string; aiAnalysis?: AIVerdictAnalysis | null; }
 type RoomMeasurements = MeasurementContextInput;
 
-function _getRooms() { return (state.importedData?.lightEnvironment?.rooms || []) as AIRoom[]; }
 function _getMeasurementsForRoom(roomId: string | undefined) {
   return ((state.importedData?.lightMeasurements || []) as RoomMeasurements[]).filter(m => m.roomId === roomId);
 }
@@ -193,8 +193,10 @@ const SYSTEM_PROMPT = [
   'No "you should" — be observational and direct. No emoji.',
 ].join('\n');
 
+function _getRooms(data: ProfileData = state.importedData) { return (data?.lightEnvironment?.rooms || []) as AIRoom[]; }
+
 const engine = createAIVerdict<AIRoom>({
-  getTarget: (id) => _getRooms().find(r => r.id === id),
+  getTarget: (id, data) => _getRooms(data).find(r => r.id === id),
   getId: (r) => r?.id,
   getAIAnalysis: (r) => r?.aiAnalysis || null,
   setAIAnalysis: (r, v) => { if (v == null) delete r.aiAnalysis; else r.aiAnalysis = v; },

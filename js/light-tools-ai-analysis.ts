@@ -1,3 +1,4 @@
+import type { ProfileData } from '../types/app-state.js';
 // light-tools-ai-analysis.js — per-measurement AI interpretation for the
 // Light Tools (Lux Meter, Flicker Detector, Sleep Darkness, CCT Meter,
 // Spectrum Classifier, Glass Transmission, Eye-Level Audit).
@@ -33,11 +34,6 @@ function _formatNumber(n: unknown, digits = 1) {
   return Number(n).toFixed(digits).replace(/\.0$/, '');
 }
 
-function getMeasurements(): AILightMeasurement[] {
-  if (!state.importedData) return [];
-  if (!Array.isArray(state.importedData.lightMeasurements)) state.importedData.lightMeasurements = [];
-  return state.importedData.lightMeasurements as AILightMeasurement[];
-}
 
 function getRoomNameFor(m: MeasurementContextInput) {
   if (!m?.roomId) return null;
@@ -214,8 +210,14 @@ const SYSTEM_PROMPT = [
   'No "you should" — be observational. No emoji.',
 ].join('\n');
 
+function getMeasurements(data: ProfileData = state.importedData): AILightMeasurement[] {
+  if (!data) return [];
+  if (!Array.isArray(data.lightMeasurements)) data.lightMeasurements = [];
+  return data.lightMeasurements as AILightMeasurement[];
+}
+
 const engine = createAIVerdict<AILightMeasurement>({
-  getTarget: (id) => getMeasurements().find(m => m.id === id),
+  getTarget: (id, data) => getMeasurements(data).find(m => m.id === id),
   getId: (m) => m?.id,
   getAIAnalysis: (m) => m?.aiAnalysis || null,
   setAIAnalysis: (m, v) => { if (v == null) delete m.aiAnalysis; else m.aiAnalysis = v; },

@@ -93,8 +93,21 @@ uses actual profile switching, onboarding requests and canonical storage with
 full unrelated-profile equality. Its static counterpart,
 [`sveltekit-light-ai-ownership.spec.ts`](../tests/pwa/sveltekit-light-ai-ownership.spec.ts),
 checks offline first use and two cold launches retaining both profiles' results.
-These request-ownership checks do not establish failed-write transactional
-publication or whole-application release acceptance.
+[`ai-verdict-persistence.test.ts`](../tests/ai-verdict-persistence.test.ts) uses
+actual profile storage to check failed and delayed verdict/error/purge writes,
+accepted writes across profile switching and unrelated unsaved-field isolation.
+[`ai-verdict-adapters.test.ts`](../tests/ai-verdict-adapters.test.ts) checks all ten
+production adapters against a private snapshot while another profile is active,
+including singleton containers and daily-cache trimming.
+[`sveltekit-light-ai-persistence.spec.ts`](../tests/pwa/sveltekit-light-ai-persistence.spec.ts)
+forces an actual IndexedDB profile-write failure through the shipped refresh UI,
+then checks an unchanged saved/live verdict, successful retry, unrelated profile
+equality and two offline cold launches. These focused checks do not establish
+whole-application release acceptance.
+[`views-router-refresh.test.ts`](../tests/views-router-refresh.test.ts) checks
+that background same-route refreshes preserve an open mobile menu while explicit
+navigation and route changes still close it. The static persistence check also
+returns through the actual mobile menu immediately after failed AI persistence.
 [`sveltekit-context-forms.spec.ts`](../tests/pwa/sveltekit-context-forms.spec.ts)
 checks the editors through real catalog actions with the assembled static PWA,
 including offline first use, committed history, Light setup metadata/skin preservation

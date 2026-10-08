@@ -2117,3 +2117,11 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /tests/light-conditions-presentation.test.js
 
 /tests/pwa/sveltekit-light-conditions.spec.js
+
+/js/ai-verdict-write.js
+/tests/ai-verdict-persistence.test.js
+
+/tests/ai-verdict-adapters.test.js
+/tests/pwa/sveltekit-light-ai-persistence.spec.js
+
+/tests/views-router-refresh.test.js

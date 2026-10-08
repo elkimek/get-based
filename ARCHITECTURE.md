@@ -1184,8 +1184,20 @@ retire when their profile/root or profile-switch epoch changes. A current
 response resolves its target again before writing, so removed records are not
 revived and replacement objects receive the verdict. The existing stale-input
 fingerprint contract remains: later target edits invalidate the cached result.
-An already accepted profile save retains the data layer's captured-profile
-ownership; extra immediate sync runs only for the still-current request owner.
+`ai-verdict-write.ts` stages successful verdicts, provider-error sidecars and
+orphan cleanup in private baseline snapshots and uses the captured profile's
+scoped storage transaction. No live field is assigned before storage succeeds;
+failed, blocked and thrown writes retain the previous live and persisted verdict.
+Unrelated unsaved edits remain live and are excluded from the verdict write.
+Every feature adapter resolves targets and reads/writes analyses from the supplied
+profile root, including singleton and daily-map containers. Session stores accept
+an explicit root while retaining their default current-profile import contracts
+and existing row normalization. No temporary global-state swap is used.
+An accepted write can finish on its captured profile after switching; replacement
+profiles receive no result or immediate push. Context notification and extra
+immediate sync run only for the still-current request owner. Deferred Sun/Light
+refreshes preserve an open mobile sidebar when rebuilding the same route; user
+navigation still closes it, including selecting the current route.
 
 `LightSessionPresentation.svelte` composes the past-Sun and device log forms,
 completed Sun/device rows and shared inline/full history. Its pure

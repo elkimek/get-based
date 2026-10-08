@@ -1,3 +1,4 @@
+import type { ProfileData } from '../types/app-state.js';
 // sun-onboarding-ai.js — AI verdict for the Light & Sun onboarding
 // completion. Synthesizes the user's setup answers + light patterns + sleep
 // complaints + goals into a personalized starting plan.
@@ -26,7 +27,7 @@ import { formatHealthGoalsText } from './health-goals-utils.js';
 import { registerAIActionHandler } from './ai-action-delegates.js';
 import { getSunSetupCoords } from './sun-defaults-runtime.js';
 
-function _getDefaults() { return (state.importedData?.sunDefaults as OnboardingDefaults | null | undefined) || null; }
+function _getDefaults(data: ProfileData = state.importedData) { return (data?.sunDefaults as OnboardingDefaults | null | undefined) || null; }
 
 const _OTT_LABELS: Record<string, string> = {
   'morning-light-deficit': 'Little or no outdoor daylight in the first 1–2 hours after waking',
@@ -147,11 +148,11 @@ const SYSTEM_PROMPT = [
 const SINGLETON_TARGET = { key: 'default', isOnboardingTarget: true };
 
 const engine = createAIVerdict({
-  getTarget: () => (_getDefaults() ? SINGLETON_TARGET : null),
+  getTarget: (_id, data) => (_getDefaults(data) ? SINGLETON_TARGET : null),
   getId: () => 'default',
-  getAIAnalysis: () => _getDefaults()?.aiAnalysis || null,
-  setAIAnalysis: (_t, v) => {
-    const d = _getDefaults();
+  getAIAnalysis: (_target, data) => _getDefaults(data)?.aiAnalysis || null,
+  setAIAnalysis: (_t, v, data) => {
+    const d = _getDefaults(data);
     if (!d) return;
     if (v == null) delete d.aiAnalysis;
     else d.aiAnalysis = v;
@@ -167,7 +168,7 @@ const engine = createAIVerdict({
       ? parsed.actions.slice(0, 5).map((a: unknown) => String(a).slice(0, 200))
       : [],
   }),
-  getAllTargets: () => (_getDefaults() ? [SINGLETON_TARGET] : []),
+  getAllTargets: data => (_getDefaults(data) ? [SINGLETON_TARGET] : []),
 });
 
 export const analyzeOnboardingAI = (opts?: AnalyzeOptions) => engine.analyze(SINGLETON_TARGET, opts);
