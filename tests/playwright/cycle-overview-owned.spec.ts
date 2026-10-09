@@ -211,19 +211,55 @@ async function overviewPointerSnapshot(page:Page,target:OverviewPointerPlan,side
  }finally{await handle.dispose();}
 }
 
+interface OverviewPressedCapture {events:number;snapshot:Record<string,string>|null;error:string|null;trusted:boolean}
+interface OverviewPressedHost extends PairHost {pressedCapture:OverviewPressedCapture}
+async function armOverviewPressedCapture(page:Page,target:OverviewPointerPlan,side:OverviewPointerSide,point:{x:number;y:number}):Promise<void>{
+ await page.evaluate(({target,side,point,properties})=>{
+  const host=document.getElementById('cycle-overview-parity') as OverviewPressedHost|null;
+  if(!host)throw new Error('Missing overview pressed capture host');
+  host.pressedCapture={events:0,snapshot:null,error:null,trusted:false};
+  document.addEventListener('mousedown',event=>{
+   const capture=host.pressedCapture;capture.events++;capture.trusted=event.isTrusted;
+   const control=host.querySelector('[data-'+side+']')?.querySelectorAll<HTMLButtonElement>('.cycle-section button')[target.index];
+   const diagnostic=()=>JSON.stringify({side,name:target.name,index:target.index,trusted:event.isTrusted,button:event.button,buttons:event.buttons,clientX:event.clientX,clientY:event.clientY,hover:control?.matches(':hover'),active:control?.matches(':active'),point,rect:control?.getBoundingClientRect().toJSON(),eventTarget:event.target instanceof Element?event.target.tagName:null,focused:document.activeElement?.tagName});
+   try{
+    if(!control)throw new Error('Missing overview pressed event control');
+    const hit=document.elementFromPoint(point.x,point.y),eventHit=document.elementFromPoint(event.clientX,event.clientY);
+    if(!eventHit||!(eventHit===control||control.contains(eventHit)))throw new Error('Genuine overview pressed event hit target absent');
+    if(!event.isTrusted||event.button!==0||event.buttons!==1||!(event.target instanceof Node)||!control.contains(event.target)||!hit||!(hit===control||control.contains(hit))||!control.matches(':hover')||!control.matches(':active'))throw new Error('Genuine overview pressed event contract absent');
+    const css=getComputedStyle(control),snapshot=Object.fromEntries(properties.map(property=>[property,css.getPropertyValue(property)]));
+    const measuredHit=document.elementFromPoint(point.x,point.y),measuredEventHit=document.elementFromPoint(event.clientX,event.clientY);
+    if(!measuredEventHit||!(measuredEventHit===control||control.contains(measuredEventHit)))throw new Error('Genuine overview pressed event hit target changed during capture');
+    if(!measuredHit||!(measuredHit===control||control.contains(measuredHit))||!control.matches(':hover')||!control.matches(':active'))throw new Error('Genuine overview pressed event state changed during capture');
+    capture.snapshot=snapshot;
+   }catch(error){capture.error=(error instanceof Error?error.message:String(error))+': '+diagnostic();}
+  },{capture:true,once:true});
+ },{target,side,point,properties:pointerProperties});
+}
+async function readOverviewPressedCapture(page:Page):Promise<Record<string,string>>{
+ await page.waitForFunction(()=>{const host=document.getElementById('cycle-overview-parity') as OverviewPressedHost|null;return host?.pressedCapture.events===1;},{},{polling:'raf',timeout:3000});
+ const capture=await page.locator('#cycle-overview-parity').evaluate(element=>(element as OverviewPressedHost).pressedCapture);
+ expect(capture.events).toBe(1);expect(capture.trusted).toBe(true);
+ if(capture.error||!capture.snapshot)throw new Error(capture.error||'Missing trusted overview pressed styles');
+ return capture.snapshot;
+}
 for(const theme of themes){for(const width of [320,1440]){for(const name of pointerSampleNames){for(const pointerState of ['hover','active'] as const){
- test('authored Cycle overview preserves real '+pointerState+' in full and compact wrappers / '+theme+' / '+width+' / '+name,async({page},info)=>{
+ test('authored Cycle overview preserves real '+pointerState+' in full and compact wrappers / '+theme+' / '+width+' / '+name,async({page,browserName},info)=>{
   test.setTimeout(60000);const samples=overviews().filter(sample=>sample.name===name||sample.name===name+'-dashboard');expect(samples).toHaveLength(2);
   await mountPairs(page,samples);await page.setViewportSize({width,height:1000});await setTheme(page,theme);await page.mouse.move(0,0);
   const plan=await installOverviewPointerPlan(page);expect(plan).toHaveLength(name==='unset'?12:15);let checks=0;
+  // WPE exposes the genuine pressed state during trusted mousedown. Firefox
+  // applies it after dispatch; its atomic post-delivery path remains separate.
+  const eventPress=pointerState==='active'&&browserName==='webkit';
   for(const target of plan){
    const snapshots:Record<string,string>[]=[];
    for(const side of ['original','current'] as const){
     const point=await prepareOverviewPointer(page,target,side);await page.mouse.move(point.x,point.y);
     await waitForOverviewPointerState(page,target,side,'hover',point);
+    if(eventPress)await armOverviewPressedCapture(page,target,side,point);
     if(pointerState==='active')await page.mouse.down();
     try{
-     snapshots.push(await overviewPointerSnapshot(page,target,side,pointerState,point));
+     snapshots.push(eventPress?await readOverviewPressedCapture(page):await overviewPointerSnapshot(page,target,side,pointerState,point));
     }
     finally{
      // Releasing off the button prevents a real click/delegate. Assert the safe
@@ -238,7 +274,7 @@ for(const theme of themes){for(const width of [320,1440]){for(const name of poin
    expect(snapshots[1],`${theme}/${width}/${target.name}/${target.index}/${pointerState}`).toEqual(snapshots[0]);checks++;
   }
   expect(await page.locator('#cycle-overview-parity').evaluate(element=>(element as PairHost&{actionClicks:string[]}).actionClicks)).toEqual([]);
-  fs.writeFileSync(info.outputPath('cycle-overview-pointer.json'),JSON.stringify({samples:samples.map(sample=>sample.name),placements:['body-full','dashboard-half','dashboard-full'],checks,activeChecks:pointerState==='active'?checks:0,pointerState,widths:[width],themes:[theme],controls:plan,properties:pointerProperties,delegatedActionClicks:0},null,2));
+  fs.writeFileSync(info.outputPath('cycle-overview-pointer.json'),JSON.stringify({samples:samples.map(sample=>sample.name),placements:['body-full','dashboard-half','dashboard-full'],checks,activeChecks:pointerState==='active'?checks:0,pointerState,widths:[width],themes:[theme],controls:plan,properties:pointerProperties,delegatedActionClicks:0,trustedPressEvents:eventPress?checks*2:0,pressSampling:pointerState==='hover'?'hover-atomic':eventPress?'trusted-mousedown':'post-delivery-atomic'},null,2));
  });
 }}}}
 
