@@ -222,6 +222,20 @@ The complete stored profile must remain equal. Shared reading, AI and card-contr
 scenarios remain independent regression checks. These are focused presentation
 checks, not clinical or whole-app release acceptance.
 
+Biology profile and collection context has [frozen state and structure
+checks](../tests/biology-context-presentation.test.ts) across male, female and
+unspecified-sex profiles, current/stale/absent reviews, active flags and escaped
+or legacy text values. The original source and owned CSS are captured before
+replacement. [Headless context acceptance](../tests/playwright/biology-context-owned.spec.ts)
+compares geometry and themes with open/closed disclosures, checks keyboard focus,
+and exercises failed IndexedDB writes, retry, apply, dismiss and reload through
+the unchanged delegates. The persistence fixture seeds lab records through normal
+profile boot before preservation snapshots. [Static context acceptance](../tests/pwa/sveltekit-biology-context.spec.ts)
+checks sex-specific fields and keyboard writes with the origin offline, preserving
+unrelated records and the complete accepted profile through two closed-client
+launches. These checks complement AI lifecycle, integrity and sync regressions;
+they do not establish whole-app release acceptance.
+
 Preserve independently failing assertions for these workflows:
 
 | Workflow | Required behavior | Selected regression sources |

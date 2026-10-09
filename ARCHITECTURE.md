@@ -115,6 +115,21 @@ components without presentation HTML slots. Native overview templates and their
 superseded styles are removed; generic widget cards and shared lens composition
 remain to migrate.
 
+Biology profile and collection context is composed by
+`BiologyContextPresentation.svelte`, `BiologyContextBanner.svelte`,
+`BiologyContextReview.svelte`, `BiologyContextManualFields.svelte` and
+`BiologyContextSuggestion.svelte`. `biology-context-presentation.ts` projects
+literal review text, applicable flags and profile labels. The context AI service
+snapshots its current-review and flag state; it retains request, profile scoping,
+serialized writes, confirmed-save commits, retry and delegated-event ownership.
+`biology-context-view.ts` composes the complete disclosure for the lens page,
+while the public context-panel renderer keeps its existing import contract.
+Scoped Tailwind utilities replace native context section and review rules;
+shared dashboard buttons and compatibility-lens banner rules keep their owners.
+Components receive typed data without raw HTML slots. Native disclosure,
+checkbox labels, action attributes and sex-specific field availability remain
+stable; keyboard controls have visible focus.
+
 Settings navigation/layout, Display, Privacy, Voice, Agent Access, imported records
 and AI usage use scoped Tailwind utilities
 alongside the remaining native feature styles. `css/settings.base.css` owns the

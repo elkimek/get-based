@@ -14,8 +14,7 @@ import {
   renderNutritionWidget,
 } from './health-data-loader.js';
 import { computeBiologyScores, getBiologyScoreLensGroups, renderBiologicalCoherenceLensHero, renderBiologyScoreCoveragePlanner, renderBiologyScoresActionSummary, scheduleBiologyScoreAIReconcile } from './biology-scores.js';
-import { getBiologyProfileContext } from './profile-context.js';
-import { renderBiologyScoreContextAI } from './biology-score-context-ai.js';
+import {renderBiologyContextSection} from './biology-context-view.js';
 import { getRecommendationsSnpTable, isRecommendationsProductRecsEnabled } from './recommendations-runtime.js';
 
 // Configured values are opaque. These private views describe only the unchecked
@@ -207,26 +206,20 @@ export function createLensPageHandlers(deps: unknown) {
     setupDropZone();
   }
 
-  function renderBiologyScoreContextBanner() {
-    const pc = getBiologyProfileContext();
-    const labels = [[pc.lowMuscleMass, 'Low muscle / creatinine unreliable'], [pc.hormoneTherapy, 'Hormone therapy context'], [pc.cycleStatus && pc.cycleStatus !== 'regular', `Cycle: ${pc.cycleStatus}`], [pc.recentHardTraining, 'Recent hard training'], [pc.acuteInflammationContext, 'Acute illness/injury'], [Number.isFinite(pc.ageYears), `Age: ${pc.ageYears}y`]].filter(x => x[0]).map(x => `<span>${escapeHTML(String(x[1]))}</span>`).join('');
-    return labels ? `<div class="biology-score-context-banner biology-score-context-page"><strong>From your profile &amp; lab entries</strong>${labels}</div>` : '';
-  }
-
   function showBiologyScores(preData: unknown) {
     const rawData = preData || getActiveData();
     const main = document.getElementById("main-content");
     if (!main) return;
     document.body.classList.remove('mobile-dashboard-active');
     const ctx = buildDashboardWidgetContext(rawData);
-    // The captured value is projected only for the original context renderer's reads.
-    const scoreData = (filterDatesByRange as RawFilter)(rawData, { fallbackToAll: false }) as Parameters<typeof renderBiologyScoreContextAI>[0];
+    // Preserve the captured collection range for the context review snapshot.
+    const scoreData = (filterDatesByRange as RawFilter)(rawData, { fallbackToAll: false }) as Parameters<typeof renderBiologyContextSection>[0];
     const contextReady = true;
     const actions = `<div class="biology-score-header-actions">${contextReady ? '<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" data-biology-score-action="interpret-lens">Discuss scores in chat</button>' : ''}
       ${renderDateRangeFilter()}</div>`;
     let html = renderLensHeader('Biology Scores', 'Body-system patterns from your labs, with marker-level explanations.', actions, { className: 'biology-scores-lens-header' }) as string;
     html += `<p class="biology-scores-note">Higher scores mean closer agreement with your selected ranges, including Risk and Load scores. AI interpretations are optional; scores are for learning, not diagnosis.</p>`;
-    html += `<details class="biology-context-review-details"><summary>Profile &amp; collection context</summary>${renderBiologyScoreContextBanner()}${renderBiologyScoreContextAI(scoreData)}</details>`;
+    html += renderBiologyContextSection(scoreData);
     const biologyScores = (computeBiologyScores as RawCompute)(scoreData);
     const biologyDetailScores = biologyScores.filter((score) => score.id !== 'biologicalCoherence');
     const liveBiologyScores = biologyDetailScores.filter((score) => Number.isFinite(score.score)).sort((a, b) => /** @type {number} */ (b.score!) - /** @type {number} */ (a.score!));

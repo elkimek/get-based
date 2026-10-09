@@ -46,7 +46,9 @@ import { isAIPaused } from './api.js';
 import { callAssistantFeatureAI, getAssistantFeatureIdentity, hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { getProfiles } from './profile.js';
 import { state } from './state.js';
-import { escapeAttr, escapeHTML, hashString, showNotification } from './utils.js';
+import {projectBiologyContextReview} from './biology-context-presentation.js';
+import {renderHTML as renderContext} from './components/BiologyContextPresentation.svelte.html.js';
+import { hashString, showNotification } from './utils.js';
 import { sortHealthGoalsByPriority } from './health-goals-utils.js';
 import { getCurrentSupplements, getSupplementsOverlappingRange } from './supplement-medication-domain.js';
 import { resolveActiveMarkerPath } from './marker-placement.js';
@@ -433,32 +435,23 @@ export async function dismissBiologyScoreContextFlag(flag: string) {
   }, 'biology-score-context-dismiss');
 }
 
-function renderSuggestion(s: ContextSuggestion) {
-  const active = !!((state.importedData as ContextProfile))?.diagnoses?.flags?.[s.flag];
-  return `<div class="biology-context-suggestion biology-context-${escapeAttr(s.confidence)}">
-    <div><strong>${escapeHTML(flagLabel(s.flag))}</strong><span>${escapeHTML(s.confidence)} confidence${active ? ' · active' : ''}</span></div>
-    <p>${escapeHTML(s!.reason || 'AI suggested this context modifier.')}</p>
-    ${s.evidence?.length ? `<ul>${s.evidence.map(e => `<li>${escapeHTML(e)}</li>`).join('')}</ul>` : ''}
-    ${s.affects?.length ? `<small>Affects: ${escapeHTML(s.affects.join(', '))}</small>` : ''}
-    ${active ? '' : `<div class="biology-context-actions"><button type="button" class="dashboard-action-btn dashboard-action-btn-secondary" data-biology-score-action="apply-context-ai" data-context-flag="${escapeAttr(s.flag)}">Apply flag</button><button type="button" class="dashboard-action-btn dashboard-action-btn-secondary" data-biology-score-action="dismiss-context-ai" data-context-flag="${escapeAttr(s.flag)}">Dismiss</button></div>`}
-  </div>`;
+/** Snapshot presentation inputs without transferring request or write ownership. */
+export function getBiologyContextReviewView(data: ReviewData = null) {
+  const review = ((state.importedData as ContextProfile))?.biologyScoreContextAI;
+  return projectBiologyContextReview({
+    review,
+    current: data ? hasCurrentBiologyScoreContextReview(data) : !!review?.updatedAt,
+    female: state.profileSex === 'female',
+    fields: applicableFlagKeys().map(flag => ({
+      id: flag,
+      label: flagLabel(flag) ?? '',
+      checked: !!((state.importedData as ContextProfile))?.diagnoses?.flags?.[flag],
+    })),
+  });
 }
 
 export function renderBiologyScoreContextAI(data: ReviewData = null) {
-  const review = ((state.importedData as ContextProfile))?.biologyScoreContextAI;
-  const suggestions = Array.isArray(review?.suggestions) ? review.suggestions!.filter(s => applicableFlagKeys().includes(s.flag)) : [];
-  const current = data ? hasCurrentBiologyScoreContextReview(data) : !!review?.updatedAt;
-  const hasReview = !!review?.updatedAt;
-  const buttonLabel = hasReview ? 'Refresh AI review' : 'Review context with AI';
-  const status = current ? 'Context is up to date.' : hasReview ? 'Context changed. Refresh recommended; your scores stay available.' : 'Optional AI review; scores already use your saved profile and collection context.';
-  return `<section class="biology-context-ai-panel${current ? '' : ' biology-context-ai-required'}">
-    <div class="biology-context-ai-head"><div><p>Add context not already captured in your profile or lab entries.</p></div><button type="button" class="dashboard-action-btn dashboard-action-btn-primary" data-biology-score-action="analyze-context-ai">${buttonLabel}</button></div>
-    <div class="biology-score-context-fields" role="group" aria-label="Manual score context">${applicableFlagKeys().map(flag => `<label><input type="checkbox" data-biology-context-flag="${escapeAttr(flag)}" ${((state.importedData as ContextProfile))?.diagnoses?.flags?.[flag] ? 'checked' : ''}>${escapeHTML(flagLabel(flag))}</label>`).join('')}</div>
-    <p class="biology-scores-note">Set applicable context above without AI. ${state.profileSex === 'female' ? 'Sample timing and cycle phase belong' : 'Sample timing belongs'} to each lab entry.</p>
-    <p class="biology-scores-note">${escapeHTML(status)}</p>
-    ${review?.summary ? `<p class="biology-context-ai-summary">${escapeHTML(review.summary)}</p>` : ''}
-    ${suggestions.length ? `<div class="biology-context-suggestions">${suggestions.map(renderSuggestion).join('')}</div>` : ''}
-  </section>`;
+  return renderContext({kind: 'panel', view: getBiologyContextReviewView(data)});
 }
 
 export function installBiologyScoreContextAIDelegates() {

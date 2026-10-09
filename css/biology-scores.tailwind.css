@@ -62,3 +62,12 @@
 @source "../js/components/BiologyDashboardScore.svelte";
 @source "../js/components/BiologyDashboardCoherence.svelte";
 @source "../js/components/BiologyOverviewPresentation.svelte";
+
+/* Profile and collection context review; request and write ownership stays external. */
+@custom-variant biology-context (&:is([data-biology-context-view], [data-biology-context-view] *));
+@source "../js/biology-context-classes.ts";
+@source "../js/components/BiologyContextPresentation.svelte";
+@source "../js/components/BiologyContextBanner.svelte";
+@source "../js/components/BiologyContextReview.svelte";
+@source "../js/components/BiologyContextManualFields.svelte";
+@source "../js/components/BiologyContextSuggestion.svelte";
