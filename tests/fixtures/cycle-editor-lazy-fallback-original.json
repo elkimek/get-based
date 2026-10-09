@@ -1,0 +1,2855 @@
+{
+  "revision": "9ccf0adbf8d38ecc7fa1a024b2e91b0838f99d16",
+  "fixedNow": "2026-10-09T08:00:00.000Z",
+  "provenance": {
+    "baselineInventorySHA256": "13ee7399388ef7e83f1980e3a000f6feb18d65e1ab44669fa17ee8bec17e757c",
+    "compilerReceipt": "033c4be6d616f2ee06e80404d9185eef26b5e0d00370218412e80594bf5cf98b",
+    "runtime": {
+      "js/cycle.js": {
+        "snapshot": ".local-notes/full-ui-migration/cycle-editor/original-runtime/js/cycle.js",
+        "sha256": "c10cddd3b8df78371fb9edbe7befff7474cdd939698f3b133d52f97b078eb284"
+      },
+      "js/utils.js": {
+        "snapshot": ".local-notes/full-ui-migration/cycle-editor/original-runtime/js/utils.js",
+        "sha256": "da83d9cc78f705de4afb2b0ea1774889b251a9033d426fb5fed7dad6495c7dc1"
+      },
+      "js/caught-error.js": {
+        "snapshot": ".local-notes/full-ui-migration/cycle-editor/original-runtime/js/caught-error.js",
+        "sha256": "1d2c7d2f0302e38905aa6a9086fe47a2b7b839756da85e1fb0cc716ddcc6841c"
+      },
+      "js/constants.js": {
+        "snapshot": ".local-notes/full-ui-migration/cycle-editor/original-runtime/js/constants.js",
+        "sha256": "3090e745f69a20a78b2dffd885bf5aec56324733283e045ff1f171de6db5897b"
+      },
+      "js/cycle-summary.js": {
+        "snapshot": ".local-notes/full-ui-migration/cycle-editor/original-runtime/js/cycle-summary.js",
+        "sha256": "e64ab48ad67aa2367268fc443818a85e2db107b35d68482e21ff21defc325079"
+      },
+      "js/cycle-import-presentation.js": {
+        "snapshot": ".local-notes/full-ui-migration/cycle-editor/original-runtime/js/cycle-import-presentation.js",
+        "sha256": "0c7f89c29db32f7b46deee0fc99e58946787f29e214096b859683193f011752f"
+      },
+      "js/components/CycleImportCoverage.svelte.html.js": {
+        "snapshot": ".local-notes/full-ui-migration/cycle-editor/original-runtime/js/components/CycleImportCoverage.svelte.html.js",
+        "sha256": "2adb3e016614329b00520fc3086e11cb184b8bccff1684d599206b3ef3bbcedd"
+      },
+      "js/cycle-import-classes.js": {
+        "snapshot": ".local-notes/full-ui-migration/cycle-editor/original-runtime/js/cycle-import-classes.js",
+        "sha256": "ef8591c196d90785e9f7548c8267368f7496638430af09acf4343d880a5a94dd"
+      },
+      "js/components/CycleImportPicker.svelte.html.js": {
+        "snapshot": ".local-notes/full-ui-migration/cycle-editor/original-runtime/js/components/CycleImportPicker.svelte.html.js",
+        "sha256": "6d0f08d0fa472b4ca4f66bbb47776585b6a370cb81ce8be626e0a0d1be3e474c"
+      },
+      "js/data-merge.js": {
+        "snapshot": ".local-notes/full-ui-migration/cycle-editor/original-runtime/js/data-merge.js",
+        "sha256": "ba00e9e603f1b120cf00e8cbbf996f4dd1eb3fbd66b9da18d1e6fca336b90812"
+      },
+      "js/cycle-import-rendering.js": {
+        "snapshot": ".local-notes/full-ui-migration/cycle-editor/original-runtime/js/cycle-import-rendering.js",
+        "sha256": "136e20d607523c721ca717a3640ffc4da87d9da6dc09a5179acba21ba9c547d4"
+      },
+      "js/cycle-import-loader.js": {
+        "snapshot": ".local-notes/full-ui-migration/cycle-editor/original-runtime/js/cycle-import-loader.js",
+        "sha256": "326c121f3f36386e4added734b2bee5454bdf730267b168defdf1cd1b9d29376"
+      },
+      "js/cycle-import-mutations.js": {
+        "snapshot": ".local-notes/full-ui-migration/cycle-editor/original-runtime/js/cycle-import-mutations.js",
+        "sha256": "450535ece7e1859b183fa8dfae8aa180352f21673d3e3d88e8ab740cb6d92b7d"
+      }
+    },
+    "canonical": {
+      "js/cycle.ts": "9fcfa1a0362fd1b5a4ae0ff55d08f44765e231187e88d5bd48efc29c20360714",
+      "js/utils.ts": "27eb353b89e3f1c2d9bd4b4d92f4aa73caa0968270b97994566568e6e4162402",
+      "js/caught-error.ts": "ebb238c051bc3b2cc8d78a94b0e3811c5c6a4dcee5b4565fdc17f2b845759611",
+      "js/constants.ts": "1344c376bfd6f4ce72f1ecc736358d6c33fb4619788e6a32db33db82521927dd",
+      "js/cycle-summary.ts": "7139b011e6107f0b9cbc8cbc4aa6ff2ca4df53a70b90646eeb096bfbc5a536c7",
+      "js/cycle-import-presentation.ts": "28aa3df0596630591d89f25ae0bf763e6ff5e89036a20ca7854db5e9401dfc4e",
+      "js/cycle-import-classes.ts": "66556343c1ffbae360047861da9f51e86655a649e8feb61280c88738a417265c",
+      "js/data-merge.ts": "7b8113387d450f4b029599764a53cd1728f3f8e2beaa82b6e7155dd509e8e4d7",
+      "js/cycle-import-rendering.ts": "70a0265a832a308e3d0e68d18cec82fd2eea345f304accd59df8a15d386db357",
+      "js/cycle-import-loader.ts": "579d4b0480d34817702039fc2bb7265f9d2366fb802a19784567ed61b8135228",
+      "js/cycle-import-mutations.ts": "3b12f7af43ed0c55bc7011d3e02e0d1455db2126b1d65a5a9108f83440398ae5",
+      "index.html": "8388ccf371eb403d2d03abcbabd15723a1e54e2137a3bf8573eaa5636198b6d7",
+      "js/cycle-runtime.ts": "6c6d5052e81e77f7e414df72b6c3b53a27d410bac7d4ba11f3cb0cb08d692f0e"
+    },
+    "styles": {
+      "vendor/fonts/fonts.css": {
+        "snapshot": ".local-notes/full-ui-migration/cycle-editor/original-styles/vendor/fonts/fonts.css",
+        "sha256": "026b449b34053133771a1cd4c9d94b5061f61507692020f6e8cf4f2081b131ac"
+      },
+      "styles.css": {
+        "snapshot": ".local-notes/full-ui-migration/cycle-editor/original-styles/styles.css",
+        "sha256": "619922f4ca316d908d6a9596f34e4df0a278ccd9d35b92ce05ee0df5d502663e"
+      },
+      "css/app-shell.css": {
+        "snapshot": ".local-notes/full-ui-migration/cycle-editor/original-styles/css/app-shell.css",
+        "sha256": "8e5363a679df5ed1b402de9a62c77f7437f0e875c5d597f6a69d1b3b41ed98ad"
+      },
+      "css/modal-shared.css": {
+        "snapshot": ".local-notes/full-ui-migration/cycle-editor/original-styles/css/modal-shared.css",
+        "sha256": "f281bc9594c4b6da6851acd0b3763b925e51186594e72321a7053639a5ce7347"
+      },
+      "css/dashboard-core.css": {
+        "snapshot": ".local-notes/full-ui-migration/cycle-editor/original-styles/css/dashboard-core.css",
+        "sha256": "48dc262d49d741d83e09d2b9b062093b429d59c994733bae70974837c6bdb75e"
+      },
+      "css/dashboard-widgets.css": {
+        "snapshot": ".local-notes/full-ui-migration/cycle-editor/original-styles/css/dashboard-widgets.css",
+        "sha256": "fe9da27fec336ab008d790daf251f3feaac082683598805ee910ee38a0f6f8e4"
+      },
+      "css/dashboard-welcome.css": {
+        "snapshot": ".local-notes/full-ui-migration/cycle-editor/original-styles/css/dashboard-welcome.css",
+        "sha256": "c4d7404d789e426f22df8579fc0f8fc1811d7d4bea2f11bcac9406e491f58a5e"
+      },
+      "css/dashboard-data.css": {
+        "snapshot": ".local-notes/full-ui-migration/cycle-editor/original-styles/css/dashboard-data.css",
+        "sha256": "d5586514ddaed3286fea3fd8398efe1fb3f6a5713225ea5c53a560e51214dab6"
+      },
+      "css/context-profile.css": {
+        "snapshot": ".local-notes/full-ui-migration/cycle-editor/original-styles/css/context-profile.css",
+        "sha256": "feaaf6146988c46ab226cc135963bff9ff1dd22549da58014d27926316e71c78"
+      },
+      "css/mobile-dashboard.css": {
+        "snapshot": ".local-notes/full-ui-migration/cycle-editor/original-styles/css/mobile-dashboard.css",
+        "sha256": "8699dc45aadcfbe11494018533dcc8cafe922cbc3632ed03a9603d02c273051f"
+      },
+      "css/cycle.css": {
+        "snapshot": ".local-notes/full-ui-migration/cycle-editor/original-styles/css/cycle.css",
+        "sha256": "62d5f448a52288a6f73fdf801527990e841076dcd84d0b807b895b92502b8f77"
+      },
+      "css/recommendations.css": {
+        "snapshot": ".local-notes/full-ui-migration/cycle-editor/original-styles/css/recommendations.css",
+        "sha256": "125aa889be3cc5e3d5fcfb264f35b5e4cc539061442efdba4d0cff1fc3cbc7f3"
+      },
+      "css/chat-panel.css": {
+        "snapshot": ".local-notes/full-ui-migration/cycle-editor/original-styles/css/chat-panel.css",
+        "sha256": "25b33482d780a41017e54154d3b3c4769c95856f60647b8aac48ae9225be4c2f"
+      },
+      "css/redesign-shell.css": {
+        "snapshot": ".local-notes/full-ui-migration/cycle-editor/original-styles/css/redesign-shell.css",
+        "sha256": "6c2a35a048df5a8009b44c4e590706e510648d7e25c1b0c98af4cad889acbc84"
+      },
+      "css/chat-redesign.css": {
+        "snapshot": ".local-notes/full-ui-migration/cycle-editor/original-styles/css/chat-redesign.css",
+        "sha256": "8119b14cc8ddcaa92feaad27862be7a9764044a52ff0845689990d9d1139766c"
+      }
+    }
+  },
+  "samples": [
+    {
+      "kind": "editor",
+      "name": "computed-fields-do-not-coerce-unused-fallbacks",
+      "input": {
+        "name": "computed-fields-do-not-coerce-unused-fallbacks",
+        "mc": {
+          "periods": [
+            {
+              "startDate": "2026-07-01",
+              "endDate": "2026-07-05",
+              "flow": "light",
+              "symptoms": [],
+              "source": "manual",
+              "confidence": "logged",
+              "updatedAt": "2026-09-01T00:00:00Z"
+            },
+            {
+              "startDate": "2026-07-29",
+              "endDate": "2026-08-02",
+              "flow": "moderate",
+              "symptoms": [],
+              "source": "manual",
+              "confidence": "logged",
+              "updatedAt": "2026-09-01T00:00:00Z"
+            },
+            {
+              "startDate": "2026-08-26",
+              "endDate": "2026-08-30",
+              "flow": "heavy",
+              "symptoms": [],
+              "source": "manual",
+              "confidence": "logged",
+              "updatedAt": "2026-09-01T00:00:00Z"
+            }
+          ],
+          "cycleLength": {
+            "toString": null
+          },
+          "regularity": {
+            "toString": null
+          },
+          "flow": {
+            "toString": null
+          },
+          "periodLength": 4
+        }
+      },
+      "html": "<div id=\"detail-modal\" class=\"modal cycle-modal\"><div class=\"gb-modal-head cycle-modal-head\">\n      <div>\n        <div class=\"gb-modal-kicker\">Body context</div>\n        <div class=\"gb-modal-title\">Menstrual Cycle</div>\n      </div>\n      <button type=\"button\" class=\"modal-close cycle-icon-btn\" data-cycle-action=\"close\" aria-label=\"Close cycle editor\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M18 6 6 18M6 6l12 12\"></path></svg></button>\n    </div>\n    <div class=\"cycle-modal-body\">\n      <p class=\"cycle-modal-intro\">Track cycle status, period history, and symptoms so hormone, iron, and inflammation markers can be interpreted against cycle phase.</p>\n      <section class=\"cycle-editor-section\">\n        <div class=\"cycle-editor-section-title\">Cycle Profile</div>\n        <div class=\"cycle-form-grid cycle-form-grid-single\">\n          <label class=\"cycle-field\">\n            <span>Cycle Status</span>\n          <select id=\"mc-cycle-status\" data-cycle-action=\"toggle-fields\">\n            <option value=\"regular\" selected=\"\">Active - regular cycling</option>\n            <option value=\"perimenopause\">Perimenopause / irregular</option>\n            <option value=\"postmenopause\">Postmenopause / no periods</option>\n            <option value=\"pregnant\">Pregnant</option>\n            <option value=\"breastfeeding\">Breastfeeding</option>\n            <option value=\"absent\">Absent (other reason)</option>\n          </select>\n          </label>\n        </div>\n        <div id=\"mc-active-fields\" class=\"cycle-active-fields\">\n          <div class=\"cycle-form-grid\">\n            <label class=\"cycle-field\">\n              <span>Average Cycle Length</span>\n          <div class=\"mc-auto-value cycle-auto-value\" id=\"mc-cycle-length-auto\" data-value=\"28\">28 days</div>\n            </label>\n            <label class=\"cycle-field\">\n              <span>Average Period Length</span>\n          <div class=\"mc-auto-value cycle-auto-value\" id=\"mc-period-length-auto\" data-value=\"5\">5 days</div>\n            </label>\n            <label class=\"cycle-field\">\n              <span>Regularity</span>\n          <div class=\"mc-auto-value cycle-auto-value\" id=\"mc-regularity-auto\" data-value=\"regular\">Regular</div>\n            </label>\n            <label class=\"cycle-field\">\n              <span>Typical Flow</span>\n          <div class=\"mc-auto-value cycle-auto-value\" id=\"mc-flow-auto\" data-value=\"light\">Light</div>\n            </label>\n          </div>\n        </div>\n        <div class=\"cycle-form-grid\">\n          <label class=\"cycle-field\">\n            <span>Contraceptive</span>\n          <select id=\"mc-contraceptive\">\n            <option value=\"\" selected=\"\">None</option>\n            <optgroup label=\"Hormonal\">\n              <option value=\"OCP\">OCP (birth control pill)</option>\n              <option value=\"Hormonal IUD (Mirena)\">Hormonal IUD (Mirena/Kyleena)</option>\n              <option value=\"Implant\">Implant (Nexplanon)</option>\n              <option value=\"Patch\">Patch</option>\n              <option value=\"Ring\">Ring (NuvaRing)</option>\n              <option value=\"Depo injection\">Depo injection</option>\n            </optgroup>\n            <optgroup label=\"Non-hormonal\">\n              <option value=\"Copper IUD\">Copper IUD</option>\n              <option value=\"Barrier\">Barrier (condom/diaphragm)</option>\n              <option value=\"FAM\">Fertility awareness</option>\n            </optgroup>\n            <option value=\"other\">Other</option>\n          </select>\n          </label>\n          <label class=\"cycle-field\">\n            <span>Conditions</span>\n            <input type=\"text\" id=\"mc-conditions\" value=\"\" placeholder=\"e.g. PCOS, endometriosis, fibroids\">\n          </label>\n        </div>\n      </section><!--[--><section class=\"cycle-editor-section  cycle-import-summary-section \" data-cycle-import-view=\"\"><div class=\"cycle-editor-section-title\">Import Coverage</div> <div class=\"cycle-import-coverage gb:cycle-import-ui:[display:flex] gb:cycle-import-ui:[flex-wrap:wrap] gb:cycle-import-ui:[gap:7px] gb:cycle-import-ui:[margin-bottom:12px] gb:cycle-import-ui:[&amp;_span]:[min-height:24px] gb:cycle-import-ui:[&amp;_span]:[display:inline-flex] gb:cycle-import-ui:[&amp;_span]:[align-items:center] gb:cycle-import-ui:[&amp;_span]:[border:1px_solid_var(--border)] gb:cycle-import-ui:[&amp;_span]:[border-radius:999px] gb:cycle-import-ui:[&amp;_span]:[background:var(--bg-secondary)] gb:cycle-import-ui:[&amp;_span]:[color:var(--text-secondary)] gb:cycle-import-ui:[&amp;_span]:[font-size:11px] gb:cycle-import-ui:[&amp;_span]:[line-height:1.25] gb:cycle-import-ui:[&amp;_span]:[padding:3px_9px]\"><span>3 observed periods</span><span>0 local daily observations</span><!--[0--><span>2026-07-01 - 2026-08-30</span><!--]--></div> <!--[0--><div class=\"cycle-source-list gb:cycle-import-ui:[display:flex] gb:cycle-import-ui:[flex-direction:column] gb:cycle-import-ui:[gap:8px]\"><!--[--><div class=\"cycle-source-row gb:cycle-import-ui:[display:grid] gb:cycle-import-ui:[grid-template-columns:minmax(0,_1fr)_36px] gb:cycle-import-ui:[align-items:start] gb:cycle-import-ui:[gap:10px] gb:cycle-import-ui:[min-width:0] gb:cycle-import-ui:[padding:10px] gb:cycle-import-ui:[border:1px_solid_var(--border)] gb:cycle-import-ui:[border-radius:var(--radius-sm)] gb:cycle-import-ui:[background:var(--bg-secondary)] gb:cycle-import-ui:cycle-import-phone:[grid-template-columns:minmax(0,_1fr)_40px]\"><div class=\"cycle-source-main gb:cycle-import-ui:[min-width:0] gb:cycle-import-ui:[display:flex] gb:cycle-import-ui:[flex-direction:column] gb:cycle-import-ui:[gap:4px] gb:cycle-import-ui:[&amp;_strong]:[color:var(--text-primary)] gb:cycle-import-ui:[&amp;_strong]:[font-size:13px] gb:cycle-import-ui:[&amp;_span]:[color:var(--text-muted)] gb:cycle-import-ui:[&amp;_span]:[font-size:12px] gb:cycle-import-ui:[&amp;_span]:[line-height:1.4]\"><strong>Manual</strong><span>3 periods / 0 local observations / 2026-09-01</span> <!--[-1--><!--]--></div> <!--[-1--><!--]--></div><!--]--></div><!--]--></section><!--]-->\n      <section id=\"mc-period-log-section\" class=\"cycle-editor-section cycle-period-editor\">\n        <div class=\"cycle-editor-section-title\">Period Log</div><div class=\"cycle-log-list\"><div class=\"cycle-log-item\">\n        <span class=\"cycle-log-icon\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M12 2.5 6.9 9.1a8 8 0 1 0 10.2 0L12 2.5Z\"></path></svg></span>\n        <div class=\"cycle-log-main\">\n          <div class=\"cycle-log-date\">Aug 26, 2026 - Aug 30, 2026</div>\n          <div class=\"cycle-log-meta\">\n            <span class=\"goals-severity-badge severity-major\">heavy</span>\n            \n            \n          </div>\n        </div>\n        <button type=\"button\" class=\"cycle-icon-btn cycle-delete-btn\" data-cycle-action=\"delete-period\" data-cycle-start-date=\"2026-08-26\" aria-label=\"Delete period starting Aug 26\" title=\"Delete period\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 6h18\"></path><path d=\"M8 6V4h8v2\"></path><path d=\"M19 6l-1 14H6L5 6\"></path><path d=\"M10 11v5M14 11v5\"></path></svg></button>\n      </div><div class=\"cycle-log-item\">\n        <span class=\"cycle-log-icon\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M12 2.5 6.9 9.1a8 8 0 1 0 10.2 0L12 2.5Z\"></path></svg></span>\n        <div class=\"cycle-log-main\">\n          <div class=\"cycle-log-date\">Jul 29, 2026 - Aug 2, 2026</div>\n          <div class=\"cycle-log-meta\">\n            <span class=\"goals-severity-badge severity-mild\">moderate</span>\n            \n            \n          </div>\n        </div>\n        <button type=\"button\" class=\"cycle-icon-btn cycle-delete-btn\" data-cycle-action=\"delete-period\" data-cycle-start-date=\"2026-07-29\" aria-label=\"Delete period starting Jul 29\" title=\"Delete period\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 6h18\"></path><path d=\"M8 6V4h8v2\"></path><path d=\"M19 6l-1 14H6L5 6\"></path><path d=\"M10 11v5M14 11v5\"></path></svg></button>\n      </div><div class=\"cycle-log-item\">\n        <span class=\"cycle-log-icon\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M12 2.5 6.9 9.1a8 8 0 1 0 10.2 0L12 2.5Z\"></path></svg></span>\n        <div class=\"cycle-log-main\">\n          <div class=\"cycle-log-date\">Jul 1, 2026 - Jul 5, 2026</div>\n          <div class=\"cycle-log-meta\">\n            <span class=\"goals-severity-badge severity-minor\">light</span>\n            \n            \n          </div>\n        </div>\n        <button type=\"button\" class=\"cycle-icon-btn cycle-delete-btn\" data-cycle-action=\"delete-period\" data-cycle-start-date=\"2026-07-01\" aria-label=\"Delete period starting Jul 1\" title=\"Delete period\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 6h18\"></path><path d=\"M8 6V4h8v2\"></path><path d=\"M19 6l-1 14H6L5 6\"></path><path d=\"M10 11v5M14 11v5\"></path></svg></button>\n      </div></div><div class=\"cycle-period-add\">\n        <div class=\"cycle-form-grid cycle-form-grid-three\">\n          <label class=\"cycle-field\">\n            <span>Start Date</span>\n          <input type=\"date\" id=\"mc-period-start\" value=\"2026-10-09\">\n          </label>\n          <label class=\"cycle-field\">\n            <span>End Date</span>\n          <input type=\"date\" id=\"mc-period-end\" value=\"2026-10-12\">\n          </label>\n          <label class=\"cycle-field\">\n            <span>Flow</span>\n          <select id=\"mc-period-flow\">\n            <option value=\"light\">Light</option>\n            <option value=\"moderate\" selected=\"\">Moderate</option>\n            <option value=\"heavy\">Heavy</option>\n          </select>\n          </label>\n        </div>\n        <label class=\"cycle-field cycle-field-wide\">\n          <span>Symptoms</span>\n          <div class=\"ctx-tags cycle-symptom-grid\" id=\"mc-period-symptoms\">\n            <button type=\"button\" class=\"ctx-tag cycle-symptom-chip\" data-value=\"Cramps\" aria-pressed=\"false\" data-cycle-action=\"toggle-symptom\">Cramps</button><button type=\"button\" class=\"ctx-tag cycle-symptom-chip\" data-value=\"Mood swings\" aria-pressed=\"false\" data-cycle-action=\"toggle-symptom\">Mood swings</button><button type=\"button\" class=\"ctx-tag cycle-symptom-chip\" data-value=\"Fatigue\" aria-pressed=\"false\" data-cycle-action=\"toggle-symptom\">Fatigue</button><button type=\"button\" class=\"ctx-tag cycle-symptom-chip\" data-value=\"Bloating\" aria-pressed=\"false\" data-cycle-action=\"toggle-symptom\">Bloating</button><button type=\"button\" class=\"ctx-tag cycle-symptom-chip\" data-value=\"Headache\" aria-pressed=\"false\" data-cycle-action=\"toggle-symptom\">Headache</button><button type=\"button\" class=\"ctx-tag cycle-symptom-chip\" data-value=\"Acne\" aria-pressed=\"false\" data-cycle-action=\"toggle-symptom\">Acne</button><button type=\"button\" class=\"ctx-tag cycle-symptom-chip\" data-value=\"Breast tenderness\" aria-pressed=\"false\" data-cycle-action=\"toggle-symptom\">Breast tenderness</button><button type=\"button\" class=\"ctx-tag cycle-symptom-chip\" data-value=\"Insomnia\" aria-pressed=\"false\" data-cycle-action=\"toggle-symptom\">Insomnia</button><button type=\"button\" class=\"ctx-tag cycle-symptom-chip\" data-value=\"Back pain\" aria-pressed=\"false\" data-cycle-action=\"toggle-symptom\">Back pain</button><button type=\"button\" class=\"ctx-tag cycle-symptom-chip\" data-value=\"Nausea\" aria-pressed=\"false\" data-cycle-action=\"toggle-symptom\">Nausea</button><button type=\"button\" class=\"ctx-tag cycle-symptom-chip\" data-value=\"Hot flashes\" aria-pressed=\"false\" data-cycle-action=\"toggle-symptom\">Hot flashes</button><button type=\"button\" class=\"ctx-tag cycle-symptom-chip\" data-value=\"Night sweats\" aria-pressed=\"false\" data-cycle-action=\"toggle-symptom\">Night sweats</button><button type=\"button\" class=\"ctx-tag cycle-symptom-chip\" data-value=\"Anxiety\" aria-pressed=\"false\" data-cycle-action=\"toggle-symptom\">Anxiety</button><button type=\"button\" class=\"ctx-tag cycle-symptom-chip\" data-value=\"Food cravings\" aria-pressed=\"false\" data-cycle-action=\"toggle-symptom\">Food cravings</button><button type=\"button\" class=\"ctx-tag cycle-symptom-chip\" data-value=\"Spotting\" aria-pressed=\"false\" data-cycle-action=\"toggle-symptom\">Spotting</button><button type=\"button\" class=\"ctx-tag cycle-symptom-chip\" data-value=\"Clots\" aria-pressed=\"false\" data-cycle-action=\"toggle-symptom\">Clots</button><button type=\"button\" class=\"ctx-tag cycle-symptom-chip\" data-value=\"Dizziness\" aria-pressed=\"false\" data-cycle-action=\"toggle-symptom\">Dizziness</button>\n          </div>\n        </label>\n        <div class=\"cycle-add-row\">\n          <label class=\"cycle-field\">\n            <span>Notes (optional)</span>\n          <input type=\"text\" id=\"mc-period-notes\" placeholder=\"e.g. spotting, unusual pain\">\n          </label>\n          <button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-primary cycle-add-btn\" data-cycle-action=\"add-period\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M12 5v14M5 12h14\"></path></svg><span>Add period</span></button>\n        </div>\n      </div>\n      </section>\n    </div>\n    <div class=\"cycle-modal-footer\">\n      <button type=\"button\" class=\"dashboard-action-btn cycle-danger-btn\" data-cycle-action=\"clear\">Clear All</button>\n      <button type=\"button\" class=\"dashboard-action-btn\" data-cycle-action=\"close\">Cancel</button>\n      <button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-primary\" data-cycle-action=\"save\">Save</button>\n    </div></div>",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "id": "",
+          "action": "close",
+          "value": "",
+          "checked": null,
+          "disabled": false,
+          "hidden": false,
+          "pressed": null,
+          "selectedIndex": null,
+          "options": null
+        },
+        {
+          "tag": "SELECT",
+          "id": "mc-cycle-status",
+          "action": "toggle-fields",
+          "value": "regular",
+          "checked": null,
+          "disabled": false,
+          "hidden": false,
+          "pressed": null,
+          "selectedIndex": 0,
+          "options": [
+            {
+              "value": "regular",
+              "text": "Active - regular cycling",
+              "selectedAttribute": true,
+              "selected": true,
+              "disabled": false
+            },
+            {
+              "value": "perimenopause",
+              "text": "Perimenopause / irregular",
+              "selectedAttribute": false,
+              "selected": false,
+              "disabled": false
+            },
+            {
+              "value": "postmenopause",
+              "text": "Postmenopause / no periods",
+              "selectedAttribute": false,
+              "selected": false,
+              "disabled": false
+            },
+            {
+              "value": "pregnant",
+              "text": "Pregnant",
+              "selectedAttribute": false,
+              "selected": false,
+              "disabled": false
+            },
+            {
+              "value": "breastfeeding",
+              "text": "Breastfeeding",
+              "selectedAttribute": false,
+              "selected": false,
+              "disabled": false
+            },
+            {
+              "value": "absent",
+              "text": "Absent (other reason)",
+              "selectedAttribute": false,
+              "selected": false,
+              "disabled": false
+            }
+          ]
+        },
+        {
+          "tag": "SELECT",
+          "id": "mc-contraceptive",
+          "action": null,
+          "value": "",
+          "checked": null,
+          "disabled": false,
+          "hidden": false,
+          "pressed": null,
+          "selectedIndex": 0,
+          "options": [
+            {
+              "value": "",
+              "text": "None",
+              "selectedAttribute": true,
+              "selected": true,
+              "disabled": false
+            },
+            {
+              "value": "OCP",
+              "text": "OCP (birth control pill)",
+              "selectedAttribute": false,
+              "selected": false,
+              "disabled": false
+            },
+            {
+              "value": "Hormonal IUD (Mirena)",
+              "text": "Hormonal IUD (Mirena/Kyleena)",
+              "selectedAttribute": false,
+              "selected": false,
+              "disabled": false
+            },
+            {
+              "value": "Implant",
+              "text": "Implant (Nexplanon)",
+              "selectedAttribute": false,
+              "selected": false,
+              "disabled": false
+            },
+            {
+              "value": "Patch",
+              "text": "Patch",
+              "selectedAttribute": false,
+              "selected": false,
+              "disabled": false
+            },
+            {
+              "value": "Ring",
+              "text": "Ring (NuvaRing)",
+              "selectedAttribute": false,
+              "selected": false,
+              "disabled": false
+            },
+            {
+              "value": "Depo injection",
+              "text": "Depo injection",
+              "selectedAttribute": false,
+              "selected": false,
+              "disabled": false
+            },
+            {
+              "value": "Copper IUD",
+              "text": "Copper IUD",
+              "selectedAttribute": false,
+              "selected": false,
+              "disabled": false
+            },
+            {
+              "value": "Barrier",
+              "text": "Barrier (condom/diaphragm)",
+              "selectedAttribute": false,
+              "selected": false,
+              "disabled": false
+            },
+            {
+              "value": "FAM",
+              "text": "Fertility awareness",
+              "selectedAttribute": false,
+              "selected": false,
+              "disabled": false
+            },
+            {
+              "value": "other",
+              "text": "Other",
+              "selectedAttribute": false,
+              "selected": false,
+              "disabled": false
+            }
+          ]
+        },
+        {
+          "tag": "INPUT",
+          "id": "mc-conditions",
+          "action": null,
+          "value": "",
+          "checked": false,
+          "disabled": false,
+          "hidden": false,
+          "pressed": null,
+          "selectedIndex": null,
+          "options": null
+        },
+        {
+          "tag": "BUTTON",
+          "id": "",
+          "action": "delete-period",
+          "value": "",
+          "checked": null,
+          "disabled": false,
+          "hidden": false,
+          "pressed": null,
+          "selectedIndex": null,
+          "options": null
+        },
+        {
+          "tag": "BUTTON",
+          "id": "",
+          "action": "delete-period",
+          "value": "",
+          "checked": null,
+          "disabled": false,
+          "hidden": false,
+          "pressed": null,
+          "selectedIndex": null,
+          "options": null
+        },
+        {
+          "tag": "BUTTON",
+          "id": "",
+          "action": "delete-period",
+          "value": "",
+          "checked": null,
+          "disabled": false,
+          "hidden": false,
+          "pressed": null,
+          "selectedIndex": null,
+          "options": null
+        },
+        {
+          "tag": "INPUT",
+          "id": "mc-period-start",
+          "action": null,
+          "value": "2026-10-09",
+          "checked": false,
+          "disabled": false,
+          "hidden": false,
+          "pressed": null,
+          "selectedIndex": null,
+          "options": null
+        },
+        {
+          "tag": "INPUT",
+          "id": "mc-period-end",
+          "action": null,
+          "value": "2026-10-12",
+          "checked": false,
+          "disabled": false,
+          "hidden": false,
+          "pressed": null,
+          "selectedIndex": null,
+          "options": null
+        },
+        {
+          "tag": "SELECT",
+          "id": "mc-period-flow",
+          "action": null,
+          "value": "moderate",
+          "checked": null,
+          "disabled": false,
+          "hidden": false,
+          "pressed": null,
+          "selectedIndex": 1,
+          "options": [
+            {
+              "value": "light",
+              "text": "Light",
+              "selectedAttribute": false,
+              "selected": false,
+              "disabled": false
+            },
+            {
+              "value": "moderate",
+              "text": "Moderate",
+              "selectedAttribute": true,
+              "selected": true,
+              "disabled": false
+            },
+            {
+              "value": "heavy",
+              "text": "Heavy",
+              "selectedAttribute": false,
+              "selected": false,
+              "disabled": false
+            }
+          ]
+        },
+        {
+          "tag": "BUTTON",
+          "id": "",
+          "action": "toggle-symptom",
+          "value": "",
+          "checked": null,
+          "disabled": false,
+          "hidden": false,
+          "pressed": "false",
+          "selectedIndex": null,
+          "options": null
+        },
+        {
+          "tag": "BUTTON",
+          "id": "",
+          "action": "toggle-symptom",
+          "value": "",
+          "checked": null,
+          "disabled": false,
+          "hidden": false,
+          "pressed": "false",
+          "selectedIndex": null,
+          "options": null
+        },
+        {
+          "tag": "BUTTON",
+          "id": "",
+          "action": "toggle-symptom",
+          "value": "",
+          "checked": null,
+          "disabled": false,
+          "hidden": false,
+          "pressed": "false",
+          "selectedIndex": null,
+          "options": null
+        },
+        {
+          "tag": "BUTTON",
+          "id": "",
+          "action": "toggle-symptom",
+          "value": "",
+          "checked": null,
+          "disabled": false,
+          "hidden": false,
+          "pressed": "false",
+          "selectedIndex": null,
+          "options": null
+        },
+        {
+          "tag": "BUTTON",
+          "id": "",
+          "action": "toggle-symptom",
+          "value": "",
+          "checked": null,
+          "disabled": false,
+          "hidden": false,
+          "pressed": "false",
+          "selectedIndex": null,
+          "options": null
+        },
+        {
+          "tag": "BUTTON",
+          "id": "",
+          "action": "toggle-symptom",
+          "value": "",
+          "checked": null,
+          "disabled": false,
+          "hidden": false,
+          "pressed": "false",
+          "selectedIndex": null,
+          "options": null
+        },
+        {
+          "tag": "BUTTON",
+          "id": "",
+          "action": "toggle-symptom",
+          "value": "",
+          "checked": null,
+          "disabled": false,
+          "hidden": false,
+          "pressed": "false",
+          "selectedIndex": null,
+          "options": null
+        },
+        {
+          "tag": "BUTTON",
+          "id": "",
+          "action": "toggle-symptom",
+          "value": "",
+          "checked": null,
+          "disabled": false,
+          "hidden": false,
+          "pressed": "false",
+          "selectedIndex": null,
+          "options": null
+        },
+        {
+          "tag": "BUTTON",
+          "id": "",
+          "action": "toggle-symptom",
+          "value": "",
+          "checked": null,
+          "disabled": false,
+          "hidden": false,
+          "pressed": "false",
+          "selectedIndex": null,
+          "options": null
+        },
+        {
+          "tag": "BUTTON",
+          "id": "",
+          "action": "toggle-symptom",
+          "value": "",
+          "checked": null,
+          "disabled": false,
+          "hidden": false,
+          "pressed": "false",
+          "selectedIndex": null,
+          "options": null
+        },
+        {
+          "tag": "BUTTON",
+          "id": "",
+          "action": "toggle-symptom",
+          "value": "",
+          "checked": null,
+          "disabled": false,
+          "hidden": false,
+          "pressed": "false",
+          "selectedIndex": null,
+          "options": null
+        },
+        {
+          "tag": "BUTTON",
+          "id": "",
+          "action": "toggle-symptom",
+          "value": "",
+          "checked": null,
+          "disabled": false,
+          "hidden": false,
+          "pressed": "false",
+          "selectedIndex": null,
+          "options": null
+        },
+        {
+          "tag": "BUTTON",
+          "id": "",
+          "action": "toggle-symptom",
+          "value": "",
+          "checked": null,
+          "disabled": false,
+          "hidden": false,
+          "pressed": "false",
+          "selectedIndex": null,
+          "options": null
+        },
+        {
+          "tag": "BUTTON",
+          "id": "",
+          "action": "toggle-symptom",
+          "value": "",
+          "checked": null,
+          "disabled": false,
+          "hidden": false,
+          "pressed": "false",
+          "selectedIndex": null,
+          "options": null
+        },
+        {
+          "tag": "BUTTON",
+          "id": "",
+          "action": "toggle-symptom",
+          "value": "",
+          "checked": null,
+          "disabled": false,
+          "hidden": false,
+          "pressed": "false",
+          "selectedIndex": null,
+          "options": null
+        },
+        {
+          "tag": "BUTTON",
+          "id": "",
+          "action": "toggle-symptom",
+          "value": "",
+          "checked": null,
+          "disabled": false,
+          "hidden": false,
+          "pressed": "false",
+          "selectedIndex": null,
+          "options": null
+        },
+        {
+          "tag": "BUTTON",
+          "id": "",
+          "action": "toggle-symptom",
+          "value": "",
+          "checked": null,
+          "disabled": false,
+          "hidden": false,
+          "pressed": "false",
+          "selectedIndex": null,
+          "options": null
+        },
+        {
+          "tag": "INPUT",
+          "id": "mc-period-notes",
+          "action": null,
+          "value": "",
+          "checked": false,
+          "disabled": false,
+          "hidden": false,
+          "pressed": null,
+          "selectedIndex": null,
+          "options": null
+        },
+        {
+          "tag": "BUTTON",
+          "id": "",
+          "action": "add-period",
+          "value": "",
+          "checked": null,
+          "disabled": false,
+          "hidden": false,
+          "pressed": null,
+          "selectedIndex": null,
+          "options": null
+        },
+        {
+          "tag": "BUTTON",
+          "id": "",
+          "action": "clear",
+          "value": "",
+          "checked": null,
+          "disabled": false,
+          "hidden": false,
+          "pressed": null,
+          "selectedIndex": null,
+          "options": null
+        },
+        {
+          "tag": "BUTTON",
+          "id": "",
+          "action": "close",
+          "value": "",
+          "checked": null,
+          "disabled": false,
+          "hidden": false,
+          "pressed": null,
+          "selectedIndex": null,
+          "options": null
+        },
+        {
+          "tag": "BUTTON",
+          "id": "",
+          "action": "save",
+          "value": "",
+          "checked": null,
+          "disabled": false,
+          "hidden": false,
+          "pressed": null,
+          "selectedIndex": null,
+          "options": null
+        }
+      ],
+      "prepared": {
+        "profile": {
+          "periods": [
+            {
+              "startDate": "2026-07-01",
+              "endDate": "2026-07-05",
+              "flow": "light",
+              "symptoms": [],
+              "source": "manual",
+              "confidence": "logged",
+              "updatedAt": "2026-09-01T00:00:00Z"
+            },
+            {
+              "startDate": "2026-07-29",
+              "endDate": "2026-08-02",
+              "flow": "moderate",
+              "symptoms": [],
+              "source": "manual",
+              "confidence": "logged",
+              "updatedAt": "2026-09-01T00:00:00Z"
+            },
+            {
+              "startDate": "2026-08-26",
+              "endDate": "2026-08-30",
+              "flow": "heavy",
+              "symptoms": [],
+              "source": "manual",
+              "confidence": "logged",
+              "updatedAt": "2026-09-01T00:00:00Z"
+            }
+          ],
+          "cycleLength": {
+            "toString": null
+          },
+          "regularity": {
+            "toString": null
+          },
+          "flow": {
+            "toString": null
+          },
+          "periodLength": 4
+        },
+        "periods": [
+          {
+            "startDate": "2026-08-26",
+            "endDate": "2026-08-30",
+            "flow": "heavy",
+            "symptoms": [],
+            "source": "manual",
+            "confidence": "logged",
+            "updatedAt": "2026-09-01T00:00:00Z"
+          },
+          {
+            "startDate": "2026-07-29",
+            "endDate": "2026-08-02",
+            "flow": "moderate",
+            "symptoms": [],
+            "source": "manual",
+            "confidence": "logged",
+            "updatedAt": "2026-09-01T00:00:00Z"
+          },
+          {
+            "startDate": "2026-07-01",
+            "endDate": "2026-07-05",
+            "flow": "light",
+            "symptoms": [],
+            "source": "manual",
+            "confidence": "logged",
+            "updatedAt": "2026-09-01T00:00:00Z"
+          }
+        ],
+        "stats": {
+          "cycleLength": 28,
+          "periodLength": 5,
+          "regularity": "regular",
+          "flow": "light"
+        },
+        "activeCycle": true,
+        "today": "2026-10-09",
+        "defaultEnd": "2026-10-12",
+        "coverage": {
+          "periodCount": 3,
+          "observationCount": 0,
+          "firstDate": "2026-07-01",
+          "lastDate": "2026-08-30",
+          "sources": [
+            {
+              "source": "manual",
+              "label": "Manual",
+              "periodCount": 3,
+              "observationCount": 0,
+              "importedAt": "2026-09-01",
+              "batches": [],
+              "deleteTitle": null,
+              "deleteAriaLabel": null
+            }
+          ],
+          "showRange": true
+        },
+        "symptoms": [
+          "Cramps",
+          "Mood swings",
+          "Fatigue",
+          "Bloating",
+          "Headache",
+          "Acne",
+          "Breast tenderness",
+          "Insomnia",
+          "Back pain",
+          "Nausea",
+          "Hot flashes",
+          "Night sweats",
+          "Anxiety",
+          "Food cravings",
+          "Spotting",
+          "Clots",
+          "Dizziness"
+        ],
+        "showClear": true
+      },
+      "initialState": {
+        "menstrualCycle": {
+          "periods": [
+            {
+              "startDate": "2026-07-01",
+              "endDate": "2026-07-05",
+              "flow": "light",
+              "symptoms": [],
+              "source": "manual",
+              "confidence": "logged",
+              "updatedAt": "2026-09-01T00:00:00Z"
+            },
+            {
+              "startDate": "2026-07-29",
+              "endDate": "2026-08-02",
+              "flow": "moderate",
+              "symptoms": [],
+              "source": "manual",
+              "confidence": "logged",
+              "updatedAt": "2026-09-01T00:00:00Z"
+            },
+            {
+              "startDate": "2026-08-26",
+              "endDate": "2026-08-30",
+              "flow": "heavy",
+              "symptoms": [],
+              "source": "manual",
+              "confidence": "logged",
+              "updatedAt": "2026-09-01T00:00:00Z"
+            }
+          ],
+          "cycleLength": {
+            "toString": null
+          },
+          "regularity": {
+            "toString": null
+          },
+          "flow": {
+            "toString": null
+          },
+          "periodLength": 4
+        },
+        "entries": [
+          {
+            "date": "2026-01-01",
+            "markers": {
+              "Fixture": 42
+            }
+          }
+        ],
+        "notes": [
+          {
+            "date": "2026-01-01",
+            "text": "Unrelated synthetic note"
+          }
+        ],
+        "diagnoses": {
+          "synthetic": true
+        },
+        "changeHistory": [
+          {
+            "id": "existing-history",
+            "card": "unrelated"
+          }
+        ],
+        "_deleted": {
+          "unrelated": [
+            "preserved"
+          ]
+        }
+      },
+      "finalState": {
+        "menstrualCycle": {
+          "periods": [
+            {
+              "startDate": "2026-07-01",
+              "endDate": "2026-07-05",
+              "flow": "light",
+              "symptoms": [],
+              "source": "manual",
+              "confidence": "logged",
+              "updatedAt": "2026-09-01T00:00:00Z"
+            },
+            {
+              "startDate": "2026-07-29",
+              "endDate": "2026-08-02",
+              "flow": "moderate",
+              "symptoms": [],
+              "source": "manual",
+              "confidence": "logged",
+              "updatedAt": "2026-09-01T00:00:00Z"
+            },
+            {
+              "startDate": "2026-08-26",
+              "endDate": "2026-08-30",
+              "flow": "heavy",
+              "symptoms": [],
+              "source": "manual",
+              "confidence": "logged",
+              "updatedAt": "2026-09-01T00:00:00Z"
+            }
+          ],
+          "cycleLength": {
+            "toString": null
+          },
+          "regularity": {
+            "toString": null
+          },
+          "flow": {
+            "toString": null
+          },
+          "periodLength": 4
+        },
+        "entries": [
+          {
+            "date": "2026-01-01",
+            "markers": {
+              "Fixture": 42
+            }
+          }
+        ],
+        "notes": [
+          {
+            "date": "2026-01-01",
+            "text": "Unrelated synthetic note"
+          }
+        ],
+        "diagnoses": {
+          "synthetic": true
+        },
+        "changeHistory": [
+          {
+            "id": "existing-history",
+            "card": "unrelated"
+          }
+        ],
+        "_deleted": {
+          "unrelated": [
+            "preserved"
+          ]
+        }
+      },
+      "runtimeTrace": [
+        {
+          "port": "open",
+          "id": "modal-overlay"
+        }
+      ],
+      "steps": [],
+      "rawBefore": [
+        {
+          "id": "raw-one",
+          "date": "2026-09-23",
+          "source": "drip",
+          "importId": "import-one",
+          "bleeding": {
+            "flow": "heavy"
+          }
+        }
+      ],
+      "rawAfter": [
+        {
+          "id": "raw-one",
+          "date": "2026-09-23",
+          "source": "drip",
+          "importId": "import-one",
+          "bleeding": {
+            "flow": "heavy"
+          }
+        }
+      ],
+      "metaBefore": [
+        {
+          "importId": "import-one",
+          "source": "drip",
+          "label": "Synthetic imported metadata"
+        }
+      ],
+      "metaAfter": [
+        {
+          "importId": "import-one",
+          "source": "drip",
+          "label": "Synthetic imported metadata"
+        }
+      ],
+      "originalInputUnmutated": true
+    }
+  ],
+  "styleFiles": [
+    "vendor/fonts/fonts.css",
+    "styles.css",
+    "css/app-shell.css",
+    "css/modal-shared.css",
+    "css/dashboard-core.css",
+    "css/dashboard-widgets.css",
+    "css/dashboard-welcome.css",
+    "css/dashboard-data.css",
+    "css/context-profile.css",
+    "css/mobile-dashboard.css",
+    "css/cycle.css",
+    "css/recommendations.css",
+    "css/chat-panel.css",
+    "css/redesign-shell.css",
+    "css/chat-redesign.css"
+  ],
+  "stylePlacements": [
+    {
+      "file": "vendor/fonts/fonts.css",
+      "anchor": null
+    },
+    {
+      "file": "styles.css",
+      "anchor": null
+    },
+    {
+      "file": "css/app-shell.css",
+      "anchor": null
+    },
+    {
+      "file": "css/modal-shared.css",
+      "anchor": null
+    },
+    {
+      "file": "css/dashboard-core.css",
+      "anchor": null
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "anchor": null
+    },
+    {
+      "file": "css/dashboard-welcome.css",
+      "anchor": null
+    },
+    {
+      "file": "css/dashboard-data.css",
+      "anchor": null
+    },
+    {
+      "file": "css/context-profile.css",
+      "anchor": null
+    },
+    {
+      "file": "css/mobile-dashboard.css",
+      "anchor": null
+    },
+    {
+      "file": "css/cycle.css",
+      "anchor": "[data-cycle-stylesheet-anchor]"
+    },
+    {
+      "file": "css/recommendations.css",
+      "anchor": null
+    },
+    {
+      "file": "css/chat-panel.css",
+      "anchor": null
+    },
+    {
+      "file": "css/redesign-shell.css",
+      "anchor": null
+    },
+    {
+      "file": "css/chat-redesign.css",
+      "anchor": null
+    }
+  ],
+  "styleBlocks": [
+    {
+      "file": "styles.css",
+      "order": 5,
+      "selector": "*",
+      "css": "* { margin: 0; padding: 0; box-sizing: border-box; }",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "styles.css",
+      "order": 8,
+      "selector": "html",
+      "css": "html { overflow-x: hidden; background: var(--bg-primary); color-scheme: dark; }",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "styles.css",
+      "order": 10,
+      "selector": "body",
+      "css": "body {\n  font-family: var(--font-body);\n  background: var(--bg-primary);\n  color: var(--text-primary);\n  line-height: 1.5;\n}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "styles.css",
+      "order": 11,
+      "selector": "select",
+      "css": "select {\n  background-color: var(--select-surface);\n  color: var(--text-primary);\n  color-scheme: dark;\n}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "styles.css",
+      "order": 12,
+      "selector": "select option,\nselect optgroup",
+      "css": "select option,\nselect optgroup {\n  background-color: var(--select-popup-surface);\n  color: var(--text-primary);\n}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "styles.css",
+      "order": 13,
+      "selector": "[data-theme=\"light\"] select",
+      "css": "[data-theme=\"light\"] select { color-scheme: light; }",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "styles.css",
+      "order": 37,
+      "selector": ".modal",
+      "css": ".modal { padding: 20px 16px; }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 480px)"
+        }
+      ],
+      "shared": true
+    },
+    {
+      "file": "styles.css",
+      "order": 38,
+      "selector": ".modal h3",
+      "css": ".modal h3 { font-size: 18px; }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 480px)"
+        }
+      ],
+      "shared": true
+    },
+    {
+      "file": "styles.css",
+      "order": 40,
+      "selector": ".modal",
+      "css": ".modal { padding: 16px 12px; max-width: 98vw; }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 375px)"
+        }
+      ],
+      "shared": true
+    },
+    {
+      "file": "css/modal-shared.css",
+      "order": 2,
+      "selector": ".modal",
+      "css": ".modal {\n  position: relative; cursor: default;\n  background: var(--bg-secondary); border-radius: var(--radius);\n  border: 1px solid var(--border); width: 90%; max-width: 700px;\n  max-height: 85vh; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; padding: 32px;\n  transform: scale(0.96) translateY(8px); opacity: 0;\n  transition: transform 0.25s ease, opacity 0.25s ease;\n}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/modal-shared.css",
+      "order": 3,
+      "selector": ".modal-overlay.show .modal",
+      "css": ".modal-overlay.show .modal { transform: scale(1) translateY(0); opacity: 1; }",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/modal-shared.css",
+      "order": 7,
+      "selector": ".gb-modal-head",
+      "css": ".gb-modal-head {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 18px;\n  padding: 22px 26px;\n  border-bottom: 1px solid var(--border);\n  background: color-mix(in srgb, var(--bg-secondary) 92%, var(--bg-card));\n}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/modal-shared.css",
+      "order": 8,
+      "selector": ".gb-modal-kicker",
+      "css": ".gb-modal-kicker {\n  font-family: var(--font-mono);\n  color: var(--text-muted);\n  font-size: 10px;\n  font-weight: 700;\n  letter-spacing: 0.1em;\n  text-transform: uppercase;\n}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/modal-shared.css",
+      "order": 9,
+      "selector": ".gb-modal-title",
+      "css": ".gb-modal-title {\n  margin-top: 3px;\n  color: var(--text-primary);\n  font-family: var(--font-display);\n  font-size: 22px;\n  font-weight: 700;\n  letter-spacing: 0;\n}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/modal-shared.css",
+      "order": 10,
+      "selector": ".gb-modal-head .modal-close",
+      "css": ".gb-modal-head .modal-close {\n  position: static;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  width: 34px;\n  height: 34px;\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  background: var(--bg-card);\n  color: var(--text-muted);\n  font-size: 22px;\n  line-height: 1;\n  padding: 0;\n  flex-shrink: 0;\n}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/modal-shared.css",
+      "order": 11,
+      "selector": ".gb-modal-head .modal-close:hover",
+      "css": ".gb-modal-head .modal-close:hover {\n  color: var(--text-primary);\n  border-color: var(--accent);\n  background: var(--bg-hover);\n}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/modal-shared.css",
+      "order": 13,
+      "selector": ".gb-modal-head > .context-back-btn + div",
+      "css": ".gb-modal-head > .context-back-btn + div {\n  margin-right: auto;\n}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/modal-shared.css",
+      "order": 19,
+      "selector": ".modal:not(.marker-detail-modal):not(.gb-form-modal):not(.gb-history-modal):not(.settings-modal) > h3:first-of-type,\n.modal:not(.marker-detail-modal):not(.gb-form-modal):not(.gb-history-modal):not(.settings-modal) > .modal-header:first-child",
+      "css": ".modal:not(.marker-detail-modal):not(.gb-form-modal):not(.gb-history-modal):not(.settings-modal) > h3:first-of-type,\n.modal:not(.marker-detail-modal):not(.gb-form-modal):not(.gb-history-modal):not(.settings-modal) > .modal-header:first-child {\n  margin: -32px -32px 20px;\n  padding: 22px 56px 18px 26px;\n  border-bottom: 1px solid var(--border);\n  background: color-mix(in srgb, var(--bg-secondary) 92%, var(--bg-card));\n}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/modal-shared.css",
+      "order": 20,
+      "selector": ".modal:not(.marker-detail-modal):not(.gb-form-modal):not(.gb-history-modal):not(.settings-modal) > h3:first-of-type",
+      "css": ".modal:not(.marker-detail-modal):not(.gb-form-modal):not(.gb-history-modal):not(.settings-modal) > h3:first-of-type {\n  color: var(--text-primary);\n  font-family: var(--font-display);\n  font-size: 22px;\n  font-weight: 700;\n  letter-spacing: 0;\n}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/modal-shared.css",
+      "order": 21,
+      "selector": ".modal:not(.marker-detail-modal):not(.gb-form-modal):not(.gb-history-modal):not(.settings-modal) > .modal-header:first-child h3",
+      "css": ".modal:not(.marker-detail-modal):not(.gb-form-modal):not(.gb-history-modal):not(.settings-modal) > .modal-header:first-child h3 {\n  margin: 0;\n  color: var(--text-primary);\n  font-size: 22px;\n}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/modal-shared.css",
+      "order": 22,
+      "selector": ".modal:not(.marker-detail-modal):not(.gb-form-modal):not(.gb-history-modal):not(.settings-modal) > .modal-unit:first-of-type",
+      "css": ".modal:not(.marker-detail-modal):not(.gb-form-modal):not(.gb-history-modal):not(.settings-modal) > .modal-unit:first-of-type {\n  margin-top: -6px;\n}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/modal-shared.css",
+      "order": 23,
+      "selector": ".modal:not(.marker-detail-modal):not(.gb-form-modal):not(.gb-history-modal):not(.settings-modal) .modal-actions",
+      "css": ".modal:not(.marker-detail-modal):not(.gb-form-modal):not(.gb-history-modal):not(.settings-modal) .modal-actions {\n  display: flex;\n  gap: 8px;\n  flex-wrap: wrap;\n  justify-content: flex-end;\n  padding-top: 16px;\n  border-top: 1px solid var(--border);\n}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/modal-shared.css",
+      "order": 25,
+      "selector": ".gb-modal-head",
+      "css": ".gb-modal-head { padding: 18px 20px; }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 720px)"
+        }
+      ],
+      "shared": true
+    },
+    {
+      "file": "css/modal-shared.css",
+      "order": 103,
+      "selector": ".kb-create-dialog .gb-modal-head",
+      "css": ".kb-create-dialog .gb-modal-head { padding: 18px 20px; }",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/modal-shared.css",
+      "order": 144,
+      "selector": ".kb-create-dialog .gb-modal-head",
+      "css": ".kb-create-dialog .gb-modal-head { padding: 15px 16px; }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 620px)"
+        }
+      ],
+      "shared": true
+    },
+    {
+      "file": "css/modal-shared.css",
+      "order": 153,
+      "selector": ".modal-close",
+      "css": ".modal-close {\n  position: absolute; top: 16px; right: 16px;\n  background: none; border: none; color: var(--text-muted);\n  font-size: 24px; cursor: pointer; padding: 0 4px;\n}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/modal-shared.css",
+      "order": 154,
+      "selector": ".modal-close:hover",
+      "css": ".modal-close:hover { color: var(--text-primary); }",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/modal-shared.css",
+      "order": 155,
+      "selector": ".modal h3",
+      "css": ".modal h3 { font-family: var(--font-display); font-size: 20px; font-weight: 700; margin-bottom: 4px; }",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/modal-shared.css",
+      "order": 315,
+      "selector": ".modal .modal-unit",
+      "css": ".modal .modal-unit {\n  color: var(--text-muted); font-size: 14px; margin-bottom: 8px;\n  /* Source-name + delta + trend separated by middle-dots; let them wrap\n     gracefully on narrow viewports rather than overflow the modal box. */\n  display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center;\n}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/modal-shared.css",
+      "order": 316,
+      "selector": ".modal .modal-unit.modal-unit-alt",
+      "css": ".modal .modal-unit.modal-unit-alt {\n  font-size: 12px; opacity: 0.7; margin-top: -4px; margin-bottom: 12px;\n}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/modal-shared.css",
+      "order": 317,
+      "selector": ".modal .wearable-modal-source-swap",
+      "css": ".modal .wearable-modal-source-swap {\n  margin-left: auto;\n  font-size: 11px;\n}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/modal-shared.css",
+      "order": 349,
+      "selector": ".modal-close,\n  .context-back-btn",
+      "css": ".modal-close,\n  .context-back-btn { min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(pointer: coarse)"
+        }
+      ],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-core.css",
+      "order": 7,
+      "selector": ".dashboard-sticky-actions .dashboard-action-btn",
+      "css": ".dashboard-sticky-actions .dashboard-action-btn {\n  pointer-events: auto;\n  background: color-mix(in srgb, var(--bg-secondary) 88%, transparent);\n  box-shadow: var(--shadow);\n  backdrop-filter: blur(12px);\n}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-core.css",
+      "order": 8,
+      "selector": ".dashboard-sticky-actions .dashboard-action-btn-primary",
+      "css": ".dashboard-sticky-actions .dashboard-action-btn-primary {\n  background: var(--accent);\n  border-color: transparent;\n  color: var(--on-accent);\n}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-core.css",
+      "order": 9,
+      "selector": ".dashboard-action-btn",
+      "css": ".dashboard-action-btn {\n  padding: 8px 12px; border-radius: var(--radius-sm);\n  border: 1px solid var(--border); background: var(--bg-secondary);\n  color: var(--text-primary); font: inherit; font-size: 12px; font-weight: 600;\n  cursor: pointer; transition: background 0.15s, border-color 0.15s, transform 0.05s;\n}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-core.css",
+      "order": 10,
+      "selector": ".dashboard-action-btn:hover",
+      "css": ".dashboard-action-btn:hover { background: var(--bg-hover); border-color: var(--accent); }",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-core.css",
+      "order": 11,
+      "selector": ".dashboard-action-btn:active",
+      "css": ".dashboard-action-btn:active { transform: translateY(1px); }",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-core.css",
+      "order": 12,
+      "selector": ".dashboard-action-btn:focus-visible",
+      "css": ".dashboard-action-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-core.css",
+      "order": 13,
+      "selector": ".dashboard-action-btn-primary",
+      "css": ".dashboard-action-btn-primary {\n  background: var(--accent); border-color: transparent; color: var(--on-accent);\n}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-core.css",
+      "order": 14,
+      "selector": "html:not([data-theme]) .dashboard-action-btn-primary",
+      "css": "html:not([data-theme]) .dashboard-action-btn-primary {\n  /* White hover text fails against the blue accent during background\n     interpolation, so this button snaps directly to the dark hover surface. */\n  transition: border-color 0.15s, transform 0.05s;\n}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-core.css",
+      "order": 15,
+      "selector": "html:not([data-theme]) .dashboard-action-btn-primary:hover",
+      "css": "html:not([data-theme]) .dashboard-action-btn-primary:hover {\n  background: var(--bg-hover);\n  border-color: var(--accent);\n  color: #fff;\n}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 28,
+      "selector": ".biology-score-header-actions .dashboard-action-btn",
+      "css": ".biology-score-header-actions .dashboard-action-btn {\n  margin-right: 2px;\n}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 94,
+      "selector": "*,:before,:after,::backdrop",
+      "css": "*,:before,:after,::backdrop{--tw-content:\"\"}",
+      "atRules": [
+        {
+          "name": "layer",
+          "params": "properties"
+        },
+        {
+          "name": "supports",
+          "params": "(((-webkit-hyphens:none)) and (not (margin-trim:inline))) or ((-moz-orient:inline) and (not (color:rgb(from red r g b))))"
+        }
+      ],
+      "shared": true
+    },
+    {
+      "file": "css/context-profile.css",
+      "order": 15,
+      "selector": ".goals-severity-badge",
+      "css": ".goals-severity-badge {\n  font-size: 11px; font-weight: 700; padding: 2px 10px; border-radius: 4px;\n  white-space: nowrap; flex-shrink: 0; text-transform: uppercase; letter-spacing: 0.3px;\n}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/context-profile.css",
+      "order": 16,
+      "selector": ".severity-major",
+      "css": ".severity-major { background: var(--red-bg); color: var(--red); }",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/context-profile.css",
+      "order": 17,
+      "selector": ".severity-mild",
+      "css": ".severity-mild { background: var(--yellow-bg); color: var(--yellow); }",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/context-profile.css",
+      "order": 18,
+      "selector": ".severity-minor",
+      "css": ".severity-minor { background: var(--green-bg); color: var(--green); }",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/context-profile.css",
+      "order": 86,
+      "selector": ".modal .supp-form-row",
+      "css": ".modal .supp-form-row { flex-wrap: wrap; }",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/context-profile.css",
+      "order": 87,
+      "selector": ".modal .supp-form-field",
+      "css": ".modal .supp-form-field { min-width: min(140px, 100%); }",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/context-profile.css",
+      "order": 229,
+      "selector": ".ctx-tags",
+      "css": ".ctx-tags { display: flex; flex-wrap: wrap; gap: 6px; }",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/context-profile.css",
+      "order": 230,
+      "selector": ".ctx-tag",
+      "css": ".ctx-tag {\n  background: var(--bg-card); border: 1px solid var(--border); color: var(--text-secondary);\n  font-size: 12px; padding: 6px 14px; border-radius: 20px; cursor: pointer;\n  font-family: inherit; transition: all 0.15s; white-space: nowrap;\n}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/context-profile.css",
+      "order": 231,
+      "selector": ".ctx-tag:hover",
+      "css": ".ctx-tag:hover { border-color: var(--accent); color: var(--accent); }",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/context-profile.css",
+      "order": 232,
+      "selector": ".ctx-tag.active",
+      "css": ".ctx-tag.active {\n  background: rgba(79, 140, 255, 0.15); border-color: var(--accent); color: var(--accent); font-weight: 600;\n}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/context-profile.css",
+      "order": 235,
+      "selector": ".ctx-tag",
+      "css": ".ctx-tag { min-height: 44px; }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(pointer: coarse)"
+        }
+      ],
+      "shared": true
+    },
+    {
+      "file": "css/context-profile.css",
+      "order": 243,
+      "selector": "#detail-modal:has(.supp-form)",
+      "css": "#detail-modal:has(.supp-form) { width: 100%; padding: 16px; }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 600px)"
+        }
+      ],
+      "shared": true
+    },
+    {
+      "file": "css/context-profile.css",
+      "order": 244,
+      "selector": "#detail-modal:has(.supp-form) > h3:first-of-type",
+      "css": "#detail-modal:has(.supp-form) > h3:first-of-type { margin: -16px -16px 16px; padding: 18px 48px 16px 16px; font-size: 20px; }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 600px)"
+        }
+      ],
+      "shared": true
+    },
+    {
+      "file": "css/context-profile.css",
+      "order": 247,
+      "selector": "*,:before,:after,::backdrop",
+      "css": "*,:before,:after,::backdrop{--tw-border-style:solid;--tw-leading:initial;--tw-font-weight:initial;--tw-tracking:initial;--tw-shadow:0 0 #0000;--tw-shadow-color:initial;--tw-shadow-alpha:100%;--tw-inset-shadow:0 0 #0000;--tw-inset-shadow-color:initial;--tw-inset-shadow-alpha:100%;--tw-ring-color:initial;--tw-ring-shadow:0 0 #0000;--tw-inset-ring-color:initial;--tw-inset-ring-shadow:0 0 #0000;--tw-ring-inset:initial;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-offset-shadow:0 0 #0000;--tw-duration:initial;--tw-outline-style:solid}",
+      "atRules": [
+        {
+          "name": "layer",
+          "params": "properties"
+        },
+        {
+          "name": "supports",
+          "params": "(((-webkit-hyphens:none)) and (not (margin-trim:inline))) or ((-moz-orient:inline) and (not (color:rgb(from red r g b))))"
+        }
+      ],
+      "shared": true
+    },
+    {
+      "file": "css/mobile-dashboard.css",
+      "order": 85,
+      "selector": ".m-dashboard-widget-actions .dashboard-action-btn",
+      "css": ".m-dashboard-widget-actions .dashboard-action-btn {\n    display: inline-flex;\n    align-items: center;\n    flex: 1 1 auto;\n    min-height: 36px;\n    justify-content: center;\n    text-align: center;\n  }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 799px)"
+        }
+      ],
+      "shared": true
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 8,
+      "selector": ".cycle-icon-btn,\n.cycle-action-btn",
+      "css": ".cycle-icon-btn,\n.cycle-action-btn {\n  min-width: 36px;\n  min-height: 36px;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  gap: 7px;\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  background: var(--bg-secondary);\n  color: var(--text-secondary);\n  cursor: pointer;\n  font: inherit;\n  font-size: 12px;\n  font-weight: 700;\n  line-height: 1;\n  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.05s;\n}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 10,
+      "selector": ".cycle-icon-btn:hover,\n.cycle-action-btn:hover",
+      "css": ".cycle-icon-btn:hover,\n.cycle-action-btn:hover {\n  background: var(--bg-hover);\n  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));\n  color: var(--text-primary);\n}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 11,
+      "selector": ".cycle-icon-btn:active,\n.cycle-action-btn:active",
+      "css": ".cycle-icon-btn:active,\n.cycle-action-btn:active { transform: translateY(1px); }",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 12,
+      "selector": ".cycle-icon-btn:focus-visible,\n.cycle-action-btn:focus-visible,\n.cycle-prompt:focus-visible,\n.cycle-summary-card:focus-visible,\n.cycle-symptom-chip:focus-visible",
+      "css": ".cycle-icon-btn:focus-visible,\n.cycle-action-btn:focus-visible,\n.cycle-prompt:focus-visible,\n.cycle-summary-card:focus-visible,\n.cycle-symptom-chip:focus-visible {\n  outline: 2px solid var(--accent);\n  outline-offset: 2px;\n}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 13,
+      "selector": ".cycle-section svg,\n.cycle-modal svg",
+      "css": ".cycle-section svg,\n.cycle-modal svg {\n  display: block;\n  width: 16px;\n  height: 16px;\n  fill: none;\n  stroke: currentColor;\n  stroke-width: 2;\n  stroke-linecap: round;\n  stroke-linejoin: round;\n}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 18,
+      "selector": ".cycle-prompt-icon,\n.cycle-summary-icon,\n.cycle-draw-icon,\n.cycle-alert-icon,\n.cycle-log-icon",
+      "css": ".cycle-prompt-icon,\n.cycle-summary-icon,\n.cycle-draw-icon,\n.cycle-alert-icon,\n.cycle-log-icon {\n  flex: 0 0 auto;\n  width: 34px;\n  height: 34px;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  background: var(--bg-secondary);\n  color: var(--accent);\n}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 32,
+      "selector": ".cycle-draw-phases,\n.cycle-period-log,\n.cycle-log-meta,\n.cycle-symptom-grid",
+      "css": ".cycle-draw-phases,\n.cycle-period-log,\n.cycle-log-meta,\n.cycle-symptom-grid {\n  display: flex;\n  flex-wrap: wrap;\n  gap: 7px;\n  min-width: 0;\n}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 48,
+      "selector": ".cycle-modal",
+      "css": ".cycle-modal {\n  width: min(94vw, 780px);\n  max-width: 780px;\n  max-height: 90vh;\n  padding: 0;\n  overflow-y: auto;\n  overflow-x: hidden;\n  overscroll-behavior: contain;\n  background: var(--bg-secondary);\n  box-shadow: var(--shadow-lg);\n}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 49,
+      "selector": ".cycle-modal-head",
+      "css": ".cycle-modal-head {\n  position: sticky;\n  top: 0;\n  z-index: 2;\n}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 50,
+      "selector": ".cycle-modal-head .modal-close",
+      "css": ".cycle-modal-head .modal-close {\n  position: static;\n  font-size: 0;\n}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 51,
+      "selector": ".cycle-modal-body",
+      "css": ".cycle-modal-body {\n  min-height: auto;\n  overflow: visible;\n  padding: 20px 24px 22px;\n}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 52,
+      "selector": ".cycle-modal-intro",
+      "css": ".cycle-modal-intro {\n  margin: 0 0 16px;\n  color: var(--text-secondary);\n  font-size: 13px;\n  line-height: 1.5;\n}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 53,
+      "selector": ".cycle-editor-section",
+      "css": ".cycle-editor-section {\n  min-width: 0;\n  padding: 16px;\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  background: color-mix(in srgb, var(--bg-card) 70%, transparent);\n}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 54,
+      "selector": ".cycle-editor-section + .cycle-editor-section",
+      "css": ".cycle-editor-section + .cycle-editor-section { margin-top: 14px; }",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 55,
+      "selector": ".cycle-editor-section-title",
+      "css": ".cycle-editor-section-title {\n  margin-bottom: 12px;\n  color: var(--text-primary);\n  font-size: 13px;\n  font-weight: 800;\n}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 56,
+      "selector": ".cycle-form-grid",
+      "css": ".cycle-form-grid {\n  display: grid;\n  grid-template-columns: repeat(2, minmax(0, 1fr));\n  gap: 12px;\n  min-width: 0;\n}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 57,
+      "selector": ".cycle-form-grid + .cycle-form-grid,\n.cycle-active-fields + .cycle-form-grid",
+      "css": ".cycle-form-grid + .cycle-form-grid,\n.cycle-active-fields + .cycle-form-grid { margin-top: 12px; }",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 58,
+      "selector": ".cycle-form-grid-single",
+      "css": ".cycle-form-grid-single { grid-template-columns: minmax(0, 1fr); }",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 59,
+      "selector": ".cycle-form-grid-three",
+      "css": ".cycle-form-grid-three { grid-template-columns: repeat(3, minmax(0, 1fr)); }",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 60,
+      "selector": ".cycle-active-fields[hidden],\n.cycle-period-editor[hidden]",
+      "css": ".cycle-active-fields[hidden],\n.cycle-period-editor[hidden] { display: none; }",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 61,
+      "selector": ".cycle-field",
+      "css": ".cycle-field {\n  display: flex;\n  flex-direction: column;\n  gap: 6px;\n  min-width: 0;\n  color: var(--text-muted);\n  font-size: 12px;\n  font-weight: 700;\n}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 62,
+      "selector": ".cycle-field input,\n.cycle-field select",
+      "css": ".cycle-field input,\n.cycle-field select {\n  width: 100%;\n  min-height: 38px;\n  box-sizing: border-box;\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  background: var(--bg-secondary);\n  color: var(--text-primary);\n  font: inherit;\n  font-size: 13px;\n  font-weight: 500;\n  padding: 8px 10px;\n}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 63,
+      "selector": ".cycle-field input:focus,\n.cycle-field select:focus",
+      "css": ".cycle-field input:focus,\n.cycle-field select:focus {\n  border-color: var(--accent);\n  outline: none;\n}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 64,
+      "selector": ".cycle-field select",
+      "css": ".cycle-field select { cursor: pointer; }",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 65,
+      "selector": ".cycle-field select option",
+      "css": ".cycle-field select option { background: var(--select-popup-surface); }",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 66,
+      "selector": ".cycle-auto-value",
+      "css": ".cycle-auto-value {\n  min-height: 38px;\n  box-sizing: border-box;\n  display: flex;\n  align-items: center;\n  flex-wrap: wrap;\n  gap: 6px;\n  padding: 8px 10px;\n  background: var(--bg-secondary);\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  color: var(--text-primary);\n  font-size: 13px;\n  font-weight: 800;\n}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 69,
+      "selector": ".cycle-log-list",
+      "css": ".cycle-log-list {\n  display: flex;\n  flex-direction: column;\n  gap: 8px;\n  margin-bottom: 14px;\n}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 70,
+      "selector": ".cycle-log-item",
+      "css": ".cycle-log-item {\n  display: grid;\n  grid-template-columns: 34px minmax(0, 1fr) 36px;\n  align-items: start;\n  gap: 10px;\n  min-width: 0;\n  padding: 10px;\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  background: var(--bg-secondary);\n}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 71,
+      "selector": ".cycle-log-main",
+      "css": ".cycle-log-main { min-width: 0; }",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 72,
+      "selector": ".cycle-log-date",
+      "css": ".cycle-log-date {\n  margin-bottom: 5px;\n  color: var(--text-primary);\n  font-size: 13px;\n  font-weight: 800;\n}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 73,
+      "selector": ".cycle-delete-btn:hover",
+      "css": ".cycle-delete-btn:hover {\n  border-color: color-mix(in srgb, var(--red) 55%, var(--border));\n  color: var(--red);\n}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 74,
+      "selector": ".cycle-period-add",
+      "css": ".cycle-period-add {\n  padding-top: 14px;\n  border-top: 1px solid var(--border);\n}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 75,
+      "selector": ".cycle-field-wide,\n.cycle-add-row",
+      "css": ".cycle-field-wide,\n.cycle-add-row { margin-top: 12px; }",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 76,
+      "selector": ".cycle-add-row",
+      "css": ".cycle-add-row {\n  display: grid;\n  grid-template-columns: minmax(0, 1fr) auto;\n  align-items: end;\n  gap: 12px;\n}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 77,
+      "selector": ".cycle-add-btn",
+      "css": ".cycle-add-btn {\n  min-height: 38px;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  gap: 7px;\n  white-space: nowrap;\n}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 78,
+      "selector": ".cycle-symptom-chip.ctx-tag",
+      "css": ".cycle-symptom-chip.ctx-tag {\n  min-height: 30px;\n  padding: 5px 10px;\n  margin: 0;\n  border: 1px solid var(--border);\n  border-radius: 999px;\n  background: var(--bg-secondary);\n  color: var(--text-secondary);\n  cursor: pointer;\n  font: inherit;\n  font-size: 12px;\n  font-weight: 700;\n}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 79,
+      "selector": ".cycle-symptom-chip.ctx-tag:hover",
+      "css": ".cycle-symptom-chip.ctx-tag:hover {\n  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));\n  color: var(--text-primary);\n}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 80,
+      "selector": ".cycle-symptom-chip.ctx-tag.active",
+      "css": ".cycle-symptom-chip.ctx-tag.active {\n  background: var(--accent-fill);\n  border-color: var(--accent);\n  color: var(--accent);\n}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 81,
+      "selector": ".cycle-modal-footer",
+      "css": ".cycle-modal-footer {\n  position: sticky;\n  bottom: 0;\n  z-index: 2;\n  display: flex;\n  align-items: center;\n  justify-content: flex-end;\n  gap: 8px;\n  padding: 14px 24px;\n  border-top: 1px solid var(--border);\n  background: color-mix(in srgb, var(--bg-secondary) 94%, var(--bg-card));\n}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 82,
+      "selector": ".cycle-modal-footer .dashboard-action-btn",
+      "css": ".cycle-modal-footer .dashboard-action-btn {\n  min-height: 38px;\n}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 83,
+      "selector": ".cycle-danger-btn",
+      "css": ".cycle-danger-btn {\n  margin-right: auto;\n  color: var(--red);\n  border-color: color-mix(in srgb, var(--red) 50%, var(--border));\n}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 84,
+      "selector": ".cycle-danger-btn:hover",
+      "css": ".cycle-danger-btn:hover {\n  background: var(--red-bg);\n  border-color: var(--red);\n}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 87,
+      "selector": ".cycle-icon-btn,\n  .cycle-action-btn",
+      "css": ".cycle-icon-btn,\n  .cycle-action-btn {\n    min-width: 40px;\n    min-height: 40px;\n  }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 768px)"
+        }
+      ],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 92,
+      "selector": ".cycle-modal",
+      "css": ".cycle-modal {\n    width: 100%;\n    height: calc(100vh - 24px);\n    height: calc(100dvh - 24px);\n    max-height: none;\n  }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 768px)"
+        }
+      ],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 93,
+      "selector": ".cycle-modal-body",
+      "css": ".cycle-modal-body {\n    padding: 16px;\n  }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 768px)"
+        }
+      ],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 94,
+      "selector": ".cycle-editor-section",
+      "css": ".cycle-editor-section {\n    padding: 14px;\n  }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 768px)"
+        }
+      ],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 95,
+      "selector": ".cycle-form-grid,\n  .cycle-form-grid-three",
+      "css": ".cycle-form-grid,\n  .cycle-form-grid-three {\n    grid-template-columns: minmax(0, 1fr);\n  }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 768px)"
+        }
+      ],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 96,
+      "selector": ".cycle-log-item",
+      "css": ".cycle-log-item {\n    grid-template-columns: minmax(0, 1fr) 40px;\n  }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 768px)"
+        }
+      ],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 97,
+      "selector": ".cycle-log-icon",
+      "css": ".cycle-log-icon { display: none; }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 768px)"
+        }
+      ],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 98,
+      "selector": ".cycle-delete-btn",
+      "css": ".cycle-delete-btn {\n    min-width: 40px;\n    min-height: 40px;\n  }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 768px)"
+        }
+      ],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 99,
+      "selector": ".cycle-add-row",
+      "css": ".cycle-add-row {\n    grid-template-columns: minmax(0, 1fr);\n  }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 768px)"
+        }
+      ],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 100,
+      "selector": ".cycle-add-btn",
+      "css": ".cycle-add-btn {\n    width: 100%;\n    min-height: 42px;\n  }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 768px)"
+        }
+      ],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 101,
+      "selector": ".cycle-modal-footer",
+      "css": ".cycle-modal-footer {\n    padding: 12px;\n    flex-wrap: wrap;\n  }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 768px)"
+        }
+      ],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 102,
+      "selector": ".cycle-modal-footer .dashboard-action-btn",
+      "css": ".cycle-modal-footer .dashboard-action-btn {\n    flex: 1 1 calc(50% - 6px);\n    min-height: 42px;\n  }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 768px)"
+        }
+      ],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 103,
+      "selector": ".cycle-modal-footer .cycle-danger-btn",
+      "css": ".cycle-modal-footer .cycle-danger-btn {\n    order: 3;\n    flex-basis: 100%;\n    margin-right: 0;\n  }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 768px)"
+        }
+      ],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 111,
+      "selector": ".gb\\:cycle-import-ui\\:\\[margin-bottom\\:12px\\]:where([data-cycle-import-view],[data-cycle-import-view] *)",
+      "css": ".gb\\:cycle-import-ui\\:\\[margin-bottom\\:12px\\]:where([data-cycle-import-view],[data-cycle-import-view] *){margin-bottom:12px}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 112,
+      "selector": ".gb\\:cycle-import-ui\\:\\[display\\:flex\\]:where([data-cycle-import-view],[data-cycle-import-view] *)",
+      "css": ".gb\\:cycle-import-ui\\:\\[display\\:flex\\]:where([data-cycle-import-view],[data-cycle-import-view] *){display:flex}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 113,
+      "selector": ".gb\\:cycle-import-ui\\:\\[display\\:grid\\]:where([data-cycle-import-view],[data-cycle-import-view] *)",
+      "css": ".gb\\:cycle-import-ui\\:\\[display\\:grid\\]:where([data-cycle-import-view],[data-cycle-import-view] *){display:grid}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 122,
+      "selector": ".gb\\:cycle-import-ui\\:\\[min-width\\:0\\]:where([data-cycle-import-view],[data-cycle-import-view] *)",
+      "css": ".gb\\:cycle-import-ui\\:\\[min-width\\:0\\]:where([data-cycle-import-view],[data-cycle-import-view] *){min-width:0}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 127,
+      "selector": ".gb\\:cycle-import-ui\\:\\[grid-template-columns\\:minmax\\(0\\,_1fr\\)_36px\\]:where([data-cycle-import-view],[data-cycle-import-view] *)",
+      "css": ".gb\\:cycle-import-ui\\:\\[grid-template-columns\\:minmax\\(0\\,_1fr\\)_36px\\]:where([data-cycle-import-view],[data-cycle-import-view] *){grid-template-columns:minmax(0,1fr) 36px}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 129,
+      "selector": ".gb\\:cycle-import-ui\\:\\[flex-direction\\:column\\]:where([data-cycle-import-view],[data-cycle-import-view] *)",
+      "css": ".gb\\:cycle-import-ui\\:\\[flex-direction\\:column\\]:where([data-cycle-import-view],[data-cycle-import-view] *){flex-direction:column}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 130,
+      "selector": ".gb\\:cycle-import-ui\\:\\[flex-wrap\\:wrap\\]:where([data-cycle-import-view],[data-cycle-import-view] *)",
+      "css": ".gb\\:cycle-import-ui\\:\\[flex-wrap\\:wrap\\]:where([data-cycle-import-view],[data-cycle-import-view] *){flex-wrap:wrap}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 134,
+      "selector": ".gb\\:cycle-import-ui\\:\\[align-items\\:start\\]:where([data-cycle-import-view],[data-cycle-import-view] *)",
+      "css": ".gb\\:cycle-import-ui\\:\\[align-items\\:start\\]:where([data-cycle-import-view],[data-cycle-import-view] *){align-items:start}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 139,
+      "selector": ".gb\\:cycle-import-ui\\:\\[gap\\:4px\\]:where([data-cycle-import-view],[data-cycle-import-view] *)",
+      "css": ".gb\\:cycle-import-ui\\:\\[gap\\:4px\\]:where([data-cycle-import-view],[data-cycle-import-view] *){gap:4px}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 142,
+      "selector": ".gb\\:cycle-import-ui\\:\\[gap\\:7px\\]:where([data-cycle-import-view],[data-cycle-import-view] *)",
+      "css": ".gb\\:cycle-import-ui\\:\\[gap\\:7px\\]:where([data-cycle-import-view],[data-cycle-import-view] *){gap:7px}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 143,
+      "selector": ".gb\\:cycle-import-ui\\:\\[gap\\:8px\\]:where([data-cycle-import-view],[data-cycle-import-view] *)",
+      "css": ".gb\\:cycle-import-ui\\:\\[gap\\:8px\\]:where([data-cycle-import-view],[data-cycle-import-view] *){gap:8px}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 145,
+      "selector": ".gb\\:cycle-import-ui\\:\\[gap\\:10px\\]:where([data-cycle-import-view],[data-cycle-import-view] *)",
+      "css": ".gb\\:cycle-import-ui\\:\\[gap\\:10px\\]:where([data-cycle-import-view],[data-cycle-import-view] *){gap:10px}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 154,
+      "selector": ".gb\\:cycle-import-ui\\:\\[border-radius\\:var\\(--radius-sm\\)\\]:where([data-cycle-import-view],[data-cycle-import-view] *)",
+      "css": ".gb\\:cycle-import-ui\\:\\[border-radius\\:var\\(--radius-sm\\)\\]:where([data-cycle-import-view],[data-cycle-import-view] *){border-radius:var(--radius-sm)}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 165,
+      "selector": ".gb\\:cycle-import-ui\\:\\[padding\\:10px\\]:where([data-cycle-import-view],[data-cycle-import-view] *)",
+      "css": ".gb\\:cycle-import-ui\\:\\[padding\\:10px\\]:where([data-cycle-import-view],[data-cycle-import-view] *){padding:10px}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 208,
+      "selector": ".gb\\:cycle-import-ui\\:\\[background\\:var\\(--bg-secondary\\)\\]:where([data-cycle-import-view],[data-cycle-import-view] *)",
+      "css": ".gb\\:cycle-import-ui\\:\\[background\\:var\\(--bg-secondary\\)\\]:where([data-cycle-import-view],[data-cycle-import-view] *){background:var(--bg-secondary)}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 211,
+      "selector": ".gb\\:cycle-import-ui\\:\\[border\\:1px_solid_var\\(--border\\)\\]:where([data-cycle-import-view],[data-cycle-import-view] *)",
+      "css": ".gb\\:cycle-import-ui\\:\\[border\\:1px_solid_var\\(--border\\)\\]:where([data-cycle-import-view],[data-cycle-import-view] *){border:1px solid var(--border)}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 228,
+      "selector": ".gb\\:cycle-import-ui\\:cycle-import-phone\\:\\[grid-template-columns\\:minmax\\(0\\,_1fr\\)_40px\\]:where([data-cycle-import-view],[data-cycle-import-view] *)",
+      "css": ".gb\\:cycle-import-ui\\:cycle-import-phone\\:\\[grid-template-columns\\:minmax\\(0\\,_1fr\\)_40px\\]:where([data-cycle-import-view],[data-cycle-import-view] *){grid-template-columns:minmax(0,1fr) 40px}",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width:768px)"
+        }
+      ],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 263,
+      "selector": ".gb\\:cycle-import-ui\\:\\[\\&_span\\]\\:\\[display\\:inline-flex\\]:where([data-cycle-import-view],[data-cycle-import-view] *) span",
+      "css": ".gb\\:cycle-import-ui\\:\\[\\&_span\\]\\:\\[display\\:inline-flex\\]:where([data-cycle-import-view],[data-cycle-import-view] *) span{display:inline-flex}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 264,
+      "selector": ".gb\\:cycle-import-ui\\:\\[\\&_span\\]\\:\\[min-height\\:24px\\]:where([data-cycle-import-view],[data-cycle-import-view] *) span",
+      "css": ".gb\\:cycle-import-ui\\:\\[\\&_span\\]\\:\\[min-height\\:24px\\]:where([data-cycle-import-view],[data-cycle-import-view] *) span{min-height:24px}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 267,
+      "selector": ".gb\\:cycle-import-ui\\:\\[\\&_span\\]\\:\\[align-items\\:center\\]:where([data-cycle-import-view],[data-cycle-import-view] *) span",
+      "css": ".gb\\:cycle-import-ui\\:\\[\\&_span\\]\\:\\[align-items\\:center\\]:where([data-cycle-import-view],[data-cycle-import-view] *) span{align-items:center}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 269,
+      "selector": ".gb\\:cycle-import-ui\\:\\[\\&_span\\]\\:\\[border-radius\\:999px\\]:where([data-cycle-import-view],[data-cycle-import-view] *) span",
+      "css": ".gb\\:cycle-import-ui\\:\\[\\&_span\\]\\:\\[border-radius\\:999px\\]:where([data-cycle-import-view],[data-cycle-import-view] *) span{border-radius:999px}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 270,
+      "selector": ".gb\\:cycle-import-ui\\:\\[\\&_span\\]\\:\\[padding\\:3px_9px\\]:where([data-cycle-import-view],[data-cycle-import-view] *) span",
+      "css": ".gb\\:cycle-import-ui\\:\\[\\&_span\\]\\:\\[padding\\:3px_9px\\]:where([data-cycle-import-view],[data-cycle-import-view] *) span{padding:3px 9px}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 272,
+      "selector": ".gb\\:cycle-import-ui\\:\\[\\&_span\\]\\:\\[font-size\\:11px\\]:where([data-cycle-import-view],[data-cycle-import-view] *) span",
+      "css": ".gb\\:cycle-import-ui\\:\\[\\&_span\\]\\:\\[font-size\\:11px\\]:where([data-cycle-import-view],[data-cycle-import-view] *) span{font-size:11px}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 273,
+      "selector": ".gb\\:cycle-import-ui\\:\\[\\&_span\\]\\:\\[font-size\\:12px\\]:where([data-cycle-import-view],[data-cycle-import-view] *) span",
+      "css": ".gb\\:cycle-import-ui\\:\\[\\&_span\\]\\:\\[font-size\\:12px\\]:where([data-cycle-import-view],[data-cycle-import-view] *) span{font-size:12px}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 274,
+      "selector": ".gb\\:cycle-import-ui\\:\\[\\&_span\\]\\:\\[line-height\\:1\\.4\\]:where([data-cycle-import-view],[data-cycle-import-view] *) span",
+      "css": ".gb\\:cycle-import-ui\\:\\[\\&_span\\]\\:\\[line-height\\:1\\.4\\]:where([data-cycle-import-view],[data-cycle-import-view] *) span{line-height:1.4}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 275,
+      "selector": ".gb\\:cycle-import-ui\\:\\[\\&_span\\]\\:\\[line-height\\:1\\.25\\]:where([data-cycle-import-view],[data-cycle-import-view] *) span",
+      "css": ".gb\\:cycle-import-ui\\:\\[\\&_span\\]\\:\\[line-height\\:1\\.25\\]:where([data-cycle-import-view],[data-cycle-import-view] *) span{line-height:1.25}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 276,
+      "selector": ".gb\\:cycle-import-ui\\:\\[\\&_span\\]\\:\\[color\\:var\\(--text-muted\\)\\]:where([data-cycle-import-view],[data-cycle-import-view] *) span",
+      "css": ".gb\\:cycle-import-ui\\:\\[\\&_span\\]\\:\\[color\\:var\\(--text-muted\\)\\]:where([data-cycle-import-view],[data-cycle-import-view] *) span{color:var(--text-muted)}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 277,
+      "selector": ".gb\\:cycle-import-ui\\:\\[\\&_span\\]\\:\\[color\\:var\\(--text-secondary\\)\\]:where([data-cycle-import-view],[data-cycle-import-view] *) span",
+      "css": ".gb\\:cycle-import-ui\\:\\[\\&_span\\]\\:\\[color\\:var\\(--text-secondary\\)\\]:where([data-cycle-import-view],[data-cycle-import-view] *) span{color:var(--text-secondary)}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 278,
+      "selector": ".gb\\:cycle-import-ui\\:\\[\\&_span\\]\\:\\[background\\:var\\(--bg-secondary\\)\\]:where([data-cycle-import-view],[data-cycle-import-view] *) span",
+      "css": ".gb\\:cycle-import-ui\\:\\[\\&_span\\]\\:\\[background\\:var\\(--bg-secondary\\)\\]:where([data-cycle-import-view],[data-cycle-import-view] *) span{background:var(--bg-secondary)}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 279,
+      "selector": ".gb\\:cycle-import-ui\\:\\[\\&_span\\]\\:\\[border\\:1px_solid_var\\(--border\\)\\]:where([data-cycle-import-view],[data-cycle-import-view] *) span",
+      "css": ".gb\\:cycle-import-ui\\:\\[\\&_span\\]\\:\\[border\\:1px_solid_var\\(--border\\)\\]:where([data-cycle-import-view],[data-cycle-import-view] *) span{border:1px solid var(--border)}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 283,
+      "selector": ".gb\\:cycle-import-ui\\:\\[\\&_strong\\]\\:\\[font-size\\:13px\\]:where([data-cycle-import-view],[data-cycle-import-view] *) strong",
+      "css": ".gb\\:cycle-import-ui\\:\\[\\&_strong\\]\\:\\[font-size\\:13px\\]:where([data-cycle-import-view],[data-cycle-import-view] *) strong{font-size:13px}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 288,
+      "selector": ".gb\\:cycle-import-ui\\:\\[\\&_strong\\]\\:\\[color\\:var\\(--text-primary\\)\\]:where([data-cycle-import-view],[data-cycle-import-view] *) strong",
+      "css": ".gb\\:cycle-import-ui\\:\\[\\&_strong\\]\\:\\[color\\:var\\(--text-primary\\)\\]:where([data-cycle-import-view],[data-cycle-import-view] *) strong{color:var(--text-primary)}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 338,
+      "selector": ".gb\\:cycle-import-ui\\:\\[\\&\\.modal\\]\\:\\[max-height\\:90vh\\]:where([data-cycle-import-view],[data-cycle-import-view] *).modal",
+      "css": ".gb\\:cycle-import-ui\\:\\[\\&\\.modal\\]\\:\\[max-height\\:90vh\\]:where([data-cycle-import-view],[data-cycle-import-view] *).modal{max-height:90vh}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 339,
+      "selector": ".gb\\:cycle-import-ui\\:\\[\\&\\.modal\\]\\:\\[width\\:min\\(94vw\\,_820px\\)\\]:where([data-cycle-import-view],[data-cycle-import-view] *).modal",
+      "css": ".gb\\:cycle-import-ui\\:\\[\\&\\.modal\\]\\:\\[width\\:min\\(94vw\\,_820px\\)\\]:where([data-cycle-import-view],[data-cycle-import-view] *).modal{width:min(94vw,820px)}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 340,
+      "selector": ".gb\\:cycle-import-ui\\:\\[\\&\\.modal\\]\\:\\[max-width\\:820px\\]:where([data-cycle-import-view],[data-cycle-import-view] *).modal",
+      "css": ".gb\\:cycle-import-ui\\:\\[\\&\\.modal\\]\\:\\[max-width\\:820px\\]:where([data-cycle-import-view],[data-cycle-import-view] *).modal{max-width:820px}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 341,
+      "selector": ".gb\\:cycle-import-ui\\:\\[\\&\\.modal\\]\\:\\[padding\\:0\\]:where([data-cycle-import-view],[data-cycle-import-view] *).modal",
+      "css": ".gb\\:cycle-import-ui\\:\\[\\&\\.modal\\]\\:\\[padding\\:0\\]:where([data-cycle-import-view],[data-cycle-import-view] *).modal{padding:0}",
+      "atRules": [],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 342,
+      "selector": ".gb\\:cycle-import-ui\\:cycle-import-phone\\:\\[\\&\\.modal\\]\\:\\[height\\:calc\\(100vh_-_12px\\)\\]:where([data-cycle-import-view],[data-cycle-import-view] *).modal",
+      "css": ".gb\\:cycle-import-ui\\:cycle-import-phone\\:\\[\\&\\.modal\\]\\:\\[height\\:calc\\(100vh_-_12px\\)\\]:where([data-cycle-import-view],[data-cycle-import-view] *).modal{height:calc(100vh - 12px)}",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width:768px)"
+        }
+      ],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 343,
+      "selector": ".gb\\:cycle-import-ui\\:cycle-import-phone\\:\\[\\&\\.modal\\]\\:\\[max-height\\:none\\]:where([data-cycle-import-view],[data-cycle-import-view] *).modal",
+      "css": ".gb\\:cycle-import-ui\\:cycle-import-phone\\:\\[\\&\\.modal\\]\\:\\[max-height\\:none\\]:where([data-cycle-import-view],[data-cycle-import-view] *).modal{max-height:none}",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width:768px)"
+        }
+      ],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 344,
+      "selector": ".gb\\:cycle-import-ui\\:cycle-import-phone\\:\\[\\&\\.modal\\]\\:\\[width\\:calc\\(100vw_-_12px\\)\\]:where([data-cycle-import-view],[data-cycle-import-view] *).modal",
+      "css": ".gb\\:cycle-import-ui\\:cycle-import-phone\\:\\[\\&\\.modal\\]\\:\\[width\\:calc\\(100vw_-_12px\\)\\]:where([data-cycle-import-view],[data-cycle-import-view] *).modal{width:calc(100vw - 12px)}",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width:768px)"
+        }
+      ],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 345,
+      "selector": ".gb\\:cycle-import-ui\\:cycle-import-phone\\:\\[\\&\\.modal\\]\\:\\[padding\\:0\\]:where([data-cycle-import-view],[data-cycle-import-view] *).modal",
+      "css": ".gb\\:cycle-import-ui\\:cycle-import-phone\\:\\[\\&\\.modal\\]\\:\\[padding\\:0\\]:where([data-cycle-import-view],[data-cycle-import-view] *).modal{padding:0}",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width:768px)"
+        }
+      ],
+      "shared": false
+    },
+    {
+      "file": "css/cycle.css",
+      "order": 346,
+      "selector": ".gb\\:cycle-import-ui\\:cycle-import-phone\\:\\[\\&\\.modal\\]\\:supports-\\[height\\:100dvh\\]\\:\\[height\\:calc\\(100dvh_-_12px\\)\\]:where([data-cycle-import-view],[data-cycle-import-view] *).modal",
+      "css": ".gb\\:cycle-import-ui\\:cycle-import-phone\\:\\[\\&\\.modal\\]\\:supports-\\[height\\:100dvh\\]\\:\\[height\\:calc\\(100dvh_-_12px\\)\\]:where([data-cycle-import-view],[data-cycle-import-view] *).modal{height:calc(100dvh - 12px)}",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width:768px)"
+        },
+        {
+          "name": "supports",
+          "params": "(height:100dvh)"
+        }
+      ],
+      "shared": false
+    },
+    {
+      "file": "css/redesign-shell.css",
+      "order": 37,
+      "selector": ".tweaks-head .modal-close",
+      "css": ".tweaks-head .modal-close {\n  position: static;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  width: 34px;\n  height: 34px;\n  padding: 0;\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  background: var(--bg-card);\n  color: var(--text-muted);\n  font-size: 22px;\n}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/chat-redesign.css",
+      "order": 14,
+      "selector": "*, *::before, *::after",
+      "css": "*, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(prefers-reduced-motion: reduce)"
+        }
+      ],
+      "shared": true
+    }
+  ],
+  "styleGlobals": [
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'Inter';\n  font-style: normal;\n  font-weight: 400;\n  font-display: swap;\n  src: url('./inter-400.woff2') format('woff2');\n  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'Inter';\n  font-style: normal;\n  font-weight: 400;\n  font-display: swap;\n  src: url('./inter-400-2.woff2') format('woff2');\n  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'Inter';\n  font-style: normal;\n  font-weight: 400;\n  font-display: swap;\n  src: url('./inter-400-3.woff2') format('woff2');\n  unicode-range: U+1F00-1FFF;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'Inter';\n  font-style: normal;\n  font-weight: 400;\n  font-display: swap;\n  src: url('./inter-400-4.woff2') format('woff2');\n  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'Inter';\n  font-style: normal;\n  font-weight: 400;\n  font-display: swap;\n  src: url('./inter-400-5.woff2') format('woff2');\n  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'Inter';\n  font-style: normal;\n  font-weight: 400;\n  font-display: swap;\n  src: url('./inter-400-6.woff2') format('woff2');\n  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'Inter';\n  font-style: normal;\n  font-weight: 400;\n  font-display: optional;\n  src: url('./inter-400-7.woff2') format('woff2');\n  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'Inter';\n  font-style: normal;\n  font-weight: 500;\n  font-display: swap;\n  src: url('./inter-500.woff2') format('woff2');\n  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'Inter';\n  font-style: normal;\n  font-weight: 500;\n  font-display: swap;\n  src: url('./inter-500-2.woff2') format('woff2');\n  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'Inter';\n  font-style: normal;\n  font-weight: 500;\n  font-display: swap;\n  src: url('./inter-500-3.woff2') format('woff2');\n  unicode-range: U+1F00-1FFF;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'Inter';\n  font-style: normal;\n  font-weight: 500;\n  font-display: swap;\n  src: url('./inter-500-4.woff2') format('woff2');\n  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'Inter';\n  font-style: normal;\n  font-weight: 500;\n  font-display: swap;\n  src: url('./inter-500-5.woff2') format('woff2');\n  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'Inter';\n  font-style: normal;\n  font-weight: 500;\n  font-display: swap;\n  src: url('./inter-500-6.woff2') format('woff2');\n  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'Inter';\n  font-style: normal;\n  font-weight: 500;\n  font-display: swap;\n  src: url('./inter-500-7.woff2') format('woff2');\n  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'Inter';\n  font-style: normal;\n  font-weight: 600;\n  font-display: swap;\n  src: url('./inter-600.woff2') format('woff2');\n  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'Inter';\n  font-style: normal;\n  font-weight: 600;\n  font-display: swap;\n  src: url('./inter-600-2.woff2') format('woff2');\n  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'Inter';\n  font-style: normal;\n  font-weight: 600;\n  font-display: swap;\n  src: url('./inter-600-3.woff2') format('woff2');\n  unicode-range: U+1F00-1FFF;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'Inter';\n  font-style: normal;\n  font-weight: 600;\n  font-display: swap;\n  src: url('./inter-600-4.woff2') format('woff2');\n  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'Inter';\n  font-style: normal;\n  font-weight: 600;\n  font-display: swap;\n  src: url('./inter-600-5.woff2') format('woff2');\n  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'Inter';\n  font-style: normal;\n  font-weight: 600;\n  font-display: swap;\n  src: url('./inter-600-6.woff2') format('woff2');\n  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'Inter';\n  font-style: normal;\n  font-weight: 600;\n  font-display: swap;\n  src: url('./inter-600-7.woff2') format('woff2');\n  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'Inter';\n  font-style: normal;\n  font-weight: 700;\n  font-display: swap;\n  src: url('./inter-700.woff2') format('woff2');\n  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'Inter';\n  font-style: normal;\n  font-weight: 700;\n  font-display: swap;\n  src: url('./inter-700-2.woff2') format('woff2');\n  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'Inter';\n  font-style: normal;\n  font-weight: 700;\n  font-display: swap;\n  src: url('./inter-700-3.woff2') format('woff2');\n  unicode-range: U+1F00-1FFF;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'Inter';\n  font-style: normal;\n  font-weight: 700;\n  font-display: swap;\n  src: url('./inter-700-4.woff2') format('woff2');\n  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'Inter';\n  font-style: normal;\n  font-weight: 700;\n  font-display: swap;\n  src: url('./inter-700-5.woff2') format('woff2');\n  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'Inter';\n  font-style: normal;\n  font-weight: 700;\n  font-display: swap;\n  src: url('./inter-700-6.woff2') format('woff2');\n  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'Inter';\n  font-style: normal;\n  font-weight: 700;\n  font-display: swap;\n  src: url('./inter-700-7.woff2') format('woff2');\n  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'JetBrains Mono';\n  font-style: normal;\n  font-weight: 500;\n  font-display: swap;\n  src: url('./jetbrains-mono-500.woff2') format('woff2');\n  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'JetBrains Mono';\n  font-style: normal;\n  font-weight: 500;\n  font-display: swap;\n  src: url('./jetbrains-mono-500-2.woff2') format('woff2');\n  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'JetBrains Mono';\n  font-style: normal;\n  font-weight: 500;\n  font-display: swap;\n  src: url('./jetbrains-mono-500-3.woff2') format('woff2');\n  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'JetBrains Mono';\n  font-style: normal;\n  font-weight: 500;\n  font-display: swap;\n  src: url('./jetbrains-mono-500-4.woff2') format('woff2');\n  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'JetBrains Mono';\n  font-style: normal;\n  font-weight: 500;\n  font-display: swap;\n  src: url('./jetbrains-mono-500-5.woff2') format('woff2');\n  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'JetBrains Mono';\n  font-style: normal;\n  font-weight: 500;\n  font-display: swap;\n  src: url('./jetbrains-mono-500-6.woff2') format('woff2');\n  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'JetBrains Mono';\n  font-style: normal;\n  font-weight: 600;\n  font-display: swap;\n  src: url('./jetbrains-mono-600.woff2') format('woff2');\n  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'JetBrains Mono';\n  font-style: normal;\n  font-weight: 600;\n  font-display: swap;\n  src: url('./jetbrains-mono-600-2.woff2') format('woff2');\n  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'JetBrains Mono';\n  font-style: normal;\n  font-weight: 600;\n  font-display: swap;\n  src: url('./jetbrains-mono-600-3.woff2') format('woff2');\n  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'JetBrains Mono';\n  font-style: normal;\n  font-weight: 600;\n  font-display: swap;\n  src: url('./jetbrains-mono-600-4.woff2') format('woff2');\n  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'JetBrains Mono';\n  font-style: normal;\n  font-weight: 600;\n  font-display: swap;\n  src: url('./jetbrains-mono-600-5.woff2') format('woff2');\n  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'JetBrains Mono';\n  font-style: normal;\n  font-weight: 600;\n  font-display: swap;\n  src: url('./jetbrains-mono-600-6.woff2') format('woff2');\n  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'JetBrains Mono';\n  font-style: normal;\n  font-weight: 700;\n  font-display: swap;\n  src: url('./jetbrains-mono-700.woff2') format('woff2');\n  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'JetBrains Mono';\n  font-style: normal;\n  font-weight: 700;\n  font-display: swap;\n  src: url('./jetbrains-mono-700-2.woff2') format('woff2');\n  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'JetBrains Mono';\n  font-style: normal;\n  font-weight: 700;\n  font-display: swap;\n  src: url('./jetbrains-mono-700-3.woff2') format('woff2');\n  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'JetBrains Mono';\n  font-style: normal;\n  font-weight: 700;\n  font-display: swap;\n  src: url('./jetbrains-mono-700-4.woff2') format('woff2');\n  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'JetBrains Mono';\n  font-style: normal;\n  font-weight: 700;\n  font-display: swap;\n  src: url('./jetbrains-mono-700-5.woff2') format('woff2');\n  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'JetBrains Mono';\n  font-style: normal;\n  font-weight: 700;\n  font-display: swap;\n  src: url('./jetbrains-mono-700-6.woff2') format('woff2');\n  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'Outfit';\n  font-style: normal;\n  font-weight: 500;\n  font-display: swap;\n  src: url('./outfit-500.woff2') format('woff2');\n  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'Outfit';\n  font-style: normal;\n  font-weight: 500;\n  font-display: swap;\n  src: url('./outfit-500-2.woff2') format('woff2');\n  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'Outfit';\n  font-style: normal;\n  font-weight: 600;\n  font-display: swap;\n  src: url('./outfit-600.woff2') format('woff2');\n  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'Outfit';\n  font-style: normal;\n  font-weight: 600;\n  font-display: swap;\n  src: url('./outfit-600-2.woff2') format('woff2');\n  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'Outfit';\n  font-style: normal;\n  font-weight: 700;\n  font-display: swap;\n  src: url('./outfit-700.woff2') format('woff2');\n  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'Outfit';\n  font-style: normal;\n  font-weight: 700;\n  font-display: swap;\n  src: url('./outfit-700-2.woff2') format('woff2');\n  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'VT323';\n  font-style: normal;\n  font-weight: 400;\n  font-display: swap;\n  src: url('./vt323-400.woff2') format('woff2');\n  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'VT323';\n  font-style: normal;\n  font-weight: 400;\n  font-display: swap;\n  src: url('./vt323-400-2.woff2') format('woff2');\n  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;\n}"
+    },
+    {
+      "file": "vendor/fonts/fonts.css",
+      "css": "@font-face {\n  font-family: 'VT323';\n  font-style: normal;\n  font-weight: 400;\n  font-display: swap;\n  src: url('./vt323-400-3.woff2') format('woff2');\n  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;\n}"
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "css": "@layer gb-theme"
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "css": "@property --tw-content{syntax:\"*\";inherits:false;initial-value:\"\"}"
+    },
+    {
+      "file": "css/context-profile.css",
+      "css": "@property --tw-border-style{syntax:\"*\";inherits:false;initial-value:solid}"
+    },
+    {
+      "file": "css/context-profile.css",
+      "css": "@property --tw-leading{syntax:\"*\";inherits:false}"
+    },
+    {
+      "file": "css/context-profile.css",
+      "css": "@property --tw-font-weight{syntax:\"*\";inherits:false}"
+    },
+    {
+      "file": "css/context-profile.css",
+      "css": "@property --tw-tracking{syntax:\"*\";inherits:false}"
+    },
+    {
+      "file": "css/context-profile.css",
+      "css": "@property --tw-shadow{syntax:\"*\";inherits:false;initial-value:0 0 #0000}"
+    },
+    {
+      "file": "css/context-profile.css",
+      "css": "@property --tw-shadow-color{syntax:\"*\";inherits:false}"
+    },
+    {
+      "file": "css/context-profile.css",
+      "css": "@property --tw-shadow-alpha{syntax:\"<percentage>\";inherits:false;initial-value:100%}"
+    },
+    {
+      "file": "css/context-profile.css",
+      "css": "@property --tw-inset-shadow{syntax:\"*\";inherits:false;initial-value:0 0 #0000}"
+    },
+    {
+      "file": "css/context-profile.css",
+      "css": "@property --tw-inset-shadow-color{syntax:\"*\";inherits:false}"
+    },
+    {
+      "file": "css/context-profile.css",
+      "css": "@property --tw-inset-shadow-alpha{syntax:\"<percentage>\";inherits:false;initial-value:100%}"
+    },
+    {
+      "file": "css/context-profile.css",
+      "css": "@property --tw-ring-color{syntax:\"*\";inherits:false}"
+    },
+    {
+      "file": "css/context-profile.css",
+      "css": "@property --tw-ring-shadow{syntax:\"*\";inherits:false;initial-value:0 0 #0000}"
+    },
+    {
+      "file": "css/context-profile.css",
+      "css": "@property --tw-inset-ring-color{syntax:\"*\";inherits:false}"
+    },
+    {
+      "file": "css/context-profile.css",
+      "css": "@property --tw-inset-ring-shadow{syntax:\"*\";inherits:false;initial-value:0 0 #0000}"
+    },
+    {
+      "file": "css/context-profile.css",
+      "css": "@property --tw-ring-inset{syntax:\"*\";inherits:false}"
+    },
+    {
+      "file": "css/context-profile.css",
+      "css": "@property --tw-ring-offset-width{syntax:\"<length>\";inherits:false;initial-value:0}"
+    },
+    {
+      "file": "css/context-profile.css",
+      "css": "@property --tw-ring-offset-color{syntax:\"*\";inherits:false;initial-value:#fff}"
+    },
+    {
+      "file": "css/context-profile.css",
+      "css": "@property --tw-ring-offset-shadow{syntax:\"*\";inherits:false;initial-value:0 0 #0000}"
+    },
+    {
+      "file": "css/context-profile.css",
+      "css": "@property --tw-duration{syntax:\"*\";inherits:false}"
+    },
+    {
+      "file": "css/context-profile.css",
+      "css": "@property --tw-outline-style{syntax:\"*\";inherits:false;initial-value:solid}"
+    },
+    {
+      "file": "css/recommendations.css",
+      "css": "@layer gb-theme"
+    }
+  ],
+  "styleCoverage": "Actual baseline index/lazy Cycle anchor order; every matching decoded class/ID plus type/universal foundation, complete native/escaped original selectors, rule ordinals and at-rule ancestry. No current CSS or arbitrary append-all cascade.",
+  "captureBoundary": "Expected HTML and domain outcomes come exclusively from SHA-verified frozen original controller/summary/mutation/coverage runtime. Controlled clock/state/lifecycle/persistence/history/store ports; no migrated renderer or domain function is invoked.",
+  "timezone": "UTC",
+  "sourceObservation": {
+    "statement": "modal.innerHTML = html;",
+    "insertion": "capturePrepared({profile: mc, periods, stats, activeCycle, today, defaultEnd});",
+    "boundary": "Single observer call before original DOM assignment, preserving all original controller statements and decisions; observer copies original locals only."
+  },
+  "coreIdentities": {
+    "tests/fixtures/cycle-editor-original.json": "ad8b8b206231fca330a3a2c8d21d4ff1c286c61bc530215e5a3ea2780849310a",
+    ".local-notes/full-ui-migration/cycle-editor/capture-proof.json": "c66a0bf04a91ac86f1a460537a15296394f2e797dc461463b240f7c77e5732e1",
+    ".local-notes/full-ui-migration/cycle-editor/capture.mjs": "8d902edd6af1c93de16478e3720c7dddd74ac5f840138f914bae36279129af14"
+  },
+  "harnessPrefixSHA256": "00027637a1d6ab25be953d4902a6d7b50407b6fb106afd97d6d5b8e868585708",
+  "supplementBoundary": "Only SHA-verified frozen 9ccf runtime executes. Three original valid periods yield computed fields; opaque unused profile fallbacks cannot be converted to primitive strings. Original complete HTML, selected attributes, control properties, state and port trace remain strict expected evidence."
+}

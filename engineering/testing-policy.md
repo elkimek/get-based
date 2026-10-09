@@ -166,6 +166,19 @@ browser contracts exercise the same authored tips renderer.
 These checks do not prove complete migration of context editors
 and nutrition fragments.
 
+[`cycle-editor-frozen.test.ts`](../tests/cycle-editor-frozen.test.ts) compares the
+authored editor and unchanged controller with immutable original renderings and
+operation traces, including native select predicates, automatic fields, immediate
+Add/Delete persistence, pending Save, clear confirmation and loading gates.
+[`cycle-editor-owned.spec.ts`](../tests/playwright/cycle-editor-owned.spec.ts) checks
+original geometry, option properties, hidden fields, keyboard focus, sticky scrolling
+and actual hover/active symptom states across themes and breakpoints.
+[`sveltekit-cycle-editor.spec.ts`](../tests/pwa/sveltekit-cycle-editor.spec.ts) drives
+actual Body/editor controls against the assembled static PWA, with complete
+profile/history/raw-store equality, shared dialog reuse and closed-client cold
+launches. These focused checks do not establish whole-application or physical
+installation acceptance.
+
 [`cycle-import-frozen.test.ts`](../tests/cycle-import-frozen.test.ts) and
 [`tips-details-frozen.test.ts`](../tests/tips-details-frozen.test.ts) compare authored
 presentation with immutable pre-migration outputs, including conflict choices,

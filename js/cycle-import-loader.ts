@@ -1,4 +1,6 @@
-import { cycleImportSourceLabel, renderCycleImportPicker, renderCycleImportSummary } from './cycle-import-rendering.js';
+import { cycleImportSourceLabel, getCycleImportSummaryView, renderCycleImportPicker, renderCycleImportSummary } from './cycle-import-rendering.js';
+
+import type {CycleImportCoverageView} from './cycle-import-presentation.js';
 
 // cycle-import-loader.js - cold-safe Cycle import runtime facade
 
@@ -20,6 +22,13 @@ export function renderCycleImportPickerControls() {
 
 export function renderCycleImportSummarySection(mc: unknown) {
   return renderCycleImportSummary(mc, source => {
+    const label = cycleImportSourceLabel(source);
+    return () => label;
+  });
+}
+
+export function getCycleImportSummarySectionView(mc: unknown): CycleImportCoverageView | null {
+  return getCycleImportSummaryView(mc, source => {
     const label = cycleImportSourceLabel(source);
     return () => label;
   });

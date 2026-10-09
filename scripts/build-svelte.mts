@@ -31,7 +31,7 @@ const HTML_COMPONENTS = new Set([
   'ContextNutritionLink', 'NutritionPresentation', 'RecommendationPresentation', 'RecommendationCard',
   'ImportReviewPresentation', 'ImportUnitControl', 'ImportMapControl', 'ImportReviewRowAction',
   'ImportExcludeContent', 'ImportReviewStatus', 'ImportUnitMenu', 'CycleImportPreview',
-  'CycleImportPicker', 'CycleImportCoverage', 'TipsSection', 'TipsDetail',
+  'CycleImportPicker', 'CycleImportCoverage', 'CycleEditorPresentation', 'TipsSection', 'TipsDetail',
   'TipsProduct', 'TipsCoupon', 'TipsDisclosure', 'TipsBanner',
   'TipsDisclaimer', 'RecommendationPage',
 ]);

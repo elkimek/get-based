@@ -212,7 +212,7 @@ reference-range comparison and conversion, pending/draft ownership, filtering,
 count updates, profile capture and delegated mutation. Public unit/mapping/exclude
 facades remain synchronous. `import-review-classes.ts` and
 `css/import-review.tailwind.css` compile through the existing import stylesheet;
-Cycle import keeps its separately scoped native rules until its owner migrates.
+Cycle import uses its authored preview, picker and coverage components with separately scoped Tailwind utilities.
 The review and its body-level unit popup carry explicit utility ownership markers.
 
 Dashboard widget and biometric picker content is projected by
@@ -1030,8 +1030,20 @@ Cycle import preview, picker and coverage presentation belongs to
 `CycleImportCoverage.svelte`. `cycle-import-presentation.ts` supplies typed views;
 existing import adapters, conflict planning, persistence and public action
 contracts retain their service ownership. The stable `css/cycle.css` URL is built
-from `cycle.base.css` and scoped import utilities; shared editor styles remain in
-the base until their owners migrate.
+from `cycle.base.css` and scoped import/editor utilities. The base retains
+overview presentation and styles shared with existing import controls.
+
+`CycleEditorPresentation.svelte` composes typed profile fields, full period history,
+period entry controls, fixed SVG icons and `CycleImportCoverage.svelte`.
+`cycle-editor-presentation.ts` prepares literal display facts and native option
+predicates; `cycle.ts` retains statistics, dates, delegates, form readers and all
+save/add/delete/clear behavior. The coverage preparation getter is shared with
+existing HTML facades and retains cold-loader label lookup semantics. Editor
+utilities own existing head/body/footer nodes; modal utilities require the
+`cycle-modal` class, which other dialog owners replace on shared-host reuse.
+The editor introduces no raw HTML slot or second component state owner.
+Its four display-only automatic fields use ordinary containers; editable fields
+retain real labels and their existing form readers.
 
 Tips sections, products, coupons, genetics, disclosure and detail states compose
 through the `Tips*.svelte` components and `tips-presentation.ts`.

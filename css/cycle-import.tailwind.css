@@ -12,3 +12,5 @@
 @source "../js/components/CycleImportPicker.svelte";
 @source "../js/components/CycleImportCoverage.svelte";
 @source "../js/components/CycleImportSourceRow.svelte";
+
+@import "./cycle-editor.tailwind.css";

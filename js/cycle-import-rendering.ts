@@ -2,7 +2,7 @@ import { upgradeMenstrualCycleProfile } from './cycle-summary.js';
 import { escapeAttr } from './utils.js';
 import {renderHTML as renderCyclePicker} from './components/CycleImportPicker.svelte.html.js';
 import {renderHTML as renderCycleCoverage} from './components/CycleImportCoverage.svelte.html.js';
-import {projectCycleImportCoverage} from './cycle-import-presentation.js';
+import {projectCycleImportCoverage, type CycleImportCoverageView} from './cycle-import-presentation.js';
 
 export const CYCLE_IMPORT_ACTION = 'data-cycle-import-action';
 const SOURCE_LABELS: Record<string, string> = {
@@ -37,10 +37,10 @@ export function renderCycleImportPicker() {
 }
 
 // The cold loader captures each label once; the loaded view reads it for each attribute.
-export function renderCycleImportSummary(mc: unknown, makeSourceLabel: (source: string) => () => string) {
+export function getCycleImportSummaryView(mc: unknown, makeSourceLabel: (source: string) => () => string): CycleImportCoverageView | null {
   const upgraded = upgradeMenstrualCycleProfile(mc);
   const coverage = upgraded?.coverage;
-  if (!coverage || (!coverage.periodCount && !coverage.observationCount && !Object.keys(coverage.sources || {}).length)) return '';
+  if (!coverage || (!coverage.periodCount && !coverage.observationCount && !Object.keys(coverage.sources || {}).length)) return null;
   const sourceRows = Object.entries(coverage.sources || {})
     .filter(([, info]) => (info?.periods || 0) > 0 || (info?.observations || 0) > 0)
     .map(([source, info]) => {
@@ -54,8 +54,13 @@ export function renderCycleImportSummary(mc: unknown, makeSourceLabel: (source: 
       const deleteAriaLabel = source !== 'manual' ? `Remove ${readSourceLabel()} cycle data` : null;
       return {source, label, periodCount: info.periods || 0, observationCount: info.observations || 0, importedAt, batches, deleteTitle, deleteAriaLabel};
     });
-  return renderCycleCoverage({view: projectCycleImportCoverage({
+  return projectCycleImportCoverage({
     periodCount: coverage.periodCount || 0, observationCount: coverage.observationCount || 0,
     firstDate: coverage.firstDate, lastDate: coverage.lastDate, sources: sourceRows,
-  })});
+  });
+}
+
+export function renderCycleImportSummary(mc: unknown, makeSourceLabel: (source: string) => () => string) {
+  const view = getCycleImportSummaryView(mc, makeSourceLabel);
+  return view ? renderCycleCoverage({view}) : '';
 }

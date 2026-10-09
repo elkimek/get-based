@@ -2425,3 +2425,7 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 # Focused authored Cycle and Tips PWA acceptance emits.
 /tests/pwa/sveltekit-cycle-import.spec.js
 /tests/pwa/sveltekit-tips-details.spec.js
+
+# Generated Cycle editor runtime siblings
+/js/cycle-editor-presentation.js
+/js/cycle-editor-classes.js

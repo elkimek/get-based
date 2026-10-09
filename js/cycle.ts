@@ -33,10 +33,13 @@ import { saveImportedData } from './data.js';
 import { openModalOverlay } from './modal-lifecycle.js';
 import { startCycleTour } from './tour.js';
 import { calculateCycleStats, createCyclePeriod, recentCyclePeriods, upgradeMenstrualCycleProfile } from './cycle-summary.js';
-import { clearCycleProfileData, renderCycleImportPickerControls, renderCycleImportSummarySection } from './cycle-import-loader.js';
+import { clearCycleProfileData, getCycleImportSummarySectionView, renderCycleImportPickerControls } from './cycle-import-loader.js';
 import { recordContextCardChangeRuntime } from './context-cards-runtime.js';
 import { closeCycleModalRuntime, configureCycleAnalysisBridge, isCycleStylesheetLoaded, loadCycleStylesheetForAction, navigateCycleViewRuntime } from './cycle-runtime.js';
 import { getRecordedDrawPhase } from './cycle-draw-phases.js';
+import { projectCycleEditorPresentation } from './cycle-editor-presentation.js';
+import { cycleEditorModalClasses } from './cycle-editor-classes.js';
+import { renderHTML as renderCycleEditorPresentation } from './components/CycleEditorPresentation.svelte.html.js';
 const CYCLE_ACTIVE_STATUSES = new Set(['regular', 'perimenopause']);
 const CYCLE_ICONS = {
   calendar: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg>',
@@ -370,153 +373,21 @@ export function openMenstrualCycleEditor(): void | false | Promise<void | false>
   const mc = (state.importedData!.menstrualCycle || {}) as CycleProfileInput;
   const periods = (mc.periods || []).slice().sort(function newestCyclePeriodFirst(a, b) { return b.startDate.localeCompare(a.startDate); });
   const stats = calculateCycleStats(mc.periods);
-  const regLabels: Record<string, string> = { regular: 'Regular', irregular: 'Irregular', very_irregular: 'Very Irregular' };
   const activeCycle = isActiveCycleStatus(mc.cycleStatus);
-  const flowLabels: Record<string, string> = { light: 'Light', moderate: 'Moderate', heavy: 'Heavy' };
-  modal.className = 'modal cycle-modal';
-  let html = `<div class="gb-modal-head cycle-modal-head">
-      <div>
-        <div class="gb-modal-kicker">Body context</div>
-        <div class="gb-modal-title">Menstrual Cycle</div>
-      </div>
-      <button type="button" class="modal-close cycle-icon-btn" ${cycleActionAttrs('close')} aria-label="Close cycle editor">${CYCLE_ICONS.x}</button>
-    </div>
-    <div class="cycle-modal-body">
-      <p class="cycle-modal-intro">Track cycle status, period history, and symptoms so hormone, iron, and inflammation markers can be interpreted against cycle phase.</p>
-      <section class="cycle-editor-section">
-        <div class="cycle-editor-section-title">Cycle Profile</div>
-        <div class="cycle-form-grid cycle-form-grid-single">
-          <label class="cycle-field">
-            <span>Cycle Status</span>
-          <select id="mc-cycle-status" ${cycleActionAttrs('toggle-fields')}>
-            <option value="regular"${mc.cycleStatus === 'regular' || !mc.cycleStatus ? ' selected' : ''}>Active - regular cycling</option>
-            <option value="perimenopause"${mc.cycleStatus === 'perimenopause' ? ' selected' : ''}>Perimenopause / irregular</option>
-            <option value="postmenopause"${mc.cycleStatus === 'postmenopause' ? ' selected' : ''}>Postmenopause / no periods</option>
-            <option value="pregnant"${mc.cycleStatus === 'pregnant' ? ' selected' : ''}>Pregnant</option>
-            <option value="breastfeeding"${mc.cycleStatus === 'breastfeeding' ? ' selected' : ''}>Breastfeeding</option>
-            <option value="absent"${mc.cycleStatus === 'absent' ? ' selected' : ''}>Absent (other reason)</option>
-          </select>
-          </label>
-        </div>
-        <div id="mc-active-fields" class="cycle-active-fields"${activeCycle ? '' : ' hidden'}>
-          <div class="cycle-form-grid">
-            <label class="cycle-field">
-              <span>Average Cycle Length</span>
-          ${stats.cycleLength != null
-            ? `<div class="mc-auto-value cycle-auto-value" id="mc-cycle-length-auto" data-value="${stats.cycleLength}">${stats.cycleLength} days</div>`
-            : `<div class="mc-auto-value cycle-auto-value mc-auto-pending">${mc.cycleLength || 28} days <span class="mc-auto-hint">default - log 2+ periods to auto-calculate</span></div>`}
-            </label>
-            <label class="cycle-field">
-              <span>Average Period Length</span>
-          ${stats.periodLength != null
-            ? `<div class="mc-auto-value cycle-auto-value" id="mc-period-length-auto" data-value="${stats.periodLength}">${stats.periodLength} days</div>`
-            : `<div class="mc-auto-value cycle-auto-value mc-auto-pending">${mc.periodLength || 5} days <span class="mc-auto-hint">default - log periods with end dates to auto-calculate</span></div>`}
-            </label>
-            <label class="cycle-field">
-              <span>Regularity</span>
-          ${stats.regularity != null
-            ? `<div class="mc-auto-value cycle-auto-value" id="mc-regularity-auto" data-value="${stats.regularity}">${regLabels[stats.regularity]}</div>`
-            : `<div class="mc-auto-value cycle-auto-value mc-auto-pending">${regLabels[mc.regularity as string] || 'Regular'} <span class="mc-auto-hint">default - log 3+ periods to auto-calculate</span></div>`}
-            </label>
-            <label class="cycle-field">
-              <span>Typical Flow</span>
-          ${stats.flow != null
-            ? `<div class="mc-auto-value cycle-auto-value" id="mc-flow-auto" data-value="${stats.flow}">${flowLabels[stats.flow]}</div>`
-            : `<div class="mc-auto-value cycle-auto-value mc-auto-pending">${flowLabels[mc.flow as string] || 'Moderate'} <span class="mc-auto-hint">default - log 1+ period to auto-calculate</span></div>`}
-            </label>
-          </div>
-        </div>
-        <div class="cycle-form-grid">
-          <label class="cycle-field">
-            <span>Contraceptive</span>
-          <select id="mc-contraceptive">
-            <option value=""${!mc.contraceptive ? ' selected' : ''}>None</option>
-            <optgroup label="Hormonal">
-              <option value="OCP"${mc.contraceptive === 'OCP' ? ' selected' : ''}>OCP (birth control pill)</option>
-              <option value="Hormonal IUD (Mirena)"${(mc.contraceptive as string | null | undefined)?.includes('Mirena') ? ' selected' : ''}>Hormonal IUD (Mirena/Kyleena)</option>
-              <option value="Implant"${mc.contraceptive === 'Implant' ? ' selected' : ''}>Implant (Nexplanon)</option>
-              <option value="Patch"${mc.contraceptive === 'Patch' ? ' selected' : ''}>Patch</option>
-              <option value="Ring"${mc.contraceptive === 'Ring' ? ' selected' : ''}>Ring (NuvaRing)</option>
-              <option value="Depo injection"${(mc.contraceptive as string | null | undefined)?.includes('Depo') ? ' selected' : ''}>Depo injection</option>
-            </optgroup>
-            <optgroup label="Non-hormonal">
-              <option value="Copper IUD"${mc.contraceptive === 'Copper IUD' ? ' selected' : ''}>Copper IUD</option>
-              <option value="Barrier"${mc.contraceptive === 'Barrier' ? ' selected' : ''}>Barrier (condom/diaphragm)</option>
-              <option value="FAM"${mc.contraceptive === 'FAM' ? ' selected' : ''}>Fertility awareness</option>
-            </optgroup>
-            <option value="other"${mc.contraceptive && !['OCP','Hormonal IUD (Mirena)','Implant','Patch','Ring','Depo injection','Copper IUD','Barrier','FAM'].includes(mc.contraceptive as string) && mc.contraceptive !== '' ? ' selected' : ''}>Other</option>
-          </select>
-          </label>
-          <label class="cycle-field">
-            <span>Conditions</span>
-            <input type="text" id="mc-conditions" value="${escapeHTML(mc.conditions || '')}" placeholder="e.g. PCOS, endometriosis, fibroids">
-          </label>
-        </div>
-      </section>${renderCycleImportSummarySection(mc)}
-      <section id="mc-period-log-section" class="cycle-editor-section cycle-period-editor"${activeCycle ? '' : ' hidden'}>
-        <div class="cycle-editor-section-title">Period Log</div>`;
-  if (periods.length > 0) {
-    html += `<div class="cycle-log-list">`;
-    for (const p of periods) {
-      const dateLabel = `${fmtCycleDate(p.startDate, { month: 'short', day: 'numeric', year: 'numeric' })} - ${fmtCycleDate(p.endDate, { month: 'short', day: 'numeric', year: 'numeric' })}`;
-      html += `<div class="cycle-log-item">
-        <span class="cycle-log-icon">${CYCLE_ICONS.droplet}</span>
-        <div class="cycle-log-main">
-          <div class="cycle-log-date">${escapeHTML(dateLabel)}</div>
-          <div class="cycle-log-meta">
-            <span class="goals-severity-badge ${flowClass(p.flow)}">${escapeHTML(p.flow || 'moderate')}</span>
-            ${(p.symptoms && p.symptoms.length) ? p.symptoms.map(s => `<span class="period-symptom-tag">${escapeHTML(s)}</span>`).join('') : ''}
-            ${p.notes ? `<span class="cycle-period-note">${escapeHTML(p.notes)}</span>` : ''}
-          </div>
-        </div>
-        <button type="button" class="cycle-icon-btn cycle-delete-btn" ${cycleActionAttrs('delete-period', `data-cycle-start-date="${escapeHTML(p.startDate)}"`)} aria-label="Delete period starting ${escapeHTML(fmtCycleDate(p.startDate))}" title="Delete period">${CYCLE_ICONS.trash}</button>
-      </div>`;
-    }
-    html += `</div>`;
-  }
+  modal.className = cycleEditorModalClasses();
+  const coverage = getCycleImportSummarySectionView(mc);
+  const periodViews = periods.map(p => ({
+    startDate: p.startDate,
+    dateLabel: `${fmtCycleDate(p.startDate, { month: 'short', day: 'numeric', year: 'numeric' })} - ${fmtCycleDate(p.endDate, { month: 'short', day: 'numeric', year: 'numeric' })}`,
+    deleteAriaLabel: `Delete period starting ${fmtCycleDate(p.startDate)}`,
+    flowClass: flowClass(p.flow), flow: p.flow, symptoms: p.symptoms, notes: p.notes,
+  }));
   const today = new Date().toISOString().slice(0, 10);
   const defaultEnd = new Date(Date.now() + (((mc.periodLength || 5) as number) - 1) * 86400000).toISOString().slice(0, 10);
-  html += `<div class="cycle-period-add">
-        <div class="cycle-form-grid cycle-form-grid-three">
-          <label class="cycle-field">
-            <span>Start Date</span>
-          <input type="date" id="mc-period-start" value="${today}">
-          </label>
-          <label class="cycle-field">
-            <span>End Date</span>
-          <input type="date" id="mc-period-end" value="${defaultEnd}">
-          </label>
-          <label class="cycle-field">
-            <span>Flow</span>
-          <select id="mc-period-flow">
-            <option value="light">Light</option>
-            <option value="moderate" selected>Moderate</option>
-            <option value="heavy">Heavy</option>
-          </select>
-          </label>
-        </div>
-        <label class="cycle-field cycle-field-wide">
-          <span>Symptoms</span>
-          <div class="ctx-tags cycle-symptom-grid" id="mc-period-symptoms">
-            ${PERIOD_SYMPTOMS.map(s => `<button type="button" class="ctx-tag cycle-symptom-chip" data-value="${escapeHTML(s)}" aria-pressed="false" ${cycleActionAttrs('toggle-symptom')}>${escapeHTML(s)}</button>`).join('')}
-          </div>
-        </label>
-        <div class="cycle-add-row">
-          <label class="cycle-field">
-            <span>Notes (optional)</span>
-          <input type="text" id="mc-period-notes" placeholder="e.g. spotting, unusual pain">
-          </label>
-          <button type="button" class="dashboard-action-btn dashboard-action-btn-primary cycle-add-btn" ${cycleActionAttrs('add-period')}>${CYCLE_ICONS.plus}<span>Add period</span></button>
-        </div>
-      </div>
-      </section>
-    </div>
-    <div class="cycle-modal-footer">
-      ${state.importedData!.menstrualCycle ? `<button type="button" class="dashboard-action-btn cycle-danger-btn" ${cycleActionAttrs('clear')}>Clear All</button>` : ''}
-      <button type="button" class="dashboard-action-btn" ${cycleActionAttrs('close')}>Cancel</button>
-      <button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${cycleActionAttrs('save')}>Save</button>
-    </div>`;
-  modal.innerHTML = html;
+  modal.innerHTML = renderCycleEditorPresentation({view: projectCycleEditorPresentation({
+    profile: mc, stats, activeCycle, periods: periodViews, today, defaultEnd, symptoms: PERIOD_SYMPTOMS,
+    coverage, showClear: Boolean(state.importedData!.menstrualCycle),
+  })});
   openModalOverlay(overlay);
 }
 export function saveMenstrualCycle() {

@@ -245,18 +245,20 @@ const { phaseBandPlugin } = await import('../js/charts.js');
   // ── Section 15: Period entry form has symptom tags ──
   console.log('Section 15: Period entry form symptoms');
   {
-    const src = read('js/cycle.ts');
-    assert('Editor has mc-period-symptoms container', src.includes('mc-period-symptoms'));
-    assert('Editor uses PERIOD_SYMPTOMS', src.includes('PERIOD_SYMPTOMS'));
-    assert('Editor has ctx-tag for symptoms', src.includes('ctx-tag') && src.includes('data-value'));
+    const form = read('js/components/CycleEditorPeriodForm.svelte');
+    const controller = read('js/cycle.ts');
+    assert('Authored editor has mc-period-symptoms container', form.includes('id="mc-period-symptoms"'));
+    assert('Editor uses the canonical PERIOD_SYMPTOMS catalog', controller.includes('symptoms: PERIOD_SYMPTOMS') && form.includes('view.symptoms as symptom'));
+    assert('Authored editor has ctx-tag and exact symptom reader value', form.includes('ctx-tag cycle-symptom-chip') && form.includes('data-value={symptom}'));
   }
 
   // ── Section 16: Symptom tags display in period log ──
   console.log('Section 16: Symptom tags in period log');
   {
-    const src = read('js/cycle.ts');
-    assert('Period log shows period-symptom-tag', src.includes('period-symptom-tag'));
-    assert('Checks p.symptoms?.length', src.includes('p.symptoms') && src.includes('symptoms.length'));
+    const history = read('js/components/CycleEditorHistory.svelte');
+    const presentation = read('js/cycle-editor-presentation.ts');
+    assert('Authored period log shows period-symptom-tag', history.includes('class="period-symptom-tag"') && history.includes('period.symptoms as symptom'));
+    assert('Prepared period symptoms retain the original nonempty guard', presentation.includes('period.symptoms?.length ? period.symptoms.map(literal) : []'));
   }
 
   // ── Section 17: CSS classes exist ──

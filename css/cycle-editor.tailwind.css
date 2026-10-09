@@ -1,0 +1,12 @@
+/* Composed by cycle-import.tailwind.css, which owns theme/utilities/tokens. */
+@custom-variant cycle-editor-ui (&:where([data-cycle-editor-view], [data-cycle-editor-view] *));
+@custom-variant cycle-editor-root (:where(&):is(.cycle-modal));
+@custom-variant cycle-editor-phone (@media (max-width: 768px));
+@custom-variant cycle-editor-wide (@media (width > 768px));
+@custom-variant cycle-editor-dvh (@supports (height: 100dvh));
+@source "../js/cycle-editor-classes.ts";
+@source "../js/components/CycleEditorPresentation.svelte";
+@source "../js/components/CycleEditorProfile.svelte";
+@source "../js/components/CycleEditorHistory.svelte";
+@source "../js/components/CycleEditorPeriodForm.svelte";
+@source "../js/components/CycleIcon.svelte";
