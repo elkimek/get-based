@@ -265,12 +265,13 @@ test('static authored import review and recommendation delegates work offline an
     await page.clock.setFixedTime(new Date('2026-08-07T12:00:00Z'));
     const loading = [{phase: 'initial-online', readyMs: await ready(page, server.origin)}];
     const before = await page.evaluate(readComparisonAcceptanceProfile);
-    server.state.offline = true;
+    await server.close();
     await inspectReview(page);
     expect(await page.evaluate(readComparisonAcceptanceProfile)).toEqual(before);
     const id = await inspectRecommendations(page);
     expect(await page.evaluate(readComparisonAcceptanceProfile)).toEqual(before);
     await page.close();
+    expect(context.pages()).toHaveLength(0);
     for (let launch = 0; launch < 2; launch++) {
       const cold = await context.newPage();
       await cold.clock.setFixedTime(new Date('2026-08-07T12:00:00Z'));
@@ -281,9 +282,10 @@ test('static authored import review and recommendation delegates work offline an
       expect(await inspectRecommendations(cold, id)).toBe(id);
       expect(await cold.evaluate(readComparisonAcceptanceProfile)).toEqual(before);
       await cold.close();
+      expect(context.pages()).toHaveLength(0);
     }
     expect(errors).toEqual([]); expect(csp).toEqual([]); expect(external).toEqual([]);
-    await fs.writeFile(test.info().outputPath('review-recommendations-loading.json'), JSON.stringify({loading, recommendationId: id, completedReviewWorkflows: 3}, null, 2));
+    await fs.writeFile(test.info().outputPath('review-recommendations-loading.json'), JSON.stringify({loading, recommendationId: id, completedReviewWorkflows: 3, originStopped: true}, null, 2));
   } finally {
     for (const target of context.pages()) if (!target.isClosed()) await target.close();
     await server.close();
