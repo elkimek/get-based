@@ -293,8 +293,11 @@ controller browser workflows retain preference, filtering, mapping and nested
 lifecycle coverage. [Static PWA checks](../tests/pwa/sveltekit-widget-map.spec.ts)
 exercise public picker controls and session-draft restoration, offline mapping and
 clearing, nested cancellation focus, marker/fixed/biometric selection persistence
-and closed-client cold launches while preserving accepted health records. These focused checks do not establish physical
-touch behavior, installed-PWA/update acceptance or complete application acceptance.
+and closed-client cold launches while preserving accepted health records.
+[Import review boundary checks](../tests/pdf-import-review-boundaries.test.ts) also
+cover repeated opens and independent parent, child and concurrent modal scroll locks.
+These focused checks do not establish physical touch behavior, installed-PWA/update
+acceptance or complete application acceptance.
 
 Report setup and guided tours have [original structure checks](../tests/report-tour-frozen.test.ts)
 covering all templates, AI availability, missing records, sorted note indexes,

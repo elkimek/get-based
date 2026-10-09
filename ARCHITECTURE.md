@@ -207,6 +207,8 @@ Import marker mapping is authored by `ImportMarkerMapPresentation.svelte`,
 views from `import-marker-map-presentation.ts`. The existing controller owns
 normalization, scoring, category counts and ordering, search precedence, the
 120-result limit, selection callbacks and nested modal focus/scroll ownership.
+The import review acquires its own scroll lock, so dismissing a nested picker
+keeps the parent dialog locked until the review closes.
 `import.base.css` retains other import styles; picker utilities compile into the
 stable lazy `import.css` URL. No additional import or rendering backend is required.
 

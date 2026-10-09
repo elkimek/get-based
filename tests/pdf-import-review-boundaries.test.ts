@@ -2,14 +2,59 @@
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { getExcludedImportIndices, showImportPreview } from '../js/pdf-import-review.js';
+import { closeImportModal, getExcludedImportIndices, showImportPreview } from '../js/pdf-import-review.js';
+import { closeModalOverlay, openAppendedModalOverlay, openModalOverlay, removeModalOverlay } from '../js/modal-lifecycle.js';
 
-afterEach(() => {
+const ownedOverlays: HTMLElement[] = [];
+
+afterEach(async () => {
+  closeImportModal();
+  for (const overlay of ownedOverlays.splice(0)) removeModalOverlay(overlay);
+  // Let detached child traps release their independent locks before removing the remaining DOM.
+  await Promise.resolve();
   document.body.replaceChildren();
+  document.body.style.overflow = '';
   localStorage.clear();
 });
 
 describe('PDF import review boundaries', () => {
+  it('keeps repeated review and nested modal scroll locks until each owner closes', async () => {
+    document.body.style.overflow = 'scroll';
+    document.body.innerHTML = '<div id="import-modal-overlay"><div id="import-modal"></div></div>';
+    const preview = {date: '2026-07-31', fileName: 'safe.pdf', markers: []};
+    showImportPreview(preview);
+    showImportPreview(preview);
+    const review = document.getElementById('import-modal-overlay')!;
+    expect(review.classList.contains('show')).toBe(true);
+    expect(document.body.style.overflow).toBe('hidden');
+
+    const child = document.createElement('div');
+    child.className = 'modal-overlay';
+    child.innerHTML = '<div role="dialog"><button type="button">Close nested picker</button></div>';
+    ownedOverlays.push(child);
+    openAppendedModalOverlay(child, () => removeModalOverlay(child), {
+      autoFocus: false, focusTrapOptions: {autoFocus: false},
+    });
+    expect(document.body.style.overflow).toBe('hidden');
+    removeModalOverlay(child);
+    await Promise.resolve();
+    expect(child.isConnected).toBe(false);
+    expect(review.classList.contains('show')).toBe(true);
+    expect(document.body.style.overflow).toBe('hidden');
+
+    const other = document.createElement('div');
+    other.className = 'modal-overlay';
+    document.body.append(other);
+    ownedOverlays.push(other);
+    openModalOverlay(other, {scrollLock: true, autoFocus: false});
+    closeImportModal();
+    expect(review.classList.contains('show')).toBe(false);
+    expect(other.classList.contains('show')).toBe(true);
+    expect(document.body.style.overflow).toBe('hidden');
+    closeModalOverlay(other);
+    expect(document.body.style.overflow).toBe('scroll');
+  });
+
   it('ignores malformed excluded-row indices', () => {
     document.body.innerHTML = `
       <table class="import-table">

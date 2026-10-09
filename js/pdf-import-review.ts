@@ -539,7 +539,7 @@ export function showImportPreview(parseResult: PendingImport) {
   if (!parseResult._importProfileId) parseResult._importProfileId = state.currentProfile;
   setPendingImportRuntime(parseResult, refLookup);
   modal.innerHTML = html;
-  openModalOverlay(overlay);
+  openModalOverlay(overlay, { scrollLock: true });
   restoreExcludedImportRows(parseResult);
   updateImportConfirmCount();
   applyImportReviewFilters();
