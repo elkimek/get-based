@@ -77,7 +77,7 @@ test('authored Cycle editor preserves focused controls, sticky chrome and scroll
  fs.writeFileSync(info.outputPath('cycle-editor-focus-scroll.json'),JSON.stringify({samples:samples.length,checks,themes,widths:[320,1440]},null,2));
 });
 async function moveMouseToControl(page:Page,control:Locator):Promise<void>{
- await control.scrollIntoViewIfNeeded();
+ await control.evaluate(node=>node.scrollIntoView({block:'center',inline:'nearest',behavior:'instant'}));
  const bounds=await control.boundingBox();
  if(!bounds||bounds.width<=0||bounds.height<=0)throw new Error('Visible Cycle control has no nonzero bounding box');
  await page.mouse.move(bounds.x+bounds.width/2,bounds.y+bounds.height/2);
