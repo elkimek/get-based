@@ -98,7 +98,7 @@ async function inspectReview(page: Page) {
   await expect(custom).toBeVisible();
   await custom.locator('.import-exclude-btn').click();
   await expect(custom).not.toHaveClass(/\bimport-excluded\b/);
-  await expect(custom.locator('.import-exclude-btn')).toHaveAccessibleName('Exclude from import');
+  await expect(custom.locator('.import-exclude-btn')).toHaveAttribute('aria-label', 'Exclude from import');
   await expect(review.locator('#import-visible-count')).toHaveText('0/13 shown');
   await expect(confirm).toHaveText('Import 2 Markers');
   expect((await readDraft(page)).parseResult._excludedImportIndices).toEqual([]);
@@ -115,6 +115,7 @@ async function inspectReview(page: Page) {
   expect((await readDraft(page)).parseResult._excludedImportIndices).toEqual([]);
 
   await filter('new').click();
+  await expect(custom.locator('.import-exclude-btn')).toHaveAccessibleName('Exclude from import');
   const customUnit = custom.locator('.import-unit-picker-btn');
   await customUnit.click();
   const menu = page.locator('.import-unit-menu[data-import-review-view]');
