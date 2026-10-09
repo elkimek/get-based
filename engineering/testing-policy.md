@@ -237,6 +237,20 @@ unrelated records and the complete accepted profile through two closed-client
 launches. These checks complement AI lifecycle, integrity and sync regressions;
 they do not establish whole-app release acceptance.
 
+Shared lens chrome has [frozen structure checks](../tests/lens-shell-presentation.test.ts)
+for escaped literal fields, empty/body compatibility, sizes, dashboard states,
+move limits, profile-scoped ordering and duplicate/stale stored IDs.
+[Headless parity](../tests/playwright/lens-shell-owned.spec.ts) compares frozen
+geometry and themes at both sides of the inclusive 640px and 1100px boundaries
+and checks independent keyboard focus. Existing shell delegate scenarios cover
+move and dashboard actions. [Static offline acceptance](../tests/pwa/sveltekit-lens-shell.spec.ts)
+opens the actual Labs, Genome, Body, Insight and disabled-Tips routes, changes
+Labs ordering with the keyboard, and verifies it and the complete accepted
+profile through two closed-client launches. Adjacent Biology card acceptance
+retains the compact score-tools contract. Named HTML body/action compatibility
+inputs remain reviewed content boundaries; typed whole-page composition and
+whole-app release acceptance remain separate work.
+
 Biology summary and compatibility views have [frozen structure and state
 checks](../tests/biology-summary-presentation.test.ts) covering raw and historical
 values, confidence thresholds, directional/stale scores, missing inputs, NaN,

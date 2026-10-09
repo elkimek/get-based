@@ -1,12 +1,13 @@
 // lens-page-shell.ts — shared lens page chrome, ordering, and widget helpers
 
+import {renderHTML as renderShell} from './components/LensShellPresentation.svelte.html.js';
+import {projectLensHeader, projectLensWidget, type LensWidgetToolsView} from './lens-shell-presentation.js';
 import {renderHTML as renderDashboardToggle} from './components/LensDashboardToggle.svelte.html.js';
 
 export interface LensDashboardToggleView {id: string; label: string; action: 'remove-dashboard-widget' | 'add-dashboard-widget'}
 
 import { state } from './state.js';
 import { getWidgetHeaderDescription } from './dashboard-widget-copy.js';
-import { escapeHTML, escapeAttr } from './utils.js';
 import { actionAttributes } from './action-attributes.js';
 import { profileStorageKey } from './profile.js';
 import { openEMFAssessmentEditor } from './emf-runtime.js';
@@ -132,12 +133,7 @@ function installLensPageShellDelegates() {
 }
 
 export function renderLensHeader(title: unknown, subtitle: unknown, actions = '', options: { className?: unknown } = {}) {
-  const extraClass = options?.className ? ` ${escapeAttr(String(options.className))}` : '';
-  return `<div class="category-header lens-page-header${extraClass}">
-    <h2>${escapeHTML(title)}</h2>
-    ${subtitle ? `<p>${escapeHTML(subtitle)}</p>` : ''}
-    ${actions ? `<div class="dashboard-widget-inline-controls">${actions}</div>` : ''}
-  </div>`;
+  return renderShell({kind: 'header', view: projectLensHeader(title, subtitle, actions, options)});
 }
 
 function lensPageOrderStorageKey(route: string) {
@@ -164,25 +160,12 @@ function orderLensPageWidgets(route: string, widgets: LensPageWidget[]): LensPag
   return order.map(id => byId.get(id)).filter(Boolean) as LensPageWidget[];
 }
 
-function renderLensPageMoveControls(route: string, id: string, index: number, count: number) {
-  if (!route || count < 2) return '';
-  return `<button type="button" class="dashboard-widget-tool" ${index <= 0 ? 'disabled' : ''} ${lensPageActionAttrs('move-widget', { route, id, direction: -1 })} aria-label="Move page section up">↑</button>
-    <button type="button" class="dashboard-widget-tool" ${index >= count - 1 ? 'disabled' : ''} ${lensPageActionAttrs('move-widget', { route, id, direction: 1 })} aria-label="Move page section down">↓</button>`;
-}
-
 export function renderLensPageWidgets(route: string, widgets: Array<LensPageWidget | null | undefined | false>, options: { group?: string } = {}) {
   const orderKey = options.group ? `${route}-${options.group}` : route;
   const ordered = orderLensPageWidgets(orderKey, widgets.filter(Boolean) as LensPageWidget[]);
-  return `<div class="dashboard-widgets lens-page-widgets" data-lens-route="${escapeAttr(route)}" data-lens-order-key="${escapeAttr(orderKey)}">
-    ${ordered.map((widget, index) => renderLensWidget(
-      widget.id,
-      widget.title,
-      widget.description,
-      widget.body,
-      widget.size || 'full',
-      { ...(widget.opts || {}), pageRoute: route, pageIndex: index, pageCount: ordered.length }
-    )).join('')}
-  </div>`;
+  return renderShell({kind: 'grid', view: {route, orderKey, widgets: ordered.map((widget, index) =>
+    lensWidgetView(widget.id, widget.title, widget.description, widget.body, widget.size || 'full',
+      {...(widget.opts || {}), pageRoute: route, pageIndex: index, pageCount: ordered.length}))}});
 }
 
 export function moveLensPageWidget(route: unknown, id: unknown, direction: unknown) {
@@ -224,23 +207,22 @@ export function renderLensDashboardToggle(dashboardId: string | null | undefined
   return view ? renderDashboardToggle({view}) : '';
 }
 
-export function renderLensWidget(id: string, title: unknown, description: string | undefined, body: unknown, size = 'full', opts: LensWidgetOptions = {}) {
+function lensWidgetView(id: string, title: unknown, description: string | undefined, body: unknown, size: string, opts: LensWidgetOptions) {
   const headerDescription = getWidgetHeaderDescription(id, description);
   const dashboardId = Object.prototype.hasOwnProperty.call(opts, 'dashboardId') ? opts.dashboardId : id;
-  const dashboardToggle = renderLensDashboardToggle(dashboardId);
-  const pageControls = renderLensPageMoveControls(opts.pageRoute || '', id, opts.pageIndex || 0, opts.pageCount || 0);
-  const tools = [pageControls, dashboardToggle].filter(Boolean).join('');
-  if (opts.compactScore) return `<section class="biology-score-lens-row" data-widget-id="${escapeAttr(id)}">${(body as { replace(search: string, replacement: string): unknown }).replace('<!--score-tools-->', tools)}</section>`;
-  return `<section class="dashboard-widget dashboard-widget-${escapeAttr(size)}${body ? '' : ' is-empty'}" data-widget-id="${escapeAttr(id)}">
-    <div class="dashboard-widget-chrome">
-      <div class="dashboard-widget-heading">
-        <div class="dashboard-widget-title">${escapeHTML(title)}</div>
-        ${headerDescription ? `<div class="dashboard-widget-description">${escapeHTML(headerDescription)}</div>` : ''}
-      </div>
-      ${tools ? `<div class="dashboard-widget-tools">${tools}</div>` : ''}
-    </div>
-    <div class="dashboard-widget-body">${body || '<div class="dashboard-widget-empty">No data available yet.</div>'}</div>
-  </section>`;
+  const route = opts.pageRoute || '', index = opts.pageIndex || 0, count = opts.pageCount || 0;
+  const tools: LensWidgetToolsView = {dashboard: getLensDashboardToggleView(dashboardId),
+    move: route && count >= 2 ? {route, id, index, count} : null};
+  // The compact HTML API is retained until the Biology page composes typed cards.
+  // Only the existing owned insertion marker accepts the typed tools fragment.
+  const renderedBody = opts.compactScore
+    ? (body as {replace(search: string, replacement: string): unknown}).replace('<!--score-tools-->', renderShell({kind: 'tools', view: tools}))
+    : body;
+  return projectLensWidget(id, title, headerDescription, renderedBody, size, tools, !!opts.compactScore);
+}
+
+export function renderLensWidget(id: string, title: unknown, description: string | undefined, body: unknown, size = 'full', opts: LensWidgetOptions = {}) {
+  return renderShell({kind: 'widget', view: lensWidgetView(id, title, description, body, size, opts)});
 }
 
 installLensPageShellDelegates();

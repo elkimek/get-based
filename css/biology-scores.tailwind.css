@@ -85,3 +85,12 @@
 @source "../js/components/BiologySummaryStatus.svelte";
 @source "../js/components/BiologySummaryInputs.svelte";
 @source "../js/components/BiologyCompatibilityLens.svelte";
+
+/* Shared lens header, widget chrome and ordering controls. */
+@custom-variant lens-shell (&:where([data-lens-shell-view], [data-lens-shell-view] *));
+@source "../js/lens-shell-classes.ts";
+@source "../js/components/LensShellPresentation.svelte";
+@source "../js/components/LensPageHeader.svelte";
+@source "../js/components/LensPageWidget.svelte";
+@source "../js/components/LensPageGrid.svelte";
+@source "../js/components/LensWidgetTools.svelte";

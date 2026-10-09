@@ -15,7 +15,7 @@ const original=JSON.parse(readFileSync('tests/fixtures/biology-cards-original.js
 function decode(html:string){return html.replace(/class="@(\d+)"/g,(_,index:string)=>{const value=original.classes[Number(index)];if(value===undefined)throw new Error('Invalid frozen class reference');return `class="${value}"`;});}
 function host(html:string){const node=document.createElement('div');node.innerHTML=html;return node;}
 interface Structure {tag:string;text:string;attributes:Record<string,string>;children:Structure[]}
-function structure(node:Element):Structure{return {tag:node.tagName,text:node.textContent!.replace(/\s+/g,' ').trim(),attributes:Object.fromEntries([...node.attributes].filter(a=>!['class','style','data-biology-card-view'].includes(a.name)).map(a=>[a.name,a.value])),children:[...node.children].map(structure)};}
+function structure(node:Element):Structure{return {tag:node.tagName,text:node.textContent!.replace(/\s+/g,' ').trim(),attributes:Object.fromEntries([...node.attributes].filter(a=>!['class','style','data-biology-card-view','data-lens-shell-view'].includes(a.name)).map(a=>[a.name,a.value])),children:[...node.children].map(structure)};}
 function toggle(sample:Sample):LensDashboardToggleView|null{const button=host(decode(sample.dashboardToggleHTML)).querySelector('button');return button?{id:button.getAttribute('data-lens-page-id')!,action:button.getAttribute('data-lens-page-action')! as LensDashboardToggleView['action'],label:button.textContent!}:null;}
 let restore:ReturnType<typeof configureLensPageShell>;
 beforeEach(()=>{restore=configureLensPageShell({getAvailableDashboardFixedWidgetIds:()=>[],getDashboardWidgetPrefs:()=>({hidden:['biology-score-thyroidCoherence']})});});

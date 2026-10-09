@@ -2354,3 +2354,10 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /js/biology-summary-classes.js
 /tests/biology-summary-presentation.test.js
 /tests/playwright/biology-summary-owned.spec.js
+
+/js/lens-shell-presentation.js
+/js/lens-shell-classes.js
+/tests/lens-shell-presentation.test.js
+/tests/playwright/lens-shell-owned.spec.js
+
+/tests/pwa/sveltekit-lens-shell.spec.js

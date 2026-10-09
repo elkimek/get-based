@@ -1,0 +1,597 @@
+{
+  "revision": "f436f320de29190d0782cb666e4f9a5b4d338636",
+  "sourceSHA256": {
+    "js/lens-page-shell.ts": "4be4cc7b73956cd533e709e0f9d55c6fe07f0c8883c41cae6acd058e5c20ba7b",
+    "js/components/LensDashboardToggle.svelte": "7c6b558a00bb1811c9751a5decf93de5d68a9f15b8bfeb7f17da63db4aacec0e",
+    "css/dashboard-widgets.base.css": "94d15811a27ca6542930a6ab191060c72ed5c36a7458e11d6327877c5240d281",
+    "css/category-views.css": "c2c2e6e88df673bd8912e013b39fa02345c675d0d2e6b8f2db913d8b106dd92d",
+    "css/dashboard-core.css": "48dc262d49d741d83e09d2b9b062093b429d59c994733bae70974837c6bdb75e"
+  },
+  "samples": [
+    {
+      "name": "simple",
+      "method": "header",
+      "args": [
+        "Labs",
+        ""
+      ],
+      "available": [],
+      "hidden": [],
+      "order": [],
+      "html": "<div class=\"category-header lens-page-header\">\n    <h2>Labs</h2>\n    \n    \n  </div>"
+    },
+    {
+      "name": "full",
+      "method": "header",
+      "args": [
+        "Genome",
+        "DNA findings",
+        "<button type=\"button\" data-owned-action=\"import\">Import DNA</button>",
+        {
+          "className": "genome-lens-header"
+        }
+      ],
+      "available": [],
+      "hidden": [],
+      "order": [],
+      "html": "<div class=\"category-header lens-page-header genome-lens-header\">\n    <h2>Genome</h2>\n    <p>DNA findings</p>\n    <div class=\"dashboard-widget-inline-controls\"><button type=\"button\" data-owned-action=\"import\">Import DNA</button></div>\n  </div>"
+    },
+    {
+      "name": "biology",
+      "method": "header",
+      "args": [
+        "Biology Scores",
+        "Body-system patterns",
+        "<div class=\"biology-score-header-actions\"><button type=\"button\" class=\"dashboard-action-btn\">Discuss scores in chat</button></div>",
+        {
+          "className": "biology-scores-lens-header"
+        }
+      ],
+      "available": [],
+      "hidden": [],
+      "order": [],
+      "html": "<div class=\"category-header lens-page-header biology-scores-lens-header\">\n    <h2>Biology Scores</h2>\n    <p>Body-system patterns</p>\n    <div class=\"dashboard-widget-inline-controls\"><div class=\"biology-score-header-actions\"><button type=\"button\" class=\"dashboard-action-btn\">Discuss scores in chat</button></div></div>\n  </div>"
+    },
+    {
+      "name": "escaped",
+      "method": "header",
+      "args": [
+        "Title <script> & \"quoted\"",
+        "Subtitle <b> & literal",
+        "",
+        {
+          "className": "custom\" onclick=\"alert(1)"
+        }
+      ],
+      "available": [],
+      "hidden": [],
+      "order": [],
+      "html": "<div class=\"category-header lens-page-header custom&quot; onclick=&quot;alert(1)\">\n    <h2>Title &lt;script&gt; &amp; &quot;quoted&quot;</h2>\n    <p>Subtitle &lt;b&gt; &amp; literal</p>\n    \n  </div>"
+    },
+    {
+      "name": "null",
+      "method": "header",
+      "args": [
+        null,
+        null
+      ],
+      "available": [],
+      "hidden": [],
+      "order": [],
+      "html": "<div class=\"category-header lens-page-header\">\n    <h2></h2>\n    \n    \n  </div>"
+    },
+    {
+      "name": "truthy",
+      "method": "header",
+      "args": [
+        12,
+        true
+      ],
+      "available": [],
+      "hidden": [],
+      "order": [],
+      "html": "<div class=\"category-header lens-page-header\">\n    <h2>12</h2>\n    <p>true</p>\n    \n  </div>"
+    },
+    {
+      "name": "full",
+      "method": "widget",
+      "args": [
+        "lab-marker",
+        "Lab marker",
+        "Default description",
+        "<p data-owned-body>Body <strong>markup</strong> &amp; text.</p>",
+        "full"
+      ],
+      "available": [],
+      "hidden": [],
+      "order": [],
+      "html": "<section class=\"dashboard-widget dashboard-widget-full\" data-widget-id=\"lab-marker\">\n    <div class=\"dashboard-widget-chrome\">\n      <div class=\"dashboard-widget-heading\">\n        <div class=\"dashboard-widget-title\">Lab marker</div>\n        <div class=\"dashboard-widget-description\">Default description</div>\n      </div>\n      \n    </div>\n    <div class=\"dashboard-widget-body\"><p data-owned-body>Body <strong>markup</strong> &amp; text.</p></div>\n  </section>"
+    },
+    {
+      "name": "half",
+      "method": "widget",
+      "args": [
+        "lab-marker",
+        "Lab marker",
+        "Default description",
+        "<p data-owned-body>Body <strong>markup</strong> &amp; text.</p>",
+        "half"
+      ],
+      "available": [],
+      "hidden": [],
+      "order": [],
+      "html": "<section class=\"dashboard-widget dashboard-widget-half\" data-widget-id=\"lab-marker\">\n    <div class=\"dashboard-widget-chrome\">\n      <div class=\"dashboard-widget-heading\">\n        <div class=\"dashboard-widget-title\">Lab marker</div>\n        <div class=\"dashboard-widget-description\">Default description</div>\n      </div>\n      \n    </div>\n    <div class=\"dashboard-widget-body\"><p data-owned-body>Body <strong>markup</strong> &amp; text.</p></div>\n  </section>"
+    },
+    {
+      "name": "quarter",
+      "method": "widget",
+      "args": [
+        "lab-marker",
+        "Lab marker",
+        "Default description",
+        "<p data-owned-body>Body <strong>markup</strong> &amp; text.</p>",
+        "quarter"
+      ],
+      "available": [],
+      "hidden": [],
+      "order": [],
+      "html": "<section class=\"dashboard-widget dashboard-widget-quarter\" data-widget-id=\"lab-marker\">\n    <div class=\"dashboard-widget-chrome\">\n      <div class=\"dashboard-widget-heading\">\n        <div class=\"dashboard-widget-title\">Lab marker</div>\n        <div class=\"dashboard-widget-description\">Default description</div>\n      </div>\n      \n    </div>\n    <div class=\"dashboard-widget-body\"><p data-owned-body>Body <strong>markup</strong> &amp; text.</p></div>\n  </section>"
+    },
+    {
+      "name": "third",
+      "method": "widget",
+      "args": [
+        "lab-marker",
+        "Lab marker",
+        "Default description",
+        "<p data-owned-body>Body <strong>markup</strong> &amp; text.</p>",
+        "third"
+      ],
+      "available": [],
+      "hidden": [],
+      "order": [],
+      "html": "<section class=\"dashboard-widget dashboard-widget-third\" data-widget-id=\"lab-marker\">\n    <div class=\"dashboard-widget-chrome\">\n      <div class=\"dashboard-widget-heading\">\n        <div class=\"dashboard-widget-title\">Lab marker</div>\n        <div class=\"dashboard-widget-description\">Default description</div>\n      </div>\n      \n    </div>\n    <div class=\"dashboard-widget-body\"><p data-owned-body>Body <strong>markup</strong> &amp; text.</p></div>\n  </section>"
+    },
+    {
+      "name": "two-third",
+      "method": "widget",
+      "args": [
+        "lab-marker",
+        "Lab marker",
+        "Default description",
+        "<p data-owned-body>Body <strong>markup</strong> &amp; text.</p>",
+        "two-third"
+      ],
+      "available": [],
+      "hidden": [],
+      "order": [],
+      "html": "<section class=\"dashboard-widget dashboard-widget-two-third\" data-widget-id=\"lab-marker\">\n    <div class=\"dashboard-widget-chrome\">\n      <div class=\"dashboard-widget-heading\">\n        <div class=\"dashboard-widget-title\">Lab marker</div>\n        <div class=\"dashboard-widget-description\">Default description</div>\n      </div>\n      \n    </div>\n    <div class=\"dashboard-widget-body\"><p data-owned-body>Body <strong>markup</strong> &amp; text.</p></div>\n  </section>"
+    },
+    {
+      "name": "empty",
+      "method": "widget",
+      "args": [
+        "lab-marker",
+        "Lab marker",
+        "",
+        ""
+      ],
+      "available": [],
+      "hidden": [],
+      "order": [],
+      "html": "<section class=\"dashboard-widget dashboard-widget-full is-empty\" data-widget-id=\"lab-marker\">\n    <div class=\"dashboard-widget-chrome\">\n      <div class=\"dashboard-widget-heading\">\n        <div class=\"dashboard-widget-title\">Lab marker</div>\n        \n      </div>\n      \n    </div>\n    <div class=\"dashboard-widget-body\"><div class=\"dashboard-widget-empty\">No data available yet.</div></div>\n  </section>"
+    },
+    {
+      "name": "zero",
+      "method": "widget",
+      "args": [
+        "lab-marker",
+        "Lab marker",
+        "",
+        0
+      ],
+      "available": [],
+      "hidden": [],
+      "order": [],
+      "html": "<section class=\"dashboard-widget dashboard-widget-full is-empty\" data-widget-id=\"lab-marker\">\n    <div class=\"dashboard-widget-chrome\">\n      <div class=\"dashboard-widget-heading\">\n        <div class=\"dashboard-widget-title\">Lab marker</div>\n        \n      </div>\n      \n    </div>\n    <div class=\"dashboard-widget-body\"><div class=\"dashboard-widget-empty\">No data available yet.</div></div>\n  </section>"
+    },
+    {
+      "name": "false",
+      "method": "widget",
+      "args": [
+        "lab-marker",
+        "Lab marker",
+        "",
+        false
+      ],
+      "available": [],
+      "hidden": [],
+      "order": [],
+      "html": "<section class=\"dashboard-widget dashboard-widget-full is-empty\" data-widget-id=\"lab-marker\">\n    <div class=\"dashboard-widget-chrome\">\n      <div class=\"dashboard-widget-heading\">\n        <div class=\"dashboard-widget-title\">Lab marker</div>\n        \n      </div>\n      \n    </div>\n    <div class=\"dashboard-widget-body\"><div class=\"dashboard-widget-empty\">No data available yet.</div></div>\n  </section>"
+    },
+    {
+      "name": "null",
+      "method": "widget",
+      "args": [
+        "lab-marker",
+        "Lab marker",
+        "",
+        null
+      ],
+      "available": [],
+      "hidden": [],
+      "order": [],
+      "html": "<section class=\"dashboard-widget dashboard-widget-full is-empty\" data-widget-id=\"lab-marker\">\n    <div class=\"dashboard-widget-chrome\">\n      <div class=\"dashboard-widget-heading\">\n        <div class=\"dashboard-widget-title\">Lab marker</div>\n        \n      </div>\n      \n    </div>\n    <div class=\"dashboard-widget-body\"><div class=\"dashboard-widget-empty\">No data available yet.</div></div>\n  </section>"
+    },
+    {
+      "name": "object",
+      "method": "widget",
+      "args": [
+        "lab-marker",
+        "Lab marker",
+        "",
+        {
+          "x": 1
+        }
+      ],
+      "available": [],
+      "hidden": [],
+      "order": [],
+      "html": "<section class=\"dashboard-widget dashboard-widget-full\" data-widget-id=\"lab-marker\">\n    <div class=\"dashboard-widget-chrome\">\n      <div class=\"dashboard-widget-heading\">\n        <div class=\"dashboard-widget-title\">Lab marker</div>\n        \n      </div>\n      \n    </div>\n    <div class=\"dashboard-widget-body\">[object Object]</div>\n  </section>"
+    },
+    {
+      "name": "toggle",
+      "method": "widget",
+      "args": [
+        "lab-marker",
+        "Lab marker",
+        "Default description",
+        "<p data-owned-body>Body <strong>markup</strong> &amp; text.</p>",
+        "full",
+        {}
+      ],
+      "available": [
+        "lab-marker"
+      ],
+      "hidden": [],
+      "order": [],
+      "html": "<section class=\"dashboard-widget dashboard-widget-full\" data-widget-id=\"lab-marker\">\n    <div class=\"dashboard-widget-chrome\">\n      <div class=\"dashboard-widget-heading\">\n        <div class=\"dashboard-widget-title\">Lab marker</div>\n        <div class=\"dashboard-widget-description\">Default description</div>\n      </div>\n      <div class=\"dashboard-widget-tools\"><!--[--><!--[0--><button type=\"button\" class=\"dashboard-widget-tool lens-widget-dashboard-toggle\" data-lens-page-action=\"remove-dashboard-widget\" data-lens-page-id=\"lab-marker\">Remove from Dashboard</button><!--]--><!--]--></div>\n    </div>\n    <div class=\"dashboard-widget-body\"><p data-owned-body>Body <strong>markup</strong> &amp; text.</p></div>\n  </section>"
+    },
+    {
+      "name": "hidden",
+      "method": "widget",
+      "args": [
+        "lab-marker",
+        "Lab marker",
+        "Default description",
+        "<p data-owned-body>Body <strong>markup</strong> &amp; text.</p>",
+        "full",
+        {}
+      ],
+      "available": [
+        "lab-marker"
+      ],
+      "hidden": [
+        "lab-marker"
+      ],
+      "order": [],
+      "html": "<section class=\"dashboard-widget dashboard-widget-full\" data-widget-id=\"lab-marker\">\n    <div class=\"dashboard-widget-chrome\">\n      <div class=\"dashboard-widget-heading\">\n        <div class=\"dashboard-widget-title\">Lab marker</div>\n        <div class=\"dashboard-widget-description\">Default description</div>\n      </div>\n      <div class=\"dashboard-widget-tools\"><!--[--><!--[0--><button type=\"button\" class=\"dashboard-widget-tool lens-widget-dashboard-toggle\" data-lens-page-action=\"add-dashboard-widget\" data-lens-page-id=\"lab-marker\">Add to Dashboard</button><!--]--><!--]--></div>\n    </div>\n    <div class=\"dashboard-widget-body\"><p data-owned-body>Body <strong>markup</strong> &amp; text.</p></div>\n  </section>"
+    },
+    {
+      "name": "no-toggle",
+      "method": "widget",
+      "args": [
+        "lab-marker",
+        "Lab marker",
+        "Default description",
+        "<p data-owned-body>Body <strong>markup</strong> &amp; text.</p>",
+        "full",
+        {
+          "dashboardId": null
+        }
+      ],
+      "available": [
+        "lab-marker"
+      ],
+      "hidden": [],
+      "order": [],
+      "html": "<section class=\"dashboard-widget dashboard-widget-full\" data-widget-id=\"lab-marker\">\n    <div class=\"dashboard-widget-chrome\">\n      <div class=\"dashboard-widget-heading\">\n        <div class=\"dashboard-widget-title\">Lab marker</div>\n        <div class=\"dashboard-widget-description\">Default description</div>\n      </div>\n      \n    </div>\n    <div class=\"dashboard-widget-body\"><p data-owned-body>Body <strong>markup</strong> &amp; text.</p></div>\n  </section>"
+    },
+    {
+      "name": "move-first",
+      "method": "widget",
+      "args": [
+        "lab-marker",
+        "Lab marker",
+        "Default description",
+        "<p data-owned-body>Body <strong>markup</strong> &amp; text.</p>",
+        "full",
+        {
+          "pageRoute": "labs",
+          "pageIndex": 0,
+          "pageCount": 3
+        }
+      ],
+      "available": [
+        "lab-marker"
+      ],
+      "hidden": [],
+      "order": [],
+      "html": "<section class=\"dashboard-widget dashboard-widget-full\" data-widget-id=\"lab-marker\">\n    <div class=\"dashboard-widget-chrome\">\n      <div class=\"dashboard-widget-heading\">\n        <div class=\"dashboard-widget-title\">Lab marker</div>\n        <div class=\"dashboard-widget-description\">Default description</div>\n      </div>\n      <div class=\"dashboard-widget-tools\"><button type=\"button\" class=\"dashboard-widget-tool\" disabled data-lens-page-action=\"move-widget\" data-lens-page-route=\"labs\" data-lens-page-id=\"lab-marker\" data-lens-page-direction=\"-1\" aria-label=\"Move page section up\">\u2191</button>\n    <button type=\"button\" class=\"dashboard-widget-tool\"  data-lens-page-action=\"move-widget\" data-lens-page-route=\"labs\" data-lens-page-id=\"lab-marker\" data-lens-page-direction=\"1\" aria-label=\"Move page section down\">\u2193</button><!--[--><!--[0--><button type=\"button\" class=\"dashboard-widget-tool lens-widget-dashboard-toggle\" data-lens-page-action=\"remove-dashboard-widget\" data-lens-page-id=\"lab-marker\">Remove from Dashboard</button><!--]--><!--]--></div>\n    </div>\n    <div class=\"dashboard-widget-body\"><p data-owned-body>Body <strong>markup</strong> &amp; text.</p></div>\n  </section>"
+    },
+    {
+      "name": "move-last",
+      "method": "widget",
+      "args": [
+        "lab-marker",
+        "Lab marker",
+        "Default description",
+        "<p data-owned-body>Body <strong>markup</strong> &amp; text.</p>",
+        "full",
+        {
+          "pageRoute": "labs",
+          "pageIndex": 2,
+          "pageCount": 3
+        }
+      ],
+      "available": [
+        "lab-marker"
+      ],
+      "hidden": [],
+      "order": [],
+      "html": "<section class=\"dashboard-widget dashboard-widget-full\" data-widget-id=\"lab-marker\">\n    <div class=\"dashboard-widget-chrome\">\n      <div class=\"dashboard-widget-heading\">\n        <div class=\"dashboard-widget-title\">Lab marker</div>\n        <div class=\"dashboard-widget-description\">Default description</div>\n      </div>\n      <div class=\"dashboard-widget-tools\"><button type=\"button\" class=\"dashboard-widget-tool\"  data-lens-page-action=\"move-widget\" data-lens-page-route=\"labs\" data-lens-page-id=\"lab-marker\" data-lens-page-direction=\"-1\" aria-label=\"Move page section up\">\u2191</button>\n    <button type=\"button\" class=\"dashboard-widget-tool\" disabled data-lens-page-action=\"move-widget\" data-lens-page-route=\"labs\" data-lens-page-id=\"lab-marker\" data-lens-page-direction=\"1\" aria-label=\"Move page section down\">\u2193</button><!--[--><!--[0--><button type=\"button\" class=\"dashboard-widget-tool lens-widget-dashboard-toggle\" data-lens-page-action=\"remove-dashboard-widget\" data-lens-page-id=\"lab-marker\">Remove from Dashboard</button><!--]--><!--]--></div>\n    </div>\n    <div class=\"dashboard-widget-body\"><p data-owned-body>Body <strong>markup</strong> &amp; text.</p></div>\n  </section>"
+    },
+    {
+      "name": "move-middle",
+      "method": "widget",
+      "args": [
+        "lab-marker",
+        "Lab marker",
+        "Default description",
+        "<p data-owned-body>Body <strong>markup</strong> &amp; text.</p>",
+        "full",
+        {
+          "pageRoute": "labs",
+          "pageIndex": 1,
+          "pageCount": 3
+        }
+      ],
+      "available": [
+        "lab-marker"
+      ],
+      "hidden": [],
+      "order": [],
+      "html": "<section class=\"dashboard-widget dashboard-widget-full\" data-widget-id=\"lab-marker\">\n    <div class=\"dashboard-widget-chrome\">\n      <div class=\"dashboard-widget-heading\">\n        <div class=\"dashboard-widget-title\">Lab marker</div>\n        <div class=\"dashboard-widget-description\">Default description</div>\n      </div>\n      <div class=\"dashboard-widget-tools\"><button type=\"button\" class=\"dashboard-widget-tool\"  data-lens-page-action=\"move-widget\" data-lens-page-route=\"labs\" data-lens-page-id=\"lab-marker\" data-lens-page-direction=\"-1\" aria-label=\"Move page section up\">\u2191</button>\n    <button type=\"button\" class=\"dashboard-widget-tool\"  data-lens-page-action=\"move-widget\" data-lens-page-route=\"labs\" data-lens-page-id=\"lab-marker\" data-lens-page-direction=\"1\" aria-label=\"Move page section down\">\u2193</button><!--[--><!--[0--><button type=\"button\" class=\"dashboard-widget-tool lens-widget-dashboard-toggle\" data-lens-page-action=\"remove-dashboard-widget\" data-lens-page-id=\"lab-marker\">Remove from Dashboard</button><!--]--><!--]--></div>\n    </div>\n    <div class=\"dashboard-widget-body\"><p data-owned-body>Body <strong>markup</strong> &amp; text.</p></div>\n  </section>"
+    },
+    {
+      "name": "escaped",
+      "method": "widget",
+      "args": [
+        "a\" onmouseover=\"bad",
+        "Title <script> & literal",
+        "Description <i> & literal",
+        "<p data-owned-body>Body <strong>markup</strong> &amp; text.</p>",
+        "odd\" injected=\"yes",
+        {
+          "pageRoute": "x\" <",
+          "pageIndex": 1,
+          "pageCount": 3
+        }
+      ],
+      "available": [
+        "a\" onmouseover=\"bad"
+      ],
+      "hidden": [],
+      "order": [],
+      "html": "<section class=\"dashboard-widget dashboard-widget-odd&quot; injected=&quot;yes\" data-widget-id=\"a&quot; onmouseover=&quot;bad\">\n    <div class=\"dashboard-widget-chrome\">\n      <div class=\"dashboard-widget-heading\">\n        <div class=\"dashboard-widget-title\">Title &lt;script&gt; &amp; literal</div>\n        <div class=\"dashboard-widget-description\">Description &lt;i&gt; &amp; literal</div>\n      </div>\n      <div class=\"dashboard-widget-tools\"><button type=\"button\" class=\"dashboard-widget-tool\"  data-lens-page-action=\"move-widget\" data-lens-page-route=\"x&quot; &lt;\" data-lens-page-id=\"a&quot; onmouseover=&quot;bad\" data-lens-page-direction=\"-1\" aria-label=\"Move page section up\">\u2191</button>\n    <button type=\"button\" class=\"dashboard-widget-tool\"  data-lens-page-action=\"move-widget\" data-lens-page-route=\"x&quot; &lt;\" data-lens-page-id=\"a&quot; onmouseover=&quot;bad\" data-lens-page-direction=\"1\" aria-label=\"Move page section down\">\u2193</button><!--[--><!--[0--><button type=\"button\" class=\"dashboard-widget-tool lens-widget-dashboard-toggle\" data-lens-page-action=\"remove-dashboard-widget\" data-lens-page-id=\"a&quot; onmouseover=&quot;bad\">Remove from Dashboard</button><!--]--><!--]--></div>\n    </div>\n    <div class=\"dashboard-widget-body\"><p data-owned-body>Body <strong>markup</strong> &amp; text.</p></div>\n  </section>"
+    },
+    {
+      "name": "compact",
+      "method": "widget",
+      "args": [
+        "biology-score-detail-fixture",
+        "Score",
+        "",
+        "<article><div class=\"biology-score-detail-tools\"><!--score-tools--></div><p>Score reading</p></article>",
+        "full",
+        {
+          "compactScore": true,
+          "dashboardId": "biology-score-fixture",
+          "pageRoute": "biology-scores",
+          "pageIndex": 1,
+          "pageCount": 3
+        }
+      ],
+      "available": [],
+      "hidden": [],
+      "order": [],
+      "html": "<section class=\"biology-score-lens-row\" data-widget-id=\"biology-score-detail-fixture\"><article><div class=\"biology-score-detail-tools\"><button type=\"button\" class=\"dashboard-widget-tool\"  data-lens-page-action=\"move-widget\" data-lens-page-route=\"biology-scores\" data-lens-page-id=\"biology-score-detail-fixture\" data-lens-page-direction=\"-1\" aria-label=\"Move page section up\">\u2191</button>\n    <button type=\"button\" class=\"dashboard-widget-tool\"  data-lens-page-action=\"move-widget\" data-lens-page-route=\"biology-scores\" data-lens-page-id=\"biology-score-detail-fixture\" data-lens-page-direction=\"1\" aria-label=\"Move page section down\">\u2193</button><!--[--><!--[0--><button type=\"button\" class=\"dashboard-widget-tool lens-widget-dashboard-toggle\" data-lens-page-action=\"remove-dashboard-widget\" data-lens-page-id=\"biology-score-fixture\">Remove from Dashboard</button><!--]--><!--]--></div><p>Score reading</p></article></section>"
+    },
+    {
+      "name": "default",
+      "method": "grid",
+      "args": [
+        "biology-scores",
+        [
+          {
+            "id": "alpha",
+            "title": "ALPHA",
+            "body": "<p data-owned-body>Body 0</p>",
+            "size": "half"
+          },
+          {
+            "id": "beta",
+            "title": "BETA",
+            "body": "<p data-owned-body>Body 1</p>",
+            "size": "half"
+          },
+          {
+            "id": "gamma",
+            "title": "GAMMA",
+            "body": "<p data-owned-body>Body 2</p>",
+            "size": "half"
+          },
+          null,
+          false
+        ],
+        {
+          "group": "baseline"
+        }
+      ],
+      "available": [
+        "alpha",
+        "gamma"
+      ],
+      "hidden": [
+        "gamma"
+      ],
+      "order": [],
+      "html": "<div class=\"dashboard-widgets lens-page-widgets\" data-lens-route=\"biology-scores\" data-lens-order-key=\"biology-scores-baseline\">\n    <section class=\"dashboard-widget dashboard-widget-half\" data-widget-id=\"alpha\">\n    <div class=\"dashboard-widget-chrome\">\n      <div class=\"dashboard-widget-heading\">\n        <div class=\"dashboard-widget-title\">ALPHA</div>\n        \n      </div>\n      <div class=\"dashboard-widget-tools\"><button type=\"button\" class=\"dashboard-widget-tool\" disabled data-lens-page-action=\"move-widget\" data-lens-page-route=\"biology-scores\" data-lens-page-id=\"alpha\" data-lens-page-direction=\"-1\" aria-label=\"Move page section up\">\u2191</button>\n    <button type=\"button\" class=\"dashboard-widget-tool\"  data-lens-page-action=\"move-widget\" data-lens-page-route=\"biology-scores\" data-lens-page-id=\"alpha\" data-lens-page-direction=\"1\" aria-label=\"Move page section down\">\u2193</button><!--[--><!--[0--><button type=\"button\" class=\"dashboard-widget-tool lens-widget-dashboard-toggle\" data-lens-page-action=\"remove-dashboard-widget\" data-lens-page-id=\"alpha\">Remove from Dashboard</button><!--]--><!--]--></div>\n    </div>\n    <div class=\"dashboard-widget-body\"><p data-owned-body>Body 0</p></div>\n  </section><section class=\"dashboard-widget dashboard-widget-half\" data-widget-id=\"beta\">\n    <div class=\"dashboard-widget-chrome\">\n      <div class=\"dashboard-widget-heading\">\n        <div class=\"dashboard-widget-title\">BETA</div>\n        \n      </div>\n      <div class=\"dashboard-widget-tools\"><button type=\"button\" class=\"dashboard-widget-tool\"  data-lens-page-action=\"move-widget\" data-lens-page-route=\"biology-scores\" data-lens-page-id=\"beta\" data-lens-page-direction=\"-1\" aria-label=\"Move page section up\">\u2191</button>\n    <button type=\"button\" class=\"dashboard-widget-tool\"  data-lens-page-action=\"move-widget\" data-lens-page-route=\"biology-scores\" data-lens-page-id=\"beta\" data-lens-page-direction=\"1\" aria-label=\"Move page section down\">\u2193</button></div>\n    </div>\n    <div class=\"dashboard-widget-body\"><p data-owned-body>Body 1</p></div>\n  </section><section class=\"dashboard-widget dashboard-widget-half\" data-widget-id=\"gamma\">\n    <div class=\"dashboard-widget-chrome\">\n      <div class=\"dashboard-widget-heading\">\n        <div class=\"dashboard-widget-title\">GAMMA</div>\n        \n      </div>\n      <div class=\"dashboard-widget-tools\"><button type=\"button\" class=\"dashboard-widget-tool\"  data-lens-page-action=\"move-widget\" data-lens-page-route=\"biology-scores\" data-lens-page-id=\"gamma\" data-lens-page-direction=\"-1\" aria-label=\"Move page section up\">\u2191</button>\n    <button type=\"button\" class=\"dashboard-widget-tool\" disabled data-lens-page-action=\"move-widget\" data-lens-page-route=\"biology-scores\" data-lens-page-id=\"gamma\" data-lens-page-direction=\"1\" aria-label=\"Move page section down\">\u2193</button><!--[--><!--[0--><button type=\"button\" class=\"dashboard-widget-tool lens-widget-dashboard-toggle\" data-lens-page-action=\"add-dashboard-widget\" data-lens-page-id=\"gamma\">Add to Dashboard</button><!--]--><!--]--></div>\n    </div>\n    <div class=\"dashboard-widget-body\"><p data-owned-body>Body 2</p></div>\n  </section>\n  </div>"
+    },
+    {
+      "name": "stored",
+      "method": "grid",
+      "args": [
+        "biology-scores",
+        [
+          {
+            "id": "alpha",
+            "title": "ALPHA",
+            "body": "<p data-owned-body>Body 0</p>",
+            "size": "half"
+          },
+          {
+            "id": "beta",
+            "title": "BETA",
+            "body": "<p data-owned-body>Body 1</p>",
+            "size": "half"
+          },
+          {
+            "id": "gamma",
+            "title": "GAMMA",
+            "body": "<p data-owned-body>Body 2</p>",
+            "size": "half"
+          },
+          null,
+          false
+        ],
+        {
+          "group": "baseline"
+        }
+      ],
+      "available": [
+        "alpha",
+        "gamma"
+      ],
+      "hidden": [
+        "gamma"
+      ],
+      "order": [
+        "gamma",
+        "alpha",
+        "unknown"
+      ],
+      "html": "<div class=\"dashboard-widgets lens-page-widgets\" data-lens-route=\"biology-scores\" data-lens-order-key=\"biology-scores-baseline\">\n    <section class=\"dashboard-widget dashboard-widget-half\" data-widget-id=\"gamma\">\n    <div class=\"dashboard-widget-chrome\">\n      <div class=\"dashboard-widget-heading\">\n        <div class=\"dashboard-widget-title\">GAMMA</div>\n        \n      </div>\n      <div class=\"dashboard-widget-tools\"><button type=\"button\" class=\"dashboard-widget-tool\" disabled data-lens-page-action=\"move-widget\" data-lens-page-route=\"biology-scores\" data-lens-page-id=\"gamma\" data-lens-page-direction=\"-1\" aria-label=\"Move page section up\">\u2191</button>\n    <button type=\"button\" class=\"dashboard-widget-tool\"  data-lens-page-action=\"move-widget\" data-lens-page-route=\"biology-scores\" data-lens-page-id=\"gamma\" data-lens-page-direction=\"1\" aria-label=\"Move page section down\">\u2193</button><!--[--><!--[0--><button type=\"button\" class=\"dashboard-widget-tool lens-widget-dashboard-toggle\" data-lens-page-action=\"add-dashboard-widget\" data-lens-page-id=\"gamma\">Add to Dashboard</button><!--]--><!--]--></div>\n    </div>\n    <div class=\"dashboard-widget-body\"><p data-owned-body>Body 2</p></div>\n  </section><section class=\"dashboard-widget dashboard-widget-half\" data-widget-id=\"alpha\">\n    <div class=\"dashboard-widget-chrome\">\n      <div class=\"dashboard-widget-heading\">\n        <div class=\"dashboard-widget-title\">ALPHA</div>\n        \n      </div>\n      <div class=\"dashboard-widget-tools\"><button type=\"button\" class=\"dashboard-widget-tool\"  data-lens-page-action=\"move-widget\" data-lens-page-route=\"biology-scores\" data-lens-page-id=\"alpha\" data-lens-page-direction=\"-1\" aria-label=\"Move page section up\">\u2191</button>\n    <button type=\"button\" class=\"dashboard-widget-tool\"  data-lens-page-action=\"move-widget\" data-lens-page-route=\"biology-scores\" data-lens-page-id=\"alpha\" data-lens-page-direction=\"1\" aria-label=\"Move page section down\">\u2193</button><!--[--><!--[0--><button type=\"button\" class=\"dashboard-widget-tool lens-widget-dashboard-toggle\" data-lens-page-action=\"remove-dashboard-widget\" data-lens-page-id=\"alpha\">Remove from Dashboard</button><!--]--><!--]--></div>\n    </div>\n    <div class=\"dashboard-widget-body\"><p data-owned-body>Body 0</p></div>\n  </section><section class=\"dashboard-widget dashboard-widget-half\" data-widget-id=\"beta\">\n    <div class=\"dashboard-widget-chrome\">\n      <div class=\"dashboard-widget-heading\">\n        <div class=\"dashboard-widget-title\">BETA</div>\n        \n      </div>\n      <div class=\"dashboard-widget-tools\"><button type=\"button\" class=\"dashboard-widget-tool\"  data-lens-page-action=\"move-widget\" data-lens-page-route=\"biology-scores\" data-lens-page-id=\"beta\" data-lens-page-direction=\"-1\" aria-label=\"Move page section up\">\u2191</button>\n    <button type=\"button\" class=\"dashboard-widget-tool\" disabled data-lens-page-action=\"move-widget\" data-lens-page-route=\"biology-scores\" data-lens-page-id=\"beta\" data-lens-page-direction=\"1\" aria-label=\"Move page section down\">\u2193</button></div>\n    </div>\n    <div class=\"dashboard-widget-body\"><p data-owned-body>Body 1</p></div>\n  </section>\n  </div>"
+    },
+    {
+      "name": "duplicate",
+      "method": "grid",
+      "args": [
+        "biology-scores",
+        [
+          {
+            "id": "alpha",
+            "title": "ALPHA",
+            "body": "<p data-owned-body>Body 0</p>",
+            "size": "half"
+          },
+          {
+            "id": "beta",
+            "title": "BETA",
+            "body": "<p data-owned-body>Body 1</p>",
+            "size": "half"
+          },
+          {
+            "id": "gamma",
+            "title": "GAMMA",
+            "body": "<p data-owned-body>Body 2</p>",
+            "size": "half"
+          },
+          null,
+          false
+        ],
+        {
+          "group": "baseline"
+        }
+      ],
+      "available": [
+        "alpha",
+        "gamma"
+      ],
+      "hidden": [
+        "gamma"
+      ],
+      "order": [
+        "beta",
+        "beta"
+      ],
+      "html": "<div class=\"dashboard-widgets lens-page-widgets\" data-lens-route=\"biology-scores\" data-lens-order-key=\"biology-scores-baseline\">\n    <section class=\"dashboard-widget dashboard-widget-half\" data-widget-id=\"beta\">\n    <div class=\"dashboard-widget-chrome\">\n      <div class=\"dashboard-widget-heading\">\n        <div class=\"dashboard-widget-title\">BETA</div>\n        \n      </div>\n      <div class=\"dashboard-widget-tools\"><button type=\"button\" class=\"dashboard-widget-tool\" disabled data-lens-page-action=\"move-widget\" data-lens-page-route=\"biology-scores\" data-lens-page-id=\"beta\" data-lens-page-direction=\"-1\" aria-label=\"Move page section up\">\u2191</button>\n    <button type=\"button\" class=\"dashboard-widget-tool\"  data-lens-page-action=\"move-widget\" data-lens-page-route=\"biology-scores\" data-lens-page-id=\"beta\" data-lens-page-direction=\"1\" aria-label=\"Move page section down\">\u2193</button></div>\n    </div>\n    <div class=\"dashboard-widget-body\"><p data-owned-body>Body 1</p></div>\n  </section><section class=\"dashboard-widget dashboard-widget-half\" data-widget-id=\"beta\">\n    <div class=\"dashboard-widget-chrome\">\n      <div class=\"dashboard-widget-heading\">\n        <div class=\"dashboard-widget-title\">BETA</div>\n        \n      </div>\n      <div class=\"dashboard-widget-tools\"><button type=\"button\" class=\"dashboard-widget-tool\"  data-lens-page-action=\"move-widget\" data-lens-page-route=\"biology-scores\" data-lens-page-id=\"beta\" data-lens-page-direction=\"-1\" aria-label=\"Move page section up\">\u2191</button>\n    <button type=\"button\" class=\"dashboard-widget-tool\"  data-lens-page-action=\"move-widget\" data-lens-page-route=\"biology-scores\" data-lens-page-id=\"beta\" data-lens-page-direction=\"1\" aria-label=\"Move page section down\">\u2193</button></div>\n    </div>\n    <div class=\"dashboard-widget-body\"><p data-owned-body>Body 1</p></div>\n  </section><section class=\"dashboard-widget dashboard-widget-half\" data-widget-id=\"alpha\">\n    <div class=\"dashboard-widget-chrome\">\n      <div class=\"dashboard-widget-heading\">\n        <div class=\"dashboard-widget-title\">ALPHA</div>\n        \n      </div>\n      <div class=\"dashboard-widget-tools\"><button type=\"button\" class=\"dashboard-widget-tool\"  data-lens-page-action=\"move-widget\" data-lens-page-route=\"biology-scores\" data-lens-page-id=\"alpha\" data-lens-page-direction=\"-1\" aria-label=\"Move page section up\">\u2191</button>\n    <button type=\"button\" class=\"dashboard-widget-tool\"  data-lens-page-action=\"move-widget\" data-lens-page-route=\"biology-scores\" data-lens-page-id=\"alpha\" data-lens-page-direction=\"1\" aria-label=\"Move page section down\">\u2193</button><!--[--><!--[0--><button type=\"button\" class=\"dashboard-widget-tool lens-widget-dashboard-toggle\" data-lens-page-action=\"remove-dashboard-widget\" data-lens-page-id=\"alpha\">Remove from Dashboard</button><!--]--><!--]--></div>\n    </div>\n    <div class=\"dashboard-widget-body\"><p data-owned-body>Body 0</p></div>\n  </section><section class=\"dashboard-widget dashboard-widget-half\" data-widget-id=\"gamma\">\n    <div class=\"dashboard-widget-chrome\">\n      <div class=\"dashboard-widget-heading\">\n        <div class=\"dashboard-widget-title\">GAMMA</div>\n        \n      </div>\n      <div class=\"dashboard-widget-tools\"><button type=\"button\" class=\"dashboard-widget-tool\"  data-lens-page-action=\"move-widget\" data-lens-page-route=\"biology-scores\" data-lens-page-id=\"gamma\" data-lens-page-direction=\"-1\" aria-label=\"Move page section up\">\u2191</button>\n    <button type=\"button\" class=\"dashboard-widget-tool\" disabled data-lens-page-action=\"move-widget\" data-lens-page-route=\"biology-scores\" data-lens-page-id=\"gamma\" data-lens-page-direction=\"1\" aria-label=\"Move page section down\">\u2193</button><!--[--><!--[0--><button type=\"button\" class=\"dashboard-widget-tool lens-widget-dashboard-toggle\" data-lens-page-action=\"add-dashboard-widget\" data-lens-page-id=\"gamma\">Add to Dashboard</button><!--]--><!--]--></div>\n    </div>\n    <div class=\"dashboard-widget-body\"><p data-owned-body>Body 2</p></div>\n  </section>\n  </div>"
+    },
+    {
+      "name": "escaped",
+      "method": "grid",
+      "args": [
+        "labs\" <",
+        [
+          {
+            "id": "alpha",
+            "title": "ALPHA",
+            "body": "<p data-owned-body>Body 0</p>",
+            "size": "half"
+          },
+          {
+            "id": "beta",
+            "title": "BETA",
+            "body": "<p data-owned-body>Body 1</p>",
+            "size": "half"
+          },
+          {
+            "id": "gamma",
+            "title": "GAMMA",
+            "body": "<p data-owned-body>Body 2</p>",
+            "size": "half"
+          },
+          null,
+          false
+        ],
+        {
+          "group": "baseline"
+        }
+      ],
+      "available": [
+        "alpha",
+        "gamma"
+      ],
+      "hidden": [
+        "gamma"
+      ],
+      "order": [],
+      "html": "<div class=\"dashboard-widgets lens-page-widgets\" data-lens-route=\"labs&quot; &lt;\" data-lens-order-key=\"labs&quot; &lt;-baseline\">\n    <section class=\"dashboard-widget dashboard-widget-half\" data-widget-id=\"alpha\">\n    <div class=\"dashboard-widget-chrome\">\n      <div class=\"dashboard-widget-heading\">\n        <div class=\"dashboard-widget-title\">ALPHA</div>\n        \n      </div>\n      <div class=\"dashboard-widget-tools\"><button type=\"button\" class=\"dashboard-widget-tool\" disabled data-lens-page-action=\"move-widget\" data-lens-page-route=\"labs&quot; &lt;\" data-lens-page-id=\"alpha\" data-lens-page-direction=\"-1\" aria-label=\"Move page section up\">\u2191</button>\n    <button type=\"button\" class=\"dashboard-widget-tool\"  data-lens-page-action=\"move-widget\" data-lens-page-route=\"labs&quot; &lt;\" data-lens-page-id=\"alpha\" data-lens-page-direction=\"1\" aria-label=\"Move page section down\">\u2193</button><!--[--><!--[0--><button type=\"button\" class=\"dashboard-widget-tool lens-widget-dashboard-toggle\" data-lens-page-action=\"remove-dashboard-widget\" data-lens-page-id=\"alpha\">Remove from Dashboard</button><!--]--><!--]--></div>\n    </div>\n    <div class=\"dashboard-widget-body\"><p data-owned-body>Body 0</p></div>\n  </section><section class=\"dashboard-widget dashboard-widget-half\" data-widget-id=\"beta\">\n    <div class=\"dashboard-widget-chrome\">\n      <div class=\"dashboard-widget-heading\">\n        <div class=\"dashboard-widget-title\">BETA</div>\n        \n      </div>\n      <div class=\"dashboard-widget-tools\"><button type=\"button\" class=\"dashboard-widget-tool\"  data-lens-page-action=\"move-widget\" data-lens-page-route=\"labs&quot; &lt;\" data-lens-page-id=\"beta\" data-lens-page-direction=\"-1\" aria-label=\"Move page section up\">\u2191</button>\n    <button type=\"button\" class=\"dashboard-widget-tool\"  data-lens-page-action=\"move-widget\" data-lens-page-route=\"labs&quot; &lt;\" data-lens-page-id=\"beta\" data-lens-page-direction=\"1\" aria-label=\"Move page section down\">\u2193</button></div>\n    </div>\n    <div class=\"dashboard-widget-body\"><p data-owned-body>Body 1</p></div>\n  </section><section class=\"dashboard-widget dashboard-widget-half\" data-widget-id=\"gamma\">\n    <div class=\"dashboard-widget-chrome\">\n      <div class=\"dashboard-widget-heading\">\n        <div class=\"dashboard-widget-title\">GAMMA</div>\n        \n      </div>\n      <div class=\"dashboard-widget-tools\"><button type=\"button\" class=\"dashboard-widget-tool\"  data-lens-page-action=\"move-widget\" data-lens-page-route=\"labs&quot; &lt;\" data-lens-page-id=\"gamma\" data-lens-page-direction=\"-1\" aria-label=\"Move page section up\">\u2191</button>\n    <button type=\"button\" class=\"dashboard-widget-tool\" disabled data-lens-page-action=\"move-widget\" data-lens-page-route=\"labs&quot; &lt;\" data-lens-page-id=\"gamma\" data-lens-page-direction=\"1\" aria-label=\"Move page section down\">\u2193</button><!--[--><!--[0--><button type=\"button\" class=\"dashboard-widget-tool lens-widget-dashboard-toggle\" data-lens-page-action=\"add-dashboard-widget\" data-lens-page-id=\"gamma\">Add to Dashboard</button><!--]--><!--]--></div>\n    </div>\n    <div class=\"dashboard-widget-body\"><p data-owned-body>Body 2</p></div>\n  </section>\n  </div>"
+    },
+    {
+      "name": "empty",
+      "method": "grid",
+      "args": [
+        "labs",
+        []
+      ],
+      "available": [],
+      "hidden": [],
+      "order": [],
+      "html": "<div class=\"dashboard-widgets lens-page-widgets\" data-lens-route=\"labs\" data-lens-order-key=\"labs\">\n    \n  </div>"
+    }
+  ],
+  "styleBlocks": [
+    ".lens-page-header .dashboard-widget-inline-controls {\n  margin-top: 14px;\n  column-gap: 14px;\n  row-gap: 10px;\n}"
+  ]
+}

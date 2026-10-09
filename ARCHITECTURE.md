@@ -145,6 +145,20 @@ ancestor navigation. Pointer clicks on the card still open its score. Calculatio
 AI requests and persistence retain their established owners. Shared lens page
 composition and the score-tools integration marker remain separate owners.
 
+Shared lens headers, ordinary widget frames, ordered grids and move/dashboard
+controls are authored by `LensShellPresentation.svelte` and its four children.
+`lens-shell-presentation.ts` projects literal text and the existing named
+renderer-owned `actionsHTML`/`bodyHTML` compatibility inputs. These inputs retain
+the public synchronous HTML contracts; they are not general untrusted-content
+slots. `lens-page-shell.ts` still owns profile-scoped section ordering, dashboard
+preference reads and delegated writes. Its public renderer URLs remain stable.
+`lens-shell-classes.ts` owns scoped Tailwind chrome utilities, with one size rule
+per widget and inclusive media queries matching the existing breakpoints. The
+zero-specificity owner selector preserves stronger ancestor and theme rules.
+Only the superseded lens-header inline-control CSS rule is removed; generic
+Dashboard and category styles retain other active owners. The compact Biology
+HTML API still uses the score-tools marker pending typed page composition.
+
 Settings navigation/layout, Display, Privacy, Voice, Agent Access, imported records
 and AI usage use scoped Tailwind utilities
 alongside the remaining native feature styles. `css/settings.base.css` owns the
