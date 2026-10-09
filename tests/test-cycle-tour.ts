@@ -101,17 +101,19 @@ const tour = await import('../js/tour.js');
 
   // --- 12. Tour button in renderMenstrualCycleSection ---
   console.log('%c[12] Tour button in cycle section', 'font-weight:bold');
-  assert('Renders cycle icon button', cycleSrc.includes('class="cycle-icon-btn"'));
-  assert('Tour button uses delegated start action', cycleSrc.includes("cycleActionAttrs('start-tour')") && cycleSrc.includes('startCycleTour(false)'));
-  assert('Button only shown when mc exists', /\$\{mc\s*\?\s*`<button type="button" class="cycle-icon-btn"/.test(cycleSrc));
-  assert('Button has accessible tour label', cycleSrc.includes('aria-label="Take the cycle feature tour"'));
+  const overviewHeader = read('/js/components/CycleOverviewHeader.svelte');
+  const overview = read('/js/components/CycleOverviewPresentation.svelte');
+  assert('Authored overview renders the native shared tour icon button', overviewHeader.includes('class="cycle-icon-btn"') && overviewHeader.includes('<CycleIcon name="help"/>'));
+  assert('Tour button uses delegated start action', overviewHeader.includes('data-cycle-action="start-tour"') && cycleSrc.includes('startCycleTour(false)'));
+  assert('Tour button only shown with a profile and visible header', overview.includes('{#if view.showHeader}') && overview.includes('showTour={view.hasProfile}') && /\{#if showTour\}<button type="button" class="cycle-icon-btn"/.test(overviewHeader));
+  assert('Button has accessible tour label', overviewHeader.includes('aria-label="Take the cycle feature tour"'));
 
   // --- 13. CSS rule for cycle buttons ---
   console.log('%c[13] CSS rule', 'font-weight:bold');
   const cssSrc = readCycleCss();
   assert('.cycle-icon-btn rule exists', cssSrc.includes('.cycle-icon-btn'));
-  assert('touch-sized desktop controls', /\.cycle-icon-btn,[\s\S]*?min-height:\s*36px/.test(cssSrc));
-  assert('touch-sized mobile controls', /@media \(max-width: 768px\)[\s\S]*?\.cycle-icon-btn,[\s\S]*?min-height:\s*40px/.test(cssSrc));
+  assert('touch-sized desktop controls', /\.cycle-icon-btn\s*\{[^}]*min-width:\s*36px;[^}]*min-height:\s*36px/.test(cssSrc));
+  assert('touch-sized mobile controls', /@media \(max-width: 768px\)\s*\{\s*\.cycle-icon-btn\s*\{[^}]*min-width:\s*40px;[^}]*min-height:\s*40px/.test(cssSrc));
   assert('Hover rule exists', cssSrc.includes('.cycle-icon-btn:hover'));
 
   // --- 14. Profile delete cleanup ---

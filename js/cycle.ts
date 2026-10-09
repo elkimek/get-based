@@ -28,30 +28,22 @@ export interface CycleDisplayOptions { variant?: string; showHeader?: boolean }
 import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { PERIOD_SYMPTOMS } from './constants.js';
-import { escapeHTML, showNotification, showConfirmDialog, linearRegression } from './utils.js';
+import { showNotification, showConfirmDialog, linearRegression } from './utils.js';
 import { saveImportedData } from './data.js';
 import { openModalOverlay } from './modal-lifecycle.js';
 import { startCycleTour } from './tour.js';
 import { calculateCycleStats, createCyclePeriod, recentCyclePeriods, upgradeMenstrualCycleProfile } from './cycle-summary.js';
-import { clearCycleProfileData, getCycleImportSummarySectionView, renderCycleImportPickerControls } from './cycle-import-loader.js';
+import { clearCycleProfileData, getCycleImportSummarySectionView } from './cycle-import-loader.js';
 import { recordContextCardChangeRuntime } from './context-cards-runtime.js';
 import { closeCycleModalRuntime, configureCycleAnalysisBridge, isCycleStylesheetLoaded, loadCycleStylesheetForAction, navigateCycleViewRuntime } from './cycle-runtime.js';
 import { getRecordedDrawPhase } from './cycle-draw-phases.js';
 import { projectCycleEditorPresentation } from './cycle-editor-presentation.js';
 import { cycleEditorModalClasses } from './cycle-editor-classes.js';
 import { renderHTML as renderCycleEditorPresentation } from './components/CycleEditorPresentation.svelte.html.js';
+import { projectCycleOverviewPresentation } from './cycle-overview-presentation.js';
+import type { CycleOverviewPresentationInput, CycleOverviewPhaseView, CycleOverviewPeriodView, CycleOverviewAlertView } from './cycle-overview-presentation.js';
+import { renderHTML as renderCycleOverviewPresentation } from './components/CycleOverviewPresentation.svelte.html.js';
 const CYCLE_ACTIVE_STATUSES = new Set(['regular', 'perimenopause']);
-const CYCLE_ICONS = {
-  calendar: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg>',
-  droplet: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.5 6.9 9.1a8 8 0 1 0 10.2 0L12 2.5Z"></path></svg>',
-  edit: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"></path></svg>',
-  help: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"></circle><path d="M9.1 9a3 3 0 1 1 4.9 2.3c-.9.6-1.5 1.1-1.5 2.2"></path><path d="M12 17h.01"></path></svg>',
-  info: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4M12 8h.01"></path></svg>',
-  plus: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"></path></svg>',
-  trash: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path><path d="M10 11v5M14 11v5"></path></svg>',
-  warning: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m12 3 10 18H2L12 3Z"></path><path d="M12 9v5M12 17h.01"></path></svg>',
-  x: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M18 6 6 18M6 6l12 12"></path></svg>'
-};
 const appWindow = (
   typeof window !== 'undefined' ? window : {}
 ) as Window & typeof globalThis & { __cycleDelegatesBound?: boolean };
@@ -59,9 +51,6 @@ function closeCycleModal() {
   closeCycleModalRuntime();
 }
 function navigateCycleView(category: string) { navigateCycleViewRuntime(category); }
-function cycleActionAttrs(action: string, extra = '') {
-  return `data-cycle-action="${action}"${extra ? ` ${extra}` : ''}`;
-}
 function closestCycleElement(target: EventTarget | null, selector: string) {
   if (!(target instanceof Element)) return null;
   const el = target.closest(selector);
@@ -141,9 +130,6 @@ function flowClass(flow: unknown) {
   if (flow === 'heavy') return 'severity-major';
   if (flow === 'light') return 'severity-minor';
   return 'severity-mild';
-}
-function renderCycleMetaTags(items: unknown[]) {
-  return items.filter(Boolean).map(item => `<span class="cycle-meta-tag">${escapeHTML(item)}</span>`).join('');
 }
 export function getCyclePhase(dateStr: string, mc: CycleProfileInput | null | undefined): PredictedCyclePhase | null {
   if (!mc || !mc.periods || mc.periods.length === 0) return null;
@@ -524,45 +510,24 @@ export function renderMenstrualCycleSection(data: ActiveData | ProfileData | nul
   const compact = opts?.variant === 'dashboard';
   const showHeader = opts?.showHeader !== false;
   const mc = state.importedData!.menstrualCycle ? upgradeMenstrualCycleProfile(state.importedData!.menstrualCycle) : null;
-  const renderAlert = (alert: CycleDisplayAlert) => {
-    const cls = alert.kind === 'perimenopause'
-      ? 'cycle-alert-perimenopause'
+  // Coerce at the original rendering sites; authored text nodes escape these literals once.
+  const literal = (value: unknown): string => value === null || value === undefined ? '' : String(value);
+  const prepareAlert = (alert: CycleDisplayAlert): CycleOverviewAlertView => {
+    const tone = alert.kind === 'perimenopause'
+      ? 'perimenopause'
       : alert.severity === 'critical'
-        ? 'cycle-alert-critical'
+        ? 'critical'
         : alert.severity === 'warning'
-          ? 'cycle-alert-warning'
-          : 'cycle-alert-info';
-    return `<div class="cycle-alert ${cls}">
-      <span class="cycle-alert-icon">${alert.severity === 'info' ? CYCLE_ICONS.info : CYCLE_ICONS.warning}</span>
-      <div class="cycle-alert-copy">
-        <strong>${escapeHTML(alert.title)}</strong>
-        <div class="cycle-alert-detail">${escapeHTML(alert.message)}</div>
-      </div>
-    </div>`;
+          ? 'warning'
+          : 'info';
+    const icon = alert.severity === 'info' ? 'info' : 'warning';
+    return {tone, icon, title: literal(alert.title), message: literal(alert.message)};
   };
-  let html = `<div class="cycle-section${compact ? ' cycle-section-compact' : ''}">`;
-  if (showHeader) {
-    html += `<div class="cycle-widget-head">
-      <div class="cycle-widget-title-wrap">
-        <span class="cycle-widget-kicker">Body context</span>
-        <span class="cycle-widget-title">Menstrual cycle</span>
-      </div>
-      <div class="cycle-widget-actions">
-        ${mc ? `<button type="button" class="cycle-icon-btn" ${cycleActionAttrs('start-tour')} title="Cycle feature tour" aria-label="Take the cycle feature tour">${CYCLE_ICONS.help}</button>` : ''}
-        ${renderCycleImportPickerControls()}
-        <button type="button" class="cycle-action-btn" ${cycleActionAttrs('open-editor')}>${mc ? CYCLE_ICONS.edit : CYCLE_ICONS.plus}<span>${mc ? 'Edit' : 'Set up'}</span></button>
-      </div>
-    </div>`;
-  }
-  if (!mc) {
-    html += `<button type="button" class="cycle-prompt" aria-label="Set up cycle tracking" ${cycleActionAttrs('open-editor')}>
-      <span class="cycle-prompt-icon">${CYCLE_ICONS.droplet}</span>
-      <span class="cycle-prompt-copy">
-        <strong>Track your cycle for better lab interpretation</strong>
-        <span>Hormone, iron, and inflammation markers shift by phase. Add cycle context so AI can account for timing.</span>
-      </span>
-    </button>`;
-  } else {
+  const input: CycleOverviewPresentationInput = {
+    compact, showHeader, hasProfile: Boolean(mc), summary: null, drawDescription: null,
+    phases: [], phaseOverflow: 0, periods: [], alerts: [],
+  };
+  if (mc) {
     const regLabel = mc.regularity === 'very_irregular' ? 'very irregular' : mc.regularity || 'regular';
     const statusLabels: Record<string, string> = { postmenopause: 'Postmenopause', perimenopause: 'Perimenopause', pregnant: 'Pregnant', breastfeeding: 'Breastfeeding', absent: 'No active cycle' };
     let summaryPrimary;
@@ -583,55 +548,45 @@ export function renderMenstrualCycleSection(data: ActiveData | ProfileData | nul
     if (coverage?.periodCount) summaryMeta.push(`${coverage.periodCount} periods`);
     if (compact && sortedPeriods[0]?.startDate) summaryMeta.push(`Last ${fmtCycleDate(sortedPeriods[0].startDate)}`);
     const summaryAria = [summaryPrimary, ...summaryMeta].filter(Boolean).join(', ');
-    html += `<button type="button" class="cycle-summary-card" aria-label="Edit cycle: ${escapeHTML(summaryAria)}" ${cycleActionAttrs('open-editor')}>
-      <span class="cycle-summary-icon">${CYCLE_ICONS.droplet}</span>
-      <span class="cycle-summary-copy">
-        <span class="cycle-summary-label">Current profile</span>
-        <strong>${escapeHTML(summaryPrimary)}</strong>
-        <span class="cycle-summary-tags">${renderCycleMetaTags(summaryMeta)}</span>
-      </span>
-    </button>`;
+    const aria = literal(summaryAria);
+    const primary = literal(summaryPrimary);
+    const meta = summaryMeta.filter(Boolean).map(literal);
+    input.summary = {primary, aria, meta};
     const isActiveCycle = isActiveCycleStatus(mc.cycleStatus);
     const drawRec = isActiveCycle ? getNextBestDrawDate(mc) : null;
-    if (drawRec) {
-      html += `<div class="cycle-draw-date">
-        <span class="cycle-draw-icon">${CYCLE_ICONS.calendar}</span>
-        <div class="cycle-draw-copy">
-          <strong>Next best blood draw</strong>
-          <span>${escapeHTML(drawRec.description)}</span>
-          <small>Early follicular phase gives the most stable baseline for hormones, iron, and inflammation markers.</small>
-        </div>
-      </div>`;
-    }
+    if (drawRec) input.drawDescription = literal(drawRec.description);
     if (isActiveCycle && ((data as ActiveData | null)?.dates?.length as number) > 0) {
       const phases = getBloodDrawPhases(mc, (data as ActiveData).dates, (data as ActiveData).entryContextByDate);
       const phaseDates = Object.entries(phases);
       if (phaseDates.length > 0) {
-        html += `<div class="cycle-draw-phases">`;
         const visiblePhaseDates = compact ? phaseDates.slice(0, 2) : phaseDates;
+        const phaseViews: CycleOverviewPhaseView[] = [];
         for (const [date, p] of visiblePhaseDates) {
           const sourceLabel = p.source === 'recorded' ? 'Recorded' : 'Predicted';
-          html += `<span class="cycle-draw-tag"><span class="cycle-phase-badge phase-${p.phase}">${escapeHTML(p.phaseDetailName || p.phaseName)}</span><span>${escapeHTML(fmtCycleDate(date, { month: 'short', day: 'numeric', year: 'numeric' }))}</span>${p.cycleDay ? `<span class="cycle-tag-day">Day ${p.cycleDay}</span>` : ''}<span class="cycle-tag-day">${sourceLabel}</span></span>`;
+          phaseViews.push({
+            phase: `${p.phase}`, label: literal(p.phaseDetailName || p.phaseName),
+            dateLabel: literal(fmtCycleDate(date, { month: 'short', day: 'numeric', year: 'numeric' })),
+            dayLabel: p.cycleDay ? `Day ${p.cycleDay}` : null, sourceLabel,
+          });
         }
+        input.phases = phaseViews;
         if (compact && phaseDates.length > visiblePhaseDates.length) {
-          html += `<span class="cycle-draw-tag cycle-draw-more">+${phaseDates.length - visiblePhaseDates.length} more draws</span>`;
+          input.phaseOverflow = phaseDates.length - visiblePhaseDates.length;
         }
-        html += `</div>`;
       }
     }
     const periods = compact ? [] : sortedPeriods.slice(0, 6);
     if (periods.length > 0) {
-      html += `<div class="cycle-period-log">`;
+      const periodViews: CycleOverviewPeriodView[] = [];
       for (const p of periods) {
         const dateLabel = `${fmtCycleDate(p.startDate)}-${fmtCycleDate(p.endDate || p.startDate)}`;
-        html += `<span class="cycle-period-entry">
-          <span class="cycle-period-date">${escapeHTML(dateLabel)}</span>
-          <span class="goals-severity-badge ${flowClass(p.flow)}">${escapeHTML(p.flow || 'moderate')}</span>
-          ${(p.symptoms && p.symptoms.length) ? p.symptoms.map(s => `<span class="period-symptom-tag">${escapeHTML(s)}</span>`).join('') : ''}
-          ${p.notes ? `<span class="cycle-period-note">${escapeHTML(p.notes)}</span>` : ''}
-        </span>`;
+        periodViews.push({
+          dateLabel: literal(dateLabel), flowClass: flowClass(p.flow), flow: literal(p.flow || 'moderate'),
+          symptoms: (p.symptoms && p.symptoms.length) ? p.symptoms.map(literal) : [],
+          notes: p.notes ? literal(p.notes) : null,
+        });
       }
-      html += `</div>`;
+      input.periods = periodViews;
     }
     // Perimenopause pattern detection
     const perimenopause = detectPerimenopausePattern(mc, state.profileDob);
@@ -641,11 +596,12 @@ export function renderMenstrualCycleSection(data: ActiveData | ProfileData | nul
       perimenopause ? { kind: 'perimenopause', severity: 'warning', title: 'Possible Perimenopause Pattern', message: perimenopause.message } : null,
       ...ironAlerts.map(alert => ({ ...alert, title: alert.marker ? `${alert.marker} + Heavy Flow` : 'Iron Panel Missing' }))
     ].filter(Boolean);
+    const alertViews: CycleOverviewAlertView[] = [];
     for (const alert of compact ? alerts.slice(0, 1) : alerts) {
-      html += renderAlert(alert!);
+      alertViews.push(prepareAlert(alert!));
     }
+    input.alerts = alertViews;
   }
-  html += `</div>`;
-  return html;
+  return renderCycleOverviewPresentation({view: projectCycleOverviewPresentation(input)});
 }
 configureCycleAnalysisBridge({ detectCycleIronAlerts, detectPerimenopausePattern, getBloodDrawPhases, getNextBestDrawDate });

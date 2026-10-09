@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import postcss from 'postcss';
-import { buildStyles, buildProtectionStyles, buildChatStyles, buildAppShellStyles, buildModalStyles, buildImportStyles, buildRecommendationStyles } from '../scripts/build-styles.mjs';
+import { buildStyles, buildProtectionStyles, buildChatStyles, buildAppShellStyles, buildModalStyles, buildImportStyles, buildRecommendationStyles, buildCycleStyles } from '../scripts/build-styles.mjs';
 
 let directory: string;
 let outputPath: string;
@@ -152,7 +152,7 @@ it('retains shared import styles, scopes marker mapping and rejects stale lazy C
   const base = (await fs.readFile('css/import.base.css', 'utf8')).trimEnd();
   expect(source).toContain(base);
   expect(base).not.toContain('.import-marker-map-modal');
-  expect(base).toContain('.import-preview-modal');
+  expect(base).not.toContain('.import-preview-modal');
   const utilities = source.slice(source.indexOf(base) + base.length);
   const selectors: string[] = [];
   let hoverRules = 0;
@@ -168,6 +168,16 @@ it('retains shared import styles, scopes marker mapping and rejects stale lazy C
   const owned = selectors.filter(selector => selector.includes('.gb\\:import-map'));
   expect(owned.length).toBeGreaterThan(40);
   expect(owned.every(selector => selector.includes('[data-import-marker-map-view]'))).toBe(true);
+  const previewRules: postcss.Rule[] = [];
+  postcss.parse(utilities).walkRules(rule => {
+    if (rule.selector.includes('.gb\\:review-ui')) previewRules.push(rule);
+  });
+  expect(previewRules.length).toBeGreaterThan(150);
+  expect(previewRules.every(rule => rule.selector.includes('[data-import-review-view]'))).toBe(true);
+  for (const [property, value] of [['width', 'min(94vw,920px)'], ['max-width', '920px'], ['max-height', '90vh'], ['padding', '0']] as const) {
+    expect(previewRules.some(rule => rule.selector.includes('#import-modal') && rule.nodes.some(node => node.type === 'decl' && node.prop === property && node.value.replace(/\s+/g, '') === value))).toBe(true);
+  }
+
   expect(selectors).not.toContain('body');
   expect(utilities).not.toContain('button,input,optgroup,select,textarea');
   expect(utilities).toContain('768px');
@@ -186,13 +196,23 @@ it('compiles recommendation card utilities at the stable lazy URL without changi
   const base = (await fs.readFile('css/recommendations.base.css', 'utf8')).trimEnd();
   expect(source).toContain(base);
   expect(base).not.toContain('.rec-next-card');
-  expect(base).toContain('.recommendation-detail-modal .rec-section');
+  expect(base).not.toContain('.recommendation-detail-modal .rec-section');
   const selectors: string[] = [];
   const utilities = source.slice(source.indexOf(base) + base.length);
   postcss.parse(utilities).walkRules(rule => { selectors.push(...rule.selectors); });
   const owned = selectors.filter(selector => selector.includes('.gb\\:rec-ui'));
   expect(owned.length).toBeGreaterThan(30);
   expect(owned.every(selector => selector.includes('[data-recommendation-cards-view]'))).toBe(true);
+  const detailRules: postcss.Rule[] = [];
+  postcss.parse(utilities).walkRules(rule => {
+    if (rule.selector.startsWith('.recommendation-detail-modal ') && rule.selector.includes('.gb\\:tips-ui')) detailRules.push(rule);
+  });
+  expect(detailRules.length).toBeGreaterThanOrEqual(3);
+  expect(detailRules.every(rule => rule.selector.includes('[data-tips-view]'))).toBe(true);
+  for (const [property, value] of [['border-top', '0'], ['margin-top', '10px'], ['padding-top', '0']] as const) {
+    expect(detailRules.some(rule => rule.nodes.some(node => node.type === 'decl' && node.prop === property && node.value === value))).toBe(true);
+  }
+
   expect(selectors).not.toContain('body');
   expect(utilities).not.toContain('button,input,optgroup,select,textarea');
   await buildRecommendationStyles({outputPath, check: true});
@@ -224,4 +244,94 @@ it('scopes both laboratory review and its body-level popup without a reset or de
   expect(utilities).toContain('768px');
   expect(selectors).not.toContain('body');
   expect(utilities).not.toContain('button,input,optgroup,select,textarea');
+});
+
+interface FrozenStyleBlock {
+  file: string;
+  css: string;
+  atRules: {name: string; params: string}[];
+}
+interface StylePathRecord {
+  selector: string;
+  declarations: {property: string; value: string; important: boolean}[];
+  atRules: {name: string; params: string}[];
+}
+function stylePathRecords(css: string, inheritedAtRules: FrozenStyleBlock['atRules'] = []): StylePathRecord[] {
+  const records: StylePathRecord[] = [];
+  postcss.parse(css).walkRules(rule => {
+    const ancestry: FrozenStyleBlock['atRules'] = [];
+    for (let parent: postcss.Rule['parent'] | postcss.Document = rule.parent; parent; parent = parent.parent) {
+      if (parent.type === 'atrule') ancestry.unshift({name: parent.name, params: parent.params});
+    }
+    const declarations = rule.nodes.filter((node): node is postcss.Declaration => node.type === 'decl')
+      .map(node => ({property: node.prop, value: node.value, important: !!node.important}));
+    for (const selector of rule.selectors) records.push({selector, declarations, atRules: [...inheritedAtRules, ...ancestry]});
+  });
+  return records;
+}
+
+it('composes Cycle overview, editor and import at cycle.css while retaining exact shared native styles', async () => {
+  const outputPath = path.join(directory, 'cycle.css');
+  await buildCycleStyles({outputPath});
+  const source = await fs.readFile(outputPath, 'utf8');
+  const base = (await fs.readFile('css/cycle.base.css', 'utf8')).trimEnd();
+  expect(source).toContain(base);
+  expect(await fs.readFile('js/cycle-runtime.ts', 'utf8')).toContain("new URL('../css/cycle.css', import.meta.url)");
+  const sharedSelectors = new Set([
+    '.cycle-icon-btn', '.cycle-icon-btn:hover', '.cycle-icon-btn:active', '.cycle-icon-btn:focus-visible',
+    '.period-symptom-tag', '.cycle-period-note', '.cycle-editor-section',
+    '.cycle-editor-section + .cycle-editor-section', '.cycle-editor-section-title',
+    '.cycle-delete-btn:hover', '.cycle-delete-btn',
+  ]);
+  const editorOriginal = JSON.parse(await fs.readFile('tests/fixtures/cycle-editor-original.json', 'utf8')) as {styleBlocks: FrozenStyleBlock[]};
+  const retained = editorOriginal.styleBlocks.filter(block => block.file === 'css/cycle.css')
+    .flatMap(block => stylePathRecords(block.css, block.atRules)).filter(record => sharedSelectors.has(record.selector));
+  expect(retained).toHaveLength(14);
+  expect(stylePathRecords(base)).toEqual(retained);
+  const overviewOriginal = JSON.parse(await fs.readFile('tests/fixtures/cycle-overview-original.json', 'utf8')) as {styleBlocks: FrozenStyleBlock[]};
+  const retired = overviewOriginal.styleBlocks.filter(block => block.file === 'css/cycle.css')
+    .flatMap(block => stylePathRecords(block.css, block.atRules)).filter(record => !sharedSelectors.has(record.selector));
+  expect(retired).toHaveLength(82);
+  const nativeSelectors = stylePathRecords(base).map(record => record.selector);
+  for (const record of retired) expect(nativeSelectors).not.toContain(record.selector);
+
+  const utilities = source.slice(source.indexOf(base) + base.length);
+  const rules: postcss.Rule[] = [];
+  postcss.parse(utilities).walkRules(rule => { rules.push(rule); });
+  const selectors = rules.flatMap(rule => rule.selectors);
+  for (const [prefix, marker] of [
+    ['cycle-overview-ui', 'data-cycle-overview-view'],
+    ['cycle-editor-ui', 'data-cycle-editor-view'],
+    ['cycle-import-ui', 'data-cycle-import-view'],
+  ] as const) {
+    const owned = selectors.filter(selector => selector.includes(`.gb\\:${prefix}\\:`));
+    expect(owned.length).toBeGreaterThan(100);
+    expect(owned.every(selector => selector.includes(`:where([${marker}],[${marker}] *)`))).toBe(true);
+  }
+  const modalRoot = selectors.filter(selector => selector.includes('.gb\\:cycle-editor-root\\:'));
+  expect(modalRoot.length).toBeGreaterThan(10);
+  expect(modalRoot.every(selector => selector.includes('.cycle-modal'))).toBe(true);
+  for (const prefix of ['cycle-overview-ui', 'cycle-editor-ui', 'cycle-import-ui']) {
+    const hover = rules.filter(rule => rule.selector.includes(`.gb\\:${prefix}\\:`) && /(?<!\\):hover/.test(rule.selector) && !rule.selector.includes(':not(:where(:hover))'));
+    expect(hover.length).toBeGreaterThan(0);
+    for (const rule of hover) {
+      for (let parent: postcss.Rule['parent'] | postcss.Document = rule.parent; parent; parent = parent.parent) {
+        if (parent.type === 'atrule' && parent.name === 'media') expect(parent.params).not.toMatch(/\(hover:\s*hover\)/);
+      }
+    }
+  }
+  expect(selectors).not.toContain('body');
+  expect(utilities).not.toContain('button,input,optgroup,select,textarea');
+  expect(utilities).not.toContain('!important');
+  expect(utilities).toContain('max-width:768px');
+  expect(utilities).toContain(':focus-visible');
+  expect(utilities).toContain('-webkit-line-clamp:2');
+  expect(selectors.some(selector => selector.startsWith('.dashboard-widget-body>') && selector.includes('.gb\\:cycle-overview-ui\\:') && selector.endsWith(':first-child'))).toBe(true);
+  await buildCycleStyles({outputPath, check: true});
+  const rebuiltPath = path.join(directory, 'cycle-rebuilt.css');
+  await buildCycleStyles({outputPath: rebuiltPath});
+  expect(await fs.readFile(rebuiltPath, 'utf8')).toBe(source);
+  await fs.writeFile(outputPath, source + '/* stale */');
+  await expect(buildCycleStyles({outputPath, check: true})).rejects.toThrow('Cycle CSS is stale');
+  expect(await fs.readFile(outputPath, 'utf8')).toBe(source + '/* stale */');
 });

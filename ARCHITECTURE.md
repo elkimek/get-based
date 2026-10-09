@@ -1030,8 +1030,8 @@ Cycle import preview, picker and coverage presentation belongs to
 `CycleImportCoverage.svelte`. `cycle-import-presentation.ts` supplies typed views;
 existing import adapters, conflict planning, persistence and public action
 contracts retain their service ownership. The stable `css/cycle.css` URL is built
-from `cycle.base.css` and scoped import/editor utilities. The base retains
-overview presentation and styles shared with existing import controls.
+from `cycle.base.css` and scoped import/editor/overview utilities. The base retains
+styles shared by authored Cycle editor and import controls.
 
 `CycleEditorPresentation.svelte` composes typed profile fields, full period history,
 period entry controls, fixed SVG icons and `CycleImportCoverage.svelte`.
@@ -1044,6 +1044,15 @@ utilities own existing head/body/footer nodes; modal utilities require the
 The editor introduces no raw HTML slot or second component state owner.
 Its four display-only automatic fields use ordinary containers; editable fields
 retain real labels and their existing form readers.
+
+`CycleOverviewPresentation.svelte` composes the header, current profile, blood-draw
+phases, recent history and alerts through typed children. It reuses the authored
+import picker and fixed SVG icons. `cycle.ts` prepares summary text, dates, phase
+ordering, history caps and alert decisions at their existing controller boundary;
+`cycle-overview-presentation.ts` derives only display labels. Existing Body and
+compact dashboard callers retain their synchronous facade, root selectors and
+actions. Overview utilities attach to the existing `cycle-section` root and its
+children, preserving shared-control ownership and the stable lazy stylesheet URL.
 
 Tips sections, products, coupons, genetics, disclosure and detail states compose
 through the `Tips*.svelte` components and `tips-presentation.ts`.

@@ -705,6 +705,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/light-tool-lux-meter.js',
   '/js/light-tool-spectrum-classifier.js',
   '/js/cycle-editor-presentation.js', '/js/cycle-editor-classes.js', '/js/components/CycleEditorPresentation.svelte.html.js',
+  '/js/cycle-overview-presentation.js', '/js/cycle-overview-classes.js', '/js/components/CycleOverviewPresentation.svelte.html.js',
   '/js/cycle-import-presentation.js', '/js/cycle-import-classes.js', '/js/components/CycleImportPreview.svelte.html.js', '/js/components/CycleImportPicker.svelte.html.js', '/js/components/CycleImportCoverage.svelte.html.js',
   '/js/tips-presentation.js', '/js/tips-classes.js', '/js/components/TipsSection.svelte.html.js', '/js/components/TipsDetail.svelte.html.js', '/js/components/TipsProduct.svelte.html.js', '/js/components/TipsCoupon.svelte.html.js', '/js/components/TipsDisclosure.svelte.html.js', '/js/components/TipsBanner.svelte.html.js', '/js/components/TipsDisclaimer.svelte.html.js', '/js/components/RecommendationPage.svelte.html.js',
   '/js/import-review-presentation.js', '/js/import-review-classes.js', '/js/components/ImportReviewPresentation.svelte.html.js', '/js/components/ImportUnitControl.svelte.html.js', '/js/components/ImportMapControl.svelte.html.js', '/js/components/ImportReviewRowAction.svelte.html.js', '/js/components/ImportExcludeContent.svelte.html.js', '/js/components/ImportReviewStatus.svelte.html.js', '/js/components/ImportUnitMenu.svelte.html.js',

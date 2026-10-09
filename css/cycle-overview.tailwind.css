@@ -1,0 +1,12 @@
+/* Composed by cycle-import.tailwind.css, which owns theme/utilities/tokens. */
+@custom-variant cycle-overview-ui (&:where([data-cycle-overview-view], [data-cycle-overview-view] *));
+@custom-variant cycle-overview-phone (@media (max-width: 768px));
+@custom-variant cycle-overview-wide (@media (width > 768px));
+@source "../js/cycle-overview-classes.ts";
+@source "../js/components/CycleOverviewPresentation.svelte";
+@source "../js/components/CycleOverviewHeader.svelte";
+@source "../js/components/CycleOverviewProfile.svelte";
+@source "../js/components/CycleOverviewPhases.svelte";
+@source "../js/components/CycleOverviewHistory.svelte";
+@source "../js/components/CycleOverviewAlerts.svelte";
+@source "../js/components/CycleIcon.svelte";

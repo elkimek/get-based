@@ -2429,3 +2429,9 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 # Generated Cycle editor runtime siblings
 /js/cycle-editor-presentation.js
 /js/cycle-editor-classes.js
+
+/js/cycle-overview-presentation.js
+/js/cycle-overview-classes.js
+/tests/cycle-overview-frozen.test.js
+/tests/playwright/cycle-overview-owned.spec.js
+/tests/pwa/sveltekit-cycle-overview.spec.js

@@ -166,6 +166,19 @@ browser contracts exercise the same authored tips renderer.
 These checks do not prove complete migration of context editors
 and nutrition fragments.
 
+[`cycle-overview-frozen.test.ts`](../tests/cycle-overview-frozen.test.ts) compares
+complete authored overview structure, controls and literal content against
+immutable original output, including compact limits, phase sources, ordered
+alerts, opaque values and original errors. The controller must leave caller
+inputs and profile state unchanged. [`cycle-overview-owned.spec.ts`](../tests/playwright/cycle-overview-owned.spec.ts)
+compares the original and authored styles and bounds in production full Body and
+half/full dashboard wrappers across themes and breakpoints. These focused checks
+preserve the separate editor, import and storage acceptance boundaries below.
+[`sveltekit-cycle-overview.spec.ts`](../tests/pwa/sveltekit-cycle-overview.spec.ts)
+exercises real full and compact controls, editor/import cancellation, tour and
+dashboard preferences, complete profile and raw-record equality, and two fresh
+closed-client launches with the static origin stopped.
+
 [`cycle-editor-frozen.test.ts`](../tests/cycle-editor-frozen.test.ts) compares the
 authored editor and unchanged controller with immutable original renderings and
 operation traces, including native select predicates, automatic fields, immediate

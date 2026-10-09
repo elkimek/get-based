@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1474 |
-| Internal import edges | 4887 |
+| Modules | 1482 |
+| Internal import edges | 4905 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -1253,7 +1253,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>cycle</code> family — 15 modules</summary>
+<details><summary><code>cycle</code> family — 17 modules</summary>
 
 - [`js/cycle-draw-phases.ts`](js/cycle-draw-phases.ts) → no in-scope imports
 - [`js/cycle-editor-classes.ts`](js/cycle-editor-classes.ts) → no in-scope imports
@@ -1266,10 +1266,12 @@ Native browser modules shipped with the static application.
 - [`js/cycle-import-presentation.ts`](js/cycle-import-presentation.ts) → no in-scope imports
 - [`js/cycle-import-rendering.ts`](js/cycle-import-rendering.ts) → [`js/components/CycleImportCoverage.svelte`](js/components/CycleImportCoverage.svelte), [`js/components/CycleImportPicker.svelte`](js/components/CycleImportPicker.svelte), [`js/cycle-import-presentation.ts`](js/cycle-import-presentation.ts), [`js/cycle-summary.ts`](js/cycle-summary.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/cycle-import.ts`](js/cycle-import.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/components/CycleImportPreview.svelte`](js/components/CycleImportPreview.svelte), [`js/cycle-import-adapters.ts`](js/cycle-import-adapters.ts), [`js/cycle-import-classes.ts`](js/cycle-import-classes.ts), [`js/cycle-import-file.ts`](js/cycle-import-file.ts), [`js/cycle-import-mutations.ts`](js/cycle-import-mutations.ts), [`js/cycle-import-presentation.ts`](js/cycle-import-presentation.ts), [`js/cycle-import-rendering.ts`](js/cycle-import-rendering.ts), [`js/cycle-runtime.ts`](js/cycle-runtime.ts), [`js/cycle-summary.ts`](js/cycle-summary.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/tour.ts`](js/tour.ts), [`js/utils.ts`](js/utils.ts), [`js/wearables-apple-health.ts`](js/wearables-apple-health.ts) *(dynamic)*
+- [`js/cycle-overview-classes.ts`](js/cycle-overview-classes.ts) → no in-scope imports
+- [`js/cycle-overview-presentation.ts`](js/cycle-overview-presentation.ts) → no in-scope imports
 - [`js/cycle-runtime.ts`](js/cycle-runtime.ts) → [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/cycle-store.ts`](js/cycle-store.ts) → [`js/transaction-completion.ts`](js/transaction-completion.ts)
 - [`js/cycle-summary.ts`](js/cycle-summary.ts) → no in-scope imports
-- [`js/cycle.ts`](js/cycle.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/components/CycleEditorPresentation.svelte`](js/components/CycleEditorPresentation.svelte), [`js/constants.ts`](js/constants.ts), [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/cycle-draw-phases.ts`](js/cycle-draw-phases.ts), [`js/cycle-editor-classes.ts`](js/cycle-editor-classes.ts), [`js/cycle-editor-presentation.ts`](js/cycle-editor-presentation.ts), [`js/cycle-import-loader.ts`](js/cycle-import-loader.ts), [`js/cycle-runtime.ts`](js/cycle-runtime.ts), [`js/cycle-summary.ts`](js/cycle-summary.ts), [`js/data.ts`](js/data.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/tour.ts`](js/tour.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/cycle.ts`](js/cycle.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/components/CycleEditorPresentation.svelte`](js/components/CycleEditorPresentation.svelte), [`js/components/CycleOverviewPresentation.svelte`](js/components/CycleOverviewPresentation.svelte), [`js/constants.ts`](js/constants.ts), [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/cycle-draw-phases.ts`](js/cycle-draw-phases.ts), [`js/cycle-editor-classes.ts`](js/cycle-editor-classes.ts), [`js/cycle-editor-presentation.ts`](js/cycle-editor-presentation.ts), [`js/cycle-import-loader.ts`](js/cycle-import-loader.ts), [`js/cycle-overview-presentation.ts`](js/cycle-overview-presentation.ts), [`js/cycle-runtime.ts`](js/cycle-runtime.ts), [`js/cycle-summary.ts`](js/cycle-summary.ts), [`js/data.ts`](js/data.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/tour.ts`](js/tour.ts), [`js/utils.ts`](js/utils.ts)
 
 </details>
 
@@ -1330,6 +1332,42 @@ Native browser modules shipped with the static application.
 <details><summary><code>CycleImportSourceRow.svelte</code> family — 1 module</summary>
 
 - [`js/components/CycleImportSourceRow.svelte`](js/components/CycleImportSourceRow.svelte) → [`js/cycle-import-classes.ts`](js/cycle-import-classes.ts)
+
+</details>
+
+<details><summary><code>CycleOverviewAlerts.svelte</code> family — 1 module</summary>
+
+- [`js/components/CycleOverviewAlerts.svelte`](js/components/CycleOverviewAlerts.svelte) → [`js/components/CycleIcon.svelte`](js/components/CycleIcon.svelte), [`js/cycle-overview-classes.ts`](js/cycle-overview-classes.ts)
+
+</details>
+
+<details><summary><code>CycleOverviewHeader.svelte</code> family — 1 module</summary>
+
+- [`js/components/CycleOverviewHeader.svelte`](js/components/CycleOverviewHeader.svelte) → [`js/components/CycleIcon.svelte`](js/components/CycleIcon.svelte), [`js/components/CycleImportPicker.svelte`](js/components/CycleImportPicker.svelte), [`js/cycle-overview-classes.ts`](js/cycle-overview-classes.ts)
+
+</details>
+
+<details><summary><code>CycleOverviewHistory.svelte</code> family — 1 module</summary>
+
+- [`js/components/CycleOverviewHistory.svelte`](js/components/CycleOverviewHistory.svelte) → [`js/cycle-overview-classes.ts`](js/cycle-overview-classes.ts)
+
+</details>
+
+<details><summary><code>CycleOverviewPhases.svelte</code> family — 1 module</summary>
+
+- [`js/components/CycleOverviewPhases.svelte`](js/components/CycleOverviewPhases.svelte) → [`js/cycle-overview-classes.ts`](js/cycle-overview-classes.ts)
+
+</details>
+
+<details><summary><code>CycleOverviewPresentation.svelte</code> family — 1 module</summary>
+
+- [`js/components/CycleOverviewPresentation.svelte`](js/components/CycleOverviewPresentation.svelte) → [`js/components/CycleIcon.svelte`](js/components/CycleIcon.svelte), [`js/components/CycleOverviewAlerts.svelte`](js/components/CycleOverviewAlerts.svelte), [`js/components/CycleOverviewHeader.svelte`](js/components/CycleOverviewHeader.svelte), [`js/components/CycleOverviewHistory.svelte`](js/components/CycleOverviewHistory.svelte), [`js/components/CycleOverviewPhases.svelte`](js/components/CycleOverviewPhases.svelte), [`js/components/CycleOverviewProfile.svelte`](js/components/CycleOverviewProfile.svelte), [`js/cycle-overview-classes.ts`](js/cycle-overview-classes.ts)
+
+</details>
+
+<details><summary><code>CycleOverviewProfile.svelte</code> family — 1 module</summary>
+
+- [`js/components/CycleOverviewProfile.svelte`](js/components/CycleOverviewProfile.svelte) → [`js/components/CycleIcon.svelte`](js/components/CycleIcon.svelte), [`js/cycle-overview-classes.ts`](js/cycle-overview-classes.ts)
 
 </details>
 

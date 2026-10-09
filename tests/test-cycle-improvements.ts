@@ -9,6 +9,8 @@ import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import './_node-shim.js';
 
 import fs from 'node:fs';
+import postcss from 'postcss';
+import {cycleOverviewClasses} from '../js/cycle-overview-classes.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -266,13 +268,20 @@ const { phaseBandPlugin } = await import('../js/charts.js');
   {
     const css = readCycleCss();
     assert('.period-symptom-tag CSS exists', css.includes('.period-symptom-tag'));
-    assert('.cycle-alert CSS exists', css.includes('.cycle-alert'));
-    assert('.cycle-alert-perimenopause CSS exists', css.includes('.cycle-alert-perimenopause'));
-    assert('.cycle-alert-critical CSS exists', css.includes('.cycle-alert-critical'));
-    assert('.cycle-alert-warning CSS exists', css.includes('.cycle-alert-warning'));
-    assert('.cycle-alert-info CSS exists', css.includes('.cycle-alert-info'));
-    assert('.cycle-alert-icon CSS exists', css.includes('.cycle-alert-icon'));
-    assert('.cycle-alert-detail CSS exists', css.includes('.cycle-alert-detail'));
+    const alerts = read('js/components/CycleOverviewAlerts.svelte');
+    const selectors: string[] = [];
+    postcss.parse(css).walkRules(rule => { selectors.push(rule.selector.replace(/\\([0-9a-f]{1,6}) ?|\\(.)/gi, (_match, hex: string | undefined, character: string | undefined) => hex ? String.fromCodePoint(parseInt(hex, 16)) : character!)); });
+    const authoredStyle = (name: string) => {
+      const tokens = cycleOverviewClasses(name).split(/\s+/).filter(token => token.startsWith('gb:cycle-overview-ui:'));
+      return tokens.length > 0 && tokens.every(token => selectors.some(selector => selector.includes('.' + token) && selector.includes('[data-cycle-overview-view]')));
+    };
+    assert('Authored Cycle alert layout has all generated scoped styles', alerts.includes('c(`cycle-alert cycle-alert-${alert.tone}`)') && authoredStyle('cycle-alert'));
+    assert('Perimenopause alert uses generated scoped styles', authoredStyle('cycle-alert-perimenopause'));
+    assert('Critical alert uses generated scoped styles', authoredStyle('cycle-alert-critical'));
+    assert('Warning alert uses generated scoped styles', authoredStyle('cycle-alert-warning'));
+    assert('Info alert uses generated scoped styles', authoredStyle('cycle-alert-info'));
+    assert('Authored alert icon uses generated scoped styles', alerts.includes("c('cycle-alert-icon')") && authoredStyle('cycle-alert-icon'));
+    assert('Authored alert detail uses generated scoped styles', alerts.includes("c('cycle-alert-detail')") && authoredStyle('cycle-alert-detail'));
   }
 
   // ── Section 18: Source inspection ──
