@@ -2349,3 +2349,8 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /tests/biology-context-presentation.test.js
 /tests/playwright/biology-context-owned.spec.js
 /tests/pwa/sveltekit-biology-context.spec.js
+
+/js/biology-summary-presentation.js
+/js/biology-summary-classes.js
+/tests/biology-summary-presentation.test.js
+/tests/playwright/biology-summary-owned.spec.js

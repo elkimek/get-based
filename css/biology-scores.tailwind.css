@@ -71,3 +71,17 @@
 @source "../js/components/BiologyContextReview.svelte";
 @source "../js/components/BiologyContextManualFields.svelte";
 @source "../js/components/BiologyContextSuggestion.svelte";
+
+/* Public summary and compatibility-lens presentation. */
+@custom-variant biology-summary (&:is([data-biology-summary-view], [data-biology-summary-view] *));
+@custom-variant summary-phone (@media (max-width: 560px));
+@custom-variant summary-narrow (@media (max-width: 600px));
+@custom-variant summary-tablet (@media (max-width: 900px));
+@source "../js/biology-summary-classes.ts";
+@source "../js/components/BiologySummaryPresentation.svelte";
+@source "../js/components/BiologySummaryWidget.svelte";
+@source "../js/components/BiologySummaryHero.svelte";
+@source "../js/components/BiologySummaryCard.svelte";
+@source "../js/components/BiologySummaryStatus.svelte";
+@source "../js/components/BiologySummaryInputs.svelte";
+@source "../js/components/BiologyCompatibilityLens.svelte";

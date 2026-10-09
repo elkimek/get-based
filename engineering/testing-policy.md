@@ -237,6 +237,19 @@ unrelated records and the complete accepted profile through two closed-client
 launches. These checks complement AI lifecycle, integrity and sync regressions;
 they do not establish whole-app release acceptance.
 
+Biology summary and compatibility views have [frozen structure and state
+checks](../tests/biology-summary-presentation.test.ts) covering raw and historical
+values, confidence thresholds, directional/stale scores, missing inputs, NaN,
+clamping, ordering and escaped text. [Headless summary acceptance](../tests/playwright/biology-summary-owned.spec.ts)
+compares the original geometry and theme colors at breakpoint boundaries and
+checks independent title/marker keyboard navigation through real delegates.
+Frozen native selectors retain their original specificity so composed Tailwind
+children keep their established cascade. The classic Biology checks inspect DOM
+contracts and emitted CSS declarations rather than exact serialized class order
+or superseded ring markup. Existing static context, overview and card checks cover
+the composed children and offline persistence; these focused checks do not replace
+whole-app release acceptance.
+
 Preserve independently failing assertions for these workflows:
 
 | Workflow | Required behavior | Selected regression sources |

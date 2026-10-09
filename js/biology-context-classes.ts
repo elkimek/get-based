@@ -56,6 +56,7 @@ const classes: Record<string, string> = {
   ),
   'biology-score-context-banner': styles(
     "gb:biology-context:[display:flex] gb:biology-context:[flex-wrap:wrap] gb:biology-context:[gap:6px]",
+    "gb:biology-context:[&:not(.biology-score-context-page)]:[margin-top:10px]",
     "gb:biology-context:[align-items:center] gb:biology-context:[color:var(--text-secondary)] gb:biology-context:[font-size:12px]",
   ),
   'biology-score-context-page': styles(

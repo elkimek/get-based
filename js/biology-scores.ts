@@ -134,8 +134,8 @@ function installBiologyScoreDelegates() {
   document.addEventListener('keydown', (event) => {
     if (event.key !== 'Enter' && event.key !== ' ') return;
     const target = event.target instanceof Element ? event.target : null;
-    const el = (target?.closest('[data-biology-score-action="jump-to-domain"]') as HTMLElement | null);
-    if (!el) return;
+    const el = (target?.closest('[data-biology-score-action]') as HTMLElement | null);
+    if (el?.dataset.biologyScoreAction !== 'jump-to-domain') return;
     event.preventDefault();
     el.click();
   });

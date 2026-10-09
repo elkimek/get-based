@@ -125,10 +125,25 @@ serialized writes, confirmed-save commits, retry and delegated-event ownership.
 `biology-context-view.ts` composes the complete disclosure for the lens page,
 while the public context-panel renderer keeps its existing import contract.
 Scoped Tailwind utilities replace native context section and review rules;
-shared dashboard buttons and compatibility-lens banner rules keep their owners.
+shared dashboard buttons retain their existing owner. The profile banner is also
+reused by the typed compatibility lens with its original heading and spacing.
 Components receive typed data without raw HTML slots. Native disclosure,
 checkbox labels, action attributes and sex-specific field availability remain
 stable; keyboard controls have visible focus.
+
+The public Biology summary widget and compatibility lens are authored by
+`BiologySummaryPresentation.svelte`, the summary hero/card/status/input components
+and `BiologyCompatibilityLens.svelte`. `biology-summary-presentation.ts` projects
+score values, raw-score rails, confidence, truncation and compatibility ordering;
+`biology-summary-classes.ts` owns their scoped Tailwind utilities. The compatibility
+lens directly composes the existing typed overview, planning, coverage and score
+card components. All public synchronous facades remain in
+`biology-score-render.ts`, which no longer owns native HTML templates. Summary
+cards use an independent title navigation button and marker buttons; their shared
+key delegate respects the nearest action so marker activation cannot trigger
+ancestor navigation. Pointer clicks on the card still open its score. Calculations,
+AI requests and persistence retain their established owners. Shared lens page
+composition and the score-tools integration marker remain separate owners.
 
 Settings navigation/layout, Display, Privacy, Voice, Agent Access, imported records
 and AI usage use scoped Tailwind utilities

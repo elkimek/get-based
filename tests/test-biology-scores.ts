@@ -5,14 +5,17 @@ import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import './_node-shim.js';
 import { readAuthoredRepositorySource } from './helpers/repository-source.js';
 import fs from 'node:fs';
+import {JSDOM} from 'jsdom';
+import postcss from 'postcss';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildBiologyScoreCoveragePlannerModel, formatBiologyScoreCoveragePlannerPrompt } from '../js/biology-score-coverage-planner.js';
 import { buildBiologyScoresAIContext } from '../js/biology-score-ai-context.js';
 import { configureBiologyScoreAIDeps, generateBiologyScoreAIAnswer } from '../js/biology-score-ai.js';
+import {renderBiologyContextSection} from '../js/biology-context-view.js';
 import { BIOLOGY_SCORE_COPY } from '../js/biology-score-copy.js';
 import { applyBiologyScoreContextFlag, buildBiologyScoreContextFingerprint, buildBiologyScoreContextFingerprintsByRange, buildBiologyScoreContextMaterialSignature, buildBiologyScoreContextMaterialSignaturesByRange, configureBiologyScoreContextAIDeps, generateBiologyScoreContextReview, hasCurrentBiologyScoreContextReview, renderBiologyScoreContextAI } from '../js/biology-score-context-ai.js';
-import { renderBiologyScoresActionSummary, renderScoreDetail } from '../js/biology-score-render.js';
+import { renderBiologyScoresActionSummary, renderScoreDetail, renderDashboardBiologyScoreWidget as renderInjectedDashboardScore } from '../js/biology-score-render.js';
 import { renderScoreAIAnswer, writeScoreAIAnswer } from '../js/biology-score-sections.js';
 import { computeBiologyScores, getBiologyScoreLensWidgets, getBiologyScoreMapping, getBiologyScoreWidgetDefinitions, renderBiologyScoreCoveragePlanner, renderBiologyScoresLens, renderBiologyScoresWidget, renderDashboardBiologicalCoherenceWidget } from '../js/biology-scores.js';
 import { getActiveData, invalidateActiveDataCache, filterDatesByRange } from '../js/data.js';
@@ -38,6 +41,7 @@ type FixtureBiologyCall<Fn extends (...args: never[]) => unknown> = (
 
 
 let pass = 0, fail = 0;
+const parseHTML = (html: string) => new JSDOM(html).window.document;
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 function assert(name: string, condition: unknown, detail: unknown = '') {
   if (condition) { pass++; console.log(`  PASS: ${name}`); }
@@ -641,7 +645,7 @@ const widgetHtml = renderBiologyScoresWidget({ data });
 assert('render includes native widget class', widgetHtml.includes('biology-scores-widget'));
 assert('render escapes score titles as text', widgetHtml.includes('Metabolic Flexibility') && widgetHtml.includes('Methylation') && widgetHtml.includes('Immune Cell Balance') && widgetHtml.includes('Recovery Context') && !widgetHtml.includes('One-Carbon Coherence'));
 assert('dashboard widget score cards are clickable and jump to their score', widgetHtml.includes('data-biology-score-action="jump-to-domain"') && widgetHtml.includes('data-biology-score-id="metabolicFlexibility"'));
-assert('available marker tokens are delegated buttons', widgetHtml.includes('class="biology-score-token"') && widgetHtml.includes('data-biology-marker-id="biochemistry_glucose"'));
+assert('available marker tokens are delegated buttons', !!parseHTML(widgetHtml).querySelector('button.biology-score-token[data-biology-score-action="open-marker"][data-biology-marker-id="biochemistry_glucose"]'));
 assert('biology score UI avoids cropped pill chip class', !widgetHtml.includes('biology-score-chip'));
 const savedRangeForAllUnlock = state.dateRangeFilter;
 const rangeUnlockResults = ['all', '1y', '6m', '3m'].map(range => {
@@ -880,13 +884,13 @@ assert('score detail preserves ranges dates and contribution with optional metho
 
 const lensWidgets = getBiologyScoreLensWidgets({ data });
 assert('lens keeps a stable order across changing score values', lensWidgets.map(w => w.id).join('|') === scores.filter(s => s.id !== 'biologicalCoherence').map(s => `biology-score-detail-${s.id}`).join('|'));
-assert('all individual scores remain discoverable as compact rows', lensWidgets.length === 18 && lensWidgets.every(w => w.body.includes('<article class="biology-score-detail')));
+assert('all individual scores remain discoverable as compact rows', lensWidgets.length === 18 && lensWidgets.every(w => { const dom = parseHTML(w.body); const cards = dom.querySelectorAll('.biology-score-detail.biology-score-compact'); return cards.length === 1 && cards[0]!.id === w.opts.dashboardId && !!cards[0]!.querySelector('button[data-biology-score-action="toggle-score"]'); }));
 assert('lens widget dashboard ids match score ids', lensWidgets.some(w => w.id === 'biology-score-detail-metabolicFlexibility' && w.opts.dashboardId === 'biology-score-metabolicFlexibility'));
 const coherenceTopDomains = [...byId.biologicalCoherence!.available].sort((a, b) => Number(b.partial || 0) - Number(a.partial || 0));
 assert('biological coherence hero domain rows link to primary score anchors', coherenceTopDomains.every(d => !(d as unknown as { primaryScoreId: unknown }).primaryScoreId || lensHtml.includes(`data-biology-score-action="jump-to-domain" data-biology-score-id="${(d as unknown as { primaryScoreId: unknown }).primaryScoreId}"`)), JSON.stringify(coherenceTopDomains.map(d => [d.label, (d as unknown as { primaryScoreId: unknown }).primaryScoreId])));
 assert('domain breakdown exposes provisional status rather than repeating tone badges', lensHtml.includes('How the overview works') && lensHtml.includes('biology-coherence-domain-row'));
 const coherenceDomainRow = coherenceTopDomains.find(d => (d as unknown as { primaryScoreId: unknown }).primaryScoreId);
-assert('domain breakdown uses native accessible navigation buttons', coherenceDomainRow && lensHtml.includes('button type="button" class="biology-coherence-domain-row"'));
+assert('domain breakdown uses native accessible navigation buttons', coherenceDomainRow && coherenceTopDomains.filter(d => (d as unknown as {primaryScoreId?: string}).primaryScoreId).every(d => !!parseHTML(lensHtml).querySelector(`button.biology-coherence-domain-row[type="button"][data-biology-score-action="jump-to-domain"][data-biology-score-id="${(d as unknown as {primaryScoreId: string}).primaryScoreId}"]`)));
 
 // Lens hero domain rows without primaryScoreId should get a no-jump class
 const lensNoJumpDomains = coherenceTopDomains.filter(d => !(d as unknown as { primaryScoreId: unknown }).primaryScoreId);
@@ -1118,37 +1122,46 @@ assert('removed mito-thyroid experiment is not kept in the service worker app sh
   !swSrc.includes('/js/biology-score-mitothyroid.js'),
   swSrc.slice(swSrc.indexOf('/js/biology-scores.js'), swSrc.indexOf('/js/profile-context.js')));
 const dashboardWidgetsCss = fs.readFileSync(path.join(ROOT, 'css/dashboard-widgets.css'), 'utf8');
-const extraThemesCss = fs.readFileSync(path.join(ROOT, 'themes-extra.css'), 'utf8');
-assert('collapsed scores needing data have explicit spacing between cards', dashboardWidgetsCss.includes('.biology-score-unavailable-group .biology-score-detail + .biology-score-detail') && dashboardWidgetsCss.includes('margin-top: 16px'));
-assert('translucent themes give the dashboard coherence score an opaque center',
-  (dashboardWidgetsCss.match(/var\(--biology-coherence-center-bg, var\(--bg-card\)\)/g) || []).length === 4
-  && extraThemesCss.includes('[data-theme="glass"]')
-  && extraThemesCss.includes('--biology-coherence-center-bg: #261e48')
-  && extraThemesCss.includes('[data-theme="synth-sunrise"]')
-  && extraThemesCss.includes('--biology-coherence-center-bg: #1c0e40')
-  && extraThemesCss.includes('[data-theme="neuromancer"]')
-  && extraThemesCss.includes('--biology-coherence-center-bg: #080b10'));
-const biologyScoreRenderSrc = fs.readFileSync(path.join(ROOT, 'js/biology-score-render.js'), 'utf8');
-const biologyScoreRailCss = dashboardWidgetsCss.slice(dashboardWidgetsCss.indexOf('.biology-score-rail-fill'), dashboardWidgetsCss.indexOf('.biology-score-pin'));
-const dashboardCoherenceToneCss = dashboardWidgetsCss.slice(dashboardWidgetsCss.indexOf('.db-bio-coherence-excellent .db-bio-coherence-ring'), dashboardWidgetsCss.indexOf('.db-bio-coherence-number'));
-const dashboardScoreRailSrc = biologyScoreRenderSrc.slice(biologyScoreRenderSrc.indexOf('function renderDashboardScoreRail'), biologyScoreRenderSrc.indexOf('export function renderDashboardBiologyScoreWidget'));
+// Inspect emitted declarations and rendered controls instead of serialized class
+// order or retired ring markup. Tailwind classes are intentionally additive.
+const styleRules = postcss.parse(dashboardWidgetsCss);
+const hasDeclaration = (selector: (value: string) => boolean, property: string, value: (value: string) => boolean) => {
+  let found = false;
+  styleRules.walkRules(rule => {
+    if (selector(rule.selector)) rule.walkDecls(property, declaration => { if (value(declaration.value)) found = true; });
+  });
+  return found;
+};
+assert('collapsed scores needing data have explicit spacing between cards', hasDeclaration(
+  selector => selector.includes('.biology-score-unavailable-group ') && selector.endsWith('+.biology-score-detail'),
+  'margin-top', value => value === '16px'));
+const coherenceWidgetDOM = parseHTML(renderDashboardBiologicalCoherenceWidget({data}));
+// A deterministic current score exercises the good-tone branch independently of
+// the age of the engine fixture's collection date.
+const {historicalSnapshot: _snapshot, ...currentCoherence} = byId.biologicalCoherence!;
+const goodWidgetDOM = parseHTML(renderInjectedDashboardScore({}, currentCoherence.id, () => [{...currentCoherence, score: 80, tone: 'good'}]));
+assert('dashboard coherence keeps the score text separate from its decorative rail in translucent themes',
+  !!coherenceWidgetDOM.querySelector('.db-hero-bio-num')?.textContent?.includes('/100')
+  && !!coherenceWidgetDOM.querySelector('.db-hero-bio-bar-track[aria-hidden="true"] .db-hero-bio-bar-fill')
+  && !coherenceWidgetDOM.querySelector('.db-bio-coherence-ring')
+  && ['glass','synth-sunrise','neuromancer'].every(theme => fs.readFileSync(path.join(ROOT, 'themes-extra.css'), 'utf8').includes(`[data-theme="${theme}"]`)));
 assert('Biology Score good-tone visuals use semantic green instead of theme accent blue',
-  dashboardCoherenceToneCss.includes('.db-bio-coherence-good .db-bio-coherence-ring')
-  && dashboardCoherenceToneCss.includes('.db-bio-coherence-good .db-bio-coherence-status')
-  && biologyScoreRailCss.includes('var(--green, #22c55e) 72%')
-  && !biologyScoreRailCss.includes('var(--accent)')
-  && !dashboardCoherenceToneCss.includes('var(--accent)')
-  && !dashboardScoreRailSrc.includes("tone === 'good' ? 'var(--accent)'"),
-  `${biologyScoreRailCss}\n---\n${dashboardCoherenceToneCss}\n---\n${dashboardScoreRailSrc}`);
+  hasDeclaration(selector => selector.includes('biology-summary'), 'background', value =>
+    value.startsWith('linear-gradient(') && /var\(--green,\s*#22c55e\) 72%/.test(value) && !value.includes('var(--accent)'))
+  && goodWidgetDOM.querySelector<HTMLElement>('.db-hero-bio-bar-fill')?.style.background === 'var(--green, #22c55e)');
 assert('Biological Coherence lens keeps every domain on mobile without duplicating dashboard title copy',
-  !dashboardWidgetsCss.includes('.bc-micro-domain:nth-child(n+5):not(:nth-last-child(-n+2))')
+  parseHTML(lensHtml).querySelectorAll('.biology-coherence-domain-row').length === coherenceTopDomains.length
+  && !dashboardWidgetsCss.includes('.bc-micro-domain:nth-child(n+5):not(:nth-last-child(-n+2))')
   && !dashboardWidgetsCss.includes('.biology-coherence-domain-row:nth-child(n+5):not(:nth-last-child(-n+2))')
-  && dashboardWidgetsCss.includes("content: 'Baseline domains'")
-  && dashboardWidgetsCss.includes('.dashboard-widget .db-bio-coherence-summary h3')
-  && dashboardWidgetsCss.includes('display: none;'),
-  dashboardWidgetsCss.slice(dashboardWidgetsCss.indexOf('@media (max-width: 720px)'), dashboardWidgetsCss.indexOf('.biology-scores-hero')));
+  && hasDeclaration(selector => selector.includes('biology-overview') && selector.endsWith(':before'), 'content', value => value === '"Baseline domains"')
+  && !coherenceWidgetDOM.querySelector('h3'));
 const lensPagesSrc = fs.readFileSync(path.join(ROOT, 'js/lens-pages.js'), 'utf8');
-assert('actual Biology Scores page offers optional context before the overview without gating results', lensPagesSrc.includes('Profile &amp; collection context') && !lensPagesSrc.includes('if (!contextReady)') && lensPagesSrc.indexOf('Profile &amp; collection context') < lensPagesSrc.indexOf('html += renderBiologicalCoherenceLensHero(ctx)'));
+const contextDOM = parseHTML(renderBiologyContextSection());
+assert('actual Biology Scores page offers optional context before the overview without gating results',
+  contextDOM.querySelector('summary')?.textContent?.includes('Profile & collection context')
+  && !lensPagesSrc.includes('if (!contextReady)')
+  && lensPagesSrc.includes('html += renderBiologyContextSection(scoreData)')
+  && lensPagesSrc.indexOf('html += renderBiologyContextSection(scoreData)') < lensPagesSrc.indexOf('html += renderBiologicalCoherenceLensHero(ctx)'));
 assert('actual Biology Scores lens route reconciles embedded AI panels after DOM insert so F5 hydration cannot leave a stale banner mounted',
   lensPagesSrc.includes('scheduleBiologyScoreAIReconcile')
   && lensPagesSrc.indexOf('main.innerHTML = html') < lensPagesSrc.indexOf('scheduleBiologyScoreAIReconcile()'),
