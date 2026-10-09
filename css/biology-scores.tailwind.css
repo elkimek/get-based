@@ -103,3 +103,12 @@
 @source "../js/components/BiologyScoresPage.svelte";
 @source "../js/components/BiologyScoreGroup.svelte";
 @source "../js/components/LabDateRange.svelte";
+
+/* Genome import metadata, Body sources and literal lens actions. */
+@custom-variant lens-content (&:where([data-lens-content-view], [data-lens-content-view] *));
+@custom-variant lens-small (@media (max-width: 600px));
+@source "../js/lens-content-classes.ts";
+@source "../js/components/LensActionButtons.svelte";
+@source "../js/components/GenomeImportDetails.svelte";
+@source "../js/components/BodySources.svelte";
+@source "../js/components/LensPageContent.svelte";

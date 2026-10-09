@@ -267,6 +267,22 @@ page composition emits no score-tools marker; public compact HTML compatibility
 still retains that bridge. These focused checks do not establish complete release
 or whole-app accessibility acceptance.
 
+Literal lens content has [frozen structure checks](../tests/lens-content-presentation.test.ts)
+covering SNP-only and maternal-only imports, coverage coercion, escaped metadata,
+missing/merged source records and header action states. The actual controller also
+checks that an absent Genome panel stays absent. [Headless layout checks](../tests/playwright/lens-content-owned.spec.ts)
+compare all child geometry and theme styles at the original viewport boundaries,
+including the default theme and visible keyboard focus. [Static imported-metadata
+checks](../tests/pwa/sveltekit-lens-content.spec.ts) exercise actual Genome/Body
+navigation and closed-client offline launches with complete stored-profile equality.
+[Focused action checks](../tests/playwright/lens-content-actions.spec.ts) exercise
+actual Genome, Body and Tips controllers with harmless import/delete/settings
+recorders and unchanged imported data. Insight uses its typed controls in the real
+shell header without adjacent asynchronous loaders. Shared shell action/delegate
+and route tests remain independent. These focused
+checks do not establish complete Genome processing, wearable integrations or
+whole-app release acceptance.
+
 Biology summary and compatibility views have [frozen structure and state
 checks](../tests/biology-summary-presentation.test.ts) covering raw and historical
 values, confidence thresholds, directional/stale scores, missing inputs, NaN,

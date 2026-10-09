@@ -176,6 +176,24 @@ The data controller retains sidebar refresh, navigation and date-change ownershi
 HTML compatibility input for other lens owners. Native Biology page templates,
 date templates and their superseded ordinary style rules are removed.
 
+Literal Genome import metadata, Body connection cards and Genome/Body/Insight/Tips
+header actions are owned by `LensPageContent.svelte` and its typed children
+`GenomeImportDetails.svelte`, `BodySources.svelte` and `LensActionButtons.svelte`.
+`lens-content-presentation.ts` projects imported counts, lineage metadata, source
+priority and fixed action labels without writes; `lens-content-classes.ts` owns
+scoped Tailwind utilities. Values remain escaped text. The lens controller
+preserves the empty-string import facade when no Genome panel exists, so the
+shared widget shell does not show an extra empty widget. Existing shell delegates
+retain file import, report/manual SNP, deletion, connection and navigation ownership.
+The typed controls author the supported `data-lens-page-*` contract directly; they
+do not call the legacy injected attribute formatter. Public shell helpers remain
+available to unmigrated renderers. Custom formatter output is therefore outside
+the authored control contract.
+Only exclusive metadata/affiliate CSS is removed. Shared DNA overview grids,
+Dashboard buttons and source-picker rules retain other active owners. Remaining
+lens body renderer contracts and recommendation list templates migrate with their
+respective feature owners.
+
 Settings navigation/layout, Display, Privacy, Voice, Agent Access, imported records
 and AI usage use scoped Tailwind utilities
 alongside the remaining native feature styles. `css/settings.base.css` owns the

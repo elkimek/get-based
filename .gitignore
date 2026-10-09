@@ -2370,3 +2370,7 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 
 /tests/biology-page-presentation.test.js
 /tests/playwright/biology-page-owned.spec.js
+
+/js/lens-content-presentation.js
+/js/lens-content-classes.js
+/tests/lens-content-presentation.test.js

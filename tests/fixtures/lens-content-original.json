@@ -1,0 +1,317 @@
+{
+  "revision": "21598b750834883601914c7d665c7025067b9d82",
+  "sourceSHA256": {
+    "js/lens-pages.ts": "4f8ffeb30298fb2a2a866213df36c6d66fe7d4076b9814d4d35aa6329d60bce8",
+    "css/dashboard-data.css": "9bcf0ce9f46d31481e1c81cc9d32a249134171ae7f8132ea94eb3e2837621c7e",
+    "css/dashboard-widgets.base.css": "7bab14aa056fd5f796ca0a14419009e16648d5e99fa9d774febdd809338cf470",
+    "css/genetics.css": "1b94d90e75d9c0d3d736bb7cc03580bf6c16be9b2e2d73f4ce0acdc56e8a2286"
+  },
+  "samples": [
+    {
+      "name": "absent",
+      "kind": "genome",
+      "input": {
+        "genetics": null
+      },
+      "html": "",
+      "actions": "<!--[1--><!----><button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-primary\" data-lens-page-action=\"import-dna\">Import raw DNA</button>\n      <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"import-snp-report\">Import report</button>\n      <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"add-manual-snp\">Add SNP manually</button><span class=\"lens-header-affiliate\">No raw file? We recommend a <a href=\"https://www.dpbolvw.net/q2101xdmjdl0212824AA4024989447\" target=\"_blank\" rel=\"noopener sponsored\">LivingDNA kit</a>.</span><!----><!--]-->"
+    },
+    {
+      "name": "empty",
+      "kind": "genome",
+      "input": {
+        "genetics": {
+          "snps": {}
+        }
+      },
+      "html": "",
+      "actions": "<!--[1--><!----><button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-primary\" data-lens-page-action=\"import-dna\">Import raw DNA</button>\n      <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"import-snp-report\">Import report</button>\n      <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"add-manual-snp\">Add SNP manually</button><span class=\"lens-header-affiliate\">No raw file? We recommend a <a href=\"https://www.dpbolvw.net/q2101xdmjdl0212824AA4024989447\" target=\"_blank\" rel=\"noopener sponsored\">LivingDNA kit</a>.</span><!----><!--]-->"
+    },
+    {
+      "name": "snps",
+      "kind": "genome",
+      "input": {
+        "genetics": {
+          "snps": {
+            "rs1": {}
+          },
+          "source": "Local raw"
+        }
+      },
+      "html": "<div class=\"genome-import-details\">\n    <div class=\"genetics-overview-grid\">\n      <div class=\"genetics-overview-card\">\n        <span class=\"genetics-overview-label\">Autosomal SNPs</span>\n        <strong>1</strong>\n        <small>Local raw</small>\n      </div>\n    </div>\n    \n    <div class=\"dashboard-widget-inline-controls\">\n      <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"reimport-dna\">Re-import</button>\n      <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"delete-dna\">Delete genome data</button>\n    </div>\n  </div>",
+      "actions": "<!--[1--><!----><button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-primary\" data-lens-page-action=\"import-dna\">Import raw DNA</button>\n      <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"import-snp-report\">Import report</button>\n      <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"add-manual-snp\">Add SNP manually</button><!----><!--]-->"
+    },
+    {
+      "name": "maternal",
+      "kind": "genome",
+      "input": {
+        "genetics": {
+          "snps": {},
+          "mtdna": {
+            "haplogroup": "H1",
+            "source": "Manual"
+          }
+        }
+      },
+      "html": "<div class=\"genome-import-details\">\n    <div class=\"genetics-overview-grid\">\n      <div class=\"genetics-overview-card\">\n        <span class=\"genetics-overview-label\">Autosomal SNPs</span>\n        <strong>0</strong>\n        <small>No raw autosomal import</small>\n      </div><div class=\"genetics-overview-card\">\n        <span class=\"genetics-overview-label\">mtDNA</span>\n        <strong>H1</strong>\n        <small>Manual</small>\n      </div>\n    </div>\n    <div class=\"db-genome-import-note\">\n    <strong>mtDNA H1</strong>\n    <span>Haplogroup stored</span>\n    <span>Manual</span>\n    \n    \n    \n  </div>\n    <div class=\"dashboard-widget-inline-controls\">\n      <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"reimport-dna\">Re-import</button>\n      <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"delete-dna\">Delete genome data</button>\n    </div>\n  </div>",
+      "actions": "<!--[1--><!----><button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-primary\" data-lens-page-action=\"import-dna\">Import raw DNA</button>\n      <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"import-snp-report\">Import report</button>\n      <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"add-manual-snp\">Add SNP manually</button><span class=\"lens-header-affiliate\">No raw file? We recommend a <a href=\"https://www.dpbolvw.net/q2101xdmjdl0212824AA4024989447\" target=\"_blank\" rel=\"noopener sponsored\">LivingDNA kit</a>.</span><!----><!--]-->"
+    },
+    {
+      "name": "complete",
+      "kind": "genome",
+      "input": {
+        "genetics": {
+          "snps": {
+            "rs1": {},
+            "rs2": {}
+          },
+          "source": "23andMe",
+          "importDate": "2026-02-03",
+          "coverage": {
+            "found": 1234,
+            "total": 5678
+          },
+          "apoe": "E3/E4",
+          "mtdna": {
+            "haplogroup": "H1",
+            "origin": "Europe",
+            "source": "Manual",
+            "importDate": "2026-02-04",
+            "details": "Stored lineage details",
+            "coupling": {
+              "label": "Haplogroup description",
+              "shortLabel": "Maternal line",
+              "description": "Detailed lineage",
+              "implications": "Literal implications"
+            }
+          }
+        }
+      },
+      "html": "<div class=\"genome-import-details\">\n    <div class=\"genetics-overview-grid\">\n      <div class=\"genetics-overview-card\">\n        <span class=\"genetics-overview-label\">Autosomal SNPs</span>\n        <strong>2</strong>\n        <small>23andMe</small>\n      </div><div class=\"genetics-overview-card\">\n        <span class=\"genetics-overview-label\">Imported</span>\n        <strong>2026-02-03</strong>\n        <small>1,234 / 5,678 catalog SNPs matched</small>\n      </div><div class=\"genetics-overview-card\">\n        <span class=\"genetics-overview-label\">APOE</span>\n        <strong>E3/E4</strong>\n        <small>Haplotype context</small>\n      </div><div class=\"genetics-overview-card\">\n        <span class=\"genetics-overview-label\">mtDNA</span>\n        <strong>H1</strong>\n        <small>Maternal line</small>\n      </div>\n    </div>\n    <div class=\"db-genome-import-note\">\n    <strong>mtDNA H1</strong>\n    <span>Haplogroup description</span>\n    <span>Europe · Manual · 2026-02-04</span>\n    <span>Stored lineage details</span>\n    <span>Detailed lineage</span>\n    <span>Literal implications</span>\n  </div>\n    <div class=\"dashboard-widget-inline-controls\">\n      <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"reimport-dna\">Re-import</button>\n      <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"delete-dna\">Delete genome data</button>\n    </div>\n  </div>",
+      "actions": "<!--[1--><!----><button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-primary\" data-lens-page-action=\"import-dna\">Import raw DNA</button>\n      <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"import-snp-report\">Import report</button>\n      <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"add-manual-snp\">Add SNP manually</button><!----><!--]-->"
+    },
+    {
+      "name": "invalidCoverage",
+      "kind": "genome",
+      "input": {
+        "genetics": {
+          "snps": {
+            "rs1": {}
+          },
+          "importDate": "x",
+          "coverage": {
+            "found": "unknown",
+            "total": 5
+          }
+        }
+      },
+      "html": "<div class=\"genome-import-details\">\n    <div class=\"genetics-overview-grid\">\n      <div class=\"genetics-overview-card\">\n        <span class=\"genetics-overview-label\">Autosomal SNPs</span>\n        <strong>1</strong>\n        <small>No raw autosomal import</small>\n      </div><div class=\"genetics-overview-card\">\n        <span class=\"genetics-overview-label\">Imported</span>\n        <strong>x</strong>\n        <small>Raw file processed locally</small>\n      </div>\n    </div>\n    \n    <div class=\"dashboard-widget-inline-controls\">\n      <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"reimport-dna\">Re-import</button>\n      <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"delete-dna\">Delete genome data</button>\n    </div>\n  </div>",
+      "actions": "<!--[1--><!----><button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-primary\" data-lens-page-action=\"import-dna\">Import raw DNA</button>\n      <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"import-snp-report\">Import report</button>\n      <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"add-manual-snp\">Add SNP manually</button><!----><!--]-->"
+    },
+    {
+      "name": "zeroCoverage",
+      "kind": "genome",
+      "input": {
+        "genetics": {
+          "snps": {
+            "rs1": {}
+          },
+          "importDate": "x",
+          "coverage": {
+            "found": 0,
+            "total": 0
+          }
+        }
+      },
+      "html": "<div class=\"genome-import-details\">\n    <div class=\"genetics-overview-grid\">\n      <div class=\"genetics-overview-card\">\n        <span class=\"genetics-overview-label\">Autosomal SNPs</span>\n        <strong>1</strong>\n        <small>No raw autosomal import</small>\n      </div><div class=\"genetics-overview-card\">\n        <span class=\"genetics-overview-label\">Imported</span>\n        <strong>x</strong>\n        <small>0 / 0 catalog SNPs matched</small>\n      </div>\n    </div>\n    \n    <div class=\"dashboard-widget-inline-controls\">\n      <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"reimport-dna\">Re-import</button>\n      <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"delete-dna\">Delete genome data</button>\n    </div>\n  </div>",
+      "actions": "<!--[1--><!----><button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-primary\" data-lens-page-action=\"import-dna\">Import raw DNA</button>\n      <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"import-snp-report\">Import report</button>\n      <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"add-manual-snp\">Add SNP manually</button><!----><!--]-->"
+    },
+    {
+      "name": "escaped",
+      "kind": "genome",
+      "input": {
+        "genetics": {
+          "snps": {
+            "rs1": {}
+          },
+          "source": "<script>alert(1)</script>",
+          "apoe": "<img src=x onerror=bad>",
+          "mtdna": {
+            "haplogroup": "<b>literal</b>",
+            "source": "< & \"",
+            "details": "<details>",
+            "coupling": {
+              "label": "<label>",
+              "description": "<script>",
+              "implications": "<img>"
+            }
+          }
+        }
+      },
+      "html": "<div class=\"genome-import-details\">\n    <div class=\"genetics-overview-grid\">\n      <div class=\"genetics-overview-card\">\n        <span class=\"genetics-overview-label\">Autosomal SNPs</span>\n        <strong>1</strong>\n        <small>&lt;script&gt;alert(1)&lt;/script&gt;</small>\n      </div><div class=\"genetics-overview-card\">\n        <span class=\"genetics-overview-label\">APOE</span>\n        <strong>&lt;img src=x onerror=bad&gt;</strong>\n        <small>Haplotype context</small>\n      </div><div class=\"genetics-overview-card\">\n        <span class=\"genetics-overview-label\">mtDNA</span>\n        <strong>&lt;b&gt;literal&lt;/b&gt;</strong>\n        <small>&lt; &amp; &quot;</small>\n      </div>\n    </div>\n    <div class=\"db-genome-import-note\">\n    <strong>mtDNA &lt;b&gt;literal&lt;/b&gt;</strong>\n    <span>&lt;label&gt;</span>\n    <span>&lt; &amp; &quot;</span>\n    <span>&lt;details&gt;</span>\n    <span>&lt;script&gt;</span>\n    <span>&lt;img&gt;</span>\n  </div>\n    <div class=\"dashboard-widget-inline-controls\">\n      <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"reimport-dna\">Re-import</button>\n      <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"delete-dna\">Delete genome data</button>\n    </div>\n  </div>",
+      "actions": "<!--[1--><!----><button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-primary\" data-lens-page-action=\"import-dna\">Import raw DNA</button>\n      <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"import-snp-report\">Import report</button>\n      <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"add-manual-snp\">Add SNP manually</button><!----><!--]-->"
+    },
+    {
+      "name": "absent",
+      "kind": "body",
+      "input": {},
+      "html": "<button type=\"button\" class=\"db-correlation-empty\" data-lens-page-action=\"open-wearables-settings\">\n      <strong>Connect body data</strong>\n      <span>Oura, Withings, Fitbit, Polar, Apple Health, or manual logging can feed HRV, sleep, recovery, blood pressure, and body composition.</span>\n    </button>",
+      "actions": "<!--[1--><!----><button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-primary\" data-lens-page-action=\"open-wearables-settings\">Connect source</button>\n       <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"open-biometric-picker\">Choose metrics</button><!----><!--]-->"
+    },
+    {
+      "name": "emptySummary",
+      "kind": "body",
+      "input": {
+        "wearableSummary": {
+          "sources": {}
+        }
+      },
+      "html": "<div class=\"dashboard-widget-picker-grid\"></div>",
+      "actions": "<!--[1--><!----><button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-primary\" data-lens-page-action=\"open-wearables-settings\">Connect source</button>\n       <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"open-biometric-picker\">Choose metrics</button><!----><!--]-->"
+    },
+    {
+      "name": "connections",
+      "kind": "body",
+      "input": {
+        "wearableConnections": {
+          "oura": {
+            "lastSyncAt": "2026-02-03",
+            "coverageDays": 20
+          },
+          "manual": {}
+        }
+      },
+      "html": "<div class=\"dashboard-widget-picker-grid\"><button type=\"button\" class=\"dashboard-widget-picker-card\" data-lens-page-action=\"open-wearables-settings\">\n      <span class=\"dashboard-widget-picker-title\">oura</span>\n      <span class=\"dashboard-widget-picker-sub\">2/3/2026 · 20d coverage</span>\n      <span class=\"dashboard-widget-picker-action\">Manage source</span>\n    </button><button type=\"button\" class=\"dashboard-widget-picker-card\" data-lens-page-action=\"open-wearables-settings\">\n      <span class=\"dashboard-widget-picker-title\">Manual logs</span>\n      <span class=\"dashboard-widget-picker-sub\">not synced · coverage pending</span>\n      <span class=\"dashboard-widget-picker-action\">Manage source</span>\n    </button></div>",
+      "actions": "<!--[1--><!----><button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-primary\" data-lens-page-action=\"open-wearables-settings\">Connect source</button>\n       <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"open-biometric-picker\">Choose metrics</button><!----><!--]-->"
+    },
+    {
+      "name": "summary",
+      "kind": "body",
+      "input": {
+        "wearableSummary": {
+          "sources": {
+            "fitbit": {
+              "lastSyncAt": "2026-02-04",
+              "coverageDays": 5
+            }
+          }
+        }
+      },
+      "html": "<div class=\"dashboard-widget-picker-grid\"><button type=\"button\" class=\"dashboard-widget-picker-card\" data-lens-page-action=\"open-wearables-settings\">\n      <span class=\"dashboard-widget-picker-title\">fitbit</span>\n      <span class=\"dashboard-widget-picker-sub\">2/4/2026 · 5d coverage</span>\n      <span class=\"dashboard-widget-picker-action\">Manage source</span>\n    </button></div>",
+      "actions": "<!--[1--><!----><button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-primary\" data-lens-page-action=\"open-wearables-settings\">Connect source</button>\n       <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"open-biometric-picker\">Choose metrics</button><!----><!--]-->"
+    },
+    {
+      "name": "merged",
+      "kind": "body",
+      "input": {
+        "wearableConnections": {
+          "oura": {
+            "coverageDays": 0
+          },
+          "manual": {
+            "lastSyncAt": "2026-02-05"
+          }
+        },
+        "wearableSummary": {
+          "sources": {
+            "oura": {
+              "coverageDays": 99
+            },
+            "withings": {
+              "coverageDays": 4
+            }
+          }
+        }
+      },
+      "html": "<div class=\"dashboard-widget-picker-grid\"><button type=\"button\" class=\"dashboard-widget-picker-card\" data-lens-page-action=\"open-wearables-settings\">\n      <span class=\"dashboard-widget-picker-title\">oura</span>\n      <span class=\"dashboard-widget-picker-sub\">not synced · coverage pending</span>\n      <span class=\"dashboard-widget-picker-action\">Manage source</span>\n    </button><button type=\"button\" class=\"dashboard-widget-picker-card\" data-lens-page-action=\"open-wearables-settings\">\n      <span class=\"dashboard-widget-picker-title\">Manual logs</span>\n      <span class=\"dashboard-widget-picker-sub\">2/5/2026 · coverage pending</span>\n      <span class=\"dashboard-widget-picker-action\">Manage source</span>\n    </button><button type=\"button\" class=\"dashboard-widget-picker-card\" data-lens-page-action=\"open-wearables-settings\">\n      <span class=\"dashboard-widget-picker-title\">withings</span>\n      <span class=\"dashboard-widget-picker-sub\">not synced · 4d coverage</span>\n      <span class=\"dashboard-widget-picker-action\">Manage source</span>\n    </button></div>",
+      "actions": "<!--[1--><!----><button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-primary\" data-lens-page-action=\"open-wearables-settings\">Connect source</button>\n       <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"open-biometric-picker\">Choose metrics</button><!----><!--]-->"
+    },
+    {
+      "name": "escaped",
+      "kind": "body",
+      "input": {
+        "wearableConnections": {
+          "<img src=x onerror=bad>": {
+            "lastSyncAt": "invalid",
+            "coverageDays": "<b>"
+          }
+        }
+      },
+      "html": "<div class=\"dashboard-widget-picker-grid\"><button type=\"button\" class=\"dashboard-widget-picker-card\" data-lens-page-action=\"open-wearables-settings\">\n      <span class=\"dashboard-widget-picker-title\">&lt;img src=x onerror=bad&gt;</span>\n      <span class=\"dashboard-widget-picker-sub\">Invalid Date · &lt;b&gt;d coverage</span>\n      <span class=\"dashboard-widget-picker-action\">Manage source</span>\n    </button></div>",
+      "actions": "<!--[1--><!----><button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-primary\" data-lens-page-action=\"open-wearables-settings\">Connect source</button>\n       <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"open-biometric-picker\">Choose metrics</button><!----><!--]-->"
+    },
+    {
+      "name": "insight",
+      "kind": "actions",
+      "route": "showInsightLens",
+      "hidden": [],
+      "html": "<!--[1--><!----><button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-primary\" data-lens-page-action=\"open-ai-chat\">Open AI chat</button>\n       <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"open-emf-assessment\">EMF assessment</button>\n       <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"open-recommendations\">Tips</button><!----><!--]-->"
+    },
+    {
+      "name": "tips-visible",
+      "kind": "actions",
+      "route": "showRecommendations",
+      "hidden": [],
+      "html": "<!--[1--><!----><button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-primary\" data-lens-page-action=\"remove-dashboard-widget\" data-lens-page-id=\"recommendations\">Remove from Dashboard</button>\n      <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"open-privacy-settings\">Disclosure &amp; settings</button><!----><!--]-->"
+    },
+    {
+      "name": "tips-hidden",
+      "kind": "actions",
+      "route": "showRecommendations",
+      "hidden": [
+        "recommendations"
+      ],
+      "html": "<!--[1--><!----><button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-primary\" data-lens-page-action=\"add-dashboard-widget\" data-lens-page-id=\"recommendations\">Add to Dashboard</button>\n      <button type=\"button\" class=\"dashboard-action-btn\" data-lens-page-action=\"open-privacy-settings\">Disclosure &amp; settings</button><!----><!--]-->"
+    }
+  ],
+  "styleBlocks": [
+    {
+      "file": "css/dashboard-data.css",
+      "selector": ".genome-import-details",
+      "css": ".genome-import-details { display: grid; gap: 10px; }",
+      "atRules": []
+    },
+    {
+      "file": "css/dashboard-data.css",
+      "selector": ".db-genome-import-note",
+      "css": ".db-genome-import-note {\n  display: grid;\n  gap: 3px;\n  padding: 10px 12px;\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  background: color-mix(in srgb, var(--bg-secondary) 60%, transparent);\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/dashboard-data.css",
+      "selector": ".db-genome-import-note strong",
+      "css": ".db-genome-import-note strong { color: var(--text-primary); font-size: 13px; }",
+      "atRules": []
+    },
+    {
+      "file": "css/dashboard-data.css",
+      "selector": ".db-genome-import-note span",
+      "css": ".db-genome-import-note span { color: var(--text-secondary); font-size: 12px; line-height: 1.4; }",
+      "atRules": []
+    },
+    {
+      "file": "css/dashboard-widgets.base.css",
+      "selector": ".genome-lens-header .lens-header-affiliate",
+      "css": ".genome-lens-header .lens-header-affiliate {\n  flex-basis: 100%;\n  margin-top: 2px;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/dashboard-widgets.base.css",
+      "selector": ".lens-header-affiliate",
+      "css": ".lens-header-affiliate {\n  font-size: 12px;\n  color: var(--text-muted);\n  line-height: 1.4;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/dashboard-widgets.base.css",
+      "selector": ".lens-header-affiliate a",
+      "css": ".lens-header-affiliate a {\n  color: var(--text-secondary);\n  text-decoration: underline;\n  text-underline-offset: 2px;\n  font-weight: 600;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/dashboard-widgets.base.css",
+      "selector": ".lens-header-affiliate a:hover",
+      "css": ".lens-header-affiliate a:hover {\n  color: var(--accent);\n}",
+      "atRules": []
+    }
+  ]
+}

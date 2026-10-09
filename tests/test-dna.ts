@@ -15,6 +15,8 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // through the fs-backed fetch shim (`/app` aliases index.html).
 
 import './_node-shim.js';
+import {renderHTML as renderLensContent} from '../js/components/LensPageContent.svelte.html.js';
+import {projectLensActions} from '../js/lens-content-presentation.js';
 import type { DnaProfileData, GeneticsData } from '../js/dna-runtime.js';
 interface DnaCloneSnpRead {genotype?: unknown;normalizedGenotype?: unknown;source?: {type?: unknown;label?: unknown}}
 interface DnaCloneGeneticsRead {source?: unknown;importDate?: unknown;coverage?: unknown;effects?: unknown;catalogVersion?: unknown;snps?: Record<string, DnaCloneSnpRead>;mtdna?: unknown}
@@ -475,11 +477,10 @@ assert('Genome lens avoids duplicated full genetics surfaces',
   lensPagesSrc.includes("renderLensPageWidgets('genome'") &&
   !viewsSrc.includes('Imported Genome Data'));
 
+const genomeActionsHTML = renderLensContent({kind: 'actions', view: projectLensActions('genome')});
 assert('Genome lens exposes raw, report, and manual SNP import actions with scoped spacing class',
-  lensPagesSrc.includes("lensPageActionAttrs('import-dna')") &&
-  lensPagesSrc.includes("lensPageActionAttrs('import-snp-report')") &&
-  lensPagesSrc.includes("lensPageActionAttrs('add-manual-snp')") &&
-  lensPagesSrc.includes('Add SNP manually') &&
+  ['import-dna', 'import-snp-report', 'add-manual-snp'].every(action => genomeActionsHTML.includes(`data-lens-page-action="${action}"`)) &&
+  genomeActionsHTML.includes('Add SNP manually') &&
   lensPagesSrc.includes("className: 'genome-lens-header'"));
 const lensShellSrc = await fetchWithRetry('js/lens-page-shell.js');
 assert('Genome lens action delegate opens report and manual SNP flows',
@@ -504,13 +505,14 @@ assert('dashboard genome category groups avoid duplicate direction border',
 assert('dashboard genome SNP rows keep direction left border',
   stylesSrc.includes('.db-snp-risk') && stylesSrc.includes('.db-snp-protective') && stylesSrc.includes('border-left-color: var(--db-snp-tone)'));
 assert('Lens page headers space CTA controls away from header copy',
-  stylesSrc.includes('.lens-page-header .dashboard-widget-inline-controls') &&
-  stylesSrc.includes('margin-top: 14px') &&
-  stylesSrc.includes('column-gap: 14px') &&
-  stylesSrc.includes('row-gap: 10px'));
+  renderLensContent({kind: 'actions', view: projectLensActions('body')}).includes('Connect source') &&
+  (await fetchWithRetry('js/components/LensPageHeader.svelte')).includes('lens-shell-inline-controls') &&
+  (await fetchWithRetry('js/lens-shell-classes.ts')).includes('gb:lens-shell:[margin-top:14px]') &&
+  (await fetchWithRetry('js/lens-shell-classes.ts')).includes('gb:lens-shell:[column-gap:14px]') &&
+  (await fetchWithRetry('js/lens-shell-classes.ts')).includes('gb:lens-shell:[row-gap:10px]'));
 assert('Genome lens header keeps affiliate link on its own row',
-  stylesSrc.includes('.genome-lens-header .lens-header-affiliate') &&
-  stylesSrc.includes('flex-basis: 100%'));
+  genomeActionsHTML.includes('lens-header-affiliate') &&
+  genomeActionsHTML.includes('gb:lens-content:[flex-basis:100%]'));
 
 const dnaSrc = await fetchWithRetry('js/dna.js');
 const dnaUiSrc = await fetchWithRetry('js/dna-ui.js');

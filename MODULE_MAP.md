@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1408 |
-| Internal import edges | 4765 |
+| Modules | 1414 |
+| Internal import edges | 4773 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -65,7 +65,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.ts`](js/utils.ts) | 261 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
+| [`js/utils.ts`](js/utils.ts) | 260 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
 | [`js/state.ts`](js/state.ts) | 245 | [`js/chat-send.ts`](js/chat-send.ts) | 38 |
 | [`js/caught-error.ts`](js/caught-error.ts) | 93 | [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) | 36 |
 | [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts) | 84 | [`js/settings.ts`](js/settings.ts) | 35 |
@@ -555,6 +555,12 @@ Native browser modules shipped with the static application.
 <details><summary><code>body</code> family — 1 module</summary>
 
 - [`js/marker-schema/body-composition.ts`](js/marker-schema/body-composition.ts) → no in-scope imports
+
+</details>
+
+<details><summary><code>BodySources.svelte</code> family — 1 module</summary>
+
+- [`js/components/BodySources.svelte`](js/components/BodySources.svelte) → [`js/lens-content-classes.ts`](js/lens-content-classes.ts)
 
 </details>
 
@@ -1448,6 +1454,12 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>GenomeImportDetails.svelte</code> family — 1 module</summary>
+
+- [`js/components/GenomeImportDetails.svelte`](js/components/GenomeImportDetails.svelte) → [`js/components/LensActionButtons.svelte`](js/components/LensActionButtons.svelte), [`js/lens-content-classes.ts`](js/lens-content-classes.ts)
+
+</details>
+
 <details><summary><code>hardware</code> family — 1 module</summary>
 
 - [`js/hardware.ts`](js/hardware.ts) → no in-scope imports
@@ -1572,10 +1584,12 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>lens</code> family — 19 modules</summary>
+<details><summary><code>lens</code> family — 21 modules</summary>
 
 - [`js/lens-actions.ts`](js/lens-actions.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts)
 - [`js/lens-cache.ts`](js/lens-cache.ts) → [`js/utils.ts`](js/utils.ts)
+- [`js/lens-content-classes.ts`](js/lens-content-classes.ts) → no in-scope imports
+- [`js/lens-content-presentation.ts`](js/lens-content-presentation.ts) → no in-scope imports
 - [`js/lens-knowledge-base-ui.ts`](js/lens-knowledge-base-ui.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/lens-actions.ts`](js/lens-actions.ts), [`js/lens-library.ts`](js/lens-library.ts), [`js/lens-local-parsers.ts`](js/lens-local-parsers.ts) *(dynamic)*, [`js/lens-local.ts`](js/lens-local.ts) *(dynamic)*, [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/lens-library.ts`](js/lens-library.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/lens-local-embedder-config.ts`](js/lens-local-embedder-config.ts) → no in-scope imports
@@ -1588,7 +1602,7 @@ Native browser modules shipped with the static application.
 - [`js/lens-local-worker.ts`](js/lens-local-worker.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/lens-local-embedder-config.ts`](js/lens-local-embedder-config.ts), [`js/lens-local-ingest.ts`](js/lens-local-ingest.ts), [`js/lens-local-library-registry.ts`](js/lens-local-library-registry.ts), [`js/lens-local-store.ts`](js/lens-local-store.ts), [`js/lens-local-utils.ts`](js/lens-local-utils.ts)
 - [`js/lens-local.ts`](js/lens-local.ts) → no in-scope imports
 - [`js/lens-page-shell.ts`](js/lens-page-shell.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/components/LensDashboardToggle.svelte`](js/components/LensDashboardToggle.svelte), [`js/components/LensShellPresentation.svelte`](js/components/LensShellPresentation.svelte), [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/dashboard-widget-copy.ts`](js/dashboard-widget-copy.ts), [`js/dna-runtime-bridge.ts`](js/dna-runtime-bridge.ts), [`js/emf-runtime.ts`](js/emf-runtime.ts), [`js/lens-shell-presentation.ts`](js/lens-shell-presentation.ts), [`js/profile.ts`](js/profile.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/state.ts`](js/state.ts)
-- [`js/lens-pages.ts`](js/lens-pages.ts) → [`js/biology-page-view.ts`](js/biology-page-view.ts), [`js/biology-scores.ts`](js/biology-scores.ts), [`js/data.ts`](js/data.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/lens-pages.ts`](js/lens-pages.ts) → [`js/biology-page-view.ts`](js/biology-page-view.ts), [`js/biology-scores.ts`](js/biology-scores.ts), [`js/components/LensPageContent.svelte`](js/components/LensPageContent.svelte), [`js/data.ts`](js/data.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/lens-content-presentation.ts`](js/lens-content-presentation.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/state.ts`](js/state.ts)
 - [`js/lens-shell-classes.ts`](js/lens-shell-classes.ts) → no in-scope imports
 - [`js/lens-shell-presentation.ts`](js/lens-shell-presentation.ts) → no in-scope imports
 - [`js/lens-url.ts`](js/lens-url.ts) → no in-scope imports
@@ -1596,9 +1610,21 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>LensActionButtons.svelte</code> family — 1 module</summary>
+
+- [`js/components/LensActionButtons.svelte`](js/components/LensActionButtons.svelte) → [`js/lens-content-classes.ts`](js/lens-content-classes.ts)
+
+</details>
+
 <details><summary><code>LensDashboardToggle.svelte</code> family — 1 module</summary>
 
 - [`js/components/LensDashboardToggle.svelte`](js/components/LensDashboardToggle.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>LensPageContent.svelte</code> family — 1 module</summary>
+
+- [`js/components/LensPageContent.svelte`](js/components/LensPageContent.svelte) → [`js/components/BodySources.svelte`](js/components/BodySources.svelte), [`js/components/GenomeImportDetails.svelte`](js/components/GenomeImportDetails.svelte), [`js/components/LensActionButtons.svelte`](js/components/LensActionButtons.svelte)
 
 </details>
 

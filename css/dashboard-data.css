@@ -1092,17 +1092,6 @@ button.db-correlation-empty { cursor: pointer; }
   gap: 7px;
   padding: 0 8px 8px;
 }
-.genome-import-details { display: grid; gap: 10px; }
-.db-genome-import-note {
-  display: grid;
-  gap: 3px;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--bg-secondary) 60%, transparent);
-}
-.db-genome-import-note strong { color: var(--text-primary); font-size: 13px; }
-.db-genome-import-note span { color: var(--text-secondary); font-size: 12px; line-height: 1.4; }
 .db-correlation-widget { display: grid; gap: 12px; }
 .db-correlation-head {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
