@@ -189,15 +189,28 @@ async function waitForOverviewPointerState(page:Page,target:OverviewPointerPlan,
   throw new Error('Real overview pointer synchronization failed '+side+'/'+target.name+'/'+target.index+'/'+pointerState+': '+JSON.stringify(diagnostic),{cause:error});
  }
 }
-async function overviewPointerSnapshot(page:Page,target:OverviewPointerPlan,side:OverviewPointerSide,pointerState:OverviewPointerState):Promise<Record<string,string>>{
- return page.evaluate(({target,side,pointerState,properties})=>{
+async function overviewPointerSnapshot(page:Page,target:OverviewPointerPlan,side:OverviewPointerSide,pointerState:OverviewPointerState,point:{x:number;y:number}):Promise<Record<string,string>>{
+ // Capture in the same frame that observes the genuine pseudo-state. A second
+ // browser callback can otherwise measure after WebKit has changed that state.
+ const handle=await page.waitForFunction(({target,side,pointerState,point,properties})=>{
   const control=document.querySelector('#cycle-overview-parity [data-'+side+']')?.querySelectorAll<HTMLButtonElement>('.cycle-section button')[target.index];
   if(!control)throw new Error('Missing overview pointer snapshot '+side+'/'+target.name+'/'+target.index);
-  if(!control.matches(':hover')||(pointerState==='active'&&!control.matches(':active')))throw new Error('Real overview pointer state absent '+side+'/'+target.name+'/'+target.index+'/'+pointerState);
+  const hit=document.elementFromPoint(point.x,point.y);
+  if(!hit||!(hit===control||control.contains(hit))||!control.matches(':hover')||(pointerState==='active'?!control.matches(':active'):control.matches(':active')))return null;
+  const css=getComputedStyle(control),snapshot=Object.fromEntries(properties.map(property=>[property,css.getPropertyValue(property)]));
+  const measuredHit=document.elementFromPoint(point.x,point.y);
+  if(!measuredHit||!(measuredHit===control||control.contains(measuredHit)))throw new Error('Real overview pointer target changed during capture '+side+'/'+target.name+'/'+target.index+'/'+pointerState);
+  if(!control.matches(':hover')||(pointerState==='active'&&!control.matches(':active')))throw new Error('Real overview pointer state absent during capture '+side+'/'+target.name+'/'+target.index+'/'+pointerState+': '+JSON.stringify({hover:control.matches(':hover'),active:control.matches(':active'),point,rect:control.getBoundingClientRect().toJSON()}));
   if(pointerState==='hover'&&control.matches(':active'))throw new Error('Overview hover snapshot has unexpected active state '+side+'/'+target.name+'/'+target.index);
-  const css=getComputedStyle(control);return Object.fromEntries(properties.map(property=>[property,css.getPropertyValue(property)]));
- },{target,side,pointerState,properties:pointerProperties});
+  return snapshot;
+ },{target,side,pointerState,point,properties:pointerProperties},{polling:'raf',timeout:3000});
+ try{
+  const snapshot=await handle.jsonValue();
+  if(!snapshot)throw new Error('Missing genuine overview pointer snapshot');
+  return snapshot;
+ }finally{await handle.dispose();}
 }
+
 for(const theme of themes){for(const width of [320,1440]){for(const name of pointerSampleNames){for(const pointerState of ['hover','active'] as const){
  test('authored Cycle overview preserves real '+pointerState+' in full and compact wrappers / '+theme+' / '+width+' / '+name,async({page},info)=>{
   test.setTimeout(60000);const samples=overviews().filter(sample=>sample.name===name||sample.name===name+'-dashboard');expect(samples).toHaveLength(2);
@@ -210,8 +223,7 @@ for(const theme of themes){for(const width of [320,1440]){for(const name of poin
     await waitForOverviewPointerState(page,target,side,'hover',point);
     if(pointerState==='active')await page.mouse.down();
     try{
-     if(pointerState==='active')await waitForOverviewPointerState(page,target,side,'active',point);
-     snapshots.push(await overviewPointerSnapshot(page,target,side,pointerState));
+     snapshots.push(await overviewPointerSnapshot(page,target,side,pointerState,point));
     }
     finally{
      // Releasing off the button prevents a real click/delegate. Assert the safe
