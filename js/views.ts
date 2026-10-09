@@ -515,7 +515,7 @@ export function configureDashboardViewFactory(createDashboardView: unknown) {
     getCachedRecommendationsCatalog: (dashboardView as DashboardOperations).getCachedRecommendationsCatalog,
     refreshRecommendationsWhenCatalogReady: (dashboardView as DashboardOperations).refreshRecommendationsWhenCatalogReady,
     getGlobalRecommendationCandidates: (dashboardView as DashboardOperations).getGlobalRecommendationCandidates,
-    renderRecommendationCard: (dashboardView as DashboardOperations).renderRecommendationCard,
+    renderRecommendationList: (dashboardView as DashboardOperations).renderRecommendationList,
     renderRecommendationsEmpty: (dashboardView as DashboardOperations).renderRecommendationsEmpty,
     lensPageActionAttrs,
     renderLensHeader,

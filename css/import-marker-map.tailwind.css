@@ -11,3 +11,5 @@
 @source "../js/components/ImportMarkerMapPresentation.svelte";
 @source "../js/components/ImportMarkerMapCategories.svelte";
 @source "../js/components/ImportMarkerMapResults.svelte";
+
+@import "./import-review.tailwind.css";

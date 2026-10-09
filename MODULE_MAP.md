@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1431 |
-| Internal import edges | 4796 |
+| Modules | 1445 |
+| Internal import edges | 4825 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -65,7 +65,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.ts`](js/utils.ts) | 259 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
+| [`js/utils.ts`](js/utils.ts) | 257 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
 | [`js/state.ts`](js/state.ts) | 245 | [`js/chat-send.ts`](js/chat-send.ts) | 38 |
 | [`js/caught-error.ts`](js/caught-error.ts) | 93 | [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) | 36 |
 | [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts) | 84 | [`js/settings.ts`](js/settings.ts) | 35 |
@@ -1275,7 +1275,7 @@ Native browser modules shipped with the static application.
 - [`js/dashboard-page-view.ts`](js/dashboard-page-view.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/api.ts`](js/api.ts), [`js/chat-backend-selection.ts`](js/chat-backend-selection.ts), [`js/commit-hash.ts`](js/commit-hash.ts), [`js/dashboard-widget-packing.ts`](js/dashboard-widget-packing.ts) *(dynamic)*, [`js/data.ts`](js/data.ts), [`js/export-loader.ts`](js/export-loader.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/mobile-dashboard.ts`](js/mobile-dashboard.ts), [`js/profile.ts`](js/profile.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/state.ts`](js/state.ts), [`js/tour.ts`](js/tour.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/dashboard-picker-classes.ts`](js/dashboard-picker-classes.ts) → no in-scope imports
 - [`js/dashboard-picker-presentation.ts`](js/dashboard-picker-presentation.ts) → [`js/dashboard-widgets.ts`](js/dashboard-widgets.ts)
-- [`js/dashboard-recommendation-widget.ts`](js/dashboard-recommendation-widget.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/biology-scores.ts`](js/biology-scores.ts), [`js/data.ts`](js/data.ts), [`js/light-sun-loader.ts`](js/light-sun-loader.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/profile.ts`](js/profile.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/dashboard-recommendation-widget.ts`](js/dashboard-recommendation-widget.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/biology-scores.ts`](js/biology-scores.ts), [`js/components/RecommendationPresentation.svelte`](js/components/RecommendationPresentation.svelte), [`js/data.ts`](js/data.ts), [`js/light-sun-loader.ts`](js/light-sun-loader.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/profile.ts`](js/profile.ts), [`js/recommendation-presentation.ts`](js/recommendation-presentation.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/dashboard-view-composition.ts`](js/dashboard-view-composition.ts) → [`js/chat-loader.ts`](js/chat-loader.ts), [`js/commit-hash.ts`](js/commit-hash.ts), [`js/dashboard-page-view.ts`](js/dashboard-page-view.ts), [`js/dashboard-widget-controls.ts`](js/dashboard-widget-controls.ts), [`js/dashboard-widget-renderers.ts`](js/dashboard-widget-renderers.ts), [`js/dashboard-widgets.ts`](js/dashboard-widgets.ts), [`js/data.ts`](js/data.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/import-drop-zone.ts`](js/import-drop-zone.ts), [`js/lens-page-shell.ts`](js/lens-page-shell.ts), [`js/light-sun-loader.ts`](js/light-sun-loader.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/marker-detail-modal.ts`](js/marker-detail-modal.ts), [`js/marker-detail-runtime.ts`](js/marker-detail-runtime.ts), [`js/mobile-dashboard.ts`](js/mobile-dashboard.ts), [`js/nav.ts`](js/nav.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/state.ts`](js/state.ts), [`js/views-router-runtime.ts`](js/views-router-runtime.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts)
 - [`js/dashboard-widget-controls.ts`](js/dashboard-widget-controls.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/components/DashboardPickerPresentation.svelte`](js/components/DashboardPickerPresentation.svelte), [`js/dashboard-picker-presentation.ts`](js/dashboard-picker-presentation.ts), [`js/dashboard-widget-copy.ts`](js/dashboard-widget-copy.ts), [`js/dashboard-widget-runtime.ts`](js/dashboard-widget-runtime.ts), [`js/dashboard-widgets.ts`](js/dashboard-widgets.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/dashboard-widget-copy.ts`](js/dashboard-widget-copy.ts) → no in-scope imports
@@ -1511,7 +1511,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>import</code> family — 20 modules</summary>
+<details><summary><code>import</code> family — 22 modules</summary>
 
 - [`js/import-benchmark-classes.ts`](js/import-benchmark-classes.ts) → no in-scope imports
 - [`js/import-benchmark-component.ts`](js/import-benchmark-component.ts) → [`js/components/ImportBenchmarkEntry.svelte`](js/components/ImportBenchmarkEntry.svelte), [`js/components/ImportBenchmarks.svelte`](js/components/ImportBenchmarks.svelte)
@@ -1531,8 +1531,10 @@ Native browser modules shipped with the static application.
 - [`js/import-marker-map-modal.ts`](js/import-marker-map-modal.ts) → [`js/adapters.ts`](js/adapters.ts), [`js/components/ImportMarkerMapCategories.svelte`](js/components/ImportMarkerMapCategories.svelte), [`js/components/ImportMarkerMapPresentation.svelte`](js/components/ImportMarkerMapPresentation.svelte), [`js/components/ImportMarkerMapResults.svelte`](js/components/ImportMarkerMapResults.svelte), [`js/import-marker-map-classes.ts`](js/import-marker-map-classes.ts), [`js/import-marker-map-presentation.ts`](js/import-marker-map-presentation.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/pdf-import-marker-mapping.ts`](js/pdf-import-marker-mapping.ts), [`js/schema.ts`](js/schema.ts)
 - [`js/import-marker-map-presentation.ts`](js/import-marker-map-presentation.ts) → no in-scope imports
 - [`js/import-reference-benchmark.ts`](js/import-reference-benchmark.ts) → [`js/api.ts`](js/api.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/import-benchmarks.ts`](js/import-benchmarks.ts), [`js/import-loader.ts`](js/import-loader.ts), [`js/pdf-import-ai-utils.ts`](js/pdf-import-ai-utils.ts), [`js/pdf-import-marker-mapping.ts`](js/pdf-import-marker-mapping.ts), [`js/schema.ts`](js/schema.ts)
+- [`js/import-review-classes.ts`](js/import-review-classes.ts) → no in-scope imports
 - [`js/import-review-draft.ts`](js/import-review-draft.ts) → no in-scope imports
-- [`js/import-review-row-actions.ts`](js/import-review-row-actions.ts) → [`js/utils.ts`](js/utils.ts)
+- [`js/import-review-presentation.ts`](js/import-review-presentation.ts) → no in-scope imports
+- [`js/import-review-row-actions.ts`](js/import-review-row-actions.ts) → [`js/components/ImportExcludeContent.svelte`](js/components/ImportExcludeContent.svelte), [`js/components/ImportMapControl.svelte`](js/components/ImportMapControl.svelte), [`js/components/ImportReviewRowAction.svelte`](js/components/ImportReviewRowAction.svelte), [`js/import-review-presentation.ts`](js/import-review-presentation.ts)
 
 </details>
 
@@ -1545,6 +1547,18 @@ Native browser modules shipped with the static application.
 <details><summary><code>ImportBenchmarks.svelte</code> family — 1 module</summary>
 
 - [`js/components/ImportBenchmarks.svelte`](js/components/ImportBenchmarks.svelte) → [`js/import-benchmark-classes.ts`](js/import-benchmark-classes.ts)
+
+</details>
+
+<details><summary><code>ImportExcludeContent.svelte</code> family — 1 module</summary>
+
+- [`js/components/ImportExcludeContent.svelte`](js/components/ImportExcludeContent.svelte) → [`js/import-review-classes.ts`](js/import-review-classes.ts)
+
+</details>
+
+<details><summary><code>ImportMapControl.svelte</code> family — 1 module</summary>
+
+- [`js/components/ImportMapControl.svelte`](js/components/ImportMapControl.svelte) → [`js/import-review-classes.ts`](js/import-review-classes.ts)
 
 </details>
 
@@ -1563,6 +1577,42 @@ Native browser modules shipped with the static application.
 <details><summary><code>ImportMarkerMapResults.svelte</code> family — 1 module</summary>
 
 - [`js/components/ImportMarkerMapResults.svelte`](js/components/ImportMarkerMapResults.svelte) → [`js/import-marker-map-classes.ts`](js/import-marker-map-classes.ts)
+
+</details>
+
+<details><summary><code>ImportReviewPresentation.svelte</code> family — 1 module</summary>
+
+- [`js/components/ImportReviewPresentation.svelte`](js/components/ImportReviewPresentation.svelte) → [`js/components/ImportReviewRow.svelte`](js/components/ImportReviewRow.svelte), [`js/import-review-classes.ts`](js/import-review-classes.ts)
+
+</details>
+
+<details><summary><code>ImportReviewRow.svelte</code> family — 1 module</summary>
+
+- [`js/components/ImportReviewRow.svelte`](js/components/ImportReviewRow.svelte) → [`js/components/ImportMapControl.svelte`](js/components/ImportMapControl.svelte), [`js/components/ImportReviewRowAction.svelte`](js/components/ImportReviewRowAction.svelte), [`js/components/ImportReviewStatus.svelte`](js/components/ImportReviewStatus.svelte), [`js/components/ImportUnitControl.svelte`](js/components/ImportUnitControl.svelte), [`js/import-review-classes.ts`](js/import-review-classes.ts)
+
+</details>
+
+<details><summary><code>ImportReviewRowAction.svelte</code> family — 1 module</summary>
+
+- [`js/components/ImportReviewRowAction.svelte`](js/components/ImportReviewRowAction.svelte) → [`js/components/ImportExcludeContent.svelte`](js/components/ImportExcludeContent.svelte), [`js/import-review-classes.ts`](js/import-review-classes.ts)
+
+</details>
+
+<details><summary><code>ImportReviewStatus.svelte</code> family — 1 module</summary>
+
+- [`js/components/ImportReviewStatus.svelte`](js/components/ImportReviewStatus.svelte) → [`js/import-review-classes.ts`](js/import-review-classes.ts)
+
+</details>
+
+<details><summary><code>ImportUnitControl.svelte</code> family — 1 module</summary>
+
+- [`js/components/ImportUnitControl.svelte`](js/components/ImportUnitControl.svelte) → [`js/import-review-classes.ts`](js/import-review-classes.ts)
+
+</details>
+
+<details><summary><code>ImportUnitMenu.svelte</code> family — 1 module</summary>
+
+- [`js/components/ImportUnitMenu.svelte`](js/components/ImportUnitMenu.svelte) → [`js/import-review-classes.ts`](js/import-review-classes.ts)
 
 </details>
 
@@ -2726,9 +2776,9 @@ Native browser modules shipped with the static application.
 - [`js/pdf-import-preflight.ts`](js/pdf-import-preflight.ts) → [`js/adapters.ts`](js/adapters.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/api.ts`](js/api.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/pdf-import-ai-utils.ts`](js/pdf-import-ai-utils.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/pdf-import-progress.ts`](js/pdf-import-progress.ts) → [`js/constants.ts`](js/constants.ts), [`js/pdf-import-review-runtime.ts`](js/pdf-import-review-runtime.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/pdf-import-ratio-units.ts`](js/pdf-import-ratio-units.ts) → no in-scope imports
-- [`js/pdf-import-review-formatting.ts`](js/pdf-import-review-formatting.ts) → [`js/pdf-import-unit-conversions.ts`](js/pdf-import-unit-conversions.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/pdf-import-review-formatting.ts`](js/pdf-import-review-formatting.ts) → [`js/components/ImportUnitControl.svelte`](js/components/ImportUnitControl.svelte), [`js/import-review-presentation.ts`](js/import-review-presentation.ts), [`js/pdf-import-unit-conversions.ts`](js/pdf-import-unit-conversions.ts)
 - [`js/pdf-import-review-runtime.ts`](js/pdf-import-review-runtime.ts) → [`js/data.ts`](js/data.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts)
-- [`js/pdf-import-review.ts`](js/pdf-import-review.ts) → [`js/api.ts`](js/api.ts), [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/import-benchmarks.ts`](js/import-benchmarks.ts), [`js/import-marker-map-modal.ts`](js/import-marker-map-modal.ts), [`js/import-review-draft.ts`](js/import-review-draft.ts), [`js/import-review-row-actions.ts`](js/import-review-row-actions.ts), [`js/lab-entry.ts`](js/lab-entry.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/pdf-import-marker-mapping.ts`](js/pdf-import-marker-mapping.ts), [`js/pdf-import-review-formatting.ts`](js/pdf-import-review-formatting.ts), [`js/pdf-import-review-runtime.ts`](js/pdf-import-review-runtime.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/pdf-import-review.ts`](js/pdf-import-review.ts) → [`js/api.ts`](js/api.ts), [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/components/ImportReviewPresentation.svelte`](js/components/ImportReviewPresentation.svelte), [`js/components/ImportReviewRowAction.svelte`](js/components/ImportReviewRowAction.svelte), [`js/components/ImportReviewStatus.svelte`](js/components/ImportReviewStatus.svelte), [`js/components/ImportUnitMenu.svelte`](js/components/ImportUnitMenu.svelte), [`js/import-benchmarks.ts`](js/import-benchmarks.ts), [`js/import-marker-map-modal.ts`](js/import-marker-map-modal.ts), [`js/import-review-classes.ts`](js/import-review-classes.ts), [`js/import-review-draft.ts`](js/import-review-draft.ts), [`js/import-review-presentation.ts`](js/import-review-presentation.ts), [`js/import-review-row-actions.ts`](js/import-review-row-actions.ts), [`js/lab-entry.ts`](js/lab-entry.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/pdf-import-marker-mapping.ts`](js/pdf-import-marker-mapping.ts), [`js/pdf-import-review-formatting.ts`](js/pdf-import-review-formatting.ts), [`js/pdf-import-review-runtime.ts`](js/pdf-import-review-runtime.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/pdf-import-spreadsheet.ts`](js/pdf-import-spreadsheet.ts) → no in-scope imports
 - [`js/pdf-import-unit-conversions.ts`](js/pdf-import-unit-conversions.ts) → [`js/schema.ts`](js/schema.ts), [`js/secondary-unit-conversions.ts`](js/secondary-unit-conversions.ts)
 - [`js/pdf-import.ts`](js/pdf-import.ts) → [`js/ai-action-dialog-component.ts`](js/ai-action-dialog-component.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/api.ts`](js/api.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/crypto.ts`](js/crypto.ts), [`js/cycle-import.ts`](js/cycle-import.ts), [`js/dna-runtime-bridge.ts`](js/dna-runtime-bridge.ts), [`js/export.ts`](js/export.ts), [`js/import-benchmarks.ts`](js/import-benchmarks.ts), [`js/pdf-import-ai-utils.ts`](js/pdf-import-ai-utils.ts), [`js/pdf-import-commit.ts`](js/pdf-import-commit.ts), [`js/pdf-import-file-handlers.ts`](js/pdf-import-file-handlers.ts), [`js/pdf-import-file-utils.ts`](js/pdf-import-file-utils.ts), [`js/pdf-import-marker-mapping.ts`](js/pdf-import-marker-mapping.ts), [`js/pdf-import-marker-normalization.ts`](js/pdf-import-marker-normalization.ts), [`js/pdf-import-persistence.ts`](js/pdf-import-persistence.ts), [`js/pdf-import-preflight.ts`](js/pdf-import-preflight.ts), [`js/pdf-import-progress.ts`](js/pdf-import-progress.ts), [`js/pdf-import-review.ts`](js/pdf-import-review.ts), [`js/pdf-import-spreadsheet.ts`](js/pdf-import-spreadsheet.ts), [`js/pii.ts`](js/pii.ts), [`js/privacy-safe-diagnostics.ts`](js/privacy-safe-diagnostics.ts), [`js/profile.ts`](js/profile.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/schema.ts`](js/schema.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
@@ -2855,9 +2905,23 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>recommendation</code> family — 1 module</summary>
+<details><summary><code>recommendation</code> family — 3 modules</summary>
 
 - [`js/recommendation-actions.ts`](js/recommendation-actions.ts) → [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/recommendation-cards-classes.ts`](js/recommendation-cards-classes.ts) → no in-scope imports
+- [`js/recommendation-presentation.ts`](js/recommendation-presentation.ts) → no in-scope imports
+
+</details>
+
+<details><summary><code>RecommendationCard.svelte</code> family — 1 module</summary>
+
+- [`js/components/RecommendationCard.svelte`](js/components/RecommendationCard.svelte) → [`js/recommendation-cards-classes.ts`](js/recommendation-cards-classes.ts)
+
+</details>
+
+<details><summary><code>RecommendationPresentation.svelte</code> family — 1 module</summary>
+
+- [`js/components/RecommendationPresentation.svelte`](js/components/RecommendationPresentation.svelte) → [`js/components/RecommendationCard.svelte`](js/components/RecommendationCard.svelte), [`js/recommendation-cards-classes.ts`](js/recommendation-cards-classes.ts)
 
 </details>
 

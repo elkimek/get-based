@@ -47,9 +47,11 @@ const _realFetch = globalThis.fetch;
   const dashboardRecommendationWidgetSrc = await fetchWithRetry('js/dashboard-recommendation-widget.js');
   await fetchWithRetry('js/context-cards.js');
   const navSrc = await fetchWithRetry('js/nav.js');
-  const lensPagesSrc = await fetchWithRetry('js/lens-pages.js');
   const settingsSrc = await fetchWithRetry('js/settings.js');
   const settingsDisplaySrc = await fetchWithRetry('js/components/DisplaySettings.svelte');
+  const recommendationCardSrc = await fetchWithRetry('js/components/RecommendationCard.svelte');
+  const lensActionButtonsSrc = await fetchWithRetry('js/components/LensActionButtons.svelte');
+  const lensContentPresentationSrc = await fetchWithRetry('js/lens-content-presentation.js');
   const chatSystemPromptSrc = await fetchWithRetry('js/chat-system-prompt.js');
   const swSrc = await readServiceWorkerSource(relative => fetchWithRetry(relative));
 
@@ -285,13 +287,16 @@ const _realFetch = globalThis.fetch;
     !dashboardRecommendationWidgetSrc.includes("from './settings-runtime-bridge.js'") &&
     !dashboardRecommendationWidgetSrc.includes('globalThis'));
   assert('hidden tips render a Show action',
-    dashboardRecommendationWidgetSrc.includes("candidate.dismissed ? 'Show' : 'Hide'") &&
-    dashboardRecommendationWidgetSrc.includes("dashboardRecommendationActionAttrs('dismiss'") &&
-    dashboardRecommendationWidgetSrc.includes("on: candidate.dismissed ? 'false' : 'true'"));
+    recommendationCardSrc.includes("card.dismissed ? 'Show' : 'Hide'") &&
+    recommendationCardSrc.includes('data-dashboard-rec-action="dismiss"') &&
+    recommendationCardSrc.includes("data-dashboard-rec-on={card.dismissed ? 'false' : 'true'}"));
   assert('dismissRecommendation can restore a dismissed recommendation',
     /function dismissRecommendation\(id, on = true\)[\s\S]{0,120}setRecommendationState\('dismissed', id, !!on\)/.test(recommendationActionsSrc));
   assert('Recommendations page header directly toggles its dashboard widget',
-    lensPagesSrc.includes("lensPageActionAttrs(dashboardAction, { id: 'recommendations' })") &&
+    lensActionButtonsSrc.includes('data-lens-page-action={button.action}') &&
+    lensActionButtonsSrc.includes('data-lens-page-id={button.id}') &&
+    lensContentPresentationSrc.includes("options.recommendationsVisible ? 'remove-dashboard-widget' : 'add-dashboard-widget'") &&
+    lensContentPresentationSrc.includes("id: 'recommendations'") &&
     !viewsSrc.includes("openDashboardWidgetPicker && window.openDashboardWidgetPicker()\">Add to Dashboard"));
 
   // ═══════════════════════════════════════

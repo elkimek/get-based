@@ -39,7 +39,7 @@ type LensDependencyOperations = {
   getCachedRecommendationsCatalog: () => unknown;
   refreshRecommendationsWhenCatalogReady: () => unknown;
   getGlobalRecommendationCandidates: (ctx: unknown, catalog: unknown, options?: {includeDismissed: boolean}) => CandidateOperations[];
-  renderRecommendationCard: (candidate: CandidateOperations) => unknown;
+  renderRecommendationList: (candidates: readonly CandidateOperations[]) => string;
   renderRecommendationsEmpty: () => unknown;
   lensPageActionAttrs: (...args: Parameters<Shell['lensPageActionAttrs']>) => unknown;
   renderLensHeader: (...args: Parameters<Shell['renderLensHeader']>) => unknown;
@@ -88,7 +88,7 @@ export function createLensPageHandlers(deps: unknown) {
     getCachedRecommendationsCatalog,
     refreshRecommendationsWhenCatalogReady,
     getGlobalRecommendationCandidates,
-    renderRecommendationCard,
+    renderRecommendationList,
     renderRecommendationsEmpty,
     lensPageActionAttrs,
     renderLensHeader,
@@ -205,18 +205,18 @@ export function createLensPageHandlers(deps: unknown) {
     }
     const widgets: LensWidgetInput[] = [];
     if (top.length) {
-      widgets.push({ id: 'recommendations-top', title: 'Tips to Explore', description: 'Ideas selected from the context currently available', body: `<div class="rec-next-list">${top.map(c => renderRecommendationCard(c)).join('')}</div>`, size: 'full', opts: { source: 'Insight', dashboardId: 'recommendations' } });
+      widgets.push({ id: 'recommendations-top', title: 'Tips to Explore', description: 'Ideas selected from the context currently available', body: renderRecommendationList(top), size: 'full', opts: { source: 'Insight', dashboardId: 'recommendations' } });
     }
     for (const source of ['Labs', 'Body', 'Light', 'Genome', 'Insight']) {
       const rows = (bySource.get(source) || []).filter(c => !top.includes(c));
       if (!rows.length) continue;
-      widgets.push({ id: `recommendations-${source.toLowerCase()}`, title: `${source} Context`, description: `General-information tips surfaced from ${source}`, body: `<div class="rec-next-list">${rows.map(c => renderRecommendationCard(c)).join('')}</div>`, size: 'full', opts: { source: 'Tips', dashboardId: '' } });
+      widgets.push({ id: `recommendations-${source.toLowerCase()}`, title: `${source} Context`, description: `General-information tips surfaced from ${source}`, body: renderRecommendationList(rows), size: 'full', opts: { source: 'Tips', dashboardId: '' } });
     }
     if (saved.length) {
-      widgets.push({ id: 'recommendations-bookmarks', title: 'Bookmarks', description: 'Tips bookmarked for later review', body: `<div class="rec-next-list">${saved.map(c => renderRecommendationCard(c)).join('')}</div>`, size: 'full', opts: { source: 'Tips', dashboardId: '' } });
+      widgets.push({ id: 'recommendations-bookmarks', title: 'Bookmarks', description: 'Tips bookmarked for later review', body: renderRecommendationList(saved), size: 'full', opts: { source: 'Tips', dashboardId: '' } });
     }
     if (dismissed.length) {
-      widgets.push({ id: 'recommendations-dismissed', title: 'Hidden', description: 'Tips you have hidden from the active view', body: `<div class="rec-next-list">${dismissed.map(c => renderRecommendationCard(c)).join('')}</div>`, size: 'full', opts: { source: 'Tips', dashboardId: '' } });
+      widgets.push({ id: 'recommendations-dismissed', title: 'Hidden', description: 'Tips you have hidden from the active view', body: renderRecommendationList(dismissed), size: 'full', opts: { source: 'Tips', dashboardId: '' } });
     }
     return renderLensPageWidgets('recommendations', widgets);
   }

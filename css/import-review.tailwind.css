@@ -1,0 +1,18 @@
+/* Authored laboratory review and its external unit popup. Shared Cycle/import owners remain independent. */
+@import "tailwindcss/theme.css" layer(gb-theme) prefix(gb);
+@import "tailwindcss/utilities.css" prefix(gb) source(none);
+@import "./ui-tokens.tailwind.css";
+@custom-variant review-ui (&:where([data-import-review-view], [data-import-review-view] *));
+@custom-variant review-modal-id (:where(&):is(#import-modal));
+@custom-variant review-collection-id (:where(&):is(#import-manual-date, #import-sample-time, #import-fasting));
+@custom-variant review-hover (&:hover);
+@custom-variant review-phone (@media (max-width: 768px));
+@source "../js/import-review-classes.ts";
+@source "../js/components/ImportReviewPresentation.svelte";
+@source "../js/components/ImportReviewRow.svelte";
+@source "../js/components/ImportUnitControl.svelte";
+@source "../js/components/ImportMapControl.svelte";
+@source "../js/components/ImportReviewRowAction.svelte";
+@source "../js/components/ImportExcludeContent.svelte";
+@source "../js/components/ImportReviewStatus.svelte";
+@source "../js/components/ImportUnitMenu.svelte";

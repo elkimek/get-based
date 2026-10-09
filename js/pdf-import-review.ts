@@ -3,7 +3,7 @@ import type { ImportReviewMarker, PendingImport } from './pdf-import-review-runt
 // Import review modal rendering and interaction state
 import { state } from './state.js';
 import { formatCost } from './schema.js';
-import { escapeHTML, showNotification, isDebugMode } from './utils.js';
+import { showNotification, isDebugMode } from './utils.js';
 import { shouldHideAppExtensionAIUsage } from './app-extension-runtime.js';
 import {
   getAIProvider,
@@ -13,6 +13,13 @@ import {
   getActiveModelDisplay,
   getOllamaPIIModel,
 } from './api.js';
+import {renderHTML as renderImportReview} from './components/ImportReviewPresentation.svelte.html.js';
+import {renderHTML as renderImportUnitMenu} from './components/ImportUnitMenu.svelte.html.js';
+import {renderHTML as renderImportReviewStatus} from './components/ImportReviewStatus.svelte.html.js';
+import {renderHTML as renderImportReviewRowAction} from './components/ImportReviewRowAction.svelte.html.js';
+import {projectImportReviewPresentation, projectImportReviewRow, projectImportUnitMenu} from './import-review-presentation.js';
+import type {ImportReviewPresentationInput} from './import-review-presentation.js';
+import {importReviewClasses} from './import-review-classes.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import {
   buildMarkerReference,
@@ -62,10 +69,6 @@ function restoreDropZoneVisibility() {
 
 function hideImportOverlay() {
   closeModalOverlay('import-modal-overlay');
-}
-
-function importReviewActionAttrs(action: string, extra = '') {
-  return `data-import-review-action="${action}"${extra ? ` ${extra}` : ''}`;
 }
 
 function closestImportReviewElement(target: EventTarget | null, selector: string) {
@@ -309,16 +312,16 @@ function openImportUnitPicker(button: HTMLElement) {
 
   closeImportUnitPicker();
   const menu = document.createElement('div');
-  menu.className = 'import-unit-menu';
+  menu.className = importReviewClasses('import-unit-menu');
+  menu.setAttribute('data-import-review-view', '');
   menu.setAttribute('role', 'listbox');
   menu.setAttribute('aria-label', `Unit for ${marker.rawName || 'marker'}`);
   menu.setAttribute('data-marker-idx', String(idx));
-  menu.innerHTML = units.map((unit, optionIdx) => {
+  menu.innerHTML = renderImportUnitMenu({options: projectImportUnitMenu(units.map((unit, optionIdx) => {
     const selected = unit === currentUnit || (!currentUnit && optionIdx === 0);
     const disabled = unitOptions.schemaBacked && optionIdx === 0 && currentUnit && !unitOptions.units.includes(currentUnit);
-    const label = unit || 'No unit';
-    return `<button type="button" class="import-unit-option" data-import-unit-option="${escapeHTML(unit)}" data-marker-idx="${idx}" role="option" aria-selected="${selected ? 'true' : 'false'}"${disabled ? ' disabled' : ''}>${escapeHTML(label)}</button>`;
-  }).join('');
+    return {unit, index: idx, selected, disabled: Boolean(disabled)};
+  }))});
   document.body.append(menu);
   positionImportUnitMenu(button, menu);
   button.setAttribute('aria-expanded', 'true');
@@ -369,22 +372,8 @@ function openImportMarkerMapPicker(controlEl: HTMLElement) {
   });
 }
 
-function renderImportReviewRow(m: ImportReviewMarker, origIdx: number, status: 'matched' | 'new' | 'unmatched') {
-  const labRange = formatImportLabRange(m);
-  const pad = status === 'unmatched' ? '  ' : '';
-  const dotClass = status === 'new' ? 'new-marker' : status;
-  const label = status === 'matched' ? 'Matched' : status === 'new' ? 'New' : 'Unmatched';
-  return `<tr data-import-idx="${origIdx}" data-import-status="${status}">
-      ${pad}<td class="import-status-cell ${dotClass}" data-label="Status"><span class="import-status-dot" title="${label}" role="img" aria-label="${label}"></span></td>
-      ${pad}<td class="import-name-cell" data-label="Test name">${escapeHTML(m.rawName)}</td>
-      ${pad}<td data-label="Value">
-        ${pad}<input type="number" step="any" class="import-value-input" data-marker-idx="${origIdx}" value="${escapeHTML(String(m.value))}" ${importReviewActionAttrs('edit-value')} aria-label="Value for ${escapeHTML(m.rawName)}">
-      ${pad}</td>
-      ${pad}<td data-label="Unit">${renderUnitSelect(m, origIdx)}</td>
-      ${pad}<td class="import-range-cell" data-label="Lab range">${escapeHTML(labRange || '—')}</td>
-      ${pad}<td class="import-map-cell" data-label="Maps to">${status === 'matched' ? escapeHTML(m.mappedKey) : renderImportMapInput(m, origIdx)}</td>
-      ${pad}<td class="import-row-action${status === 'unmatched' ? '' : ' import-row-action-btn'}" data-label="Action">${status === 'unmatched' ? '<span class="import-skip-note">Skipped unless mapped</span>' : renderImportExcludeButton(m.rawName)}</td>
-    ${pad}</tr>`;
+function prepareImportReviewRow(m: ImportReviewMarker, origIdx: number, status: 'matched' | 'new' | 'unmatched') {
+  return projectImportReviewRow(m, origIdx, status, {labRange: formatImportLabRange(m), unitOptions: getImportUnitOptions(m)});
 }
 
 export function showImportPreview(parseResult: PendingImport) {
@@ -402,84 +391,15 @@ export function showImportPreview(parseResult: PendingImport) {
   const fasting = normalizeLabFastingStatus(parseResult.fasting);
   parseResult.sampleTime = sampleTime || null;
   parseResult.fasting = fasting;
-  modal.className = 'modal import-preview-modal';
-  let html = `<div class="gb-modal-head import-preview-head">
-    <div>
-      <div class="gb-modal-kicker">${escapeHTML(batchLabel)}</div>
-      <div class="gb-modal-title">Review &amp; Edit Import</div>
-    </div>
-    <button type="button" class="modal-close" ${importReviewActionAttrs('close')} aria-label="Close import review">&times;</button>
-  </div>
-  <div class="gb-form-body import-review-body">
-    <div class="import-review-summary">
-      <div class="import-review-file">
-        <span class="import-review-label">File</span>
-        <strong>${escapeHTML(fileName)}</strong>
-      </div>
-      <div class="import-review-file">
-        <span class="import-review-label">Collection date</span>
-        <input type="date" id="import-manual-date" value="${escapeHTML(date || '')}" ${importReviewActionAttrs('manual-date')} aria-label="Collection date">
-      </div>
-      <div class="import-review-file">
-        <span class="import-review-label">Collection time</span>
-        <input type="time" id="import-sample-time" value="${escapeHTML(sampleTime)}" ${importReviewActionAttrs('manual-sample-time')} aria-label="Blood collection time">
-        <small>Draw time only — not received, processed, or report time.</small>
-      </div>
-      <div class="import-review-file">
-        <span class="import-review-label">Fasting status</span>
-        <select id="import-fasting" ${importReviewActionAttrs('manual-fasting')} aria-label="Fasting status">
-          <option value="unknown"${fasting === null ? ' selected' : ''}>Unknown</option>
-          <option value="fasting"${fasting === true ? ' selected' : ''}>Fasting</option>
-          <option value="not-fasting"${fasting === false ? ' selected' : ''}>Not fasting</option>
-        </select>
-      </div>
-      <div class="import-review-stats" aria-label="Import mapping summary">
-        <span class="import-review-stat import-review-stat-matched"><strong>${matched.length}</strong> matched</span>
-        <span class="import-review-stat import-review-stat-new"><strong>${newMarkers.length}</strong> new</span>
-        <span class="import-review-stat import-review-stat-unmatched"><strong>${unmatched.length}</strong> unmatched</span>
-      </div>
-    </div>`;
+  modal.className = importReviewClasses('modal import-preview-modal');
+  modal.setAttribute('data-import-review-view', '');
   const unmatchedRatio = markers.length > 0 ? unmatched.length / markers.length : 0;
-  if (unmatchedRatio > 0.4 && unmatched.length > 10) {
-    html += `<div class="import-review-warning">
-      A large portion of markers couldn't be mapped. This lab report may not be well supported yet — review the results below carefully before importing.
-      You can <a href="https://github.com/elkimek/get-based/issues" target="_blank" rel="noopener">request support</a> for this lab on GitHub.</div>`;
-  }
-  if (!date) {
-    html += `<div class="import-review-warning import-review-date-warning">
-      Could not extract collection date from PDF. Please set it above before importing.</div>`;
-  }
-
   const refLookup = buildMarkerReference();
-
-  html += `<div class="import-review-controls">
-    <div class="import-filter-group" role="group" aria-label="Filter import rows">
-      <button type="button" class="import-filter-btn active" data-filter="all" ${importReviewActionAttrs('filter')}>All</button>
-      <button type="button" class="import-filter-btn" data-filter="matched" ${importReviewActionAttrs('filter')}>Matched</button>
-      <button type="button" class="import-filter-btn" data-filter="new" ${importReviewActionAttrs('filter')}>New</button>
-      <button type="button" class="import-filter-btn" data-filter="unmatched" ${importReviewActionAttrs('filter')}>Unmatched</button>
-      <button type="button" class="import-filter-btn" data-filter="excluded" ${importReviewActionAttrs('filter')}>Excluded</button>
-    </div>
-    <label class="import-review-search-wrap">
-      <span class="sr-only">Search import rows</span>
-      <input type="search" id="import-review-search" class="import-review-search" placeholder="Search markers" ${importReviewActionAttrs('search')} autocomplete="off">
-    </label>
-    <span class="import-visible-count" id="import-visible-count" aria-live="polite"></span>
-  </div>`;
-
-  html += '<div class="import-table-wrap"><table class="import-table"><thead><tr><th class="import-state-heading" aria-label="Status"></th><th>Test Name</th><th>Value</th><th>Unit</th><th>Lab Range</th><th>Maps To</th><th>Action</th></tr></thead><tbody>';
-  for (const m of matched) {
-    html += renderImportReviewRow(m, markers.indexOf(m), 'matched');
-  }
-  for (const m of newMarkers) {
-    html += renderImportReviewRow(m, markers.indexOf(m), 'new');
-  }
-  if (unmatched.length > 0) {
-    for (const m of unmatched) {
-      html += renderImportReviewRow(m, markers.indexOf(m), 'unmatched');
-    }
-  }
-  html += '</tbody></table></div>';
+  const rows = [
+    ...matched.map(m => prepareImportReviewRow(m, markers.indexOf(m), 'matched')),
+    ...newMarkers.map(m => prepareImportReviewRow(m, markers.indexOf(m), 'new')),
+    ...unmatched.map(m => prepareImportReviewRow(m, markers.indexOf(m), 'unmatched')),
+  ];
 
   let rangesDiffCount = 0;
   for (const m of matched) {
@@ -493,52 +413,46 @@ export function showImportPreview(parseResult: PendingImport) {
       rangesDiffCount++;
     }
   }
-  if (rangesDiffCount > 0) {
-    const rangeChoiceChecked = parseResult._adoptReferenceRanges !== false ? ' checked' : '';
-    html += `<label class="import-range-option">
-      <input type="checkbox" id="import-adopt-ranges"${rangeChoiceChecked}>
-      <span><strong>Use reference ranges from this report</strong><small>${rangesDiffCount} marker${rangesDiffCount !== 1 ? 's' : ''} differ from the current ranges. Lab-specific intervals are preferred; uncheck to keep the current ranges.</small></span></label>`;
-  }
-
+  let privacy: ImportReviewPresentationInput['privacy'] = null;
   if (parseResult.privacyMethod?.startsWith('ollama')) {
-    html += `<div class="privacy-notice privacy-notice-success">&#128274; Personal information scrubbed by local AI${parseResult.privacyMethod === 'ollama+review' ? ' (reviewed)' : ''}</div>`;
+    privacy = {kind: 'local', reviewed: parseResult.privacyMethod === 'ollama+review'};
   } else if (parseResult.privacyMethod === 'regex') {
-    html += `<div class="privacy-notice privacy-notice-warning">&#128274; ${parseResult.privacyReplacements} personal detail${parseResult.privacyReplacements !== 1 ? 's' : ''} replaced with fake data`;
-    html += '<span class="privacy-notice-detail">Set up Local AI in Settings for comprehensive language-aware protection</span></div>';
+    privacy = {kind: 'regex', replacements: parseResult.privacyReplacements};
   }
+  let cost: ImportReviewPresentationInput['cost'] = null;
   if (parseResult.costInfo && typeof parseResult.costInfo.cost === 'number'
     && !shouldHideAppExtensionAIUsage(parseResult.costInfo.provider)) {
     const ci = parseResult.costInfo;
     const totalTokens = (ci.inputTokens || 0) + (ci.outputTokens || 0);
     const modelLabel = ci.provider === 'ollama' ? getOllamaMainModel() : ci.provider === 'venice' ? getVeniceModelDisplay() : ci.provider === 'openrouter' ? getOpenRouterModelDisplay() : getActiveModelDisplay();
-    html += `<div class="import-cost-note">\ud83d\udcca ${escapeHTML(modelLabel)} \u00b7 ${totalTokens.toLocaleString()} tokens \u00b7 ${formatCost(ci.cost!)}</div>`;
+    cost = {model: modelLabel, tokens: totalTokens.toLocaleString(), cost: formatCost(ci.cost!)};
   }
+  let debug: ImportReviewPresentationInput['debug'] = null;
+  let privacyDetails = false;
   if (isDebugMode()) {
     const t = parseResult.timings;
     if (t) {
       const piiLabel = parseResult.privacyMethod?.startsWith('ollama') ? `PII: ${t.pii}s (${getOllamaPIIModel()})` : 'PII: regex';
       const provider = getAIProvider();
       const modelLabel = provider === 'ollama' ? getOllamaMainModel() : provider === 'venice' ? getVeniceModelDisplay() : provider === 'openrouter' ? getOpenRouterModelDisplay() : getActiveModelDisplay();
-      html += `<div class="import-debug-note">&#9202; ${escapeHTML(piiLabel)} &nbsp;|&nbsp; Analysis: ${escapeHTML(t.analysis)}s (${escapeHTML(modelLabel)})</div>`;
+      debug = {piiLabel, analysis: t.analysis, model: modelLabel};
     }
-    if (parseResult.privacyOriginal && parseResult.privacyObfuscated) {
-      html += `<button type="button" class="import-btn import-btn-secondary import-privacy-details-btn" ${importReviewActionAttrs('privacy-details')}>&#128269; View privacy details</button>`;
-    }
+    if (parseResult.privacyOriginal && parseResult.privacyObfuscated) privacyDetails = true;
   }
-
   const cancelLabel = batchCtx ? 'Skip' : 'Cancel';
-  const importDisabled = !date ? ' disabled' : '';
   const confirmLabel = parseResult._reReviewSnapshotId
     ? `Update Import (${importCount} Marker${importCount !== 1 ? 's' : ''})`
     : `Import ${importCount} Marker${importCount !== 1 ? 's' : ''}`;
-  html += `</div>
-    <div class="import-review-actions">
-      <button type="button" class="import-btn import-btn-secondary" ${importReviewActionAttrs('close')}>${cancelLabel}</button>
-      <button type="button" class="import-btn import-btn-primary" id="import-confirm-btn" ${importReviewActionAttrs('confirm')}${importDisabled}>${confirmLabel}</button>
-    </div>`;
+  const view: ImportReviewPresentationInput = {
+    batchLabel, fileName, date, sampleTime, fasting,
+    counts: {matched: matched.length, new: newMarkers.length, unmatched: unmatched.length}, rows,
+    unmatchedWarning: unmatchedRatio > 0.4 && unmatched.length > 10, dateWarning: !date,
+    ranges: rangesDiffCount > 0 ? {count: rangesDiffCount, checked: parseResult._adoptReferenceRanges !== false} : null,
+    privacy, cost, debug, privacyDetails, cancelLabel, confirmLabel, confirmDisabled: !date,
+  };
   if (!parseResult._importProfileId) parseResult._importProfileId = state.currentProfile;
   setPendingImportRuntime(parseResult, refLookup);
-  modal.innerHTML = html;
+  modal.innerHTML = renderImportReview({view: projectImportReviewPresentation(view)});
   openModalOverlay(overlay, { scrollLock: true });
   restoreExcludedImportRows(parseResult);
   updateImportConfirmCount();
@@ -596,8 +510,8 @@ function applyImportMarkerMapping(controlEl: HTMLElement, key: string) {
     if (key) {
       row.dataset.importStatus = 'matched';
       if (statusCell) {
-        statusCell.className = 'import-status-cell matched';
-        statusCell.innerHTML = '<span class="import-status-dot" title="Matched" role="img" aria-label="Matched"></span>';
+        statusCell.className = importReviewClasses('import-status-cell matched');
+        statusCell.innerHTML = renderImportReviewStatus({status: 'matched'});
       }
       if (unitCell) unitCell.innerHTML = renderUnitSelect(marker, idx);
       if (mapCell) mapCell.innerHTML = renderImportMapInput(marker, idx);
@@ -609,8 +523,8 @@ function applyImportMarkerMapping(controlEl: HTMLElement, key: string) {
       row.dataset.importStatus = 'new';
       row.classList.remove('import-excluded');
       if (statusCell) {
-        statusCell.className = 'import-status-cell new-marker';
-        statusCell.innerHTML = '<span class="import-status-dot" title="New" role="img" aria-label="New"></span>';
+        statusCell.className = importReviewClasses('import-status-cell new-marker');
+        statusCell.innerHTML = renderImportReviewStatus({status: 'new'});
       }
       if (unitCell) unitCell.innerHTML = renderUnitSelect(marker, idx);
       if (mapCell) mapCell.innerHTML = renderImportMapInput(marker, idx);
@@ -622,13 +536,13 @@ function applyImportMarkerMapping(controlEl: HTMLElement, key: string) {
       row.dataset.importStatus = 'unmatched';
       row.classList.remove('import-excluded');
       if (statusCell) {
-        statusCell.className = 'import-status-cell unmatched';
-        statusCell.innerHTML = '<span class="import-status-dot" title="Unmatched" role="img" aria-label="Unmatched"></span>';
+        statusCell.className = importReviewClasses('import-status-cell unmatched');
+        statusCell.innerHTML = renderImportReviewStatus({status: 'unmatched'});
       }
       if (mapCell) mapCell.innerHTML = renderImportMapInput(marker, idx);
       if (actionCell) {
         actionCell.classList.remove('import-row-action-btn');
-        actionCell.innerHTML = '<span class="import-skip-note">Skipped unless mapped</span>';
+        actionCell.innerHTML = renderImportReviewRowAction({skipped: true});
       }
     }
   }

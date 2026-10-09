@@ -1,7 +1,8 @@
 import type { ImportReviewMarker } from './pdf-import-review-runtime.js';
 // pdf-import-review-formatting.js — unit controls, ranges, and picker positioning
 
-import { escapeHTML } from './utils.js';
+import {renderHTML as renderImportUnitControl} from './components/ImportUnitControl.svelte.html.js';
+import {projectImportUnitControl} from './import-review-presentation.js';
 import { GENERIC_IMPORT_UNITS, getValidUnitsForMarker } from './pdf-import-unit-conversions.js';
 
 export function getImportUnitOptions(marker: ImportReviewMarker) {
@@ -16,22 +17,7 @@ export function getImportUnitOptions(marker: ImportReviewMarker) {
 // picker; custom markers keep text editing plus the same picker as an assist.
 export function renderUnitSelect(marker: ImportReviewMarker, idx: number) {
   const unitOptions = getImportUnitOptions(marker);
-  const currentUnit = marker.unit || '';
-
-  if (!unitOptions.schemaBacked) {
-    return `<div class="import-unit-combo">
-      <input type="text" class="import-unit-input import-unit-text" data-marker-idx="${idx}" value="${escapeHTML(currentUnit)}" data-import-review-action="edit-unit" aria-label="Unit for ${escapeHTML(marker.rawName)}" autocomplete="off">
-      <button type="button" class="import-unit-picker-btn" data-marker-idx="${idx}" data-import-review-action="unit-picker" aria-haspopup="listbox" aria-expanded="false" title="Choose common unit" aria-label="Choose common unit for ${escapeHTML(marker.rawName)}">
-        <span class="import-unit-button-caret" aria-hidden="true">\u25be</span>
-      </button>
-    </div>`;
-  }
-
-  const displayUnit = currentUnit || unitOptions.units[0] || '';
-  return `<button type="button" class="import-unit-input import-unit-button" data-marker-idx="${idx}" data-import-review-action="unit-picker" aria-haspopup="listbox" aria-expanded="false" title="${escapeHTML(displayUnit)}" aria-label="Unit for ${escapeHTML(marker.rawName)}">
-    <span class="import-unit-button-text">${escapeHTML(displayUnit)}</span>
-    <span class="import-unit-button-caret" aria-hidden="true">\u25be</span>
-  </button>`;
+  return renderImportUnitControl({view: projectImportUnitControl(marker, idx, unitOptions)});
 }
 
 

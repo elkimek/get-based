@@ -5,8 +5,10 @@ import { getActiveData } from './data.js';
 import { getEffectiveRangeForDate, getLatestValueIndex } from './marker-analysis.js';
 import { computeBiologyScores } from './biology-scores.js';
 import { profileStorageKey } from './profile.js';
-import { escapeAttr, escapeHTML, formatValue, getStatus } from './utils.js';
+import { formatValue, getStatus } from './utils.js';
 import { actionAttributes } from './action-attributes.js';
+import {projectRecommendationCard, projectRecommendationEmpty, projectRecommendationList} from './recommendation-presentation.js';
+import {renderHTML as renderRecommendationPresentation} from './components/RecommendationPresentation.svelte.html.js';
 import {
   getRecommendationModuleFunction,
   getRecommendationsCatalogCache,
@@ -295,56 +297,29 @@ export function createDashboardRecommendationWidget({
   }
 
   function renderRecommendationCard(candidate: RecRenderCandidate, { compact = false }: {compact?:unknown} = {}) {
-    const savedClass = candidate.saved ? ' is-saved' : '';
-    const primaryAction = candidate.primaryAction ? `<div class="rec-next-primary"><span class="rec-next-primary-label">Example to explore</span>${escapeHTML(candidate.primaryAction)}</div>` : '';
-    const markerBtn = candidate.markerId
-      ? `<button type="button" class="dashboard-action-btn" ${dashboardRecommendationActionAttrs('view-marker', { 'marker-id': candidate.markerId })}>View marker</button>`
-      : '';
-    const saveLabel = candidate.saved ? 'Bookmarked' : 'Bookmark';
-    const dismissLabel = candidate.dismissed ? 'Show' : 'Hide';
-    return `<article class="rec-next-card${compact ? ' rec-next-card-compact' : ''}${savedClass}" data-rec-id="${escapeAttr(candidate.id)}">
-      <div class="rec-next-head">
-        <span class="rec-next-source">${escapeHTML(candidate.source)}</span>
-        <strong>${escapeHTML(candidate.label)}</strong>
-      </div>
-      <div class="rec-next-reason">${escapeHTML(candidate.reason || '')}</div>
-      ${candidate.meta ? `<div class="rec-next-meta">${escapeHTML(candidate.meta)}</div>` : ''}
-      ${compact ? '' : primaryAction}
-      <div class="rec-next-actions">
-        <button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${dashboardRecommendationActionAttrs('open-detail', { 'slot-key': candidate.slotKey, label: candidate.label, 'marker-status': candidate.markerStatus || '' })}>View options</button>
-        ${markerBtn}
-        <button type="button" class="dashboard-action-btn" ${dashboardRecommendationActionAttrs('discuss', { id: candidate.id })}>Discuss</button>
-        <button type="button" class="dashboard-action-btn" ${dashboardRecommendationActionAttrs('save', { id: candidate.id, on: candidate.saved ? 'false' : 'true' })}>${saveLabel}</button>
-        ${compact ? '' : `<button type="button" class="dashboard-action-btn" ${dashboardRecommendationActionAttrs('dismiss', { id: candidate.id, on: candidate.dismissed ? 'false' : 'true' })}>${dismissLabel}</button>`}
-      </div>
-    </article>`;
+    return renderRecommendationPresentation({view: {kind: 'card', card: projectRecommendationCard(candidate, compact)}});
+  }
+
+  function renderRecommendationList(candidates: readonly RecRenderCandidate[]) {
+    return renderRecommendationPresentation({view: {kind: 'list', cards: projectRecommendationList(candidates)}});
   }
 
   function renderRecommendationsEmpty(message: unknown = 'No data-linked tips yet.') {
-    return `<button type="button" class="db-correlation-empty" ${dashboardRecommendationActionAttrs('navigate', { route: 'labs' })}>
-      <strong>${escapeHTML(message)}</strong>
-      <span>Import labs, connect body data, log light exposure, or add DNA to surface optional general-information tips.</span>
-    </button>`;
+    return renderRecommendationPresentation({view: {kind: 'empty', empty: projectRecommendationEmpty(message)}});
   }
 
   function renderDashboardRecommendationsWidget(ctx: unknown) {
     if (!getRecommendationModuleFunction('isProductRecsEnabled')?.()) {
-      return `<button type="button" class="db-correlation-empty" ${dashboardRecommendationActionAttrs('open-privacy-settings')}>
-        <strong>Tips are off</strong>
-        <span>Enable Tips in settings to show optional general-information ideas linked to your data.</span>
-      </button>`;
+      return renderRecommendationPresentation({view: {kind: 'disabled'}});
     }
     const catalog = getCachedRecommendationsCatalog() as RecCatalogReader | null;
     if (!catalog) {
       refreshRecommendationsWhenCatalogReady();
-      return `<div class="dashboard-widget-empty">Loading tips...</div>`;
+      return renderRecommendationPresentation({view: {kind: 'loading'}});
     }
     const candidates = getGlobalRecommendationCandidates(ctx, catalog).slice(0, 3);
     if (!candidates.length) return renderRecommendationsEmpty();
-    return `<div class="rec-next-widget">
-      ${candidates.map(c => renderRecommendationCard(c, { compact: true })).join('')}
-      <button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${dashboardRecommendationActionAttrs('navigate', { route: 'recommendations' })}>View all tips</button>
-    </div>`;
+    return renderRecommendationPresentation({view: {kind: 'widget', cards: projectRecommendationList(candidates, true)}});
   }
 
   return {
@@ -352,6 +327,7 @@ export function createDashboardRecommendationWidget({
     refreshRecommendationsWhenCatalogReady,
     getGlobalRecommendationCandidates,
     renderRecommendationCard,
+    renderRecommendationList,
     renderRecommendationsEmpty,
     renderDashboardRecommendationsWidget,
     setRecommendationState,

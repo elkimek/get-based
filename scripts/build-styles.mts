@@ -50,6 +50,9 @@ export async function buildAppShellStyles({ outputPath = path.join(ROOT, 'css/ap
 export async function buildModalStyles({ outputPath = path.join(ROOT, 'css/modal-shared.css'), check = false }: StyleOptions = {}): Promise<void> {
     await compileStyles('modal-shared.base.css', 'report-builder.tailwind.css', outputPath, check, 'Shared modals');
 }
+export async function buildRecommendationStyles({ outputPath = path.join(ROOT, 'css/recommendations.css'), check = false }: StyleOptions = {}): Promise<void> {
+    await compileStyles('recommendations.base.css', 'recommendation-cards.tailwind.css', outputPath, check, 'Recommendations');
+}
 export async function buildImportStyles({ outputPath = path.join(ROOT, 'css/import.css'), check = false }: StyleOptions = {}): Promise<void> {
     await compileStyles('import.base.css', 'import-marker-map.tailwind.css', outputPath, check, 'Import');
 }
@@ -58,6 +61,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     await buildAppShellStyles({ check });
     await buildModalStyles({ check });
     await buildImportStyles({ check });
+    await buildRecommendationStyles({ check });
     await buildStyles({ check });
     await buildProtectionStyles({ check });
     await buildChatStyles({ check });

@@ -214,9 +214,16 @@ test('dashboard recommendation widget browser coverage exercises candidates rend
         saved: true,
         dismissed: false,
       }, { compact: true });
+      const escapedCardDOM = document.createElement('div');
+      escapedCardDOM.innerHTML = escapedCard;
       outcomes.renderCardsEscapeMarkupAndBuildActionHandlers =
-        escapedCard.includes('&lt;script&gt;')
-        && escapedCard.includes('Reason &lt;b&gt;bold&lt;/b&gt;')
+        escapedCardDOM.querySelector('.rec-next-head strong')?.textContent === 'LDL <script>'
+        && escapedCardDOM.querySelector('.rec-next-source')?.textContent === 'Labs<script>'
+        && escapedCardDOM.querySelector('.rec-next-reason')?.textContent === 'Reason <b>bold</b>'
+        && escapedCardDOM.querySelector('.rec-next-meta')?.textContent === 'Meta <img>'
+        && escapedCardDOM.querySelector('.rec-next-primary')?.textContent?.endsWith('Action <now>') === true
+        && escapedCardDOM.querySelector('article')?.getAttribute('data-rec-id') === 'rec"<id'
+        && escapedCardDOM.querySelector('script,img,b,[onclick],[onerror]') === null
         && escapedCard.includes('data-dashboard-rec-action="view-marker"')
         && escapedCard.includes('data-dashboard-rec-action="open-detail"')
         && escapedCard.includes('data-dashboard-rec-action="discuss"')
@@ -247,10 +254,13 @@ test('dashboard recommendation widget browser coverage exercises candidates rend
       recommendationRuntime.setRecommendationsCatalogCache({ slots: {} });
       const emptyHtml = widget.renderDashboardRecommendationsWidget(activeCtx);
       const customEmptyHtml = widget.renderRecommendationsEmpty('Nothing <ready>');
+      const customEmptyDOM = document.createElement('div');
+      customEmptyDOM.innerHTML = customEmptyHtml;
       outcomes.emptyStatesRenderSafeFallbackActions =
         emptyHtml.includes('No data-linked tips yet.')
         && emptyHtml.includes('data-dashboard-rec-route="labs"')
-        && customEmptyHtml.includes('Nothing &lt;ready&gt;')
+        && customEmptyDOM.querySelector('strong')?.textContent === 'Nothing <ready>'
+        && customEmptyDOM.querySelector('ready,script,[onclick],[onerror]') === null
         && customEmptyHtml.includes('Import labs');
     } finally {
       removeRecommendationKeys();

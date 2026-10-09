@@ -2395,3 +2395,15 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /tests/dashboard-picker-presentation.test.js
 /tests/import-marker-map-presentation.test.js
 /tests/widget-map-frozen.test.js
+
+# Generated authored import review and recommendation presentation.
+/css/recommendations.css
+/js/import-review-presentation.js
+/js/import-review-classes.js
+/js/recommendation-presentation.js
+/js/recommendation-cards-classes.js
+/tests/import-review-presentation.test.js
+/tests/recommendation-presentation.test.js
+/tests/review-recommendations-frozen.test.js
+/tests/playwright/review-recommendations-owned.spec.js
+/tests/pwa/sveltekit-review-recommendations.spec.js

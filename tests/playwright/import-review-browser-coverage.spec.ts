@@ -539,7 +539,12 @@ test('PDF import review mobile layout keeps actions compact and visible', async 
       const bodyStyle = body ? getComputedStyle(body) : null;
       const firstRowStyle = firstRow ? getComputedStyle(firstRow) : null;
 
-      outcomes.mobileModalUsesAvailableWidth = (modalRect?.width)! >= 370 && modalRect!.width <= 390;
+      const overlay = document.getElementById('import-modal-overlay')!;
+      const overlayStyle = getComputedStyle(overlay);
+      const availableWidth = overlay.clientWidth - parseFloat(overlayStyle.paddingLeft) - parseFloat(overlayStyle.paddingRight);
+      // The layout viewport can exclude a classic scrollbar even when the outer viewport is 390px.
+      outcomes.mobileModalUsesAvailableWidth = modalRect!.width === Math.min(innerWidth - 12, availableWidth)
+        && modalRect!.left >= 0 && modalRect!.right <= document.documentElement.clientWidth;
       outcomes.mobileBodyUsesCompactPadding = bodyStyle?.paddingTop === '14px'
         && bodyStyle?.paddingLeft === '12px';
       outcomes.mobileNameCellBecomesHeading = getComputedStyle(nameCell!).display === 'block'

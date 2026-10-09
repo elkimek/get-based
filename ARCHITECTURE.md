@@ -191,8 +191,29 @@ available to unmigrated renderers. Custom formatter output is therefore outside
 the authored control contract.
 Only exclusive metadata/affiliate CSS is removed. Shared DNA overview grids,
 Dashboard buttons and source-picker rules retain other active owners. Remaining
-lens body renderer contracts and recommendation list templates migrate with their
-respective feature owners.
+lens body renderer contracts retain their respective feature owners.
+
+Recommendation cards and lists are authored by `RecommendationPresentation.svelte`
+and `RecommendationCard.svelte`. `recommendation-presentation.ts` projects literal
+candidate fields and delegate identity; candidate scoring, catalog refresh,
+bookmark/hidden persistence and action handling remain in
+`dashboard-recommendation-widget.ts`. The synchronous card facade stays stable,
+and an injected typed list facade composes the four lens list bodies.
+`recommendation-cards-classes.ts` and `css/recommendation-cards.tailwind.css` own
+card utilities. The established recommendation stylesheet URL is generated from
+`css/recommendations.base.css`; detail/product and shared dashboard controls keep
+their own styles. These components accept typed data without raw HTML slots.
+
+Laboratory import review is authored by `ImportReviewPresentation.svelte` and its
+typed row, unit, mapping, action, status and popup components.
+`import-review-presentation.ts` projects literal presentation data.
+`pdf-import-review.ts` retains normalization, original marker indexing/grouping,
+reference-range comparison and conversion, pending/draft ownership, filtering,
+count updates, profile capture and delegated mutation. Public unit/mapping/exclude
+facades remain synchronous. `import-review-classes.ts` and
+`css/import-review.tailwind.css` compile through the existing import stylesheet;
+Cycle import keeps its separately scoped native rules until its owner migrates.
+The review and its body-level unit popup carry explicit utility ownership markers.
 
 Dashboard widget and biometric picker content is projected by
 `dashboard-picker-presentation.ts` and authored by `DashboardPickerPresentation.svelte`.

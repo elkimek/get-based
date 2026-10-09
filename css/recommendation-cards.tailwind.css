@@ -1,0 +1,10 @@
+/* Typed recommendation cards/lists; other recommendation and dashboard owners remain separate. */
+@import "tailwindcss/theme.css" layer(gb-theme) prefix(gb);
+@import "tailwindcss/utilities.css" prefix(gb) source(none);
+@import "./ui-tokens.tailwind.css";
+/* Preserve original single-class specificity and the head's class+strong specificity. */
+@custom-variant rec-ui (&:where([data-recommendation-cards-view], [data-recommendation-cards-view] *));
+@custom-variant rec-title (&:is(strong));
+@source "../js/recommendation-cards-classes.ts";
+@source "../js/components/RecommendationPresentation.svelte";
+@source "../js/components/RecommendationCard.svelte";

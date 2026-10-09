@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import postcss from 'postcss';
-import { buildStyles, buildProtectionStyles, buildChatStyles, buildAppShellStyles, buildModalStyles, buildImportStyles } from '../scripts/build-styles.mjs';
+import { buildStyles, buildProtectionStyles, buildChatStyles, buildAppShellStyles, buildModalStyles, buildImportStyles, buildRecommendationStyles } from '../scripts/build-styles.mjs';
 
 let directory: string;
 let outputPath: string;
@@ -176,4 +176,52 @@ it('retains shared import styles, scopes marker mapping and rejects stale lazy C
   await fs.writeFile(outputPath, source + '/* stale */');
   await expect(buildImportStyles({outputPath, check: true})).rejects.toThrow('Import CSS is stale');
   expect(await fs.readFile(outputPath, 'utf8')).toBe(source + '/* stale */');
+});
+
+
+it('compiles recommendation card utilities at the stable lazy URL without changing other owners', async () => {
+  const outputPath = path.join(directory, 'recommendations.css');
+  await buildRecommendationStyles({outputPath});
+  const source = await fs.readFile(outputPath, 'utf8');
+  const base = (await fs.readFile('css/recommendations.base.css', 'utf8')).trimEnd();
+  expect(source).toContain(base);
+  expect(base).not.toContain('.rec-next-card');
+  expect(base).toContain('.recommendation-detail-modal .rec-section');
+  const selectors: string[] = [];
+  const utilities = source.slice(source.indexOf(base) + base.length);
+  postcss.parse(utilities).walkRules(rule => { selectors.push(...rule.selectors); });
+  const owned = selectors.filter(selector => selector.includes('.gb\\:rec-ui'));
+  expect(owned.length).toBeGreaterThan(30);
+  expect(owned.every(selector => selector.includes('[data-recommendation-cards-view]'))).toBe(true);
+  expect(selectors).not.toContain('body');
+  expect(utilities).not.toContain('button,input,optgroup,select,textarea');
+  await buildRecommendationStyles({outputPath, check: true});
+  await fs.writeFile(outputPath, source + '/* stale */');
+  await expect(buildRecommendationStyles({outputPath, check: true})).rejects.toThrow('Recommendations CSS is stale');
+  expect(await fs.readFile(outputPath, 'utf8')).toBe(source + '/* stale */');
+});
+
+it('scopes both laboratory review and its body-level popup without a reset or desktop-only hover', async () => {
+  const outputPath = path.join(directory, 'import-review.css');
+  await buildImportStyles({outputPath});
+  const source = await fs.readFile(outputPath, 'utf8');
+  const base = (await fs.readFile('css/import.base.css', 'utf8')).trimEnd();
+  const utilities = source.slice(source.indexOf(base) + base.length);
+  const selectors: string[] = [];
+  let hoverRules = 0;
+  postcss.parse(utilities).walkRules(rule => {
+    selectors.push(...rule.selectors);
+    if (!rule.selector.includes('.gb\\:review-ui') || !rule.selector.includes(':hover')) return;
+    hoverRules++;
+    for (let parent: postcss.Rule['parent'] | postcss.Document = rule.parent; parent; parent = parent.parent) {
+      if (parent.type === 'atrule' && parent.name === 'media') expect(parent.params).not.toMatch(/\(hover:\s*hover\)/);
+    }
+  });
+  const owned = selectors.filter(selector => selector.includes('.gb\\:review-ui'));
+  expect(owned.length).toBeGreaterThan(150);
+  expect(owned.every(selector => selector.includes('[data-import-review-view]'))).toBe(true);
+  expect(hoverRules).toBeGreaterThan(0);
+  expect(utilities).toContain('768px');
+  expect(selectors).not.toContain('body');
+  expect(utilities).not.toContain('button,input,optgroup,select,textarea');
 });
