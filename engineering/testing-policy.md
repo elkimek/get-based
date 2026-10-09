@@ -231,6 +231,7 @@ compares geometry and themes with open/closed disclosures, checks keyboard focus
 and exercises failed IndexedDB writes, retry, apply, dismiss and reload through
 the unchanged delegates. The persistence fixture seeds lab records through normal
 profile boot before preservation snapshots. [Static context acceptance](../tests/pwa/sveltekit-biology-context.spec.ts)
+prepares current-schema fixtures through the existing deterministic migration, then
 checks sex-specific fields and keyboard writes with the origin offline, preserving
 unrelated records and the complete accepted profile through two closed-client
 launches. These checks complement AI lifecycle, integrity and sync regressions;

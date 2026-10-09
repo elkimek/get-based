@@ -1,7 +1,8 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import {expect, test, type Page} from '@playwright/test';
-import {createDefaultProfileData} from '../../js/profile.js';
+import {createDefaultProfileData, migrateProfileData} from '../../js/profile.js';
+import type {ProfileData} from '../../types/app-state.js';
 import {startKitServer} from './kit-server.js';
 import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
 import {installOfflineStartupDiagnostics} from '../helpers/offline-launch-diagnostics.js';
@@ -46,7 +47,21 @@ for (const sex of ['male', 'female'] as const) test(`static ${sex} Biology conte
   test.setTimeout(120000);
   await installDiscussionFixture(context);
   await installOfflineStartupDiagnostics(context);
-  await context.addInitScript(({defaults, demo, sex}) => {
+  const demo = JSON.parse(await fs.readFile(`data/demo-${sex}.json`, 'utf8')) as ProfileData;
+  // Prepare a current-schema fixture through the existing deterministic owner.
+  // The context writes must then preserve every unrelated committed field.
+  const profile = migrateProfileData({
+    ...createDefaultProfileData(), entries: demo.entries, refOverrides: demo.refOverrides,
+    profile: {firstName: 'Alex', age: 38}, markerNotes: {'thyroid.tsh': 'Preserve unrelated note'},
+    nutritionMeals: [], sunDefaults: {fitzpatrick: 'II', completedAt: 1}, contextNotes: 'Preserve unrelated context',
+    diagnoses: {conditions: [], familyHistory: [], note: 'Keep diagnosis note', flags: {}},
+    biologyScoreContextAI: {summary: 'Stored context <review>.', updatedAt: 1786104000000, suggestions: [
+      {flag: 'lowMuscleMass', confidence: 'high', reason: 'Stored literal <evidence>.'},
+      {flag: 'hormoneTherapy', confidence: 'medium', reason: 'Keep profile context.'},
+      {flag: 'acuteIllnessNearDraw', confidence: 'low', reason: 'Keep remaining suggestion.'},
+    ]},
+  });
+  await context.addInitScript(({profile, sex}) => {
     if (!['http:', 'https:'].includes(location.protocol)) return;
     localStorage.setItem('labcharts-ai-paused', 'true');
     if (localStorage.getItem('biology-context-seeded')) return;
@@ -54,18 +69,8 @@ for (const sex of ['male', 'female'] as const) test(`static ${sex} Biology conte
     localStorage.setItem('labcharts-profiles', JSON.stringify([{id: 'default', name: 'Alex', sex, dob: '1987-11-22', createdAt: 1}]));
     localStorage.setItem('labcharts-active-profile', 'default');
     for (const key of ['tour', 'emptyTour']) localStorage.setItem(`labcharts-default-${key}`, 'completed');
-    localStorage.setItem('labcharts-default-imported', JSON.stringify({
-      ...defaults, entries: demo.entries, refOverrides: demo.refOverrides,
-      profile: {firstName: 'Alex', age: 38}, markerNotes: {'thyroid.tsh': 'Preserve unrelated note'},
-      sunDefaults: {fitzpatrick: 'II', completedAt: 1}, contextNotes: 'Preserve unrelated context',
-      diagnoses: {conditions: [], familyHistory: [], note: 'Keep diagnosis note', flags: {}},
-      biologyScoreContextAI: {summary: 'Stored context <review>.', updatedAt: 1786104000000, suggestions: [
-        {flag: 'lowMuscleMass', confidence: 'high', reason: 'Stored literal <evidence>.'},
-        {flag: 'hormoneTherapy', confidence: 'medium', reason: 'Keep profile context.'},
-        {flag: 'acuteIllnessNearDraw', confidence: 'low', reason: 'Keep remaining suggestion.'},
-      ]},
-    }));
-  }, {defaults: createDefaultProfileData(), demo: JSON.parse(await fs.readFile(`data/demo-${sex}.json`, 'utf8')) as Record<string, unknown>, sex});
+    localStorage.setItem('labcharts-default-imported', JSON.stringify(profile));
+  }, {profile, sex});
   const errors: string[] = [], csp: string[] = [];
   const observe = (p: Page) => p.on('pageerror', error => errors.push(error.message));
   observe(page); context.on('page', observe);
