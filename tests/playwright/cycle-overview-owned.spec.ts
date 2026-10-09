@@ -171,6 +171,24 @@ async function prepareOverviewPointer(page:Page,target:OverviewPointerPlan,side:
   return point;
  },{target,side});
 }
+async function waitForOverviewPointerState(page:Page,target:OverviewPointerPlan,side:OverviewPointerSide,pointerState:OverviewPointerState,point:{x:number;y:number}):Promise<void>{
+ // Input delivery and WebKit's pseudo-class update can complete on different
+ // frames. Wait for the one real gesture; never repeat it or force CSS state.
+ try{
+  await page.waitForFunction(({target,side,pointerState,point})=>{
+   const control=document.querySelector('#cycle-overview-parity [data-'+side+']')?.querySelectorAll<HTMLButtonElement>('.cycle-section button')[target.index];
+   const hit=document.elementFromPoint(point.x,point.y);
+   return !!control&&!!hit&&(hit===control||control.contains(hit))&&control.matches(':hover')&&(pointerState==='active'?control.matches(':active'):!control.matches(':active'));
+  },{target,side,pointerState,point},{polling:'raf',timeout:3000});
+ }catch(error){
+  const diagnostic=await page.evaluate(({target,side,point})=>{
+   const control=document.querySelector('#cycle-overview-parity [data-'+side+']')?.querySelectorAll<HTMLButtonElement>('.cycle-section button')[target.index];
+   const hit=document.elementFromPoint(point.x,point.y),css=control?getComputedStyle(control):null;
+   return {hover:control?.matches(':hover'),active:control?.matches(':active'),hit:hit?.tagName,hitAction:hit?.closest('[data-cycle-action],[data-cycle-import-action]')?.getAttribute('data-cycle-action'),rect:control?.getBoundingClientRect().toJSON(),point,focused:document.activeElement?.tagName,focusedAction:document.activeElement?.getAttribute('data-cycle-action'),scrollX:window.scrollX,scrollY:window.scrollY,visibility:css?.visibility,display:css?.display};
+  },{target,side,point});
+  throw new Error('Real overview pointer synchronization failed '+side+'/'+target.name+'/'+target.index+'/'+pointerState+': '+JSON.stringify(diagnostic),{cause:error});
+ }
+}
 async function overviewPointerSnapshot(page:Page,target:OverviewPointerPlan,side:OverviewPointerSide,pointerState:OverviewPointerState):Promise<Record<string,string>>{
  return page.evaluate(({target,side,pointerState,properties})=>{
   const control=document.querySelector('#cycle-overview-parity [data-'+side+']')?.querySelectorAll<HTMLButtonElement>('.cycle-section button')[target.index];
@@ -189,8 +207,12 @@ for(const theme of themes){for(const width of [320,1440]){for(const name of poin
    const snapshots:Record<string,string>[]=[];
    for(const side of ['original','current'] as const){
     const point=await prepareOverviewPointer(page,target,side);await page.mouse.move(point.x,point.y);
+    await waitForOverviewPointerState(page,target,side,'hover',point);
     if(pointerState==='active')await page.mouse.down();
-    try{snapshots.push(await overviewPointerSnapshot(page,target,side,pointerState));}
+    try{
+     if(pointerState==='active')await waitForOverviewPointerState(page,target,side,'active',point);
+     snapshots.push(await overviewPointerSnapshot(page,target,side,pointerState));
+    }
     finally{
      // Releasing off the button prevents a real click/delegate. Assert the safe
      // release location before mouseup; never synthesize CSS pseudo-classes.
