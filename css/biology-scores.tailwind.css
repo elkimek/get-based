@@ -94,3 +94,12 @@
 @source "../js/components/LensPageWidget.svelte";
 @source "../js/components/LensPageGrid.svelte";
 @source "../js/components/LensWidgetTools.svelte";
+
+/* Typed Biology page composition and shared lab date controls. */
+@custom-variant biology-page (&:where([data-biology-page-view], [data-biology-page-view] *));
+@custom-variant lab-range (&:where([data-lab-date-range-view], [data-lab-date-range-view] *));
+@source "../js/biology-page-classes.ts";
+@source "../js/lab-date-range-classes.ts";
+@source "../js/components/BiologyScoresPage.svelte";
+@source "../js/components/BiologyScoreGroup.svelte";
+@source "../js/components/LabDateRange.svelte";

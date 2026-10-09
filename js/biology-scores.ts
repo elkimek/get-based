@@ -1,3 +1,4 @@
+import {getLensDashboardToggleView} from './lens-page-shell.js';
 // biology-scores.js — Biology Scores orchestrator and public API.
 
 import { filterDatesByRange, getActiveData, invalidateActiveDataCache } from './data.js';
@@ -20,7 +21,7 @@ import {
   renderScoreDetail,
   groupBiologyScores,
 } from './biology-score-render.js';
-import { getScoreAIMaterialKey, hasCurrentScoreAIAssessment, getScoreAIRequestKey, renderScoreAIAnswer, renderScoreAISummary, writeScoreAIAnswer, writeScoreAIAnswers, retryUnsavedScoreAIAnswers, pendingScoreExplanations, setScoreExplanationError } from './biology-score-sections.js';
+import { getBiologyAIState, getScoreAIMaterialKey, hasCurrentScoreAIAssessment, getScoreAIRequestKey, renderScoreAIAnswer, renderScoreAISummary, writeScoreAIAnswer, writeScoreAIAnswers, retryUnsavedScoreAIAnswers, pendingScoreExplanations, setScoreExplanationError } from './biology-score-sections.js';
 import { TIER1_BIOLOGY_SCORE_DEFINITIONS } from './biology-score-tier1-definitions.js';
 import { TIER2_BIOLOGY_SCORE_DEFINITIONS } from './biology-score-tier2-definitions.js';
 import { getBiologyProfileContext } from './profile-context.js';
@@ -631,6 +632,12 @@ export function scheduleBiologyScoreAIReconcile() {
 if (typeof globalThis !== 'undefined' && typeof globalThis.addEventListener === 'function') {
   globalThis.addEventListener('labcharts-sync-applied', scheduleBiologyScoreAIReconcile);
   globalThis.addEventListener('resize', alignBiologyScoreCards);
+}
+
+/** Snapshot calculation and AI/display state for typed page composition. */
+export function getBiologyScorePresentationRecords(ctx: unknown) {
+  return computeBiologyScores(contextScoreData(ctx)).map(score => ({score,ai:getBiologyAIState(score),
+    dashboardToggle:getLensDashboardToggleView(`biology-score-${score.id}`)}));
 }
 
 export function getBiologyScoreLensWidgets(ctx: unknown) {

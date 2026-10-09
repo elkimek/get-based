@@ -243,14 +243,6 @@
 /* Biology Scores — native getbased composite score widget. */
 
 /* Biological Coherence — distinguished full-width dashboard hero widget. */
-.biology-scores-note {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 12px;
-  line-height: 1.45;
-}
-@media (max-width: 900px) {
-}
 
 .biology-score-confidence-note {
   margin: 0;
@@ -265,9 +257,6 @@
 .biology-score-confidence-low {
   border-color: color-mix(in srgb, var(--red, #ef4444) 42%, var(--border));
   background: color-mix(in srgb, var(--red, #ef4444) 9%, var(--bg-secondary));
-}
-
-@media (max-width: 560px) {
 }
 .biology-score-research-note {
   min-width: 0;
@@ -285,28 +274,6 @@
   line-height: 1.45;
   font-size: 13px;
 }
-.biology-score-unavailable-group {
-  display: grid;
-  gap: 12px;
-}
-.biology-score-unavailable-group[open] {
-  gap: 16px;
-}
-.biology-score-unavailable-group > summary {
-  cursor: pointer;
-  padding: 10px 12px;
-  border: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--bg-secondary) 35%, transparent);
-  color: var(--text-secondary);
-  font-size: 13px;
-  font-weight: 700;
-  list-style: none;
-}
-.biology-score-unavailable-group > summary::-webkit-details-marker { display: none; }
-.biology-score-unavailable-group > summary::before { content: '+'; margin-right: 8px; color: var(--text-muted); font-family: var(--font-mono); font-weight: 900; }
-.biology-score-unavailable-group[open] > summary::before { content: '−'; color: var(--accent); }
-.biology-score-unavailable-group[open] > summary { color: var(--text-primary); }
 .biology-score-input-help {
   margin: 6px 0 8px;
   color: var(--text-muted);
@@ -412,8 +379,6 @@
 /* Biology Scores: quiet overview, all detail available on demand. */
 .biology-score-flags { font-size: 13px; line-height: 1.6; }
 .biology-score-lens-row { grid-column: 1 / -1; min-width: 0; }
-@media (max-width: 600px) {
-}
 
 /* Keep the score itself visible; disclosures hold the explanation, not the overview. */
 .biology-scores-page { max-width: 1400px; margin-inline: auto; container: biology-page / inline-size; }
@@ -431,25 +396,15 @@
 .biology-score-lens-row { --biology-panel-offset: 0px; }
 .biology-score-lens-row:nth-child(3n + 2) { --biology-panel-offset: calc((100cqw + 16px) / -3); }
 .biology-score-lens-row:nth-child(3n) { --biology-panel-offset: calc((100cqw + 16px) / -3 * 2); }
-.biology-section-count { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; padding: 2px 6px; border-radius: 6px; background: var(--bg-secondary); border: 1px solid var(--border); font-size: 12px; color: var(--text-secondary); font-weight: 500; }
-.biology-planning-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 20px 0; align-items: stretch; }
 @media (max-width: 1200px) {
   .biology-score-lens-row:nth-child(n) { --biology-panel-offset: 0px; }
   .biology-score-lens-row:nth-child(2n) { --biology-panel-offset: calc((100cqw + 16px) / -2); }
-}
-@media (max-width: 850px) {
-  .biology-planning-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 650px) {
   .biology-score-lens-row:nth-child(n) { --biology-panel-offset: 0px; }
 }
 
 /* Keep scored panels distinct from optional depth and inputs still to resolve. */
-.biology-score-group { margin-top: 24px; min-width: 0; }
-.biology-score-group > h3, .biology-score-group > summary { margin: 0; font-size: 18px; color: var(--text-primary); font-weight: 650; }
-.biology-score-group > summary { cursor: pointer; padding: 14px 0; }
-.biology-score-group > p { margin: 8px 0 16px; font-size: 13px; line-height: 1.6; color: var(--text-secondary); max-width: 85ch; }
-.biology-score-unavailable-group { border-top: 1px solid var(--border); }
 
 /* Chat can narrow a desktop page without changing the viewport breakpoint. */
 @container biology-page (max-width: 900px) {

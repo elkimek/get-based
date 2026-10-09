@@ -13,8 +13,8 @@ import {
   renderFuelWidget,
   renderNutritionWidget,
 } from './health-data-loader.js';
-import { computeBiologyScores, getBiologyScoreLensGroups, renderBiologicalCoherenceLensHero, renderBiologyScoreCoveragePlanner, renderBiologyScoresActionSummary, scheduleBiologyScoreAIReconcile } from './biology-scores.js';
-import {renderBiologyContextSection} from './biology-context-view.js';
+import {scheduleBiologyScoreAIReconcile} from './biology-scores.js';
+import {renderBiologyPage} from './biology-page-view.js';
 import { getRecommendationsSnpTable, isRecommendationsProductRecsEnabled } from './recommendations-runtime.js';
 
 // Configured values are opaque. These private views describe only the unchecked
@@ -52,8 +52,6 @@ type GeneticsOperations = { snps?: unknown; mtdna: MtdnaOperations; source?: unk
 type WearableSourceOperations = {lastSyncAt?: unknown;coverageDays?: unknown};
 type WearableSummaryOperations = {sources?: Record<string,WearableSourceOperations>};
 type RawFilter = (data: unknown, options: Parameters<typeof filterDatesByRange>[1]) => unknown;
-type RawCompute = (data: unknown) => ReturnType<typeof computeBiologyScores>;
-type LensGroups = Record<keyof ReturnType<typeof import('./biology-score-render.js').groupBiologyScores>, NonNullable<ReturnType<typeof getBiologyScoreLensGroups>[string]>>;
 
 function markerHasData(marker: LabMarkerOperations) {
   return marker.values?.some(v => v !== null) ?? false;
@@ -213,29 +211,8 @@ export function createLensPageHandlers(deps: unknown) {
     document.body.classList.remove('mobile-dashboard-active');
     const ctx = buildDashboardWidgetContext(rawData);
     // Preserve the captured collection range for the context review snapshot.
-    const scoreData = (filterDatesByRange as RawFilter)(rawData, { fallbackToAll: false }) as Parameters<typeof renderBiologyContextSection>[0];
-    const contextReady = true;
-    const actions = `<div class="biology-score-header-actions">${contextReady ? '<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" data-biology-score-action="interpret-lens">Discuss scores in chat</button>' : ''}
-      ${renderDateRangeFilter()}</div>`;
-    let html = renderLensHeader('Biology Scores', 'Body-system patterns from your labs, with marker-level explanations.', actions, { className: 'biology-scores-lens-header' }) as string;
-    html += `<p class="biology-scores-note">Higher scores mean closer agreement with your selected ranges, including Risk and Load scores. AI interpretations are optional; scores are for learning, not diagnosis.</p>`;
-    html += renderBiologyContextSection(scoreData);
-    const biologyScores = (computeBiologyScores as RawCompute)(scoreData);
-    const biologyDetailScores = biologyScores.filter((score) => score.id !== 'biologicalCoherence');
-    const liveBiologyScores = biologyDetailScores.filter((score) => Number.isFinite(score.score)).sort((a, b) => /** @type {number} */ (b.score!) - /** @type {number} */ (a.score!));
-    const waitingBiologyScores = biologyDetailScores.filter((score) => !Number.isFinite(score.score));
-    const biologicalCoherence = biologyScores.find((score) => score.id === 'biologicalCoherence');
-    html += renderBiologicalCoherenceLensHero(ctx);
-    html += '<div class="biology-planning-grid">';
-    html += renderBiologyScoresActionSummary(liveBiologyScores, waitingBiologyScores, biologicalCoherence);
-    html += renderBiologyScoreCoveragePlanner(biologyDetailScores, biologicalCoherence);
-    html += '</div>';
-    const groups = getBiologyScoreLensGroups(ctx) as LensGroups;
-    const grid = (key: keyof typeof groups) => renderLensPageWidgets('biology-scores', groups[key], { group: key });
-    html += `<section class="biology-score-group" data-biology-group="baseline"><h3>Baseline scores <span class="biology-section-count">${groups.baseline.length}</span></h3><p>Flagged patterns and lower scores first; older estimates follow.</p>${groups.baseline.length ? grid('baseline') : '<p>No baseline scores available yet. Open Needs inputs below to see what is missing.</p>'}</section>`;
-    html += `<section class="biology-score-group" data-biology-group="advanced"><h3>Optional scores <span class="biology-section-count">${groups.advanced.length}</span></h3><p>Additional perspectives, outside Biological Coherence.</p>${groups.advanced.length ? grid('advanced') : '<p>No optional scores available yet. Their marker requirements are under Needs inputs.</p>'}</section>`;
-    if (groups.waiting.length) html += `<details class="biology-score-unavailable-group biology-score-group" data-biology-group="waiting"><summary>Needs inputs <span class="biology-section-count">${groups.waiting.length}</span></summary><p>Open Details to see the missing markers or context needed to score.</p>${grid('waiting')}</details>`;
-    main.innerHTML = `<div class="biology-scores-page">${html}</div>`;
+    const scoreData = (filterDatesByRange as RawFilter)(rawData, { fallbackToAll: false }) as Parameters<typeof renderBiologyPage>[1];
+    main.innerHTML = renderBiologyPage(ctx,scoreData);
     setupDropZone();
     scheduleBiologyScoreAIReconcile();
   }

@@ -157,7 +157,24 @@ per widget and inclusive media queries matching the existing breakpoints. The
 zero-specificity owner selector preserves stronger ancestor and theme rules.
 Only the superseded lens-header inline-control CSS rule is removed; generic
 Dashboard and category styles retain other active owners. The compact Biology
-HTML API still uses the score-tools marker pending typed page composition.
+HTML API still uses the score-tools marker pending typed compatibility composition.
+
+The actual Biology Scores route is composed by `BiologyScoresPage.svelte` and
+`BiologyScoreGroup.svelte`. `biology-page-view.ts` snapshots independent planning
+and display inputs, current context, range and profile-scoped stored ordering;
+`biology-page-presentation.ts` projects them without writes. The page directly
+composes the typed context, overview, planning, coverage and score-detail children.
+Card controls use `LensWidgetTools.svelte` through typed props, without HTML marker
+insertion on the actual route. The public compact HTML compatibility API still
+retains its existing score-tools bridge. `biology-page-classes.ts` owns page
+spacing, counters and disclosures; container grids/queries and cqw expanded-panel
+alignment remain clearly owned custom layout in `dashboard-widgets.base.css`.
+`LabDateRange.svelte` and its pure projection/catalog own the shared date controls,
+including the public `renderDateRangeFilter` facade used by other data pages.
+The data controller retains sidebar refresh, navigation and date-change ownership.
+`LensPageHeader.svelte` supports typed action snippets while preserving its named
+HTML compatibility input for other lens owners. Native Biology page templates,
+date templates and their superseded ordinary style rules are removed.
 
 Settings navigation/layout, Display, Privacy, Voice, Agent Access, imported records
 and AI usage use scoped Tailwind utilities

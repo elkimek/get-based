@@ -1,3 +1,5 @@
+import {renderHTML as renderLabRange} from './components/LabDateRange.svelte.html.js';
+import {projectLabDateRange} from './lab-date-range-presentation.js';
 import type { ProfileData as ImportedDataRecord } from '../types/app-state.js';
 import type { ActiveData } from './data-view-types.js';
 import { configureValidRuntimeCallbacks } from './runtime-callbacks.js';
@@ -161,20 +163,7 @@ export function installDataActionDelegates(root: Document | Element | null = typ
 installDataActionDelegates();
 
 export function renderDateRangeFilter({ showScope = false } = {}) {
-  const ranges = [
-    { key: '3m', label: '3M' },
-    { key: '6m', label: '6M' },
-    { key: '1y', label: '1Y' },
-    { key: 'all', label: 'All' }
-  ];
-  const control = `<div class="date-range-filter" role="group" aria-label="Lab date range">${ranges.map(r =>
-    `<button class="range-btn${state.dateRangeFilter === r.key ? ' active' : ''}" type="button" aria-pressed="${state.dateRangeFilter === r.key}" ${dataActionAttrs('set-date-range', { range: r.key })}>${r.label}</button>`
-  ).join('')}</div>`;
-  if (!showScope) return control;
-  return `<div class="dashboard-lab-date-range">
-    <div><strong>Lab date range</strong><p>Filters lab trends and sidebar categories.${state.dateRangeFilter === 'all' ? ' All saved dates are included.' : ' Older results and categories may be hidden.'}</p></div>
-    ${control}
-  </div>`;
+  return renderLabRange({view:projectLabDateRange(state.dateRangeFilter,showScope)});
 }
 
 export function setDateRange(range: string) {

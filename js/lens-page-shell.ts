@@ -140,7 +140,7 @@ function lensPageOrderStorageKey(route: string) {
   return profileStorageKey(state.currentProfile || 'default', `lensPageOrder-${route}-v${LENS_PAGE_ORDER_VERSION}`);
 }
 
-function getLensPageWidgetOrder(route: string, defaultIds: string[]): string[] {
+export function getLensPageWidgetOrder(route: string, defaultIds: string[]): string[] {
   try {
     const raw = JSON.parse(localStorage.getItem(lensPageOrderStorageKey(route)) || '[]') as unknown;
     if (!Array.isArray(raw)) return defaultIds;

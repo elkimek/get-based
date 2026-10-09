@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { buildBiologyScoreCoveragePlannerModel, formatBiologyScoreCoveragePlannerPrompt } from '../js/biology-score-coverage-planner.js';
 import { buildBiologyScoresAIContext } from '../js/biology-score-ai-context.js';
 import { configureBiologyScoreAIDeps, generateBiologyScoreAIAnswer } from '../js/biology-score-ai.js';
+import {renderBiologyPage} from '../js/biology-page-view.js';
 import {renderBiologyContextSection} from '../js/biology-context-view.js';
 import { BIOLOGY_SCORE_COPY } from '../js/biology-score-copy.js';
 import { applyBiologyScoreContextFlag, buildBiologyScoreContextFingerprint, buildBiologyScoreContextFingerprintsByRange, buildBiologyScoreContextMaterialSignature, buildBiologyScoreContextMaterialSignaturesByRange, configureBiologyScoreContextAIDeps, generateBiologyScoreContextReview, hasCurrentBiologyScoreContextReview, renderBiologyScoreContextAI } from '../js/biology-score-context-ai.js';
@@ -824,15 +825,20 @@ assert('lens no longer inserts the redundant Score map between planner and detai
   && lensHtml.indexOf('biology-score-coverage-planner') < lensHtml.indexOf('biology-score-detail-stack'),
   lensHtml.slice(lensHtml.indexOf('biology-score-coverage-planner'), lensHtml.indexOf('biology-score-detail-stack')));
 const biologyScoreLensPageSrc = await fs.promises.readFile(new URL('../js/lens-pages.js', import.meta.url), 'utf8');
+const actualPageHTML = renderBiologyPage({data}, data as Parameters<typeof renderBiologyPage>[1]);
+const actualPageDOM = parseHTML(actualPageHTML);
+const actualPlanner = actualPageDOM.querySelector('.biology-score-coverage-planner');
+const actualBaseline = actualPageDOM.querySelector('[data-biology-group=baseline]');
 assert('actual Biology Scores route leaves Score map out of the live lens path',
-  !biologyScoreLensPageSrc.includes('renderBiologyScoreCompactTable')
-  && biologyScoreLensPageSrc.indexOf('renderBiologyScoreCoveragePlanner') < biologyScoreLensPageSrc.indexOf("renderLensPageWidgets('biology-scores'"),
+  !actualPageDOM.querySelector('.biology-score-compact-table')
+  && !actualPageDOM.body.textContent?.includes('Score map')
+  && actualPlanner && actualBaseline && !!(actualPlanner.compareDocumentPosition(actualBaseline) & 4),
   biologyScoreLensPageSrc.slice(biologyScoreLensPageSrc.indexOf('function showBiologyScores'), biologyScoreLensPageSrc.indexOf('function showGenomeLens')));
 assert('lens uses distinct AI CTA labels for overview, planning, and per-score explanations',
-  biologyScoreLensPageSrc.includes('Discuss scores in chat')
+  actualPageDOM.querySelector('[data-biology-score-action=interpret-lens]')?.textContent === 'Discuss scores in chat'
   && lensHtml.includes('Make lab plan')
   && lensHtml.includes('Explain score')
-  && !biologyScoreLensPageSrc.includes('Interpret with AI')
+  && !actualPageHTML.includes('Interpret with AI')
   && !lensHtml.includes('Ask chat what to order'),
   `${biologyScoreLensPageSrc.slice(biologyScoreLensPageSrc.indexOf('showBiologyScoresLens'), biologyScoreLensPageSrc.indexOf('showBiologyScoresLens') + 900)}\n---\n${lensHtml.slice(0, 1800)}`);
 const coveragePlannerHtml = lensHtml.match(/biology-score-coverage-planner[\s\S]*?<\/section>/)?.[0] || '';
@@ -1160,11 +1166,12 @@ const contextDOM = parseHTML(renderBiologyContextSection());
 assert('actual Biology Scores page offers optional context before the overview without gating results',
   contextDOM.querySelector('summary')?.textContent?.includes('Profile & collection context')
   && !lensPagesSrc.includes('if (!contextReady)')
-  && lensPagesSrc.includes('html += renderBiologyContextSection(scoreData)')
-  && lensPagesSrc.indexOf('html += renderBiologyContextSection(scoreData)') < lensPagesSrc.indexOf('html += renderBiologicalCoherenceLensHero(ctx)'));
+  && actualPageDOM.querySelectorAll('.biology-score-compact').length === 18
+  && actualPageDOM.querySelector('.biology-context-review-details') && actualPageDOM.querySelector('.biology-coherence-hero')
+  && !!(actualPageDOM.querySelector('.biology-context-review-details')!.compareDocumentPosition(actualPageDOM.querySelector('.biology-coherence-hero')!) & 4));
 assert('actual Biology Scores lens route reconciles embedded AI panels after DOM insert so F5 hydration cannot leave a stale banner mounted',
   lensPagesSrc.includes('scheduleBiologyScoreAIReconcile')
-  && lensPagesSrc.indexOf('main.innerHTML = html') < lensPagesSrc.indexOf('scheduleBiologyScoreAIReconcile()'),
+  && lensPagesSrc.indexOf('main.innerHTML = renderBiologyPage') < lensPagesSrc.indexOf('scheduleBiologyScoreAIReconcile()'),
   lensPagesSrc.slice(lensPagesSrc.indexOf('function showBiologyScores'), lensPagesSrc.indexOf('function showGenomeLens')));
 
 const mapping = getBiologyScoreMapping();

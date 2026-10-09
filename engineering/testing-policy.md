@@ -248,8 +248,24 @@ opens the actual Labs, Genome, Body, Insight and disabled-Tips routes, changes
 Labs ordering with the keyboard, and verifies it and the complete accepted
 profile through two closed-client launches. Adjacent Biology card acceptance
 retains the compact score-tools contract. Named HTML body/action compatibility
-inputs remain reviewed content boundaries; typed whole-page composition and
-whole-app release acceptance remain separate work.
+inputs remain reviewed content boundaries; typed composition for other lens pages
+and whole-app release acceptance remain separate work.
+
+The actual Biology page has [frozen full-composition checks](../tests/biology-page-presentation.test.ts)
+for male, female, sparse-data and persisted-order states, plus shared date option
+and scope semantics. [Headless page acceptance](../tests/playwright/biology-page-owned.spec.ts)
+compares owned chrome, grids and collapsed/expanded card geometry across themes,
+viewport boundaries and container layouts. Frozen and current pages share one
+layout origin to avoid precision loss in very tall stacked documents; the unchanged
+row-measurement controller runs for both. Pure structure checks normalize only its
+runtime `--biology-summary-height` property. All other styles and attributes remain
+compared. Existing [date-scope workflows](../tests/playwright/dashboard-lab-date-range.spec.ts)
+verify desktop/mobile restoration of older categories without mutating entries.
+Adjacent static context, overview and card scenarios cover actual-route keyboard
+controls, profile writes, ordering and closed-client offline persistence. Actual
+page composition emits no score-tools marker; public compact HTML compatibility
+still retains that bridge. These focused checks do not establish complete release
+or whole-app accessibility acceptance.
 
 Biology summary and compatibility views have [frozen structure and state
 checks](../tests/biology-summary-presentation.test.ts) covering raw and historical
