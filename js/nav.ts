@@ -115,6 +115,7 @@ function handleNavActionClick(event: Event) {
     }
     navActionDeps.openKnowledgeBase({ source: 'sidebar' });
   } else if (action === 'open-report-builder') {
+    if (document.getElementById('sidebar-nav')?.classList.contains('mobile-open')) closeMobileSidebar();
     openReportBuilderFromNavRuntime();
   } else if (action === 'open-context') {
     if (document.getElementById('sidebar-nav')?.classList.contains('mobile-open')) closeMobileSidebar();

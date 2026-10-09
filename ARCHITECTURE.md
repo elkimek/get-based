@@ -200,7 +200,9 @@ Report setup is projected by `report-builder-presentation.ts` and authored by
 context/category labels remain escaped; date sorting retains original note edit
 indexes. The existing builder owns selections, captured note/AI snapshots, provider
 and disclosure routing, synchronous preview reservation, progress and cancellation.
-Its public lazy URL and managed modal lifecycle remain stable. Action labels update
+Its public lazy URL and managed modal lifecycle remain stable. The sidebar Reports
+action closes an open mobile drawer before opening the builder, releasing the
+drawer backdrop and handing scroll ownership to the report dialog. Action labels update
 only when their text changes, preserving the pressed text node when textarea blur
 repeats an option update so WebKit can dispatch the first preview click. Report-specific
 utilities compile from `report-builder.tailwind.css` and its class catalog into the

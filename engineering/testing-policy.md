@@ -297,8 +297,9 @@ actual delegate/lifecycle coverage. Desktop wheel input remains covered; the
 phone-width keyboard check verifies scrolling on the modal surface. Playwright
 mobile WebKit cannot inject wheel events; that check does not simulate a physical
 touch swipe. [Static offline checks](../tests/pwa/sveltekit-report-tour.spec.ts)
-exercise real report/tour entry points, a local preview and closed-client cold
-launches with accepted-profile equality. These scoped checks do not establish
+exercise real report/tour entry points, mobile drawer/backdrop dismissal and modal
+scroll-lock restoration, a local preview and closed-client cold launches with
+accepted-profile equality. These scoped checks do not establish
 whole-app, installed-PWA/update or external provider acceptance.
 
 Biology summary and compatibility views have [frozen structure and state

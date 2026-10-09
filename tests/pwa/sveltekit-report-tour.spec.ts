@@ -16,11 +16,6 @@ async function keyboardActivate(page: Page, control: Locator) {
   await page.keyboard.press('Enter');
 }
 
-async function closeMobileMenu(page: Page) {
-  const sidebar = page.locator('#sidebar-nav.mobile-open');
-  if (await sidebar.count()) await page.getByRole('button', {name: 'Menu', exact: true}).click();
-}
-
 async function inspectReport(page: Page) {
   const closeChat = page.getByRole('button', {name: 'Close chat', exact: true});
   if (await closeChat.isVisible()) await closeChat.click();
@@ -29,6 +24,8 @@ async function inspectReport(page: Page) {
   await page.locator('[data-nav-action="open-report-builder"]').click();
   const overlay = page.locator('#report-builder-overlay[data-report-builder-view]');
   await expect(overlay).toBeVisible();
+  await expect(page.locator('#sidebar-nav')).not.toHaveClass(/\bmobile-open\b/);
+  await expect(page.locator('#sidebar-backdrop')).not.toHaveClass(/\bshow\b/);
   await expect(overlay.getByRole('dialog')).toHaveAttribute('aria-labelledby', 'report-builder-title');
   await expect(overlay.locator('#report-builder-title')).toHaveText('Create a report');
   await expect(overlay.locator('#report-include-ai')).toBeDisabled();
@@ -93,7 +90,7 @@ async function inspectReport(page: Page) {
     await preview.emulateMedia({media: 'print'});
     await expect(preview.locator('.report-print-btn')).toBeHidden();
   } finally { await preview.close(); }
-  await closeMobileMenu(page);
+  await expect(page.locator('#sidebar-nav')).not.toHaveClass(/\bmobile-open\b/);
   expect(await page.locator('body').evaluate(node => getComputedStyle(node).overflow)).not.toBe('hidden');
 }
 
