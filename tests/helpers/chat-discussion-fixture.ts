@@ -1,16 +1,17 @@
 import type { BrowserContext, Page } from '@playwright/test';
-/** Returning-user consent and a locally configured provider; no network AI calls are fabricated here. */
-export async function installDiscussionFixture(context: BrowserContext): Promise<void> {
+interface DiscussionFixtureOptions { provider?: 'ollama' | 'openrouter'; paused?: boolean; }
+/** Returning-user consent with configurable AI state; no network AI replies are fabricated here. */
+export async function installDiscussionFixture(context: BrowserContext, {provider = 'ollama', paused = false}: DiscussionFixtureOptions = {}): Promise<void> {
   await context.addInitScript({ path: 'node_modules/axe-core/axe.min.js' });
-  await context.addInitScript(() => {
+  await context.addInitScript(({provider, paused}) => {
     if (!['http:', 'https:'].includes(location.protocol)) return;
     for (const key of ['emptyTour', 'tour']) localStorage.setItem(`labcharts-default-${key}`, 'completed');
     localStorage.setItem('labcharts-analytics-consent-seen', '1');
-    localStorage.setItem('labcharts-ai-provider', 'ollama'); localStorage.setItem('labcharts-ai-paused', 'false');
+    localStorage.setItem('labcharts-ai-provider', provider); localStorage.setItem('labcharts-ai-paused', String(paused));
     localStorage.setItem('labcharts-encryption-nudge-dismissed', 'true');
     localStorage.setItem('labcharts-legal-acceptance', JSON.stringify({ accepted: true, termsVersion: '2026-08-22', privacyVersion: '2026-08-22', policyScope: 'self-hosted-notice', acceptedAt: '2026-10-07T00:00:00Z', appVersion: 'test', location: 'local-test' }));
     localStorage.setItem('labcharts-ai-transparency-acknowledgement', JSON.stringify({ version: '2026-08-31', acknowledged: true }));
-  });
+  }, {provider, paused});
 }
 
 export async function installDiscussionProvider(context: BrowserContext): Promise<void> {

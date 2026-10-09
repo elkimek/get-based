@@ -124,11 +124,11 @@ async function inspectTour(page: Page) {
 
 test('static report setup, local preview and guided tour work on first offline use and closed-client launches without changing saved records', async ({page, context}) => {
   test.setTimeout(180000);
-  await installDiscussionFixture(context);
+  // A fresh OpenRouter selection without credentials represents no configured provider.
+  await installDiscussionFixture(context, {provider: 'openrouter', paused: true});
   await installOfflineStartupDiagnostics(context);
   await context.addInitScript(({defaults, demo}) => {
     if (!['http:', 'https:'].includes(location.protocol)) return;
-    localStorage.setItem('labcharts-ai-paused', 'true');
     if (localStorage.getItem('report-tour-seeded')) return;
     localStorage.setItem('report-tour-seeded', '1');
     localStorage.setItem('labcharts-profiles', JSON.stringify([{id: 'default', name: 'Alex', sex: 'male', dob: '1987-11-22', createdAt: 1}]));
