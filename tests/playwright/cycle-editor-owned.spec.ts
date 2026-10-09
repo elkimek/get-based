@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import postcss from 'postcss';
-import type {Locator,Page} from '@playwright/test';
+import type {Page} from '@playwright/test';
 import {expect,test} from './coverage-fixture.js';
 import {prepareDemoProfile} from './biology-score-fixture.js';
 import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
@@ -76,20 +76,94 @@ test('authored Cycle editor preserves focused controls, sticky chrome and scroll
  },[...properties,'outline-width','outline-style','outline-color','outline-offset']);}}
  fs.writeFileSync(info.outputPath('cycle-editor-focus-scroll.json'),JSON.stringify({samples:samples.length,checks,themes,widths:[320,1440]},null,2));
 });
-async function moveMouseToControl(page:Page,control:Locator):Promise<void>{
- await control.evaluate(node=>node.scrollIntoView({block:'center',inline:'nearest',behavior:'instant'}));
- const bounds=await control.boundingBox();
- if(!bounds||bounds.width<=0||bounds.height<=0)throw new Error('Visible Cycle control has no nonzero bounding box');
- await page.mouse.move(bounds.x+bounds.width/2,bounds.y+bounds.height/2);
-}
-test('authored Cycle editor retains actual hover, active and symptom pressed properties',async({page},info)=>{
- test.setTimeout(180000);const sample=editors().find(sample=>sample.name==='mixed-import-coverage')!;expect(sample).toBeDefined();await mountPairs(page,[sample]);await page.setViewportSize({width:1440,height:1000});let checks=0,activeChecks=0;
- for(const theme of themes){await setTheme(page,theme);await page.locator('#cycle-editor-parity').evaluate(element=>{const host=element as PairHost;host.replaceChildren(host.pairs[0]!);});const count=await page.locator('#cycle-editor-parity [data-original] button').count();
-  for(const pressed of [false,true]){await page.locator('#cycle-editor-parity').evaluate((host,pressed)=>{for(const chip of host.querySelectorAll('.cycle-symptom-chip')){chip.classList.toggle('active',pressed);chip.setAttribute('aria-pressed',String(pressed));}},pressed);
-   for(let index=0;index<count;index++){const originalSide=page.locator('#cycle-editor-parity [data-original]'),currentSide=page.locator('#cycle-editor-parity [data-current]');await originalSide.evaluate(node=>{(node as HTMLElement).style.visibility='visible';});await currentSide.evaluate(node=>{(node as HTMLElement).style.visibility='hidden';});const original=originalSide.locator('button').nth(index);if(!await original.isVisible())continue;await moveMouseToControl(page,original);const snapshot=await original.evaluate((node,properties)=>{if(!node.matches(':hover'))throw new Error('Original not hovered');const css=getComputedStyle(node);return Object.fromEntries(properties.map(p=>[p,css.getPropertyValue(p)]));},properties);await originalSide.evaluate(node=>{(node as HTMLElement).style.visibility='hidden';});await currentSide.evaluate(node=>{(node as HTMLElement).style.visibility='visible';});const current=currentSide.locator('button').nth(index);await moveMouseToControl(page,current);expect(await current.evaluate((node,properties)=>{if(!node.matches(':hover'))throw new Error('Current not hovered');const css=getComputedStyle(node);return Object.fromEntries(properties.map(p=>[p,css.getPropertyValue(p)]));},properties),`${theme}/${pressed}/${index}/hover`).toEqual(snapshot);checks++;
-    if(await current.evaluate(node=>node.classList.contains('cycle-symptom-chip'))){await page.mouse.down();const next=await current.evaluate((node,properties)=>{if(!node.matches(':active'))throw new Error('Current not active');const css=getComputedStyle(node);return Object.fromEntries(properties.map(p=>[p,css.getPropertyValue(p)]));},properties);await page.mouse.up();await currentSide.evaluate(node=>{(node as HTMLElement).style.visibility='hidden';});await originalSide.evaluate(node=>{(node as HTMLElement).style.visibility='visible';});await moveMouseToControl(page,original);await page.mouse.down();expect(await original.evaluate((node,properties)=>{if(!node.matches(':active'))throw new Error('Original not active');const css=getComputedStyle(node);return Object.fromEntries(properties.map(p=>[p,css.getPropertyValue(p)]));},properties),`${theme}/${pressed}/${index}/active`).toEqual(next);await page.mouse.move(0,0);await page.mouse.up();activeChecks++;}
-   }
+type PointerSide='original'|'current';
+interface PointerTarget {x:number;y:number;symptom:boolean}
+async function preparePointerControl(page:Page,side:PointerSide,index:number):Promise<PointerTarget|null>{
+ return page.evaluate(({side,index})=>{
+  const host=document.getElementById('cycle-editor-parity');
+  if(!host)throw new Error('Missing Cycle pointer fixture');
+  const original=host.querySelector<HTMLElement>('[data-original]');
+  const current=host.querySelector<HTMLElement>('[data-current]');
+  if(!original||!current)throw new Error('Missing Cycle pointer sides');
+  original.style.visibility=side==='original'?'visible':'hidden';
+  current.style.visibility=side==='current'?'visible':'hidden';
+  const control=(side==='original'?original:current).querySelectorAll<HTMLButtonElement>('button')[index];
+  if(!control)throw new Error(`Missing ${side} Cycle button ${index}`);
+  const before=control.getBoundingClientRect(),style=getComputedStyle(control);
+  // These fixtures contain ordinary buttons: hidden ancestors/display:none have no box.
+  const visible=style.visibility==='visible'&&style.display!=='none'&&before.width>0&&before.height>0;
+  if(!visible){
+   if(side==='original')return null;
+   throw new Error(`Current Cycle button ${index} is hidden while its original is visible`);
   }
+  control.scrollIntoView({block:'center',inline:'nearest',behavior:'instant'});
+  const bounds=control.getBoundingClientRect();
+  if(bounds.width<=0||bounds.height<=0)throw new Error(`Visible ${side} Cycle button ${index} has no nonzero bounding box`);
+  return {x:bounds.x+bounds.width/2,y:bounds.y+bounds.height/2,symptom:control.classList.contains('cycle-symptom-chip')};
+ },{side,index});
+}
+async function pointerProperties(page:Page,side:PointerSide,index:number,state:'hover'|'active'):Promise<Record<string,string>>{
+ return page.evaluate(({side,index,state,properties})=>{
+  const control=document.querySelector('#cycle-editor-parity [data-'+side+']')?.querySelectorAll('button')[index];
+  if(!control)throw new Error(`Missing ${side} Cycle button ${index}`);
+  if(!control.matches(':'+state))throw new Error(`${side} Cycle button ${index} is not ${state}`);
+  const css=getComputedStyle(control);
+  return Object.fromEntries(properties.map(property=>[property,css.getPropertyValue(property)]));
+ },{side,index,state,properties});
+}
+for(const theme of themes){
+ for(const pressed of [false,true]){
+ test('authored Cycle editor retains actual hover, active and symptom pressed properties / '+theme+' / pressed '+pressed,async({page},info)=>{
+ test.setTimeout(60000);
+ const sample=editors().find(sample=>sample.name==='mixed-import-coverage')!;
+ expect(sample).toBeDefined();
+ await mountPairs(page,[sample]);
+ await page.setViewportSize({width:1440,height:1000});
+ const count=await page.evaluate(()=>{
+  const host=document.getElementById('cycle-editor-parity') as PairHost|null;
+  if(!host?.pairs[0])throw new Error('Missing Cycle pointer pair');
+  host.replaceChildren(host.pairs[0]);
+  const original=host.querySelector('[data-original]'),current=host.querySelector('[data-current]');
+  if(!original||!current)throw new Error('Missing Cycle pointer sides');
+  const count=original.querySelectorAll('button').length;
+  if(current.querySelectorAll('button').length!==count)throw new Error('Cycle pointer button topology');
+  return count;
+ });
+ let checks=0,activeChecks=0;
+ await setTheme(page,theme);
+   await page.evaluate(pressed=>{
+    const host=document.getElementById('cycle-editor-parity');
+    if(!host)throw new Error('Missing Cycle pointer fixture');
+    for(const chip of host.querySelectorAll('.cycle-symptom-chip')){
+     chip.classList.toggle('active',pressed);
+     chip.setAttribute('aria-pressed',String(pressed));
+    }
+   },pressed);
+   for(let index=0;index<count;index++){
+    const original=await preparePointerControl(page,'original',index);
+    if(!original)continue;
+    await page.mouse.move(original.x,original.y);
+    const snapshot=await pointerProperties(page,'original',index,'hover');
+    const current=await preparePointerControl(page,'current',index);
+    if(!current)throw new Error(`Missing current Cycle button ${index}`);
+    await page.mouse.move(current.x,current.y);
+    expect(await pointerProperties(page,'current',index,'hover'),`${theme}/${pressed}/${index}/hover`).toEqual(snapshot);
+    checks++;
+    if(current.symptom){
+     await page.mouse.down();
+     const next=await pointerProperties(page,'current',index,'active');
+     await page.mouse.up();
+     const originalActive=await preparePointerControl(page,'original',index);
+     if(!originalActive)throw new Error(`Original Cycle button ${index} disappeared before active check`);
+     await page.mouse.move(originalActive.x,originalActive.y);
+     await page.mouse.down();
+     expect(await pointerProperties(page,'original',index,'active'),`${theme}/${pressed}/${index}/active`).toEqual(next);
+     await page.mouse.move(0,0);
+     await page.mouse.up();
+     activeChecks++;
+    }
+   }
+ fs.writeFileSync(info.outputPath('cycle-editor-hover-active.json'),JSON.stringify({checks,activeChecks,themes:[theme],pressedStates:[pressed]},null,2));
+ });
  }
- fs.writeFileSync(info.outputPath('cycle-editor-hover-active.json'),JSON.stringify({checks,activeChecks,themes,pressedStates:[false,true]},null,2));
-});
+}
