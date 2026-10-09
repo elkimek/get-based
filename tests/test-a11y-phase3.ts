@@ -150,7 +150,7 @@ console.log('=== Phase 3 A11y Tests ===\n');
     tourSrc.includes("setAttribute('aria-modal', 'true')") &&
     tourSrc.includes("setAttribute('aria-labelledby', 'tour-tooltip-heading')"));
   assert('tour heading has matching id',
-    tourSrc.includes('id="tour-tooltip-heading"'));
+    read('/js/components/TourPresentation.svelte').includes('id="tour-tooltip-heading"'));
 
   // ─── 8. Chat streaming announcements ───
   const chatSendSrc = read('/js/chat-send.js');

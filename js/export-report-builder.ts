@@ -1,10 +1,12 @@
 // export-report-builder.js — PDF report modal builder
 
 import { state } from './state.js';
+import {renderHTML as renderReportBuilderPresentation} from './components/ReportBuilderPresentation.svelte.html.js';
+import {projectReportBuilder} from './report-builder-presentation.js';
 import { getErrorMessage, getErrorName } from './caught-error.js';
 import { getActiveData } from './data.js';
 import { getAllFlaggedMarkers } from './marker-analysis.js';
-import { escapeHTML, escapeAttr, showNotification } from './utils.js';
+import { showNotification } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import {
   DEFAULT_REPORT_PRESET,
@@ -43,14 +45,6 @@ function isReportTemplateCustomized(overlay: HTMLElement) {
     || (sections.includes('categories') && categories.some(input => !input.checked));
 }
 
-function reportBuilderActionAttrs(action: unknown, attrs: Record<string, unknown> = {}) {
-  const extraAttrs = Object.entries(attrs)
-    .filter(([, value]) => value !== undefined && value != null)
-    .map(([name, value]) => ` data-report-${name}="${escapeAttr(String(value))}"`)
-    .join('');
-  return `data-report-action="${escapeAttr(action)}"${extraAttrs}`;
-}
-
 function getReportCategoryOptions(data = getActiveData(), rangeMode = state.rangeMode) {
   const flags = getAllFlaggedMarkers(data, rangeMode);
   const flagCounts = new Map<string, number>();
@@ -71,53 +65,6 @@ function getReportCategoryOptions(data = getActiveData(), rangeMode = state.rang
 }
 
 
-function renderReportPresetButton(presetId: string, activePresetId: unknown) {
-  const preset = getReportPreset(presetId as string);
-  const isActive = presetId === activePresetId;
-  return `<button type="button" class="report-preset-btn${isActive ? ' active' : ''}" ${reportBuilderActionAttrs('set-preset', { preset: presetId })} aria-pressed="${isActive}">
-    <span class="report-preset-title">${escapeHTML(preset.label)}</span>
-    <span class="report-preset-meta">${escapeHTML(preset.subtitle)}</span>
-  </button>`;
-}
-
-function renderReportSectionChecks(preset: ReturnType<typeof getReportPreset>) {
-  const selected = new Set(preset.sections);
-  return BUILDER_SECTIONS.map(section => `<label class="report-builder-check">
-    <input type="checkbox" data-report-section="${escapeAttr(section.id)}" ${selected.has(section.id) ? 'checked' : ''}>
-    <span>${escapeHTML(section.label)}</span>
-  </label>`).join('');
-}
-
-function renderReportNoteReview() {
-  const notes = (state.importedData as { notes?: ReportNoteReader[] }).notes || [];
-  return `<details class="report-options-details" data-report-for="notes"><summary>Manage notes <span class="report-options-meta">${notes.length} stored</span></summary><div class="report-options-body">
-    <p class="report-builder-help">Timeline notes are also in Dashboard → Add widget → Labs → Notes. Older notes do not establish their original author. Turn off Timeline notes above to omit them.</p>
-    <p class="report-builder-help">Edit or delete opens the note editor. Reopen Create a report after saving your changes.</p>
-    ${notes.map((note, index) => ({ note, index })).sort((a, b) => String(b.note.date || '').localeCompare(String(a.note.date || ''))).map(({ note, index }) => `<div class="report-note-review"><strong>${escapeHTML(note.date || 'Undated')}</strong><p style="white-space:pre-wrap;overflow-wrap:anywhere">${escapeHTML(note.text || '')}</p><button type="button" class="report-mini-btn" ${reportBuilderActionAttrs('edit-note', { index })}>Edit or delete</button></div>`).join('') || '<p>No timeline notes recorded.</p>'}
-  </div></details>`;
-}
-
-function renderReportCategoryChecks(categoryOptions: ReturnType<typeof getReportCategoryOptions>, selectedCategoryKeys: readonly string[]) {
-  const selected = new Set(selectedCategoryKeys);
-  if (categoryOptions.length === 0) {
-    return `<div class="report-builder-empty">No lab categories with data.</div>`;
-  }
-  return categoryOptions.map(option => {
-    const checked = selected.has(option.key);
-    const markerText = `${option.markerCount} marker${option.markerCount === 1 ? '' : 's'}`;
-    const flagText = option.flaggedCount > 0
-      ? `${markerText} · ${option.flaggedCount} flagged`
-      : markerText;
-    return `<label class="report-category-row">
-      <input type="checkbox" data-report-category="${escapeAttr(option.key)}" data-report-priority="${option.flaggedCount > 0 ? 'true' : 'false'}" ${checked ? 'checked' : ''}>
-      <span class="report-category-copy">
-        <span class="report-category-title">${escapeHTML(option.label)}</span>
-        <span class="report-category-meta">${escapeHTML(flagText)}</span>
-      </span>
-    </label>`;
-  }).join('');
-}
-
 function formatSelectionCount(selected: number, total: number, noun: string) {
   const label = total === 1
     ? noun
@@ -130,61 +77,25 @@ function renderReportBuilder(presetId: unknown = DEFAULT_REPORT_PRESET) {
   const aiAvailable = hasAssistantFeatureProvider();
   const rawData = getActiveData();
   const categoryOptions = getReportCategoryOptions(rawData);
-  const selectedCategoryKeys = categoryOptions.map(option => option.key);
-  const presetButtons = Object.keys(REPORT_PRESETS)
-    .map(id => renderReportPresetButton(id, presetId))
-    .join('');
-  const dateOptions = REPORT_DATE_RANGE_OPTIONS.map(option =>
-    `<option value="${escapeAttr(option.value)}" ${preset.dateRange === option.value ? 'selected' : ''}>${escapeHTML(option.label)}</option>`
-  ).join('');
-
-  return `<div class="modal-overlay" id="${REPORT_BUILDER_OVERLAY_ID}" data-report-builder-overlay data-report-preset="${escapeAttr(presetId)}">
-    <div class="modal gb-form-modal report-builder-modal" role="dialog" aria-modal="true" aria-labelledby="report-builder-title">
-      <div class="gb-modal-head"><div class="gb-modal-title" id="report-builder-title">Create a report</div><button type="button" class="modal-close" aria-label="Close" ${reportBuilderActionAttrs('close')}>&times;</button></div>
-      <div class="gb-form-body report-builder-body"><div class="report-builder-scroll">
-        <p class="report-builder-help report-intro-copy">Choose personal records to review or share. Your PDF preview is created locally.</p>
-        <div class="report-builder-section">
-          <div class="report-builder-field-head"><span class="report-builder-section-title">Start with a template</span><span class="report-selection-count" data-report-template-customized hidden>Customized</span></div>
-          <div class="report-preset-grid">${presetButtons}</div>
-          <p class="report-builder-help" data-report-template-description>${escapeHTML(preset.description)}</p>
-          <p class="report-builder-help">Templates set sections and dates. Result ranges, questions, detail and AI preferences stay as you choose them.</p>
-        </div>
-        <div class="report-builder-section">
-          <div class="report-builder-two-col">
-            <label class="report-builder-field" for="report-date-range"><span class="report-builder-label">Date range</span><select id="report-date-range" class="report-builder-select">${dateOptions}</select></label>
-            <label class="report-builder-field" for="report-range-mode"><span class="report-builder-label">Result ranges</span><select id="report-range-mode" class="report-builder-select" aria-describedby="report-range-help">${REPORT_RANGE_MODE_OPTIONS.map(option => `<option value="${option.value}" ${option.value === state.rangeMode ? 'selected' : ''}>${option.label}</option>`).join('')}</select></label>
-          </div>
-          <p class="report-builder-help" id="report-range-help">Applies only to this report. Lab ranges use app or custom references when unavailable. Optimal and Both flag against optimal ranges where available; phase-specific reference ranges take precedence.</p>
-          <fieldset class="report-detail-options"><legend class="report-builder-label">Report detail</legend><div class="report-section-grid">
-            <label class="report-builder-check report-detail-card"><input type="radio" name="report-detail" value="summary" checked><span><strong>Concise summary</strong><small>Key results and averages for a quick review.</small></span></label>
-            <label class="report-builder-check report-detail-card"><input type="radio" name="report-detail" value="appendix"><span><strong>Include detailed records</strong><small>Add selected histories and full notes as an appendix.</small></span></label>
-          </div></fieldset>
-        </div>
-        <div class="report-builder-section">
-          <div class="report-builder-field-head"><span class="report-builder-section-title">Include in the report</span><span class="report-selection-count" data-report-section-count></span></div>
-          <div class="report-section-grid">${renderReportSectionChecks(preset)}</div>
-          <p class="report-builder-help">Lab results include ranges, flags and trends. Genome uses the findings choice below.</p>
-          <details class="report-options-details" data-report-for="categories"><summary>Lab categories <span class="report-options-meta" data-report-category-count></span></summary><div class="report-options-body">
-            <div class="report-category-actions"><button type="button" class="report-mini-btn" ${reportBuilderActionAttrs('select-all-categories')}>All</button><button type="button" class="report-mini-btn" aria-label="Select lab categories with flagged results" ${reportBuilderActionAttrs('select-priority-categories')}>Flagged</button><button type="button" class="report-mini-btn" ${reportBuilderActionAttrs('clear-categories')}>Clear</button></div>
-            <div class="report-category-list">${renderReportCategoryChecks(categoryOptions, selectedCategoryKeys)}</div>
-          </div></details>
-          <div class="report-genome-options" data-report-for="genetics"><label class="report-builder-field" for="report-genome-mode"><span class="report-builder-label">Genome findings</span><select id="report-genome-mode" class="report-builder-select"><option value="risks">Risk associations</option><option value="risks-traits">Risks and traits</option><option value="traits">Traits only</option><option value="all">All findings, including protective and reference calls</option></select></label><p class="report-builder-help">Uses your genotype’s current catalog interpretation. Associations are not diagnoses. Adding an appendix does not expand this selection.</p></div>
-          <details class="report-options-details" data-report-for="context"><summary>Personal context <span class="report-options-meta">Choose what to share</span></summary><div class="report-options-body"><div class="report-section-grid">${buildReportContextSections(rawData).map(section => `<label class="report-builder-check"><input type="checkbox" data-report-context="${escapeAttr(section.title)}" checked><span>${escapeHTML(section.title)}</span></label>`).join('') || '<p class="report-builder-help">No personal context recorded.</p>'}</div></div></details>
-          ${renderReportNoteReview()}
-        </div>
-        <div class="report-builder-section">
-          <label class="report-builder-field" for="report-purpose"><span class="report-builder-section-title">Reason for sharing / questions <span class="report-optional-label">Optional</span></span><textarea id="report-purpose" class="report-builder-select" rows="3" maxlength="1200" placeholder="What would you like to ask or discuss?"></textarea></label>
-          <p class="report-builder-help">Appears at the start of your report and guides the overview, if you generate one.</p>
-        </div>
-        <div class="report-builder-section report-ai-builder">
-          <div class="report-builder-row-head"><div><label class="report-builder-check"><input type="checkbox" id="report-include-ai" ${aiAvailable ? 'checked' : 'disabled'} aria-describedby="report-ai-disclosure"><span>Include AI overview</span></label><p class="report-builder-help">Add an AI-generated opening overview of recorded highlights, context and your questions. It is informational and may be incomplete or incorrect.</p></div></div>
-          <p class="report-builder-help" id="report-ai-disclosure">${aiAvailable ? 'Generate AI overview &amp; preview uses your selected AI connection to process the selected report facts and questions. AI can make mistakes; verify the overview before sharing. Any required AI disclosure or destination approval appears before the request. You can turn off the overview to compile this report without a new AI request.' : 'AI is unavailable or paused. PDF preview works without a new AI overview.'}</p>
-          <div class="report-ai-actions"><button type="button" class="report-mini-btn report-ai-generate-btn" ${reportBuilderActionAttrs('generate-ai-summary')} hidden>Generate overview</button><button type="button" class="report-mini-btn report-ai-clear-btn" hidden ${reportBuilderActionAttrs('clear-ai-summary')}>Remove overview</button><button type="button" class="report-mini-btn" hidden ${reportBuilderActionAttrs('preview-without-ai')}>Preview without AI</button></div>
-          <div class="report-ai-status" data-report-ai-status aria-live="polite">${aiAvailable ? 'Ready to generate with your preview.' : 'Not included.'}</div>
-          <textarea id="report-ai-summary-text" class="report-ai-summary-text" aria-label="Editable AI-generated overview" hidden></textarea>
-        </div>
-      </div><div class="gb-form-actions report-builder-actions"><div class="report-builder-selection-summary" id="report-builder-selection-summary" data-report-selection-summary aria-live="polite"></div><div class="report-builder-footer-buttons"><button type="button" class="import-btn import-btn-secondary" ${reportBuilderActionAttrs('close')}>Cancel</button><button type="button" class="import-btn import-btn-primary report-builder-preview-btn" aria-describedby="report-builder-selection-summary" ${reportBuilderActionAttrs('export')}>Preview PDF</button></div></div></div>
-    </div></div>`;
+  const view = projectReportBuilder({
+    overlayId: REPORT_BUILDER_OVERLAY_ID,
+    presetId,
+    preset,
+    presets: Object.keys(REPORT_PRESETS).map(id => {
+      const option = getReportPreset(id);
+      return {id, label: option.label, subtitle: option.subtitle};
+    }),
+    dateOptions: REPORT_DATE_RANGE_OPTIONS,
+    rangeOptions: REPORT_RANGE_MODE_OPTIONS,
+    rangeMode: state.rangeMode,
+    sections: BUILDER_SECTIONS,
+    categories: categoryOptions,
+    selectedCategoryKeys: categoryOptions.map(option => option.key),
+    contextTitles: buildReportContextSections(rawData).map(section => section.title),
+    notes: (state.importedData as {notes?: ReportNoteReader[]}).notes || [],
+    aiAvailable,
+  });
+  return renderReportBuilderPresentation({view});
 }
 
 function collectReportBuilderOptions(overlay: HTMLElement): ReportBuilderOptions {
@@ -252,9 +163,19 @@ function updateReportAIControls(overlay: HTMLElement) {
   const hasText = !!overlay.querySelector<HTMLTextAreaElement>('#report-ai-summary-text')?.value?.trim();
   const busy = overlay.dataset.reportAiBusy === 'true' || overlay.dataset.reportExportBusy === 'true';
   const primary = overlay.querySelector<HTMLButtonElement>('[data-report-action="export"]');
-  if (primary) { primary.disabled = busy; primary.textContent = busy ? 'Generating…' : enabled && !hasText ? 'Generate AI overview & preview' : 'Preview PDF'; }
+  if (primary) {
+    primary.disabled = busy;
+    const label = busy ? 'Generating…' : enabled && !hasText ? 'Generate AI overview & preview' : 'Preview PDF';
+    // Preserve the pressed text node when a field's blur repeats an unchanged label.
+    if (primary.textContent !== label) primary.textContent = label;
+  }
   const generate = overlay.querySelector<HTMLButtonElement>('[data-report-action="generate-ai-summary"]');
-  if (generate) { generate.disabled = busy; generate.hidden = !enabled || (!hasText && !overlay.dataset.reportAiFailed); generate.textContent = hasText ? 'Regenerate overview' : 'Retry overview'; }
+  if (generate) {
+    generate.disabled = busy;
+    generate.hidden = !enabled || (!hasText && !overlay.dataset.reportAiFailed);
+    const label = hasText ? 'Regenerate overview' : 'Retry overview';
+    if (generate.textContent !== label) generate.textContent = label;
+  }
   const fallback = overlay.querySelector<HTMLElement>('[data-report-action="preview-without-ai"]');
   if (fallback) fallback.hidden = busy || !overlay.dataset.reportAiFailed;
   const editor = overlay.querySelector<HTMLTextAreaElement>('#report-ai-summary-text');

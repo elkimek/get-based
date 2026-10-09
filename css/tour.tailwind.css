@@ -1,0 +1,20 @@
+/* Guided-tour component and controller-positioned roots; no reset. */
+@import "tailwindcss/theme.css" layer(gb-theme) prefix(gb);
+@import "tailwindcss/utilities.css" prefix(gb) source(none);
+@import "./ui-tokens.tailwind.css";
+@custom-variant tour-overlay (:where(&)#tour-overlay);
+@custom-variant tour-spotlight (:where(&)#tour-spotlight);
+@custom-variant tour-tooltip (:where(&)#tour-tooltip);
+@custom-variant tour-heading (#tour-tooltip h4:where(&));
+@custom-variant tour-copy (#tour-tooltip p:where(&));
+@custom-variant tour-ui (&:where([data-tour-view], [data-tour-view] *));
+@custom-variant tour-active (&.active);
+@custom-variant tour-phone (@media (max-width: 480px));
+@custom-variant tour-touch {
+  @media (max-width: 480px), (pointer: coarse) { @slot; }
+}
+@source "../js/tour-classes.ts";
+@source "../js/components/TourPresentation.svelte";
+
+/* Retain the original hover behavior on touch-capable devices. */
+@custom-variant tour-hover (&:hover);

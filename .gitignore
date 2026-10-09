@@ -2374,3 +2374,14 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /js/lens-content-presentation.js
 /js/lens-content-classes.js
 /tests/lens-content-presentation.test.js
+
+# Report builder and tour component-owned runtime artifacts.
+/css/app-shell.css
+/css/modal-shared.css
+/js/report-builder-presentation.js
+/js/report-builder-classes.js
+/js/tour-presentation.js
+/js/tour-classes.js
+/tests/report-builder-presentation.test.js
+/tests/tour-presentation.test.js
+/tests/report-tour-frozen.test.js

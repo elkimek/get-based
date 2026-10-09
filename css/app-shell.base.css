@@ -94,30 +94,6 @@
 @keyframes toastProgress { from { width: 100%; } to { width: 0%; } }
 
 /* Guided Tour */
-#tour-overlay { position: fixed; inset: 0; z-index: 500; pointer-events: auto; }
-#tour-spotlight {
-  position: fixed; z-index: 501; border-radius: 8px;
-  box-shadow: 0 0 0 9999px rgba(0,0,0,0.65);
-  transition: all 0.3s ease; pointer-events: none;
-}
-#tour-tooltip {
-  position: fixed; z-index: 502; background: var(--bg-secondary);
-  border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 20px; max-width: 340px; width: max-content;
-  box-shadow: var(--shadow-lg);
-}
-#tour-tooltip h4 { margin: 0 0 8px; font-family: var(--font-display); font-size: 16px; }
-#tour-tooltip p { margin: 0 0 16px; color: var(--text-secondary); font-size: 14px; line-height: 1.5; }
-.tour-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.tour-dots { display: flex; gap: 6px; }
-.tour-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); transition: background 0.2s; }
-.tour-dot.active { background: var(--accent); }
-.tour-btns { display: flex; gap: 8px; }
-.tour-btn { padding: 6px 16px; border-radius: 6px; border: none; font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit; transition: all 0.15s; }
-.tour-btn-primary { background: var(--accent-gradient); color: white; }
-.tour-btn-primary:hover { box-shadow: 0 2px 12px rgba(79,140,255,0.2); }
-.tour-btn-secondary { background: transparent; color: var(--text-secondary); border: 1px solid var(--border); }
-.tour-btn-secondary:hover { background: var(--bg-hover); }
 
 /* First-launch analytics transparency banner - fixed bottom-center, dismisses forever */
 .analytics-consent-banner {
@@ -783,7 +759,6 @@ body.analytics-consent-visible .version-update-banner { bottom: 78px; }
   .welcome-hero .drop-zone-api-hint { display: none; }
   .notification-container { right: 8px; left: 8px; }
   .notification-toast { min-width: 0; width: 100%; }
-  #tour-tooltip { max-width: calc(100vw - 32px); }
 }
 @media (max-width: 799px) {
   body.mobile-dashboard-active .analytics-consent-banner,
@@ -816,26 +791,6 @@ body.analytics-consent-visible .version-update-banner { bottom: 78px; }
   }
   body.analytics-consent-visible.version-update-visible.mobile-tabs-active .main {
     padding-bottom: calc(284px + env(safe-area-inset-bottom));
-  }
-}
-@media (max-width: 480px), (pointer: coarse) {
-  #tour-tooltip {
-    width: calc(100vw - 32px);
-    padding: 16px;
-  }
-  .tour-nav {
-    align-items: stretch;
-    flex-direction: column;
-  }
-  .tour-dots {
-    flex-wrap: wrap;
-  }
-  .tour-btns {
-    justify-content: flex-end;
-  }
-  .tour-btn {
-    min-height: 44px;
-    padding: 8px 14px;
   }
 }
 @media (max-width: 375px) {

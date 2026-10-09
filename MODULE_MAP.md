@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1414 |
-| Internal import edges | 4773 |
+| Modules | 1423 |
+| Internal import edges | 4785 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -1406,7 +1406,7 @@ Native browser modules shipped with the static application.
 - [`js/export-import.ts`](js/export-import.ts) → [`js/biology-score-persistence.ts`](js/biology-score-persistence.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/chat-personality-storage.ts`](js/chat-personality-storage.ts), [`js/chat-storage-safety.ts`](js/chat-storage-safety.ts), [`js/crypto.ts`](js/crypto.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/export-runtime.ts`](js/export-runtime.ts), [`js/lab-entry-mutations.ts`](js/lab-entry-mutations.ts), [`js/lab-entry-restore.ts`](js/lab-entry-restore.ts), [`js/nostr-discovery.ts`](js/nostr-discovery.ts), [`js/nutrition-store.ts`](js/nutrition-store.ts) *(dynamic)*, [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/sync-save-hooks.ts`](js/sync-save-hooks.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/export-loader.ts`](js/export-loader.ts) → [`js/export.ts`](js/export.ts) *(dynamic)*, [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/export-report-aggregates.ts`](js/export-report-aggregates.ts) → [`js/nutrition-nutrient-registry.ts`](js/nutrition-nutrient-registry.ts), [`js/nutrition-summary.ts`](js/nutrition-summary.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts), [`js/wearables-formatters.ts`](js/wearables-formatters.ts)
-- [`js/export-report-builder.ts`](js/export-report-builder.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/data.ts`](js/data.ts), [`js/export-report-html.ts`](js/export-report-html.ts), [`js/export-report-progress.ts`](js/export-report-progress.ts), [`js/export-report.ts`](js/export-report.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/notes.ts`](js/notes.ts) *(dynamic)*, [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/export-report-builder.ts`](js/export-report-builder.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/components/ReportBuilderPresentation.svelte`](js/components/ReportBuilderPresentation.svelte), [`js/data.ts`](js/data.ts), [`js/export-report-html.ts`](js/export-report-html.ts), [`js/export-report-progress.ts`](js/export-report-progress.ts), [`js/export-report.ts`](js/export-report.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/notes.ts`](js/notes.ts) *(dynamic)*, [`js/report-builder-presentation.ts`](js/report-builder-presentation.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/export-report-data.ts`](js/export-report-data.ts) → [`js/dna-evidence.ts`](js/dna-evidence.ts), [`js/dna-genotype.ts`](js/dna-genotype.ts), [`js/export-report-sections.ts`](js/export-report-sections.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/supplement-impact.ts`](js/supplement-impact.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/export-report-html.ts`](js/export-report-html.ts) → [`js/dna-evidence.ts`](js/dna-evidence.ts), [`js/export-report-data.ts`](js/export-report-data.ts), [`js/export-report-summary-html.ts`](js/export-report-summary-html.ts), [`js/export-report.ts`](js/export-report.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/state.ts`](js/state.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts), [`js/unit-profiles.ts`](js/unit-profiles.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/export-report-progress.ts`](js/export-report-progress.ts) → no in-scope imports
@@ -2842,6 +2842,37 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>report</code> family — 2 modules</summary>
+
+- [`js/report-builder-classes.ts`](js/report-builder-classes.ts) → no in-scope imports
+- [`js/report-builder-presentation.ts`](js/report-builder-presentation.ts) → no in-scope imports
+
+</details>
+
+<details><summary><code>ReportBuilderAI.svelte</code> family — 1 module</summary>
+
+- [`js/components/ReportBuilderAI.svelte`](js/components/ReportBuilderAI.svelte) → [`js/report-builder-classes.ts`](js/report-builder-classes.ts)
+
+</details>
+
+<details><summary><code>ReportBuilderPresentation.svelte</code> family — 1 module</summary>
+
+- [`js/components/ReportBuilderPresentation.svelte`](js/components/ReportBuilderPresentation.svelte) → [`js/components/ReportBuilderAI.svelte`](js/components/ReportBuilderAI.svelte), [`js/components/ReportBuilderSections.svelte`](js/components/ReportBuilderSections.svelte), [`js/components/ReportBuilderSetup.svelte`](js/components/ReportBuilderSetup.svelte), [`js/report-builder-classes.ts`](js/report-builder-classes.ts)
+
+</details>
+
+<details><summary><code>ReportBuilderSections.svelte</code> family — 1 module</summary>
+
+- [`js/components/ReportBuilderSections.svelte`](js/components/ReportBuilderSections.svelte) → [`js/report-builder-classes.ts`](js/report-builder-classes.ts)
+
+</details>
+
+<details><summary><code>ReportBuilderSetup.svelte</code> family — 1 module</summary>
+
+- [`js/components/ReportBuilderSetup.svelte`](js/components/ReportBuilderSetup.svelte) → [`js/report-builder-classes.ts`](js/report-builder-classes.ts)
+
+</details>
+
 <details><summary><code>retrying</code> family — 1 module</summary>
 
 - [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts) → no in-scope imports
@@ -3243,10 +3274,18 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>tour</code> family — 2 modules</summary>
+<details><summary><code>tour</code> family — 4 modules</summary>
 
+- [`js/tour-classes.ts`](js/tour-classes.ts) → no in-scope imports
+- [`js/tour-presentation.ts`](js/tour-presentation.ts) → no in-scope imports
 - [`js/tour-runtime.ts`](js/tour-runtime.ts) → [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts)
-- [`js/tour.ts`](js/tour.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/tour-runtime.ts`](js/tour-runtime.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/tour.ts`](js/tour.ts) → [`js/components/TourPresentation.svelte`](js/components/TourPresentation.svelte), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/tour-classes.ts`](js/tour-classes.ts), [`js/tour-presentation.ts`](js/tour-presentation.ts), [`js/tour-runtime.ts`](js/tour-runtime.ts), [`js/utils.ts`](js/utils.ts)
+
+</details>
+
+<details><summary><code>TourPresentation.svelte</code> family — 1 module</summary>
+
+- [`js/components/TourPresentation.svelte`](js/components/TourPresentation.svelte) → [`js/tour-classes.ts`](js/tour-classes.ts)
 
 </details>
 

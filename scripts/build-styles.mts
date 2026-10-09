@@ -44,8 +44,16 @@ export async function buildChatStyles({ outputPath = path.join(ROOT, 'css/chat-p
 export async function buildLightSetupStyles({ outputPath = path.join(ROOT, 'css/light-setup.css'), check = false }: StyleOptions = {}): Promise<void> {
     await compileStyles('light-setup.base.css', 'light-setup.tailwind.css', outputPath, check, 'Light setup');
 }
+export async function buildAppShellStyles({ outputPath = path.join(ROOT, 'css/app-shell.css'), check = false }: StyleOptions = {}): Promise<void> {
+    await compileStyles('app-shell.base.css', 'tour.tailwind.css', outputPath, check, 'App shell');
+}
+export async function buildModalStyles({ outputPath = path.join(ROOT, 'css/modal-shared.css'), check = false }: StyleOptions = {}): Promise<void> {
+    await compileStyles('modal-shared.base.css', 'report-builder.tailwind.css', outputPath, check, 'Shared modals');
+}
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
     const check = process.argv.includes('--check');
+    await buildAppShellStyles({ check });
+    await buildModalStyles({ check });
     await buildStyles({ check });
     await buildProtectionStyles({ check });
     await buildChatStyles({ check });

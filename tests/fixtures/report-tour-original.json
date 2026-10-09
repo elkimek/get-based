@@ -1,0 +1,1355 @@
+{
+  "revision": "916a7f61f232aebc4a7c93dd918a11e5eaee9f99",
+  "sourceSHA256": {
+    "js/export-report-builder.ts": "feb63320244d46d92e20d67ec4108c11b114567c314e2ccba37d832e584b3a37",
+    "js/tour.ts": "72743dcafd2ff3ca0597363c795171407b4f6ff27a8692e17fb6d8a93c5ee63d",
+    "js/export-report.ts": "00b171eb6544144232a46f5172e1eeeb7cf440491843568d0fd51fb9fd27ccb0",
+    "css/modal-shared.css": "8faa99337b718fc0bcb9f285f0d1d2c8f362560b263d723604b2ff230a7dc024",
+    "css/app-shell.css": "7296c6defb6f8cd1389b156aeeb36e41b9a9cc34856a169565a12bcea3d900e2"
+  },
+  "samples": [
+    {
+      "kind": "report",
+      "name": "clinician-local",
+      "input": {
+        "presetId": "clinician",
+        "aiAvailable": false,
+        "rangeMode": "reference",
+        "categoryOptions": [
+          {
+            "key": "biochemistry",
+            "label": "Biochemistry",
+            "markerCount": 3,
+            "flaggedCount": 1
+          },
+          {
+            "key": "custom<lab>",
+            "label": "Literal <lab> & category",
+            "markerCount": 1,
+            "flaggedCount": 0
+          }
+        ],
+        "contextSections": [
+          {
+            "title": "Medical history"
+          },
+          {
+            "title": "Literal <context> & title"
+          }
+        ],
+        "notes": [
+          {
+            "date": "2026-02-03",
+            "text": "Original first note\nSecond line"
+          },
+          {
+            "date": "2026-02-04",
+            "text": "Newer <note> & \"literal\""
+          },
+          {
+            "date": "",
+            "text": ""
+          }
+        ]
+      },
+      "html": "<div class=\"modal-overlay\" id=\"report-builder-overlay\" data-report-builder-overlay data-report-preset=\"clinician\">\n    <div class=\"modal gb-form-modal report-builder-modal\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"report-builder-title\">\n      <div class=\"gb-modal-head\"><div class=\"gb-modal-title\" id=\"report-builder-title\">Create a report</div><button type=\"button\" class=\"modal-close\" aria-label=\"Close\" data-report-action=\"close\">&times;</button></div>\n      <div class=\"gb-form-body report-builder-body\"><div class=\"report-builder-scroll\">\n        <p class=\"report-builder-help report-intro-copy\">Choose personal records to review or share. Your PDF preview is created locally.</p>\n        <div class=\"report-builder-section\">\n          <div class=\"report-builder-field-head\"><span class=\"report-builder-section-title\">Start with a template</span><span class=\"report-selection-count\" data-report-template-customized hidden>Customized</span></div>\n          <div class=\"report-preset-grid\"><button type=\"button\" class=\"report-preset-btn active\" data-report-action=\"set-preset\" data-report-preset=\"clinician\" aria-pressed=\"true\">\n    <span class=\"report-preset-title\">Health summary</span>\n    <span class=\"report-preset-meta\">All lab groups + personal context</span>\n  </button><button type=\"button\" class=\"report-preset-btn\" data-report-action=\"set-preset\" data-report-preset=\"full\" aria-pressed=\"false\">\n    <span class=\"report-preset-title\">Full health report</span>\n    <span class=\"report-preset-meta\">Every data section, all dates</span>\n  </button><button type=\"button\" class=\"report-preset-btn\" data-report-action=\"set-preset\" data-report-preset=\"lifestyle\" aria-pressed=\"false\">\n    <span class=\"report-preset-title\">Nutrition and lifestyle</span>\n    <span class=\"report-preset-meta\">Recent intake, body and exposure</span>\n  </button><button type=\"button\" class=\"report-preset-btn\" data-report-action=\"set-preset\" data-report-preset=\"personal\" aria-pressed=\"false\">\n    <span class=\"report-preset-title\">Lab results only</span>\n    <span class=\"report-preset-meta\">Every lab group, no extra sections</span>\n  </button></div>\n          <p class=\"report-builder-help\" data-report-template-description>A concise overview with the latest and prior results from every available lab group, medicines, personal context and selected Genome findings.</p>\n          <p class=\"report-builder-help\">Templates set sections and dates. Result ranges, questions, detail and AI preferences stay as you choose them.</p>\n        </div>\n        <div class=\"report-builder-section\">\n          <div class=\"report-builder-two-col\">\n            <label class=\"report-builder-field\" for=\"report-date-range\"><span class=\"report-builder-label\">Date range</span><select id=\"report-date-range\" class=\"report-builder-select\"><option value=\"current\" >Current dashboard range</option><option value=\"3m\" >Last 3 months</option><option value=\"6m\" >Last 6 months</option><option value=\"1y\" >Last year</option><option value=\"all\" selected>All dates</option></select></label>\n            <label class=\"report-builder-field\" for=\"report-range-mode\"><span class=\"report-builder-label\">Result ranges</span><select id=\"report-range-mode\" class=\"report-builder-select\" aria-describedby=\"report-range-help\"><option value=\"reference\" selected>Lab / reference ranges</option><option value=\"optimal\" >Optimal ranges</option><option value=\"both\" >Both ranges</option></select></label>\n          </div>\n          <p class=\"report-builder-help\" id=\"report-range-help\">Applies only to this report. Lab ranges use app or custom references when unavailable. Optimal and Both flag against optimal ranges where available; phase-specific reference ranges take precedence.</p>\n          <fieldset class=\"report-detail-options\"><legend class=\"report-builder-label\">Report detail</legend><div class=\"report-section-grid\">\n            <label class=\"report-builder-check report-detail-card\"><input type=\"radio\" name=\"report-detail\" value=\"summary\" checked><span><strong>Concise summary</strong><small>Key results and averages for a quick review.</small></span></label>\n            <label class=\"report-builder-check report-detail-card\"><input type=\"radio\" name=\"report-detail\" value=\"appendix\"><span><strong>Include detailed records</strong><small>Add selected histories and full notes as an appendix.</small></span></label>\n          </div></fieldset>\n        </div>\n        <div class=\"report-builder-section\">\n          <div class=\"report-builder-field-head\"><span class=\"report-builder-section-title\">Include in the report</span><span class=\"report-selection-count\" data-report-section-count></span></div>\n          <div class=\"report-section-grid\"><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"categories\" checked>\n    <span>Lab results</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"supplements\" checked>\n    <span>Supplements and meds</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"notes\" >\n    <span>Timeline notes</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"genetics\" checked>\n    <span>Genome</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"context\" checked>\n    <span>Personal context</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"nutrition\" >\n    <span>Nutrition and hydration</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"wearables\" >\n    <span>Body and wearables</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"light\" >\n    <span>Sun and light sessions</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"environment\" >\n    <span>Environment</span>\n  </label></div>\n          <p class=\"report-builder-help\">Lab results include ranges, flags and trends. Genome uses the findings choice below.</p>\n          <details class=\"report-options-details\" data-report-for=\"categories\"><summary>Lab categories <span class=\"report-options-meta\" data-report-category-count></span></summary><div class=\"report-options-body\">\n            <div class=\"report-category-actions\"><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"select-all-categories\">All</button><button type=\"button\" class=\"report-mini-btn\" aria-label=\"Select lab categories with flagged results\" data-report-action=\"select-priority-categories\">Flagged</button><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"clear-categories\">Clear</button></div>\n            <div class=\"report-category-list\"><label class=\"report-category-row\">\n      <input type=\"checkbox\" data-report-category=\"biochemistry\" data-report-priority=\"true\" checked>\n      <span class=\"report-category-copy\">\n        <span class=\"report-category-title\">Biochemistry</span>\n        <span class=\"report-category-meta\">3 markers · 1 flagged</span>\n      </span>\n    </label><label class=\"report-category-row\">\n      <input type=\"checkbox\" data-report-category=\"custom&lt;lab&gt;\" data-report-priority=\"false\" checked>\n      <span class=\"report-category-copy\">\n        <span class=\"report-category-title\">Literal &lt;lab&gt; &amp; category</span>\n        <span class=\"report-category-meta\">1 marker</span>\n      </span>\n    </label></div>\n          </div></details>\n          <div class=\"report-genome-options\" data-report-for=\"genetics\"><label class=\"report-builder-field\" for=\"report-genome-mode\"><span class=\"report-builder-label\">Genome findings</span><select id=\"report-genome-mode\" class=\"report-builder-select\"><option value=\"risks\">Risk associations</option><option value=\"risks-traits\">Risks and traits</option><option value=\"traits\">Traits only</option><option value=\"all\">All findings, including protective and reference calls</option></select></label><p class=\"report-builder-help\">Uses your genotype’s current catalog interpretation. Associations are not diagnoses. Adding an appendix does not expand this selection.</p></div>\n          <details class=\"report-options-details\" data-report-for=\"context\"><summary>Personal context <span class=\"report-options-meta\">Choose what to share</span></summary><div class=\"report-options-body\"><div class=\"report-section-grid\"><label class=\"report-builder-check\"><input type=\"checkbox\" data-report-context=\"Medical history\" checked><span>Medical history</span></label><label class=\"report-builder-check\"><input type=\"checkbox\" data-report-context=\"Literal &lt;context&gt; &amp; title\" checked><span>Literal &lt;context&gt; &amp; title</span></label></div></div></details>\n          <details class=\"report-options-details\" data-report-for=\"notes\"><summary>Manage notes <span class=\"report-options-meta\">3 stored</span></summary><div class=\"report-options-body\">\n    <p class=\"report-builder-help\">Timeline notes are also in Dashboard → Add widget → Labs → Notes. Older notes do not establish their original author. Turn off Timeline notes above to omit them.</p>\n    <p class=\"report-builder-help\">Edit or delete opens the note editor. Reopen Create a report after saving your changes.</p>\n    <div class=\"report-note-review\"><strong>2026-02-04</strong><p style=\"white-space:pre-wrap;overflow-wrap:anywhere\">Newer &lt;note&gt; &amp; &quot;literal&quot;</p><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"edit-note\" data-report-index=\"1\">Edit or delete</button></div><div class=\"report-note-review\"><strong>2026-02-03</strong><p style=\"white-space:pre-wrap;overflow-wrap:anywhere\">Original first note\nSecond line</p><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"edit-note\" data-report-index=\"0\">Edit or delete</button></div><div class=\"report-note-review\"><strong>Undated</strong><p style=\"white-space:pre-wrap;overflow-wrap:anywhere\"></p><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"edit-note\" data-report-index=\"2\">Edit or delete</button></div>\n  </div></details>\n        </div>\n        <div class=\"report-builder-section\">\n          <label class=\"report-builder-field\" for=\"report-purpose\"><span class=\"report-builder-section-title\">Reason for sharing / questions <span class=\"report-optional-label\">Optional</span></span><textarea id=\"report-purpose\" class=\"report-builder-select\" rows=\"3\" maxlength=\"1200\" placeholder=\"What would you like to ask or discuss?\"></textarea></label>\n          <p class=\"report-builder-help\">Appears at the start of your report and guides the overview, if you generate one.</p>\n        </div>\n        <div class=\"report-builder-section report-ai-builder\">\n          <div class=\"report-builder-row-head\"><div><label class=\"report-builder-check\"><input type=\"checkbox\" id=\"report-include-ai\" disabled aria-describedby=\"report-ai-disclosure\"><span>Include AI overview</span></label><p class=\"report-builder-help\">Add an AI-generated opening overview of recorded highlights, context and your questions. It is informational and may be incomplete or incorrect.</p></div></div>\n          <p class=\"report-builder-help\" id=\"report-ai-disclosure\">AI is unavailable or paused. PDF preview works without a new AI overview.</p>\n          <div class=\"report-ai-actions\"><button type=\"button\" class=\"report-mini-btn report-ai-generate-btn\" data-report-action=\"generate-ai-summary\" hidden>Generate overview</button><button type=\"button\" class=\"report-mini-btn report-ai-clear-btn\" hidden data-report-action=\"clear-ai-summary\">Remove overview</button><button type=\"button\" class=\"report-mini-btn\" hidden data-report-action=\"preview-without-ai\">Preview without AI</button></div>\n          <div class=\"report-ai-status\" data-report-ai-status aria-live=\"polite\">Not included.</div>\n          <textarea id=\"report-ai-summary-text\" class=\"report-ai-summary-text\" aria-label=\"Editable AI-generated overview\" hidden></textarea>\n        </div>\n      </div><div class=\"gb-form-actions report-builder-actions\"><div class=\"report-builder-selection-summary\" id=\"report-builder-selection-summary\" data-report-selection-summary aria-live=\"polite\"></div><div class=\"report-builder-footer-buttons\"><button type=\"button\" class=\"import-btn import-btn-secondary\" data-report-action=\"close\">Cancel</button><button type=\"button\" class=\"import-btn import-btn-primary report-builder-preview-btn\" aria-describedby=\"report-builder-selection-summary\" data-report-action=\"export\">Preview PDF</button></div></div></div>\n    </div></div>"
+    },
+    {
+      "kind": "report",
+      "name": "clinician-ai",
+      "input": {
+        "presetId": "clinician",
+        "aiAvailable": true,
+        "rangeMode": "both",
+        "categoryOptions": [
+          {
+            "key": "biochemistry",
+            "label": "Biochemistry",
+            "markerCount": 3,
+            "flaggedCount": 1
+          },
+          {
+            "key": "custom<lab>",
+            "label": "Literal <lab> & category",
+            "markerCount": 1,
+            "flaggedCount": 0
+          }
+        ],
+        "contextSections": [
+          {
+            "title": "Medical history"
+          },
+          {
+            "title": "Literal <context> & title"
+          }
+        ],
+        "notes": [
+          {
+            "date": "2026-02-03",
+            "text": "Original first note\nSecond line"
+          },
+          {
+            "date": "2026-02-04",
+            "text": "Newer <note> & \"literal\""
+          },
+          {
+            "date": "",
+            "text": ""
+          }
+        ]
+      },
+      "html": "<div class=\"modal-overlay\" id=\"report-builder-overlay\" data-report-builder-overlay data-report-preset=\"clinician\">\n    <div class=\"modal gb-form-modal report-builder-modal\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"report-builder-title\">\n      <div class=\"gb-modal-head\"><div class=\"gb-modal-title\" id=\"report-builder-title\">Create a report</div><button type=\"button\" class=\"modal-close\" aria-label=\"Close\" data-report-action=\"close\">&times;</button></div>\n      <div class=\"gb-form-body report-builder-body\"><div class=\"report-builder-scroll\">\n        <p class=\"report-builder-help report-intro-copy\">Choose personal records to review or share. Your PDF preview is created locally.</p>\n        <div class=\"report-builder-section\">\n          <div class=\"report-builder-field-head\"><span class=\"report-builder-section-title\">Start with a template</span><span class=\"report-selection-count\" data-report-template-customized hidden>Customized</span></div>\n          <div class=\"report-preset-grid\"><button type=\"button\" class=\"report-preset-btn active\" data-report-action=\"set-preset\" data-report-preset=\"clinician\" aria-pressed=\"true\">\n    <span class=\"report-preset-title\">Health summary</span>\n    <span class=\"report-preset-meta\">All lab groups + personal context</span>\n  </button><button type=\"button\" class=\"report-preset-btn\" data-report-action=\"set-preset\" data-report-preset=\"full\" aria-pressed=\"false\">\n    <span class=\"report-preset-title\">Full health report</span>\n    <span class=\"report-preset-meta\">Every data section, all dates</span>\n  </button><button type=\"button\" class=\"report-preset-btn\" data-report-action=\"set-preset\" data-report-preset=\"lifestyle\" aria-pressed=\"false\">\n    <span class=\"report-preset-title\">Nutrition and lifestyle</span>\n    <span class=\"report-preset-meta\">Recent intake, body and exposure</span>\n  </button><button type=\"button\" class=\"report-preset-btn\" data-report-action=\"set-preset\" data-report-preset=\"personal\" aria-pressed=\"false\">\n    <span class=\"report-preset-title\">Lab results only</span>\n    <span class=\"report-preset-meta\">Every lab group, no extra sections</span>\n  </button></div>\n          <p class=\"report-builder-help\" data-report-template-description>A concise overview with the latest and prior results from every available lab group, medicines, personal context and selected Genome findings.</p>\n          <p class=\"report-builder-help\">Templates set sections and dates. Result ranges, questions, detail and AI preferences stay as you choose them.</p>\n        </div>\n        <div class=\"report-builder-section\">\n          <div class=\"report-builder-two-col\">\n            <label class=\"report-builder-field\" for=\"report-date-range\"><span class=\"report-builder-label\">Date range</span><select id=\"report-date-range\" class=\"report-builder-select\"><option value=\"current\" >Current dashboard range</option><option value=\"3m\" >Last 3 months</option><option value=\"6m\" >Last 6 months</option><option value=\"1y\" >Last year</option><option value=\"all\" selected>All dates</option></select></label>\n            <label class=\"report-builder-field\" for=\"report-range-mode\"><span class=\"report-builder-label\">Result ranges</span><select id=\"report-range-mode\" class=\"report-builder-select\" aria-describedby=\"report-range-help\"><option value=\"reference\" >Lab / reference ranges</option><option value=\"optimal\" >Optimal ranges</option><option value=\"both\" selected>Both ranges</option></select></label>\n          </div>\n          <p class=\"report-builder-help\" id=\"report-range-help\">Applies only to this report. Lab ranges use app or custom references when unavailable. Optimal and Both flag against optimal ranges where available; phase-specific reference ranges take precedence.</p>\n          <fieldset class=\"report-detail-options\"><legend class=\"report-builder-label\">Report detail</legend><div class=\"report-section-grid\">\n            <label class=\"report-builder-check report-detail-card\"><input type=\"radio\" name=\"report-detail\" value=\"summary\" checked><span><strong>Concise summary</strong><small>Key results and averages for a quick review.</small></span></label>\n            <label class=\"report-builder-check report-detail-card\"><input type=\"radio\" name=\"report-detail\" value=\"appendix\"><span><strong>Include detailed records</strong><small>Add selected histories and full notes as an appendix.</small></span></label>\n          </div></fieldset>\n        </div>\n        <div class=\"report-builder-section\">\n          <div class=\"report-builder-field-head\"><span class=\"report-builder-section-title\">Include in the report</span><span class=\"report-selection-count\" data-report-section-count></span></div>\n          <div class=\"report-section-grid\"><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"categories\" checked>\n    <span>Lab results</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"supplements\" checked>\n    <span>Supplements and meds</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"notes\" >\n    <span>Timeline notes</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"genetics\" checked>\n    <span>Genome</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"context\" checked>\n    <span>Personal context</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"nutrition\" >\n    <span>Nutrition and hydration</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"wearables\" >\n    <span>Body and wearables</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"light\" >\n    <span>Sun and light sessions</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"environment\" >\n    <span>Environment</span>\n  </label></div>\n          <p class=\"report-builder-help\">Lab results include ranges, flags and trends. Genome uses the findings choice below.</p>\n          <details class=\"report-options-details\" data-report-for=\"categories\"><summary>Lab categories <span class=\"report-options-meta\" data-report-category-count></span></summary><div class=\"report-options-body\">\n            <div class=\"report-category-actions\"><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"select-all-categories\">All</button><button type=\"button\" class=\"report-mini-btn\" aria-label=\"Select lab categories with flagged results\" data-report-action=\"select-priority-categories\">Flagged</button><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"clear-categories\">Clear</button></div>\n            <div class=\"report-category-list\"><label class=\"report-category-row\">\n      <input type=\"checkbox\" data-report-category=\"biochemistry\" data-report-priority=\"true\" checked>\n      <span class=\"report-category-copy\">\n        <span class=\"report-category-title\">Biochemistry</span>\n        <span class=\"report-category-meta\">3 markers · 1 flagged</span>\n      </span>\n    </label><label class=\"report-category-row\">\n      <input type=\"checkbox\" data-report-category=\"custom&lt;lab&gt;\" data-report-priority=\"false\" checked>\n      <span class=\"report-category-copy\">\n        <span class=\"report-category-title\">Literal &lt;lab&gt; &amp; category</span>\n        <span class=\"report-category-meta\">1 marker</span>\n      </span>\n    </label></div>\n          </div></details>\n          <div class=\"report-genome-options\" data-report-for=\"genetics\"><label class=\"report-builder-field\" for=\"report-genome-mode\"><span class=\"report-builder-label\">Genome findings</span><select id=\"report-genome-mode\" class=\"report-builder-select\"><option value=\"risks\">Risk associations</option><option value=\"risks-traits\">Risks and traits</option><option value=\"traits\">Traits only</option><option value=\"all\">All findings, including protective and reference calls</option></select></label><p class=\"report-builder-help\">Uses your genotype’s current catalog interpretation. Associations are not diagnoses. Adding an appendix does not expand this selection.</p></div>\n          <details class=\"report-options-details\" data-report-for=\"context\"><summary>Personal context <span class=\"report-options-meta\">Choose what to share</span></summary><div class=\"report-options-body\"><div class=\"report-section-grid\"><label class=\"report-builder-check\"><input type=\"checkbox\" data-report-context=\"Medical history\" checked><span>Medical history</span></label><label class=\"report-builder-check\"><input type=\"checkbox\" data-report-context=\"Literal &lt;context&gt; &amp; title\" checked><span>Literal &lt;context&gt; &amp; title</span></label></div></div></details>\n          <details class=\"report-options-details\" data-report-for=\"notes\"><summary>Manage notes <span class=\"report-options-meta\">3 stored</span></summary><div class=\"report-options-body\">\n    <p class=\"report-builder-help\">Timeline notes are also in Dashboard → Add widget → Labs → Notes. Older notes do not establish their original author. Turn off Timeline notes above to omit them.</p>\n    <p class=\"report-builder-help\">Edit or delete opens the note editor. Reopen Create a report after saving your changes.</p>\n    <div class=\"report-note-review\"><strong>2026-02-04</strong><p style=\"white-space:pre-wrap;overflow-wrap:anywhere\">Newer &lt;note&gt; &amp; &quot;literal&quot;</p><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"edit-note\" data-report-index=\"1\">Edit or delete</button></div><div class=\"report-note-review\"><strong>2026-02-03</strong><p style=\"white-space:pre-wrap;overflow-wrap:anywhere\">Original first note\nSecond line</p><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"edit-note\" data-report-index=\"0\">Edit or delete</button></div><div class=\"report-note-review\"><strong>Undated</strong><p style=\"white-space:pre-wrap;overflow-wrap:anywhere\"></p><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"edit-note\" data-report-index=\"2\">Edit or delete</button></div>\n  </div></details>\n        </div>\n        <div class=\"report-builder-section\">\n          <label class=\"report-builder-field\" for=\"report-purpose\"><span class=\"report-builder-section-title\">Reason for sharing / questions <span class=\"report-optional-label\">Optional</span></span><textarea id=\"report-purpose\" class=\"report-builder-select\" rows=\"3\" maxlength=\"1200\" placeholder=\"What would you like to ask or discuss?\"></textarea></label>\n          <p class=\"report-builder-help\">Appears at the start of your report and guides the overview, if you generate one.</p>\n        </div>\n        <div class=\"report-builder-section report-ai-builder\">\n          <div class=\"report-builder-row-head\"><div><label class=\"report-builder-check\"><input type=\"checkbox\" id=\"report-include-ai\" checked aria-describedby=\"report-ai-disclosure\"><span>Include AI overview</span></label><p class=\"report-builder-help\">Add an AI-generated opening overview of recorded highlights, context and your questions. It is informational and may be incomplete or incorrect.</p></div></div>\n          <p class=\"report-builder-help\" id=\"report-ai-disclosure\">Generate AI overview &amp; preview uses your selected AI connection to process the selected report facts and questions. AI can make mistakes; verify the overview before sharing. Any required AI disclosure or destination approval appears before the request. You can turn off the overview to compile this report without a new AI request.</p>\n          <div class=\"report-ai-actions\"><button type=\"button\" class=\"report-mini-btn report-ai-generate-btn\" data-report-action=\"generate-ai-summary\" hidden>Generate overview</button><button type=\"button\" class=\"report-mini-btn report-ai-clear-btn\" hidden data-report-action=\"clear-ai-summary\">Remove overview</button><button type=\"button\" class=\"report-mini-btn\" hidden data-report-action=\"preview-without-ai\">Preview without AI</button></div>\n          <div class=\"report-ai-status\" data-report-ai-status aria-live=\"polite\">Ready to generate with your preview.</div>\n          <textarea id=\"report-ai-summary-text\" class=\"report-ai-summary-text\" aria-label=\"Editable AI-generated overview\" hidden></textarea>\n        </div>\n      </div><div class=\"gb-form-actions report-builder-actions\"><div class=\"report-builder-selection-summary\" id=\"report-builder-selection-summary\" data-report-selection-summary aria-live=\"polite\"></div><div class=\"report-builder-footer-buttons\"><button type=\"button\" class=\"import-btn import-btn-secondary\" data-report-action=\"close\">Cancel</button><button type=\"button\" class=\"import-btn import-btn-primary report-builder-preview-btn\" aria-describedby=\"report-builder-selection-summary\" data-report-action=\"export\">Preview PDF</button></div></div></div>\n    </div></div>"
+    },
+    {
+      "kind": "report",
+      "name": "full-local",
+      "input": {
+        "presetId": "full",
+        "aiAvailable": false,
+        "rangeMode": "reference",
+        "categoryOptions": [
+          {
+            "key": "biochemistry",
+            "label": "Biochemistry",
+            "markerCount": 3,
+            "flaggedCount": 1
+          },
+          {
+            "key": "custom<lab>",
+            "label": "Literal <lab> & category",
+            "markerCount": 1,
+            "flaggedCount": 0
+          }
+        ],
+        "contextSections": [
+          {
+            "title": "Medical history"
+          },
+          {
+            "title": "Literal <context> & title"
+          }
+        ],
+        "notes": [
+          {
+            "date": "2026-02-03",
+            "text": "Original first note\nSecond line"
+          },
+          {
+            "date": "2026-02-04",
+            "text": "Newer <note> & \"literal\""
+          },
+          {
+            "date": "",
+            "text": ""
+          }
+        ]
+      },
+      "html": "<div class=\"modal-overlay\" id=\"report-builder-overlay\" data-report-builder-overlay data-report-preset=\"full\">\n    <div class=\"modal gb-form-modal report-builder-modal\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"report-builder-title\">\n      <div class=\"gb-modal-head\"><div class=\"gb-modal-title\" id=\"report-builder-title\">Create a report</div><button type=\"button\" class=\"modal-close\" aria-label=\"Close\" data-report-action=\"close\">&times;</button></div>\n      <div class=\"gb-form-body report-builder-body\"><div class=\"report-builder-scroll\">\n        <p class=\"report-builder-help report-intro-copy\">Choose personal records to review or share. Your PDF preview is created locally.</p>\n        <div class=\"report-builder-section\">\n          <div class=\"report-builder-field-head\"><span class=\"report-builder-section-title\">Start with a template</span><span class=\"report-selection-count\" data-report-template-customized hidden>Customized</span></div>\n          <div class=\"report-preset-grid\"><button type=\"button\" class=\"report-preset-btn\" data-report-action=\"set-preset\" data-report-preset=\"clinician\" aria-pressed=\"false\">\n    <span class=\"report-preset-title\">Health summary</span>\n    <span class=\"report-preset-meta\">All lab groups + personal context</span>\n  </button><button type=\"button\" class=\"report-preset-btn active\" data-report-action=\"set-preset\" data-report-preset=\"full\" aria-pressed=\"true\">\n    <span class=\"report-preset-title\">Full health report</span>\n    <span class=\"report-preset-meta\">Every data section, all dates</span>\n  </button><button type=\"button\" class=\"report-preset-btn\" data-report-action=\"set-preset\" data-report-preset=\"lifestyle\" aria-pressed=\"false\">\n    <span class=\"report-preset-title\">Nutrition and lifestyle</span>\n    <span class=\"report-preset-meta\">Recent intake, body and exposure</span>\n  </button><button type=\"button\" class=\"report-preset-btn\" data-report-action=\"set-preset\" data-report-preset=\"personal\" aria-pressed=\"false\">\n    <span class=\"report-preset-title\">Lab results only</span>\n    <span class=\"report-preset-meta\">Every lab group, no extra sections</span>\n  </button></div>\n          <p class=\"report-builder-help\" data-report-template-description>Summaries of every data section across all recorded dates. Genome follows your findings selection; detailed records remain optional.</p>\n          <p class=\"report-builder-help\">Templates set sections and dates. Result ranges, questions, detail and AI preferences stay as you choose them.</p>\n        </div>\n        <div class=\"report-builder-section\">\n          <div class=\"report-builder-two-col\">\n            <label class=\"report-builder-field\" for=\"report-date-range\"><span class=\"report-builder-label\">Date range</span><select id=\"report-date-range\" class=\"report-builder-select\"><option value=\"current\" >Current dashboard range</option><option value=\"3m\" >Last 3 months</option><option value=\"6m\" >Last 6 months</option><option value=\"1y\" >Last year</option><option value=\"all\" selected>All dates</option></select></label>\n            <label class=\"report-builder-field\" for=\"report-range-mode\"><span class=\"report-builder-label\">Result ranges</span><select id=\"report-range-mode\" class=\"report-builder-select\" aria-describedby=\"report-range-help\"><option value=\"reference\" selected>Lab / reference ranges</option><option value=\"optimal\" >Optimal ranges</option><option value=\"both\" >Both ranges</option></select></label>\n          </div>\n          <p class=\"report-builder-help\" id=\"report-range-help\">Applies only to this report. Lab ranges use app or custom references when unavailable. Optimal and Both flag against optimal ranges where available; phase-specific reference ranges take precedence.</p>\n          <fieldset class=\"report-detail-options\"><legend class=\"report-builder-label\">Report detail</legend><div class=\"report-section-grid\">\n            <label class=\"report-builder-check report-detail-card\"><input type=\"radio\" name=\"report-detail\" value=\"summary\" checked><span><strong>Concise summary</strong><small>Key results and averages for a quick review.</small></span></label>\n            <label class=\"report-builder-check report-detail-card\"><input type=\"radio\" name=\"report-detail\" value=\"appendix\"><span><strong>Include detailed records</strong><small>Add selected histories and full notes as an appendix.</small></span></label>\n          </div></fieldset>\n        </div>\n        <div class=\"report-builder-section\">\n          <div class=\"report-builder-field-head\"><span class=\"report-builder-section-title\">Include in the report</span><span class=\"report-selection-count\" data-report-section-count></span></div>\n          <div class=\"report-section-grid\"><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"categories\" checked>\n    <span>Lab results</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"supplements\" checked>\n    <span>Supplements and meds</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"notes\" checked>\n    <span>Timeline notes</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"genetics\" checked>\n    <span>Genome</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"context\" checked>\n    <span>Personal context</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"nutrition\" checked>\n    <span>Nutrition and hydration</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"wearables\" checked>\n    <span>Body and wearables</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"light\" checked>\n    <span>Sun and light sessions</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"environment\" checked>\n    <span>Environment</span>\n  </label></div>\n          <p class=\"report-builder-help\">Lab results include ranges, flags and trends. Genome uses the findings choice below.</p>\n          <details class=\"report-options-details\" data-report-for=\"categories\"><summary>Lab categories <span class=\"report-options-meta\" data-report-category-count></span></summary><div class=\"report-options-body\">\n            <div class=\"report-category-actions\"><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"select-all-categories\">All</button><button type=\"button\" class=\"report-mini-btn\" aria-label=\"Select lab categories with flagged results\" data-report-action=\"select-priority-categories\">Flagged</button><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"clear-categories\">Clear</button></div>\n            <div class=\"report-category-list\"><label class=\"report-category-row\">\n      <input type=\"checkbox\" data-report-category=\"biochemistry\" data-report-priority=\"true\" checked>\n      <span class=\"report-category-copy\">\n        <span class=\"report-category-title\">Biochemistry</span>\n        <span class=\"report-category-meta\">3 markers · 1 flagged</span>\n      </span>\n    </label><label class=\"report-category-row\">\n      <input type=\"checkbox\" data-report-category=\"custom&lt;lab&gt;\" data-report-priority=\"false\" checked>\n      <span class=\"report-category-copy\">\n        <span class=\"report-category-title\">Literal &lt;lab&gt; &amp; category</span>\n        <span class=\"report-category-meta\">1 marker</span>\n      </span>\n    </label></div>\n          </div></details>\n          <div class=\"report-genome-options\" data-report-for=\"genetics\"><label class=\"report-builder-field\" for=\"report-genome-mode\"><span class=\"report-builder-label\">Genome findings</span><select id=\"report-genome-mode\" class=\"report-builder-select\"><option value=\"risks\">Risk associations</option><option value=\"risks-traits\">Risks and traits</option><option value=\"traits\">Traits only</option><option value=\"all\">All findings, including protective and reference calls</option></select></label><p class=\"report-builder-help\">Uses your genotype’s current catalog interpretation. Associations are not diagnoses. Adding an appendix does not expand this selection.</p></div>\n          <details class=\"report-options-details\" data-report-for=\"context\"><summary>Personal context <span class=\"report-options-meta\">Choose what to share</span></summary><div class=\"report-options-body\"><div class=\"report-section-grid\"><label class=\"report-builder-check\"><input type=\"checkbox\" data-report-context=\"Medical history\" checked><span>Medical history</span></label><label class=\"report-builder-check\"><input type=\"checkbox\" data-report-context=\"Literal &lt;context&gt; &amp; title\" checked><span>Literal &lt;context&gt; &amp; title</span></label></div></div></details>\n          <details class=\"report-options-details\" data-report-for=\"notes\"><summary>Manage notes <span class=\"report-options-meta\">3 stored</span></summary><div class=\"report-options-body\">\n    <p class=\"report-builder-help\">Timeline notes are also in Dashboard → Add widget → Labs → Notes. Older notes do not establish their original author. Turn off Timeline notes above to omit them.</p>\n    <p class=\"report-builder-help\">Edit or delete opens the note editor. Reopen Create a report after saving your changes.</p>\n    <div class=\"report-note-review\"><strong>2026-02-04</strong><p style=\"white-space:pre-wrap;overflow-wrap:anywhere\">Newer &lt;note&gt; &amp; &quot;literal&quot;</p><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"edit-note\" data-report-index=\"1\">Edit or delete</button></div><div class=\"report-note-review\"><strong>2026-02-03</strong><p style=\"white-space:pre-wrap;overflow-wrap:anywhere\">Original first note\nSecond line</p><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"edit-note\" data-report-index=\"0\">Edit or delete</button></div><div class=\"report-note-review\"><strong>Undated</strong><p style=\"white-space:pre-wrap;overflow-wrap:anywhere\"></p><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"edit-note\" data-report-index=\"2\">Edit or delete</button></div>\n  </div></details>\n        </div>\n        <div class=\"report-builder-section\">\n          <label class=\"report-builder-field\" for=\"report-purpose\"><span class=\"report-builder-section-title\">Reason for sharing / questions <span class=\"report-optional-label\">Optional</span></span><textarea id=\"report-purpose\" class=\"report-builder-select\" rows=\"3\" maxlength=\"1200\" placeholder=\"What would you like to ask or discuss?\"></textarea></label>\n          <p class=\"report-builder-help\">Appears at the start of your report and guides the overview, if you generate one.</p>\n        </div>\n        <div class=\"report-builder-section report-ai-builder\">\n          <div class=\"report-builder-row-head\"><div><label class=\"report-builder-check\"><input type=\"checkbox\" id=\"report-include-ai\" disabled aria-describedby=\"report-ai-disclosure\"><span>Include AI overview</span></label><p class=\"report-builder-help\">Add an AI-generated opening overview of recorded highlights, context and your questions. It is informational and may be incomplete or incorrect.</p></div></div>\n          <p class=\"report-builder-help\" id=\"report-ai-disclosure\">AI is unavailable or paused. PDF preview works without a new AI overview.</p>\n          <div class=\"report-ai-actions\"><button type=\"button\" class=\"report-mini-btn report-ai-generate-btn\" data-report-action=\"generate-ai-summary\" hidden>Generate overview</button><button type=\"button\" class=\"report-mini-btn report-ai-clear-btn\" hidden data-report-action=\"clear-ai-summary\">Remove overview</button><button type=\"button\" class=\"report-mini-btn\" hidden data-report-action=\"preview-without-ai\">Preview without AI</button></div>\n          <div class=\"report-ai-status\" data-report-ai-status aria-live=\"polite\">Not included.</div>\n          <textarea id=\"report-ai-summary-text\" class=\"report-ai-summary-text\" aria-label=\"Editable AI-generated overview\" hidden></textarea>\n        </div>\n      </div><div class=\"gb-form-actions report-builder-actions\"><div class=\"report-builder-selection-summary\" id=\"report-builder-selection-summary\" data-report-selection-summary aria-live=\"polite\"></div><div class=\"report-builder-footer-buttons\"><button type=\"button\" class=\"import-btn import-btn-secondary\" data-report-action=\"close\">Cancel</button><button type=\"button\" class=\"import-btn import-btn-primary report-builder-preview-btn\" aria-describedby=\"report-builder-selection-summary\" data-report-action=\"export\">Preview PDF</button></div></div></div>\n    </div></div>"
+    },
+    {
+      "kind": "report",
+      "name": "full-ai",
+      "input": {
+        "presetId": "full",
+        "aiAvailable": true,
+        "rangeMode": "both",
+        "categoryOptions": [
+          {
+            "key": "biochemistry",
+            "label": "Biochemistry",
+            "markerCount": 3,
+            "flaggedCount": 1
+          },
+          {
+            "key": "custom<lab>",
+            "label": "Literal <lab> & category",
+            "markerCount": 1,
+            "flaggedCount": 0
+          }
+        ],
+        "contextSections": [
+          {
+            "title": "Medical history"
+          },
+          {
+            "title": "Literal <context> & title"
+          }
+        ],
+        "notes": [
+          {
+            "date": "2026-02-03",
+            "text": "Original first note\nSecond line"
+          },
+          {
+            "date": "2026-02-04",
+            "text": "Newer <note> & \"literal\""
+          },
+          {
+            "date": "",
+            "text": ""
+          }
+        ]
+      },
+      "html": "<div class=\"modal-overlay\" id=\"report-builder-overlay\" data-report-builder-overlay data-report-preset=\"full\">\n    <div class=\"modal gb-form-modal report-builder-modal\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"report-builder-title\">\n      <div class=\"gb-modal-head\"><div class=\"gb-modal-title\" id=\"report-builder-title\">Create a report</div><button type=\"button\" class=\"modal-close\" aria-label=\"Close\" data-report-action=\"close\">&times;</button></div>\n      <div class=\"gb-form-body report-builder-body\"><div class=\"report-builder-scroll\">\n        <p class=\"report-builder-help report-intro-copy\">Choose personal records to review or share. Your PDF preview is created locally.</p>\n        <div class=\"report-builder-section\">\n          <div class=\"report-builder-field-head\"><span class=\"report-builder-section-title\">Start with a template</span><span class=\"report-selection-count\" data-report-template-customized hidden>Customized</span></div>\n          <div class=\"report-preset-grid\"><button type=\"button\" class=\"report-preset-btn\" data-report-action=\"set-preset\" data-report-preset=\"clinician\" aria-pressed=\"false\">\n    <span class=\"report-preset-title\">Health summary</span>\n    <span class=\"report-preset-meta\">All lab groups + personal context</span>\n  </button><button type=\"button\" class=\"report-preset-btn active\" data-report-action=\"set-preset\" data-report-preset=\"full\" aria-pressed=\"true\">\n    <span class=\"report-preset-title\">Full health report</span>\n    <span class=\"report-preset-meta\">Every data section, all dates</span>\n  </button><button type=\"button\" class=\"report-preset-btn\" data-report-action=\"set-preset\" data-report-preset=\"lifestyle\" aria-pressed=\"false\">\n    <span class=\"report-preset-title\">Nutrition and lifestyle</span>\n    <span class=\"report-preset-meta\">Recent intake, body and exposure</span>\n  </button><button type=\"button\" class=\"report-preset-btn\" data-report-action=\"set-preset\" data-report-preset=\"personal\" aria-pressed=\"false\">\n    <span class=\"report-preset-title\">Lab results only</span>\n    <span class=\"report-preset-meta\">Every lab group, no extra sections</span>\n  </button></div>\n          <p class=\"report-builder-help\" data-report-template-description>Summaries of every data section across all recorded dates. Genome follows your findings selection; detailed records remain optional.</p>\n          <p class=\"report-builder-help\">Templates set sections and dates. Result ranges, questions, detail and AI preferences stay as you choose them.</p>\n        </div>\n        <div class=\"report-builder-section\">\n          <div class=\"report-builder-two-col\">\n            <label class=\"report-builder-field\" for=\"report-date-range\"><span class=\"report-builder-label\">Date range</span><select id=\"report-date-range\" class=\"report-builder-select\"><option value=\"current\" >Current dashboard range</option><option value=\"3m\" >Last 3 months</option><option value=\"6m\" >Last 6 months</option><option value=\"1y\" >Last year</option><option value=\"all\" selected>All dates</option></select></label>\n            <label class=\"report-builder-field\" for=\"report-range-mode\"><span class=\"report-builder-label\">Result ranges</span><select id=\"report-range-mode\" class=\"report-builder-select\" aria-describedby=\"report-range-help\"><option value=\"reference\" >Lab / reference ranges</option><option value=\"optimal\" >Optimal ranges</option><option value=\"both\" selected>Both ranges</option></select></label>\n          </div>\n          <p class=\"report-builder-help\" id=\"report-range-help\">Applies only to this report. Lab ranges use app or custom references when unavailable. Optimal and Both flag against optimal ranges where available; phase-specific reference ranges take precedence.</p>\n          <fieldset class=\"report-detail-options\"><legend class=\"report-builder-label\">Report detail</legend><div class=\"report-section-grid\">\n            <label class=\"report-builder-check report-detail-card\"><input type=\"radio\" name=\"report-detail\" value=\"summary\" checked><span><strong>Concise summary</strong><small>Key results and averages for a quick review.</small></span></label>\n            <label class=\"report-builder-check report-detail-card\"><input type=\"radio\" name=\"report-detail\" value=\"appendix\"><span><strong>Include detailed records</strong><small>Add selected histories and full notes as an appendix.</small></span></label>\n          </div></fieldset>\n        </div>\n        <div class=\"report-builder-section\">\n          <div class=\"report-builder-field-head\"><span class=\"report-builder-section-title\">Include in the report</span><span class=\"report-selection-count\" data-report-section-count></span></div>\n          <div class=\"report-section-grid\"><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"categories\" checked>\n    <span>Lab results</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"supplements\" checked>\n    <span>Supplements and meds</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"notes\" checked>\n    <span>Timeline notes</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"genetics\" checked>\n    <span>Genome</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"context\" checked>\n    <span>Personal context</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"nutrition\" checked>\n    <span>Nutrition and hydration</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"wearables\" checked>\n    <span>Body and wearables</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"light\" checked>\n    <span>Sun and light sessions</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"environment\" checked>\n    <span>Environment</span>\n  </label></div>\n          <p class=\"report-builder-help\">Lab results include ranges, flags and trends. Genome uses the findings choice below.</p>\n          <details class=\"report-options-details\" data-report-for=\"categories\"><summary>Lab categories <span class=\"report-options-meta\" data-report-category-count></span></summary><div class=\"report-options-body\">\n            <div class=\"report-category-actions\"><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"select-all-categories\">All</button><button type=\"button\" class=\"report-mini-btn\" aria-label=\"Select lab categories with flagged results\" data-report-action=\"select-priority-categories\">Flagged</button><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"clear-categories\">Clear</button></div>\n            <div class=\"report-category-list\"><label class=\"report-category-row\">\n      <input type=\"checkbox\" data-report-category=\"biochemistry\" data-report-priority=\"true\" checked>\n      <span class=\"report-category-copy\">\n        <span class=\"report-category-title\">Biochemistry</span>\n        <span class=\"report-category-meta\">3 markers · 1 flagged</span>\n      </span>\n    </label><label class=\"report-category-row\">\n      <input type=\"checkbox\" data-report-category=\"custom&lt;lab&gt;\" data-report-priority=\"false\" checked>\n      <span class=\"report-category-copy\">\n        <span class=\"report-category-title\">Literal &lt;lab&gt; &amp; category</span>\n        <span class=\"report-category-meta\">1 marker</span>\n      </span>\n    </label></div>\n          </div></details>\n          <div class=\"report-genome-options\" data-report-for=\"genetics\"><label class=\"report-builder-field\" for=\"report-genome-mode\"><span class=\"report-builder-label\">Genome findings</span><select id=\"report-genome-mode\" class=\"report-builder-select\"><option value=\"risks\">Risk associations</option><option value=\"risks-traits\">Risks and traits</option><option value=\"traits\">Traits only</option><option value=\"all\">All findings, including protective and reference calls</option></select></label><p class=\"report-builder-help\">Uses your genotype’s current catalog interpretation. Associations are not diagnoses. Adding an appendix does not expand this selection.</p></div>\n          <details class=\"report-options-details\" data-report-for=\"context\"><summary>Personal context <span class=\"report-options-meta\">Choose what to share</span></summary><div class=\"report-options-body\"><div class=\"report-section-grid\"><label class=\"report-builder-check\"><input type=\"checkbox\" data-report-context=\"Medical history\" checked><span>Medical history</span></label><label class=\"report-builder-check\"><input type=\"checkbox\" data-report-context=\"Literal &lt;context&gt; &amp; title\" checked><span>Literal &lt;context&gt; &amp; title</span></label></div></div></details>\n          <details class=\"report-options-details\" data-report-for=\"notes\"><summary>Manage notes <span class=\"report-options-meta\">3 stored</span></summary><div class=\"report-options-body\">\n    <p class=\"report-builder-help\">Timeline notes are also in Dashboard → Add widget → Labs → Notes. Older notes do not establish their original author. Turn off Timeline notes above to omit them.</p>\n    <p class=\"report-builder-help\">Edit or delete opens the note editor. Reopen Create a report after saving your changes.</p>\n    <div class=\"report-note-review\"><strong>2026-02-04</strong><p style=\"white-space:pre-wrap;overflow-wrap:anywhere\">Newer &lt;note&gt; &amp; &quot;literal&quot;</p><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"edit-note\" data-report-index=\"1\">Edit or delete</button></div><div class=\"report-note-review\"><strong>2026-02-03</strong><p style=\"white-space:pre-wrap;overflow-wrap:anywhere\">Original first note\nSecond line</p><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"edit-note\" data-report-index=\"0\">Edit or delete</button></div><div class=\"report-note-review\"><strong>Undated</strong><p style=\"white-space:pre-wrap;overflow-wrap:anywhere\"></p><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"edit-note\" data-report-index=\"2\">Edit or delete</button></div>\n  </div></details>\n        </div>\n        <div class=\"report-builder-section\">\n          <label class=\"report-builder-field\" for=\"report-purpose\"><span class=\"report-builder-section-title\">Reason for sharing / questions <span class=\"report-optional-label\">Optional</span></span><textarea id=\"report-purpose\" class=\"report-builder-select\" rows=\"3\" maxlength=\"1200\" placeholder=\"What would you like to ask or discuss?\"></textarea></label>\n          <p class=\"report-builder-help\">Appears at the start of your report and guides the overview, if you generate one.</p>\n        </div>\n        <div class=\"report-builder-section report-ai-builder\">\n          <div class=\"report-builder-row-head\"><div><label class=\"report-builder-check\"><input type=\"checkbox\" id=\"report-include-ai\" checked aria-describedby=\"report-ai-disclosure\"><span>Include AI overview</span></label><p class=\"report-builder-help\">Add an AI-generated opening overview of recorded highlights, context and your questions. It is informational and may be incomplete or incorrect.</p></div></div>\n          <p class=\"report-builder-help\" id=\"report-ai-disclosure\">Generate AI overview &amp; preview uses your selected AI connection to process the selected report facts and questions. AI can make mistakes; verify the overview before sharing. Any required AI disclosure or destination approval appears before the request. You can turn off the overview to compile this report without a new AI request.</p>\n          <div class=\"report-ai-actions\"><button type=\"button\" class=\"report-mini-btn report-ai-generate-btn\" data-report-action=\"generate-ai-summary\" hidden>Generate overview</button><button type=\"button\" class=\"report-mini-btn report-ai-clear-btn\" hidden data-report-action=\"clear-ai-summary\">Remove overview</button><button type=\"button\" class=\"report-mini-btn\" hidden data-report-action=\"preview-without-ai\">Preview without AI</button></div>\n          <div class=\"report-ai-status\" data-report-ai-status aria-live=\"polite\">Ready to generate with your preview.</div>\n          <textarea id=\"report-ai-summary-text\" class=\"report-ai-summary-text\" aria-label=\"Editable AI-generated overview\" hidden></textarea>\n        </div>\n      </div><div class=\"gb-form-actions report-builder-actions\"><div class=\"report-builder-selection-summary\" id=\"report-builder-selection-summary\" data-report-selection-summary aria-live=\"polite\"></div><div class=\"report-builder-footer-buttons\"><button type=\"button\" class=\"import-btn import-btn-secondary\" data-report-action=\"close\">Cancel</button><button type=\"button\" class=\"import-btn import-btn-primary report-builder-preview-btn\" aria-describedby=\"report-builder-selection-summary\" data-report-action=\"export\">Preview PDF</button></div></div></div>\n    </div></div>"
+    },
+    {
+      "kind": "report",
+      "name": "lifestyle-local",
+      "input": {
+        "presetId": "lifestyle",
+        "aiAvailable": false,
+        "rangeMode": "reference",
+        "categoryOptions": [
+          {
+            "key": "biochemistry",
+            "label": "Biochemistry",
+            "markerCount": 3,
+            "flaggedCount": 1
+          },
+          {
+            "key": "custom<lab>",
+            "label": "Literal <lab> & category",
+            "markerCount": 1,
+            "flaggedCount": 0
+          }
+        ],
+        "contextSections": [
+          {
+            "title": "Medical history"
+          },
+          {
+            "title": "Literal <context> & title"
+          }
+        ],
+        "notes": [
+          {
+            "date": "2026-02-03",
+            "text": "Original first note\nSecond line"
+          },
+          {
+            "date": "2026-02-04",
+            "text": "Newer <note> & \"literal\""
+          },
+          {
+            "date": "",
+            "text": ""
+          }
+        ]
+      },
+      "html": "<div class=\"modal-overlay\" id=\"report-builder-overlay\" data-report-builder-overlay data-report-preset=\"lifestyle\">\n    <div class=\"modal gb-form-modal report-builder-modal\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"report-builder-title\">\n      <div class=\"gb-modal-head\"><div class=\"gb-modal-title\" id=\"report-builder-title\">Create a report</div><button type=\"button\" class=\"modal-close\" aria-label=\"Close\" data-report-action=\"close\">&times;</button></div>\n      <div class=\"gb-form-body report-builder-body\"><div class=\"report-builder-scroll\">\n        <p class=\"report-builder-help report-intro-copy\">Choose personal records to review or share. Your PDF preview is created locally.</p>\n        <div class=\"report-builder-section\">\n          <div class=\"report-builder-field-head\"><span class=\"report-builder-section-title\">Start with a template</span><span class=\"report-selection-count\" data-report-template-customized hidden>Customized</span></div>\n          <div class=\"report-preset-grid\"><button type=\"button\" class=\"report-preset-btn\" data-report-action=\"set-preset\" data-report-preset=\"clinician\" aria-pressed=\"false\">\n    <span class=\"report-preset-title\">Health summary</span>\n    <span class=\"report-preset-meta\">All lab groups + personal context</span>\n  </button><button type=\"button\" class=\"report-preset-btn\" data-report-action=\"set-preset\" data-report-preset=\"full\" aria-pressed=\"false\">\n    <span class=\"report-preset-title\">Full health report</span>\n    <span class=\"report-preset-meta\">Every data section, all dates</span>\n  </button><button type=\"button\" class=\"report-preset-btn active\" data-report-action=\"set-preset\" data-report-preset=\"lifestyle\" aria-pressed=\"true\">\n    <span class=\"report-preset-title\">Nutrition and lifestyle</span>\n    <span class=\"report-preset-meta\">Recent intake, body and exposure</span>\n  </button><button type=\"button\" class=\"report-preset-btn\" data-report-action=\"set-preset\" data-report-preset=\"personal\" aria-pressed=\"false\">\n    <span class=\"report-preset-title\">Lab results only</span>\n    <span class=\"report-preset-meta\">Every lab group, no extra sections</span>\n  </button></div>\n          <p class=\"report-builder-help\" data-report-template-description>A three-month review of nutrition, hydration, body measurements, light and environment, with medicines and personal context. Add lab results or Genome if needed.</p>\n          <p class=\"report-builder-help\">Templates set sections and dates. Result ranges, questions, detail and AI preferences stay as you choose them.</p>\n        </div>\n        <div class=\"report-builder-section\">\n          <div class=\"report-builder-two-col\">\n            <label class=\"report-builder-field\" for=\"report-date-range\"><span class=\"report-builder-label\">Date range</span><select id=\"report-date-range\" class=\"report-builder-select\"><option value=\"current\" >Current dashboard range</option><option value=\"3m\" selected>Last 3 months</option><option value=\"6m\" >Last 6 months</option><option value=\"1y\" >Last year</option><option value=\"all\" >All dates</option></select></label>\n            <label class=\"report-builder-field\" for=\"report-range-mode\"><span class=\"report-builder-label\">Result ranges</span><select id=\"report-range-mode\" class=\"report-builder-select\" aria-describedby=\"report-range-help\"><option value=\"reference\" selected>Lab / reference ranges</option><option value=\"optimal\" >Optimal ranges</option><option value=\"both\" >Both ranges</option></select></label>\n          </div>\n          <p class=\"report-builder-help\" id=\"report-range-help\">Applies only to this report. Lab ranges use app or custom references when unavailable. Optimal and Both flag against optimal ranges where available; phase-specific reference ranges take precedence.</p>\n          <fieldset class=\"report-detail-options\"><legend class=\"report-builder-label\">Report detail</legend><div class=\"report-section-grid\">\n            <label class=\"report-builder-check report-detail-card\"><input type=\"radio\" name=\"report-detail\" value=\"summary\" checked><span><strong>Concise summary</strong><small>Key results and averages for a quick review.</small></span></label>\n            <label class=\"report-builder-check report-detail-card\"><input type=\"radio\" name=\"report-detail\" value=\"appendix\"><span><strong>Include detailed records</strong><small>Add selected histories and full notes as an appendix.</small></span></label>\n          </div></fieldset>\n        </div>\n        <div class=\"report-builder-section\">\n          <div class=\"report-builder-field-head\"><span class=\"report-builder-section-title\">Include in the report</span><span class=\"report-selection-count\" data-report-section-count></span></div>\n          <div class=\"report-section-grid\"><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"categories\" >\n    <span>Lab results</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"supplements\" checked>\n    <span>Supplements and meds</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"notes\" >\n    <span>Timeline notes</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"genetics\" >\n    <span>Genome</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"context\" checked>\n    <span>Personal context</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"nutrition\" checked>\n    <span>Nutrition and hydration</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"wearables\" checked>\n    <span>Body and wearables</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"light\" checked>\n    <span>Sun and light sessions</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"environment\" checked>\n    <span>Environment</span>\n  </label></div>\n          <p class=\"report-builder-help\">Lab results include ranges, flags and trends. Genome uses the findings choice below.</p>\n          <details class=\"report-options-details\" data-report-for=\"categories\"><summary>Lab categories <span class=\"report-options-meta\" data-report-category-count></span></summary><div class=\"report-options-body\">\n            <div class=\"report-category-actions\"><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"select-all-categories\">All</button><button type=\"button\" class=\"report-mini-btn\" aria-label=\"Select lab categories with flagged results\" data-report-action=\"select-priority-categories\">Flagged</button><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"clear-categories\">Clear</button></div>\n            <div class=\"report-category-list\"><label class=\"report-category-row\">\n      <input type=\"checkbox\" data-report-category=\"biochemistry\" data-report-priority=\"true\" checked>\n      <span class=\"report-category-copy\">\n        <span class=\"report-category-title\">Biochemistry</span>\n        <span class=\"report-category-meta\">3 markers · 1 flagged</span>\n      </span>\n    </label><label class=\"report-category-row\">\n      <input type=\"checkbox\" data-report-category=\"custom&lt;lab&gt;\" data-report-priority=\"false\" checked>\n      <span class=\"report-category-copy\">\n        <span class=\"report-category-title\">Literal &lt;lab&gt; &amp; category</span>\n        <span class=\"report-category-meta\">1 marker</span>\n      </span>\n    </label></div>\n          </div></details>\n          <div class=\"report-genome-options\" data-report-for=\"genetics\"><label class=\"report-builder-field\" for=\"report-genome-mode\"><span class=\"report-builder-label\">Genome findings</span><select id=\"report-genome-mode\" class=\"report-builder-select\"><option value=\"risks\">Risk associations</option><option value=\"risks-traits\">Risks and traits</option><option value=\"traits\">Traits only</option><option value=\"all\">All findings, including protective and reference calls</option></select></label><p class=\"report-builder-help\">Uses your genotype’s current catalog interpretation. Associations are not diagnoses. Adding an appendix does not expand this selection.</p></div>\n          <details class=\"report-options-details\" data-report-for=\"context\"><summary>Personal context <span class=\"report-options-meta\">Choose what to share</span></summary><div class=\"report-options-body\"><div class=\"report-section-grid\"><label class=\"report-builder-check\"><input type=\"checkbox\" data-report-context=\"Medical history\" checked><span>Medical history</span></label><label class=\"report-builder-check\"><input type=\"checkbox\" data-report-context=\"Literal &lt;context&gt; &amp; title\" checked><span>Literal &lt;context&gt; &amp; title</span></label></div></div></details>\n          <details class=\"report-options-details\" data-report-for=\"notes\"><summary>Manage notes <span class=\"report-options-meta\">3 stored</span></summary><div class=\"report-options-body\">\n    <p class=\"report-builder-help\">Timeline notes are also in Dashboard → Add widget → Labs → Notes. Older notes do not establish their original author. Turn off Timeline notes above to omit them.</p>\n    <p class=\"report-builder-help\">Edit or delete opens the note editor. Reopen Create a report after saving your changes.</p>\n    <div class=\"report-note-review\"><strong>2026-02-04</strong><p style=\"white-space:pre-wrap;overflow-wrap:anywhere\">Newer &lt;note&gt; &amp; &quot;literal&quot;</p><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"edit-note\" data-report-index=\"1\">Edit or delete</button></div><div class=\"report-note-review\"><strong>2026-02-03</strong><p style=\"white-space:pre-wrap;overflow-wrap:anywhere\">Original first note\nSecond line</p><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"edit-note\" data-report-index=\"0\">Edit or delete</button></div><div class=\"report-note-review\"><strong>Undated</strong><p style=\"white-space:pre-wrap;overflow-wrap:anywhere\"></p><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"edit-note\" data-report-index=\"2\">Edit or delete</button></div>\n  </div></details>\n        </div>\n        <div class=\"report-builder-section\">\n          <label class=\"report-builder-field\" for=\"report-purpose\"><span class=\"report-builder-section-title\">Reason for sharing / questions <span class=\"report-optional-label\">Optional</span></span><textarea id=\"report-purpose\" class=\"report-builder-select\" rows=\"3\" maxlength=\"1200\" placeholder=\"What would you like to ask or discuss?\"></textarea></label>\n          <p class=\"report-builder-help\">Appears at the start of your report and guides the overview, if you generate one.</p>\n        </div>\n        <div class=\"report-builder-section report-ai-builder\">\n          <div class=\"report-builder-row-head\"><div><label class=\"report-builder-check\"><input type=\"checkbox\" id=\"report-include-ai\" disabled aria-describedby=\"report-ai-disclosure\"><span>Include AI overview</span></label><p class=\"report-builder-help\">Add an AI-generated opening overview of recorded highlights, context and your questions. It is informational and may be incomplete or incorrect.</p></div></div>\n          <p class=\"report-builder-help\" id=\"report-ai-disclosure\">AI is unavailable or paused. PDF preview works without a new AI overview.</p>\n          <div class=\"report-ai-actions\"><button type=\"button\" class=\"report-mini-btn report-ai-generate-btn\" data-report-action=\"generate-ai-summary\" hidden>Generate overview</button><button type=\"button\" class=\"report-mini-btn report-ai-clear-btn\" hidden data-report-action=\"clear-ai-summary\">Remove overview</button><button type=\"button\" class=\"report-mini-btn\" hidden data-report-action=\"preview-without-ai\">Preview without AI</button></div>\n          <div class=\"report-ai-status\" data-report-ai-status aria-live=\"polite\">Not included.</div>\n          <textarea id=\"report-ai-summary-text\" class=\"report-ai-summary-text\" aria-label=\"Editable AI-generated overview\" hidden></textarea>\n        </div>\n      </div><div class=\"gb-form-actions report-builder-actions\"><div class=\"report-builder-selection-summary\" id=\"report-builder-selection-summary\" data-report-selection-summary aria-live=\"polite\"></div><div class=\"report-builder-footer-buttons\"><button type=\"button\" class=\"import-btn import-btn-secondary\" data-report-action=\"close\">Cancel</button><button type=\"button\" class=\"import-btn import-btn-primary report-builder-preview-btn\" aria-describedby=\"report-builder-selection-summary\" data-report-action=\"export\">Preview PDF</button></div></div></div>\n    </div></div>"
+    },
+    {
+      "kind": "report",
+      "name": "lifestyle-ai",
+      "input": {
+        "presetId": "lifestyle",
+        "aiAvailable": true,
+        "rangeMode": "both",
+        "categoryOptions": [
+          {
+            "key": "biochemistry",
+            "label": "Biochemistry",
+            "markerCount": 3,
+            "flaggedCount": 1
+          },
+          {
+            "key": "custom<lab>",
+            "label": "Literal <lab> & category",
+            "markerCount": 1,
+            "flaggedCount": 0
+          }
+        ],
+        "contextSections": [
+          {
+            "title": "Medical history"
+          },
+          {
+            "title": "Literal <context> & title"
+          }
+        ],
+        "notes": [
+          {
+            "date": "2026-02-03",
+            "text": "Original first note\nSecond line"
+          },
+          {
+            "date": "2026-02-04",
+            "text": "Newer <note> & \"literal\""
+          },
+          {
+            "date": "",
+            "text": ""
+          }
+        ]
+      },
+      "html": "<div class=\"modal-overlay\" id=\"report-builder-overlay\" data-report-builder-overlay data-report-preset=\"lifestyle\">\n    <div class=\"modal gb-form-modal report-builder-modal\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"report-builder-title\">\n      <div class=\"gb-modal-head\"><div class=\"gb-modal-title\" id=\"report-builder-title\">Create a report</div><button type=\"button\" class=\"modal-close\" aria-label=\"Close\" data-report-action=\"close\">&times;</button></div>\n      <div class=\"gb-form-body report-builder-body\"><div class=\"report-builder-scroll\">\n        <p class=\"report-builder-help report-intro-copy\">Choose personal records to review or share. Your PDF preview is created locally.</p>\n        <div class=\"report-builder-section\">\n          <div class=\"report-builder-field-head\"><span class=\"report-builder-section-title\">Start with a template</span><span class=\"report-selection-count\" data-report-template-customized hidden>Customized</span></div>\n          <div class=\"report-preset-grid\"><button type=\"button\" class=\"report-preset-btn\" data-report-action=\"set-preset\" data-report-preset=\"clinician\" aria-pressed=\"false\">\n    <span class=\"report-preset-title\">Health summary</span>\n    <span class=\"report-preset-meta\">All lab groups + personal context</span>\n  </button><button type=\"button\" class=\"report-preset-btn\" data-report-action=\"set-preset\" data-report-preset=\"full\" aria-pressed=\"false\">\n    <span class=\"report-preset-title\">Full health report</span>\n    <span class=\"report-preset-meta\">Every data section, all dates</span>\n  </button><button type=\"button\" class=\"report-preset-btn active\" data-report-action=\"set-preset\" data-report-preset=\"lifestyle\" aria-pressed=\"true\">\n    <span class=\"report-preset-title\">Nutrition and lifestyle</span>\n    <span class=\"report-preset-meta\">Recent intake, body and exposure</span>\n  </button><button type=\"button\" class=\"report-preset-btn\" data-report-action=\"set-preset\" data-report-preset=\"personal\" aria-pressed=\"false\">\n    <span class=\"report-preset-title\">Lab results only</span>\n    <span class=\"report-preset-meta\">Every lab group, no extra sections</span>\n  </button></div>\n          <p class=\"report-builder-help\" data-report-template-description>A three-month review of nutrition, hydration, body measurements, light and environment, with medicines and personal context. Add lab results or Genome if needed.</p>\n          <p class=\"report-builder-help\">Templates set sections and dates. Result ranges, questions, detail and AI preferences stay as you choose them.</p>\n        </div>\n        <div class=\"report-builder-section\">\n          <div class=\"report-builder-two-col\">\n            <label class=\"report-builder-field\" for=\"report-date-range\"><span class=\"report-builder-label\">Date range</span><select id=\"report-date-range\" class=\"report-builder-select\"><option value=\"current\" >Current dashboard range</option><option value=\"3m\" selected>Last 3 months</option><option value=\"6m\" >Last 6 months</option><option value=\"1y\" >Last year</option><option value=\"all\" >All dates</option></select></label>\n            <label class=\"report-builder-field\" for=\"report-range-mode\"><span class=\"report-builder-label\">Result ranges</span><select id=\"report-range-mode\" class=\"report-builder-select\" aria-describedby=\"report-range-help\"><option value=\"reference\" >Lab / reference ranges</option><option value=\"optimal\" >Optimal ranges</option><option value=\"both\" selected>Both ranges</option></select></label>\n          </div>\n          <p class=\"report-builder-help\" id=\"report-range-help\">Applies only to this report. Lab ranges use app or custom references when unavailable. Optimal and Both flag against optimal ranges where available; phase-specific reference ranges take precedence.</p>\n          <fieldset class=\"report-detail-options\"><legend class=\"report-builder-label\">Report detail</legend><div class=\"report-section-grid\">\n            <label class=\"report-builder-check report-detail-card\"><input type=\"radio\" name=\"report-detail\" value=\"summary\" checked><span><strong>Concise summary</strong><small>Key results and averages for a quick review.</small></span></label>\n            <label class=\"report-builder-check report-detail-card\"><input type=\"radio\" name=\"report-detail\" value=\"appendix\"><span><strong>Include detailed records</strong><small>Add selected histories and full notes as an appendix.</small></span></label>\n          </div></fieldset>\n        </div>\n        <div class=\"report-builder-section\">\n          <div class=\"report-builder-field-head\"><span class=\"report-builder-section-title\">Include in the report</span><span class=\"report-selection-count\" data-report-section-count></span></div>\n          <div class=\"report-section-grid\"><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"categories\" >\n    <span>Lab results</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"supplements\" checked>\n    <span>Supplements and meds</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"notes\" >\n    <span>Timeline notes</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"genetics\" >\n    <span>Genome</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"context\" checked>\n    <span>Personal context</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"nutrition\" checked>\n    <span>Nutrition and hydration</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"wearables\" checked>\n    <span>Body and wearables</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"light\" checked>\n    <span>Sun and light sessions</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"environment\" checked>\n    <span>Environment</span>\n  </label></div>\n          <p class=\"report-builder-help\">Lab results include ranges, flags and trends. Genome uses the findings choice below.</p>\n          <details class=\"report-options-details\" data-report-for=\"categories\"><summary>Lab categories <span class=\"report-options-meta\" data-report-category-count></span></summary><div class=\"report-options-body\">\n            <div class=\"report-category-actions\"><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"select-all-categories\">All</button><button type=\"button\" class=\"report-mini-btn\" aria-label=\"Select lab categories with flagged results\" data-report-action=\"select-priority-categories\">Flagged</button><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"clear-categories\">Clear</button></div>\n            <div class=\"report-category-list\"><label class=\"report-category-row\">\n      <input type=\"checkbox\" data-report-category=\"biochemistry\" data-report-priority=\"true\" checked>\n      <span class=\"report-category-copy\">\n        <span class=\"report-category-title\">Biochemistry</span>\n        <span class=\"report-category-meta\">3 markers · 1 flagged</span>\n      </span>\n    </label><label class=\"report-category-row\">\n      <input type=\"checkbox\" data-report-category=\"custom&lt;lab&gt;\" data-report-priority=\"false\" checked>\n      <span class=\"report-category-copy\">\n        <span class=\"report-category-title\">Literal &lt;lab&gt; &amp; category</span>\n        <span class=\"report-category-meta\">1 marker</span>\n      </span>\n    </label></div>\n          </div></details>\n          <div class=\"report-genome-options\" data-report-for=\"genetics\"><label class=\"report-builder-field\" for=\"report-genome-mode\"><span class=\"report-builder-label\">Genome findings</span><select id=\"report-genome-mode\" class=\"report-builder-select\"><option value=\"risks\">Risk associations</option><option value=\"risks-traits\">Risks and traits</option><option value=\"traits\">Traits only</option><option value=\"all\">All findings, including protective and reference calls</option></select></label><p class=\"report-builder-help\">Uses your genotype’s current catalog interpretation. Associations are not diagnoses. Adding an appendix does not expand this selection.</p></div>\n          <details class=\"report-options-details\" data-report-for=\"context\"><summary>Personal context <span class=\"report-options-meta\">Choose what to share</span></summary><div class=\"report-options-body\"><div class=\"report-section-grid\"><label class=\"report-builder-check\"><input type=\"checkbox\" data-report-context=\"Medical history\" checked><span>Medical history</span></label><label class=\"report-builder-check\"><input type=\"checkbox\" data-report-context=\"Literal &lt;context&gt; &amp; title\" checked><span>Literal &lt;context&gt; &amp; title</span></label></div></div></details>\n          <details class=\"report-options-details\" data-report-for=\"notes\"><summary>Manage notes <span class=\"report-options-meta\">3 stored</span></summary><div class=\"report-options-body\">\n    <p class=\"report-builder-help\">Timeline notes are also in Dashboard → Add widget → Labs → Notes. Older notes do not establish their original author. Turn off Timeline notes above to omit them.</p>\n    <p class=\"report-builder-help\">Edit or delete opens the note editor. Reopen Create a report after saving your changes.</p>\n    <div class=\"report-note-review\"><strong>2026-02-04</strong><p style=\"white-space:pre-wrap;overflow-wrap:anywhere\">Newer &lt;note&gt; &amp; &quot;literal&quot;</p><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"edit-note\" data-report-index=\"1\">Edit or delete</button></div><div class=\"report-note-review\"><strong>2026-02-03</strong><p style=\"white-space:pre-wrap;overflow-wrap:anywhere\">Original first note\nSecond line</p><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"edit-note\" data-report-index=\"0\">Edit or delete</button></div><div class=\"report-note-review\"><strong>Undated</strong><p style=\"white-space:pre-wrap;overflow-wrap:anywhere\"></p><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"edit-note\" data-report-index=\"2\">Edit or delete</button></div>\n  </div></details>\n        </div>\n        <div class=\"report-builder-section\">\n          <label class=\"report-builder-field\" for=\"report-purpose\"><span class=\"report-builder-section-title\">Reason for sharing / questions <span class=\"report-optional-label\">Optional</span></span><textarea id=\"report-purpose\" class=\"report-builder-select\" rows=\"3\" maxlength=\"1200\" placeholder=\"What would you like to ask or discuss?\"></textarea></label>\n          <p class=\"report-builder-help\">Appears at the start of your report and guides the overview, if you generate one.</p>\n        </div>\n        <div class=\"report-builder-section report-ai-builder\">\n          <div class=\"report-builder-row-head\"><div><label class=\"report-builder-check\"><input type=\"checkbox\" id=\"report-include-ai\" checked aria-describedby=\"report-ai-disclosure\"><span>Include AI overview</span></label><p class=\"report-builder-help\">Add an AI-generated opening overview of recorded highlights, context and your questions. It is informational and may be incomplete or incorrect.</p></div></div>\n          <p class=\"report-builder-help\" id=\"report-ai-disclosure\">Generate AI overview &amp; preview uses your selected AI connection to process the selected report facts and questions. AI can make mistakes; verify the overview before sharing. Any required AI disclosure or destination approval appears before the request. You can turn off the overview to compile this report without a new AI request.</p>\n          <div class=\"report-ai-actions\"><button type=\"button\" class=\"report-mini-btn report-ai-generate-btn\" data-report-action=\"generate-ai-summary\" hidden>Generate overview</button><button type=\"button\" class=\"report-mini-btn report-ai-clear-btn\" hidden data-report-action=\"clear-ai-summary\">Remove overview</button><button type=\"button\" class=\"report-mini-btn\" hidden data-report-action=\"preview-without-ai\">Preview without AI</button></div>\n          <div class=\"report-ai-status\" data-report-ai-status aria-live=\"polite\">Ready to generate with your preview.</div>\n          <textarea id=\"report-ai-summary-text\" class=\"report-ai-summary-text\" aria-label=\"Editable AI-generated overview\" hidden></textarea>\n        </div>\n      </div><div class=\"gb-form-actions report-builder-actions\"><div class=\"report-builder-selection-summary\" id=\"report-builder-selection-summary\" data-report-selection-summary aria-live=\"polite\"></div><div class=\"report-builder-footer-buttons\"><button type=\"button\" class=\"import-btn import-btn-secondary\" data-report-action=\"close\">Cancel</button><button type=\"button\" class=\"import-btn import-btn-primary report-builder-preview-btn\" aria-describedby=\"report-builder-selection-summary\" data-report-action=\"export\">Preview PDF</button></div></div></div>\n    </div></div>"
+    },
+    {
+      "kind": "report",
+      "name": "personal-local",
+      "input": {
+        "presetId": "personal",
+        "aiAvailable": false,
+        "rangeMode": "reference",
+        "categoryOptions": [
+          {
+            "key": "biochemistry",
+            "label": "Biochemistry",
+            "markerCount": 3,
+            "flaggedCount": 1
+          },
+          {
+            "key": "custom<lab>",
+            "label": "Literal <lab> & category",
+            "markerCount": 1,
+            "flaggedCount": 0
+          }
+        ],
+        "contextSections": [
+          {
+            "title": "Medical history"
+          },
+          {
+            "title": "Literal <context> & title"
+          }
+        ],
+        "notes": [
+          {
+            "date": "2026-02-03",
+            "text": "Original first note\nSecond line"
+          },
+          {
+            "date": "2026-02-04",
+            "text": "Newer <note> & \"literal\""
+          },
+          {
+            "date": "",
+            "text": ""
+          }
+        ]
+      },
+      "html": "<div class=\"modal-overlay\" id=\"report-builder-overlay\" data-report-builder-overlay data-report-preset=\"personal\">\n    <div class=\"modal gb-form-modal report-builder-modal\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"report-builder-title\">\n      <div class=\"gb-modal-head\"><div class=\"gb-modal-title\" id=\"report-builder-title\">Create a report</div><button type=\"button\" class=\"modal-close\" aria-label=\"Close\" data-report-action=\"close\">&times;</button></div>\n      <div class=\"gb-form-body report-builder-body\"><div class=\"report-builder-scroll\">\n        <p class=\"report-builder-help report-intro-copy\">Choose personal records to review or share. Your PDF preview is created locally.</p>\n        <div class=\"report-builder-section\">\n          <div class=\"report-builder-field-head\"><span class=\"report-builder-section-title\">Start with a template</span><span class=\"report-selection-count\" data-report-template-customized hidden>Customized</span></div>\n          <div class=\"report-preset-grid\"><button type=\"button\" class=\"report-preset-btn\" data-report-action=\"set-preset\" data-report-preset=\"clinician\" aria-pressed=\"false\">\n    <span class=\"report-preset-title\">Health summary</span>\n    <span class=\"report-preset-meta\">All lab groups + personal context</span>\n  </button><button type=\"button\" class=\"report-preset-btn\" data-report-action=\"set-preset\" data-report-preset=\"full\" aria-pressed=\"false\">\n    <span class=\"report-preset-title\">Full health report</span>\n    <span class=\"report-preset-meta\">Every data section, all dates</span>\n  </button><button type=\"button\" class=\"report-preset-btn\" data-report-action=\"set-preset\" data-report-preset=\"lifestyle\" aria-pressed=\"false\">\n    <span class=\"report-preset-title\">Nutrition and lifestyle</span>\n    <span class=\"report-preset-meta\">Recent intake, body and exposure</span>\n  </button><button type=\"button\" class=\"report-preset-btn active\" data-report-action=\"set-preset\" data-report-preset=\"personal\" aria-pressed=\"true\">\n    <span class=\"report-preset-title\">Lab results only</span>\n    <span class=\"report-preset-meta\">Every lab group, no extra sections</span>\n  </button></div>\n          <p class=\"report-builder-help\" data-report-template-description>A focused lab handoff: every available lab group, with reference or optimal ranges, flags and trends. Personal context, Genome and lifestyle sections are off.</p>\n          <p class=\"report-builder-help\">Templates set sections and dates. Result ranges, questions, detail and AI preferences stay as you choose them.</p>\n        </div>\n        <div class=\"report-builder-section\">\n          <div class=\"report-builder-two-col\">\n            <label class=\"report-builder-field\" for=\"report-date-range\"><span class=\"report-builder-label\">Date range</span><select id=\"report-date-range\" class=\"report-builder-select\"><option value=\"current\" >Current dashboard range</option><option value=\"3m\" >Last 3 months</option><option value=\"6m\" >Last 6 months</option><option value=\"1y\" >Last year</option><option value=\"all\" selected>All dates</option></select></label>\n            <label class=\"report-builder-field\" for=\"report-range-mode\"><span class=\"report-builder-label\">Result ranges</span><select id=\"report-range-mode\" class=\"report-builder-select\" aria-describedby=\"report-range-help\"><option value=\"reference\" selected>Lab / reference ranges</option><option value=\"optimal\" >Optimal ranges</option><option value=\"both\" >Both ranges</option></select></label>\n          </div>\n          <p class=\"report-builder-help\" id=\"report-range-help\">Applies only to this report. Lab ranges use app or custom references when unavailable. Optimal and Both flag against optimal ranges where available; phase-specific reference ranges take precedence.</p>\n          <fieldset class=\"report-detail-options\"><legend class=\"report-builder-label\">Report detail</legend><div class=\"report-section-grid\">\n            <label class=\"report-builder-check report-detail-card\"><input type=\"radio\" name=\"report-detail\" value=\"summary\" checked><span><strong>Concise summary</strong><small>Key results and averages for a quick review.</small></span></label>\n            <label class=\"report-builder-check report-detail-card\"><input type=\"radio\" name=\"report-detail\" value=\"appendix\"><span><strong>Include detailed records</strong><small>Add selected histories and full notes as an appendix.</small></span></label>\n          </div></fieldset>\n        </div>\n        <div class=\"report-builder-section\">\n          <div class=\"report-builder-field-head\"><span class=\"report-builder-section-title\">Include in the report</span><span class=\"report-selection-count\" data-report-section-count></span></div>\n          <div class=\"report-section-grid\"><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"categories\" checked>\n    <span>Lab results</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"supplements\" >\n    <span>Supplements and meds</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"notes\" >\n    <span>Timeline notes</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"genetics\" >\n    <span>Genome</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"context\" >\n    <span>Personal context</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"nutrition\" >\n    <span>Nutrition and hydration</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"wearables\" >\n    <span>Body and wearables</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"light\" >\n    <span>Sun and light sessions</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"environment\" >\n    <span>Environment</span>\n  </label></div>\n          <p class=\"report-builder-help\">Lab results include ranges, flags and trends. Genome uses the findings choice below.</p>\n          <details class=\"report-options-details\" data-report-for=\"categories\"><summary>Lab categories <span class=\"report-options-meta\" data-report-category-count></span></summary><div class=\"report-options-body\">\n            <div class=\"report-category-actions\"><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"select-all-categories\">All</button><button type=\"button\" class=\"report-mini-btn\" aria-label=\"Select lab categories with flagged results\" data-report-action=\"select-priority-categories\">Flagged</button><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"clear-categories\">Clear</button></div>\n            <div class=\"report-category-list\"><label class=\"report-category-row\">\n      <input type=\"checkbox\" data-report-category=\"biochemistry\" data-report-priority=\"true\" checked>\n      <span class=\"report-category-copy\">\n        <span class=\"report-category-title\">Biochemistry</span>\n        <span class=\"report-category-meta\">3 markers · 1 flagged</span>\n      </span>\n    </label><label class=\"report-category-row\">\n      <input type=\"checkbox\" data-report-category=\"custom&lt;lab&gt;\" data-report-priority=\"false\" checked>\n      <span class=\"report-category-copy\">\n        <span class=\"report-category-title\">Literal &lt;lab&gt; &amp; category</span>\n        <span class=\"report-category-meta\">1 marker</span>\n      </span>\n    </label></div>\n          </div></details>\n          <div class=\"report-genome-options\" data-report-for=\"genetics\"><label class=\"report-builder-field\" for=\"report-genome-mode\"><span class=\"report-builder-label\">Genome findings</span><select id=\"report-genome-mode\" class=\"report-builder-select\"><option value=\"risks\">Risk associations</option><option value=\"risks-traits\">Risks and traits</option><option value=\"traits\">Traits only</option><option value=\"all\">All findings, including protective and reference calls</option></select></label><p class=\"report-builder-help\">Uses your genotype’s current catalog interpretation. Associations are not diagnoses. Adding an appendix does not expand this selection.</p></div>\n          <details class=\"report-options-details\" data-report-for=\"context\"><summary>Personal context <span class=\"report-options-meta\">Choose what to share</span></summary><div class=\"report-options-body\"><div class=\"report-section-grid\"><label class=\"report-builder-check\"><input type=\"checkbox\" data-report-context=\"Medical history\" checked><span>Medical history</span></label><label class=\"report-builder-check\"><input type=\"checkbox\" data-report-context=\"Literal &lt;context&gt; &amp; title\" checked><span>Literal &lt;context&gt; &amp; title</span></label></div></div></details>\n          <details class=\"report-options-details\" data-report-for=\"notes\"><summary>Manage notes <span class=\"report-options-meta\">3 stored</span></summary><div class=\"report-options-body\">\n    <p class=\"report-builder-help\">Timeline notes are also in Dashboard → Add widget → Labs → Notes. Older notes do not establish their original author. Turn off Timeline notes above to omit them.</p>\n    <p class=\"report-builder-help\">Edit or delete opens the note editor. Reopen Create a report after saving your changes.</p>\n    <div class=\"report-note-review\"><strong>2026-02-04</strong><p style=\"white-space:pre-wrap;overflow-wrap:anywhere\">Newer &lt;note&gt; &amp; &quot;literal&quot;</p><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"edit-note\" data-report-index=\"1\">Edit or delete</button></div><div class=\"report-note-review\"><strong>2026-02-03</strong><p style=\"white-space:pre-wrap;overflow-wrap:anywhere\">Original first note\nSecond line</p><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"edit-note\" data-report-index=\"0\">Edit or delete</button></div><div class=\"report-note-review\"><strong>Undated</strong><p style=\"white-space:pre-wrap;overflow-wrap:anywhere\"></p><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"edit-note\" data-report-index=\"2\">Edit or delete</button></div>\n  </div></details>\n        </div>\n        <div class=\"report-builder-section\">\n          <label class=\"report-builder-field\" for=\"report-purpose\"><span class=\"report-builder-section-title\">Reason for sharing / questions <span class=\"report-optional-label\">Optional</span></span><textarea id=\"report-purpose\" class=\"report-builder-select\" rows=\"3\" maxlength=\"1200\" placeholder=\"What would you like to ask or discuss?\"></textarea></label>\n          <p class=\"report-builder-help\">Appears at the start of your report and guides the overview, if you generate one.</p>\n        </div>\n        <div class=\"report-builder-section report-ai-builder\">\n          <div class=\"report-builder-row-head\"><div><label class=\"report-builder-check\"><input type=\"checkbox\" id=\"report-include-ai\" disabled aria-describedby=\"report-ai-disclosure\"><span>Include AI overview</span></label><p class=\"report-builder-help\">Add an AI-generated opening overview of recorded highlights, context and your questions. It is informational and may be incomplete or incorrect.</p></div></div>\n          <p class=\"report-builder-help\" id=\"report-ai-disclosure\">AI is unavailable or paused. PDF preview works without a new AI overview.</p>\n          <div class=\"report-ai-actions\"><button type=\"button\" class=\"report-mini-btn report-ai-generate-btn\" data-report-action=\"generate-ai-summary\" hidden>Generate overview</button><button type=\"button\" class=\"report-mini-btn report-ai-clear-btn\" hidden data-report-action=\"clear-ai-summary\">Remove overview</button><button type=\"button\" class=\"report-mini-btn\" hidden data-report-action=\"preview-without-ai\">Preview without AI</button></div>\n          <div class=\"report-ai-status\" data-report-ai-status aria-live=\"polite\">Not included.</div>\n          <textarea id=\"report-ai-summary-text\" class=\"report-ai-summary-text\" aria-label=\"Editable AI-generated overview\" hidden></textarea>\n        </div>\n      </div><div class=\"gb-form-actions report-builder-actions\"><div class=\"report-builder-selection-summary\" id=\"report-builder-selection-summary\" data-report-selection-summary aria-live=\"polite\"></div><div class=\"report-builder-footer-buttons\"><button type=\"button\" class=\"import-btn import-btn-secondary\" data-report-action=\"close\">Cancel</button><button type=\"button\" class=\"import-btn import-btn-primary report-builder-preview-btn\" aria-describedby=\"report-builder-selection-summary\" data-report-action=\"export\">Preview PDF</button></div></div></div>\n    </div></div>"
+    },
+    {
+      "kind": "report",
+      "name": "personal-ai",
+      "input": {
+        "presetId": "personal",
+        "aiAvailable": true,
+        "rangeMode": "both",
+        "categoryOptions": [
+          {
+            "key": "biochemistry",
+            "label": "Biochemistry",
+            "markerCount": 3,
+            "flaggedCount": 1
+          },
+          {
+            "key": "custom<lab>",
+            "label": "Literal <lab> & category",
+            "markerCount": 1,
+            "flaggedCount": 0
+          }
+        ],
+        "contextSections": [
+          {
+            "title": "Medical history"
+          },
+          {
+            "title": "Literal <context> & title"
+          }
+        ],
+        "notes": [
+          {
+            "date": "2026-02-03",
+            "text": "Original first note\nSecond line"
+          },
+          {
+            "date": "2026-02-04",
+            "text": "Newer <note> & \"literal\""
+          },
+          {
+            "date": "",
+            "text": ""
+          }
+        ]
+      },
+      "html": "<div class=\"modal-overlay\" id=\"report-builder-overlay\" data-report-builder-overlay data-report-preset=\"personal\">\n    <div class=\"modal gb-form-modal report-builder-modal\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"report-builder-title\">\n      <div class=\"gb-modal-head\"><div class=\"gb-modal-title\" id=\"report-builder-title\">Create a report</div><button type=\"button\" class=\"modal-close\" aria-label=\"Close\" data-report-action=\"close\">&times;</button></div>\n      <div class=\"gb-form-body report-builder-body\"><div class=\"report-builder-scroll\">\n        <p class=\"report-builder-help report-intro-copy\">Choose personal records to review or share. Your PDF preview is created locally.</p>\n        <div class=\"report-builder-section\">\n          <div class=\"report-builder-field-head\"><span class=\"report-builder-section-title\">Start with a template</span><span class=\"report-selection-count\" data-report-template-customized hidden>Customized</span></div>\n          <div class=\"report-preset-grid\"><button type=\"button\" class=\"report-preset-btn\" data-report-action=\"set-preset\" data-report-preset=\"clinician\" aria-pressed=\"false\">\n    <span class=\"report-preset-title\">Health summary</span>\n    <span class=\"report-preset-meta\">All lab groups + personal context</span>\n  </button><button type=\"button\" class=\"report-preset-btn\" data-report-action=\"set-preset\" data-report-preset=\"full\" aria-pressed=\"false\">\n    <span class=\"report-preset-title\">Full health report</span>\n    <span class=\"report-preset-meta\">Every data section, all dates</span>\n  </button><button type=\"button\" class=\"report-preset-btn\" data-report-action=\"set-preset\" data-report-preset=\"lifestyle\" aria-pressed=\"false\">\n    <span class=\"report-preset-title\">Nutrition and lifestyle</span>\n    <span class=\"report-preset-meta\">Recent intake, body and exposure</span>\n  </button><button type=\"button\" class=\"report-preset-btn active\" data-report-action=\"set-preset\" data-report-preset=\"personal\" aria-pressed=\"true\">\n    <span class=\"report-preset-title\">Lab results only</span>\n    <span class=\"report-preset-meta\">Every lab group, no extra sections</span>\n  </button></div>\n          <p class=\"report-builder-help\" data-report-template-description>A focused lab handoff: every available lab group, with reference or optimal ranges, flags and trends. Personal context, Genome and lifestyle sections are off.</p>\n          <p class=\"report-builder-help\">Templates set sections and dates. Result ranges, questions, detail and AI preferences stay as you choose them.</p>\n        </div>\n        <div class=\"report-builder-section\">\n          <div class=\"report-builder-two-col\">\n            <label class=\"report-builder-field\" for=\"report-date-range\"><span class=\"report-builder-label\">Date range</span><select id=\"report-date-range\" class=\"report-builder-select\"><option value=\"current\" >Current dashboard range</option><option value=\"3m\" >Last 3 months</option><option value=\"6m\" >Last 6 months</option><option value=\"1y\" >Last year</option><option value=\"all\" selected>All dates</option></select></label>\n            <label class=\"report-builder-field\" for=\"report-range-mode\"><span class=\"report-builder-label\">Result ranges</span><select id=\"report-range-mode\" class=\"report-builder-select\" aria-describedby=\"report-range-help\"><option value=\"reference\" >Lab / reference ranges</option><option value=\"optimal\" >Optimal ranges</option><option value=\"both\" selected>Both ranges</option></select></label>\n          </div>\n          <p class=\"report-builder-help\" id=\"report-range-help\">Applies only to this report. Lab ranges use app or custom references when unavailable. Optimal and Both flag against optimal ranges where available; phase-specific reference ranges take precedence.</p>\n          <fieldset class=\"report-detail-options\"><legend class=\"report-builder-label\">Report detail</legend><div class=\"report-section-grid\">\n            <label class=\"report-builder-check report-detail-card\"><input type=\"radio\" name=\"report-detail\" value=\"summary\" checked><span><strong>Concise summary</strong><small>Key results and averages for a quick review.</small></span></label>\n            <label class=\"report-builder-check report-detail-card\"><input type=\"radio\" name=\"report-detail\" value=\"appendix\"><span><strong>Include detailed records</strong><small>Add selected histories and full notes as an appendix.</small></span></label>\n          </div></fieldset>\n        </div>\n        <div class=\"report-builder-section\">\n          <div class=\"report-builder-field-head\"><span class=\"report-builder-section-title\">Include in the report</span><span class=\"report-selection-count\" data-report-section-count></span></div>\n          <div class=\"report-section-grid\"><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"categories\" checked>\n    <span>Lab results</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"supplements\" >\n    <span>Supplements and meds</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"notes\" >\n    <span>Timeline notes</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"genetics\" >\n    <span>Genome</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"context\" >\n    <span>Personal context</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"nutrition\" >\n    <span>Nutrition and hydration</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"wearables\" >\n    <span>Body and wearables</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"light\" >\n    <span>Sun and light sessions</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"environment\" >\n    <span>Environment</span>\n  </label></div>\n          <p class=\"report-builder-help\">Lab results include ranges, flags and trends. Genome uses the findings choice below.</p>\n          <details class=\"report-options-details\" data-report-for=\"categories\"><summary>Lab categories <span class=\"report-options-meta\" data-report-category-count></span></summary><div class=\"report-options-body\">\n            <div class=\"report-category-actions\"><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"select-all-categories\">All</button><button type=\"button\" class=\"report-mini-btn\" aria-label=\"Select lab categories with flagged results\" data-report-action=\"select-priority-categories\">Flagged</button><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"clear-categories\">Clear</button></div>\n            <div class=\"report-category-list\"><label class=\"report-category-row\">\n      <input type=\"checkbox\" data-report-category=\"biochemistry\" data-report-priority=\"true\" checked>\n      <span class=\"report-category-copy\">\n        <span class=\"report-category-title\">Biochemistry</span>\n        <span class=\"report-category-meta\">3 markers · 1 flagged</span>\n      </span>\n    </label><label class=\"report-category-row\">\n      <input type=\"checkbox\" data-report-category=\"custom&lt;lab&gt;\" data-report-priority=\"false\" checked>\n      <span class=\"report-category-copy\">\n        <span class=\"report-category-title\">Literal &lt;lab&gt; &amp; category</span>\n        <span class=\"report-category-meta\">1 marker</span>\n      </span>\n    </label></div>\n          </div></details>\n          <div class=\"report-genome-options\" data-report-for=\"genetics\"><label class=\"report-builder-field\" for=\"report-genome-mode\"><span class=\"report-builder-label\">Genome findings</span><select id=\"report-genome-mode\" class=\"report-builder-select\"><option value=\"risks\">Risk associations</option><option value=\"risks-traits\">Risks and traits</option><option value=\"traits\">Traits only</option><option value=\"all\">All findings, including protective and reference calls</option></select></label><p class=\"report-builder-help\">Uses your genotype’s current catalog interpretation. Associations are not diagnoses. Adding an appendix does not expand this selection.</p></div>\n          <details class=\"report-options-details\" data-report-for=\"context\"><summary>Personal context <span class=\"report-options-meta\">Choose what to share</span></summary><div class=\"report-options-body\"><div class=\"report-section-grid\"><label class=\"report-builder-check\"><input type=\"checkbox\" data-report-context=\"Medical history\" checked><span>Medical history</span></label><label class=\"report-builder-check\"><input type=\"checkbox\" data-report-context=\"Literal &lt;context&gt; &amp; title\" checked><span>Literal &lt;context&gt; &amp; title</span></label></div></div></details>\n          <details class=\"report-options-details\" data-report-for=\"notes\"><summary>Manage notes <span class=\"report-options-meta\">3 stored</span></summary><div class=\"report-options-body\">\n    <p class=\"report-builder-help\">Timeline notes are also in Dashboard → Add widget → Labs → Notes. Older notes do not establish their original author. Turn off Timeline notes above to omit them.</p>\n    <p class=\"report-builder-help\">Edit or delete opens the note editor. Reopen Create a report after saving your changes.</p>\n    <div class=\"report-note-review\"><strong>2026-02-04</strong><p style=\"white-space:pre-wrap;overflow-wrap:anywhere\">Newer &lt;note&gt; &amp; &quot;literal&quot;</p><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"edit-note\" data-report-index=\"1\">Edit or delete</button></div><div class=\"report-note-review\"><strong>2026-02-03</strong><p style=\"white-space:pre-wrap;overflow-wrap:anywhere\">Original first note\nSecond line</p><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"edit-note\" data-report-index=\"0\">Edit or delete</button></div><div class=\"report-note-review\"><strong>Undated</strong><p style=\"white-space:pre-wrap;overflow-wrap:anywhere\"></p><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"edit-note\" data-report-index=\"2\">Edit or delete</button></div>\n  </div></details>\n        </div>\n        <div class=\"report-builder-section\">\n          <label class=\"report-builder-field\" for=\"report-purpose\"><span class=\"report-builder-section-title\">Reason for sharing / questions <span class=\"report-optional-label\">Optional</span></span><textarea id=\"report-purpose\" class=\"report-builder-select\" rows=\"3\" maxlength=\"1200\" placeholder=\"What would you like to ask or discuss?\"></textarea></label>\n          <p class=\"report-builder-help\">Appears at the start of your report and guides the overview, if you generate one.</p>\n        </div>\n        <div class=\"report-builder-section report-ai-builder\">\n          <div class=\"report-builder-row-head\"><div><label class=\"report-builder-check\"><input type=\"checkbox\" id=\"report-include-ai\" checked aria-describedby=\"report-ai-disclosure\"><span>Include AI overview</span></label><p class=\"report-builder-help\">Add an AI-generated opening overview of recorded highlights, context and your questions. It is informational and may be incomplete or incorrect.</p></div></div>\n          <p class=\"report-builder-help\" id=\"report-ai-disclosure\">Generate AI overview &amp; preview uses your selected AI connection to process the selected report facts and questions. AI can make mistakes; verify the overview before sharing. Any required AI disclosure or destination approval appears before the request. You can turn off the overview to compile this report without a new AI request.</p>\n          <div class=\"report-ai-actions\"><button type=\"button\" class=\"report-mini-btn report-ai-generate-btn\" data-report-action=\"generate-ai-summary\" hidden>Generate overview</button><button type=\"button\" class=\"report-mini-btn report-ai-clear-btn\" hidden data-report-action=\"clear-ai-summary\">Remove overview</button><button type=\"button\" class=\"report-mini-btn\" hidden data-report-action=\"preview-without-ai\">Preview without AI</button></div>\n          <div class=\"report-ai-status\" data-report-ai-status aria-live=\"polite\">Ready to generate with your preview.</div>\n          <textarea id=\"report-ai-summary-text\" class=\"report-ai-summary-text\" aria-label=\"Editable AI-generated overview\" hidden></textarea>\n        </div>\n      </div><div class=\"gb-form-actions report-builder-actions\"><div class=\"report-builder-selection-summary\" id=\"report-builder-selection-summary\" data-report-selection-summary aria-live=\"polite\"></div><div class=\"report-builder-footer-buttons\"><button type=\"button\" class=\"import-btn import-btn-secondary\" data-report-action=\"close\">Cancel</button><button type=\"button\" class=\"import-btn import-btn-primary report-builder-preview-btn\" aria-describedby=\"report-builder-selection-summary\" data-report-action=\"export\">Preview PDF</button></div></div></div>\n    </div></div>"
+    },
+    {
+      "kind": "report",
+      "name": "empty",
+      "input": {
+        "presetId": "full",
+        "aiAvailable": false,
+        "rangeMode": "optimal",
+        "categoryOptions": [],
+        "contextSections": [],
+        "notes": []
+      },
+      "html": "<div class=\"modal-overlay\" id=\"report-builder-overlay\" data-report-builder-overlay data-report-preset=\"full\">\n    <div class=\"modal gb-form-modal report-builder-modal\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"report-builder-title\">\n      <div class=\"gb-modal-head\"><div class=\"gb-modal-title\" id=\"report-builder-title\">Create a report</div><button type=\"button\" class=\"modal-close\" aria-label=\"Close\" data-report-action=\"close\">&times;</button></div>\n      <div class=\"gb-form-body report-builder-body\"><div class=\"report-builder-scroll\">\n        <p class=\"report-builder-help report-intro-copy\">Choose personal records to review or share. Your PDF preview is created locally.</p>\n        <div class=\"report-builder-section\">\n          <div class=\"report-builder-field-head\"><span class=\"report-builder-section-title\">Start with a template</span><span class=\"report-selection-count\" data-report-template-customized hidden>Customized</span></div>\n          <div class=\"report-preset-grid\"><button type=\"button\" class=\"report-preset-btn\" data-report-action=\"set-preset\" data-report-preset=\"clinician\" aria-pressed=\"false\">\n    <span class=\"report-preset-title\">Health summary</span>\n    <span class=\"report-preset-meta\">All lab groups + personal context</span>\n  </button><button type=\"button\" class=\"report-preset-btn active\" data-report-action=\"set-preset\" data-report-preset=\"full\" aria-pressed=\"true\">\n    <span class=\"report-preset-title\">Full health report</span>\n    <span class=\"report-preset-meta\">Every data section, all dates</span>\n  </button><button type=\"button\" class=\"report-preset-btn\" data-report-action=\"set-preset\" data-report-preset=\"lifestyle\" aria-pressed=\"false\">\n    <span class=\"report-preset-title\">Nutrition and lifestyle</span>\n    <span class=\"report-preset-meta\">Recent intake, body and exposure</span>\n  </button><button type=\"button\" class=\"report-preset-btn\" data-report-action=\"set-preset\" data-report-preset=\"personal\" aria-pressed=\"false\">\n    <span class=\"report-preset-title\">Lab results only</span>\n    <span class=\"report-preset-meta\">Every lab group, no extra sections</span>\n  </button></div>\n          <p class=\"report-builder-help\" data-report-template-description>Summaries of every data section across all recorded dates. Genome follows your findings selection; detailed records remain optional.</p>\n          <p class=\"report-builder-help\">Templates set sections and dates. Result ranges, questions, detail and AI preferences stay as you choose them.</p>\n        </div>\n        <div class=\"report-builder-section\">\n          <div class=\"report-builder-two-col\">\n            <label class=\"report-builder-field\" for=\"report-date-range\"><span class=\"report-builder-label\">Date range</span><select id=\"report-date-range\" class=\"report-builder-select\"><option value=\"current\" >Current dashboard range</option><option value=\"3m\" >Last 3 months</option><option value=\"6m\" >Last 6 months</option><option value=\"1y\" >Last year</option><option value=\"all\" selected>All dates</option></select></label>\n            <label class=\"report-builder-field\" for=\"report-range-mode\"><span class=\"report-builder-label\">Result ranges</span><select id=\"report-range-mode\" class=\"report-builder-select\" aria-describedby=\"report-range-help\"><option value=\"reference\" >Lab / reference ranges</option><option value=\"optimal\" selected>Optimal ranges</option><option value=\"both\" >Both ranges</option></select></label>\n          </div>\n          <p class=\"report-builder-help\" id=\"report-range-help\">Applies only to this report. Lab ranges use app or custom references when unavailable. Optimal and Both flag against optimal ranges where available; phase-specific reference ranges take precedence.</p>\n          <fieldset class=\"report-detail-options\"><legend class=\"report-builder-label\">Report detail</legend><div class=\"report-section-grid\">\n            <label class=\"report-builder-check report-detail-card\"><input type=\"radio\" name=\"report-detail\" value=\"summary\" checked><span><strong>Concise summary</strong><small>Key results and averages for a quick review.</small></span></label>\n            <label class=\"report-builder-check report-detail-card\"><input type=\"radio\" name=\"report-detail\" value=\"appendix\"><span><strong>Include detailed records</strong><small>Add selected histories and full notes as an appendix.</small></span></label>\n          </div></fieldset>\n        </div>\n        <div class=\"report-builder-section\">\n          <div class=\"report-builder-field-head\"><span class=\"report-builder-section-title\">Include in the report</span><span class=\"report-selection-count\" data-report-section-count></span></div>\n          <div class=\"report-section-grid\"><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"categories\" checked>\n    <span>Lab results</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"supplements\" checked>\n    <span>Supplements and meds</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"notes\" checked>\n    <span>Timeline notes</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"genetics\" checked>\n    <span>Genome</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"context\" checked>\n    <span>Personal context</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"nutrition\" checked>\n    <span>Nutrition and hydration</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"wearables\" checked>\n    <span>Body and wearables</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"light\" checked>\n    <span>Sun and light sessions</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"environment\" checked>\n    <span>Environment</span>\n  </label></div>\n          <p class=\"report-builder-help\">Lab results include ranges, flags and trends. Genome uses the findings choice below.</p>\n          <details class=\"report-options-details\" data-report-for=\"categories\"><summary>Lab categories <span class=\"report-options-meta\" data-report-category-count></span></summary><div class=\"report-options-body\">\n            <div class=\"report-category-actions\"><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"select-all-categories\">All</button><button type=\"button\" class=\"report-mini-btn\" aria-label=\"Select lab categories with flagged results\" data-report-action=\"select-priority-categories\">Flagged</button><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"clear-categories\">Clear</button></div>\n            <div class=\"report-category-list\"><div class=\"report-builder-empty\">No lab categories with data.</div></div>\n          </div></details>\n          <div class=\"report-genome-options\" data-report-for=\"genetics\"><label class=\"report-builder-field\" for=\"report-genome-mode\"><span class=\"report-builder-label\">Genome findings</span><select id=\"report-genome-mode\" class=\"report-builder-select\"><option value=\"risks\">Risk associations</option><option value=\"risks-traits\">Risks and traits</option><option value=\"traits\">Traits only</option><option value=\"all\">All findings, including protective and reference calls</option></select></label><p class=\"report-builder-help\">Uses your genotype’s current catalog interpretation. Associations are not diagnoses. Adding an appendix does not expand this selection.</p></div>\n          <details class=\"report-options-details\" data-report-for=\"context\"><summary>Personal context <span class=\"report-options-meta\">Choose what to share</span></summary><div class=\"report-options-body\"><div class=\"report-section-grid\"><p class=\"report-builder-help\">No personal context recorded.</p></div></div></details>\n          <details class=\"report-options-details\" data-report-for=\"notes\"><summary>Manage notes <span class=\"report-options-meta\">0 stored</span></summary><div class=\"report-options-body\">\n    <p class=\"report-builder-help\">Timeline notes are also in Dashboard → Add widget → Labs → Notes. Older notes do not establish their original author. Turn off Timeline notes above to omit them.</p>\n    <p class=\"report-builder-help\">Edit or delete opens the note editor. Reopen Create a report after saving your changes.</p>\n    <p>No timeline notes recorded.</p>\n  </div></details>\n        </div>\n        <div class=\"report-builder-section\">\n          <label class=\"report-builder-field\" for=\"report-purpose\"><span class=\"report-builder-section-title\">Reason for sharing / questions <span class=\"report-optional-label\">Optional</span></span><textarea id=\"report-purpose\" class=\"report-builder-select\" rows=\"3\" maxlength=\"1200\" placeholder=\"What would you like to ask or discuss?\"></textarea></label>\n          <p class=\"report-builder-help\">Appears at the start of your report and guides the overview, if you generate one.</p>\n        </div>\n        <div class=\"report-builder-section report-ai-builder\">\n          <div class=\"report-builder-row-head\"><div><label class=\"report-builder-check\"><input type=\"checkbox\" id=\"report-include-ai\" disabled aria-describedby=\"report-ai-disclosure\"><span>Include AI overview</span></label><p class=\"report-builder-help\">Add an AI-generated opening overview of recorded highlights, context and your questions. It is informational and may be incomplete or incorrect.</p></div></div>\n          <p class=\"report-builder-help\" id=\"report-ai-disclosure\">AI is unavailable or paused. PDF preview works without a new AI overview.</p>\n          <div class=\"report-ai-actions\"><button type=\"button\" class=\"report-mini-btn report-ai-generate-btn\" data-report-action=\"generate-ai-summary\" hidden>Generate overview</button><button type=\"button\" class=\"report-mini-btn report-ai-clear-btn\" hidden data-report-action=\"clear-ai-summary\">Remove overview</button><button type=\"button\" class=\"report-mini-btn\" hidden data-report-action=\"preview-without-ai\">Preview without AI</button></div>\n          <div class=\"report-ai-status\" data-report-ai-status aria-live=\"polite\">Not included.</div>\n          <textarea id=\"report-ai-summary-text\" class=\"report-ai-summary-text\" aria-label=\"Editable AI-generated overview\" hidden></textarea>\n        </div>\n      </div><div class=\"gb-form-actions report-builder-actions\"><div class=\"report-builder-selection-summary\" id=\"report-builder-selection-summary\" data-report-selection-summary aria-live=\"polite\"></div><div class=\"report-builder-footer-buttons\"><button type=\"button\" class=\"import-btn import-btn-secondary\" data-report-action=\"close\">Cancel</button><button type=\"button\" class=\"import-btn import-btn-primary report-builder-preview-btn\" aria-describedby=\"report-builder-selection-summary\" data-report-action=\"export\">Preview PDF</button></div></div></div>\n    </div></div>"
+    },
+    {
+      "kind": "report",
+      "name": "unknown-preset",
+      "input": {
+        "presetId": "<unknown>",
+        "aiAvailable": false,
+        "rangeMode": "optimal",
+        "categoryOptions": [],
+        "contextSections": [],
+        "notes": []
+      },
+      "html": "<div class=\"modal-overlay\" id=\"report-builder-overlay\" data-report-builder-overlay data-report-preset=\"&lt;unknown&gt;\">\n    <div class=\"modal gb-form-modal report-builder-modal\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"report-builder-title\">\n      <div class=\"gb-modal-head\"><div class=\"gb-modal-title\" id=\"report-builder-title\">Create a report</div><button type=\"button\" class=\"modal-close\" aria-label=\"Close\" data-report-action=\"close\">&times;</button></div>\n      <div class=\"gb-form-body report-builder-body\"><div class=\"report-builder-scroll\">\n        <p class=\"report-builder-help report-intro-copy\">Choose personal records to review or share. Your PDF preview is created locally.</p>\n        <div class=\"report-builder-section\">\n          <div class=\"report-builder-field-head\"><span class=\"report-builder-section-title\">Start with a template</span><span class=\"report-selection-count\" data-report-template-customized hidden>Customized</span></div>\n          <div class=\"report-preset-grid\"><button type=\"button\" class=\"report-preset-btn\" data-report-action=\"set-preset\" data-report-preset=\"clinician\" aria-pressed=\"false\">\n    <span class=\"report-preset-title\">Health summary</span>\n    <span class=\"report-preset-meta\">All lab groups + personal context</span>\n  </button><button type=\"button\" class=\"report-preset-btn\" data-report-action=\"set-preset\" data-report-preset=\"full\" aria-pressed=\"false\">\n    <span class=\"report-preset-title\">Full health report</span>\n    <span class=\"report-preset-meta\">Every data section, all dates</span>\n  </button><button type=\"button\" class=\"report-preset-btn\" data-report-action=\"set-preset\" data-report-preset=\"lifestyle\" aria-pressed=\"false\">\n    <span class=\"report-preset-title\">Nutrition and lifestyle</span>\n    <span class=\"report-preset-meta\">Recent intake, body and exposure</span>\n  </button><button type=\"button\" class=\"report-preset-btn\" data-report-action=\"set-preset\" data-report-preset=\"personal\" aria-pressed=\"false\">\n    <span class=\"report-preset-title\">Lab results only</span>\n    <span class=\"report-preset-meta\">Every lab group, no extra sections</span>\n  </button></div>\n          <p class=\"report-builder-help\" data-report-template-description>A concise overview with the latest and prior results from every available lab group, medicines, personal context and selected Genome findings.</p>\n          <p class=\"report-builder-help\">Templates set sections and dates. Result ranges, questions, detail and AI preferences stay as you choose them.</p>\n        </div>\n        <div class=\"report-builder-section\">\n          <div class=\"report-builder-two-col\">\n            <label class=\"report-builder-field\" for=\"report-date-range\"><span class=\"report-builder-label\">Date range</span><select id=\"report-date-range\" class=\"report-builder-select\"><option value=\"current\" >Current dashboard range</option><option value=\"3m\" >Last 3 months</option><option value=\"6m\" >Last 6 months</option><option value=\"1y\" >Last year</option><option value=\"all\" selected>All dates</option></select></label>\n            <label class=\"report-builder-field\" for=\"report-range-mode\"><span class=\"report-builder-label\">Result ranges</span><select id=\"report-range-mode\" class=\"report-builder-select\" aria-describedby=\"report-range-help\"><option value=\"reference\" >Lab / reference ranges</option><option value=\"optimal\" selected>Optimal ranges</option><option value=\"both\" >Both ranges</option></select></label>\n          </div>\n          <p class=\"report-builder-help\" id=\"report-range-help\">Applies only to this report. Lab ranges use app or custom references when unavailable. Optimal and Both flag against optimal ranges where available; phase-specific reference ranges take precedence.</p>\n          <fieldset class=\"report-detail-options\"><legend class=\"report-builder-label\">Report detail</legend><div class=\"report-section-grid\">\n            <label class=\"report-builder-check report-detail-card\"><input type=\"radio\" name=\"report-detail\" value=\"summary\" checked><span><strong>Concise summary</strong><small>Key results and averages for a quick review.</small></span></label>\n            <label class=\"report-builder-check report-detail-card\"><input type=\"radio\" name=\"report-detail\" value=\"appendix\"><span><strong>Include detailed records</strong><small>Add selected histories and full notes as an appendix.</small></span></label>\n          </div></fieldset>\n        </div>\n        <div class=\"report-builder-section\">\n          <div class=\"report-builder-field-head\"><span class=\"report-builder-section-title\">Include in the report</span><span class=\"report-selection-count\" data-report-section-count></span></div>\n          <div class=\"report-section-grid\"><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"categories\" checked>\n    <span>Lab results</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"supplements\" checked>\n    <span>Supplements and meds</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"notes\" >\n    <span>Timeline notes</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"genetics\" checked>\n    <span>Genome</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"context\" checked>\n    <span>Personal context</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"nutrition\" >\n    <span>Nutrition and hydration</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"wearables\" >\n    <span>Body and wearables</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"light\" >\n    <span>Sun and light sessions</span>\n  </label><label class=\"report-builder-check\">\n    <input type=\"checkbox\" data-report-section=\"environment\" >\n    <span>Environment</span>\n  </label></div>\n          <p class=\"report-builder-help\">Lab results include ranges, flags and trends. Genome uses the findings choice below.</p>\n          <details class=\"report-options-details\" data-report-for=\"categories\"><summary>Lab categories <span class=\"report-options-meta\" data-report-category-count></span></summary><div class=\"report-options-body\">\n            <div class=\"report-category-actions\"><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"select-all-categories\">All</button><button type=\"button\" class=\"report-mini-btn\" aria-label=\"Select lab categories with flagged results\" data-report-action=\"select-priority-categories\">Flagged</button><button type=\"button\" class=\"report-mini-btn\" data-report-action=\"clear-categories\">Clear</button></div>\n            <div class=\"report-category-list\"><div class=\"report-builder-empty\">No lab categories with data.</div></div>\n          </div></details>\n          <div class=\"report-genome-options\" data-report-for=\"genetics\"><label class=\"report-builder-field\" for=\"report-genome-mode\"><span class=\"report-builder-label\">Genome findings</span><select id=\"report-genome-mode\" class=\"report-builder-select\"><option value=\"risks\">Risk associations</option><option value=\"risks-traits\">Risks and traits</option><option value=\"traits\">Traits only</option><option value=\"all\">All findings, including protective and reference calls</option></select></label><p class=\"report-builder-help\">Uses your genotype’s current catalog interpretation. Associations are not diagnoses. Adding an appendix does not expand this selection.</p></div>\n          <details class=\"report-options-details\" data-report-for=\"context\"><summary>Personal context <span class=\"report-options-meta\">Choose what to share</span></summary><div class=\"report-options-body\"><div class=\"report-section-grid\"><p class=\"report-builder-help\">No personal context recorded.</p></div></div></details>\n          <details class=\"report-options-details\" data-report-for=\"notes\"><summary>Manage notes <span class=\"report-options-meta\">0 stored</span></summary><div class=\"report-options-body\">\n    <p class=\"report-builder-help\">Timeline notes are also in Dashboard → Add widget → Labs → Notes. Older notes do not establish their original author. Turn off Timeline notes above to omit them.</p>\n    <p class=\"report-builder-help\">Edit or delete opens the note editor. Reopen Create a report after saving your changes.</p>\n    <p>No timeline notes recorded.</p>\n  </div></details>\n        </div>\n        <div class=\"report-builder-section\">\n          <label class=\"report-builder-field\" for=\"report-purpose\"><span class=\"report-builder-section-title\">Reason for sharing / questions <span class=\"report-optional-label\">Optional</span></span><textarea id=\"report-purpose\" class=\"report-builder-select\" rows=\"3\" maxlength=\"1200\" placeholder=\"What would you like to ask or discuss?\"></textarea></label>\n          <p class=\"report-builder-help\">Appears at the start of your report and guides the overview, if you generate one.</p>\n        </div>\n        <div class=\"report-builder-section report-ai-builder\">\n          <div class=\"report-builder-row-head\"><div><label class=\"report-builder-check\"><input type=\"checkbox\" id=\"report-include-ai\" disabled aria-describedby=\"report-ai-disclosure\"><span>Include AI overview</span></label><p class=\"report-builder-help\">Add an AI-generated opening overview of recorded highlights, context and your questions. It is informational and may be incomplete or incorrect.</p></div></div>\n          <p class=\"report-builder-help\" id=\"report-ai-disclosure\">AI is unavailable or paused. PDF preview works without a new AI overview.</p>\n          <div class=\"report-ai-actions\"><button type=\"button\" class=\"report-mini-btn report-ai-generate-btn\" data-report-action=\"generate-ai-summary\" hidden>Generate overview</button><button type=\"button\" class=\"report-mini-btn report-ai-clear-btn\" hidden data-report-action=\"clear-ai-summary\">Remove overview</button><button type=\"button\" class=\"report-mini-btn\" hidden data-report-action=\"preview-without-ai\">Preview without AI</button></div>\n          <div class=\"report-ai-status\" data-report-ai-status aria-live=\"polite\">Not included.</div>\n          <textarea id=\"report-ai-summary-text\" class=\"report-ai-summary-text\" aria-label=\"Editable AI-generated overview\" hidden></textarea>\n        </div>\n      </div><div class=\"gb-form-actions report-builder-actions\"><div class=\"report-builder-selection-summary\" id=\"report-builder-selection-summary\" data-report-selection-summary aria-live=\"polite\"></div><div class=\"report-builder-footer-buttons\"><button type=\"button\" class=\"import-btn import-btn-secondary\" data-report-action=\"close\">Cancel</button><button type=\"button\" class=\"import-btn import-btn-primary report-builder-preview-btn\" aria-describedby=\"report-builder-selection-summary\" data-report-action=\"export\">Preview PDF</button></div></div></div>\n    </div></div>"
+    },
+    {
+      "kind": "tour",
+      "name": "empty-0",
+      "input": {
+        "title": "Welcome to getbased",
+        "text": "This quick tour is for a fresh profile. After the tour, guided chat will help you decide what to add first.",
+        "index": 0,
+        "total": 5
+      },
+      "html": "<h4 id=\"tour-tooltip-heading\">Welcome to getbased</h4><p>This quick tour is for a fresh profile. After the tour, guided chat will help you decide what to add first.</p>\n    <div class=\"tour-nav\"><div class=\"tour-dots\"><div class=\"tour-dot active\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div></div><div class=\"tour-btns\"><button type=\"button\" class=\"tour-btn tour-btn-secondary\" data-tour-action=\"end\">Skip</button><button type=\"button\" class=\"tour-btn tour-btn-primary\" data-tour-action=\"go\" data-tour-index=\"1\">Next</button></div></div>"
+    },
+    {
+      "kind": "tour",
+      "name": "empty-2",
+      "input": {
+        "title": "Try a Populated Profile",
+        "text": "Demo profiles show the full dashboard without adding your own data.",
+        "index": 2,
+        "total": 5
+      },
+      "html": "<h4 id=\"tour-tooltip-heading\">Try a Populated Profile</h4><p>Demo profiles show the full dashboard without adding your own data.</p>\n    <div class=\"tour-nav\"><div class=\"tour-dots\"><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot active\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div></div><div class=\"tour-btns\"><button type=\"button\" class=\"tour-btn tour-btn-secondary\" data-tour-action=\"go\" data-tour-index=\"1\">Back</button><button type=\"button\" class=\"tour-btn tour-btn-primary\" data-tour-action=\"go\" data-tour-index=\"3\">Next</button></div></div>"
+    },
+    {
+      "kind": "tour",
+      "name": "empty-4",
+      "input": {
+        "title": "Settings & Connections",
+        "text": "Configure privacy, AI providers, wearables, sync, and data controls here.",
+        "index": 4,
+        "total": 5
+      },
+      "html": "<h4 id=\"tour-tooltip-heading\">Settings &amp; Connections</h4><p>Configure privacy, AI providers, wearables, sync, and data controls here.</p>\n    <div class=\"tour-nav\"><div class=\"tour-dots\"><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot active\"></div></div><div class=\"tour-btns\"><button type=\"button\" class=\"tour-btn tour-btn-secondary\" data-tour-action=\"go\" data-tour-index=\"3\">Back</button><button type=\"button\" class=\"tour-btn tour-btn-primary\" data-tour-action=\"end\">Done</button></div></div>"
+    },
+    {
+      "kind": "tour",
+      "name": "app-0",
+      "input": {
+        "title": "Welcome to getbased",
+        "text": "Health intelligence that's actually yours — five lenses on your biology, one private dashboard. Let's take a quick look around.",
+        "index": 0,
+        "total": 9
+      },
+      "html": "<h4 id=\"tour-tooltip-heading\">Welcome to getbased</h4><p>Health intelligence that's actually yours — five lenses on your biology, one private dashboard. Let's take a quick look around.</p>\n    <div class=\"tour-nav\"><div class=\"tour-dots\"><div class=\"tour-dot active\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div></div><div class=\"tour-btns\"><button type=\"button\" class=\"tour-btn tour-btn-secondary\" data-tour-action=\"end\">Skip</button><button type=\"button\" class=\"tour-btn tour-btn-primary\" data-tour-action=\"go\" data-tour-index=\"1\">Next</button></div></div>"
+    },
+    {
+      "kind": "tour",
+      "name": "app-4",
+      "input": {
+        "title": "Dashboard Overview",
+        "text": "The dashboard summarizes the current profile. After import, widgets surface focus areas, priorities, general-information tips, body data, and light context.",
+        "index": 4,
+        "total": 9
+      },
+      "html": "<h4 id=\"tour-tooltip-heading\">Dashboard Overview</h4><p>The dashboard summarizes the current profile. After import, widgets surface focus areas, priorities, general-information tips, body data, and light context.</p>\n    <div class=\"tour-nav\"><div class=\"tour-dots\"><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot active\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div></div><div class=\"tour-btns\"><button type=\"button\" class=\"tour-btn tour-btn-secondary\" data-tour-action=\"go\" data-tour-index=\"3\">Back</button><button type=\"button\" class=\"tour-btn tour-btn-primary\" data-tour-action=\"go\" data-tour-index=\"5\">Next</button></div></div>"
+    },
+    {
+      "kind": "tour",
+      "name": "app-8",
+      "input": {
+        "title": "Ask AI",
+        "text": "Use chat for guided interpretation, import setup, and follow-up questions. It uses the current profile context when an AI provider is connected.",
+        "index": 8,
+        "total": 9
+      },
+      "html": "<h4 id=\"tour-tooltip-heading\">Ask AI</h4><p>Use chat for guided interpretation, import setup, and follow-up questions. It uses the current profile context when an AI provider is connected.</p>\n    <div class=\"tour-nav\"><div class=\"tour-dots\"><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot active\"></div></div><div class=\"tour-btns\"><button type=\"button\" class=\"tour-btn tour-btn-secondary\" data-tour-action=\"go\" data-tour-index=\"7\">Back</button><button type=\"button\" class=\"tour-btn tour-btn-primary\" data-tour-action=\"end\">Done</button></div></div>"
+    },
+    {
+      "kind": "tour",
+      "name": "cycle-0",
+      "input": {
+        "title": "Cycle-Aware Lab Interpretation",
+        "text": "getbased tracks your menstrual cycle so AI can interpret hormones, iron, and inflammation in the right context. Here’s what’s available.",
+        "index": 0,
+        "total": 8
+      },
+      "html": "<h4 id=\"tour-tooltip-heading\">Cycle-Aware Lab Interpretation</h4><p>getbased tracks your menstrual cycle so AI can interpret hormones, iron, and inflammation in the right context. Here’s what’s available.</p>\n    <div class=\"tour-nav\"><div class=\"tour-dots\"><div class=\"tour-dot active\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div></div><div class=\"tour-btns\"><button type=\"button\" class=\"tour-btn tour-btn-secondary\" data-tour-action=\"end\">Skip</button><button type=\"button\" class=\"tour-btn tour-btn-primary\" data-tour-action=\"go\" data-tour-index=\"1\">Next</button></div></div>"
+    },
+    {
+      "kind": "tour",
+      "name": "cycle-4",
+      "input": {
+        "title": "Period Log & Symptoms",
+        "text": "Log each period with flow, symptoms, and notes. More entries = better auto-calculated stats and smarter alerts.",
+        "index": 4,
+        "total": 8
+      },
+      "html": "<h4 id=\"tour-tooltip-heading\">Period Log &amp; Symptoms</h4><p>Log each period with flow, symptoms, and notes. More entries = better auto-calculated stats and smarter alerts.</p>\n    <div class=\"tour-nav\"><div class=\"tour-dots\"><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot active\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div></div><div class=\"tour-btns\"><button type=\"button\" class=\"tour-btn tour-btn-secondary\" data-tour-action=\"go\" data-tour-index=\"3\">Back</button><button type=\"button\" class=\"tour-btn tour-btn-primary\" data-tour-action=\"go\" data-tour-index=\"5\">Next</button></div></div>"
+    },
+    {
+      "kind": "tour",
+      "name": "cycle-7",
+      "input": {
+        "title": "AI Knows Your Cycle",
+        "text": "The AI chat factors in your cycle phase when interpreting every marker — ask it about any result for phase-aware insights.",
+        "index": 7,
+        "total": 8
+      },
+      "html": "<h4 id=\"tour-tooltip-heading\">AI Knows Your Cycle</h4><p>The AI chat factors in your cycle phase when interpreting every marker — ask it about any result for phase-aware insights.</p>\n    <div class=\"tour-nav\"><div class=\"tour-dots\"><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot\"></div><div class=\"tour-dot active\"></div></div><div class=\"tour-btns\"><button type=\"button\" class=\"tour-btn tour-btn-secondary\" data-tour-action=\"go\" data-tour-index=\"6\">Back</button><button type=\"button\" class=\"tour-btn tour-btn-primary\" data-tour-action=\"end\">Done</button></div></div>"
+    },
+    {
+      "kind": "tour",
+      "name": "single",
+      "input": {
+        "title": "Single step",
+        "text": "Done without another target.",
+        "index": 0,
+        "total": 1
+      },
+      "html": "<h4 id=\"tour-tooltip-heading\">Single step</h4><p>Done without another target.</p>\n    <div class=\"tour-nav\"><div class=\"tour-dots\"><div class=\"tour-dot active\"></div></div><div class=\"tour-btns\"><button type=\"button\" class=\"tour-btn tour-btn-secondary\" data-tour-action=\"end\">Skip</button><button type=\"button\" class=\"tour-btn tour-btn-primary\" data-tour-action=\"end\">Done</button></div></div>"
+    }
+  ],
+  "styleBlocks": [
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-modal",
+      "css": ".report-builder-modal {\n  display: flex;\n  flex-direction: column;\n  width: min(94vw, 840px);\n  max-width: 840px !important;\n  max-height: min(92vh, 860px);\n  overflow: hidden;\n  padding: 0;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-modal .gb-modal-head",
+      "css": ".report-builder-modal .gb-modal-head {\n  flex: 0 0 auto;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-body",
+      "css": ".report-builder-body {\n  display: flex;\n  flex-direction: column;\n  flex: 1 1 auto;\n  gap: 16px;\n  min-height: 0;\n  overflow: hidden;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-scroll",
+      "css": ".report-builder-scroll {\n  display: flex;\n  flex: 1 1 auto;\n  min-height: 0;\n  flex-direction: column;\n  gap: 16px;\n  overflow-y: auto;\n  overscroll-behavior: contain;\n  scrollbar-gutter: stable;\n  padding-right: 2px;\n  -webkit-overflow-scrolling: touch;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-actions",
+      "css": ".report-builder-actions {\n  flex-wrap: wrap;\n  align-items: center;\n  justify-content: space-between;\n  flex: 0 0 auto;\n  margin-top: 0;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-intro",
+      "css": ".report-builder-intro {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 16px;\n  padding: 13px 14px;\n  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border));\n  border-radius: 12px;\n  background:\n    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 46%),\n    color-mix(in srgb, var(--bg-card) 82%, transparent);\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-intro-title,\n.report-builder-section-title",
+      "css": ".report-builder-intro-title,\n.report-builder-section-title {\n  color: var(--text-primary);\n  font-size: 13px;\n  font-weight: 750;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-local-badge,\n.report-selection-count,\n.report-optional-label",
+      "css": ".report-builder-local-badge,\n.report-selection-count,\n.report-optional-label {\n  display: inline-flex;\n  align-items: center;\n  width: fit-content;\n  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);\n  border-radius: 999px;\n  background: color-mix(in srgb, var(--bg-secondary) 78%, transparent);\n  color: var(--text-muted);\n  font-size: 10px;\n  font-weight: 700;\n  white-space: nowrap;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-local-badge",
+      "css": ".report-builder-local-badge {\n  flex: 0 0 auto;\n  min-height: 26px;\n  padding: 4px 9px;\n  color: var(--green);\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-section",
+      "css": ".report-builder-section {\n  display: flex;\n  flex-direction: column;\n  gap: 10px;\n  min-width: 0;\n  padding: 14px;\n  border: 1px solid var(--border);\n  border-radius: 12px;\n  background: color-mix(in srgb, var(--bg-card) 72%, transparent);\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-section-head",
+      "css": ".report-builder-section-head {\n  display: flex;\n  min-width: 0;\n  flex-direction: column;\n  gap: 2px;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-two-col",
+      "css": ".report-builder-two-col {\n  display: grid;\n  grid-template-columns: minmax(180px, 0.8fr) minmax(260px, 1.2fr);\n  align-items: start;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-label",
+      "css": ".report-builder-label {\n  color: var(--text-secondary);\n  font-family: var(--font-mono);\n  font-size: 11px;\n  font-weight: 700;\n  letter-spacing: 0.08em;\n  text-transform: uppercase;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-field",
+      "css": ".report-builder-field {\n  display: flex;\n  flex-direction: column;\n  gap: 8px;\n  min-width: 0;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-field-head",
+      "css": ".report-builder-field-head {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 8px;\n  min-width: 0;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-selection-count",
+      "css": ".report-selection-count {\n  min-height: 22px;\n  padding: 2px 7px;\n  font-family: var(--font-sans);\n  letter-spacing: 0;\n  text-transform: none;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-select",
+      "css": ".report-builder-select {\n  width: 100%;\n  min-height: 40px;\n  padding: 8px 10px;\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  background: var(--bg-secondary);\n  color: var(--text-primary);\n  font: inherit;\n  font-size: 13px;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-section-choice",
+      "css": ".report-section-choice { display: grid; gap: 4px; min-width: 0; }",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-section-choice .report-builder-select",
+      "css": ".report-section-choice .report-builder-select { font-size: 11px; padding: 6px 8px; }",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-preset-grid",
+      "css": ".report-preset-grid {\n  display: grid;\n  grid-template-columns: repeat(2, minmax(0, 1fr));\n  gap: 8px;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-preset-btn,\n.report-mini-btn",
+      "css": ".report-preset-btn,\n.report-mini-btn {\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  background: var(--bg-secondary);\n  color: var(--text-primary);\n  cursor: pointer;\n  transition: border-color 0.15s, background 0.15s, color 0.15s;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-preset-btn",
+      "css": ".report-preset-btn {\n  display: flex;\n  min-height: 70px;\n  flex-direction: column;\n  align-items: flex-start;\n  justify-content: center;\n  gap: 4px;\n  padding: 10px 12px;\n  text-align: left;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-preset-btn:hover,\n.report-mini-btn:hover,\n.report-preset-btn.active",
+      "css": ".report-preset-btn:hover,\n.report-mini-btn:hover,\n.report-preset-btn.active {\n  border-color: var(--accent);\n  background: var(--accent-fill);\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-preset-title",
+      "css": ".report-preset-title {\n  font-size: 13px;\n  font-weight: 700;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-preset-meta,\n.report-category-meta",
+      "css": ".report-preset-meta,\n.report-category-meta {\n  color: var(--text-muted);\n  font-size: 11px;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-help",
+      "css": ".report-builder-help {\n  color: var(--text-muted);\n  font-size: 12px;\n  line-height: 1.4;\n  margin-top: 3px;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-section-grid",
+      "css": ".report-section-grid {\n  display: grid;\n  grid-template-columns: repeat(2, minmax(0, 1fr));\n  gap: 8px;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-check,\n.report-category-row",
+      "css": ".report-builder-check,\n.report-category-row {\n  display: flex;\n  align-items: center;\n  gap: 9px;\n  min-width: 0;\n  min-height: 44px;\n  padding: 8px 10px;\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  background: var(--bg-secondary);\n  color: var(--text-primary);\n  font-size: 13px;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-check:has(input:checked),\n.report-category-row:has(input:checked)",
+      "css": ".report-builder-check:has(input:checked),\n.report-category-row:has(input:checked) {\n  border-color: color-mix(in srgb, var(--accent) 34%, var(--border));\n  background: color-mix(in srgb, var(--accent) 7%, var(--bg-secondary));\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-check input,\n.report-category-row input",
+      "css": ".report-builder-check input,\n.report-category-row input {\n  flex: 0 0 auto;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-row-head",
+      "css": ".report-builder-row-head {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 10px;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-category-actions",
+      "css": ".report-category-actions {\n  display: flex;\n  gap: 6px;\n  flex-wrap: wrap;\n  justify-content: flex-end;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-mini-btn",
+      "css": ".report-mini-btn {\n  min-height: 36px;\n  padding: 6px 10px;\n  font-size: 12px;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-category-list",
+      "css": ".report-category-list {\n  display: grid;\n  grid-template-columns: repeat(2, minmax(0, 1fr));\n  gap: 8px;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-category-copy",
+      "css": ".report-category-copy {\n  display: flex;\n  min-width: 0;\n  flex-direction: column;\n  gap: 2px;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-category-title",
+      "css": ".report-category-title {\n  overflow: hidden;\n  font-weight: 600;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-empty",
+      "css": ".report-builder-empty {\n  padding: 10px 2px 2px;\n  color: var(--text-muted);\n  font-size: 13px;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-ai-builder",
+      "css": ".report-ai-builder {\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  background: var(--bg-secondary);\n  padding: 12px;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-ai-actions",
+      "css": ".report-ai-actions {\n  display: flex;\n  flex-wrap: wrap;\n  gap: 6px;\n  justify-content: flex-end;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-ai-status",
+      "css": ".report-ai-status {\n  color: var(--text-muted);\n  font-size: 12px;\n  line-height: 1.4;\n  margin-top: 10px;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-optional-label",
+      "css": ".report-optional-label {\n  min-height: 20px;\n  margin-left: 5px;\n  padding: 1px 6px;\n  vertical-align: 1px;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-ai-summary-text",
+      "css": ".report-ai-summary-text {\n  width: 100%;\n  height: min(28vh, 220px);\n  min-height: 96px;\n  max-height: 320px;\n  margin-top: 10px;\n  padding: 10px 11px;\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  background: var(--bg-card);\n  color: var(--text-primary);\n  font: inherit;\n  font-size: 13px;\n  line-height: 1.45;\n  overflow-y: auto;\n  overscroll-behavior: contain;\n  resize: vertical;\n  -webkit-overflow-scrolling: touch;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-preview-btn",
+      "css": ".report-builder-preview-btn {\n  min-width: 132px;\n  color: #07111f;\n  box-shadow: 0 10px 28px color-mix(in srgb, var(--accent) 24%, transparent);\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-selection-summary",
+      "css": ".report-builder-selection-summary {\n  color: var(--text-muted);\n  font-size: 11px;\n  line-height: 1.4;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-footer-buttons",
+      "css": ".report-builder-footer-buttons {\n  display: flex;\n  gap: 8px;\n  justify-content: flex-end;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-preview-btn:hover",
+      "css": ".report-builder-preview-btn:hover {\n  box-shadow: var(--shadow-glow);\n  transform: translateY(-1px);\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-modal",
+      "css": ".report-builder-modal {\n    width: min(96vw, 560px);\n    max-height: calc(100dvh - 24px);\n  }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 720px)"
+        }
+      ]
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-two-col,\n  .report-preset-grid,\n  .report-section-grid,\n  .report-category-list",
+      "css": ".report-builder-two-col,\n  .report-preset-grid,\n  .report-section-grid,\n  .report-category-list {\n    grid-template-columns: 1fr;\n  }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 720px)"
+        }
+      ]
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-row-head",
+      "css": ".report-builder-row-head {\n    align-items: flex-start;\n    flex-direction: column;\n  }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 720px)"
+        }
+      ]
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-category-actions,\n  .report-ai-actions",
+      "css": ".report-category-actions,\n  .report-ai-actions {\n    justify-content: flex-start;\n  }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 720px)"
+        }
+      ]
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-intro",
+      "css": ".report-builder-intro {\n    align-items: flex-start;\n    flex-direction: column;\n  }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 720px)"
+        }
+      ]
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-actions",
+      "css": ".report-builder-actions {\n    align-items: stretch;\n    flex-direction: column;\n  }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 720px)"
+        }
+      ]
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-selection-summary",
+      "css": ".report-builder-selection-summary { text-align: center; }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 720px)"
+        }
+      ]
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-footer-buttons",
+      "css": ".report-builder-footer-buttons { width: 100%; }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 720px)"
+        }
+      ]
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-mini-btn,\n  .report-builder-footer-buttons .import-btn",
+      "css": ".report-mini-btn,\n  .report-builder-footer-buttons .import-btn { min-height: 44px; }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 720px)"
+        }
+      ]
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-footer-buttons .import-btn",
+      "css": ".report-builder-footer-buttons .import-btn { flex: 1 1 0; }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 720px)"
+        }
+      ]
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-modal [hidden]",
+      "css": ".report-builder-modal [hidden] { display: none !important; }",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-modal .report-intro-copy",
+      "css": ".report-builder-modal .report-intro-copy { margin: 0; font-size: 13px; }",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-modal .report-builder-two-col",
+      "css": ".report-builder-modal .report-builder-two-col { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-modal .report-builder-label",
+      "css": ".report-builder-modal .report-builder-label { font-family: inherit; font-size: 13px; font-weight: 600; letter-spacing: 0; text-transform: none; }",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-modal .report-builder-section-title",
+      "css": ".report-builder-modal .report-builder-section-title { font-size: 14px; }",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-detail-options",
+      "css": ".report-detail-options { border: 0; padding: 0; margin: 6px 0 0; min-width: 0; }",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-detail-options legend",
+      "css": ".report-detail-options legend { padding: 0; margin-bottom: 8px; }",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-detail-card",
+      "css": ".report-detail-card { align-items: flex-start; padding: 12px; cursor: pointer; }",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-detail-card input",
+      "css": ".report-detail-card input { margin-top: 3px; }",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-detail-card strong",
+      "css": ".report-detail-card strong { display: block; font-size: 13px; font-weight: 650; }",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-detail-card small",
+      "css": ".report-detail-card small { display: block; color: var(--text-muted); font-size: 12px; line-height: 1.5; margin-top: 4px; }",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-options-details",
+      "css": ".report-options-details { border-top: 1px solid var(--border); padding-top: 4px; }",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-options-details > summary",
+      "css": ".report-options-details > summary { min-height: 44px; padding: 12px 4px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-primary); }",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-options-details > summary::marker",
+      "css": ".report-options-details > summary::marker { color: var(--text-muted); }",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-options-meta",
+      "css": ".report-options-meta { margin-left: 8px; font-size: 12px; font-weight: 400; color: var(--text-muted); }",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-options-body",
+      "css": ".report-options-body { padding: 4px 0 10px; display: grid; gap: 10px; }",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-genome-options",
+      "css": ".report-genome-options { border-top: 1px solid var(--border); padding-top: 14px; }",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-note-review",
+      "css": ".report-note-review { padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; }",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-modal .report-ai-actions",
+      "css": ".report-builder-modal .report-ai-actions { justify-content: flex-start; }",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-modal :is(button, input, select, textarea, summary):focus-visible",
+      "css": ".report-builder-modal :is(button, input, select, textarea, summary):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-modal .report-builder-two-col",
+      "css": ".report-builder-modal .report-builder-two-col { grid-template-columns: 1fr; }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 720px)"
+        }
+      ]
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-modal .report-preset-grid",
+      "css": ".report-builder-modal .report-preset-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-modal .report-preset-btn",
+      "css": ".report-builder-modal .report-preset-btn { min-height: 64px; padding: 9px; }",
+      "atRules": []
+    },
+    {
+      "file": "css/modal-shared.css",
+      "selector": ".report-builder-modal .report-preset-grid",
+      "css": ".report-builder-modal .report-preset-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 720px)"
+        }
+      ]
+    },
+    {
+      "file": "css/app-shell.css",
+      "selector": "#tour-overlay",
+      "css": "#tour-overlay { position: fixed; inset: 0; z-index: 500; pointer-events: auto; }",
+      "atRules": []
+    },
+    {
+      "file": "css/app-shell.css",
+      "selector": "#tour-spotlight",
+      "css": "#tour-spotlight {\n  position: fixed; z-index: 501; border-radius: 8px;\n  box-shadow: 0 0 0 9999px rgba(0,0,0,0.65);\n  transition: all 0.3s ease; pointer-events: none;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/app-shell.css",
+      "selector": "#tour-tooltip",
+      "css": "#tour-tooltip {\n  position: fixed; z-index: 502; background: var(--bg-secondary);\n  border: 1px solid var(--border); border-radius: var(--radius);\n  padding: 20px; max-width: 340px; width: max-content;\n  box-shadow: var(--shadow-lg);\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/app-shell.css",
+      "selector": "#tour-tooltip h4",
+      "css": "#tour-tooltip h4 { margin: 0 0 8px; font-family: var(--font-display); font-size: 16px; }",
+      "atRules": []
+    },
+    {
+      "file": "css/app-shell.css",
+      "selector": "#tour-tooltip p",
+      "css": "#tour-tooltip p { margin: 0 0 16px; color: var(--text-secondary); font-size: 14px; line-height: 1.5; }",
+      "atRules": []
+    },
+    {
+      "file": "css/app-shell.css",
+      "selector": ".tour-nav",
+      "css": ".tour-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; }",
+      "atRules": []
+    },
+    {
+      "file": "css/app-shell.css",
+      "selector": ".tour-dots",
+      "css": ".tour-dots { display: flex; gap: 6px; }",
+      "atRules": []
+    },
+    {
+      "file": "css/app-shell.css",
+      "selector": ".tour-dot",
+      "css": ".tour-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); transition: background 0.2s; }",
+      "atRules": []
+    },
+    {
+      "file": "css/app-shell.css",
+      "selector": ".tour-dot.active",
+      "css": ".tour-dot.active { background: var(--accent); }",
+      "atRules": []
+    },
+    {
+      "file": "css/app-shell.css",
+      "selector": ".tour-btns",
+      "css": ".tour-btns { display: flex; gap: 8px; }",
+      "atRules": []
+    },
+    {
+      "file": "css/app-shell.css",
+      "selector": ".tour-btn",
+      "css": ".tour-btn { padding: 6px 16px; border-radius: 6px; border: none; font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit; transition: all 0.15s; }",
+      "atRules": []
+    },
+    {
+      "file": "css/app-shell.css",
+      "selector": ".tour-btn-primary",
+      "css": ".tour-btn-primary { background: var(--accent-gradient); color: white; }",
+      "atRules": []
+    },
+    {
+      "file": "css/app-shell.css",
+      "selector": ".tour-btn-primary:hover",
+      "css": ".tour-btn-primary:hover { box-shadow: 0 2px 12px rgba(79,140,255,0.2); }",
+      "atRules": []
+    },
+    {
+      "file": "css/app-shell.css",
+      "selector": ".tour-btn-secondary",
+      "css": ".tour-btn-secondary { background: transparent; color: var(--text-secondary); border: 1px solid var(--border); }",
+      "atRules": []
+    },
+    {
+      "file": "css/app-shell.css",
+      "selector": ".tour-btn-secondary:hover",
+      "css": ".tour-btn-secondary:hover { background: var(--bg-hover); }",
+      "atRules": []
+    },
+    {
+      "file": "css/app-shell.css",
+      "selector": "#tour-tooltip",
+      "css": "#tour-tooltip { max-width: calc(100vw - 32px); }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 480px)"
+        }
+      ]
+    },
+    {
+      "file": "css/app-shell.css",
+      "selector": "#tour-tooltip",
+      "css": "#tour-tooltip {\n    width: calc(100vw - 32px);\n    padding: 16px;\n  }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 480px), (pointer: coarse)"
+        }
+      ]
+    },
+    {
+      "file": "css/app-shell.css",
+      "selector": ".tour-nav",
+      "css": ".tour-nav {\n    align-items: stretch;\n    flex-direction: column;\n  }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 480px), (pointer: coarse)"
+        }
+      ]
+    },
+    {
+      "file": "css/app-shell.css",
+      "selector": ".tour-dots",
+      "css": ".tour-dots {\n    flex-wrap: wrap;\n  }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 480px), (pointer: coarse)"
+        }
+      ]
+    },
+    {
+      "file": "css/app-shell.css",
+      "selector": ".tour-btns",
+      "css": ".tour-btns {\n    justify-content: flex-end;\n  }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 480px), (pointer: coarse)"
+        }
+      ]
+    },
+    {
+      "file": "css/app-shell.css",
+      "selector": ".tour-btn",
+      "css": ".tour-btn {\n    min-height: 44px;\n    padding: 8px 14px;\n  }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 480px), (pointer: coarse)"
+        }
+      ]
+    }
+  ],
+  "tours": {
+    "empty": [
+      {
+        "target": null,
+        "title": "Welcome to getbased",
+        "text": "This quick tour is for a fresh profile. After the tour, guided chat will help you decide what to add first.",
+        "position": "center"
+      },
+      {
+        "target": ".welcome-primary-panel",
+        "title": "Start Guided Chat",
+        "text": "Chat is the main path for new profiles. It asks for context only when useful and routes you to import or setup when needed.",
+        "position": "bottom"
+      },
+      {
+        "target": ".demo-cards",
+        "title": "Try a Populated Profile",
+        "text": "Demo profiles show the full dashboard without adding your own data.",
+        "position": "top"
+      },
+      {
+        "target": ".profile-compact-btn",
+        "title": "Profiles Stay Separate",
+        "text": "Switch or manage profiles here. Each profile keeps its own data, settings, and tour progress.",
+        "position": "bottom"
+      },
+      {
+        "target": ".settings-btn",
+        "title": "Settings & Connections",
+        "text": "Configure privacy, AI providers, wearables, sync, and data controls here.",
+        "position": "bottom"
+      }
+    ],
+    "app": [
+      {
+        "target": null,
+        "title": "Welcome to getbased",
+        "text": "Health intelligence that's actually yours — five lenses on your biology, one private dashboard. Let's take a quick look around.",
+        "position": "center"
+      },
+      {
+        "target": ".header-import-btn, #drop-zone",
+        "title": "Import Health Data",
+        "text": "Import lab PDFs, report photos, DNA raw data, or getbased JSON. You can also drop files directly onto the page.",
+        "position": "bottom"
+      },
+      {
+        "target": ".profile-compact-btn",
+        "title": "Profiles & Demo Data",
+        "text": "Switch profiles, manage clients, or load demo data from here. Each profile keeps its own data, settings, and tour progress.",
+        "position": "bottom"
+      },
+      {
+        "target": ".nav-item[data-category=\"labs\"], #sidebar-toggle, .m-tabbar",
+        "title": "Five Lenses",
+        "text": "Move between Dashboard, Labs, Genome, Body, Light, Insight, and Tips. Desktop uses the sidebar; smaller screens use tabs and the menu.",
+        "position": "right"
+      },
+      {
+        "target": ".dashboard-greeting",
+        "title": "Dashboard Overview",
+        "text": "The dashboard summarizes the current profile. After import, widgets surface focus areas, priorities, general-information tips, body data, and light context.",
+        "position": "bottom"
+      },
+      {
+        "target": ".dashboard-sticky-actions",
+        "title": "Customize Widgets",
+        "text": "Use Customize and Add widget to choose the sections that matter for this profile.",
+        "position": "bottom"
+      },
+      {
+        "target": ".tweaks-btn",
+        "title": "Display Tweaks",
+        "text": "Adjust theme, accent color, density, and motion effects without leaving the current screen.",
+        "position": "bottom"
+      },
+      {
+        "target": ".settings-btn",
+        "title": "Settings & Connections",
+        "text": "Configure demographics, privacy, AI providers, wearables, sync, and data controls here.",
+        "position": "bottom"
+      },
+      {
+        "target": "#chat-fab, #chat-panel.open",
+        "title": "Ask AI",
+        "text": "Use chat for guided interpretation, import setup, and follow-up questions. It uses the current profile context when an AI provider is connected.",
+        "position": "left"
+      }
+    ],
+    "cycle": [
+      {
+        "target": null,
+        "title": "Cycle-Aware Lab Interpretation",
+        "text": "getbased tracks your menstrual cycle so AI can interpret hormones, iron, and inflammation in the right context. Here’s what’s available.",
+        "position": "center"
+      },
+      {
+        "target": ".cycle-summary-card",
+        "title": "Your Cycle at a Glance",
+        "text": "Cycle length, regularity, flow, and contraceptive info — auto-calculated from your period log when possible.",
+        "position": "bottom"
+      },
+      {
+        "target": ".cycle-draw-date",
+        "title": "Optimal Blood Draw Timing",
+        "text": "Get recommendations for when to schedule blood work — early follicular phase (days 3–5) gives the most stable baseline.",
+        "position": "bottom"
+      },
+      {
+        "target": ".cycle-draw-phases",
+        "title": "Phase Labels on Lab Dates",
+        "text": "Each lab date is tagged with its cycle phase so you can see how timing may have affected your results.",
+        "position": "bottom"
+      },
+      {
+        "target": ".cycle-period-log",
+        "title": "Period Log & Symptoms",
+        "text": "Log each period with flow, symptoms, and notes. More entries = better auto-calculated stats and smarter alerts.",
+        "position": "bottom"
+      },
+      {
+        "target": ".cycle-alert",
+        "title": "Smart Alerts",
+        "text": "Perimenopause pattern detection and heavy-flow iron alerts — cross-referencing your cycle with your lab results.",
+        "position": "bottom"
+      },
+      {
+        "target": ".chart-layers-wrapper",
+        "title": "Phase Bands on Charts",
+        "text": "Toggle cycle phase bands in the Layers dropdown to see menstrual, follicular, ovulatory, and luteal shading on your charts.",
+        "position": "bottom"
+      },
+      {
+        "target": "#chat-fab",
+        "title": "AI Knows Your Cycle",
+        "text": "The AI chat factors in your cycle phase when interpreting every marker — ask it about any result for phase-aware insights.",
+        "position": "left"
+      }
+    ]
+  },
+  "captureBoundary": "Original renderer functions from hash-verified Git source; controlled category/context facts enter original presentation. Domain category/flag/context calculations are verified independently and not recaptured from migrated code."
+}

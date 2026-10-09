@@ -28,6 +28,29 @@ beforeEach(() => {
 afterEach(() => { closeReportBuilder(); vi.restoreAllMocks(); });
 
 describe('report builder selection', () => {
+  it.each([true, false])('retains action text nodes through purpose input and blur changes with AI available %s', aiAvailable => {
+    available.mockReturnValue(aiAvailable);
+    openReportBuilder('full');
+    const primary = document.querySelector<HTMLButtonElement>('[data-report-action="export"]')!;
+    const generateButton = document.querySelector<HTMLButtonElement>('[data-report-action="generate-ai-summary"]')!;
+    const primaryText = primary.firstChild;
+    const generateText = generateButton.firstChild;
+    expect(primaryText?.nodeType).toBe(Node.TEXT_NODE);
+    expect(generateText?.nodeType).toBe(Node.TEXT_NODE);
+
+    const purpose = document.querySelector<HTMLTextAreaElement>('#report-purpose')!;
+    purpose.value = 'A revised question before pressing Preview';
+    for (const eventName of ['input', 'change']) {
+      purpose.dispatchEvent(new Event(eventName, {bubbles: true}));
+      // WebKit needs the same pressed text node to dispatch the ensuing click.
+      expect(primary.firstChild).toBe(primaryText);
+      expect(generateButton.firstChild).toBe(generateText);
+      expect(primary.textContent).toBe(aiAvailable ? 'Generate AI overview & preview' : 'Preview PDF');
+      expect(generateButton.textContent).toBe('Retry overview');
+    }
+    expect(generate).not.toHaveBeenCalled();
+    expect(preview).not.toHaveBeenCalled();
+  });
   it.each(['clinician', 'full', 'lifestyle', 'personal'])('keeps %s template selections consistent from builder to report data', async presetId => {
     const categories = Object.fromEntries(['biochemistry', 'tumorMarkers', 'boneMetabolism', 'urinalysis', 'customLab'].map((key, index) => [key, { label: key, markers: { result: { name: key + ' result', values: [index === 0 ? 20 : 2], unit: 'u', refMin: 1, refMax: 10 } } }]));
     (vi.spyOn(dataModule, 'getActiveData') as unknown as {mockReturnValue(value: {dates: string[]; categories: unknown}): unknown}).mockReturnValue({ dates: ['2024-01-01'], categories });

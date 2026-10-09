@@ -138,30 +138,32 @@ assert('Has fallback placement', tourSrc.includes('Fallback: place below'));
 // ═══════════════════════════════════════
 console.log('18. CSS Styles');
 
-const cssSrc = read('styles.css') + '\n' + read('css/app-shell.css');
+const tourClasses = read('js/tour-classes.ts');
+const tourVariants = read('css/tour.tailwind.css');
+const tourComponent = read('js/components/TourPresentation.svelte');
 
-assert('CSS has #tour-overlay rule', cssSrc.includes('#tour-overlay'));
-assert('CSS overlay: z-index 500', cssSrc.includes('z-index: 500'));
-assert('CSS has #tour-spotlight rule', cssSrc.includes('#tour-spotlight'));
-assert('CSS spotlight: z-index 501', /tour-spotlight[\s\S]*?z-index:\s*501/.test(cssSrc));
-assert('CSS spotlight: box-shadow 9999px dimming', cssSrc.includes('box-shadow: 0 0 0 9999px'));
-assert('CSS spotlight: transition for smooth movement', /tour-spotlight[\s\S]*?transition/.test(cssSrc));
-assert('CSS spotlight: pointer-events none', /tour-spotlight[\s\S]*?pointer-events:\s*none/.test(cssSrc));
-assert('CSS has #tour-tooltip rule', cssSrc.includes('#tour-tooltip'));
-assert('CSS tooltip: z-index 502', /tour-tooltip[\s\S]*?z-index:\s*502/.test(cssSrc));
-assert('CSS tooltip: max-width 340px', cssSrc.includes('max-width: 340px'));
-assert('CSS tooltip h4: font-family var(--font-display)', cssSrc.includes('#tour-tooltip h4'));
-assert('CSS tooltip p: color var(--text-secondary)', cssSrc.includes('#tour-tooltip p'));
-assert('CSS has .tour-nav', cssSrc.includes('.tour-nav'));
-assert('CSS has .tour-dots', cssSrc.includes('.tour-dots'));
-assert('CSS has .tour-dot (8px circle)', cssSrc.includes('.tour-dot {'));
-assert('CSS has .tour-dot.active', cssSrc.includes('.tour-dot.active'));
-assert('CSS has .tour-btns', cssSrc.includes('.tour-btns'));
-assert('CSS has .tour-btn base', cssSrc.includes('.tour-btn {'));
-assert('CSS has .tour-btn-primary (gradient)', cssSrc.includes('.tour-btn-primary'));
-assert('CSS has .tour-btn-secondary (transparent)', cssSrc.includes('.tour-btn-secondary'));
-assert('CSS has mobile tooltip override (480px)', cssSrc.includes('#tour-tooltip { max-width: calc(100vw - 32px)'));
-assert('CSS has mobile/coarse tour button touch target', cssSrc.includes('.tour-btn') && cssSrc.includes('min-height: 44px'));
+assert('CSS has #tour-overlay rule', tourVariants.includes(':where(&)#tour-overlay'));
+assert('CSS overlay: z-index 500', tourClasses.includes('gb:tour-overlay:[z-index:500]'));
+assert('CSS has #tour-spotlight rule', tourVariants.includes(':where(&)#tour-spotlight'));
+assert('CSS spotlight: z-index 501', tourClasses.includes('gb:tour-spotlight:[z-index:501]'));
+assert('CSS spotlight: box-shadow 9999px dimming', tourClasses.includes('[box-shadow:0_0_0_9999px_rgba(0,0,0,0.65)]'));
+assert('CSS spotlight: transition for smooth movement', tourClasses.includes('gb:tour-spotlight:[transition:all_0.3s_ease]'));
+assert('CSS spotlight: pointer-events none', tourClasses.includes('gb:tour-spotlight:[pointer-events:none]'));
+assert('CSS has #tour-tooltip rule', tourVariants.includes(':where(&)#tour-tooltip'));
+assert('CSS tooltip: z-index 502', tourClasses.includes('gb:tour-tooltip:[z-index:502]'));
+assert('CSS tooltip: max-width 340px', tourClasses.includes('gb:tour-tooltip:[max-width:340px]'));
+assert('CSS tooltip h4: font-family var(--font-display)', tourVariants.includes('#tour-tooltip h4:where(&)') && tourClasses.includes('gb:tour-heading:[font-family:var(--font-display)]'));
+assert('CSS tooltip p: color var(--text-secondary)', tourVariants.includes('#tour-tooltip p:where(&)') && tourClasses.includes('gb:tour-copy:[color:var(--text-secondary)]'));
+assert('CSS has .tour-nav', tourComponent.includes("c('tour-nav')") && tourClasses.includes("'tour-nav':"));
+assert('CSS has .tour-dots', tourComponent.includes("c('tour-dots')") && tourClasses.includes("'tour-dots':"));
+assert('CSS has .tour-dot (8px circle)', tourClasses.includes('gb:tour-ui:[width:8px] gb:tour-ui:[height:8px] gb:tour-ui:[border-radius:50%]'));
+assert('CSS has .tour-dot.active', tourVariants.includes('tour-active (&.active)') && tourClasses.includes('gb:tour-ui:tour-active:[background:var(--accent)]'));
+assert('CSS has .tour-btns', tourComponent.includes("c('tour-btns')") && tourClasses.includes("'tour-btns':"));
+assert('CSS has .tour-btn base', tourComponent.includes("c('tour-btn tour-btn-secondary')") && tourClasses.includes("'tour-btn':"));
+assert('CSS has .tour-btn-primary (gradient)', tourClasses.includes('gb:tour-ui:[background:var(--accent-gradient)]'));
+assert('CSS has .tour-btn-secondary (transparent)', tourClasses.includes('gb:tour-ui:[background:transparent]'));
+assert('CSS has mobile tooltip override (480px)', tourVariants.includes('tour-phone (@media (max-width: 480px))') && tourClasses.includes('gb:tour-phone:tour-tooltip:[max-width:calc(100vw_-_32px)]'));
+assert('CSS has mobile/coarse tour button touch target', tourVariants.includes('@media (max-width: 480px), (pointer: coarse)') && tourClasses.includes('gb:tour-touch:tour-ui:[min-height:44px]'));
 
 // ═══════════════════════════════════════
 // 19. main.js wiring

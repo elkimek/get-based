@@ -1,0 +1,15 @@
+/* Report setup presentation; shared modal/import/theme rules retain their owners. */
+@import "tailwindcss/theme.css" layer(gb-theme) prefix(gb);
+@import "tailwindcss/utilities.css" prefix(gb) source(none);
+@import "./ui-tokens.tailwind.css";
+@custom-variant report-ui (&:is([data-report-builder-view], [data-report-builder-view] *));
+@custom-variant report-strong (&:is([data-report-builder-view][data-report-builder-view], [data-report-builder-view][data-report-builder-view] *));
+@custom-variant report-phone (@media (max-width: 720px));
+@source "../js/report-builder-classes.ts";
+@source "../js/components/ReportBuilderPresentation.svelte";
+@source "../js/components/ReportBuilderSetup.svelte";
+@source "../js/components/ReportBuilderSections.svelte";
+@source "../js/components/ReportBuilderAI.svelte";
+
+/* Retain the original hover behavior on touch-capable devices. */
+@custom-variant report-hover (&:hover);

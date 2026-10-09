@@ -194,6 +194,30 @@ Dashboard buttons and source-picker rules retain other active owners. Remaining
 lens body renderer contracts and recommendation list templates migrate with their
 respective feature owners.
 
+Report setup is projected by `report-builder-presentation.ts` and authored by
+`ReportBuilderPresentation.svelte`, `ReportBuilderSetup.svelte`,
+`ReportBuilderSections.svelte` and `ReportBuilderAI.svelte`. Literal note text and
+context/category labels remain escaped; date sorting retains original note edit
+indexes. The existing builder owns selections, captured note/AI snapshots, provider
+and disclosure routing, synchronous preview reservation, progress and cancellation.
+Its public lazy URL and managed modal lifecycle remain stable. Action labels update
+only when their text changes, preserving the pressed text node when textarea blur
+repeats an option update so WebKit can dispatch the first preview click. Report-specific
+utilities compile from `report-builder.tailwind.css` and its class catalog into the
+established `modal-shared.css` runtime URL; shared modal/import/theme rules stay in
+`modal-shared.base.css` and their existing owners. Superseded report styles and
+initial native templates are removed.
+
+`TourPresentation.svelte` authors escaped step copy, progress dots and typed action
+controls. The tour controller retains definitions, visible-target filtering,
+profile completion, demo/legal/modal gates, positioning and delayed chat ownership.
+Its root classes and content utilities compile from `tour.tailwind.css` into the
+existing `app-shell.css` URL, with shared shell styles in `app-shell.base.css`.
+Dynamic coordinates remain runtime-owned; ID/type utility variants preserve theme
+precedence, while phone and coarse-pointer layouts retain separate conditions.
+Superseded tour templates/styles are removed; native keyboard actions and visible
+focus remain available.
+
 Settings navigation/layout, Display, Privacy, Voice, Agent Access, imported records
 and AI usage use scoped Tailwind utilities
 alongside the remaining native feature styles. `css/settings.base.css` owns the

@@ -283,6 +283,24 @@ and route tests remain independent. These focused
 checks do not establish complete Genome processing, wearable integrations or
 whole-app release acceptance.
 
+Report setup and guided tours have [original structure checks](../tests/report-tour-frozen.test.ts)
+covering all templates, AI availability, missing records, sorted note indexes,
+first/middle/last steps and a single-step tour. [Report projection checks](../tests/report-builder-presentation.test.ts)
+and [tour projection checks](../tests/tour-presentation.test.ts) cover literal
+escaping and typed controls. Existing [report controller checks](../tests/report-builder-consistency.test.ts)
+retain selection, immutable payload, AI consent/failure and reserved-preview
+cancellation assertions, plus unchanged action-text identity across input/blur so
+WebKit retains first-click activation. [Headless presentation checks](../tests/playwright/report-tour-owned.spec.ts)
+compare frozen geometry, themes, disclosures, checked state, hover, visible focus
+and coarse-pointer layouts. Existing report-export and tour DOM workflows retain
+actual delegate/lifecycle coverage. Desktop wheel input remains covered; the
+phone-width keyboard check verifies scrolling on the modal surface. Playwright
+mobile WebKit cannot inject wheel events; that check does not simulate a physical
+touch swipe. [Static offline checks](../tests/pwa/sveltekit-report-tour.spec.ts)
+exercise real report/tour entry points, a local preview and closed-client cold
+launches with accepted-profile equality. These scoped checks do not establish
+whole-app, installed-PWA/update or external provider acceptance.
+
 Biology summary and compatibility views have [frozen structure and state
 checks](../tests/biology-summary-presentation.test.ts) covering raw and historical
 values, confidence thresholds, directional/stale scores, missing inputs, NaN,

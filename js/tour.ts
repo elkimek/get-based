@@ -9,7 +9,9 @@ type TourActionTarget = EventTarget & { closest?: (selector: string) => HTMLElem
 
 import { profileStorageKey } from './profile.js';
 import { isStartupNudgeBlocked } from './utils.js';
-import { camelCaseActionAttributes } from './action-attributes.js';
+import { renderHTML as renderTourPresentation } from './components/TourPresentation.svelte.html.js';
+import { projectTourPresentation } from './tour-presentation.js';
+import { tourClasses } from './tour-classes.js';
 import { getTourComputedStyle, getTourViewportSize, openTourChatPanel, scheduleTourTask } from './tour-runtime.js';
 
 const EMPTY_TOUR_STEPS: TourStep[] = [
@@ -56,10 +58,6 @@ let activeTour: ActiveTour | null = null;
 
 const TOUR_ACTION_ATTR = 'data-tour-action';
 const TOUR_ACTION_SELECTOR = `[${TOUR_ACTION_ATTR}]`;
-
-function tourActionAttrs(action: unknown, attrs: Record<string, unknown> = {}) {
-  return camelCaseActionAttributes(TOUR_ACTION_ATTR, "tour", action, attrs);
-}
 
 function closestTourAction(target: TourActionTarget | null) {
   return (
@@ -159,6 +157,7 @@ function runTour(steps: TourStep[], storageKey: string, auto: boolean | undefine
   if (!document.getElementById('tour-overlay')) {
     const overlay = document.createElement('div');
     overlay.id = 'tour-overlay';
+    overlay.className = tourClasses('tour-overlay');
     overlay.addEventListener('click', e => {
       if (e.target === overlay) endTour();
     });
@@ -166,10 +165,12 @@ function runTour(steps: TourStep[], storageKey: string, auto: boolean | undefine
 
     const spotlight = document.createElement('div');
     spotlight.id = 'tour-spotlight';
+    spotlight.className = tourClasses('tour-spotlight');
     document.body.appendChild(spotlight);
 
     const tooltip = document.createElement('div');
     tooltip.id = 'tour-tooltip';
+    tooltip.className = tourClasses('tour-tooltip');
     tooltip.setAttribute('role', 'dialog');
     tooltip.setAttribute('aria-modal', 'true');
     tooltip.setAttribute('aria-labelledby', 'tour-tooltip-heading');
@@ -199,25 +200,9 @@ function goToStep(index: number) {
   const tooltip = document.getElementById('tour-tooltip');
   if (!spotlight || !tooltip) return;
 
-  const isFirst = index === 0;
   const isLast = index === steps.length - 1;
 
-  // Build tooltip content
-  let dotsHtml = '<div class="tour-dots">';
-  for (let i = 0; i < steps.length; i++) {
-    dotsHtml += `<div class="tour-dot${i === index ? ' active' : ''}"></div>`;
-  }
-  dotsHtml += '</div>';
-
-  const backBtn = isFirst
-    ? `<button type="button" class="tour-btn tour-btn-secondary" ${tourActionAttrs('end')}>Skip</button>`
-    : `<button type="button" class="tour-btn tour-btn-secondary" ${tourActionAttrs('go', { index: index - 1 })}>Back</button>`;
-  const nextBtn = isLast
-    ? `<button type="button" class="tour-btn tour-btn-primary" ${tourActionAttrs('end')}>Done</button>`
-    : `<button type="button" class="tour-btn tour-btn-primary" ${tourActionAttrs('go', { index: index + 1 })}>Next</button>`;
-
-  tooltip.innerHTML = `<h4 id="tour-tooltip-heading">${step.title}</h4><p>${step.text}</p>
-    <div class="tour-nav">${dotsHtml}<div class="tour-btns">${backBtn}${nextBtn}</div></div>`;
+  tooltip.innerHTML = renderTourPresentation(projectTourPresentation(step, index, steps.length));
 
   if (step.target === null) {
     // Welcome step — no spotlight, center tooltip
