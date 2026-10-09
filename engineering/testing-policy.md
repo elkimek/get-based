@@ -283,6 +283,19 @@ and route tests remain independent. These focused
 checks do not establish complete Genome processing, wearable integrations or
 whole-app release acceptance.
 
+Dashboard and biometric pickers and import marker mapping have
+[frozen baseline structure checks](../tests/widget-map-frozen.test.ts),
+[literal dashboard projection checks](../tests/dashboard-picker-presentation.test.ts)
+and [literal mapping projection checks](../tests/import-marker-map-presentation.test.ts).
+[Headless parity checks](../tests/playwright/widget-map-owned.spec.ts) compare original
+structure, styling and layout at theme and responsive boundaries. Existing
+controller browser workflows retain preference, filtering, mapping and nested
+lifecycle coverage. [Static PWA checks](../tests/pwa/sveltekit-widget-map.spec.ts)
+exercise public picker controls and session-draft restoration, offline mapping and
+clearing, nested cancellation focus, marker/fixed/biometric selection persistence
+and closed-client cold launches while preserving accepted health records. These focused checks do not establish physical
+touch behavior, installed-PWA/update acceptance or complete application acceptance.
+
 Report setup and guided tours have [original structure checks](../tests/report-tour-frozen.test.ts)
 covering all templates, AI availability, missing records, sorted note indexes,
 first/middle/last steps and a single-step tour. [Report projection checks](../tests/report-builder-presentation.test.ts)

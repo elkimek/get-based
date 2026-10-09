@@ -5,7 +5,11 @@ import type { ImportReviewMarker, ImportMarkerReference } from './pdf-import-rev
 import { MARKER_SCHEMA } from './schema.js';
 import { SPECIALTY_MARKER_DEFS } from './adapters.js';
 import { getValidUnitsForMarker } from './pdf-import-marker-mapping.js';
-import { escapeHTML } from './utils.js';
+import { renderHTML as renderImportMarkerMap } from './components/ImportMarkerMapPresentation.svelte.html.js';
+import { renderHTML as renderImportMarkerMapCategories } from './components/ImportMarkerMapCategories.svelte.html.js';
+import { renderHTML as renderImportMarkerMapResults } from './components/ImportMarkerMapResults.svelte.html.js';
+import { projectImportMarkerMap, projectImportMarkerMapCategories, projectImportMarkerMapResults } from './import-marker-map-presentation.js';
+import { importMarkerMapClasses } from './import-marker-map-classes.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 
 let activeOverlay: HTMLElement | null = null;
@@ -84,21 +88,14 @@ function renderCategories(overlay: HTMLElement) {
     counts.set(item.categoryKey, { label: item.categoryLabel, count: (counts.get(item.categoryKey)?.count || 0) + 1 });
     if (item.score > 0) suggested += 1;
   }
-  const categoryButtons = [...counts.entries()]
+  const categories = [...counts.entries()]
     .sort((a, b) => a[1].label.localeCompare(b[1].label))
-    .map(([key, data]) => renderCategoryButton(key, data.label, data.count));
-  host.innerHTML = [
-    renderCategoryButton('all', 'All', activeItems.length),
-    suggested ? renderCategoryButton('suggested', 'Suggested', suggested) : '',
-    ...categoryButtons,
-  ].join('');
-}
-
-function renderCategoryButton(key: string, label: string, count: number) {
-  const active = activeCategory === key ? ' active' : '';
-  return `<button type="button" class="import-map-category${active}" data-import-map-category="${escapeHTML(key)}">
-    <span>${escapeHTML(label)}</span><span>${count}</span>
-  </button>`;
+    .map(([key, data]) => ({key, label: data.label, count: data.count}));
+  host.innerHTML = renderImportMarkerMapCategories({categories: projectImportMarkerMapCategories([
+    {key: 'all', label: 'All', count: activeItems.length},
+    ...(suggested ? [{key: 'suggested', label: 'Suggested', count: suggested}] : []),
+    ...categories,
+  ], activeCategory)});
 }
 
 function filteredItems(query: string) {
@@ -115,25 +112,7 @@ function renderResults(overlay: HTMLElement) {
   const input = overlay.querySelector('.import-map-modal-search') as HTMLInputElement | null;
   if (!host) return;
   const items = filteredItems(input?.value || '');
-  if (items.length === 0) {
-    host.innerHTML = '<div class="import-map-empty">No markers match this search.</div>';
-    return;
-  }
-  host.innerHTML = items.slice(0, 120).map(item => {
-    const selected = item.key === activeCurrentKey;
-    const units = item.units.length ? item.units.join(', ') : (item.unit || 'no unit');
-    return `<button type="button" class="import-map-result${selected ? ' selected' : ''}" data-import-map-key="${escapeHTML(item.key)}">
-      <span class="import-map-result-main">
-        <strong>${escapeHTML(item.name)}</strong>
-        <code>${escapeHTML(item.key)}</code>
-      </span>
-      <span class="import-map-result-meta">
-        <span>${escapeHTML(item.categoryLabel)}</span>
-        <span>${escapeHTML(units)}</span>
-        ${item.range ? `<span>${escapeHTML(item.range)}</span>` : ''}
-      </span>
-    </button>`;
-  }).join('');
+  host.innerHTML = renderImportMarkerMapResults({results: projectImportMarkerMapResults(items.slice(0, 120), activeCurrentKey)});
 }
 
 function closeImportMarkerMapModal() {
@@ -161,35 +140,9 @@ export function openImportMarkerMapModal({ marker, currentKey = '', refLookup = 
   activeCategory = activeItems.some(item => item.score > 0) ? 'suggested' : 'all';
 
   const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay import-map-modal-overlay';
-  overlay.innerHTML = `<div class="modal import-marker-map-modal" role="dialog" aria-modal="true" aria-labelledby="import-map-modal-title">
-    <div class="gb-modal-head import-map-modal-head">
-      <div>
-        <div class="gb-modal-kicker">Import mapping</div>
-        <div class="gb-modal-title" id="import-map-modal-title">Map to Existing Marker</div>
-      </div>
-      <button type="button" class="modal-close" data-import-map-action="close" aria-label="Close mapping">&times;</button>
-    </div>
-    <div class="import-map-modal-body">
-      <div class="import-map-context">
-        <span>${escapeHTML(marker?.rawName || 'Imported marker')}</span>
-        <strong>${escapeHTML(marker?.value ?? '')} ${escapeHTML(marker?.unit || '')}</strong>
-        ${marker?.refMin != null || marker?.refMax != null ? `<small>Range ${escapeHTML(formatRange(marker))}</small>` : ''}
-      </div>
-      <label class="import-map-search-wrap">
-        <span class="sr-only">Search existing markers</span>
-        <input type="search" class="import-map-modal-search" placeholder="Search markers, categories, units" autocomplete="off">
-      </label>
-      <div class="import-map-modal-grid">
-        <div class="import-map-categories" aria-label="Marker categories"></div>
-        <div class="import-map-results" aria-live="polite"></div>
-      </div>
-    </div>
-    <div class="import-map-modal-actions">
-      <button type="button" class="import-btn import-btn-secondary" data-import-map-action="clear">${marker?.suggestedKey ? 'Keep as new' : 'Clear mapping'}</button>
-      <button type="button" class="import-btn import-btn-secondary" data-import-map-action="close">Cancel</button>
-    </div>
-  </div>`;
+  overlay.className = importMarkerMapClasses('modal-overlay import-map-modal-overlay');
+  overlay.setAttribute('data-import-marker-map-view', '');
+  overlay.innerHTML = renderImportMarkerMap({view: projectImportMarkerMap(marker)});
   activeOverlay = overlay;
   overlay.addEventListener('input', event => {
     if (event.target instanceof HTMLInputElement && event.target.classList.contains('import-map-modal-search')) renderResults(overlay);

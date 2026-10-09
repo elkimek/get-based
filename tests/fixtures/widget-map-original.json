@@ -1,0 +1,3092 @@
+{
+  "revision": "3ea5aaef7746bdab5681db57aa2524d90ef364b7",
+  "sourceSHA256": {
+    "js/dashboard-widget-controls.ts": "76730c0338b063eaa713ff16b81b11e457ec334ab50403d33467b81c9094dfb7",
+    "js/import-marker-map-modal.ts": "928c7729692b86ecf7fe790972b7ef223b62ca1818df7ecee64c584684add833",
+    "css/dashboard-widgets.base.css": "5b628813d69e456a8e2d4073bf697b7ab7c72f7d93c1b2fbc17f86a2417ebf4b",
+    "css/import.css": "20d02381715a80cffac0833180f2bd354fe67650d9ab8e84faeff2b96422fbc2",
+    "js/dashboard-widgets.ts": "5cf69db781d912db1120ae8f4be0d9fcc6a2ac9e683c213863198a84c98e2f5c",
+    "js/utils.ts": "27eb353b89e3f1c2d9bd4b4d92f4aa73caa0968270b97994566568e6e4162402",
+    "js/action-attributes.ts": "c6e33e4fc90c59fd27c7f4e4d32d9a4a38bf4e145aafe0d0d706ce9d86f55fba",
+    "js/schema.ts": "4f5df4b645e4d0ffc47c651df3a58b3a205ffbab4b022aa525c852f6b03b64f3",
+    "js/adapters.ts": "f039b86d4cbec793276f7235a5193a943cfb6e7733c426a8483f573ac07250fb",
+    "js/pdf-import-marker-mapping.ts": "45f031820f6ef78bdbf65e79c665a6ac0e75ef417ff3e01af4f6a8ae1bc2455a"
+  },
+  "samples": [
+    {
+      "kind": "dashboard-picker",
+      "name": "dashboard-0",
+      "input": {
+        "kind": "dashboard",
+        "hidden": [],
+        "biometrics": [],
+        "markers": []
+      },
+      "html": "<div class=\"modal-overlay\" id=\"dashboard-widget-picker-overlay\" data-dashboard-widget-overlay>\n      <div class=\"modal dashboard-widget-picker\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"dashboard-widget-picker-title\">\n        <button class=\"modal-close\" aria-label=\"Close\" data-dashboard-widget-action=\"close-picker\">&times;</button>\n        <h3 id=\"dashboard-widget-picker-title\">Add dashboard widget</h3>\n        <div class=\"dashboard-widget-picker-section\">\n          <div class=\"dashboard-widget-picker-label\">Lens and tool widgets</div>\n          <div class=\"dashboard-widget-picker-grid\"><div class=\"dashboard-widget-picker-empty\">All dashboard widgets are visible.</div></div>\n        </div>\n        <div class=\"dashboard-widget-picker-section\">\n          <label class=\"dashboard-widget-picker-label\" for=\"dashboard-biometric-widget-search\">Body / Biometrics Overview metrics</label>\n          <input id=\"dashboard-biometric-widget-search\" class=\"dashboard-widget-picker-search\" type=\"search\" placeholder=\"Search biometrics to add\" data-dashboard-widget-input=\"filter-biometric-picker\">\n          <div class=\"dashboard-widget-picker-grid dashboard-biometric-widget-grid\"></div>\n          <div class=\"dashboard-widget-picker-empty\" id=\"dashboard-biometric-widget-empty\" >All available biometrics are already in the overview.</div>\n        </div>\n        <div class=\"dashboard-widget-picker-section\">\n          <label class=\"dashboard-widget-picker-label\" for=\"dashboard-marker-widget-search\">Labs / Single marker widgets</label>\n          <input id=\"dashboard-marker-widget-search\" class=\"dashboard-widget-picker-search\" type=\"search\" placeholder=\"Search markers\" data-dashboard-widget-input=\"filter-marker-picker\">\n          <div class=\"dashboard-widget-picker-grid dashboard-marker-widget-grid\"></div>\n          <div class=\"dashboard-widget-picker-empty\" id=\"dashboard-marker-widget-empty\" >No available markers to add.</div>\n        </div>\n        <div class=\"dashboard-widget-picker-actions\">\n          <button type=\"button\" class=\"dashboard-action-btn\" data-dashboard-widget-action=\"customize-layout\">Customize layout</button>\n          <button type=\"button\" class=\"dashboard-action-btn\" data-dashboard-widget-action=\"reset-layout\">Reset layout</button>\n        </div>\n      </div>\n    </div>"
+    },
+    {
+      "kind": "dashboard-picker",
+      "name": "dashboard-1",
+      "input": {
+        "kind": "dashboard",
+        "hidden": [
+          {
+            "id": "tools",
+            "title": "Tools",
+            "description": "Review tools",
+            "source": "Tools"
+          },
+          {
+            "id": "unknown-z",
+            "title": "<script>alert(\"literal\")</script> & \"quoted\"",
+            "description": "<description>",
+            "source": "Zulu unknown"
+          },
+          {
+            "id": "labs",
+            "title": "Labs",
+            "description": "Latest measurements",
+            "source": "Labs"
+          },
+          {
+            "id": "other",
+            "title": "Other",
+            "description": "",
+            "source": ""
+          },
+          {
+            "id": "unknown-a",
+            "title": "Unknown",
+            "description": "A",
+            "source": "Alpha unknown"
+          },
+          {
+            "id": "body",
+            "title": "Body",
+            "description": "Body / biometrics",
+            "source": "Body"
+          },
+          {
+            "id": "",
+            "title": "No ID",
+            "description": "Literal zero",
+            "source": "Labs"
+          }
+        ],
+        "biometrics": [
+          {
+            "id": "weight",
+            "label": "Weight",
+            "sub": "Manual",
+            "value": "72.4",
+            "unit": "kg",
+            "change": "-0.2"
+          },
+          {
+            "id": "height",
+            "label": "<script>alert(\"literal\")</script> & \"quoted\"",
+            "sub": "<sub> & detail",
+            "value": "0",
+            "unit": "",
+            "change": ""
+          },
+          {
+            "id": "",
+            "label": "Empty ID",
+            "sub": "",
+            "value": "",
+            "unit": "",
+            "change": "latest"
+          }
+        ],
+        "markers": [
+          {
+            "id": "blood_ferritin",
+            "name": "Ferritin",
+            "category": "Biochemistry",
+            "value": "42",
+            "unit": "µg/L",
+            "status": "normal"
+          },
+          {
+            "id": "blood_literal",
+            "name": "<script>alert(\"literal\")</script> & \"quoted\"",
+            "category": "<category> & labs",
+            "value": "0",
+            "unit": "",
+            "status": "low"
+          }
+        ]
+      },
+      "html": "<div class=\"modal-overlay\" id=\"dashboard-widget-picker-overlay\" data-dashboard-widget-overlay>\n      <div class=\"modal dashboard-widget-picker\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"dashboard-widget-picker-title\">\n        <button class=\"modal-close\" aria-label=\"Close\" data-dashboard-widget-action=\"close-picker\">&times;</button>\n        <h3 id=\"dashboard-widget-picker-title\">Add dashboard widget</h3>\n        <div class=\"dashboard-widget-picker-section\">\n          <div class=\"dashboard-widget-picker-label\">Lens and tool widgets</div>\n          <div class=\"dashboard-widget-picker-grid\"><div class=\"dashboard-widget-picker-source\">\n        <div class=\"dashboard-widget-picker-label\">Labs</div>\n        <div class=\"dashboard-widget-picker-grid\"><button type=\"button\" class=\"dashboard-widget-picker-card\" data-dashboard-widget-action=\"show-widget\" data-dashboard-widget-id=\"labs\">\n          <span class=\"dashboard-widget-picker-title\">Labs</span>\n          <span class=\"dashboard-widget-picker-sub\">Latest measurements</span>\n          <span class=\"dashboard-widget-picker-action\">Add dashboard widget</span>\n        </button><button type=\"button\" class=\"dashboard-widget-picker-card\" data-dashboard-widget-action=\"show-widget\">\n          <span class=\"dashboard-widget-picker-title\">No ID</span>\n          <span class=\"dashboard-widget-picker-sub\">Literal zero</span>\n          <span class=\"dashboard-widget-picker-action\">Add dashboard widget</span>\n        </button></div>\n      </div><div class=\"dashboard-widget-picker-source\">\n        <div class=\"dashboard-widget-picker-label\">Body</div>\n        <div class=\"dashboard-widget-picker-grid\"><button type=\"button\" class=\"dashboard-widget-picker-card\" data-dashboard-widget-action=\"show-widget\" data-dashboard-widget-id=\"body\">\n          <span class=\"dashboard-widget-picker-title\">Body</span>\n          <span class=\"dashboard-widget-picker-sub\">Body / biometrics</span>\n          <span class=\"dashboard-widget-picker-action\">Add dashboard widget</span>\n        </button></div>\n      </div><div class=\"dashboard-widget-picker-source\">\n        <div class=\"dashboard-widget-picker-label\">Tools</div>\n        <div class=\"dashboard-widget-picker-grid\"><button type=\"button\" class=\"dashboard-widget-picker-card\" data-dashboard-widget-action=\"show-widget\" data-dashboard-widget-id=\"tools\">\n          <span class=\"dashboard-widget-picker-title\">Tools</span>\n          <span class=\"dashboard-widget-picker-sub\">Review tools</span>\n          <span class=\"dashboard-widget-picker-action\">Add dashboard widget</span>\n        </button></div>\n      </div><div class=\"dashboard-widget-picker-source\">\n        <div class=\"dashboard-widget-picker-label\">Alpha unknown</div>\n        <div class=\"dashboard-widget-picker-grid\"><button type=\"button\" class=\"dashboard-widget-picker-card\" data-dashboard-widget-action=\"show-widget\" data-dashboard-widget-id=\"unknown-a\">\n          <span class=\"dashboard-widget-picker-title\">Unknown</span>\n          <span class=\"dashboard-widget-picker-sub\">A</span>\n          <span class=\"dashboard-widget-picker-action\">Add dashboard widget</span>\n        </button></div>\n      </div><div class=\"dashboard-widget-picker-source\">\n        <div class=\"dashboard-widget-picker-label\">Other</div>\n        <div class=\"dashboard-widget-picker-grid\"><button type=\"button\" class=\"dashboard-widget-picker-card\" data-dashboard-widget-action=\"show-widget\" data-dashboard-widget-id=\"other\">\n          <span class=\"dashboard-widget-picker-title\">Other</span>\n          <span class=\"dashboard-widget-picker-sub\"></span>\n          <span class=\"dashboard-widget-picker-action\">Add dashboard widget</span>\n        </button></div>\n      </div><div class=\"dashboard-widget-picker-source\">\n        <div class=\"dashboard-widget-picker-label\">Zulu unknown</div>\n        <div class=\"dashboard-widget-picker-grid\"><button type=\"button\" class=\"dashboard-widget-picker-card\" data-dashboard-widget-action=\"show-widget\" data-dashboard-widget-id=\"unknown-z\">\n          <span class=\"dashboard-widget-picker-title\">&lt;script&gt;alert(&quot;literal&quot;)&lt;/script&gt; &amp; &quot;quoted&quot;</span>\n          <span class=\"dashboard-widget-picker-sub\">&lt;description&gt;</span>\n          <span class=\"dashboard-widget-picker-action\">Add dashboard widget</span>\n        </button></div>\n      </div></div>\n        </div>\n        <div class=\"dashboard-widget-picker-section\">\n          <label class=\"dashboard-widget-picker-label\" for=\"dashboard-biometric-widget-search\">Body / Biometrics Overview metrics</label>\n          <input id=\"dashboard-biometric-widget-search\" class=\"dashboard-widget-picker-search\" type=\"search\" placeholder=\"Search biometrics to add\" data-dashboard-widget-input=\"filter-biometric-picker\">\n          <div class=\"dashboard-widget-picker-grid dashboard-biometric-widget-grid\"><button type=\"button\" class=\"dashboard-widget-picker-card dashboard-biometric-widget-option\" data-biometric-search=\"weight manual 72.4 kg -0.2\" data-dashboard-widget-action=\"add-biometric-metric\" data-dashboard-widget-id=\"weight\">\n      <span class=\"dashboard-widget-picker-title\">Weight <small>Manual</small></span>\n      <span class=\"dashboard-widget-picker-sub\">72.4 kg · -0.2</span>\n      <span class=\"dashboard-widget-picker-action\">Add to Biometrics Overview</span>\n    </button><button type=\"button\" class=\"dashboard-widget-picker-card dashboard-biometric-widget-option\" data-biometric-search=\"&lt;script&gt;alert(&quot;literal&quot;)&lt;/script&gt; &amp; &quot;quoted&quot; &lt;sub&gt; &amp; detail 0  \" data-dashboard-widget-action=\"add-biometric-metric\" data-dashboard-widget-id=\"height\">\n      <span class=\"dashboard-widget-picker-title\">&lt;script&gt;alert(&quot;literal&quot;)&lt;/script&gt; &amp; &quot;quoted&quot; <small>&lt;sub&gt; &amp; detail</small></span>\n      <span class=\"dashboard-widget-picker-sub\">0 · latest</span>\n      <span class=\"dashboard-widget-picker-action\">Add to Biometrics Overview</span>\n    </button><button type=\"button\" class=\"dashboard-widget-picker-card dashboard-biometric-widget-option\" data-biometric-search=\"empty id    latest\" data-dashboard-widget-action=\"add-biometric-metric\">\n      <span class=\"dashboard-widget-picker-title\">Empty ID</span>\n      <span class=\"dashboard-widget-picker-sub\"> · latest</span>\n      <span class=\"dashboard-widget-picker-action\">Add to Biometrics Overview</span>\n    </button></div>\n          <div class=\"dashboard-widget-picker-empty\" id=\"dashboard-biometric-widget-empty\" hidden>All available biometrics are already in the overview.</div>\n        </div>\n        <div class=\"dashboard-widget-picker-section\">\n          <label class=\"dashboard-widget-picker-label\" for=\"dashboard-marker-widget-search\">Labs / Single marker widgets</label>\n          <input id=\"dashboard-marker-widget-search\" class=\"dashboard-widget-picker-search\" type=\"search\" placeholder=\"Search markers\" data-dashboard-widget-input=\"filter-marker-picker\">\n          <div class=\"dashboard-widget-picker-grid dashboard-marker-widget-grid\"><button type=\"button\" class=\"dashboard-widget-picker-card dashboard-marker-widget-option\" data-marker-search=\"ferritin biochemistry 42 µg/l\" data-dashboard-widget-action=\"add-marker-widget\" data-dashboard-widget-id=\"blood_ferritin\">\n      <span class=\"dashboard-widget-picker-title\">Ferritin</span>\n      <span class=\"dashboard-widget-picker-sub\">Biochemistry · 42 µg/L</span>\n      <span class=\"dashboard-widget-picker-action\">Add marker widget</span>\n    </button><button type=\"button\" class=\"dashboard-widget-picker-card dashboard-marker-widget-option\" data-marker-search=\"&lt;script&gt;alert(&quot;literal&quot;)&lt;/script&gt; &amp; &quot;quoted&quot; &lt;category&gt; &amp; labs 0 \" data-dashboard-widget-action=\"add-marker-widget\" data-dashboard-widget-id=\"blood_literal\">\n      <span class=\"dashboard-widget-picker-title\">&lt;script&gt;alert(&quot;literal&quot;)&lt;/script&gt; &amp; &quot;quoted&quot;</span>\n      <span class=\"dashboard-widget-picker-sub\">&lt;category&gt; &amp; labs · 0</span>\n      <span class=\"dashboard-widget-picker-action\">Add marker widget</span>\n    </button></div>\n          <div class=\"dashboard-widget-picker-empty\" id=\"dashboard-marker-widget-empty\" hidden>No available markers to add.</div>\n        </div>\n        <div class=\"dashboard-widget-picker-actions\">\n          <button type=\"button\" class=\"dashboard-action-btn\" data-dashboard-widget-action=\"customize-layout\">Customize layout</button>\n          <button type=\"button\" class=\"dashboard-action-btn\" data-dashboard-widget-action=\"reset-layout\">Reset layout</button>\n        </div>\n      </div>\n    </div>"
+    },
+    {
+      "kind": "dashboard-picker",
+      "name": "dashboard-2",
+      "input": {
+        "kind": "dashboard",
+        "hidden": [
+          {
+            "id": "tools",
+            "title": "Tools",
+            "description": "Review tools",
+            "source": "Tools"
+          }
+        ],
+        "biometrics": [],
+        "markers": [
+          {
+            "id": "blood_ferritin",
+            "name": "Ferritin",
+            "category": "Biochemistry",
+            "value": "42",
+            "unit": "µg/L",
+            "status": "normal"
+          },
+          {
+            "id": "blood_literal",
+            "name": "<script>alert(\"literal\")</script> & \"quoted\"",
+            "category": "<category> & labs",
+            "value": "0",
+            "unit": "",
+            "status": "low"
+          }
+        ]
+      },
+      "html": "<div class=\"modal-overlay\" id=\"dashboard-widget-picker-overlay\" data-dashboard-widget-overlay>\n      <div class=\"modal dashboard-widget-picker\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"dashboard-widget-picker-title\">\n        <button class=\"modal-close\" aria-label=\"Close\" data-dashboard-widget-action=\"close-picker\">&times;</button>\n        <h3 id=\"dashboard-widget-picker-title\">Add dashboard widget</h3>\n        <div class=\"dashboard-widget-picker-section\">\n          <div class=\"dashboard-widget-picker-label\">Lens and tool widgets</div>\n          <div class=\"dashboard-widget-picker-grid\"><div class=\"dashboard-widget-picker-source\">\n        <div class=\"dashboard-widget-picker-label\">Tools</div>\n        <div class=\"dashboard-widget-picker-grid\"><button type=\"button\" class=\"dashboard-widget-picker-card\" data-dashboard-widget-action=\"show-widget\" data-dashboard-widget-id=\"tools\">\n          <span class=\"dashboard-widget-picker-title\">Tools</span>\n          <span class=\"dashboard-widget-picker-sub\">Review tools</span>\n          <span class=\"dashboard-widget-picker-action\">Add dashboard widget</span>\n        </button></div>\n      </div></div>\n        </div>\n        <div class=\"dashboard-widget-picker-section\">\n          <label class=\"dashboard-widget-picker-label\" for=\"dashboard-biometric-widget-search\">Body / Biometrics Overview metrics</label>\n          <input id=\"dashboard-biometric-widget-search\" class=\"dashboard-widget-picker-search\" type=\"search\" placeholder=\"Search biometrics to add\" data-dashboard-widget-input=\"filter-biometric-picker\">\n          <div class=\"dashboard-widget-picker-grid dashboard-biometric-widget-grid\"></div>\n          <div class=\"dashboard-widget-picker-empty\" id=\"dashboard-biometric-widget-empty\" >All available biometrics are already in the overview.</div>\n        </div>\n        <div class=\"dashboard-widget-picker-section\">\n          <label class=\"dashboard-widget-picker-label\" for=\"dashboard-marker-widget-search\">Labs / Single marker widgets</label>\n          <input id=\"dashboard-marker-widget-search\" class=\"dashboard-widget-picker-search\" type=\"search\" placeholder=\"Search markers\" data-dashboard-widget-input=\"filter-marker-picker\">\n          <div class=\"dashboard-widget-picker-grid dashboard-marker-widget-grid\"><button type=\"button\" class=\"dashboard-widget-picker-card dashboard-marker-widget-option\" data-marker-search=\"ferritin biochemistry 42 µg/l\" data-dashboard-widget-action=\"add-marker-widget\" data-dashboard-widget-id=\"blood_ferritin\">\n      <span class=\"dashboard-widget-picker-title\">Ferritin</span>\n      <span class=\"dashboard-widget-picker-sub\">Biochemistry · 42 µg/L</span>\n      <span class=\"dashboard-widget-picker-action\">Add marker widget</span>\n    </button><button type=\"button\" class=\"dashboard-widget-picker-card dashboard-marker-widget-option\" data-marker-search=\"&lt;script&gt;alert(&quot;literal&quot;)&lt;/script&gt; &amp; &quot;quoted&quot; &lt;category&gt; &amp; labs 0 \" data-dashboard-widget-action=\"add-marker-widget\" data-dashboard-widget-id=\"blood_literal\">\n      <span class=\"dashboard-widget-picker-title\">&lt;script&gt;alert(&quot;literal&quot;)&lt;/script&gt; &amp; &quot;quoted&quot;</span>\n      <span class=\"dashboard-widget-picker-sub\">&lt;category&gt; &amp; labs · 0</span>\n      <span class=\"dashboard-widget-picker-action\">Add marker widget</span>\n    </button></div>\n          <div class=\"dashboard-widget-picker-empty\" id=\"dashboard-marker-widget-empty\" hidden>No available markers to add.</div>\n        </div>\n        <div class=\"dashboard-widget-picker-actions\">\n          <button type=\"button\" class=\"dashboard-action-btn\" data-dashboard-widget-action=\"customize-layout\">Customize layout</button>\n          <button type=\"button\" class=\"dashboard-action-btn\" data-dashboard-widget-action=\"reset-layout\">Reset layout</button>\n        </div>\n      </div>\n    </div>"
+    },
+    {
+      "kind": "dashboard-picker",
+      "name": "biometric-3",
+      "input": {
+        "kind": "biometric",
+        "biometrics": []
+      },
+      "html": "<div class=\"modal-overlay\" id=\"dashboard-widget-picker-overlay\" data-dashboard-widget-overlay>\n      <div class=\"modal dashboard-widget-picker dashboard-biometric-picker\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"dashboard-biometric-picker-title\">\n        <button class=\"modal-close\" aria-label=\"Close\" data-dashboard-widget-action=\"close-picker\">&times;</button>\n        <h3 id=\"dashboard-biometric-picker-title\">Add biometric metrics</h3>\n        <div class=\"dashboard-widget-picker-section\">\n          <label class=\"dashboard-widget-picker-label\" for=\"dashboard-biometric-widget-search\">Manual and wearable metrics</label>\n          <input id=\"dashboard-biometric-widget-search\" class=\"dashboard-widget-picker-search\" type=\"search\" placeholder=\"Search biometrics to add\" data-dashboard-widget-input=\"filter-biometric-picker\">\n          <div class=\"dashboard-widget-picker-grid dashboard-biometric-widget-grid\"></div>\n          <div class=\"dashboard-widget-picker-empty\" id=\"dashboard-biometric-widget-empty\" >All available biometrics are already in the overview.</div>\n        </div>\n        <div class=\"dashboard-widget-picker-actions\">\n          <button type=\"button\" class=\"dashboard-action-btn\" data-dashboard-widget-action=\"connect-source\">Connect source</button>\n        </div>\n      </div>\n    </div>"
+    },
+    {
+      "kind": "dashboard-picker",
+      "name": "biometric-4",
+      "input": {
+        "kind": "biometric",
+        "biometrics": [
+          {
+            "id": "weight",
+            "label": "Weight",
+            "sub": "Manual",
+            "value": "72.4",
+            "unit": "kg",
+            "change": "-0.2"
+          },
+          {
+            "id": "height",
+            "label": "<script>alert(\"literal\")</script> & \"quoted\"",
+            "sub": "<sub> & detail",
+            "value": "0",
+            "unit": "",
+            "change": ""
+          },
+          {
+            "id": "",
+            "label": "Empty ID",
+            "sub": "",
+            "value": "",
+            "unit": "",
+            "change": "latest"
+          }
+        ]
+      },
+      "html": "<div class=\"modal-overlay\" id=\"dashboard-widget-picker-overlay\" data-dashboard-widget-overlay>\n      <div class=\"modal dashboard-widget-picker dashboard-biometric-picker\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"dashboard-biometric-picker-title\">\n        <button class=\"modal-close\" aria-label=\"Close\" data-dashboard-widget-action=\"close-picker\">&times;</button>\n        <h3 id=\"dashboard-biometric-picker-title\">Add biometric metrics</h3>\n        <div class=\"dashboard-widget-picker-section\">\n          <label class=\"dashboard-widget-picker-label\" for=\"dashboard-biometric-widget-search\">Manual and wearable metrics</label>\n          <input id=\"dashboard-biometric-widget-search\" class=\"dashboard-widget-picker-search\" type=\"search\" placeholder=\"Search biometrics to add\" data-dashboard-widget-input=\"filter-biometric-picker\">\n          <div class=\"dashboard-widget-picker-grid dashboard-biometric-widget-grid\"><button type=\"button\" class=\"dashboard-widget-picker-card dashboard-biometric-widget-option\" data-biometric-search=\"weight manual 72.4 kg -0.2\" data-dashboard-widget-action=\"add-biometric-metric\" data-dashboard-widget-id=\"weight\">\n      <span class=\"dashboard-widget-picker-title\">Weight <small>Manual</small></span>\n      <span class=\"dashboard-widget-picker-sub\">72.4 kg · -0.2</span>\n      <span class=\"dashboard-widget-picker-action\">Add to Biometrics Overview</span>\n    </button><button type=\"button\" class=\"dashboard-widget-picker-card dashboard-biometric-widget-option\" data-biometric-search=\"&lt;script&gt;alert(&quot;literal&quot;)&lt;/script&gt; &amp; &quot;quoted&quot; &lt;sub&gt; &amp; detail 0  \" data-dashboard-widget-action=\"add-biometric-metric\" data-dashboard-widget-id=\"height\">\n      <span class=\"dashboard-widget-picker-title\">&lt;script&gt;alert(&quot;literal&quot;)&lt;/script&gt; &amp; &quot;quoted&quot; <small>&lt;sub&gt; &amp; detail</small></span>\n      <span class=\"dashboard-widget-picker-sub\">0 · latest</span>\n      <span class=\"dashboard-widget-picker-action\">Add to Biometrics Overview</span>\n    </button><button type=\"button\" class=\"dashboard-widget-picker-card dashboard-biometric-widget-option\" data-biometric-search=\"empty id    latest\" data-dashboard-widget-action=\"add-biometric-metric\">\n      <span class=\"dashboard-widget-picker-title\">Empty ID</span>\n      <span class=\"dashboard-widget-picker-sub\"> · latest</span>\n      <span class=\"dashboard-widget-picker-action\">Add to Biometrics Overview</span>\n    </button></div>\n          <div class=\"dashboard-widget-picker-empty\" id=\"dashboard-biometric-widget-empty\" hidden>All available biometrics are already in the overview.</div>\n        </div>\n        <div class=\"dashboard-widget-picker-actions\">\n          <button type=\"button\" class=\"dashboard-action-btn\" data-dashboard-widget-action=\"connect-source\">Connect source</button>\n        </div>\n      </div>\n    </div>"
+    },
+    {
+      "kind": "import-map",
+      "name": "map-0",
+      "input": {
+        "marker": null,
+        "currentKey": "",
+        "refLookup": {}
+      },
+      "activeCategory": "all",
+      "categories": [
+        {
+          "key": "all",
+          "label": "All",
+          "count": 0
+        }
+      ],
+      "results": [],
+      "html": "<div class=\"modal-overlay import-map-modal-overlay\"><div class=\"modal import-marker-map-modal\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"import-map-modal-title\">\n    <div class=\"gb-modal-head import-map-modal-head\">\n      <div>\n        <div class=\"gb-modal-kicker\">Import mapping</div>\n        <div class=\"gb-modal-title\" id=\"import-map-modal-title\">Map to Existing Marker</div>\n      </div>\n      <button type=\"button\" class=\"modal-close\" data-import-map-action=\"close\" aria-label=\"Close mapping\">×</button>\n    </div>\n    <div class=\"import-map-modal-body\">\n      <div class=\"import-map-context\">\n        <span>Imported marker</span>\n        <strong> </strong>\n        \n      </div>\n      <label class=\"import-map-search-wrap\">\n        <span class=\"sr-only\">Search existing markers</span>\n        <input type=\"search\" class=\"import-map-modal-search\" placeholder=\"Search markers, categories, units\" autocomplete=\"off\">\n      </label>\n      <div class=\"import-map-modal-grid\">\n        <div class=\"import-map-categories\" aria-label=\"Marker categories\"><button type=\"button\" class=\"import-map-category active\" data-import-map-category=\"all\">\n    <span>All</span><span>0</span>\n  </button></div>\n        <div class=\"import-map-results\" aria-live=\"polite\"><div class=\"import-map-empty\">No markers match this search.</div></div>\n      </div>\n    </div>\n    <div class=\"import-map-modal-actions\">\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-import-map-action=\"clear\">Clear mapping</button>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-import-map-action=\"close\">Cancel</button>\n    </div>\n  </div></div>"
+    },
+    {
+      "kind": "import-map",
+      "name": "map-1",
+      "input": {
+        "marker": {
+          "rawName": "<script>alert(\"literal\")</script> & \"quoted\"",
+          "value": 0,
+          "unit": "<unit>",
+          "refMin": 0,
+          "refMax": null,
+          "suggestedKey": "blood.ferritin"
+        },
+        "currentKey": "blood.ferritin",
+        "refLookup": {
+          "blood.ferritin": {
+            "name": "Ferritin",
+            "unit": "µg/L",
+            "refMin": 10,
+            "refMax": 200
+          },
+          "custom.literal": {
+            "name": "<script>alert(\"literal\")</script> & \"quoted\"",
+            "unit": "<unit>",
+            "refMin": null,
+            "refMax": 0
+          },
+          "blood.hemoglobin": {
+            "name": "Hemoglobin",
+            "unit": "g/L",
+            "refMin": 120,
+            "refMax": null
+          },
+          "other.none": {
+            "name": "No unit",
+            "unit": ""
+          }
+        },
+        "category": "all"
+      },
+      "activeCategory": "all",
+      "categories": [
+        {
+          "key": "all",
+          "label": "All",
+          "count": 4
+        },
+        {
+          "key": "suggested",
+          "label": "Suggested",
+          "count": 1
+        },
+        {
+          "key": "blood",
+          "label": "Blood",
+          "count": 2
+        },
+        {
+          "key": "custom",
+          "label": "Custom",
+          "count": 1
+        },
+        {
+          "key": "other",
+          "label": "Other",
+          "count": 1
+        }
+      ],
+      "results": [
+        {
+          "key": "blood.ferritin",
+          "name": "Ferritin",
+          "unit": "µg/L",
+          "range": "10-200",
+          "categoryLabel": "Blood",
+          "categoryKey": "blood",
+          "units": [],
+          "searchText": "blood ferritin ferritin blood g l",
+          "score": 0
+        },
+        {
+          "key": "blood.hemoglobin",
+          "name": "Hemoglobin",
+          "unit": "g/L",
+          "range": "120-?",
+          "categoryLabel": "Blood",
+          "categoryKey": "blood",
+          "units": [],
+          "searchText": "blood hemoglobin hemoglobin blood g l",
+          "score": 0
+        },
+        {
+          "key": "custom.literal",
+          "name": "<script>alert(\"literal\")</script> & \"quoted\"",
+          "unit": "<unit>",
+          "range": "?-0",
+          "categoryLabel": "Custom",
+          "categoryKey": "custom",
+          "units": [],
+          "searchText": "custom literal script alert literal script quoted custom unit",
+          "score": 100
+        },
+        {
+          "key": "other.none",
+          "name": "No unit",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Other",
+          "categoryKey": "other",
+          "units": [],
+          "searchText": "other none no unit other",
+          "score": 0
+        }
+      ],
+      "html": "<div class=\"modal-overlay import-map-modal-overlay\"><div class=\"modal import-marker-map-modal\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"import-map-modal-title\">\n    <div class=\"gb-modal-head import-map-modal-head\">\n      <div>\n        <div class=\"gb-modal-kicker\">Import mapping</div>\n        <div class=\"gb-modal-title\" id=\"import-map-modal-title\">Map to Existing Marker</div>\n      </div>\n      <button type=\"button\" class=\"modal-close\" data-import-map-action=\"close\" aria-label=\"Close mapping\">×</button>\n    </div>\n    <div class=\"import-map-modal-body\">\n      <div class=\"import-map-context\">\n        <span>&lt;script&gt;alert(\"literal\")&lt;/script&gt; &amp; \"quoted\"</span>\n        <strong>0 &lt;unit&gt;</strong>\n        <small>Range 0-?</small>\n      </div>\n      <label class=\"import-map-search-wrap\">\n        <span class=\"sr-only\">Search existing markers</span>\n        <input type=\"search\" class=\"import-map-modal-search\" placeholder=\"Search markers, categories, units\" autocomplete=\"off\">\n      </label>\n      <div class=\"import-map-modal-grid\">\n        <div class=\"import-map-categories\" aria-label=\"Marker categories\"><button type=\"button\" class=\"import-map-category active\" data-import-map-category=\"all\">\n    <span>All</span><span>4</span>\n  </button><button type=\"button\" class=\"import-map-category\" data-import-map-category=\"suggested\">\n    <span>Suggested</span><span>1</span>\n  </button><button type=\"button\" class=\"import-map-category\" data-import-map-category=\"blood\">\n    <span>Blood</span><span>2</span>\n  </button><button type=\"button\" class=\"import-map-category\" data-import-map-category=\"custom\">\n    <span>Custom</span><span>1</span>\n  </button><button type=\"button\" class=\"import-map-category\" data-import-map-category=\"other\">\n    <span>Other</span><span>1</span>\n  </button></div>\n        <div class=\"import-map-results\" aria-live=\"polite\"><button type=\"button\" class=\"import-map-result selected\" data-import-map-key=\"blood.ferritin\">\n      <span class=\"import-map-result-main\">\n        <strong>Ferritin</strong>\n        <code>blood.ferritin</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Blood</span>\n        <span>µg/L</span>\n        <span>10-200</span>\n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"blood.hemoglobin\">\n      <span class=\"import-map-result-main\">\n        <strong>Hemoglobin</strong>\n        <code>blood.hemoglobin</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Blood</span>\n        <span>g/L</span>\n        <span>120-?</span>\n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"custom.literal\">\n      <span class=\"import-map-result-main\">\n        <strong>&lt;script&gt;alert(\"literal\")&lt;/script&gt; &amp; \"quoted\"</strong>\n        <code>custom.literal</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Custom</span>\n        <span>&lt;unit&gt;</span>\n        <span>?-0</span>\n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"other.none\">\n      <span class=\"import-map-result-main\">\n        <strong>No unit</strong>\n        <code>other.none</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Other</span>\n        <span>no unit</span>\n        \n      </span>\n    </button></div>\n      </div>\n    </div>\n    <div class=\"import-map-modal-actions\">\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-import-map-action=\"clear\">Keep as new</button>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-import-map-action=\"close\">Cancel</button>\n    </div>\n  </div></div>"
+    },
+    {
+      "kind": "import-map",
+      "name": "map-2",
+      "input": {
+        "marker": {
+          "rawName": "Ferritin",
+          "value": 42,
+          "unit": "µg/L",
+          "refMin": 10,
+          "refMax": 200
+        },
+        "currentKey": "blood.ferritin",
+        "refLookup": {
+          "blood.ferritin": {
+            "name": "Ferritin",
+            "unit": "µg/L",
+            "refMin": 10,
+            "refMax": 200
+          },
+          "custom.literal": {
+            "name": "<script>alert(\"literal\")</script> & \"quoted\"",
+            "unit": "<unit>",
+            "refMin": null,
+            "refMax": 0
+          },
+          "blood.hemoglobin": {
+            "name": "Hemoglobin",
+            "unit": "g/L",
+            "refMin": 120,
+            "refMax": null
+          },
+          "other.none": {
+            "name": "No unit",
+            "unit": ""
+          }
+        }
+      },
+      "activeCategory": "suggested",
+      "categories": [
+        {
+          "key": "all",
+          "label": "All",
+          "count": 4
+        },
+        {
+          "key": "suggested",
+          "label": "Suggested",
+          "count": 1
+        },
+        {
+          "key": "blood",
+          "label": "Blood",
+          "count": 2
+        },
+        {
+          "key": "custom",
+          "label": "Custom",
+          "count": 1
+        },
+        {
+          "key": "other",
+          "label": "Other",
+          "count": 1
+        }
+      ],
+      "results": [
+        {
+          "key": "blood.ferritin",
+          "name": "Ferritin",
+          "unit": "µg/L",
+          "range": "10-200",
+          "categoryLabel": "Blood",
+          "categoryKey": "blood",
+          "units": [],
+          "searchText": "blood ferritin ferritin blood g l",
+          "score": 100
+        }
+      ],
+      "html": "<div class=\"modal-overlay import-map-modal-overlay\"><div class=\"modal import-marker-map-modal\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"import-map-modal-title\">\n    <div class=\"gb-modal-head import-map-modal-head\">\n      <div>\n        <div class=\"gb-modal-kicker\">Import mapping</div>\n        <div class=\"gb-modal-title\" id=\"import-map-modal-title\">Map to Existing Marker</div>\n      </div>\n      <button type=\"button\" class=\"modal-close\" data-import-map-action=\"close\" aria-label=\"Close mapping\">×</button>\n    </div>\n    <div class=\"import-map-modal-body\">\n      <div class=\"import-map-context\">\n        <span>Ferritin</span>\n        <strong>42 µg/L</strong>\n        <small>Range 10-200</small>\n      </div>\n      <label class=\"import-map-search-wrap\">\n        <span class=\"sr-only\">Search existing markers</span>\n        <input type=\"search\" class=\"import-map-modal-search\" placeholder=\"Search markers, categories, units\" autocomplete=\"off\">\n      </label>\n      <div class=\"import-map-modal-grid\">\n        <div class=\"import-map-categories\" aria-label=\"Marker categories\"><button type=\"button\" class=\"import-map-category\" data-import-map-category=\"all\">\n    <span>All</span><span>4</span>\n  </button><button type=\"button\" class=\"import-map-category active\" data-import-map-category=\"suggested\">\n    <span>Suggested</span><span>1</span>\n  </button><button type=\"button\" class=\"import-map-category\" data-import-map-category=\"blood\">\n    <span>Blood</span><span>2</span>\n  </button><button type=\"button\" class=\"import-map-category\" data-import-map-category=\"custom\">\n    <span>Custom</span><span>1</span>\n  </button><button type=\"button\" class=\"import-map-category\" data-import-map-category=\"other\">\n    <span>Other</span><span>1</span>\n  </button></div>\n        <div class=\"import-map-results\" aria-live=\"polite\"><button type=\"button\" class=\"import-map-result selected\" data-import-map-key=\"blood.ferritin\">\n      <span class=\"import-map-result-main\">\n        <strong>Ferritin</strong>\n        <code>blood.ferritin</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Blood</span>\n        <span>µg/L</span>\n        <span>10-200</span>\n      </span>\n    </button></div>\n      </div>\n    </div>\n    <div class=\"import-map-modal-actions\">\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-import-map-action=\"clear\">Clear mapping</button>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-import-map-action=\"close\">Cancel</button>\n    </div>\n  </div></div>"
+    },
+    {
+      "kind": "import-map",
+      "name": "map-3",
+      "input": {
+        "marker": {
+          "rawName": "Unmatched",
+          "value": "",
+          "unit": ""
+        },
+        "currentKey": "other.none",
+        "refLookup": {
+          "blood.ferritin": {
+            "name": "Ferritin",
+            "unit": "µg/L",
+            "refMin": 10,
+            "refMax": 200
+          },
+          "custom.literal": {
+            "name": "<script>alert(\"literal\")</script> & \"quoted\"",
+            "unit": "<unit>",
+            "refMin": null,
+            "refMax": 0
+          },
+          "blood.hemoglobin": {
+            "name": "Hemoglobin",
+            "unit": "g/L",
+            "refMin": 120,
+            "refMax": null
+          },
+          "other.none": {
+            "name": "No unit",
+            "unit": ""
+          }
+        },
+        "category": "other"
+      },
+      "activeCategory": "other",
+      "categories": [
+        {
+          "key": "all",
+          "label": "All",
+          "count": 4
+        },
+        {
+          "key": "blood",
+          "label": "Blood",
+          "count": 2
+        },
+        {
+          "key": "custom",
+          "label": "Custom",
+          "count": 1
+        },
+        {
+          "key": "other",
+          "label": "Other",
+          "count": 1
+        }
+      ],
+      "results": [
+        {
+          "key": "other.none",
+          "name": "No unit",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Other",
+          "categoryKey": "other",
+          "units": [],
+          "searchText": "other none no unit other",
+          "score": 0
+        }
+      ],
+      "html": "<div class=\"modal-overlay import-map-modal-overlay\"><div class=\"modal import-marker-map-modal\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"import-map-modal-title\">\n    <div class=\"gb-modal-head import-map-modal-head\">\n      <div>\n        <div class=\"gb-modal-kicker\">Import mapping</div>\n        <div class=\"gb-modal-title\" id=\"import-map-modal-title\">Map to Existing Marker</div>\n      </div>\n      <button type=\"button\" class=\"modal-close\" data-import-map-action=\"close\" aria-label=\"Close mapping\">×</button>\n    </div>\n    <div class=\"import-map-modal-body\">\n      <div class=\"import-map-context\">\n        <span>Unmatched</span>\n        <strong> </strong>\n        \n      </div>\n      <label class=\"import-map-search-wrap\">\n        <span class=\"sr-only\">Search existing markers</span>\n        <input type=\"search\" class=\"import-map-modal-search\" placeholder=\"Search markers, categories, units\" autocomplete=\"off\">\n      </label>\n      <div class=\"import-map-modal-grid\">\n        <div class=\"import-map-categories\" aria-label=\"Marker categories\"><button type=\"button\" class=\"import-map-category\" data-import-map-category=\"all\">\n    <span>All</span><span>4</span>\n  </button><button type=\"button\" class=\"import-map-category\" data-import-map-category=\"blood\">\n    <span>Blood</span><span>2</span>\n  </button><button type=\"button\" class=\"import-map-category\" data-import-map-category=\"custom\">\n    <span>Custom</span><span>1</span>\n  </button><button type=\"button\" class=\"import-map-category active\" data-import-map-category=\"other\">\n    <span>Other</span><span>1</span>\n  </button></div>\n        <div class=\"import-map-results\" aria-live=\"polite\"><button type=\"button\" class=\"import-map-result selected\" data-import-map-key=\"other.none\">\n      <span class=\"import-map-result-main\">\n        <strong>No unit</strong>\n        <code>other.none</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Other</span>\n        <span>no unit</span>\n        \n      </span>\n    </button></div>\n      </div>\n    </div>\n    <div class=\"import-map-modal-actions\">\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-import-map-action=\"clear\">Clear mapping</button>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-import-map-action=\"close\">Cancel</button>\n    </div>\n  </div></div>"
+    },
+    {
+      "kind": "import-map",
+      "name": "map-4",
+      "input": {
+        "marker": {
+          "rawName": "Ferritin",
+          "suggestedName": "Ferritin"
+        },
+        "currentKey": "blood.ferritin",
+        "refLookup": {
+          "blood.ferritin": {
+            "name": "Ferritin",
+            "unit": "µg/L",
+            "refMin": 10,
+            "refMax": 200
+          },
+          "custom.literal": {
+            "name": "<script>alert(\"literal\")</script> & \"quoted\"",
+            "unit": "<unit>",
+            "refMin": null,
+            "refMax": 0
+          },
+          "blood.hemoglobin": {
+            "name": "Hemoglobin",
+            "unit": "g/L",
+            "refMin": 120,
+            "refMax": null
+          },
+          "other.none": {
+            "name": "No unit",
+            "unit": ""
+          }
+        },
+        "query": "hemoglobin"
+      },
+      "activeCategory": "suggested",
+      "categories": [
+        {
+          "key": "all",
+          "label": "All",
+          "count": 4
+        },
+        {
+          "key": "suggested",
+          "label": "Suggested",
+          "count": 1
+        },
+        {
+          "key": "blood",
+          "label": "Blood",
+          "count": 2
+        },
+        {
+          "key": "custom",
+          "label": "Custom",
+          "count": 1
+        },
+        {
+          "key": "other",
+          "label": "Other",
+          "count": 1
+        }
+      ],
+      "results": [
+        {
+          "key": "blood.hemoglobin",
+          "name": "Hemoglobin",
+          "unit": "g/L",
+          "range": "120-?",
+          "categoryLabel": "Blood",
+          "categoryKey": "blood",
+          "units": [],
+          "searchText": "blood hemoglobin hemoglobin blood g l",
+          "score": 0
+        }
+      ],
+      "html": "<div class=\"modal-overlay import-map-modal-overlay\"><div class=\"modal import-marker-map-modal\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"import-map-modal-title\">\n    <div class=\"gb-modal-head import-map-modal-head\">\n      <div>\n        <div class=\"gb-modal-kicker\">Import mapping</div>\n        <div class=\"gb-modal-title\" id=\"import-map-modal-title\">Map to Existing Marker</div>\n      </div>\n      <button type=\"button\" class=\"modal-close\" data-import-map-action=\"close\" aria-label=\"Close mapping\">×</button>\n    </div>\n    <div class=\"import-map-modal-body\">\n      <div class=\"import-map-context\">\n        <span>Ferritin</span>\n        <strong> </strong>\n        \n      </div>\n      <label class=\"import-map-search-wrap\">\n        <span class=\"sr-only\">Search existing markers</span>\n        <input type=\"search\" class=\"import-map-modal-search\" placeholder=\"Search markers, categories, units\" autocomplete=\"off\">\n      </label>\n      <div class=\"import-map-modal-grid\">\n        <div class=\"import-map-categories\" aria-label=\"Marker categories\"><button type=\"button\" class=\"import-map-category\" data-import-map-category=\"all\">\n    <span>All</span><span>4</span>\n  </button><button type=\"button\" class=\"import-map-category active\" data-import-map-category=\"suggested\">\n    <span>Suggested</span><span>1</span>\n  </button><button type=\"button\" class=\"import-map-category\" data-import-map-category=\"blood\">\n    <span>Blood</span><span>2</span>\n  </button><button type=\"button\" class=\"import-map-category\" data-import-map-category=\"custom\">\n    <span>Custom</span><span>1</span>\n  </button><button type=\"button\" class=\"import-map-category\" data-import-map-category=\"other\">\n    <span>Other</span><span>1</span>\n  </button></div>\n        <div class=\"import-map-results\" aria-live=\"polite\"><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"blood.hemoglobin\">\n      <span class=\"import-map-result-main\">\n        <strong>Hemoglobin</strong>\n        <code>blood.hemoglobin</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Blood</span>\n        <span>g/L</span>\n        <span>120-?</span>\n      </span>\n    </button></div>\n      </div>\n    </div>\n    <div class=\"import-map-modal-actions\">\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-import-map-action=\"clear\">Clear mapping</button>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-import-map-action=\"close\">Cancel</button>\n    </div>\n  </div></div>"
+    },
+    {
+      "kind": "import-map",
+      "name": "map-5",
+      "input": {
+        "marker": {
+          "rawName": "Ferritin"
+        },
+        "currentKey": "",
+        "refLookup": {
+          "blood.ferritin": {
+            "name": "Ferritin",
+            "unit": "µg/L",
+            "refMin": 10,
+            "refMax": 200
+          },
+          "custom.literal": {
+            "name": "<script>alert(\"literal\")</script> & \"quoted\"",
+            "unit": "<unit>",
+            "refMin": null,
+            "refMax": 0
+          },
+          "blood.hemoglobin": {
+            "name": "Hemoglobin",
+            "unit": "g/L",
+            "refMin": 120,
+            "refMax": null
+          },
+          "other.none": {
+            "name": "No unit",
+            "unit": ""
+          }
+        },
+        "query": "zz-no-match"
+      },
+      "activeCategory": "suggested",
+      "categories": [
+        {
+          "key": "all",
+          "label": "All",
+          "count": 4
+        },
+        {
+          "key": "suggested",
+          "label": "Suggested",
+          "count": 1
+        },
+        {
+          "key": "blood",
+          "label": "Blood",
+          "count": 2
+        },
+        {
+          "key": "custom",
+          "label": "Custom",
+          "count": 1
+        },
+        {
+          "key": "other",
+          "label": "Other",
+          "count": 1
+        }
+      ],
+      "results": [],
+      "html": "<div class=\"modal-overlay import-map-modal-overlay\"><div class=\"modal import-marker-map-modal\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"import-map-modal-title\">\n    <div class=\"gb-modal-head import-map-modal-head\">\n      <div>\n        <div class=\"gb-modal-kicker\">Import mapping</div>\n        <div class=\"gb-modal-title\" id=\"import-map-modal-title\">Map to Existing Marker</div>\n      </div>\n      <button type=\"button\" class=\"modal-close\" data-import-map-action=\"close\" aria-label=\"Close mapping\">×</button>\n    </div>\n    <div class=\"import-map-modal-body\">\n      <div class=\"import-map-context\">\n        <span>Ferritin</span>\n        <strong> </strong>\n        \n      </div>\n      <label class=\"import-map-search-wrap\">\n        <span class=\"sr-only\">Search existing markers</span>\n        <input type=\"search\" class=\"import-map-modal-search\" placeholder=\"Search markers, categories, units\" autocomplete=\"off\">\n      </label>\n      <div class=\"import-map-modal-grid\">\n        <div class=\"import-map-categories\" aria-label=\"Marker categories\"><button type=\"button\" class=\"import-map-category\" data-import-map-category=\"all\">\n    <span>All</span><span>4</span>\n  </button><button type=\"button\" class=\"import-map-category active\" data-import-map-category=\"suggested\">\n    <span>Suggested</span><span>1</span>\n  </button><button type=\"button\" class=\"import-map-category\" data-import-map-category=\"blood\">\n    <span>Blood</span><span>2</span>\n  </button><button type=\"button\" class=\"import-map-category\" data-import-map-category=\"custom\">\n    <span>Custom</span><span>1</span>\n  </button><button type=\"button\" class=\"import-map-category\" data-import-map-category=\"other\">\n    <span>Other</span><span>1</span>\n  </button></div>\n        <div class=\"import-map-results\" aria-live=\"polite\"><div class=\"import-map-empty\">No markers match this search.</div></div>\n      </div>\n    </div>\n    <div class=\"import-map-modal-actions\">\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-import-map-action=\"clear\">Clear mapping</button>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-import-map-action=\"close\">Cancel</button>\n    </div>\n  </div></div>"
+    },
+    {
+      "kind": "import-map",
+      "name": "map-6",
+      "input": {
+        "marker": {
+          "rawName": "Unmatched"
+        },
+        "currentKey": "bulk.marker000",
+        "refLookup": {
+          "bulk.marker000": {
+            "name": "Marker 000",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker001": {
+            "name": "Marker 001",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker002": {
+            "name": "Marker 002",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker003": {
+            "name": "Marker 003",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker004": {
+            "name": "Marker 004",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker005": {
+            "name": "Marker 005",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker006": {
+            "name": "Marker 006",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker007": {
+            "name": "Marker 007",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker008": {
+            "name": "Marker 008",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker009": {
+            "name": "Marker 009",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker010": {
+            "name": "Marker 010",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker011": {
+            "name": "Marker 011",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker012": {
+            "name": "Marker 012",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker013": {
+            "name": "Marker 013",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker014": {
+            "name": "Marker 014",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker015": {
+            "name": "Marker 015",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker016": {
+            "name": "Marker 016",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker017": {
+            "name": "Marker 017",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker018": {
+            "name": "Marker 018",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker019": {
+            "name": "Marker 019",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker020": {
+            "name": "Marker 020",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker021": {
+            "name": "Marker 021",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker022": {
+            "name": "Marker 022",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker023": {
+            "name": "Marker 023",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker024": {
+            "name": "Marker 024",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker025": {
+            "name": "Marker 025",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker026": {
+            "name": "Marker 026",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker027": {
+            "name": "Marker 027",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker028": {
+            "name": "Marker 028",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker029": {
+            "name": "Marker 029",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker030": {
+            "name": "Marker 030",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker031": {
+            "name": "Marker 031",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker032": {
+            "name": "Marker 032",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker033": {
+            "name": "Marker 033",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker034": {
+            "name": "Marker 034",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker035": {
+            "name": "Marker 035",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker036": {
+            "name": "Marker 036",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker037": {
+            "name": "Marker 037",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker038": {
+            "name": "Marker 038",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker039": {
+            "name": "Marker 039",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker040": {
+            "name": "Marker 040",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker041": {
+            "name": "Marker 041",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker042": {
+            "name": "Marker 042",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker043": {
+            "name": "Marker 043",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker044": {
+            "name": "Marker 044",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker045": {
+            "name": "Marker 045",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker046": {
+            "name": "Marker 046",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker047": {
+            "name": "Marker 047",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker048": {
+            "name": "Marker 048",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker049": {
+            "name": "Marker 049",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker050": {
+            "name": "Marker 050",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker051": {
+            "name": "Marker 051",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker052": {
+            "name": "Marker 052",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker053": {
+            "name": "Marker 053",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker054": {
+            "name": "Marker 054",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker055": {
+            "name": "Marker 055",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker056": {
+            "name": "Marker 056",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker057": {
+            "name": "Marker 057",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker058": {
+            "name": "Marker 058",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker059": {
+            "name": "Marker 059",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker060": {
+            "name": "Marker 060",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker061": {
+            "name": "Marker 061",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker062": {
+            "name": "Marker 062",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker063": {
+            "name": "Marker 063",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker064": {
+            "name": "Marker 064",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker065": {
+            "name": "Marker 065",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker066": {
+            "name": "Marker 066",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker067": {
+            "name": "Marker 067",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker068": {
+            "name": "Marker 068",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker069": {
+            "name": "Marker 069",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker070": {
+            "name": "Marker 070",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker071": {
+            "name": "Marker 071",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker072": {
+            "name": "Marker 072",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker073": {
+            "name": "Marker 073",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker074": {
+            "name": "Marker 074",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker075": {
+            "name": "Marker 075",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker076": {
+            "name": "Marker 076",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker077": {
+            "name": "Marker 077",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker078": {
+            "name": "Marker 078",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker079": {
+            "name": "Marker 079",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker080": {
+            "name": "Marker 080",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker081": {
+            "name": "Marker 081",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker082": {
+            "name": "Marker 082",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker083": {
+            "name": "Marker 083",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker084": {
+            "name": "Marker 084",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker085": {
+            "name": "Marker 085",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker086": {
+            "name": "Marker 086",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker087": {
+            "name": "Marker 087",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker088": {
+            "name": "Marker 088",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker089": {
+            "name": "Marker 089",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker090": {
+            "name": "Marker 090",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker091": {
+            "name": "Marker 091",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker092": {
+            "name": "Marker 092",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker093": {
+            "name": "Marker 093",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker094": {
+            "name": "Marker 094",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker095": {
+            "name": "Marker 095",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker096": {
+            "name": "Marker 096",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker097": {
+            "name": "Marker 097",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker098": {
+            "name": "Marker 098",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker099": {
+            "name": "Marker 099",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker100": {
+            "name": "Marker 100",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker101": {
+            "name": "Marker 101",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker102": {
+            "name": "Marker 102",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker103": {
+            "name": "Marker 103",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker104": {
+            "name": "Marker 104",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker105": {
+            "name": "Marker 105",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker106": {
+            "name": "Marker 106",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker107": {
+            "name": "Marker 107",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker108": {
+            "name": "Marker 108",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker109": {
+            "name": "Marker 109",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker110": {
+            "name": "Marker 110",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker111": {
+            "name": "Marker 111",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker112": {
+            "name": "Marker 112",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker113": {
+            "name": "Marker 113",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker114": {
+            "name": "Marker 114",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker115": {
+            "name": "Marker 115",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker116": {
+            "name": "Marker 116",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker117": {
+            "name": "Marker 117",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker118": {
+            "name": "Marker 118",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker119": {
+            "name": "Marker 119",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker120": {
+            "name": "Marker 120",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker121": {
+            "name": "Marker 121",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker122": {
+            "name": "Marker 122",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker123": {
+            "name": "Marker 123",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          },
+          "bulk.marker124": {
+            "name": "Marker 124",
+            "unit": "",
+            "refMin": null,
+            "refMax": null
+          }
+        }
+      },
+      "activeCategory": "all",
+      "categories": [
+        {
+          "key": "all",
+          "label": "All",
+          "count": 125
+        },
+        {
+          "key": "bulk",
+          "label": "Bulk",
+          "count": 125
+        }
+      ],
+      "results": [
+        {
+          "key": "bulk.marker000",
+          "name": "Marker 000",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker000 marker 000 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker001",
+          "name": "Marker 001",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker001 marker 001 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker002",
+          "name": "Marker 002",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker002 marker 002 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker003",
+          "name": "Marker 003",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker003 marker 003 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker004",
+          "name": "Marker 004",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker004 marker 004 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker005",
+          "name": "Marker 005",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker005 marker 005 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker006",
+          "name": "Marker 006",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker006 marker 006 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker007",
+          "name": "Marker 007",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker007 marker 007 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker008",
+          "name": "Marker 008",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker008 marker 008 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker009",
+          "name": "Marker 009",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker009 marker 009 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker010",
+          "name": "Marker 010",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker010 marker 010 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker011",
+          "name": "Marker 011",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker011 marker 011 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker012",
+          "name": "Marker 012",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker012 marker 012 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker013",
+          "name": "Marker 013",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker013 marker 013 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker014",
+          "name": "Marker 014",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker014 marker 014 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker015",
+          "name": "Marker 015",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker015 marker 015 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker016",
+          "name": "Marker 016",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker016 marker 016 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker017",
+          "name": "Marker 017",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker017 marker 017 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker018",
+          "name": "Marker 018",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker018 marker 018 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker019",
+          "name": "Marker 019",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker019 marker 019 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker020",
+          "name": "Marker 020",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker020 marker 020 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker021",
+          "name": "Marker 021",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker021 marker 021 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker022",
+          "name": "Marker 022",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker022 marker 022 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker023",
+          "name": "Marker 023",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker023 marker 023 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker024",
+          "name": "Marker 024",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker024 marker 024 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker025",
+          "name": "Marker 025",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker025 marker 025 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker026",
+          "name": "Marker 026",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker026 marker 026 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker027",
+          "name": "Marker 027",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker027 marker 027 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker028",
+          "name": "Marker 028",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker028 marker 028 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker029",
+          "name": "Marker 029",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker029 marker 029 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker030",
+          "name": "Marker 030",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker030 marker 030 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker031",
+          "name": "Marker 031",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker031 marker 031 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker032",
+          "name": "Marker 032",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker032 marker 032 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker033",
+          "name": "Marker 033",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker033 marker 033 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker034",
+          "name": "Marker 034",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker034 marker 034 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker035",
+          "name": "Marker 035",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker035 marker 035 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker036",
+          "name": "Marker 036",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker036 marker 036 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker037",
+          "name": "Marker 037",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker037 marker 037 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker038",
+          "name": "Marker 038",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker038 marker 038 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker039",
+          "name": "Marker 039",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker039 marker 039 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker040",
+          "name": "Marker 040",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker040 marker 040 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker041",
+          "name": "Marker 041",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker041 marker 041 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker042",
+          "name": "Marker 042",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker042 marker 042 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker043",
+          "name": "Marker 043",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker043 marker 043 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker044",
+          "name": "Marker 044",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker044 marker 044 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker045",
+          "name": "Marker 045",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker045 marker 045 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker046",
+          "name": "Marker 046",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker046 marker 046 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker047",
+          "name": "Marker 047",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker047 marker 047 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker048",
+          "name": "Marker 048",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker048 marker 048 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker049",
+          "name": "Marker 049",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker049 marker 049 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker050",
+          "name": "Marker 050",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker050 marker 050 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker051",
+          "name": "Marker 051",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker051 marker 051 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker052",
+          "name": "Marker 052",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker052 marker 052 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker053",
+          "name": "Marker 053",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker053 marker 053 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker054",
+          "name": "Marker 054",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker054 marker 054 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker055",
+          "name": "Marker 055",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker055 marker 055 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker056",
+          "name": "Marker 056",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker056 marker 056 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker057",
+          "name": "Marker 057",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker057 marker 057 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker058",
+          "name": "Marker 058",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker058 marker 058 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker059",
+          "name": "Marker 059",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker059 marker 059 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker060",
+          "name": "Marker 060",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker060 marker 060 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker061",
+          "name": "Marker 061",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker061 marker 061 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker062",
+          "name": "Marker 062",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker062 marker 062 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker063",
+          "name": "Marker 063",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker063 marker 063 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker064",
+          "name": "Marker 064",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker064 marker 064 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker065",
+          "name": "Marker 065",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker065 marker 065 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker066",
+          "name": "Marker 066",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker066 marker 066 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker067",
+          "name": "Marker 067",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker067 marker 067 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker068",
+          "name": "Marker 068",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker068 marker 068 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker069",
+          "name": "Marker 069",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker069 marker 069 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker070",
+          "name": "Marker 070",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker070 marker 070 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker071",
+          "name": "Marker 071",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker071 marker 071 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker072",
+          "name": "Marker 072",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker072 marker 072 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker073",
+          "name": "Marker 073",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker073 marker 073 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker074",
+          "name": "Marker 074",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker074 marker 074 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker075",
+          "name": "Marker 075",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker075 marker 075 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker076",
+          "name": "Marker 076",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker076 marker 076 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker077",
+          "name": "Marker 077",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker077 marker 077 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker078",
+          "name": "Marker 078",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker078 marker 078 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker079",
+          "name": "Marker 079",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker079 marker 079 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker080",
+          "name": "Marker 080",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker080 marker 080 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker081",
+          "name": "Marker 081",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker081 marker 081 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker082",
+          "name": "Marker 082",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker082 marker 082 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker083",
+          "name": "Marker 083",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker083 marker 083 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker084",
+          "name": "Marker 084",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker084 marker 084 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker085",
+          "name": "Marker 085",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker085 marker 085 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker086",
+          "name": "Marker 086",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker086 marker 086 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker087",
+          "name": "Marker 087",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker087 marker 087 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker088",
+          "name": "Marker 088",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker088 marker 088 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker089",
+          "name": "Marker 089",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker089 marker 089 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker090",
+          "name": "Marker 090",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker090 marker 090 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker091",
+          "name": "Marker 091",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker091 marker 091 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker092",
+          "name": "Marker 092",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker092 marker 092 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker093",
+          "name": "Marker 093",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker093 marker 093 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker094",
+          "name": "Marker 094",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker094 marker 094 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker095",
+          "name": "Marker 095",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker095 marker 095 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker096",
+          "name": "Marker 096",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker096 marker 096 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker097",
+          "name": "Marker 097",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker097 marker 097 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker098",
+          "name": "Marker 098",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker098 marker 098 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker099",
+          "name": "Marker 099",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker099 marker 099 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker100",
+          "name": "Marker 100",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker100 marker 100 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker101",
+          "name": "Marker 101",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker101 marker 101 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker102",
+          "name": "Marker 102",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker102 marker 102 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker103",
+          "name": "Marker 103",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker103 marker 103 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker104",
+          "name": "Marker 104",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker104 marker 104 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker105",
+          "name": "Marker 105",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker105 marker 105 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker106",
+          "name": "Marker 106",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker106 marker 106 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker107",
+          "name": "Marker 107",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker107 marker 107 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker108",
+          "name": "Marker 108",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker108 marker 108 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker109",
+          "name": "Marker 109",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker109 marker 109 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker110",
+          "name": "Marker 110",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker110 marker 110 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker111",
+          "name": "Marker 111",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker111 marker 111 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker112",
+          "name": "Marker 112",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker112 marker 112 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker113",
+          "name": "Marker 113",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker113 marker 113 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker114",
+          "name": "Marker 114",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker114 marker 114 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker115",
+          "name": "Marker 115",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker115 marker 115 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker116",
+          "name": "Marker 116",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker116 marker 116 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker117",
+          "name": "Marker 117",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker117 marker 117 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker118",
+          "name": "Marker 118",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker118 marker 118 bulk",
+          "score": 0
+        },
+        {
+          "key": "bulk.marker119",
+          "name": "Marker 119",
+          "unit": "",
+          "range": "",
+          "categoryLabel": "Bulk",
+          "categoryKey": "bulk",
+          "units": [],
+          "searchText": "bulk marker119 marker 119 bulk",
+          "score": 0
+        }
+      ],
+      "html": "<div class=\"modal-overlay import-map-modal-overlay\"><div class=\"modal import-marker-map-modal\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"import-map-modal-title\">\n    <div class=\"gb-modal-head import-map-modal-head\">\n      <div>\n        <div class=\"gb-modal-kicker\">Import mapping</div>\n        <div class=\"gb-modal-title\" id=\"import-map-modal-title\">Map to Existing Marker</div>\n      </div>\n      <button type=\"button\" class=\"modal-close\" data-import-map-action=\"close\" aria-label=\"Close mapping\">×</button>\n    </div>\n    <div class=\"import-map-modal-body\">\n      <div class=\"import-map-context\">\n        <span>Unmatched</span>\n        <strong> </strong>\n        \n      </div>\n      <label class=\"import-map-search-wrap\">\n        <span class=\"sr-only\">Search existing markers</span>\n        <input type=\"search\" class=\"import-map-modal-search\" placeholder=\"Search markers, categories, units\" autocomplete=\"off\">\n      </label>\n      <div class=\"import-map-modal-grid\">\n        <div class=\"import-map-categories\" aria-label=\"Marker categories\"><button type=\"button\" class=\"import-map-category active\" data-import-map-category=\"all\">\n    <span>All</span><span>125</span>\n  </button><button type=\"button\" class=\"import-map-category\" data-import-map-category=\"bulk\">\n    <span>Bulk</span><span>125</span>\n  </button></div>\n        <div class=\"import-map-results\" aria-live=\"polite\"><button type=\"button\" class=\"import-map-result selected\" data-import-map-key=\"bulk.marker000\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 000</strong>\n        <code>bulk.marker000</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker001\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 001</strong>\n        <code>bulk.marker001</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker002\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 002</strong>\n        <code>bulk.marker002</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker003\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 003</strong>\n        <code>bulk.marker003</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker004\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 004</strong>\n        <code>bulk.marker004</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker005\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 005</strong>\n        <code>bulk.marker005</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker006\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 006</strong>\n        <code>bulk.marker006</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker007\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 007</strong>\n        <code>bulk.marker007</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker008\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 008</strong>\n        <code>bulk.marker008</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker009\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 009</strong>\n        <code>bulk.marker009</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker010\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 010</strong>\n        <code>bulk.marker010</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker011\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 011</strong>\n        <code>bulk.marker011</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker012\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 012</strong>\n        <code>bulk.marker012</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker013\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 013</strong>\n        <code>bulk.marker013</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker014\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 014</strong>\n        <code>bulk.marker014</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker015\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 015</strong>\n        <code>bulk.marker015</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker016\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 016</strong>\n        <code>bulk.marker016</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker017\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 017</strong>\n        <code>bulk.marker017</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker018\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 018</strong>\n        <code>bulk.marker018</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker019\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 019</strong>\n        <code>bulk.marker019</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker020\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 020</strong>\n        <code>bulk.marker020</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker021\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 021</strong>\n        <code>bulk.marker021</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker022\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 022</strong>\n        <code>bulk.marker022</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker023\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 023</strong>\n        <code>bulk.marker023</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker024\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 024</strong>\n        <code>bulk.marker024</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker025\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 025</strong>\n        <code>bulk.marker025</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker026\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 026</strong>\n        <code>bulk.marker026</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker027\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 027</strong>\n        <code>bulk.marker027</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker028\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 028</strong>\n        <code>bulk.marker028</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker029\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 029</strong>\n        <code>bulk.marker029</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker030\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 030</strong>\n        <code>bulk.marker030</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker031\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 031</strong>\n        <code>bulk.marker031</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker032\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 032</strong>\n        <code>bulk.marker032</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker033\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 033</strong>\n        <code>bulk.marker033</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker034\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 034</strong>\n        <code>bulk.marker034</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker035\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 035</strong>\n        <code>bulk.marker035</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker036\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 036</strong>\n        <code>bulk.marker036</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker037\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 037</strong>\n        <code>bulk.marker037</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker038\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 038</strong>\n        <code>bulk.marker038</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker039\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 039</strong>\n        <code>bulk.marker039</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker040\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 040</strong>\n        <code>bulk.marker040</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker041\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 041</strong>\n        <code>bulk.marker041</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker042\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 042</strong>\n        <code>bulk.marker042</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker043\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 043</strong>\n        <code>bulk.marker043</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker044\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 044</strong>\n        <code>bulk.marker044</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker045\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 045</strong>\n        <code>bulk.marker045</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker046\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 046</strong>\n        <code>bulk.marker046</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker047\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 047</strong>\n        <code>bulk.marker047</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker048\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 048</strong>\n        <code>bulk.marker048</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker049\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 049</strong>\n        <code>bulk.marker049</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker050\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 050</strong>\n        <code>bulk.marker050</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker051\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 051</strong>\n        <code>bulk.marker051</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker052\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 052</strong>\n        <code>bulk.marker052</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker053\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 053</strong>\n        <code>bulk.marker053</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker054\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 054</strong>\n        <code>bulk.marker054</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker055\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 055</strong>\n        <code>bulk.marker055</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker056\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 056</strong>\n        <code>bulk.marker056</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker057\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 057</strong>\n        <code>bulk.marker057</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker058\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 058</strong>\n        <code>bulk.marker058</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker059\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 059</strong>\n        <code>bulk.marker059</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker060\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 060</strong>\n        <code>bulk.marker060</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker061\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 061</strong>\n        <code>bulk.marker061</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker062\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 062</strong>\n        <code>bulk.marker062</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker063\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 063</strong>\n        <code>bulk.marker063</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker064\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 064</strong>\n        <code>bulk.marker064</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker065\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 065</strong>\n        <code>bulk.marker065</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker066\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 066</strong>\n        <code>bulk.marker066</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker067\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 067</strong>\n        <code>bulk.marker067</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker068\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 068</strong>\n        <code>bulk.marker068</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker069\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 069</strong>\n        <code>bulk.marker069</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker070\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 070</strong>\n        <code>bulk.marker070</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker071\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 071</strong>\n        <code>bulk.marker071</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker072\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 072</strong>\n        <code>bulk.marker072</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker073\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 073</strong>\n        <code>bulk.marker073</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker074\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 074</strong>\n        <code>bulk.marker074</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker075\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 075</strong>\n        <code>bulk.marker075</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker076\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 076</strong>\n        <code>bulk.marker076</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker077\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 077</strong>\n        <code>bulk.marker077</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker078\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 078</strong>\n        <code>bulk.marker078</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker079\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 079</strong>\n        <code>bulk.marker079</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker080\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 080</strong>\n        <code>bulk.marker080</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker081\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 081</strong>\n        <code>bulk.marker081</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker082\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 082</strong>\n        <code>bulk.marker082</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker083\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 083</strong>\n        <code>bulk.marker083</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker084\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 084</strong>\n        <code>bulk.marker084</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker085\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 085</strong>\n        <code>bulk.marker085</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker086\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 086</strong>\n        <code>bulk.marker086</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker087\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 087</strong>\n        <code>bulk.marker087</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker088\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 088</strong>\n        <code>bulk.marker088</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker089\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 089</strong>\n        <code>bulk.marker089</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker090\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 090</strong>\n        <code>bulk.marker090</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker091\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 091</strong>\n        <code>bulk.marker091</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker092\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 092</strong>\n        <code>bulk.marker092</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker093\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 093</strong>\n        <code>bulk.marker093</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker094\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 094</strong>\n        <code>bulk.marker094</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker095\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 095</strong>\n        <code>bulk.marker095</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker096\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 096</strong>\n        <code>bulk.marker096</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker097\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 097</strong>\n        <code>bulk.marker097</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker098\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 098</strong>\n        <code>bulk.marker098</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker099\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 099</strong>\n        <code>bulk.marker099</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker100\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 100</strong>\n        <code>bulk.marker100</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker101\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 101</strong>\n        <code>bulk.marker101</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker102\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 102</strong>\n        <code>bulk.marker102</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker103\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 103</strong>\n        <code>bulk.marker103</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker104\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 104</strong>\n        <code>bulk.marker104</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker105\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 105</strong>\n        <code>bulk.marker105</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker106\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 106</strong>\n        <code>bulk.marker106</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker107\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 107</strong>\n        <code>bulk.marker107</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker108\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 108</strong>\n        <code>bulk.marker108</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker109\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 109</strong>\n        <code>bulk.marker109</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker110\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 110</strong>\n        <code>bulk.marker110</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker111\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 111</strong>\n        <code>bulk.marker111</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker112\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 112</strong>\n        <code>bulk.marker112</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker113\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 113</strong>\n        <code>bulk.marker113</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker114\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 114</strong>\n        <code>bulk.marker114</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker115\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 115</strong>\n        <code>bulk.marker115</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker116\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 116</strong>\n        <code>bulk.marker116</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker117\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 117</strong>\n        <code>bulk.marker117</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker118\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 118</strong>\n        <code>bulk.marker118</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button><button type=\"button\" class=\"import-map-result\" data-import-map-key=\"bulk.marker119\">\n      <span class=\"import-map-result-main\">\n        <strong>Marker 119</strong>\n        <code>bulk.marker119</code>\n      </span>\n      <span class=\"import-map-result-meta\">\n        <span>Bulk</span>\n        <span>no unit</span>\n        \n      </span>\n    </button></div>\n      </div>\n    </div>\n    <div class=\"import-map-modal-actions\">\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-import-map-action=\"clear\">Clear mapping</button>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-import-map-action=\"close\">Cancel</button>\n    </div>\n  </div></div>"
+    }
+  ],
+  "styleBlocks": [
+    {
+      "file": "css/dashboard-widgets.base.css",
+      "selector": ".dashboard-widget-picker",
+      "css": ".dashboard-widget-picker {\n  width: min(94vw, 720px);\n  max-height: min(86vh, 760px);\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/dashboard-widgets.base.css",
+      "selector": ".dashboard-biometric-picker",
+      "css": ".dashboard-biometric-picker {\n  display: flex;\n  flex-direction: column;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/dashboard-widgets.base.css",
+      "selector": ".dashboard-biometric-picker .dashboard-widget-picker-section",
+      "css": ".dashboard-biometric-picker .dashboard-widget-picker-section {\n  min-height: 0;\n  flex: 1 1 auto;\n  display: flex;\n  flex-direction: column;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/dashboard-widgets.base.css",
+      "selector": ".dashboard-biometric-picker .dashboard-biometric-widget-grid",
+      "css": ".dashboard-biometric-picker .dashboard-biometric-widget-grid {\n  min-height: 0;\n  flex: 1 1 auto;\n  max-height: none;\n  overflow-y: auto;\n  overscroll-behavior: contain;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/dashboard-widgets.base.css",
+      "selector": ".dashboard-biometric-picker .dashboard-widget-picker-actions",
+      "css": ".dashboard-biometric-picker .dashboard-widget-picker-actions {\n  flex: 0 0 auto;\n  margin-top: 14px;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/dashboard-widgets.base.css",
+      "selector": ".dashboard-widget-picker-section",
+      "css": ".dashboard-widget-picker-section {\n  display: grid;\n  gap: 8px;\n  margin: 14px 0;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/dashboard-widgets.base.css",
+      "selector": ".dashboard-widget-picker-label",
+      "css": ".dashboard-widget-picker-label {\n  font-family: var(--font-mono);\n  font-size: 11px;\n  font-weight: 800;\n  color: var(--text-muted);\n  text-transform: uppercase;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/dashboard-widgets.base.css",
+      "selector": ".dashboard-widget-picker-search",
+      "css": ".dashboard-widget-picker-search {\n  width: 100%;\n  padding: 10px 12px;\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  background: var(--bg-card);\n  color: var(--text-primary);\n  font: inherit;\n  font-size: 13px;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/dashboard-widgets.base.css",
+      "selector": ".dashboard-widget-picker-search:focus",
+      "css": ".dashboard-widget-picker-search:focus {\n  outline: 2px solid var(--accent);\n  outline-offset: 2px;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/dashboard-widgets.base.css",
+      "selector": ".dashboard-widget-picker-grid",
+      "css": ".dashboard-widget-picker-grid {\n  display: grid; grid-template-columns: 1fr; gap: 10px; margin: 14px 0;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/dashboard-widgets.base.css",
+      "selector": ".dashboard-widget-picker-source",
+      "css": ".dashboard-widget-picker-source { display: grid; gap: 6px; }",
+      "atRules": []
+    },
+    {
+      "file": "css/dashboard-widgets.base.css",
+      "selector": ".dashboard-widget-picker-source .dashboard-widget-picker-grid",
+      "css": ".dashboard-widget-picker-source .dashboard-widget-picker-grid { margin: 0 0 12px; }",
+      "atRules": []
+    },
+    {
+      "file": "css/dashboard-widgets.base.css",
+      "selector": ".dashboard-marker-widget-grid,\n.dashboard-biometric-widget-grid",
+      "css": ".dashboard-marker-widget-grid,\n.dashboard-biometric-widget-grid {\n  max-height: 340px;\n  overflow: auto;\n  padding-right: 4px;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/dashboard-widgets.base.css",
+      "selector": ".dashboard-widget-picker-card",
+      "css": ".dashboard-widget-picker-card {\n  display: flex; flex-direction: column; align-items: flex-start; gap: 4px;\n  width: 100%; padding: 14px; border-radius: var(--radius);\n  background: var(--bg-card); border: 1px solid var(--border);\n  color: var(--text-primary); font: inherit; text-align: left; cursor: pointer;\n  transition: background 0.15s, border-color 0.15s;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/dashboard-widgets.base.css",
+      "selector": ".dashboard-widget-picker-card[hidden]",
+      "css": ".dashboard-widget-picker-card[hidden] { display: none; }",
+      "atRules": []
+    },
+    {
+      "file": "css/dashboard-widgets.base.css",
+      "selector": ".dashboard-widget-picker-card:hover",
+      "css": ".dashboard-widget-picker-card:hover { background: var(--bg-hover); border-color: var(--accent); }",
+      "atRules": []
+    },
+    {
+      "file": "css/dashboard-widgets.base.css",
+      "selector": ".dashboard-widget-picker-card:focus-visible",
+      "css": ".dashboard-widget-picker-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }",
+      "atRules": []
+    },
+    {
+      "file": "css/dashboard-widgets.base.css",
+      "selector": ".dashboard-widget-picker-title",
+      "css": ".dashboard-widget-picker-title { font-size: 14px; font-weight: 700; }",
+      "atRules": []
+    },
+    {
+      "file": "css/dashboard-widgets.base.css",
+      "selector": ".dashboard-widget-picker-sub",
+      "css": ".dashboard-widget-picker-sub { font-size: 12px; color: var(--text-muted); line-height: 1.4; }",
+      "atRules": []
+    },
+    {
+      "file": "css/dashboard-widgets.base.css",
+      "selector": ".dashboard-widget-picker-action",
+      "css": ".dashboard-widget-picker-action { margin-top: 4px; font-size: 12px; color: var(--accent); font-weight: 700; }",
+      "atRules": []
+    },
+    {
+      "file": "css/dashboard-widgets.base.css",
+      "selector": ".dashboard-widget-picker-empty",
+      "css": ".dashboard-widget-picker-empty {\n  padding: 14px; border: 1px dashed var(--border); border-radius: var(--radius);\n  color: var(--text-muted); font-size: 13px;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/import.css",
+      "selector": ".import-map-modal-overlay",
+      "css": ".import-map-modal-overlay {\n  z-index: 3300;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/import.css",
+      "selector": ".import-marker-map-modal",
+      "css": ".import-marker-map-modal {\n  width: min(960px, 94vw);\n  max-width: 960px;\n  padding: 0;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/import.css",
+      "selector": ".modal.import-marker-map-modal",
+      "css": ".modal.import-marker-map-modal {\n  width: min(960px, 94vw);\n  max-width: 960px;\n  padding: 0;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/import.css",
+      "selector": ".import-map-modal-body",
+      "css": ".import-map-modal-body {\n  display: grid;\n  gap: 12px;\n  padding: 16px;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/import.css",
+      "selector": ".import-map-context",
+      "css": ".import-map-context {\n  display: grid;\n  gap: 4px;\n  padding-bottom: 10px;\n  border-bottom: 1px solid var(--border);\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/import.css",
+      "selector": ".import-map-context span,\n.import-map-context small",
+      "css": ".import-map-context span,\n.import-map-context small {\n  color: var(--text-muted);\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/import.css",
+      "selector": ".import-map-context strong",
+      "css": ".import-map-context strong {\n  color: var(--text-primary);\n  font-family: var(--font-mono);\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/import.css",
+      "selector": ".import-map-search-wrap",
+      "css": ".import-map-search-wrap {\n  min-width: 0;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/import.css",
+      "selector": ".import-map-modal-search",
+      "css": ".import-map-modal-search {\n  width: 100%;\n  min-height: 38px;\n  padding: 8px 10px;\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  background: var(--bg-primary);\n  color: var(--text-primary);\n  font: inherit;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/import.css",
+      "selector": ".import-map-modal-search:focus",
+      "css": ".import-map-modal-search:focus {\n  border-color: var(--accent);\n  outline: none;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/import.css",
+      "selector": ".import-map-modal-grid",
+      "css": ".import-map-modal-grid {\n  display: grid;\n  grid-template-columns: minmax(160px, 220px) minmax(0, 1fr);\n  gap: 12px;\n  min-height: 420px;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/import.css",
+      "selector": ".import-map-categories,\n.import-map-results",
+      "css": ".import-map-categories,\n.import-map-results {\n  overflow: auto;\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  background: var(--bg-primary);\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/import.css",
+      "selector": ".import-map-categories",
+      "css": ".import-map-categories {\n  display: flex;\n  flex-direction: column;\n  padding: 6px;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/import.css",
+      "selector": ".import-map-category",
+      "css": ".import-map-category {\n  display: flex;\n  justify-content: space-between;\n  gap: 8px;\n  width: 100%;\n  padding: 9px 10px;\n  border: 0;\n  border-radius: var(--radius-sm);\n  background: transparent;\n  color: var(--text-secondary);\n  cursor: pointer;\n  font: inherit;\n  font-size: 12px;\n  text-align: left;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/import.css",
+      "selector": ".import-map-category.active,\n.import-map-category:hover,\n.import-map-category:focus",
+      "css": ".import-map-category.active,\n.import-map-category:hover,\n.import-map-category:focus {\n  background: var(--bg-hover);\n  color: var(--text-primary);\n  outline: none;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/import.css",
+      "selector": ".import-map-results",
+      "css": ".import-map-results {\n  display: grid;\n  align-content: start;\n  padding: 6px;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/import.css",
+      "selector": ".import-map-result",
+      "css": ".import-map-result {\n  display: grid;\n  gap: 6px;\n  width: 100%;\n  padding: 10px;\n  border: 0;\n  border-radius: var(--radius-sm);\n  background: transparent;\n  color: var(--text-primary);\n  cursor: pointer;\n  text-align: left;\n  font: inherit;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/import.css",
+      "selector": ".import-map-result:hover,\n.import-map-result:focus,\n.import-map-result.selected",
+      "css": ".import-map-result:hover,\n.import-map-result:focus,\n.import-map-result.selected {\n  background: color-mix(in srgb, var(--accent) 14%, var(--bg-card));\n  outline: none;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/import.css",
+      "selector": ".import-map-result-main",
+      "css": ".import-map-result-main {\n  display: flex;\n  align-items: baseline;\n  gap: 8px;\n  flex-wrap: wrap;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/import.css",
+      "selector": ".import-map-result-main code",
+      "css": ".import-map-result-main code {\n  color: var(--text-muted);\n  font-family: var(--font-mono);\n  font-size: 11px;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/import.css",
+      "selector": ".import-map-result-meta",
+      "css": ".import-map-result-meta {\n  display: flex;\n  flex-wrap: wrap;\n  gap: 6px;\n  color: var(--text-muted);\n  font-size: 11px;\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/import.css",
+      "selector": ".import-map-result-meta span",
+      "css": ".import-map-result-meta span {\n  padding: 2px 6px;\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/import.css",
+      "selector": ".import-map-empty",
+      "css": ".import-map-empty {\n  padding: 18px;\n  color: var(--text-muted);\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/import.css",
+      "selector": ".import-map-modal-actions",
+      "css": ".import-map-modal-actions {\n  display: flex;\n  justify-content: flex-end;\n  gap: 8px;\n  padding: 12px 16px 16px;\n  border-top: 1px solid var(--border);\n}",
+      "atRules": []
+    },
+    {
+      "file": "css/import.css",
+      "selector": ".import-marker-map-modal,\n  .modal.import-marker-map-modal",
+      "css": ".import-marker-map-modal,\n  .modal.import-marker-map-modal {\n    width: calc(100vw - 12px);\n    max-width: none;\n    padding: 0;\n  }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 768px)"
+        }
+      ]
+    },
+    {
+      "file": "css/import.css",
+      "selector": ".import-map-modal-body",
+      "css": ".import-map-modal-body {\n    padding: 12px;\n  }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 768px)"
+        }
+      ]
+    },
+    {
+      "file": "css/import.css",
+      "selector": ".import-map-modal-grid",
+      "css": ".import-map-modal-grid {\n    grid-template-columns: minmax(0, 1fr);\n    min-height: 0;\n  }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 768px)"
+        }
+      ]
+    },
+    {
+      "file": "css/import.css",
+      "selector": ".import-map-categories",
+      "css": ".import-map-categories {\n    max-height: 138px;\n  }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 768px)"
+        }
+      ]
+    },
+    {
+      "file": "css/import.css",
+      "selector": ".import-map-results",
+      "css": ".import-map-results {\n    max-height: 46vh;\n  }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 768px)"
+        }
+      ]
+    },
+    {
+      "file": "css/import.css",
+      "selector": ".import-map-result-main",
+      "css": ".import-map-result-main {\n    align-items: start;\n  }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 768px)"
+        }
+      ]
+    },
+    {
+      "file": "css/import.css",
+      "selector": ".import-map-modal-actions",
+      "css": ".import-map-modal-actions {\n    padding: 12px;\n    flex-wrap: wrap;\n  }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 768px)"
+        }
+      ]
+    },
+    {
+      "file": "css/import.css",
+      "selector": ".import-map-modal-actions .import-btn",
+      "css": ".import-map-modal-actions .import-btn {\n    flex: 1 1 140px;\n  }",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width: 768px)"
+        }
+      ]
+    }
+  ],
+  "captureBoundary": "Original renderer/controller functions evaluated exclusively from hash-verified Git baseline. Dashboard domain option facts controlled at unchanged presentation boundary; import original scoring/category/filter/order/cap derive rendered states. Shared helper/domain sources must remain byte identical to baseline. No migrated source recapture."
+}

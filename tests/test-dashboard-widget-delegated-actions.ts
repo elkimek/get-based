@@ -5,6 +5,8 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Static dashboard widget delegated-action source guards.
 
 const controlsSrc = readRepositorySource('js/dashboard-widget-controls.js', 'utf8');
+const pickerSrc = readRepositorySource('js/components/DashboardPickerPresentation.svelte', 'utf8');
+const pickerModelSrc = readRepositorySource('js/dashboard-picker-presentation.js', 'utf8');
 const runtimeSrc = readRepositorySource('js/dashboard-widget-runtime.js', 'utf8');
 const compositionSrc = readRepositorySource('js/dashboard-view-composition.js', 'utf8');
 const renderersSrc = readRepositorySource('js/dashboard-widget-renderers.js', 'utf8');
@@ -21,7 +23,7 @@ const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
 console.log('=== Dashboard Widget Delegated Actions ===');
 
 assert('dashboard widget controls render no inline event attributes',
-  !/\bon(?:click|input|dragstart|dragover|drop)=/.test(controlsSrc));
+  !/\bon(?:click|input|dragstart|dragover|drop)=/.test(controlsSrc + pickerSrc));
 assert('dashboard widget controls import runtime adapter',
   controlsSrc.includes("from './dashboard-widget-runtime.js'"));
 assert('dashboard widget runtime owns shell callbacks and explicit note actions',
@@ -49,12 +51,15 @@ assert('dashboard widget controls render delegated action attributes',
     controlsSrc.includes("dashboardWidgetActionAttrs('open-picker'") &&
     controlsSrc.includes("dashboardWidgetActionAttrs('move-widget'") &&
     controlsSrc.includes("dashboardWidgetActionAttrs('hide-widget'") &&
-    controlsSrc.includes("dashboardWidgetActionAttrs('show-widget'"));
+    pickerModelSrc.includes("action: 'show-widget'") &&
+    pickerSrc.includes('data-dashboard-widget-action={option.action}') &&
+    pickerSrc.includes('data-dashboard-widget-id={option.id}') &&
+    controlsSrc.includes('renderDashboardPickerPresentation({'));
 assert('dashboard widget controls render delegated picker inputs',
   controlsSrc.includes('function dashboardWidgetInputAttrs') &&
     controlsSrc.includes('data-dashboard-widget-input=') &&
-    controlsSrc.includes("dashboardWidgetInputAttrs('filter-biometric-picker')") &&
-    controlsSrc.includes("dashboardWidgetInputAttrs('filter-marker-picker')"));
+    pickerSrc.includes('data-dashboard-widget-input="filter-biometric-picker"') &&
+    pickerSrc.includes('data-dashboard-widget-input="filter-marker-picker"'));
 assert('dashboard widget controls render delegated drag/drop attributes',
   controlsSrc.includes('function dashboardWidgetDragAttrs') &&
     controlsSrc.includes('data-dashboard-widget-drag-id') &&

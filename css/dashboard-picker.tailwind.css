@@ -1,0 +1,10 @@
+/* Only the authored Dashboard and biometric picker dialogs own these utilities. */
+@import "tailwindcss/theme.css" layer(gb-theme) prefix(gb);
+@import "tailwindcss/utilities.css" prefix(gb) source(none);
+@import "./ui-tokens.tailwind.css";
+/* Single-class rules stay at 0,1,0; original compound overrides stay at 0,2,0. */
+@custom-variant picker-ui (&:where([data-dashboard-picker-view], [data-dashboard-picker-view] *));
+@custom-variant picker-compound (&:is([data-dashboard-picker-view], [data-dashboard-picker-view] *));
+@custom-variant picker-hover (&:hover);
+@source "../js/dashboard-picker-classes.ts";
+@source "../js/components/DashboardPickerPresentation.svelte";

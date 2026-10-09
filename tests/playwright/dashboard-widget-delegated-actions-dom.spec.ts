@@ -1,6 +1,8 @@
 import { expect, test } from './coverage-fixture.js';
 
 test('dashboard widget delegated actions cover organize, picker, biometrics, and body actions', async ({ page }) => {
+  // These contracts exercise desktop sticky controls and the desktop organizing grid.
+  await page.setViewportSize({width: 1280, height: 720});
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForFunction(async () => {
     const { state } = await import('/js/state.js');
@@ -257,6 +259,8 @@ test('dashboard widget delegated actions cover organize, picker, biometrics, and
 });
 
 test('dashboard widget state transitions cover layout, recommendations, and picker branches', async ({ page }) => {
+  // These contracts exercise desktop sticky controls and the desktop organizing grid.
+  await page.setViewportSize({width: 1280, height: 720});
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForFunction(async () => {
     const { state } = await import('/js/state.js');

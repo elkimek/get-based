@@ -194,6 +194,22 @@ Dashboard buttons and source-picker rules retain other active owners. Remaining
 lens body renderer contracts and recommendation list templates migrate with their
 respective feature owners.
 
+Dashboard widget and biometric picker content is projected by
+`dashboard-picker-presentation.ts` and authored by `DashboardPickerPresentation.svelte`.
+The controls owner retains option calculations, filtering, preference writes,
+viewport insertion, action delegates and the shared modal lifecycle. Literal card
+copy and grouped source order remain explicit in the typed view. Scoped utilities
+compile into the existing `dashboard-widgets.css` URL. Body source cards retain
+independently authored utilities after shared native picker rules are retired.
+
+Import marker mapping is authored by `ImportMarkerMapPresentation.svelte`,
+`ImportMarkerMapCategories.svelte` and `ImportMarkerMapResults.svelte`, using literal
+views from `import-marker-map-presentation.ts`. The existing controller owns
+normalization, scoring, category counts and ordering, search precedence, the
+120-result limit, selection callbacks and nested modal focus/scroll ownership.
+`import.base.css` retains other import styles; picker utilities compile into the
+stable lazy `import.css` URL. No additional import or rendering backend is required.
+
 Report setup is projected by `report-builder-presentation.ts` and authored by
 `ReportBuilderPresentation.svelte`, `ReportBuilderSetup.svelte`,
 `ReportBuilderSections.svelte` and `ReportBuilderAI.svelte`. Literal note text and

@@ -56,8 +56,8 @@ const classes: Record<string, string> = {
   'dashboard-widget-picker-card': styles(
     'gb:lens-content:[display:flex] gb:lens-content:[flex-direction:column] gb:lens-content:[align-items:flex-start] gb:lens-content:[gap:4px]',
     'gb:lens-content:[width:100%] gb:lens-content:[padding:14px] gb:lens-content:[border-radius:var(--radius)] gb:lens-content:[background:var(--bg-card)]',
-    'gb:lens-content:[border:1px_solid_var(--border)] gb:lens-content:[color:var(--text-primary)] gb:lens-content:[font-family:inherit] gb:lens-content:[font-style:inherit] gb:lens-content:[line-height:inherit] gb:lens-content:[text-align:left] gb:lens-content:[cursor:pointer]',
-    'gb:lens-content:[transition:background_0.15s,border-color_0.15s] gb:lens-content:hover:[background:var(--bg-hover)] gb:lens-content:hover:[border-color:var(--accent)]',
+    'gb:lens-content:[border:1px_solid_var(--border)] gb:lens-content:[color:var(--text-primary)] gb:lens-content:[font:inherit] gb:lens-content:[text-align:left] gb:lens-content:[cursor:pointer]',
+    'gb:lens-content:[transition:background_0.15s,border-color_0.15s] gb:lens-content:lens-content-hover:[background:var(--bg-hover)] gb:lens-content:lens-content-hover:[border-color:var(--accent)]',
     'gb:lens-content:focus-visible:[outline:2px_solid_var(--accent)] gb:lens-content:focus-visible:[outline-offset:2px]',
   ),
   'dashboard-widget-picker-title': 'gb:lens-content:[font-size:14px] gb:lens-content:[font-weight:700]',

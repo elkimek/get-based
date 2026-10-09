@@ -112,3 +112,7 @@
 @source "../js/components/GenomeImportDetails.svelte";
 @source "../js/components/BodySources.svelte";
 @source "../js/components/LensPageContent.svelte";
+
+/* Dashboard widget and biometric picker utilities share the stable dashboard URL. */
+@import "./dashboard-picker.tailwind.css";
+@custom-variant lens-content-hover (&:hover);

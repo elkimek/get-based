@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1423 |
-| Internal import edges | 4785 |
+| Modules | 1431 |
+| Internal import edges | 4796 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -65,7 +65,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.ts`](js/utils.ts) | 260 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
+| [`js/utils.ts`](js/utils.ts) | 259 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
 | [`js/state.ts`](js/state.ts) | 245 | [`js/chat-send.ts`](js/chat-send.ts) | 38 |
 | [`js/caught-error.ts`](js/caught-error.ts) | 93 | [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) | 36 |
 | [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts) | 84 | [`js/settings.ts`](js/settings.ts) | 35 |
@@ -1269,18 +1269,26 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>dashboard</code> family — 10 modules</summary>
+<details><summary><code>dashboard</code> family — 12 modules</summary>
 
 - [`js/dashboard-lab-widget-renderers.ts`](js/dashboard-lab-widget-renderers.ts) → [`js/dashboard-widget-controls.ts`](js/dashboard-widget-controls.ts), [`js/dashboard-widget-runtime.ts`](js/dashboard-widget-runtime.ts), [`js/data.ts`](js/data.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/profile-context.ts`](js/profile-context.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/dashboard-page-view.ts`](js/dashboard-page-view.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/api.ts`](js/api.ts), [`js/chat-backend-selection.ts`](js/chat-backend-selection.ts), [`js/commit-hash.ts`](js/commit-hash.ts), [`js/dashboard-widget-packing.ts`](js/dashboard-widget-packing.ts) *(dynamic)*, [`js/data.ts`](js/data.ts), [`js/export-loader.ts`](js/export-loader.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/mobile-dashboard.ts`](js/mobile-dashboard.ts), [`js/profile.ts`](js/profile.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/state.ts`](js/state.ts), [`js/tour.ts`](js/tour.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/dashboard-picker-classes.ts`](js/dashboard-picker-classes.ts) → no in-scope imports
+- [`js/dashboard-picker-presentation.ts`](js/dashboard-picker-presentation.ts) → [`js/dashboard-widgets.ts`](js/dashboard-widgets.ts)
 - [`js/dashboard-recommendation-widget.ts`](js/dashboard-recommendation-widget.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/biology-scores.ts`](js/biology-scores.ts), [`js/data.ts`](js/data.ts), [`js/light-sun-loader.ts`](js/light-sun-loader.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/profile.ts`](js/profile.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/dashboard-view-composition.ts`](js/dashboard-view-composition.ts) → [`js/chat-loader.ts`](js/chat-loader.ts), [`js/commit-hash.ts`](js/commit-hash.ts), [`js/dashboard-page-view.ts`](js/dashboard-page-view.ts), [`js/dashboard-widget-controls.ts`](js/dashboard-widget-controls.ts), [`js/dashboard-widget-renderers.ts`](js/dashboard-widget-renderers.ts), [`js/dashboard-widgets.ts`](js/dashboard-widgets.ts), [`js/data.ts`](js/data.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/import-drop-zone.ts`](js/import-drop-zone.ts), [`js/lens-page-shell.ts`](js/lens-page-shell.ts), [`js/light-sun-loader.ts`](js/light-sun-loader.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/marker-detail-modal.ts`](js/marker-detail-modal.ts), [`js/marker-detail-runtime.ts`](js/marker-detail-runtime.ts), [`js/mobile-dashboard.ts`](js/mobile-dashboard.ts), [`js/nav.ts`](js/nav.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/state.ts`](js/state.ts), [`js/views-router-runtime.ts`](js/views-router-runtime.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts)
-- [`js/dashboard-widget-controls.ts`](js/dashboard-widget-controls.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/dashboard-widget-copy.ts`](js/dashboard-widget-copy.ts), [`js/dashboard-widget-runtime.ts`](js/dashboard-widget-runtime.ts), [`js/dashboard-widgets.ts`](js/dashboard-widgets.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/dashboard-widget-controls.ts`](js/dashboard-widget-controls.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/components/DashboardPickerPresentation.svelte`](js/components/DashboardPickerPresentation.svelte), [`js/dashboard-picker-presentation.ts`](js/dashboard-picker-presentation.ts), [`js/dashboard-widget-copy.ts`](js/dashboard-widget-copy.ts), [`js/dashboard-widget-runtime.ts`](js/dashboard-widget-runtime.ts), [`js/dashboard-widgets.ts`](js/dashboard-widgets.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/dashboard-widget-copy.ts`](js/dashboard-widget-copy.ts) → no in-scope imports
 - [`js/dashboard-widget-packing.ts`](js/dashboard-widget-packing.ts) → no in-scope imports
 - [`js/dashboard-widget-renderers.ts`](js/dashboard-widget-renderers.ts) → [`js/biology-scores.ts`](js/biology-scores.ts), [`js/components/LightReviewAI.svelte`](js/components/LightReviewAI.svelte), [`js/dashboard-lab-widget-renderers.ts`](js/dashboard-lab-widget-renderers.ts), [`js/dashboard-recommendation-widget.ts`](js/dashboard-recommendation-widget.ts), [`js/dashboard-widget-controls.ts`](js/dashboard-widget-controls.ts), [`js/dashboard-widget-runtime.ts`](js/dashboard-widget-runtime.ts), [`js/dashboard-widgets.ts`](js/dashboard-widgets.ts), [`js/dna-runtime-bridge.ts`](js/dna-runtime-bridge.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts), [`js/wearables-formatters.ts`](js/wearables-formatters.ts)
 - [`js/dashboard-widget-runtime.ts`](js/dashboard-widget-runtime.ts) → [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/dna-runtime-bridge.ts`](js/dna-runtime-bridge.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/state.ts`](js/state.ts), [`js/wearables-runtime.ts`](js/wearables-runtime.ts)
 - [`js/dashboard-widgets.ts`](js/dashboard-widgets.ts) → [`js/biology-scores.ts`](js/biology-scores.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+
+</details>
+
+<details><summary><code>DashboardPickerPresentation.svelte</code> family — 1 module</summary>
+
+- [`js/components/DashboardPickerPresentation.svelte`](js/components/DashboardPickerPresentation.svelte) → [`js/dashboard-picker-classes.ts`](js/dashboard-picker-classes.ts)
 
 </details>
 
@@ -1503,7 +1511,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>import</code> family — 18 modules</summary>
+<details><summary><code>import</code> family — 20 modules</summary>
 
 - [`js/import-benchmark-classes.ts`](js/import-benchmark-classes.ts) → no in-scope imports
 - [`js/import-benchmark-component.ts`](js/import-benchmark-component.ts) → [`js/components/ImportBenchmarkEntry.svelte`](js/components/ImportBenchmarkEntry.svelte), [`js/components/ImportBenchmarks.svelte`](js/components/ImportBenchmarks.svelte)
@@ -1519,7 +1527,9 @@ Native browser modules shipped with the static application.
 - [`js/import-drop-zone.ts`](js/import-drop-zone.ts) → [`js/import-drop-zone-runtime.ts`](js/import-drop-zone-runtime.ts), [`js/import-loader.ts`](js/import-loader.ts), [`js/pdf-import-progress.ts`](js/pdf-import-progress.ts), [`js/state.ts`](js/state.ts)
 - [`js/import-file-input.ts`](js/import-file-input.ts) → [`js/import-drop-zone-runtime.ts`](js/import-drop-zone-runtime.ts), [`js/import-loader.ts`](js/import-loader.ts), [`js/pdf-import-progress.ts`](js/pdf-import-progress.ts), [`js/state.ts`](js/state.ts)
 - [`js/import-loader.ts`](js/import-loader.ts) → [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/import-review-draft.ts`](js/import-review-draft.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/pdf-import-review.ts`](js/pdf-import-review.ts) *(dynamic)*, [`js/pdf-import.ts`](js/pdf-import.ts) *(dynamic)*
-- [`js/import-marker-map-modal.ts`](js/import-marker-map-modal.ts) → [`js/adapters.ts`](js/adapters.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/pdf-import-marker-mapping.ts`](js/pdf-import-marker-mapping.ts), [`js/schema.ts`](js/schema.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/import-marker-map-classes.ts`](js/import-marker-map-classes.ts) → no in-scope imports
+- [`js/import-marker-map-modal.ts`](js/import-marker-map-modal.ts) → [`js/adapters.ts`](js/adapters.ts), [`js/components/ImportMarkerMapCategories.svelte`](js/components/ImportMarkerMapCategories.svelte), [`js/components/ImportMarkerMapPresentation.svelte`](js/components/ImportMarkerMapPresentation.svelte), [`js/components/ImportMarkerMapResults.svelte`](js/components/ImportMarkerMapResults.svelte), [`js/import-marker-map-classes.ts`](js/import-marker-map-classes.ts), [`js/import-marker-map-presentation.ts`](js/import-marker-map-presentation.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/pdf-import-marker-mapping.ts`](js/pdf-import-marker-mapping.ts), [`js/schema.ts`](js/schema.ts)
+- [`js/import-marker-map-presentation.ts`](js/import-marker-map-presentation.ts) → no in-scope imports
 - [`js/import-reference-benchmark.ts`](js/import-reference-benchmark.ts) → [`js/api.ts`](js/api.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/import-benchmarks.ts`](js/import-benchmarks.ts), [`js/import-loader.ts`](js/import-loader.ts), [`js/pdf-import-ai-utils.ts`](js/pdf-import-ai-utils.ts), [`js/pdf-import-marker-mapping.ts`](js/pdf-import-marker-mapping.ts), [`js/schema.ts`](js/schema.ts)
 - [`js/import-review-draft.ts`](js/import-review-draft.ts) → no in-scope imports
 - [`js/import-review-row-actions.ts`](js/import-review-row-actions.ts) → [`js/utils.ts`](js/utils.ts)
@@ -1535,6 +1545,24 @@ Native browser modules shipped with the static application.
 <details><summary><code>ImportBenchmarks.svelte</code> family — 1 module</summary>
 
 - [`js/components/ImportBenchmarks.svelte`](js/components/ImportBenchmarks.svelte) → [`js/import-benchmark-classes.ts`](js/import-benchmark-classes.ts)
+
+</details>
+
+<details><summary><code>ImportMarkerMapCategories.svelte</code> family — 1 module</summary>
+
+- [`js/components/ImportMarkerMapCategories.svelte`](js/components/ImportMarkerMapCategories.svelte) → [`js/import-marker-map-classes.ts`](js/import-marker-map-classes.ts)
+
+</details>
+
+<details><summary><code>ImportMarkerMapPresentation.svelte</code> family — 1 module</summary>
+
+- [`js/components/ImportMarkerMapPresentation.svelte`](js/components/ImportMarkerMapPresentation.svelte) → [`js/import-marker-map-classes.ts`](js/import-marker-map-classes.ts)
+
+</details>
+
+<details><summary><code>ImportMarkerMapResults.svelte</code> family — 1 module</summary>
+
+- [`js/components/ImportMarkerMapResults.svelte`](js/components/ImportMarkerMapResults.svelte) → [`js/import-marker-map-classes.ts`](js/import-marker-map-classes.ts)
 
 </details>
 

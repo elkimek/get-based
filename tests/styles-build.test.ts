@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import postcss from 'postcss';
-import { buildStyles, buildProtectionStyles, buildChatStyles, buildAppShellStyles, buildModalStyles } from '../scripts/build-styles.mjs';
+import { buildStyles, buildProtectionStyles, buildChatStyles, buildAppShellStyles, buildModalStyles, buildImportStyles } from '../scripts/build-styles.mjs';
 
 let directory: string;
 let outputPath: string;
@@ -142,4 +142,38 @@ it('keeps app-shell and modal runtime URLs with owned utilities and no reset', a
     await expect(build({outputPath, check: true})).rejects.toThrow('CSS is stale');
     expect(await fs.readFile(outputPath, 'utf8')).toBe(source + '/* stale */');
   }
+});
+
+
+it('retains shared import styles, scopes marker mapping and rejects stale lazy CSS', async () => {
+  const outputPath = path.join(directory, 'import.css');
+  await buildImportStyles({outputPath});
+  const source = await fs.readFile(outputPath, 'utf8');
+  const base = (await fs.readFile('css/import.base.css', 'utf8')).trimEnd();
+  expect(source).toContain(base);
+  expect(base).not.toContain('.import-marker-map-modal');
+  expect(base).toContain('.import-preview-modal');
+  const utilities = source.slice(source.indexOf(base) + base.length);
+  const selectors: string[] = [];
+  let hoverRules = 0;
+  postcss.parse(utilities).walkRules(rule => {
+    selectors.push(...rule.selectors);
+    if (!rule.selector.includes('import-map-hover')) return;
+    hoverRules++;
+    expect(rule.selector).toContain(':hover');
+    for (let parent: postcss.Rule['parent'] | postcss.Document = rule.parent; parent; parent = parent.parent) {
+      if (parent.type === 'atrule' && parent.name === 'media') expect(parent.params).not.toMatch(/\(hover:\s*hover\)/);
+    }
+  });
+  const owned = selectors.filter(selector => selector.includes('.gb\\:import-map'));
+  expect(owned.length).toBeGreaterThan(40);
+  expect(owned.every(selector => selector.includes('[data-import-marker-map-view]'))).toBe(true);
+  expect(selectors).not.toContain('body');
+  expect(utilities).not.toContain('button,input,optgroup,select,textarea');
+  expect(utilities).toContain('768px');
+  expect(hoverRules).toBeGreaterThan(0);
+  await buildImportStyles({outputPath, check: true});
+  await fs.writeFile(outputPath, source + '/* stale */');
+  await expect(buildImportStyles({outputPath, check: true})).rejects.toThrow('Import CSS is stale');
+  expect(await fs.readFile(outputPath, 'utf8')).toBe(source + '/* stale */');
 });

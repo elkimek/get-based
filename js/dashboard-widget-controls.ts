@@ -1,9 +1,11 @@
 // dashboard-widget-controls.js - dashboard widget controls, picker, and layout actions
 
-import { DASHBOARD_WIDGET_SOURCE_ORDER, dashboardBiometricSelectionKey } from './dashboard-widgets.js';
+import { dashboardBiometricSelectionKey } from './dashboard-widgets.js';
 import { getWidgetHeaderDescription } from './dashboard-widget-copy.js';
 import { escapeAttr, escapeHTML, formatValue, getStatus, safeMarkerId, showNotification } from './utils.js';
 import { actionAttributes } from './action-attributes.js';
+import {projectDashboardPickerPresentation} from './dashboard-picker-presentation.js';
+import {renderHTML as renderDashboardPickerPresentation} from './components/DashboardPickerPresentation.svelte.html.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import {
   askDashboardAIAboutSnp,
@@ -19,7 +21,7 @@ import {
   triggerDashboardDnaPicker,
 } from './dashboard-widget-runtime.js';
 
-import type {ControlsDependencies, ControlsPreferences, ControlsWidget, ControlsMarkerOption, ControlsBiometricOption, ControlsEventReader, ControlsFixedGroups} from '../types/dashboard-widget-controls.js';
+import type {ControlsDependencies, ControlsPreferences, ControlsWidget, ControlsMarkerOption, ControlsBiometricOption, ControlsEventReader} from '../types/dashboard-widget-controls.js';
 
 const DASHBOARD_WIDGET_KEYBOARD_ACTIONS = new Set([
   'open-biometric-manual-log',
@@ -189,49 +191,6 @@ export function createDashboardWidgetControls(deps: unknown) {
       });
     }
     return options;
-  }
-
-  function renderDashboardMarkerWidgetOption(option: ControlsMarkerOption) {
-    const searchText = `${option.name} ${option.category} ${option.value} ${option.unit}`.toLowerCase();
-    return `<button type="button" class="dashboard-widget-picker-card dashboard-marker-widget-option" data-marker-search="${escapeAttr(searchText)}" ${dashboardWidgetActionAttrs('add-marker-widget', { id: option.id })}>
-      <span class="dashboard-widget-picker-title">${escapeHTML(option.name)}</span>
-      <span class="dashboard-widget-picker-sub">${escapeHTML(option.category)} · ${escapeHTML(option.value)}${option.unit ? ` ${escapeHTML(option.unit)}` : ''}</span>
-      <span class="dashboard-widget-picker-action">Add marker widget</span>
-    </button>`;
-  }
-
-  function renderDashboardBiometricWidgetOption(option: ControlsBiometricOption) {
-    const searchText = `${option.label} ${option.sub} ${option.value} ${option.unit} ${option.change}`.toLowerCase();
-    return `<button type="button" class="dashboard-widget-picker-card dashboard-biometric-widget-option" data-biometric-search="${escapeAttr(searchText)}" ${dashboardWidgetActionAttrs('add-biometric-metric', { id: option.id })}>
-      <span class="dashboard-widget-picker-title">${escapeHTML(option.label)}${option.sub ? ` <small>${escapeHTML(option.sub)}</small>` : ''}</span>
-      <span class="dashboard-widget-picker-sub">${escapeHTML(option.value)}${option.unit ? ` ${escapeHTML(option.unit)}` : ''} · ${escapeHTML(option.change || 'latest')}</span>
-      <span class="dashboard-widget-picker-action">Add to Biometrics Overview</span>
-    </button>`;
-  }
-
-  function renderDashboardPickerFixedGroups(hidden: ControlsWidget[]) {
-    if (!hidden.length) return `<div class="dashboard-widget-picker-empty">All dashboard widgets are visible.</div>`;
-    const groups = new Map() as ControlsFixedGroups;
-    for (const def of hidden) {
-      const source = def.source || 'Other';
-      if (!groups.has(source)) groups.set(source, []);
-      groups.get(source).push(def);
-    }
-    const orderedSources = [
-      ...DASHBOARD_WIDGET_SOURCE_ORDER,
-      ...[...groups.keys()].filter(source => !(DASHBOARD_WIDGET_SOURCE_ORDER as readonly unknown[]).includes(source)).sort(),
-    ];
-    return orderedSources
-      .filter(source => groups.has(source))
-      .map(source => `<div class="dashboard-widget-picker-source">
-        <div class="dashboard-widget-picker-label">${escapeHTML(source)}</div>
-        <div class="dashboard-widget-picker-grid">${groups.get(source).map(def => `<button type="button" class="dashboard-widget-picker-card" ${dashboardWidgetActionAttrs('show-widget', { id: def.id })}>
-          <span class="dashboard-widget-picker-title">${escapeHTML(def.title)}</span>
-          <span class="dashboard-widget-picker-sub">${escapeHTML(def.description || '')}</span>
-          <span class="dashboard-widget-picker-action">Add dashboard widget</span>
-        </button>`).join('')}</div>
-      </div>`)
-      .join('');
   }
 
   function filterDashboardPickerOptions(selector: string, dataAttr: string, emptyId: string, query: unknown = '') {
@@ -523,58 +482,19 @@ export function createDashboardWidgetControls(deps: unknown) {
     closeDashboardWidgetPicker();
     const prefs = getDashboardWidgetPrefs();
     const hidden = getAvailableDashboardFixedWidgets().filter(def => prefs.hidden.includes(def.id));
-    const hiddenList = renderDashboardPickerFixedGroups(hidden);
     const biometricOptions = getDashboardBiometricWidgetOptions();
-    const biometricList = biometricOptions.length ? biometricOptions.map(renderDashboardBiometricWidgetOption).join('') : '';
     const markerOptions = getDashboardMarkerWidgetOptions(getActiveData(), prefs);
-    const markerList = markerOptions.length ? markerOptions.map(renderDashboardMarkerWidgetOption).join('') : '';
-    openDashboardWidgetPickerOverlay(`<div class="modal-overlay" id="dashboard-widget-picker-overlay" data-dashboard-widget-overlay>
-      <div class="modal dashboard-widget-picker" role="dialog" aria-modal="true" aria-labelledby="dashboard-widget-picker-title">
-        <button class="modal-close" aria-label="Close" ${dashboardWidgetActionAttrs('close-picker')}>&times;</button>
-        <h3 id="dashboard-widget-picker-title">Add dashboard widget</h3>
-        <div class="dashboard-widget-picker-section">
-          <div class="dashboard-widget-picker-label">Lens and tool widgets</div>
-          <div class="dashboard-widget-picker-grid">${hiddenList}</div>
-        </div>
-        <div class="dashboard-widget-picker-section">
-          <label class="dashboard-widget-picker-label" for="dashboard-biometric-widget-search">Body / Biometrics Overview metrics</label>
-          <input id="dashboard-biometric-widget-search" class="dashboard-widget-picker-search" type="search" placeholder="Search biometrics to add" ${dashboardWidgetInputAttrs('filter-biometric-picker')}>
-          <div class="dashboard-widget-picker-grid dashboard-biometric-widget-grid">${biometricList}</div>
-          <div class="dashboard-widget-picker-empty" id="dashboard-biometric-widget-empty" ${biometricOptions.length ? 'hidden' : ''}>All available biometrics are already in the overview.</div>
-        </div>
-        <div class="dashboard-widget-picker-section">
-          <label class="dashboard-widget-picker-label" for="dashboard-marker-widget-search">Labs / Single marker widgets</label>
-          <input id="dashboard-marker-widget-search" class="dashboard-widget-picker-search" type="search" placeholder="Search markers" ${dashboardWidgetInputAttrs('filter-marker-picker')}>
-          <div class="dashboard-widget-picker-grid dashboard-marker-widget-grid">${markerList}</div>
-          <div class="dashboard-widget-picker-empty" id="dashboard-marker-widget-empty" ${markerOptions.length ? 'hidden' : ''}>No available markers to add.</div>
-        </div>
-        <div class="dashboard-widget-picker-actions">
-          <button type="button" class="dashboard-action-btn" ${dashboardWidgetActionAttrs('customize-layout')}>Customize layout</button>
-          <button type="button" class="dashboard-action-btn" ${dashboardWidgetActionAttrs('reset-layout')}>Reset layout</button>
-        </div>
-      </div>
-    </div>`);
+    openDashboardWidgetPickerOverlay(renderDashboardPickerPresentation({
+      view: projectDashboardPickerPresentation({kind: 'dashboard', hidden, biometrics: biometricOptions, markers: markerOptions}),
+    }));
   }
 
   function openDashboardBiometricPicker() {
     closeDashboardWidgetPicker();
     const biometricOptions = getDashboardBiometricWidgetOptions();
-    const biometricList = biometricOptions.length ? biometricOptions.map(renderDashboardBiometricWidgetOption).join('') : '';
-    openDashboardWidgetPickerOverlay(`<div class="modal-overlay" id="dashboard-widget-picker-overlay" data-dashboard-widget-overlay>
-      <div class="modal dashboard-widget-picker dashboard-biometric-picker" role="dialog" aria-modal="true" aria-labelledby="dashboard-biometric-picker-title">
-        <button class="modal-close" aria-label="Close" ${dashboardWidgetActionAttrs('close-picker')}>&times;</button>
-        <h3 id="dashboard-biometric-picker-title">Add biometric metrics</h3>
-        <div class="dashboard-widget-picker-section">
-          <label class="dashboard-widget-picker-label" for="dashboard-biometric-widget-search">Manual and wearable metrics</label>
-          <input id="dashboard-biometric-widget-search" class="dashboard-widget-picker-search" type="search" placeholder="Search biometrics to add" ${dashboardWidgetInputAttrs('filter-biometric-picker')}>
-          <div class="dashboard-widget-picker-grid dashboard-biometric-widget-grid">${biometricList}</div>
-          <div class="dashboard-widget-picker-empty" id="dashboard-biometric-widget-empty" ${biometricOptions.length ? 'hidden' : ''}>All available biometrics are already in the overview.</div>
-        </div>
-        <div class="dashboard-widget-picker-actions">
-          <button type="button" class="dashboard-action-btn" ${dashboardWidgetActionAttrs('connect-source')}>Connect source</button>
-        </div>
-      </div>
-    </div>`, { initialFocus: '#dashboard-biometric-widget-search', focusDelay: 50 });
+    openDashboardWidgetPickerOverlay(renderDashboardPickerPresentation({
+      view: projectDashboardPickerPresentation({kind: 'biometric', biometrics: biometricOptions}),
+    }), { initialFocus: '#dashboard-biometric-widget-search', focusDelay: 50 });
   }
 
   function closeDashboardWidgetPicker() {

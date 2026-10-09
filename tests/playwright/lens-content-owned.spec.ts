@@ -8,7 +8,10 @@ interface Sample {name:string;kind:'genome'|'body'|'actions';input?:{genetics?:{
 const frozen=JSON.parse(fs.readFileSync('tests/fixtures/lens-content-original.json','utf8')) as {samples:Sample[];styleBlocks:{css:string;atRules:{name:string;params:string}[]}[]};
 const cases=frozen.samples.filter(sample=>sample.html).map(sample=>({...sample,header:sample.kind==='actions'}));
 for(const [kind,name]of [['genome','absent'],['genome','snps'],['body','absent']] as const){const sample=frozen.samples.find(sample=>sample.kind===kind&&sample.name===name)!;cases.push({...sample,html:sample.actions!,header:true});}
-const originalCSS=frozen.styleBlocks.map(block=>{const tree=postcss.parse(block.css);tree.walkRules(rule=>{rule.selector=rule.selectors.map(selector=>`:where([data-original]) ${selector}`).join(',');});return block.atRules.reduceRight((css,at)=>`@${at.name} ${at.params}{${css}}`,tree.toString());}).join('\n');
+// These formerly shared native picker rules now retire with the authored pickers.
+// Keep the original Body source side styled from the hash-verified frozen baseline.
+const retiredPicker=JSON.parse(fs.readFileSync('tests/fixtures/widget-map-original.json','utf8')) as {styleBlocks:{file:string;css:string;atRules:{name:string;params:string}[]}[]};
+const originalCSS=[...frozen.styleBlocks,...retiredPicker.styleBlocks.filter(block=>block.file==='css/dashboard-widgets.base.css')].map(block=>{const tree=postcss.parse(block.css);tree.walkRules(rule=>{rule.selector=rule.selectors.map(selector=>`:where([data-original]) ${selector}`).join(',');});return block.atRules.reduceRight((css,at)=>`@${at.name} ${at.params}{${css}}`,tree.toString());}).join('\n');
 test('typed lens content preserves frozen metadata, source cards and action geometry',async({page},info)=>{
  test.setTimeout(180000);await installDiscussionFixture(page.context());await prepareDemoProfile(page);await page.evaluate(async()=>(await import('/js/views.js')).navigate('genome'));
  await page.emulateMedia({reducedMotion:'reduce'});

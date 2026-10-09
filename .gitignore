@@ -2385,3 +2385,13 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /tests/report-builder-presentation.test.js
 /tests/tour-presentation.test.js
 /tests/report-tour-frozen.test.js
+
+# Generated picker presentation and import stylesheet output.
+/css/import.css
+/js/dashboard-picker-presentation.js
+/js/dashboard-picker-classes.js
+/js/import-marker-map-presentation.js
+/js/import-marker-map-classes.js
+/tests/dashboard-picker-presentation.test.js
+/tests/import-marker-map-presentation.test.js
+/tests/widget-map-frozen.test.js

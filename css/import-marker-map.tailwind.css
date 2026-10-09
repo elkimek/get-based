@@ -1,0 +1,13 @@
+/* Import marker picker; shared import and modal styles retain their owners. */
+@import "tailwindcss/theme.css" layer(gb-theme) prefix(gb);
+@import "tailwindcss/utilities.css" prefix(gb) source(none);
+@import "./ui-tokens.tailwind.css";
+@custom-variant import-map-ui (&:where([data-import-marker-map-view], [data-import-marker-map-view] *));
+@custom-variant import-map-strong (&:is([data-import-marker-map-view], [data-import-marker-map-view] *));
+@custom-variant import-map-phone (@media (max-width: 768px));
+/* Native hover selectors also apply on touch-capable devices. */
+@custom-variant import-map-hover (&:hover);
+@source "../js/import-marker-map-classes.ts";
+@source "../js/components/ImportMarkerMapPresentation.svelte";
+@source "../js/components/ImportMarkerMapCategories.svelte";
+@source "../js/components/ImportMarkerMapResults.svelte";
