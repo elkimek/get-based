@@ -1025,6 +1025,26 @@ active protection dialog. Privacy review styles remain in
 `css/data-protection.base.css`; `scripts/build-styles.mts` combines that base with
 `css/data-protection.tailwind.css` into the ignored runtime stylesheet.
 
+Cycle import preview, picker and coverage presentation belongs to
+`CycleImportPreview.svelte`, `CycleImportPicker.svelte` and
+`CycleImportCoverage.svelte`. `cycle-import-presentation.ts` supplies typed views;
+existing import adapters, conflict planning, persistence and public action
+contracts retain their service ownership. The stable `css/cycle.css` URL is built
+from `cycle.base.css` and scoped import utilities; shared editor styles remain in
+the base until their owners migrate.
+
+Tips sections, products, coupons, genetics, disclosure and detail states compose
+through the `Tips*.svelte` components and `tips-presentation.ts`.
+`recommendations.ts` exposes typed synchronous/asynchronous section getters
+alongside its existing public HTML facades. Catalog selection, SNP matching,
+region/affiliate resolution, clipboard actions and preferences stay in their
+existing services. `RecommendationPage.svelte` composes typed cards within
+`LensWidgetFrame.svelte`; the frame owns shared chrome and receives a typed
+snippet. `LensPageWidget.svelte` retains the existing HTML adapter for remaining
+feature callers. Chat composes typed sections with its heading and first-banner
+options, while transcript state and delegates retain their lifecycle ownership.
+Tips utilities are included in the stable `css/recommendations.css` URL.
+
 `scripts/build-svelte.mts` discovers authored components and compiles each into
 an ignored `.svelte.native.js` artifact, loaded through the existing lazy feature
 graph. These artifacts retain source maps for ownership and coverage. The native

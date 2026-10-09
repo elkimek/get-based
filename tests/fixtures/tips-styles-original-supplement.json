@@ -1,0 +1,1086 @@
+{
+  "revision": "54696fe849fe60f064a5a52700cb716b2a18ed8d",
+  "originalFixtureSHA256": "877ab5f41c1f9e49f263825b850dc7862bc0be3ec659d1ab74a1d7cd7c1a002b",
+  "sourceBoundary": "Only SHA-verified frozen original generated style snapshots and original index/lazy-anchor contracts; no current stylesheet bytes or migrated output.",
+  "styleFiles": [
+    "css/modal-shared.css",
+    "css/dashboard-core.css",
+    "css/dashboard-widgets.css",
+    "css/dashboard-data.css",
+    "css/marker-detail-modal.css",
+    "css/recommendations.css",
+    "css/chat-panel-open.css"
+  ],
+  "placements": [
+    {
+      "file": "css/modal-shared.css",
+      "anchor": null
+    },
+    {
+      "file": "css/dashboard-core.css",
+      "anchor": null
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "anchor": null
+    },
+    {
+      "file": "css/dashboard-data.css",
+      "anchor": null
+    },
+    {
+      "file": "css/marker-detail-modal.css",
+      "anchor": "[data-marker-detail-stylesheet-anchor]"
+    },
+    {
+      "file": "css/recommendations.css",
+      "anchor": null
+    },
+    {
+      "file": "css/chat-panel-open.css",
+      "anchor": "[data-chat-presentation-stylesheet-anchor]"
+    }
+  ],
+  "fileAliases": {
+    "css/modal-shared.base.css": "css/modal-shared.css",
+    "css/recommendations.base.css": "css/recommendations.css"
+  },
+  "styleBlocks": [
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 899,
+      "selector": ".gb\\:lens-shell\\:\\[grid-column\\:span_12\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[grid-column\\:span_12\\]:where([data-lens-shell-view],[data-lens-shell-view] *){grid-column:span 12}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 900,
+      "selector": ".gb\\:lens-shell\\:\\[margin-top\\:2px\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[margin-top\\:2px\\]:where([data-lens-shell-view],[data-lens-shell-view] *){margin-top:2px}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 901,
+      "selector": ".gb\\:lens-shell\\:\\[margin-top\\:4px\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[margin-top\\:4px\\]:where([data-lens-shell-view],[data-lens-shell-view] *){margin-top:4px}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 902,
+      "selector": ".gb\\:lens-shell\\:\\[margin-top\\:14px\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[margin-top\\:14px\\]:where([data-lens-shell-view],[data-lens-shell-view] *){margin-top:14px}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 903,
+      "selector": ".gb\\:lens-shell\\:\\[margin-bottom\\:12px\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[margin-bottom\\:12px\\]:where([data-lens-shell-view],[data-lens-shell-view] *){margin-bottom:12px}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 904,
+      "selector": ".gb\\:lens-shell\\:\\[margin-bottom\\:14px\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[margin-bottom\\:14px\\]:where([data-lens-shell-view],[data-lens-shell-view] *){margin-bottom:14px}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 905,
+      "selector": ".gb\\:lens-shell\\:\\[margin-bottom\\:24px\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[margin-bottom\\:24px\\]:where([data-lens-shell-view],[data-lens-shell-view] *){margin-bottom:24px}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 906,
+      "selector": ".gb\\:lens-shell\\:\\[display\\:flex\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[display\\:flex\\]:where([data-lens-shell-view],[data-lens-shell-view] *){display:flex}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 907,
+      "selector": ".gb\\:lens-shell\\:\\[display\\:grid\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[display\\:grid\\]:where([data-lens-shell-view],[data-lens-shell-view] *){display:grid}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 908,
+      "selector": ".gb\\:lens-shell\\:\\[height\\:30px\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[height\\:30px\\]:where([data-lens-shell-view],[data-lens-shell-view] *){height:30px}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 909,
+      "selector": ".gb\\:lens-shell\\:\\[min-width\\:0\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[min-width\\:0\\]:where([data-lens-shell-view],[data-lens-shell-view] *){min-width:0}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 910,
+      "selector": ".gb\\:lens-shell\\:\\[min-width\\:30px\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[min-width\\:30px\\]:where([data-lens-shell-view],[data-lens-shell-view] *){min-width:30px}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 911,
+      "selector": ".gb\\:lens-shell\\:\\[flex\\:1\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[flex\\:1\\]:where([data-lens-shell-view],[data-lens-shell-view] *){flex:1}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 912,
+      "selector": ".gb\\:lens-shell\\:\\[flex-shrink\\:0\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[flex-shrink\\:0\\]:where([data-lens-shell-view],[data-lens-shell-view] *){flex-shrink:0}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 913,
+      "selector": ".gb\\:lens-shell\\:\\[cursor\\:pointer\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[cursor\\:pointer\\]:where([data-lens-shell-view],[data-lens-shell-view] *){cursor:pointer}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 914,
+      "selector": ".gb\\:lens-shell\\:\\[grid-auto-flow\\:dense\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[grid-auto-flow\\:dense\\]:where([data-lens-shell-view],[data-lens-shell-view] *){grid-auto-flow:dense}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 915,
+      "selector": ".gb\\:lens-shell\\:\\[grid-template-columns\\:repeat\\(12\\,_minmax\\(0\\,_1fr\\)\\)\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[grid-template-columns\\:repeat\\(12\\,_minmax\\(0\\,_1fr\\)\\)\\]:where([data-lens-shell-view],[data-lens-shell-view] *){grid-template-columns:repeat(12,minmax(0,1fr))}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 916,
+      "selector": ".gb\\:lens-shell\\:\\[flex-wrap\\:wrap\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[flex-wrap\\:wrap\\]:where([data-lens-shell-view],[data-lens-shell-view] *){flex-wrap:wrap}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 917,
+      "selector": ".gb\\:lens-shell\\:\\[align-items\\:center\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[align-items\\:center\\]:where([data-lens-shell-view],[data-lens-shell-view] *){align-items:center}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 918,
+      "selector": ".gb\\:lens-shell\\:\\[align-items\\:start\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[align-items\\:start\\]:where([data-lens-shell-view],[data-lens-shell-view] *){align-items:start}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 919,
+      "selector": ".gb\\:lens-shell\\:\\[gap\\:6px\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[gap\\:6px\\]:where([data-lens-shell-view],[data-lens-shell-view] *){gap:6px}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 920,
+      "selector": ".gb\\:lens-shell\\:\\[gap\\:10px\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[gap\\:10px\\]:where([data-lens-shell-view],[data-lens-shell-view] *){gap:10px}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 921,
+      "selector": ".gb\\:lens-shell\\:\\[gap\\:12px\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[gap\\:12px\\]:where([data-lens-shell-view],[data-lens-shell-view] *){gap:12px}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 922,
+      "selector": ".gb\\:lens-shell\\:\\[gap\\:18px\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[gap\\:18px\\]:where([data-lens-shell-view],[data-lens-shell-view] *){gap:18px}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 923,
+      "selector": ".gb\\:lens-shell\\:\\[column-gap\\:14px\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[column-gap\\:14px\\]:where([data-lens-shell-view],[data-lens-shell-view] *){column-gap:14px}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 924,
+      "selector": ".gb\\:lens-shell\\:\\[row-gap\\:10px\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[row-gap\\:10px\\]:where([data-lens-shell-view],[data-lens-shell-view] *){row-gap:10px}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 925,
+      "selector": ".gb\\:lens-shell\\:\\[overflow\\:hidden\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[overflow\\:hidden\\]:where([data-lens-shell-view],[data-lens-shell-view] *){overflow:hidden}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 926,
+      "selector": ".gb\\:lens-shell\\:\\[border-radius\\:var\\(--radius\\)\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[border-radius\\:var\\(--radius\\)\\]:where([data-lens-shell-view],[data-lens-shell-view] *){border-radius:var(--radius)}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 927,
+      "selector": ".gb\\:lens-shell\\:\\[border-radius\\:var\\(--radius-sm\\)\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[border-radius\\:var\\(--radius-sm\\)\\]:where([data-lens-shell-view],[data-lens-shell-view] *){border-radius:var(--radius-sm)}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 928,
+      "selector": ".gb\\:lens-shell\\:\\[padding\\:0_9px\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[padding\\:0_9px\\]:where([data-lens-shell-view],[data-lens-shell-view] *){padding:0 9px}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 930,
+      "selector": ".gb\\:lens-shell\\:\\[padding\\:20px\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[padding\\:20px\\]:where([data-lens-shell-view],[data-lens-shell-view] *){padding:20px}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 931,
+      "selector": ".gb\\:lens-shell\\:\\[font-family\\:inherit\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[font-family\\:inherit\\]:where([data-lens-shell-view],[data-lens-shell-view] *){font-family:inherit}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 932,
+      "selector": ".gb\\:lens-shell\\:\\[font-family\\:var\\(--font-display\\)\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[font-family\\:var\\(--font-display\\)\\]:where([data-lens-shell-view],[data-lens-shell-view] *){font-family:var(--font-display)}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 933,
+      "selector": ".gb\\:lens-shell\\:\\[font-family\\:var\\(--font-mono\\)\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[font-family\\:var\\(--font-mono\\)\\]:where([data-lens-shell-view],[data-lens-shell-view] *){font-family:var(--font-mono)}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 934,
+      "selector": ".gb\\:lens-shell\\:\\[font-size\\:11px\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[font-size\\:11px\\]:where([data-lens-shell-view],[data-lens-shell-view] *){font-size:11px}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 935,
+      "selector": ".gb\\:lens-shell\\:\\[font-size\\:12px\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[font-size\\:12px\\]:where([data-lens-shell-view],[data-lens-shell-view] *){font-size:12px}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 937,
+      "selector": ".gb\\:lens-shell\\:\\[font-size\\:14px\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[font-size\\:14px\\]:where([data-lens-shell-view],[data-lens-shell-view] *){font-size:14px}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 938,
+      "selector": ".gb\\:lens-shell\\:\\[font-size\\:24px\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[font-size\\:24px\\]:where([data-lens-shell-view],[data-lens-shell-view] *){font-size:24px}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 939,
+      "selector": ".gb\\:lens-shell\\:\\[font-weight\\:700\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[font-weight\\:700\\]:where([data-lens-shell-view],[data-lens-shell-view] *){font-weight:700}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 940,
+      "selector": ".gb\\:lens-shell\\:\\[font-weight\\:inherit\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[font-weight\\:inherit\\]:where([data-lens-shell-view],[data-lens-shell-view] *){font-weight:inherit}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 941,
+      "selector": ".gb\\:lens-shell\\:\\[letter-spacing\\:-0\\.3px\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[letter-spacing\\:-0\\.3px\\]:where([data-lens-shell-view],[data-lens-shell-view] *){letter-spacing:-.3px}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 942,
+      "selector": ".gb\\:lens-shell\\:\\[letter-spacing\\:0\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[letter-spacing\\:0\\]:where([data-lens-shell-view],[data-lens-shell-view] *){letter-spacing:0}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 943,
+      "selector": ".gb\\:lens-shell\\:\\[text-overflow\\:ellipsis\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[text-overflow\\:ellipsis\\]:where([data-lens-shell-view],[data-lens-shell-view] *){text-overflow:ellipsis}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 944,
+      "selector": ".gb\\:lens-shell\\:\\[white-space\\:nowrap\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[white-space\\:nowrap\\]:where([data-lens-shell-view],[data-lens-shell-view] *){white-space:nowrap}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 945,
+      "selector": ".gb\\:lens-shell\\:\\[color\\:var\\(--text-muted\\)\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[color\\:var\\(--text-muted\\)\\]:where([data-lens-shell-view],[data-lens-shell-view] *){color:var(--text-muted)}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 946,
+      "selector": ".gb\\:lens-shell\\:\\[color\\:var\\(--text-primary\\)\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[color\\:var\\(--text-primary\\)\\]:where([data-lens-shell-view],[data-lens-shell-view] *){color:var(--text-primary)}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 947,
+      "selector": ".gb\\:lens-shell\\:\\[color\\:var\\(--text-secondary\\)\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[color\\:var\\(--text-secondary\\)\\]:where([data-lens-shell-view],[data-lens-shell-view] *){color:var(--text-secondary)}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 948,
+      "selector": ".gb\\:lens-shell\\:\\[text-transform\\:uppercase\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[text-transform\\:uppercase\\]:where([data-lens-shell-view],[data-lens-shell-view] *){text-transform:uppercase}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 949,
+      "selector": ".gb\\:lens-shell\\:\\[font-style\\:inherit\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[font-style\\:inherit\\]:where([data-lens-shell-view],[data-lens-shell-view] *){font-style:inherit}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 951,
+      "selector": ".gb\\:lens-shell\\:\\[box-shadow\\:var\\(--shadow\\)\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[box-shadow\\:var\\(--shadow\\)\\]:where([data-lens-shell-view],[data-lens-shell-view] *){box-shadow:var(--shadow)}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 953,
+      "selector": ".gb\\:lens-shell\\:\\[background\\:var\\(--bg-card\\)\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[background\\:var\\(--bg-card\\)\\]:where([data-lens-shell-view],[data-lens-shell-view] *){background:var(--bg-card)}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 954,
+      "selector": ".gb\\:lens-shell\\:\\[background\\:var\\(--bg-secondary\\)\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[background\\:var\\(--bg-secondary\\)\\]:where([data-lens-shell-view],[data-lens-shell-view] *){background:var(--bg-secondary)}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 955,
+      "selector": ".gb\\:lens-shell\\:\\[border\\:1px_solid_var\\(--border\\)\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[border\\:1px_solid_var\\(--border\\)\\]:where([data-lens-shell-view],[data-lens-shell-view] *){border:1px solid var(--border)}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 956,
+      "selector": ".gb\\:lens-shell\\:\\[transition\\:border-color_0\\.15s\\,_box-shadow_0\\.15s\\,_transform_0\\.15s\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[transition\\:border-color_0\\.15s\\,_box-shadow_0\\.15s\\,_transform_0\\.15s\\]:where([data-lens-shell-view],[data-lens-shell-view] *){transition:border-color .15s,box-shadow .15s,transform .15s}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 957,
+      "selector": ".gb\\:lens-shell\\:hover\\:\\[border-color\\:color-mix\\(in_srgb\\,_var\\(--accent\\)_35\\%\\,_var\\(--border\\)\\)\\]:where([data-lens-shell-view],[data-lens-shell-view] *):hover",
+      "css": ".gb\\:lens-shell\\:hover\\:\\[border-color\\:color-mix\\(in_srgb\\,_var\\(--accent\\)_35\\%\\,_var\\(--border\\)\\)\\]:where([data-lens-shell-view],[data-lens-shell-view] *):hover{border-color:var(--accent)}",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(hover:hover)"
+        }
+      ],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 958,
+      "selector": ".gb\\:lens-shell\\:hover\\:\\[border-color\\:color-mix\\(in_srgb\\,_var\\(--accent\\)_35\\%\\,_var\\(--border\\)\\)\\]:where([data-lens-shell-view],[data-lens-shell-view] *):hover",
+      "css": ".gb\\:lens-shell\\:hover\\:\\[border-color\\:color-mix\\(in_srgb\\,_var\\(--accent\\)_35\\%\\,_var\\(--border\\)\\)\\]:where([data-lens-shell-view],[data-lens-shell-view] *):hover{border-color:color-mix(in srgb, var(--accent) 35%, var(--border))}",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(hover:hover)"
+        },
+        {
+          "name": "supports",
+          "params": "(color:color-mix(in lab, red, red))"
+        }
+      ],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 959,
+      "selector": ".gb\\:lens-shell\\:focus-visible\\:\\[outline\\:2px_solid_var\\(--accent\\)\\]:where([data-lens-shell-view],[data-lens-shell-view] *):focus-visible",
+      "css": ".gb\\:lens-shell\\:focus-visible\\:\\[outline\\:2px_solid_var\\(--accent\\)\\]:where([data-lens-shell-view],[data-lens-shell-view] *):focus-visible{outline:2px solid var(--accent)}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 960,
+      "selector": ".gb\\:lens-shell\\:focus-visible\\:\\[outline-offset\\:2px\\]:where([data-lens-shell-view],[data-lens-shell-view] *):focus-visible",
+      "css": ".gb\\:lens-shell\\:focus-visible\\:\\[outline-offset\\:2px\\]:where([data-lens-shell-view],[data-lens-shell-view] *):focus-visible{outline-offset:2px}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 961,
+      "selector": ".gb\\:lens-shell\\:disabled\\:\\[cursor\\:default\\]:where([data-lens-shell-view],[data-lens-shell-view] *):disabled",
+      "css": ".gb\\:lens-shell\\:disabled\\:\\[cursor\\:default\\]:where([data-lens-shell-view],[data-lens-shell-view] *):disabled{cursor:default}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 962,
+      "selector": ".gb\\:lens-shell\\:disabled\\:\\[opacity\\:0\\.45\\]:where([data-lens-shell-view],[data-lens-shell-view] *):disabled",
+      "css": ".gb\\:lens-shell\\:disabled\\:\\[opacity\\:0\\.45\\]:where([data-lens-shell-view],[data-lens-shell-view] *):disabled{opacity:.45}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 1051,
+      "selector": ".gb\\:lens-content\\:\\[cursor\\:pointer\\]:where([data-lens-content-view],[data-lens-content-view] *)",
+      "css": ".gb\\:lens-content\\:\\[cursor\\:pointer\\]:where([data-lens-content-view],[data-lens-content-view] *){cursor:pointer}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 1067,
+      "selector": ".gb\\:lens-content\\:\\[border-radius\\:var\\(--radius-sm\\)\\]:where([data-lens-content-view],[data-lens-content-view] *)",
+      "css": ".gb\\:lens-content\\:\\[border-radius\\:var\\(--radius-sm\\)\\]:where([data-lens-content-view],[data-lens-content-view] *){border-radius:var(--radius-sm)}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 1068,
+      "selector": ".gb\\:lens-content\\:\\[border-width\\:1px\\]:where([data-lens-content-view],[data-lens-content-view] *)",
+      "css": ".gb\\:lens-content\\:\\[border-width\\:1px\\]:where([data-lens-content-view],[data-lens-content-view] *){border-width:1px}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 1069,
+      "selector": ".gb\\:lens-content\\:\\[border-style\\:solid\\]:where([data-lens-content-view],[data-lens-content-view] *)",
+      "css": ".gb\\:lens-content\\:\\[border-style\\:solid\\]:where([data-lens-content-view],[data-lens-content-view] *){border-style:solid}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 1070,
+      "selector": ".gb\\:lens-content\\:\\[border-color\\:transparent\\]:where([data-lens-content-view],[data-lens-content-view] *)",
+      "css": ".gb\\:lens-content\\:\\[border-color\\:transparent\\]:where([data-lens-content-view],[data-lens-content-view] *){border-color:#0000}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 1071,
+      "selector": ".gb\\:lens-content\\:\\[border-color\\:var\\(--border\\)\\]:where([data-lens-content-view],[data-lens-content-view] *)",
+      "css": ".gb\\:lens-content\\:\\[border-color\\:var\\(--border\\)\\]:where([data-lens-content-view],[data-lens-content-view] *){border-color:var(--border)}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 1072,
+      "selector": ".gb\\:lens-content\\:\\[padding\\:8px_12px\\]:where([data-lens-content-view],[data-lens-content-view] *)",
+      "css": ".gb\\:lens-content\\:\\[padding\\:8px_12px\\]:where([data-lens-content-view],[data-lens-content-view] *){padding:8px 12px}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 1078,
+      "selector": ".gb\\:lens-content\\:\\[font-family\\:inherit\\]:where([data-lens-content-view],[data-lens-content-view] *)",
+      "css": ".gb\\:lens-content\\:\\[font-family\\:inherit\\]:where([data-lens-content-view],[data-lens-content-view] *){font-family:inherit}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 1081,
+      "selector": ".gb\\:lens-content\\:\\[font-size\\:12px\\]:where([data-lens-content-view],[data-lens-content-view] *)",
+      "css": ".gb\\:lens-content\\:\\[font-size\\:12px\\]:where([data-lens-content-view],[data-lens-content-view] *){font-size:12px}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 1089,
+      "selector": ".gb\\:lens-content\\:\\[line-height\\:inherit\\]:where([data-lens-content-view],[data-lens-content-view] *)",
+      "css": ".gb\\:lens-content\\:\\[line-height\\:inherit\\]:where([data-lens-content-view],[data-lens-content-view] *){line-height:inherit}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 1090,
+      "selector": ".gb\\:lens-content\\:\\[font-weight\\:600\\]:where([data-lens-content-view],[data-lens-content-view] *)",
+      "css": ".gb\\:lens-content\\:\\[font-weight\\:600\\]:where([data-lens-content-view],[data-lens-content-view] *){font-weight:600}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 1095,
+      "selector": ".gb\\:lens-content\\:\\[color\\:var\\(--on-accent\\)\\]:where([data-lens-content-view],[data-lens-content-view] *)",
+      "css": ".gb\\:lens-content\\:\\[color\\:var\\(--on-accent\\)\\]:where([data-lens-content-view],[data-lens-content-view] *){color:var(--on-accent)}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 1097,
+      "selector": ".gb\\:lens-content\\:\\[color\\:var\\(--text-primary\\)\\]:where([data-lens-content-view],[data-lens-content-view] *)",
+      "css": ".gb\\:lens-content\\:\\[color\\:var\\(--text-primary\\)\\]:where([data-lens-content-view],[data-lens-content-view] *){color:var(--text-primary)}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 1100,
+      "selector": ".gb\\:lens-content\\:\\[font-style\\:inherit\\]:where([data-lens-content-view],[data-lens-content-view] *)",
+      "css": ".gb\\:lens-content\\:\\[font-style\\:inherit\\]:where([data-lens-content-view],[data-lens-content-view] *){font-style:inherit}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 1105,
+      "selector": ".gb\\:lens-content\\:\\[background\\:var\\(--accent\\)\\]:where([data-lens-content-view],[data-lens-content-view] *)",
+      "css": ".gb\\:lens-content\\:\\[background\\:var\\(--accent\\)\\]:where([data-lens-content-view],[data-lens-content-view] *){background:var(--accent)}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 1108,
+      "selector": ".gb\\:lens-content\\:\\[background\\:var\\(--bg-secondary\\)\\]:where([data-lens-content-view],[data-lens-content-view] *)",
+      "css": ".gb\\:lens-content\\:\\[background\\:var\\(--bg-secondary\\)\\]:where([data-lens-content-view],[data-lens-content-view] *){background:var(--bg-secondary)}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 1113,
+      "selector": ".gb\\:lens-content\\:\\[transition\\:background_0\\.15s\\,border-color_0\\.15s\\,transform_0\\.05s\\]:where([data-lens-content-view],[data-lens-content-view] *)",
+      "css": ".gb\\:lens-content\\:\\[transition\\:background_0\\.15s\\,border-color_0\\.15s\\,transform_0\\.05s\\]:where([data-lens-content-view],[data-lens-content-view] *){transition:background .15s,border-color .15s,transform 50ms}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 1115,
+      "selector": ".gb\\:lens-content\\:hover\\:\\[border-color\\:var\\(--accent\\)\\]:where([data-lens-content-view],[data-lens-content-view] *):hover",
+      "css": ".gb\\:lens-content\\:hover\\:\\[border-color\\:var\\(--accent\\)\\]:where([data-lens-content-view],[data-lens-content-view] *):hover{border-color:var(--accent)}",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(hover:hover)"
+        }
+      ],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 1117,
+      "selector": ".gb\\:lens-content\\:hover\\:\\[background\\:var\\(--bg-hover\\)\\]:where([data-lens-content-view],[data-lens-content-view] *):hover",
+      "css": ".gb\\:lens-content\\:hover\\:\\[background\\:var\\(--bg-hover\\)\\]:where([data-lens-content-view],[data-lens-content-view] *):hover{background:var(--bg-hover)}",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(hover:hover)"
+        }
+      ],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 1118,
+      "selector": ".gb\\:lens-content\\:focus-visible\\:\\[outline\\:2px_solid_var\\(--accent\\)\\]:where([data-lens-content-view],[data-lens-content-view] *):focus-visible",
+      "css": ".gb\\:lens-content\\:focus-visible\\:\\[outline\\:2px_solid_var\\(--accent\\)\\]:where([data-lens-content-view],[data-lens-content-view] *):focus-visible{outline:2px solid var(--accent)}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 1119,
+      "selector": ".gb\\:lens-content\\:focus-visible\\:\\[outline-offset\\:2px\\]:where([data-lens-content-view],[data-lens-content-view] *):focus-visible",
+      "css": ".gb\\:lens-content\\:focus-visible\\:\\[outline-offset\\:2px\\]:where([data-lens-content-view],[data-lens-content-view] *):focus-visible{outline-offset:2px}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 1120,
+      "selector": ".gb\\:lens-content\\:active\\:\\[transform\\:translateY\\(1px\\)\\]:where([data-lens-content-view],[data-lens-content-view] *):active",
+      "css": ".gb\\:lens-content\\:active\\:\\[transform\\:translateY\\(1px\\)\\]:where([data-lens-content-view],[data-lens-content-view] *):active{transform:translateY(1px)}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 1234,
+      "selector": ".gb\\:lens-shell\\:hover\\:\\[\\&\\:not\\(\\:disabled\\)\\]\\:\\[border-color\\:var\\(--accent\\)\\]:where([data-lens-shell-view],[data-lens-shell-view] *):hover:not(:disabled)",
+      "css": ".gb\\:lens-shell\\:hover\\:\\[\\&\\:not\\(\\:disabled\\)\\]\\:\\[border-color\\:var\\(--accent\\)\\]:where([data-lens-shell-view],[data-lens-shell-view] *):hover:not(:disabled){border-color:var(--accent)}",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(hover:hover)"
+        }
+      ],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 1235,
+      "selector": ".gb\\:lens-shell\\:hover\\:\\[\\&\\:not\\(\\:disabled\\)\\]\\:\\[background\\:var\\(--bg-hover\\)\\]:where([data-lens-shell-view],[data-lens-shell-view] *):hover:not(:disabled)",
+      "css": ".gb\\:lens-shell\\:hover\\:\\[\\&\\:not\\(\\:disabled\\)\\]\\:\\[background\\:var\\(--bg-hover\\)\\]:where([data-lens-shell-view],[data-lens-shell-view] *):hover:not(:disabled){background:var(--bg-hover)}",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(hover:hover)"
+        }
+      ],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 1294,
+      "selector": ".gb\\:lens-shell\\:\\[\\@media\\(max-width\\:480px\\)\\]\\:\\[font-size\\:20px\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[\\@media\\(max-width\\:480px\\)\\]\\:\\[font-size\\:20px\\]:where([data-lens-shell-view],[data-lens-shell-view] *){font-size:20px}",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width:480px)"
+        }
+      ],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 1296,
+      "selector": ".gb\\:lens-shell\\:\\[\\@media\\(max-width\\:640px\\)\\]\\:\\[width\\:100\\%\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[\\@media\\(max-width\\:640px\\)\\]\\:\\[width\\:100\\%\\]:where([data-lens-shell-view],[data-lens-shell-view] *){width:100%}",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width:640px)"
+        }
+      ],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 1297,
+      "selector": ".gb\\:lens-shell\\:\\[\\@media\\(max-width\\:640px\\)\\]\\:\\[flex-wrap\\:wrap\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[\\@media\\(max-width\\:640px\\)\\]\\:\\[flex-wrap\\:wrap\\]:where([data-lens-shell-view],[data-lens-shell-view] *){flex-wrap:wrap}",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width:640px)"
+        }
+      ],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 1298,
+      "selector": ".gb\\:lens-shell\\:\\[\\@media\\(max-width\\:640px\\)\\]\\:\\[align-items\\:flex-start\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[\\@media\\(max-width\\:640px\\)\\]\\:\\[align-items\\:flex-start\\]:where([data-lens-shell-view],[data-lens-shell-view] *){align-items:flex-start}",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width:640px)"
+        }
+      ],
+      "shared": true
+    },
+    {
+      "file": "css/dashboard-widgets.css",
+      "order": 1299,
+      "selector": ".gb\\:lens-shell\\:\\[\\@media\\(max-width\\:640px\\)\\]\\:\\[justify-content\\:flex-start\\]:where([data-lens-shell-view],[data-lens-shell-view] *)",
+      "css": ".gb\\:lens-shell\\:\\[\\@media\\(max-width\\:640px\\)\\]\\:\\[justify-content\\:flex-start\\]:where([data-lens-shell-view],[data-lens-shell-view] *){justify-content:flex-start}",
+      "atRules": [
+        {
+          "name": "media",
+          "params": "(max-width:640px)"
+        }
+      ],
+      "shared": true
+    },
+    {
+      "file": "css/recommendations.css",
+      "order": 72,
+      "selector": ".gb\\:rec-ui\\:\\[display\\:flex\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *)",
+      "css": ".gb\\:rec-ui\\:\\[display\\:flex\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *){display:flex}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/recommendations.css",
+      "order": 73,
+      "selector": ".gb\\:rec-ui\\:\\[display\\:grid\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *)",
+      "css": ".gb\\:rec-ui\\:\\[display\\:grid\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *){display:grid}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/recommendations.css",
+      "order": 74,
+      "selector": ".gb\\:rec-ui\\:\\[flex-wrap\\:wrap\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *)",
+      "css": ".gb\\:rec-ui\\:\\[flex-wrap\\:wrap\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *){flex-wrap:wrap}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/recommendations.css",
+      "order": 75,
+      "selector": ".gb\\:rec-ui\\:\\[align-items\\:baseline\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *)",
+      "css": ".gb\\:rec-ui\\:\\[align-items\\:baseline\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *){align-items:baseline}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/recommendations.css",
+      "order": 76,
+      "selector": ".gb\\:rec-ui\\:\\[align-items\\:center\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *)",
+      "css": ".gb\\:rec-ui\\:\\[align-items\\:center\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *){align-items:center}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/recommendations.css",
+      "order": 77,
+      "selector": ".gb\\:rec-ui\\:\\[gap\\:8px\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *)",
+      "css": ".gb\\:rec-ui\\:\\[gap\\:8px\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *){gap:8px}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/recommendations.css",
+      "order": 78,
+      "selector": ".gb\\:rec-ui\\:\\[gap\\:10px\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *)",
+      "css": ".gb\\:rec-ui\\:\\[gap\\:10px\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *){gap:10px}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/recommendations.css",
+      "order": 79,
+      "selector": ".gb\\:rec-ui\\:\\[border-radius\\:var\\(--radius-sm\\)\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *)",
+      "css": ".gb\\:rec-ui\\:\\[border-radius\\:var\\(--radius-sm\\)\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *){border-radius:var(--radius-sm)}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/recommendations.css",
+      "order": 82,
+      "selector": ".gb\\:rec-ui\\:\\[padding\\:12px\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *)",
+      "css": ".gb\\:rec-ui\\:\\[padding\\:12px\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *){padding:12px}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/recommendations.css",
+      "order": 83,
+      "selector": ".gb\\:rec-ui\\:\\[font-family\\:var\\(--font-mono\\)\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *)",
+      "css": ".gb\\:rec-ui\\:\\[font-family\\:var\\(--font-mono\\)\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *){font-family:var(--font-mono)}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/recommendations.css",
+      "order": 85,
+      "selector": ".gb\\:rec-ui\\:\\[font-size\\:10px\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *)",
+      "css": ".gb\\:rec-ui\\:\\[font-size\\:10px\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *){font-size:10px}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/recommendations.css",
+      "order": 87,
+      "selector": ".gb\\:rec-ui\\:\\[font-size\\:13px\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *)",
+      "css": ".gb\\:rec-ui\\:\\[font-size\\:13px\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *){font-size:13px}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/recommendations.css",
+      "order": 88,
+      "selector": ".gb\\:rec-ui\\:\\[line-height\\:1\\.45\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *)",
+      "css": ".gb\\:rec-ui\\:\\[line-height\\:1\\.45\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *){line-height:1.45}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/recommendations.css",
+      "order": 90,
+      "selector": ".gb\\:rec-ui\\:\\[font-weight\\:800\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *)",
+      "css": ".gb\\:rec-ui\\:\\[font-weight\\:800\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *){font-weight:800}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/recommendations.css",
+      "order": 92,
+      "selector": ".gb\\:rec-ui\\:\\[color\\:var\\(--accent\\)\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *)",
+      "css": ".gb\\:rec-ui\\:\\[color\\:var\\(--accent\\)\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *){color:var(--accent)}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/recommendations.css",
+      "order": 95,
+      "selector": ".gb\\:rec-ui\\:\\[color\\:var\\(--text-secondary\\)\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *)",
+      "css": ".gb\\:rec-ui\\:\\[color\\:var\\(--text-secondary\\)\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *){color:var(--text-secondary)}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/recommendations.css",
+      "order": 96,
+      "selector": ".gb\\:rec-ui\\:\\[text-transform\\:uppercase\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *)",
+      "css": ".gb\\:rec-ui\\:\\[text-transform\\:uppercase\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *){text-transform:uppercase}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/recommendations.css",
+      "order": 97,
+      "selector": ".gb\\:rec-ui\\:\\[background\\:color-mix\\(in_srgb\\,var\\(--bg-secondary\\)_55\\%\\,transparent\\)\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *)",
+      "css": ".gb\\:rec-ui\\:\\[background\\:color-mix\\(in_srgb\\,var\\(--bg-secondary\\)_55\\%\\,transparent\\)\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *){background:var(--bg-secondary)}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/recommendations.css",
+      "order": 98,
+      "selector": ".gb\\:rec-ui\\:\\[background\\:color-mix\\(in_srgb\\,var\\(--bg-secondary\\)_55\\%\\,transparent\\)\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *)",
+      "css": ".gb\\:rec-ui\\:\\[background\\:color-mix\\(in_srgb\\,var\\(--bg-secondary\\)_55\\%\\,transparent\\)\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *){background:color-mix(in srgb,var(--bg-secondary) 55%,transparent)}",
+      "atRules": [
+        {
+          "name": "supports",
+          "params": "(color:color-mix(in lab, red, red))"
+        }
+      ],
+      "shared": true
+    },
+    {
+      "file": "css/recommendations.css",
+      "order": 101,
+      "selector": ".gb\\:rec-ui\\:\\[border\\:1px_solid_var\\(--border\\)\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *)",
+      "css": ".gb\\:rec-ui\\:\\[border\\:1px_solid_var\\(--border\\)\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *){border:1px solid var(--border)}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/recommendations.css",
+      "order": 102,
+      "selector": ".gb\\:rec-ui\\:rec-title\\:\\[font-size\\:14px\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *):is(strong)",
+      "css": ".gb\\:rec-ui\\:rec-title\\:\\[font-size\\:14px\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *):is(strong){font-size:14px}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/recommendations.css",
+      "order": 103,
+      "selector": ".gb\\:rec-ui\\:rec-title\\:\\[color\\:var\\(--text-primary\\)\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *):is(strong)",
+      "css": ".gb\\:rec-ui\\:rec-title\\:\\[color\\:var\\(--text-primary\\)\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *):is(strong){color:var(--text-primary)}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/recommendations.css",
+      "order": 104,
+      "selector": ".gb\\:rec-ui\\:\\[\\&\\.is-saved\\]\\:\\[border-color\\:color-mix\\(in_srgb\\,var\\(--accent\\)_45\\%\\,var\\(--border\\)\\)\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *).is-saved",
+      "css": ".gb\\:rec-ui\\:\\[\\&\\.is-saved\\]\\:\\[border-color\\:color-mix\\(in_srgb\\,var\\(--accent\\)_45\\%\\,var\\(--border\\)\\)\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *).is-saved{border-color:var(--accent)}",
+      "atRules": [],
+      "shared": true
+    },
+    {
+      "file": "css/recommendations.css",
+      "order": 105,
+      "selector": ".gb\\:rec-ui\\:\\[\\&\\.is-saved\\]\\:\\[border-color\\:color-mix\\(in_srgb\\,var\\(--accent\\)_45\\%\\,var\\(--border\\)\\)\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *).is-saved",
+      "css": ".gb\\:rec-ui\\:\\[\\&\\.is-saved\\]\\:\\[border-color\\:color-mix\\(in_srgb\\,var\\(--accent\\)_45\\%\\,var\\(--border\\)\\)\\]:where([data-recommendation-cards-view],[data-recommendation-cards-view] *).is-saved{border-color:color-mix(in srgb,var(--accent) 45%,var(--border))}",
+      "atRules": [
+        {
+          "name": "supports",
+          "params": "(color:color-mix(in lab, red, red))"
+        }
+      ],
+      "shared": true
+    }
+  ],
+  "sourceFiles": {
+    "css/modal-shared.css": {
+      "rules": 507,
+      "added": 0,
+      "snapshot": ".local-notes/full-ui-migration/tips-details/original-styles/modal-shared.css",
+      "sha256": "f281bc9594c4b6da6851acd0b3763b925e51186594e72321a7053639a5ce7347"
+    },
+    "css/dashboard-core.css": {
+      "rules": 16,
+      "added": 0,
+      "snapshot": ".local-notes/full-ui-migration/tips-details/original-styles/dashboard-core.css",
+      "sha256": "48dc262d49d741d83e09d2b9b062093b429d59c994733bae70974837c6bdb75e"
+    },
+    "css/dashboard-widgets.css": {
+      "rules": 1305,
+      "added": 89,
+      "snapshot": ".local-notes/full-ui-migration/tips-details/original-styles/dashboard-widgets.css",
+      "sha256": "fe9da27fec336ab008d790daf251f3feaac082683598805ee910ee38a0f6f8e4"
+    },
+    "css/dashboard-data.css": {
+      "rules": 312,
+      "added": 0,
+      "snapshot": ".local-notes/full-ui-migration/tips-details/original-styles/dashboard-data.css",
+      "sha256": "d5586514ddaed3286fea3fd8398efe1fb3f6a5713225ea5c53a560e51214dab6"
+    },
+    "css/marker-detail-modal.css": {
+      "rules": 216,
+      "added": 0,
+      "snapshot": ".local-notes/full-ui-migration/tips-details/original-styles/marker-detail-modal.css",
+      "sha256": "9442e35d4c755cf5f15236f4e1be30d2173eec4081f9388460c6a825e1c21ad2"
+    },
+    "css/recommendations.css": {
+      "rules": 106,
+      "added": 24,
+      "snapshot": ".local-notes/full-ui-migration/tips-details/original-styles/recommendations.css",
+      "sha256": "15ee30dfdf6920da316a8ef57f336e6234ca9f57636b448cede6db78525deb12"
+    },
+    "css/chat-panel-open.css": {
+      "rules": 1776,
+      "added": 0,
+      "snapshot": ".local-notes/full-ui-migration/tips-details/original-styles/chat-panel-open.css",
+      "sha256": "a7fab1fd93055d80af690baed955fd591209d8bbac0b5e6c2117e524e72f85de"
+    }
+  },
+  "contractFiles": {
+    "index.html": {
+      "snapshot": ".local-notes/full-ui-migration/tips-details/original-contracts/index.html",
+      "sha256": "8388ccf371eb403d2d03abcbabd15723a1e54e2137a3bf8573eaa5636198b6d7",
+      "currentIdentical": true
+    },
+    "js/marker-detail-runtime.ts": {
+      "snapshot": ".local-notes/full-ui-migration/tips-details/original-contracts/marker-detail-runtime.ts",
+      "sha256": "6fd4653fdd7f6c691623280d661b370ca50f2b4f1ef9c3dabe57d4e0c1142969",
+      "currentIdentical": true
+    },
+    "js/chat-panel.ts": {
+      "snapshot": ".local-notes/full-ui-migration/tips-details/original-contracts/chat-panel.ts",
+      "sha256": "0f5caf7b1cb55ebe60467be79105d1427ce83319bfc7bf7e69d25f82713de608",
+      "currentIdentical": true
+    }
+  },
+  "originalStylesVerified": 147,
+  "selectorCoverage": "Decoded css-tree class/ID selectors from immutable original sample DOM; full original file/rule ordinals and at-rule ancestry retained. Original native blocks are merged at their original ordinals, not appended as a utility batch."
+}

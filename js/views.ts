@@ -29,7 +29,7 @@ import {
 } from './health-data-loader.js';
 import { state } from './state.js';
 import { createLensPageHandlers } from './lens-pages.js';
-import { lensPageActionAttrs, renderLensHeader, renderLensPageWidgets, renderLensWidget, moveLensPageWidget } from './lens-page-shell.js';
+import { getLensContentGrid, getLensWidgetChrome, renderLensHeader, renderLensPageWidgets, moveLensPageWidget } from './lens-page-shell.js';
 import { renderFocusCard, buildFocusContext, loadFocusCard, refreshFocusCard } from './focus-card.js';
 import { configureOnboardingView, renderOnboardingBanner, renderAIConnectionReminder, dismissAIReminder, openChatProviderQuiz, setOnboardingFocus, completeOnboardingSex, completeOnboardingProfile, dismissOnboarding } from './onboarding-view.js';
 import { renderCategoryGlyph } from './category-glyphs.js';
@@ -515,12 +515,10 @@ export function configureDashboardViewFactory(createDashboardView: unknown) {
     getCachedRecommendationsCatalog: (dashboardView as DashboardOperations).getCachedRecommendationsCatalog,
     refreshRecommendationsWhenCatalogReady: (dashboardView as DashboardOperations).refreshRecommendationsWhenCatalogReady,
     getGlobalRecommendationCandidates: (dashboardView as DashboardOperations).getGlobalRecommendationCandidates,
-    renderRecommendationList: (dashboardView as DashboardOperations).renderRecommendationList,
-    renderRecommendationsEmpty: (dashboardView as DashboardOperations).renderRecommendationsEmpty,
-    lensPageActionAttrs,
+    getLensContentGrid,
+    getLensWidgetChrome,
     renderLensHeader,
     renderLensPageWidgets,
-    renderLensWidget,
   });
 
   recommendationActions = (createRecommendationActions as RecommendationConstructorOperations)({

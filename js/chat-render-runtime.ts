@@ -13,16 +13,27 @@ export function isChatRenderProductRecsEnabled() {
   }
 }
 
-export function renderChatRecommendationSections(slots: unknown) {
+type SectionRenderer<View> = (slotKey: string, options: {label: unknown; maxProducts: number}) => View;
+
+function recommendationSections<View>(slots: unknown, rendererName: string): NonNullable<View>[] {
   if (!Array.isArray(slots) || !slots.length || !isChatRenderProductRecsEnabled()) return [];
-  const renderRecommendationSectionSync = getRecommendationModuleFunction('renderRecommendationSectionSync') as ((slotKey: string, options: { label: unknown; maxProducts: number }) => unknown) | null;
+  const render = getRecommendationModuleFunction(rendererName) as SectionRenderer<View> | null;
   const catalog = getRecommendationsCatalogCache();
-  const catalogSlots = catalog?.slots as Readonly<Record<string, { label?: unknown } | null | undefined>> | null | undefined;
-  if (!renderRecommendationSectionSync || !catalogSlots) return [];
+  const catalogSlots = catalog?.slots as Readonly<Record<string, {label?: unknown} | null | undefined>> | null | undefined;
+  if (!render || !catalogSlots) return [];
   return (slots as unknown[]).map(slot => {
     const slotKey = String(slot || '');
-    if (!slotKey) return '';
+    if (!slotKey) return null;
     const slotLabel = catalogSlots[slotKey]?.label || slotKey.split('.').pop();
-    return renderRecommendationSectionSync(slotKey, { label: slotLabel, maxProducts: 2 });
-  }).filter(Boolean);
+    return render(slotKey, {label: slotLabel, maxProducts: 2});
+  }).filter(Boolean) as NonNullable<View>[];
+}
+
+/** Retained HTML facade for callers outside authored transcript composition. */
+export function renderChatRecommendationSections(slots: unknown) {
+  return recommendationSections<string>(slots, 'renderRecommendationSectionSync');
+}
+
+export function getChatRecommendationSectionViews(slots: unknown) {
+  return recommendationSections<import('./tips-presentation.js').TipsSectionView | null>(slots, 'getRecommendationSectionViewSync');
 }

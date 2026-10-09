@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1445 |
-| Internal import edges | 4825 |
+| Modules | 1467 |
+| Internal import edges | 4873 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -65,7 +65,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.ts`](js/utils.ts) | 257 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
+| [`js/utils.ts`](js/utils.ts) | 254 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
 | [`js/state.ts`](js/state.ts) | 245 | [`js/chat-send.ts`](js/chat-send.ts) | 38 |
 | [`js/caught-error.ts`](js/caught-error.ts) | 93 | [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) | 36 |
 | [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts) | 84 | [`js/settings.ts`](js/settings.ts) | 35 |
@@ -938,7 +938,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>ChatRecommendations.svelte</code> family — 1 module</summary>
 
-- [`js/components/ChatRecommendations.svelte`](js/components/ChatRecommendations.svelte) → [`js/chat-history.ts`](js/chat-history.ts), [`js/chat-recommendation-disclosure.ts`](js/chat-recommendation-disclosure.ts), [`js/state.ts`](js/state.ts)
+- [`js/components/ChatRecommendations.svelte`](js/components/ChatRecommendations.svelte) → [`js/chat-history.ts`](js/chat-history.ts), [`js/chat-recommendation-disclosure.ts`](js/chat-recommendation-disclosure.ts), [`js/components/TipsSection.svelte`](js/components/TipsSection.svelte), [`js/state.ts`](js/state.ts)
 
 </details>
 
@@ -1253,19 +1253,51 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>cycle</code> family — 11 modules</summary>
+<details><summary><code>cycle</code> family — 13 modules</summary>
 
 - [`js/cycle-draw-phases.ts`](js/cycle-draw-phases.ts) → no in-scope imports
 - [`js/cycle-import-adapters.ts`](js/cycle-import-adapters.ts) → [`js/cycle-summary.ts`](js/cycle-summary.ts)
+- [`js/cycle-import-classes.ts`](js/cycle-import-classes.ts) → no in-scope imports
 - [`js/cycle-import-file.ts`](js/cycle-import-file.ts) → [`js/caught-error.ts`](js/caught-error.ts)
 - [`js/cycle-import-loader.ts`](js/cycle-import-loader.ts) → [`js/cycle-import-rendering.ts`](js/cycle-import-rendering.ts), [`js/cycle-import.ts`](js/cycle-import.ts) *(dynamic)*, [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/cycle-import-mutations.ts`](js/cycle-import-mutations.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/cycle-runtime.ts`](js/cycle-runtime.ts), [`js/cycle-store.ts`](js/cycle-store.ts), [`js/cycle-summary.ts`](js/cycle-summary.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts)
-- [`js/cycle-import-rendering.ts`](js/cycle-import-rendering.ts) → [`js/cycle-summary.ts`](js/cycle-summary.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/cycle-import.ts`](js/cycle-import.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/cycle-import-adapters.ts`](js/cycle-import-adapters.ts), [`js/cycle-import-file.ts`](js/cycle-import-file.ts), [`js/cycle-import-mutations.ts`](js/cycle-import-mutations.ts), [`js/cycle-import-rendering.ts`](js/cycle-import-rendering.ts), [`js/cycle-runtime.ts`](js/cycle-runtime.ts), [`js/cycle-summary.ts`](js/cycle-summary.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/tour.ts`](js/tour.ts), [`js/utils.ts`](js/utils.ts), [`js/wearables-apple-health.ts`](js/wearables-apple-health.ts) *(dynamic)*
+- [`js/cycle-import-presentation.ts`](js/cycle-import-presentation.ts) → no in-scope imports
+- [`js/cycle-import-rendering.ts`](js/cycle-import-rendering.ts) → [`js/components/CycleImportCoverage.svelte`](js/components/CycleImportCoverage.svelte), [`js/components/CycleImportPicker.svelte`](js/components/CycleImportPicker.svelte), [`js/cycle-import-presentation.ts`](js/cycle-import-presentation.ts), [`js/cycle-summary.ts`](js/cycle-summary.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/cycle-import.ts`](js/cycle-import.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/components/CycleImportPreview.svelte`](js/components/CycleImportPreview.svelte), [`js/cycle-import-adapters.ts`](js/cycle-import-adapters.ts), [`js/cycle-import-classes.ts`](js/cycle-import-classes.ts), [`js/cycle-import-file.ts`](js/cycle-import-file.ts), [`js/cycle-import-mutations.ts`](js/cycle-import-mutations.ts), [`js/cycle-import-presentation.ts`](js/cycle-import-presentation.ts), [`js/cycle-import-rendering.ts`](js/cycle-import-rendering.ts), [`js/cycle-runtime.ts`](js/cycle-runtime.ts), [`js/cycle-summary.ts`](js/cycle-summary.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/tour.ts`](js/tour.ts), [`js/utils.ts`](js/utils.ts), [`js/wearables-apple-health.ts`](js/wearables-apple-health.ts) *(dynamic)*
 - [`js/cycle-runtime.ts`](js/cycle-runtime.ts) → [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/cycle-store.ts`](js/cycle-store.ts) → [`js/transaction-completion.ts`](js/transaction-completion.ts)
 - [`js/cycle-summary.ts`](js/cycle-summary.ts) → no in-scope imports
 - [`js/cycle.ts`](js/cycle.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/constants.ts`](js/constants.ts), [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/cycle-draw-phases.ts`](js/cycle-draw-phases.ts), [`js/cycle-import-loader.ts`](js/cycle-import-loader.ts), [`js/cycle-runtime.ts`](js/cycle-runtime.ts), [`js/cycle-summary.ts`](js/cycle-summary.ts), [`js/data.ts`](js/data.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/tour.ts`](js/tour.ts), [`js/utils.ts`](js/utils.ts)
+
+</details>
+
+<details><summary><code>CycleImportCoverage.svelte</code> family — 1 module</summary>
+
+- [`js/components/CycleImportCoverage.svelte`](js/components/CycleImportCoverage.svelte) → [`js/components/CycleImportSourceRow.svelte`](js/components/CycleImportSourceRow.svelte), [`js/cycle-import-classes.ts`](js/cycle-import-classes.ts)
+
+</details>
+
+<details><summary><code>CycleImportPeriodRow.svelte</code> family — 1 module</summary>
+
+- [`js/components/CycleImportPeriodRow.svelte`](js/components/CycleImportPeriodRow.svelte) → [`js/cycle-import-classes.ts`](js/cycle-import-classes.ts)
+
+</details>
+
+<details><summary><code>CycleImportPicker.svelte</code> family — 1 module</summary>
+
+- [`js/components/CycleImportPicker.svelte`](js/components/CycleImportPicker.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>CycleImportPreview.svelte</code> family — 1 module</summary>
+
+- [`js/components/CycleImportPreview.svelte`](js/components/CycleImportPreview.svelte) → [`js/components/CycleImportPeriodRow.svelte`](js/components/CycleImportPeriodRow.svelte), [`js/cycle-import-classes.ts`](js/cycle-import-classes.ts)
+
+</details>
+
+<details><summary><code>CycleImportSourceRow.svelte</code> family — 1 module</summary>
+
+- [`js/components/CycleImportSourceRow.svelte`](js/components/CycleImportSourceRow.svelte) → [`js/cycle-import-classes.ts`](js/cycle-import-classes.ts)
 
 </details>
 
@@ -1680,7 +1712,7 @@ Native browser modules shipped with the static application.
 - [`js/lens-local-worker.ts`](js/lens-local-worker.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/lens-local-embedder-config.ts`](js/lens-local-embedder-config.ts), [`js/lens-local-ingest.ts`](js/lens-local-ingest.ts), [`js/lens-local-library-registry.ts`](js/lens-local-library-registry.ts), [`js/lens-local-store.ts`](js/lens-local-store.ts), [`js/lens-local-utils.ts`](js/lens-local-utils.ts)
 - [`js/lens-local.ts`](js/lens-local.ts) → no in-scope imports
 - [`js/lens-page-shell.ts`](js/lens-page-shell.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/components/LensDashboardToggle.svelte`](js/components/LensDashboardToggle.svelte), [`js/components/LensShellPresentation.svelte`](js/components/LensShellPresentation.svelte), [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/dashboard-widget-copy.ts`](js/dashboard-widget-copy.ts), [`js/dna-runtime-bridge.ts`](js/dna-runtime-bridge.ts), [`js/emf-runtime.ts`](js/emf-runtime.ts), [`js/lens-shell-presentation.ts`](js/lens-shell-presentation.ts), [`js/profile.ts`](js/profile.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/state.ts`](js/state.ts)
-- [`js/lens-pages.ts`](js/lens-pages.ts) → [`js/biology-page-view.ts`](js/biology-page-view.ts), [`js/biology-scores.ts`](js/biology-scores.ts), [`js/components/LensPageContent.svelte`](js/components/LensPageContent.svelte), [`js/data.ts`](js/data.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/lens-content-presentation.ts`](js/lens-content-presentation.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/state.ts`](js/state.ts)
+- [`js/lens-pages.ts`](js/lens-pages.ts) → [`js/biology-page-view.ts`](js/biology-page-view.ts), [`js/biology-scores.ts`](js/biology-scores.ts), [`js/components/LensPageContent.svelte`](js/components/LensPageContent.svelte), [`js/components/RecommendationPage.svelte`](js/components/RecommendationPage.svelte), [`js/data.ts`](js/data.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/lens-content-presentation.ts`](js/lens-content-presentation.ts), [`js/lens-shell-presentation.ts`](js/lens-shell-presentation.ts), [`js/recommendation-presentation.ts`](js/recommendation-presentation.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/state.ts`](js/state.ts)
 - [`js/lens-shell-classes.ts`](js/lens-shell-classes.ts) → no in-scope imports
 - [`js/lens-shell-presentation.ts`](js/lens-shell-presentation.ts) → no in-scope imports
 - [`js/lens-url.ts`](js/lens-url.ts) → no in-scope imports
@@ -1720,13 +1752,19 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>LensPageWidget.svelte</code> family — 1 module</summary>
 
-- [`js/components/LensPageWidget.svelte`](js/components/LensPageWidget.svelte) → [`js/components/LensWidgetTools.svelte`](js/components/LensWidgetTools.svelte), [`js/lens-shell-classes.ts`](js/lens-shell-classes.ts)
+- [`js/components/LensPageWidget.svelte`](js/components/LensPageWidget.svelte) → [`js/components/LensWidgetFrame.svelte`](js/components/LensWidgetFrame.svelte)
 
 </details>
 
 <details><summary><code>LensShellPresentation.svelte</code> family — 1 module</summary>
 
 - [`js/components/LensShellPresentation.svelte`](js/components/LensShellPresentation.svelte) → [`js/components/LensPageGrid.svelte`](js/components/LensPageGrid.svelte), [`js/components/LensPageHeader.svelte`](js/components/LensPageHeader.svelte), [`js/components/LensPageWidget.svelte`](js/components/LensPageWidget.svelte), [`js/components/LensWidgetTools.svelte`](js/components/LensWidgetTools.svelte)
+
+</details>
+
+<details><summary><code>LensWidgetFrame.svelte</code> family — 1 module</summary>
+
+- [`js/components/LensWidgetFrame.svelte`](js/components/LensWidgetFrame.svelte) → [`js/components/LensWidgetTools.svelte`](js/components/LensWidgetTools.svelte), [`js/lens-shell-classes.ts`](js/lens-shell-classes.ts)
 
 </details>
 
@@ -2905,10 +2943,11 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>recommendation</code> family — 3 modules</summary>
+<details><summary><code>recommendation</code> family — 4 modules</summary>
 
-- [`js/recommendation-actions.ts`](js/recommendation-actions.ts) → [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/recommendation-actions.ts`](js/recommendation-actions.ts) → [`js/components/TipsDetail.svelte`](js/components/TipsDetail.svelte), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/tips-presentation.ts`](js/tips-presentation.ts)
 - [`js/recommendation-cards-classes.ts`](js/recommendation-cards-classes.ts) → no in-scope imports
+- [`js/recommendation-page-presentation.ts`](js/recommendation-page-presentation.ts) → no in-scope imports
 - [`js/recommendation-presentation.ts`](js/recommendation-presentation.ts) → no in-scope imports
 
 </details>
@@ -2916,6 +2955,12 @@ Native browser modules shipped with the static application.
 <details><summary><code>RecommendationCard.svelte</code> family — 1 module</summary>
 
 - [`js/components/RecommendationCard.svelte`](js/components/RecommendationCard.svelte) → [`js/recommendation-cards-classes.ts`](js/recommendation-cards-classes.ts)
+
+</details>
+
+<details><summary><code>RecommendationPage.svelte</code> family — 1 module</summary>
+
+- [`js/components/RecommendationPage.svelte`](js/components/RecommendationPage.svelte) → [`js/components/LensActionButtons.svelte`](js/components/LensActionButtons.svelte), [`js/components/LensPageHeader.svelte`](js/components/LensPageHeader.svelte), [`js/components/LensWidgetFrame.svelte`](js/components/LensWidgetFrame.svelte), [`js/components/RecommendationPresentation.svelte`](js/components/RecommendationPresentation.svelte), [`js/lens-shell-classes.ts`](js/lens-shell-classes.ts)
 
 </details>
 
@@ -2927,10 +2972,10 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>recommendations</code> family — 4 modules</summary>
 
-- [`js/recommendations-products.ts`](js/recommendations-products.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/components/LightDeviceAffiliate.svelte`](js/components/LightDeviceAffiliate.svelte), [`js/components/LightDeviceRecommendations.svelte`](js/components/LightDeviceRecommendations.svelte), [`js/light-device-recommendations-presentation.ts`](js/light-device-recommendations-presentation.ts), [`js/profile.ts`](js/profile.ts), [`js/recommendations-region.ts`](js/recommendations-region.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/recommendations-products.ts`](js/recommendations-products.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/components/LightDeviceAffiliate.svelte`](js/components/LightDeviceAffiliate.svelte), [`js/components/LightDeviceRecommendations.svelte`](js/components/LightDeviceRecommendations.svelte), [`js/components/TipsBanner.svelte`](js/components/TipsBanner.svelte), [`js/components/TipsCoupon.svelte`](js/components/TipsCoupon.svelte), [`js/components/TipsDisclaimer.svelte`](js/components/TipsDisclaimer.svelte), [`js/components/TipsDisclosure.svelte`](js/components/TipsDisclosure.svelte), [`js/components/TipsProduct.svelte`](js/components/TipsProduct.svelte), [`js/components/TipsSection.svelte`](js/components/TipsSection.svelte), [`js/light-device-recommendations-presentation.ts`](js/light-device-recommendations-presentation.ts), [`js/profile.ts`](js/profile.ts), [`js/recommendations-region.ts`](js/recommendations-region.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/tips-presentation.ts`](js/tips-presentation.ts)
 - [`js/recommendations-region.ts`](js/recommendations-region.ts) → no in-scope imports
 - [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts) → [`js/emf-runtime.ts`](js/emf-runtime.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts)
-- [`js/recommendations.ts`](js/recommendations.ts) → [`js/components/ContextCardTips.svelte`](js/components/ContextCardTips.svelte), [`js/context-card-tips-presentation.ts`](js/context-card-tips-presentation.ts), [`js/dna-evidence.ts`](js/dna-evidence.ts), [`js/dna-genotype.ts`](js/dna-genotype.ts), [`js/recommendations-products.ts`](js/recommendations-products.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/recommendations.ts`](js/recommendations.ts) → [`js/components/ContextCardTips.svelte`](js/components/ContextCardTips.svelte), [`js/components/TipsSection.svelte`](js/components/TipsSection.svelte), [`js/context-card-tips-presentation.ts`](js/context-card-tips-presentation.ts), [`js/dna-evidence.ts`](js/dna-evidence.ts), [`js/dna-genotype.ts`](js/dna-genotype.ts), [`js/recommendations-products.ts`](js/recommendations-products.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/state.ts`](js/state.ts), [`js/tips-presentation.ts`](js/tips-presentation.ts)
 
 </details>
 
@@ -3356,6 +3401,73 @@ Native browser modules shipped with the static application.
 <details><summary><code>tinfoil</code> family — 1 module</summary>
 
 - [`js/tinfoil-secure-fetch.ts`](js/tinfoil-secure-fetch.ts) → no in-scope imports
+
+</details>
+
+<details><summary><code>tips</code> family — 2 modules</summary>
+
+- [`js/tips-classes.ts`](js/tips-classes.ts) → no in-scope imports
+- [`js/tips-presentation.ts`](js/tips-presentation.ts) → no in-scope imports
+
+</details>
+
+<details><summary><code>TipsBanner.svelte</code> family — 1 module</summary>
+
+- [`js/components/TipsBanner.svelte`](js/components/TipsBanner.svelte) → [`js/tips-classes.ts`](js/tips-classes.ts)
+
+</details>
+
+<details><summary><code>TipsCoupon.svelte</code> family — 1 module</summary>
+
+- [`js/components/TipsCoupon.svelte`](js/components/TipsCoupon.svelte) → [`js/tips-classes.ts`](js/tips-classes.ts)
+
+</details>
+
+<details><summary><code>TipsDetail.svelte</code> family — 1 module</summary>
+
+- [`js/components/TipsDetail.svelte`](js/components/TipsDetail.svelte) → [`js/components/TipsSection.svelte`](js/components/TipsSection.svelte)
+
+</details>
+
+<details><summary><code>TipsDisclaimer.svelte</code> family — 1 module</summary>
+
+- [`js/components/TipsDisclaimer.svelte`](js/components/TipsDisclaimer.svelte) → [`js/tips-classes.ts`](js/tips-classes.ts)
+
+</details>
+
+<details><summary><code>TipsDisclosure.svelte</code> family — 1 module</summary>
+
+- [`js/components/TipsDisclosure.svelte`](js/components/TipsDisclosure.svelte) → [`js/tips-classes.ts`](js/tips-classes.ts)
+
+</details>
+
+<details><summary><code>TipsEMFProduct.svelte</code> family — 1 module</summary>
+
+- [`js/components/TipsEMFProduct.svelte`](js/components/TipsEMFProduct.svelte) → [`js/tips-classes.ts`](js/tips-classes.ts)
+
+</details>
+
+<details><summary><code>TipsGenetics.svelte</code> family — 1 module</summary>
+
+- [`js/components/TipsGenetics.svelte`](js/components/TipsGenetics.svelte) → [`js/tips-classes.ts`](js/tips-classes.ts)
+
+</details>
+
+<details><summary><code>TipsProduct.svelte</code> family — 1 module</summary>
+
+- [`js/components/TipsProduct.svelte`](js/components/TipsProduct.svelte) → [`js/tips-classes.ts`](js/tips-classes.ts)
+
+</details>
+
+<details><summary><code>TipsSection.svelte</code> family — 1 module</summary>
+
+- [`js/components/TipsSection.svelte`](js/components/TipsSection.svelte) → [`js/components/TipsBanner.svelte`](js/components/TipsBanner.svelte), [`js/components/TipsCoupon.svelte`](js/components/TipsCoupon.svelte), [`js/components/TipsDisclaimer.svelte`](js/components/TipsDisclaimer.svelte), [`js/components/TipsDisclosure.svelte`](js/components/TipsDisclosure.svelte), [`js/components/TipsEMFProduct.svelte`](js/components/TipsEMFProduct.svelte), [`js/components/TipsGenetics.svelte`](js/components/TipsGenetics.svelte), [`js/components/TipsTier.svelte`](js/components/TipsTier.svelte), [`js/tips-classes.ts`](js/tips-classes.ts)
+
+</details>
+
+<details><summary><code>TipsTier.svelte</code> family — 1 module</summary>
+
+- [`js/components/TipsTier.svelte`](js/components/TipsTier.svelte) → [`js/components/TipsProduct.svelte`](js/components/TipsProduct.svelte), [`js/tips-classes.ts`](js/tips-classes.ts)
 
 </details>
 

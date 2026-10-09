@@ -2407,3 +2407,21 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /tests/review-recommendations-frozen.test.js
 /tests/playwright/review-recommendations-owned.spec.js
 /tests/pwa/sveltekit-review-recommendations.spec.js
+
+# Generated Cycle import and typed Tips composition.
+/css/cycle.css
+/js/cycle-import-presentation.js
+/js/cycle-import-classes.js
+/js/tips-presentation.js
+/js/tips-classes.js
+/js/recommendation-page-presentation.js
+/tests/cycle-import-presentation.test.js
+/tests/cycle-import-frozen.test.js
+/tests/tips-presentation.test.js
+/tests/tips-details-frozen.test.js
+/tests/playwright/cycle-import-owned.spec.js
+/tests/playwright/tips-details-owned.spec.js
+
+# Focused authored Cycle and Tips PWA acceptance emits.
+/tests/pwa/sveltekit-cycle-import.spec.js
+/tests/pwa/sveltekit-tips-details.spec.js

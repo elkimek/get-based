@@ -1,3 +1,4 @@
+import type {TipsSectionView} from '../../js/tips-presentation.js';
 import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
@@ -75,9 +76,10 @@ test('recommendation actions browser coverage handles detail modal discussion an
 
       let shell = renderShell();
       recommendationRuntime.configureRecommendationModuleBridge({
-        renderRecommendationSection: async (slotKey: unknown, options: unknown) => {
+        getRecommendationSectionView: async (slotKey: unknown, options: unknown) => {
           renderCalls.push({ kind: 'render', slotKey, options });
-          return '<section class="recommendation-section">Loaded options</section>';
+          const view: TipsSectionView = {variant: 'standard', header: 'Loaded options', gated: false, banner: false, normalNote: false, genetics: [], tiers: [], products: [], coupon: null, suggestionHref: null, footer: {region: 'Worldwide'}, disclaimer: false};
+          return view;
         },
       });
       actions.openRecommendationDetail('vitamins.d', '<Unsafe & Label>', 'low');
@@ -96,7 +98,7 @@ test('recommendation actions browser coverage handles detail modal discussion an
           && (call.options as {markerStatus?:unknown}).markerStatus === 'low');
 
       shell = renderShell();
-      recommendationRuntime.configureRecommendationModuleBridge({ renderRecommendationSection: async () => '' });
+      recommendationRuntime.configureRecommendationModuleBridge({ getRecommendationSectionView: async () => null });
       actions.openRecommendationDetail('missing.slot', 'Missing section');
       await waitForModalSettled();
       outcomes.openRecommendationDetailUsesEmptyFallbackWhenRendererReturnsBlank =
@@ -105,7 +107,7 @@ test('recommendation actions browser coverage handles detail modal discussion an
 
       shell = renderShell();
       recommendationRuntime.configureRecommendationModuleBridge({
-        renderRecommendationSection: async () => { throw new Error('catalog unavailable'); },
+        getRecommendationSectionView: async () => { throw new Error('catalog unavailable'); },
       });
       actions.openRecommendationDetail('broken.slot', '');
       await waitForModalSettled();
@@ -114,7 +116,7 @@ test('recommendation actions browser coverage handles detail modal discussion an
         && shell.modal!.innerHTML.includes('Could not load tip details.');
 
       shell = renderShell();
-      recommendationRuntime.configureRecommendationModuleBridge({ renderRecommendationSection: null });
+      recommendationRuntime.configureRecommendationModuleBridge({ getRecommendationSectionView: null });
       actions.openRecommendationDetail('undefined.renderer', 'Undefined renderer');
       await waitForModalSettled();
       outcomes.openRecommendationDetailHandlesMissingRendererAsEmptyFallback =
@@ -152,7 +154,7 @@ test('recommendation actions browser coverage handles detail modal discussion an
       outcomes.allOutcomesReached = true;
     } finally {
       recommendationRuntime.configureRecommendationModuleBridge({
-        renderRecommendationSection: null,
+        getRecommendationSectionView: null,
         ...previousRecommendationBridge,
       });
       recommendationRuntime.configureRecommendationsRuntime(previousRecommendationRuntime);

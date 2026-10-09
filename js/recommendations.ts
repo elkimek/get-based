@@ -1,3 +1,5 @@
+import { renderHTML as renderTipsSectionHTML } from './components/TipsSection.svelte.html.js';
+import { tipsText, type TipsSectionView, type TipsGeneticsView, type TipsTierView, type TipsTierItem } from './tips-presentation.js';
 import { renderHTML as renderContextTipsHTML } from './components/ContextCardTips.svelte.html.js';
 import { contextTipsSlotKeys, projectContextTips } from './context-card-tips-presentation.js';
 import type { GeneticsData } from './dna-runtime.js';
@@ -22,7 +24,6 @@ interface EmfAssessmentSnapshot { assessments?: Array<{ date: string }> | null }
 
 // recommendations.js — Catalog loading, DNA hints, section rendering, and recommendation detectors
 
-import { escapeHTML } from './utils.js';
 import { state } from './state.js';
 import { findGenotypeInfo, findSnpHint } from './dna-genotype.js';
 import { resolveSnpEvidenceProfile, snpFindingPresentation } from './dna-evidence.js';
@@ -38,16 +39,14 @@ import {
 } from './recommendations-runtime.js';
 import {
   _addUTMParams,
-  _buildCouponLine,
-  _buildDisclosureBanner,
-  _buildMiniDisclaimer,
   _pickRegional,
   _resolveCouponForRegion,
   _resolveHomepageForRegion,
   _resolveProductUrlForRegion,
   _resolveVendorForCoupon,
-  buildDisclosureFooter,
-  buildProductRow,
+  getProductRowView,
+  getCouponLineView,
+  getDisclosureFooterView,
   copyCouponCode,
   getEMFMeters,
   getEMFProductsForMitigations,
@@ -266,10 +265,10 @@ export function buildDNAHints(slotKey: string) {
 // HTML RENDERING
 // ═══════════════════════════════════════════════
 // Sync core — builds HTML from cached catalog, no promises
-function _renderRecSection(slotKey: string, opts: RecommendationSectionOptions = {}) {
+function getRecommendationSectionViewCore(slotKey: string, opts: RecommendationSectionOptions = {}): TipsSectionView | null {
   const slot = _catalog?.slots?.[slotKey];
   const hasInlineSNPs = opts.inlineSNPs?.length! > 0;
-  if (!slot && !hasInlineSNPs) return '';
+  if (!slot && !hasInlineSNPs) return null;
 
   const label = opts.label || 'What can help';
   const maxProducts = opts.maxProducts || 3;
@@ -284,112 +283,105 @@ function _renderRecSection(slotKey: string, opts: RecommendationSectionOptions =
   const drugProducts = products.filter(p => p.type === 'drug').slice(0, maxProducts);
   const otherProducts = products.filter(p => !knownTypes.includes(p.type as string)).slice(0, maxProducts);
 
-  let inner = '';
-
-  // DNA hints — prepend before tiers
+  const genetics: TipsGeneticsView[] = [];
+  const tiers: TipsTierView[] = [];
   let dnaHints = buildDNAHints(slotKey);
-  // Inline SNPs (from detail modal) — raw genotype info alongside actionable hints
   const inlineSNPs = opts.inlineSNPs || [];
-  // Deduplicate: when the same rsid produces both a raw finding (inlineSNPs)
-  // and an actionable hint (dnaHints), the modal previously rendered two
-  // rows for the same SNP citing the same study. Keep the inline finding
-  // (richer — note + SNPedia link) and drop the redundant hint.
   if (inlineSNPs.length > 0 && dnaHints.length > 0) {
     const inlineRsids = new Set(inlineSNPs.map(s => s.rsid).filter(Boolean));
     dnaHints = dnaHints.filter(h => !h.rsid || !inlineRsids.has(h.rsid));
   }
   if (dnaHints.length > 0 || inlineSNPs.length > 0) {
-    inner += `<div class="rec-dna-hints">`;
-    inner += `<div class="rec-section-label">\uD83E\uDDEC YOUR GENETICS</div>`;
-    // Show raw SNP genotypes with effect levels
     for (const s of inlineSNPs) {
       const presentation = s.presentation || snpFindingPresentation(s.effect, s.valence);
       const profile = s.evidenceProfile || resolveSnpEvidenceProfile(s, s);
       const icon = presentation.icon;
-      const refLink = s.references?.[0] && /^https?:/.test(s.references[0]) ? ` <a href="${escapeHTML(s.references[0])}" target="_blank" rel="noopener" class="rec-dna-ref">study</a>` : '';
-      const moreLink = s.rsid ? ` <a href="https://www.snpedia.com/index.php/${s.rsid.charAt(0).toUpperCase() + s.rsid.slice(1)}" target="_blank" rel="noopener" class="rec-dna-ref">SNPedia</a>` : '';
-      inner += `<div class="rec-dna-row">${icon} <strong>${escapeHTML(s.gene)} ${escapeHTML(s.variant)}</strong>: ${escapeHTML(s.genotype)} \u2014 ${escapeHTML(s.note)} <span class="rec-dna-evidence">Evidence · ${escapeHTML(profile.evidenceShortLabel)} · ${escapeHTML(profile.relevanceShortLabel)}</span>${refLink}${moreLink}</div>`;
+      const refLink = s.references?.[0] && /^https?:/.test(s.references[0]) ? s.references[0] : null;
+      const moreLink = s.rsid ? `https://www.snpedia.com/index.php/${s.rsid.charAt(0).toUpperCase() + s.rsid.slice(1)}` : null;
+      genetics.push({kind: 'finding', icon: tipsText(icon), gene: tipsText(s.gene), variant: tipsText(s.variant),
+        genotype: tipsText(s.genotype), note: tipsText(s.note), evidence: tipsText(profile.evidenceShortLabel),
+        relevance: tipsText(profile.relevanceShortLabel), study: refLink, snpedia: moreLink});
     }
-    // Actionable hints from snpHints
     for (const h of dnaHints) {
       const isAvoid = h.direction === 'avoid';
       const icon = isAvoid ? '\u26A0' : '\u2192';
-      const cls = isAvoid ? ' rec-dna-avoid' : '';
-      const refLink = h.ref && /^https?:\/\//.test(h.ref) ? ` <a href="${escapeHTML(h.ref)}" target="_blank" rel="noopener" class="rec-dna-ref">study</a>` : '';
+      const refLink = h.ref && /^https?:\/\//.test(h.ref) ? h.ref : null;
       const profile = h.evidenceProfile || resolveSnpEvidenceProfile();
-      inner += `<div class="rec-dna-row${cls}">${icon} ${escapeHTML(h.text)} <span class="rec-dna-evidence">Evidence · ${escapeHTML(profile.evidenceShortLabel)} · ${escapeHTML(profile.relevanceShortLabel)}</span>${refLink}</div>`;
+      genetics.push({kind: 'hint', icon, avoid: isAvoid, text: tipsText(h.text),
+        evidence: tipsText(profile.evidenceShortLabel), relevance: tipsText(profile.relevanceShortLabel), study: refLink});
     }
-    inner += `</div>`;
   }
 
-  // Tier 1: lifestyle ideas (full width, listed)
   if (slot?.freeActions?.length) {
-    inner += `<div class="rec-section-label">LIFESTYLE IDEAS <span class="rec-tier-hint">general information</span></div>`;
-    for (const action of slot.freeActions) {
-      inner += `<div class="rec-item-free">${escapeHTML(action)}</div>`;
-    }
+    const items: TipsTierItem[] = [];
+    for (const action of slot.freeActions) items.push({kind: 'free', text: tipsText(action)});
+    tiers.push({label: 'LIFESTYLE IDEAS', hint: 'general information', items});
   }
-
-  // Tier 2: food examples — inline
   if (foodProducts.length) {
-    inner += `<div class="rec-section-label">FOOD EXAMPLES <span class="rec-tier-hint">options to review</span></div>`;
-    for (const fp of foodProducts) inner += buildProductRow(fp, region, slotKey);
+    tiers.push({label: 'FOOD EXAMPLES', hint: 'options to review',
+      items: foodProducts.map(fp => ({kind: 'product', product: getProductRowView(fp, region, slotKey)}))});
   } else if (slot?.foodForms?.length) {
-    inner += `<div class="rec-section-label">FOOD EXAMPLES <span class="rec-tier-hint">options to review</span></div>`;
-    inner += `<div class="rec-item-food">${slot.foodForms.map(f => escapeHTML(f)).join(' · ')}</div>`;
+    tiers.push({label: 'FOOD EXAMPLES', hint: 'options to review',
+      items: [{kind: 'food', text: slot.foodForms.map(tipsText).join(' · ')}]});
   }
-
-  // Tier 3: Tools
   if (toolProducts.length) {
-    inner += `<div class="rec-section-label">TOOLS <span class="rec-tier-hint">product options</span></div>`;
-    for (const tp of toolProducts) inner += buildProductRow(tp, region, slotKey);
+    tiers.push({label: 'TOOLS', hint: 'product options',
+      items: toolProducts.map(tp => ({kind: 'product', product: getProductRowView(tp, region, slotKey)}))});
   } else if (slot?.productForms?.length) {
-    inner += `<div class="rec-section-label">TOOLS <span class="rec-tier-hint">product options</span></div>`;
-    inner += `<div class="rec-item-form">${slot.productForms.map(t => escapeHTML(t)).join(' · ')}</div>`;
+    tiers.push({label: 'TOOLS', hint: 'product options',
+      items: [{kind: 'form', text: slot.productForms.map(tipsText).join(' · ')}]});
   }
-
-  // Tier 4: supplements — inline
   if (suppProducts.length) {
-    inner += `<div class="rec-section-label">SUPPLEMENTS <span class="rec-tier-hint">review safety first</span></div>`;
-    for (const sp of suppProducts) inner += buildProductRow(sp, region, slotKey);
+    tiers.push({label: 'SUPPLEMENTS', hint: 'review safety first',
+      items: suppProducts.map(sp => ({kind: 'product', product: getProductRowView(sp, region, slotKey)}))});
   } else if (slot?.forms?.length) {
-    inner += `<div class="rec-section-label">SUPPLEMENTS <span class="rec-tier-hint">review safety first</span></div>`;
     const formRefs = slot.formRefs || {};
-    inner += `<div class="rec-item-form">${slot.forms.map(f => {
+    const forms = slot.forms.map(f => {
       const ref = formRefs[f];
-      const studyLink = ref && /^https?:\/\//.test(ref) ? ` <a href="${escapeHTML(ref)}" target="_blank" rel="noopener" class="rec-ref-link">(study)</a>` : '';
-      return escapeHTML(f) + studyLink;
-    }).join(', ')}</div>`;
+      const studyLink = ref && /^https?:\/\//.test(ref) ? ref : null;
+      return {text: tipsText(f), href: studyLink};
+    });
+    tiers.push({label: 'SUPPLEMENTS', hint: 'review safety first', items: [{kind: 'forms', forms}]});
   }
-
   if (drugProducts.length) {
-    inner += `<div class="rec-section-label">PHARMACEUTICALS</div>`;
-    for (const dp of drugProducts) inner += buildProductRow(dp, region, slotKey);
-    inner += `<div class="rec-drug-warning">Pharmaceutical-grade compounds may require medical supervision and can interact with medications. Consult your physician before use.</div>`;
+    const items: TipsTierItem[] = drugProducts.map(dp => ({kind: 'product', product: getProductRowView(dp, region, slotKey)}));
+    items.push({kind: 'drug-warning'});
+    tiers.push({label: 'PHARMACEUTICALS', hint: null, items});
   }
-
   if (otherProducts.length) {
-    inner += `<div class="rec-section-label">OTHER</div>`;
-    for (const op of otherProducts) inner += buildProductRow(op, region, slotKey);
+    tiers.push({label: 'OTHER', hint: null,
+      items: otherProducts.map(op => ({kind: 'product', product: getProductRowView(op, region, slotKey)}))});
   }
 
-  if (!inner) return '';
+  if (!genetics.length && !tiers.length) return null;
   const hasProducts = products.length > 0;
-  const gated = !hasSeenDisclosure() ? ' rec-section-gated' : '';
+  const gated = !hasSeenDisclosure();
   const issueTitle = encodeURIComponent(`[Rec] ${slot?.label || slotKey}: better study / correction`);
   const issueBody = encodeURIComponent(`**Slot:** \`${slotKey}\`\n**Current forms:** ${(slot?.forms || []).join(', ')}\n\n**What's wrong or what's better:**\n\n`);
-  const suggestLink = `<div class="rec-suggest"><a href="https://github.com/elkimek/get-based/issues/new?title=${issueTitle}&body=${issueBody}&labels=enhancement" target="_blank" rel="noopener noreferrer">Suggest a better study</a></div>`;
-  const statusNote = isNormal ? `<div class="rec-in-range-note">Your value is in range. These tips are general information only.</div>` : '';
-  // Coupon line: render when any rendered product references a vendor with a
-  // resolvable coupon for the current region. Visible to supplement/lifestyle
-  // recs the same way EMF gets it — every vendor that ships a coupon should
-  // surface it where their products surface.
+  const suggestionHref = `https://github.com/elkimek/get-based/issues/new?title=${issueTitle}&body=${issueBody}&labels=enhancement`;
   const vendor = _resolveVendorForCoupon(_catalog, products);
-  const couponLine = vendor && hasProducts ? _buildCouponLine(vendor, region) : '';
-  return `${_buildDisclosureBanner()}<div class="rec-section${gated}" data-rec-section-click-guard>
-    <div class="rec-section-header">${escapeHTML(label)}</div>
-    <div class="rec-content">${statusNote}${inner}${couponLine}${suggestLink}${buildDisclosureFooter()}${_buildMiniDisclaimer()}</div>
-  </div>`;
+  const coupon = vendor && hasProducts ? getCouponLineView(vendor, region) : null;
+  const banner = !hasSeenDisclosure();
+  const header = tipsText(label);
+  const footer = getDisclosureFooterView();
+  return {variant: 'standard', header, gated, banner, normalNote: isNormal, genetics, tiers, products: [],
+    coupon, suggestionHref, footer, disclaimer: true};
+}
+
+function _renderRecSection(slotKey: string, opts: RecommendationSectionOptions = {}) {
+  const view = getRecommendationSectionViewCore(slotKey, opts);
+  return view ? renderTipsSectionHTML({view}) : '';
+}
+
+export function getRecommendationSectionViewSync(slotKey: string, opts: RecommendationSectionOptions = {}): TipsSectionView | null {
+  if (!isProductRecsEnabled()) return null;
+  return getRecommendationSectionViewCore(slotKey, opts);
+}
+
+export async function getRecommendationSectionView(slotKey: string, opts: RecommendationSectionOptions = {}): Promise<TipsSectionView | null> {
+  if (!isProductRecsEnabled()) return null;
+  await loadCatalog();
+  return getRecommendationSectionViewCore(slotKey, opts);
 }
 
 // Sync version — uses cached catalog, returns '' if not loaded yet
@@ -620,6 +612,8 @@ configureRecommendationModuleBridge({
   isProductRecsEnabled,
   renderRecommendationSection,
   renderRecommendationSectionSync,
+  getRecommendationSectionView,
+  getRecommendationSectionViewSync,
   detectSupplementSlots,
   loadCatalog,
   buildDNAHints,

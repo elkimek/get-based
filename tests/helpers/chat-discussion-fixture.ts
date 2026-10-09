@@ -14,10 +14,11 @@ export async function installDiscussionFixture(context: BrowserContext, {provide
   }, {provider, paused});
 }
 
-export async function installDiscussionProvider(context: BrowserContext): Promise<void> {
-  await context.addInitScript(() => {
+interface DiscussionProviderFixtureOptions { seedProvider?: boolean; }
+export async function installDiscussionProvider(context: BrowserContext, {seedProvider = true}: DiscussionProviderFixtureOptions = {}): Promise<void> {
+  await context.addInitScript(({seedProvider}) => {
     if (!['http:', 'https:'].includes(location.protocol)) return;
-    localStorage.setItem('labcharts-ollama', JSON.stringify({ url: 'http://127.0.0.1:11434', model: 'fixture-model', mode: 'ollama' }));
+    if (seedProvider) localStorage.setItem('labcharts-ollama', JSON.stringify({ url: 'http://127.0.0.1:11434', model: 'fixture-model', mode: 'ollama' }));
     const requests: unknown[] = []; Object.assign(window, { discussionRequests: requests });
     const original = window.fetch.bind(window);
     window.fetch = async (input, options) => {
@@ -39,7 +40,7 @@ export async function installDiscussionProvider(context: BrowserContext): Promis
       if (url.endsWith('/api/tags') || url.endsWith('/api/ps')) return Response.json({ models: [{ name: 'fixture-model' }] });
       return new Response('Not found', { status: 404 });
     };
-  });
+  }, {seedProvider});
 }
 
 /** Module coverage starts with an actual open, nonempty conversation on every layout. */

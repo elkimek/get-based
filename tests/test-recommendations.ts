@@ -146,7 +146,7 @@ const _realFetch = globalThis.fetch;
   const noFileResult = await recommendationsModule.renderRecommendationSection('nonexistent.marker', { label: 'Test' });
   assert('renderRecommendationSection returns empty for unknown slot', noFileResult === '' || typeof noFileResult === 'string');
   const { configureRecommendationModuleBridge } = await import('../js/recommendations-runtime.js');
-  const previousRecommendationBridge = configureRecommendationModuleBridge({ renderRecommendationSection: null });
+  const previousRecommendationBridge = configureRecommendationModuleBridge({ renderRecommendationSection: null, getRecommendationSectionView: null });
   const { createRecommendationActions } = await import('../js/recommendation-actions.js');
   const originalGetElementById = document.getElementById;
   const modalStub = { className: 'modal', innerHTML: '' };
@@ -162,8 +162,8 @@ const _realFetch = globalThis.fetch;
     getGlobalRecommendationCandidates: () => [],
     setRecommendationState: () => {},
   }).openRecommendationDetail('missing.slot', 'Missing section');
-  await Promise.resolve();
-  assert('openRecommendationDetail handles missing renderRecommendationSection without stuck loading',
+  for (let turn = 0; turn < 5; turn++) await Promise.resolve();
+  assert('openRecommendationDetail handles missing typed section getter without stuck loading',
     modalStub.innerHTML.includes('No tip details are available for this topic.'));
   document.getElementById = originalGetElementById;
   configureRecommendationModuleBridge(previousRecommendationBridge);
@@ -237,7 +237,7 @@ const _realFetch = globalThis.fetch;
   const transcriptPresentation = read('/js/chat-transcript-presentation.js');
   const recommendationsView = read('/js/components/ChatRecommendations.svelte');
   assert('Chat presentation delegates recommendation rendering through runtime adapter',
-    transcriptPresentation.includes('renderChatRecommendationSections(message.recSlots)')
+    transcriptPresentation.includes('getChatRecommendationSectionViews(message.recSlots)')
       && transcriptPresentation.includes("from './chat-render-runtime.js'")
       && !/\bwindow(\.|\s*\[)/.test(transcriptPresentation));
   assert('chat-send.js detects recSlots for live rendering', chatSendSrc.includes('_recSlots'));
@@ -277,7 +277,7 @@ const _realFetch = globalThis.fetch;
     recommendationActionsSrc.includes("from './recommendations-runtime.js'")
       && recommendationActionsSrc.includes('closeRecommendationsModal')
       && recommendationActionsSrc.includes('openRecommendationsChatPanel')
-      && recommendationActionsSrc.includes('renderRecommendationsDetailSection')
+      && recommendationActionsSrc.includes('getRecommendationsDetailSectionView')
       && !/\bwindow(\.|\s*\[)/.test(recommendationActionsSrc));
   assert('dashboard has Recommendations widget surface', dashboardWidgetsSrc.includes("id: 'recommendations'") && dashboardWidgetsSrc.includes('renderDashboardRecommendationsWidget'));
   assert('dashboard recommendation widget uses configured runtime actions',
@@ -344,8 +344,21 @@ const _realFetch = globalThis.fetch;
   console.log('%c 13. Security ', 'font-weight:bold;color:#f59e0b');
 
   assert('Product URLs validated to https?', recProductsSrc.includes("'https?://'") || recProductsSrc.includes('/^https?:\\/\\//'));
-  assert('escapeHTML used for product rendering', recProductsSrc.includes('escapeHTML(product.brand)'));
-  assert('escapeHTML used for slot label', recSrc.includes('escapeHTML(label)'));
+  const unsafeLiteral = '<img src=x onerror="alert(1)"> & literal';
+  const {buildProductRow} = await import('../js/recommendations-products.js');
+  const productLiteral = buildProductRow({brand: unsafeLiteral}, 'INTL');
+  const {JSDOM} = await import('jsdom');
+  const productDOM = new JSDOM(productLiteral);
+  assert('Authored product rendering escapes literal catalog markup',
+    productDOM.window.document.querySelector('strong')?.textContent === unsafeLiteral && !productDOM.window.document.querySelector('img,script,[onerror]'));
+  productDOM.window.close();
+  const {renderHTML: renderTipsSection} = await import('../js/components/TipsSection.svelte.html.js');
+  const sectionLiteral = renderTipsSection({view: {variant: 'standard', header: unsafeLiteral, gated: false, banner: false, normalNote: false,
+    genetics: [], tiers: [], products: [], coupon: null, suggestionHref: null, footer: {region: 'Worldwide'}, disclaimer: false}});
+  const sectionDOM = new JSDOM(sectionLiteral);
+  assert('Authored section rendering escapes literal slot labels',
+    sectionDOM.window.document.querySelector('.rec-section-header')?.textContent === unsafeLiteral && !sectionDOM.window.document.querySelector('img,script,[onerror]'));
+  sectionDOM.window.close();
 
   // ═══════════════════════════════════════
   // 14. Light-device catalog wiring

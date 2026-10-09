@@ -1,0 +1,14 @@
+/* Authored Cycle import previews, picker and committed coverage. */
+@import "tailwindcss/theme.css" layer(gb-theme) prefix(gb);
+@import "tailwindcss/utilities.css" prefix(gb) source(none);
+@import "./ui-tokens.tailwind.css";
+@custom-variant cycle-import-ui (&:where([data-cycle-import-view], [data-cycle-import-view] *));
+@custom-variant cycle-import-phone (@media (max-width: 768px));
+@custom-variant cycle-import-hover (&:hover);
+@custom-variant cycle-import-modal-id (:where(&):is(#import-modal));
+@source "../js/cycle-import-classes.ts";
+@source "../js/components/CycleImportPreview.svelte";
+@source "../js/components/CycleImportPeriodRow.svelte";
+@source "../js/components/CycleImportPicker.svelte";
+@source "../js/components/CycleImportCoverage.svelte";
+@source "../js/components/CycleImportSourceRow.svelte";

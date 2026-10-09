@@ -53,6 +53,9 @@ export async function buildModalStyles({ outputPath = path.join(ROOT, 'css/modal
 export async function buildRecommendationStyles({ outputPath = path.join(ROOT, 'css/recommendations.css'), check = false }: StyleOptions = {}): Promise<void> {
     await compileStyles('recommendations.base.css', 'recommendation-cards.tailwind.css', outputPath, check, 'Recommendations');
 }
+export async function buildCycleStyles({ outputPath = path.join(ROOT, 'css/cycle.css'), check = false }: StyleOptions = {}): Promise<void> {
+    await compileStyles('cycle.base.css', 'cycle-import.tailwind.css', outputPath, check, 'Cycle');
+}
 export async function buildImportStyles({ outputPath = path.join(ROOT, 'css/import.css'), check = false }: StyleOptions = {}): Promise<void> {
     await compileStyles('import.base.css', 'import-marker-map.tailwind.css', outputPath, check, 'Import');
 }
@@ -61,6 +64,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     await buildAppShellStyles({ check });
     await buildModalStyles({ check });
     await buildImportStyles({ check });
+    await buildCycleStyles({ check });
     await buildRecommendationStyles({ check });
     await buildStyles({ check });
     await buildProtectionStyles({ check });

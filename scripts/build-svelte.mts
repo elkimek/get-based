@@ -11,6 +11,31 @@ import { withChatShellSnapshot } from './chat-shell-snapshot.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const COMPONENT = path.join(ROOT, 'js/components/DisplaySettings.svelte');
+// Public synchronous HTML facades; child components compose through their owners.
+const HTML_COMPONENTS = new Set([
+  'RoutstrActions', 'ChatShell', 'ChatAttestationBadge', 'ChatSpeechButton',
+  'ChatCitations', 'ChatStoredImages', 'ChatMessageActions', 'ChatAgentDraftCards',
+  'ChatProviderQuiz', 'ChatOnboardingProgress', 'ChatEmptyState', 'ChatSummaryPresentation',
+  'LightPagePresentation', 'LightSessionPresentation', 'SunBodyPicker', 'LightSetupPresentation',
+  'LightOnboardingAI', 'LightSessionAI', 'LightEnvironmentAI', 'LightCameraPresentation',
+  'LightCameraGuidePresentation', 'BiologyPlanningPresentation', 'BiologyReadingPresentation', 'BiologyAIPresentation',
+  'BiologySummaryPresentation', 'BiologyContextPresentation', 'BiologyOverviewPresentation', 'BiologyCardPresentation',
+  'LensDashboardToggle', 'LensShellPresentation', 'BiologyScoresPage', 'LabDateRange',
+  'LensPageContent', 'ReportBuilderPresentation', 'TourPresentation', 'DashboardPickerPresentation',
+  'ImportMarkerMapPresentation', 'ImportMarkerMapCategories', 'ImportMarkerMapResults', 'LightToolPresentation',
+  'LightAuditBlock', 'LightAuditCard', 'LightEnvironmentPresentation', 'LightEnvironmentSummary',
+  'LightEnvironmentScreen', 'LightEnvironmentTodayToggle', 'LightReviewAI', 'LightChannelDetail',
+  'LightDeviceRecommendations', 'LightDeviceSetup', 'LightDevicePresentation', 'LightDeviceAffiliate',
+  'LightChannelPills', 'LightChannelSparkline', 'LightConditionsPresentation', 'ContextCardCatalog',
+  'ContextCardStatus', 'ContextCardTips', 'ContextEMFLauncher', 'ContextFoodContaminantsBadge',
+  'ContextNutritionLink', 'NutritionPresentation', 'RecommendationPresentation', 'RecommendationCard',
+  'ImportReviewPresentation', 'ImportUnitControl', 'ImportMapControl', 'ImportReviewRowAction',
+  'ImportExcludeContent', 'ImportReviewStatus', 'ImportUnitMenu', 'CycleImportPreview',
+  'CycleImportPicker', 'CycleImportCoverage', 'TipsSection', 'TipsDetail',
+  'TipsProduct', 'TipsCoupon', 'TipsDisclosure', 'TipsBanner',
+  'TipsDisclaimer', 'RecommendationPage',
+]);
+
 export async function buildSvelte({ component = COMPONENT, outputDirectory = path.dirname(component), check = false, output = 'client' }: {
   component?: string; outputDirectory?: string; check?: boolean; output?: 'client' | 'html';
 } = {}): Promise<void> {
@@ -68,7 +93,7 @@ export async function buildSvelte({ component = COMPONENT, outputDirectory = pat
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   for (const component of [...walkSourceFiles(path.join(ROOT, 'js/components')), ...walkSourceFiles(path.join(ROOT, 'js/kit'))].filter(file => file.endsWith('.svelte'))) {
     await buildSvelte({ component, check: process.argv.includes('--check') });
-    if (/\/(?:RoutstrActions|ChatShell|ChatAttestationBadge|ChatSpeechButton|ChatCitations|ChatStoredImages|ChatMessageActions|ChatAgentDraftCards|ChatProviderQuiz|ChatOnboardingProgress|ChatEmptyState|ChatSummaryPresentation|LightPagePresentation|LightSessionPresentation|SunBodyPicker|LightSetupPresentation|LightOnboardingAI|LightSessionAI|LightEnvironmentAI|LightCameraPresentation|LightCameraGuidePresentation|BiologyPlanningPresentation|BiologyReadingPresentation|BiologyAIPresentation|BiologySummaryPresentation|BiologyContextPresentation|BiologyOverviewPresentation|BiologyCardPresentation|LensDashboardToggle|LensShellPresentation|BiologyScoresPage|LabDateRange|LensPageContent|ReportBuilderPresentation|TourPresentation|DashboardPickerPresentation|ImportMarkerMapPresentation|ImportMarkerMapCategories|ImportMarkerMapResults|LightToolPresentation|LightAuditBlock|LightAuditCard|LightEnvironmentPresentation|LightEnvironmentSummary|LightEnvironmentScreen|LightEnvironmentTodayToggle|LightReviewAI|LightChannelDetail|LightDeviceRecommendations|LightDeviceSetup|LightDevicePresentation|LightDeviceAffiliate|LightChannelPills|LightChannelSparkline|LightConditionsPresentation|ContextCardCatalog|ContextCardStatus|ContextCardTips|ContextEMFLauncher|ContextFoodContaminantsBadge|ContextNutritionLink|NutritionPresentation|RecommendationPresentation|RecommendationCard|ImportReviewPresentation|ImportUnitControl|ImportMapControl|ImportReviewRowAction|ImportExcludeContent|ImportReviewStatus|ImportUnitMenu)\.svelte$/.test(component)) await buildSvelte({ component, output: 'html', check: process.argv.includes('--check') });
+    if (HTML_COMPONENTS.has(path.basename(component, '.svelte'))) await buildSvelte({ component, output: 'html', check: process.argv.includes('--check') });
   }
   const { renderHTML } = await import(pathToFileURL(path.join(ROOT, 'js/components/ChatShell.svelte.html.js')).href) as { renderHTML: () => string };
   const indexPath = path.join(ROOT, 'index.html');

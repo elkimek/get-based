@@ -1,3 +1,10 @@
+import { renderHTML as renderTipsProductHTML } from './components/TipsProduct.svelte.html.js';
+import { renderHTML as renderTipsCouponHTML } from './components/TipsCoupon.svelte.html.js';
+import { renderHTML as renderTipsDisclosureHTML } from './components/TipsDisclosure.svelte.html.js';
+import { renderHTML as renderTipsBannerHTML } from './components/TipsBanner.svelte.html.js';
+import { renderHTML as renderTipsDisclaimerHTML } from './components/TipsDisclaimer.svelte.html.js';
+import { renderHTML as renderTipsSectionHTML } from './components/TipsSection.svelte.html.js';
+import { tipsText, type TipsProductView, type TipsEMFProductView, type TipsCouponView, type TipsDisclosureView, type TipsSectionView } from './tips-presentation.js';
 import { renderHTML as renderDeviceOptions } from './components/LightDeviceRecommendations.svelte.html.js';
 import { projectDeviceRecommendations, type ResolvedDeviceOption } from './light-device-recommendations-presentation.js';
 import { renderHTML as renderDeviceAffiliate } from './components/LightDeviceAffiliate.svelte.html.js';
@@ -36,7 +43,6 @@ import {
   regionLookupChain as lookupRegionChain,
 } from './recommendations-region.js';
 import { scheduleRecommendationsTask } from './recommendations-runtime.js';
-import { escapeAttr, escapeHTML } from './utils.js';
 import { actionAttributes } from './action-attributes.js';
 
 export function recActionAttrs(action: string, attrs: Parameters<typeof actionAttributes>[2] = {}) {
@@ -266,15 +272,18 @@ function _resolveOneUrlField(field: unknown, region: Region) {
   return null;
 }
 
-export function _buildCouponLine(catalogOrVendor: RecommendationVendor | null | undefined, region: Region) {
+export function getCouponLineView(catalogOrVendor: RecommendationVendor | null | undefined, region: Region): TipsCouponView | null {
   // Accept either a vendor object directly, or a catalog with legacy .vendor
   // top-level (back-compat with the old emf-products.json shape).
   const rawCoupon = catalogOrVendor?.coupon || catalogOrVendor?.vendor?.coupon;
   const c = _resolveCouponForRegion(rawCoupon, region);
-  if (!c?.code) return '';
-  const code = escapeHTML(c.code);
-  // aria-live on the wrapper so the "✓ Copied" flash is announced to SR users.
-  return `<div class="rec-coupon" aria-live="polite" aria-atomic="true">Use code <button type="button" class="rec-coupon-code" ${recActionAttrs('copy-coupon')} data-code="${escapeAttr(c.code)}" aria-label="Copy coupon code ${code} to clipboard" title="Click to copy">${code}</button> at checkout for ${escapeHTML(c.userDiscount || '10%')} off.</div>`;
+  if (!c?.code) return null;
+  return {code: tipsText(c.code), discount: tipsText(c.userDiscount || '10%')};
+}
+
+export function _buildCouponLine(catalogOrVendor: RecommendationVendor | null | undefined, region: Region) {
+  const view = getCouponLineView(catalogOrVendor, region);
+  return view ? renderTipsCouponHTML({view}) : '';
 }
 
 export function copyCouponCode(btn: HTMLElement | null | undefined) {
@@ -398,138 +407,112 @@ export function _addUTMParams<T>(url: T, content: unknown, campaign = 'emf') {
   return u.toString();
 }
 
-function _buildEMFProductRow(product: RecommendationProduct, eventPrefix: string | null | undefined, region: Region, catalog: CatalogInput) {
-  // Resolve region-aware URL: prefer affiliateUrl, fall back to url. Either
-  // may be a Record<RegionCode, string> for products with per-market shops.
+export function getEMFProductRowView(product: RecommendationProduct, eventPrefix: string | null | undefined, region: Region, catalog: CatalogInput): TipsEMFProductView {
   const rawUrl = _resolveProductUrlForRegion(product, region) || product.url;
   const isValid = _isTrustedAffiliateUrl(rawUrl, catalog);
   const meta: string[] = [];
-  if (product.vendor) meta.push(escapeHTML(product.vendor));
-  if (product.kind) meta.push(escapeHTML(product.kind));
-  const productName = escapeHTML(product.name);
-  // Vendor name for link copy + aria-label. Falls back to brand or "vendor"
-  // so we never hardcode a single vendor's name into a generic builder.
-  const vendorName = escapeHTML(product.vendor || product.brand || 'vendor');
-  // Analytics: a per-click event lets the maintainer see which surface and
-  // which product converted. Opt-out via Settings -> Privacy gate already
-  // suppresses Umami load; this attribute becomes a no-op there.
+  if (product.vendor) meta.push(tipsText(product.vendor));
+  if (product.kind) meta.push(tipsText(product.kind));
+  const productName = tipsText(product.name);
+  const vendorName = tipsText(product.vendor || product.brand || 'vendor');
   const slug = _eventSlug(product.key || product._tag || product.name);
-  // Cap at 50 chars - Umami's API rejects longer names with HTTP 400.
   const evtName = (eventPrefix ? `emf-${eventPrefix}-${slug}` : `emf-rec-${slug}`).slice(0, 50).replace(/-+$/, '');
-  // Mirror the Umami event in utm_content so the partner-side report
-  // (UTM) and our internal click count (Umami) share the same surface label.
   const utmContent = eventPrefix ? `${eventPrefix}-${slug}` : `emf-rec-${slug}`;
   const url = isValid ? _addUTMParams(rawUrl, utmContent) : rawUrl;
-  return `<div class="rec-product rec-emf-product">
-    <div class="rec-emf-product-head">
-      <strong>${productName}</strong>
-      ${meta.length ? `<span class="rec-emf-product-meta">${meta.join(' · ')}</span>` : ''}
-    </div>
-    ${product.blurb ? `<div class="rec-emf-product-blurb">${escapeHTML(product.blurb)}</div>` : ''}
-    ${isValid ? `<a class="rec-product-link" href="${escapeHTML(url)}" target="_blank" rel="noopener sponsored" data-umami-event="${escapeHTML(evtName)}" aria-label="View ${productName} on ${vendorName}, opens in new tab">View on ${vendorName} →</a>` : ''}
-  </div>`;
+  return {name: productName, vendor: vendorName, meta,
+    blurb: product.blurb ? tipsText(product.blurb) : null,
+    link: isValid ? {href: tipsText(url), event: evtName, label: `View ${productName} on ${vendorName}, opens in new tab`} : null};
 }
 
 /**
  * Render the EMF meter recommendation card (empty-state CTA).
  * Returns '' when the toggle is off or the catalog couldn't load.
  */
-export function renderEMFMeterRecs(catalog: CatalogInput, opts: ProductSectionOptions = {}) {
-  if (!isProductRecsEnabled() || !catalog) return '';
+export function getEMFMeterSectionView(catalog: CatalogInput, opts: ProductSectionOptions = {}): TipsSectionView | null {
+  if (!isProductRecsEnabled() || !catalog) return null;
   const meters = getEMFMeters(catalog, opts.types);
-  if (!meters.length) return '';
-  const gated = !hasSeenDisclosure() ? ' rec-section-gated' : '';
-  const heading = escapeHTML(opts.heading || 'Meter options to explore');
+  if (!meters.length) return null;
+  const gated = !hasSeenDisclosure();
+  const heading = tipsText(opts.heading || 'Meter options to explore');
   const eventPrefix = opts.eventPrefix || 'meter-rec';
-  const body = meters.map(m => _buildEMFProductRow(m, eventPrefix, getUserRegion(), catalog)).join('');
+  const products = meters.map(m => getEMFProductRowView(m, eventPrefix, getUserRegion(), catalog));
   const vendor = _resolveVendorForCoupon(catalog, meters);
-  return `${_buildDisclosureBanner()}<div class="rec-section rec-emf-section${gated}" data-rec-section-click-guard>
-    <div class="rec-section-header">${heading}</div>
-    <div class="rec-content">
-      ${body}
-      ${_buildCouponLine(vendor, getUserRegion())}
-      ${buildDisclosureFooter()}
-    </div>
-  </div>`;
+  const banner = !hasSeenDisclosure();
+  const coupon = getCouponLineView(vendor, getUserRegion());
+  const footer = getDisclosureFooterView();
+  return {variant: 'emf', header: heading, gated, banner, normalNote: false, genetics: [], tiers: [], products,
+    coupon, suggestionHref: null, footer, disclaimer: false};
+}
+
+export function renderEMFMeterRecs(catalog: CatalogInput, opts: ProductSectionOptions = {}) {
+  const view = getEMFMeterSectionView(catalog, opts);
+  return view ? renderTipsSectionHTML({view}) : '';
 }
 
 /**
  * Render the EMF mitigation-product recommendation block (post-interpretation CTA).
  * tags = flat array of mitigation strings collected across all rooms.
  */
-export function renderEMFMitigationRecs(catalog: CatalogInput, tags: string[] | null | undefined, opts: ProductSectionOptions = {}) {
-  if (!isProductRecsEnabled() || !catalog) return '';
+export function getEMFMitigationSectionView(catalog: CatalogInput, tags: string[] | null | undefined, opts: ProductSectionOptions = {}): TipsSectionView | null {
+  if (!isProductRecsEnabled() || !catalog) return null;
   const products = getEMFProductsForMitigations(catalog, tags);
-  if (!products.length) return '';
-  const gated = !hasSeenDisclosure() ? ' rec-section-gated' : '';
-  const heading = escapeHTML(opts.heading || 'Product ideas related to this assessment');
+  if (!products.length) return null;
+  const gated = !hasSeenDisclosure();
+  const heading = tipsText(opts.heading || 'Product ideas related to this assessment');
   const eventPrefix = opts.eventPrefix || 'mitigation-rec';
-  const body = products.map(p => _buildEMFProductRow(p, eventPrefix, getUserRegion(), catalog)).join('');
+  const body = products.map(p => getEMFProductRowView(p, eventPrefix, getUserRegion(), catalog));
   const vendor = _resolveVendorForCoupon(catalog, products);
-  return `${_buildDisclosureBanner()}<div class="rec-section rec-emf-section${gated}" data-rec-section-click-guard>
-    <div class="rec-section-header">${heading}</div>
-    <div class="rec-content">
-      ${body}
-      ${_buildCouponLine(vendor, getUserRegion())}
-      ${buildDisclosureFooter()}
-    </div>
-  </div>`;
+  const banner = !hasSeenDisclosure();
+  const coupon = getCouponLineView(vendor, getUserRegion());
+  const footer = getDisclosureFooterView();
+  return {variant: 'emf', header: heading, gated, banner, normalNote: false, genetics: [], tiers: [], products: body,
+    coupon, suggestionHref: null, footer, disclaimer: false};
 }
 
-export function buildProductRow(product: RecommendationProduct, region: Region, slotKey?: string | null) {
-  const parts: string[] = [];
-  if (product.brand) parts.push(`<strong>${escapeHTML(product.brand)}</strong>`);
-  if (product.name) parts.push(escapeHTML(product.name));
+export function renderEMFMitigationRecs(catalog: CatalogInput, tags: string[] | null | undefined, opts: ProductSectionOptions = {}) {
+  const view = getEMFMitigationSectionView(catalog, tags, opts);
+  return view ? renderTipsSectionHTML({view}) : '';
+}
+
+export function getProductRowView(product: RecommendationProduct, region: Region, slotKey?: string | null): TipsProductView {
+  const brand = product.brand ? tipsText(product.brand) : null;
+  const name = product.name ? tipsText(product.name) : null;
   const meta: string[] = [];
-  if (product.dosage) meta.push(escapeHTML(product.dosage));
-  if (product.priceCZK) meta.push(`~${escapeHTML(String(product.priceCZK))} CZK`);
-  else if (product.priceEUR) meta.push(`~€${escapeHTML(String(product.priceEUR))}`);
-  // Resolve region-aware URL: handles per-region maps for vendors with
-  // different storefronts per market (easylight.sk for CZ/SK +
-  // mitochondriak.com for INTL). Falls back to flat string.
+  if (product.dosage) meta.push(tipsText(product.dosage));
+  if (product.priceCZK) meta.push(`~${String(product.priceCZK)} CZK`);
+  else if (product.priceEUR) meta.push(`~€${String(product.priceEUR)}`);
   const rawUrl = _resolveProductUrlForRegion(product, region);
   const isValid = rawUrl && typeof rawUrl === 'string' && /^https?:\/\//.test(rawUrl);
-  // Stamp UTM params for partner-dashboard attribution. Campaign = the slot
-  // category prefix (vitamins, env, sleep...) so each surface buckets cleanly
-  // even across vendors. utm_content = "<slot>-<product>" for per-row
-  // attribution. Idempotent: re-renders don't accumulate duplicate keys.
   const campaign = slotKey ? slotKey.split('.')[0] : 'rec';
   const productSlug = _eventSlug(product.key || `${product.brand || ''}-${product.name || ''}`);
   const utmContent = slotKey ? `${slotKey.replace('.', '-')}-${productSlug}` : productSlug;
   const url = isValid ? _addUTMParams(rawUrl, utmContent, campaign!) : rawUrl;
-  // Umami event mirrors utm_content so the partner-side report (UTM) and
-  // our internal click count (Umami) share the same surface label.
-  // Prefix `rec-` separates these from the existing `emf-*` events.
-  // Cap at 50 chars - Umami's API rejects longer names with HTTP 400.
   const evtName = `rec-${campaign}-${productSlug}`.slice(0, 50).replace(/-+$/, '');
-  // aria-label gives screen-reader users the brand + name + new-tab hint
-  // (matches the EMF row's a11y treatment).
-  const ariaTarget = escapeHTML([product.brand, product.name].filter(Boolean).join(' '));
-  return `<div class="rec-product">
-    <span class="rec-product-info">${parts.join(' · ')}${meta.length ? ' · ' + meta.join(' · ') : ''}</span>
-    ${isValid ? `<a class="rec-product-link" href="${escapeHTML(url)}" target="_blank" rel="noopener sponsored" data-umami-event="${escapeHTML(evtName)}" aria-label="View ${ariaTarget}, opens in new tab">View →</a>` : ''}
-  </div>`;
+  const ariaTarget = [product.brand, product.name].filter(Boolean).join(' ');
+  return {brand, name, meta, link: isValid ? {href: tipsText(url), event: evtName, label: `View ${ariaTarget}, opens in new tab`} : null};
+}
+
+export function buildProductRow(product: RecommendationProduct, region: Region, slotKey?: string | null) {
+  return renderTipsProductHTML({view: getProductRowView(product, region, slotKey)});
+}
+
+export function getDisclosureFooterView(): TipsDisclosureView {
+  const r = getUserRegion();
+  const label = regionLabel(r);
+  return {region: tipsText(label)};
 }
 
 export function buildDisclosureFooter() {
-  const r = getUserRegion();
-  const label = regionLabel(r);
-  // Link points to wherever the user can change their country. Click handler
-  // delegates through the runtime adapter so this module stays decoupled.
-  const editLink = `<a href="#" class="rec-region-edit" ${recActionAttrs('edit-region')} aria-label="Change country for product tips">change</a>`;
-  return `<div class="rec-disclosure">Affiliate links are marked. Brands cannot pay for placement. <span class="rec-region-tag">Showing for ${escapeHTML(label)} · ${editLink}</span></div>`;
+  return renderTipsDisclosureHTML({view: getDisclosureFooterView()});
 }
 
 export function _buildMiniDisclaimer() {
-  return `<div class="rec-mini-disclaimer">General information only — not individualized medical advice or a care plan. Do not start, stop, or change medication or supplements based only on these tips. Discuss relevant options with a qualified healthcare professional.</div>`;
+  return renderTipsDisclaimerHTML({});
 }
 
 export function _buildDisclosureBanner() {
   if (hasSeenDisclosure()) return '';
-  return `<div class="rec-disclosure-banner">
-    General information only. These tips are not instructions, individualized medical advice, or a care plan, and are not intended to diagnose, treat, or prevent disease. Do not start, stop, or change medication or supplements based only on these tips. Discuss relevant options with a qualified healthcare professional, especially if pregnant, nursing, or taking medications. Intended for adults. Affiliate links are marked — brands cannot pay for placement.
-    <button class="rec-disclosure-btn" ${recActionAttrs('accept-disclosure')}>Got it</button>
-  </div>`;
+  return renderTipsBannerHTML({});
 }
 
 // Match a sun-context channel deficit to catalog devices that can fill it.

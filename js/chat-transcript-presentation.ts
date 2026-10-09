@@ -8,7 +8,8 @@ import { shouldShowChatPersonaLabel, projectChatMessageAvatar } from './chat-mes
 import { projectChatMessageActions } from './chat-message-actions-contract.js';
 import { projectChatCitations, projectChatStoredImages } from './chat-message-content-contract.js';
 import { e2eeLockFootnote } from './chat-attestation.js';
-import { isChatRenderProductRecsEnabled, renderChatRecommendationSections } from './chat-render-runtime.js';
+import { isChatRenderProductRecsEnabled, getChatRecommendationSectionViews } from './chat-render-runtime.js';
+import type {TipsSectionView} from './tips-presentation.js';
 type ChatMessage = (typeof state.chatHistory)[number];
 
 export interface ChatTranscriptMessage {
@@ -29,7 +30,7 @@ export interface ChatTranscriptMessage {
   attribution: string | null;
   emfHint: boolean;
   recommendationAttention: boolean;
-  recommendations: { html: string; count: number; open: boolean; isNew: boolean } | null;
+  recommendations: { sections: TipsSectionView[]; count: number; open: boolean; isNew: boolean } | null;
 }
 export type ChatTranscriptEntry = { key: object; joined: string } | { key: object; persona: string | null; message: ChatTranscriptMessage };
 export interface ChatTranscriptView {
@@ -38,7 +39,7 @@ export interface ChatTranscriptView {
   fork: { name: string | null; threadId: string | null } | null;
 }
 
-/** Only the established sanitized Markdown and trusted catalog renderer supply HTML. */
+/** Markdown retains its sanitizer; recommendation sections compose typed catalog views. */
 export function projectChatTranscriptMessage(message: ChatMessage, index: number, attention = false): ChatTranscriptMessage {
   const role = message.role === 'user' ? 'user' : 'assistant';
   const provider = message.provider || (message.modelId?.includes('/') ? 'openrouter' : getAIProvider());
@@ -56,10 +57,7 @@ export function projectChatTranscriptMessage(message: ChatMessage, index: number
       };
     }
   }
-  const sections = role === 'assistant' ? renderChatRecommendationSections(message.recSlots).map(String) : [];
-  let banners = 0;
-  const recommendationHTML = sections.map(section => section.replace('rec-section-header', 'rec-chat-subheading')).join('')
-    .replace(/<div class="rec-disclosure-banner">[\s\S]*?<\/div>/g, match => ++banners > 1 ? '' : match);
+  const sections = role === 'assistant' ? getChatRecommendationSectionViews(message.recSlots) : [];
   return {
     key: message, index, role, label: role === 'user' ? 'You' : message.personalityName || 'AI response',
     body: message.error ? '' : renderMarkdown(message.content), error: message.error ? String(message.content || '') : null,
@@ -70,7 +68,7 @@ export function projectChatTranscriptMessage(message: ChatMessage, index: number
     usage, attribution: getAIOutputAttribution(message) === 'Written with Grok' ? 'Written with Grok' : null,
     emfHint: role === 'assistant' && !!message.emfHint && isChatRenderProductRecsEnabled(),
     recommendationAttention: attention,
-    recommendations: sections.length ? { html: recommendationHTML, count: sections.length, open: !!message.recOpen, isNew: !!message.recNew } : null,
+    recommendations: sections.length ? { sections, count: sections.length, open: !!message.recOpen, isNew: !!message.recNew } : null,
   };
 }
 export function projectChatTranscript(start: number, attentionMessage?: object): ChatTranscriptView {

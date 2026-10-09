@@ -1,0 +1,19 @@
+/* Typed Tips sections, product rows, disclosure and detail composition. */
+@import "tailwindcss/theme.css" layer(gb-theme) prefix(gb);
+@import "tailwindcss/utilities.css" prefix(gb) source(none);
+@import "./ui-tokens.tailwind.css";
+@custom-variant tips-ui (&:where([data-tips-view], [data-tips-view] *));
+@custom-variant tips-phone (@media (max-width: 600px));
+@custom-variant tips-anchor (&:is(a));
+@custom-variant tips-strong (&:is(strong));
+@source "../js/tips-classes.ts";
+@source "../js/components/TipsBanner.svelte";
+@source "../js/components/TipsCoupon.svelte";
+@source "../js/components/TipsDetail.svelte";
+@source "../js/components/TipsDisclaimer.svelte";
+@source "../js/components/TipsDisclosure.svelte";
+@source "../js/components/TipsEMFProduct.svelte";
+@source "../js/components/TipsGenetics.svelte";
+@source "../js/components/TipsProduct.svelte";
+@source "../js/components/TipsSection.svelte";
+@source "../js/components/TipsTier.svelte";

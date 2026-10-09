@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "scope": "Every authored JavaScript, TypeScript and Svelte module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 1385,
-  "sinkCount": 329,
+  "scannedFiles": 1407,
+  "sinkCount": 327,
   "files": {
     "js/biology-scores.js": {
       "count": 1,
@@ -113,13 +113,6 @@
         "svelte.html": 1
       }
     },
-    "js/components/ChatRecommendations.svelte.native.js": {
-      "count": 1,
-      "digest": "7173ce5a97da1b8a46394a3ef3a7a9844ad54333a39cd4b24114f4aeeda42655",
-      "kinds": {
-        "svelte.html": 1
-      }
-    },
     "js/components/ChatSummaryDialog.svelte.native.js": {
       "count": 1,
       "digest": "4f7a879f1f398b04aefb05129b7ee53c3c5aeefd9fcfcc469af85cc0222d14a2",
@@ -149,10 +142,10 @@
       }
     },
     "js/components/LensPageWidget.svelte.native.js": {
-      "count": 2,
-      "digest": "ad25c5620586c1b9ad08f75f41fc7c35bfe31df2ad610088663811de9c693b60",
+      "count": 1,
+      "digest": "924332f037016b283eb77d85d83429f44c119ed9fcc16391c236a5f6ff16e4d0",
       "kinds": {
-        "svelte.html": 2
+        "svelte.html": 1
       }
     },
     "js/components/LightAuditCard.svelte.native.js": {
@@ -416,7 +409,7 @@
     },
     "js/lens-pages.js": {
       "count": 9,
-      "digest": "a4a570df92cb3494570597b8ad4ccae8f2b55846a1dd85884c3dda6232cab91a",
+      "digest": "7a6779ea8b3695c564555763fdb582621094742159280346bd5322dbb3a1fb7a",
       "kinds": {
         "innerHTML": 9
       }
@@ -709,7 +702,7 @@
     },
     "js/recommendation-actions.js": {
       "count": 3,
-      "digest": "0d601e12802393ac0b8c579db9b038eedee24ae5812defcea948b5e55f0c19c8",
+      "digest": "0f8f64683f7c2542bf40df307d015b4ab448c33cf436f93d0841419e559ec3b1",
       "kinds": {
         "innerHTML": 3
       }

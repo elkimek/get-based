@@ -1,7 +1,7 @@
 // lens-page-shell.ts — shared lens page chrome, ordering, and widget helpers
 
 import {renderHTML as renderShell} from './components/LensShellPresentation.svelte.html.js';
-import {projectLensHeader, projectLensWidget, type LensWidgetToolsView} from './lens-shell-presentation.js';
+import {projectLensHeader, projectLensWidget, projectLensWidgetChrome, type LensWidgetToolsView, type LensWidgetChromeView} from './lens-shell-presentation.js';
 import {renderHTML as renderDashboardToggle} from './components/LensDashboardToggle.svelte.html.js';
 
 export interface LensDashboardToggleView {id: string; label: string; action: 'remove-dashboard-widget' | 'add-dashboard-widget'}
@@ -153,11 +153,11 @@ export function getLensPageWidgetOrder(route: string, defaultIds: string[]): str
   }
 }
 
-function orderLensPageWidgets(route: string, widgets: LensPageWidget[]): LensPageWidget[] {
+function orderLensPageWidgets<Widget extends {id: string}>(route: string, widgets: Widget[]): Widget[] {
   const ids = widgets.map(w => w.id);
   const order = getLensPageWidgetOrder(route, ids);
   const byId = new Map(widgets.map(w => [w.id, w]));
-  return order.map(id => byId.get(id)).filter(Boolean) as LensPageWidget[];
+  return order.map(id => byId.get(id)).filter(Boolean) as Widget[];
 }
 
 export function renderLensPageWidgets(route: string, widgets: Array<LensPageWidget | null | undefined | false>, options: { group?: string } = {}) {
@@ -207,12 +207,41 @@ export function renderLensDashboardToggle(dashboardId: string | null | undefined
   return view ? renderDashboardToggle({view}) : '';
 }
 
-function lensWidgetView(id: string, title: unknown, description: string | undefined, body: unknown, size: string, opts: LensWidgetOptions) {
+function lensWidgetChromeFacts(id: string, description: string | undefined, opts: LensWidgetOptions) {
   const headerDescription = getWidgetHeaderDescription(id, description);
   const dashboardId = Object.prototype.hasOwnProperty.call(opts, 'dashboardId') ? opts.dashboardId : id;
   const route = opts.pageRoute || '', index = opts.pageIndex || 0, count = opts.pageCount || 0;
   const tools: LensWidgetToolsView = {dashboard: getLensDashboardToggleView(dashboardId),
     move: route && count >= 2 ? {route, id, index, count} : null};
+  return {headerDescription, tools};
+}
+
+export function getLensWidgetChrome(id: string, title: unknown, description: string | undefined, size = 'full', opts: LensWidgetOptions = {}): LensWidgetChromeView {
+  const {headerDescription, tools} = lensWidgetChromeFacts(id, description, opts);
+  return projectLensWidgetChrome(id, title, headerDescription, size, tools, !!opts.compactScore);
+}
+
+export interface LensContentWidget<Content> {
+  id: string; title: unknown; description?: string; size?: string;
+  opts?: LensWidgetOptions & {source?: unknown}; content: Content;
+}
+export interface LensContentGrid<Content> {
+  route: string; orderKey: string; widgets: Array<{view: LensWidgetChromeView; content: Content}>;
+}
+
+/** Typed feature bodies share the existing widget ordering, chrome and delegates. */
+export function getLensContentGrid<Content>(route: string, widgets: LensContentWidget<Content>[], options: {group?: string} = {}): LensContentGrid<Content> {
+  const orderKey = options.group ? `${route}-${options.group}` : route;
+  const ordered = orderLensPageWidgets(orderKey, widgets);
+  return {route, orderKey, widgets: ordered.map((widget, index) => ({
+    view: getLensWidgetChrome(widget.id, widget.title, widget.description, widget.size || 'full',
+      {...(widget.opts || {}), pageRoute: route, pageIndex: index, pageCount: ordered.length}),
+    content: widget.content,
+  }))};
+}
+
+function lensWidgetView(id: string, title: unknown, description: string | undefined, body: unknown, size: string, opts: LensWidgetOptions) {
+  const {headerDescription, tools} = lensWidgetChromeFacts(id, description, opts);
   // The compact HTML API is retained until the Biology page composes typed cards.
   // Only the existing owned insertion marker accepts the typed tools fragment.
   const renderedBody = opts.compactScore

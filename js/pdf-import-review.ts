@@ -392,6 +392,7 @@ export function showImportPreview(parseResult: PendingImport) {
   parseResult.sampleTime = sampleTime || null;
   parseResult.fasting = fasting;
   modal.className = importReviewClasses('modal import-preview-modal');
+  modal.removeAttribute('data-cycle-import-view');
   modal.setAttribute('data-import-review-view', '');
   const unmatchedRatio = markers.length > 0 ? unmatched.length / markers.length : 0;
   const refLookup = buildMarkerReference();

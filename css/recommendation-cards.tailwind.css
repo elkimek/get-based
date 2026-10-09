@@ -8,3 +8,5 @@
 @source "../js/recommendation-cards-classes.ts";
 @source "../js/components/RecommendationPresentation.svelte";
 @source "../js/components/RecommendationCard.svelte";
+
+@import "./tips.tailwind.css";

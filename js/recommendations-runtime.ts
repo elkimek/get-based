@@ -48,6 +48,7 @@ export type RecommendationSnpTable = Record<string, RecommendationSnpEntry>;
 export type RecommendationModuleAPI = Pick<typeof import('./recommendations.js'),
   | 'isProductRecsEnabled' | 'loadCatalog'
   | 'renderRecommendationSection' | 'renderRecommendationSectionSync'
+  | 'getRecommendationSectionView' | 'getRecommendationSectionViewSync'
   | 'detectSupplementSlots' | 'detectEMFRelevance'
   | 'getCardSlotKeys' | 'buildDNAHints' | 'renderCardTipsModal'
   | 'renderLightDeviceAffiliateRow' | 'getLightDeviceAffiliateView'
@@ -137,6 +138,11 @@ export async function renderRecommendationsDetailSection(slotKey: string, option
   const renderRecommendationSection = getRecommendationModuleFunction('renderRecommendationSection');
   if (!renderRecommendationSection) return '';
   return await renderRecommendationSection(slotKey, options);
+}
+
+export async function getRecommendationsDetailSectionView(slotKey: string, options: RecommendationSectionOptions) {
+  const getView = getRecommendationModuleFunction('getRecommendationSectionView');
+  return getView ? await getView(slotKey, options) : null;
 }
 
 export function closeRecommendationsModal() {

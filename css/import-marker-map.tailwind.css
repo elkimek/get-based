@@ -13,3 +13,5 @@
 @source "../js/components/ImportMarkerMapResults.svelte";
 
 @import "./import-review.tailwind.css";
+
+@import "./cycle-import.tailwind.css";

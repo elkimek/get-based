@@ -1,8 +1,10 @@
 import { upgradeMenstrualCycleProfile } from './cycle-summary.js';
-import { escapeAttr, escapeHTML } from './utils.js';
+import { escapeAttr } from './utils.js';
+import {renderHTML as renderCyclePicker} from './components/CycleImportPicker.svelte.html.js';
+import {renderHTML as renderCycleCoverage} from './components/CycleImportCoverage.svelte.html.js';
+import {projectCycleImportCoverage} from './cycle-import-presentation.js';
 
 export const CYCLE_IMPORT_ACTION = 'data-cycle-import-action';
-const CYCLE_IMPORT_ACCEPT = '.csv,.json,.cluedata,.xml,.zip,text/csv,application/json,application/xml,text/xml,application/zip';
 const SOURCE_LABELS: Record<string, string> = {
   apple_health: 'Apple Health',
   drip: 'Drip',
@@ -31,8 +33,7 @@ export function cycleImportSourceLabel(source: string) {
 }
 
 export function renderCycleImportPicker() {
-  return `<button type="button" class="cycle-icon-btn" ${cycleImportActionAttrs('pick-file')} title="Import cycle data" aria-label="Import cycle data"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="m17 8-5-5-5 5"></path><path d="M12 3v12"></path></svg></button>
-    <input type="file" class="cycle-import-file-input" ${cycleImportActionAttrs('select-file')} accept="${CYCLE_IMPORT_ACCEPT}" hidden aria-label="Choose a cycle export">`;
+  return renderCyclePicker();
 }
 
 // The cold loader captures each label once; the loaded view reads it for each attribute.
@@ -45,24 +46,16 @@ export function renderCycleImportSummary(mc: unknown, makeSourceLabel: (source: 
     .map(([source, info]) => {
       const periodImportIds = (upgraded!.periods || []).filter(period => period.source === source && period.importId).map(period => period.importId);
       const importIds = Array.from(new Set([...(info.importIds || []), ...periodImportIds]));
-      const batchButtons = importIds.map((id, idx) => `<button type="button" class="cycle-mini-action" ${cycleImportActionAttrs('delete-import', { importId: id })}>Remove batch ${idx + 1}</button>`).join('');
+      const batches = importIds.map((id, idx) => ({importId: id != null && id !== '' ? String(id) : undefined, label: `Remove batch ${idx + 1}`}));
       const readSourceLabel = makeSourceLabel(source);
-      return `<div class="cycle-source-row">
-        <div class="cycle-source-main">
-          <strong>${escapeHTML(readSourceLabel())}</strong>
-          <span>${info.periods || 0} periods / ${info.observations || 0} local observations${info.importedAt ? ` / ${escapeHTML(String(info.importedAt).slice(0, 10))}` : ''}</span>
-          ${batchButtons ? `<div class="cycle-import-batches">${batchButtons}</div>` : ''}
-        </div>
-        ${source !== 'manual' ? `<button type="button" class="cycle-icon-btn cycle-delete-btn" ${cycleImportActionAttrs('delete-source', { source })} title="Remove ${escapeAttr(readSourceLabel())}" aria-label="Remove ${escapeAttr(readSourceLabel())} cycle data">x</button>` : ''}
-      </div>`;
-    }).join('');
-  return `<section class="cycle-editor-section cycle-import-summary-section">
-    <div class="cycle-editor-section-title">Import Coverage</div>
-    <div class="cycle-import-coverage">
-      <span>${coverage.periodCount || 0} observed periods</span>
-      <span>${coverage.observationCount || 0} local daily observations</span>
-      ${coverage.firstDate || coverage.lastDate ? `<span>${escapeHTML(coverage.firstDate || '?')} - ${escapeHTML(coverage.lastDate || '?')}</span>` : ''}
-    </div>
-    ${sourceRows ? `<div class="cycle-source-list">${sourceRows}</div>` : ''}
-  </section>`;
+      const label = readSourceLabel();
+      const importedAt = info.importedAt ? String(info.importedAt).slice(0, 10) : null;
+      const deleteTitle = source !== 'manual' ? `Remove ${readSourceLabel()}` : null;
+      const deleteAriaLabel = source !== 'manual' ? `Remove ${readSourceLabel()} cycle data` : null;
+      return {source, label, periodCount: info.periods || 0, observationCount: info.observations || 0, importedAt, batches, deleteTitle, deleteAriaLabel};
+    });
+  return renderCycleCoverage({view: projectCycleImportCoverage({
+    periodCount: coverage.periodCount || 0, observationCount: coverage.observationCount || 0,
+    firstDate: coverage.firstDate, lastDate: coverage.lastDate, sources: sourceRows,
+  })});
 }

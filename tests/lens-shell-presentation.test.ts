@@ -36,5 +36,11 @@ it('removes native shared chrome templates while retaining named renderer-owned 
   expect(source).not.toContain('function renderLensPageMoveControls');
   expect(readFileSync('js/components/LensPageHeader.svelte', 'utf8')).toContain('{@html view.actionsHTML}');
   const widget = readFileSync('js/components/LensPageWidget.svelte', 'utf8');
-  expect(widget).toContain('{@html view.bodyHTML}'); expect(widget).not.toContain('{@html view.title}');
+  expect(widget).toContain("{@html view.bodyHTML || ''}");
+  expect(widget.match(/\{@html/g)).toHaveLength(1);
+  expect(widget).toContain('<LensWidgetFrame');
+  expect(widget).not.toContain('{@html view.title}');
+  const frame = readFileSync('js/components/LensWidgetFrame.svelte', 'utf8');
+  expect(frame).not.toContain('{@html');
+  expect(frame).toContain('{@render body()}');
 });

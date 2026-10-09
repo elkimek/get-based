@@ -2,6 +2,11 @@
 
 import { state } from './state.js';
 import {renderHTML as renderLensContent} from './components/LensPageContent.svelte.html.js';
+import {renderHTML as renderRecommendationPage} from './components/RecommendationPage.svelte.html.js';
+import {projectLensHeader} from './lens-shell-presentation.js';
+import {projectRecommendationList, type RecommendationCardView} from './recommendation-presentation.js';
+import type {RecommendationPageContent} from './recommendation-page-presentation.js';
+import type {LensContentWidget} from './lens-page-shell.js';
 import {projectGenomeImportDetails, projectBodySources, projectLensActions} from './lens-content-presentation.js';
 import { getActiveData, filterDatesByRange, renderDateRangeFilter } from './data.js';
 import {
@@ -39,12 +44,10 @@ type LensDependencyOperations = {
   getCachedRecommendationsCatalog: () => unknown;
   refreshRecommendationsWhenCatalogReady: () => unknown;
   getGlobalRecommendationCandidates: (ctx: unknown, catalog: unknown, options?: {includeDismissed: boolean}) => CandidateOperations[];
-  renderRecommendationList: (candidates: readonly CandidateOperations[]) => string;
-  renderRecommendationsEmpty: () => unknown;
-  lensPageActionAttrs: (...args: Parameters<Shell['lensPageActionAttrs']>) => unknown;
+  getLensContentGrid: Shell['getLensContentGrid'];
+  getLensWidgetChrome: Shell['getLensWidgetChrome'];
   renderLensHeader: (...args: Parameters<Shell['renderLensHeader']>) => unknown;
   renderLensPageWidgets: (route: string, widgets: Array<LensWidgetInput | null | undefined | false>, options?: {group: string}) => unknown;
-  renderLensWidget: (id: string, title: unknown, description: string | undefined, body: unknown, size?: string, opts?: import('./lens-page-shell.js').LensWidgetOptions & {source?: unknown}) => unknown;
 };
 type LabMarkerOperations = { values?: {some(predicate: (value: unknown) => boolean): boolean} | null };
 type LabDataOperations = { dates?: {length?: unknown}; categories?: Record<string, {singleDate?: unknown; markers?: Record<string, LabMarkerOperations>}> };
@@ -88,12 +91,10 @@ export function createLensPageHandlers(deps: unknown) {
     getCachedRecommendationsCatalog,
     refreshRecommendationsWhenCatalogReady,
     getGlobalRecommendationCandidates,
-    renderRecommendationList,
-    renderRecommendationsEmpty,
-    lensPageActionAttrs,
+    getLensContentGrid,
+    getLensWidgetChrome,
     renderLensHeader,
     renderLensPageWidgets,
-    renderLensWidget,
   } = deps as LensDependencyOperations;
 
   function showLabs(preData: unknown) {
@@ -189,13 +190,13 @@ export function createLensPageHandlers(deps: unknown) {
     void loadContextCardTips();
   }
 
-  function renderRecommendationsPageGroups(ctx: unknown, catalog: unknown) {
+  function getRecommendationsPageGroups(ctx: unknown, catalog: unknown): RecommendationPageContent {
     const active = getGlobalRecommendationCandidates(ctx, catalog);
     const allWithDismissed = getGlobalRecommendationCandidates(ctx, catalog, { includeDismissed: true });
     const saved = allWithDismissed.filter(c => c.saved);
     const dismissed = allWithDismissed.filter(c => c.dismissed);
     if (!active.length && !saved.length && !dismissed.length) {
-      return renderRecommendationsEmpty();
+      return {kind: 'empty'};
     }
     const top = active.slice(0, 4);
     const bySource = new Map<unknown, CandidateOperations[]>();
@@ -203,22 +204,22 @@ export function createLensPageHandlers(deps: unknown) {
       if (!bySource.has(candidate.source)) bySource.set(candidate.source, []);
       bySource.get(candidate.source)!.push(candidate);
     }
-    const widgets: LensWidgetInput[] = [];
+    const widgets: LensContentWidget<RecommendationCardView[]>[] = [];
     if (top.length) {
-      widgets.push({ id: 'recommendations-top', title: 'Tips to Explore', description: 'Ideas selected from the context currently available', body: renderRecommendationList(top), size: 'full', opts: { source: 'Insight', dashboardId: 'recommendations' } });
+      widgets.push({ id: 'recommendations-top', title: 'Tips to Explore', description: 'Ideas selected from the context currently available', content: projectRecommendationList(top), size: 'full', opts: { source: 'Insight', dashboardId: 'recommendations' } });
     }
     for (const source of ['Labs', 'Body', 'Light', 'Genome', 'Insight']) {
       const rows = (bySource.get(source) || []).filter(c => !top.includes(c));
       if (!rows.length) continue;
-      widgets.push({ id: `recommendations-${source.toLowerCase()}`, title: `${source} Context`, description: `General-information tips surfaced from ${source}`, body: renderRecommendationList(rows), size: 'full', opts: { source: 'Tips', dashboardId: '' } });
+      widgets.push({ id: `recommendations-${source.toLowerCase()}`, title: `${source} Context`, description: `General-information tips surfaced from ${source}`, content: projectRecommendationList(rows), size: 'full', opts: { source: 'Tips', dashboardId: '' } });
     }
     if (saved.length) {
-      widgets.push({ id: 'recommendations-bookmarks', title: 'Bookmarks', description: 'Tips bookmarked for later review', body: renderRecommendationList(saved), size: 'full', opts: { source: 'Tips', dashboardId: '' } });
+      widgets.push({ id: 'recommendations-bookmarks', title: 'Bookmarks', description: 'Tips bookmarked for later review', content: projectRecommendationList(saved), size: 'full', opts: { source: 'Tips', dashboardId: '' } });
     }
     if (dismissed.length) {
-      widgets.push({ id: 'recommendations-dismissed', title: 'Hidden', description: 'Tips you have hidden from the active view', body: renderRecommendationList(dismissed), size: 'full', opts: { source: 'Tips', dashboardId: '' } });
+      widgets.push({ id: 'recommendations-dismissed', title: 'Hidden', description: 'Tips you have hidden from the active view', content: projectRecommendationList(dismissed), size: 'full', opts: { source: 'Tips', dashboardId: '' } });
     }
-    return renderLensPageWidgets('recommendations', widgets);
+    return {kind: 'groups', grid: getLensContentGrid('recommendations', widgets)};
   }
 
   function showRecommendations(preData: unknown) {
@@ -229,27 +230,23 @@ export function createLensPageHandlers(deps: unknown) {
     document.body.classList.remove('mobile-dashboard-active');
     const prefs = getDashboardWidgetPrefs();
     const recommendationsVisible = !prefs.hidden.includes('recommendations');
-    const actions = renderLensContent({kind: 'actions', view: projectLensActions('tips', {recommendationsVisible})});
-    let html = `<div id="recommendations-page">`;
-    html += renderLensHeader('Tips', 'Optional general-information ideas connected to the signals you choose to track. These are not instructions, a care plan, or medical advice. Product links stay behind the disclosure.', actions);
+    const actions = projectLensActions('tips', {recommendationsVisible});
+    const header = projectLensHeader('Tips', 'Optional general-information ideas connected to the signals you choose to track. These are not instructions, a care plan, or medical advice. Product links stay behind the disclosure.');
+    const render = (content: RecommendationPageContent) => renderRecommendationPage({view: {header, actions, content}});
     if (!isRecommendationsProductRecsEnabled()) {
-      html += renderLensWidget('recommendations-disabled', 'Tips are off', 'Enable Tips to show optional general-information ideas', `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${lensPageActionAttrs('open-privacy-settings')}>Open settings</button>`, 'full', { source: 'Tips', dashboardId: '' });
-      html += `</div>`;
-      main.innerHTML = html;
+      main.innerHTML = render({kind: 'disabled', widget: getLensWidgetChrome('recommendations-disabled', 'Tips are off', 'Enable Tips to show optional general-information ideas', 'full', {dashboardId: ''})});
       return;
     }
     const catalog = getCachedRecommendationsCatalog();
     if (!catalog) {
       refreshRecommendationsWhenCatalogReady();
-      html += `<div class="dashboard-widget-empty">Loading tips...</div></div>`;
-      main.innerHTML = html;
+      main.innerHTML = render({kind: 'loading'});
       return;
     }
     if (state.importedData?.genetics?.snps && !getRecommendationsSnpTable()) {
       ensureSNPTable().then(() => { if (state.currentView === 'recommendations') showRecommendations(getActiveData()); }).catch(() => {});
     }
-    html += `${renderRecommendationsPageGroups(ctx, catalog)}</div>`;
-    main.innerHTML = html;
+    main.innerHTML = render(getRecommendationsPageGroups(ctx, catalog));
   }
 
   return { showLabs, showBiologyScores, showGenomeLens, showBodyLens, showInsightLens, showRecommendations };

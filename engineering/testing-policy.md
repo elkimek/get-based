@@ -166,6 +166,25 @@ browser contracts exercise the same authored tips renderer.
 These checks do not prove complete migration of context editors
 and nutrition fragments.
 
+[`cycle-import-frozen.test.ts`](../tests/cycle-import-frozen.test.ts) and
+[`tips-details-frozen.test.ts`](../tests/tips-details-frozen.test.ts) compare authored
+presentation with immutable pre-migration outputs, including conflict choices,
+product limits, literal values, disclosure and shared consumers.
+[`cycle-import-owned.spec.ts`](../tests/playwright/cycle-import-owned.spec.ts) and
+[`tips-details-owned.spec.ts`](../tests/playwright/tips-details-owned.spec.ts) compare
+exact geometry, computed styles, keyboard focus and actual pointer states. Original
+stylesheet rules retain their production cascade positions; the Tips supplement
+recovers escaped utility selectors from verified original style snapshots without
+changing captured samples.
+[`sveltekit-cycle-import.spec.ts`](../tests/pwa/sveltekit-cycle-import.spec.ts)
+exercises real import/cancel/conflict/removal controls, raw Cycle storage and complete
+profile/history preservation. [`sveltekit-tips-details.spec.ts`](../tests/pwa/sveltekit-tips-details.spec.ts)
+exercises catalog detail, disclosure, coupon feedback, saved/hidden cards, order,
+dashboard visibility, settings and discussion prefill with complete profile and
+local preference records. Both close every client before two cold launches and
+seed initial data once. These focused cases do not establish whole-app or installed
+PWA acceptance.
+
 The DOM sink audit compares every discovered HTML-writing operation with its
 committed count and source fingerprint, including raw Svelte HTML. Successful
 migration removes native sinks, so security acceptance uses exact discovery and
