@@ -166,6 +166,16 @@ browser contracts exercise the same authored tips renderer.
 These checks do not prove complete migration of context editors
 and nutrition fragments.
 
+[`lens-ingest-lifecycle.test.ts`](../tests/lens-ingest-lifecycle.test.ts)
+checks sequential Knowledge Base indexing jobs across separate UI factories.
+Each accepted job must restore its Stop control, and a previous job's delayed
+cleanup must leave the current progress UI intact. The current job retains its
+three-second completion lifetime. The test uses the actual public UI, text parser
+and serialized local API with synthetic Worker replies, timers and a Node
+FileList-like container; real browser file selection, store/model persistence
+and PWA acceptance require separate checks. Saving still commits once, while
+Stop cancels without replacing the previously saved corpus or clearing its cache.
+
 [`cycle-overview-frozen.test.ts`](../tests/cycle-overview-frozen.test.ts) compares
 complete authored overview structure, controls and literal content against
 immutable original output, including compact limits, phase sources, ordered

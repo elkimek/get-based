@@ -20,7 +20,7 @@ interface LensUiDeps extends Pick<LensLibraryDeps, 'clearLensCache'> {
   testLensConnection(): Promise<LensConnectionResult>;
   recordLocalLensStats(stats: Omit<StatsReply, 'type'>): unknown;
 }
-type LensWindow = Window & typeof globalThis & { _lensIngestRunning?: boolean; _lensIngestStopRequested?: boolean };
+type LensWindow = Window & typeof globalThis & { _lensIngestRunning?: boolean; _lensIngestStopRequested?: boolean; _lensIngestJobToken?: symbol };
 const lensWindow = window as LensWindow;
 
 function renderLensStatus(cfg: LensUiConfig, connected: unknown, isBrowser: boolean, usableSource: boolean, status: LensStatus) {
@@ -549,6 +549,10 @@ export function createLensKnowledgeBaseUi(deps: LensUiDeps) {
     const pillBar = (pill.querySelector('#lens-ingest-pill-bar') as HTMLProgressElement | null);
     const pillStop = (pill.querySelector('#lens-ingest-pill-cancel') as HTMLButtonElement | null);
     if (!pillText || !pillBar || !pillStop) return;
+    const jobToken = Symbol('lens-ingest');
+    lensWindow._lensIngestJobToken = jobToken;
+    pillStop.disabled = false;
+    pillStop.textContent = 'Stop indexing';
     const t0 = performance.now();
     let indexT0 = 0;
     let unsub = () => {};
@@ -670,6 +674,7 @@ export function createLensKnowledgeBaseUi(deps: LensUiDeps) {
       lensWindow._lensIngestStopRequested = false;
       unsub();
       setTimeout(() => {
+        if (lensWindow._lensIngestJobToken !== jobToken) return;
         _removeIngestPill();
         const modalWrap = document.getElementById('lens-local-progress-wrap');
         if (modalWrap) {
