@@ -2,6 +2,7 @@
 @import "tailwindcss/theme.css" layer(gb-theme) prefix(gb);
 @import "tailwindcss/utilities.css" prefix(gb) source(none);
 @import "./ui-tokens.tailwind.css";
+@import "./knowledge-base-eager.tailwind.css";
 @custom-variant report-ui (&:is([data-report-builder-view], [data-report-builder-view] *));
 @custom-variant report-strong (&:is([data-report-builder-view][data-report-builder-view], [data-report-builder-view][data-report-builder-view] *));
 @custom-variant report-phone (@media (max-width: 720px));

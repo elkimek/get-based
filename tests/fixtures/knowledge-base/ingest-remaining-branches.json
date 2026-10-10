@@ -1,0 +1,241 @@
+{
+  "kind": "Unexecuted source-derived remaining-ingest capture matrix, beyond existing13-snapshot candidate trace",
+  "originalSourceSHA256": "29daefd1ddac36ca669855bec93e65faab0d575aee4ab807ccf70568b80259fc",
+  "existingReceiptSHA256": "25c1db15185c563a65bad782f5ca2db293752256139197ac858bd29011d80673",
+  "notDuplicated": [
+    "single successful text parser/File snapshot",
+    "start total4 + mid-embed ETA + saving/actual commit",
+    "plain singular completion with zero replacements",
+    "two successful jobs and old3000ms lifecycle defects"
+  ],
+  "seedCorpus": {
+    "total_chunks": 2,
+    "documents": [
+      {
+        "source": "existing.md",
+        "chunks": 2
+      }
+    ],
+    "dim": 384,
+    "model": "minilm",
+    "backend": "wasm",
+    "ms_per_embed": 100
+  },
+  "clock": {
+    "t0": 1000,
+    "completion": 3000,
+    "duration": "2.0s",
+    "startIndexTime": 1500,
+    "embedTime": 2500
+  },
+  "matrix": [
+    {
+      "name": "empty-selection",
+      "trigger": "Dispatch original attached picker change with an empty live container; repeat null only if runner already models genuine nullable files.",
+      "expected": "Input clear remains; no ingest pill, worker delta, cache/config/notification write or running flag change.",
+      "wireDelta": [],
+      "newBranch": "incoming.length===0"
+    },
+    {
+      "name": "busy-selection",
+      "trigger": "Append one second picker event while the first genuine original ingest is held pending. Keep existing pill/progress snapshots before and after.",
+      "expected": "Info toast Finish or stop the current indexing job before adding more files.; only first ingest remains; no pill/progress/stop state replacement or cache mutation.",
+      "wireDelta": [],
+      "newBranch": "global running guard; do not set running manually"
+    },
+    {
+      "name": "unsupported-no-usable",
+      "trigger": "Original attached drop handler receives a Node File named unsupported.bin, real extractFromFile returns[]; Worker already ready.",
+      "expected": "Parser unsupported warning; pill/mirror No usable documents were found.; no ingest/subscription-driven update/cache/success toast. Original stop remains enabled Stop indexing, bars indeterminate until cleanup.",
+      "wireDelta": [
+        "stats"
+      ],
+      "newBranch": "extract[] -> files.length===0 -> finally"
+    },
+    {
+      "name": "all-text-reads-fail",
+      "trigger": "Node File named unreadable.md whose actual text() rejects Error(Synthetic read failure). Do not mock parser.",
+      "expected": "Original extract failed warning with name/error; No usable documents were found.; no ingest/cache/success toast.",
+      "wireDelta": [
+        "stats"
+      ],
+      "newBranch": "inner extract catch -> no usable"
+    },
+    {
+      "name": "one-read-fails-one-succeeds",
+      "trigger": "Picker two files: unreadable.md text rejection then good.md actual text. Hold legitimate ingest, then normal saving/commit/done.",
+      "expected": "Reading 2 files and per-file names; warning only for failed file; actual worker files only good.md. Successful one-file indexed message and exactly one cache clear.",
+      "wireDelta": [
+        "ingest",
+        "commit_ingest",
+        "stats",
+        "stats"
+      ],
+      "completionStats": {
+        "files_seen": 1,
+        "chunks_planned": 1,
+        "documents_indexed": 1,
+        "chunks_indexed": 1,
+        "replaced_documents": 0,
+        "skipped": [],
+        "cancelled": false
+      },
+      "newBranch": "inner catch continues preserving next file"
+    },
+    {
+      "name": "stop-during-reading",
+      "trigger": "Use real parser on a Node File with deliberately deferred text(); once Reading 1/1 is visible click original Stop, observe abort side channel, then resolve text.",
+      "expected": "Stopped before indexing \u2014 no library changes were saved.; info toast; no ingest or commit/cache change; original Stop remains disabled Stopping\u2026; determinate bars1/1; finally flags false and stats refresh.",
+      "wireDelta": [
+        "abort",
+        "stats"
+      ],
+      "newBranch": "post-file global stop gate"
+    },
+    {
+      "name": "stop-before-indexing",
+      "trigger": "With warmed real local API, observe actual pill text Loading the active search model\u2026 via MutationObserver, click original Stop in that observed turn. No private helper invocation or custom local import.",
+      "expected": "Same stopped message/toast/no commit/cache; capture observer receipt proving target text and Stop click before any ingest wire message.",
+      "wireDelta": [
+        "abort",
+        "stats"
+      ],
+      "newBranch": "post-model stop gate; public picker wiring requires initial ready/stats so no fabricated cold-ready handler"
+    },
+    {
+      "name": "cancelled-completion-no-eta",
+      "trigger": "Hold legitimate ingest, emit start total2 then embed index2/total2 at controlled positive elapsed; verify no ETA. Click original Stop and emit valid cancelled ingest_done without saving/commit, retaining seeded corpus.",
+      "expected": "Stopped after 2.0s \u2014 no library changes were saved.; Stop disabled Stopped; info toast; both bars1/1; no cache clear; seeded corpus/count unchanged.",
+      "wireDelta": [
+        "ingest",
+        "abort",
+        "stats",
+        "stats"
+      ],
+      "completionStats": {
+        "files_seen": 1,
+        "chunks_planned": 2,
+        "documents_indexed": 0,
+        "chunks_indexed": 0,
+        "replaced_documents": 0,
+        "skipped": [],
+        "cancelled": true
+      },
+      "newBranch": "cancelled terminal copy plus remaining0 ETA branch"
+    },
+    {
+      "name": "up-to-date-one",
+      "trigger": "Hold ingest of unchanged existing.md, emit start total0 then valid ingest_done without saving/commit and preserve corpus.",
+      "expected": "Checking for document changes\u2026, bars0/max1 before completion; Already up to date \u2014 1 unchanged file.; Done/disabled and bars1/1; success toast; no cache clear.",
+      "wireDelta": [
+        "ingest",
+        "stats",
+        "stats"
+      ],
+      "completionStats": {
+        "files_seen": 1,
+        "chunks_planned": 0,
+        "documents_indexed": 0,
+        "chunks_indexed": 0,
+        "replaced_documents": 0,
+        "skipped": [
+          "existing.md"
+        ],
+        "cancelled": false
+      },
+      "newBranch": "chunks0/skipped>0 singular"
+    },
+    {
+      "name": "up-to-date-two",
+      "trigger": "Same legitimate no-op flow with two unchanged files; no saving/commit.",
+      "expected": "Already up to date \u2014 2 unchanged files.; no cache clear; seeded corpus unchanged.",
+      "wireDelta": [
+        "ingest",
+        "stats",
+        "stats"
+      ],
+      "completionStats": {
+        "files_seen": 2,
+        "chunks_planned": 0,
+        "documents_indexed": 0,
+        "chunks_indexed": 0,
+        "replaced_documents": 0,
+        "skipped": [
+          "existing.md",
+          "second-existing.md"
+        ],
+        "cancelled": false
+      },
+      "newBranch": "unchanged-file plural suffix only"
+    },
+    {
+      "name": "replace-one",
+      "trigger": "One changed existing.md; normal start/embed/saving -> actual client commit -> ingest_done -> stats. Fake corpus replaces same source only at commit.",
+      "expected": "Indexed 3 excerpts from 1 file in 2.0s \u00b7 replaced 1 existing document.; exactly one cache clear and success toast; actual wire input metadata preserved.",
+      "wireDelta": [
+        "ingest",
+        "commit_ingest",
+        "stats",
+        "stats"
+      ],
+      "completionStats": {
+        "files_seen": 1,
+        "chunks_planned": 3,
+        "documents_indexed": 1,
+        "chunks_indexed": 3,
+        "replaced_documents": 1,
+        "skipped": [],
+        "cancelled": false
+      },
+      "newBranch": "positive replacement singular"
+    },
+    {
+      "name": "replace-two",
+      "trigger": "Two changed existing sources; same valid commit flow.",
+      "expected": "Indexed 4 excerpts from 2 files in 2.0s \u00b7 replaced 2 existing documents.; exactly one cache clear.",
+      "wireDelta": [
+        "ingest",
+        "commit_ingest",
+        "stats",
+        "stats"
+      ],
+      "completionStats": {
+        "files_seen": 2,
+        "chunks_planned": 4,
+        "documents_indexed": 2,
+        "chunks_indexed": 4,
+        "replaced_documents": 2,
+        "skipped": [],
+        "cancelled": false
+      },
+      "newBranch": "successful-file and replacement plural suffixes"
+    },
+    {
+      "name": "worker-ingest-error",
+      "trigger": "Fresh ready context; hold real ingest then emit valid Worker error message Synthetic <index> & failure; preserve corpus.",
+      "expected": "Couldn't index: Synthetic <index> & failure literal text; error toast; indeterminate bars; no cache clear or done success. Finally tries actual getStats but retained send queue rejection prevents a new stats wire request; stats shows Failed to load library with same error. Flags false/cleanup still scheduled.",
+      "wireDelta": [
+        "ingest"
+      ],
+      "newBranch": "outer catch and actual retained rejected queue; do not fake recovery stats"
+    }
+  ],
+  "operationRecipe": "One fresh actual original UI/local API context per error/no-op/stop family; reuse existing pending successful job for busy where possible. Hydrate real panel/rAF first, clear setup request trace, retain exact notifications container and original timers. Use valid LibraryRecord with createdAt. No private helper export/invocation or parser/local module replacement.",
+  "wireDeltaBoundary": "Lists describe post-hydration UI wire deltas with real local API. Ingest success/cancellation/no-op includes local API post-ingest stats then UI finally stats. Pre-index/no usable has only UI finally stats. Abort is side channel with no reply. Failed ingest queue blocks follow-up stats. Freeze actual ordering before assertions.",
+  "protocolNotes": [
+    "Worker ready/list use actual typed LibraryRecord including createdAt",
+    "Abort with no pending ingest is valid and must not manufacture ingest_done",
+    "No-op/cancel before saving returns ingest_done without commit; ordinary transaction emits saving and waits for actual client commit before done",
+    "Stop-before-indexing capture must include actual loading text observer and no ingest; if scheduling misses this, report uncaptured rather than force stop flag",
+    "Worker error case runs alone because real send queue remains rejected; never reset domain queue inside driver"
+  ],
+  "captures": [
+    "raw pill and original modal progress HTML/properties",
+    "both progress max/value versus absent value attribute",
+    "Stop label/disabled and actual click/abort trace",
+    "running/stop flags, seeded corpus/cached count, cache/config/status traces",
+    "toast raw literal copy/kind; unsupported/read-failure warnings",
+    "2999/3000 ordinary cleanup per terminal case, distinguish toast timers from progress lifetime"
+  ],
+  "limits": "No capture/test/build/compile/browser/server/Git/Node execution or canonical/original fixture write. Metadata/corpus effects here are synthetic Worker protocol evidence, not actual indexing or persistence."
+}

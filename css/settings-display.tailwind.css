@@ -4,6 +4,7 @@
 @source "../js/components/**/*.svelte";
 @source "../js/settings-shell-contract.ts";
 @import "./ui-tokens.tailwind.css";
+@import "./knowledge-base-settings.tailwind.css";
 
 @custom-variant settings (&:is(#settings-modal, #settings-modal *));
 

@@ -1,0 +1,4 @@
+/* Chat-owned Knowledge Base document actions load with Chat presentation. */
+@source "../js/knowledge-base-chat-classes.ts";
+@custom-variant kb-chat-doc-delete (:where(&):where(.kb-panel, .kb-panel *, .kb-modal, .kb-modal *, .kb-create-overlay, .kb-create-overlay *, .kb-ingest-pill, .kb-ingest-pill *):is(.kb-doc-delete));
+@custom-variant kb-chat-doc-delete-hover (:where(&):where(.kb-panel, .kb-panel *, .kb-modal, .kb-modal *, .kb-create-overlay, .kb-create-overlay *, .kb-ingest-pill, .kb-ingest-pill *):is(.kb-doc-delete:hover));

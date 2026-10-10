@@ -1,0 +1,3 @@
+/* Settings-owned Knowledge Base modal width loads with Settings presentation. */
+@source "../js/knowledge-base-settings-classes.ts";
+@custom-variant kb-settings-modalsettings-modal (:where(&):where(.kb-panel, .kb-panel *, .kb-modal, .kb-modal *, .kb-create-overlay, .kb-create-overlay *, .kb-ingest-pill, .kb-ingest-pill *):is(.kb-modal.settings-modal));

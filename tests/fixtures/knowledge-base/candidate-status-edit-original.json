@@ -1,0 +1,154 @@
+{
+  "kind": "Original public delegated status refresh with edited-field identity and JSDOM caret/focus preservation",
+  "revision": "2ab846c9fda65ce2afb6415f647dc92b2f8efb67",
+  "sourceHashes": {
+    "js/lens-knowledge-base-ui.ts": "29daefd1ddac36ca669855bec93e65faab0d575aee4ab807ccf70568b80259fc",
+    "js/lens-library.ts": "1a27b94929a11e905cbc38031b0cd73fa7f8b06128b31d2e54835fecf5f3068e",
+    "js/lens.ts": "3b497136d0be4b097315a753604c80e26859df55c6f81e9ccfeddcc6f732551d",
+    "js/lens-actions.ts": "5621f99a15349ed8ee3af59d8690e19cca9bbd2bb189f06156a5aa911203dd06",
+    "js/lens-local.ts": "e1e8e03abc493b98abf64e05882cdcdc9f23d740cab903913983471867a2dd6c",
+    "js/lens-local-protocol.ts": "607b439c8f0c0d8a8898aaa5d17543a3a00900c5146c9708c41f7dc9085f8e23",
+    "js/lens-local-worker.ts": "ca278743ea9668b4db7d24f6fb64bdaeee8cebd74b75cdfe05f7ff6ef2f29daa",
+    "js/lens-local-library-registry.ts": "0d1c168bcd89fa5e391cde0326e81629590456f2b639772debac9ebf35853aba",
+    "js/lens-local-store.ts": "2c5c50cfd99cf469d526821ca6fef1b08e30a081758a410551aec6e71e46f437",
+    "js/lens-local-ingest.ts": "afb70e0ab15d475f028e6187a81e60e99794831566fa36ecf827b3b15c822d23",
+    "js/lens-local-parsers.ts": "7d4bc2a677d4db48e43e4f821a4256be99c14f85feb16239100a0d300983f7ae",
+    "js/lens-local-utils.ts": "1defc338d2ddb48c08526f6cb1a51f6d52e41f691aecd782d49c8525b1d64bdf",
+    "js/lens-local-embedder-config.ts": "771b48f105f0d0599fab351b5b5cf6490574b9b415faaf05bd4408303768074a",
+    "js/modal-lifecycle.ts": "5d1e5b3a5b7820a60f8507a12f392a43da8700c0151c7186af782bea01cf3d98",
+    "js/context-hub-view.ts": "7401b44f001148ca0b3adbfac711df0e770277a17e6988f17dfd029a7fe796c7",
+    "js/context-card-dashboard-ai.ts": "a99494a436f6323985ae2fd0eecbfebab6efce54bcd2332dae136d52b8620879",
+    "css/modal-shared.base.css": "73ea845117fd3b03f1e5bb80a7ab642e916c38c782d56e03abbd8d419288bd9b",
+    "css/chat-panel-open.base.css": "409c312778afb9f6b18c7146367ee8366a14beb6a518760e8eefd6977c3dc1c0",
+    "css/settings.base.css": "45a34491b597e15ba49af0854f204b5eb56a1f03133b97f49d43bc72eda68cb5"
+  },
+  "receipts": [
+    {
+      "enabled": false,
+      "beforeStatusHTML": "<span class=\"kb-status-text kb-status-active\">✓ Active · Original synthetic source</span><div class=\"kb-status-detail\">Last search: 2 excerpts from Synthetic source</div>",
+      "statusHTML": "<span class=\"kb-status-text\">Ready, currently off</span><div class=\"kb-status-detail\">Last search: 2 excerpts from Synthetic source</div>",
+      "fields": [
+        {
+          "id": "lens-name-input",
+          "value": "Edited draft source",
+          "sameNode": true
+        },
+        {
+          "id": "lens-url-input",
+          "value": "http://127.0.0.1:9000/query",
+          "sameNode": true
+        },
+        {
+          "id": "lens-key-input",
+          "value": "Edited synthetic token",
+          "sameNode": true
+        },
+        {
+          "id": "lens-test-probe-input",
+          "value": "Edited retrieval probe",
+          "sameNode": true
+        },
+        {
+          "id": "lens-topk-input",
+          "value": "8",
+          "sameNode": true
+        }
+      ],
+      "samePanel": true,
+      "sameChip": true,
+      "activeElement": "lens-name-input",
+      "caret": {
+        "start": 7,
+        "end": 13,
+        "direction": "backward"
+      },
+      "cfg": {
+        "backend": "external-server",
+        "name": "Original synthetic source",
+        "url": "http://127.0.0.1:8322/query",
+        "enabled": false,
+        "topK": 5,
+        "testProbe": "Synthetic original probe",
+        "multiQuery": true
+      },
+      "trace": [
+        [
+          "saveLensConfig",
+          {
+            "enabled": false
+          }
+        ]
+      ],
+      "scheduledFrames": 0
+    },
+    {
+      "enabled": true,
+      "beforeStatusHTML": "<span class=\"kb-status-text\">Ready, currently off</span><div class=\"kb-status-detail\">Last search: 2 excerpts from Synthetic source</div>",
+      "statusHTML": "<span class=\"kb-status-text kb-status-active\">✓ Active · Original synthetic source</span><div class=\"kb-status-detail\">Last search: 2 excerpts from Synthetic source</div>",
+      "fields": [
+        {
+          "id": "lens-name-input",
+          "value": "Edited draft source",
+          "sameNode": true
+        },
+        {
+          "id": "lens-url-input",
+          "value": "http://127.0.0.1:9000/query",
+          "sameNode": true
+        },
+        {
+          "id": "lens-key-input",
+          "value": "Edited synthetic token",
+          "sameNode": true
+        },
+        {
+          "id": "lens-test-probe-input",
+          "value": "Edited retrieval probe",
+          "sameNode": true
+        },
+        {
+          "id": "lens-topk-input",
+          "value": "8",
+          "sameNode": true
+        }
+      ],
+      "samePanel": true,
+      "sameChip": true,
+      "activeElement": "lens-name-input",
+      "caret": {
+        "start": 7,
+        "end": 13,
+        "direction": "backward"
+      },
+      "cfg": {
+        "backend": "external-server",
+        "name": "Original synthetic source",
+        "url": "http://127.0.0.1:8322/query",
+        "enabled": true,
+        "topK": 5,
+        "testProbe": "Synthetic original probe",
+        "multiQuery": true
+      },
+      "trace": [
+        [
+          "saveLensConfig",
+          {
+            "enabled": false
+          }
+        ],
+        [
+          "saveLensConfig",
+          {
+            "enabled": true
+          }
+        ]
+      ],
+      "scheduledFrames": 0
+    }
+  ],
+  "boundaries": [
+    "Synthetic config and genuine original delegated change handlers",
+    "JSDOM node/focus/caret behavior; actual browser keyboard/focus acceptance remains separate",
+    "No Worker/model/store or private helper invocation"
+  ]
+}

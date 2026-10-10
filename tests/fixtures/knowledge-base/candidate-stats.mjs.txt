@@ -1,0 +1,44 @@
+// Genuine original UI and local-module APIs; only the Worker protocol is synthetic.
+import '../../../tests/_node-shim.js';
+import fs from 'node:fs';import path from 'node:path';import {fileURLToPath} from 'node:url';import {execFileSync} from 'node:child_process';import {createHash} from 'node:crypto';import {JSDOM} from 'jsdom';
+const file=fileURLToPath(import.meta.url),directory=path.dirname(file),recipe=JSON.parse(fs.readFileSync(directory+'/capture-recipe.json','utf8')),preparation=JSON.parse(fs.readFileSync(directory+'/preparation.json','utf8'));
+const hash=file=>createHash('sha256').update(fs.readFileSync(file)).digest('hex');const identities={...preparation.ownerHashes,...preparation.protectedModuleHashes,...Object.fromEntries(preparation.cssCandidateInventory.map(entry=>[entry.file,entry.sha256]))};
+for(const [file,value] of Object.entries(identities))if(hash(file)!==value)throw new Error('Original source changed: '+file);
+const revision=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();if(revision!=='2ab846c9fda65ce2afb6415f647dc92b2f8efb67')throw new Error('Wrong candidate baseline');
+const record=value=>JSON.parse(JSON.stringify(value,(_key,value)=>typeof value==='number'&&!Number.isFinite(value)?{$number:String(value)}:value));
+if(process.argv[2]===undefined){
+ const samples=recipe.statsSeeds.map((seed,index)=>JSON.parse(execFileSync(process.execPath,[file,String(index)],{encoding:'utf8'})));
+ fs.writeFileSync(directory+'/candidate-stats-original.json',JSON.stringify({kind:'candidate original captures, not canonical or accepted',revision,sourceHashes:identities,recipeSHA256:hash(directory+'/capture-recipe.json'),samples,boundaries:['Fresh Node/jsdom process per case, genuine original UI/local module, synthetic Worker protocol only','No actual inference, OPFS/IndexedDB persistence, browser layout or pointer claim','Worker error replies become Error objects in the actual local API, including literal-string seed','No private helpers exported or cloned']},null,2)+'\n');console.log(JSON.stringify({samples:samples.length,kinds:['stats-and-documents','worker-errors','malformed-original-outcomes'],revision}));
+}else{
+ const seed=recipe.statsSeeds[Number(process.argv[2])];if(!seed)throw new Error('Missing stats seed');
+ const dom=new JSDOM('<!doctype html><html><body><div class="settings-section" id="custom-lens-section"></div></body></html>',{url:'https://fixture.test/',pretendToBeVisual:true});
+ for(const key of ['window','document','Element','HTMLElement','HTMLButtonElement','HTMLInputElement','HTMLSelectElement','HTMLProgressElement','Node','Event','MouseEvent','KeyboardEvent','CustomEvent'])Object.defineProperty(globalThis,key,{configurable:true,writable:true,value:dom.window[key]});globalThis.getComputedStyle=dom.window.getComputedStyle.bind(dom.window);
+ const frames=[],trace=[],requests=[];globalThis.requestAnimationFrame=callback=>{frames.push(callback);return frames.length;};globalThis.cancelAnimationFrame=()=>{};
+ let stats=structuredClone(seed.stats??{total_chunks:0,documents:[],dim:384,model:'minilm',backend:'wasm',ms_per_embed:null});if(seed.specialMsPerEmbed)stats.ms_per_embed={NaN:NaN,Infinity:Infinity,negativeInfinity:-Infinity}[seed.specialMsPerEmbed];
+ const libraries=[{id:'research',name:recipe.baseConfig.name,model:'all-minilm'}];
+ class WorkerBoundary{
+  constructor(url,options){if(!String(url).endsWith('/lens-local-worker.js')||options?.type!=='module')throw new Error('Unexpected Worker contract');this.listeners={message:[],error:[]};trace.push(['worker',String(url).split('/').pop(),options]);}
+  addEventListener(type,listener){this.listeners[type].push(listener);}
+  removeEventListener(type,listener){this.listeners[type]=this.listeners[type].filter(entry=>entry!==listener);}
+  postMessage(message){requests.push(record(message));queueMicrotask(()=>{
+   let reply;
+   if(message.type==='init')reply=seed.openLocalLensReject?{type:'error',message:seed.openLocalLensReject.message}:{type:'ready',numChunks:stats.total_chunks,numDocs:stats.documents?.length??0,libraries,activeId:'research',activeName:recipe.baseConfig.name,activeModel:'all-minilm',embedder:null,models:recipe.models};
+   else if(message.type==='list_libraries')reply={type:'libraries_list',libraries,activeId:'research'};
+   else if(message.type==='stats')reply=seed.getStatsReject?{type:'error',message:seed.getStatsReject.message??seed.getStatsReject.value}:{type:'stats_result',...stats};
+   else throw new Error('Unexpected Worker request: '+message.type);
+   for(const listener of this.listeners.message)listener({data:reply});
+  });}
+  terminate(){trace.push(['terminate']);}
+ }
+ globalThis.Worker=WorkerBoundary;
+ const {createLensKnowledgeBaseUi}=await import('../../../js/lens-knowledge-base-ui.js');let cfg=structuredClone(recipe.baseConfig),status=structuredClone(recipe.baseStatus);
+ const ui=createLensKnowledgeBaseUi({defaultTestProbe:'Synthetic retrieval probe',getLensConfig:()=>cfg,saveLensConfig:partial=>{trace.push(['saveLensConfig',record(partial)]);Object.assign(cfg,partial);},getLensKey:()=>'',saveLensKey:async()=>{},removeLens:async()=>{},clearLensCache:()=>trace.push(['clearLensCache']),getLensStatus:()=>status,updateLensStatus:partial=>{trace.push(['updateLensStatus',record(partial)]);Object.assign(status,partial);},hasLens:()=>false,isValidLensUrl:()=>true,testLensConnection:async()=>({ok:true,chunkCount:1}),recordLocalLensStats:value=>trace.push(['recordLocalLensStats',record(value)])});
+ document.getElementById('custom-lens-section').innerHTML=ui.renderCustomLensSection();if(frames.length!==1)throw new Error('Original panel must schedule one frame');const initial=document.getElementById('custom-lens-section').innerHTML;frames.shift()(0);
+ for(let attempt=0;attempt<100;attempt++){
+  const node=document.getElementById('lens-local-stats');if(node.textContent!=='Loading your library…')break;await new Promise(resolve=>setTimeout(resolve,5));
+ }
+ const statNode=document.getElementById('lens-local-stats'),list=document.getElementById('lens-local-doc-list'),select=document.getElementById('lens-library-select');if(statNode.textContent==='Loading your library…')throw new Error('Stats hydration did not finish');
+ if(document.querySelector('img,script,[onerror],[onclick]'))throw new Error('Literal data created executable markup');
+ for(const [file,value] of Object.entries(identities))if(hash(file)!==value)throw new Error('Capture mutated source');
+ console.log(JSON.stringify({kind:'stats-documents',name:seed.name,input:seed,initialHTML:initial,statsHTML:statNode.innerHTML,documentsHTML:list.innerHTML,libraryOptionsHTML:select.innerHTML,finalPanelHTML:document.getElementById('custom-lens-section').innerHTML,trace,workerRequests:requests,cachedCorpusCount:localStorage.getItem('labcharts-lens-local-count'),remainingFrames:frames.length}));dom.window.close();
+}

@@ -6,6 +6,7 @@
 @source "../js/components/ChatComposer.svelte";
 @source "../js/chat-composer-classes.ts";
 @import "./ui-tokens.tailwind.css";
+@import "./knowledge-base-chat.tailwind.css";
 @custom-variant thread-nav (&:is([data-chat-thread-navigation-view], [data-chat-thread-navigation-view] *));
 @custom-variant composer (&:is([data-chat-composer-view], [data-chat-composer-view] *));
 @source "../js/components/ChatResizeHandle.svelte";

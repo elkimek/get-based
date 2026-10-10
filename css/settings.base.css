@@ -175,9 +175,6 @@
     padding: 8px 12px;
   }
 }
-.kb-modal.settings-modal {
-  max-width: 780px;
-}
 
 /* API key and provider settings */
 .api-key-input {

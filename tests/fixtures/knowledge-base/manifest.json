@@ -1,0 +1,24 @@
+{
+  "revision": "2ab846c9fda65ce2afb6415f647dc92b2f8efb67",
+  "originalCases": 97,
+  "files": {
+    "candidate-original.json": "5e36417fba19aa083ff251709b4fca9f9b283d4554b4c4c2afa42bf901ecfdd6",
+    "candidate-stats-original.json": "1f2d63f852e4af262782f51a950b7d7a5610c9b81a86f98cc633f444f14cbfa7",
+    "candidate-status-edit-original.json": "1ec5b551d3cd6707b01f0cb4fddc67f92b135bc6fc7a87b1ece281531b149dde",
+    "candidate-ingest-branches-original.json": "b78e08be64751caef2e1a9e7e3fe50396e993586a85e130f1a3378448b335975",
+    "candidate-capture.mjs.txt": "1c0f5a1a1494d2f5bf5539f6b598380d73f4ac0ffd1921cc35f5c91e116d283d",
+    "candidate-stats.mjs.txt": "87a377dfe4aef6a045a86c6869d8d4f4aaacfe802adb4ecee4b68c4df0fe0831",
+    "candidate-status-edit.mjs.txt": "3202223d1010d4954ee5c4bc60e5e81364e2a2be5b48e769d2b4bd125f720a92",
+    "candidate-ingest-branches.mjs.txt": "7846991df1db46dda43b6340e82baf3133de3a112ceb18ca34645936e4dce984",
+    "candidate-baseline.json": "f5912a723b84dc93b564690cf4c5ffe4176787342ecc5ba7eef588b85c69c712",
+    "capture-recipe.json": "ee0d500ae51f6d97589de97bb9dc6844b7436d46208520a45982456a4924bc0f",
+    "preparation.json": "43595233a1c8ca5bbe2aa9a0a8cf27a30f7e569cf4308faeca168d8492f84405",
+    "ingest-remaining-branches.json": "705fce74782f05023a3ab4cc6d99a965440b07b83c86716d9c2b7be576fd190b"
+  },
+  "reviewedPrerequisite": {
+    "revisionPrefix": "3a74",
+    "scope": "shared Window job token owns delayed cleanup; accepted job resets reused Stop control",
+    "originalExpectedPayloadsChanged": false,
+    "branchFixtureException": "none; original13 first-job branches remain parity. Existing two-job defect evidence is not rewritten; dedicated root lifecycle regression asserts the reviewed improvement."
+  }
+}

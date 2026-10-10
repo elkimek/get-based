@@ -1,10 +1,26 @@
 // lens-knowledge-base-ui.js - Knowledge Base settings/modal UI and local ingest.
 
 import { getErrorMessage } from './caught-error.js';
-import { showNotification, showConfirmDialog, escapeHTML, escapeAttr } from './utils.js';
+import { showNotification, showConfirmDialog } from './utils.js';
 import { closeModalOverlay, openModalOverlay, wireBackdropClose } from './modal-lifecycle.js';
-import { initLensActionDelegates, lensActionAttrs } from './lens-actions.js';
+import { initLensActionDelegates } from './lens-actions.js';
 import { createLensLibraryHandlers } from './lens-library.js';
+import { knowledgeBaseClasses } from './knowledge-base-classes.js';
+import {
+  projectKnowledgeBaseStatus,
+  projectKnowledgeBasePanel,
+  projectKnowledgeBaseStats,
+  projectKnowledgeBaseDocuments,
+} from './knowledge-base-presentation.js';
+import type { KnowledgeBasePanelView } from './knowledge-base-presentation.js';
+import {
+  renderKnowledgeBasePanel,
+  renderKnowledgeBaseModal,
+  renderKnowledgeBaseStatus,
+  renderKnowledgeBaseStats,
+  renderKnowledgeBaseDocuments,
+  renderKnowledgeBaseIngestPill,
+} from './knowledge-base-rendering.js';
 
 import type { LensLibraryDeps } from './lens-library.js';
 import type { StatsReply } from './lens-local-protocol.js';
@@ -23,23 +39,20 @@ interface LensUiDeps extends Pick<LensLibraryDeps, 'clearLensCache'> {
 type LensWindow = Window & typeof globalThis & { _lensIngestRunning?: boolean; _lensIngestStopRequested?: boolean; _lensIngestJobToken?: symbol };
 const lensWindow = window as LensWindow;
 
-function renderLensStatus(cfg: LensUiConfig, connected: unknown, isBrowser: boolean, usableSource: boolean, status: LensStatus) {
-    const statusChip = !connected
-      ? '<span class="kb-status-text">Not connected</span>'
-      : status.state === 'error'
-        ? `<span class="kb-status-text kb-status-error">&#9888; Error${cfg.name ? ' · ' + escapeHTML(cfg.name) : ''}</span>`
-        : cfg.enabled
-          ? isBrowser && !usableSource
-            ? '<span class="kb-status-text">Enabled · add documents</span>'
-            : `<span class="kb-status-text kb-status-active">&#10003; Active${cfg.name ? ' · ' + escapeHTML(cfg.name) : ''}</span>`
-          : '<span class="kb-status-text">Ready, currently off</span>';
-    const lastInfo = status.state === 'error' && status.lastError
-      ? `<div class="kb-status-detail kb-status-error">Last error: ${escapeHTML(status.lastError)}</div>`
-      : connected && status.lastChunkCount
-        ? `<div class="kb-status-detail">Last search: ${status.lastChunkCount} excerpt${status.lastChunkCount !== 1 ? 's' : ''}${status.sourceName ? ' from ' + escapeHTML(status.sourceName) : ''}</div>`
-        : '';
-
-  return { statusChip, lastInfo };
+function renderLensStatus(
+  cfg: LensUiConfig,
+  connected: unknown,
+  isBrowser: boolean,
+  usableSource: boolean,
+  status: LensStatus,
+) {
+  return projectKnowledgeBaseStatus(
+    cfg,
+    connected,
+    isBrowser,
+    usableSource,
+    status,
+  );
 }
 
 export function createLensKnowledgeBaseUi(deps: LensUiDeps) {
@@ -59,13 +72,11 @@ export function createLensKnowledgeBaseUi(deps: LensUiDeps) {
     recordLocalLensStats,
   } = deps;
 
-  function renderCustomLensSection() {
+  function prepareLensPanelView(): KnowledgeBasePanelView {
     const cfg = getLensConfig();
-    // Schedule on-device init on the next animation frame. The caller
-    // (settings.js or _rerenderLensSection) sets innerHTML with the
-    // string we return, so the #lens-local-stats + #lens-library-select
-    // elements don't exist yet at this point. rAF defers until after
-    // that assignment paints.
+    // The host inserts the authored panel markup synchronously. Schedule
+    // on-device initialization on the next frame, after #lens-local-stats
+    // and #lens-library-select exist in that markup.
     if (cfg.backend === 'in-browser' && typeof requestAnimationFrame === 'function') {
       requestAnimationFrame(() => {
         try { _loadLibraryPicker(); } catch {}
@@ -80,176 +91,26 @@ export function createLensKnowledgeBaseUi(deps: LensUiDeps) {
     const connected = isBrowser || (isExternal && cfg.url && keySet);
     const usableSource = hasLens();
     const status = getLensStatus();
-    const { statusChip, lastInfo } = renderLensStatus(cfg, connected, isBrowser, usableSource, status);
+    const statusView = renderLensStatus(
+      cfg,
+      connected,
+      isBrowser,
+      usableSource,
+      status,
+    );
+    return projectKnowledgeBasePanel({
+      config: cfg,
+      keySet,
+      isBrowser,
+      isExternal,
+      connected,
+      status: statusView,
+      defaultTestProbe,
+    });
+  }
 
-    const backendCopy = isBrowser
-      ? 'Indexing and search run on this device after the first model download. Matching excerpts are shared with your selected AI provider when chat answers.'
-      : 'Connect to a knowledge server on your computer or local network. Best for large document collections.';
-
-    const localFields = isBrowser ? `
-      <section class="kb-section" id="lens-library-picker" aria-labelledby="kb-library-heading">
-        <div class="kb-section-head">
-          <div>
-            <h3 id="kb-library-heading">Active library</h3>
-            <p>Keep research, clinical guides, and personal notes in separate collections.</p>
-          </div>
-          <button class="import-btn import-btn-primary kb-new-library-btn" ${lensActionAttrs('new-library')} title="Create a library">+ New library</button>
-        </div>
-        <div class="kb-library-row">
-          <select id="lens-library-select" class="kb-field-control kb-library-select" aria-label="Active library" ${lensActionAttrs('activate-library')}>
-            <option value="">Loading…</option>
-          </select>
-          <div class="kb-library-actions">
-            <button class="import-btn import-btn-secondary kb-small-btn" ${lensActionAttrs('rename-library')} title="Rename active library">Rename</button>
-            <button class="kb-text-btn kb-text-btn-danger" ${lensActionAttrs('delete-library')} title="Delete active library">Delete</button>
-          </div>
-        </div>
-        <p class="kb-field-help">Chat searches only the active library.</p>
-      </section>
-
-      <section class="kb-section" id="lens-local-fields" aria-labelledby="kb-documents-heading">
-        <div class="kb-section-head">
-          <div>
-            <h3 id="kb-documents-heading">Documents</h3>
-            <p>Add files and keep working while indexing runs in the background.</p>
-          </div>
-        </div>
-        <div id="lens-local-stats" class="kb-stats" role="status">Loading your library…</div>
-        <div id="lens-local-drop" class="kb-drop-zone"
-             role="button" tabindex="0"
-             aria-label="Add documents — drop files here or press Enter to open the file picker"
-             ${lensActionAttrs('open-local-filepick')}>
-          <span class="kb-drop-icon" aria-hidden="true">📁</span>
-          <strong>Drop documents here or choose files</strong>
-          <span>PDF · Markdown · Text · Word · JSON · ZIP</span>
-        </div>
-        <input type="file" id="lens-local-filepick" multiple hidden accept=".txt,.md,.markdown,.rst,.json,.csv,.log,.pdf,.docx,.zip">
-        <div id="lens-local-progress-wrap" class="kb-inline-progress" hidden>
-          <progress id="lens-local-progress" value="0" max="100" aria-label="Indexing progress"></progress>
-          <div id="lens-local-progress-text" role="status" aria-live="polite"></div>
-        </div>
-        <div id="lens-local-doc-list" class="kb-document-list"></div>
-      </section>
-    ` : '';
-
-    const externalFields = isExternal ? `
-      <section class="kb-section" id="lens-remote-fields" aria-labelledby="kb-server-heading">
-        <div class="kb-section-head">
-          <div>
-            <h3 id="kb-server-heading">Knowledge server</h3>
-            <p>Connect getbased to a RAG endpoint you control.</p>
-          </div>
-        </div>
-        <details class="kb-setup-details">
-          <summary>Set up the local server on Linux</summary>
-          <div class="kb-setup-body">
-            <p><strong>1. Install and start the agent stack</strong></p>
-            <code class="kb-command">curl -sSL https://getbased.health/install.sh | bash</code>
-            <p><strong>2. Open the dashboard</strong> using the one-click login URL printed by the installer.</p>
-            <p><strong>3. In MCP → Environment, copy <code>LENS_API_KEY</code></strong> and paste it below.</p>
-            <p class="kb-field-help"><strong>Linux only for automatic startup.</strong> On macOS or Windows, follow the <a href="https://docs.getbased.health/guides/knowledge-base" target="_blank" rel="noopener">manual setup guide</a>.</p>
-            <details class="kb-setup-audit">
-              <summary>Review the installer first</summary>
-              <p><a href="https://github.com/elkimek/get-based-site/blob/main/install.sh" target="_blank" rel="noopener">Read install.sh on GitHub →</a></p>
-              <code class="kb-command">curl -sSL https://getbased.health/install.sh.sha256 | sha256sum -c</code>
-            </details>
-          </div>
-        </details>
-        <div class="kb-field-grid">
-          <label class="kb-field" for="lens-name-input">
-            <span>Display name</span>
-            <input type="text" class="kb-field-control" id="lens-name-input" value="${escapeAttr(cfg.name)}" placeholder="e.g. Functional Medicine Library">
-            <small>Shown in chat while this source is grounding an answer.</small>
-          </label>
-          <label class="kb-field" for="lens-url-input">
-            <span>Endpoint URL</span>
-            <input type="url" class="kb-field-control" id="lens-url-input" value="${escapeAttr(cfg.url)}" placeholder="http://127.0.0.1:8322/query">
-            <small>Include the <code>/query</code> path.</small>
-          </label>
-          <label class="kb-field" for="lens-key-input">
-            <span>API key</span>
-            <input type="password" class="kb-field-control" id="lens-key-input" value="${escapeAttr(keySet ? '••••••••' : '')}" placeholder="Bearer token">
-            <small>Encrypted at rest on this device.</small>
-          </label>
-          <label class="kb-field" for="lens-test-probe-input">
-            <span>Connection test query</span>
-            <input type="text" class="kb-field-control" id="lens-test-probe-input" value="${escapeAttr(cfg.testProbe || defaultTestProbe)}" placeholder="${escapeAttr(defaultTestProbe)}">
-            <small>Used once when you choose Save + connect.</small>
-          </label>
-        </div>
-      </section>
-    ` : '';
-
-    return `<div class="kb-panel">
-      <section class="kb-intro">
-        <div class="kb-intro-copy">
-          <strong>Ground AI answers in documents you trust.</strong>
-          <p>Add research papers, clinical guides, or personal notes. getbased searches them before answering and can cite the matching excerpts. <a href="https://docs.getbased.health/guides/knowledge-base" target="_blank" rel="noopener">Learn how it works →</a></p>
-        </div>
-        <div class="kb-status" id="lens-status-chip">${statusChip}${lastInfo}</div>
-      </section>
-
-      <section class="kb-section kb-engine-section" aria-labelledby="kb-engine-heading">
-        <div class="kb-section-head kb-engine-head">
-          <div>
-            <h3 id="kb-engine-heading">Where it runs</h3>
-            <p>${backendCopy}</p>
-          </div>
-          <label class="kb-enable-control" for="lens-enabled-toggle">
-            <span>Use in AI answers</span>
-            <span class="toggle-switch">
-              <input type="checkbox" id="lens-enabled-toggle" ${cfg.enabled ? 'checked' : ''} ${lensActionAttrs('toggle-enabled')}>
-              <span class="toggle-slider"></span>
-            </span>
-          </label>
-        </div>
-        <div class="ctx-btn-group kb-engine-picker" role="radiogroup" aria-label="Knowledge Base engine">
-          <button type="button" class="ctx-btn-option ${isBrowser ? 'active' : ''}" role="radio" aria-checked="${isBrowser}" ${lensActionAttrs('set-backend', { backend: 'in-browser' })}>On this device</button>
-          <button type="button" class="ctx-btn-option ${isExternal ? 'active' : ''}" role="radio" aria-checked="${isExternal}" ${lensActionAttrs('set-backend', { backend: 'external-server' })}>External server</button>
-        </div>
-      </section>
-
-      ${localFields}
-      ${externalFields}
-
-      <section class="kb-section" aria-labelledby="kb-retrieval-heading">
-        <div class="kb-section-head">
-          <div>
-            <h3 id="kb-retrieval-heading">Search behavior</h3>
-            <p>Control how much supporting context is sent with each question.</p>
-          </div>
-        </div>
-        <div class="kb-retrieval-grid">
-          <label class="kb-field kb-compact-field" for="lens-topk-input">
-            <span>Excerpts per question</span>
-            <input type="number" class="kb-field-control kb-number-control" id="lens-topk-input" value="${cfg.topK || 5}" min="1" max="10" inputmode="numeric">
-            <small>Usually 3–5 is enough. Higher values add more context to each AI request.</small>
-          </label>
-          <label class="kb-option-card" for="lens-multi-query-checkbox">
-            <input type="checkbox" id="lens-multi-query-checkbox" ${cfg.multiQuery !== false ? 'checked' : ''}>
-            <span>
-              <strong>Improve recall with query rewriting</strong>
-              <small>Your AI provider searches synonyms and related terms. Adds about one second to the first matching question.</small>
-            </span>
-          </label>
-        </div>
-      </section>
-
-      <div class="kb-footer-actions">
-        <div class="kb-footer-secondary">
-          ${connected ? `<button class="kb-text-btn" ${lensActionAttrs('clear-cache')}>Clear search cache</button>` : ''}
-          ${connected ? `<button class="kb-text-btn kb-text-btn-danger" ${lensActionAttrs('remove-lens')}>Remove knowledge source</button>` : ''}
-        </div>
-        <button class="import-btn import-btn-primary kb-save-btn" ${lensActionAttrs('save-config')}>${isExternal ? 'Save + connect' : 'Save changes'}</button>
-      </div>
-
-      <div class="kb-privacy-note">
-        <span aria-hidden="true">🔒</span>
-        <span>${isBrowser
-          ? 'Files, embeddings, and searches stay on this device. When chat uses the Knowledge Base, matching excerpts are included in the request to your configured AI provider. Query rewriting also sends the question when enabled.'
-          : 'Questions are sent directly to the server you configure. Only connect to a server you control or trust.'}</span>
-      </div>
-    </div>`;
+  function renderCustomLensSection() {
+    return renderKnowledgeBasePanel(prepareLensPanelView());
   }
 
   function _rerenderLensSection() {
@@ -279,21 +140,11 @@ export function createLensKnowledgeBaseUi(deps: LensUiDeps) {
       modal.id = 'kb-modal';
       overlay.appendChild(modal);
     }
-    modal.className = 'modal kb-modal settings-modal';
-    modal.innerHTML = `
-      <div class="gb-modal-head">
-        ${showContextBack ? `<button type="button" class="context-back-btn" ${lensActionAttrs('open-context')} aria-label="Back to Context" title="Back to Context"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>` : ''}
-        <div>
-          <div class="gb-modal-title">Knowledge Base</div>
-        </div>
-        <button class="modal-close" ${lensActionAttrs('close-kb')} aria-label="Close">&times;</button>
-      </div>
-      <div class="gb-form-body">
-      <div class="settings-section" id="custom-lens-section">
-        ${renderCustomLensSection()}
-      </div>
-      </div>
-    `;
+    modal.className = knowledgeBaseClasses('modal kb-modal settings-modal');
+    modal.innerHTML = renderKnowledgeBaseModal({
+      showContextBack,
+      panel: prepareLensPanelView(),
+    });
     openModalOverlay(overlay, {
       initialFocus: 'input:not([disabled]),button:not([disabled]),[tabindex="0"]',
       focusDelay: 50
@@ -329,8 +180,14 @@ export function createLensKnowledgeBaseUi(deps: LensUiDeps) {
     const connected = isBrowser || (cfg.backend === 'external-server' && cfg.url && keySet);
     const usableSource = hasLens();
     const status = getLensStatus();
-    const { statusChip, lastInfo } = renderLensStatus(cfg, connected, isBrowser, usableSource, status);
-    chip.innerHTML = statusChip + lastInfo;
+    const statusView = renderLensStatus(
+      cfg,
+      connected,
+      isBrowser,
+      usableSource,
+      status,
+    );
+    chip.innerHTML = renderKnowledgeBaseStatus(statusView);
   }
 
   async function handleSaveLensConfig() {
@@ -438,33 +295,31 @@ export function createLensKnowledgeBaseUi(deps: LensUiDeps) {
         const speed = Number.isFinite(s.ms_per_embed) && (s.ms_per_embed as number) > 0
           ? ` · about ${Math.max(1, Math.round(1000 / (s.ms_per_embed as number)))} excerpts/s`
           : '';
-        stats.innerHTML = `<span class="kb-stats-dot" aria-hidden="true"></span>${s.total_chunks.toLocaleString()} excerpt${s.total_chunks !== 1 ? 's' : ''} from ${s.documents.length} document${s.documents.length !== 1 ? 's' : ''} · <span title="${escapeAttr(s.model)}">${escapeHTML(modelLabel)} on ${escapeHTML(backendLabel)}${speed}</span>`;
+        stats.innerHTML = renderKnowledgeBaseStats(projectKnowledgeBaseStats({
+          totalChunks: s.total_chunks,
+          documentCount: s.documents.length,
+          model: s.model,
+          modelLabel,
+          backendLabel,
+          speed,
+        }));
         if (s.backend !== 'webgpu' && /bge-base/i.test(s.model)) {
-          stats.innerHTML += '<div class="kb-performance-note">BGE-base favors retrieval quality over CPU import speed. For faster indexing, create a new library with the Balanced profile.</div>';
+          stats.innerHTML += renderKnowledgeBaseStats({ part: 'performance-note' });
         }
       }
       if (list) list.innerHTML = _renderLocalDocList(s.documents);
       _attachLocalLensDropHandlers();
     } catch (e) {
-      if (stats) stats.innerHTML = `<span class="kb-status-error">Failed to load library: ${escapeHTML(getErrorMessage(e, String(e)))}</span>`;
+      if (stats) stats.innerHTML = renderKnowledgeBaseStats({
+        part: 'error',
+        message: getErrorMessage(e, String(e)),
+      });
     }
   }
 
   function _renderLocalDocList(docs: StatsReply['documents'] | null | undefined) {
     if (!docs || docs.length === 0) return '';
-    const rows = docs.map((d) => `
-      <div class="kb-document-row">
-        <span class="kb-document-name" title="${escapeAttr(d.source)}">${escapeHTML(d.source)}</span>
-        <span class="kb-document-count" title="Indexed excerpts">${d.chunks}</span>
-        <button class="kb-doc-delete" ${lensActionAttrs('delete-doc', { source: d.source })} aria-label="Delete ${escapeAttr(d.source)}" title="Remove document">×</button>
-      </div>
-    `).join('');
-    return `
-      <div class="kb-document-table">${rows}</div>
-      <div class="kb-document-actions">
-        <button class="kb-text-btn kb-text-btn-danger" ${lensActionAttrs('clear-local')}>Remove all documents</button>
-      </div>
-    `;
+    return renderKnowledgeBaseDocuments(projectKnowledgeBaseDocuments(docs));
   }
 
   function _attachLocalLensDropHandlers() {
@@ -495,18 +350,10 @@ export function createLensKnowledgeBaseUi(deps: LensUiDeps) {
     if (pill) return pill;
     pill = document.createElement('div');
     pill.id = 'lens-ingest-pill';
-    pill.className = 'kb-ingest-pill';
+    pill.className = knowledgeBaseClasses('kb-ingest-pill');
     pill.setAttribute('role', 'status');
     pill.setAttribute('aria-live', 'polite');
-    pill.innerHTML = `
-      <div class="kb-ingest-pill-head">
-        <strong>Indexing knowledge base</strong>
-        <button id="lens-ingest-pill-dismiss" class="kb-ingest-pill-dismiss" title="Hide while indexing continues" aria-label="Hide progress">&times;</button>
-      </div>
-      <div id="lens-ingest-pill-text" class="kb-ingest-pill-text">Preparing…</div>
-      <progress id="lens-ingest-pill-bar" value="0" max="1"></progress>
-      <button id="lens-ingest-pill-cancel" class="kb-ingest-pill-stop">Stop indexing</button>
-    `;
+    pill.innerHTML = renderKnowledgeBaseIngestPill();
     document.body.appendChild(pill);
     const dismiss = (pill.querySelector('#lens-ingest-pill-dismiss') as HTMLButtonElement | null);
     const cancel = (pill.querySelector('#lens-ingest-pill-cancel') as HTMLButtonElement | null);

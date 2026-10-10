@@ -1,8 +1,17 @@
 // lens-library.js - Local Knowledge Base library picker and actions.
 
 import { getErrorMessage } from './caught-error.js';
-import { showNotification, showConfirmDialog, showPromptDialog, escapeHTML, escapeAttr } from './utils.js';
+import { showNotification, showConfirmDialog, showPromptDialog } from './utils.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
+import { knowledgeBaseClasses } from './knowledge-base-classes.js';
+import {
+  projectKnowledgeBaseLibraryOptions,
+  projectKnowledgeBaseLibraryCreate,
+} from './knowledge-base-library-presentation.js';
+import {
+  renderKnowledgeBaseLibraryOptions,
+  renderKnowledgeBaseLibraryCreate,
+} from './knowledge-base-library-rendering.js';
 
 import type { openLocalLens } from './lens-local.js';
 import type { ReadyReply } from './lens-local-protocol.js';
@@ -81,14 +90,14 @@ export function createLensLibraryHandlers({
       }
       if (!sel) return;
       if (!libraries || libraries.length === 0) {
-        sel.innerHTML = '<option value="">No libraries yet</option>';
+        sel.innerHTML = renderKnowledgeBaseLibraryOptions(projectKnowledgeBaseLibraryOptions({ kind: 'empty' }));
         return;
       }
-      sel.innerHTML = libraries.map((l) =>
-        `<option value="${escapeAttr(l.id)}" ${l.id === activeId ? 'selected' : ''}>${escapeHTML(l.name)}</option>`
-      ).join('');
+      sel.innerHTML = renderKnowledgeBaseLibraryOptions(
+        projectKnowledgeBaseLibraryOptions({ kind: 'libraries', libraries, activeId }),
+      );
     } catch (e) {
-      if (sel) sel.innerHTML = '<option value="">(engine not ready)</option>';
+      if (sel) sel.innerHTML = renderKnowledgeBaseLibraryOptions(projectKnowledgeBaseLibraryOptions({ kind: 'error' }));
     }
   }
 
@@ -211,50 +220,25 @@ export function createLensLibraryHandlers({
         overlay.id = 'lens-library-create-overlay';
         document.body.appendChild(overlay);
       }
-      overlay.className = 'confirm-overlay kb-create-overlay';
+      overlay.className = knowledgeBaseClasses('confirm-overlay kb-create-overlay');
 
-      const radiosHtml = entries.map(([key, spec]) => {
+      const modelViews = entries.map(([key, spec]) => {
         const isRecommended = key === recommendedKey;
-        const badge = isRecommended
-          ? '<span class="kb-recommended-badge">Recommended</span>'
-          : '';
         const langLabel = spec.language === 'multi' ? '100+ languages' : 'English';
-        return `<label class="kb-model-card">
-          <input type="radio" name="lens-create-model" value="${escapeAttr(key)}" ${isRecommended ? 'checked' : ''}>
-          <span class="kb-model-copy">
-            <span class="kb-model-title"><span class="kb-model-profile">${escapeHTML(profileLabel(key, spec))}</span>${escapeHTML(spec.label)}</span>
-            <span class="kb-model-meta">${spec.downloadMB}&nbsp;MB download &middot; ${langLabel}</span>
-            <span class="kb-model-notes">${escapeHTML(spec.notes || '')}</span>
-          </span>
-          ${badge}
-        </label>`;
-      }).join('');
+        return {
+          key,
+          isRecommended,
+          profileLabel: profileLabel(key, spec),
+          label: spec.label,
+          downloadMB: spec.downloadMB,
+          langLabel,
+          notes: spec.notes || '',
+        };
+      });
 
-      overlay.innerHTML = `<div class="kb-create-dialog" role="dialog" aria-modal="true" aria-labelledby="lens-create-title">
-        <div class="gb-modal-head">
-          <div>
-            <div class="gb-modal-title" id="lens-create-title">Create a library</div>
-          </div>
-          <button class="modal-close" id="lens-create-close" aria-label="Close">&times;</button>
-        </div>
-        <div class="kb-create-body">
-          <div class="kb-create-device">${deviceLine}</div>
-          <label class="kb-field" for="lens-create-name">
-            <span>Library name</span>
-            <input type="text" id="lens-create-name" class="kb-field-control" placeholder="e.g. Research Papers" autocomplete="off">
-            <small>Use separate libraries for collections you do not want searched together.</small>
-          </label>
-          <div class="kb-field kb-model-field">
-            <span>Search profile</span>
-            <small>This choice is locked at creation. Changing it later requires indexing the documents again.</small>
-            <div class="kb-model-picker" role="radiogroup" aria-label="Search profile">${radiosHtml}</div>
-          </div>
-          <div class="kb-create-actions">
-            <button class="import-btn import-btn-secondary" id="lens-create-cancel">Cancel</button>
-            <button class="import-btn import-btn-primary" id="lens-create-ok">Create library</button>
-          </div>
-        </div>
-      </div>`;
+      overlay.innerHTML = renderKnowledgeBaseLibraryCreate(
+        projectKnowledgeBaseLibraryCreate({ deviceLine, models: modelViews }),
+      );
       openModalOverlay(overlay, { initialFocus: '#lens-create-name', focusDelay: 0 });
 
       const nameInput = (document.getElementById('lens-create-name') as HTMLInputElement);

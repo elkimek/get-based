@@ -1,0 +1,66 @@
+{
+  "status": "candidate only; source release and immutable canonical fixtures pending shared Cycle normal-motion acceptance and remaining original captures",
+  "revision": "2ab846c9fda65ce2afb6415f647dc92b2f8efb67",
+  "originalCanonicalHashes": {
+    "js/lens-knowledge-base-ui.ts": "29daefd1ddac36ca669855bec93e65faab0d575aee4ab807ccf70568b80259fc",
+    "js/lens-library.ts": "1a27b94929a11e905cbc38031b0cd73fa7f8b06128b31d2e54835fecf5f3068e",
+    "js/lens.ts": "3b497136d0be4b097315a753604c80e26859df55c6f81e9ccfeddcc6f732551d",
+    "js/lens-actions.ts": "5621f99a15349ed8ee3af59d8690e19cca9bbd2bb189f06156a5aa911203dd06",
+    "js/lens-local.ts": "e1e8e03abc493b98abf64e05882cdcdc9f23d740cab903913983471867a2dd6c",
+    "js/lens-local-protocol.ts": "607b439c8f0c0d8a8898aaa5d17543a3a00900c5146c9708c41f7dc9085f8e23",
+    "js/lens-local-worker.ts": "ca278743ea9668b4db7d24f6fb64bdaeee8cebd74b75cdfe05f7ff6ef2f29daa",
+    "js/lens-local-library-registry.ts": "0d1c168bcd89fa5e391cde0326e81629590456f2b639772debac9ebf35853aba",
+    "js/lens-local-store.ts": "2c5c50cfd99cf469d526821ca6fef1b08e30a081758a410551aec6e71e46f437",
+    "js/lens-local-ingest.ts": "afb70e0ab15d475f028e6187a81e60e99794831566fa36ecf827b3b15c822d23",
+    "js/lens-local-parsers.ts": "7d4bc2a677d4db48e43e4f821a4256be99c14f85feb16239100a0d300983f7ae",
+    "js/lens-local-utils.ts": "1defc338d2ddb48c08526f6cb1a51f6d52e41f691aecd782d49c8525b1d64bdf",
+    "js/lens-local-embedder-config.ts": "771b48f105f0d0599fab351b5b5cf6490574b9b415faaf05bd4408303768074a",
+    "js/modal-lifecycle.ts": "5d1e5b3a5b7820a60f8507a12f392a43da8700c0151c7186af782bea01cf3d98",
+    "js/context-hub-view.ts": "7401b44f001148ca0b3adbfac711df0e770277a17e6988f17dfd029a7fe796c7",
+    "js/context-card-dashboard-ai.ts": "a99494a436f6323985ae2fd0eecbfebab6efce54bcd2332dae136d52b8620879",
+    "css/modal-shared.base.css": "73ea845117fd3b03f1e5bb80a7ab642e916c38c782d56e03abbd8d419288bd9b",
+    "css/chat-panel-open.base.css": "409c312778afb9f6b18c7146367ee8366a14beb6a518760e8eefd6977c3dc1c0",
+    "css/settings.base.css": "45a34491b597e15ba49af0854f204b5eb56a1f03133b97f49d43bc72eda68cb5"
+  },
+  "originalRuntimeHashes": {
+    "js/lens-knowledge-base-ui.js": "7168b2a2e8edc6630cac0639e99bd781094c1820c83595e872d1de999382df1a",
+    "js/lens-library.js": "3c2a7dc6b1015a0690530b201257d7ea02f0fa3b091f35740e8aa389cdecbebb",
+    "js/lens.js": "3359ae6221a143bacd80f8dcf332246b8d796ec1d0ef1fc42e156d8cfeb05464",
+    "js/lens-actions.js": "fa7b0508e8113211f8a584a5a0bfa282c01715a531f485833ef4dcb75c2f9edb",
+    "js/lens-local.js": "60a26111f7e3d3b1cd440b15960eeeadf855ecad26a72bbefe835a8eb9d94bd9",
+    "js/lens-local-protocol.js": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+    "js/lens-local-worker.js": "03dfda3a7910e28a2aa7fdb7582f343045541f01cfbafdb6c4d75d0fadb85763",
+    "js/lens-local-library-registry.js": "e8ceb7a920780d895fcef978c5807e940fe1016fffd5c3552a9bca27c69590a8",
+    "js/lens-local-store.js": "c30192cadd10c4c88c3b4860bfcacabf3f52b82d70c96e26aa00f1a6eeabd0d6",
+    "js/lens-local-ingest.js": "8af593a0a206e46e9037bdc2df8a00b1a56240a7c18c3ddad74960f04565c27d",
+    "js/lens-local-parsers.js": "9aea9c320e38300af2b6cb43d734be3a1886df06942b3f6f11c5f546541c033f",
+    "js/lens-local-utils.js": "1a65e943a994e4377d5de52285f820abf3440785fbced35b81e459204880ce1b",
+    "js/lens-local-embedder-config.js": "8afc07bef5e2dab392105018e3c045e5e1b04ddaf52d02c1ec87e3d871fc2aa3",
+    "js/modal-lifecycle.js": "801252b4800c24dbb8e380bf9d7af5f30d44e0d24099085a4c5cd2c065492ec4",
+    "js/context-hub-view.js": "5b73c4d0e031541d1868dbc7d4aaaea33b2ae35ff91f404679c3957feb175aa7",
+    "js/context-card-dashboard-ai.js": "1d13325fd42ddf9235435922ee4a7cbe8d3898d69e09c7ebadccd0849371dbec",
+    "css/modal-shared.css": "f281bc9594c4b6da6851acd0b3763b925e51186594e72321a7053639a5ce7347",
+    "css/chat-panel-open.css": "a7fab1fd93055d80af690baed955fd591209d8bbac0b5e6c2117e524e72f85de",
+    "css/settings.css": "04c24f046376e2232d812d9758ad5e4e1a27286abfe33974b64eec8f42556d70"
+  },
+  "capturedCases": 82,
+  "candidateHashes": {
+    "candidate-original.json": "5e36417fba19aa083ff251709b4fca9f9b283d4554b4c4c2afa42bf901ecfdd6",
+    "candidate-stats-original.json": "1f2d63f852e4af262782f51a950b7d7a5610c9b81a86f98cc633f444f14cbfa7",
+    "capture-recipe.json": "ee0d500ae51f6d97589de97bb9dc6844b7436d46208520a45982456a4924bc0f",
+    "original-function-ast-proof.json": "a486259583e6e749cbf171a77bb4e8e6b4550a4174d4b45d184d5a2696e4414a"
+  },
+  "validatedFunctions": 34,
+  "wholeBytePreservationFunctions": 25,
+  "originalRemaining": [
+    "ingest progress/completion/error/stop/timer overlap",
+    "stale captured and current nodes under valid FIFO worker replies",
+    "actual browser FileList snapshot and modal focus/keyboard/parent-child behavior",
+    "original CSS chronology/cascade/browser layout"
+  ],
+  "scopeFindings": [
+    "Feedback uses kb-field-control; preserve shared primitive ownership",
+    "Generic modal h3 follows KB h3 and can win equal specificity; capture original actual cascade",
+    "Chat-late document-delete and Settings-late modal widths require original chronology captures"
+  ]
+}

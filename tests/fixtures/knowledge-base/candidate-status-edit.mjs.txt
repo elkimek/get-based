@@ -1,0 +1,99 @@
+// Capture original public delegated status refresh while edits remain in place.
+import '../../../tests/_node-shim.js';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
+import { JSDOM } from 'jsdom';
+
+const base = '.local-notes/full-ui-migration/knowledge-base';
+const baseline = JSON.parse(fs.readFileSync(`${base}/candidate-baseline.json`, 'utf8'));
+const hash = file => createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+function verifyOriginal() {
+  assert.equal(execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), baseline.revision);
+  for (const group of ['originalCanonicalHashes', 'originalRuntimeHashes']) {
+    for (const [file, expected] of Object.entries(baseline[group])) assert.equal(hash(file), expected, file);
+  }
+}
+verifyOriginal();
+const dom = new JSDOM('<!doctype html><div id="custom-lens-section" class="settings-section"></div>', {
+  url: 'https://fixture.test/', pretendToBeVisual: true,
+});
+for (const key of ['window', 'document', 'Element', 'HTMLElement', 'HTMLInputElement',
+  'HTMLSelectElement', 'HTMLButtonElement', 'Node', 'Event', 'MouseEvent', 'KeyboardEvent', 'CustomEvent']) {
+  Object.defineProperty(globalThis, key, { configurable: true, writable: true, value: dom.window[key] });
+}
+globalThis.getComputedStyle = dom.window.getComputedStyle.bind(dom.window);
+let frameCount = 0;
+globalThis.requestAnimationFrame = () => { frameCount++; return frameCount; };
+globalThis.Worker = class { constructor() { throw new Error('External status refresh must not boot a Worker'); } };
+const { createLensKnowledgeBaseUi } = await import('../../../js/lens-knowledge-base-ui.js');
+const cfg = {
+  backend: 'external-server', name: 'Original synthetic source', url: 'http://127.0.0.1:8322/query',
+  enabled: true, topK: 5, testProbe: 'Synthetic original probe', multiQuery: true,
+};
+const trace = [];
+const ui = createLensKnowledgeBaseUi({
+  defaultTestProbe: 'Synthetic default probe', getLensConfig: () => cfg,
+  saveLensConfig: partial => { trace.push(['saveLensConfig', structuredClone(partial)]); Object.assign(cfg, partial); },
+  getLensKey: () => 'synthetic-presence-only', saveLensKey: async () => {}, removeLens: async () => {},
+  clearLensCache: () => trace.push(['clearLensCache']),
+  getLensStatus: () => ({ state: 'idle', lastChunkCount: 2, lastError: null, sourceName: 'Synthetic source' }),
+  updateLensStatus: partial => trace.push(['updateLensStatus', structuredClone(partial)]),
+  hasLens: () => true, isValidLensUrl: () => true,
+  testLensConnection: async () => ({ ok: true, chunkCount: 2 }), recordLocalLensStats: () => {},
+});
+const section = document.getElementById('custom-lens-section');
+section.innerHTML = ui.renderCustomLensSection();
+assert.equal(frameCount, 0);
+const fields = ['lens-name-input', 'lens-url-input', 'lens-key-input', 'lens-test-probe-input', 'lens-topk-input']
+  .map(id => document.getElementById(id));
+const edits = ['Edited draft source', 'http://127.0.0.1:9000/query', 'Edited synthetic token', 'Edited retrieval probe', '8'];
+fields.forEach((field, index) => { field.value = edits[index]; });
+const input = fields[0];
+input.focus();
+input.setSelectionRange(7, 13, 'backward');
+const panel = section.firstElementChild;
+const chip = document.getElementById('lens-status-chip');
+const toggle = document.getElementById('lens-enabled-toggle');
+const receipts = [];
+for (const enabled of [false, true]) {
+  const before = chip.innerHTML;
+  toggle.checked = enabled;
+  toggle.dispatchEvent(new Event('change', { bubbles: true }));
+  assert.equal(cfg.enabled, enabled);
+  assert.equal(section.firstElementChild, panel);
+  assert.equal(document.getElementById('lens-status-chip'), chip);
+  fields.forEach((field, index) => {
+    assert.equal(document.getElementById(field.id), field);
+    assert.equal(field.value, edits[index]);
+  });
+  assert.equal(document.activeElement, input);
+  assert.equal(input.selectionStart, 7);
+  assert.equal(input.selectionEnd, 13);
+  assert.equal(input.selectionDirection, 'backward');
+  assert.equal(cfg.name, 'Original synthetic source');
+  assert.equal(cfg.topK, 5);
+  assert.equal(frameCount, 0);
+  assert.notEqual(chip.innerHTML, before);
+  receipts.push({
+    enabled, beforeStatusHTML: before, statusHTML: chip.innerHTML,
+    fields: fields.map(field => ({ id: field.id, value: field.value, sameNode: true })),
+    samePanel: true, sameChip: true, activeElement: input.id,
+    caret: { start: input.selectionStart, end: input.selectionEnd, direction: input.selectionDirection },
+    cfg: structuredClone(cfg), trace: structuredClone(trace), scheduledFrames: frameCount,
+  });
+}
+assert.deepEqual(trace, [['saveLensConfig', { enabled: false }], ['saveLensConfig', { enabled: true }]]);
+verifyOriginal();
+fs.writeFileSync(`${base}/candidate-status-edit-original.json`, JSON.stringify({
+  kind: 'Original public delegated status refresh with edited-field identity and JSDOM caret/focus preservation',
+  revision: baseline.revision, sourceHashes: baseline.originalCanonicalHashes, receipts,
+  boundaries: ['Synthetic config and genuine original delegated change handlers',
+    'JSDOM node/focus/caret behavior; actual browser keyboard/focus acceptance remains separate',
+    'No Worker/model/store or private helper invocation'],
+}, null, 2) + '\n');
+console.log(JSON.stringify({ cases: receipts.length, actualDelegatedChange: true,
+  fieldsPreserved: fields.length, samePanelAndChip: true, configWrites: trace }));
+ui.closeKnowledgeBaseModal();
+dom.window.close();

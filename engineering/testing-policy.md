@@ -166,6 +166,21 @@ browser contracts exercise the same authored tips renderer.
 These checks do not prove complete migration of context editors
 and nutrition fragments.
 
+The five `knowledge-base-*-frozen.test.ts` / `knowledge-base-public-order.test.ts`
+suites compare the complete authored panel/library structure, form defaults,
+status and document content, dirty edits, carets, native node identities and
+service/FIFO/timer traces against 97 immutable original cases, plus one public
+service-order contract. Only documented Svelte anchors, reviewed formatting
+contexts and an explicit utility-token allowlist are normalized. Literal text,
+NBSP, meaningful inline separators and domain behavior remain exact. The separate
+sequential-job lifecycle test covers the accepted cleanup and Stop-reset repair.
+These deterministic synthetic Worker tests do not establish real model/store,
+headless browser, offline persistence or install acceptance.
+
+[`knowledge-base-comparator.test.ts`](../tests/knowledge-base-comparator.test.ts)
+ensures normalization still rejects changed literal text, NBSP, inline separators,
+unreviewed comments/classes and native input defaults.
+
 [`lens-ingest-lifecycle.test.ts`](../tests/lens-ingest-lifecycle.test.ts)
 checks sequential Knowledge Base indexing jobs across separate UI factories.
 Each accepted job must restore its Stop control, and a previous job's delayed
@@ -175,6 +190,18 @@ and serialized local API with synthetic Worker replies, timers and a Node
 FileList-like container; real browser file selection, store/model persistence
 and PWA acceptance require separate checks. Saving still commits once, while
 Stop cancels without replacing the previously saved corpus or clearing its cache.
+
+[`sveltekit-knowledge-base.spec.ts`](../tests/pwa/sveltekit-knowledge-base.spec.ts)
+checks the public Knowledge Base modal, native create cancellation, four-model
+selector defaults, Markdown file selection, Worker FIFO and saving acknowledgement,
+OPFS corpus checksums, nested rename cancellation and confirmed rename. It verifies
+whole OPFS byte equality and unrelated profile preservation through two fresh
+closed-client launches after the artifact HTTP server stops. Only the existing
+Worker `?mock=1` embedder hook is enabled; parsing, transport, library transactions
+and service-worker caching remain actual production code. The exact query Worker
+is fetched by a second native Worker under service-worker control, and its cached
+bytes must match the artifact. These checks do not establish real model downloads,
+inference quality, physical OS installation or whole-application acceptance.
 
 [`cycle-overview-frozen.test.ts`](../tests/cycle-overview-frozen.test.ts) compares
 complete authored overview structure, controls and literal content against

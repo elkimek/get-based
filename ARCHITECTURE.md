@@ -48,6 +48,20 @@ the completed migration was merged in [PR #1660](https://github.com/elkimek/get-
 
 ## Styling source contract
 
+Knowledge Base panels, source status, document rows, library forms and background
+indexing progress are authored by the `KnowledgeBase*.svelte` components. Typed
+`knowledge-base-presentation.ts` and `knowledge-base-library-presentation.ts`
+project primitive views; their rendering modules expose synchronous HTML facades
+at the existing public Lens URLs. `lens-knowledge-base-ui.ts` and `lens-library.ts`
+retain service-read order, delegated controls, native file handling, serialized
+local API operations, configuration and modal ownership. Their domain modules,
+Worker protocol, parsers, model catalog and storage remain independent of styling.
+Split `knowledge-base-*-classes.ts` catalogs and the corresponding Tailwind entries
+own presentation. Eager modal rules, lazy Chat document actions and lazy Settings
+width overrides retain their established stylesheet load order. Shared Feedback
+field controls and generic modal/theme primitives retain their existing owners.
+The static service-worker asset manifest includes the new facade dependencies.
+
 Biology Scores reading priorities and lab planning are authored in
 `BiologyNextChecks.svelte` and `BiologyCoveragePlanner.svelte`, composed by
 `BiologyPlanningPresentation.svelte`. `biology-planning-presentation.ts` projects

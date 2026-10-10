@@ -1,0 +1,1428 @@
+{
+  "kind": "Read-only source-derived original-capture recipe; not executed and not acceptance",
+  "reviewedAtUtc": "2026-10-10T05:29:26.587265+00:00",
+  "originalFreezeRequired": "Root freezes accepted shared Cycle canonical/emitted/styles/source maps before any Knowledge Base implementation. No original fixture written here.",
+  "sourceIdentities": {
+    "js/lens-knowledge-base-ui.ts": "29daefd1ddac36ca669855bec93e65faab0d575aee4ab807ccf70568b80259fc",
+    "js/lens-library.ts": "1a27b94929a11e905cbc38031b0cd73fa7f8b06128b31d2e54835fecf5f3068e"
+  },
+  "functionBoundaries": {
+    "js/lens-knowledge-base-ui.ts": [
+      {
+        "name": "renderLensStatus",
+        "lines": [
+          26,
+          43
+        ],
+        "sha256": "0c41911b750770551ce0834ec08ae48969f14d6b35c0338fa3ca9babaf0761fc",
+        "boundary": "markup owner only; preserve non-markup controller regions/predicates; root AST proof required"
+      },
+      {
+        "name": "renderCustomLensSection",
+        "lines": [
+          62,
+          253
+        ],
+        "sha256": "fd92ced3a77cb2ddbf327530c4d635b6686387d131ee498abfb65247910f5e7e",
+        "boundary": "markup owner only; preserve non-markup controller regions/predicates; root AST proof required"
+      },
+      {
+        "name": "_rerenderLensSection",
+        "lines": [
+          255,
+          258
+        ],
+        "sha256": "9a10e983bbe3e2bd2d7f3630ff1aa06c2174ba6c116b2bd5beac14075cb88d7b",
+        "boundary": "whole function bytes preserved"
+      },
+      {
+        "name": "openKnowledgeBaseModal",
+        "lines": [
+          266,
+          306
+        ],
+        "sha256": "b4ec087a863ec80c2ef08fa936b54dc4d01439fc4d25df2c32c1c70dc44174af",
+        "boundary": "markup owner only; preserve non-markup controller regions/predicates; root AST proof required"
+      },
+      {
+        "name": "closeKnowledgeBaseModal",
+        "lines": [
+          308,
+          311
+        ],
+        "sha256": "c0e471b3a9675d524672a6186bdb0beb4dca020ed9f39b891aa8b984065924a8",
+        "boundary": "whole function bytes preserved"
+      },
+      {
+        "name": "_kbModalKeydown",
+        "lines": [
+          313,
+          320
+        ],
+        "sha256": "3579379c3d72bfd38a7d94c5aa5e239fcb904b23af85d81a3b2675b005b3bab1",
+        "boundary": "whole function bytes preserved"
+      },
+      {
+        "name": "_updateLensStatusChip",
+        "lines": [
+          323,
+          334
+        ],
+        "sha256": "43677a240b7fcea21cebf02fbaabbc269a44939e1748a4378335f25f058cad34",
+        "boundary": "markup owner only; preserve non-markup controller regions/predicates; root AST proof required"
+      },
+      {
+        "name": "handleSaveLensConfig",
+        "lines": [
+          336,
+          389
+        ],
+        "sha256": "724c1688a1a6302949591891fcbe4cf3ecacd0258c1d61ae39a6634a627988a9",
+        "boundary": "whole function bytes preserved"
+      },
+      {
+        "name": "handleLensBackendChange",
+        "lines": [
+          394,
+          399
+        ],
+        "sha256": "d3e60e791eef754f727f8b01808e6bfa40f4f4735580e1cb5fed85e4a164d9c1",
+        "boundary": "whole function bytes preserved"
+      },
+      {
+        "name": "_getLocalLens",
+        "lines": [
+          408,
+          411
+        ],
+        "sha256": "398fd319b5616e6a30d2a8c20940a59553ef31117137ce12d6ffd7a7b07007bc",
+        "boundary": "whole function bytes preserved"
+      },
+      {
+        "name": "_loadLocalLensStats",
+        "lines": [
+          413,
+          451
+        ],
+        "sha256": "09635e8579479aaffb457647e1ad32950ed9c8e9b2dd1eeb8ac386b7682b1a60",
+        "boundary": "markup owner only; preserve non-markup controller regions/predicates; root AST proof required"
+      },
+      {
+        "name": "_renderLocalDocList",
+        "lines": [
+          453,
+          468
+        ],
+        "sha256": "a64abec334f0b1073564b0eb4a91f594e18fe4a0192e6fe1313d036b356cddca",
+        "boundary": "markup owner only; preserve non-markup controller regions/predicates; root AST proof required"
+      },
+      {
+        "name": "_attachLocalLensDropHandlers",
+        "lines": [
+          470,
+          484
+        ],
+        "sha256": "a229cc2d68856213ff555efc0f9d2bbd023c48fe8d206ac65aa6a02d1b02f645",
+        "boundary": "whole function bytes preserved"
+      },
+      {
+        "name": "_ensureIngestPill",
+        "lines": [
+          493,
+          526
+        ],
+        "sha256": "dbe99b601732d41653ba330b74319dea3eec6801c25efe8318e66ce29a3e387c",
+        "boundary": "markup owner only; preserve non-markup controller regions/predicates; root AST proof required"
+      },
+      {
+        "name": "_removeIngestPill",
+        "lines": [
+          528,
+          531
+        ],
+        "sha256": "2b9a99a23a512f0905293969b4fefccc5e025a29f698467220bb410d1e50c1c2",
+        "boundary": "whole function bytes preserved"
+      },
+      {
+        "name": "_handleLocalLensIngest",
+        "lines": [
+          533,
+          682
+        ],
+        "sha256": "f7a7e8d6b2bb3491f8b4ecdacd1eaeffce7be42db4f090d8f377a28546fe53ed",
+        "boundary": "whole function bytes preserved"
+      },
+      {
+        "name": "handleLocalLensDeleteDoc",
+        "lines": [
+          684,
+          697
+        ],
+        "sha256": "1ed164ec8ea4d000037c569c16e0ffd0ab327deb541a364d65e34f26a2b69854",
+        "boundary": "whole function bytes preserved"
+      },
+      {
+        "name": "handleLocalLensClear",
+        "lines": [
+          699,
+          711
+        ],
+        "sha256": "3d3350206511bf70939c304ba966f7e5d4ded9069bda98303d1a63d0ee7bcdd7",
+        "boundary": "whole function bytes preserved"
+      },
+      {
+        "name": "handleToggleLens",
+        "lines": [
+          727,
+          730
+        ],
+        "sha256": "1f158f32cd300e2120acd55084aa4ba2746718966a73bd13bb3d30ea04404ef2",
+        "boundary": "whole function bytes preserved"
+      },
+      {
+        "name": "handleClearLensCache",
+        "lines": [
+          732,
+          735
+        ],
+        "sha256": "a115dbbe137c7c7d4746820b5cf0c2a0a16cf74df44e16b739964dd1eed6d669",
+        "boundary": "whole function bytes preserved"
+      },
+      {
+        "name": "handleRemoveLens",
+        "lines": [
+          737,
+          760
+        ],
+        "sha256": "bc3a9c895e9a42e3f0139619738c8f45b43ebc43cfdc204e55b1c2769d95283c",
+        "boundary": "whole function bytes preserved"
+      }
+    ],
+    "js/lens-library.ts": [
+      {
+        "name": "_libList",
+        "lines": [
+          27,
+          34
+        ],
+        "sha256": "c69c13e3e7ed6d0c66cbcd8dfce96bec4035c8bdea6a673bd6d911e4afccaca3",
+        "boundary": "whole function bytes preserved"
+      },
+      {
+        "name": "_libCreate",
+        "lines": [
+          36,
+          45
+        ],
+        "sha256": "486274813ed2cd7ece91890abe13abf62d0fcee1be51be506e6154cbaa136692",
+        "boundary": "whole function bytes preserved"
+      },
+      {
+        "name": "_libActivate",
+        "lines": [
+          47,
+          53
+        ],
+        "sha256": "c545cd20893579994294f53fe95dc4025ee96065444591a23c73ecb2cc6f950d",
+        "boundary": "whole function bytes preserved"
+      },
+      {
+        "name": "_libRename",
+        "lines": [
+          55,
+          61
+        ],
+        "sha256": "14e4d6c5b785c69c94262fbdac1ce5d913be635cc6d7dd42fddfa990334744fb",
+        "boundary": "whole function bytes preserved"
+      },
+      {
+        "name": "_libDelete",
+        "lines": [
+          63,
+          69
+        ],
+        "sha256": "1fa091540c794057da446ac0ae25731439144eec05891b467f9ec42a9bcaef59",
+        "boundary": "whole function bytes preserved"
+      },
+      {
+        "name": "_loadLibraryPicker",
+        "lines": [
+          73,
+          93
+        ],
+        "sha256": "19b6876ed20a73226bc8926bbae927a58ad516d8a4c39e50af93dd4b00411d63",
+        "boundary": "markup owner only; preserve non-markup controller regions/predicates; root AST proof required"
+      },
+      {
+        "name": "handleLibraryActivate",
+        "lines": [
+          95,
+          108
+        ],
+        "sha256": "22343f965492513eebe17f5e0b28915264862039beccf2fe7a9ff336efbf303e",
+        "boundary": "whole function bytes preserved"
+      },
+      {
+        "name": "handleLibraryNew",
+        "lines": [
+          110,
+          144
+        ],
+        "sha256": "eb0f06f1c969db31eb03a0a47c0937e107fcb90902f1daa0e3e8fbfbd5b232b4",
+        "boundary": "whole function bytes preserved"
+      },
+      {
+        "name": "_setNewLibraryBusy",
+        "lines": [
+          146,
+          155
+        ],
+        "sha256": "2565eb8597b18f25e9c1dcd7912be10c5d6409dc9f1210809957b82a4768c5f6",
+        "boundary": "whole function bytes preserved"
+      },
+      {
+        "name": "_plainNamePrompt",
+        "lines": [
+          159,
+          165
+        ],
+        "sha256": "71b9462284d8f25c22a6b96e6b6262444eeb3fe40aa392409c8c2cbc697869ff",
+        "boundary": "whole function bytes preserved"
+      },
+      {
+        "name": "_showLibraryCreateDialog",
+        "lines": [
+          172,
+          287
+        ],
+        "sha256": "dddaf29be843d95413ae491bc201547812204bf9f670aeb03b324be997496c65",
+        "boundary": "markup owner only; preserve non-markup controller regions/predicates; root AST proof required"
+      },
+      {
+        "name": "handleLibraryRename",
+        "lines": [
+          289,
+          310
+        ],
+        "sha256": "85773bdc2135c49820a924d2f4f3151051afbcc75dd4616b82e67b7264b761fe",
+        "boundary": "whole function bytes preserved"
+      },
+      {
+        "name": "handleLibraryDelete",
+        "lines": [
+          312,
+          334
+        ],
+        "sha256": "15bbba66ebad191be34de3a5b9afe9d5f265a05483b747e743436390f9b3239d",
+        "boundary": "whole function bytes preserved"
+      }
+    ]
+  },
+  "functionBoundaryMethod": "Current line-delimited function spans recorded read-only. Root must independently validate with project TypeScript AST before using hashes as acceptance; do not treat regex extraction as parser proof.",
+  "baseConfig": {
+    "backend": "in-browser",
+    "name": "Research Papers",
+    "url": "",
+    "enabled": true,
+    "topK": 5,
+    "testProbe": "",
+    "multiQuery": true
+  },
+  "baseStatus": {
+    "state": "idle",
+    "lastChunkCount": 0,
+    "lastError": null,
+    "sourceName": ""
+  },
+  "literal": "<img src=x onerror=\"alert(1)\"> & \"literal\" \u010cesky \ud83d\udd2c",
+  "panelSeeds": [
+    {
+      "name": "browser-empty-enabled",
+      "config": {
+        "backend": "in-browser",
+        "name": "Research Papers",
+        "url": "",
+        "enabled": true,
+        "topK": 5,
+        "testProbe": "",
+        "multiQuery": true
+      },
+      "keyPresent": false,
+      "usableSource": false,
+      "status": {
+        "state": "idle",
+        "lastChunkCount": 0,
+        "lastError": null,
+        "sourceName": ""
+      },
+      "sourceDerivedExpected": "Enabled \u00b7 add documents; local fields; browser privacy; Save changes; both connected footer actions"
+    },
+    {
+      "name": "browser-ready-off",
+      "config": {
+        "backend": "in-browser",
+        "name": "Research Papers",
+        "url": "",
+        "enabled": false,
+        "topK": 5,
+        "testProbe": "",
+        "multiQuery": true
+      },
+      "keyPresent": false,
+      "usableSource": true,
+      "status": {
+        "state": "idle",
+        "lastChunkCount": 0,
+        "lastError": null,
+        "sourceName": ""
+      },
+      "sourceDerivedExpected": "Ready, currently off; enabled checkbox unchecked"
+    },
+    {
+      "name": "browser-active-literal",
+      "config": {
+        "backend": "in-browser",
+        "name": "<img src=x onerror=\"alert(1)\"> & \"literal\" \u010cesky \ud83d\udd2c",
+        "url": "",
+        "enabled": true,
+        "topK": 5,
+        "testProbe": "",
+        "multiQuery": true
+      },
+      "keyPresent": false,
+      "usableSource": true,
+      "status": {
+        "state": "idle",
+        "lastChunkCount": 0,
+        "lastError": null,
+        "sourceName": ""
+      },
+      "sourceDerivedExpected": "\u2713 Active \u00b7 literal name; no script/img/inline event creation"
+    },
+    {
+      "name": "browser-error-literal",
+      "config": {
+        "backend": "in-browser",
+        "name": "Research Papers",
+        "url": "",
+        "enabled": true,
+        "topK": 5,
+        "testProbe": "",
+        "multiQuery": true
+      },
+      "keyPresent": false,
+      "usableSource": false,
+      "status": {
+        "state": "error",
+        "lastChunkCount": 0,
+        "lastError": "<img src=x onerror=\"alert(1)\"> & \"literal\" \u010cesky \ud83d\udd2c",
+        "sourceName": ""
+      },
+      "sourceDerivedExpected": "\u26a0 Error \u00b7 Research Papers; Last error literal detail"
+    },
+    {
+      "name": "browser-error-empty-detail-search",
+      "config": {
+        "backend": "in-browser",
+        "name": "Research Papers",
+        "url": "",
+        "enabled": true,
+        "topK": 5,
+        "testProbe": "",
+        "multiQuery": true
+      },
+      "keyPresent": false,
+      "usableSource": false,
+      "status": {
+        "state": "error",
+        "lastChunkCount": 1,
+        "lastError": "",
+        "sourceName": "<img src=x onerror=\"alert(1)\"> & \"literal\" \u010cesky \ud83d\udd2c"
+      },
+      "sourceDerivedExpected": "Error chip; error text absent so Last search 1 excerpt from literal source"
+    },
+    {
+      "name": "browser-search-one-empty-name",
+      "config": {
+        "backend": "in-browser",
+        "name": "",
+        "url": "",
+        "enabled": true,
+        "topK": 5,
+        "testProbe": "",
+        "multiQuery": true
+      },
+      "keyPresent": false,
+      "usableSource": true,
+      "status": {
+        "state": "idle",
+        "lastChunkCount": 1,
+        "lastError": null,
+        "sourceName": ""
+      },
+      "sourceDerivedExpected": "\u2713 Active without middle dot/name; Last search: 1 excerpt"
+    },
+    {
+      "name": "browser-search-two",
+      "config": {
+        "backend": "in-browser",
+        "name": "Research Papers",
+        "url": "",
+        "enabled": true,
+        "topK": 5,
+        "testProbe": "",
+        "multiQuery": true
+      },
+      "keyPresent": false,
+      "usableSource": true,
+      "status": {
+        "state": "idle",
+        "lastChunkCount": 2,
+        "lastError": null,
+        "sourceName": "Clinical Guides"
+      },
+      "sourceDerivedExpected": "Last search: 2 excerpts from Clinical Guides"
+    },
+    {
+      "name": "browser-search-zero",
+      "config": {
+        "backend": "in-browser",
+        "name": "Research Papers",
+        "url": "",
+        "enabled": true,
+        "topK": 5,
+        "testProbe": "",
+        "multiQuery": true
+      },
+      "keyPresent": false,
+      "usableSource": true,
+      "status": {
+        "state": "idle",
+        "lastChunkCount": 0,
+        "lastError": null,
+        "sourceName": "Clinical Guides"
+      },
+      "sourceDerivedExpected": "No Last search detail"
+    },
+    {
+      "name": "browser-fallback-fields",
+      "config": {
+        "backend": "in-browser",
+        "name": "Research Papers",
+        "url": "",
+        "enabled": true,
+        "topK": 0,
+        "testProbe": "",
+        "multiQuery": false
+      },
+      "keyPresent": false,
+      "usableSource": false,
+      "status": {
+        "state": "idle",
+        "lastChunkCount": 0,
+        "lastError": null,
+        "sourceName": ""
+      },
+      "sourceDerivedExpected": "topK control falls back 5; recall unchecked"
+    },
+    {
+      "name": "external-no-url-no-key",
+      "config": {
+        "backend": "external-server",
+        "name": "Research Papers",
+        "url": "",
+        "enabled": true,
+        "topK": 5,
+        "testProbe": "",
+        "multiQuery": true
+      },
+      "keyPresent": false,
+      "usableSource": false,
+      "status": {
+        "state": "idle",
+        "lastChunkCount": 0,
+        "lastError": null,
+        "sourceName": ""
+      },
+      "sourceDerivedExpected": "Not connected; remote fields; empty password; no connected footer actions; Save + connect"
+    },
+    {
+      "name": "external-url-no-key",
+      "config": {
+        "backend": "external-server",
+        "name": "Research Papers",
+        "url": "http://127.0.0.1:8322/query",
+        "enabled": true,
+        "topK": 5,
+        "testProbe": "",
+        "multiQuery": true
+      },
+      "keyPresent": false,
+      "usableSource": false,
+      "status": {
+        "state": "idle",
+        "lastChunkCount": 0,
+        "lastError": null,
+        "sourceName": ""
+      },
+      "sourceDerivedExpected": "Not connected; no masking without key"
+    },
+    {
+      "name": "external-key-no-url",
+      "config": {
+        "backend": "external-server",
+        "name": "Research Papers",
+        "url": "",
+        "enabled": true,
+        "topK": 5,
+        "testProbe": "",
+        "multiQuery": true
+      },
+      "keyPresent": true,
+      "usableSource": false,
+      "status": {
+        "state": "idle",
+        "lastChunkCount": 0,
+        "lastError": null,
+        "sourceName": ""
+      },
+      "sourceDerivedExpected": "Not connected; password fixed mask despite missing URL"
+    },
+    {
+      "name": "external-connected-off",
+      "config": {
+        "backend": "external-server",
+        "name": "Research Papers",
+        "url": "https://kb.example.test/query",
+        "enabled": false,
+        "topK": 5,
+        "testProbe": "",
+        "multiQuery": true
+      },
+      "keyPresent": true,
+      "usableSource": false,
+      "status": {
+        "state": "idle",
+        "lastChunkCount": 0,
+        "lastError": null,
+        "sourceName": ""
+      },
+      "sourceDerivedExpected": "Ready, currently off; remote fields and both footer actions"
+    },
+    {
+      "name": "external-active-literal-fields",
+      "config": {
+        "backend": "external-server",
+        "name": "<img src=x onerror=\"alert(1)\"> & \"literal\" \u010cesky \ud83d\udd2c",
+        "url": "https://kb.example.test/query?label=<img src=x onerror=\"alert(1)\"> & \"literal\" \u010cesky \ud83d\udd2c",
+        "enabled": true,
+        "topK": 7,
+        "testProbe": "<img src=x onerror=\"alert(1)\"> & \"literal\" \u010cesky \ud83d\udd2c",
+        "multiQuery": true
+      },
+      "keyPresent": true,
+      "usableSource": true,
+      "status": {
+        "state": "idle",
+        "lastChunkCount": 0,
+        "lastError": null,
+        "sourceName": ""
+      },
+      "sourceDerivedExpected": "\u2713 Active; exact literal values survive HTML escaping; fixed password mask"
+    },
+    {
+      "name": "external-disconnected-error",
+      "config": {
+        "backend": "external-server",
+        "name": "Research Papers",
+        "url": "",
+        "enabled": true,
+        "topK": 5,
+        "testProbe": "",
+        "multiQuery": true
+      },
+      "keyPresent": false,
+      "usableSource": false,
+      "status": {
+        "state": "error",
+        "lastChunkCount": 2,
+        "lastError": "<img src=x onerror=\"alert(1)\"> & \"literal\" \u010cesky \ud83d\udd2c",
+        "sourceName": ""
+      },
+      "sourceDerivedExpected": "Not connected chip plus Last error detail; disconnected branch wins over error chip"
+    },
+    {
+      "name": "external-active-no-usable-source",
+      "config": {
+        "backend": "external-server",
+        "name": "Research Papers",
+        "url": "https://kb.example.test/query",
+        "enabled": true,
+        "topK": 5,
+        "testProbe": "",
+        "multiQuery": true
+      },
+      "keyPresent": true,
+      "usableSource": false,
+      "status": {
+        "state": "idle",
+        "lastChunkCount": 0,
+        "lastError": null,
+        "sourceName": ""
+      },
+      "sourceDerivedExpected": "\u2713 Active because browser add-documents condition does not apply"
+    },
+    {
+      "name": "unknown-backend",
+      "config": {
+        "backend": "future-engine",
+        "name": "Research Papers",
+        "url": "",
+        "enabled": true,
+        "topK": 5,
+        "testProbe": "",
+        "multiQuery": true
+      },
+      "keyPresent": false,
+      "usableSource": false,
+      "status": {
+        "state": "idle",
+        "lastChunkCount": 0,
+        "lastError": null,
+        "sourceName": ""
+      },
+      "sourceDerivedExpected": "Neither local nor remote fields; Not connected; nonbrowser explanatory/privacy copy; Save changes"
+    },
+    {
+      "name": "browser-field-boundaries",
+      "config": {
+        "backend": "in-browser",
+        "name": "Research Papers",
+        "url": "",
+        "enabled": true,
+        "topK": 10,
+        "testProbe": "",
+        "multiQuery": true
+      },
+      "keyPresent": false,
+      "usableSource": false,
+      "status": {
+        "state": "idle",
+        "lastChunkCount": 0,
+        "lastError": null,
+        "sourceName": ""
+      },
+      "sourceDerivedExpected": "number value10/min1/max10/inputmode numeric; recall checked"
+    }
+  ],
+  "statsSeeds": [
+    {
+      "name": "empty",
+      "stats": {
+        "total_chunks": 0,
+        "documents": [],
+        "dim": 384,
+        "model": "Xenova/all-MiniLM-L6-v2",
+        "backend": "wasm",
+        "ms_per_embed": null
+      }
+    },
+    {
+      "name": "one-minilm",
+      "stats": {
+        "total_chunks": 1,
+        "documents": [
+          {
+            "source": "one.md",
+            "chunks": 1
+          }
+        ],
+        "dim": 384,
+        "model": "Xenova/all-MiniLM-L6-v2",
+        "backend": "webgpu",
+        "ms_per_embed": 50
+      }
+    },
+    {
+      "name": "many-bge-small",
+      "stats": {
+        "total_chunks": 1234,
+        "documents": [
+          {
+            "source": "<img src=x onerror=\"alert(1)\"> & \"literal\" \u010cesky \ud83d\udd2c",
+            "chunks": 1233
+          },
+          {
+            "source": "clinical.md",
+            "chunks": 1
+          }
+        ],
+        "dim": 384,
+        "model": "Xenova/bge-small-en-v1.5",
+        "backend": "wasm",
+        "ms_per_embed": 250
+      }
+    },
+    {
+      "name": "cpu-bge-base-note",
+      "stats": {
+        "total_chunks": 2,
+        "documents": [
+          {
+            "source": "base.md",
+            "chunks": 2
+          }
+        ],
+        "dim": 384,
+        "model": "Xenova/bge-base-en-v1.5",
+        "backend": "wasm",
+        "ms_per_embed": 2000
+      }
+    },
+    {
+      "name": "gpu-bge-base-no-note",
+      "stats": {
+        "total_chunks": 2,
+        "documents": [
+          {
+            "source": "base.md",
+            "chunks": 2
+          }
+        ],
+        "dim": 384,
+        "model": "Xenova/bge-base-en-v1.5",
+        "backend": "webgpu",
+        "ms_per_embed": 5
+      }
+    },
+    {
+      "name": "multilingual",
+      "stats": {
+        "total_chunks": 1,
+        "documents": [
+          {
+            "source": "\u010desky.md",
+            "chunks": 1
+          }
+        ],
+        "dim": 384,
+        "model": "Xenova/multilingual-e5-small",
+        "backend": "wasm",
+        "ms_per_embed": null
+      }
+    },
+    {
+      "name": "unknown-model-literal",
+      "stats": {
+        "total_chunks": 1,
+        "documents": [
+          {
+            "source": "unknown.md",
+            "chunks": 1
+          }
+        ],
+        "dim": 384,
+        "model": "<img src=x onerror=\"alert(1)\"> & \"literal\" \u010cesky \ud83d\udd2c",
+        "backend": "future-backend",
+        "ms_per_embed": 0
+      }
+    },
+    {
+      "name": "minilm-precedence",
+      "stats": {
+        "total_chunks": 1,
+        "documents": [
+          {
+            "source": "priority.md",
+            "chunks": 1
+          }
+        ],
+        "dim": 384,
+        "model": "minilm-bge-small-bge-base-multilingual-e5",
+        "backend": "wasm",
+        "ms_per_embed": 1
+      }
+    },
+    {
+      "name": "speed-negative",
+      "stats": {
+        "total_chunks": 1,
+        "documents": [
+          {
+            "source": "speed.md",
+            "chunks": 1
+          }
+        ],
+        "dim": 384,
+        "model": "minilm",
+        "backend": "wasm",
+        "ms_per_embed": -1
+      }
+    },
+    {
+      "name": "empty-with-documents",
+      "stats": {
+        "total_chunks": 0,
+        "documents": [
+          {
+            "source": "inconsistent-but-original.md",
+            "chunks": 0
+          }
+        ],
+        "dim": 384,
+        "model": "minilm",
+        "backend": "wasm",
+        "ms_per_embed": null
+      }
+    },
+    {
+      "name": "speed-NaN",
+      "stats": {
+        "total_chunks": 1,
+        "documents": [
+          {
+            "source": "special.md",
+            "chunks": 1
+          }
+        ],
+        "dim": 384,
+        "model": "minilm",
+        "backend": "wasm"
+      },
+      "specialMsPerEmbed": "NaN"
+    },
+    {
+      "name": "speed-Infinity",
+      "stats": {
+        "total_chunks": 1,
+        "documents": [
+          {
+            "source": "special.md",
+            "chunks": 1
+          }
+        ],
+        "dim": 384,
+        "model": "minilm",
+        "backend": "wasm"
+      },
+      "specialMsPerEmbed": "Infinity"
+    },
+    {
+      "name": "speed-negativeInfinity",
+      "stats": {
+        "total_chunks": 1,
+        "documents": [
+          {
+            "source": "special.md",
+            "chunks": 1
+          }
+        ],
+        "dim": 384,
+        "model": "minilm",
+        "backend": "wasm"
+      },
+      "specialMsPerEmbed": "negativeInfinity"
+    },
+    {
+      "name": "stats-error",
+      "getStatsReject": {
+        "kind": "Error",
+        "message": "<img src=x onerror=\"alert(1)\"> & \"literal\" \u010cesky \ud83d\udd2c"
+      }
+    },
+    {
+      "name": "open-local-error",
+      "openLocalLensReject": {
+        "kind": "Error",
+        "message": "Synthetic engine unavailable"
+      }
+    },
+    {
+      "name": "literal-string-error",
+      "getStatsReject": {
+        "kind": "string",
+        "value": "<img src=x onerror=\"alert(1)\"> & \"literal\" \u010cesky \ud83d\udd2c"
+      }
+    },
+    {
+      "name": "empty-null-docs-malformed",
+      "stats": {
+        "total_chunks": 0,
+        "documents": null,
+        "dim": 384,
+        "model": "minilm",
+        "backend": "wasm",
+        "ms_per_embed": null
+      },
+      "boundary": "Malformed service payload; capture original outcome, do not widen production types"
+    },
+    {
+      "name": "loaded-null-docs-malformed",
+      "stats": {
+        "total_chunks": 1,
+        "documents": null,
+        "dim": 384,
+        "model": "minilm",
+        "backend": "wasm",
+        "ms_per_embed": null
+      },
+      "boundary": "After record/update, original documents.length fails; capture original catch output and trace"
+    }
+  ],
+  "models": {
+    "all-minilm": {
+      "id": "Xenova/all-MiniLM-L6-v2",
+      "label": "MiniLM",
+      "dim": 384,
+      "tier": 1,
+      "downloadMB": 22,
+      "language": "en",
+      "notes": "Quickest imports."
+    },
+    "bge-small-en": {
+      "id": "Xenova/bge-small-en-v1.5",
+      "label": "BGE-small",
+      "dim": 384,
+      "tier": 2,
+      "downloadMB": 33,
+      "language": "en",
+      "notes": "Balanced imports."
+    },
+    "multilingual-e5-small": {
+      "id": "Xenova/multilingual-e5-small",
+      "label": "Multilingual-E5",
+      "dim": 384,
+      "tier": 2,
+      "downloadMB": 40,
+      "language": "multi",
+      "notes": "Multiple languages."
+    },
+    "bge-base-en": {
+      "id": "Xenova/bge-base-en-v1.5",
+      "label": "BGE-base",
+      "dim": 768,
+      "tier": 3,
+      "downloadMB": 110,
+      "language": "en",
+      "notes": "Best recall."
+    }
+  },
+  "libraryCreateSeeds": [
+    {
+      "name": "no-embedder",
+      "embedder": null,
+      "models": "base",
+      "recommended": "all-minilm",
+      "device": "could not measure"
+    },
+    {
+      "name": "cpu-tier1",
+      "embedder": {
+        "backend": "wasm",
+        "tier": 1
+      },
+      "models": "base",
+      "recommended": "all-minilm",
+      "device": "slower local path"
+    },
+    {
+      "name": "cpu-tier2",
+      "embedder": {
+        "backend": "wasm",
+        "tier": 2
+      },
+      "models": "base",
+      "recommended": "bge-small-en",
+      "device": "CPU indexing / Balanced"
+    },
+    {
+      "name": "cpu-tier3-capped",
+      "embedder": {
+        "backend": "wasm",
+        "tier": 3
+      },
+      "models": "base",
+      "recommended": "bge-small-en",
+      "device": "CPU indexing / Balanced"
+    },
+    {
+      "name": "gpu-tier1",
+      "embedder": {
+        "backend": "webgpu",
+        "tier": 1
+      },
+      "models": "base",
+      "recommended": "all-minilm",
+      "device": "slower local path"
+    },
+    {
+      "name": "gpu-tier2",
+      "embedder": {
+        "backend": "webgpu",
+        "tier": 2
+      },
+      "models": "base",
+      "recommended": "bge-small-en",
+      "device": "WebGPU acceleration / Balanced"
+    },
+    {
+      "name": "gpu-tier3",
+      "embedder": {
+        "backend": "webgpu",
+        "tier": 3
+      },
+      "models": "base",
+      "recommended": "bge-base-en",
+      "device": "Best English retrieval"
+    },
+    {
+      "name": "missing-tier",
+      "embedder": {
+        "backend": "wasm"
+      },
+      "models": "base",
+      "recommended": "all-minilm",
+      "device": "slower local path"
+    },
+    {
+      "name": "tier2-multi-before-en",
+      "embedder": {
+        "backend": "wasm",
+        "tier": 2
+      },
+      "modelsOrder": [
+        "multilingual-e5-small",
+        "bge-small-en",
+        "all-minilm"
+      ],
+      "recommended": "bge-small-en",
+      "note": "English preference beats original first tier2 entry; card order unchanged"
+    },
+    {
+      "name": "tier2-only-multi",
+      "embedder": {
+        "backend": "wasm",
+        "tier": 2
+      },
+      "modelsOrder": [
+        "all-minilm",
+        "multilingual-e5-small"
+      ],
+      "recommended": "multilingual-e5-small"
+    },
+    {
+      "name": "tier3-no3-fallback2",
+      "embedder": {
+        "backend": "webgpu",
+        "tier": 3
+      },
+      "modelsOrder": [
+        "all-minilm",
+        "bge-small-en"
+      ],
+      "recommended": "bge-small-en"
+    },
+    {
+      "name": "tier3-no3no2-fallback1",
+      "embedder": {
+        "backend": "webgpu",
+        "tier": 3
+      },
+      "modelsOrder": [
+        "all-minilm"
+      ],
+      "recommended": "all-minilm"
+    },
+    {
+      "name": "only-tier4-first-entry",
+      "embedder": {
+        "backend": "wasm",
+        "tier": 1
+      },
+      "models": {
+        "future": {
+          "id": "Xenova/all-MiniLM-L6-v2",
+          "label": "<img src=x onerror=\"alert(1)\"> & \"literal\" \u010cesky \ud83d\udd2c",
+          "dim": 384,
+          "tier": 4,
+          "downloadMB": 22,
+          "language": "en",
+          "notes": "Quickest imports."
+        }
+      },
+      "recommended": "future"
+    },
+    {
+      "name": "profile-key-base-fallback",
+      "embedder": null,
+      "models": {
+        "compat-base": {
+          "id": "Xenova/all-MiniLM-L6-v2",
+          "label": "<img src=x onerror=\"alert(1)\"> & \"literal\" \u010cesky \ud83d\udd2c",
+          "dim": 384,
+          "tier": 1,
+          "downloadMB": 22,
+          "language": "en",
+          "notes": "<img src=x onerror=\"alert(1)\"> & \"literal\" \u010cesky \ud83d\udd2c"
+        }
+      },
+      "recommended": "compat-base",
+      "profile": "Best recall"
+    },
+    {
+      "name": "profile-key-small-fallback",
+      "embedder": null,
+      "models": {
+        "compat-small": {
+          "id": "Xenova/all-MiniLM-L6-v2",
+          "label": "MiniLM",
+          "dim": 384,
+          "tier": 1,
+          "downloadMB": 22,
+          "language": "en",
+          "notes": "Quickest imports."
+        }
+      },
+      "recommended": "compat-small",
+      "profile": "Balanced"
+    },
+    {
+      "name": "empty-models-plain-name",
+      "embedder": null,
+      "models": {},
+      "prompt": "Name for the new library?",
+      "resultModel": "undefined"
+    },
+    {
+      "name": "worker-not-ready-plain-name",
+      "localError": "Synthetic engine not ready",
+      "prompt": "Name for the new library?",
+      "resultModel": "undefined"
+    }
+  ],
+  "libraryRecords": [
+    {
+      "id": "research",
+      "name": "Research Papers",
+      "model": "all-minilm"
+    },
+    {
+      "id": "clinical",
+      "name": "<img src=x onerror=\"alert(1)\"> & \"literal\" \u010cesky \ud83d\udd2c",
+      "model": "bge-small-en"
+    }
+  ],
+  "publicApiConstraints": {
+    "panel": "Factory exposes renderCustomLensSection/open/close/toggle/save/backend/document/library/cache/remove actions. It does not expose status/stats/docs/pill/private ingest helpers. Exercise those through public APIs/rAF/drop/picker and the actual service boundary; no extra production exports, helper clones or eval extraction.",
+    "library": "Factory exposes loadLibraryPicker/activate/new/rename/delete. Use these directly with injected getLocalLens. Capture actual original panel-rendered select/button nodes, never rewritten surrogate controls."
+  },
+  "harnesses": [
+    {
+      "name": "isolated jsdom literal/trace capture",
+      "use": "Actual original factories and own injected deps; module-boundary mock lens-local/parser only for private async service replies. Preserve utils escaping/action attrs; optionally trace notification/dialog service ports, with separate real modal lifecycle fixture.",
+      "warning": "Fresh document/module context or one factory per context with complete cleanup. vi.resetModules alone does not remove document listeners and modal WeakMap state."
+    },
+    {
+      "name": "real headless browser original HTML/CSS/control capture",
+      "use": "Frozen emitted original module and styles in original production wrapper; per-case browser context. Fake Worker protocols modeled from lens-local-runtime/library browser tests, or explicit synthetic local module only for isolated presentation trace. Routes must target exact fixture/runtime URLs, not browser import rewritten controller source.",
+      "warning": "UI service fixtures are not worker/store/model persistence acceptance. Do not disable rAF, shorten 3000ms or bypass real pointer/focus in acceptance."
+    }
+  ],
+  "expectedServiceTracesFromSourceOnly": {
+    "oneBrowserModalOpenAndOneRaf": "With one mounted open, one rAF callback, matching active name and one ready local-port instance: two getStats calls, one listLibraries call, two recordLocalLensStats replies followed by updateLensStatus({}), one original drop-handler wiring. At local module seam this normally means three openLocalLens calls; at real worker boundary init memoization is a different trace. Freeze actual trace before asserting counts.",
+    "statusToggle": "saveLensConfig({enabled}) then only chip getters/replacement. No getLocalLens/list/getStats, no whole-panel replacement; input identity/value/caret/focus unchanged.",
+    "statsSuccess": "getStats response -> recordLocalLensStats(s) -> updateLensStatus({}) -> if captured stats absent return; otherwise original stats/list publication and idempotent drop wiring.",
+    "libraryPicker": "list -> active lookup -> if active name differs saveLensConfig({name}) + updateLensStatusChip, even if no select -> if select exists exact empty/options; error option only and no name write.",
+    "libraryActivate": "guard falsy ID -> backend-gated activate -> clearLensCache -> notification -> loadLibraryPicker -> conditional stats refresh -> chip update; rejected operation uses original notification and no successful continuation.",
+    "libraryCreate": "Preparing busy before getLocalLens; busy false before actual form/plain prompt; cancel yields no create/cache/list/stats. Accepted pick: Creating busy -> backend check/local service -> createLibrary(name,model) -> activateLibrary(created.id) -> cache clear/notification -> list/name sync -> conditional stats -> chip -> finally idle.",
+    "libraryRename": "list active -> real prompt -> empty/unchanged next returns; rename -> cache clear -> notification -> picker -> chip; no stats refresh in original rename handler.",
+    "libraryDelete": "real confirmation -> list -> guard absent active -> delete -> cache clear -> remaining-dependent notification -> picker -> conditional stats -> chip.",
+    "ingest": "Snapshot files before awaits; busy rejection; show pill/reset stop flag -> parallel local module/open + parser -> per-file extraction -> stop/empty gates -> load model -> subscribe -> ingest -> original progress/messages/done branches/cache/notification -> finally flags false + unsubscribe + 3000ms timer + stats refresh."
+  },
+  "asyncDiagnostics": [
+    "Deferred stats with no panel",
+    "Deferred stats after close but retained mounted DOM",
+    "Deferred stats after target removal/replacement",
+    "Deferred library reply after backend swap and after active-library change",
+    "Open browser modal immediate stats plus rAF stats multiplicity",
+    "Old ingest 3000ms completion timer removes new active pill/progress? Capture actual outcome first",
+    "Second create dialog before first promise closes; record listener/resolve behavior",
+    "Reverse completions only where independently supplied service promises truly allow them; not by violating real worker FIFO queue"
+  ],
+  "captureEnvelope": [
+    "baseline revision/canonical/emitted/style/map hashes",
+    "input snapshot before/after",
+    "public operation sequence and scheduled callback trace",
+    "original raw HTML + normalized topology/native classes/attributes/text",
+    "form DOM properties incl value/checked/defaultChecked/selected/defaultSelected/disabled/hidden/progress value/max",
+    "literal safety nodes/inline handlers absent",
+    "exact service call arguments/order and config writes/cache/status/notification traces",
+    "captured DOM node identity/connectivity/focus/caret + detached/current-target snapshots",
+    "original CSS expanded clauses/media ancestry/style load order/computed properties/geometry and actual pointer/focus receipts",
+    "timer boundary state at 2999/3000ms; no altered timeout expectations"
+  ],
+  "verificationLimits": "No recipe execution, original capture, canonical/test/fixture change, compiler/build/browser/server/Git/Node invocation or acceptance performed.",
+  "libraryOptionSeeds": [
+    {
+      "name": "empty",
+      "libraries": [],
+      "activeId": "",
+      "configName": "Research Papers",
+      "expected": "one option value empty / No libraries yet; no name write"
+    },
+    {
+      "name": "ordered-selected",
+      "libraries": [
+        {
+          "id": "research",
+          "name": "Research Papers",
+          "model": "all-minilm"
+        },
+        {
+          "id": "clinical",
+          "name": "<img src=x onerror=\"alert(1)\"> & \"literal\" \u010cesky \ud83d\udd2c",
+          "model": "bge-small-en"
+        }
+      ],
+      "activeId": "clinical",
+      "configName": "Research Papers",
+      "expected": "same original option order, selected clinical, literal name; save name then chip refresh"
+    },
+    {
+      "name": "name-already-current",
+      "libraries": [
+        {
+          "id": "research",
+          "name": "Research Papers",
+          "model": "all-minilm"
+        },
+        {
+          "id": "clinical",
+          "name": "<img src=x onerror=\"alert(1)\"> & \"literal\" \u010cesky \ud83d\udd2c",
+          "model": "bge-small-en"
+        }
+      ],
+      "activeId": "research",
+      "configName": "Research Papers",
+      "expected": "selected research; no redundant name write/chip update"
+    },
+    {
+      "name": "missing-active",
+      "libraries": [
+        {
+          "id": "research",
+          "name": "Research Papers",
+          "model": "all-minilm"
+        },
+        {
+          "id": "clinical",
+          "name": "<img src=x onerror=\"alert(1)\"> & \"literal\" \u010cesky \ud83d\udd2c",
+          "model": "bge-small-en"
+        }
+      ],
+      "activeId": "missing",
+      "configName": "Research Papers",
+      "expected": "no selected attribute and no config write; browser select live first-value semantics captured"
+    },
+    {
+      "name": "missing-select",
+      "libraries": [
+        {
+          "id": "research",
+          "name": "Research Papers",
+          "model": "all-minilm"
+        },
+        {
+          "id": "clinical",
+          "name": "<img src=x onerror=\"alert(1)\"> & \"literal\" \u010cesky \ud83d\udd2c",
+          "model": "bge-small-en"
+        }
+      ],
+      "activeId": "clinical",
+      "configName": "Research Papers",
+      "expected": "name synchronization still occurs, then returns without option write"
+    },
+    {
+      "name": "list-error",
+      "listReject": "Synthetic library list failed",
+      "expected": "(engine not ready) empty-value option; no name write"
+    },
+    {
+      "name": "external-backend",
+      "backend": "external-server",
+      "expected": "No libraries yet; no getLocalLens/list worker call"
+    }
+  ],
+  "ingestSeeds": [
+    {
+      "name": "empty-selection",
+      "boundary": "No pill, service operation or timer"
+    },
+    {
+      "name": "busy-selection",
+      "boundary": "Info notification and no new ingest"
+    },
+    {
+      "name": "one-real-file-live-snapshot",
+      "boundary": "Actual FileList populated; handler clears picker immediately; extract/worker ingest still receives original file"
+    },
+    {
+      "name": "parser-all-empty",
+      "boundary": "No usable documents were found; no subscribe/ingest; finally stats/timer"
+    },
+    {
+      "name": "parser-one-reject-one-success",
+      "boundary": "Original warn and remaining file still ingested"
+    },
+    {
+      "name": "stop-during-reading",
+      "boundary": "Stop flag before parser release; Stopped before indexing and no ingest"
+    },
+    {
+      "name": "stop-during-model-load",
+      "boundary": "Stop before ready release; no subscribe/ingest"
+    },
+    {
+      "name": "progress-all-stages",
+      "boundary": "Initial Reading / Loading / Preparing; start zero/nonzero, embed ETA/no ETA, saving disables stop; both bars exact"
+    },
+    {
+      "name": "complete-singular",
+      "boundary": "One file; original indexed message/duration; Done, determinate1/1, cache cleared"
+    },
+    {
+      "name": "complete-plural-replaced",
+      "boundary": "Multiple files; replaced1/replaced2 plural paths"
+    },
+    {
+      "name": "unchanged-skipped",
+      "boundary": "chunks0/skipped1 or2; Already up to date; no cache clear"
+    },
+    {
+      "name": "cancelled-worker",
+      "boundary": "Stopped duration; no cache clear; info; flags reset"
+    },
+    {
+      "name": "worker-or-parser-error",
+      "boundary": "Original error status/notification; progress indeterminate; finally"
+    },
+    {
+      "name": "dismiss-close-reopen",
+      "boundary": "Pill display none survives job; progress updates detached? actual pill and fresh modal mirror receipts"
+    },
+    {
+      "name": "stop-active-ingest",
+      "boundary": "Stop true/disabled/Stopping then real abort side-channel; finally Stopped or error according to original reply"
+    },
+    {
+      "name": "old-timer-new-job",
+      "boundary": "2999ms old timer pending; start new job; observe exact old 3000ms callback on new current pill/modal progress without dedup or shortening"
+    }
+  ],
+  "workerProtocolRecipe": {
+    "required": "Real lens-local module with fake Worker only; requests/replies valid current protocol, recorded FIFO; ready complete model/embedder/library payload; stats_result complete fields; saving progress -> original client commit_ingest -> then ingest_done.",
+    "queueLimits": "Real send queue serializes replies. Delay one legitimate inflight reply to assess DOM/backend staleness. Never emit a reverse/wrong-type response to the current inflight request as a fabricated concurrency acceptance case.",
+    "additionalWireStats": "ingest does stats after ingest_done before returning; deleteDocument does stats after delete_done; final UI hydration causes another stats request. Distinguish wire count from UI getStats count.",
+    "persistenceLimit": "Fake Worker side effects and localStorage cached count are synthetic protocol evidence, not actual worker IndexedDB/model persistence."
+  }
+}

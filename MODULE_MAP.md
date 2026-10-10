@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1483 |
-| Internal import edges | 4909 |
+| Modules | 1505 |
+| Internal import edges | 4944 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -1732,6 +1732,88 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>knowledge</code> family — 11 modules</summary>
+
+- [`js/knowledge-base-chat-classes.ts`](js/knowledge-base-chat-classes.ts) → no in-scope imports
+- [`js/knowledge-base-classes.ts`](js/knowledge-base-classes.ts) → [`js/knowledge-base-chat-classes.ts`](js/knowledge-base-chat-classes.ts), [`js/knowledge-base-create-classes.ts`](js/knowledge-base-create-classes.ts), [`js/knowledge-base-documents-classes.ts`](js/knowledge-base-documents-classes.ts), [`js/knowledge-base-ingest-classes.ts`](js/knowledge-base-ingest-classes.ts), [`js/knowledge-base-panel-classes.ts`](js/knowledge-base-panel-classes.ts), [`js/knowledge-base-settings-classes.ts`](js/knowledge-base-settings-classes.ts)
+- [`js/knowledge-base-create-classes.ts`](js/knowledge-base-create-classes.ts) → no in-scope imports
+- [`js/knowledge-base-documents-classes.ts`](js/knowledge-base-documents-classes.ts) → no in-scope imports
+- [`js/knowledge-base-ingest-classes.ts`](js/knowledge-base-ingest-classes.ts) → no in-scope imports
+- [`js/knowledge-base-library-presentation.ts`](js/knowledge-base-library-presentation.ts) → no in-scope imports
+- [`js/knowledge-base-library-rendering.ts`](js/knowledge-base-library-rendering.ts) → [`js/components/KnowledgeBaseLibraryCreate.svelte`](js/components/KnowledgeBaseLibraryCreate.svelte), [`js/components/KnowledgeBaseLibraryOptions.svelte`](js/components/KnowledgeBaseLibraryOptions.svelte)
+- [`js/knowledge-base-panel-classes.ts`](js/knowledge-base-panel-classes.ts) → no in-scope imports
+- [`js/knowledge-base-presentation.ts`](js/knowledge-base-presentation.ts) → no in-scope imports
+- [`js/knowledge-base-rendering.ts`](js/knowledge-base-rendering.ts) → [`js/components/KnowledgeBaseDocuments.svelte`](js/components/KnowledgeBaseDocuments.svelte), [`js/components/KnowledgeBaseIngestPill.svelte`](js/components/KnowledgeBaseIngestPill.svelte), [`js/components/KnowledgeBaseModal.svelte`](js/components/KnowledgeBaseModal.svelte), [`js/components/KnowledgeBasePanel.svelte`](js/components/KnowledgeBasePanel.svelte), [`js/components/KnowledgeBaseStats.svelte`](js/components/KnowledgeBaseStats.svelte), [`js/components/KnowledgeBaseStatus.svelte`](js/components/KnowledgeBaseStatus.svelte)
+- [`js/knowledge-base-settings-classes.ts`](js/knowledge-base-settings-classes.ts) → no in-scope imports
+
+</details>
+
+<details><summary><code>KnowledgeBaseDocuments.svelte</code> family — 1 module</summary>
+
+- [`js/components/KnowledgeBaseDocuments.svelte`](js/components/KnowledgeBaseDocuments.svelte) → [`js/knowledge-base-classes.ts`](js/knowledge-base-classes.ts)
+
+</details>
+
+<details><summary><code>KnowledgeBaseExternalFields.svelte</code> family — 1 module</summary>
+
+- [`js/components/KnowledgeBaseExternalFields.svelte`](js/components/KnowledgeBaseExternalFields.svelte) → [`js/knowledge-base-classes.ts`](js/knowledge-base-classes.ts)
+
+</details>
+
+<details><summary><code>KnowledgeBaseIngestPill.svelte</code> family — 1 module</summary>
+
+- [`js/components/KnowledgeBaseIngestPill.svelte`](js/components/KnowledgeBaseIngestPill.svelte) → [`js/knowledge-base-classes.ts`](js/knowledge-base-classes.ts)
+
+</details>
+
+<details><summary><code>KnowledgeBaseLibraryCreate.svelte</code> family — 1 module</summary>
+
+- [`js/components/KnowledgeBaseLibraryCreate.svelte`](js/components/KnowledgeBaseLibraryCreate.svelte) → [`js/components/KnowledgeBaseLibraryModel.svelte`](js/components/KnowledgeBaseLibraryModel.svelte), [`js/knowledge-base-classes.ts`](js/knowledge-base-classes.ts)
+
+</details>
+
+<details><summary><code>KnowledgeBaseLibraryModel.svelte</code> family — 1 module</summary>
+
+- [`js/components/KnowledgeBaseLibraryModel.svelte`](js/components/KnowledgeBaseLibraryModel.svelte) → [`js/knowledge-base-classes.ts`](js/knowledge-base-classes.ts)
+
+</details>
+
+<details><summary><code>KnowledgeBaseLibraryOptions.svelte</code> family — 1 module</summary>
+
+- [`js/components/KnowledgeBaseLibraryOptions.svelte`](js/components/KnowledgeBaseLibraryOptions.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>KnowledgeBaseLocalFields.svelte</code> family — 1 module</summary>
+
+- [`js/components/KnowledgeBaseLocalFields.svelte`](js/components/KnowledgeBaseLocalFields.svelte) → [`js/knowledge-base-classes.ts`](js/knowledge-base-classes.ts)
+
+</details>
+
+<details><summary><code>KnowledgeBaseModal.svelte</code> family — 1 module</summary>
+
+- [`js/components/KnowledgeBaseModal.svelte`](js/components/KnowledgeBaseModal.svelte) → [`js/components/KnowledgeBasePanel.svelte`](js/components/KnowledgeBasePanel.svelte), [`js/knowledge-base-classes.ts`](js/knowledge-base-classes.ts)
+
+</details>
+
+<details><summary><code>KnowledgeBasePanel.svelte</code> family — 1 module</summary>
+
+- [`js/components/KnowledgeBasePanel.svelte`](js/components/KnowledgeBasePanel.svelte) → [`js/components/KnowledgeBaseExternalFields.svelte`](js/components/KnowledgeBaseExternalFields.svelte), [`js/components/KnowledgeBaseLocalFields.svelte`](js/components/KnowledgeBaseLocalFields.svelte), [`js/components/KnowledgeBaseStatus.svelte`](js/components/KnowledgeBaseStatus.svelte), [`js/knowledge-base-classes.ts`](js/knowledge-base-classes.ts)
+
+</details>
+
+<details><summary><code>KnowledgeBaseStats.svelte</code> family — 1 module</summary>
+
+- [`js/components/KnowledgeBaseStats.svelte`](js/components/KnowledgeBaseStats.svelte) → [`js/knowledge-base-classes.ts`](js/knowledge-base-classes.ts)
+
+</details>
+
+<details><summary><code>KnowledgeBaseStatus.svelte</code> family — 1 module</summary>
+
+- [`js/components/KnowledgeBaseStatus.svelte`](js/components/KnowledgeBaseStatus.svelte) → [`js/knowledge-base-classes.ts`](js/knowledge-base-classes.ts)
+
+</details>
+
 <details><summary><code>lab</code> family — 15 modules</summary>
 
 - [`js/lab-context-cache.ts`](js/lab-context-cache.ts) → [`js/lab-context-settings.ts`](js/lab-context-settings.ts), [`js/utils.ts`](js/utils.ts)
@@ -1771,8 +1853,8 @@ Native browser modules shipped with the static application.
 - [`js/lens-cache.ts`](js/lens-cache.ts) → [`js/utils.ts`](js/utils.ts)
 - [`js/lens-content-classes.ts`](js/lens-content-classes.ts) → no in-scope imports
 - [`js/lens-content-presentation.ts`](js/lens-content-presentation.ts) → no in-scope imports
-- [`js/lens-knowledge-base-ui.ts`](js/lens-knowledge-base-ui.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/lens-actions.ts`](js/lens-actions.ts), [`js/lens-library.ts`](js/lens-library.ts), [`js/lens-local-parsers.ts`](js/lens-local-parsers.ts) *(dynamic)*, [`js/lens-local.ts`](js/lens-local.ts) *(dynamic)*, [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/lens-library.ts`](js/lens-library.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/lens-knowledge-base-ui.ts`](js/lens-knowledge-base-ui.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/knowledge-base-classes.ts`](js/knowledge-base-classes.ts), [`js/knowledge-base-presentation.ts`](js/knowledge-base-presentation.ts), [`js/knowledge-base-rendering.ts`](js/knowledge-base-rendering.ts), [`js/lens-actions.ts`](js/lens-actions.ts), [`js/lens-library.ts`](js/lens-library.ts), [`js/lens-local-parsers.ts`](js/lens-local-parsers.ts) *(dynamic)*, [`js/lens-local.ts`](js/lens-local.ts) *(dynamic)*, [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/lens-library.ts`](js/lens-library.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/knowledge-base-classes.ts`](js/knowledge-base-classes.ts), [`js/knowledge-base-library-presentation.ts`](js/knowledge-base-library-presentation.ts), [`js/knowledge-base-library-rendering.ts`](js/knowledge-base-library-rendering.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/lens-local-embedder-config.ts`](js/lens-local-embedder-config.ts) → no in-scope imports
 - [`js/lens-local-ingest.ts`](js/lens-local-ingest.ts) → [`js/lens-local-utils.ts`](js/lens-local-utils.ts)
 - [`js/lens-local-library-registry.ts`](js/lens-local-library-registry.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/lens-local-store.ts`](js/lens-local-store.ts), [`js/unique-id.ts`](js/unique-id.ts)

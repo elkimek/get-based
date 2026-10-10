@@ -2440,3 +2440,25 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /js/cycle-shared-classes.js
 /tests/cycle-shared-classes.test.js
 /tests/playwright/cycle-shared-owned.spec.js
+
+# Generated Knowledge Base presentation and focused regression outputs.
+/js/knowledge-base-chat-classes.js
+/js/knowledge-base-classes.js
+/js/knowledge-base-create-classes.js
+/js/knowledge-base-documents-classes.js
+/js/knowledge-base-ingest-classes.js
+/js/knowledge-base-library-presentation.js
+/js/knowledge-base-library-rendering.js
+/js/knowledge-base-panel-classes.js
+/js/knowledge-base-presentation.js
+/js/knowledge-base-rendering.js
+/js/knowledge-base-settings-classes.js
+/tests/helpers/knowledge-base-current-capture.mjs
+/tests/helpers/knowledge-base-frozen-contract.js
+/tests/knowledge-base-comparator.test.js
+/tests/knowledge-base-edit-frozen.test.js
+/tests/knowledge-base-ingest-frozen.test.js
+/tests/knowledge-base-public-order.test.js
+/tests/knowledge-base-stats-frozen.test.js
+/tests/knowledge-base-structure-frozen.test.js
+/tests/pwa/sveltekit-knowledge-base.spec.js

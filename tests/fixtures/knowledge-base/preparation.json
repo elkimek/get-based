@@ -1,0 +1,4186 @@
+{
+  "kind": "read-only preparation, not acceptance",
+  "originalBaseline": "Root must freeze accepted shared Cycle checkpoint before original capture/source release. No Knowledge Base original capture performed.",
+  "ownerHashes": {
+    "js/lens-knowledge-base-ui.ts": "29daefd1ddac36ca669855bec93e65faab0d575aee4ab807ccf70568b80259fc",
+    "js/lens-library.ts": "1a27b94929a11e905cbc38031b0cd73fa7f8b06128b31d2e54835fecf5f3068e"
+  },
+  "protectedModuleHashes": {
+    "js/lens.ts": "3b497136d0be4b097315a753604c80e26859df55c6f81e9ccfeddcc6f732551d",
+    "js/lens-actions.ts": "5621f99a15349ed8ee3af59d8690e19cca9bbd2bb189f06156a5aa911203dd06",
+    "js/lens-local.ts": "e1e8e03abc493b98abf64e05882cdcdc9f23d740cab903913983471867a2dd6c",
+    "js/lens-local-protocol.ts": "607b439c8f0c0d8a8898aaa5d17543a3a00900c5146c9708c41f7dc9085f8e23",
+    "js/lens-local-worker.ts": "ca278743ea9668b4db7d24f6fb64bdaeee8cebd74b75cdfe05f7ff6ef2f29daa",
+    "js/lens-local-library-registry.ts": "0d1c168bcd89fa5e391cde0326e81629590456f2b639772debac9ebf35853aba",
+    "js/lens-local-store.ts": "2c5c50cfd99cf469d526821ca6fef1b08e30a081758a410551aec6e71e46f437",
+    "js/lens-local-ingest.ts": "afb70e0ab15d475f028e6187a81e60e99794831566fa36ecf827b3b15c822d23",
+    "js/lens-local-parsers.ts": "7d4bc2a677d4db48e43e4f821a4256be99c14f85feb16239100a0d300983f7ae",
+    "js/lens-local-utils.ts": "1defc338d2ddb48c08526f6cb1a51f6d52e41f691aecd782d49c8525b1d64bdf",
+    "js/lens-local-embedder-config.ts": "771b48f105f0d0599fab351b5b5cf6490574b9b415faaf05bd4408303768074a",
+    "js/modal-lifecycle.ts": "5d1e5b3a5b7820a60f8507a12f392a43da8700c0151c7186af782bea01cf3d98",
+    "js/context-hub-view.ts": "7401b44f001148ca0b3adbfac711df0e770277a17e6988f17dfd029a7fe796c7",
+    "js/context-card-dashboard-ai.ts": "a99494a436f6323985ae2fd0eecbfebab6efce54bcd2332dae136d52b8620879"
+  },
+  "cssCandidateInventory": [
+    {
+      "file": "css/modal-shared.base.css",
+      "sha256": "73ea845117fd3b03f1e5bb80a7ab642e916c38c782d56e03abbd8d419288bd9b",
+      "candidateRuleCount": 121,
+      "candidatePathCount": 142,
+      "rules": [
+        {
+          "ordinal": 29,
+          "line": 178,
+          "selector": ".kb-modal",
+          "ownedCandidatePaths": [
+            ".kb-modal"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "width",
+              "value": "min(94vw, 780px)",
+              "important": false
+            },
+            {
+              "property": "max-width",
+              "value": "780px",
+              "important": false
+            },
+            {
+              "property": "max-height",
+              "value": "min(92vh, 920px)",
+              "important": false
+            },
+            {
+              "property": "padding",
+              "value": "0",
+              "important": false
+            },
+            {
+              "property": "background",
+              "value": "var(--bg-secondary)",
+              "important": false
+            },
+            {
+              "property": "box-shadow",
+              "value": "var(--shadow-lg)",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-modal {\n  width: min(94vw, 780px);\n  max-width: 780px;\n  max-height: min(92vh, 920px);\n  padding: 0;\n  background: var(--bg-secondary);\n  box-shadow: var(--shadow-lg);\n}"
+        },
+        {
+          "ordinal": 30,
+          "line": 186,
+          "selector": ".kb-modal .gb-form-body",
+          "ownedCandidatePaths": [
+            ".kb-modal .gb-form-body"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "padding",
+              "value": "20px 24px 24px",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-modal .gb-form-body { padding: 20px 24px 24px; }"
+        },
+        {
+          "ordinal": 31,
+          "line": 187,
+          "selector": ".kb-modal #custom-lens-section",
+          "ownedCandidatePaths": [
+            ".kb-modal #custom-lens-section"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "margin",
+              "value": "0",
+              "important": false
+            },
+            {
+              "property": "padding",
+              "value": "0",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-modal #custom-lens-section { margin: 0; padding: 0; }"
+        },
+        {
+          "ordinal": 32,
+          "line": 188,
+          "selector": ".kb-panel",
+          "ownedCandidatePaths": [
+            ".kb-panel"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "display",
+              "value": "flex",
+              "important": false
+            },
+            {
+              "property": "flex-direction",
+              "value": "column",
+              "important": false
+            },
+            {
+              "property": "gap",
+              "value": "14px",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-panel {\n  display: flex;\n  flex-direction: column;\n  gap: 14px;\n}"
+        },
+        {
+          "ordinal": 33,
+          "line": 193,
+          "selector": ".kb-intro,\n.kb-section",
+          "ownedCandidatePaths": [
+            ".kb-intro",
+            ".kb-section"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "min-width",
+              "value": "0",
+              "important": false
+            },
+            {
+              "property": "border",
+              "value": "1px solid var(--border)",
+              "important": false
+            },
+            {
+              "property": "border-radius",
+              "value": "14px",
+              "important": false
+            },
+            {
+              "property": "background",
+              "value": "var(--bg-card)",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-intro,\n.kb-section {\n  min-width: 0;\n  border: 1px solid var(--border);\n  border-radius: 14px;\n  background: var(--bg-card);\n}"
+        },
+        {
+          "ordinal": 34,
+          "line": 200,
+          "selector": ".kb-intro",
+          "ownedCandidatePaths": [
+            ".kb-intro"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "display",
+              "value": "flex",
+              "important": false
+            },
+            {
+              "property": "align-items",
+              "value": "flex-start",
+              "important": false
+            },
+            {
+              "property": "justify-content",
+              "value": "space-between",
+              "important": false
+            },
+            {
+              "property": "gap",
+              "value": "18px",
+              "important": false
+            },
+            {
+              "property": "padding",
+              "value": "16px 18px",
+              "important": false
+            },
+            {
+              "property": "background",
+              "value": "linear-gradient(135deg, color-mix(in srgb, var(--accent) 8%, transparent), transparent 58%),\n    var(--bg-card)",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-intro {\n  display: flex;\n  align-items: flex-start;\n  justify-content: space-between;\n  gap: 18px;\n  padding: 16px 18px;\n  background:\n    linear-gradient(135deg, color-mix(in srgb, var(--accent) 8%, transparent), transparent 58%),\n    var(--bg-card);\n}"
+        },
+        {
+          "ordinal": 35,
+          "line": 210,
+          "selector": ".kb-intro-copy",
+          "ownedCandidatePaths": [
+            ".kb-intro-copy"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "min-width",
+              "value": "0",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-intro-copy { min-width: 0; }"
+        },
+        {
+          "ordinal": 36,
+          "line": 211,
+          "selector": ".kb-intro-copy > strong",
+          "ownedCandidatePaths": [
+            ".kb-intro-copy > strong"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "display",
+              "value": "block",
+              "important": false
+            },
+            {
+              "property": "color",
+              "value": "var(--text-primary)",
+              "important": false
+            },
+            {
+              "property": "font-size",
+              "value": "14px",
+              "important": false
+            },
+            {
+              "property": "line-height",
+              "value": "1.4",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-intro-copy > strong {\n  display: block;\n  color: var(--text-primary);\n  font-size: 14px;\n  line-height: 1.4;\n}"
+        },
+        {
+          "ordinal": 37,
+          "line": 217,
+          "selector": ".kb-intro-copy p,\n.kb-section-head p,\n.kb-field-help",
+          "ownedCandidatePaths": [
+            ".kb-intro-copy p",
+            ".kb-section-head p",
+            ".kb-field-help"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "margin",
+              "value": "4px 0 0",
+              "important": false
+            },
+            {
+              "property": "color",
+              "value": "var(--text-muted)",
+              "important": false
+            },
+            {
+              "property": "font-size",
+              "value": "11px",
+              "important": false
+            },
+            {
+              "property": "line-height",
+              "value": "1.5",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-intro-copy p,\n.kb-section-head p,\n.kb-field-help {\n  margin: 4px 0 0;\n  color: var(--text-muted);\n  font-size: 11px;\n  line-height: 1.5;\n}"
+        },
+        {
+          "ordinal": 38,
+          "line": 225,
+          "selector": ".kb-intro a,\n.kb-section a,\n.kb-setup-details a",
+          "ownedCandidatePaths": [
+            ".kb-intro a",
+            ".kb-section a",
+            ".kb-setup-details a"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "color",
+              "value": "var(--accent)",
+              "important": false
+            },
+            {
+              "property": "text-decoration",
+              "value": "none",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-intro a,\n.kb-section a,\n.kb-setup-details a {\n  color: var(--accent);\n  text-decoration: none;\n}"
+        },
+        {
+          "ordinal": 39,
+          "line": 231,
+          "selector": ".kb-intro a:hover,\n.kb-section a:hover,\n.kb-setup-details a:hover",
+          "ownedCandidatePaths": [
+            ".kb-intro a:hover",
+            ".kb-section a:hover",
+            ".kb-setup-details a:hover"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "text-decoration",
+              "value": "underline",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-intro a:hover,\n.kb-section a:hover,\n.kb-setup-details a:hover { text-decoration: underline; }"
+        },
+        {
+          "ordinal": 40,
+          "line": 234,
+          "selector": ".kb-status",
+          "ownedCandidatePaths": [
+            ".kb-status"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "flex",
+              "value": "0 0 auto",
+              "important": false
+            },
+            {
+              "property": "max-width",
+              "value": "230px",
+              "important": false
+            },
+            {
+              "property": "padding",
+              "value": "7px 10px",
+              "important": false
+            },
+            {
+              "property": "border",
+              "value": "1px solid var(--border)",
+              "important": false
+            },
+            {
+              "property": "border-radius",
+              "value": "999px",
+              "important": false
+            },
+            {
+              "property": "background",
+              "value": "color-mix(in srgb, var(--bg-secondary) 88%, transparent)",
+              "important": false
+            },
+            {
+              "property": "color",
+              "value": "var(--text-muted)",
+              "important": false
+            },
+            {
+              "property": "font-size",
+              "value": "11px",
+              "important": false
+            },
+            {
+              "property": "line-height",
+              "value": "1.35",
+              "important": false
+            },
+            {
+              "property": "text-align",
+              "value": "right",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-status {\n  flex: 0 0 auto;\n  max-width: 230px;\n  padding: 7px 10px;\n  border: 1px solid var(--border);\n  border-radius: 999px;\n  background: color-mix(in srgb, var(--bg-secondary) 88%, transparent);\n  color: var(--text-muted);\n  font-size: 11px;\n  line-height: 1.35;\n  text-align: right;\n}"
+        },
+        {
+          "ordinal": 41,
+          "line": 246,
+          "selector": ".kb-status-text",
+          "ownedCandidatePaths": [
+            ".kb-status-text"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "font-weight",
+              "value": "600",
+              "important": false
+            },
+            {
+              "property": "white-space",
+              "value": "nowrap",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-status-text { font-weight: 600; white-space: nowrap; }"
+        },
+        {
+          "ordinal": 42,
+          "line": 247,
+          "selector": ".kb-status-active",
+          "ownedCandidatePaths": [
+            ".kb-status-active"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "color",
+              "value": "var(--green)",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-status-active { color: var(--green); }"
+        },
+        {
+          "ordinal": 43,
+          "line": 248,
+          "selector": ".kb-status-error",
+          "ownedCandidatePaths": [
+            ".kb-status-error"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "color",
+              "value": "#fbbf24",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-status-error { color: #fbbf24; }"
+        },
+        {
+          "ordinal": 44,
+          "line": 249,
+          "selector": ".kb-status-detail",
+          "ownedCandidatePaths": [
+            ".kb-status-detail"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "max-width",
+              "value": "210px",
+              "important": false
+            },
+            {
+              "property": "margin-top",
+              "value": "3px",
+              "important": false
+            },
+            {
+              "property": "overflow",
+              "value": "hidden",
+              "important": false
+            },
+            {
+              "property": "text-overflow",
+              "value": "ellipsis",
+              "important": false
+            },
+            {
+              "property": "white-space",
+              "value": "nowrap",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-status-detail {\n  max-width: 210px;\n  margin-top: 3px;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}"
+        },
+        {
+          "ordinal": 45,
+          "line": 256,
+          "selector": ".kb-section",
+          "ownedCandidatePaths": [
+            ".kb-section"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "padding",
+              "value": "15px 17px",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-section { padding: 15px 17px; }"
+        },
+        {
+          "ordinal": 46,
+          "line": 257,
+          "selector": ".kb-section-head",
+          "ownedCandidatePaths": [
+            ".kb-section-head"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "display",
+              "value": "flex",
+              "important": false
+            },
+            {
+              "property": "align-items",
+              "value": "flex-start",
+              "important": false
+            },
+            {
+              "property": "justify-content",
+              "value": "space-between",
+              "important": false
+            },
+            {
+              "property": "gap",
+              "value": "14px",
+              "important": false
+            },
+            {
+              "property": "margin-bottom",
+              "value": "12px",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-section-head {\n  display: flex;\n  align-items: flex-start;\n  justify-content: space-between;\n  gap: 14px;\n  margin-bottom: 12px;\n}"
+        },
+        {
+          "ordinal": 47,
+          "line": 264,
+          "selector": ".kb-section-head h3",
+          "ownedCandidatePaths": [
+            ".kb-section-head h3"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "margin",
+              "value": "0",
+              "important": false
+            },
+            {
+              "property": "color",
+              "value": "var(--text-primary)",
+              "important": false
+            },
+            {
+              "property": "font-family",
+              "value": "inherit",
+              "important": false
+            },
+            {
+              "property": "font-size",
+              "value": "13px",
+              "important": false
+            },
+            {
+              "property": "font-weight",
+              "value": "650",
+              "important": false
+            },
+            {
+              "property": "letter-spacing",
+              "value": "0",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-section-head h3 {\n  margin: 0;\n  color: var(--text-primary);\n  font-family: inherit;\n  font-size: 13px;\n  font-weight: 650;\n  letter-spacing: 0;\n}"
+        },
+        {
+          "ordinal": 48,
+          "line": 272,
+          "selector": ".kb-engine-head",
+          "ownedCandidatePaths": [
+            ".kb-engine-head"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "align-items",
+              "value": "center",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-engine-head { align-items: center; }"
+        },
+        {
+          "ordinal": 49,
+          "line": 273,
+          "selector": ".kb-engine-picker",
+          "ownedCandidatePaths": [
+            ".kb-engine-picker"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "width",
+              "value": "fit-content",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-engine-picker { width: fit-content; }"
+        },
+        {
+          "ordinal": 50,
+          "line": 274,
+          "selector": ".kb-enable-control",
+          "ownedCandidatePaths": [
+            ".kb-enable-control"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "display",
+              "value": "flex",
+              "important": false
+            },
+            {
+              "property": "align-items",
+              "value": "center",
+              "important": false
+            },
+            {
+              "property": "gap",
+              "value": "9px",
+              "important": false
+            },
+            {
+              "property": "color",
+              "value": "var(--text-secondary)",
+              "important": false
+            },
+            {
+              "property": "font-size",
+              "value": "11px",
+              "important": false
+            },
+            {
+              "property": "font-weight",
+              "value": "600",
+              "important": false
+            },
+            {
+              "property": "cursor",
+              "value": "pointer",
+              "important": false
+            },
+            {
+              "property": "white-space",
+              "value": "nowrap",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-enable-control {\n  display: flex;\n  align-items: center;\n  gap: 9px;\n  color: var(--text-secondary);\n  font-size: 11px;\n  font-weight: 600;\n  cursor: pointer;\n  white-space: nowrap;\n}"
+        },
+        {
+          "ordinal": 51,
+          "line": 284,
+          "selector": ".kb-library-row",
+          "ownedCandidatePaths": [
+            ".kb-library-row"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "display",
+              "value": "flex",
+              "important": false
+            },
+            {
+              "property": "align-items",
+              "value": "center",
+              "important": false
+            },
+            {
+              "property": "gap",
+              "value": "8px",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-library-row {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n}"
+        },
+        {
+          "ordinal": 52,
+          "line": 289,
+          "selector": ".kb-library-select",
+          "ownedCandidatePaths": [
+            ".kb-library-select"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "flex",
+              "value": "1 1 260px",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-library-select { flex: 1 1 260px; }"
+        },
+        {
+          "ordinal": 53,
+          "line": 290,
+          "selector": ".kb-library-actions,\n.kb-footer-secondary",
+          "ownedCandidatePaths": [
+            ".kb-library-actions",
+            ".kb-footer-secondary"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "display",
+              "value": "flex",
+              "important": false
+            },
+            {
+              "property": "align-items",
+              "value": "center",
+              "important": false
+            },
+            {
+              "property": "gap",
+              "value": "6px",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-library-actions,\n.kb-footer-secondary {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n}"
+        },
+        {
+          "ordinal": 54,
+          "line": 296,
+          "selector": ".kb-field-control",
+          "ownedCandidatePaths": [
+            ".kb-field-control"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "box-sizing",
+              "value": "border-box",
+              "important": false
+            },
+            {
+              "property": "width",
+              "value": "100%",
+              "important": false
+            },
+            {
+              "property": "min-height",
+              "value": "40px",
+              "important": false
+            },
+            {
+              "property": "padding",
+              "value": "9px 11px",
+              "important": false
+            },
+            {
+              "property": "border",
+              "value": "1px solid var(--border)",
+              "important": false
+            },
+            {
+              "property": "border-radius",
+              "value": "9px",
+              "important": false
+            },
+            {
+              "property": "outline",
+              "value": "none",
+              "important": false
+            },
+            {
+              "property": "background",
+              "value": "var(--select-surface)",
+              "important": false
+            },
+            {
+              "property": "color",
+              "value": "var(--text-primary)",
+              "important": false
+            },
+            {
+              "property": "font",
+              "value": "inherit",
+              "important": false
+            },
+            {
+              "property": "font-size",
+              "value": "13px",
+              "important": false
+            },
+            {
+              "property": "transition",
+              "value": "border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-field-control {\n  box-sizing: border-box;\n  width: 100%;\n  min-height: 40px;\n  padding: 9px 11px;\n  border: 1px solid var(--border);\n  border-radius: 9px;\n  outline: none;\n  background: var(--select-surface);\n  color: var(--text-primary);\n  font: inherit;\n  font-size: 13px;\n  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;\n}"
+        },
+        {
+          "ordinal": 55,
+          "line": 310,
+          "selector": ".kb-field-control:focus",
+          "ownedCandidatePaths": [
+            ".kb-field-control:focus"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "border-color",
+              "value": "var(--accent)",
+              "important": false
+            },
+            {
+              "property": "box-shadow",
+              "value": "0 0 0 3px var(--accent-fill)",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-field-control:focus {\n  border-color: var(--accent);\n  box-shadow: 0 0 0 3px var(--accent-fill);\n}"
+        },
+        {
+          "ordinal": 56,
+          "line": 314,
+          "selector": "select.kb-field-control",
+          "ownedCandidatePaths": [
+            "select.kb-field-control"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "appearance",
+              "value": "none",
+              "important": false
+            },
+            {
+              "property": "-webkit-appearance",
+              "value": "none",
+              "important": false
+            },
+            {
+              "property": "padding-right",
+              "value": "34px",
+              "important": false
+            },
+            {
+              "property": "cursor",
+              "value": "pointer",
+              "important": false
+            },
+            {
+              "property": "background-image",
+              "value": "linear-gradient(45deg, transparent 50%, var(--text-muted) 50%),\n    linear-gradient(135deg, var(--text-muted) 50%, transparent 50%)",
+              "important": false
+            },
+            {
+              "property": "background-position",
+              "value": "calc(100% - 17px) 50%, calc(100% - 12px) 50%",
+              "important": false
+            },
+            {
+              "property": "background-repeat",
+              "value": "no-repeat",
+              "important": false
+            },
+            {
+              "property": "background-size",
+              "value": "5px 5px, 5px 5px",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": "select.kb-field-control {\n  appearance: none;\n  -webkit-appearance: none;\n  padding-right: 34px;\n  cursor: pointer;\n  background-image:\n    linear-gradient(45deg, transparent 50%, var(--text-muted) 50%),\n    linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);\n  background-position: calc(100% - 17px) 50%, calc(100% - 12px) 50%;\n  background-repeat: no-repeat;\n  background-size: 5px 5px, 5px 5px;\n}"
+        },
+        {
+          "ordinal": 57,
+          "line": 326,
+          "selector": ".kb-small-btn,\n.kb-new-library-btn",
+          "ownedCandidatePaths": [
+            ".kb-small-btn",
+            ".kb-new-library-btn"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "min-height",
+              "value": "36px",
+              "important": false
+            },
+            {
+              "property": "padding",
+              "value": "7px 11px",
+              "important": false
+            },
+            {
+              "property": "font-size",
+              "value": "11px",
+              "important": false
+            },
+            {
+              "property": "white-space",
+              "value": "nowrap",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-small-btn,\n.kb-new-library-btn {\n  min-height: 36px;\n  padding: 7px 11px;\n  font-size: 11px;\n  white-space: nowrap;\n}"
+        },
+        {
+          "ordinal": 58,
+          "line": 333,
+          "selector": ".kb-text-btn",
+          "ownedCandidatePaths": [
+            ".kb-text-btn"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "min-height",
+              "value": "32px",
+              "important": false
+            },
+            {
+              "property": "padding",
+              "value": "5px 8px",
+              "important": false
+            },
+            {
+              "property": "border",
+              "value": "0",
+              "important": false
+            },
+            {
+              "property": "border-radius",
+              "value": "7px",
+              "important": false
+            },
+            {
+              "property": "background",
+              "value": "transparent",
+              "important": false
+            },
+            {
+              "property": "color",
+              "value": "var(--text-muted)",
+              "important": false
+            },
+            {
+              "property": "font",
+              "value": "inherit",
+              "important": false
+            },
+            {
+              "property": "font-size",
+              "value": "11px",
+              "important": false
+            },
+            {
+              "property": "font-weight",
+              "value": "600",
+              "important": false
+            },
+            {
+              "property": "cursor",
+              "value": "pointer",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-text-btn {\n  min-height: 32px;\n  padding: 5px 8px;\n  border: 0;\n  border-radius: 7px;\n  background: transparent;\n  color: var(--text-muted);\n  font: inherit;\n  font-size: 11px;\n  font-weight: 600;\n  cursor: pointer;\n}"
+        },
+        {
+          "ordinal": 59,
+          "line": 345,
+          "selector": ".kb-text-btn:hover,\n.kb-text-btn:focus-visible",
+          "ownedCandidatePaths": [
+            ".kb-text-btn:hover",
+            ".kb-text-btn:focus-visible"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "background",
+              "value": "var(--bg-hover)",
+              "important": false
+            },
+            {
+              "property": "color",
+              "value": "var(--text-primary)",
+              "important": false
+            },
+            {
+              "property": "outline",
+              "value": "none",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-text-btn:hover,\n.kb-text-btn:focus-visible {\n  background: var(--bg-hover);\n  color: var(--text-primary);\n  outline: none;\n}"
+        },
+        {
+          "ordinal": 60,
+          "line": 351,
+          "selector": ".kb-text-btn-danger",
+          "ownedCandidatePaths": [
+            ".kb-text-btn-danger"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "color",
+              "value": "color-mix(in srgb, var(--red) 82%, var(--text-secondary))",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-text-btn-danger { color: color-mix(in srgb, var(--red) 82%, var(--text-secondary)); }"
+        },
+        {
+          "ordinal": 61,
+          "line": 352,
+          "selector": ".kb-text-btn-danger:hover,\n.kb-text-btn-danger:focus-visible",
+          "ownedCandidatePaths": [
+            ".kb-text-btn-danger:hover",
+            ".kb-text-btn-danger:focus-visible"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "background",
+              "value": "color-mix(in srgb, var(--red) 10%, transparent)",
+              "important": false
+            },
+            {
+              "property": "color",
+              "value": "var(--red)",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-text-btn-danger:hover,\n.kb-text-btn-danger:focus-visible {\n  background: color-mix(in srgb, var(--red) 10%, transparent);\n  color: var(--red);\n}"
+        },
+        {
+          "ordinal": 62,
+          "line": 357,
+          "selector": ".kb-stats",
+          "ownedCandidatePaths": [
+            ".kb-stats"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "padding",
+              "value": "10px 12px",
+              "important": false
+            },
+            {
+              "property": "border",
+              "value": "1px solid color-mix(in srgb, var(--border) 75%, transparent)",
+              "important": false
+            },
+            {
+              "property": "border-radius",
+              "value": "10px",
+              "important": false
+            },
+            {
+              "property": "background",
+              "value": "color-mix(in srgb, var(--bg-secondary) 80%, transparent)",
+              "important": false
+            },
+            {
+              "property": "color",
+              "value": "var(--text-muted)",
+              "important": false
+            },
+            {
+              "property": "font-size",
+              "value": "11px",
+              "important": false
+            },
+            {
+              "property": "line-height",
+              "value": "1.5",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-stats {\n  padding: 10px 12px;\n  border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);\n  border-radius: 10px;\n  background: color-mix(in srgb, var(--bg-secondary) 80%, transparent);\n  color: var(--text-muted);\n  font-size: 11px;\n  line-height: 1.5;\n}"
+        },
+        {
+          "ordinal": 63,
+          "line": 366,
+          "selector": ".kb-stats-dot",
+          "ownedCandidatePaths": [
+            ".kb-stats-dot"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "display",
+              "value": "inline-block",
+              "important": false
+            },
+            {
+              "property": "width",
+              "value": "7px",
+              "important": false
+            },
+            {
+              "property": "height",
+              "value": "7px",
+              "important": false
+            },
+            {
+              "property": "margin-right",
+              "value": "7px",
+              "important": false
+            },
+            {
+              "property": "border-radius",
+              "value": "50%",
+              "important": false
+            },
+            {
+              "property": "background",
+              "value": "var(--green)",
+              "important": false
+            },
+            {
+              "property": "box-shadow",
+              "value": "0 0 0 3px color-mix(in srgb, var(--green) 12%, transparent)",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-stats-dot {\n  display: inline-block;\n  width: 7px;\n  height: 7px;\n  margin-right: 7px;\n  border-radius: 50%;\n  background: var(--green);\n  box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 12%, transparent);\n}"
+        },
+        {
+          "ordinal": 64,
+          "line": 375,
+          "selector": ".kb-performance-note",
+          "ownedCandidatePaths": [
+            ".kb-performance-note"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "margin-top",
+              "value": "7px",
+              "important": false
+            },
+            {
+              "property": "padding-top",
+              "value": "7px",
+              "important": false
+            },
+            {
+              "property": "border-top",
+              "value": "1px dashed var(--border)",
+              "important": false
+            },
+            {
+              "property": "color",
+              "value": "color-mix(in srgb, #fbbf24 72%, var(--text-muted))",
+              "important": false
+            },
+            {
+              "property": "line-height",
+              "value": "1.45",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-performance-note {\n  margin-top: 7px;\n  padding-top: 7px;\n  border-top: 1px dashed var(--border);\n  color: color-mix(in srgb, #fbbf24 72%, var(--text-muted));\n  line-height: 1.45;\n}"
+        },
+        {
+          "ordinal": 65,
+          "line": 382,
+          "selector": ".kb-drop-zone",
+          "ownedCandidatePaths": [
+            ".kb-drop-zone"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "display",
+              "value": "flex",
+              "important": false
+            },
+            {
+              "property": "min-height",
+              "value": "92px",
+              "important": false
+            },
+            {
+              "property": "margin-top",
+              "value": "10px",
+              "important": false
+            },
+            {
+              "property": "padding",
+              "value": "14px",
+              "important": false
+            },
+            {
+              "property": "align-items",
+              "value": "center",
+              "important": false
+            },
+            {
+              "property": "justify-content",
+              "value": "center",
+              "important": false
+            },
+            {
+              "property": "flex-direction",
+              "value": "column",
+              "important": false
+            },
+            {
+              "property": "gap",
+              "value": "4px",
+              "important": false
+            },
+            {
+              "property": "border",
+              "value": "1.5px dashed color-mix(in srgb, var(--border) 84%, var(--text-muted))",
+              "important": false
+            },
+            {
+              "property": "border-radius",
+              "value": "12px",
+              "important": false
+            },
+            {
+              "property": "background",
+              "value": "color-mix(in srgb, var(--bg-secondary) 56%, transparent)",
+              "important": false
+            },
+            {
+              "property": "color",
+              "value": "var(--text-muted)",
+              "important": false
+            },
+            {
+              "property": "font-size",
+              "value": "11px",
+              "important": false
+            },
+            {
+              "property": "text-align",
+              "value": "center",
+              "important": false
+            },
+            {
+              "property": "cursor",
+              "value": "pointer",
+              "important": false
+            },
+            {
+              "property": "transition",
+              "value": "border-color 0.15s ease, background 0.15s ease, color 0.15s ease",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-drop-zone {\n  display: flex;\n  min-height: 92px;\n  margin-top: 10px;\n  padding: 14px;\n  align-items: center;\n  justify-content: center;\n  flex-direction: column;\n  gap: 4px;\n  border: 1.5px dashed color-mix(in srgb, var(--border) 84%, var(--text-muted));\n  border-radius: 12px;\n  background: color-mix(in srgb, var(--bg-secondary) 56%, transparent);\n  color: var(--text-muted);\n  font-size: 11px;\n  text-align: center;\n  cursor: pointer;\n  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;\n}"
+        },
+        {
+          "ordinal": 66,
+          "line": 400,
+          "selector": ".kb-drop-zone:hover,\n.kb-drop-zone:focus-visible,\n.kb-drop-zone.is-dragging",
+          "ownedCandidatePaths": [
+            ".kb-drop-zone:hover",
+            ".kb-drop-zone:focus-visible",
+            ".kb-drop-zone.is-dragging"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "border-color",
+              "value": "var(--accent)",
+              "important": false
+            },
+            {
+              "property": "background",
+              "value": "color-mix(in srgb, var(--accent) 7%, var(--bg-card))",
+              "important": false
+            },
+            {
+              "property": "color",
+              "value": "var(--text-secondary)",
+              "important": false
+            },
+            {
+              "property": "outline",
+              "value": "none",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-drop-zone:hover,\n.kb-drop-zone:focus-visible,\n.kb-drop-zone.is-dragging {\n  border-color: var(--accent);\n  background: color-mix(in srgb, var(--accent) 7%, var(--bg-card));\n  color: var(--text-secondary);\n  outline: none;\n}"
+        },
+        {
+          "ordinal": 67,
+          "line": 408,
+          "selector": ".kb-drop-zone strong",
+          "ownedCandidatePaths": [
+            ".kb-drop-zone strong"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "color",
+              "value": "var(--text-primary)",
+              "important": false
+            },
+            {
+              "property": "font-size",
+              "value": "12px",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-drop-zone strong { color: var(--text-primary); font-size: 12px; }"
+        },
+        {
+          "ordinal": 68,
+          "line": 409,
+          "selector": ".kb-drop-icon",
+          "ownedCandidatePaths": [
+            ".kb-drop-icon"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "font-size",
+              "value": "19px",
+              "important": false
+            },
+            {
+              "property": "line-height",
+              "value": "1",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-drop-icon { font-size: 19px; line-height: 1; }"
+        },
+        {
+          "ordinal": 69,
+          "line": 410,
+          "selector": ".kb-inline-progress",
+          "ownedCandidatePaths": [
+            ".kb-inline-progress"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "margin-top",
+              "value": "10px",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-inline-progress { margin-top: 10px; }"
+        },
+        {
+          "ordinal": 70,
+          "line": 411,
+          "selector": ".kb-inline-progress[hidden]",
+          "ownedCandidatePaths": [
+            ".kb-inline-progress[hidden]"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "display",
+              "value": "none",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-inline-progress[hidden] { display: none; }"
+        },
+        {
+          "ordinal": 71,
+          "line": 412,
+          "selector": ".kb-inline-progress progress,\n.kb-ingest-pill progress",
+          "ownedCandidatePaths": [
+            ".kb-inline-progress progress",
+            ".kb-ingest-pill progress"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "width",
+              "value": "100%",
+              "important": false
+            },
+            {
+              "property": "height",
+              "value": "6px",
+              "important": false
+            },
+            {
+              "property": "accent-color",
+              "value": "var(--accent)",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-inline-progress progress,\n.kb-ingest-pill progress {\n  width: 100%;\n  height: 6px;\n  accent-color: var(--accent);\n}"
+        },
+        {
+          "ordinal": 72,
+          "line": 418,
+          "selector": ".kb-inline-progress div",
+          "ownedCandidatePaths": [
+            ".kb-inline-progress div"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "margin-top",
+              "value": "5px",
+              "important": false
+            },
+            {
+              "property": "color",
+              "value": "var(--text-muted)",
+              "important": false
+            },
+            {
+              "property": "font-size",
+              "value": "10px",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-inline-progress div {\n  margin-top: 5px;\n  color: var(--text-muted);\n  font-size: 10px;\n}"
+        },
+        {
+          "ordinal": 73,
+          "line": 423,
+          "selector": ".kb-document-list",
+          "ownedCandidatePaths": [
+            ".kb-document-list"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "margin-top",
+              "value": "10px",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-document-list { margin-top: 10px; }"
+        },
+        {
+          "ordinal": 74,
+          "line": 424,
+          "selector": ".kb-document-table",
+          "ownedCandidatePaths": [
+            ".kb-document-table"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "max-height",
+              "value": "220px",
+              "important": false
+            },
+            {
+              "property": "overflow-y",
+              "value": "auto",
+              "important": false
+            },
+            {
+              "property": "border",
+              "value": "1px solid var(--border)",
+              "important": false
+            },
+            {
+              "property": "border-radius",
+              "value": "10px",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-document-table {\n  max-height: 220px;\n  overflow-y: auto;\n  border: 1px solid var(--border);\n  border-radius: 10px;\n}"
+        },
+        {
+          "ordinal": 75,
+          "line": 430,
+          "selector": ".kb-document-row",
+          "ownedCandidatePaths": [
+            ".kb-document-row"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "display",
+              "value": "grid",
+              "important": false
+            },
+            {
+              "property": "grid-template-columns",
+              "value": "minmax(0, 1fr) auto auto",
+              "important": false
+            },
+            {
+              "property": "align-items",
+              "value": "center",
+              "important": false
+            },
+            {
+              "property": "gap",
+              "value": "9px",
+              "important": false
+            },
+            {
+              "property": "min-height",
+              "value": "38px",
+              "important": false
+            },
+            {
+              "property": "padding",
+              "value": "5px 8px 5px 11px",
+              "important": false
+            },
+            {
+              "property": "color",
+              "value": "var(--text-secondary)",
+              "important": false
+            },
+            {
+              "property": "font-size",
+              "value": "11px",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-document-row {\n  display: grid;\n  grid-template-columns: minmax(0, 1fr) auto auto;\n  align-items: center;\n  gap: 9px;\n  min-height: 38px;\n  padding: 5px 8px 5px 11px;\n  color: var(--text-secondary);\n  font-size: 11px;\n}"
+        },
+        {
+          "ordinal": 76,
+          "line": 440,
+          "selector": ".kb-document-row + .kb-document-row",
+          "ownedCandidatePaths": [
+            ".kb-document-row + .kb-document-row"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "border-top",
+              "value": "1px solid var(--border)",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-document-row + .kb-document-row { border-top: 1px solid var(--border); }"
+        },
+        {
+          "ordinal": 77,
+          "line": 441,
+          "selector": ".kb-document-name",
+          "ownedCandidatePaths": [
+            ".kb-document-name"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "overflow",
+              "value": "hidden",
+              "important": false
+            },
+            {
+              "property": "text-overflow",
+              "value": "ellipsis",
+              "important": false
+            },
+            {
+              "property": "white-space",
+              "value": "nowrap",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-document-name {\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}"
+        },
+        {
+          "ordinal": 78,
+          "line": 446,
+          "selector": ".kb-document-count",
+          "ownedCandidatePaths": [
+            ".kb-document-count"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "color",
+              "value": "var(--text-muted)",
+              "important": false
+            },
+            {
+              "property": "font-variant-numeric",
+              "value": "tabular-nums",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-document-count {\n  color: var(--text-muted);\n  font-variant-numeric: tabular-nums;\n}"
+        },
+        {
+          "ordinal": 79,
+          "line": 450,
+          "selector": ".kb-doc-delete",
+          "ownedCandidatePaths": [
+            ".kb-doc-delete"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "display",
+              "value": "inline-flex",
+              "important": false
+            },
+            {
+              "property": "width",
+              "value": "26px",
+              "important": false
+            },
+            {
+              "property": "height",
+              "value": "26px",
+              "important": false
+            },
+            {
+              "property": "padding",
+              "value": "0",
+              "important": false
+            },
+            {
+              "property": "align-items",
+              "value": "center",
+              "important": false
+            },
+            {
+              "property": "justify-content",
+              "value": "center",
+              "important": false
+            },
+            {
+              "property": "border",
+              "value": "0",
+              "important": false
+            },
+            {
+              "property": "border-radius",
+              "value": "7px",
+              "important": false
+            },
+            {
+              "property": "background",
+              "value": "transparent",
+              "important": false
+            },
+            {
+              "property": "color",
+              "value": "var(--text-muted)",
+              "important": false
+            },
+            {
+              "property": "font-size",
+              "value": "16px",
+              "important": false
+            },
+            {
+              "property": "cursor",
+              "value": "pointer",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-doc-delete {\n  display: inline-flex;\n  width: 26px;\n  height: 26px;\n  padding: 0;\n  align-items: center;\n  justify-content: center;\n  border: 0;\n  border-radius: 7px;\n  background: transparent;\n  color: var(--text-muted);\n  font-size: 16px;\n  cursor: pointer;\n}"
+        },
+        {
+          "ordinal": 80,
+          "line": 464,
+          "selector": ".kb-doc-delete:hover,\n.kb-doc-delete:focus-visible",
+          "ownedCandidatePaths": [
+            ".kb-doc-delete:hover",
+            ".kb-doc-delete:focus-visible"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "background",
+              "value": "color-mix(in srgb, var(--red) 10%, transparent)",
+              "important": false
+            },
+            {
+              "property": "color",
+              "value": "var(--red)",
+              "important": false
+            },
+            {
+              "property": "outline",
+              "value": "none",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-doc-delete:hover,\n.kb-doc-delete:focus-visible {\n  background: color-mix(in srgb, var(--red) 10%, transparent);\n  color: var(--red);\n  outline: none;\n}"
+        },
+        {
+          "ordinal": 81,
+          "line": 470,
+          "selector": ".kb-document-actions",
+          "ownedCandidatePaths": [
+            ".kb-document-actions"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "margin-top",
+              "value": "7px",
+              "important": false
+            },
+            {
+              "property": "text-align",
+              "value": "right",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-document-actions { margin-top: 7px; text-align: right; }"
+        },
+        {
+          "ordinal": 82,
+          "line": 471,
+          "selector": ".kb-retrieval-grid",
+          "ownedCandidatePaths": [
+            ".kb-retrieval-grid"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "display",
+              "value": "grid",
+              "important": false
+            },
+            {
+              "property": "grid-template-columns",
+              "value": "minmax(150px, 0.55fr) minmax(240px, 1.45fr)",
+              "important": false
+            },
+            {
+              "property": "gap",
+              "value": "12px",
+              "important": false
+            },
+            {
+              "property": "align-items",
+              "value": "stretch",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-retrieval-grid {\n  display: grid;\n  grid-template-columns: minmax(150px, 0.55fr) minmax(240px, 1.45fr);\n  gap: 12px;\n  align-items: stretch;\n}"
+        },
+        {
+          "ordinal": 83,
+          "line": 477,
+          "selector": ".kb-field",
+          "ownedCandidatePaths": [
+            ".kb-field"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "display",
+              "value": "flex",
+              "important": false
+            },
+            {
+              "property": "min-width",
+              "value": "0",
+              "important": false
+            },
+            {
+              "property": "flex-direction",
+              "value": "column",
+              "important": false
+            },
+            {
+              "property": "gap",
+              "value": "6px",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-field {\n  display: flex;\n  min-width: 0;\n  flex-direction: column;\n  gap: 6px;\n}"
+        },
+        {
+          "ordinal": 84,
+          "line": 483,
+          "selector": ".kb-field > span,\n.kb-compact-field > span",
+          "ownedCandidatePaths": [
+            ".kb-field > span",
+            ".kb-compact-field > span"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "color",
+              "value": "var(--text-primary)",
+              "important": false
+            },
+            {
+              "property": "font-size",
+              "value": "11px",
+              "important": false
+            },
+            {
+              "property": "font-weight",
+              "value": "600",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-field > span,\n.kb-compact-field > span {\n  color: var(--text-primary);\n  font-size: 11px;\n  font-weight: 600;\n}"
+        },
+        {
+          "ordinal": 85,
+          "line": 489,
+          "selector": ".kb-field small,\n.kb-option-card small",
+          "ownedCandidatePaths": [
+            ".kb-field small",
+            ".kb-option-card small"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "display",
+              "value": "block",
+              "important": false
+            },
+            {
+              "property": "color",
+              "value": "var(--text-muted)",
+              "important": false
+            },
+            {
+              "property": "font-size",
+              "value": "10px",
+              "important": false
+            },
+            {
+              "property": "line-height",
+              "value": "1.45",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-field small,\n.kb-option-card small {\n  display: block;\n  color: var(--text-muted);\n  font-size: 10px;\n  line-height: 1.45;\n}"
+        },
+        {
+          "ordinal": 86,
+          "line": 496,
+          "selector": ".kb-number-control",
+          "ownedCandidatePaths": [
+            ".kb-number-control"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "width",
+              "value": "86px",
+              "important": false
+            },
+            {
+              "property": "font-variant-numeric",
+              "value": "tabular-nums",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-number-control { width: 86px; font-variant-numeric: tabular-nums; }"
+        },
+        {
+          "ordinal": 87,
+          "line": 497,
+          "selector": ".kb-option-card",
+          "ownedCandidatePaths": [
+            ".kb-option-card"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "display",
+              "value": "flex",
+              "important": false
+            },
+            {
+              "property": "min-width",
+              "value": "0",
+              "important": false
+            },
+            {
+              "property": "gap",
+              "value": "9px",
+              "important": false
+            },
+            {
+              "property": "padding",
+              "value": "11px 12px",
+              "important": false
+            },
+            {
+              "property": "border",
+              "value": "1px solid var(--border)",
+              "important": false
+            },
+            {
+              "property": "border-radius",
+              "value": "10px",
+              "important": false
+            },
+            {
+              "property": "background",
+              "value": "color-mix(in srgb, var(--bg-secondary) 72%, transparent)",
+              "important": false
+            },
+            {
+              "property": "cursor",
+              "value": "pointer",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-option-card {\n  display: flex;\n  min-width: 0;\n  gap: 9px;\n  padding: 11px 12px;\n  border: 1px solid var(--border);\n  border-radius: 10px;\n  background: color-mix(in srgb, var(--bg-secondary) 72%, transparent);\n  cursor: pointer;\n}"
+        },
+        {
+          "ordinal": 88,
+          "line": 507,
+          "selector": ".kb-option-card > input",
+          "ownedCandidatePaths": [
+            ".kb-option-card > input"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "margin-top",
+              "value": "2px",
+              "important": false
+            },
+            {
+              "property": "accent-color",
+              "value": "var(--accent)",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-option-card > input { margin-top: 2px; accent-color: var(--accent); }"
+        },
+        {
+          "ordinal": 89,
+          "line": 508,
+          "selector": ".kb-option-card strong",
+          "ownedCandidatePaths": [
+            ".kb-option-card strong"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "display",
+              "value": "block",
+              "important": false
+            },
+            {
+              "property": "margin-bottom",
+              "value": "3px",
+              "important": false
+            },
+            {
+              "property": "color",
+              "value": "var(--text-primary)",
+              "important": false
+            },
+            {
+              "property": "font-size",
+              "value": "11px",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-option-card strong {\n  display: block;\n  margin-bottom: 3px;\n  color: var(--text-primary);\n  font-size: 11px;\n}"
+        },
+        {
+          "ordinal": 90,
+          "line": 514,
+          "selector": ".kb-field-grid",
+          "ownedCandidatePaths": [
+            ".kb-field-grid"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "display",
+              "value": "grid",
+              "important": false
+            },
+            {
+              "property": "grid-template-columns",
+              "value": "repeat(2, minmax(0, 1fr))",
+              "important": false
+            },
+            {
+              "property": "gap",
+              "value": "14px",
+              "important": false
+            },
+            {
+              "property": "margin-top",
+              "value": "14px",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-field-grid {\n  display: grid;\n  grid-template-columns: repeat(2, minmax(0, 1fr));\n  gap: 14px;\n  margin-top: 14px;\n}"
+        },
+        {
+          "ordinal": 91,
+          "line": 520,
+          "selector": ".kb-setup-details",
+          "ownedCandidatePaths": [
+            ".kb-setup-details"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "border",
+              "value": "1px solid var(--border)",
+              "important": false
+            },
+            {
+              "property": "border-radius",
+              "value": "10px",
+              "important": false
+            },
+            {
+              "property": "background",
+              "value": "color-mix(in srgb, var(--bg-secondary) 76%, transparent)",
+              "important": false
+            },
+            {
+              "property": "color",
+              "value": "var(--text-muted)",
+              "important": false
+            },
+            {
+              "property": "font-size",
+              "value": "11px",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-setup-details {\n  border: 1px solid var(--border);\n  border-radius: 10px;\n  background: color-mix(in srgb, var(--bg-secondary) 76%, transparent);\n  color: var(--text-muted);\n  font-size: 11px;\n}"
+        },
+        {
+          "ordinal": 92,
+          "line": 527,
+          "selector": ".kb-setup-details summary",
+          "ownedCandidatePaths": [
+            ".kb-setup-details summary"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "padding",
+              "value": "10px 12px",
+              "important": false
+            },
+            {
+              "property": "color",
+              "value": "var(--text-primary)",
+              "important": false
+            },
+            {
+              "property": "font-size",
+              "value": "11px",
+              "important": false
+            },
+            {
+              "property": "font-weight",
+              "value": "600",
+              "important": false
+            },
+            {
+              "property": "cursor",
+              "value": "pointer",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-setup-details summary {\n  padding: 10px 12px;\n  color: var(--text-primary);\n  font-size: 11px;\n  font-weight: 600;\n  cursor: pointer;\n}"
+        },
+        {
+          "ordinal": 93,
+          "line": 534,
+          "selector": ".kb-setup-body",
+          "ownedCandidatePaths": [
+            ".kb-setup-body"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "padding",
+              "value": "0 12px 12px",
+              "important": false
+            },
+            {
+              "property": "line-height",
+              "value": "1.5",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-setup-body { padding: 0 12px 12px; line-height: 1.5; }"
+        },
+        {
+          "ordinal": 94,
+          "line": 535,
+          "selector": ".kb-setup-body p",
+          "ownedCandidatePaths": [
+            ".kb-setup-body p"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "margin",
+              "value": "8px 0",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-setup-body p { margin: 8px 0; }"
+        },
+        {
+          "ordinal": 95,
+          "line": 536,
+          "selector": ".kb-setup-audit",
+          "ownedCandidatePaths": [
+            ".kb-setup-audit"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "margin-top",
+              "value": "10px",
+              "important": false
+            },
+            {
+              "property": "padding-top",
+              "value": "8px",
+              "important": false
+            },
+            {
+              "property": "border-top",
+              "value": "1px dashed var(--border)",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-setup-audit {\n  margin-top: 10px;\n  padding-top: 8px;\n  border-top: 1px dashed var(--border);\n}"
+        },
+        {
+          "ordinal": 96,
+          "line": 541,
+          "selector": ".kb-setup-audit summary",
+          "ownedCandidatePaths": [
+            ".kb-setup-audit summary"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "padding",
+              "value": "0",
+              "important": false
+            },
+            {
+              "property": "color",
+              "value": "var(--text-secondary)",
+              "important": false
+            },
+            {
+              "property": "font-size",
+              "value": "10px",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-setup-audit summary { padding: 0; color: var(--text-secondary); font-size: 10px; }"
+        },
+        {
+          "ordinal": 97,
+          "line": 542,
+          "selector": ".kb-command",
+          "ownedCandidatePaths": [
+            ".kb-command"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "display",
+              "value": "block",
+              "important": false
+            },
+            {
+              "property": "padding",
+              "value": "8px 10px",
+              "important": false
+            },
+            {
+              "property": "overflow-wrap",
+              "value": "anywhere",
+              "important": false
+            },
+            {
+              "property": "border-radius",
+              "value": "7px",
+              "important": false
+            },
+            {
+              "property": "background",
+              "value": "var(--bg-primary)",
+              "important": false
+            },
+            {
+              "property": "color",
+              "value": "var(--text-primary)",
+              "important": false
+            },
+            {
+              "property": "font-family",
+              "value": "var(--font-mono, monospace)",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-command {\n  display: block;\n  padding: 8px 10px;\n  overflow-wrap: anywhere;\n  border-radius: 7px;\n  background: var(--bg-primary);\n  color: var(--text-primary);\n  font-family: var(--font-mono, monospace);\n}"
+        },
+        {
+          "ordinal": 98,
+          "line": 551,
+          "selector": ".kb-footer-actions",
+          "ownedCandidatePaths": [
+            ".kb-footer-actions"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "display",
+              "value": "flex",
+              "important": false
+            },
+            {
+              "property": "align-items",
+              "value": "center",
+              "important": false
+            },
+            {
+              "property": "justify-content",
+              "value": "space-between",
+              "important": false
+            },
+            {
+              "property": "gap",
+              "value": "14px",
+              "important": false
+            },
+            {
+              "property": "padding-top",
+              "value": "2px",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-footer-actions {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 14px;\n  padding-top: 2px;\n}"
+        },
+        {
+          "ordinal": 99,
+          "line": 558,
+          "selector": ".kb-save-btn",
+          "ownedCandidatePaths": [
+            ".kb-save-btn"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "min-width",
+              "value": "118px",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-save-btn { min-width: 118px; }"
+        },
+        {
+          "ordinal": 100,
+          "line": 559,
+          "selector": ".kb-privacy-note",
+          "ownedCandidatePaths": [
+            ".kb-privacy-note"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "display",
+              "value": "flex",
+              "important": false
+            },
+            {
+              "property": "align-items",
+              "value": "flex-start",
+              "important": false
+            },
+            {
+              "property": "gap",
+              "value": "8px",
+              "important": false
+            },
+            {
+              "property": "padding",
+              "value": "10px 12px",
+              "important": false
+            },
+            {
+              "property": "border-radius",
+              "value": "10px",
+              "important": false
+            },
+            {
+              "property": "background",
+              "value": "color-mix(in srgb, var(--accent) 5%, var(--bg-card))",
+              "important": false
+            },
+            {
+              "property": "color",
+              "value": "var(--text-muted)",
+              "important": false
+            },
+            {
+              "property": "font-size",
+              "value": "10px",
+              "important": false
+            },
+            {
+              "property": "line-height",
+              "value": "1.5",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-privacy-note {\n  display: flex;\n  align-items: flex-start;\n  gap: 8px;\n  padding: 10px 12px;\n  border-radius: 10px;\n  background: color-mix(in srgb, var(--accent) 5%, var(--bg-card));\n  color: var(--text-muted);\n  font-size: 10px;\n  line-height: 1.5;\n}"
+        },
+        {
+          "ordinal": 101,
+          "line": 572,
+          "selector": ".kb-create-overlay",
+          "ownedCandidatePaths": [
+            ".kb-create-overlay"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "z-index",
+              "value": "1250",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-create-overlay { z-index: 1250; }"
+        },
+        {
+          "ordinal": 102,
+          "line": 573,
+          "selector": ".kb-create-dialog",
+          "ownedCandidatePaths": [
+            ".kb-create-dialog"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "width",
+              "value": "min(100%, 600px)",
+              "important": false
+            },
+            {
+              "property": "max-height",
+              "value": "min(90vh, 760px)",
+              "important": false
+            },
+            {
+              "property": "overflow",
+              "value": "hidden",
+              "important": false
+            },
+            {
+              "property": "border",
+              "value": "1px solid var(--border)",
+              "important": false
+            },
+            {
+              "property": "border-radius",
+              "value": "16px",
+              "important": false
+            },
+            {
+              "property": "background",
+              "value": "var(--bg-secondary)",
+              "important": false
+            },
+            {
+              "property": "box-shadow",
+              "value": "var(--shadow-lg)",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-create-dialog {\n  width: min(100%, 600px);\n  max-height: min(90vh, 760px);\n  overflow: hidden;\n  border: 1px solid var(--border);\n  border-radius: 16px;\n  background: var(--bg-secondary);\n  box-shadow: var(--shadow-lg);\n}"
+        },
+        {
+          "ordinal": 103,
+          "line": 582,
+          "selector": ".kb-create-dialog .gb-modal-head",
+          "ownedCandidatePaths": [
+            ".kb-create-dialog .gb-modal-head"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "padding",
+              "value": "18px 20px",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-create-dialog .gb-modal-head { padding: 18px 20px; }"
+        },
+        {
+          "ordinal": 104,
+          "line": 583,
+          "selector": ".kb-create-body",
+          "ownedCandidatePaths": [
+            ".kb-create-body"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "max-height",
+              "value": "calc(90vh - 78px)",
+              "important": false
+            },
+            {
+              "property": "overflow-y",
+              "value": "auto",
+              "important": false
+            },
+            {
+              "property": "padding",
+              "value": "18px 20px 20px",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-create-body {\n  max-height: calc(90vh - 78px);\n  overflow-y: auto;\n  padding: 18px 20px 20px;\n}"
+        },
+        {
+          "ordinal": 105,
+          "line": 588,
+          "selector": ".kb-create-device",
+          "ownedCandidatePaths": [
+            ".kb-create-device"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "margin-bottom",
+              "value": "14px",
+              "important": false
+            },
+            {
+              "property": "padding",
+              "value": "9px 11px",
+              "important": false
+            },
+            {
+              "property": "border-radius",
+              "value": "9px",
+              "important": false
+            },
+            {
+              "property": "background",
+              "value": "color-mix(in srgb, var(--accent) 6%, var(--bg-card))",
+              "important": false
+            },
+            {
+              "property": "color",
+              "value": "var(--text-muted)",
+              "important": false
+            },
+            {
+              "property": "font-size",
+              "value": "10px",
+              "important": false
+            },
+            {
+              "property": "line-height",
+              "value": "1.45",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-create-device {\n  margin-bottom: 14px;\n  padding: 9px 11px;\n  border-radius: 9px;\n  background: color-mix(in srgb, var(--accent) 6%, var(--bg-card));\n  color: var(--text-muted);\n  font-size: 10px;\n  line-height: 1.45;\n}"
+        },
+        {
+          "ordinal": 106,
+          "line": 597,
+          "selector": ".kb-model-picker",
+          "ownedCandidatePaths": [
+            ".kb-model-picker"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "display",
+              "value": "grid",
+              "important": false
+            },
+            {
+              "property": "gap",
+              "value": "8px",
+              "important": false
+            },
+            {
+              "property": "margin-top",
+              "value": "8px",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-model-picker {\n  display: grid;\n  gap: 8px;\n  margin-top: 8px;\n}"
+        },
+        {
+          "ordinal": 107,
+          "line": 602,
+          "selector": ".kb-model-field",
+          "ownedCandidatePaths": [
+            ".kb-model-field"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "margin-top",
+              "value": "16px",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-model-field { margin-top: 16px; }"
+        },
+        {
+          "ordinal": 108,
+          "line": 603,
+          "selector": ".kb-model-card",
+          "ownedCandidatePaths": [
+            ".kb-model-card"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "position",
+              "value": "relative",
+              "important": false
+            },
+            {
+              "property": "display",
+              "value": "grid",
+              "important": false
+            },
+            {
+              "property": "grid-template-columns",
+              "value": "auto minmax(0, 1fr) auto",
+              "important": false
+            },
+            {
+              "property": "gap",
+              "value": "10px",
+              "important": false
+            },
+            {
+              "property": "align-items",
+              "value": "start",
+              "important": false
+            },
+            {
+              "property": "padding",
+              "value": "11px 12px",
+              "important": false
+            },
+            {
+              "property": "border",
+              "value": "1px solid var(--border)",
+              "important": false
+            },
+            {
+              "property": "border-radius",
+              "value": "11px",
+              "important": false
+            },
+            {
+              "property": "background",
+              "value": "var(--bg-card)",
+              "important": false
+            },
+            {
+              "property": "cursor",
+              "value": "pointer",
+              "important": false
+            },
+            {
+              "property": "transition",
+              "value": "border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-model-card {\n  position: relative;\n  display: grid;\n  grid-template-columns: auto minmax(0, 1fr) auto;\n  gap: 10px;\n  align-items: start;\n  padding: 11px 12px;\n  border: 1px solid var(--border);\n  border-radius: 11px;\n  background: var(--bg-card);\n  cursor: pointer;\n  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;\n}"
+        },
+        {
+          "ordinal": 109,
+          "line": 616,
+          "selector": ".kb-model-card:hover",
+          "ownedCandidatePaths": [
+            ".kb-model-card:hover"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "border-color",
+              "value": "color-mix(in srgb, var(--accent) 55%, var(--border))",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-model-card:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); }"
+        },
+        {
+          "ordinal": 110,
+          "line": 617,
+          "selector": ".kb-model-card:has(input:checked)",
+          "ownedCandidatePaths": [
+            ".kb-model-card:has(input:checked)"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "border-color",
+              "value": "var(--accent)",
+              "important": false
+            },
+            {
+              "property": "background",
+              "value": "color-mix(in srgb, var(--accent) 6%, var(--bg-card))",
+              "important": false
+            },
+            {
+              "property": "box-shadow",
+              "value": "0 0 0 2px color-mix(in srgb, var(--accent) 13%, transparent)",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-model-card:has(input:checked) {\n  border-color: var(--accent);\n  background: color-mix(in srgb, var(--accent) 6%, var(--bg-card));\n  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 13%, transparent);\n}"
+        },
+        {
+          "ordinal": 111,
+          "line": 622,
+          "selector": ".kb-model-card input",
+          "ownedCandidatePaths": [
+            ".kb-model-card input"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "margin-top",
+              "value": "3px",
+              "important": false
+            },
+            {
+              "property": "accent-color",
+              "value": "var(--accent)",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-model-card input { margin-top: 3px; accent-color: var(--accent); }"
+        },
+        {
+          "ordinal": 112,
+          "line": 623,
+          "selector": ".kb-model-copy",
+          "ownedCandidatePaths": [
+            ".kb-model-copy"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "min-width",
+              "value": "0",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-model-copy { min-width: 0; }"
+        },
+        {
+          "ordinal": 113,
+          "line": 624,
+          "selector": ".kb-model-title",
+          "ownedCandidatePaths": [
+            ".kb-model-title"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "display",
+              "value": "flex",
+              "important": false
+            },
+            {
+              "property": "align-items",
+              "value": "center",
+              "important": false
+            },
+            {
+              "property": "gap",
+              "value": "7px",
+              "important": false
+            },
+            {
+              "property": "color",
+              "value": "var(--text-primary)",
+              "important": false
+            },
+            {
+              "property": "font-size",
+              "value": "12px",
+              "important": false
+            },
+            {
+              "property": "font-weight",
+              "value": "650",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-model-title {\n  display: flex;\n  align-items: center;\n  gap: 7px;\n  color: var(--text-primary);\n  font-size: 12px;\n  font-weight: 650;\n}"
+        },
+        {
+          "ordinal": 114,
+          "line": 632,
+          "selector": ".kb-model-profile",
+          "ownedCandidatePaths": [
+            ".kb-model-profile"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "color",
+              "value": "var(--accent)",
+              "important": false
+            },
+            {
+              "property": "font-family",
+              "value": "var(--font-mono, monospace)",
+              "important": false
+            },
+            {
+              "property": "font-size",
+              "value": "9px",
+              "important": false
+            },
+            {
+              "property": "font-weight",
+              "value": "700",
+              "important": false
+            },
+            {
+              "property": "letter-spacing",
+              "value": "0.08em",
+              "important": false
+            },
+            {
+              "property": "text-transform",
+              "value": "uppercase",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-model-profile {\n  color: var(--accent);\n  font-family: var(--font-mono, monospace);\n  font-size: 9px;\n  font-weight: 700;\n  letter-spacing: 0.08em;\n  text-transform: uppercase;\n}"
+        },
+        {
+          "ordinal": 115,
+          "line": 640,
+          "selector": ".kb-model-meta,\n.kb-model-notes",
+          "ownedCandidatePaths": [
+            ".kb-model-meta",
+            ".kb-model-notes"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "margin-top",
+              "value": "3px",
+              "important": false
+            },
+            {
+              "property": "color",
+              "value": "var(--text-muted)",
+              "important": false
+            },
+            {
+              "property": "font-size",
+              "value": "10px",
+              "important": false
+            },
+            {
+              "property": "line-height",
+              "value": "1.4",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-model-meta,\n.kb-model-notes {\n  margin-top: 3px;\n  color: var(--text-muted);\n  font-size: 10px;\n  line-height: 1.4;\n}"
+        },
+        {
+          "ordinal": 116,
+          "line": 647,
+          "selector": ".kb-recommended-badge",
+          "ownedCandidatePaths": [
+            ".kb-recommended-badge"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "padding",
+              "value": "3px 6px",
+              "important": false
+            },
+            {
+              "property": "border-radius",
+              "value": "999px",
+              "important": false
+            },
+            {
+              "property": "background",
+              "value": "var(--accent)",
+              "important": false
+            },
+            {
+              "property": "color",
+              "value": "#fff",
+              "important": false
+            },
+            {
+              "property": "font-size",
+              "value": "8px",
+              "important": false
+            },
+            {
+              "property": "font-weight",
+              "value": "700",
+              "important": false
+            },
+            {
+              "property": "letter-spacing",
+              "value": "0.06em",
+              "important": false
+            },
+            {
+              "property": "text-transform",
+              "value": "uppercase",
+              "important": false
+            },
+            {
+              "property": "white-space",
+              "value": "nowrap",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-recommended-badge {\n  padding: 3px 6px;\n  border-radius: 999px;\n  background: var(--accent);\n  color: #fff;\n  font-size: 8px;\n  font-weight: 700;\n  letter-spacing: 0.06em;\n  text-transform: uppercase;\n  white-space: nowrap;\n}"
+        },
+        {
+          "ordinal": 117,
+          "line": 658,
+          "selector": ".kb-create-actions",
+          "ownedCandidatePaths": [
+            ".kb-create-actions"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "display",
+              "value": "flex",
+              "important": false
+            },
+            {
+              "property": "justify-content",
+              "value": "flex-end",
+              "important": false
+            },
+            {
+              "property": "gap",
+              "value": "8px",
+              "important": false
+            },
+            {
+              "property": "margin-top",
+              "value": "16px",
+              "important": false
+            },
+            {
+              "property": "padding-top",
+              "value": "14px",
+              "important": false
+            },
+            {
+              "property": "border-top",
+              "value": "1px solid var(--border)",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-create-actions {\n  display: flex;\n  justify-content: flex-end;\n  gap: 8px;\n  margin-top: 16px;\n  padding-top: 14px;\n  border-top: 1px solid var(--border);\n}"
+        },
+        {
+          "ordinal": 118,
+          "line": 667,
+          "selector": ".kb-ingest-pill",
+          "ownedCandidatePaths": [
+            ".kb-ingest-pill"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "position",
+              "value": "fixed",
+              "important": false
+            },
+            {
+              "property": "right",
+              "value": "20px",
+              "important": false
+            },
+            {
+              "property": "bottom",
+              "value": "88px",
+              "important": false
+            },
+            {
+              "property": "z-index",
+              "value": "9999",
+              "important": false
+            },
+            {
+              "property": "width",
+              "value": "min(330px, calc(100vw - 32px))",
+              "important": false
+            },
+            {
+              "property": "padding",
+              "value": "12px 14px",
+              "important": false
+            },
+            {
+              "property": "border",
+              "value": "1px solid var(--border)",
+              "important": false
+            },
+            {
+              "property": "border-radius",
+              "value": "12px",
+              "important": false
+            },
+            {
+              "property": "background",
+              "value": "var(--bg-secondary)",
+              "important": false
+            },
+            {
+              "property": "box-shadow",
+              "value": "var(--shadow-lg)",
+              "important": false
+            },
+            {
+              "property": "color",
+              "value": "var(--text-primary)",
+              "important": false
+            },
+            {
+              "property": "font-size",
+              "value": "11px",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-ingest-pill {\n  position: fixed;\n  right: 20px;\n  bottom: 88px;\n  z-index: 9999;\n  width: min(330px, calc(100vw - 32px));\n  padding: 12px 14px;\n  border: 1px solid var(--border);\n  border-radius: 12px;\n  background: var(--bg-secondary);\n  box-shadow: var(--shadow-lg);\n  color: var(--text-primary);\n  font-size: 11px;\n}"
+        },
+        {
+          "ordinal": 119,
+          "line": 681,
+          "selector": ".kb-ingest-pill-head",
+          "ownedCandidatePaths": [
+            ".kb-ingest-pill-head"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "display",
+              "value": "flex",
+              "important": false
+            },
+            {
+              "property": "align-items",
+              "value": "center",
+              "important": false
+            },
+            {
+              "property": "justify-content",
+              "value": "space-between",
+              "important": false
+            },
+            {
+              "property": "gap",
+              "value": "8px",
+              "important": false
+            },
+            {
+              "property": "margin-bottom",
+              "value": "7px",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-ingest-pill-head {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 8px;\n  margin-bottom: 7px;\n}"
+        },
+        {
+          "ordinal": 120,
+          "line": 688,
+          "selector": ".kb-ingest-pill-head strong",
+          "ownedCandidatePaths": [
+            ".kb-ingest-pill-head strong"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "color",
+              "value": "var(--text-muted)",
+              "important": false
+            },
+            {
+              "property": "font-size",
+              "value": "9px",
+              "important": false
+            },
+            {
+              "property": "letter-spacing",
+              "value": "0.08em",
+              "important": false
+            },
+            {
+              "property": "text-transform",
+              "value": "uppercase",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-ingest-pill-head strong {\n  color: var(--text-muted);\n  font-size: 9px;\n  letter-spacing: 0.08em;\n  text-transform: uppercase;\n}"
+        },
+        {
+          "ordinal": 121,
+          "line": 694,
+          "selector": ".kb-ingest-pill-dismiss",
+          "ownedCandidatePaths": [
+            ".kb-ingest-pill-dismiss"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "padding",
+              "value": "0 4px",
+              "important": false
+            },
+            {
+              "property": "border",
+              "value": "0",
+              "important": false
+            },
+            {
+              "property": "background",
+              "value": "transparent",
+              "important": false
+            },
+            {
+              "property": "color",
+              "value": "var(--text-muted)",
+              "important": false
+            },
+            {
+              "property": "font-size",
+              "value": "16px",
+              "important": false
+            },
+            {
+              "property": "cursor",
+              "value": "pointer",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-ingest-pill-dismiss {\n  padding: 0 4px;\n  border: 0;\n  background: transparent;\n  color: var(--text-muted);\n  font-size: 16px;\n  cursor: pointer;\n}"
+        },
+        {
+          "ordinal": 122,
+          "line": 702,
+          "selector": ".kb-ingest-pill-text",
+          "ownedCandidatePaths": [
+            ".kb-ingest-pill-text"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "margin-bottom",
+              "value": "8px",
+              "important": false
+            },
+            {
+              "property": "overflow",
+              "value": "hidden",
+              "important": false
+            },
+            {
+              "property": "color",
+              "value": "var(--text-secondary)",
+              "important": false
+            },
+            {
+              "property": "text-overflow",
+              "value": "ellipsis",
+              "important": false
+            },
+            {
+              "property": "white-space",
+              "value": "nowrap",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-ingest-pill-text {\n  margin-bottom: 8px;\n  overflow: hidden;\n  color: var(--text-secondary);\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}"
+        },
+        {
+          "ordinal": 123,
+          "line": 709,
+          "selector": ".kb-ingest-pill-stop",
+          "ownedCandidatePaths": [
+            ".kb-ingest-pill-stop"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "width",
+              "value": "100%",
+              "important": false
+            },
+            {
+              "property": "margin-top",
+              "value": "7px",
+              "important": false
+            },
+            {
+              "property": "padding",
+              "value": "6px",
+              "important": false
+            },
+            {
+              "property": "border",
+              "value": "1px solid var(--border)",
+              "important": false
+            },
+            {
+              "property": "border-radius",
+              "value": "7px",
+              "important": false
+            },
+            {
+              "property": "background",
+              "value": "transparent",
+              "important": false
+            },
+            {
+              "property": "color",
+              "value": "var(--text-secondary)",
+              "important": false
+            },
+            {
+              "property": "font",
+              "value": "inherit",
+              "important": false
+            },
+            {
+              "property": "font-size",
+              "value": "10px",
+              "important": false
+            },
+            {
+              "property": "cursor",
+              "value": "pointer",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-ingest-pill-stop {\n  width: 100%;\n  margin-top: 7px;\n  padding: 6px;\n  border: 1px solid var(--border);\n  border-radius: 7px;\n  background: transparent;\n  color: var(--text-secondary);\n  font: inherit;\n  font-size: 10px;\n  cursor: pointer;\n}"
+        },
+        {
+          "ordinal": 124,
+          "line": 723,
+          "selector": ".kb-modal .gb-form-body",
+          "ownedCandidatePaths": [
+            ".kb-modal .gb-form-body"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "padding",
+              "value": "14px",
+              "important": false
+            }
+          ],
+          "atRules": [
+            "@media (max-width: 620px)"
+          ],
+          "css": ".kb-modal .gb-form-body { padding: 14px; }"
+        },
+        {
+          "ordinal": 125,
+          "line": 724,
+          "selector": ".kb-panel",
+          "ownedCandidatePaths": [
+            ".kb-panel"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "gap",
+              "value": "10px",
+              "important": false
+            }
+          ],
+          "atRules": [
+            "@media (max-width: 620px)"
+          ],
+          "css": ".kb-panel { gap: 10px; }"
+        },
+        {
+          "ordinal": 126,
+          "line": 725,
+          "selector": ".kb-intro,\n  .kb-section",
+          "ownedCandidatePaths": [
+            ".kb-intro",
+            ".kb-section"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "border-radius",
+              "value": "12px",
+              "important": false
+            }
+          ],
+          "atRules": [
+            "@media (max-width: 620px)"
+          ],
+          "css": ".kb-intro,\n  .kb-section { border-radius: 12px; }"
+        },
+        {
+          "ordinal": 127,
+          "line": 727,
+          "selector": ".kb-intro",
+          "ownedCandidatePaths": [
+            ".kb-intro"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "flex-direction",
+              "value": "column",
+              "important": false
+            },
+            {
+              "property": "gap",
+              "value": "10px",
+              "important": false
+            },
+            {
+              "property": "padding",
+              "value": "14px",
+              "important": false
+            }
+          ],
+          "atRules": [
+            "@media (max-width: 620px)"
+          ],
+          "css": ".kb-intro { flex-direction: column; gap: 10px; padding: 14px; }"
+        },
+        {
+          "ordinal": 128,
+          "line": 728,
+          "selector": ".kb-status",
+          "ownedCandidatePaths": [
+            ".kb-status"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "max-width",
+              "value": "none",
+              "important": false
+            },
+            {
+              "property": "text-align",
+              "value": "left",
+              "important": false
+            }
+          ],
+          "atRules": [
+            "@media (max-width: 620px)"
+          ],
+          "css": ".kb-status { max-width: none; text-align: left; }"
+        },
+        {
+          "ordinal": 129,
+          "line": 729,
+          "selector": ".kb-section",
+          "ownedCandidatePaths": [
+            ".kb-section"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "padding",
+              "value": "13px",
+              "important": false
+            }
+          ],
+          "atRules": [
+            "@media (max-width: 620px)"
+          ],
+          "css": ".kb-section { padding: 13px; }"
+        },
+        {
+          "ordinal": 130,
+          "line": 730,
+          "selector": ".kb-section-head,\n  .kb-engine-head",
+          "ownedCandidatePaths": [
+            ".kb-section-head",
+            ".kb-engine-head"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "align-items",
+              "value": "stretch",
+              "important": false
+            },
+            {
+              "property": "flex-direction",
+              "value": "column",
+              "important": false
+            }
+          ],
+          "atRules": [
+            "@media (max-width: 620px)"
+          ],
+          "css": ".kb-section-head,\n  .kb-engine-head { align-items: stretch; flex-direction: column; }"
+        },
+        {
+          "ordinal": 131,
+          "line": 732,
+          "selector": ".kb-new-library-btn",
+          "ownedCandidatePaths": [
+            ".kb-new-library-btn"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "width",
+              "value": "100%",
+              "important": false
+            }
+          ],
+          "atRules": [
+            "@media (max-width: 620px)"
+          ],
+          "css": ".kb-new-library-btn { width: 100%; }"
+        },
+        {
+          "ordinal": 132,
+          "line": 733,
+          "selector": ".kb-enable-control",
+          "ownedCandidatePaths": [
+            ".kb-enable-control"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "justify-content",
+              "value": "space-between",
+              "important": false
+            }
+          ],
+          "atRules": [
+            "@media (max-width: 620px)"
+          ],
+          "css": ".kb-enable-control { justify-content: space-between; }"
+        },
+        {
+          "ordinal": 133,
+          "line": 734,
+          "selector": ".kb-engine-picker",
+          "ownedCandidatePaths": [
+            ".kb-engine-picker"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "display",
+              "value": "flex",
+              "important": false
+            },
+            {
+              "property": "width",
+              "value": "100%",
+              "important": false
+            }
+          ],
+          "atRules": [
+            "@media (max-width: 620px)"
+          ],
+          "css": ".kb-engine-picker { display: flex; width: 100%; }"
+        },
+        {
+          "ordinal": 134,
+          "line": 735,
+          "selector": ".kb-engine-picker .ctx-btn-option",
+          "ownedCandidatePaths": [
+            ".kb-engine-picker .ctx-btn-option"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "flex",
+              "value": "1",
+              "important": false
+            }
+          ],
+          "atRules": [
+            "@media (max-width: 620px)"
+          ],
+          "css": ".kb-engine-picker .ctx-btn-option { flex: 1; }"
+        },
+        {
+          "ordinal": 135,
+          "line": 736,
+          "selector": ".kb-library-row",
+          "ownedCandidatePaths": [
+            ".kb-library-row"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "align-items",
+              "value": "stretch",
+              "important": false
+            },
+            {
+              "property": "flex-direction",
+              "value": "column",
+              "important": false
+            }
+          ],
+          "atRules": [
+            "@media (max-width: 620px)"
+          ],
+          "css": ".kb-library-row { align-items: stretch; flex-direction: column; }"
+        },
+        {
+          "ordinal": 136,
+          "line": 737,
+          "selector": ".kb-library-select",
+          "ownedCandidatePaths": [
+            ".kb-library-select"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "flex-basis",
+              "value": "auto",
+              "important": false
+            }
+          ],
+          "atRules": [
+            "@media (max-width: 620px)"
+          ],
+          "css": ".kb-library-select { flex-basis: auto; }"
+        },
+        {
+          "ordinal": 137,
+          "line": 738,
+          "selector": ".kb-library-actions",
+          "ownedCandidatePaths": [
+            ".kb-library-actions"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "justify-content",
+              "value": "flex-end",
+              "important": false
+            }
+          ],
+          "atRules": [
+            "@media (max-width: 620px)"
+          ],
+          "css": ".kb-library-actions { justify-content: flex-end; }"
+        },
+        {
+          "ordinal": 138,
+          "line": 739,
+          "selector": ".kb-retrieval-grid,\n  .kb-field-grid",
+          "ownedCandidatePaths": [
+            ".kb-retrieval-grid",
+            ".kb-field-grid"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "grid-template-columns",
+              "value": "1fr",
+              "important": false
+            }
+          ],
+          "atRules": [
+            "@media (max-width: 620px)"
+          ],
+          "css": ".kb-retrieval-grid,\n  .kb-field-grid { grid-template-columns: 1fr; }"
+        },
+        {
+          "ordinal": 139,
+          "line": 741,
+          "selector": ".kb-footer-actions",
+          "ownedCandidatePaths": [
+            ".kb-footer-actions"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "align-items",
+              "value": "stretch",
+              "important": false
+            },
+            {
+              "property": "flex-direction",
+              "value": "column-reverse",
+              "important": false
+            }
+          ],
+          "atRules": [
+            "@media (max-width: 620px)"
+          ],
+          "css": ".kb-footer-actions { align-items: stretch; flex-direction: column-reverse; }"
+        },
+        {
+          "ordinal": 140,
+          "line": 742,
+          "selector": ".kb-footer-secondary",
+          "ownedCandidatePaths": [
+            ".kb-footer-secondary"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "justify-content",
+              "value": "space-between",
+              "important": false
+            }
+          ],
+          "atRules": [
+            "@media (max-width: 620px)"
+          ],
+          "css": ".kb-footer-secondary { justify-content: space-between; }"
+        },
+        {
+          "ordinal": 141,
+          "line": 743,
+          "selector": ".kb-save-btn",
+          "ownedCandidatePaths": [
+            ".kb-save-btn"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "width",
+              "value": "100%",
+              "important": false
+            }
+          ],
+          "atRules": [
+            "@media (max-width: 620px)"
+          ],
+          "css": ".kb-save-btn { width: 100%; }"
+        },
+        {
+          "ordinal": 142,
+          "line": 744,
+          "selector": ".kb-create-overlay",
+          "ownedCandidatePaths": [
+            ".kb-create-overlay"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "padding",
+              "value": "12px",
+              "important": false
+            }
+          ],
+          "atRules": [
+            "@media (max-width: 620px)"
+          ],
+          "css": ".kb-create-overlay { padding: 12px; }"
+        },
+        {
+          "ordinal": 143,
+          "line": 745,
+          "selector": ".kb-create-dialog",
+          "ownedCandidatePaths": [
+            ".kb-create-dialog"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "max-height",
+              "value": "94vh",
+              "important": false
+            }
+          ],
+          "atRules": [
+            "@media (max-width: 620px)"
+          ],
+          "css": ".kb-create-dialog { max-height: 94vh; }"
+        },
+        {
+          "ordinal": 144,
+          "line": 746,
+          "selector": ".kb-create-dialog .gb-modal-head",
+          "ownedCandidatePaths": [
+            ".kb-create-dialog .gb-modal-head"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "padding",
+              "value": "15px 16px",
+              "important": false
+            }
+          ],
+          "atRules": [
+            "@media (max-width: 620px)"
+          ],
+          "css": ".kb-create-dialog .gb-modal-head { padding: 15px 16px; }"
+        },
+        {
+          "ordinal": 145,
+          "line": 747,
+          "selector": ".kb-create-body",
+          "ownedCandidatePaths": [
+            ".kb-create-body"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "padding",
+              "value": "15px 16px 16px",
+              "important": false
+            }
+          ],
+          "atRules": [
+            "@media (max-width: 620px)"
+          ],
+          "css": ".kb-create-body { padding: 15px 16px 16px; }"
+        },
+        {
+          "ordinal": 146,
+          "line": 748,
+          "selector": ".kb-model-card",
+          "ownedCandidatePaths": [
+            ".kb-model-card"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "grid-template-columns",
+              "value": "auto minmax(0, 1fr)",
+              "important": false
+            }
+          ],
+          "atRules": [
+            "@media (max-width: 620px)"
+          ],
+          "css": ".kb-model-card { grid-template-columns: auto minmax(0, 1fr); }"
+        },
+        {
+          "ordinal": 147,
+          "line": 749,
+          "selector": ".kb-recommended-badge",
+          "ownedCandidatePaths": [
+            ".kb-recommended-badge"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "grid-column",
+              "value": "2",
+              "important": false
+            },
+            {
+              "property": "width",
+              "value": "fit-content",
+              "important": false
+            }
+          ],
+          "atRules": [
+            "@media (max-width: 620px)"
+          ],
+          "css": ".kb-recommended-badge { grid-column: 2; width: fit-content; }"
+        },
+        {
+          "ordinal": 148,
+          "line": 750,
+          "selector": ".kb-create-actions .import-btn",
+          "ownedCandidatePaths": [
+            ".kb-create-actions .import-btn"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "flex",
+              "value": "1",
+              "important": false
+            }
+          ],
+          "atRules": [
+            "@media (max-width: 620px)"
+          ],
+          "css": ".kb-create-actions .import-btn { flex: 1; }"
+        },
+        {
+          "ordinal": 149,
+          "line": 751,
+          "selector": ".kb-ingest-pill",
+          "ownedCandidatePaths": [
+            ".kb-ingest-pill"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "right",
+              "value": "16px",
+              "important": false
+            },
+            {
+              "property": "bottom",
+              "value": "76px",
+              "important": false
+            }
+          ],
+          "atRules": [
+            "@media (max-width: 620px)"
+          ],
+          "css": ".kb-ingest-pill { right: 16px; bottom: 76px; }"
+        }
+      ]
+    },
+    {
+      "file": "css/chat-panel-open.base.css",
+      "sha256": "409c312778afb9f6b18c7146367ee8366a14beb6a518760e8eefd6977c3dc1c0",
+      "candidateRuleCount": 2,
+      "candidatePathCount": 2,
+      "rules": [
+        {
+          "ordinal": 53,
+          "line": 132,
+          "selector": ".kb-doc-delete",
+          "ownedCandidatePaths": [
+            ".kb-doc-delete"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "flex-shrink",
+              "value": "0",
+              "important": false
+            },
+            {
+              "property": "background",
+              "value": "none",
+              "important": false
+            },
+            {
+              "property": "border",
+              "value": "none",
+              "important": false
+            },
+            {
+              "property": "color",
+              "value": "var(--text-muted)",
+              "important": false
+            },
+            {
+              "property": "font-size",
+              "value": "18px",
+              "important": false
+            },
+            {
+              "property": "line-height",
+              "value": "1",
+              "important": false
+            },
+            {
+              "property": "cursor",
+              "value": "pointer",
+              "important": false
+            },
+            {
+              "property": "padding",
+              "value": "0 6px",
+              "important": false
+            },
+            {
+              "property": "border-radius",
+              "value": "4px",
+              "important": false
+            },
+            {
+              "property": "transition",
+              "value": "color 0.15s, background 0.15s",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-doc-delete {\n  flex-shrink: 0;\n  background: none;\n  border: none;\n  color: var(--text-muted);\n  font-size: 18px;\n  line-height: 1;\n  cursor: pointer;\n  padding: 0 6px;\n  border-radius: 4px;\n  transition: color 0.15s, background 0.15s;\n}"
+        },
+        {
+          "ordinal": 54,
+          "line": 144,
+          "selector": ".kb-doc-delete:hover",
+          "ownedCandidatePaths": [
+            ".kb-doc-delete:hover"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "color",
+              "value": "var(--red)",
+              "important": false
+            },
+            {
+              "property": "background",
+              "value": "var(--bg-hover)",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-doc-delete:hover {\n  color: var(--red);\n  background: var(--bg-hover);\n}"
+        }
+      ]
+    },
+    {
+      "file": "css/settings.base.css",
+      "sha256": "45a34491b597e15ba49af0854f204b5eb56a1f03133b97f49d43bc72eda68cb5",
+      "candidateRuleCount": 1,
+      "candidatePathCount": 1,
+      "rules": [
+        {
+          "ordinal": 30,
+          "line": 178,
+          "selector": ".kb-modal.settings-modal",
+          "ownedCandidatePaths": [
+            ".kb-modal.settings-modal"
+          ],
+          "otherPathsRetained": [],
+          "declarations": [
+            {
+              "property": "max-width",
+              "value": "780px",
+              "important": false
+            }
+          ],
+          "atRules": [],
+          "css": ".kb-modal.settings-modal {\n  max-width: 780px;\n}"
+        }
+      ]
+    }
+  ],
+  "cssBoundary": "Candidate clauses only; root verifies with PostCSS and frozen real stylesheet order. Includes KB compound rule in settings.base.css as a third owner. Shared clauses are retained.",
+  "proposedSourceLanes": {
+    "panel": {
+      "existing": [
+        "js/lens-knowledge-base-ui.ts"
+      ],
+      "new": [
+        "js/knowledge-base-presentation.ts",
+        "js/knowledge-base-projection.ts",
+        "js/components/KnowledgeBasePanel.svelte",
+        "js/components/KnowledgeBaseModal.svelte",
+        "js/components/KnowledgeBaseStatus.svelte",
+        "js/components/KnowledgeBaseLocalFields.svelte",
+        "js/components/KnowledgeBaseExternalFields.svelte",
+        "js/components/KnowledgeBaseLocalStats.svelte",
+        "js/components/KnowledgeBaseDocumentList.svelte",
+        "js/components/KnowledgeBaseIngestPill.svelte"
+      ],
+      "scope": "Only typed view preparation and native markup-site replacements, exact existing DOM assignment targets and controller ordering. No library/delegate/worker/config/credential state changes."
+    },
+    "library": {
+      "existing": [
+        "js/lens-library.ts"
+      ],
+      "new": [
+        "js/knowledge-base-library-presentation.ts",
+        "js/knowledge-base-library-projection.ts",
+        "js/components/KnowledgeBaseLibraryOptions.svelte",
+        "js/components/KnowledgeBaseLibraryCreate.svelte",
+        "js/components/KnowledgeBaseModelCard.svelte"
+      ],
+      "scope": "Typed option/model/dialog presentation only; existing recommendation, worker service ordering, returned name/model, handlers and modal lifecycle retained."
+    },
+    "rootIntegration": {
+      "new": [
+        "js/knowledge-base-classes.ts",
+        "css/knowledge-base.tailwind.css"
+      ],
+      "existing": [
+        "css/modal-shared.base.css",
+        "css/chat-panel-open.base.css",
+        "css/settings.base.css",
+        "css/report-builder.tailwind.css",
+        "css/chat-navigation.tailwind.css",
+        "css/settings-display.tailwind.css",
+        "scripts/build-svelte.mts",
+        "service-worker-assets.ts",
+        "tests/test-custom-lens.ts",
+        "tests/styles-build.test.ts",
+        "scripts/dom-sink-policy.json",
+        "ARCHITECTURE.md",
+        "MODULE_MAP.md",
+        "engineering/testing-policy.md"
+      ],
+      "scope": "Retire only exact frozen consumer-owned clauses; preserve existing load-dependent cascade in stable compiled CSS URLs; SSR entry registration/runtime assets/source assertions/architecture/sink proofs. Candidate list, root decides exact proven edits."
+    }
+  },
+  "asyncSourceFacts": [
+    {
+      "function": "_loadLocalLensStats",
+      "fact": "Captures stats/list nodes before await; records stats and emits updateLensStatus before checking captured stats existence. No target connectivity/backend/library generation guard observed."
+    },
+    {
+      "function": "_loadLibraryPicker",
+      "fact": "Captures select before await; reads current config name and saves old active-library name before checking captured select existence. No target/library/backend generation guard observed."
+    },
+    {
+      "function": "renderCustomLensSection/openKnowledgeBaseModal",
+      "fact": "Browser panel schedules rAF library/stats hydration and modal opening also starts stats hydration. Capture multiplicity/order, including close or replacement before rAF."
+    },
+    {
+      "function": "_handleLocalLensIngest",
+      "fact": "Snapshots live FileList before awaits; canonical external pill retains captured nodes; mirrored modal progress is looked up fresh per event. Finally resets global flags/unsubscribes, schedules unscoped 3000ms removal and refreshes stats."
+    },
+    {
+      "function": "_showLibraryCreateDialog",
+      "fact": "Promise owns key handlers/captured form controls until close; current modal parent Escape checks confirm-overlay.show. Capture reuse/overlap without assuming a generation guard."
+    }
+  ],
+  "originalCaptureMatrix": [
+    "panel backend browser/external/unknown with connected/enabled/status/source truthiness and key masked only",
+    "modal source sidebar/default/context and close/Escape/confirm child focus",
+    "status-only update retains edited input identity/value/selection/focus",
+    "local stats zero/one/many/model/backend/speed/performance/error and complete service traces",
+    "document list literal source/count/order/delete attrs and empty behavior",
+    "library option loading/empty/error/order/active name sync/selected attrs",
+    "library create tiers/model-language recommendation/default fallback/ordered radio form and promise focus/Escape/Enter/cancel",
+    "ingest pill external lifetime, mirrored progress indeterminate/start/embed/saving/completion/failure/stop/dismiss/new-job timer overlap",
+    "deferred async target detach/replace/backend and library changes/reverse reply order/no panel side-effect facts",
+    "exact native stylesheet order before/after chat/settings lazy loading plus all KB matched declarations and shared foundation rules"
+  ],
+  "verificationBoundary": "No browser, worker, GPU/model, external endpoint, persistence or acceptance execution. Source observations identify capture cases rather than proving defects.",
+  "readOnlyReview": {
+    "reviewedAtUtc": "2026-10-10T04:46:02.752412+00:00",
+    "reviewer": "knowledge_base_scope_review",
+    "allPriorOwnerProtectedAndCssHashesRevalidated": true,
+    "executions": "Only shell/Python file reads and writes to these ignored preparation files. No Node, compiler, build, tests, server, browser, Git or original capture.",
+    "readOnlySupportingHashes": {
+      "js/settings-styles.ts": "e39322d09ce60774a91b323614cdfa5f47d3a289cb541a8b547cb8326c070596",
+      "js/chat-panel.ts": "0f5caf7b1cb55ebe60467be79105d1427ce83319bfc7bf7e69d25f82713de608",
+      "js/nav.ts": "77222549130fb6774d17659f327585b711388a7b707cac373089ff93215200de",
+      "index.html": "8388ccf371eb403d2d03abcbabd15723a1e54e2137a3bf8573eaa5636198b6d7",
+      "scripts/build-svelte.mts": "be3eb474218ca8308fed7707491935a6e01abdaf57654b8f79d7380d782e6f25",
+      "scripts/build-styles.mts": "89ceeefba218fb682c41915dcc467a250112daf0b7b1ff0c621a8e0a2507f9ad",
+      "js/lens-local-protocol.ts": "607b439c8f0c0d8a8898aaa5d17543a3a00900c5146c9708c41f7dc9085f8e23",
+      "scripts/dom-sink-policy.json": "bde058b1bf96ba74ce2040ce706601f87ff2718148679dc6153f6544a1994036"
+    }
+  },
+  "candidateTotals": {
+    "rules": 124,
+    "selectorPaths": 145,
+    "boundary": "Prior source inventory retained verbatim and source hashes freshly revalidated. Candidate clauses are not yet frozen native CSS acceptance."
+  },
+  "typedOwnership": {
+    "panel": "Framework-free snapshot uses public display config, keySet boolean, connected/usableSource facts and discriminated status. No actual API key or document content. Local/external children compose authored markup directly. Preserve cfg fallback/truthiness behavior in projection.",
+    "stats": "Loading/empty/loaded/error union; original modelLabel/backend/speed/plural/performance-note facts projected once; raw model retained solely for original title. Controller owns recordLocalLensStats/updateLensStatus and async service calls.",
+    "documents": "Ordered source label/chunks/action attribute snapshot. No sorting/truncating/parsing/coercion changes. Authored typed rows; no raw HTML.",
+    "library": "Typed option array with exact selected flags and empty/error labels; ordered model cards with existing computed recommendation/profile/language/download/notes, no hardware capability inference inside components.",
+    "modalAndPill": "Existing DOM host creation/lifetime/controller mutation remains; authored header/body/pill descendants render without permanent extra wrappers. Class helper applied to owned existing host. Progress events still update exact nodes/hidden/value/max/text/disabled fields."
+  },
+  "stylesheetOrderCapture": {
+    "initial": [
+      "vendor/fonts/fonts.css",
+      "styles.css",
+      "css/app-shell.css",
+      "css/modal-shared.css",
+      "other original initial styles"
+    ],
+    "settings": "loadSettingsStylesheet inserts at [data-settings-stylesheet-anchor] index.html:41; max-width compound .kb-modal.settings-modal has two-class specificity.",
+    "chat": "chat-panel.ts inserts chat-panel-open at [data-chat-presentation-stylesheet-anchor] index.html:51 after modal-shared. Native .kb-doc-delete changes border/background/font/padding when Chat CSS is first loaded. Capture cold KB and post-Chat KB, with Settings absent/present. Preserve this observable two-phase effect or separately justify a reviewed usability improvement; never silently normalize it.",
+    "breakpoints": [
+      320,
+      620,
+      621,
+      768,
+      769,
+      1440
+    ],
+    "themes": [
+      "default",
+      "dark",
+      "light",
+      "glass",
+      "synth-sunrise",
+      "neuromancer",
+      "cyberterm"
+    ]
+  },
+  "delegatedContract": {
+    "scope": "#custom-lens-section, #kb-modal; library dialog and ingest pill use own listeners, not lens action delegate scope.",
+    "clicks": [
+      "set-backend",
+      "new-library",
+      "rename-library",
+      "delete-library",
+      "open-local-filepick",
+      "save-config",
+      "clear-cache",
+      "remove-lens",
+      "close-kb",
+      "open-context",
+      "delete-doc",
+      "clear-local"
+    ],
+    "changes": [
+      "toggle-enabled",
+      "activate-library"
+    ],
+    "nativeListeners": [
+      "drop dragenter/dragover/dragleave/drop and Enter/Space",
+      "filepick change snapshots live FileList before clearing value",
+      "create close/cancel/submit/backdrop and Escape/name-input Enter",
+      "pill dismiss and async stop"
+    ]
+  },
+  "focusedVerification": {
+    "rootSource": [
+      "typescript:build before emitted commands",
+      "typecheck:migration",
+      "typecheck:migration-tests",
+      "styles:check",
+      "svelte:check",
+      "architecture:build and MODULE_MAP inspection",
+      "quality",
+      "exact protected source/function hashes",
+      "fresh DOM sink receipt; existing owned sink counts are 8 and 4 and markup replacements alter digests legitimately"
+    ],
+    "units": [
+      "tests/test-custom-lens.ts",
+      "tests/lens-local-runtime.test.ts",
+      "tests/lens-local-store.test.ts",
+      "tests/lens-local-ingest.test.ts",
+      "tests/test-lens-local-worker.ts",
+      "tests/styles-build.test.ts",
+      "new pure presentation/projection tests derived from immutable original samples"
+    ],
+    "nativeCompatibility": [
+      "tests/playwright/custom-lens.spec.ts",
+      "tests/playwright/lens-ui-loader-browser-coverage.spec.ts",
+      "tests/playwright/lens-local-library-browser-coverage.spec.ts",
+      "targeted tests in tests/playwright/lens-hardware-browser-coverage.spec.ts"
+    ],
+    "newParity": "New immutable Knowledge Base original fixture(s), independently frozen by root before any implementation. New bounded headless owned parity spec with real renderer/facade/production wrappers and actual pointer/focus/state/style/topology traces. Existing tests remain intact except exact ownership-related source checks.",
+    "staticAcceptance": "New static public UI spec through sidebar/Context/dashboard entry, backend save/config, library create/activate/rename/delete, real file ingestion and stop/dismiss, reload/stopped-origin cold launch, exact localStorage and actual IndexedDB persistence, update consent/manifest identity. Synthetic worker trace is UI protocol evidence only; real worker/model persistence evidence remains distinct.",
+    "realModel": "Existing tests/playwright/lens-local-model-real.spec.ts is opt-in GETBASED_LENS_REAL_MODELS=1; no run performed. Unchanged worker/domain hashes plus focused retained checks can support the presentation migration, but cannot claim physical GPU/external-server/model download acceptance."
+  }
+}

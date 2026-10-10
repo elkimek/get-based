@@ -129,19 +129,3 @@ body.chat-autostart-reserved:not(.chat-fullscreen) .dashboard-sticky-actions {
 .summary-modal-body .chat-blockquote { margin: 8px 0; padding: 8px 14px; border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0; background: var(--bg-hover); color: var(--text-secondary); }
 .summary-modal-body .chat-hr { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
 /* Local Knowledge Base — per-document row delete button */
-.kb-doc-delete {
-  flex-shrink: 0;
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-size: 18px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0 6px;
-  border-radius: 4px;
-  transition: color 0.15s, background 0.15s;
-}
-.kb-doc-delete:hover {
-  color: var(--red);
-  background: var(--bg-hover);
-}

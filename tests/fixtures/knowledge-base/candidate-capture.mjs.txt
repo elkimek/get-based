@@ -1,0 +1,66 @@
+// Candidate capture only. Promote/freeze only after the shared Cycle checkpoint passes.
+import '../../../tests/_node-shim.js';
+import fs from 'node:fs';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {execFileSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
+import {JSDOM} from 'jsdom';
+const directory=path.dirname(fileURLToPath(import.meta.url));
+const recipe=JSON.parse(fs.readFileSync(path.join(directory,'capture-recipe.json'),'utf8'));
+const preparation=JSON.parse(fs.readFileSync(path.join(directory,'preparation.json'),'utf8'));
+const hash=file=>createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+const sourceHashes={...preparation.ownerHashes,...preparation.protectedModuleHashes,...Object.fromEntries(preparation.cssCandidateInventory.map(entry=>[entry.file,entry.sha256]))};
+for(const [file,expected] of Object.entries(sourceHashes))if(hash(file)!==expected)throw new Error('Original Knowledge Base source changed: '+file);
+const revision=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
+if(revision!=='2ab846c9fda65ce2afb6415f647dc92b2f8efb67')throw new Error('Candidate requires current original Knowledge Base revision');
+const dom=new JSDOM('<!doctype html><html><body><div class="settings-section" id="custom-lens-section"></div><div id="notification-container"></div></body></html>',{url:'https://fixture.test/',pretendToBeVisual:true});
+for(const key of ['window','document','Element','HTMLElement','HTMLButtonElement','HTMLInputElement','HTMLSelectElement','HTMLProgressElement','Node','Event','MouseEvent','KeyboardEvent','CustomEvent'])Object.defineProperty(globalThis,key,{configurable:true,writable:true,value:dom.window[key]});
+globalThis.getComputedStyle=dom.window.getComputedStyle.bind(dom.window);
+const frames=[];globalThis.requestAnimationFrame=callback=>{frames.push(callback);return frames.length;};globalThis.cancelAnimationFrame=()=>{};
+const {createLensKnowledgeBaseUi}=await import('../../../js/lens-knowledge-base-ui.js');
+const {createLensLibraryHandlers}=await import('../../../js/lens-library.js');
+const trace=[];let cfg=structuredClone(recipe.baseConfig),status=structuredClone(recipe.baseStatus),key='',usableSource=false;
+const recorded=value=>JSON.parse(JSON.stringify(value,(_key,value)=>typeof value==='number'&&!Number.isFinite(value)?{$number:String(value)}:value));
+const ui=createLensKnowledgeBaseUi({defaultTestProbe:'Synthetic retrieval probe',getLensConfig:()=>cfg,saveLensConfig:partial=>{trace.push(['saveLensConfig',recorded(partial)]);Object.assign(cfg,partial);},getLensKey:()=>key,saveLensKey:async value=>trace.push(['saveLensKey',value]),removeLens:async()=>trace.push(['removeLens']),clearLensCache:()=>trace.push(['clearLensCache']),getLensStatus:()=>status,updateLensStatus:partial=>{trace.push(['updateLensStatus',recorded(partial)]);Object.assign(status,partial);},hasLens:()=>usableSource,isValidLensUrl:()=>true,testLensConnection:async()=>({ok:true,chunkCount:1}),recordLocalLensStats:value=>trace.push(['recordLocalLensStats',recorded(value)])});
+const samples=[];
+function controls(root){return [...root.querySelectorAll('input,select,textarea,button,progress')].map(node=>({tag:node.tagName,id:node.id,type:node.getAttribute('type'),value:node.value,checked:node.checked,disabled:node.disabled,hidden:node.hidden,max:node.max,selected:node instanceof HTMLSelectElement?[...node.options].map(option=>({value:option.value,text:option.textContent,selected:option.selected})):undefined}));}
+for(const seed of recipe.panelSeeds){
+ cfg=structuredClone(seed.config);status=structuredClone(seed.status);key=seed.keyPresent?'synthetic-key':'';usableSource=seed.usableSource;frames.length=0;trace.length=0;
+ const html=ui.renderCustomLensSection();const root=document.getElementById('custom-lens-section');root.innerHTML=html;
+ if(root.querySelector('img,script,[onerror],[onclick]'))throw new Error('Literal fixture executed markup: '+seed.name);
+ samples.push({kind:'panel',name:seed.name,input:seed,html,controls:controls(root),scheduledFrames:frames.length,trace:recorded(trace)});
+ ui.handleToggleLens(!cfg.enabled);
+ samples.push({kind:'status-toggle',name:seed.name,input:seed,html:document.getElementById('lens-status-chip').innerHTML,controls:controls(root),trace:recorded(trace)});
+}
+for(const source of [undefined,'sidebar','context','unknown']){
+ cfg={...recipe.baseConfig,backend:'external-server',url:'https://kb.example.test/query'};status=structuredClone(recipe.baseStatus);key='synthetic-key';usableSource=true;frames.length=0;trace.length=0;
+ ui.openKnowledgeBaseModal(source===undefined?{}:{source});const modal=document.getElementById('kb-modal');samples.push({kind:'modal',name:source??'default',input:{source},html:modal.outerHTML,controls:controls(modal),trace:recorded(trace),scheduledFrames:frames.length});ui.closeKnowledgeBaseModal();
+}
+cfg=structuredClone(recipe.baseConfig);status=structuredClone(recipe.baseStatus);
+document.body.innerHTML='<div class="settings-section" id="custom-lens-section">'+ui.renderCustomLensSection()+'</div><div id="notification-container"></div>';
+frames.length=0;
+let local;
+const library=createLensLibraryHandlers({getLensConfig:()=>cfg,getLocalLens:async()=>{trace.push(['getLocalLens']);if(local instanceof Error)throw local;return local;},clearLensCache:()=>trace.push(['clearLensCache']),saveLensConfig:partial=>{trace.push(['saveLensConfig',recorded(partial)]);Object.assign(cfg,partial);},updateLensStatusChip:()=>trace.push(['updateLensStatusChip']),loadLocalLensStats:async()=>trace.push(['loadLocalLensStats'])});
+for(const seed of recipe.libraryOptionSeeds){
+ cfg={...recipe.baseConfig,name:seed.configName??recipe.baseConfig.name,backend:seed.backend??recipe.baseConfig.backend};status=structuredClone(recipe.baseStatus);frames.length=0;trace.length=0;
+ document.getElementById('custom-lens-section').innerHTML=ui.renderCustomLensSection();frames.length=0;
+ const originalSelect=document.getElementById('lens-library-select');if(seed.name==='missing-select')originalSelect.remove();
+ local={listLibraries:async()=>{trace.push(['listLibraries']);if(seed.listReject)throw new Error(seed.listReject);return {libraries:seed.libraries??[],activeId:seed.activeId??''};}};
+ await library.loadLibraryPicker();const select=document.getElementById('lens-library-select');samples.push({kind:'library-options',name:seed.name,input:seed,html:select?.innerHTML??null,controls:controls(document.getElementById('custom-lens-section')),trace:recorded(trace)});
+}
+cfg=structuredClone(recipe.baseConfig);document.getElementById('custom-lens-section').innerHTML=ui.renderCustomLensSection();frames.length=0;
+for(const seed of recipe.libraryCreateSeeds){
+ cfg=structuredClone(recipe.baseConfig);trace.length=0;
+ const models=seed.modelsOrder?Object.fromEntries(seed.modelsOrder.map(name=>[name,recipe.models[name]])):seed.models==='base'?recipe.models:seed.models;
+ local=seed.localError?new Error(seed.localError):{embedder:seed.embedder,models};
+ const pending=library.handleLibraryNew();
+ for(let attempt=0;attempt<100&&!document.querySelector('.confirm-overlay.show');attempt++)await new Promise(resolve=>setTimeout(resolve,5));
+ const overlay=document.querySelector('.confirm-overlay.show');if(!overlay)throw new Error('Library dialog did not open: '+seed.name);
+ samples.push({kind:'library-create',name:seed.name,input:{...seed,models},html:overlay.innerHTML,controls:controls(overlay),selected:overlay.querySelector('input[name="lens-create-model"]:checked')?.value??null,trace:recorded(trace)});
+ const cancel=overlay.querySelector('#lens-create-cancel,#prompt-cancel');if(!cancel)throw new Error('No public cancel control: '+seed.name);cancel.click();await pending;
+ if(overlay.classList.contains('show'))throw new Error('Library dialog failed to close');overlay.remove();
+}
+for(const [file,expected] of Object.entries(sourceHashes))if(hash(file)!==expected)throw new Error('Capture mutated original source: '+file);
+fs.writeFileSync(path.join(directory,'candidate-original.json'),JSON.stringify({kind:'candidate original capture; not accepted or canonical',revision,sourceHashes,recipeSHA256:hash(path.join(directory,'capture-recipe.json')),publicApisOnly:true,domainAndStylesUnchanged:true,samples,boundaries:['Node/jsdom structural and public controller captures only','Deferred panel rAF hydration is recorded without executing here','No browser layout/focus/real pointer claim','Local statistics/ingest/async behavior require separate captures before source release']},null,2)+'\n');
+console.log(JSON.stringify({revision,samples:samples.length,byKind:Object.fromEntries([...new Set(samples.map(sample=>sample.kind))].map(kind=>[kind,samples.filter(sample=>sample.kind===kind).length]))}));dom.window.close();

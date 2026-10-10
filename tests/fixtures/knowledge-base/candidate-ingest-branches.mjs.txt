@@ -1,0 +1,482 @@
+// Unexecuted preparation: original public UI + parser + local API, synthetic Worker only.
+// Root executes this before any prerequisite source fix. No production source/fixture writes.
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
+import { File as NodeFile } from 'node:buffer';
+import assert from 'node:assert/strict';
+
+const script = fileURLToPath(import.meta.url);
+const notes = path.dirname(script);
+const root = path.resolve(notes, '../../..');
+const readJson = name => JSON.parse(fs.readFileSync(path.join(notes, name), 'utf8'));
+const baseline = readJson('candidate-baseline.json');
+const matrix = readJson('ingest-remaining-branches.json');
+const recipe = readJson('capture-recipe.json');
+const marker = '__KB_BRANCH_RESULT__';
+const clone = value => structuredClone(value);
+const hash = file => createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+function verifyOriginal() {
+  const observed = {};
+  for (const [group, expected] of Object.entries({canonical: baseline.originalCanonicalHashes, runtime: baseline.originalRuntimeHashes})) {
+    observed[group] = {};
+    for (const [file, expectedHash] of Object.entries(expected)) {
+      const actual = hash(path.join(root, file));
+      observed[group][file] = actual;
+      assert.equal(actual, expectedHash, `Original ${group} bytes changed: ${file}`);
+    }
+  }
+  return observed;
+}
+const childArg = process.argv.indexOf('--case');
+if (childArg < 0) {
+  const before = verifyOriginal();
+  const only = process.argv.find(arg => arg.startsWith('--only='))?.slice(7).split(',');
+  if (only) for (const name of only) assert(matrix.matrix.some(item => item.name === name), `Unknown case: ${name}`);
+  const cases = matrix.matrix.filter(item => !only || only.includes(item.name));
+  const results = [];
+  for (const item of cases) {
+    const run = spawnSync(process.execPath, [script, '--case', item.name], {
+      cwd: root, encoding: 'utf8', timeout: 20000, maxBuffer: 8 * 1024 * 1024,
+      env: {...process.env, TZ: 'UTC'},
+    });
+    const receiptLine = (run.stdout || '').split('\n').find(line => line.startsWith(marker));
+    let receipt = null;
+    try { if (receiptLine) receipt = JSON.parse(receiptLine.slice(marker.length)); } catch {}
+    results.push({name: item.name, exitCode: run.status, signal: run.signal,
+      spawnError: run.error?.message ?? null, stdout: (run.stdout || '').split('\n').filter(line => !line.startsWith(marker)).join('\n'),
+      stderr: run.stderr || '', receipt});
+  }
+  const after = verifyOriginal();
+  const report = {
+    schemaVersion: 1, kind: 'candidate original public ingest branch capture; not immutable fixture or acceptance',
+    baselineRevisionLabel: baseline.revision, nodeVersion: process.version,
+    driverSHA256: hash(script), sourceHashesBefore: before, sourceHashesAfter: after,
+    selectedCases: cases.map(item => item.name), results,
+    summary: {
+      captured: results.filter(item => item.receipt?.status === 'captured' && item.exitCode === 0).map(item => item.name),
+      uncaptured: results.filter(item => item.receipt?.status === 'uncaptured').map(item => item.name),
+      failed: results.filter(item => !item.receipt || item.receipt.status === 'failed' || item.exitCode !== 0).map(item => item.name),
+    },
+    boundaries: [
+      'Each case runs in a fresh Node process; actual original modules and serial queue are not reset or mocked.',
+      'JSDOM and real Node File objects in a synthetic live FileList-like container; no browser layout/trusted input claim.',
+      'Valid synthetic Worker protocol, deterministic performance clock and application timeout callbacks; no actual indexing/OPFS/model claim.',
+      'Original canonical and emitted-runtime hashes checked before/after. Revision is a recorded baseline label, not a fresh Git assertion.',
+      'Loading-model stop is accepted only when actual public DOM observation precedes ingest; otherwise explicitly uncaptured.',
+    ],
+  };
+  const output = path.join(notes, 'candidate-ingest-branches-original.json');
+  fs.writeFileSync(output, JSON.stringify(report, null, 2) + '\n');
+  console.log(JSON.stringify({output, ...report.summary}));
+  if (report.summary.failed.length || report.summary.uncaptured.length) process.exitCode = 1;
+} else {
+  const name = process.argv[childArg + 1];
+  const specification = matrix.matrix.find(item => item.name === name);
+  assert(specification, `Unknown case: ${name}`);
+  const result = {name, status: 'failed', expectedBranch: specification.newBranch,
+    expectedWire: specification.wireDelta, snapshots: [], observations: [], requests: [], replies: [], trace: [], warnings: [], errors: []};
+  let dom;
+  const realTimeout = globalThis.setTimeout;
+  const realClearTimeout = globalThis.clearTimeout;
+  const originalConsoleWarn = console.warn;
+  const originalConsoleError = console.error;
+  const normalize = value => value instanceof Error ? {name: value.name, message: value.message} : value;
+  try {
+    result.hashesBefore = verifyOriginal();
+    // The shared shim only supplies environment facilities; app/local/parser stay original.
+    await import('../../../tests/_node-shim.js');
+    const { JSDOM } = await import('jsdom');
+    dom = new JSDOM('<!doctype html><html><body><div id="notification-container"></div><div class="settings-section" id="custom-lens-section"></div></body></html>',
+      {url: 'https://fixture.test/', pretendToBeVisual: true});
+    for (const key of ['window','document','Element','HTMLElement','HTMLButtonElement','HTMLInputElement','HTMLSelectElement','HTMLProgressElement','Node','Event','MouseEvent','KeyboardEvent','CustomEvent','MutationObserver']) {
+      Object.defineProperty(globalThis, key, {configurable: true, writable: true, value: dom.window[key]});
+    }
+    globalThis.getComputedStyle = dom.window.getComputedStyle.bind(dom.window);
+    globalThis.localStorage = dom.window.localStorage;
+    globalThis.sessionStorage = dom.window.sessionStorage;
+    let now = matrix.clock.t0;
+    let timerId = 0;
+    const timers = new Map();
+    const frames = [];
+    Object.defineProperty(globalThis, 'performance', {configurable: true, value: {now: () => now}});
+    globalThis.setTimeout = (fn, delay = 0, ...args) => {
+      assert.equal(typeof fn, 'function', 'Application timeout must be callable');
+      const id = ++timerId;
+      const timer = {id, fn, args, delay: Number(delay), due: now + Number(delay)};
+      timers.set(id, timer);
+      result.trace.push({type: 'timer-created', id, delay: timer.delay, due: timer.due});
+      return id;
+    };
+    globalThis.clearTimeout = id => timers.delete(id);
+    globalThis.requestAnimationFrame = fn => {frames.push(fn); return frames.length;};
+    globalThis.cancelAnimationFrame = () => {};
+    console.warn = (...args) => result.warnings.push(args.map(normalize));
+    console.error = (...args) => result.errors.push(args.map(normalize));
+    const sleep = ms => new Promise(resolve => realTimeout(resolve, ms));
+    async function waitFor(predicate, label) {
+      for (let i = 0; i < 200; i++) {if (predicate()) return; await sleep(5);}
+      throw new Error(`Timed out: ${label}`);
+    }
+    async function advanceTo(target) {
+      assert(target >= now, 'Clock cannot run backwards');
+      for (;;) {
+        const next = [...timers.values()].filter(item => item.due <= target).sort((a,b) => a.due - b.due || a.id - b.id)[0];
+        if (!next) break;
+        now = next.due;
+        timers.delete(next.id);
+        result.trace.push({type: 'timer-fired', id: next.id, now});
+        next.fn(...next.args);
+        await Promise.resolve();
+      }
+      now = target;
+      await Promise.resolve();
+    }
+    const corpus = clone(matrix.seedCorpus);
+    if (name.endsWith('-two')) corpus.documents = [{source: 'existing.md', chunks: 1}, {source: 'second-existing.md', chunks: 1}];
+    let currentStats = corpus;
+    let worker;
+    const library = {id: 'research', name: recipe.baseConfig.name, createdAt: 1700000000000, model: 'all-minilm'};
+    class WorkerBoundary {
+      constructor(url, options) {
+        assert.equal(new URL(String(url)).pathname, path.join(root, 'js/lens-local-worker.js'));
+        assert.equal(options.type, 'module');
+        this.listeners = {message: [], error: []};
+        this.inflight = null;
+        this.pending = null;
+        this.saving = false;
+        this.committed = false;
+        worker = this;
+        result.trace.push({type: 'worker-created', url: String(url), options});
+      }
+      addEventListener(type, fn) {assert(this.listeners[type]); this.listeners[type].push(fn);}
+      removeEventListener(type, fn) {this.listeners[type] = this.listeners[type].filter(item => item !== fn);}
+      emit(data) {
+        result.replies.push({now, data: clone(data)});
+        if (data.type !== 'progress') {
+          assert(this.inflight, 'Reply requires a real FIFO request');
+          const legal = {init: 'ready', list_libraries: 'libraries_list', stats: 'stats_result', ingest: 'ingest_done'};
+          assert(data.type === 'error' || legal[this.inflight.type] === data.type, 'Reply/request protocol mismatch');
+          this.inflight = null;
+        }
+        for (const fn of [...this.listeners.message]) fn({data});
+      }
+      postMessage(message) {
+        result.requests.push({now, message: clone(message)});
+        if (message.type === 'abort') return; // Genuine unqueued side channel, also valid before ingest.
+        if (message.type === 'commit_ingest') {
+          assert(this.pending && this.inflight?.type === 'ingest' && this.saving && !this.committed, 'Commit requires pending saving transaction');
+          this.committed = true;
+          snapshot('actual-client-commit');
+          return;
+        }
+        assert.equal(this.inflight, null, 'Worker FIFO has overlapping requests');
+        this.inflight = clone(message);
+        if (message.type === 'ingest') {
+          assert.equal(this.pending, null);
+          this.pending = clone(message);
+          this.saving = false;
+          this.committed = false;
+          return;
+        }
+        assert(['init','list_libraries','stats'].includes(message.type), `Unexpected request ${message.type}`);
+        queueMicrotask(() => {
+          if (message.type === 'init') this.emit({type: 'ready', numChunks: currentStats.total_chunks, numDocs: currentStats.documents.length,
+            libraries: [clone(library)], activeId: library.id, activeName: library.name, activeModel: library.model, embedder: null, models: clone(recipe.models)});
+          else if (message.type === 'list_libraries') this.emit({type: 'libraries_list', libraries: [clone(library)], activeId: library.id});
+          else this.emit({type: 'stats_result', ...clone(currentStats)});
+        });
+      }
+      progress(stage, payload) {
+        assert(this.pending && this.inflight?.type === 'ingest', 'Progress requires real inflight ingest');
+        if (stage === 'saving') this.saving = true;
+        this.emit({type: 'progress', stage, ...payload});
+      }
+      complete(stats) {
+        assert(this.pending, 'Completion requires accepted ingest');
+        if (!stats.cancelled && stats.chunks_indexed > 0) {
+          assert(this.saving && this.committed, 'Positive transaction requires genuine saving/client-commit handshake');
+          const changedSources = new Set(this.pending.files.map(file => file.name));
+          const keptDocuments = corpus.documents.filter(doc => !changedSources.has(doc.source));
+          const indexedDocuments = this.pending.files.map((file, i, files) => ({source: file.name,
+            chunks: Math.floor(stats.chunks_indexed / files.length) + (i < stats.chunks_indexed % files.length ? 1 : 0)}));
+          const documents = [...clone(keptDocuments), ...indexedDocuments];
+          currentStats = {...clone(corpus), total_chunks: documents.reduce((sum, doc) => sum + doc.chunks, 0), documents};
+        } else assert(!this.saving && !this.committed, 'No-op/cancelled pre-save must not commit');
+        this.pending = null;
+        this.emit({type: 'ingest_done', stats: clone(stats)});
+      }
+      fail(message) {assert(this.pending); this.pending = null; this.emit({type: 'error', message});}
+      terminate() {result.trace.push({type: 'worker-terminated'});}
+    }
+    globalThis.Worker = WorkerBoundary;
+    let config = clone(recipe.baseConfig);
+    let status = clone(recipe.baseStatus);
+    const {createLensKnowledgeBaseUi} = await import('../../../js/lens-knowledge-base-ui.js');
+    const ui = createLensKnowledgeBaseUi({
+      defaultTestProbe: 'Synthetic retrieval probe', getLensConfig: () => config,
+      saveLensConfig: partial => {result.trace.push({type: 'saveLensConfig', partial: clone(partial)}); Object.assign(config, partial);},
+      getLensKey: () => '', saveLensKey: async () => {}, removeLens: async () => {},
+      clearLensCache: () => result.trace.push({type: 'clearLensCache'}),
+      getLensStatus: () => status, updateLensStatus: partial => {result.trace.push({type: 'updateLensStatus', partial: clone(partial)}); Object.assign(status, partial);},
+      hasLens: () => currentStats.total_chunks > 0, isValidLensUrl: () => true,
+      testLensConnection: async () => ({ok: true, chunkCount: 1}),
+      recordLocalLensStats: stats => result.trace.push({type: 'recordLocalLensStats', stats: clone(stats)}),
+    });
+    const byId = id => document.getElementById(id);
+    const progress = id => {const node = byId(id); return node ? {value: node.hasAttribute('value') ? node.value : null, max: node.max, html: node.outerHTML} : null;};
+    function snapshot(label) {
+      const pill = byId('lens-ingest-pill');
+      const stop = byId('lens-ingest-pill-cancel');
+      const wrap = byId('lens-local-progress-wrap');
+      const capture = {label, now, pillHTML: pill?.outerHTML ?? null, pillText: byId('lens-ingest-pill-text')?.textContent ?? null,
+        stop: stop ? {text: stop.textContent, disabled: stop.disabled} : null,
+        pillBar: progress('lens-ingest-pill-bar'), modalBar: progress('lens-local-progress'),
+        modalText: byId('lens-local-progress-text')?.textContent ?? null,
+        modalWrap: wrap ? {hidden: wrap.hidden, display: wrap.style.display, html: wrap.outerHTML} : null,
+        running: window._lensIngestRunning ?? false, stopRequested: window._lensIngestStopRequested ?? false,
+        statsHTML: byId('lens-local-stats')?.innerHTML ?? null, docListHTML: byId('lens-local-doc-list')?.innerHTML ?? null,
+        notifications: [...document.querySelectorAll('.notification-toast')].map(node => ({text: node.textContent, className: node.className, html: node.outerHTML})),
+        cachedCount: localStorage.getItem('labcharts-lens-local-count'), corpus: clone(currentStats), config: clone(config),
+        requestCount: result.requests.length, traceCount: result.trace.length};
+      result.snapshots.push(capture);
+      return capture;
+    }
+    byId('custom-lens-section').innerHTML = ui.renderCustomLensSection();
+    assert.equal(frames.length, 1, 'Original render should schedule its hydration frame');
+    frames.shift()(0);
+    await waitFor(() => byId('lens-local-drop')?.dataset.wired === '1', 'original attached public picker/drop handlers');
+    await sleep(5);
+    const setupRequestCount = result.requests.length;
+    const setupTraceCount = result.trace.length;
+    result.setup = {requests: clone(result.requests), snapshot: snapshot('hydrated-original')};
+    const picker = byId('lens-local-filepick');
+    const liveFiles = [];
+    Object.defineProperty(picker, 'files', {configurable: true, get: () => liveFiles});
+    const nativeValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+    Object.defineProperty(picker, 'value', {configurable: true, get() {return nativeValue.get.call(this);},
+      set(value) {nativeValue.set.call(this, value); if (value === '') liveFiles.length = 0;}});
+    const observer = new MutationObserver(records => {
+      for (const record of records) if (record.target.id === 'lens-ingest-pill-text') {
+        for (const node of record.addedNodes) result.observations.push({now, text: node.textContent, requestCount: result.requests.length});
+      }
+    });
+    observer.observe(document.body, {childList: true, subtree: true});
+    function select(files) {
+      liveFiles.push(...files);
+      picker.dispatchEvent(new Event('change', {bubbles: true}));
+      assert.equal(liveFiles.length, 0, 'Actual attached handler must clear the live FileList-like container');
+      snapshot('picker-cleared');
+    }
+    const file = (name, text = 'Synthetic original text.') => new NodeFile([text], name, {type: 'text/plain'});
+    const unreadable = () => {const f = file('unreadable.md'); Object.defineProperty(f, 'text', {value: async () => {throw new Error('Synthetic read failure');}}); return f;};
+    const requestTypes = start => result.requests.slice(start).map(item => item.message.type);
+    const count = type => result.trace.filter(item => item.type === type).length;
+    const initialRecords = count('recordLocalLensStats');
+    const awaitPending = async () => {await waitFor(() => worker.pending, 'real public ingest wire request'); snapshot('ingest-pending');};
+    const settle = async error => {
+      await waitFor(() => !window._lensIngestRunning, 'original terminal running flag');
+      await waitFor(() => error ? byId('lens-local-stats').textContent.includes('Failed to load library:') : count('recordLocalLensStats') > initialRecords, 'original finally stats hydration');
+      await sleep(5);
+      return snapshot('terminal');
+    };
+    const stop = async () => {
+      const button = byId('lens-ingest-pill-cancel');
+      assert(button && !button.disabled, 'Original Stop must be enabled before click');
+      button.click();
+      await waitFor(() => result.requests.slice(setupRequestCount).some(item => item.message.type === 'abort'), 'actual unqueued abort');
+      snapshot('stop-clicked');
+    };
+    const success = async stats => {
+      now = matrix.clock.startIndexTime;
+      worker.progress('start', {total: stats.chunks_planned});
+      snapshot('progress-start');
+      now = matrix.clock.embedTime;
+      worker.progress('embed', {index: stats.chunks_indexed, total: stats.chunks_planned, source: worker.pending.files[0].name});
+      snapshot('progress-embed');
+      worker.progress('saving', {total: stats.chunks_planned});
+      assert(worker.committed, 'Actual client must send commit synchronously after saving subscriber');
+      snapshot('progress-saving');
+      now = matrix.clock.completion;
+      worker.complete(stats);
+      return settle(false);
+    };
+    let terminal;
+    let uncaptured = false;
+    if (name === 'empty-selection') {
+      select([]);
+      await sleep(10);
+      terminal = snapshot('empty-return');
+      assert.equal(terminal.pillHTML, null);
+      assert.equal(terminal.running, false);
+      assert.equal(result.trace.length, setupTraceCount);
+      assert.equal(terminal.notifications.length, 0);
+    } else if (name === 'busy-selection') {
+      select([file('first.md')]);
+      await awaitPending();
+      const before = snapshot('before-busy-selection');
+      const branchStart = result.requests.length;
+      select([file('second.md')]);
+      await sleep(5);
+      const after = snapshot('after-busy-selection');
+      result.focusedBranchWire = requestTypes(branchStart);
+      assert.deepEqual(result.focusedBranchWire, []);
+      assert.equal(after.pillHTML, before.pillHTML);
+      assert.equal(after.running, true);
+      assert(after.notifications.some(item => item.className.includes('info') && item.text.includes('Finish or stop the current indexing job before adding more files.')));
+      assert.equal(count('clearLensCache'), 0);
+      terminal = await success({files_seen: 1, chunks_planned: 1, documents_indexed: 1, chunks_indexed: 1, replaced_documents: 0, skipped: [], cancelled: false});
+    } else if (name === 'unsupported-no-usable' || name === 'all-text-reads-fail') {
+      if (name === 'unsupported-no-usable') {
+        const event = new Event('drop', {bubbles: true, cancelable: true});
+        Object.defineProperty(event, 'dataTransfer', {value: {files: [file('unsupported.bin')]}});
+        byId('lens-local-drop').dispatchEvent(event);
+        snapshot('original-drop-dispatched');
+      } else select([unreadable()]);
+      terminal = await settle(false);
+      assert.equal(terminal.pillText, 'No usable documents were found.');
+      assert.deepEqual(terminal.stop, {text: 'Stop indexing', disabled: false});
+      assert.equal(terminal.pillBar.value, null);
+      assert.equal(terminal.notifications.length, 0);
+      assert(result.warnings.length > 0);
+    } else if (name === 'stop-during-reading') {
+      let release;
+      const deferred = file('deferred.md');
+      Object.defineProperty(deferred, 'text', {value: () => new Promise(resolve => {release = resolve;})});
+      select([deferred]);
+      await waitFor(() => release && byId('lens-ingest-pill-text').textContent === 'Reading 1/1 · deferred.md', 'real parser deferred read');
+      await stop();
+      release('Synthetic deferred original text.');
+      terminal = await settle(false);
+    } else if (name === 'stop-before-indexing') {
+      let loadingReceipt = null;
+      const loadingObserver = new MutationObserver(records => {
+        for (const record of records) if (record.target.id === 'lens-ingest-pill-text') for (const node of record.addedNodes) {
+          if (node.textContent === 'Loading the active search model…' && !loadingReceipt) {
+            loadingReceipt = {now, observedText: node.textContent, beforeIngest: !worker.pending,
+              wireAtObservation: requestTypes(setupRequestCount), stopEnabled: !byId('lens-ingest-pill-cancel').disabled};
+            if (loadingReceipt.beforeIngest && loadingReceipt.stopEnabled) byId('lens-ingest-pill-cancel').click();
+          }
+        }
+      });
+      loadingObserver.observe(document.body, {childList: true, subtree: true});
+      select([file('before-index.md')]);
+      await waitFor(() => worker.pending || !window._lensIngestRunning, 'public loading-stop outcome');
+      result.loadingStopReceipt = loadingReceipt;
+      if (worker.pending || !loadingReceipt?.beforeIngest) {
+        uncaptured = true;
+        result.uncapturedReason = 'Public Loading mutation observer did not stop before real ingest; no private state forced.';
+        if (worker.pending) terminal = await success({files_seen: 1, chunks_planned: 1, documents_indexed: 1, chunks_indexed: 1, replaced_documents: 0, skipped: [], cancelled: false});
+        else terminal = await settle(false);
+      } else terminal = await settle(false);
+      loadingObserver.disconnect();
+    } else {
+      if (name === 'one-read-fails-one-succeeds') select([unreadable(), file('good.md')]);
+      else if (name.endsWith('-two')) select([file('existing.md'), file('second-existing.md')]);
+      else select([file(name.startsWith('replace') || name.startsWith('up-to-date') ? 'existing.md' : 'single.md')]);
+      await awaitPending();
+      if (name === 'one-read-fails-one-succeeds') {
+        assert.deepEqual(worker.pending.files, [{name: 'good.md', text: 'Synthetic original text.'}]);
+        assert(result.warnings.length > 0);
+        terminal = await success(specification.completionStats);
+      } else if (name === 'worker-ingest-error') {
+        now = matrix.clock.completion;
+        worker.fail('Synthetic <index> & failure');
+        terminal = await settle(true);
+        assert.equal(terminal.pillText, "Couldn't index: Synthetic <index> & failure");
+        assert(terminal.statsHTML.includes('Synthetic &lt;index&gt; &amp; failure'));
+        assert.equal(terminal.pillBar.value, null);
+        assert(terminal.notifications.some(item => item.className.includes('error') && item.text.includes('Synthetic <index> & failure')));
+      } else if (name === 'cancelled-completion-no-eta') {
+        now = matrix.clock.startIndexTime;
+        worker.progress('start', {total: 2});
+        snapshot('progress-start');
+        now = matrix.clock.embedTime;
+        worker.progress('embed', {index: 2, total: 2, source: 'single.md'});
+        const embedded = snapshot('progress-embed-complete-no-eta');
+        assert.equal(embedded.pillText, 'Indexing 2/2 · 2.0/s · single.md');
+        await stop();
+        now = matrix.clock.completion;
+        worker.complete({...specification.completionStats, chunks_processed: 2});
+        terminal = await settle(false);
+      } else if (name.startsWith('up-to-date')) {
+        now = matrix.clock.startIndexTime;
+        worker.progress('start', {total: 0});
+        const checking = snapshot('checking-zero');
+        assert.equal(checking.pillText, 'Checking for document changes…');
+        assert.equal(checking.pillBar.value, 0);
+        assert.equal(checking.pillBar.max, 1);
+        now = matrix.clock.completion;
+        worker.complete(specification.completionStats);
+        terminal = await settle(false);
+      } else terminal = await success(specification.completionStats);
+    }
+    result.wireDelta = requestTypes(setupRequestCount);
+    if (!uncaptured) {
+      assert.deepEqual(name === 'busy-selection' ? result.focusedBranchWire : result.wireDelta, specification.wireDelta, 'Original public wire branch differs from matrix');
+      assert.equal(terminal.running, false);
+      assert.equal(terminal.stopRequested, false);
+      assert.equal(count('saveLensConfig'), 0, 'Ingest must not mutate library config');
+      const positive = !['busy-selection'].includes(name) && specification.completionStats?.chunks_indexed > 0 && !specification.completionStats.cancelled;
+      assert.equal(count('clearLensCache'), positive || name === 'busy-selection' ? 1 : 0, 'Cache clear ownership differs');
+      if (name.startsWith('stop-')) {
+        assert.equal(terminal.pillText, 'Stopped before indexing — no library changes were saved.');
+        assert.deepEqual(terminal.stop, {text: 'Stopping…', disabled: true});
+        assert.equal(terminal.pillBar.value, 1);
+        assert(terminal.notifications.some(item => item.className.includes('info') && item.text.includes(terminal.pillText)));
+      }
+      if (specification.completionStats) {
+        const stats = specification.completionStats;
+        let message;
+        if (stats.cancelled) message = 'Stopped after 2.0s — no library changes were saved.';
+        else if (stats.skipped.length) message = `Already up to date — ${stats.skipped.length} unchanged file${stats.skipped.length === 1 ? '' : 's'}.`;
+        else message = `Indexed ${stats.chunks_indexed} excerpts from ${stats.files_seen} file${stats.files_seen === 1 ? '' : 's'} in 2.0s${stats.replaced_documents ? ` · replaced ${stats.replaced_documents} existing document${stats.replaced_documents === 1 ? '' : 's'}` : ''}.`;
+        assert.equal(terminal.pillText, message);
+        assert.deepEqual(terminal.stop, {text: stats.cancelled ? 'Stopped' : 'Done', disabled: true});
+        assert.equal(terminal.pillBar.value, 1);
+        assert.equal(terminal.modalBar.value, 1);
+        assert(terminal.notifications.some(item => item.className.includes(stats.cancelled ? 'info' : 'success') && item.text.includes(message)));
+      }
+      if (!positive && name !== 'busy-selection') {
+        assert.deepEqual(currentStats, corpus, 'No-op/stop/error must preserve synthetic corpus');
+        assert.equal(terminal.cachedCount, String(corpus.total_chunks));
+      }
+      if (positive) {
+        assert.equal(terminal.cachedCount, String(currentStats.total_chunks));
+        assert.deepEqual(terminal.corpus, currentStats);
+      }
+      assert.equal(worker.inflight, null, 'All real FIFO requests must settle');
+      assert.equal(worker.pending, null, 'No synthetic transaction can leak');
+    }
+    if (terminal.pillHTML) {
+      const terminalTime = now;
+      const cleanup = [...timers.values()].filter(timer => timer.delay === 3000 && timer.due === terminalTime + 3000);
+      assert(cleanup.length > 0, 'Terminal must schedule original 3000ms lifetime');
+      result.cleanupTimers = cleanup.map(({id, delay, due}) => ({id, delay, due}));
+      await advanceTo(terminalTime + 2999);
+      const before = snapshot('terminal-plus-2999ms');
+      assert(before.pillHTML, 'Original pill should remain until 3000ms');
+      await advanceTo(terminalTime + 3000);
+      const after = snapshot('terminal-plus-3000ms');
+      assert.equal(after.pillHTML, null, 'Original pill cleanup should run at 3000ms');
+      assert.equal(after.modalWrap.hidden, true);
+      assert.equal(after.modalWrap.display, 'none');
+    }
+    observer.disconnect();
+    result.hashesAfter = verifyOriginal();
+    result.status = uncaptured ? 'uncaptured' : 'captured';
+  } catch (error) {
+    result.failure = {name: error.name, message: error.message, stack: error.stack};
+    try {result.hashesAfter = verifyOriginal();} catch (hashError) {result.hashFailure = hashError.message;}
+    process.exitCode = 1;
+  } finally {
+    globalThis.setTimeout = realTimeout;
+    globalThis.clearTimeout = realClearTimeout;
+    console.warn = originalConsoleWarn;
+    console.error = originalConsoleError;
+    dom?.window.close();
+    console.log(marker + JSON.stringify(result));
+  }
+}
