@@ -2489,3 +2489,9 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /js/utils-dialog-rendering.js
 /js/utils-dialog-classes.js
 /tests/utils-dialog-presentation.test.js
+
+# Sun data-source authored runtime siblings
+/js/sun-data-source-presentation.js
+/js/sun-data-source-rendering.js
+/js/sun-data-source-classes.js
+/tests/sun-data-source-presentation.test.js

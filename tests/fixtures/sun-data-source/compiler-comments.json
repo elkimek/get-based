@@ -1,0 +1,1299 @@
+{
+  "status": "reviewed-actual-compiled-comments",
+  "byKey": {
+    "matrix-0": [
+      {
+        "path": [
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          5,
+          2
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          5
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          8
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          9
+        ],
+        "value": "[-1"
+      },
+      {
+        "path": [
+          1,
+          11
+        ],
+        "value": "]"
+      },
+      {
+        "path": [
+          2
+        ],
+        "value": "]"
+      }
+    ],
+    "matrix-1": [
+      {
+        "path": [
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          5,
+          2
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          5
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          8
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          9
+        ],
+        "value": "[-1"
+      },
+      {
+        "path": [
+          1,
+          11
+        ],
+        "value": "]"
+      },
+      {
+        "path": [
+          2
+        ],
+        "value": "]"
+      }
+    ],
+    "matrix-2": [
+      {
+        "path": [
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          5,
+          2
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          5
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          8
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          9
+        ],
+        "value": "[-1"
+      },
+      {
+        "path": [
+          1,
+          11
+        ],
+        "value": "]"
+      },
+      {
+        "path": [
+          2
+        ],
+        "value": "]"
+      }
+    ],
+    "matrix-3": [
+      {
+        "path": [
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          5,
+          2
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          5
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          8
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          9
+        ],
+        "value": "[-1"
+      },
+      {
+        "path": [
+          1,
+          11
+        ],
+        "value": "]"
+      },
+      {
+        "path": [
+          2
+        ],
+        "value": "]"
+      }
+    ],
+    "matrix-4": [
+      {
+        "path": [
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          5,
+          2
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          5
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          8
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          9
+        ],
+        "value": "[-1"
+      },
+      {
+        "path": [
+          1,
+          11
+        ],
+        "value": "]"
+      },
+      {
+        "path": [
+          2
+        ],
+        "value": "]"
+      }
+    ],
+    "matrix-5": [
+      {
+        "path": [
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          5,
+          2
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          5
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          8
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          9
+        ],
+        "value": "[-1"
+      },
+      {
+        "path": [
+          1,
+          11
+        ],
+        "value": "]"
+      },
+      {
+        "path": [
+          2
+        ],
+        "value": "]"
+      }
+    ],
+    "matrix-6": [
+      {
+        "path": [
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          5,
+          2
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          5
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          8
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          9
+        ],
+        "value": "[-1"
+      },
+      {
+        "path": [
+          1,
+          11
+        ],
+        "value": "]"
+      },
+      {
+        "path": [
+          2
+        ],
+        "value": "]"
+      }
+    ],
+    "matrix-7": [
+      {
+        "path": [
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          5,
+          2
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          5
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          8
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          9
+        ],
+        "value": "[-1"
+      },
+      {
+        "path": [
+          1,
+          11
+        ],
+        "value": "]"
+      },
+      {
+        "path": [
+          2
+        ],
+        "value": "]"
+      }
+    ],
+    "matrix-8": [
+      {
+        "path": [
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          5,
+          2
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          5
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          8
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          9
+        ],
+        "value": "[-1"
+      },
+      {
+        "path": [
+          1,
+          11
+        ],
+        "value": "]"
+      },
+      {
+        "path": [
+          2
+        ],
+        "value": "]"
+      }
+    ],
+    "matrix-9": [
+      {
+        "path": [
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          5,
+          2
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          5
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          8
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          9
+        ],
+        "value": "[0"
+      },
+      {
+        "path": [
+          1,
+          11
+        ],
+        "value": "]"
+      },
+      {
+        "path": [
+          2
+        ],
+        "value": "]"
+      }
+    ],
+    "matrix-10": [
+      {
+        "path": [
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          5,
+          2
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          5
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          8
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          9
+        ],
+        "value": "[0"
+      },
+      {
+        "path": [
+          1,
+          11
+        ],
+        "value": "]"
+      },
+      {
+        "path": [
+          2
+        ],
+        "value": "]"
+      }
+    ],
+    "matrix-11": [
+      {
+        "path": [
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          5,
+          2
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          5
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          8
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          9
+        ],
+        "value": "[0"
+      },
+      {
+        "path": [
+          1,
+          11
+        ],
+        "value": "]"
+      },
+      {
+        "path": [
+          2
+        ],
+        "value": "]"
+      }
+    ],
+    "matrix-12": [
+      {
+        "path": [
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          5,
+          2
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          5
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          8
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          9
+        ],
+        "value": "[0"
+      },
+      {
+        "path": [
+          1,
+          11
+        ],
+        "value": "]"
+      },
+      {
+        "path": [
+          2
+        ],
+        "value": "]"
+      }
+    ],
+    "matrix-13": [
+      {
+        "path": [
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          5,
+          2
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          5
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          8
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          9
+        ],
+        "value": "[0"
+      },
+      {
+        "path": [
+          1,
+          11
+        ],
+        "value": "]"
+      },
+      {
+        "path": [
+          2
+        ],
+        "value": "]"
+      }
+    ],
+    "matrix-14": [
+      {
+        "path": [
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          5,
+          2
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          5
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          8
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          9
+        ],
+        "value": "[0"
+      },
+      {
+        "path": [
+          1,
+          11
+        ],
+        "value": "]"
+      },
+      {
+        "path": [
+          2
+        ],
+        "value": "]"
+      }
+    ],
+    "matrix-15": [
+      {
+        "path": [
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          5,
+          2
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          5
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          8
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          9
+        ],
+        "value": "[0"
+      },
+      {
+        "path": [
+          1,
+          11
+        ],
+        "value": "]"
+      },
+      {
+        "path": [
+          2
+        ],
+        "value": "]"
+      }
+    ],
+    "matrix-16": [
+      {
+        "path": [
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          5,
+          2
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          5
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          8
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          9
+        ],
+        "value": "[0"
+      },
+      {
+        "path": [
+          1,
+          11
+        ],
+        "value": "]"
+      },
+      {
+        "path": [
+          2
+        ],
+        "value": "]"
+      }
+    ],
+    "matrix-17": [
+      {
+        "path": [
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          5,
+          2
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          5
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          8
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          9
+        ],
+        "value": "[0"
+      },
+      {
+        "path": [
+          1,
+          11
+        ],
+        "value": "]"
+      },
+      {
+        "path": [
+          2
+        ],
+        "value": "]"
+      }
+    ],
+    "adversarial-0": [
+      {
+        "path": [
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          5,
+          2
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          5
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          8
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          9
+        ],
+        "value": "[-1"
+      },
+      {
+        "path": [
+          1,
+          11
+        ],
+        "value": "]"
+      },
+      {
+        "path": [
+          2
+        ],
+        "value": "]"
+      }
+    ],
+    "adversarial-8": [
+      {
+        "path": [
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          5,
+          2
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          5
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          8
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          9
+        ],
+        "value": "[0"
+      },
+      {
+        "path": [
+          1,
+          11
+        ],
+        "value": "]"
+      },
+      {
+        "path": [
+          2
+        ],
+        "value": "]"
+      }
+    ],
+    "adversarial-9": [
+      {
+        "path": [
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          5,
+          2
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          5
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          8
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          9
+        ],
+        "value": "[-1"
+      },
+      {
+        "path": [
+          1,
+          11
+        ],
+        "value": "]"
+      },
+      {
+        "path": [
+          2
+        ],
+        "value": "]"
+      }
+    ],
+    "adversarial-10": [
+      {
+        "path": [
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          5,
+          2
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          5
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          8
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          9
+        ],
+        "value": "[-1"
+      },
+      {
+        "path": [
+          1,
+          11
+        ],
+        "value": "]"
+      },
+      {
+        "path": [
+          2
+        ],
+        "value": "]"
+      }
+    ],
+    "native-browser-selfhost": [
+      {
+        "path": [
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          5,
+          2
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          5
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          5,
+          8
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          9
+        ],
+        "value": "[-1"
+      },
+      {
+        "path": [
+          1,
+          11
+        ],
+        "value": "]"
+      },
+      {
+        "path": [
+          2
+        ],
+        "value": "]"
+      }
+    ]
+  },
+  "provenance": {
+    "observedPolicySHA256": "a5bca562799c4b89bc80e9a438623e0b4a68134d6b018adf3fe82835f237324c",
+    "componentSources": [
+      {
+        "path": "js/settings-privacy.ts",
+        "bytes": 8584,
+        "sha256": "37dfa8312d056dfb8187b9953e596eb2c89d050d03acafb232a0733bec3a1f73"
+      },
+      {
+        "path": "css/light-page.tailwind.css",
+        "bytes": 3999,
+        "sha256": "c952298ab912dd9db7d416bc2f50ae5f40b2d52283b46a2e6378aa838cb3c7d6"
+      },
+      {
+        "path": "scripts/build-svelte.mts",
+        "bytes": 7634,
+        "sha256": "442a87991c92fc96ce876524bd7440ded20ccdd2f3e0e64357efb2dea000e2a1"
+      },
+      {
+        "path": "service-worker-assets.ts",
+        "bytes": 50896,
+        "sha256": "c63af0e4ec46a6a3b76bfe4120189c7def7fdb22d6df7a349ffc81d8d174ce39"
+      },
+      {
+        "path": ".gitignore",
+        "bytes": 67430,
+        "sha256": "a241d7ed138ab184d74c0ba3b9938fe75a6d33c91158e728071c234d91534ec3"
+      },
+      {
+        "path": "js/sun-data-source-presentation.ts",
+        "bytes": 1015,
+        "sha256": "95df44f7f18072a24eb5cf1348bc758a098ce9c8b189de13ae8bf893bab4cce8"
+      },
+      {
+        "path": "js/sun-data-source-rendering.ts",
+        "bytes": 363,
+        "sha256": "10b86ecea84f180606cb05c9622f5f7e113c36f4c73f4b5f0118a476b7ee9a67"
+      },
+      {
+        "path": "js/sun-data-source-classes.ts",
+        "bytes": 2728,
+        "sha256": "96d83cfe91bd98de3daef41717fe8da5ab31270e2e72844a1d2b7714e09eb1ee"
+      },
+      {
+        "path": "js/components/SunDataSourcePresentation.svelte",
+        "bytes": 2633,
+        "sha256": "4d821515f9e4cf2435e56198c8483f527082b802d2478c4396db47c2e7132628"
+      },
+      {
+        "path": "js/components/SunModeOption.svelte",
+        "bytes": 668,
+        "sha256": "6e62d4e455be07663e56784e014248e3c782b0fc8b125da0d5fc08f83428df34"
+      },
+      {
+        "path": "js/components/SunDataSourcePresentation.svelte.html.d.ts",
+        "bytes": 150,
+        "sha256": "327f6829e6f4c5367578bd95304283967f2db411dcfc367b8bf0153bba6367e5"
+      },
+      {
+        "path": "css/sun-data-source.tailwind.css",
+        "bytes": 569,
+        "sha256": "acf0829da594fe847c73105c0653473e48db8e9ed798296e7f9c1116af9cdd2a"
+      }
+    ],
+    "emittedOutputs": [
+      {
+        "path": "js/settings-privacy.js",
+        "bytes": 7967,
+        "sha256": "e9dd02f1762cf878d1d5961a019a0d808aae72b5b6a21c047179a4bae652e876"
+      },
+      {
+        "path": "js/sun-data-source-presentation.js",
+        "bytes": 491,
+        "sha256": "c0b1106a7b24e751a9378e9fb05e809fac937cce1844433372658f404ffafda6"
+      },
+      {
+        "path": "js/sun-data-source-rendering.js",
+        "bytes": 259,
+        "sha256": "78471477cdc8ebf823569ae3510fb693e97c4c028bf79824e02726b3fc880840"
+      },
+      {
+        "path": "js/sun-data-source-classes.js",
+        "bytes": 2719,
+        "sha256": "a48ec285796ad00f4bb970c7529b41fe592b67b7f18e2d1e2bd46860d6208043"
+      },
+      {
+        "path": "js/components/SunDataSourcePresentation.svelte.html.js",
+        "bytes": 26008,
+        "sha256": "f7ff3b4e53f5722792187459e62147191c8e88c4279fdcf7f72429f3a0409370"
+      },
+      {
+        "path": "css/light-sun.css",
+        "bytes": 208229,
+        "sha256": "baedf163e1c03478e33ebfc1c1fbef96741b3979d020bf2c76ff3f3af14e030e"
+      }
+    ]
+  },
+  "boundary": "Exact seven actual outer/child/conditional anchors per original contract key; no global removal or text normalization. Native host retains five explicitly reviewed inner anchors. Complete original DOM/form parity must pass after each exact anchor check."
+}

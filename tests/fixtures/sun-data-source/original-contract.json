@@ -1,0 +1,1767 @@
+{
+  "schemaVersion": 1,
+  "status": "accepted-original-only derived fixture; future current acceptance pending",
+  "provenance": {
+    "releaseSHA256": "8e8066cfd193036db9cd41ab53575dc84aeaddcfe66bcd551615787be73619af",
+    "referenceIndexSHA256": "0b2b13dff224a111f509a5473765c801a2dbc9e21343d1065c52d1defd37e01c",
+    "originalControllerSHA256": "6395bec8fcc5fd5b8b3756e3875a2f27e9ba33a26f4d00c5c75a3bd296f52581",
+    "vmSHA256": "7a489d957d30ce4212b71c9c7afd9059641ed12c66711f7ac2acb66a865aa5fd",
+    "nativeParserSHA256": "09a54a5115fa5d77cc1f99b8b5f9d2446bb2b3a757ba756a50793a6e7d159df5",
+    "nativeLayoutSHA256": "3bc2a1c2792a1ef6b60e6dbd28df5d54a17a642c49e0635e2f5399b61a62e8fa"
+  },
+  "baselines": {
+    "selfControlled": "<div class=\"local-ai-settings\" id=\"sun-data-source-section\">\n    <h4 style=\"margin:0 0 6px 0;font-size:13px;color:var(--text-primary)\">☀ Sun data source</h4>\n    <div class=\"ai-provider-desc\" style=\"margin-bottom:10px\">Where the Light &amp; Sun lens fetches UV, ozone, clouds, and air-quality model data. It uses your privacy-rounded home postal area or country by default. Current device location is optional, rounded locally, and kept only for today.</div>\n    <div style=\"display:flex;flex-direction:column;gap:8px\">\n      <label style=\"display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;background:var(--bg-card);border-color:var(--accent);\">\n    <input type=\"radio\" name=\"meteo-mode\" value=\"auto\" checked data-sun-source-action=\"set-meteo-mode\" style=\"margin-top:3px\">\n    <span>\n      <span style=\"font-size:13px;font-weight:500;color:var(--text-primary)\">Deployment CAMS relay</span>\n      <br><span style=\"font-size:11px;color:var(--text-muted);line-height:1.4\">Uses this self-hosted deployment's CAMS relay, then falls back to browser-direct Open-Meteo.</span>\n    </span>\n  </label>\n      <label style=\"display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;\">\n    <input type=\"radio\" name=\"meteo-mode\" value=\"open-meteo\"  data-sun-source-action=\"set-meteo-mode\" style=\"margin-top:3px\">\n    <span>\n      <span style=\"font-size:13px;font-weight:500;color:var(--text-primary)\">Browser-direct Open-Meteo</span>\n      <br><span style=\"font-size:11px;color:var(--text-muted);line-height:1.4\">Your browser sends privacy-rounded coordinates directly to Open-Meteo. getbased and Vercel do not receive them.</span>\n    </span>\n  </label>\n      <label style=\"display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;\">\n    <input type=\"radio\" name=\"meteo-mode\" value=\"selfhost\"  data-sun-source-action=\"set-meteo-mode\" style=\"margin-top:3px\">\n    <span>\n      <span style=\"font-size:13px;font-weight:500;color:var(--text-primary)\">Self-hosted server</span>\n      <br><span style=\"font-size:11px;color:var(--text-muted);line-height:1.4\">You run your own getbased-uvdata box. Lat/lon never leaves your infrastructure. Paste the URL + bearer below.</span>\n    </span>\n  </label>\n    </div>\n    <div id=\"meteo-selfhost-fields\" style=\"margin-top:10px;display:none\">\n      <label style=\"font-size:12px;color:var(--text-muted)\">Server URL</label>\n      <input type=\"text\" class=\"api-key-input\" id=\"meteo-selfhost-url\" value=\"https://meteo.example.com/plain\" placeholder=\"https://meteo.example.com\" style=\"width:100%;margin-top:4px\" data-sun-source-action=\"save-meteo-selfhost\">\n      <label style=\"font-size:12px;color:var(--text-muted);margin-top:8px;display:block\">Bearer token (optional)</label>\n      <input type=\"password\" class=\"api-key-input\" id=\"meteo-selfhost-bearer\" value=\"synthetic-bearer\" placeholder=\"••••••••\" style=\"width:100%;margin-top:4px\" data-sun-source-action=\"save-meteo-selfhost\" autocomplete=\"new-password\">\n    </div>\n    <div style=\"display:flex;align-items:start;justify-content:space-between;gap:12px;margin-top:14px\">\n          <span style=\"font-size:13px\">Round location to ~11 km grid before sending<br><span style=\"font-size:11px;color:var(--text-muted)\">Default ON. Stops the data source from seeing your exact address. Disable for slightly sharper UV math.</span></span>\n          <label class=\"toggle-switch\" style=\"margin-top:2px\">\n            <input type=\"checkbox\" id=\"meteo-privacy-rounding\" checked data-sun-source-action=\"toggle-meteo-rounding\">\n            <span class=\"toggle-slider\"></span>\n          </label>\n        </div>\n  </div>",
+    "official": "<div class=\"local-ai-settings\" id=\"sun-data-source-section\">\n    <h4 style=\"margin:0 0 6px 0;font-size:13px;color:var(--text-primary)\">☀ Sun data source</h4>\n    <div class=\"ai-provider-desc\" style=\"margin-bottom:10px\">Where the Light &amp; Sun lens fetches UV, ozone, clouds, and air-quality model data. It uses your privacy-rounded home postal area or country by default. Current device location is optional, rounded locally, and kept only for today.</div>\n    <div style=\"display:flex;flex-direction:column;gap:8px\">\n      <label style=\"display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;background:var(--bg-card);border-color:var(--accent);\">\n    <input type=\"radio\" name=\"meteo-mode\" value=\"auto\" checked data-sun-source-action=\"set-meteo-mode\" style=\"margin-top:3px\">\n    <span>\n      <span style=\"font-size:13px;font-weight:500;color:var(--text-primary)\">Private CAMS relay + fallback</span>\n      <br><span style=\"font-size:11px;color:var(--text-muted);line-height:1.4\">Sends only ~11 km rounded coordinates and time through the fixed getbased CAMS route; falls back browser-direct to Open-Meteo.</span>\n    </span>\n  </label>\n      <label style=\"display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;\">\n    <input type=\"radio\" name=\"meteo-mode\" value=\"open-meteo\"  data-sun-source-action=\"set-meteo-mode\" style=\"margin-top:3px\">\n    <span>\n      <span style=\"font-size:13px;font-weight:500;color:var(--text-primary)\">Browser-direct Open-Meteo</span>\n      <br><span style=\"font-size:11px;color:var(--text-muted);line-height:1.4\">Your browser sends privacy-rounded coordinates directly to Open-Meteo. getbased and Vercel do not receive them.</span>\n    </span>\n  </label>\n      <label style=\"display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;\">\n    <input type=\"radio\" name=\"meteo-mode\" value=\"selfhost\"  data-sun-source-action=\"set-meteo-mode\" style=\"margin-top:3px\">\n    <span>\n      <span style=\"font-size:13px;font-weight:500;color:var(--text-primary)\">Self-hosted server</span>\n      <br><span style=\"font-size:11px;color:var(--text-muted);line-height:1.4\">You run your own getbased-uvdata box. Lat/lon never leaves your infrastructure. Paste the URL + bearer below.</span>\n    </span>\n  </label>\n    </div>\n    <div id=\"meteo-selfhost-fields\" style=\"margin-top:10px;display:none\">\n      <label style=\"font-size:12px;color:var(--text-muted)\">Server URL</label>\n      <input type=\"text\" class=\"api-key-input\" id=\"meteo-selfhost-url\" value=\"https://meteo.example.com/plain\" placeholder=\"https://meteo.example.com\" style=\"width:100%;margin-top:4px\" data-sun-source-action=\"save-meteo-selfhost\">\n      <label style=\"font-size:12px;color:var(--text-muted);margin-top:8px;display:block\">Bearer token (optional)</label>\n      <input type=\"password\" class=\"api-key-input\" id=\"meteo-selfhost-bearer\" value=\"synthetic-bearer\" placeholder=\"••••••••\" style=\"width:100%;margin-top:4px\" data-sun-source-action=\"save-meteo-selfhost\" autocomplete=\"new-password\">\n    </div>\n    <div style=\"font-size:12px;color:var(--text-muted);margin-top:14px\"><strong>Hosted privacy boundary:</strong> location is always rounded to a ~11 km grid before CAMS or Open-Meteo requests. Exact coordinates cannot be enabled on this deployment.</div>\n  </div>"
+  },
+  "matrix": [
+    {
+      "key": "matrix-0",
+      "baseline": "selfControlled",
+      "htmlSHA256": "65c6fec9004de5b3ff1cb9d693aed3c90501268ade2be311d71b5866b4cc9370",
+      "attributes": [],
+      "index": 0,
+      "official": false,
+      "mode": "auto",
+      "rounding": null,
+      "seed": [
+        "https://meteo.example.com/plain",
+        "synthetic-bearer"
+      ],
+      "trace": [
+        "read1",
+        "host",
+        "read2",
+        "read3",
+        "read4"
+      ]
+    },
+    {
+      "key": "matrix-1",
+      "baseline": "selfControlled",
+      "htmlSHA256": "29a8fccc4fe5d3ff81677db604a4f9b65e44f7c452dc2096892ed1024157f4ce",
+      "attributes": [
+        {
+          "path": [
+            7,
+            3
+          ],
+          "set": {
+            "value": "https://meteo.example.com/\"<&'&amp;"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            7,
+            7
+          ],
+          "set": {
+            "value": "synthetic-\"<&'&amp;"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            9,
+            3,
+            1
+          ],
+          "set": {},
+          "remove": [
+            "checked"
+          ]
+        }
+      ],
+      "index": 1,
+      "official": false,
+      "mode": "auto",
+      "rounding": 0,
+      "seed": [
+        "https://meteo.example.com/\"<&'&amp;",
+        "synthetic-\"<&'&amp;"
+      ],
+      "trace": [
+        "read1",
+        "host",
+        "read2",
+        "read3",
+        "read4"
+      ]
+    },
+    {
+      "key": "matrix-2",
+      "baseline": "selfControlled",
+      "htmlSHA256": "5ce3f42e1a56a16791821f1045063b72ef00893b2ce35fe26d46961bf62bd057",
+      "attributes": [
+        {
+          "path": [
+            7,
+            3
+          ],
+          "set": {
+            "value": "https://meteo.example.com/a\nb\nc�d"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            7,
+            7
+          ],
+          "set": {
+            "value": "synthetic-a\nb\nc�d"
+          },
+          "remove": []
+        }
+      ],
+      "index": 2,
+      "official": false,
+      "mode": "auto",
+      "rounding": 0.1,
+      "seed": [
+        "https://meteo.example.com/a\r\nb\rc\u0000d",
+        "synthetic-a\r\nb\rc\u0000d"
+      ],
+      "trace": [
+        "read1",
+        "host",
+        "read2",
+        "read3",
+        "read4"
+      ]
+    },
+    {
+      "key": "matrix-3",
+      "baseline": "selfControlled",
+      "htmlSHA256": "dfa9773c8bfc685ee6c01aed6e442bd2e4b3a820c335036cb2ac878e13483f34",
+      "attributes": [
+        {
+          "path": [
+            5,
+            1
+          ],
+          "set": {
+            "style": "display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            5,
+            1,
+            1
+          ],
+          "set": {},
+          "remove": [
+            "checked"
+          ]
+        },
+        {
+          "path": [
+            5,
+            3
+          ],
+          "set": {
+            "style": "display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;background:var(--bg-card);border-color:var(--accent);"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            5,
+            3,
+            1
+          ],
+          "set": {
+            "checked": ""
+          },
+          "remove": []
+        }
+      ],
+      "index": 3,
+      "official": false,
+      "mode": "open-meteo",
+      "rounding": null,
+      "seed": [
+        "https://meteo.example.com/plain",
+        "synthetic-bearer"
+      ],
+      "trace": [
+        "read1",
+        "host",
+        "read2",
+        "read3",
+        "read4"
+      ]
+    },
+    {
+      "key": "matrix-4",
+      "baseline": "selfControlled",
+      "htmlSHA256": "6898438524c6252a5f39d3c8c121af59d621df91636bdbaa40e6be9fe14d0492",
+      "attributes": [
+        {
+          "path": [
+            5,
+            1
+          ],
+          "set": {
+            "style": "display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            5,
+            1,
+            1
+          ],
+          "set": {},
+          "remove": [
+            "checked"
+          ]
+        },
+        {
+          "path": [
+            5,
+            3
+          ],
+          "set": {
+            "style": "display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;background:var(--bg-card);border-color:var(--accent);"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            5,
+            3,
+            1
+          ],
+          "set": {
+            "checked": ""
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            7,
+            3
+          ],
+          "set": {
+            "value": "https://meteo.example.com/\"<&'&amp;"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            7,
+            7
+          ],
+          "set": {
+            "value": "synthetic-\"<&'&amp;"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            9,
+            3,
+            1
+          ],
+          "set": {},
+          "remove": [
+            "checked"
+          ]
+        }
+      ],
+      "index": 4,
+      "official": false,
+      "mode": "open-meteo",
+      "rounding": 0,
+      "seed": [
+        "https://meteo.example.com/\"<&'&amp;",
+        "synthetic-\"<&'&amp;"
+      ],
+      "trace": [
+        "read1",
+        "host",
+        "read2",
+        "read3",
+        "read4"
+      ]
+    },
+    {
+      "key": "matrix-5",
+      "baseline": "selfControlled",
+      "htmlSHA256": "3132c92bde9ac5f3eca4e2807b2d38b7dd31afa5716b0849a67f3927f12b59ae",
+      "attributes": [
+        {
+          "path": [
+            5,
+            1
+          ],
+          "set": {
+            "style": "display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            5,
+            1,
+            1
+          ],
+          "set": {},
+          "remove": [
+            "checked"
+          ]
+        },
+        {
+          "path": [
+            5,
+            3
+          ],
+          "set": {
+            "style": "display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;background:var(--bg-card);border-color:var(--accent);"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            5,
+            3,
+            1
+          ],
+          "set": {
+            "checked": ""
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            7,
+            3
+          ],
+          "set": {
+            "value": "https://meteo.example.com/a\nb\nc�d"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            7,
+            7
+          ],
+          "set": {
+            "value": "synthetic-a\nb\nc�d"
+          },
+          "remove": []
+        }
+      ],
+      "index": 5,
+      "official": false,
+      "mode": "open-meteo",
+      "rounding": 0.1,
+      "seed": [
+        "https://meteo.example.com/a\r\nb\rc\u0000d",
+        "synthetic-a\r\nb\rc\u0000d"
+      ],
+      "trace": [
+        "read1",
+        "host",
+        "read2",
+        "read3",
+        "read4"
+      ]
+    },
+    {
+      "key": "matrix-6",
+      "baseline": "selfControlled",
+      "htmlSHA256": "671c420371f8cc38e3885505560ce36859b64c91bcef1e4a6f0b9e2a437f9e8b",
+      "attributes": [
+        {
+          "path": [
+            5,
+            1
+          ],
+          "set": {
+            "style": "display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            5,
+            1,
+            1
+          ],
+          "set": {},
+          "remove": [
+            "checked"
+          ]
+        },
+        {
+          "path": [
+            5,
+            5
+          ],
+          "set": {
+            "style": "display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;background:var(--bg-card);border-color:var(--accent);"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            5,
+            5,
+            1
+          ],
+          "set": {
+            "checked": ""
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            7
+          ],
+          "set": {
+            "style": "margin-top:10px;"
+          },
+          "remove": []
+        }
+      ],
+      "index": 6,
+      "official": false,
+      "mode": "selfhost",
+      "rounding": null,
+      "seed": [
+        "https://meteo.example.com/plain",
+        "synthetic-bearer"
+      ],
+      "trace": [
+        "read1",
+        "host",
+        "read2",
+        "read3",
+        "read4"
+      ]
+    },
+    {
+      "key": "matrix-7",
+      "baseline": "selfControlled",
+      "htmlSHA256": "1e2fb0f9652046285c22011e4b033dcaf1617bd575074292590ed28b8d1431e9",
+      "attributes": [
+        {
+          "path": [
+            5,
+            1
+          ],
+          "set": {
+            "style": "display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            5,
+            1,
+            1
+          ],
+          "set": {},
+          "remove": [
+            "checked"
+          ]
+        },
+        {
+          "path": [
+            5,
+            5
+          ],
+          "set": {
+            "style": "display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;background:var(--bg-card);border-color:var(--accent);"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            5,
+            5,
+            1
+          ],
+          "set": {
+            "checked": ""
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            7
+          ],
+          "set": {
+            "style": "margin-top:10px;"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            7,
+            3
+          ],
+          "set": {
+            "value": "https://meteo.example.com/\"<&'&amp;"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            7,
+            7
+          ],
+          "set": {
+            "value": "synthetic-\"<&'&amp;"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            9,
+            3,
+            1
+          ],
+          "set": {},
+          "remove": [
+            "checked"
+          ]
+        }
+      ],
+      "index": 7,
+      "official": false,
+      "mode": "selfhost",
+      "rounding": 0,
+      "seed": [
+        "https://meteo.example.com/\"<&'&amp;",
+        "synthetic-\"<&'&amp;"
+      ],
+      "trace": [
+        "read1",
+        "host",
+        "read2",
+        "read3",
+        "read4"
+      ]
+    },
+    {
+      "key": "matrix-8",
+      "baseline": "selfControlled",
+      "htmlSHA256": "6f457b5db7389b94a70408c2c0f77acaad3d15325270c1a7ed8b031a1a9eef96",
+      "attributes": [
+        {
+          "path": [
+            5,
+            1
+          ],
+          "set": {
+            "style": "display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            5,
+            1,
+            1
+          ],
+          "set": {},
+          "remove": [
+            "checked"
+          ]
+        },
+        {
+          "path": [
+            5,
+            5
+          ],
+          "set": {
+            "style": "display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;background:var(--bg-card);border-color:var(--accent);"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            5,
+            5,
+            1
+          ],
+          "set": {
+            "checked": ""
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            7
+          ],
+          "set": {
+            "style": "margin-top:10px;"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            7,
+            3
+          ],
+          "set": {
+            "value": "https://meteo.example.com/a\nb\nc�d"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            7,
+            7
+          ],
+          "set": {
+            "value": "synthetic-a\nb\nc�d"
+          },
+          "remove": []
+        }
+      ],
+      "index": 8,
+      "official": false,
+      "mode": "selfhost",
+      "rounding": 0.1,
+      "seed": [
+        "https://meteo.example.com/a\r\nb\rc\u0000d",
+        "synthetic-a\r\nb\rc\u0000d"
+      ],
+      "trace": [
+        "read1",
+        "host",
+        "read2",
+        "read3",
+        "read4"
+      ]
+    },
+    {
+      "key": "matrix-9",
+      "baseline": "official",
+      "htmlSHA256": "257c4af8c4323d4d8288f45c4529237f214ea3b2b40225cd73ad7abb15b8dfda",
+      "attributes": [],
+      "index": 9,
+      "official": true,
+      "mode": "auto",
+      "rounding": null,
+      "seed": [
+        "https://meteo.example.com/plain",
+        "synthetic-bearer"
+      ],
+      "trace": [
+        "read1",
+        "host",
+        "read2",
+        "read3",
+        "read4"
+      ]
+    },
+    {
+      "key": "matrix-10",
+      "baseline": "official",
+      "htmlSHA256": "2b9ddda6157887c57bb09fc5e1b0feb291d89086452bddac6202354f7f7c8c74",
+      "attributes": [
+        {
+          "path": [
+            7,
+            3
+          ],
+          "set": {
+            "value": "https://meteo.example.com/\"<&'&amp;"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            7,
+            7
+          ],
+          "set": {
+            "value": "synthetic-\"<&'&amp;"
+          },
+          "remove": []
+        }
+      ],
+      "index": 10,
+      "official": true,
+      "mode": "auto",
+      "rounding": 0,
+      "seed": [
+        "https://meteo.example.com/\"<&'&amp;",
+        "synthetic-\"<&'&amp;"
+      ],
+      "trace": [
+        "read1",
+        "host",
+        "read2",
+        "read3",
+        "read4"
+      ]
+    },
+    {
+      "key": "matrix-11",
+      "baseline": "official",
+      "htmlSHA256": "86b462bc00dbab97fbae4c7ca23a03aa53160e44a253f0118039ba56001dd28e",
+      "attributes": [
+        {
+          "path": [
+            7,
+            3
+          ],
+          "set": {
+            "value": "https://meteo.example.com/a\nb\nc�d"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            7,
+            7
+          ],
+          "set": {
+            "value": "synthetic-a\nb\nc�d"
+          },
+          "remove": []
+        }
+      ],
+      "index": 11,
+      "official": true,
+      "mode": "auto",
+      "rounding": 0.1,
+      "seed": [
+        "https://meteo.example.com/a\r\nb\rc\u0000d",
+        "synthetic-a\r\nb\rc\u0000d"
+      ],
+      "trace": [
+        "read1",
+        "host",
+        "read2",
+        "read3",
+        "read4"
+      ]
+    },
+    {
+      "key": "matrix-12",
+      "baseline": "official",
+      "htmlSHA256": "99e1b76c7ef0032193490452313f0b7904380ebaa724e038ec789d5e9c957759",
+      "attributes": [
+        {
+          "path": [
+            5,
+            1
+          ],
+          "set": {
+            "style": "display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            5,
+            1,
+            1
+          ],
+          "set": {},
+          "remove": [
+            "checked"
+          ]
+        },
+        {
+          "path": [
+            5,
+            3
+          ],
+          "set": {
+            "style": "display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;background:var(--bg-card);border-color:var(--accent);"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            5,
+            3,
+            1
+          ],
+          "set": {
+            "checked": ""
+          },
+          "remove": []
+        }
+      ],
+      "index": 12,
+      "official": true,
+      "mode": "open-meteo",
+      "rounding": null,
+      "seed": [
+        "https://meteo.example.com/plain",
+        "synthetic-bearer"
+      ],
+      "trace": [
+        "read1",
+        "host",
+        "read2",
+        "read3",
+        "read4"
+      ]
+    },
+    {
+      "key": "matrix-13",
+      "baseline": "official",
+      "htmlSHA256": "be45fadd4af0b5ade565be77408d6f57677392dfda8923638c2af65ba9764d7d",
+      "attributes": [
+        {
+          "path": [
+            5,
+            1
+          ],
+          "set": {
+            "style": "display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            5,
+            1,
+            1
+          ],
+          "set": {},
+          "remove": [
+            "checked"
+          ]
+        },
+        {
+          "path": [
+            5,
+            3
+          ],
+          "set": {
+            "style": "display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;background:var(--bg-card);border-color:var(--accent);"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            5,
+            3,
+            1
+          ],
+          "set": {
+            "checked": ""
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            7,
+            3
+          ],
+          "set": {
+            "value": "https://meteo.example.com/\"<&'&amp;"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            7,
+            7
+          ],
+          "set": {
+            "value": "synthetic-\"<&'&amp;"
+          },
+          "remove": []
+        }
+      ],
+      "index": 13,
+      "official": true,
+      "mode": "open-meteo",
+      "rounding": 0,
+      "seed": [
+        "https://meteo.example.com/\"<&'&amp;",
+        "synthetic-\"<&'&amp;"
+      ],
+      "trace": [
+        "read1",
+        "host",
+        "read2",
+        "read3",
+        "read4"
+      ]
+    },
+    {
+      "key": "matrix-14",
+      "baseline": "official",
+      "htmlSHA256": "651190783fe67ddb496d238f1458ce016039f42c59ad8ec17b0b9619cc6577af",
+      "attributes": [
+        {
+          "path": [
+            5,
+            1
+          ],
+          "set": {
+            "style": "display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            5,
+            1,
+            1
+          ],
+          "set": {},
+          "remove": [
+            "checked"
+          ]
+        },
+        {
+          "path": [
+            5,
+            3
+          ],
+          "set": {
+            "style": "display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;background:var(--bg-card);border-color:var(--accent);"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            5,
+            3,
+            1
+          ],
+          "set": {
+            "checked": ""
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            7,
+            3
+          ],
+          "set": {
+            "value": "https://meteo.example.com/a\nb\nc�d"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            7,
+            7
+          ],
+          "set": {
+            "value": "synthetic-a\nb\nc�d"
+          },
+          "remove": []
+        }
+      ],
+      "index": 14,
+      "official": true,
+      "mode": "open-meteo",
+      "rounding": 0.1,
+      "seed": [
+        "https://meteo.example.com/a\r\nb\rc\u0000d",
+        "synthetic-a\r\nb\rc\u0000d"
+      ],
+      "trace": [
+        "read1",
+        "host",
+        "read2",
+        "read3",
+        "read4"
+      ]
+    },
+    {
+      "key": "matrix-15",
+      "baseline": "official",
+      "htmlSHA256": "cf13e188b177533b159c482c0d8945acec4e901c2711cac0780a251026510872",
+      "attributes": [
+        {
+          "path": [
+            5,
+            1
+          ],
+          "set": {
+            "style": "display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            5,
+            1,
+            1
+          ],
+          "set": {},
+          "remove": [
+            "checked"
+          ]
+        },
+        {
+          "path": [
+            5,
+            5
+          ],
+          "set": {
+            "style": "display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;background:var(--bg-card);border-color:var(--accent);"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            5,
+            5,
+            1
+          ],
+          "set": {
+            "checked": ""
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            7
+          ],
+          "set": {
+            "style": "margin-top:10px;"
+          },
+          "remove": []
+        }
+      ],
+      "index": 15,
+      "official": true,
+      "mode": "selfhost",
+      "rounding": null,
+      "seed": [
+        "https://meteo.example.com/plain",
+        "synthetic-bearer"
+      ],
+      "trace": [
+        "read1",
+        "host",
+        "read2",
+        "read3",
+        "read4"
+      ]
+    },
+    {
+      "key": "matrix-16",
+      "baseline": "official",
+      "htmlSHA256": "10ca123614708c1b6f06cca628ff5c3288925495ed4b784e93f42c3fddc5c6f9",
+      "attributes": [
+        {
+          "path": [
+            5,
+            1
+          ],
+          "set": {
+            "style": "display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            5,
+            1,
+            1
+          ],
+          "set": {},
+          "remove": [
+            "checked"
+          ]
+        },
+        {
+          "path": [
+            5,
+            5
+          ],
+          "set": {
+            "style": "display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;background:var(--bg-card);border-color:var(--accent);"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            5,
+            5,
+            1
+          ],
+          "set": {
+            "checked": ""
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            7
+          ],
+          "set": {
+            "style": "margin-top:10px;"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            7,
+            3
+          ],
+          "set": {
+            "value": "https://meteo.example.com/\"<&'&amp;"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            7,
+            7
+          ],
+          "set": {
+            "value": "synthetic-\"<&'&amp;"
+          },
+          "remove": []
+        }
+      ],
+      "index": 16,
+      "official": true,
+      "mode": "selfhost",
+      "rounding": 0,
+      "seed": [
+        "https://meteo.example.com/\"<&'&amp;",
+        "synthetic-\"<&'&amp;"
+      ],
+      "trace": [
+        "read1",
+        "host",
+        "read2",
+        "read3",
+        "read4"
+      ]
+    },
+    {
+      "key": "matrix-17",
+      "baseline": "official",
+      "htmlSHA256": "75d0286a0bfd5aa6d581eb769dd63e6e0dd42e54a5e43ec6bcb0bb4514025a62",
+      "attributes": [
+        {
+          "path": [
+            5,
+            1
+          ],
+          "set": {
+            "style": "display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            5,
+            1,
+            1
+          ],
+          "set": {},
+          "remove": [
+            "checked"
+          ]
+        },
+        {
+          "path": [
+            5,
+            5
+          ],
+          "set": {
+            "style": "display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;background:var(--bg-card);border-color:var(--accent);"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            5,
+            5,
+            1
+          ],
+          "set": {
+            "checked": ""
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            7
+          ],
+          "set": {
+            "style": "margin-top:10px;"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            7,
+            3
+          ],
+          "set": {
+            "value": "https://meteo.example.com/a\nb\nc�d"
+          },
+          "remove": []
+        },
+        {
+          "path": [
+            7,
+            7
+          ],
+          "set": {
+            "value": "synthetic-a\nb\nc�d"
+          },
+          "remove": []
+        }
+      ],
+      "index": 17,
+      "official": true,
+      "mode": "selfhost",
+      "rounding": 0.1,
+      "seed": [
+        "https://meteo.example.com/a\r\nb\rc\u0000d",
+        "synthetic-a\r\nb\rc\u0000d"
+      ],
+      "trace": [
+        "read1",
+        "host",
+        "read2",
+        "read3",
+        "read4"
+      ]
+    }
+  ],
+  "adversarial": [
+    {
+      "key": "adversarial-0",
+      "label": "independent-mode-reads",
+      "trace": [
+        "read1",
+        "host",
+        "read2",
+        "option2.mode",
+        "read3",
+        "option3.mode",
+        "read4",
+        "option4.mode",
+        "first.mode",
+        "url",
+        "url.String",
+        "bearer",
+        "bearer.String",
+        "rounding",
+        "rounding.valueOf"
+      ],
+      "error": null,
+      "contract": {
+        "key": "adversarial-0",
+        "baseline": "selfControlled",
+        "htmlSHA256": "2e051905ef2bca97e039feded2e36f79172214b7c089b7f5940cdbf4ce0dc03f",
+        "attributes": [
+          {
+            "path": [
+              5,
+              3
+            ],
+            "set": {
+              "style": "display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;background:var(--bg-card);border-color:var(--accent);"
+            },
+            "remove": []
+          },
+          {
+            "path": [
+              5,
+              3,
+              1
+            ],
+            "set": {
+              "checked": ""
+            },
+            "remove": []
+          },
+          {
+            "path": [
+              5,
+              5
+            ],
+            "set": {
+              "style": "display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;background:var(--bg-card);border-color:var(--accent);"
+            },
+            "remove": []
+          },
+          {
+            "path": [
+              5,
+              5,
+              1
+            ],
+            "set": {
+              "checked": ""
+            },
+            "remove": []
+          },
+          {
+            "path": [
+              7,
+              3
+            ],
+            "set": {
+              "value": "https://meteo.example.com/a"
+            },
+            "remove": []
+          },
+          {
+            "path": [
+              7,
+              7
+            ],
+            "set": {
+              "value": "synthetic"
+            },
+            "remove": []
+          }
+        ]
+      }
+    },
+    {
+      "key": "adversarial-1",
+      "label": "first-config-throw-false-mode",
+      "trace": [
+        "read1",
+        "host",
+        "read2",
+        "read3",
+        "read4",
+        "first.mode"
+      ],
+      "error": "same sentinel identity"
+    },
+    {
+      "key": "adversarial-2",
+      "label": "first-config-throw-false-url",
+      "trace": [
+        "read1",
+        "host",
+        "read2",
+        "read3",
+        "read4",
+        "first.mode",
+        "first.url"
+      ],
+      "error": "same sentinel identity"
+    },
+    {
+      "key": "adversarial-3",
+      "label": "first-config-throw-false-bearer",
+      "trace": [
+        "read1",
+        "host",
+        "read2",
+        "read3",
+        "read4",
+        "first.mode",
+        "first.url",
+        "first.bearer"
+      ],
+      "error": "same sentinel identity"
+    },
+    {
+      "key": "adversarial-4",
+      "label": "first-config-throw-false-rounding",
+      "trace": [
+        "read1",
+        "host",
+        "read2",
+        "read3",
+        "read4",
+        "first.mode",
+        "first.url",
+        "first.bearer",
+        "first.rounding"
+      ],
+      "error": "same sentinel identity"
+    },
+    {
+      "key": "adversarial-5",
+      "label": "first-config-throw-true-mode",
+      "trace": [
+        "read1",
+        "host",
+        "read2",
+        "read3",
+        "read4",
+        "first.mode"
+      ],
+      "error": "same sentinel identity"
+    },
+    {
+      "key": "adversarial-6",
+      "label": "first-config-throw-true-url",
+      "trace": [
+        "read1",
+        "host",
+        "read2",
+        "read3",
+        "read4",
+        "first.mode",
+        "first.url"
+      ],
+      "error": "same sentinel identity"
+    },
+    {
+      "key": "adversarial-7",
+      "label": "first-config-throw-true-bearer",
+      "trace": [
+        "read1",
+        "host",
+        "read2",
+        "read3",
+        "read4",
+        "first.mode",
+        "first.url",
+        "first.bearer"
+      ],
+      "error": "same sentinel identity"
+    },
+    {
+      "key": "adversarial-8",
+      "label": "first-config-throw-true-rounding",
+      "trace": [
+        "read1",
+        "host",
+        "read2",
+        "read3",
+        "read4",
+        "first.mode",
+        "first.url",
+        "first.bearer"
+      ],
+      "error": null,
+      "contract": {
+        "key": "adversarial-8",
+        "baseline": "official",
+        "htmlSHA256": "6071cc0cea2937d3531cc710399c6b40052ba4e752460011343fc7aed4c80223",
+        "attributes": [
+          {
+            "path": [
+              7,
+              3
+            ],
+            "set": {
+              "value": "https://meteo.example.com/"
+            },
+            "remove": []
+          },
+          {
+            "path": [
+              7,
+              7
+            ],
+            "set": {
+              "value": "synthetic"
+            },
+            "remove": []
+          }
+        ]
+      }
+    },
+    {
+      "key": "adversarial-9",
+      "label": "falsy-fields-mode-",
+      "trace": [
+        "host"
+      ],
+      "error": null,
+      "contract": {
+        "key": "adversarial-9",
+        "baseline": "selfControlled",
+        "htmlSHA256": "8bef41feccd3bd8072cd65c949ec866f7d2b0e88733710b45ab1d7a9a54b2538",
+        "attributes": [
+          {
+            "path": [
+              7,
+              3
+            ],
+            "set": {
+              "value": ""
+            },
+            "remove": []
+          },
+          {
+            "path": [
+              7,
+              7
+            ],
+            "set": {
+              "value": ""
+            },
+            "remove": []
+          },
+          {
+            "path": [
+              9,
+              3,
+              1
+            ],
+            "set": {},
+            "remove": [
+              "checked"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "adversarial-10",
+      "label": "falsy-fields-mode-unrecognized-original-mode",
+      "trace": [
+        "host"
+      ],
+      "error": null,
+      "contract": {
+        "key": "adversarial-10",
+        "baseline": "selfControlled",
+        "htmlSHA256": "1aadcdad3e5cd8deadfc06272e167bb67f7d89df80cc0d7f03ca1795e421deac",
+        "attributes": [
+          {
+            "path": [
+              5,
+              1
+            ],
+            "set": {
+              "style": "display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;"
+            },
+            "remove": []
+          },
+          {
+            "path": [
+              5,
+              1,
+              1
+            ],
+            "set": {},
+            "remove": [
+              "checked"
+            ]
+          },
+          {
+            "path": [
+              7,
+              3
+            ],
+            "set": {
+              "value": ""
+            },
+            "remove": []
+          },
+          {
+            "path": [
+              7,
+              7
+            ],
+            "set": {
+              "value": ""
+            },
+            "remove": []
+          },
+          {
+            "path": [
+              9,
+              3,
+              1
+            ],
+            "set": {},
+            "remove": [
+              "checked"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "browser": {
+    "key": "native-browser-selfhost",
+    "baseline": "selfControlled",
+    "htmlSHA256": "7e6e1da174719ee7bba8abd3f7a03a660fcd001a14cce7cca6534b52781aa9f5",
+    "attributes": [
+      {
+        "path": [
+          5,
+          1
+        ],
+        "set": {
+          "style": "display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;"
+        },
+        "remove": []
+      },
+      {
+        "path": [
+          5,
+          1,
+          1
+        ],
+        "set": {},
+        "remove": [
+          "checked"
+        ]
+      },
+      {
+        "path": [
+          5,
+          5
+        ],
+        "set": {
+          "style": "display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;background:var(--bg-card);border-color:var(--accent);"
+        },
+        "remove": []
+      },
+      {
+        "path": [
+          5,
+          5,
+          1
+        ],
+        "set": {
+          "checked": ""
+        },
+        "remove": []
+      },
+      {
+        "path": [
+          7
+        ],
+        "set": {
+          "style": "margin-top:10px;"
+        },
+        "remove": []
+      },
+      {
+        "path": [
+          7,
+          3
+        ],
+        "set": {
+          "value": "https://meteo.example.com/original"
+        },
+        "remove": []
+      },
+      {
+        "path": [
+          7,
+          7
+        ],
+        "set": {
+          "value": "synthetic-original-bearer"
+        },
+        "remove": []
+      }
+    ],
+    "config": {
+      "mode": "selfhost",
+      "selfhostUrl": "https://meteo.example.com/original",
+      "selfhostBearer": "synthetic-original-bearer",
+      "privacyRounding": 0.1
+    },
+    "nativeInputs": [
+      {
+        "id": "meteo-selfhost-url",
+        "attributes": {
+          "type": "text",
+          "class": "api-key-input",
+          "id": "meteo-selfhost-url",
+          "value": "https://meteo.example.com/original",
+          "placeholder": "https://meteo.example.com",
+          "style": "width:100%;margin-top:4px",
+          "data-sun-source-action": "save-meteo-selfhost"
+        },
+        "form": {
+          "value": "https://meteo.example.com/original",
+          "defaultValue": "https://meteo.example.com/original",
+          "valueAttribute": "https://meteo.example.com/original",
+          "type": "text",
+          "checked": false,
+          "defaultChecked": false,
+          "formOwner": null,
+          "autocomplete": "",
+          "validity": {
+            "valid": true,
+            "badInput": false,
+            "valueMissing": false
+          },
+          "selection": {
+            "start": 0,
+            "end": 0,
+            "direction": "forward"
+          }
+        }
+      },
+      {
+        "id": "meteo-selfhost-bearer",
+        "attributes": {
+          "type": "password",
+          "class": "api-key-input",
+          "id": "meteo-selfhost-bearer",
+          "value": "synthetic-original-bearer",
+          "placeholder": "••••••••",
+          "style": "width:100%;margin-top:4px",
+          "data-sun-source-action": "save-meteo-selfhost",
+          "autocomplete": "new-password"
+        },
+        "form": {
+          "value": "synthetic-original-bearer",
+          "defaultValue": "synthetic-original-bearer",
+          "valueAttribute": "synthetic-original-bearer",
+          "type": "password",
+          "checked": false,
+          "defaultChecked": false,
+          "formOwner": null,
+          "autocomplete": "new-password",
+          "validity": {
+            "valid": true,
+            "badInput": false,
+            "valueMissing": false
+          },
+          "selection": {
+            "start": 0,
+            "end": 0,
+            "direction": "forward"
+          }
+        }
+      }
+    ]
+  },
+  "nativeRadioParser": {
+    "inputSHA256": "2e051905ef2bca97e039feded2e36f79172214b7c089b7f5940cdbf4ce0dc03f",
+    "checked": [
+      false,
+      false,
+      true
+    ],
+    "defaultChecked": [
+      true,
+      true,
+      true
+    ],
+    "checkedAttributes": [
+      "",
+      "",
+      ""
+    ],
+    "jsdomChecked": [
+      true,
+      true,
+      true
+    ],
+    "boundary": "One isolated actual Chromium parser context consumes exact original VM-rendered HTML; no app bootstrap/network/events/clock/style overrides or geometry claim."
+  },
+  "boundary": "Only original HTML parsed offline; VM tree credential live values were already dirtied, so initial native defaults come from exact HTML and sealed real browser input receipts. Two original baselines plus exact attribute deltas reconstruct every successful original case without copying current output."
+}

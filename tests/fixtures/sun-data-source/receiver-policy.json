@@ -1,0 +1,374 @@
+{
+  "status": "literal source-reviewed implementation receiver recipes; native CSSOM pending",
+  "catalog": {
+    "heading": [
+      "gb:sun-source-inline:[margin:0_0_6px_0]",
+      "gb:sun-source-inline:[font-size:13px]",
+      "gb:sun-source-inline:[color:var(--text-primary)]"
+    ],
+    "description": [
+      "gb:sun-source-inline:[margin-bottom:10px]"
+    ],
+    "options": [
+      "gb:sun-source-inline:[display:flex]",
+      "gb:sun-source-inline:[flex-direction:column]",
+      "gb:sun-source-inline:[gap:8px]"
+    ],
+    "option": [
+      "gb:sun-source-inline:[display:flex]",
+      "gb:sun-source-inline:[gap:10px]",
+      "gb:sun-source-inline:[padding:10px_12px]",
+      "gb:sun-source-inline:[border-radius:var(--radius-sm)]",
+      "gb:sun-source-inline:[cursor:pointer]"
+    ],
+    "optionUnchecked": [
+      "gb:sun-source-inline:[border:1px_solid_var(--border)]"
+    ],
+    "optionChecked": [
+      "gb:sun-source-inline:sun-source-selected-frame"
+    ],
+    "radio": [
+      "gb:sun-source-inline:[margin-top:3px]"
+    ],
+    "optionLabel": [
+      "gb:sun-source-inline:[font-size:13px]",
+      "gb:sun-source-inline:[font-weight:500]",
+      "gb:sun-source-inline:[color:var(--text-primary)]"
+    ],
+    "optionDescription": [
+      "gb:sun-source-inline:[font-size:11px]",
+      "gb:sun-source-inline:[color:var(--text-muted)]",
+      "gb:sun-source-inline:[line-height:1.4]"
+    ],
+    "selfhost": [
+      "gb:sun-source-inline:[margin-top:10px]"
+    ],
+    "credentialLabel": [
+      "gb:sun-source-inline:[font-size:12px]",
+      "gb:sun-source-inline:[color:var(--text-muted)]"
+    ],
+    "credentialInput": [
+      "gb:sun-source-inline:[width:100%]",
+      "gb:sun-source-inline:[margin-top:4px]"
+    ],
+    "bearerLabel": [
+      "gb:sun-source-inline:[font-size:12px]",
+      "gb:sun-source-inline:[color:var(--text-muted)]",
+      "gb:sun-source-inline:[margin-top:8px]",
+      "gb:sun-source-inline:[display:block]"
+    ],
+    "hostedBoundary": [
+      "gb:sun-source-inline:[font-size:12px]",
+      "gb:sun-source-inline:[color:var(--text-muted)]",
+      "gb:sun-source-inline:[margin-top:14px]"
+    ],
+    "roundingRow": [
+      "gb:sun-source-inline:[display:flex]",
+      "gb:sun-source-inline:[align-items:start]",
+      "gb:sun-source-inline:[justify-content:space-between]",
+      "gb:sun-source-inline:[gap:12px]",
+      "gb:sun-source-inline:[margin-top:14px]"
+    ],
+    "roundingLabel": [
+      "gb:sun-source-inline:[font-size:13px]"
+    ],
+    "roundingDescription": [
+      "gb:sun-source-inline:[font-size:11px]",
+      "gb:sun-source-inline:[color:var(--text-muted)]"
+    ],
+    "roundingToggle": [
+      "gb:sun-source-inline:[margin-top:2px]"
+    ]
+  },
+  "recipes": [
+    {
+      "path": [
+        1
+      ],
+      "keys": [
+        "heading"
+      ],
+      "originalStyle": "margin:0 0 6px 0;font-size:13px;color:var(--text-primary)",
+      "currentStyle": null
+    },
+    {
+      "path": [
+        3
+      ],
+      "keys": [
+        "description"
+      ],
+      "originalStyle": "margin-bottom:10px",
+      "currentStyle": null
+    },
+    {
+      "path": [
+        5
+      ],
+      "keys": [
+        "options"
+      ],
+      "originalStyle": "display:flex;flex-direction:column;gap:8px",
+      "currentStyle": null
+    },
+    {
+      "path": [
+        5,
+        1
+      ],
+      "keys": [
+        "option",
+        "optionChecked"
+      ],
+      "originalStyle": "display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;background:var(--bg-card);border-color:var(--accent);",
+      "currentStyle": null
+    },
+    {
+      "path": [
+        5,
+        1,
+        1
+      ],
+      "keys": [
+        "radio"
+      ],
+      "originalStyle": "margin-top:3px",
+      "currentStyle": null
+    },
+    {
+      "path": [
+        5,
+        1,
+        3,
+        1
+      ],
+      "keys": [
+        "optionLabel"
+      ],
+      "originalStyle": "font-size:13px;font-weight:500;color:var(--text-primary)",
+      "currentStyle": null
+    },
+    {
+      "path": [
+        5,
+        1,
+        3,
+        4
+      ],
+      "keys": [
+        "optionDescription"
+      ],
+      "originalStyle": "font-size:11px;color:var(--text-muted);line-height:1.4",
+      "currentStyle": null
+    },
+    {
+      "path": [
+        5,
+        3
+      ],
+      "keys": [
+        "option",
+        "optionUnchecked"
+      ],
+      "originalStyle": "display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;",
+      "currentStyle": null
+    },
+    {
+      "path": [
+        5,
+        3,
+        1
+      ],
+      "keys": [
+        "radio"
+      ],
+      "originalStyle": "margin-top:3px",
+      "currentStyle": null
+    },
+    {
+      "path": [
+        5,
+        3,
+        3,
+        1
+      ],
+      "keys": [
+        "optionLabel"
+      ],
+      "originalStyle": "font-size:13px;font-weight:500;color:var(--text-primary)",
+      "currentStyle": null
+    },
+    {
+      "path": [
+        5,
+        3,
+        3,
+        4
+      ],
+      "keys": [
+        "optionDescription"
+      ],
+      "originalStyle": "font-size:11px;color:var(--text-muted);line-height:1.4",
+      "currentStyle": null
+    },
+    {
+      "path": [
+        5,
+        5
+      ],
+      "keys": [
+        "option",
+        "optionUnchecked"
+      ],
+      "originalStyle": "display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;",
+      "currentStyle": null
+    },
+    {
+      "path": [
+        5,
+        5,
+        1
+      ],
+      "keys": [
+        "radio"
+      ],
+      "originalStyle": "margin-top:3px",
+      "currentStyle": null
+    },
+    {
+      "path": [
+        5,
+        5,
+        3,
+        1
+      ],
+      "keys": [
+        "optionLabel"
+      ],
+      "originalStyle": "font-size:13px;font-weight:500;color:var(--text-primary)",
+      "currentStyle": null
+    },
+    {
+      "path": [
+        5,
+        5,
+        3,
+        4
+      ],
+      "keys": [
+        "optionDescription"
+      ],
+      "originalStyle": "font-size:11px;color:var(--text-muted);line-height:1.4",
+      "currentStyle": null
+    },
+    {
+      "path": [
+        7
+      ],
+      "keys": [
+        "selfhost"
+      ],
+      "originalStyle": "margin-top:10px;display:none",
+      "currentStyle": "display:none"
+    },
+    {
+      "path": [
+        7,
+        1
+      ],
+      "keys": [
+        "credentialLabel"
+      ],
+      "originalStyle": "font-size:12px;color:var(--text-muted)",
+      "currentStyle": null
+    },
+    {
+      "path": [
+        7,
+        3
+      ],
+      "keys": [
+        "credentialInput"
+      ],
+      "originalStyle": "width:100%;margin-top:4px",
+      "currentStyle": null
+    },
+    {
+      "path": [
+        7,
+        5
+      ],
+      "keys": [
+        "bearerLabel"
+      ],
+      "originalStyle": "font-size:12px;color:var(--text-muted);margin-top:8px;display:block",
+      "currentStyle": null
+    },
+    {
+      "path": [
+        7,
+        7
+      ],
+      "keys": [
+        "credentialInput"
+      ],
+      "originalStyle": "width:100%;margin-top:4px",
+      "currentStyle": null
+    },
+    {
+      "path": [
+        9
+      ],
+      "keys": [
+        "roundingRow"
+      ],
+      "originalStyle": "display:flex;align-items:start;justify-content:space-between;gap:12px;margin-top:14px",
+      "currentStyle": null
+    },
+    {
+      "path": [
+        9,
+        1
+      ],
+      "keys": [
+        "roundingLabel"
+      ],
+      "originalStyle": "font-size:13px",
+      "currentStyle": null
+    },
+    {
+      "path": [
+        9,
+        1,
+        2
+      ],
+      "keys": [
+        "roundingDescription"
+      ],
+      "originalStyle": "font-size:11px;color:var(--text-muted)",
+      "currentStyle": null
+    },
+    {
+      "path": [
+        9,
+        3
+      ],
+      "keys": [
+        "roundingToggle"
+      ],
+      "originalStyle": "margin-top:2px",
+      "currentStyle": null
+    }
+  ],
+  "officialTail": {
+    "path": [
+      9
+    ],
+    "keys": [
+      "hostedBoundary"
+    ],
+    "originalStyle": "font-size:12px;color:var(--text-muted);margin-top:14px",
+    "currentStyle": null
+  },
+  "boundary": "Exact original receiver path/attribute ownership. Option recipe selected from each original checked attribute; selfhost keeps exact dynamic display. No shared styles retired."
+}

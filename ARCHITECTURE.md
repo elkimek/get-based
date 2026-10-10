@@ -623,6 +623,18 @@ responsive tab orientation. Trusted extension slots retain their existing
 contract, and ordinary panel links are not navigation tabs. Legacy panel
 renderers remain an explicit incremental boundary until their components migrate.
 
+Sun data-source markup is authored by `SunDataSourcePresentation.svelte` and its
+internal `SunModeOption.svelte` child. `sun-data-source-presentation.ts` projects
+literal option and credential values; `sun-data-source-rendering.ts` provides
+synchronous HTML to the existing `settings-privacy.ts` controller. The controller
+retains configuration reads, hosted privacy boundaries, delegated controls,
+encrypted saves and successful-save visibility changes. The scoped
+`sun-data-source-classes.ts` catalog and private Light Tailwind fragment own the
+former static inline declarations at the existing `/css/light-sun.css` URL.
+Native radio attributes, credential defaults and controller-owned selfhost
+visibility remain stable. Shared privacy, input and toggle rules keep their
+established owners; the component adds no listeners or independent save state.
+
 Privacy uses the same component lifecycle through `settings-privacy-panel.ts`.
 `PrivacySettings.svelte` owns status, configuration, consent and analytics views;
 `SettingsToggle.svelte` supplies their shared control. `settings-privacy.ts` owns
@@ -1773,8 +1785,11 @@ The licensed stock figure and independent parametric escape hatch remain intact.
 
 Settings and Tweaks are loaded through `settings-loader.js` on their first
 shell, startup deep-link, or feature action. Theme-owned accent initialization
-stays in `theme.js`, while the Light page imports its Sun data-source renderer
-from `settings-privacy.js`; neither path requires the full Settings modal
+stays in `theme.js`, while the lazy Light feature hook imports its Sun data-source
+renderer and installs the idempotent change delegate from `settings-privacy.js`.
+Settings retains the same installer for its own entry path. Cold Light controls
+therefore save without requiring the Settings modal to initialize first; neither
+path requires the full Settings modal
 during normal startup. The loader also fetches `css/settings.css` on first use
 and waits for both resources before opening the UI. An HTML anchor preserves
 the stylesheet's cascade position, while the shell-owned Settings button rule

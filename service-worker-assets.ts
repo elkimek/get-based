@@ -302,7 +302,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/settings-voice-component.js', '/js/settings-voice-view-runtime.js',
   '/js/components/VoiceSettings.svelte.native.js',
   '/js/settings-voice-view.js',
-  '/js/settings-privacy.js',
+  '/js/settings-privacy.js', '/js/sun-data-source-presentation.js', '/js/sun-data-source-rendering.js', '/js/sun-data-source-classes.js', '/js/components/SunDataSourcePresentation.svelte.html.js',
   '/js/settings-data.js',
   '/js/wallet-withdraw-component.js', '/js/wallet-withdraw-contract.js', '/js/wallet-withdraw-controller.js', '/js/components/WalletWithdraw.svelte.native.js',
   '/js/import-benchmark-data.js', '/js/import-benchmark-contract.js', '/js/import-benchmark-presentation.js', '/js/import-benchmark-classes.js',

@@ -1,4 +1,5 @@
 /* Light page-owned utilities; the ordered lazy URL and shared child styles remain stable. */
+@import "./sun-data-source.tailwind.css";
 @import "tailwindcss/theme.css" layer(gb-theme) prefix(gb);
 @import "tailwindcss/utilities.css" prefix(gb) source(none);
 @import "./ui-tokens.tailwind.css";

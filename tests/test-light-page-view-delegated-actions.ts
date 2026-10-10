@@ -67,7 +67,9 @@ assert('Light Today AI renderers are wired without a window facade',
 assert('Light page UI hook wires router and Sun settings leaf dependencies',
   /import \{ navigate \} from '\.\/views\.js';/.test(uiHooksSrc)
     && !/from '\.\/settings-privacy\.js'/.test(uiHooksSrc)
-    && /import \{ renderSunDataSourceSettings \} from '\.\/settings-privacy\.js';/.test(hooksSrc)
+    && /import \{ installSunDataSourceDelegates, renderSunDataSourceSettings \} from '\.\/settings-privacy\.js';/.test(hooksSrc)
+    && (hooksSrc.match(/^installSunDataSourceDelegates\(\);$/gm) || []).length === 1
+    && hooksSrc.indexOf('installSunDataSourceDelegates();') < hooksSrc.indexOf('configureLightPageView({')
     && !/from '\.\/settings\.js'/.test(uiHooksSrc)
     && /configureLightPageView\(\{[\s\S]*renderSunDataSourceSettings[\s\S]*\}\);/.test(hooksSrc));
 assert('Light page hooks and router wiring load behind the feature boundary',

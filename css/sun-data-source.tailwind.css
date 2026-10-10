@@ -1,0 +1,12 @@
+/* Imported by existing light-page.tailwind.css; no new CSS URL or shared ownership. */
+@source "../js/sun-data-source-classes.ts";
+@source "../js/components/SunDataSourcePresentation.svelte";
+@source "../js/components/SunModeOption.svelte";
+@custom-variant sun-source-inline (:where(&):is(#sun-data-source-section, #sun-data-source-section *));
+
+/* Keep the native shorthand and checked override in one ordered declaration group. */
+@utility sun-source-selected-frame {
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  border-color: var(--accent);
+}

@@ -20,6 +20,9 @@ const eventTargetSrc = readRepositorySource('js/settings-event-target.js', 'utf8
 const privacyComponentSrc = readRepositorySource('js/components/PrivacySettings.svelte', 'utf8');
 const toggleComponentSrc = readRepositorySource('js/components/SettingsToggle.svelte', 'utf8');
 const privacySrc = readRepositorySource('js/settings-privacy.js', 'utf8');
+const sunComponentSrc = readRepositorySource('js/components/SunDataSourcePresentation.svelte', 'utf8');
+const sunOptionSrc = readRepositorySource('js/components/SunModeOption.svelte', 'utf8');
+const sunRendererSrc = readAuthoredRepositorySource('js/sun-data-source-rendering.js', 'utf8');
 const settingsDataSrc = [readRepositorySource('js/settings-data.js', 'utf8'), readRepositorySource('js/components/DataEntriesSettings.svelte', 'utf8'), readRepositorySource('js/components/AIUsageSettings.svelte', 'utf8')].join('\n');
 const voiceSrc = readRepositorySource('js/settings-voice-panel.js', 'utf8');
 const voiceComponentSrc = readRepositorySource('js/components/VoiceSettings.svelte', 'utf8');
@@ -177,8 +180,17 @@ assert('Settings AI no longer owns context source toggles',
   'save-meteo-selfhost',
   'toggle-meteo-rounding',
 ].forEach(action => {
-  assert(`Sun data-source action ${action} is rendered`, privacySrc.includes(`data-sun-source-action="${action}"`));
+  assert(`Sun data-source action ${action} is rendered`,
+    (action === 'set-meteo-mode' ? sunOptionSrc : sunComponentSrc).includes(`data-sun-source-action="${action}"`));
 });
+
+assert('Sun public controller renders the authored component through its synchronous facade',
+  privacySrc.includes("from './sun-data-source-rendering.js'")
+    && privacySrc.includes('return renderSunDataSource({')
+    && sunRendererSrc.includes("from './components/SunDataSourcePresentation.svelte.html.js'"));
+assert('Sun mode controls belong to the authored internal option child',
+  sunComponentSrc.includes("import SunModeOption from './SunModeOption.svelte'")
+    && [0, 1, 2].every(index => sunComponentSrc.includes(`<SunModeOption view={view.options[${index}]} />`)));
 
 assert('Settings tabs use data-settings-tab',
   shellSrc.includes('data-settings-tab={tab.id}') && shellSrc.includes('{#each SETTINGS_TABS as tab')

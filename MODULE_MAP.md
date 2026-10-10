@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1524 |
-| Internal import edges | 4964 |
+| Modules | 1529 |
+| Internal import edges | 4970 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -3298,7 +3298,7 @@ Native browser modules shipped with the static application.
 - [`js/settings-privacy-contract.ts`](js/settings-privacy-contract.ts) → no in-scope imports
 - [`js/settings-privacy-panel.ts`](js/settings-privacy-panel.ts) → [`js/components/PrivacySettings.svelte`](js/components/PrivacySettings.svelte), [`js/settings-privacy-view.ts`](js/settings-privacy-view.ts), [`js/settings-privacy.ts`](js/settings-privacy.ts)
 - [`js/settings-privacy-view.ts`](js/settings-privacy-view.ts) → no in-scope imports
-- [`js/settings-privacy.ts`](js/settings-privacy.ts) → [`js/api.ts`](js/api.ts), [`js/cloud-ai-consent.ts`](js/cloud-ai-consent.ts), [`js/pii.ts`](js/pii.ts), [`js/settings-privacy-view.ts`](js/settings-privacy-view.ts), [`js/settings-runtime.ts`](js/settings-runtime.ts), [`js/url-safety.ts`](js/url-safety.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/settings-privacy.ts`](js/settings-privacy.ts) → [`js/api.ts`](js/api.ts), [`js/cloud-ai-consent.ts`](js/cloud-ai-consent.ts), [`js/pii.ts`](js/pii.ts), [`js/settings-privacy-view.ts`](js/settings-privacy-view.ts), [`js/settings-runtime.ts`](js/settings-runtime.ts), [`js/sun-data-source-presentation.ts`](js/sun-data-source-presentation.ts), [`js/sun-data-source-rendering.ts`](js/sun-data-source-rendering.ts), [`js/url-safety.ts`](js/url-safety.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/settings-protection-classes.ts`](js/settings-protection-classes.ts) → no in-scope imports
 - [`js/settings-protection-component.ts`](js/settings-protection-component.ts) → [`js/backup-folder-presentation.ts`](js/backup-folder-presentation.ts), [`js/components/BackupSettings.svelte`](js/components/BackupSettings.svelte), [`js/components/EncryptionSettings.svelte`](js/components/EncryptionSettings.svelte)
 - [`js/settings-protection-contract.ts`](js/settings-protection-contract.ts) → no in-scope imports
@@ -3382,7 +3382,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>sun</code> family — 37 modules</summary>
+<details><summary><code>sun</code> family — 40 modules</summary>
 
 - [`js/sun-active-session-format.ts`](js/sun-active-session-format.ts) → [`js/components/LightSessionPresentation.svelte`](js/components/LightSessionPresentation.svelte)
 - [`js/sun-active-session.ts`](js/sun-active-session.ts) → [`js/components/LightSessionPresentation.svelte`](js/components/LightSessionPresentation.svelte), [`js/light-active-session-presentation.ts`](js/light-active-session-presentation.ts), [`js/light-session-presentation.ts`](js/light-session-presentation.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/sun-active-session-format.ts`](js/sun-active-session-format.ts), [`js/sun-body-silhouette.ts`](js/sun-body-silhouette.ts), [`js/sun-session-actions.ts`](js/sun-session-actions.ts), [`js/sun-session-model.ts`](js/sun-session-model.ts), [`js/sun-session-ui.ts`](js/sun-session-ui.ts), [`js/utils.ts`](js/utils.ts)
@@ -3397,6 +3397,9 @@ Native browser modules shipped with the static application.
 - [`js/sun-context-session-tools.ts`](js/sun-context-session-tools.ts) → [`js/state.ts`](js/state.ts), [`js/sun-context-runtime.ts`](js/sun-context-runtime.ts)
 - [`js/sun-context.ts`](js/sun-context.ts) → [`js/lab-context.ts`](js/lab-context.ts), [`js/state.ts`](js/state.ts), [`js/sun-context-environment.ts`](js/sun-context-environment.ts), [`js/sun-context-runtime.ts`](js/sun-context-runtime.ts), [`js/sun-context-session-tools.ts`](js/sun-context-session-tools.ts), [`js/sun-correlations.ts`](js/sun-correlations.ts)
 - [`js/sun-correlations.ts`](js/sun-correlations.ts) → [`js/state.ts`](js/state.ts), [`js/sun.ts`](js/sun.ts)
+- [`js/sun-data-source-classes.ts`](js/sun-data-source-classes.ts) → no in-scope imports
+- [`js/sun-data-source-presentation.ts`](js/sun-data-source-presentation.ts) → no in-scope imports
+- [`js/sun-data-source-rendering.ts`](js/sun-data-source-rendering.ts) → [`js/components/SunDataSourcePresentation.svelte`](js/components/SunDataSourcePresentation.svelte)
 - [`js/sun-defaults-model.ts`](js/sun-defaults-model.ts) → no in-scope imports
 - [`js/sun-defaults-runtime.ts`](js/sun-defaults-runtime.ts) → [`js/profile.ts`](js/profile.ts)
 - [`js/sun-defaults-session.ts`](js/sun-defaults-session.ts) → [`js/constants.ts`](js/constants.ts), [`js/data.ts`](js/data.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile-load-safety.ts`](js/profile-load-safety.ts), [`js/state.ts`](js/state.ts), [`js/sun-defaults-model.ts`](js/sun-defaults-model.ts)
@@ -3433,6 +3436,18 @@ Native browser modules shipped with the static application.
 <details><summary><code>SunBodyPickerFrame.svelte</code> family — 1 module</summary>
 
 - [`js/components/SunBodyPickerFrame.svelte`](js/components/SunBodyPickerFrame.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>SunDataSourcePresentation.svelte</code> family — 1 module</summary>
+
+- [`js/components/SunDataSourcePresentation.svelte`](js/components/SunDataSourcePresentation.svelte) → [`js/components/SunModeOption.svelte`](js/components/SunModeOption.svelte), [`js/sun-data-source-classes.ts`](js/sun-data-source-classes.ts)
+
+</details>
+
+<details><summary><code>SunModeOption.svelte</code> family — 1 module</summary>
+
+- [`js/components/SunModeOption.svelte`](js/components/SunModeOption.svelte) → [`js/sun-data-source-classes.ts`](js/sun-data-source-classes.ts)
 
 </details>
 
