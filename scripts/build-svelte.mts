@@ -34,6 +34,7 @@ const HTML_COMPONENTS = new Set([
   'CycleImportPicker', 'CycleImportCoverage', 'CycleEditorPresentation', 'CycleOverviewPresentation', 'TipsSection', 'TipsDetail',
   'TipsProduct', 'TipsCoupon', 'TipsDisclosure', 'TipsBanner',
   'TipsDisclaimer', 'RecommendationPage',
+  'NoteEditorPresentation',
   'KnowledgeBasePanel', 'KnowledgeBaseModal', 'KnowledgeBaseStatus', 'KnowledgeBaseStats',
   'KnowledgeBaseDocuments', 'KnowledgeBaseIngestPill', 'KnowledgeBaseLibraryOptions', 'KnowledgeBaseLibraryCreate',
 ]);

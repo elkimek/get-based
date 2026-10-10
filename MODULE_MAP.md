@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1505 |
-| Internal import edges | 4944 |
+| Modules | 1509 |
+| Internal import edges | 4947 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -2692,10 +2692,24 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>notes</code> family — 2 modules</summary>
+<details><summary><code>note</code> family — 1 module</summary>
 
+- [`js/note-editor-classes.ts`](js/note-editor-classes.ts) → no in-scope imports
+
+</details>
+
+<details><summary><code>NoteEditorPresentation.svelte</code> family — 1 module</summary>
+
+- [`js/components/NoteEditorPresentation.svelte`](js/components/NoteEditorPresentation.svelte) → [`js/note-editor-classes.ts`](js/note-editor-classes.ts)
+
+</details>
+
+<details><summary><code>notes</code> family — 4 modules</summary>
+
+- [`js/notes-presentation.ts`](js/notes-presentation.ts) → no in-scope imports
+- [`js/notes-rendering.ts`](js/notes-rendering.ts) → [`js/components/NoteEditorPresentation.svelte`](js/components/NoteEditorPresentation.svelte)
 - [`js/notes-runtime.ts`](js/notes-runtime.ts) → [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts)
-- [`js/notes.ts`](js/notes.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/dashboard-widget-runtime.ts`](js/dashboard-widget-runtime.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/notes-runtime.ts`](js/notes-runtime.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/notes.ts`](js/notes.ts) → [`js/dashboard-widget-runtime.ts`](js/dashboard-widget-runtime.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/notes-presentation.ts`](js/notes-presentation.ts), [`js/notes-rendering.ts`](js/notes-rendering.ts), [`js/notes-runtime.ts`](js/notes-runtime.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 
 </details>
 

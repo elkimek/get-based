@@ -185,6 +185,23 @@ function _resolveFocusTarget(target: string | HTMLElement | undefined, overlay: 
   return target;
 }
 
+function _canApplyDelayedInitialFocus(overlay: Element, activeElementAtOpen: Element | null): boolean {
+  if (!_isNodeConnected(overlay)) return false;
+  // Appended confirmations own keyboard focus while a parent's opening delay
+  // is pending. Include the target's position even for custom/nonmodal hosts.
+  const foregroundOverlay = Array.from(document.querySelectorAll(VISIBLE_MODAL_SELECTOR)).some(candidate =>
+    candidate !== overlay
+    && _isNodeConnected(candidate)
+    && !!(overlay.compareDocumentPosition(candidate) & Node.DOCUMENT_POSITION_FOLLOWING));
+  if (foregroundOverlay) return false;
+  const activeElement = document.activeElement;
+  // A custom foreground host may not match the modal selector. Preserve focus
+  // that a user or feature moved outside this overlay after it opened.
+  return !_isRestorableFocusTarget(activeElement)
+    || activeElement === activeElementAtOpen
+    || overlay.contains(activeElement);
+}
+
 export function openModalOverlay(overlayOrId: OverlayReference, options: ModalOverlayOptions = {}): Element | null {
   const overlay = _resolveOverlay(overlayOrId);
   if (!overlay) return null;
@@ -206,6 +223,7 @@ export function openModalOverlay(overlayOrId: OverlayReference, options: ModalOv
     setTimeout(() => {
       const currentOverlay = _resolveOverlay(overlayOrId);
       if (!currentOverlay || !currentOverlay.classList.contains(showClass)) return;
+      if (!_canApplyDelayedInitialFocus(currentOverlay, activeElementAtOpen)) return;
       const target = _resolveFocusTarget(options.initialFocus, currentOverlay);
       const activeElement = document.activeElement;
       // A mode switch may reuse a visible overlay. Its delayed handoff must
@@ -226,6 +244,7 @@ export function openModalOverlay(overlayOrId: OverlayReference, options: ModalOv
     setTimeout(() => {
       const currentOverlay = _resolveOverlay(overlayOrId);
       if (!currentOverlay || !currentOverlay.classList.contains(showClass)) return;
+      if (!_canApplyDelayedInitialFocus(currentOverlay, activeElementAtOpen)) return;
       if (currentOverlay.contains(document.activeElement)) return;
       const target = (currentOverlay.querySelector(FOCUSABLE_SELECTOR) as HTMLElement | null);
       if (target) {

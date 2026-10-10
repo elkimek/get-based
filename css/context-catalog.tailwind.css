@@ -13,3 +13,11 @@
 
 @source "../js/components/ContextNutritionLink.svelte";
 @custom-variant nutrition-link (&:is([data-nutrition-context-link], [data-nutrition-context-link] *));
+
+/* Standalone Note editor; reuse native targets without changing shared modal ownership.
+   Textarea utilities retain the original class specificity. Former inline receivers
+   use the existing modal ID to outrank shared normal rules, without !important. */
+@source "../js/components/NoteEditorPresentation.svelte";
+@source "../js/note-editor-classes.ts";
+@custom-variant note-editor-field (&:where(#detail-modal #note-textarea));
+@custom-variant note-editor-inline (&:is(#detail-modal *));

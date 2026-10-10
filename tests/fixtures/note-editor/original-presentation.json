@@ -1,0 +1,825 @@
+{
+  "schemaVersion": 1,
+  "provenance": {
+    "boundary": "Standalone frozen original presentation execution with minimal state/modal-runtime mocks; DOM serialization is parsed by jsdom, not browser acceptance.",
+    "originalFiles": [
+      {
+        "path": "js/notes.js",
+        "sha256": "825482e7305b7e1c80b58f8534d0d165268203b987b851eb338f58615a5e9941"
+      },
+      {
+        "path": "js/utils.js",
+        "sha256": "da83d9cc78f705de4afb2b0ea1774889b251a9033d426fb5fed7dad6495c7dc1"
+      },
+      {
+        "path": "js/action-attributes.js",
+        "sha256": "885bb0e531c44a64b6c321eb43f98dfd0a43308ab2a40feb41752184685e4114"
+      }
+    ],
+    "originalPublicManifestSha256": "6dec8a9dc1abcaae0745c70e9531d17ef01baecc4812a74b4bce35878b15e229",
+    "extractedOpenNoteEditorSha256": "1a9edfbe069a47a2e5238fb8bcda48db7ed405b24384b5ae7a8fa31eb7bd9b74",
+    "originalInnerHTMLExpressionSha256": "b4dc271c411ea706032fc6cb49cf1fbec4e8930f9440065748da08d60d522181",
+    "originalDependencyExpressionsSha256": "8486efa9582d21aab213127353681c354aa1867a5402686e3f7a7c7d17c4511f",
+    "parser": {
+      "package": "jsdom",
+      "version": "30.0.1"
+    },
+    "unchangedBeforeAfter": true
+  },
+  "samples": [
+    {
+      "name": "add-valid",
+      "boundary": "frozen-original-openNoteEditor",
+      "input": {
+        "isEditing": false,
+        "defaultDate": "2026-10-10",
+        "currentText": "",
+        "existingIdx": null
+      },
+      "undefinedKeys": [],
+      "html": "<button type=\"button\" class=\"modal-close\" data-note-action=\"close\">&times;</button>\n    <h3>Add Note</h3>\n    <div class=\"modal-unit\">Add context: medication changes, supplements, symptoms, lifestyle changes</div>\n    <div style=\"margin:16px 0\">\n      <label style=\"font-size:13px;color:var(--text-secondary);display:block;margin-bottom:4px\">Date</label>\n      <input type=\"date\" id=\"note-date-input\" value=\"2026-10-10\" style=\"padding:8px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:13px;font-family:inherit\">\n    </div>\n    <textarea class=\"note-editor\" id=\"note-textarea\" placeholder=\"e.g. Started creatine supplement, switched to low-carb diet...\"></textarea>\n    <div class=\"note-editor-actions\">\n      <button type=\"button\" class=\"import-btn import-btn-primary\" data-note-action=\"save\">Save</button>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-note-action=\"close\">Cancel</button>\n      \n    </div>",
+      "native": {
+        "date": {
+          "attribute": "2026-10-10",
+          "value": "2026-10-10",
+          "defaultValue": "2026-10-10"
+        },
+        "textarea": {
+          "textContent": "",
+          "value": "",
+          "defaultValue": ""
+        },
+        "childTags": [
+          "BUTTON",
+          "H3",
+          "DIV",
+          "DIV",
+          "TEXTAREA",
+          "DIV"
+        ],
+        "actionIndices": [
+          {
+            "action": "close",
+            "index": null
+          },
+          {
+            "action": "save",
+            "index": null
+          },
+          {
+            "action": "close",
+            "index": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "add-invalid-date",
+      "boundary": "frozen-original-openNoteEditor",
+      "input": {
+        "isEditing": false,
+        "defaultDate": "2026-02-30",
+        "currentText": "",
+        "existingIdx": null
+      },
+      "undefinedKeys": [],
+      "html": "<button type=\"button\" class=\"modal-close\" data-note-action=\"close\">&times;</button>\n    <h3>Add Note</h3>\n    <div class=\"modal-unit\">Add context: medication changes, supplements, symptoms, lifestyle changes</div>\n    <div style=\"margin:16px 0\">\n      <label style=\"font-size:13px;color:var(--text-secondary);display:block;margin-bottom:4px\">Date</label>\n      <input type=\"date\" id=\"note-date-input\" value=\"2026-02-30\" style=\"padding:8px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:13px;font-family:inherit\">\n    </div>\n    <textarea class=\"note-editor\" id=\"note-textarea\" placeholder=\"e.g. Started creatine supplement, switched to low-carb diet...\"></textarea>\n    <div class=\"note-editor-actions\">\n      <button type=\"button\" class=\"import-btn import-btn-primary\" data-note-action=\"save\">Save</button>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-note-action=\"close\">Cancel</button>\n      \n    </div>",
+      "native": {
+        "date": {
+          "attribute": "2026-02-30",
+          "value": "",
+          "defaultValue": "2026-02-30"
+        },
+        "textarea": {
+          "textContent": "",
+          "value": "",
+          "defaultValue": ""
+        },
+        "childTags": [
+          "BUTTON",
+          "H3",
+          "DIV",
+          "DIV",
+          "TEXTAREA",
+          "DIV"
+        ],
+        "actionIndices": [
+          {
+            "action": "close",
+            "index": null
+          },
+          {
+            "action": "save",
+            "index": null
+          },
+          {
+            "action": "close",
+            "index": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "add-hostile-date",
+      "boundary": "frozen-original-openNoteEditor",
+      "input": {
+        "isEditing": false,
+        "defaultDate": "\" autofocus onfocus=\"alert(1)<>&' ",
+        "currentText": "",
+        "existingIdx": null
+      },
+      "undefinedKeys": [],
+      "html": "<button type=\"button\" class=\"modal-close\" data-note-action=\"close\">&times;</button>\n    <h3>Add Note</h3>\n    <div class=\"modal-unit\">Add context: medication changes, supplements, symptoms, lifestyle changes</div>\n    <div style=\"margin:16px 0\">\n      <label style=\"font-size:13px;color:var(--text-secondary);display:block;margin-bottom:4px\">Date</label>\n      <input type=\"date\" id=\"note-date-input\" value=\"&quot; autofocus onfocus=&quot;alert(1)&lt;&gt;&amp;&#39; \" style=\"padding:8px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:13px;font-family:inherit\">\n    </div>\n    <textarea class=\"note-editor\" id=\"note-textarea\" placeholder=\"e.g. Started creatine supplement, switched to low-carb diet...\"></textarea>\n    <div class=\"note-editor-actions\">\n      <button type=\"button\" class=\"import-btn import-btn-primary\" data-note-action=\"save\">Save</button>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-note-action=\"close\">Cancel</button>\n      \n    </div>",
+      "native": {
+        "date": {
+          "attribute": "\" autofocus onfocus=\"alert(1)<>&' ",
+          "value": "",
+          "defaultValue": "\" autofocus onfocus=\"alert(1)<>&' "
+        },
+        "textarea": {
+          "textContent": "",
+          "value": "",
+          "defaultValue": ""
+        },
+        "childTags": [
+          "BUTTON",
+          "H3",
+          "DIV",
+          "DIV",
+          "TEXTAREA",
+          "DIV"
+        ],
+        "actionIndices": [
+          {
+            "action": "close",
+            "index": null
+          },
+          {
+            "action": "save",
+            "index": null
+          },
+          {
+            "action": "close",
+            "index": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "edit-zero-index",
+      "boundary": "frozen-original-openNoteEditor",
+      "input": {
+        "isEditing": true,
+        "defaultDate": "2026-10-10",
+        "currentText": "ordinary note",
+        "existingIdx": 0
+      },
+      "undefinedKeys": [],
+      "html": "<button type=\"button\" class=\"modal-close\" data-note-action=\"close\">&times;</button>\n    <h3>Edit Note</h3>\n    <div class=\"modal-unit\">Add context: medication changes, supplements, symptoms, lifestyle changes</div>\n    <div style=\"margin:16px 0\">\n      <label style=\"font-size:13px;color:var(--text-secondary);display:block;margin-bottom:4px\">Date</label>\n      <input type=\"date\" id=\"note-date-input\" value=\"2026-10-10\" style=\"padding:8px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:13px;font-family:inherit\">\n    </div>\n    <textarea class=\"note-editor\" id=\"note-textarea\" placeholder=\"e.g. Started creatine supplement, switched to low-carb diet...\">ordinary note</textarea>\n    <div class=\"note-editor-actions\">\n      <button type=\"button\" class=\"import-btn import-btn-primary\" data-note-action=\"save\" data-note-index=\"0\">Save</button>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-note-action=\"close\">Cancel</button>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" style=\"color:var(--red);border-color:var(--red);margin-left:auto\" data-note-action=\"delete\" data-note-index=\"0\">Delete</button>\n    </div>",
+      "native": {
+        "date": {
+          "attribute": "2026-10-10",
+          "value": "2026-10-10",
+          "defaultValue": "2026-10-10"
+        },
+        "textarea": {
+          "textContent": "ordinary note",
+          "value": "ordinary note",
+          "defaultValue": "ordinary note"
+        },
+        "childTags": [
+          "BUTTON",
+          "H3",
+          "DIV",
+          "DIV",
+          "TEXTAREA",
+          "DIV"
+        ],
+        "actionIndices": [
+          {
+            "action": "close",
+            "index": null
+          },
+          {
+            "action": "save",
+            "index": "0"
+          },
+          {
+            "action": "close",
+            "index": null
+          },
+          {
+            "action": "delete",
+            "index": "0"
+          }
+        ]
+      }
+    },
+    {
+      "name": "edit-false-index",
+      "boundary": "frozen-original-openNoteEditor",
+      "input": {
+        "isEditing": true,
+        "defaultDate": "2026-10-10",
+        "currentText": false,
+        "existingIdx": false
+      },
+      "undefinedKeys": [],
+      "html": "<button type=\"button\" class=\"modal-close\" data-note-action=\"close\">&times;</button>\n    <h3>Edit Note</h3>\n    <div class=\"modal-unit\">Add context: medication changes, supplements, symptoms, lifestyle changes</div>\n    <div style=\"margin:16px 0\">\n      <label style=\"font-size:13px;color:var(--text-secondary);display:block;margin-bottom:4px\">Date</label>\n      <input type=\"date\" id=\"note-date-input\" value=\"2026-10-10\" style=\"padding:8px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:13px;font-family:inherit\">\n    </div>\n    <textarea class=\"note-editor\" id=\"note-textarea\" placeholder=\"e.g. Started creatine supplement, switched to low-carb diet...\">false</textarea>\n    <div class=\"note-editor-actions\">\n      <button type=\"button\" class=\"import-btn import-btn-primary\" data-note-action=\"save\" data-note-index=\"false\">Save</button>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-note-action=\"close\">Cancel</button>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" style=\"color:var(--red);border-color:var(--red);margin-left:auto\" data-note-action=\"delete\" data-note-index=\"false\">Delete</button>\n    </div>",
+      "native": {
+        "date": {
+          "attribute": "2026-10-10",
+          "value": "2026-10-10",
+          "defaultValue": "2026-10-10"
+        },
+        "textarea": {
+          "textContent": "false",
+          "value": "false",
+          "defaultValue": "false"
+        },
+        "childTags": [
+          "BUTTON",
+          "H3",
+          "DIV",
+          "DIV",
+          "TEXTAREA",
+          "DIV"
+        ],
+        "actionIndices": [
+          {
+            "action": "close",
+            "index": null
+          },
+          {
+            "action": "save",
+            "index": "false"
+          },
+          {
+            "action": "close",
+            "index": null
+          },
+          {
+            "action": "delete",
+            "index": "false"
+          }
+        ]
+      }
+    },
+    {
+      "name": "edit-empty-index",
+      "boundary": "frozen-original-openNoteEditor",
+      "input": {
+        "isEditing": true,
+        "defaultDate": "",
+        "currentText": 0,
+        "existingIdx": ""
+      },
+      "undefinedKeys": [],
+      "html": "<button type=\"button\" class=\"modal-close\" data-note-action=\"close\">&times;</button>\n    <h3>Edit Note</h3>\n    <div class=\"modal-unit\">Add context: medication changes, supplements, symptoms, lifestyle changes</div>\n    <div style=\"margin:16px 0\">\n      <label style=\"font-size:13px;color:var(--text-secondary);display:block;margin-bottom:4px\">Date</label>\n      <input type=\"date\" id=\"note-date-input\" value=\"\" style=\"padding:8px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:13px;font-family:inherit\">\n    </div>\n    <textarea class=\"note-editor\" id=\"note-textarea\" placeholder=\"e.g. Started creatine supplement, switched to low-carb diet...\">0</textarea>\n    <div class=\"note-editor-actions\">\n      <button type=\"button\" class=\"import-btn import-btn-primary\" data-note-action=\"save\" data-note-index=\"\">Save</button>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-note-action=\"close\">Cancel</button>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" style=\"color:var(--red);border-color:var(--red);margin-left:auto\" data-note-action=\"delete\" data-note-index=\"\">Delete</button>\n    </div>",
+      "native": {
+        "date": {
+          "attribute": "",
+          "value": "",
+          "defaultValue": ""
+        },
+        "textarea": {
+          "textContent": "0",
+          "value": "0",
+          "defaultValue": "0"
+        },
+        "childTags": [
+          "BUTTON",
+          "H3",
+          "DIV",
+          "DIV",
+          "TEXTAREA",
+          "DIV"
+        ],
+        "actionIndices": [
+          {
+            "action": "close",
+            "index": null
+          },
+          {
+            "action": "save",
+            "index": ""
+          },
+          {
+            "action": "close",
+            "index": null
+          },
+          {
+            "action": "delete",
+            "index": ""
+          }
+        ]
+      }
+    },
+    {
+      "name": "edit-literal-hostile",
+      "boundary": "frozen-original-openNoteEditor",
+      "input": {
+        "isEditing": true,
+        "defaultDate": "invalid\"<>&'",
+        "currentText": "   <script>alert(1)</script><img src=x onerror=\"alert(1)\"> & \"quoted\" 'quoted'   ",
+        "existingIdx": "<\"&'"
+      },
+      "undefinedKeys": [],
+      "html": "<button type=\"button\" class=\"modal-close\" data-note-action=\"close\">&times;</button>\n    <h3>Edit Note</h3>\n    <div class=\"modal-unit\">Add context: medication changes, supplements, symptoms, lifestyle changes</div>\n    <div style=\"margin:16px 0\">\n      <label style=\"font-size:13px;color:var(--text-secondary);display:block;margin-bottom:4px\">Date</label>\n      <input type=\"date\" id=\"note-date-input\" value=\"invalid&quot;&lt;&gt;&amp;&#39;\" style=\"padding:8px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:13px;font-family:inherit\">\n    </div>\n    <textarea class=\"note-editor\" id=\"note-textarea\" placeholder=\"e.g. Started creatine supplement, switched to low-carb diet...\">   &lt;script&gt;alert(1)&lt;/script&gt;&lt;img src=x onerror=&quot;alert(1)&quot;&gt; &amp; &quot;quoted&quot; &#39;quoted&#39;   </textarea>\n    <div class=\"note-editor-actions\">\n      <button type=\"button\" class=\"import-btn import-btn-primary\" data-note-action=\"save\" data-note-index=\"&lt;&quot;&amp;&#39;\">Save</button>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-note-action=\"close\">Cancel</button>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" style=\"color:var(--red);border-color:var(--red);margin-left:auto\" data-note-action=\"delete\" data-note-index=\"&lt;&quot;&amp;&#39;\">Delete</button>\n    </div>",
+      "native": {
+        "date": {
+          "attribute": "invalid\"<>&'",
+          "value": "",
+          "defaultValue": "invalid\"<>&'"
+        },
+        "textarea": {
+          "textContent": "   <script>alert(1)</script><img src=x onerror=\"alert(1)\"> & \"quoted\" 'quoted'   ",
+          "value": "   <script>alert(1)</script><img src=x onerror=\"alert(1)\"> & \"quoted\" 'quoted'   ",
+          "defaultValue": "   <script>alert(1)</script><img src=x onerror=\"alert(1)\"> & \"quoted\" 'quoted'   "
+        },
+        "childTags": [
+          "BUTTON",
+          "H3",
+          "DIV",
+          "DIV",
+          "TEXTAREA",
+          "DIV"
+        ],
+        "actionIndices": [
+          {
+            "action": "close",
+            "index": null
+          },
+          {
+            "action": "save",
+            "index": "<\"&'"
+          },
+          {
+            "action": "close",
+            "index": null
+          },
+          {
+            "action": "delete",
+            "index": "<\"&'"
+          }
+        ]
+      }
+    },
+    {
+      "name": "edit-one-leading-lf",
+      "boundary": "frozen-original-openNoteEditor",
+      "input": {
+        "isEditing": true,
+        "defaultDate": "2026-10-10",
+        "currentText": "\nfirst\nlast\n",
+        "existingIdx": 0
+      },
+      "undefinedKeys": [],
+      "html": "<button type=\"button\" class=\"modal-close\" data-note-action=\"close\">&times;</button>\n    <h3>Edit Note</h3>\n    <div class=\"modal-unit\">Add context: medication changes, supplements, symptoms, lifestyle changes</div>\n    <div style=\"margin:16px 0\">\n      <label style=\"font-size:13px;color:var(--text-secondary);display:block;margin-bottom:4px\">Date</label>\n      <input type=\"date\" id=\"note-date-input\" value=\"2026-10-10\" style=\"padding:8px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:13px;font-family:inherit\">\n    </div>\n    <textarea class=\"note-editor\" id=\"note-textarea\" placeholder=\"e.g. Started creatine supplement, switched to low-carb diet...\">\nfirst\nlast\n</textarea>\n    <div class=\"note-editor-actions\">\n      <button type=\"button\" class=\"import-btn import-btn-primary\" data-note-action=\"save\" data-note-index=\"0\">Save</button>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-note-action=\"close\">Cancel</button>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" style=\"color:var(--red);border-color:var(--red);margin-left:auto\" data-note-action=\"delete\" data-note-index=\"0\">Delete</button>\n    </div>",
+      "native": {
+        "date": {
+          "attribute": "2026-10-10",
+          "value": "2026-10-10",
+          "defaultValue": "2026-10-10"
+        },
+        "textarea": {
+          "textContent": "first\nlast\n",
+          "value": "first\nlast\n",
+          "defaultValue": "first\nlast\n"
+        },
+        "childTags": [
+          "BUTTON",
+          "H3",
+          "DIV",
+          "DIV",
+          "TEXTAREA",
+          "DIV"
+        ],
+        "actionIndices": [
+          {
+            "action": "close",
+            "index": null
+          },
+          {
+            "action": "save",
+            "index": "0"
+          },
+          {
+            "action": "close",
+            "index": null
+          },
+          {
+            "action": "delete",
+            "index": "0"
+          }
+        ]
+      }
+    },
+    {
+      "name": "edit-two-leading-lf",
+      "boundary": "frozen-original-openNoteEditor",
+      "input": {
+        "isEditing": true,
+        "defaultDate": "2026-10-10",
+        "currentText": "\n\nfirst\n",
+        "existingIdx": 0
+      },
+      "undefinedKeys": [],
+      "html": "<button type=\"button\" class=\"modal-close\" data-note-action=\"close\">&times;</button>\n    <h3>Edit Note</h3>\n    <div class=\"modal-unit\">Add context: medication changes, supplements, symptoms, lifestyle changes</div>\n    <div style=\"margin:16px 0\">\n      <label style=\"font-size:13px;color:var(--text-secondary);display:block;margin-bottom:4px\">Date</label>\n      <input type=\"date\" id=\"note-date-input\" value=\"2026-10-10\" style=\"padding:8px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:13px;font-family:inherit\">\n    </div>\n    <textarea class=\"note-editor\" id=\"note-textarea\" placeholder=\"e.g. Started creatine supplement, switched to low-carb diet...\">\n\nfirst\n</textarea>\n    <div class=\"note-editor-actions\">\n      <button type=\"button\" class=\"import-btn import-btn-primary\" data-note-action=\"save\" data-note-index=\"0\">Save</button>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-note-action=\"close\">Cancel</button>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" style=\"color:var(--red);border-color:var(--red);margin-left:auto\" data-note-action=\"delete\" data-note-index=\"0\">Delete</button>\n    </div>",
+      "native": {
+        "date": {
+          "attribute": "2026-10-10",
+          "value": "2026-10-10",
+          "defaultValue": "2026-10-10"
+        },
+        "textarea": {
+          "textContent": "\nfirst\n",
+          "value": "\nfirst\n",
+          "defaultValue": "\nfirst\n"
+        },
+        "childTags": [
+          "BUTTON",
+          "H3",
+          "DIV",
+          "DIV",
+          "TEXTAREA",
+          "DIV"
+        ],
+        "actionIndices": [
+          {
+            "action": "close",
+            "index": null
+          },
+          {
+            "action": "save",
+            "index": "0"
+          },
+          {
+            "action": "close",
+            "index": null
+          },
+          {
+            "action": "delete",
+            "index": "0"
+          }
+        ]
+      }
+    },
+    {
+      "name": "edit-leading-crlf",
+      "boundary": "frozen-original-openNoteEditor",
+      "input": {
+        "isEditing": true,
+        "defaultDate": "2026-10-10",
+        "currentText": "\r\nfirst\r\nlast\r\n",
+        "existingIdx": 0
+      },
+      "undefinedKeys": [],
+      "html": "<button type=\"button\" class=\"modal-close\" data-note-action=\"close\">&times;</button>\n    <h3>Edit Note</h3>\n    <div class=\"modal-unit\">Add context: medication changes, supplements, symptoms, lifestyle changes</div>\n    <div style=\"margin:16px 0\">\n      <label style=\"font-size:13px;color:var(--text-secondary);display:block;margin-bottom:4px\">Date</label>\n      <input type=\"date\" id=\"note-date-input\" value=\"2026-10-10\" style=\"padding:8px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:13px;font-family:inherit\">\n    </div>\n    <textarea class=\"note-editor\" id=\"note-textarea\" placeholder=\"e.g. Started creatine supplement, switched to low-carb diet...\">\r\nfirst\r\nlast\r\n</textarea>\n    <div class=\"note-editor-actions\">\n      <button type=\"button\" class=\"import-btn import-btn-primary\" data-note-action=\"save\" data-note-index=\"0\">Save</button>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-note-action=\"close\">Cancel</button>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" style=\"color:var(--red);border-color:var(--red);margin-left:auto\" data-note-action=\"delete\" data-note-index=\"0\">Delete</button>\n    </div>",
+      "native": {
+        "date": {
+          "attribute": "2026-10-10",
+          "value": "2026-10-10",
+          "defaultValue": "2026-10-10"
+        },
+        "textarea": {
+          "textContent": "first\nlast\n",
+          "value": "first\nlast\n",
+          "defaultValue": "first\nlast\n"
+        },
+        "childTags": [
+          "BUTTON",
+          "H3",
+          "DIV",
+          "DIV",
+          "TEXTAREA",
+          "DIV"
+        ],
+        "actionIndices": [
+          {
+            "action": "close",
+            "index": null
+          },
+          {
+            "action": "save",
+            "index": "0"
+          },
+          {
+            "action": "close",
+            "index": null
+          },
+          {
+            "action": "delete",
+            "index": "0"
+          }
+        ]
+      }
+    },
+    {
+      "name": "edit-leading-cr",
+      "boundary": "frozen-original-openNoteEditor",
+      "input": {
+        "isEditing": true,
+        "defaultDate": "2026-10-10",
+        "currentText": "\rfirst\rlast",
+        "existingIdx": 0
+      },
+      "undefinedKeys": [],
+      "html": "<button type=\"button\" class=\"modal-close\" data-note-action=\"close\">&times;</button>\n    <h3>Edit Note</h3>\n    <div class=\"modal-unit\">Add context: medication changes, supplements, symptoms, lifestyle changes</div>\n    <div style=\"margin:16px 0\">\n      <label style=\"font-size:13px;color:var(--text-secondary);display:block;margin-bottom:4px\">Date</label>\n      <input type=\"date\" id=\"note-date-input\" value=\"2026-10-10\" style=\"padding:8px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:13px;font-family:inherit\">\n    </div>\n    <textarea class=\"note-editor\" id=\"note-textarea\" placeholder=\"e.g. Started creatine supplement, switched to low-carb diet...\">\rfirst\rlast</textarea>\n    <div class=\"note-editor-actions\">\n      <button type=\"button\" class=\"import-btn import-btn-primary\" data-note-action=\"save\" data-note-index=\"0\">Save</button>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-note-action=\"close\">Cancel</button>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" style=\"color:var(--red);border-color:var(--red);margin-left:auto\" data-note-action=\"delete\" data-note-index=\"0\">Delete</button>\n    </div>",
+      "native": {
+        "date": {
+          "attribute": "2026-10-10",
+          "value": "2026-10-10",
+          "defaultValue": "2026-10-10"
+        },
+        "textarea": {
+          "textContent": "first\nlast",
+          "value": "first\nlast",
+          "defaultValue": "first\nlast"
+        },
+        "childTags": [
+          "BUTTON",
+          "H3",
+          "DIV",
+          "DIV",
+          "TEXTAREA",
+          "DIV"
+        ],
+        "actionIndices": [
+          {
+            "action": "close",
+            "index": null
+          },
+          {
+            "action": "save",
+            "index": "0"
+          },
+          {
+            "action": "close",
+            "index": null
+          },
+          {
+            "action": "delete",
+            "index": "0"
+          }
+        ]
+      }
+    },
+    {
+      "name": "edit-null-values",
+      "boundary": "frozen-original-openNoteEditor",
+      "input": {
+        "isEditing": true,
+        "defaultDate": null,
+        "currentText": null,
+        "existingIdx": 0
+      },
+      "undefinedKeys": [],
+      "html": "<button type=\"button\" class=\"modal-close\" data-note-action=\"close\">&times;</button>\n    <h3>Edit Note</h3>\n    <div class=\"modal-unit\">Add context: medication changes, supplements, symptoms, lifestyle changes</div>\n    <div style=\"margin:16px 0\">\n      <label style=\"font-size:13px;color:var(--text-secondary);display:block;margin-bottom:4px\">Date</label>\n      <input type=\"date\" id=\"note-date-input\" value=\"\" style=\"padding:8px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:13px;font-family:inherit\">\n    </div>\n    <textarea class=\"note-editor\" id=\"note-textarea\" placeholder=\"e.g. Started creatine supplement, switched to low-carb diet...\"></textarea>\n    <div class=\"note-editor-actions\">\n      <button type=\"button\" class=\"import-btn import-btn-primary\" data-note-action=\"save\" data-note-index=\"0\">Save</button>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-note-action=\"close\">Cancel</button>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" style=\"color:var(--red);border-color:var(--red);margin-left:auto\" data-note-action=\"delete\" data-note-index=\"0\">Delete</button>\n    </div>",
+      "native": {
+        "date": {
+          "attribute": "",
+          "value": "",
+          "defaultValue": ""
+        },
+        "textarea": {
+          "textContent": "",
+          "value": "",
+          "defaultValue": ""
+        },
+        "childTags": [
+          "BUTTON",
+          "H3",
+          "DIV",
+          "DIV",
+          "TEXTAREA",
+          "DIV"
+        ],
+        "actionIndices": [
+          {
+            "action": "close",
+            "index": null
+          },
+          {
+            "action": "save",
+            "index": "0"
+          },
+          {
+            "action": "close",
+            "index": null
+          },
+          {
+            "action": "delete",
+            "index": "0"
+          }
+        ]
+      }
+    },
+    {
+      "name": "edit-null-index-prepared",
+      "boundary": "exact-original-innerHTML-expression-with-prepared-facts",
+      "input": {
+        "isEditing": true,
+        "defaultDate": null,
+        "currentText": null,
+        "existingIdx": null
+      },
+      "undefinedKeys": [],
+      "html": "<button type=\"button\" class=\"modal-close\" data-note-action=\"close\">&times;</button>\n    <h3>Edit Note</h3>\n    <div class=\"modal-unit\">Add context: medication changes, supplements, symptoms, lifestyle changes</div>\n    <div style=\"margin:16px 0\">\n      <label style=\"font-size:13px;color:var(--text-secondary);display:block;margin-bottom:4px\">Date</label>\n      <input type=\"date\" id=\"note-date-input\" value=\"\" style=\"padding:8px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:13px;font-family:inherit\">\n    </div>\n    <textarea class=\"note-editor\" id=\"note-textarea\" placeholder=\"e.g. Started creatine supplement, switched to low-carb diet...\"></textarea>\n    <div class=\"note-editor-actions\">\n      <button type=\"button\" class=\"import-btn import-btn-primary\" data-note-action=\"save\">Save</button>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-note-action=\"close\">Cancel</button>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" style=\"color:var(--red);border-color:var(--red);margin-left:auto\" data-note-action=\"delete\">Delete</button>\n    </div>",
+      "native": {
+        "date": {
+          "attribute": "",
+          "value": "",
+          "defaultValue": ""
+        },
+        "textarea": {
+          "textContent": "",
+          "value": "",
+          "defaultValue": ""
+        },
+        "childTags": [
+          "BUTTON",
+          "H3",
+          "DIV",
+          "DIV",
+          "TEXTAREA",
+          "DIV"
+        ],
+        "actionIndices": [
+          {
+            "action": "close",
+            "index": null
+          },
+          {
+            "action": "save",
+            "index": null
+          },
+          {
+            "action": "close",
+            "index": null
+          },
+          {
+            "action": "delete",
+            "index": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "edit-undefined-index-prepared",
+      "boundary": "exact-original-innerHTML-expression-with-prepared-facts",
+      "input": {
+        "isEditing": true
+      },
+      "undefinedKeys": [
+        "defaultDate",
+        "currentText",
+        "existingIdx"
+      ],
+      "html": "<button type=\"button\" class=\"modal-close\" data-note-action=\"close\">&times;</button>\n    <h3>Edit Note</h3>\n    <div class=\"modal-unit\">Add context: medication changes, supplements, symptoms, lifestyle changes</div>\n    <div style=\"margin:16px 0\">\n      <label style=\"font-size:13px;color:var(--text-secondary);display:block;margin-bottom:4px\">Date</label>\n      <input type=\"date\" id=\"note-date-input\" value=\"\" style=\"padding:8px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:13px;font-family:inherit\">\n    </div>\n    <textarea class=\"note-editor\" id=\"note-textarea\" placeholder=\"e.g. Started creatine supplement, switched to low-carb diet...\"></textarea>\n    <div class=\"note-editor-actions\">\n      <button type=\"button\" class=\"import-btn import-btn-primary\" data-note-action=\"save\">Save</button>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-note-action=\"close\">Cancel</button>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" style=\"color:var(--red);border-color:var(--red);margin-left:auto\" data-note-action=\"delete\">Delete</button>\n    </div>",
+      "native": {
+        "date": {
+          "attribute": "",
+          "value": "",
+          "defaultValue": ""
+        },
+        "textarea": {
+          "textContent": "",
+          "value": "",
+          "defaultValue": ""
+        },
+        "childTags": [
+          "BUTTON",
+          "H3",
+          "DIV",
+          "DIV",
+          "TEXTAREA",
+          "DIV"
+        ],
+        "actionIndices": [
+          {
+            "action": "close",
+            "index": null
+          },
+          {
+            "action": "save",
+            "index": null
+          },
+          {
+            "action": "close",
+            "index": null
+          },
+          {
+            "action": "delete",
+            "index": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "add-ignores-index-prepared",
+      "boundary": "exact-original-innerHTML-expression-with-prepared-facts",
+      "input": {
+        "isEditing": false,
+        "defaultDate": "2026-10-10",
+        "currentText": "Prepared literal ",
+        "existingIdx": 7
+      },
+      "undefinedKeys": [],
+      "html": "<button type=\"button\" class=\"modal-close\" data-note-action=\"close\">&times;</button>\n    <h3>Add Note</h3>\n    <div class=\"modal-unit\">Add context: medication changes, supplements, symptoms, lifestyle changes</div>\n    <div style=\"margin:16px 0\">\n      <label style=\"font-size:13px;color:var(--text-secondary);display:block;margin-bottom:4px\">Date</label>\n      <input type=\"date\" id=\"note-date-input\" value=\"2026-10-10\" style=\"padding:8px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:13px;font-family:inherit\">\n    </div>\n    <textarea class=\"note-editor\" id=\"note-textarea\" placeholder=\"e.g. Started creatine supplement, switched to low-carb diet...\">Prepared literal </textarea>\n    <div class=\"note-editor-actions\">\n      <button type=\"button\" class=\"import-btn import-btn-primary\" data-note-action=\"save\">Save</button>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-note-action=\"close\">Cancel</button>\n      \n    </div>",
+      "native": {
+        "date": {
+          "attribute": "2026-10-10",
+          "value": "2026-10-10",
+          "defaultValue": "2026-10-10"
+        },
+        "textarea": {
+          "textContent": "Prepared literal ",
+          "value": "Prepared literal ",
+          "defaultValue": "Prepared literal "
+        },
+        "childTags": [
+          "BUTTON",
+          "H3",
+          "DIV",
+          "DIV",
+          "TEXTAREA",
+          "DIV"
+        ],
+        "actionIndices": [
+          {
+            "action": "close",
+            "index": null
+          },
+          {
+            "action": "save",
+            "index": null
+          },
+          {
+            "action": "close",
+            "index": null
+          }
+        ]
+      }
+    }
+  ],
+  "coercion": {
+    "publicCalls": [
+      "index",
+      "date",
+      "text",
+      "index",
+      "index",
+      "index"
+    ],
+    "presentationCalls": [
+      "date",
+      "text",
+      "index",
+      "index"
+    ],
+    "date": "2026-10-10",
+    "text": "<literal> ",
+    "saveIndex": "save <&",
+    "deleteIndex": "delete '\"",
+    "html": "<button type=\"button\" class=\"modal-close\" data-note-action=\"close\">&times;</button>\n    <h3>Edit Note</h3>\n    <div class=\"modal-unit\">Add context: medication changes, supplements, symptoms, lifestyle changes</div>\n    <div style=\"margin:16px 0\">\n      <label style=\"font-size:13px;color:var(--text-secondary);display:block;margin-bottom:4px\">Date</label>\n      <input type=\"date\" id=\"note-date-input\" value=\"2026-10-10\" style=\"padding:8px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:13px;font-family:inherit\">\n    </div>\n    <textarea class=\"note-editor\" id=\"note-textarea\" placeholder=\"e.g. Started creatine supplement, switched to low-carb diet...\">&lt;literal&gt; </textarea>\n    <div class=\"note-editor-actions\">\n      <button type=\"button\" class=\"import-btn import-btn-primary\" data-note-action=\"save\" data-note-index=\"save &lt;&amp;\">Save</button>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-note-action=\"close\">Cancel</button>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" style=\"color:var(--red);border-color:var(--red);margin-left:auto\" data-note-action=\"delete\" data-note-index=\"delete &#39;&quot;\">Delete</button>\n    </div>",
+    "native": {
+      "date": {
+        "attribute": "2026-10-10",
+        "value": "2026-10-10",
+        "defaultValue": "2026-10-10"
+      },
+      "textarea": {
+        "textContent": "<literal> ",
+        "value": "<literal> ",
+        "defaultValue": "<literal> "
+      },
+      "childTags": [
+        "BUTTON",
+        "H3",
+        "DIV",
+        "DIV",
+        "TEXTAREA",
+        "DIV"
+      ],
+      "actionIndices": [
+        {
+          "action": "close",
+          "index": null
+        },
+        {
+          "action": "save",
+          "index": "save <&"
+        },
+        {
+          "action": "close",
+          "index": null
+        },
+        {
+          "action": "delete",
+          "index": "delete '\""
+        }
+      ]
+    }
+  }
+}

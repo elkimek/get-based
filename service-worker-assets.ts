@@ -132,7 +132,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/charts-runtime.js',
   '/js/charts.js',
   '/js/notes-runtime.js', '/js/runtime-callbacks.js', '/js/retrying-module-loader.js',
-  '/js/notes.js',
+  '/js/notes.js', '/js/notes-presentation.js', '/js/notes-rendering.js', '/js/note-editor-classes.js', '/js/components/NoteEditorPresentation.svelte.html.js',
   '/js/supplement-action-delegates.js',
   '/js/supplement-dashboard.js',
   '/js/supplement-form-ui.js',

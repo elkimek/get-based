@@ -1,0 +1,41 @@
+/** Scoped presentation utilities; generic modal and Supplement action styles keep their owners. */
+export const noteEditorClasses = {
+  dateContainer: 'gb:note-editor-inline:[margin:16px_0]',
+  dateLabel: [
+    'gb:note-editor-inline:[font-size:13px]',
+    'gb:note-editor-inline:[color:var(--text-secondary)]',
+    'gb:note-editor-inline:[display:block]',
+    'gb:note-editor-inline:[margin-bottom:4px]',
+  ].join(' '),
+  dateInput: [
+    'gb:note-editor-inline:[padding:8px_12px]',
+    'gb:note-editor-inline:[border-radius:6px]',
+    'gb:note-editor-inline:[border:1px_solid_var(--border)]',
+    'gb:note-editor-inline:[background:var(--bg-primary)]',
+    'gb:note-editor-inline:[color:var(--text-primary)]',
+    'gb:note-editor-inline:[font-size:13px]',
+    'gb:note-editor-inline:[font-family:inherit]',
+  ].join(' '),
+  textarea: [
+    'note-editor',
+    'gb:note-editor-field:[width:100%]',
+    'gb:note-editor-field:[min-height:120px]',
+    'gb:note-editor-field:[padding:12px]',
+    'gb:note-editor-field:[border-radius:6px]',
+    'gb:note-editor-field:[border:1px_solid_var(--border)]',
+    'gb:note-editor-field:[background:var(--bg-primary)]',
+    'gb:note-editor-field:[color:var(--text-primary)]',
+    'gb:note-editor-field:[font-size:13px]',
+    'gb:note-editor-field:[font-family:inherit]',
+    'gb:note-editor-field:[resize:vertical]',
+    'gb:note-editor-field:[line-height:1.5]',
+    'gb:note-editor-field:[margin:16px_0]',
+    'gb:note-editor-field:[&:focus]:[border-color:var(--accent)]',
+  ].join(' '),
+  deleteButton: [
+    'import-btn import-btn-secondary',
+    'gb:note-editor-inline:[color:var(--red)]',
+    'gb:note-editor-inline:[border-color:var(--red)]',
+    'gb:note-editor-inline:[margin-left:auto]',
+  ].join(' '),
+} as const;

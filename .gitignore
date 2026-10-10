@@ -2462,3 +2462,10 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /tests/knowledge-base-stats-frozen.test.js
 /tests/knowledge-base-structure-frozen.test.js
 /tests/pwa/sveltekit-knowledge-base.spec.js
+
+# Standalone authored Note presentation compiler output
+/js/notes-presentation.js
+/js/notes-rendering.js
+/js/note-editor-classes.js
+/tests/note-editor-presentation.test.js
+/tests/pwa/sveltekit-note-editor.spec.js

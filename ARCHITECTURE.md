@@ -48,6 +48,18 @@ the completed migration was merged in [PR #1660](https://github.com/elkimek/get-
 
 ## Styling source contract
 
+Standalone Add/Edit Note markup is authored by `NoteEditorPresentation.svelte`.
+`notes-presentation.ts` projects literal values and action indices;
+`notes-rendering.ts` exposes its synchronous HTML facade to the existing
+`notes.ts` controller. Native date and textarea controls retain their parsed
+values, reset defaults and editing ownership. Session guards, captured profile
+commits, sync tombstones, delegated actions and modal lifecycle remain controller
+and service responsibilities. `note-editor-classes.ts` and the existing eager
+context-catalog Tailwind entry own the former textarea and inline styles at the
+unchanged `/css/context-profile.css` URL. Supplement action-row rules and shared
+modal/theme primitives retain their existing owners. Delayed modal focus yields
+to a newer foreground dialog or focus moved outside the opening overlay.
+
 Knowledge Base panels, source status, document rows, library forms and background
 indexing progress are authored by the `KnowledgeBase*.svelte` components. Typed
 `knowledge-base-presentation.ts` and `knowledge-base-library-presentation.ts`
