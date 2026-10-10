@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1519 |
-| Internal import edges | 4958 |
+| Modules | 1524 |
+| Internal import edges | 4964 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -3732,10 +3732,25 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>utils</code> family — 2 modules</summary>
+<details><summary><code>utils</code> family — 5 modules</summary>
 
+- [`js/utils-dialog-classes.ts`](js/utils-dialog-classes.ts) → no in-scope imports
+- [`js/utils-dialog-presentation.ts`](js/utils-dialog-presentation.ts) → no in-scope imports
+- [`js/utils-dialog-rendering.ts`](js/utils-dialog-rendering.ts) → [`js/components/UtilsConfirmPresentation.svelte`](js/components/UtilsConfirmPresentation.svelte), [`js/components/UtilsPromptPresentation.svelte`](js/components/UtilsPromptPresentation.svelte), [`js/utils-dialog-presentation.ts`](js/utils-dialog-presentation.ts)
 - [`js/utils-runtime.ts`](js/utils-runtime.ts) → no in-scope imports
-- [`js/utils.ts`](js/utils.ts) → [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts)
+- [`js/utils.ts`](js/utils.ts) → [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils-dialog-rendering.ts`](js/utils-dialog-rendering.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts)
+
+</details>
+
+<details><summary><code>UtilsConfirmPresentation.svelte</code> family — 1 module</summary>
+
+- [`js/components/UtilsConfirmPresentation.svelte`](js/components/UtilsConfirmPresentation.svelte) → [`js/utils-dialog-classes.ts`](js/utils-dialog-classes.ts)
+
+</details>
+
+<details><summary><code>UtilsPromptPresentation.svelte</code> family — 1 module</summary>
+
+- [`js/components/UtilsPromptPresentation.svelte`](js/components/UtilsPromptPresentation.svelte) → [`js/utils-dialog-classes.ts`](js/utils-dialog-classes.ts)
 
 </details>
 

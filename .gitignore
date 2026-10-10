@@ -2483,3 +2483,9 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /js/import-progress-classes.js
 
 /tests/import-progress-presentation.test.js
+
+# Shared public utils dialog authored runtime siblings
+/js/utils-dialog-presentation.js
+/js/utils-dialog-rendering.js
+/js/utils-dialog-classes.js
+/tests/utils-dialog-presentation.test.js

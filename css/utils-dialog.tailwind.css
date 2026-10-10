@@ -1,0 +1,98 @@
+/* Public utils dialog receivers only. Generic confirmation CSS retains all other owners. */
+@source "../js/utils-dialog-classes.ts";
+@source "../js/components/UtilsConfirmPresentation.svelte";
+@source "../js/components/UtilsPromptPresentation.svelte";
+@custom-variant utils-dialog-panel (:where(&):where(#confirm-dialog-overlay *, #prompt-dialog-overlay *):is(.confirm-dialog));
+@custom-variant utils-dialog-message (:where(&):where(#confirm-dialog-overlay *, #prompt-dialog-overlay *):is(.confirm-message));
+@custom-variant utils-dialog-input (:where(&):where(#confirm-dialog-overlay *, #prompt-dialog-overlay *):is(.confirm-input));
+@custom-variant utils-dialog-input-focus (:where(&):where(#confirm-dialog-overlay *, #prompt-dialog-overlay *):is(.confirm-input:focus));
+@custom-variant utils-dialog-actions (:where(&):where(#confirm-dialog-overlay *, #prompt-dialog-overlay *):is(.confirm-actions));
+@custom-variant utils-dialog-cancel (:where(&):where(#confirm-dialog-overlay *, #prompt-dialog-overlay *):is(.confirm-btn-cancel));
+@custom-variant utils-dialog-cancel-hover (:where(&):where(#confirm-dialog-overlay *, #prompt-dialog-overlay *):is(.confirm-btn-cancel:hover));
+@custom-variant utils-dialog-danger (:where(&):where(#confirm-dialog-overlay *, #prompt-dialog-overlay *):is(.confirm-btn-danger));
+@custom-variant utils-dialog-danger-hover (:where(&):where(#confirm-dialog-overlay *, #prompt-dialog-overlay *):is(.confirm-btn-danger:hover));
+@custom-variant utils-dialog-primary (:where(&):where(#confirm-dialog-overlay *, #prompt-dialog-overlay *):is(.confirm-btn-primary));
+@custom-variant utils-dialog-primary-hover (:where(&):where(#confirm-dialog-overlay *, #prompt-dialog-overlay *):is(.confirm-btn-primary:hover));
+@custom-variant utils-dialog-phone (@media (max-width: 480px));
+
+@utility utils-dialog-panel {
+  background: var(--bg-secondary);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 24px 26px;
+  max-width: 460px;
+  width: min(100%, 460px);
+  box-shadow: var(--shadow-lg);
+}
+@utility utils-dialog-message {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  margin-bottom: 24px;
+  white-space: pre-line;
+}
+@utility utils-dialog-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 40px;
+  margin: 8px 0 14px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  outline: none;
+  background: var(--select-surface);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+}
+@utility utils-dialog-input-focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-fill);
+}
+@utility utils-dialog-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+/* Shared button recipe expands before each final tone; no competing independent border rule. */
+@utility utils-dialog-button-base {
+  padding: 8px 18px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+@utility utils-dialog-cancel {
+  @apply gb:utils-dialog-button-base;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+@utility utils-dialog-cancel-hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+@utility utils-dialog-danger {
+  @apply gb:utils-dialog-button-base;
+  background: var(--red);
+  color: #fff;
+  border-color: var(--red);
+}
+@utility utils-dialog-danger-hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+@utility utils-dialog-primary {
+  @apply gb:utils-dialog-button-base;
+  background: var(--accent-gradient);
+  color: #fff;
+  border-color: transparent;
+}
+@utility utils-dialog-primary-hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}

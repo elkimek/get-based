@@ -16,6 +16,7 @@ export interface MarkerTrend { arrow: string; cls: string; label: string; }
 // utils.js — Pure utility functions, notifications, dialogs
 
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
+import { renderUtilsConfirm, renderUtilsPrompt } from './utils-dialog-rendering.js';
 import {
   addUtilsRuntimeListener,
   getUtilsElementStyleRuntime,
@@ -491,12 +492,7 @@ export function showConfirmDialog(message: string, options: ConfirmDialogOptions
       overlay.className = "confirm-overlay";
       document.body.appendChild(overlay);
     }
-    overlay.innerHTML = `<div class="confirm-dialog" role="alertdialog" aria-modal="true" aria-label="${escapeHTML(ariaLabel)}">
-    <p class="confirm-message">${escapeHTML(message)}</p>
-    <div class="confirm-actions">
-      <button class="confirm-btn confirm-btn-cancel" id="confirm-cancel">${escapeHTML(cancelLabel)}</button>
-      <button class="confirm-btn confirm-btn-${confirmTone}" id="confirm-ok">${escapeHTML(confirmLabel)}</button>
-    </div></div>`;
+    overlay.innerHTML = renderUtilsConfirm({ ariaLabel, message, cancelLabel, confirmLabel, tone: confirmTone });
     const ok = (overlay.querySelector('#confirm-ok') as HTMLButtonElement | null);
     const cancel = (overlay.querySelector('#confirm-cancel') as HTMLButtonElement | null);
     if (!ok || !cancel) {
@@ -556,16 +552,7 @@ export function showPromptDialog(message: string, { defaultValue = '', okLabel =
       overlay.className = 'confirm-overlay';
       document.body.appendChild(overlay);
     }
-    overlay.innerHTML = `<div class="confirm-dialog" role="dialog" aria-modal="true" aria-label="Prompt">
-      <p class="confirm-message">${escapeHTML(message)}</p>
-      <input type="${escapeAttr(inputType)}" id="prompt-dialog-input" class="confirm-input"
-             value="${escapeAttr(defaultValue)}"
-             placeholder="${escapeAttr(placeholder)}"
-             aria-label="${escapeAttr(message)}">
-      <div class="confirm-actions">
-        <button class="confirm-btn confirm-btn-cancel" id="prompt-cancel">${escapeHTML(cancelLabel)}</button>
-        <button class="confirm-btn confirm-btn-primary" id="prompt-ok">${escapeHTML(okLabel)}</button>
-      </div></div>`;
+    overlay.innerHTML = renderUtilsPrompt({ message, inputType, defaultValue, placeholder, cancelLabel, okLabel });
 
     const input = (overlay.querySelector('#prompt-dialog-input') as HTMLInputElement | null);
     const ok = (overlay.querySelector('#prompt-ok') as HTMLButtonElement | null);

@@ -52,7 +52,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/constants.js',
   '/js/state.js',
   '/js/utils-runtime.js',
-  '/js/utils.js',
+  '/js/utils.js', '/js/utils-dialog-presentation.js', '/js/utils-dialog-rendering.js', '/js/utils-dialog-classes.js', '/js/components/UtilsConfirmPresentation.svelte.html.js', '/js/components/UtilsPromptPresentation.svelte.html.js',
   '/js/caught-error.js',
   '/js/theme.js',
   '/js/theme-runtime.js',

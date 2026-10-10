@@ -37,6 +37,7 @@ const HTML_COMPONENTS = new Set([
   'NoteEditorPresentation',
   'PdfPreflightPresentation', 'PdfImageModePresentation',
   'ImportProgressPresentation', 'DropZoneResetPresentation',
+  'UtilsConfirmPresentation', 'UtilsPromptPresentation',
   'KnowledgeBasePanel', 'KnowledgeBaseModal', 'KnowledgeBaseStatus', 'KnowledgeBaseStats',
   'KnowledgeBaseDocuments', 'KnowledgeBaseIngestPill', 'KnowledgeBaseLibraryOptions', 'KnowledgeBaseLibraryCreate',
 ]);

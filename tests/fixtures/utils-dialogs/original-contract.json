@@ -1,0 +1,288 @@
+{
+  "schemaVersion": 1,
+  "provenance": {
+    "originalReleaseSHA256": "dace6fa61afdb8947eb5a1f0d3295e327d8ee7dc8d87e676642db390a1dbf4a4",
+    "originalUtilsSHA256": "da83d9cc78f705de4afb2b0ea1774889b251a9033d426fb5fed7dad6495c7dc1",
+    "acceptedOriginalNativeContracts": 12,
+    "acceptedOriginalGeometryReceipts": 82,
+    "acceptedExecutions": "11 passed from retained original generation1 exit1 plus one focused generation2 exit0; never twelve green in one run",
+    "samples": [
+      {
+        "sample": "confirm-danger",
+        "path": ".local-notes/full-ui-migration/shared-utils-dialogs-preparation/evidence/original-generation1/original-utils-original-native-geometry-default-wide-fine-utils-original-chromium/confirm-initial.json",
+        "sha256": "c7ff866de639692c3a7181bd7ea7be1d23358003bc1bb6401037a4f6b9f76bfe"
+      },
+      {
+        "sample": "confirm-primary",
+        "path": ".local-notes/full-ui-migration/shared-utils-dialogs-preparation/evidence/original-generation1/original-utils-original-native-geometry-light-wide-fine-utils-original-chromium/confirm-initial.json",
+        "sha256": "961a3b222347743a7e86f02fa20e4f753e19abb05666d6485e6ea2e2ae9eabff"
+      },
+      {
+        "sample": "prompt-text-null",
+        "path": ".local-notes/full-ui-migration/shared-utils-dialogs-preparation/evidence/original-generation1/original-utils-original-de-c12ed--dismissal-result-contracts-utils-original-chromium/prompt-text-null.json",
+        "sha256": "707c33c6c110665742f7189d44996171657ff22123505c082faf4173f04f8a93"
+      },
+      {
+        "sample": "prompt-text-number",
+        "path": ".local-notes/full-ui-migration/shared-utils-dialogs-preparation/evidence/original-generation1/original-utils-original-de-c12ed--dismissal-result-contracts-utils-original-chromium/prompt-text-number.json",
+        "sha256": "992e0cb618938075cc08d05a5cc44a7dff41eebffe927ca981f2507959db7f2f"
+      },
+      {
+        "sample": "prompt-text-false",
+        "path": ".local-notes/full-ui-migration/shared-utils-dialogs-preparation/evidence/original-generation1/original-utils-original-de-c12ed--dismissal-result-contracts-utils-original-chromium/prompt-text-false.json",
+        "sha256": "71381bd6a0440ad7493e3f07a3ec692c35a59b7c3b13cfb60c140541bcea7744"
+      },
+      {
+        "sample": "prompt-invalid-type",
+        "path": ".local-notes/full-ui-migration/shared-utils-dialogs-preparation/evidence/original-generation1/original-utils-original-de-c12ed--dismissal-result-contracts-utils-original-chromium/prompt-invalid-type.json",
+        "sha256": "2d1d3ad4c5a7162a189299c379769de91f4f7266686499490db3821c1fe0debc"
+      },
+      {
+        "sample": "prompt-invalid-date",
+        "path": ".local-notes/full-ui-migration/shared-utils-dialogs-preparation/evidence/original-generation1/original-utils-original-de-c12ed--dismissal-result-contracts-utils-original-chromium/prompt-invalid-date.json",
+        "sha256": "587408fd92babfc5864aeb96c427fd1fb6caff98f11ad191f3422a6046dceac5"
+      },
+      {
+        "sample": "prompt-invalid-number",
+        "path": ".local-notes/full-ui-migration/shared-utils-dialogs-preparation/evidence/original-generation1/original-utils-original-de-c12ed--dismissal-result-contracts-utils-original-chromium/prompt-invalid-number.json",
+        "sha256": "d0109398eec81b4c394fd3ca32b072811745708401f752733bca56b8531fcc85"
+      },
+      {
+        "sample": "prompt-native-linebreak",
+        "path": ".local-notes/full-ui-migration/shared-utils-dialogs-preparation/evidence/original-generation1/original-utils-original-de-c12ed--dismissal-result-contracts-utils-original-chromium/prompt-native-linebreak.json",
+        "sha256": "551f8140b69f7fb962668d3825591b6e766a4aedc1e9a873f638d962f661fdf3"
+      },
+      {
+        "sample": "prompt-empty-allowed",
+        "path": ".local-notes/full-ui-migration/shared-utils-dialogs-preparation/evidence/original-generation1/original-utils-original-de-c12ed--dismissal-result-contracts-utils-original-chromium/prompt-empty-allowed.json",
+        "sha256": "4c18d9b6aa330e7ad44fc7f8b82b2d54d6279d65710b01c6bcab5ad1513dec28"
+      },
+      {
+        "sample": "prompt-literal",
+        "path": ".local-notes/full-ui-migration/shared-utils-dialogs-preparation/evidence/original-generation1/original-utils-original-native-geometry-default-wide-fine-utils-original-chromium/prompt-initial.json",
+        "sha256": "bded6883a806ff650767d64c7750ba321bb944e695dbea448d2d40a618563394"
+      }
+    ],
+    "coercionReceipt": {
+      "path": ".local-notes/full-ui-migration/shared-utils-dialogs-preparation/evidence/original-generation1/original-utils-original-pu-f5da0-reject-on-conversion-errors-utils-original-chromium/original-raw.json",
+      "sha256": "f14878bbb79fec2d1a51fd6b969302cb8b0f80cadc80dad309968e40828f73c5"
+    },
+    "boundary": "Only exact original nativeHost HTML and native input value/defaultValue/type facts are copied. No current SSR expectation, synthetic controller, geometry or browser parity claim."
+  },
+  "coercionOrder": {
+    "confirm": [
+      "ariaLabel",
+      "message",
+      "cancelLabel",
+      "confirmLabel"
+    ],
+    "prompt": [
+      "message",
+      "inputType",
+      "defaultValue",
+      "placeholder",
+      "message",
+      "cancelLabel",
+      "okLabel"
+    ]
+  },
+  "samples": [
+    {
+      "key": "confirm-danger",
+      "kind": "confirm",
+      "facts": {
+        "ariaLabel": "Synthetic confirmation",
+        "message": "Keep literal <tag> & \"quotes\"  \nSecond line",
+        "cancelLabel": "Keep & return",
+        "confirmLabel": "Apply <literal>",
+        "tone": "danger"
+      },
+      "html": "<div class=\"confirm-dialog\" role=\"alertdialog\" aria-modal=\"true\" aria-label=\"Synthetic confirmation\">\n    <p class=\"confirm-message\">Keep literal &lt;tag&gt; &amp; \"quotes\" &nbsp;\nSecond line</p>\n    <div class=\"confirm-actions\">\n      <button class=\"confirm-btn confirm-btn-cancel\" id=\"confirm-cancel\">Keep &amp; return</button>\n      <button class=\"confirm-btn confirm-btn-danger\" id=\"confirm-ok\">Apply &lt;literal&gt;</button>\n    </div></div>",
+      "input": null
+    },
+    {
+      "key": "confirm-primary",
+      "kind": "confirm",
+      "facts": {
+        "ariaLabel": "Synthetic confirmation",
+        "message": "Keep literal <tag> & \"quotes\"  \nSecond line",
+        "cancelLabel": "Keep & return",
+        "confirmLabel": "Apply <literal>",
+        "tone": "primary"
+      },
+      "html": "<div class=\"confirm-dialog\" role=\"alertdialog\" aria-modal=\"true\" aria-label=\"Synthetic confirmation\">\n    <p class=\"confirm-message\">Keep literal &lt;tag&gt; &amp; \"quotes\" &nbsp;\nSecond line</p>\n    <div class=\"confirm-actions\">\n      <button class=\"confirm-btn confirm-btn-cancel\" id=\"confirm-cancel\">Keep &amp; return</button>\n      <button class=\"confirm-btn confirm-btn-primary\" id=\"confirm-ok\">Apply &lt;literal&gt;</button>\n    </div></div>",
+      "input": null
+    },
+    {
+      "key": "prompt-text-null",
+      "kind": "prompt",
+      "facts": {
+        "message": "Native control defaults",
+        "inputType": "text",
+        "defaultValue": null,
+        "placeholder": "",
+        "cancelLabel": "Cancel",
+        "okLabel": "OK"
+      },
+      "html": "<div class=\"confirm-dialog\" role=\"dialog\" aria-modal=\"true\" aria-label=\"Prompt\">\n      <p class=\"confirm-message\">Native control defaults</p>\n      <input type=\"text\" id=\"prompt-dialog-input\" class=\"confirm-input\" value=\"\" placeholder=\"\" aria-label=\"Native control defaults\">\n      <div class=\"confirm-actions\">\n        <button class=\"confirm-btn confirm-btn-cancel\" id=\"prompt-cancel\">Cancel</button>\n        <button class=\"confirm-btn confirm-btn-primary\" id=\"prompt-ok\">OK</button>\n      </div></div>",
+      "input": {
+        "value": "",
+        "defaultValue": "",
+        "type": "text",
+        "valueAttribute": ""
+      }
+    },
+    {
+      "key": "prompt-text-number",
+      "kind": "prompt",
+      "facts": {
+        "message": "Native control defaults",
+        "inputType": "text",
+        "defaultValue": 0,
+        "placeholder": "",
+        "cancelLabel": "Cancel",
+        "okLabel": "OK"
+      },
+      "html": "<div class=\"confirm-dialog\" role=\"dialog\" aria-modal=\"true\" aria-label=\"Prompt\">\n      <p class=\"confirm-message\">Native control defaults</p>\n      <input type=\"text\" id=\"prompt-dialog-input\" class=\"confirm-input\" value=\"0\" placeholder=\"\" aria-label=\"Native control defaults\">\n      <div class=\"confirm-actions\">\n        <button class=\"confirm-btn confirm-btn-cancel\" id=\"prompt-cancel\">Cancel</button>\n        <button class=\"confirm-btn confirm-btn-primary\" id=\"prompt-ok\">OK</button>\n      </div></div>",
+      "input": {
+        "value": "0",
+        "defaultValue": "0",
+        "type": "text",
+        "valueAttribute": "0"
+      }
+    },
+    {
+      "key": "prompt-text-false",
+      "kind": "prompt",
+      "facts": {
+        "message": "Native control defaults",
+        "inputType": "text",
+        "defaultValue": false,
+        "placeholder": "",
+        "cancelLabel": "Cancel",
+        "okLabel": "OK"
+      },
+      "html": "<div class=\"confirm-dialog\" role=\"dialog\" aria-modal=\"true\" aria-label=\"Prompt\">\n      <p class=\"confirm-message\">Native control defaults</p>\n      <input type=\"text\" id=\"prompt-dialog-input\" class=\"confirm-input\" value=\"false\" placeholder=\"\" aria-label=\"Native control defaults\">\n      <div class=\"confirm-actions\">\n        <button class=\"confirm-btn confirm-btn-cancel\" id=\"prompt-cancel\">Cancel</button>\n        <button class=\"confirm-btn confirm-btn-primary\" id=\"prompt-ok\">OK</button>\n      </div></div>",
+      "input": {
+        "value": "false",
+        "defaultValue": "false",
+        "type": "text",
+        "valueAttribute": "false"
+      }
+    },
+    {
+      "key": "prompt-invalid-type",
+      "kind": "prompt",
+      "facts": {
+        "message": "Native control defaults",
+        "inputType": "unrecognized",
+        "defaultValue": "  ordinary  ",
+        "placeholder": "",
+        "cancelLabel": "Cancel",
+        "okLabel": "OK"
+      },
+      "html": "<div class=\"confirm-dialog\" role=\"dialog\" aria-modal=\"true\" aria-label=\"Prompt\">\n      <p class=\"confirm-message\">Native control defaults</p>\n      <input type=\"unrecognized\" id=\"prompt-dialog-input\" class=\"confirm-input\" value=\"  ordinary  \" placeholder=\"\" aria-label=\"Native control defaults\">\n      <div class=\"confirm-actions\">\n        <button class=\"confirm-btn confirm-btn-cancel\" id=\"prompt-cancel\">Cancel</button>\n        <button class=\"confirm-btn confirm-btn-primary\" id=\"prompt-ok\">OK</button>\n      </div></div>",
+      "input": {
+        "value": "  ordinary  ",
+        "defaultValue": "  ordinary  ",
+        "type": "text",
+        "valueAttribute": "  ordinary  "
+      }
+    },
+    {
+      "key": "prompt-invalid-date",
+      "kind": "prompt",
+      "facts": {
+        "message": "Native control defaults",
+        "inputType": "date",
+        "defaultValue": "invalid date",
+        "placeholder": "",
+        "cancelLabel": "Cancel",
+        "okLabel": "OK"
+      },
+      "html": "<div class=\"confirm-dialog\" role=\"dialog\" aria-modal=\"true\" aria-label=\"Prompt\">\n      <p class=\"confirm-message\">Native control defaults</p>\n      <input type=\"date\" id=\"prompt-dialog-input\" class=\"confirm-input\" value=\"invalid date\" placeholder=\"\" aria-label=\"Native control defaults\">\n      <div class=\"confirm-actions\">\n        <button class=\"confirm-btn confirm-btn-cancel\" id=\"prompt-cancel\">Cancel</button>\n        <button class=\"confirm-btn confirm-btn-primary\" id=\"prompt-ok\">OK</button>\n      </div></div>",
+      "input": {
+        "value": "",
+        "defaultValue": "invalid date",
+        "type": "date",
+        "valueAttribute": "invalid date"
+      }
+    },
+    {
+      "key": "prompt-invalid-number",
+      "kind": "prompt",
+      "facts": {
+        "message": "Native control defaults",
+        "inputType": "number",
+        "defaultValue": "not numeric",
+        "placeholder": "",
+        "cancelLabel": "Cancel",
+        "okLabel": "OK"
+      },
+      "html": "<div class=\"confirm-dialog\" role=\"dialog\" aria-modal=\"true\" aria-label=\"Prompt\">\n      <p class=\"confirm-message\">Native control defaults</p>\n      <input type=\"number\" id=\"prompt-dialog-input\" class=\"confirm-input\" value=\"not numeric\" placeholder=\"\" aria-label=\"Native control defaults\">\n      <div class=\"confirm-actions\">\n        <button class=\"confirm-btn confirm-btn-cancel\" id=\"prompt-cancel\">Cancel</button>\n        <button class=\"confirm-btn confirm-btn-primary\" id=\"prompt-ok\">OK</button>\n      </div></div>",
+      "input": {
+        "value": "",
+        "defaultValue": "not numeric",
+        "type": "number",
+        "valueAttribute": "not numeric"
+      }
+    },
+    {
+      "key": "prompt-native-linebreak",
+      "kind": "prompt",
+      "facts": {
+        "message": "Native control defaults",
+        "inputType": "text",
+        "defaultValue": "\nA\r\nB\rC ",
+        "placeholder": "",
+        "cancelLabel": "Cancel",
+        "okLabel": "OK"
+      },
+      "html": "<div class=\"confirm-dialog\" role=\"dialog\" aria-modal=\"true\" aria-label=\"Prompt\">\n      <p class=\"confirm-message\">Native control defaults</p>\n      <input type=\"text\" id=\"prompt-dialog-input\" class=\"confirm-input\" value=\"\nA\nB\nC&nbsp;\" placeholder=\"\" aria-label=\"Native control defaults\">\n      <div class=\"confirm-actions\">\n        <button class=\"confirm-btn confirm-btn-cancel\" id=\"prompt-cancel\">Cancel</button>\n        <button class=\"confirm-btn confirm-btn-primary\" id=\"prompt-ok\">OK</button>\n      </div></div>",
+      "input": {
+        "value": "ABC ",
+        "defaultValue": "\nA\nB\nC ",
+        "type": "text",
+        "valueAttribute": "\nA\nB\nC "
+      }
+    },
+    {
+      "key": "prompt-empty-allowed",
+      "kind": "prompt",
+      "facts": {
+        "message": "Native control defaults",
+        "inputType": "text",
+        "defaultValue": "   ",
+        "placeholder": "",
+        "cancelLabel": null,
+        "okLabel": ""
+      },
+      "html": "<div class=\"confirm-dialog\" role=\"dialog\" aria-modal=\"true\" aria-label=\"Prompt\">\n      <p class=\"confirm-message\">Native control defaults</p>\n      <input type=\"text\" id=\"prompt-dialog-input\" class=\"confirm-input\" value=\" &nbsp; \" placeholder=\"\" aria-label=\"Native control defaults\">\n      <div class=\"confirm-actions\">\n        <button class=\"confirm-btn confirm-btn-cancel\" id=\"prompt-cancel\"></button>\n        <button class=\"confirm-btn confirm-btn-primary\" id=\"prompt-ok\"></button>\n      </div></div>",
+      "input": {
+        "value": "   ",
+        "defaultValue": "   ",
+        "type": "text",
+        "valueAttribute": "   "
+      }
+    },
+    {
+      "key": "prompt-literal",
+      "kind": "prompt",
+      "facts": {
+        "message": "Literal <tag> & \"quotes\"  ",
+        "inputType": "text",
+        "defaultValue": " Original value ",
+        "placeholder": "A \"literal\" placeholder",
+        "cancelLabel": "Cancel",
+        "okLabel": "OK"
+      },
+      "html": "<div class=\"confirm-dialog\" role=\"dialog\" aria-modal=\"true\" aria-label=\"Prompt\">\n      <p class=\"confirm-message\">Literal &lt;tag&gt; &amp; \"quotes\" &nbsp;</p>\n      <input type=\"text\" id=\"prompt-dialog-input\" class=\"confirm-input\" value=\" Original value \" placeholder=\"A &quot;literal&quot; placeholder\" aria-label=\"Literal &lt;tag&gt; &amp; &quot;quotes&quot; &nbsp;\">\n      <div class=\"confirm-actions\">\n        <button class=\"confirm-btn confirm-btn-cancel\" id=\"prompt-cancel\">Cancel</button>\n        <button class=\"confirm-btn confirm-btn-primary\" id=\"prompt-ok\">OK</button>\n      </div></div>",
+      "input": {
+        "value": " Original value ",
+        "defaultValue": " Original value ",
+        "type": "text",
+        "valueAttribute": " Original value "
+      }
+    }
+  ]
+}

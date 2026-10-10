@@ -48,6 +48,16 @@ the completed migration was merged in [PR #1660](https://github.com/elkimek/get-
 
 ## Styling source contract
 
+Shared confirmation and prompt markup is authored by
+`UtilsConfirmPresentation.svelte` and `UtilsPromptPresentation.svelte`.
+`utils-dialog-presentation.ts` preserves literal conversion order, and
+`utils-dialog-rendering.ts` exposes synchronous HTML to `utils.ts`. The public
+controllers retain promises, host reuse, focus, keyboard and backdrop actions,
+native form defaults and modal cleanup. `utils-dialog-classes.ts` and the private
+Tailwind fragment scope presentation to the existing confirmation and prompt
+hosts at `/css/modal-shared.css`. Generic confirmation, modal and theme rules
+remain shared with their other consumers.
+
 Import progress and its batch prefix are authored by
 `ImportProgressPresentation.svelte`; `DropZoneResetPresentation.svelte` authors
 the restored upload instructions. `import-progress-presentation.ts` projects

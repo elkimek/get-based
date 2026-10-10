@@ -1,0 +1,160 @@
+{
+  "status": "reviewed-actual-compiled-comments",
+  "byKey": {
+    "confirm-danger": [
+      {
+        "path": [
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          2
+        ],
+        "value": "]"
+      }
+    ],
+    "confirm-primary": [
+      {
+        "path": [
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          2
+        ],
+        "value": "]"
+      }
+    ],
+    "prompt-text-null": [
+      {
+        "path": [
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          2
+        ],
+        "value": "]"
+      }
+    ],
+    "prompt-text-number": [
+      {
+        "path": [
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          2
+        ],
+        "value": "]"
+      }
+    ],
+    "prompt-text-false": [
+      {
+        "path": [
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          2
+        ],
+        "value": "]"
+      }
+    ],
+    "prompt-invalid-type": [
+      {
+        "path": [
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          2
+        ],
+        "value": "]"
+      }
+    ],
+    "prompt-invalid-date": [
+      {
+        "path": [
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          2
+        ],
+        "value": "]"
+      }
+    ],
+    "prompt-invalid-number": [
+      {
+        "path": [
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          2
+        ],
+        "value": "]"
+      }
+    ],
+    "prompt-native-linebreak": [
+      {
+        "path": [
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          2
+        ],
+        "value": "]"
+      }
+    ],
+    "prompt-empty-allowed": [
+      {
+        "path": [
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          2
+        ],
+        "value": "]"
+      }
+    ],
+    "prompt-literal": [
+      {
+        "path": [
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          2
+        ],
+        "value": "]"
+      }
+    ]
+  },
+  "boundary": "Exact outer-root compiler anchor paths and values for these literal samples; generic comment removal is forbidden."
+}
