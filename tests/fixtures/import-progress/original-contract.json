@@ -1,0 +1,151 @@
+{
+  "schemaVersion": 1,
+  "status": "small independent ORIGINAL native/source contract; no current output used",
+  "provenance": {
+    "originalOwnerSha256": "10c667ac4814eed0d5b8917b591a1c192146a371a616fa9bee18bed4cfbb8a6e",
+    "originalConstantsSha256": "1344c376bfd6f4ce72f1ecc736358d6c33fb4619788e6a32db33db82521927dd",
+    "sourceManifestSha256": "09d9a87a5f67347afba8781e38bef8c86b0cccc5a3d35f86b434b9f89e738066",
+    "runtimeManifestSha256": "495131e964681752a0d46ed060c93c5ba49388db1be6bec7b5ac340f0b3ffcb5",
+    "originalAuditSha256": "c9973ba7b77eb746b8f3fc6ee86095dd54a39bd5efaa51f7a2f9c7f8305e343c",
+    "acceptedOriginalContexts": 10,
+    "acceptedOriginalGeometry": 47,
+    "receipts": [
+      {
+        "label": "layout-dark-allstep-0",
+        "sha256": "680171bf13a38c510e624c41f9b89c0126fb791978f6a99c489eaafcab367636",
+        "nativeInnerHTMLSha256": "7148002d36c60efc90e07cbc325ca44d7dd3e0ccecdd7e80925eeb8d012f56f1"
+      },
+      {
+        "label": "layout-dark-allstep-1",
+        "sha256": "a50b2412203c26492d09393aa651610a6a8792abf9bc3ee749e8284533d90126",
+        "nativeInnerHTMLSha256": "9618eb0029af54db3bdfcebcf9c9859c6d9b2a0ee0c55ee9a89025f3e3e4d389"
+      },
+      {
+        "label": "layout-dark-1440-single2",
+        "sha256": "752859e42e4a42679ca80d7bba030a0a3d079aae2e6bd6e471dc24f7843253f0",
+        "nativeInnerHTMLSha256": "2f6a08dc89fc28b01d0964c3094ad8a5bb48d4a5d8cb0f740fe1898ffb8b93db"
+      },
+      {
+        "label": "layout-dark-allstep-3",
+        "sha256": "398839fbdd59033dee95734e9a62529e9090025b1c3ec099b228b1f0a7e94916",
+        "nativeInnerHTMLSha256": "df48d06157625c6efa8b225a9a0f2038f2cb8570d0bfb339f53b15344e6aa585"
+      },
+      {
+        "label": "layout-dark-allstep-4",
+        "sha256": "3dcb5c06bc45a4f18fba7530d1ca972cee943fff2ce80c62c5a06915d807138b",
+        "nativeInnerHTMLSha256": "89320b3a3a760276c9c6f15983c48989eafef9a7e3f50127a7813fbabdb0bc0e"
+      },
+      {
+        "label": "layout-dark-1440-batch3",
+        "sha256": "44cfd1aa8a70f5dfa1e842e01c10a7e532110f9c1bc0986c493e524585c92546",
+        "nativeInnerHTMLSha256": "91fc72bfb87c4a62624a2cf37717ec01892b2ddd95caa1fb6af96fdd658418cb"
+      },
+      {
+        "label": "visible-host-cancel-restored",
+        "sha256": "9808c95afb1df28ef0c0f2cf776623a19ac1982dae43424804be936e2208ac0e",
+        "nativeInnerHTMLSha256": "4cab524f43824ec6f641906da1512c69ee372586d0ad95f00b2ce4c4229d2dc4"
+      }
+    ]
+  },
+  "steps": [
+    "Extracting text from PDF",
+    "Checking report type",
+    "Protecting personal information",
+    "AI analyzing lab report",
+    "Preparing preview"
+  ],
+  "starts": [
+    5,
+    8,
+    12,
+    15,
+    95
+  ],
+  "specialFileName": "Synthetic <cbc> & \"double\" 'single'.pdf",
+  "samples": [
+    {
+      "key": "step0",
+      "step": 0,
+      "pct": 5,
+      "fileName": "Synthetic <cbc> & \"double\" 'single'.pdf",
+      "html": "<div class=\"import-progress-bar\" role=\"progressbar\" aria-valuemin=\"0\" aria-valuemax=\"100\" aria-valuenow=\"5\" aria-label=\"Import progress\"><div class=\"import-progress-bar-fill\" style=\"width:5%\"></div></div><div class=\"import-progress-pct\">5%</div><div class=\"import-progress-stage\"></div><div class=\"import-progress\"><div class=\"progress-step active\"><span class=\"step-icon\"><span class=\"progress-spinner\"></span></span><span>Extracting text from PDF...</span></div><div class=\"progress-step \"><span class=\"step-icon\">○</span><span>Checking report type</span></div><div class=\"progress-step \"><span class=\"step-icon\">○</span><span>Protecting personal information</span></div><div class=\"progress-step \"><span class=\"step-icon\">○</span><span>AI analyzing lab report</span></div><div class=\"progress-step \"><span class=\"step-icon\">○</span><span>Preparing preview</span></div><div class=\"import-progress-filename\">Synthetic &lt;cbc&gt; &amp; \"double\" 'single'.pdf</div></div>",
+      "authority": "accepted native receipt layout-dark-allstep-0"
+    },
+    {
+      "key": "step1",
+      "step": 1,
+      "pct": 8,
+      "fileName": "Synthetic <cbc> & \"double\" 'single'.pdf",
+      "html": "<div class=\"import-progress-bar\" role=\"progressbar\" aria-valuemin=\"0\" aria-valuemax=\"100\" aria-valuenow=\"8\" aria-label=\"Import progress\"><div class=\"import-progress-bar-fill\" style=\"width:8%\"></div></div><div class=\"import-progress-pct\">8%</div><div class=\"import-progress-stage\"></div><div class=\"import-progress\"><div class=\"progress-step done\"><span class=\"step-icon\">✓</span><span>Extracting text from PDF</span></div><div class=\"progress-step active\"><span class=\"step-icon\"><span class=\"progress-spinner\"></span></span><span>Checking report type...</span></div><div class=\"progress-step \"><span class=\"step-icon\">○</span><span>Protecting personal information</span></div><div class=\"progress-step \"><span class=\"step-icon\">○</span><span>AI analyzing lab report</span></div><div class=\"progress-step \"><span class=\"step-icon\">○</span><span>Preparing preview</span></div><div class=\"import-progress-filename\">Synthetic &lt;cbc&gt; &amp; \"double\" 'single'.pdf</div></div>",
+      "authority": "accepted native receipt layout-dark-allstep-1"
+    },
+    {
+      "key": "step2",
+      "step": 2,
+      "pct": 12,
+      "fileName": "Synthetic <cbc> & \"double\" 'single'.pdf",
+      "html": "<div class=\"import-progress-bar\" role=\"progressbar\" aria-valuemin=\"0\" aria-valuemax=\"100\" aria-valuenow=\"12\" aria-label=\"Import progress\"><div class=\"import-progress-bar-fill\" style=\"width:12%\"></div></div><div class=\"import-progress-pct\">12%</div><div class=\"import-progress-stage\"></div><div class=\"import-progress\"><div class=\"progress-step done\"><span class=\"step-icon\">✓</span><span>Extracting text from PDF</span></div><div class=\"progress-step done\"><span class=\"step-icon\">✓</span><span>Checking report type</span></div><div class=\"progress-step active\"><span class=\"step-icon\"><span class=\"progress-spinner\"></span></span><span>Protecting personal information...</span></div><div class=\"progress-step \"><span class=\"step-icon\">○</span><span>AI analyzing lab report</span></div><div class=\"progress-step \"><span class=\"step-icon\">○</span><span>Preparing preview</span></div><div class=\"import-progress-filename\">Synthetic &lt;cbc&gt; &amp; \"double\" 'single'.pdf</div></div>",
+      "authority": "accepted native receipt layout-dark-1440-single2"
+    },
+    {
+      "key": "step3",
+      "step": 3,
+      "pct": 15,
+      "fileName": "Synthetic <cbc> & \"double\" 'single'.pdf",
+      "html": "<div class=\"import-progress-bar\" role=\"progressbar\" aria-valuemin=\"0\" aria-valuemax=\"100\" aria-valuenow=\"15\" aria-label=\"Import progress\"><div class=\"import-progress-bar-fill\" style=\"width:15%\"></div></div><div class=\"import-progress-pct\">15%</div><div class=\"import-progress-stage\"></div><div class=\"import-progress\"><div class=\"progress-step done\"><span class=\"step-icon\">✓</span><span>Extracting text from PDF</span></div><div class=\"progress-step done\"><span class=\"step-icon\">✓</span><span>Checking report type</span></div><div class=\"progress-step done\"><span class=\"step-icon\">✓</span><span>Protecting personal information</span></div><div class=\"progress-step active\"><span class=\"step-icon\"><span class=\"progress-spinner\"></span></span><span>AI analyzing lab report...</span></div><div class=\"progress-step \"><span class=\"step-icon\">○</span><span>Preparing preview</span></div><div class=\"import-progress-filename\">Synthetic &lt;cbc&gt; &amp; \"double\" 'single'.pdf</div></div>",
+      "authority": "accepted native receipt layout-dark-allstep-3"
+    },
+    {
+      "key": "step4",
+      "step": 4,
+      "pct": 95,
+      "fileName": "",
+      "html": "<div class=\"import-progress-bar\" role=\"progressbar\" aria-valuemin=\"0\" aria-valuemax=\"100\" aria-valuenow=\"95\" aria-label=\"Import progress\"><div class=\"import-progress-bar-fill\" style=\"width:95%\"></div></div><div class=\"import-progress-pct\">95%</div><div class=\"import-progress-stage\"></div><div class=\"import-progress\"><div class=\"progress-step done\"><span class=\"step-icon\">✓</span><span>Extracting text from PDF</span></div><div class=\"progress-step done\"><span class=\"step-icon\">✓</span><span>Checking report type</span></div><div class=\"progress-step done\"><span class=\"step-icon\">✓</span><span>Protecting personal information</span></div><div class=\"progress-step done\"><span class=\"step-icon\">✓</span><span>AI analyzing lab report</span></div><div class=\"progress-step active\"><span class=\"step-icon\"><span class=\"progress-spinner\"></span></span><span>Preparing preview...</span></div></div>",
+      "authority": "accepted native receipt layout-dark-allstep-4"
+    },
+    {
+      "key": "step-1",
+      "step": -1,
+      "pct": 0,
+      "fileName": "",
+      "html": "<div class=\"import-progress-bar\" role=\"progressbar\" aria-valuemin=\"0\" aria-valuemax=\"100\" aria-valuenow=\"0\" aria-label=\"Import progress\"><div class=\"import-progress-bar-fill\" style=\"width:0%\"></div></div><div class=\"import-progress-pct\">0%</div><div class=\"import-progress-stage\"></div><div class=\"import-progress\"><div class=\"progress-step \"><span class=\"step-icon\">○</span><span>Extracting text from PDF</span></div><div class=\"progress-step \"><span class=\"step-icon\">○</span><span>Checking report type</span></div><div class=\"progress-step \"><span class=\"step-icon\">○</span><span>Protecting personal information</span></div><div class=\"progress-step \"><span class=\"step-icon\">○</span><span>AI analyzing lab report</span></div><div class=\"progress-step \"><span class=\"step-icon\">○</span><span>Preparing preview</span></div></div>",
+      "authority": "unchanged frozen original buildProgressHTML source36-56, fallback not separately captured as geometry"
+    },
+    {
+      "key": "step5",
+      "step": 5,
+      "pct": 0,
+      "fileName": "",
+      "html": "<div class=\"import-progress-bar\" role=\"progressbar\" aria-valuemin=\"0\" aria-valuemax=\"100\" aria-valuenow=\"0\" aria-label=\"Import progress\"><div class=\"import-progress-bar-fill\" style=\"width:0%\"></div></div><div class=\"import-progress-pct\">0%</div><div class=\"import-progress-stage\"></div><div class=\"import-progress\"><div class=\"progress-step done\"><span class=\"step-icon\">✓</span><span>Extracting text from PDF</span></div><div class=\"progress-step done\"><span class=\"step-icon\">✓</span><span>Checking report type</span></div><div class=\"progress-step done\"><span class=\"step-icon\">✓</span><span>Protecting personal information</span></div><div class=\"progress-step done\"><span class=\"step-icon\">✓</span><span>AI analyzing lab report</span></div><div class=\"progress-step done\"><span class=\"step-icon\">✓</span><span>Preparing preview</span></div></div>",
+      "authority": "unchanged frozen original buildProgressHTML source36-56, fallback not separately captured as geometry"
+    }
+  ],
+  "batch": {
+    "step": 3,
+    "current": 2,
+    "total": 5,
+    "fileName": "Synthetic <cbc> & \"double\" 'single'.pdf",
+    "html": "<div class=\"batch-progress-counter\">Processing file 2 of 5</div><div class=\"import-progress-bar\" role=\"progressbar\" aria-valuemin=\"0\" aria-valuemax=\"100\" aria-valuenow=\"15\" aria-label=\"Import progress\"><div class=\"import-progress-bar-fill\" style=\"width:15%\"></div></div><div class=\"import-progress-pct\">15%</div><div class=\"import-progress-stage\"></div><div class=\"import-progress\"><div class=\"progress-step done\"><span class=\"step-icon\">✓</span><span>Extracting text from PDF</span></div><div class=\"progress-step done\"><span class=\"step-icon\">✓</span><span>Checking report type</span></div><div class=\"progress-step done\"><span class=\"step-icon\">✓</span><span>Protecting personal information</span></div><div class=\"progress-step active\"><span class=\"step-icon\"><span class=\"progress-spinner\"></span></span><span>AI analyzing lab report...</span></div><div class=\"progress-step \"><span class=\"step-icon\">○</span><span>Preparing preview</span></div><div class=\"import-progress-filename\">Synthetic &lt;cbc&gt; &amp; \"double\" 'single'.pdf</div></div>"
+  },
+  "resetHTML": "<div class=\"drop-zone-icon\">📄</div>\n      <div class=\"drop-zone-text\">Drop PDF, image, JSON, or DNA raw data file here, or click to browse</div>\n      <div class=\"drop-zone-hint\">AI-powered — works with any lab report (PDF, photo, screenshot) or getbased JSON export</div>",
+  "sourceFilenameCases": {
+    "emptyHTML": "<div class=\"import-progress-bar\" role=\"progressbar\" aria-valuemin=\"0\" aria-valuemax=\"100\" aria-valuenow=\"12\" aria-label=\"Import progress\"><div class=\"import-progress-bar-fill\" style=\"width:12%\"></div></div><div class=\"import-progress-pct\">12%</div><div class=\"import-progress-stage\"></div><div class=\"import-progress\"><div class=\"progress-step done\"><span class=\"step-icon\">✓</span><span>Extracting text from PDF</span></div><div class=\"progress-step done\"><span class=\"step-icon\">✓</span><span>Checking report type</span></div><div class=\"progress-step active\"><span class=\"step-icon\"><span class=\"progress-spinner\"></span></span><span>Protecting personal information...</span></div><div class=\"progress-step \"><span class=\"step-icon\">○</span><span>AI analyzing lab report</span></div><div class=\"progress-step \"><span class=\"step-icon\">○</span><span>Preparing preview</span></div></div>",
+    "boxedEmptyHTML": "<div class=\"import-progress-bar\" role=\"progressbar\" aria-valuemin=\"0\" aria-valuemax=\"100\" aria-valuenow=\"12\" aria-label=\"Import progress\"><div class=\"import-progress-bar-fill\" style=\"width:12%\"></div></div><div class=\"import-progress-pct\">12%</div><div class=\"import-progress-stage\"></div><div class=\"import-progress\"><div class=\"progress-step done\"><span class=\"step-icon\">✓</span><span>Extracting text from PDF</span></div><div class=\"progress-step done\"><span class=\"step-icon\">✓</span><span>Checking report type</span></div><div class=\"progress-step active\"><span class=\"step-icon\"><span class=\"progress-spinner\"></span></span><span>Protecting personal information...</span></div><div class=\"progress-step \"><span class=\"step-icon\">○</span><span>AI analyzing lab report</span></div><div class=\"progress-step \"><span class=\"step-icon\">○</span><span>Preparing preview</span></div><div class=\"import-progress-filename\"></div></div>",
+    "literalHTML": "<div class=\"import-progress-bar\" role=\"progressbar\" aria-valuemin=\"0\" aria-valuemax=\"100\" aria-valuenow=\"12\" aria-label=\"Import progress\"><div class=\"import-progress-bar-fill\" style=\"width:12%\"></div></div><div class=\"import-progress-pct\">12%</div><div class=\"import-progress-stage\"></div><div class=\"import-progress\"><div class=\"progress-step done\"><span class=\"step-icon\">✓</span><span>Extracting text from PDF</span></div><div class=\"progress-step done\"><span class=\"step-icon\">✓</span><span>Checking report type</span></div><div class=\"progress-step active\"><span class=\"step-icon\"><span class=\"progress-spinner\"></span></span><span>Protecting personal information...</span></div><div class=\"progress-step \"><span class=\"step-icon\">○</span><span>AI analyzing lab report</span></div><div class=\"progress-step \"><span class=\"step-icon\">○</span><span>Preparing preview</span></div><div class=\"import-progress-filename\">&lt;img src=x onerror=alert(1)&gt; &amp; &quot;quote&quot; &#x27;apostrophe&#x27; </div></div>"
+  },
+  "coercion": {
+    "projectorOrder": [
+      "step:number",
+      "step:number",
+      "step:number",
+      "step:number",
+      "step:number",
+      "filename:string"
+    ],
+    "batchOrder": [
+      "current:string",
+      "total:string"
+    ],
+    "boundary": "Source-derived ToPrimitive order of original loop comparison/template interpolation and escapeHTML. Boxed/coercion probes are not browser acceptance cases."
+  }
+}

@@ -4,7 +4,7 @@
 // divs, modal-close aria-labels, brand-voice copy, settings tablist,
 // chart layers ARIA, tour dialog role, chat stream status, progress bar.
 //
-// Static source inspection only — fs.readFileSync instead of HTTP fetch.
+// Source and synchronous authored-markup contracts; no HTTP fetch.
 //
 // Run: node tests/test-a11y-phase3.ts  (or via npm test)
 
@@ -13,6 +13,10 @@ import { setupClasses } from '../js/light-setup-classes.js';
 import { projectChannelPill, projectChannelDetail } from '../js/light-channel-presentation.js';
 import { renderHTML as renderChannelPills } from '../js/components/LightChannelPills.svelte.html.js';
 import { renderHTML as renderChannelDetail } from '../js/components/LightChannelDetail.svelte.html.js';
+import { renderImportProgress } from '../js/import-progress-rendering.js';
+import { projectCycleOverviewPresentation } from '../js/cycle-overview-presentation.js';
+import { renderHTML as renderCycleOverview } from '../js/components/CycleOverviewPresentation.svelte.html.js';
+import { JSDOM } from 'jsdom';
 import { readAuthoredRepositorySource } from './helpers/repository-source.js';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -69,14 +73,31 @@ console.log('=== Phase 3 A11y Tests ===\n');
     focusCardSrc.includes('aria-label="Regenerate insight"') &&
     focusCardSrc.includes('data-focus-card-action'));
 
-  const cycleSrc = read('/js/cycle.js');
+  const cycleSrc = readAuthoredRepositorySource('js/cycle.js');
+  const cycleView = (summary: Parameters<typeof projectCycleOverviewPresentation>[0]['summary']) =>
+    projectCycleOverviewPresentation({
+      compact: false, showHeader: false, hasProfile: summary !== null, summary,
+      drawDescription: null, phases: [], phaseOverflow: 0, periods: [], alerts: [],
+    });
+  const cyclePrompt = JSDOM.fragment(renderCycleOverview({view: cycleView(null)})).querySelector('.cycle-prompt');
+  const cycleSummary = JSDOM.fragment(renderCycleOverview({view: cycleView({
+    primary: '28-day cycle', aria: '28-day cycle', meta: ['regular', 'moderate flow'],
+  })})).querySelector('.cycle-summary-card');
   assert('cycle-prompt is a semantic button',
-    cycleSrc.includes('<button type="button" class="cycle-prompt"'));
+    cyclePrompt?.tagName === 'BUTTON' && cyclePrompt.getAttribute('type') === 'button'
+      && cyclePrompt.getAttribute('aria-label') === 'Set up cycle tracking');
   assert('cycle-summary is a semantic button',
-    cycleSrc.includes('<button type="button" class="cycle-summary-card"'));
+    cycleSummary?.tagName === 'BUTTON' && cycleSummary.getAttribute('type') === 'button'
+      && cycleSummary.getAttribute('aria-label') === 'Edit cycle: 28-day cycle');
   assert('cycle editable cards use delegated button actions',
-    cycleSrc.includes("cycleActionAttrs('open-editor')") &&
-      !cycleSrc.includes('CYCLE_KEY_ACTIVATE_EDITOR'));
+    cyclePrompt?.getAttribute('data-cycle-action') === 'open-editor'
+      && cycleSummary?.getAttribute('data-cycle-action') === 'open-editor'
+      && /function handleCycleClick\(event: MouseEvent\) \{\s*const actionEl = closestCycleElement\(event\.target, '\[data-cycle-action\]'\);/.test(cycleSrc)
+      && /switch \(actionEl\.dataset\.cycleAction \|\| ''\) \{/.test(cycleSrc)
+      && /case 'open-editor':\s*openMenstrualCycleEditor\(\);\s*break;/.test(cycleSrc)
+      && cycleSrc.includes("document.addEventListener('click', handleCycleClick);")
+      && cycleSrc.includes('return renderCycleOverviewPresentation({view: projectCycleOverviewPresentation(input)});')
+      && !cycleSrc.includes('CYCLE_KEY_ACTIVATE_EDITOR'));
 
   const suppSrc = read('/js/supplement-dashboard.js');
   assert('supp-bar-row has role+tabindex',
@@ -167,8 +188,10 @@ console.log('=== Phase 3 A11y Tests ===\n');
     &&  /if\s*\(status\)\s*status\.textContent = message;/.test(chatStreamStatusSrc));
 
   // ─── 9. Progress bar ARIA ───
+  const progressMarkup = renderImportProgress(2, 12, 'Synthetic progress.pdf');
   assert('import-progress-bar declares role=progressbar',
-    importProgressSrc.includes('class="import-progress-bar" role="progressbar"'));
+    /class="import-progress-bar [^"]*" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="12" aria-label="Import progress"/.test(progressMarkup)
+      && importProgressSrc.includes('return renderImportProgress(step, pct, fileName);'));
   assert('import-progress updates aria-valuenow',
     importProgressSrc.includes("bar.setAttribute('aria-valuenow', String(pct))"));
 

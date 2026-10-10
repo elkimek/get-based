@@ -1,0 +1,25 @@
+/* Private authored progress fragment composed into existing import-marker-map.tailwind.css.
+   Keep the shared drop-zone/header owner in app-shell and existing /css/import.css chronology. */
+@source "../js/import-progress-classes.ts";
+@source "../js/components/ImportProgressPresentation.svelte";
+@custom-variant import-progress-body (:where(&):where(#drop-zone, #drop-zone *):is(.import-progress));
+@custom-variant import-progress-step (:where(&):where(#drop-zone, #drop-zone *):is(.progress-step));
+@custom-variant import-progress-step-icon (:where(&):where(#drop-zone, #drop-zone *):is(.progress-step .step-icon));
+@custom-variant import-progress-step-active (:where(&):where(#drop-zone, #drop-zone *):is(.progress-step.active));
+@custom-variant import-progress-step-done (:where(&):where(#drop-zone, #drop-zone *):is(.progress-step.done));
+@custom-variant import-progress-step-icon-done (:where(&):where(#drop-zone, #drop-zone *):is(.progress-step.done .step-icon));
+@custom-variant import-progress-spinner (:where(&):where(#drop-zone, #drop-zone *):is(.progress-spinner));
+@custom-variant import-progress-bar (:where(&):where(#drop-zone, #drop-zone *):is(.import-progress-bar));
+@custom-variant import-progress-fill (:where(&):where(#drop-zone, #drop-zone *):is(.import-progress-bar-fill));
+@custom-variant import-progress-percentage (:where(&):where(#drop-zone, #drop-zone *):is(.import-progress-pct));
+@custom-variant import-progress-stage (:where(&):where(#drop-zone, #drop-zone *):is(.import-progress-stage));
+@custom-variant import-progress-filename (:where(&):where(#drop-zone, #drop-zone *):is(.import-progress-filename));
+@custom-variant import-progress-batch (:where(&):where(#drop-zone, #drop-zone *):is(.batch-progress-counter));
+
+/* progressSpin remains byte-exact in import.base.css, outside Tailwind minification. */
+
+/* Keep shorthand and override together: Tailwind sorts separate arbitrary properties. */
+@utility import-progress-spinner-border {
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+}

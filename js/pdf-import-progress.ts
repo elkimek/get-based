@@ -1,8 +1,7 @@
 // pdf-import-progress.js — PDF import progress UI and header status state
 
-import { IMPORT_STEPS } from './constants.js';
 import { navigateImportReviewRuntime } from './pdf-import-review-runtime.js';
-import { escapeHTML } from './utils.js';
+import { renderImportProgress, renderImportBatchCounter, renderDropZoneReset } from './import-progress-rendering.js';
 
 const STEP_START_PCT = [5, 8, 12, 15, 95];
 interface ImportStatus { running: boolean; pct: number; failed: boolean; done: boolean; fileName: string; batch: { current: number; total: number } | null }
@@ -35,24 +34,7 @@ export function updateImportProgressPct(pct: number, stageLabel?: string | null)
 
 function buildProgressHTML(step: number, fileName: string) {
   const pct = STEP_START_PCT[step] || 0;
-  let html = `<div class="import-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="Import progress"><div class="import-progress-bar-fill" style="width:${pct}%"></div></div>`;
-  html += `<div class="import-progress-pct">${pct}%</div>`;
-  html += '<div class="import-progress-stage"></div>';
-  html += '<div class="import-progress">';
-  for (let i = 0; i < IMPORT_STEPS.length; i++) {
-    const isDone = i < step;
-    const isActive = i === step;
-    const cls = isDone ? "done" : isActive ? "active" : "";
-    const icon = isDone
-      ? '<span class="step-icon">\u2713</span>'
-      : isActive
-        ? '<span class="step-icon"><span class="progress-spinner"></span></span>'
-        : '<span class="step-icon">\u25CB</span>';
-    html += `<div class="progress-step ${cls}">${icon}<span>${IMPORT_STEPS[i]}${isActive ? "..." : ""}</span></div>`;
-  }
-  if (fileName) html += `<div class="import-progress-filename">${escapeHTML(fileName)}</div>`;
-  html += '</div>';
-  return html;
+  return renderImportProgress(step, pct, fileName);
 }
 
 function ensureDropZone() {
@@ -106,9 +88,7 @@ export function hideImportProgress(reason = 'success') {
   if (dropZone.classList.contains('drop-zone-hidden')) {
     dropZone.innerHTML = '';
   } else {
-    dropZone.innerHTML = `<div class="drop-zone-icon">\uD83D\uDCC4</div>
-      <div class="drop-zone-text">Drop PDF, image, JSON, or DNA raw data file here, or click to browse</div>
-      <div class="drop-zone-hint">AI-powered \u2014 works with any lab report (PDF, photo, screenshot) or getbased JSON export</div>`;
+    dropZone.innerHTML = renderDropZoneReset();
   }
 }
 
@@ -202,7 +182,7 @@ export async function showBatchImportProgress(step: number, fileName: string, cu
   if (statusDismissTimer) { clearTimeout(statusDismissTimer); statusDismissTimer = null; }
   setImportStatus({ running: true, done: false, failed: false, fileName, pct: STEP_START_PCT[step] || 0, batch: { current, total } });
   const dropZone = ensureDropZone();
-  let html = `<div class="batch-progress-counter">Processing file ${current} of ${total}</div>`;
+  let html = renderImportBatchCounter(current, total);
   html += buildProgressHTML(step, fileName);
   dropZone.innerHTML = html;
   observeProgressBar();

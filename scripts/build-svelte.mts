@@ -36,6 +36,7 @@ const HTML_COMPONENTS = new Set([
   'TipsDisclaimer', 'RecommendationPage',
   'NoteEditorPresentation',
   'PdfPreflightPresentation', 'PdfImageModePresentation',
+  'ImportProgressPresentation', 'DropZoneResetPresentation',
   'KnowledgeBasePanel', 'KnowledgeBaseModal', 'KnowledgeBaseStatus', 'KnowledgeBaseStats',
   'KnowledgeBaseDocuments', 'KnowledgeBaseIngestPill', 'KnowledgeBaseLibraryOptions', 'KnowledgeBaseLibraryCreate',
 ]);

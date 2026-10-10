@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1514 |
-| Internal import edges | 4954 |
+| Modules | 1519 |
+| Internal import edges | 4958 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -65,7 +65,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.ts`](js/utils.ts) | 254 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
+| [`js/utils.ts`](js/utils.ts) | 253 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
 | [`js/state.ts`](js/state.ts) | 245 | [`js/chat-send.ts`](js/chat-send.ts) | 38 |
 | [`js/caught-error.ts`](js/caught-error.ts) | 93 | [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) | 36 |
 | [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts) | 84 | [`js/settings.ts`](js/settings.ts) | 35 |
@@ -1490,6 +1490,12 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>DropZoneResetPresentation.svelte</code> family — 1 module</summary>
+
+- [`js/components/DropZoneResetPresentation.svelte`](js/components/DropZoneResetPresentation.svelte) → no in-scope imports
+
+</details>
+
 <details><summary><code>electrolytes</code> family — 1 module</summary>
 
 - [`js/marker-schema/electrolytes.ts`](js/marker-schema/electrolytes.ts) → no in-scope imports
@@ -1614,7 +1620,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>import</code> family — 22 modules</summary>
+<details><summary><code>import</code> family — 25 modules</summary>
 
 - [`js/import-benchmark-classes.ts`](js/import-benchmark-classes.ts) → no in-scope imports
 - [`js/import-benchmark-component.ts`](js/import-benchmark-component.ts) → [`js/components/ImportBenchmarkEntry.svelte`](js/components/ImportBenchmarkEntry.svelte), [`js/components/ImportBenchmarks.svelte`](js/components/ImportBenchmarks.svelte)
@@ -1633,6 +1639,9 @@ Native browser modules shipped with the static application.
 - [`js/import-marker-map-classes.ts`](js/import-marker-map-classes.ts) → no in-scope imports
 - [`js/import-marker-map-modal.ts`](js/import-marker-map-modal.ts) → [`js/adapters.ts`](js/adapters.ts), [`js/components/ImportMarkerMapCategories.svelte`](js/components/ImportMarkerMapCategories.svelte), [`js/components/ImportMarkerMapPresentation.svelte`](js/components/ImportMarkerMapPresentation.svelte), [`js/components/ImportMarkerMapResults.svelte`](js/components/ImportMarkerMapResults.svelte), [`js/import-marker-map-classes.ts`](js/import-marker-map-classes.ts), [`js/import-marker-map-presentation.ts`](js/import-marker-map-presentation.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/pdf-import-marker-mapping.ts`](js/pdf-import-marker-mapping.ts), [`js/schema.ts`](js/schema.ts)
 - [`js/import-marker-map-presentation.ts`](js/import-marker-map-presentation.ts) → no in-scope imports
+- [`js/import-progress-classes.ts`](js/import-progress-classes.ts) → no in-scope imports
+- [`js/import-progress-presentation.ts`](js/import-progress-presentation.ts) → [`js/constants.ts`](js/constants.ts)
+- [`js/import-progress-rendering.ts`](js/import-progress-rendering.ts) → [`js/components/DropZoneResetPresentation.svelte`](js/components/DropZoneResetPresentation.svelte), [`js/components/ImportProgressPresentation.svelte`](js/components/ImportProgressPresentation.svelte), [`js/import-progress-presentation.ts`](js/import-progress-presentation.ts)
 - [`js/import-reference-benchmark.ts`](js/import-reference-benchmark.ts) → [`js/api.ts`](js/api.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/import-benchmarks.ts`](js/import-benchmarks.ts), [`js/import-loader.ts`](js/import-loader.ts), [`js/pdf-import-ai-utils.ts`](js/pdf-import-ai-utils.ts), [`js/pdf-import-marker-mapping.ts`](js/pdf-import-marker-mapping.ts), [`js/schema.ts`](js/schema.ts)
 - [`js/import-review-classes.ts`](js/import-review-classes.ts) → no in-scope imports
 - [`js/import-review-draft.ts`](js/import-review-draft.ts) → no in-scope imports
@@ -1680,6 +1689,12 @@ Native browser modules shipped with the static application.
 <details><summary><code>ImportMarkerMapResults.svelte</code> family — 1 module</summary>
 
 - [`js/components/ImportMarkerMapResults.svelte`](js/components/ImportMarkerMapResults.svelte) → [`js/import-marker-map-classes.ts`](js/import-marker-map-classes.ts)
+
+</details>
+
+<details><summary><code>ImportProgressPresentation.svelte</code> family — 1 module</summary>
+
+- [`js/components/ImportProgressPresentation.svelte`](js/components/ImportProgressPresentation.svelte) → [`js/import-progress-classes.ts`](js/import-progress-classes.ts)
 
 </details>
 
@@ -2979,7 +2994,7 @@ Native browser modules shipped with the static application.
 - [`js/pdf-import-organic-acid-normalization.ts`](js/pdf-import-organic-acid-normalization.ts) → [`js/adapters.ts`](js/adapters.ts), [`js/mosaic-oat-catalog.ts`](js/mosaic-oat-catalog.ts)
 - [`js/pdf-import-persistence.ts`](js/pdf-import-persistence.ts) → [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/lab-entry.ts`](js/lab-entry.ts), [`js/pdf-import-review-runtime.ts`](js/pdf-import-review-runtime.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/pdf-import-preflight.ts`](js/pdf-import-preflight.ts) → [`js/adapters.ts`](js/adapters.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/api.ts`](js/api.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/pdf-import-ai-utils.ts`](js/pdf-import-ai-utils.ts), [`js/pdf-preflight-presentation.ts`](js/pdf-preflight-presentation.ts), [`js/pdf-preflight-rendering.ts`](js/pdf-preflight-rendering.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/pdf-import-progress.ts`](js/pdf-import-progress.ts) → [`js/constants.ts`](js/constants.ts), [`js/pdf-import-review-runtime.ts`](js/pdf-import-review-runtime.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/pdf-import-progress.ts`](js/pdf-import-progress.ts) → [`js/import-progress-rendering.ts`](js/import-progress-rendering.ts), [`js/pdf-import-review-runtime.ts`](js/pdf-import-review-runtime.ts)
 - [`js/pdf-import-ratio-units.ts`](js/pdf-import-ratio-units.ts) → no in-scope imports
 - [`js/pdf-import-review-formatting.ts`](js/pdf-import-review-formatting.ts) → [`js/components/ImportUnitControl.svelte`](js/components/ImportUnitControl.svelte), [`js/import-review-presentation.ts`](js/import-review-presentation.ts), [`js/pdf-import-unit-conversions.ts`](js/pdf-import-unit-conversions.ts)
 - [`js/pdf-import-review-runtime.ts`](js/pdf-import-review-runtime.ts) → [`js/data.ts`](js/data.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts)

@@ -349,6 +349,27 @@ test('fresh static PDF first offline use and two zero-page cold launches preserv
           await expect(dialog).toContainText('Limited text extracted');
           await expect(dialog).toContainText('This skips PII obfuscation');
         }
+        // The real PDF handler renders progress before its preflight/mode-selection await.
+        // Prove the migrated siblings and their CSS arrived from the stopped-origin cache.
+        const progress = target.locator('#drop-zone');
+        const progressBar = progress.locator('.import-progress-bar');
+        const progressPct = file.name === 'image-only.pdf' ? '5' : '8';
+        await expect(progressBar).toHaveAttribute('role', 'progressbar');
+        await expect(progressBar).toHaveAttribute('aria-valuenow', progressPct);
+        await expect(progress.locator('.import-progress-bar-fill')).toHaveAttribute('style', 'width:' + progressPct + '%');
+        await expect(progress.locator('.progress-step')).toHaveCount(5);
+        await expect(progress.locator('.progress-step.active')).toHaveCount(1);
+        await expect(progress.locator('.import-progress-filename')).toHaveText(file.name);
+        const nativeProgress = await progress.evaluate(node => {
+          const spinner = node.querySelector('.progress-spinner')!, bar = node.querySelector('.import-progress-bar')!;
+          const css = getComputedStyle(spinner);
+          return {html: node.outerHTML, spinner: {width: css.width, height: css.height, topColor: css.borderTopColor,
+            rightColor: css.borderRightColor, animationName: css.animationName, animationDuration: css.animationDuration},
+            barColor: getComputedStyle(bar).backgroundColor};
+        });
+        expect(nativeProgress.spinner).toMatchObject({width: '18px', height: '18px', animationName: 'progressSpin', animationDuration: '0.8s'});
+        expect(nativeProgress.spinner.topColor).not.toBe(nativeProgress.spinner.rightColor);
+        expect(nativeProgress.spinner.rightColor).toBe(nativeProgress.barColor);
         const nativeDialog = {html: await dialog.evaluate(node => node.outerHTML), buttons, focused: await cancel.evaluate(node => node === document.activeElement)};
         await expect(target.locator('.pii-warning-overlay')).toHaveCount(0);
         await cancel.click();
@@ -382,7 +403,7 @@ test('fresh static PDF first offline use and two zero-page cold launches preserv
           name: file.name, bytes: file.bytes, mimeType: file.mimeType, sha256: file.fileSha256});
         expect(native.actions.filter(event => event.type === 'click' && event.text?.trim() === 'Cancel').length).toBe(authority.original.indexOf(file) + 1);
         expect(native.actions.filter(event => event.type === 'click').every(event => event.trusted)).toBe(true);
-        phases.push({phase: 'offline-' + launch + ':' + file.name, before, after, nativeDialog, native,
+        phases.push({phase: 'offline-' + launch + ':' + file.name, before, after, nativeDialog, nativeProgress, native,
           workers: workers.slice(workerStart), originalInput: file, cache});
       }
       await expect.poll(() => workers.slice(workerStart).filter(worker => { const url = new URL(worker.url, worker.page); return url.origin === server.origin && url.pathname === '/vendor/pdf.worker.min.mjs'; }).length).toBeGreaterThan(0);

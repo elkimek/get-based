@@ -2476,3 +2476,10 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /js/pdf-preflight-classes.js
 /tests/pdf-preflight-presentation.test.js
 /tests/pwa/sveltekit-pdf-preflight.spec.js
+
+# Import progress authored runtime siblings
+/js/import-progress-presentation.js
+/js/import-progress-rendering.js
+/js/import-progress-classes.js
+
+/tests/import-progress-presentation.test.js

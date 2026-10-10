@@ -48,6 +48,18 @@ the completed migration was merged in [PR #1660](https://github.com/elkimek/get-
 
 ## Styling source contract
 
+Import progress and its batch prefix are authored by
+`ImportProgressPresentation.svelte`; `DropZoneResetPresentation.svelte` authors
+the restored upload instructions. `import-progress-presentation.ts` projects
+labels and states from the shared import steps, while
+`import-progress-rendering.ts` exposes synchronous HTML to the existing public
+progress controller. The controller retains initial percentages, status updates,
+observers, native timers, scrolling, host lifetimes and header accessibility.
+`import-progress-classes.ts` and the private Tailwind fragment own the replaced
+layout declarations at the unchanged lazy `/css/import.css` URL. The native
+`progressSpin` keyframe, shared drop-zone/header rules and unrelated batch counter
+retain explicit custom and shared style ownership.
+
 PDF duplicate, model-mismatch and unsupported-lab markup is authored by
 `PdfPreflightPresentation.svelte`; `PdfImageModePresentation.svelte` authors
 scanned-PDF warning content. `pdf-preflight-presentation.ts` projects literal

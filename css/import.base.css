@@ -1,47 +1,8 @@
-/* Import/upload flow */
+/* Import/upload flow: progress layout is owned by import-progress.tailwind.css.
+   Keep this native custom animation byte-exact; Tailwind minification may rewrite its units.
+   The unrelated batch-counter retains its original owner. */
 
-.import-progress { display: flex; flex-direction: column; gap: 14px; align-items: flex-start; margin: 0 auto; width: fit-content; }
-.progress-step {
-  display: flex; align-items: center; gap: 10px;
-  font-size: 14px; color: var(--text-muted); transition: color 0.2s;
-}
-.progress-step .step-icon {
-  width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
-  font-size: 14px; flex-shrink: 0;
-}
-.progress-step.active { color: var(--text-primary); font-weight: 500; }
-.progress-step.done { color: var(--green); }
-.progress-step.done .step-icon { color: var(--green); }
-.progress-spinner {
-  display: inline-block; width: 18px; height: 18px; border: 2px solid var(--border);
-  border-top-color: var(--accent); border-radius: 50%;
-  animation: progressSpin 0.8s linear infinite;
-}
 @keyframes progressSpin { to { transform: rotate(360deg); } }
-.import-progress-bar {
-  width: 100%; max-width: 280px; height: 6px; background: var(--border);
-  border-radius: 3px; margin: 0 auto 4px; overflow: hidden;
-}
-.import-progress-bar-fill {
-  height: 100%; background: var(--accent-gradient); border-radius: 3px;
-  transition: width 0.4s ease;
-}
-.import-progress-pct {
-  text-align: center; font-size: 13px; font-weight: 600; color: var(--text-secondary);
-  margin-bottom: 12px; font-variant-numeric: tabular-nums;
-}
-.import-progress-stage {
-  text-align: center; font-size: 12px; color: var(--text-muted);
-  margin: -8px 0 12px; min-height: 15px;
-}
-.import-progress-filename {
-  font-size: 12px; color: var(--text-muted); margin-top: 4px;
-  align-self: center;
-}
-.batch-progress-counter {
-  text-align: center; color: var(--accent); font-weight: 600; font-size: 14px;
-  margin-bottom: 12px;
-}
 .batch-counter {
   color: var(--accent); font-size: 13px; font-weight: 600; margin-bottom: 8px;
 }
