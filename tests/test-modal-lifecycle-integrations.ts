@@ -39,7 +39,7 @@ const lightDeviceAiSrc = fs.readFileSync(path.join(root, 'js/light-device-ai-ana
 const lightDeviceSessionModalSrc = fs.readFileSync(path.join(root, 'js/light-device-session-modal.ts'), 'utf8');
 const lightDeviceSetupModalSrc = fs.readFileSync(path.join(root, 'js/light-device-setup-modal.ts'), 'utf8');
 const lightDevicesSrc = fs.readFileSync(path.join(root, 'js/light-devices.js'), 'utf8');
-const lightEnvSrc = fs.readFileSync(path.join(root, 'js/light-env.js'), 'utf8').replace(/\s+/g, ' ');
+const lightEnvSrc = fs.readFileSync(path.join(root, 'js/light-env.ts'), 'utf8');
 const lightSessionsViewHooksSrc = fs.readFileSync(path.join(root, 'js/light-sessions-view-hooks.js'), 'utf8');
 const lightSessionsViewSrc = fs.readFileSync(path.join(root, 'js/light-sessions-view.js'), 'utf8');
 const lightToolCameraModalsSrc = [
@@ -61,10 +61,11 @@ const markerDetailSrc = [
   'marker-detail-custom-markers.js',
 ].map(file => fs.readFileSync(path.join(root, 'js', file), 'utf8')).join('\n');
 const aiDialogSrc = fs.readFileSync(path.join(root, 'js/ai-action-dialog-component.js'), 'utf8');
-const pdfImportSrc = fs.readFileSync(path.join(root, 'js/pdf-import.js'), 'utf8');
-const pdfImportFileHandlersSrc = fs.readFileSync(path.join(root, 'js/pdf-import-file-handlers.js'), 'utf8');
+const aiDialogLifecycleSrc = fs.readFileSync(path.join(root, 'js/ai-action-dialog-component.ts'), 'utf8');
+const pdfImportSrc = fs.readFileSync(path.join(root, 'js/pdf-import.ts'), 'utf8');
+const pdfImportFileHandlersSrc = fs.readFileSync(path.join(root, 'js/pdf-import-file-handlers.ts'), 'utf8');
 const pdfImportPreflightSrc = fs.readFileSync(path.join(root, 'js/pdf-import-preflight.js'), 'utf8');
-const pdfImportReviewSrc = fs.readFileSync(path.join(root, 'js/pdf-import-review.js'), 'utf8');
+const pdfImportReviewSrc = fs.readFileSync(path.join(root, 'js/pdf-import-review.ts'), 'utf8');
 const piiReviewSrc = fs.readFileSync(path.join(root, 'js/pii-review.js'), 'utf8');
 const profileShareSrc = fs.readFileSync(path.join(root, 'js/profile-share.js'), 'utf8');
 const providerPanelsSrc = fs.readFileSync(path.join(root, 'js/provider-panels.js'), 'utf8');
@@ -297,13 +298,13 @@ assert('sync diagnose overlays use shared lifecycle helpers',
 
 assert('light environment assessment uses shared overlay lifecycle before removal',
   lightEnvSrc.includes("from './modal-lifecycle.js'") &&
+    lightEnvSrc.includes("import { environmentRoomClasses } from './light-environment-room-classes.js'") &&
     lightEnvSrc.includes("const wasOpen = overlay?.classList?.contains('show') === true;") &&
-    lightEnvSrc.includes("overlay.className = 'modal-overlay light-env-assessment-overlay'") &&
-    lightEnvSrc.includes("if (!wasOpen) openModalOverlay(overlay, { initialFocus: '.modal-close', focusDelay: 50 })") &&
-    lightEnvSrc.includes('closeModalOverlay(overlay)') &&
-    lightEnvSrc.includes('overlay.remove()') &&
-    !lightEnvSrc.includes("overlay.className = 'modal-overlay show light-env-assessment-overlay'") &&
-    !lightEnvSrc.includes("overlay.classList.add('show')"));
+    lightEnvSrc.includes("overlay.className = environmentRoomClasses('modal-overlay light-env-assessment-overlay')") &&
+    /if \(!wasOpen\)\s+openModalOverlay\(overlay, \{ initialFocus: '\.modal-close', focusDelay: 50 \}\)/.test(lightEnvSrc) &&
+    /export function closeLightEnvironmentAssessment\(\) \{\s*const overlay = getLightEnvironmentAssessmentOverlay\(\);\s*if \(!overlay\) return;\s*closeModalOverlay\(overlay\);\s*overlay\.remove\(\);\s*\}/.test(lightEnvSrc) &&
+    !lightEnvSrc.includes('modal-overlay show light-env-assessment-overlay') &&
+    !/overlay\.classList\.(?:add|remove)\(['"]show['"]\)/.test(lightEnvSrc));
 
 assert('EMF editor, interpretation, and photo overlays use shared lifecycle helpers',
   emfSrc.includes("import { openModalOverlay, removeModalOverlay, trapModalFocus } from './modal-lifecycle.js';") &&
@@ -424,16 +425,23 @@ assert('PDF import dialogs and review modal use shared overlay lifecycle helpers
     pdfImportFileHandlersSrc.includes("import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';") &&
     pdfImportReviewSrc.includes("import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';") &&
     pdfImportSrc.includes("overlayId: 'ai-needed-overlay'") &&
-    aiDialogSrc.includes("setTimeout(() => { if (isCurrent() && !root.contains(document.activeElement))") &&
-    aiDialogSrc.includes("}, 50)") &&
+    aiDialogLifecycleSrc.includes("from './modal-lifecycle.js'") &&
+    aiDialogLifecycleSrc.includes('openModalOverlay(host, { autoFocus: false })') &&
+    aiDialogLifecycleSrc.includes('trapModalFocus(host, { autoFocus: false, onEscape: () => close() })') &&
+    /focusTimer = setTimeout\(\(\) => \{\s*if \(isCurrent\(\) && !root\.contains\(document\.activeElement\)\)\s+root\.querySelector<HTMLButtonElement>\('button'\)\?\.focus\(\);\s*\}, 50\)/.test(aiDialogLifecycleSrc) &&
+    /if \(focusTimer !== undefined\)\s+clearTimeout\(focusTimer\)/.test(aiDialogLifecycleSrc) &&
     pdfImportFileHandlersSrc.includes("openModalOverlay(overlay, { initialFocus: 'button', focusDelay: 50 })") &&
-    aiDialogSrc.includes("closeModalOverlay(host, { restoreFocus })") &&
-    pdfImportFileHandlersSrc.includes("closeModalOverlay(overlay)") &&
-    pdfImportReviewSrc.includes("closeModalOverlay('import-modal-overlay')") &&
-    pdfImportReviewSrc.includes('openModalOverlay(overlay)') &&
-    [pdfImportSrc, pdfImportFileHandlersSrc, pdfImportReviewSrc].every(src =>
-      !src.includes("overlay.classList.add('show')") &&
-        !src.includes("overlay.classList.remove('show')") &&
+    aiDialogLifecycleSrc.includes('releaseFocus?.(restoreFocus)') &&
+    aiDialogLifecycleSrc.includes('closeModalOverlay(host, { restoreFocus })') &&
+    pdfImportFileHandlersSrc.includes('closeModalOverlay(overlay)') &&
+    /function hideImportOverlay\(\) \{\s*closeModalOverlay\('import-modal-overlay'\);\s*\}/.test(pdfImportReviewSrc) &&
+    pdfImportReviewSrc.includes('export function showImportPreview(parseResult: PendingImport) {') &&
+    pdfImportReviewSrc.slice(
+      pdfImportReviewSrc.indexOf('export function showImportPreview('),
+      pdfImportReviewSrc.indexOf('\nexport function mapUnmatchedMarker('),
+    ).includes('openModalOverlay(overlay, { scrollLock: true })') &&
+    [pdfImportSrc, pdfImportFileHandlersSrc, pdfImportReviewSrc, aiDialogLifecycleSrc].every(src =>
+      !/overlay\.classList\.(?:add|remove)\(['"]show['"]\)/.test(src) &&
         !src.includes("document.getElementById('import-modal-overlay')?.classList.remove('show')")) &&
     !pdfImportSrc.includes("document.getElementById('ai-needed-or').focus()"));
 

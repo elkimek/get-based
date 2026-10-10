@@ -7,6 +7,7 @@ import { showNotification, showConfirmDialog, isDebugMode, isPIIReviewEnabled, h
 import { getAIProvider, getActiveModelId } from './api.js';
 import { obfuscatePDFText, sanitizeWithOllama, sanitizeWithOllamaStreaming, checkOllamaPII, reviewPIIBeforeSend } from './pii.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
+import { renderPdfImageMode } from './pdf-preflight-rendering.js';
 import {
   assessTextQuality,
   extractPDFImages,
@@ -71,30 +72,47 @@ export function configurePdfImportFileHandlers(deps: PdfImportFileHandlerDepende
 
 async function _showImageModeDialog() {
   return new Promise<ImageModeChoice>(resolve => {
-    const overlay = document.getElementById('confirm-dialog-overlay');
-    const dialog = document.getElementById('confirm-dialog');
-    if (!overlay || !dialog) { resolve('cancel'); return; }
-    dialog.innerHTML = `
-      <div style="font-size:14px;font-weight:600;margin-bottom:8px">Limited text extracted</div>
-      <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px">
-        This PDF appears to be scanned or image-heavy. Text extraction found very little content.<br><br>
-        <strong>Image mode</strong> sends page screenshots to the AI instead. This skips PII obfuscation — the AI will see the full page images including any personal information.
-      </div>
-      <div style="display:flex;gap:8px;justify-content:flex-end">
-        <button class="btn" style="padding:7px 16px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);cursor:pointer">Cancel</button>
-        <button class="btn" style="padding:7px 16px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);cursor:pointer">Try text anyway</button>
-        <button class="btn" style="padding:7px 16px;border-radius:6px;border:none;background:var(--accent-gradient);color:white;cursor:pointer;font-weight:500">Use image mode</button>
-      </div>`;
+    let overlay = document.getElementById('confirm-dialog-overlay');
+    // A pending confirmation owns this shared host until its choice settles.
+    if (overlay?.classList.contains('show')) { resolve('cancel'); return; }
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'confirm-dialog-overlay';
+      overlay.className = 'confirm-overlay';
+      document.body.appendChild(overlay);
+    }
+    let dialog = overlay.querySelector<HTMLElement>('#confirm-dialog');
+    if (!dialog) {
+      dialog = document.createElement('div');
+      dialog.id = 'confirm-dialog';
+      dialog.className = 'confirm-dialog';
+      dialog.setAttribute('role', 'alertdialog');
+      dialog.setAttribute('aria-modal', 'true');
+      dialog.setAttribute('aria-label', 'Scanned PDF');
+      overlay.replaceChildren(dialog);
+    }
+    const previousEscapeOwner = overlay.dataset.escapeOwner;
+    overlay.dataset.escapeOwner = 'pdf-image-mode';
+    dialog.innerHTML = renderPdfImageMode();
     let settled = false;
     const closeWithChoice = (choice: ImageModeChoice) => {
       if (settled) return;
       settled = true;
       document.removeEventListener('keydown', onKey);
       closeModalOverlay(overlay);
+      if (overlay.dataset.escapeOwner === 'pdf-image-mode') {
+        if (previousEscapeOwner === undefined) delete overlay.dataset.escapeOwner;
+        else overlay.dataset.escapeOwner = previousEscapeOwner;
+      }
       resolve(choice);
     };
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeWithChoice('cancel'); };
-    document.addEventListener('keydown', onKey, { once: true });
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeWithChoice('cancel');
+      }
+    };
+    document.addEventListener('keydown', onKey);
     dialog.querySelectorAll('button').forEach(btn => {
       btn.addEventListener('click', () => {
         const action = btn.textContent?.trim();

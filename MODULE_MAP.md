@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1509 |
-| Internal import edges | 4947 |
+| Modules | 1514 |
+| Internal import edges | 4954 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -2968,17 +2968,17 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>pdf</code> family — 17 modules</summary>
+<details><summary><code>pdf</code> family — 20 modules</summary>
 
 - [`js/pdf-import-ai-utils.ts`](js/pdf-import-ai-utils.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/api-provider-storage.ts`](js/api-provider-storage.ts), [`js/api.ts`](js/api.ts), [`js/lab-entry.ts`](js/lab-entry.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/pdf-import-commit.ts`](js/pdf-import-commit.ts) → [`js/adapters.ts`](js/adapters.ts), [`js/crypto.ts`](js/crypto.ts), [`js/custom-marker-identity.ts`](js/custom-marker-identity.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/import-benchmarks.ts`](js/import-benchmarks.ts), [`js/import-commit-validation.ts`](js/import-commit-validation.ts), [`js/lab-entry-mutations.ts`](js/lab-entry-mutations.ts), [`js/lab-entry.ts`](js/lab-entry.ts), [`js/mosaic-oat-catalog.ts`](js/mosaic-oat-catalog.ts), [`js/pdf-import-marker-mapping.ts`](js/pdf-import-marker-mapping.ts), [`js/pdf-import-persistence.ts`](js/pdf-import-persistence.ts), [`js/pdf-import-ratio-units.ts`](js/pdf-import-ratio-units.ts), [`js/pdf-import-review.ts`](js/pdf-import-review.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/unique-id.ts`](js/unique-id.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/pdf-import-file-handlers.ts`](js/pdf-import-file-handlers.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/api.ts`](js/api.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/import-benchmarks.ts`](js/import-benchmarks.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/pdf-import-ai-utils.ts`](js/pdf-import-ai-utils.ts), [`js/pdf-import-file-utils.ts`](js/pdf-import-file-utils.ts), [`js/pdf-import-preflight.ts`](js/pdf-import-preflight.ts), [`js/pdf-import-progress.ts`](js/pdf-import-progress.ts), [`js/pdf-import-review.ts`](js/pdf-import-review.ts), [`js/pdf-import-spreadsheet.ts`](js/pdf-import-spreadsheet.ts), [`js/pii.ts`](js/pii.ts), [`js/privacy-safe-diagnostics.ts`](js/privacy-safe-diagnostics.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/pdf-import-file-handlers.ts`](js/pdf-import-file-handlers.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/api.ts`](js/api.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/import-benchmarks.ts`](js/import-benchmarks.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/pdf-import-ai-utils.ts`](js/pdf-import-ai-utils.ts), [`js/pdf-import-file-utils.ts`](js/pdf-import-file-utils.ts), [`js/pdf-import-preflight.ts`](js/pdf-import-preflight.ts), [`js/pdf-import-progress.ts`](js/pdf-import-progress.ts), [`js/pdf-import-review.ts`](js/pdf-import-review.ts), [`js/pdf-import-spreadsheet.ts`](js/pdf-import-spreadsheet.ts), [`js/pdf-preflight-rendering.ts`](js/pdf-preflight-rendering.ts), [`js/pii.ts`](js/pii.ts), [`js/privacy-safe-diagnostics.ts`](js/privacy-safe-diagnostics.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/pdf-import-file-utils.ts`](js/pdf-import-file-utils.ts) → [`js/pdf-import-spreadsheet.ts`](js/pdf-import-spreadsheet.ts), [`js/pdfjs-loader.ts`](js/pdfjs-loader.ts)
 - [`js/pdf-import-marker-mapping.ts`](js/pdf-import-marker-mapping.ts) → [`js/adapters.ts`](js/adapters.ts), [`js/mosaic-oat-catalog.ts`](js/mosaic-oat-catalog.ts), [`js/pdf-import-ratio-units.ts`](js/pdf-import-ratio-units.ts), [`js/pdf-import-unit-conversions.ts`](js/pdf-import-unit-conversions.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts)
 - [`js/pdf-import-marker-normalization.ts`](js/pdf-import-marker-normalization.ts) → [`js/adapters.ts`](js/adapters.ts), [`js/pdf-import-marker-mapping.ts`](js/pdf-import-marker-mapping.ts), [`js/pdf-import-organic-acid-normalization.ts`](js/pdf-import-organic-acid-normalization.ts), [`js/schema.ts`](js/schema.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/pdf-import-organic-acid-normalization.ts`](js/pdf-import-organic-acid-normalization.ts) → [`js/adapters.ts`](js/adapters.ts), [`js/mosaic-oat-catalog.ts`](js/mosaic-oat-catalog.ts)
 - [`js/pdf-import-persistence.ts`](js/pdf-import-persistence.ts) → [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/lab-entry.ts`](js/lab-entry.ts), [`js/pdf-import-review-runtime.ts`](js/pdf-import-review-runtime.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/pdf-import-preflight.ts`](js/pdf-import-preflight.ts) → [`js/adapters.ts`](js/adapters.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/api.ts`](js/api.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/pdf-import-ai-utils.ts`](js/pdf-import-ai-utils.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/pdf-import-preflight.ts`](js/pdf-import-preflight.ts) → [`js/adapters.ts`](js/adapters.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/api.ts`](js/api.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/pdf-import-ai-utils.ts`](js/pdf-import-ai-utils.ts), [`js/pdf-preflight-presentation.ts`](js/pdf-preflight-presentation.ts), [`js/pdf-preflight-rendering.ts`](js/pdf-preflight-rendering.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/pdf-import-progress.ts`](js/pdf-import-progress.ts) → [`js/constants.ts`](js/constants.ts), [`js/pdf-import-review-runtime.ts`](js/pdf-import-review-runtime.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/pdf-import-ratio-units.ts`](js/pdf-import-ratio-units.ts) → no in-scope imports
 - [`js/pdf-import-review-formatting.ts`](js/pdf-import-review-formatting.ts) → [`js/components/ImportUnitControl.svelte`](js/components/ImportUnitControl.svelte), [`js/import-review-presentation.ts`](js/import-review-presentation.ts), [`js/pdf-import-unit-conversions.ts`](js/pdf-import-unit-conversions.ts)
@@ -2987,12 +2987,27 @@ Native browser modules shipped with the static application.
 - [`js/pdf-import-spreadsheet.ts`](js/pdf-import-spreadsheet.ts) → no in-scope imports
 - [`js/pdf-import-unit-conversions.ts`](js/pdf-import-unit-conversions.ts) → [`js/schema.ts`](js/schema.ts), [`js/secondary-unit-conversions.ts`](js/secondary-unit-conversions.ts)
 - [`js/pdf-import.ts`](js/pdf-import.ts) → [`js/ai-action-dialog-component.ts`](js/ai-action-dialog-component.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/api.ts`](js/api.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/crypto.ts`](js/crypto.ts), [`js/cycle-import.ts`](js/cycle-import.ts), [`js/dna-runtime-bridge.ts`](js/dna-runtime-bridge.ts), [`js/export.ts`](js/export.ts), [`js/import-benchmarks.ts`](js/import-benchmarks.ts), [`js/pdf-import-ai-utils.ts`](js/pdf-import-ai-utils.ts), [`js/pdf-import-commit.ts`](js/pdf-import-commit.ts), [`js/pdf-import-file-handlers.ts`](js/pdf-import-file-handlers.ts), [`js/pdf-import-file-utils.ts`](js/pdf-import-file-utils.ts), [`js/pdf-import-marker-mapping.ts`](js/pdf-import-marker-mapping.ts), [`js/pdf-import-marker-normalization.ts`](js/pdf-import-marker-normalization.ts), [`js/pdf-import-persistence.ts`](js/pdf-import-persistence.ts), [`js/pdf-import-preflight.ts`](js/pdf-import-preflight.ts), [`js/pdf-import-progress.ts`](js/pdf-import-progress.ts), [`js/pdf-import-review.ts`](js/pdf-import-review.ts), [`js/pdf-import-spreadsheet.ts`](js/pdf-import-spreadsheet.ts), [`js/pii.ts`](js/pii.ts), [`js/privacy-safe-diagnostics.ts`](js/privacy-safe-diagnostics.ts), [`js/profile.ts`](js/profile.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/schema.ts`](js/schema.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/pdf-preflight-classes.ts`](js/pdf-preflight-classes.ts) → no in-scope imports
+- [`js/pdf-preflight-presentation.ts`](js/pdf-preflight-presentation.ts) → no in-scope imports
+- [`js/pdf-preflight-rendering.ts`](js/pdf-preflight-rendering.ts) → [`js/components/PdfImageModePresentation.svelte`](js/components/PdfImageModePresentation.svelte), [`js/components/PdfPreflightPresentation.svelte`](js/components/PdfPreflightPresentation.svelte)
+
+</details>
+
+<details><summary><code>PdfImageModePresentation.svelte</code> family — 1 module</summary>
+
+- [`js/components/PdfImageModePresentation.svelte`](js/components/PdfImageModePresentation.svelte) → [`js/pdf-preflight-classes.ts`](js/pdf-preflight-classes.ts)
 
 </details>
 
 <details><summary><code>pdfjs</code> family — 1 module</summary>
 
 - [`js/pdfjs-loader.ts`](js/pdfjs-loader.ts) → no in-scope imports
+
+</details>
+
+<details><summary><code>PdfPreflightPresentation.svelte</code> family — 1 module</summary>
+
+- [`js/components/PdfPreflightPresentation.svelte`](js/components/PdfPreflightPresentation.svelte) → [`js/pdf-preflight-classes.ts`](js/pdf-preflight-classes.ts)
 
 </details>
 

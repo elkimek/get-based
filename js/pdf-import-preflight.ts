@@ -4,8 +4,10 @@ import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { getAIProvider, setAIProvider, setCustomApiModel, setOllamaMainModel, setOpenRouterModel, setPpqModel, setRoutstrModel, setVeniceModel } from './api.js';
 import { detectProduct, getAdapterByTestType } from './adapters.js';
-import { escapeHTML, hashString, isDebugMode } from './utils.js';
+import { hashString, isDebugMode } from './utils.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
+import { projectPdfDuplicateView, projectPdfModelMismatchView, projectPdfUnsupportedLabView } from './pdf-preflight-presentation.js';
+import { renderPdfPreflight } from './pdf-preflight-rendering.js';
 import type { ImportAIResult, ParsedAIImport } from './pdf-import-ai-utils.js';
 import { IMPORT_CLASSIFICATION_JSON_SCHEMA } from './pdf-import-ai-utils.js';
 import { callAssistantFeatureAI, getAssistantFeatureIdentity, hasAssistantFeatureProvider } from './ai-feature-routing.js';
@@ -72,15 +74,10 @@ function openPreflightResult<T>(overlay: HTMLElement, resolve: (result: T) => vo
   return close;
 }
 
-function showPreflightConfirm(message: string, confirmLabel = 'Import Anyway') {
+function showPreflightConfirm(dateLabel: string, confirmLabel = 'Import Anyway') {
   return new Promise<boolean>(resolve => {
     const overlay = ensurePreflightOverlay();
-    overlay.innerHTML = `<div class="confirm-dialog" role="alertdialog" aria-modal="true">
-      <p class="confirm-message">${message}</p>
-      <div class="confirm-actions">
-        <button class="confirm-btn confirm-btn-cancel" id="confirm-cancel">Cancel</button>
-        <button class="confirm-btn confirm-btn-danger" id="confirm-ok">${escapeHTML(confirmLabel)}</button>
-      </div></div>`;
+    overlay.innerHTML = renderPdfPreflight(projectPdfDuplicateView(dateLabel, confirmLabel));
     const close = openPreflightResult<boolean>(overlay, resolve, false);
     bindPreflightActions(overlay, {
       'confirm-ok': () => close(true),
@@ -133,13 +130,7 @@ function tryAutoSwitchModel(prevModel: string, prevProvider: string | null | und
 function showModelMismatchDialog(mismatch: NonNullable<ReturnType<typeof checkModelMismatch>>) {
   return new Promise<'cancel' | 'continue' | 'switched'>(resolve => {
     const overlay = ensurePreflightOverlay();
-    overlay.innerHTML = `<div class="confirm-dialog" role="alertdialog" aria-modal="true">
-      <p class="confirm-message">Previous imports used <strong>${escapeHTML(mismatch.prevModel)}</strong>. Using <strong>${escapeHTML(mismatch.currentModel)}</strong> may cause marker key mismatches and break trend lines.</p>
-      <div class="confirm-actions" style="flex-wrap:wrap;gap:8px">
-        <button class="confirm-btn confirm-btn-cancel" id="confirm-cancel">Cancel</button>
-        <button class="confirm-btn" id="confirm-continue" style="background:var(--yellow);color:#000">Continue Anyway</button>
-        <button class="confirm-btn confirm-btn-danger" id="confirm-switch">Switch to ${escapeHTML(mismatch.prevModel.split('/').pop())}</button>
-      </div></div>`;
+    overlay.innerHTML = renderPdfPreflight(projectPdfModelMismatchView(mismatch));
     const close = openPreflightResult<'cancel' | 'continue' | 'switched'>(overlay, resolve, 'cancel');
     bindPreflightActions(overlay, {
       'confirm-switch': () => {
@@ -201,19 +192,7 @@ ${snippet}` }],
 function showUnsupportedLabDialog(testType: string) {
   return new Promise<boolean>(resolve => {
     const overlay = ensurePreflightOverlay();
-    const displayType = escapeHTML(testType);
-    overlay.innerHTML = `<div class="confirm-dialog" role="alertdialog" aria-modal="true" style="max-width:480px">
-      <p class="confirm-message" style="margin-bottom:12px">
-        <strong>${displayType}</strong> reports like this one aren't fully supported yet. Importing will likely miss markers or map them incorrectly, and the AI costs may not be worth it.
-      </p>
-      <div style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;line-height:1.5">
-        In the meantime, you can add your markers manually using the <strong>+</strong> button in the sidebar.
-        <p style="margin:10px 0 0 0">If you'd like this lab properly supported — <a href="https://github.com/elkimek/get-based/issues" target="_blank" rel="noopener" style="color:var(--accent)">file an issue on GitHub</a>, or ask your lab to reach out.</p>
-      </div>
-      <div class="confirm-actions">
-        <button class="confirm-btn confirm-btn-cancel" id="confirm-cancel">Cancel</button>
-        <button class="confirm-btn" id="confirm-ok" style="background:var(--yellow);color:#000">Import Anyway</button>
-      </div></div>`;
+    overlay.innerHTML = renderPdfPreflight(projectPdfUnsupportedLabView(testType));
     const close = openPreflightResult<boolean>(overlay, resolve, false);
     bindPreflightActions(overlay, {
       'confirm-ok': () => close(true),
@@ -226,9 +205,7 @@ export async function runPreflightChecks(pdfText: string, fileName?: string | nu
   const dupDate = checkDuplicateHash(pdfText);
   if (dupDate) {
     const dateLabel = new Date(dupDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    const proceed = await showPreflightConfirm(
-      `This file was already imported (<strong>${dateLabel}</strong>). Importing again will use tokens and may overwrite existing values.`
-    );
+    const proceed = await showPreflightConfirm(dateLabel);
     if (!proceed) return false;
   }
 

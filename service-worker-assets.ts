@@ -185,7 +185,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/pdf-import-file-handlers.js',
   '/js/pdf-import-file-utils.js',
   '/js/pdf-import-spreadsheet.js',
-  '/js/pdf-import-preflight.js',
+  '/js/pdf-import-preflight.js', '/js/pdf-preflight-presentation.js', '/js/pdf-preflight-rendering.js', '/js/pdf-preflight-classes.js', '/js/components/PdfPreflightPresentation.svelte.html.js', '/js/components/PdfImageModePresentation.svelte.html.js',
   '/js/pdf-import-progress.js',
   '/js/pdf-import-ai-utils.js',
   '/js/pdf-import-review.js',

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "scope": "Every authored JavaScript, TypeScript and Svelte module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 1449,
+  "scannedFiles": 1454,
   "sinkCount": 327,
   "files": {
     "js/biology-scores.js": {
@@ -645,14 +645,14 @@
     },
     "js/pdf-import-file-handlers.js": {
       "count": 1,
-      "digest": "3a9e68cc26d728fe2a93c2e8b3f58f153f4c7bb920f3ec934a6b00826e393573",
+      "digest": "f0f14323711d144f54df81a1ce223782ed12b8aace1197bf6567d00d4260af66",
       "kinds": {
         "innerHTML": 1
       }
     },
     "js/pdf-import-preflight.js": {
       "count": 3,
-      "digest": "d254cca1162658f6355bed2d9c75eac772c064e5a24867691d59c939d7a29863",
+      "digest": "964a65cd3f69fa0f393f10389949896c300f7d52d1a929f8c3a9bdf432508e4f",
       "kinds": {
         "innerHTML": 3
       }

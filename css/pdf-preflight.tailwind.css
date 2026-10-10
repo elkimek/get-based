@@ -1,0 +1,3 @@
+/* Compose into report-builder.tailwind.css at the existing eager modal-shared.css URL. */
+@source "../js/pdf-preflight-classes.ts";
+@custom-variant pdf-preflight-inline (&:is(#confirm-dialog-overlay *, #confirm-dialog *));

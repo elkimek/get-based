@@ -48,6 +48,27 @@ the completed migration was merged in [PR #1660](https://github.com/elkimek/get-
 
 ## Styling source contract
 
+PDF duplicate, model-mismatch and unsupported-lab markup is authored by
+`PdfPreflightPresentation.svelte`; `PdfImageModePresentation.svelte` authors
+scanned-PDF warning content. `pdf-preflight-presentation.ts` projects literal
+labels in their established conversion order, and `pdf-preflight-rendering.ts`
+exposes synchronous HTML to the existing PDF controllers. Classification,
+provider switching, privacy, file selection, parsing, promises, modal lifecycle
+and profile persistence retain their service owners. The scoped
+`pdf-preflight-classes.ts` catalog and eager PDF Tailwind fragment replace private
+inline declarations at the unchanged `/css/modal-shared.css` URL. Shared
+confirmation, prompt, modal and theme rules retain their existing owners.
+
+The scanned-PDF controller creates an accessible warning host when the shared
+host is absent. Its Escape owner remains active through Tab navigation; each
+terminal choice settles once and releases the key listener and modal ownership.
+A visible native confirmation retains its markup, owner and pending result when
+a PDF with no extracted text is selected; that import attempt cancels independently.
+The focused
+[public lifecycle regressions](tests/playwright/pdf-image-mode-lifecycle.spec.ts)
+exercise these boundaries with a physical synthetic PDF and the actual parser
+and dedicated worker, without submitting data to an AI provider.
+
 Standalone Add/Edit Note markup is authored by `NoteEditorPresentation.svelte`.
 `notes-presentation.ts` projects literal values and action indices;
 `notes-rendering.ts` exposes its synchronous HTML facade to the existing

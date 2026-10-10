@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "provenance": "Exact original-derived physical synthetic PDF bytes and extracted text. No current output is an expected source.",
+  "originalParserAuthoritySHA256": "1c653128ae1680552c8ad53f7a189cf77a21b73013db5a3e815ccf43ea41baf1",
+  "records": [
+    {
+      "name": "duplicate.pdf",
+      "bytes": 911,
+      "mimeType": "application/pdf",
+      "fileSha256": "d2d919dd677050d9dea05a7b2986c1c454a3ed2379e8128cbbbbf5a8aef4f9a6",
+      "extractedText": "=== Page 1 ===\nDuplicate synthetic laboratory document with public fixture values only\nSample alpha beta gamma delta epsilon zeta eta theta iota kappa\nNo patient names no real measurements no identifiers no external provider\nThis document contains sufficient readable words for genuine text extraction\n",
+      "extractedTextSha256": "ceba80488d2c5794711f217afc736b56f19a6e68877ff9c783f1e507b6049837",
+      "importHash": "1ka10vz",
+      "extractedTextLength": 302
+    },
+    {
+      "name": "model-mismatch.pdf",
+      "bytes": 917,
+      "mimeType": "application/pdf",
+      "fileSha256": "f5b1e5f4932be0727a7aa899ac4dcfef3bea2e79ae5ab1205764d0a6cbc23946",
+      "extractedText": "=== Page 1 ===\nDifferent model synthetic laboratory document with public fixture values only\nSample alpha beta gamma delta epsilon zeta eta theta iota kappa\nNo patient names no real measurements no identifiers no external provider\nThis document contains sufficient readable words for genuine text extraction\n",
+      "extractedTextSha256": "d9658374b60db4a59dd1f0049ba9f4a08b6cd217252fd75e37374fabd28f07a8",
+      "importHash": "1nsvdvw",
+      "extractedTextLength": 308
+    },
+    {
+      "name": "image-only.pdf",
+      "bytes": 701,
+      "mimeType": "application/pdf",
+      "fileSha256": "5eeee0945e5de2a7c8cafcce2c43199d24f040b648797108c4350a9feb47e342",
+      "extractedText": "",
+      "extractedTextSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "importHash": "45h",
+      "extractedTextLength": 0
+    }
+  ],
+  "vendorFiles": [
+    {
+      "path": "vendor/pdf.min.mjs",
+      "bytes": 398237,
+      "sha256": "44ec6f011027ee77791386b66c14876a5fc29e20bf0433c07c6726fff7212b72"
+    },
+    {
+      "path": "vendor/pdf.worker.min.mjs",
+      "bytes": 1417586,
+      "sha256": "bd88805178a26c729db8c0107a5b630cb900ec070f4d8c7529a3e45530afd41d"
+    }
+  ]
+}

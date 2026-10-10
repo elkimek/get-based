@@ -2469,3 +2469,10 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /js/note-editor-classes.js
 /tests/note-editor-presentation.test.js
 /tests/pwa/sveltekit-note-editor.spec.js
+
+# PDF preflight presentation runtime siblings
+/js/pdf-preflight-presentation.js
+/js/pdf-preflight-rendering.js
+/js/pdf-preflight-classes.js
+/tests/pdf-preflight-presentation.test.js
+/tests/pwa/sveltekit-pdf-preflight.spec.js
