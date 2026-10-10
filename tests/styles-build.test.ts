@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import postcss from 'postcss';
+import {cycleSharedUtilities} from '../js/cycle-shared-classes.js';
 import { buildStyles, buildProtectionStyles, buildChatStyles, buildAppShellStyles, buildModalStyles, buildImportStyles, buildRecommendationStyles, buildCycleStyles } from '../scripts/build-styles.mjs';
 
 let directory: string;
@@ -270,7 +271,69 @@ function stylePathRecords(css: string, inheritedAtRules: FrozenStyleBlock['atRul
   return records;
 }
 
-it('composes Cycle overview, editor and import at cycle.css while retaining exact shared native styles', async () => {
+function decodedCssSelector(selector: string): string {
+  return selector.replace(/\\([0-9a-f]{1,6}) ?|\\(.)/gi, (_match, hex: string | undefined, character: string | undefined) => hex ? String.fromCodePoint(parseInt(hex, 16)) : character!);
+}
+function normalizedCssValue(value: string, property: string): string {
+  // CSS minification may express the same transition duration in seconds or
+  // milliseconds. Preserve exact decimal/unit equivalence, scoped to this
+  // property; other declaration units remain untouched.
+  const durations = property === 'transition' ? value.replace(
+    /(?<![\w.])([+-]?(?:\d+(?:\.\d*)?|\.\d+))(ms|s)\b/g,
+    (_match, number: string, unit: string) => {
+      const parts = number.split('.');
+      let coefficient = BigInt(parts.join(''));
+      let exponent = (unit === 's' ? 3 : 0) - (parts[1]?.length ?? 0);
+      if (coefficient === 0n) return '0ms';
+      while (coefficient % 10n === 0n) { coefficient /= 10n; exponent++; }
+      return `${coefficient}e${exponent}ms`;
+    },
+  ) : value;
+  return durations.replace(/\s+/g, '').replace(/(^|[^0-9])0\.(\d)/g, '$1.$2');
+}
+/** Every retired original declaration maps to a literal catalog utility and its emitted declaration. */
+function verifySharedStyleMapping(original: StylePathRecord[], rules: postcss.Rule[]): void {
+  for (const record of original) {
+    const name = record.selector.match(/\.([a-z-]+)(?::[a-z-]+)?$/)![1]!;
+    const phone = record.atRules.some(at => at.name === 'media' && at.params === '(max-width: 768px)');
+    expect(record.atRules).toEqual(phone ? [{name: 'media', params: '(max-width: 768px)'}] : []);
+    const state = record.selector.endsWith(':hover') ? 'hover' : record.selector.endsWith(':active') ? 'active' : record.selector.endsWith(':focus-visible') ? 'focus-visible' : null;
+    const adjacent = record.selector.includes(' + ');
+    for (const declaration of record.declarations) {
+      // The native shorthand's four remaining inherited fields are expanded;
+      // its size/weight/line-height are overwritten by later original records.
+      const fields = declaration.property === 'font' && declaration.value === 'inherit'
+        ? ['font-family','font-style','font-variant','font-stretch'].map(property => ({property, value: 'inherit'}))
+        : name === 'cycle-icon-btn' && declaration.property === 'border'
+          ? [{property: 'border-width', value: '1px'}, {property: 'border-style', value: 'solid'}, {property: 'border-color', value: 'var(--border)'}]
+          : [{property: declaration.property, value: declaration.value}];
+      for (const field of fields) {
+        const wide = !phone && ((name === 'cycle-icon-btn' && ['min-width','min-height'].includes(field.property)) || (name === 'cycle-editor-section' && field.property === 'padding'));
+        const candidates = cycleSharedUtilities(name).split(/\s+/).filter(token => {
+          const content = token.slice(token.lastIndexOf(':[') + 2, -1), separator = content.indexOf(':');
+          const property = content.slice(0, separator), value = content.slice(separator + 1).replace(/_/g, ' ');
+          const tokenState = /\[&:hover(?:\]|:)/.test(token) ? 'hover' : token.includes('[&:active]') ? 'active' : token.includes('[&:focus-visible]') ? 'focus-visible' : null;
+          return property === field.property && normalizedCssValue(value, field.property) === normalizedCssValue(field.value, field.property)
+            && token.includes(':cycle-shared-phone:') === phone && token.includes(':cycle-shared-wide:') === wide
+            && tokenState === state && token.includes('[.cycle-editor-section_+_&]') === adjacent;
+        });
+        expect(candidates, JSON.stringify({record, declaration, field})).toHaveLength(1);
+        const token = candidates[0]!;
+        const generated = rules.filter(rule => decodedCssSelector(rule.selector).includes('.' + token));
+        expect(generated.length, token).toBeGreaterThan(0);
+        expect(generated.some(rule => rule.nodes.some(node => node.type === 'decl' && node.prop === field.property && normalizedCssValue(node.value, field.property) === normalizedCssValue(field.value, field.property) && !!node.important === declaration.important)), token).toBe(true);
+        for (const rule of generated) {
+          const media: string[] = [];
+          for (let parent: postcss.Rule['parent'] | postcss.Document = rule.parent; parent; parent = parent.parent) if (parent.type === 'atrule' && parent.name === 'media') media.unshift(parent.params.replace(/\s+/g, ''));
+          expect(media, token).toEqual(phone ? ['(max-width:768px)'] : wide ? ['notalland(max-width:768px)'] : []);
+          for (const node of rule.nodes) if (node.type === 'decl') expect(!!node.important, token).toBe(declaration.important);
+        }
+      }
+    }
+  }
+}
+
+it('composes Cycle overview, editor, import and exact original shared styles into owned utilities at cycle.css', async () => {
   const outputPath = path.join(directory, 'cycle.css');
   await buildCycleStyles({outputPath});
   const source = await fs.readFile(outputPath, 'utf8');
@@ -287,8 +350,25 @@ it('composes Cycle overview, editor and import at cycle.css while retaining exac
   const retained = editorOriginal.styleBlocks.filter(block => block.file === 'css/cycle.css')
     .flatMap(block => stylePathRecords(block.css, block.atRules)).filter(record => sharedSelectors.has(record.selector));
   expect(retained).toHaveLength(14);
-  expect(stylePathRecords(base)).toEqual(retained);
+  // The editor freezes all 14 shared paths. The selective overview capture
+  // freezes eight of those paths, preserving their complete declarations,
+  // important flags and at-rule ancestry in original order.
   const overviewOriginal = JSON.parse(await fs.readFile('tests/fixtures/cycle-overview-original.json', 'utf8')) as {styleBlocks: FrozenStyleBlock[]};
+  const overviewShared = overviewOriginal.styleBlocks.filter(block => block.file === 'css/cycle.css')
+    .flatMap(block => stylePathRecords(block.css, block.atRules)).filter(record => sharedSelectors.has(record.selector));
+  expect(overviewShared).toHaveLength(8);
+  expect(overviewShared.map(({selector, atRules}) => ({selector, atRules}))).toEqual([
+    {selector: '.cycle-icon-btn', atRules: []},
+    {selector: '.cycle-icon-btn:hover', atRules: []},
+    {selector: '.cycle-icon-btn:active', atRules: []},
+    {selector: '.cycle-icon-btn:focus-visible', atRules: []},
+    {selector: '.period-symptom-tag', atRules: []},
+    {selector: '.period-symptom-tag', atRules: []},
+    {selector: '.cycle-period-note', atRules: []},
+    {selector: '.cycle-icon-btn', atRules: [{name: 'media', params: '(max-width: 768px)'}]},
+  ]);
+  expect(overviewShared).toEqual([0, 1, 2, 3, 4, 5, 6, 11].map(index => retained[index]!));
+  expect(stylePathRecords(base)).toEqual([]);
   const retired = overviewOriginal.styleBlocks.filter(block => block.file === 'css/cycle.css')
     .flatMap(block => stylePathRecords(block.css, block.atRules)).filter(record => !sharedSelectors.has(record.selector));
   expect(retired).toHaveLength(82);
@@ -299,6 +379,16 @@ it('composes Cycle overview, editor and import at cycle.css while retaining exac
   const rules: postcss.Rule[] = [];
   postcss.parse(utilities).walkRules(rule => { rules.push(rule); });
   const selectors = rules.flatMap(rule => rule.selectors);
+  verifySharedStyleMapping(retained, rules);
+  const sharedScope = ':where([data-cycle-editor-view],[data-cycle-editor-view] *,[data-cycle-import-view],[data-cycle-import-view] *,[data-cycle-overview-view],[data-cycle-overview-view] *)';
+  const shared = selectors.filter(selector => selector.includes('.gb\\:cycle-shared-ui\\:'));
+  expect(shared.length).toBeGreaterThan(40);
+  expect(shared.every(selector => selector.split(sharedScope).length === 2)).toBe(true);
+  expect(shared.some(selector => selector.startsWith('.cycle-editor-section+') && selector.includes('[margin-top\\:14px\\]'))).toBe(true);
+  const ordinaryHover = shared.filter(selector => /(?<!\\):hover/.test(selector) && selector.includes(':not(:where(.cycle-delete-btn))'));
+  expect(ordinaryHover).toHaveLength(3); // Color mix includes its guarded fallback rule.
+  expect(shared.some(selector => decodedCssSelector(selector).includes('[&:hover]:[background:var(--bg-hover)]'))).toBe(true);
+  expect(shared.some(selector => decodedCssSelector(selector).includes('[&:hover]:[border-color:color-mix(in_srgb,_var(--red)_55%,_var(--border))]'))).toBe(true);
   for (const [prefix, marker] of [
     ['cycle-overview-ui', 'data-cycle-overview-view'],
     ['cycle-editor-ui', 'data-cycle-editor-view'],
@@ -311,7 +401,7 @@ it('composes Cycle overview, editor and import at cycle.css while retaining exac
   const modalRoot = selectors.filter(selector => selector.includes('.gb\\:cycle-editor-root\\:'));
   expect(modalRoot.length).toBeGreaterThan(10);
   expect(modalRoot.every(selector => selector.includes('.cycle-modal'))).toBe(true);
-  for (const prefix of ['cycle-overview-ui', 'cycle-editor-ui', 'cycle-import-ui']) {
+  for (const prefix of ['cycle-overview-ui', 'cycle-editor-ui', 'cycle-import-ui', 'cycle-shared-ui']) {
     const hover = rules.filter(rule => rule.selector.includes(`.gb\\:${prefix}\\:`) && /(?<!\\):hover/.test(rule.selector) && !rule.selector.includes(':not(:where(:hover))'));
     expect(hover.length).toBeGreaterThan(0);
     for (const rule of hover) {

@@ -10,14 +10,14 @@
 </script>
 <div class={c('gb-modal-head cycle-modal-head')} data-cycle-editor-view>
   <div><div class="gb-modal-kicker">Body context</div><div class="gb-modal-title">Menstrual Cycle</div></div>
-  <button type="button" class="modal-close cycle-icon-btn" data-cycle-action="close" aria-label="Close cycle editor"><CycleIcon name="x"/></button>
+  <button type="button" class={c('modal-close cycle-icon-btn')} data-cycle-action="close" aria-label="Close cycle editor"><CycleIcon name="x"/></button>
 </div>
 <div class={c('cycle-modal-body')} data-cycle-editor-view>
   <p class={c('cycle-modal-intro')}>Track cycle status, period history, and symptoms so hormone, iron, and inflammation markers can be interpreted against cycle phase.</p>
   <CycleEditorProfile {view}/>
   {#if view.coverage}<CycleImportCoverage view={view.coverage}/>{/if}
   <section id="mc-period-log-section" class={c('cycle-editor-section cycle-period-editor')} hidden={!view.activeCycle}>
-    <div class="cycle-editor-section-title">Period Log</div><CycleEditorHistory periods={view.periods}/><CycleEditorPeriodForm {view}/>
+    <div class={c('cycle-editor-section-title')}>Period Log</div><CycleEditorHistory periods={view.periods}/><CycleEditorPeriodForm {view}/>
   </section>
 </div>
 <div class={c('cycle-modal-footer')} data-cycle-editor-view>

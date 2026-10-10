@@ -13,6 +13,8 @@
 @source "../js/components/CycleImportCoverage.svelte";
 @source "../js/components/CycleImportSourceRow.svelte";
 
+@import "./cycle-shared.tailwind.css";
+
 @import "./cycle-editor.tailwind.css";
 
 @import "./cycle-overview.tailwind.css";

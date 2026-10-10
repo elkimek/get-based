@@ -7,6 +7,8 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Run: node tests/test-cycle-tour.js  (or via npm test)
 
 import './_node-shim.js';
+import postcss from 'postcss';
+import {cycleSharedUtilities} from '../js/cycle-shared-classes.js';
 
 const read = (rel: string) => readRepositorySource(rel.replace(/^\//, ''), 'utf-8');
 const CSS_FILES = ['styles.css', 'css/cycle.css'];
@@ -103,18 +105,33 @@ const tour = await import('../js/tour.js');
   console.log('%c[12] Tour button in cycle section', 'font-weight:bold');
   const overviewHeader = read('/js/components/CycleOverviewHeader.svelte');
   const overview = read('/js/components/CycleOverviewPresentation.svelte');
-  assert('Authored overview renders the native shared tour icon button', overviewHeader.includes('class="cycle-icon-btn"') && overviewHeader.includes('<CycleIcon name="help"/>'));
+  assert('Authored overview renders the shared tour icon button', overviewHeader.includes("class={c('cycle-icon-btn')}") && overviewHeader.includes('<CycleIcon name="help"/>'));
   assert('Tour button uses delegated start action', overviewHeader.includes('data-cycle-action="start-tour"') && cycleSrc.includes('startCycleTour(false)'));
-  assert('Tour button only shown with a profile and visible header', overview.includes('{#if view.showHeader}') && overview.includes('showTour={view.hasProfile}') && /\{#if showTour\}<button type="button" class="cycle-icon-btn"/.test(overviewHeader));
+  assert('Tour button only shown with a profile and visible header', overview.includes('{#if view.showHeader}') && overview.includes('showTour={view.hasProfile}') && /\{#if showTour\}<button type=\"button\" class=\{c\('cycle-icon-btn'\)\}/.test(overviewHeader));
   assert('Button has accessible tour label', overviewHeader.includes('aria-label="Take the cycle feature tour"'));
 
   // --- 13. CSS rule for cycle buttons ---
   console.log('%c[13] CSS rule', 'font-weight:bold');
   const cssSrc = readCycleCss();
-  assert('.cycle-icon-btn rule exists', cssSrc.includes('.cycle-icon-btn'));
-  assert('touch-sized desktop controls', /\.cycle-icon-btn\s*\{[^}]*min-width:\s*36px;[^}]*min-height:\s*36px/.test(cssSrc));
-  assert('touch-sized mobile controls', /@media \(max-width: 768px\)\s*\{\s*\.cycle-icon-btn\s*\{[^}]*min-width:\s*40px;[^}]*min-height:\s*40px/.test(cssSrc));
-  assert('Hover rule exists', cssSrc.includes('.cycle-icon-btn:hover'));
+  const rules: postcss.Rule[] = [];
+  postcss.parse(cssSrc).walkRules(rule => { rules.push(rule); });
+  const decode = (selector: string) => selector.replace(/\\([0-9a-f]{1,6}) ?|\\(.)/gi, (_match, hex: string | undefined, character: string | undefined) => hex ? String.fromCodePoint(parseInt(hex, 16)) : character!);
+  const iconTokens = cycleSharedUtilities('cycle-icon-btn').split(/\s+/);
+  const matchingRules = (token: string) => rules.filter(rule => decode(rule.selector).includes('.' + token) && ['editor','import','overview'].every(area => rule.selector.includes(`[data-cycle-${area}-view]`)));
+  const media = (rule: postcss.Rule) => {
+    const result: string[] = [];
+    for (let parent: postcss.Rule['parent'] | postcss.Document = rule.parent; parent; parent = parent.parent) if (parent.type === 'atrule' && parent.name === 'media') result.unshift(parent.params.replace(/\s+/g, ''));
+    return result;
+  };
+  const minimum = (variant: 'wide' | 'phone', value: string) => ['min-width','min-height'].every(property => {
+    const token = `gb:cycle-shared-ui:cycle-shared-${variant}:[${property}:${value}]`;
+    return iconTokens.includes(token) && matchingRules(token).some(rule => media(rule).join('') === (variant === 'wide' ? 'notalland(max-width:768px)' : '(max-width:768px)') && rule.nodes.some(node => node.type === 'decl' && node.prop === property && node.value === value && !node.important));
+  });
+  assert('Shared tour controls have generated ownership with no ordinary native icon rule', iconTokens.length > 20 && iconTokens.every(token => matchingRules(token).length > 0) && !rules.some(rule => rule.selectors.includes('.cycle-icon-btn')));
+  assert('touch-sized desktop controls retain exact owned 36px minima', minimum('wide', '36px'));
+  assert('touch-sized mobile controls retain exact inclusive 40px minima', minimum('phone', '40px'));
+  const hoverTokens = iconTokens.filter(token => /\[&:hover(?:\]|:)/.test(token));
+  assert('Shared icon hover remains direct and device independent', hoverTokens.length === 3 && hoverTokens.every(token => matchingRules(token).some(rule => /(?<!\\):hover/.test(rule.selector) && media(rule).length === 0)));
 
   // --- 14. Profile delete cleanup ---
   console.log('%c[14] Profile delete cleanup', 'font-weight:bold');

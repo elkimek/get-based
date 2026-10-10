@@ -1030,8 +1030,15 @@ Cycle import preview, picker and coverage presentation belongs to
 `CycleImportCoverage.svelte`. `cycle-import-presentation.ts` supplies typed views;
 existing import adapters, conflict planning, persistence and public action
 contracts retain their service ownership. The stable `css/cycle.css` URL is built
-from `cycle.base.css` and scoped import/editor/overview utilities. The base retains
-styles shared by authored Cycle editor and import controls.
+from `cycle.base.css` and scoped import/editor/overview utilities. All ordinary
+Cycle component styles are authored in Tailwind; the base remains a compatibility
+entry with no component rules. `cycle-shared-classes.ts` owns icon controls,
+symptom pills, period notes and section chrome. The three area class catalogs
+compose it, and the standalone import picker imports it directly.
+`css/cycle-shared.tailwind.css` scopes these shared utilities to the existing
+editor, import and overview markers without adding DOM wrappers. It preserves
+inclusive phone sizing, adjacent section spacing, keyboard focus and destructive
+hover precedence.
 
 `CycleEditorPresentation.svelte` composes typed profile fields, full period history,
 period entry controls, fixed SVG icons and `CycleImportCoverage.svelte`.

@@ -1,4 +1,6 @@
-/** Overview-owned presentation classes; shared Cycle controls retain their native owners. */
+import {cycleSharedUtilities} from './cycle-shared-classes.js';
+
+/** Overview-owned presentation classes compose the shared Cycle control owner. */
 const classes: Record<string, string> = {
   "cycle-section": [
     "gb:cycle-overview-ui:[display:flex]",
@@ -419,5 +421,5 @@ const classes: Record<string, string> = {
 };
 
 export function cycleOverviewClasses(names: string): string {
-  return names.split(/\s+/).filter(Boolean).flatMap(name => [name, classes[name] || '']).filter(Boolean).join(' ');
+  return names.split(/\s+/).filter(Boolean).flatMap(name => [name, classes[name] || '', cycleSharedUtilities(name)]).filter(Boolean).join(' ');
 }

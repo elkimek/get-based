@@ -1,0 +1,5 @@
+/* One shared owner for authored Cycle editor, import and overview controls. */
+@custom-variant cycle-shared-ui (&:where([data-cycle-editor-view], [data-cycle-editor-view] *, [data-cycle-import-view], [data-cycle-import-view] *, [data-cycle-overview-view], [data-cycle-overview-view] *));
+@custom-variant cycle-shared-phone (@media (max-width: 768px));
+@custom-variant cycle-shared-wide (@media (width > 768px));
+@source "../js/cycle-shared-classes.ts";

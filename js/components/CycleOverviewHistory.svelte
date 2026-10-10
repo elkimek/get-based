@@ -7,7 +7,7 @@
   {#each periods as period}<span class={c('cycle-period-entry')}>
     <span class={c('cycle-period-date')}>{period.dateLabel}</span>
     <span class={`goals-severity-badge ${period.flowClass}`}>{period.flow}</span>
-    {#each period.symptoms as symptom}<span class="period-symptom-tag">{symptom}</span>{/each}
-    {#if period.notes !== null}<span class="cycle-period-note">{period.notes}</span>{/if}
+    {#each period.symptoms as symptom}<span class={c('period-symptom-tag')}>{symptom}</span>{/each}
+    {#if period.notes !== null}<span class={c('cycle-period-note')}>{period.notes}</span>{/if}
   </span>{/each}
 </div>{/if}

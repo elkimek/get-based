@@ -179,6 +179,20 @@ exercises real full and compact controls, editor/import cancellation, tour and
 dashboard preferences, complete profile and raw-record equality, and two fresh
 closed-client launches with the static origin stopped.
 
+[`cycle-shared-owned.spec.ts`](../tests/playwright/cycle-shared-owned.spec.ts)
+checks shared Cycle icon controls, destructive actions, symptom pills, period notes
+and section chrome against immutable original styles and real component wrappers.
+The shared catalog must preserve exact declaration ownership, modal close
+specificity, adjacent section spacing, inclusive phone sizing, keyboard focus and
+actual pointer styles. Normal-motion media and the original transition durations
+are asserted. Hover and post-delivery samples use the real computed
+transition budget and consecutive stable frame reads; no transitions are suppressed.
+WebKit pressed styles are captured during trusted native mouse-down; Chromium
+and Firefox use atomic sampling after delivery. Every capture
+requires the real pointer state and correct hit target before and after reading
+styles; these checks do not establish sustained press behavior or physical Safari
+acceptance. Original fixtures and domain/controller assertions remain unchanged.
+
 [`cycle-editor-frozen.test.ts`](../tests/cycle-editor-frozen.test.ts) compares the
 authored editor and unchanged controller with immutable original renderings and
 operation traces, including native select predicates, automatic fields, immediate

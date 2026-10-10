@@ -4,8 +4,8 @@
   // Automatic values describe derived facts; real editable fields retain their labels.
   let {view}: {view: CycleEditorPresentationView} = $props();
 </script>
-<section class="cycle-editor-section">
-  <div class="cycle-editor-section-title">Cycle Profile</div>
+<section class={c('cycle-editor-section')}>
+  <div class={c('cycle-editor-section-title')}>Cycle Profile</div>
   <div class={c('cycle-form-grid cycle-form-grid-single')}>
     <label class={c('cycle-field')}><span>Cycle Status</span>
       <select id="mc-cycle-status" data-cycle-action="toggle-fields">{#each view.statusOptions as option}<option value={option.value} selected={option.selected}>{option.label}</option>{/each}</select>

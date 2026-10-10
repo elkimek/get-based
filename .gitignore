@@ -2435,3 +2435,8 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /tests/cycle-overview-frozen.test.js
 /tests/playwright/cycle-overview-owned.spec.js
 /tests/pwa/sveltekit-cycle-overview.spec.js
+
+# Shared Cycle controls generated runtime outputs
+/js/cycle-shared-classes.js
+/tests/cycle-shared-classes.test.js
+/tests/playwright/cycle-shared-owned.spec.js

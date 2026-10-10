@@ -11,6 +11,7 @@ import './_node-shim.js';
 import fs from 'node:fs';
 import postcss from 'postcss';
 import {cycleOverviewClasses} from '../js/cycle-overview-classes.js';
+import {cycleSharedUtilities} from '../js/cycle-shared-classes.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -259,7 +260,7 @@ const { phaseBandPlugin } = await import('../js/charts.js');
   {
     const history = read('js/components/CycleEditorHistory.svelte');
     const presentation = read('js/cycle-editor-presentation.ts');
-    assert('Authored period log shows period-symptom-tag', history.includes('class="period-symptom-tag"') && history.includes('period.symptoms as symptom'));
+    assert('Authored period log shows period-symptom-tag', history.includes("class={c('period-symptom-tag')}") && history.includes('period.symptoms as symptom'));
     assert('Prepared period symptoms retain the original nonempty guard', presentation.includes('period.symptoms?.length ? period.symptoms.map(literal) : []'));
   }
 
@@ -267,10 +268,11 @@ const { phaseBandPlugin } = await import('../js/charts.js');
   console.log('Section 17: CSS classes');
   {
     const css = readCycleCss();
-    assert('.period-symptom-tag CSS exists', css.includes('.period-symptom-tag'));
     const alerts = read('js/components/CycleOverviewAlerts.svelte');
     const selectors: string[] = [];
     postcss.parse(css).walkRules(rule => { selectors.push(rule.selector.replace(/\\([0-9a-f]{1,6}) ?|\\(.)/gi, (_match, hex: string | undefined, character: string | undefined) => hex ? String.fromCodePoint(parseInt(hex, 16)) : character!)); });
+    const symptomTokens = cycleSharedUtilities('period-symptom-tag').split(/\s+/);
+    assert('Authored symptom pills have every shared scoped utility', symptomTokens.length > 0 && symptomTokens.every(token => selectors.some(selector => selector.includes('.' + token) && ['editor','import','overview'].every(area => selector.includes(`[data-cycle-${area}-view]`)))));
     const authoredStyle = (name: string) => {
       const tokens = cycleOverviewClasses(name).split(/\s+/).filter(token => token.startsWith('gb:cycle-overview-ui:'));
       return tokens.length > 0 && tokens.every(token => selectors.some(selector => selector.includes('.' + token) && selector.includes('[data-cycle-overview-view]')));

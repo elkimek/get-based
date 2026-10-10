@@ -11,10 +11,10 @@
       <div class={c('cycle-log-date')}>{period.dateLabel}</div>
       <div class={c('cycle-log-meta')}>
         <span class={`goals-severity-badge ${period.flowClass}`}>{period.flow}</span>
-        {#each period.symptoms as symptom}<span class="period-symptom-tag">{symptom}</span>{/each}
-        {#if period.notes !== null}<span class="cycle-period-note">{period.notes}</span>{/if}
+        {#each period.symptoms as symptom}<span class={c('period-symptom-tag')}>{symptom}</span>{/each}
+        {#if period.notes !== null}<span class={c('cycle-period-note')}>{period.notes}</span>{/if}
       </div>
     </div>
-    <button type="button" class="cycle-icon-btn cycle-delete-btn" data-cycle-action="delete-period" data-cycle-start-date={period.startDate} aria-label={period.deleteAriaLabel} title="Delete period"><CycleIcon name="trash"/></button>
+    <button type="button" class={c('cycle-icon-btn cycle-delete-btn')} data-cycle-action="delete-period" data-cycle-start-date={period.startDate} aria-label={period.deleteAriaLabel} title="Delete period"><CycleIcon name="trash"/></button>
   </div>{/each}
 </div>{/if}

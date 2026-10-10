@@ -1,3 +1,5 @@
+import {cycleSharedUtilities} from './cycle-shared-classes.js';
+
 /** Exact editor-exclusive Cycle selector paths; shared and overview CSS retain their owners. */
 const classes: Record<string, string> = {
   "cycle-symptom-chip": [
@@ -266,7 +268,7 @@ const classes: Record<string, string> = {
 };
 
 export function cycleEditorClasses(names: string): string {
-  return names.split(/\s+/).filter(Boolean).flatMap(name => [name, classes[name] || '']).filter(Boolean).join(' ');
+  return names.split(/\s+/).filter(Boolean).flatMap(name => [name, classes[name] || '', cycleSharedUtilities(name)]).filter(Boolean).join(' ');
 }
 export function cycleEditorModalClasses(): string {
   return `modal ${cycleEditorClasses('cycle-modal')}`;

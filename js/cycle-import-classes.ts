@@ -1,3 +1,5 @@
+import {cycleSharedUtilities} from './cycle-shared-classes.js';
+
 /** Cycle import utilities preserve the frozen native selectors and inclusive phone breakpoint. */
 const classes: Record<string, string> = {
   "import-preview-modal": [
@@ -189,5 +191,8 @@ const classes: Record<string, string> = {
 };
 
 export function cycleImportClasses(names: string): string {
-  return names.split(/\s+/).map(name => `${name} ${classes[name] || ''}`).join(' ');
+  return names.split(/\s+/).map(name => {
+    const shared = cycleSharedUtilities(name);
+    return `${name} ${classes[name] || ''}${shared ? ' ' + shared : ''}`;
+  }).join(' ');
 }
