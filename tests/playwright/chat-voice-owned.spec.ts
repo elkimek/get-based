@@ -48,7 +48,9 @@ test('owned voice controls retain layout, contrast and reduced motion across the
         const violations = await page.locator('[data-chat-voice-view]').evaluate(async element => (await (window as unknown as { axe: typeof import('axe-core'); }).axe.run(element, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } })).violations.map(v => ({ id: v.id, nodes: v.nodes.map(n => ({ target: n.target, html: n.html, failure: n.failureSummary })) })));
         expect(violations, `${theme}/${width}`).toEqual([]);
       }).toPass({ timeout: 5000 });
-      const box = await page.locator('#chat-voice-btn').boundingBox(); expect(box!.x).toBeGreaterThanOrEqual(0); expect(box!.x + box!.width).toBeLessThanOrEqual(width + 1);
+      await expect(async () => {
+        const box = await page.locator('#chat-voice-btn').boundingBox(); expect(box!.x).toBeGreaterThanOrEqual(0); expect(box!.x + box!.width).toBeLessThanOrEqual(width + 1);
+      }).toPass({ timeout: 5000 });
       expect(await page.locator('#chat-voice-btn').evaluate(e => getComputedStyle(e).animationName)).toBe('none');
     }
   }
