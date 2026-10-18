@@ -7,21 +7,7 @@ test.use({ actionTimeout: 15_000, navigationTimeout: 30_000 });
 const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
 interface SyntheticAccount { mode: 'valid' | 'malformed'; creates: number; clipboard: string }
 async function prepare(context: BrowserContext, mode: SyntheticAccount['mode']) {
-  await prepareStaticWallet(context);
-  await context.addInitScript(({ mode }) => {
-    const testWindow = window as unknown as { syntheticAccount: SyntheticAccount }; testWindow.syntheticAccount = { mode, creates: 0, clipboard: '' };
-    const transport = window.fetch.bind(window);
-    window.fetch = async (input, init) => {
-      const url = new URL(input instanceof Request ? input.url : String(input), location.href);
-      if (url.origin !== 'https://synthetic-routstr.test') return transport(input,init);
-      const reply = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
-      if (url.pathname === '/v1/balance/create') { ++testWindow.syntheticAccount.creates; return reply(mode === 'valid' ? { api_key: 'sk-SYNTHETIC-CREATED' } : { api_key: 'cashuA-invalid-credential' }); }
-      if (url.pathname === '/v1/balance/info') return reply({ balance: 5000 });
-      if (url.pathname === '/v1/models') return reply({ data: [{ id: 'claude-sonnet-5', name: 'Claude Sonnet', enabled: true, architecture: { input_modalities: ['text','image'] }, pricing: { prompt: '0.000003', completion: '0.000015' } }] });
-      return reply({},404);
-    };
-    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (value: string) => { testWindow.syntheticAccount.clipboard = value; } } });
-  }, { mode });
+  await prepareStaticWallet(context, true, false, false, mode);
 }
 async function ready(page: Page) { await expect(page.locator('html[data-app-ready][data-shell-framework="sveltekit"]')).toBeAttached({ timeout: 30_000 }); await page.evaluate(() => navigator.serviceWorker.ready.then(() => true)); await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true); }
 async function open(page: Page) {

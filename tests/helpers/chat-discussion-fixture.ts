@@ -14,15 +14,24 @@ export async function installDiscussionFixture(context: BrowserContext, {provide
   }, {provider, paused});
 }
 
-interface DiscussionProviderFixtureOptions { seedProvider?: boolean; }
-export async function installDiscussionProvider(context: BrowserContext, {seedProvider = true}: DiscussionProviderFixtureOptions = {}): Promise<void> {
-  await context.addInitScript(({seedProvider}) => {
+interface DiscussionProviderFixtureOptions { seedProvider?: boolean; replyMode?: 'discussion' | 'context-health'; }
+export async function installDiscussionProvider(context: BrowserContext, {seedProvider = true, replyMode = 'discussion'}: DiscussionProviderFixtureOptions = {}): Promise<void> {
+  if (replyMode !== 'discussion' && replyMode !== 'context-health') throw new Error('Unknown discussion provider fixture reply mode');
+  await context.addInitScript(({seedProvider, replyMode}) => {
     if (!['http:', 'https:'].includes(location.protocol)) return;
     if (seedProvider) localStorage.setItem('labcharts-ollama', JSON.stringify({ url: 'http://127.0.0.1:11434', model: 'fixture-model', mode: 'ollama' }));
     const requests: unknown[] = []; Object.assign(window, { discussionRequests: requests });
+    if (replyMode === 'context-health') Reflect.set(window, 'contextHealthRequests', 0);
     const original = window.fetch.bind(window);
     window.fetch = async (input, options) => {
       const url = String(input instanceof Request ? input.url : input);
+      if (replyMode === 'context-health' && /^http:\/\/(?:127\.0\.0\.1|localhost):11434\//.test(url) && /\/(?:v1\/chat\/completions|api\/chat)$/.test(url)
+        && String(options?.body || '').includes('Dot colors:')) {
+        Reflect.set(window, 'contextHealthRequests', Number(Reflect.get(window, 'contextHealthRequests')) + 1);
+        const content = JSON.stringify({ diet: { summary: 'Reported eggs', dot: 'yellow', tip: 'Literal <tip> & cached' } });
+        if (url.endsWith('/api/chat')) return new Response(JSON.stringify({ message: { content }, done: true, prompt_eval_count: 7, eval_count: 3 }) + '\n', { headers: { 'Content-Type': 'application/x-ndjson' } });
+        return Response.json({ choices: [{ message: { content } }], usage: { prompt_tokens: 7, completion_tokens: 3 } });
+      }
       if (!/^http:\/\/(?:127\.0\.0\.1|localhost):11434\//.test(url)) return original(input, options);
       if (url.endsWith('/api/chat')) {
         requests.push(JSON.parse(String(options?.body || '{}')));
@@ -40,7 +49,7 @@ export async function installDiscussionProvider(context: BrowserContext, {seedPr
       if (url.endsWith('/api/tags') || url.endsWith('/api/ps')) return Response.json({ models: [{ name: 'fixture-model' }] });
       return new Response('Not found', { status: 404 });
     };
-  }, {seedProvider});
+  }, {seedProvider, replyMode});
 }
 
 /** Module coverage starts with an actual open, nonempty conversation on every layout. */

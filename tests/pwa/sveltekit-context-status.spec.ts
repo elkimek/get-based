@@ -30,7 +30,7 @@ test('static authored context assessments restore cached literal summaries acros
   test.setTimeout(120000);
   const errors: string[] = [], csp: string[] = [];
   page.on('pageerror', error => errors.push(error.message)); context.on('page', target => target.on('pageerror', error => errors.push(error.message)));
-  await installDiscussionFixture(context); await installDiscussionProvider(context);
+  await installDiscussionFixture(context); await installDiscussionProvider(context, {replyMode: 'context-health'});
   await context.exposeBinding('contextStatusCsp', (_, directive: string) => { csp.push(directive); });
   await context.addInitScript(() => {
     if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -39,19 +39,6 @@ test('static authored context assessments restore cached literal summaries acros
       localStorage.setItem('context-status-seeded', '1');
       localStorage.setItem('labcharts-default-imported', JSON.stringify({ entries: [], diet: { breakfast: 'Reported eggs' } }));
     }
-    Reflect.set(window, 'contextHealthRequests', 0);
-    const original = window.fetch.bind(window);
-    window.fetch = async (input, options) => {
-      const url = String(input instanceof Request ? input.url : input);
-      if (/^http:\/\/(?:127\.0\.0\.1|localhost):11434\//.test(url) && /\/(?:v1\/chat\/completions|api\/chat)$/.test(url)
-        && String(options?.body || '').includes('Dot colors:')) {
-        Reflect.set(window, 'contextHealthRequests', Number(Reflect.get(window, 'contextHealthRequests')) + 1);
-        const content = JSON.stringify({ diet: { summary: 'Reported eggs', dot: 'yellow', tip: 'Literal <tip> & cached' } });
-        if (url.endsWith('/api/chat')) return new Response(JSON.stringify({ message: { content }, done: true, prompt_eval_count: 7, eval_count: 3 }) + '\n', { headers: { 'Content-Type': 'application/x-ndjson' } });
-        return Response.json({ choices: [{ message: { content } }], usage: { prompt_tokens: 7, completion_tokens: 3 } });
-      }
-      return original(input, options);
-    };
   });
   const server = await startKitServer(artifact);
   try {

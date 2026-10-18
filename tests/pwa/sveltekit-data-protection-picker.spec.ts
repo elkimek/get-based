@@ -29,9 +29,9 @@ async function stored(page: Page) {
   });
 }
 test('static authored protection picker opens offline, hands off existing setup dialogs and survives two cold launches', async ({ page, context }, testInfo) => {
-  test.setTimeout(120000); await installDiscussionFixture(context);
+  test.setTimeout(120000); await installDiscussionFixture(context, {paused: true});
   await context.addInitScript(() => {
-    if (!['http:', 'https:'].includes(location.protocol)) return; localStorage.setItem('labcharts-ai-paused', 'true');
+    if (!['http:', 'https:'].includes(location.protocol)) return;
     if (!localStorage.getItem('protection-picker-seeded')) { localStorage.setItem('protection-picker-seeded', '1'); localStorage.setItem('labcharts-default-imported', JSON.stringify({ entries: [], notes: [], nutritionMeals: [], contextNotes: 'Keep <profile> & original text' })); }
   });
   const errors: string[] = [], csp: string[] = []; page.on('pageerror', error => errors.push(error.message)); context.on('page', target => target.on('pageerror', error => errors.push(error.message)));

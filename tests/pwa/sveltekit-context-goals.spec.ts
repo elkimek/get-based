@@ -31,9 +31,9 @@ async function add(page: Page, text: string, priority: 'High' | 'Medium' | 'Low'
   await modal.getByRole('textbox', { name: 'Add goal', exact: true }).press('Enter'); await expect(modal.getByRole('status')).toHaveText('Saved');
 }
 test('static authored Goals work on offline first use and retain edits and deletion markers across two cold launches', async ({ page, context }) => {
-  test.setTimeout(120000); await installDiscussionFixture(context);
+  test.setTimeout(120000); await installDiscussionFixture(context, {paused: true});
   await context.addInitScript(() => {
-    if (!['http:', 'https:'].includes(location.protocol)) return; localStorage.setItem('labcharts-ai-paused', 'true');
+    if (!['http:', 'https:'].includes(location.protocol)) return;
     if (!localStorage.getItem('context-goals-seeded')) { localStorage.setItem('context-goals-seeded', '1'); localStorage.setItem('labcharts-default-imported', JSON.stringify({ entries: [], notes: [], nutritionMeals: [], healthGoals: [] })); }
   });
   const errors: string[] = [], csp: string[] = [];

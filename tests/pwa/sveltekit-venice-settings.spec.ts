@@ -67,6 +67,16 @@ test('Venice Settings uses cached assets with an unavailable origin and retains 
     for(const theme of ['dark','light','cyberterm','glass','synth-sunrise','neuromancer']) {
       await page.locator('#settings-nav-display').click();await page.locator('#settings-tab-display [data-settings-action="open-tweaks"]').click();
       await page.locator(`[data-tweaks-action="select-theme"][data-theme-id="${theme}"]`).click();await page.locator('[data-tweaks-action="close"]').click();
+      await expect.poll(() => page.evaluate(async requested => {
+        const extra = ['cyberterm', 'glass', 'synth-sunrise', 'neuromancer'].includes(requested);
+        const link = document.querySelector<HTMLLinkElement>('link[data-extra-themes-stylesheet]');
+        const stylesheetReady = !extra || !!(link && new URL(link.href).origin === location.origin
+          && new URL(link.href).pathname === '/themes-extra.css' && !link.disabled && link.sheet && !link.sheet.disabled);
+        if (stylesheetReady) { document.body.getBoundingClientRect(); await document.fonts.ready; }
+        return {stylesheetReady, stored: localStorage.getItem('labcharts-theme'), attribute: document.documentElement.getAttribute('data-theme')};
+      }, theme), {message: `${theme}: actual theme stylesheet, storage and fonts ready`}).toEqual({
+        stylesheetReady: true, stored: theme, attribute: theme === 'dark' ? null : theme,
+      });
       const closeChat=page.getByRole('button',{name:'Close chat',exact:true});if(await closeChat.isVisible())await closeChat.click();await openVenice(page);
       for(const width of [1280,700,390]) {
         await page.setViewportSize({width,height:900});await panel.scrollIntoViewIfNeeded();expect(await panel.evaluate(e=>e.scrollWidth<=e.clientWidth)).toBe(true);

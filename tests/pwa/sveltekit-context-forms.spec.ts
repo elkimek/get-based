@@ -38,10 +38,9 @@ async function open(page: Page, key: string) {
   await expect(page.locator('[data-context-form-view]')).toHaveAttribute('data-context-form-view', key);
 }
 test('static lifestyle editors work on offline first use and preserve committed fields through two cold launches', async ({ page, context }) => {
-  test.setTimeout(120000); await installDiscussionFixture(context);
+  test.setTimeout(120000); await installDiscussionFixture(context, {paused: true});
   await context.addInitScript(() => {
     if (!['http:', 'https:'].includes(location.protocol)) return;
-    localStorage.setItem('labcharts-ai-paused', 'true');
     if (!localStorage.getItem('context-forms-seeded')) {
       localStorage.setItem('context-forms-seeded', '1');
       // Start with the canonical empty meal list, avoiding unrelated legacy null-to-list normalization on reload.
