@@ -301,13 +301,9 @@ jobs:
         id: shipping_acceptance
         env:
           LANE: ${{ matrix.id }}
-          ENGINE: ${{ matrix.engine }}
-        run: |
-          if [ "$RUNNER_OS" = Linux ] && [ "$ENGINE" = webkit ]; then
-            # Process lifecycle/native stderr only; never enable protocol/API logs.
-            export DEBUG=pw:browser
-          fi
-          node scripts/ci-plan.mjs --run-kit "$LANE" --output "$CI_TEST_PLAN"
+          # Process lifecycle/native stderr only; never enable protocol/API logs.
+          DEBUG: ${{ runner.os == 'Linux' && matrix.engine == 'webkit' && 'pw:browser' || env.DEBUG }}
+        run: node scripts/ci-plan.mjs --run-kit "$LANE" --output "$CI_TEST_PLAN"
       - name: DIAGNOSTIC Linux WebKit process and memory evidence after failure
         if: failure() && runner.os == 'Linux' && matrix.engine == 'webkit' && steps.shipping_acceptance.outcome == 'failure'
         continue-on-error: true
