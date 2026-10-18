@@ -30,7 +30,12 @@ The [native Knowledge Base acceptance](../tests/pwa/sveltekit-knowledge-base.spe
 requires real Worker transport and OPFS persistence on Chromium, Firefox, desktop
 WebKit and mobile WebKit. Its WebKit cases run on macOS Cocoa because the pinned
 Linux WPE engine does not implement the required synchronous file-handle backend.
-Other WebKit cases stay on Linux. The planner partitions the same global case
+The Cocoa cases use isolated persistent profiles because the pinned private data
+store exposes OPFS but cannot initialize its filesystem. A required native Worker
+control verifies exact write, flush and read bytes across a complete browser
+restart before the unchanged application acceptance runs; private-store behavior
+is recorded only as a diagnostic. Other WebKit cases stay on Linux. The planner
+partitions the same global case
 inventory across these runners; the required aggregate rejects missing or duplicate
 case receipts.
 

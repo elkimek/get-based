@@ -3581,3 +3581,8 @@ tests/pwa/sveltekit-island-ownership.spec.js.map
 
 /playwright-report/
 /tests/helpers/knowledge-base-utils-dialog-contract.js
+
+# Generated native acceptance context and historical cascade qualification
+/tests/helpers/cocoa-opfs-context.js
+/tests/helpers/biology-overview-native-cascade.js
+/tests/biology-overview-native-cascade.test.js

@@ -96,7 +96,15 @@ async function detail(page:Page,metric:string){const trigger=page.locator('.dash
 async function otherStorage(page:Page){return page.evaluate(()=>Object.fromEntries(Object.keys(localStorage).filter(key=>key.startsWith('labcharts-other-')||['labcharts-active-profile','labcharts-theme','labcharts-accent','labcharts-encryption-enabled','labcharts-ai-provider','labcharts-ai-paused','labcharts-show-product-recs'].includes(key)).sort().map(key=>[key,localStorage.getItem(key)])));}
 // A separate scratch surface identifies browser fallback without touching the real Chart pixels.
 async function wearableFontEnvironment(page:Page){
- return page.evaluate(async()=>{
+ const pinnedOTFSHA='7c25be4d78155523080ab85b10277150657ff7dabbcad7037bdd536c9b6d0d08';
+ type FontInput={status:'qualified';sha256:string;byteLength:number;bytes:number[]}|{status:'unavailable'|'unqualified';sha256:string|null;byteLength:number|null;reason:string};
+ let pinnedOTF:FontInput;
+ try{
+  const bytes=await fs.readFile('/usr/share/fonts/opentype/urw-base35/NimbusSans-Regular.otf');
+  const sha256=createHash('sha256').update(bytes).digest('hex');
+  pinnedOTF=sha256===pinnedOTFSHA?{status:'qualified',sha256,byteLength:bytes.byteLength,bytes:Array.from(bytes)}:{status:'unqualified',sha256,byteLength:bytes.byteLength,reason:'Host Nimbus OTF does not match the pinned native font'};
+ }catch(error){pinnedOTF={status:'unavailable',sha256:null,byteLength:null,reason:error instanceof Error?error.message:String(error)};}
+ return page.evaluate(async pinnedOTF=>{
   const canvas=document.querySelector<HTMLCanvasElement>('#chart-modal'),context=canvas?.getContext('2d');
   if(!canvas||!context)return{unavailable:'No current chart context'};
   const constructor=Reflect.get(window,'Chart'),defaults=typeof constructor==='function'?Reflect.get(constructor,'defaults'):null;
@@ -105,16 +113,30 @@ async function wearableFontEnvironment(page:Page){
   const fonts=[{name:'current-context',font:context.font},...(globalFont&&typeof globalFont.family==='string'&&typeof globalFont.size==='number'?[{name:'chart-defaults',font:`${globalFont.size}px ${globalFont.family}`}]:[]),...['Helvetica Neue','Helvetica','Arial','Nimbus Sans','Noto Sans','Liberation Sans','sans-serif'].map(name=>({name,font:`12px ${name==='sans-serif'?name:JSON.stringify(name)}`}))];
   const scratch=document.createElement('canvas');scratch.width=640;scratch.height=48;
   const probe=scratch.getContext('2d');if(!probe)return{unavailable:'No diagnostic scratch context'};
-  const samples=[];
-  for(const input of fonts){
-   probe.clearRect(0,0,scratch.width,scratch.height);probe.font=input.font;probe.fillStyle='#000';probe.textBaseline='alphabetic';
+  const sample=async(input:{name:string;font:string;fontKerning?:CanvasFontKerning})=>{
+   probe.clearRect(0,0,scratch.width,scratch.height);probe.font=input.font;if('fontKerning' in probe)probe.fontKerning=input.fontKerning??'auto';probe.fillStyle='#000';probe.textBaseline='alphabetic';
    const text='Aug 6 120 Systolic Diastolic',metrics=probe.measureText(text);probe.fillText(text,8,28);
    const pixels=probe.getImageData(0,0,scratch.width,scratch.height).data;
    const sha256=[...new Uint8Array(await crypto.subtle.digest('SHA-256',pixels))].map(v=>v.toString(16).padStart(2,'0')).join('');
-   samples.push({name:input.name,font:probe.font,width:metrics.width,left:metrics.actualBoundingBoxLeft,right:metrics.actualBoundingBoxRight,ascent:metrics.actualBoundingBoxAscent,descent:metrics.actualBoundingBoxDescent,sha256});
-  }
-  return{userAgent:navigator.userAgent,devicePixelRatio,globalFont,canvasComputedFont:getComputedStyle(canvas).font,contextProperties:Object.fromEntries(['font','fontKerning','fontStretch','fontVariantCaps','letterSpacing','wordSpacing','textRendering','direction','textAlign','textBaseline','imageSmoothingEnabled','imageSmoothingQuality','filter'].map(key=>[key,Reflect.get(context,key)??null])),samples};
- });
+   return{name:input.name,font:probe.font,width:metrics.width,left:metrics.actualBoundingBoxLeft,right:metrics.actualBoundingBoxRight,ascent:metrics.actualBoundingBoxAscent,descent:metrics.actualBoundingBoxDescent,sha256};
+  };
+  const samples=[];for(const input of fonts)samples.push(await sample(input));
+  const kerningSamples:Array<Awaited<ReturnType<typeof sample>>&{fontKerning:CanvasFontKerning}>=[];
+  if('fontKerning' in probe)for(const size of [10,12])for(const fontKerning of ['normal','none'] as const)kerningSamples.push({...await sample({name:`system-nimbus-${size}px-${fontKerning}`,font:`${size}px "Nimbus Sans"`,fontKerning}),fontKerning});
+  const kerningControls={supported:'fontKerning' in probe,samples:kerningSamples};
+  let exactOTFControl:{status:string;sha256:string|null;byteLength:number|null;reason?:string;samples?:Awaited<ReturnType<typeof sample>>[]};
+  if(pinnedOTF.status==='qualified'){
+   const family='getbased-wearable-pinned-nimbus-otf-probe';
+   let face:FontFace|undefined;
+   try{
+    face=new FontFace(family,new Uint8Array(pinnedOTF.bytes));await face.load();document.fonts.add(face);
+    const exactSamples=[];for(const size of [10,12])exactSamples.push(await sample({name:`pinned-otf-${size}px`,font:`${size}px "${family}"`}));
+    exactOTFControl={status:'qualified',sha256:pinnedOTF.sha256,byteLength:pinnedOTF.byteLength,samples:exactSamples};
+   }catch(error){exactOTFControl={status:'font-face-unavailable',sha256:pinnedOTF.sha256,byteLength:pinnedOTF.byteLength,reason:error instanceof Error?error.message:String(error)};}
+   finally{if(face)document.fonts.delete(face);}
+  }else exactOTFControl=pinnedOTF;
+  return{userAgent:navigator.userAgent,devicePixelRatio,globalFont,canvasComputedFont:getComputedStyle(canvas).font,contextProperties:Object.fromEntries(['font','fontKerning','fontStretch','fontVariantCaps','letterSpacing','wordSpacing','textRendering','direction','textAlign','textBaseline','imageSmoothingEnabled','imageSmoothingQuality','filter'].map(key=>[key,Reflect.get(context,key)??null])),samples,kerningControls,exactOTFControl};
+ },pinnedOTF);
 }
 test.use({timezoneId:'UTC'});
 test('canonical Wearables preserves native Dashboard detail, manual data, real Chart paint and offline cold launches',async({page,context},info)=>{

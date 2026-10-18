@@ -1,7 +1,7 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import {createHash} from 'node:crypto';
-import {expect, test, type Page} from '@playwright/test';
+import {expect, test as base, type Page, type BrowserContextOptions} from '@playwright/test';
 import {createDefaultProfileData} from '../../js/profile.js';
 import {chunkText} from '../../js/lens-local-utils.js';
 import {MODELS} from '../../js/lens-local-embedder-config.js';
@@ -11,6 +11,31 @@ import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
 import {installOfflineStartupDiagnostics} from '../helpers/offline-launch-diagnostics.js';
 import {readComparisonAcceptanceProfile} from '../helpers/nutrition-comparison-fixture.js';
 import {readyLightArtifact as ready} from '../helpers/light-artifact-navigation.js';
+import {withNativeCocoaOpfsContext} from '../helpers/cocoa-opfs-context.js';
+
+const test = base.extend({
+  context: async ({context, playwright, browserName, launchOptions, headless, contextOptions,
+    viewport, userAgent, deviceScaleFactor, isMobile, hasTouch, serviceWorkers}, use, info) => {
+    const scope = process.env['GETBASED_KIT_CASE_SCOPE'];
+    if (scope === 'webkit-opfs' && (process.platform !== 'darwin' || browserName !== 'webkit')) throw new Error('Native Cocoa OPFS scope requires macOS WebKit');
+    if (process.platform !== 'darwin' || browserName !== 'webkit') {await use(context); return;}
+    expect(headless, 'Native Cocoa PWA acceptance stays headless').toBe(true);
+    // Keep the same public resolved device fixtures; the runner also applies all
+    // remaining configured context options to manually launched contexts.
+    const device: BrowserContextOptions = {
+      ...(viewport === undefined ? {} : {viewport}),
+      ...(userAgent === undefined ? {} : {userAgent}),
+      ...(deviceScaleFactor === undefined ? {} : {deviceScaleFactor}),
+      ...(isMobile === undefined ? {} : {isMobile}),
+      ...(hasTouch === undefined ? {} : {hasTouch}),
+      ...(serviceWorkers === undefined ? {} : {serviceWorkers}),
+    };
+    const resolved = {...contextOptions, ...device};
+    await withNativeCocoaOpfsContext({browserType: playwright.webkit, privateContext: context,
+      launchOptions: {...launchOptions, headless}, contextOptions: resolved, info}, use);
+  },
+});
+
 
 // Only model embedding uses the maintained ?mock=1 hook. Worker transport, client
 // queue, Markdown parser, OPFS transactions and SW remain actual production code.
