@@ -1,0 +1,152 @@
+[
+  {
+    "file": "marker-detail-editing.ts",
+    "header": "import { renderMarkerDetailEditor } from './marker-detail-results-presentation.js';\n",
+    "edits": [
+      {
+        "start": 13731,
+        "end": 14534,
+        "before": "`${escapeHTML(label)}: <span class=\"ref-edit-field\"><input type=\"text\" inputmode=\"decimal\" value=\"${escapeAttr(curMin ?? '')}\" placeholder=\"none\" class=\"ref-edit-input\" id=\"ref-edit-min\"><button type=\"button\" class=\"ref-edit-clear\" ${markerDetailActionAttrs('clear-ref-edit-field', { field: 'min' })} title=\"Clear (open-ended)\">\\u00d7</button></span> \\u2013 <span class=\"ref-edit-field\"><input type=\"text\" inputmode=\"decimal\" value=\"${escapeAttr(curMax ?? '')}\" placeholder=\"none\" class=\"ref-edit-input\" id=\"ref-edit-max\"><button type=\"button\" class=\"ref-edit-clear\" ${markerDetailActionAttrs('clear-ref-edit-field', { field: 'max' })} title=\"Clear (open-ended)\">\\u00d7</button></span> <button type=\"button\" class=\"ref-edit-save\" ${markerDetailActionAttrs('save-ref-range', { id, type })}>Save</button>`",
+        "after": "renderMarkerDetailEditor({ kind: \"reference\", label: `${escapeHTML(label)}`, minimum: `${escapeAttr(curMin ?? '')}`,\n    clearMinimum: `${markerDetailActionAttrs('clear-ref-edit-field', { field: 'min' })}`, maximum: `${escapeAttr(curMax ?? '')}`,\n    clearMaximum: `${markerDetailActionAttrs('clear-ref-edit-field', { field: 'max' })}`,\n    saveActions: `${markerDetailActionAttrs('save-ref-range', { id, type })}`,\n  })"
+      }
+    ]
+  },
+  {
+    "file": "marker-detail-history.ts",
+    "header": "import { renderMarkerDetailHistory } from './marker-detail-results-presentation.js';\n",
+    "edits": [
+      {
+        "start": 1795,
+        "end": 1887,
+        "before": "`<div class=\"mv-collection-context\">${escapeHTML(collectionContextParts.join(' \u00b7 '))}</div>`",
+        "after": "renderMarkerDetailHistory({ kind: \"collection-context\", text: `${escapeHTML(collectionContextParts.join(' \u00b7 '))}` })"
+      },
+      {
+        "start": 2136,
+        "end": 2221,
+        "before": "`<div class=\"mv-source\" title=\"${escapeHTML(fileName)}\">${escapeHTML(display)}</div>`",
+        "after": "renderMarkerDetailHistory({ kind: \"source-file\", title: `${escapeHTML(fileName)}`, text: `${escapeHTML(display)}` })"
+      },
+      {
+        "start": 2271,
+        "end": 2334,
+        "before": "'<div class=\"mv-source mv-source-manual\">manually edited</div>'",
+        "after": "renderMarkerDetailHistory({ kind: \"source-edited\" })"
+      },
+      {
+        "start": 2392,
+        "end": 2490,
+        "before": "`<div class=\"mv-source\">Imported report${source.manuallyEdited ? ' \u00b7 manually edited' : ''}</div>`",
+        "after": "renderMarkerDetailHistory({ kind: \"source-report\", manualLabel: `${source.manuallyEdited ? ' \u00b7 manually edited' : ''}` })"
+      },
+      {
+        "start": 2536,
+        "end": 2596,
+        "before": "'<div class=\"mv-source mv-source-manual\">manual entry</div>'",
+        "after": "renderMarkerDetailHistory({ kind: \"source-manual\" })"
+      }
+    ]
+  },
+  {
+    "file": "marker-detail-modal-impl.ts",
+    "header": "import { renderMarkerDetailRange, renderMarkerDetailHistory } from './marker-detail-results-presentation.js';\n",
+    "edits": [
+      {
+        "start": 16154,
+        "end": 16912,
+        "before": "`<div class=\"gb-range-band\" aria-label=\"Range position\">\n      <div class=\"gb-range-band-track\">\n        ${lowZoneWidth ? `<div class=\"gb-range-band-zone gb-range-band-zone-low\" style=\"left:0%;width:${lowZoneWidth}%\"></div>` : ''}\n        ${highZoneWidth ? `<div class=\"gb-range-band-zone gb-range-band-zone-high\" style=\"left:${optRight}%;width:${highZoneWidth}%\"></div>` : ''}\n        ${optWidth ? `<div class=\"gb-range-band-opt\" style=\"left:${optLeft}%;width:${optWidth}%\"></div>` : ''}\n      </div>\n      <div class=\"gb-range-band-dot gb-range-band-dot-${escapeAttr(latestStatus)}\" style=\"left:${dot}%\"></div>\n      <div class=\"gb-range-band-scale\"><span>${escapeHTML(formatValue(min))}</span><span>${escapeHTML(formatValue(max))}</span></div>\n    </div>`",
+        "after": "renderMarkerDetailRange({ kind: \"band\", lowZone: `${lowZoneWidth ? renderMarkerDetailRange({ kind: \"low-zone\", width: `${lowZoneWidth}` }) : ''}`,\n      highZone: `${highZoneWidth ? renderMarkerDetailRange({ kind: \"high-zone\", left: `${optRight}`, width: `${highZoneWidth}` }) : ''}`,\n      optimalZone: `${optWidth ? renderMarkerDetailRange({ kind: \"optimal-zone\", left: `${optLeft}`, width: `${optWidth}` }) : ''}`,\n      status: `${escapeAttr(latestStatus)}`, position: `${dot}`, minimum: `${escapeHTML(formatValue(min))}`,\n      maximum: `${escapeHTML(formatValue(max))}`,\n    })"
+      },
+      {
+        "start": 17884,
+        "end": 18082,
+        "before": "` <span class=\"ref-edited-badge\" role=\"button\" tabindex=\"0\" aria-label=\"${badgeTitle}\" title=\"${badgeTitle}\" ${markerDetailActionAttrs('revert-ref-range', { id, type })}>${badgeLabel} \\u00d7</span>`",
+        "after": "renderMarkerDetailRange({ kind: \"edited-badge\", label: `${badgeTitle}`, title: `${badgeTitle}`,\n      actions: `${markerDetailActionAttrs('revert-ref-range', { id, type })}`, text: `${badgeLabel}`,\n    })"
+      },
+      {
+        "start": 18185,
+        "end": 18473,
+        "before": "` &middot; <button type=\"button\" class=\"ref-editable${type === 'optimal' ? ' ref-editable-optimal' : ''}\" aria-label=\"Edit ${label} range, currently ${escapeAttr(currentRange)}\" ${markerDetailActionAttrs('edit-ref-range', { id, type })}>Edit ${label.toLowerCase()}</button>${editedBadge}`",
+        "after": "renderMarkerDetailRange({ kind: \"edit-control\", optimalClass: `${type === 'optimal' ? ' ref-editable-optimal' : ''}`, label: `${label}`,\n      currentRange: `${escapeAttr(currentRange)}`, actions: `${markerDetailActionAttrs('edit-ref-range', { id, type })}`,\n      lowerLabel: `${label.toLowerCase()}`, badge: `${editedBadge}`,\n    })"
+      },
+      {
+        "start": 20045,
+        "end": 20304,
+        "before": "`<a class=\"marker-range-suggest\" href=\"${escapeAttr(rangeSuggestionUrl)}\" target=\"_blank\" rel=\"noopener noreferrer\" title=\"Open a public, pre-filled GitHub issue without including your health data\">Suggest a better range <span aria-hidden=\"true\">\u2197</span></a>`",
+        "after": "renderMarkerDetailRange({ kind: \"suggestion\", href: `${escapeAttr(rangeSuggestionUrl)}` })"
+      },
+      {
+        "start": 26147,
+        "end": 26248,
+        "before": "`<div class=\"mv-phase\">${phaseLabel} \\u2022 ${formatValue(ri.min)}\\u2013${formatValue(ri.max)}</div>`",
+        "after": "renderMarkerDetailHistory({ kind: \"phase\", phase: `${phaseLabel}`, minimum: `${formatValue(ri.min)}`, maximum: `${formatValue(ri.max)}` })"
+      },
+      {
+        "start": 26539,
+        "end": 26706,
+        "before": "`<button type=\"button\" class=\"mv-note\" ${markerDetailActionAttrs('toggle-history-note')}>Note</button><div class=\"mv-note-text\">${escapeHTML(matchingNote.text)}</div>`",
+        "after": "renderMarkerDetailHistory({ kind: \"date-note\", actions: `${markerDetailActionAttrs('toggle-history-note')}`, text: `${escapeHTML(matchingNote.text)}` })"
+      },
+      {
+        "start": 27399,
+        "end": 27658,
+        "before": "` <span class=\"ref-edited-badge\" role=\"button\" tabindex=\"0\" aria-label=\"Revert manual value to imported value\" title=\"Manual \u2014 click to revert to imported value\" ${markerDetailActionAttrs('revert-marker-value', { id, date: actionDate })}>manual \\u00d7</span>`",
+        "after": "renderMarkerDetailHistory({ kind: \"manual-revert\", actions: `${markerDetailActionAttrs('revert-marker-value', { id, date: actionDate })}` })"
+      },
+      {
+        "start": 27678,
+        "end": 27750,
+        "before": "' <span class=\"ref-edited-badge\" title=\"Manually entered\">manual</span>'",
+        "after": "renderMarkerDetailHistory({ kind: \"manual-badge\" })"
+      },
+      {
+        "start": 27779,
+        "end": 27925,
+        "before": "`<button class=\"mv-delete\" ${markerDetailActionAttrs('delete-marker-value', { id, date: actionDate })} title=\"Remove this value\">&times;</button>`",
+        "after": "renderMarkerDetailHistory({ kind: \"delete-value\", actions: `${markerDetailActionAttrs('delete-marker-value', { id, date: actionDate })}` })"
+      },
+      {
+        "start": 28337,
+        "end": 28719,
+        "before": "`<div class=\"mv-value-note has-note\"><span class=\"mv-value-note-text\" role=\"button\" tabindex=\"0\" title=\"Click to edit note\" ${markerDetailActionAttrs('edit-value-note', { id, date: actionDate })}>${escapeHTML(valueNote)}</span> <button class=\"mv-value-note-delete\" title=\"Remove note\" ${markerDetailActionAttrs('delete-value-note', { id, date: actionDate })}>&times;</button></div>`",
+        "after": "renderMarkerDetailHistory({ kind: \"value-note\", editActions: `${markerDetailActionAttrs('edit-value-note', { id, date: actionDate })}`,\n            text: `${escapeHTML(valueNote)}`, deleteActions: `${markerDetailActionAttrs('delete-value-note', { id, date: actionDate })}`,\n          })"
+      },
+      {
+        "start": 28732,
+        "end": 28915,
+        "before": "`<div class=\"mv-value-note add-note\" role=\"button\" tabindex=\"0\" title=\"Add a note for this value\" ${markerDetailActionAttrs('edit-value-note', { id, date: actionDate })}>+ note</div>`",
+        "after": "renderMarkerDetailHistory({ kind: \"add-note\", actions: `${markerDetailActionAttrs('edit-value-note', { id, date: actionDate })}` })"
+      },
+      {
+        "start": 29087,
+        "end": 29207,
+        "before": "`<div class=\"mv-alt\" title=\"Same value, alternate unit\">\u2248 ${formatValue(altVal.value)} ${escapeHTML(altVal.unit)}</div>`",
+        "after": "renderMarkerDetailHistory({ kind: \"alternate-value\", value: `${formatValue(altVal.value)}`, unit: `${escapeHTML(altVal.unit)}` })"
+      },
+      {
+        "start": 29226,
+        "end": 29663,
+        "before": "`<div class=\"modal-value-card marker-history-row status-${s}\">${deleteBtn}\n      <div class=\"marker-history-date-row\"><div class=\"mv-date\">${dates[i]}${noteIcon}</div>${sourceHtml}</div>\n      <div class=\"marker-history-value-row\"><div class=\"mv-value val-${s}\"${editAction}>${formatValue(v)}${manualBadge}</div><div class=\"mv-status val-${s}\">${sl}</div></div>\n      ${altLine}${phaseInfo}${collectionContextHtml}${valueNoteHtml}</div>`",
+        "after": "renderMarkerDetailHistory({ kind: \"row\", status: `${s}`, deleteButton: `${deleteBtn}`, date: `${dates[i]}`, dateNote: `${noteIcon}`, source: `${sourceHtml}`,\n      valueStatus: `${s}`, editAttributes: `${editAction}`, value: `${formatValue(v)}`, manualBadge: `${manualBadge}`, badgeStatus: `${s}`,\n      statusLabel: `${sl}`, alternate: `${altLine}`, phase: `${phaseInfo}`, collection: `${collectionContextHtml}`,\n      valueNote: `${valueNoteHtml}`,\n    })"
+      },
+      {
+        "start": 30253,
+        "end": 30459,
+        "before": "`<button class=\"marker-history-show-more\" ${markerDetailActionAttrs('show-detail-modal', { id, showAllHistory: true, historyLimit: nextHistoryLimit, scrollToHistory: true })}>${historyButtonLabel}</button>`",
+        "after": "renderMarkerDetailHistory({ kind: \"more\",\n      actions: `${markerDetailActionAttrs('show-detail-modal', { id, showAllHistory: true, historyLimit: nextHistoryLimit, scrollToHistory: true })}`,\n      label: `${historyButtonLabel}`,\n    })"
+      },
+      {
+        "start": 30555,
+        "end": 30732,
+        "before": "`<button class=\"marker-history-show-more\" ${markerDetailActionAttrs('show-detail-modal', { id, scrollToHistory: true })}>Show last ${MARKER_HISTORY_DEFAULT_CAP} values</button>`",
+        "after": "renderMarkerDetailHistory({ kind: \"last-values\", actions: `${markerDetailActionAttrs('show-detail-modal', { id, scrollToHistory: true })}`,\n      count: `${MARKER_HISTORY_DEFAULT_CAP}`,\n    })"
+      },
+      {
+        "start": 31003,
+        "end": 31186,
+        "before": "`<div class=\"modal-ref-info\"><strong>Trend:</strong> ${dir} by ${Math.abs(ch).toFixed(2)} ${escapeHTML(marker.unit)} (${ch>0?\"+\":\"\"}${pct}%) from ${dates[f.i]} to ${dates[l.i]}</div>`",
+        "after": "renderMarkerDetailHistory({ kind: \"trend\", direction: `${dir}`, change: `${Math.abs(ch).toFixed(2)}`, unit: `${escapeHTML(marker.unit)}`, sign: `${ch>0?\"+\":\"\"}`,\n      percentage: `${pct}`, firstDate: `${dates[f.i]}`, lastDate: `${dates[l.i]}`,\n    })"
+      }
+    ]
+  }
+]

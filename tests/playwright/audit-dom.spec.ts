@@ -1,11 +1,12 @@
+import {waitForAsyncCondition} from '../helpers/awaited-condition.js';
 import { expect, test } from './coverage-fixture.js';
 
 test('audit runtime guards no-op on adversarial marker ids', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(async () => {
+  await waitForAsyncCondition(() => page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     return !!state;
-  });
+  }), 0);
 
   const results = await page.evaluate(async () => {
     const [{ state }, dataModule, viewsModule, navModule, categoryPageModule] = await Promise.all([

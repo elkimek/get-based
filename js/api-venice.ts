@@ -1,7 +1,7 @@
 // api-venice.js - Venice provider adapter, including E2EE mode.
 
 import { getErrorMessage, getErrorName } from './caught-error.js';
-import { readWithStallTimeout } from './api-transport.js';
+import { readWithStallTimeout, waitForAbort } from './api-transport.js';
 import {
   getVeniceE2EE,
   getVeniceKey,
@@ -107,8 +107,10 @@ function waitForVeniceAttestationRetry(delayMs: number, signal: AbortSignal | un
 async function createVeniceE2EESessionWithRetry(client: VeniceClient, modelId: string, signal: AbortSignal | undefined) {
   for (let attempt = 0; attempt <= VENICE_ATTESTATION_RETRY_DELAYS_MS.length; attempt++) {
     try {
-      return await client.createSession(modelId);
+      if (signal?.aborted) throw veniceRetryAbortError(signal);
+      return await waitForAbort(client.createSession(modelId), signal);
     } catch (error) {
+      if (signal?.aborted) throw veniceRetryAbortError(signal);
       const status = veniceAttestationStatus(error);
       if (!status) throw error;
       if (attempt === VENICE_ATTESTATION_RETRY_DELAYS_MS.length) {
@@ -213,6 +215,7 @@ export async function callVeniceAPI(opts: ProviderRequestOptions) {
   } catch (e) {
     throw new Error(`Venice E2EE setup failed: ${redactApiSecretText(getErrorMessage(e), [key])}`);
   }
+  if (opts.signal?.aborted) throw veniceRetryAbortError(opts.signal);
   apiWindow._veniceAttestation = session.attestation ?? apiWindow._veniceAttestation ?? null;
   document.querySelector('.chat-header-model')?.dispatchEvent(new CustomEvent('e2ee-attestation'));
 
@@ -264,7 +267,7 @@ export async function callVeniceAPI(opts: ProviderRequestOptions) {
       },
       body: JSON.stringify(body),
       signal
-    } as RequestInit, 2, true, requestTimeoutMs);
+    } as RequestInit, opts.requestRetries ?? 2, true, requestTimeoutMs);
   } catch (e) {
     throw new Error(`Cannot reach Venice API: ${redactApiSecretText(getErrorMessage(e), [key])}`);
   }

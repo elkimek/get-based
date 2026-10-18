@@ -1,0 +1,40 @@
+[
+  {
+    "id": "default",
+    "name": "Synthetic Profile",
+    "sex": "male",
+    "dob": "1987-11-22",
+    "createdAt": 1,
+    "location": {
+      "country": "",
+      "zip": ""
+    },
+    "tags": [],
+    "notes": "",
+    "status": "active",
+    "lastUpdated": 1,
+    "pinned": false,
+    "height": null,
+    "heightUnit": "cm",
+    "avatar": null
+  },
+  {
+    "id": "secondary",
+    "name": "Unrelated profile",
+    "sex": "male",
+    "dob": "1987-11-22",
+    "createdAt": 1,
+    "location": {
+      "country": "",
+      "zip": ""
+    },
+    "tags": [],
+    "notes": "",
+    "status": "active",
+    "lastUpdated": 1,
+    "pinned": false,
+    "height": null,
+    "heightUnit": "cm",
+    "avatar": null
+  }
+]

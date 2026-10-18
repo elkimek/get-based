@@ -1,16 +1,15 @@
-/* Settings modal and settings-owned controls */
-
-.settings-modal .settings-tab-panel {
+@import "tailwindcss" prefix(gb) source(none) reference;
+@utility settings-layout-modal-settings-tab-panel {
   min-width: 0;
   padding-top: 0;
   overflow-x: clip;
 }
-.settings-modal .settings-row {
+@utility settings-layout-modal-settings-row {
   display: flex;
   flex-direction: column;
   gap: 0;
 }
-.settings-modal .settings-row .settings-section {
+@utility settings-layout-modal-settings-row-settings-section {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(180px, auto);
   gap: 16px;
@@ -19,75 +18,75 @@
   padding: 14px 0;
   border-bottom: 1px solid var(--border);
 }
-.settings-modal .settings-row .settings-section > :only-child {
+@utility settings-layout-modal-settings-row-settings-section-only-child {
   grid-column: 1 / -1;
 }
-.settings-modal .settings-section {
+@utility settings-layout-modal-settings-section {
   margin-top: 14px;
 }
-.settings-modal .settings-label {
+@utility settings-layout-modal-settings-label {
   margin: 0;
   color: var(--text-primary);
   font-size: 14px;
 }
-.settings-modal .settings-group-title {
+@utility settings-layout-modal-settings-group-title {
   margin-top: 22px;
   border: 0;
   padding-bottom: 0;
   font-family: var(--font-mono);
   letter-spacing: 0.1em;
 }
-.settings-modal .local-ai-settings {
+@utility settings-layout-modal-local-ai-settings {
   background: var(--bg-card);
   border-color: var(--border);
 }
-.settings-modal .settings-links-row {
+@utility settings-layout-modal-settings-links-row {
   padding-top: 8px;
   border-top: 1px solid var(--border);
 }
-.settings-modal .settings-action-row {
+@utility settings-layout-modal-settings-action-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
 }
-.settings-modal .settings-action-row + .settings-action-row {
+@utility settings-layout-modal-settings-action-row-settings-action-row {
   margin-top: 14px;
 }
-.settings-modal .settings-copy {
+@utility settings-layout-modal-settings-copy {
   min-width: 0;
   flex: 1 1 auto;
 }
-.settings-modal .settings-copy-title {
+@utility settings-layout-modal-settings-copy-title {
   color: var(--text-primary);
   font-size: 13px;
   font-weight: 600;
   line-height: 1.35;
 }
-.settings-modal .settings-copy-desc {
+@utility settings-layout-modal-settings-copy-desc {
   margin-top: 2px;
   color: var(--text-muted);
   font-size: 11px;
   line-height: 1.45;
 }
-.settings-modal .settings-divider {
+@utility settings-layout-modal-settings-divider {
   margin-top: 18px;
   padding-top: 14px;
   border-top: 1px dashed var(--border);
 }
-.settings-modal .settings-token-head {
+@utility settings-layout-modal-settings-token-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 6px;
 }
-.settings-modal .settings-token-actions {
+@utility settings-layout-modal-settings-token-actions {
   display: flex;
   gap: 6px;
   flex-shrink: 0;
 }
-.settings-modal .settings-token-box {
+@utility settings-layout-modal-settings-token-box {
   min-height: 20px;
   padding: 10px 12px;
   border: 1px solid var(--border);
@@ -100,7 +99,7 @@
   word-break: break-all;
   user-select: none;
 }
-.settings-modal .settings-select {
+@utility settings-layout-modal-settings-select {
   min-width: 90px;
   padding: 6px 10px;
   border: 1px solid var(--border);
@@ -110,7 +109,7 @@
   font: inherit;
   font-size: 12px;
 }
-.settings-modal .settings-beta-badge {
+@utility settings-layout-modal-settings-beta-badge {
   display: inline-block;
   margin-left: 5px;
   padding: 2px 5px;
@@ -121,46 +120,44 @@
   font-size: 9px;
   letter-spacing: .06em;
 }
-.settings-modal .settings-mini-btn {
+@utility settings-layout-modal-settings-mini-btn {
   padding: 3px 10px;
   font-size: 11px;
   white-space: nowrap;
 }
-.settings-modal .settings-full-btn {
+@utility settings-layout-modal-settings-full-btn {
   width: 100%;
   margin-top: 12px;
   padding: 7px 14px;
   font-size: 12px;
   white-space: nowrap;
 }
-.settings-modal .api-key-input {
+@utility settings-layout-modal-api-key-input {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   min-height: 40px;
 }
-.settings-modal .api-key-input:focus {
+@utility settings-layout-modal-api-key-input-focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-fill);
 }
-.settings-modal select.api-key-input {
+@utility settings-layout-modal-select-api-key-input {
   appearance: auto;
   -webkit-appearance: menulist;
   cursor: pointer;
   padding-right: 12px;
   background-color: var(--select-surface);
 }
-.settings-modal select.api-key-input option {
+@utility settings-layout-modal-select-api-key-input-option {
   background: var(--select-popup-surface);
   color: var(--text-primary);
 }
-@supports (appearance: base-select) {
-  .settings-modal select.api-key-input,
-  .settings-modal select.api-key-input::picker(select) {
+@utility settings-layout-modal-select-api-key-input-settings-modal-select-api-ke {
     appearance: base-select;
   }
-  .settings-modal select.api-key-input::picker(select) {
+@utility settings-layout-modal-select-api-key-input-picker-select {
     max-height: min(360px, 60vh);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
@@ -168,139 +165,209 @@
     color: var(--text-primary);
     box-shadow: var(--shadow-lg);
   }
-  .settings-modal select.api-key-input::picker-icon {
+@utility settings-layout-modal-select-api-key-input-picker-icon {
     color: var(--text-muted);
   }
-  .settings-modal select.api-key-input option {
+@utility settings-layout-modal-select-api-key-input-option-2 {
     padding: 8px 12px;
   }
-}
-
-/* API key and provider settings */
-.api-key-input {
+@utility settings-layout-api-key-input {
   width: 100%; padding: 10px 12px; border-radius: 6px;
   border: 1px solid var(--border); background: var(--bg-primary);
   color: var(--text-primary); font-size: 13px; font-family: monospace;
   margin-top: 8px; color-scheme: dark;
 }
-[data-theme="light"] .api-key-input { color-scheme: light; }
-.api-key-input:focus { border-color: var(--accent); }
-.api-key-status { font-size: 13px; margin-bottom: 4px; }
-.api-key-notice {
+@utility settings-layout-data-theme-light-api-key-input { color-scheme: light; }
+@utility settings-layout-api-key-input-focus { border-color: var(--accent); }
+@utility settings-layout-api-key-status { font-size: 13px; margin-bottom: 4px; }
+@utility settings-layout-api-key-notice {
   font-size: 11px; color: var(--text-muted); margin-top: 12px;
   padding: 10px; background: var(--bg-card); border-radius: var(--radius-sm);
   border: 1px solid var(--border); line-height: 1.5;
 }
-.ai-provider-panel { margin-top: 12px; }
-.ai-provider-desc {
+@utility settings-layout-ai-provider-panel { margin-top: 12px; }
+@utility settings-layout-ai-provider-desc {
   font-size: 12px; color: var(--text-muted); line-height: 1.5; margin-bottom: 10px;
 }
-.ai-model-tip {
+@utility settings-layout-ai-model-tip {
   font-size: 12px; line-height: 1.5; color: var(--text-secondary);
   border-left: 3px solid var(--accent); padding: 8px 12px; margin-bottom: 12px;
   background: var(--bg-hover); border-radius: 0 4px 4px 0;
 }
-/* Local AI settings in Settings modal */
-.local-ai-settings { margin-top: 4px; }
-.local-ai-status {
+@utility settings-layout-local-ai-settings { margin-top: 4px; }
+@utility settings-layout-local-ai-status {
   display: flex; align-items: center; gap: 8px; font-size: 13px;
 }
-.local-ai-status-dot {
+@utility settings-layout-local-ai-status-dot {
   width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted);
   flex-shrink: 0;
 }
-.local-ai-status-dot.connected { background: var(--green); box-shadow: 0 0 6px rgba(34,197,94,0.5); }
-.local-ai-status-dot.disconnected { background: var(--red); }
-
-/* Settings sections */
-.settings-section { margin-top: 16px; }
-.settings-label { font-size: 13px; font-weight: 600; display: block; margin-bottom: 8px; color: var(--text-secondary); }
-.settings-group-title {
+@utility settings-layout-local-ai-status-dot-connected { background: var(--green); box-shadow: 0 0 6px rgba(34,197,94,0.5); }
+@utility settings-layout-local-ai-status-dot-disconnected { background: var(--red); }
+@utility settings-layout-section { margin-top: 16px; }
+@utility settings-layout-label { font-size: 13px; font-weight: 600; display: block; margin-bottom: 8px; color: var(--text-secondary); }
+@utility settings-layout-group-title {
   font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
   color: var(--text-muted); margin-top: 24px; padding-bottom: 6px;
   border-bottom: 1px solid var(--border);
 }
-
-/* Settings tabs */
-
-.settings-tab-panel { display: none; padding-top: 6px; }
-.settings-tab-panel.active {
+@utility settings-layout-tab-panel { display: none; padding-top: 6px; }
+@utility settings-layout-tab-panel-active {
   display: block;
   animation: settingsTabFadeIn 0.2s ease;
 }
-@keyframes settingsTabFadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.settings-tab-panel .settings-section:first-child { margin-top: 8px; }
-.settings-tab-panel .settings-group-title:first-child { margin-top: 12px; }
-.settings-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.settings-row .settings-section { margin-top: 8px; }
-.settings-links-row { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 8px; }
-.settings-link-btn {
+@utility settings-layout-tab-panel-settings-section-first-child { margin-top: 8px; }
+@utility settings-layout-tab-panel-settings-group-title-first-child { margin-top: 12px; }
+@utility settings-layout-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@utility settings-layout-row-settings-section { margin-top: 8px; }
+@utility settings-layout-links-row { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 8px; }
+@utility settings-layout-link-btn {
   background: none; border: none; color: var(--text-muted); font-size: 13px;
   font-family: inherit; cursor: pointer; padding: 4px 0; text-decoration: none;
   transition: color 0.15s;
 }
-.settings-link-btn:hover { color: var(--text-primary); text-decoration: underline; }
-
-/* Theme picker */
-.settings-theme-toggle { display: flex; align-items: center; gap: 4px; }
-.settings-theme-btn {
+@utility settings-layout-link-btn-hover { color: var(--text-primary); text-decoration: underline; }
+@utility settings-layout-theme-toggle { display: flex; align-items: center; gap: 4px; }
+@utility settings-layout-theme-btn {
   padding: 4px 12px; border-radius: 6px; border: 1px solid var(--border);
   background: transparent; color: var(--text-secondary); font-size: 12px;
   cursor: pointer; font-weight: 500; transition: all 0.15s; font-family: inherit;
 }
-.settings-theme-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
-.settings-theme-btn:hover:not(.active) { background: var(--bg-hover); }
-.settings-theme-swatch {
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
-  flex-shrink: 0;
-  border: 1px solid rgba(255,255,255,0.06);
-}
-.settings-theme-swatch-dark { background: linear-gradient(135deg, #222635 0%, #4f8cff 100%); }
-.settings-theme-swatch-light { background: linear-gradient(135deg, #f5f6fa 0%, #3b7cf5 100%); }
-.settings-theme-swatch-cyberterm { background: linear-gradient(135deg, #0b0d0b 0%, #4ade80 100%); border-radius: 0; }
-.settings-theme-swatch-glass { background: linear-gradient(135deg, #c986ff 0%, #6ec4ff 100%); border-radius: 12px; }
-.settings-theme-swatch-synth-sunrise { background: linear-gradient(135deg, #ff7a18 0%, #ff2bd6 50%, #7c3aed 100%); border-radius: 2px; }
-.settings-theme-swatch-neuromancer { background: linear-gradient(135deg, #00e5ff 0%, #ff2bd6 100%); border-radius: 0; }
-
-@media (max-width: 720px) {
-
-  .settings-modal .settings-row .settings-section {
+@utility settings-layout-theme-btn-active { background: var(--accent); color: white; border-color: var(--accent); }
+@utility settings-layout-theme-btn-hover-not-active { background: var(--bg-hover); }
+@utility settings-layout-modal-settings-row-settings-section-2 {
     grid-template-columns: 1fr;
     gap: 8px;
     padding: 12px 0;
   }
-  .settings-modal .settings-section {
+@utility settings-layout-modal-settings-section-2 {
     margin-top: 12px;
   }
-  .settings-modal .settings-group-title {
+@utility settings-layout-modal-settings-group-title-2 {
     margin-top: 18px;
   }
-  .settings-modal .settings-action-row {
+@utility settings-layout-modal-settings-action-row-2 {
     align-items: flex-start;
     gap: 12px;
   }
-  .settings-modal .settings-action-row > .toggle-switch {
+@utility settings-layout-modal-settings-action-row-toggle-switch {
     margin-top: 2px;
   }
-  .settings-modal .unit-toggle,
-  .settings-modal .range-toggle {
+@utility settings-layout-modal-unit-toggle-settings-modal-range-toggle {
     flex-wrap: wrap;
   }
-  .settings-modal .range-toggle {
+@utility settings-layout-modal-range-toggle {
     width: 100%;
   }
-  .settings-modal .range-toggle-btn {
+@utility settings-layout-modal-range-toggle-btn {
     flex: 1 1 0;
     min-width: 0;
   }
-  .import-reference-benchmark { align-items: stretch; flex-direction: column; }
-  .import-reference-benchmark-actions { flex-basis: auto; width: 100%; }
-  .import-reference-benchmark .import-btn { width: 100%; }
+@utility settings-layout-import-reference-benchmark { align-items: stretch; flex-direction: column; }
+@utility settings-layout-import-reference-benchmark-actions { flex-basis: auto; width: 100%; }
+@utility settings-layout-import-reference-benchmark-import-btn { width: 100%; }
+@utility settings-layout-row-2 { grid-template-columns: 1fr; }
+
+/* Settings modal and settings-owned controls */
+
+.settings-modal .settings-tab-panel { @apply gb:settings-layout-modal-settings-tab-panel; }
+.settings-modal .settings-row { @apply gb:settings-layout-modal-settings-row; }
+.settings-modal .settings-row .settings-section { @apply gb:settings-layout-modal-settings-row-settings-section; }
+.settings-modal .settings-row .settings-section > :only-child { @apply gb:settings-layout-modal-settings-row-settings-section-only-child; }
+.settings-modal .settings-section { @apply gb:settings-layout-modal-settings-section; }
+.settings-modal .settings-label { @apply gb:settings-layout-modal-settings-label; }
+.settings-modal .settings-group-title { @apply gb:settings-layout-modal-settings-group-title; }
+.settings-modal .local-ai-settings { @apply gb:settings-layout-modal-local-ai-settings; }
+.settings-modal .settings-links-row { @apply gb:settings-layout-modal-settings-links-row; }
+.settings-modal .settings-action-row { @apply gb:settings-layout-modal-settings-action-row; }
+.settings-modal .settings-action-row + .settings-action-row { @apply gb:settings-layout-modal-settings-action-row-settings-action-row; }
+.settings-modal .settings-copy { @apply gb:settings-layout-modal-settings-copy; }
+.settings-modal .settings-copy-title { @apply gb:settings-layout-modal-settings-copy-title; }
+.settings-modal .settings-copy-desc { @apply gb:settings-layout-modal-settings-copy-desc; }
+.settings-modal .settings-divider { @apply gb:settings-layout-modal-settings-divider; }
+.settings-modal .settings-token-head { @apply gb:settings-layout-modal-settings-token-head; }
+.settings-modal .settings-token-actions { @apply gb:settings-layout-modal-settings-token-actions; }
+.settings-modal .settings-token-box { @apply gb:settings-layout-modal-settings-token-box; }
+.settings-modal .settings-select { @apply gb:settings-layout-modal-settings-select; }
+.settings-modal .settings-beta-badge { @apply gb:settings-layout-modal-settings-beta-badge; }
+.settings-modal .settings-mini-btn { @apply gb:settings-layout-modal-settings-mini-btn; }
+.settings-modal .settings-full-btn { @apply gb:settings-layout-modal-settings-full-btn; }
+.settings-modal .api-key-input { @apply gb:settings-layout-modal-api-key-input; }
+.settings-modal .api-key-input:focus { @apply gb:settings-layout-modal-api-key-input-focus; }
+.settings-modal select.api-key-input { @apply gb:settings-layout-modal-select-api-key-input; }
+.settings-modal select.api-key-input option { @apply gb:settings-layout-modal-select-api-key-input-option; }
+@supports (appearance: base-select) {
+  .settings-modal select.api-key-input,
+  .settings-modal select.api-key-input::picker(select) { @apply gb:settings-layout-modal-select-api-key-input-settings-modal-select-api-ke; }
+  .settings-modal select.api-key-input::picker(select) { @apply gb:settings-layout-modal-select-api-key-input-picker-select; }
+  .settings-modal select.api-key-input::picker-icon { @apply gb:settings-layout-modal-select-api-key-input-picker-icon; }
+  .settings-modal select.api-key-input option { @apply gb:settings-layout-modal-select-api-key-input-option-2; }
+}
+
+/* API key and provider settings */
+.api-key-input { @apply gb:settings-layout-api-key-input; }
+[data-theme="light"] .api-key-input { @apply gb:settings-layout-data-theme-light-api-key-input; }
+.api-key-input:focus { @apply gb:settings-layout-api-key-input-focus; }
+.api-key-status { @apply gb:settings-layout-api-key-status; }
+.api-key-notice { @apply gb:settings-layout-api-key-notice; }
+.ai-provider-panel { @apply gb:settings-layout-ai-provider-panel; }
+.ai-provider-desc { @apply gb:settings-layout-ai-provider-desc; }
+.ai-model-tip { @apply gb:settings-layout-ai-model-tip; }
+/* Local AI settings in Settings modal */
+.local-ai-settings { @apply gb:settings-layout-local-ai-settings; }
+.local-ai-status { @apply gb:settings-layout-local-ai-status; }
+.local-ai-status-dot { @apply gb:settings-layout-local-ai-status-dot; }
+.local-ai-status-dot.connected { @apply gb:settings-layout-local-ai-status-dot-connected; }
+.local-ai-status-dot.disconnected { @apply gb:settings-layout-local-ai-status-dot-disconnected; }
+
+/* Settings sections */
+.settings-section { @apply gb:settings-layout-section; }
+.settings-label { @apply gb:settings-layout-label; }
+.settings-group-title { @apply gb:settings-layout-group-title; }
+
+/* Settings tabs */
+
+.settings-tab-panel { @apply gb:settings-layout-tab-panel; }
+.settings-tab-panel.active { @apply gb:settings-layout-tab-panel-active; }
+@keyframes settingsTabFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.settings-tab-panel .settings-section:first-child { @apply gb:settings-layout-tab-panel-settings-section-first-child; }
+.settings-tab-panel .settings-group-title:first-child { @apply gb:settings-layout-tab-panel-settings-group-title-first-child; }
+.settings-row { @apply gb:settings-layout-row; }
+.settings-row .settings-section { @apply gb:settings-layout-row-settings-section; }
+.settings-links-row { @apply gb:settings-layout-links-row; }
+.settings-link-btn { @apply gb:settings-layout-link-btn; }
+.settings-link-btn:hover { @apply gb:settings-layout-link-btn-hover; }
+
+/* Theme picker */
+.settings-theme-toggle { @apply gb:settings-layout-theme-toggle; }
+.settings-theme-btn { @apply gb:settings-layout-theme-btn; }
+.settings-theme-btn.active { @apply gb:settings-layout-theme-btn-active; }
+.settings-theme-btn:hover:not(.active) { @apply gb:settings-layout-theme-btn-hover-not-active; }
+
+
+
+
+
+
+
+
+@media (max-width: 720px) {
+
+  .settings-modal .settings-row .settings-section { @apply gb:settings-layout-modal-settings-row-settings-section-2; }
+  .settings-modal .settings-section { @apply gb:settings-layout-modal-settings-section-2; }
+  .settings-modal .settings-group-title { @apply gb:settings-layout-modal-settings-group-title-2; }
+  .settings-modal .settings-action-row { @apply gb:settings-layout-modal-settings-action-row-2; }
+  .settings-modal .settings-action-row > .toggle-switch { @apply gb:settings-layout-modal-settings-action-row-toggle-switch; }
+  .settings-modal .unit-toggle,
+  .settings-modal .range-toggle { @apply gb:settings-layout-modal-unit-toggle-settings-modal-range-toggle; }
+  .settings-modal .range-toggle { @apply gb:settings-layout-modal-range-toggle; }
+  .settings-modal .range-toggle-btn { @apply gb:settings-layout-modal-range-toggle-btn; }
+  .import-reference-benchmark { @apply gb:settings-layout-import-reference-benchmark; }
+  .import-reference-benchmark-actions { @apply gb:settings-layout-import-reference-benchmark-actions; }
+  .import-reference-benchmark .import-btn { @apply gb:settings-layout-import-reference-benchmark-import-btn; }
 }
 
 @media (max-width: 600px) {
@@ -309,5 +376,5 @@
 
 @media (max-width: 500px) {
 
-  .settings-row { grid-template-columns: 1fr; }
+  .settings-row { @apply gb:settings-layout-row-2; }
 }

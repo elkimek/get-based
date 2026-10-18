@@ -1,3 +1,4 @@
+import {projectWearableTagChips, projectWearableNoteField, renderWearableManualLog} from './wearables-entry-presentation.js';
 import { configureRuntimeFunctions } from './runtime-callbacks.js';
 // Manual-entry form and mutation owner for the wearable detail modal.
 
@@ -15,8 +16,6 @@ import {
 } from './wearables-manual.js';
 import {
   _collectActiveChips,
-  _renderNoteField,
-  _renderTagChips,
   inputValueById,
   inputValueFromElement,
 } from './wearables-manual-form-ui.js';
@@ -52,36 +51,33 @@ export function openManualAddFromDetail(metricId: string, event?: unknown) {
   if (!kind) return;
   if (kind === 'weight') {
     const weightUnit = state.unitSystem === 'US' ? 'lb' : 'kg';
-    slot.innerHTML = `<form class="wearable-manual-add-form" ${formAttrs(metricId, kind)}>
-      <input type="number" step="0.1" inputmode="decimal" class="wearable-log-input" id="wlad-val" placeholder="${weightUnit}" aria-label="Weight in ${weightUnit === 'lb' ? 'pounds' : 'kilograms'}" autofocus>
-      ${_renderNoteField('wlad-note')}
-      <input type="date" class="wearable-log-date" id="wlad-date" value="${today}">
-      <button type="submit" class="wearable-log-save">Save</button>
-      <button type="button" class="wearable-log-cancel" ${actionAttrs('close-detail-manual-add')}>✕</button>
-    </form>`;
+    slot.innerHTML = renderWearableManualLog({
+      mode: 'detail-weight',
+      today,
+      form: () => formAttrs(metricId, kind),
+      placeholder: () => weightUnit,
+      label: () => weightUnit === 'lb' ? 'pounds' : 'kilograms',
+      note: () => projectWearableNoteField('wlad-note'),
+      cancel: () => actionAttrs('close-detail-manual-add'),
+    });
   } else if (kind === 'rhr') {
-    slot.innerHTML = `<form class="wearable-manual-add-form" ${formAttrs(metricId, kind)}>
-      <input type="number" inputmode="numeric" class="wearable-log-input" id="wlad-val" placeholder="bpm" autofocus>
-      ${_renderTagChips('rhr')}
-      ${_renderNoteField('wlad-note')}
-      <input type="date" class="wearable-log-date" id="wlad-date" value="${today}">
-      <button type="submit" class="wearable-log-save">Save</button>
-      <button type="button" class="wearable-log-cancel" ${actionAttrs('close-detail-manual-add')}>✕</button>
-    </form>`;
+    slot.innerHTML = renderWearableManualLog({
+      mode: 'detail-rhr',
+      today,
+      form: () => formAttrs(metricId, kind),
+      tags: () => projectWearableTagChips('rhr'),
+      note: () => projectWearableNoteField('wlad-note'),
+      cancel: () => actionAttrs('close-detail-manual-add'),
+    });
   } else if (kind === 'bp') {
-    slot.innerHTML = `<form class="wearable-manual-add-form wearable-manual-add-form-bp" ${formAttrs(metricId, kind)}>
-      <span class="wearable-log-bp-row">
-        <input type="number" inputmode="numeric" class="wearable-log-input wearable-log-bp" id="wlad-sys" placeholder="sys" autofocus>
-        <span class="wearable-log-sep">/</span>
-        <input type="number" inputmode="numeric" class="wearable-log-input wearable-log-bp" id="wlad-dia" placeholder="dia">
-      </span>
-      <input type="number" inputmode="numeric" class="wearable-log-input wearable-log-pulse-optional" id="wlad-pulse" placeholder="pulse (optional)">
-      ${_renderTagChips('bp_systolic')}
-      ${_renderNoteField('wlad-note')}
-      <input type="date" class="wearable-log-date" id="wlad-date" value="${today}">
-      <button type="submit" class="wearable-log-save">Save</button>
-      <button type="button" class="wearable-log-cancel" ${actionAttrs('close-detail-manual-add')}>✕</button>
-    </form>`;
+    slot.innerHTML = renderWearableManualLog({
+      mode: 'detail-bp',
+      today,
+      form: () => formAttrs(metricId, kind),
+      tags: () => projectWearableTagChips('bp_systolic'),
+      note: () => projectWearableNoteField('wlad-note'),
+      cancel: () => actionAttrs('close-detail-manual-add'),
+    });
   }
   const firstNumberInput = slot.querySelector('input[type="number"]');
   if (firstNumberInput instanceof HTMLElement) firstNumberInput.focus();

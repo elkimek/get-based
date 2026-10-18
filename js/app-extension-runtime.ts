@@ -1,6 +1,10 @@
 // Neutral boundary for a single trusted build-time extension.
 
 export type ExtensionContext = Record<string, unknown>;
+declare const appExtensionHTML: unique symbol;
+/** HTML from the configured trusted build-time edition adapter, not sanitized user content. */
+export type AppExtensionHTML = string & {readonly [appExtensionHTML]: true};
+const EMPTY_EXTENSION_HTML = '' as AppExtensionHTML;
 type MaybePromise<T> = T | Promise<T>;
 type ContextHook<T> = (context: ExtensionContext) => T;
 type Notification = ContextHook<unknown>;
@@ -110,14 +114,14 @@ function activeExtension() {
   return isAppExtensionAvailable() ? configuredExtension : null;
 }
 
-function renderExtensionSlot(surface: 'settings' | 'onboarding', slot: string, context: ExtensionContext) {
+function renderExtensionSlot(surface: 'settings' | 'onboarding', slot: string, context: ExtensionContext): AppExtensionHTML {
   const render = activeExtension()?.[surface]?.renderSlot;
-  if (typeof render !== 'function') return '';
+  if (typeof render !== 'function') return EMPTY_EXTENSION_HTML;
   try {
-    return String(render(slot, context) || '');
+    return String(render(slot, context) || '') as AppExtensionHTML;
   } catch (error) {
     console.warn(`[extension] ${surface} slot ${slot} failed`, error);
-    return '';
+    return EMPTY_EXTENSION_HTML;
   }
 }
 

@@ -49,3 +49,5 @@ export {
   renderSetupCard,
   reopenSunSetup,
 } from './sun-defaults-setup-ui.js';
+
+export{getSunSetupCardView}from'./sun-defaults-setup-renderer.js';

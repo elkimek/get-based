@@ -1,7 +1,13 @@
+@import "tailwindcss" prefix(gb) source(none) reference;
+@utility feature-native-nutrition-nutrition-modal-001 { width: min(1040px, 96vw); max-width: 1040px; scrollbar-gutter: stable; -webkit-overflow-scrolling: touch; }
+@utility feature-native-nutrition-nutrition-modal-nutrition-benchmark-modal-002 { width: min(1440px, 98vw); max-width: 1440px; max-height: 94dvh; }
+@utility feature-native-nutrition-nutrition-modal-nutrition-modal-nutrition-targets-modal-nutrition-moda-003 { width: 100%; max-width: 100%; max-height: calc(100dvh - 24px); padding: 20px; scrollbar-gutter: auto; }
+@utility feature-native-nutrition-nutrition-modal-modal-close-004 { min-width: 44px; min-height: 44px; display: grid; place-items: center; padding: 0; }
+
 /* Shared modal-host sizing; feature presentation is authored in Svelte/Tailwind. */
-.nutrition-modal { width: min(1040px, 96vw); max-width: 1040px; scrollbar-gutter: stable; -webkit-overflow-scrolling: touch; }
-.nutrition-modal.nutrition-benchmark-modal { width: min(1440px, 98vw); max-width: 1440px; max-height: 94dvh; }
+.nutrition-modal { @apply gb:feature-native-nutrition-nutrition-modal-001; }
+.nutrition-modal.nutrition-benchmark-modal { @apply gb:feature-native-nutrition-nutrition-modal-nutrition-benchmark-modal-002; }
 @media (max-width: 720px) {
-  .nutrition-modal, .nutrition-modal.nutrition-targets-modal, .nutrition-modal.nutrition-fluid-modal, .nutrition-modal.nutrition-benchmark-modal { width: 100%; max-width: 100%; max-height: calc(100dvh - 24px); padding: 20px; scrollbar-gutter: auto; }
-  .nutrition-modal > .modal-close { min-width: 44px; min-height: 44px; display: grid; place-items: center; padding: 0; }
+  .nutrition-modal, .nutrition-modal.nutrition-targets-modal, .nutrition-modal.nutrition-fluid-modal, .nutrition-modal.nutrition-benchmark-modal { @apply gb:feature-native-nutrition-nutrition-modal-nutrition-modal-nutrition-targets-modal-nutrition-moda-003; }
+  .nutrition-modal > .modal-close { @apply gb:feature-native-nutrition-nutrition-modal-modal-close-004; }
 }

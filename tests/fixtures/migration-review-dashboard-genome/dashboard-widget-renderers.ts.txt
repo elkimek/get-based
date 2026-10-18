@@ -1,0 +1,550 @@
+import {renderDashboardGenomeRows, type DashboardGenomeView, type GenomeEvidenceView, type GenomeRowView, type GenomeGroupView} from './dashboard-genome-rows-presentation.js';
+// dashboard-widget-renderers.js - dashboard widget body renderers
+
+import { renderHTML as renderLightReview } from './components/LightReviewAI.svelte.html.js';
+import {renderDashboardMtdnaPanelPresentation,renderDashboardGenomeLoading} from './dashboard-mtdna-panel-presentation.js';
+import { state } from './state.js';
+import { DEFAULT_METRIC_ORDER, canonicalMetric, metricsForSources } from './wearable-adapters.js';
+import { dashboardWidgetActionAttrs } from './dashboard-widget-controls.js';
+import {
+  getDashboardDeviceSessions,
+  getDashboardHaplogroupTableCache,
+  getDashboardLightSessions,
+  getDashboardSnpTableCache,
+} from './dashboard-widget-runtime.js';
+import { dashboardBiometricSelectionKey, DASHBOARD_MANUAL_BIOMETRIC_METRICS } from './dashboard-widgets.js';
+import { createDashboardLabWidgetRenderers } from './dashboard-lab-widget-renderers.js';
+import { createDashboardRecommendationWidget } from './dashboard-recommendation-widget.js';
+import { detectMtDNAMismatch, ensureHaplogroupTable, ensureSNPTable, findGenotypeInfo, getSnpCategoryLabel, loadDnaModule } from './health-data-loader.js';
+import { getDnaModuleFunction } from './dna-runtime-bridge.js';
+import { escapeAttr, escapeHTML, safeMarkerId } from './utils.js';
+import { renderBiologyScoresWidget, renderDashboardBiologyScoreWidget, renderDashboardBiologicalCoherenceWidget } from './biology-scores.js';
+import { wearableDisplayUnit } from './wearables-formatters.js';
+
+import type {WidgetRendererDependencies, BiometricTile, GenomeStored, GenomeProfile, GenomeEvidence, GenomeFinding, GenomeGroup, GenomeGenetics, GenomeHaplogroupTable, MtdnaReader, WearableConnectionReader} from '../types/dashboard-widget-renderers.js';
+
+const DASHBOARD_BIOMETRIC_STALE_MS = 12 * 60 * 60 * 1000;
+
+function dashboardMarkerDetailAttrs(id: unknown) {
+  return dashboardWidgetActionAttrs('open-marker-detail', { id });
+}
+
+export function createDashboardWidgetRenderers(deps: unknown) {
+  let _dashboardGenomeDataLoadPromise: Promise<void> | null = null;
+  let _dashboardGenomeEvidence: GenomeEvidence | null = null;
+  let _lightSunModulesLoadPromise: unknown = null;
+
+  const {
+    markerHasData,
+    renderDashboardLightChannelsWidget: renderDashboardLightChannelsWidgetBody,
+    renderLightConditionsWidgetBody,
+    renderLightLiveSession = () => '',
+    renderLightSessionLogActions,
+    getMobileDashboardMarkers,
+    getMobileDashboardInsights,
+    getMobileWearableTiles,
+    formatMobileWearableValue,
+    formatMobileWearableDelta,
+    getMobileWearablePriority = () => [],
+    isLightSunUILoaded = () => true,
+    loadLightSunUI = async () => {},
+    rerenderDashboardFromWidgetChange,
+    renderLightTodayHero = () => '',
+    showRecommendations,
+  } = deps as WidgetRendererDependencies;
+
+  function renderLightSunLoadingState() {
+    if (!_lightSunModulesLoadPromise) {
+      _lightSunModulesLoadPromise = loadLightSunUI()
+        .then(() => rerenderDashboardFromWidgetChange())
+        .catch(err => console.error('Failed to load Light & Sun dashboard modules', err))
+        .finally(() => { _lightSunModulesLoadPromise = null; });
+    }
+    return `<div class="dashboard-widget-empty" aria-busy="true" aria-live="polite">
+      Loading Light &amp; Sun…
+    </div>`;
+  }
+
+  function lightSunModulesReady() {
+    return isLightSunUILoaded() || false;
+  }
+
+  const labRenderers = createDashboardLabWidgetRenderers({
+    markerHasData,
+    rerenderDashboardFromWidgetChange,
+  });
+  const {
+    buildDashboardWidgetContext,
+    getDashboardMarkerById,
+    renderDashboardBioAgeWidget,
+    renderDashboardQuickMarkersWidget,
+    renderDashboardSingleMarkerWidget,
+    renderDashboardSpotlightWidget,
+    renderLabsPriorityBanner,
+    renderDashboardCorrelationWidget,
+    renderDashboardKeyTrendsWidget,
+    renderDashboardAlertsWidget,
+    renderDashboardNotesWidget,
+    isDashboardQuickMarkerPinned,
+    toggleDashboardQuickMarkerPin,
+  } = labRenderers;
+
+  const recommendationWidget = createDashboardRecommendationWidget({
+    markerHasData,
+    buildDashboardWidgetContext,
+    showRecommendations,
+  });
+  const {
+    getCachedRecommendationsCatalog,
+    refreshRecommendationsWhenCatalogReady,
+    getGlobalRecommendationCandidates,
+    renderRecommendationCard,
+    renderRecommendationList,
+    renderRecommendationsEmpty,
+    renderDashboardRecommendationsWidget,
+    setRecommendationState,
+  } = recommendationWidget;
+
+  function renderDashboardLightTodayWidget() {
+    if (!lightSunModulesReady()) return renderLightSunLoadingState();
+    const hero = renderLightTodayHero();
+    const heroHtml = hero || renderLightReview({ view: { kind: 'dashboard-fallback' } });
+    return heroHtml;
+  }
+
+  function renderDashboardLightConditionsWidget() {
+    if (!lightSunModulesReady()) return renderLightSunLoadingState();
+    return renderLightConditionsWidgetBody({ variant: 'full', slotId: 'cond-now-dashboard-widget' });
+  }
+
+  function renderDashboardLightSessionLogWidget() {
+    if (!lightSunModulesReady()) return renderLightSunLoadingState();
+    return renderLightSessionLogActions();
+  }
+
+  function renderDashboardLightLiveSessionWidget() {
+    if (!lightSunModulesReady()) return renderLightSunLoadingState();
+    return renderLightLiveSession({ includeEmptyState: true });
+  }
+
+  function renderDashboardLightChannelsWidget() {
+    if (!lightSunModulesReady()) return renderLightSunLoadingState();
+    const sessions = getDashboardLightSessions();
+    const deviceSessionsAll = getDashboardDeviceSessions();
+    const totalSessions = sessions.length + deviceSessionsAll.length;
+    return renderDashboardLightChannelsWidgetBody(totalSessions);
+  }
+
+  function renderDashboardInsightsListWidget(ctx: unknown) {
+    const markers = getMobileDashboardMarkers(ctx);
+    const insights = getMobileDashboardInsights(ctx, markers);
+    if (!insights.length) return '';
+    return `<div class="db-insights-list">${insights.map(insight => {
+      const open = insight.id && safeMarkerId(insight.id) ? ` ${dashboardMarkerDetailAttrs(insight.id)}` : '';
+      return `<button type="button" class="db-insight db-insight-${escapeAttr(insight.tone)}"${open}>
+        <span class="db-insight-tag">${escapeHTML(insight.eyebrow)}</span>
+        <strong>${escapeHTML(insight.title)}</strong>
+        <span>${escapeHTML(insight.body)}</span>
+      </button>`;
+    }).join('')}</div>`;
+  }
+
+  function isDashboardManualBiometricMetric(metricId: unknown) {
+    return (DASHBOARD_MANUAL_BIOMETRIC_METRICS as readonly unknown[]).includes(metricId);
+  }
+
+  function getDashboardBiometricMetricOrder() {
+    const summary = state.importedData?.wearableSummary as import("../types/mobile-dashboard.js").MobileWearableReader | null | undefined;
+    const sourceIds = Object.keys(summary?.sources || {});
+    const registryOrder = metricsForSources(sourceIds);
+    const ordered = [
+      ...getMobileWearablePriority(),
+      ...registryOrder,
+      ...DEFAULT_METRIC_ORDER,
+      ...Object.keys(summary?.metrics || {}),
+      ...DASHBOARD_MANUAL_BIOMETRIC_METRICS,
+    ];
+    const seen = new Set<unknown>();
+    return ordered.filter(metricId => {
+      if (!safeMarkerId(metricId) || seen.has(metricId)) return false;
+      seen.add(metricId);
+      return !!(canonicalMetric as (id:unknown)=>ReturnType<typeof canonicalMetric>)(metricId);
+    });
+  }
+
+  function getDashboardDefaultBiometricSelection() {
+    const defaults = getMobileWearableTiles().map(tile => tile.id);
+    if (defaults.length) return defaults;
+    return DASHBOARD_MANUAL_BIOMETRIC_METRICS.filter(metricId => !!(canonicalMetric as (id:unknown)=>ReturnType<typeof canonicalMetric>)(metricId));
+  }
+
+  function normalizeDashboardBiometricSelection(ids: unknown) {
+    const out: string[] = [];
+    const seen = new Set<unknown>();
+    for (const metricId of Array.isArray(ids) ? ids as unknown[] : []) {
+      if (!safeMarkerId(metricId) || seen.has(metricId) || !(canonicalMetric as (id:unknown)=>ReturnType<typeof canonicalMetric>)(metricId)) continue;
+      if (metricId === 'bp_diastolic' && seen.has('bp_systolic')) continue;
+      out.push(metricId as string);
+      seen.add(metricId);
+    }
+    return out;
+  }
+
+  function getDashboardBiometricSelection() {
+    try {
+      const raw = localStorage.getItem(dashboardBiometricSelectionKey());
+      if (raw != null) return normalizeDashboardBiometricSelection(JSON.parse(raw) as unknown);
+    } catch {}
+    return normalizeDashboardBiometricSelection(getDashboardDefaultBiometricSelection());
+  }
+
+  function saveDashboardBiometricSelection(ids: unknown) {
+    localStorage.setItem(dashboardBiometricSelectionKey(), JSON.stringify(normalizeDashboardBiometricSelection(ids)));
+  }
+
+  function formatDashboardRelativeTime(ts: unknown) {
+    const n = Number(ts);
+    if (!Number.isFinite(n) || n <= 0) return 'never';
+    const diff = Math.max(0, Date.now() - n);
+    const min = Math.round(diff / 60000);
+    if (min < 1) return 'just now';
+    if (min < 60) return `${min}m ago`;
+    const hr = Math.round(min / 60);
+    if (hr < 48) return `${hr}h ago`;
+    const days = Math.round(hr / 24);
+    return `${days}d ago`;
+  }
+
+  function getDashboardBiometricSyncState() {
+    const connections = (state.importedData?.wearableConnections || {}) as Record<string,WearableConnectionReader>;
+    const sources = Object.values(connections).filter(conn => conn?.connectedAt && conn?.accessToken && !conn.needsReauth);
+    if (!sources.length) return { showSync: false, lastSyncAt: 0 };
+    const now = Date.now();
+    const lastSyncAt = Math.max(0, ...sources.map(conn => Number(conn.lastSyncAt) || 0));
+    const staleCount = sources.filter(conn => now - (Number(conn.lastSyncAt) || 0) >= DASHBOARD_BIOMETRIC_STALE_MS).length;
+    return { showSync: staleCount > 0, staleCount, lastSyncAt };
+  }
+
+  function renderDashboardBiometricSyncStatus() {
+    const syncState = getDashboardBiometricSyncState();
+    if (!syncState.lastSyncAt && !syncState.showSync) return '';
+    const label = syncState.lastSyncAt ? `Updated ${formatDashboardRelativeTime(syncState.lastSyncAt)}` : 'Not synced yet';
+    return `<span class="db-biometric-sync-status${syncState.showSync ? ' is-stale' : ''}">${escapeHTML(label)}</span>
+      ${syncState.showSync ? `<button type="button" class="dashboard-action-btn db-biometric-sync-btn" ${dashboardWidgetActionAttrs('sync-biometric-now')}>Sync stale data</button>` : ''}`;
+  }
+
+  function getDashboardBiometricTile(metricId: unknown, { allowEmptyManual = false }: {allowEmptyManual?:unknown} = {}): BiometricTile | null {
+    const summary = state.importedData?.wearableSummary as import("../types/mobile-dashboard.js").MobileWearableReader | null | undefined;
+    const metric = summary?.metrics?.[metricId as string];
+    const canon = (canonicalMetric as (id:unknown)=>ReturnType<typeof canonicalMetric>)(metricId);
+    if (!canon) return null;
+    if (!summary || !metric || metric.latest == null) {
+      if (!allowEmptyManual || !isDashboardManualBiometricMetric(metricId)) return null;
+      return {
+        id: metricId,
+        label: metricId === 'bp_systolic' ? 'Blood pressure' : canon.label,
+        value: '\u2014',
+        unit: metricId === 'bp_systolic'
+          ? 'mmHg'
+          : ((wearableDisplayUnit as (id:unknown,unit:unknown,system:unknown)=>unknown)(metricId, canon.unit || '', state.unitSystem) || canon.sub || ''),
+        change: '+ Log',
+        empty: true,
+      };
+    }
+    return {
+      id: metricId,
+      label: metricId === 'bp_systolic' && summary?.metrics?.bp_diastolic ? 'Blood pressure' : canon.label,
+      value: formatMobileWearableValue(metricId, metric, summary),
+      unit: metricId === 'bp_systolic'
+        ? 'mmHg'
+        : ((wearableDisplayUnit as (id:unknown,unit:unknown,system:unknown)=>unknown)(metricId, canon.unit || '', state.unitSystem) || canon.sub || ''),
+      change: formatMobileWearableDelta(metricId, metric, canon) || 'latest',
+      empty: false,
+    };
+  }
+
+  function renderDashboardBiometricTile(tile: BiometricTile & {label:string;value:string;unit:string}) {
+    const remove = `<button type="button" class="db-biometric-remove" ${dashboardWidgetActionAttrs('remove-biometric-metric', { id: tile.id })} aria-label="Remove ${escapeAttr(tile.label)} from Biometrics Overview" title="Remove metric">&times;</button>`;
+    if (tile.empty) {
+      return `<div class="db-biometric-tile-wrap">
+        <div class="wearable-card wearable-card-empty db-biometric-manual-empty" data-empty-metric="${escapeAttr(tile.id)}" ${dashboardWidgetActionAttrs('open-biometric-manual-log', { id: tile.id })} role="button" tabindex="0" aria-label="Log ${escapeAttr(tile.label.toLowerCase())} manually">
+          <div class="wearable-card-top"><span class="wearable-metric-name">${escapeHTML(tile.label)}</span></div>
+          <div class="wearable-value-row wearable-value-row-empty"><span class="wearable-value wearable-value-dash">-</span></div>
+          <div class="wearable-card-bottom"><div class="wearable-empty-cta">+ Log</div></div>
+        </div>
+        ${remove}
+      </div>`;
+    }
+    return `<div class="db-biometric-tile-wrap">
+      <button type="button" class="db-wearable-tile db-biometric-widget" ${dashboardWidgetActionAttrs('open-biometric-detail', { id: tile.id })} aria-label="${escapeAttr(tile.label + ': ' + tile.value + ' ' + tile.unit)}">
+        <span class="db-wearable-label">${escapeHTML(tile.label)}</span>
+        <strong>${escapeHTML(tile.value)}</strong>
+        <span class="db-wearable-foot"><small>${escapeHTML(tile.unit || '')}</small><em>${escapeHTML(tile.change || 'latest')}</em></span>
+      </button>
+      ${remove}
+    </div>`;
+  }
+
+  function renderDashboardWearableTilesWidget() {
+    const selected = getDashboardBiometricSelection();
+    const tiles = selected
+      .map(metricId => getDashboardBiometricTile(metricId, { allowEmptyManual: true }))
+      .filter(Boolean) as Array<BiometricTile & {label:string;value:string;unit:string}>;
+    const syncStatus = renderDashboardBiometricSyncStatus();
+    const toolbar = `<div class="db-biometric-overview-bar">
+      <span>${escapeHTML(String(tiles.length))} metric${tiles.length === 1 ? '' : 's'} selected</span>
+      <div class="db-biometric-overview-actions">
+        ${syncStatus}
+        <button type="button" class="dashboard-action-btn" ${dashboardWidgetActionAttrs('open-biometric-picker')}>Add metrics</button>
+      </div>
+    </div>`;
+    if (!tiles.length) {
+      return `${toolbar}<div class="dashboard-widget-empty">No biometrics selected.</div>`;
+    }
+    return `${toolbar}<div class="db-wearable-grid db-biometric-overview-grid">${tiles.map(renderDashboardBiometricTile).join('')}</div>`;
+  }
+
+  function getDashboardGenomeEvidence() {
+    const helpers = {
+      dnaStudyReferenceLabel: getDnaModuleFunction('dnaStudyReferenceLabel'),
+      mtdnaEvidenceIssueUrl: getDnaModuleFunction('mtdnaEvidenceIssueUrl'),
+      newSnpSuggestionIssueUrl: getDnaModuleFunction('newSnpSuggestionIssueUrl'),
+      resolveSnpEvidenceProfile: getDnaModuleFunction('resolveSnpEvidenceProfile'),
+      snpEvidenceIssueUrl: getDnaModuleFunction('snpEvidenceIssueUrl'),
+      snpFindingPresentation: getDnaModuleFunction('snpFindingPresentation'),
+      snpFindingRank: getDnaModuleFunction('snpFindingRank'),
+    };
+    return Object.values(helpers).every(helper => typeof helper === 'function') ? helpers as unknown as GenomeEvidence : null;
+  }
+
+  function getDashboardGenomeImpact(stored: GenomeStored, entry: GenomeStored | null | undefined) {
+    const evidence = _dashboardGenomeEvidence;
+    if (!evidence) return { label: 'pending', tone: 'pending', rank: 999, note: stored?.note || '', evidenceProfile: null };
+    const info = entry ? (findGenotypeInfo as (entry:unknown,genotype:unknown)=>GenomeStored|null)(entry, stored?.genotype) : null;
+    const effect = info?.effect || stored?.effect || '';
+    const valence = info?.valence || stored?.valence || 'risk';
+    const note = info?.note || stored?.note || '';
+    const presentation = evidence.snpFindingPresentation(effect, valence);
+    const evidenceProfile = evidence.resolveSnpEvidenceProfile(entry || stored, info || stored);
+    return {
+      label: presentation.shortLabel,
+      tone: presentation.tone,
+      rank: evidence.snpFindingRank(evidenceProfile, presentation),
+      note,
+      presentation,
+      evidenceProfile,
+    };
+  }
+
+  const DASHBOARD_VISIBLE_SNP_TONES = new Set<unknown>(['risk', 'protective', 'trait']);
+
+  function dashboardSnpAssessmentText(profile: GenomeProfile) {
+    const evidence = profile.evidenceShortLabel === 'Not graded'
+      ? 'Evidence not graded'
+      : `${profile.evidenceShortLabel} evidence`;
+    return `${evidence} · ${profile.relevanceShortLabel}`;
+  }
+
+  function projectDashboardSnpEvidence(f: GenomeFinding):GenomeEvidenceView|null {
+    const evidence = _dashboardGenomeEvidence;
+    if (!evidence) return null;
+    const references = Array.isArray(f.references)
+      ? (f.references as unknown[]).filter(reference => /^https?:\/\//i.test(String(reference || '')))
+      : [];
+    const issueUrl = evidence.snpEvidenceIssueUrl(f.rsid, f.catalogEntry || {});
+    const profile = f.evidenceProfile || evidence.resolveSnpEvidenceProfile(f.catalogEntry || {}, f);
+    const rsid=escapeAttr(f.rsid);
+    const assessment=escapeHTML(dashboardSnpAssessmentText(profile));
+    let interpretation:GenomeEvidenceView['interpretation']=null;
+    if(profile.scope||profile.context)interpretation={
+      scope:profile.scope?escapeHTML(profile.scope):null,
+      context:profile.context?escapeHTML(profile.context):null,
+    };
+    const sources=references.map(reference=>({href:escapeAttr(String(reference)),
+      label:escapeHTML(evidence.dnaStudyReferenceLabel(String(reference)).replace(/^PubMed(?: Central)? · /,''))}));
+    const askActions=dashboardWidgetActionAttrs('ask-genome-snp',{rsid:f.rsid});
+    const issueHref=escapeAttr(issueUrl);
+    return {rsid,assessment,interpretation,references:sources,askActions,issueHref};
+  }
+
+  function projectDashboardGenomeRow(f: GenomeFinding, { showCategoryLabel = true }: {showCategoryLabel?:unknown} = {}):GenomeRowView {
+    const subline = [f.variant || f.rsid,showCategoryLabel ? f.categoryLabel : ''].filter(Boolean).join(' · ');
+    const classes=`db-snp-row db-snp-${escapeAttr(f.impactTone || 'pending')}`;
+    const gene=escapeHTML(f.gene || f.rsid);
+    const text=escapeHTML(subline);
+    const impact=escapeHTML(f.impactLabel || 'pending');
+    const genotype=escapeHTML(f.genotype || '—');
+    const note=f.note?escapeHTML(f.note):null;
+    const evidence=projectDashboardSnpEvidence(f);
+    return {classes,gene,subline:text,impact,genotype,note,evidence};
+  }
+
+  function renderDashboardMtdnaPanel(mtdna: MtdnaReader, haplogroupTable: GenomeHaplogroupTable | null | undefined, genetics: GenomeGenetics) {
+    return renderDashboardMtdnaPanelPresentation(mtdna, haplogroupTable,
+      () => (detectMtDNAMismatch as (genetics:unknown)=>ReturnType<typeof detectMtDNAMismatch>)(genetics), _dashboardGenomeEvidence);
+  }
+
+  function projectDashboardGenomeContribution():string|null {
+    const evidence = _dashboardGenomeEvidence;
+    if (!evidence) return null;
+    return escapeAttr(evidence.newSnpSuggestionIssueUrl());
+  }
+
+  function groupDashboardGenomeFindings(findings: GenomeFinding[]) {
+    const groups = new Map<unknown,GenomeGroup>();
+    for (const f of findings) {
+      const category = f.category || 'other';
+      if (!groups.has(category)) {
+        groups.set(category, {
+          category,
+          categoryLabel: f.categoryLabel || getSnpCategoryLabel(category),
+          findings: [],
+          rank: Number.POSITIVE_INFINITY,
+          tone: 'pending',
+          impactLabel: 'pending',
+        });
+      }
+      const group = groups.get(category)!;
+      group.findings.push(f);
+      if (((f.impactRank ?? 99) as number) < (group.rank as number)) {
+        group.rank = f.impactRank ?? 99;
+        group.tone = f.impactTone || 'pending';
+        group.impactLabel = f.impactLabel || 'pending';
+      }
+    }
+    return Array.from(groups.values())
+      .map(group => ({
+        ...group,
+        findings: group.findings.slice().sort((a, b) => ((a.impactRank as number) - (b.impactRank as number)) || String(a.gene || a.rsid).localeCompare(String(b.gene || b.rsid)) || String(a.variant || '').localeCompare(String(b.variant || ''))),
+      }))
+      .sort((a, b) => ((a.rank as number) - (b.rank as number)) || String(a.categoryLabel).localeCompare(String(b.categoryLabel)));
+  }
+
+  function projectDashboardGenomeGroup(group: GenomeGroup, { secondary = false }: {secondary?:unknown} = {}):GenomeGroupView {
+    const count = group.findings.length;
+    const classes=`db-genome-category db-genome-category-${escapeAttr(group.tone || 'pending')}${secondary ? ' db-genome-category-secondary' : ''}`;
+    const label=escapeHTML(group.categoryLabel || 'Other');
+    const countLabel=`${count} finding${count === 1 ? '' : 's'}`;
+    const impact=escapeHTML(group.impactLabel || 'pending');
+    const rows=group.findings.map(f=>projectDashboardGenomeRow(f,{showCategoryLabel:false}));
+    return {classes,label,count:countLabel,impact,rows};
+  }
+
+  function refreshDashboardGenomeWidgetWhenDataReady({ needsSnps = false, needsMtdna = false, needsEvidence = false }: {needsSnps?:unknown;needsMtdna?:unknown;needsEvidence?:unknown} = {}) {
+    if (_dashboardGenomeDataLoadPromise) return;
+    _dashboardGenomeDataLoadPromise = Promise.all([
+      needsSnps ? ensureSNPTable() : Promise.resolve(null),
+      needsMtdna ? ensureHaplogroupTable() : Promise.resolve(null),
+      needsEvidence ? loadDnaModule() : Promise.resolve(null),
+    ])
+      .then(() => {
+        _dashboardGenomeDataLoadPromise = null;
+        _dashboardGenomeEvidence = getDashboardGenomeEvidence();
+        const body = document.querySelector?.('.dashboard-widget[data-widget-id="genome"] .dashboard-widget-body');
+        if (body) body.innerHTML = renderDashboardGenomeWidget();
+      })
+      .catch(() => { _dashboardGenomeDataLoadPromise = null; });
+  }
+
+  function renderDashboardGenomeWidget() {
+    const genetics = state.importedData?.genetics as GenomeGenetics | null | undefined;
+    const snps = genetics?.snps || {};
+    const apoe = genetics?.apoe;
+    const snpTable = getDashboardSnpTableCache() as Record<string,GenomeStored> | null;
+    const haplogroupTable = getDashboardHaplogroupTableCache() as GenomeHaplogroupTable | null;
+    const snpCount = Object.keys(snps).length;
+    _dashboardGenomeEvidence ||= getDashboardGenomeEvidence();
+    const needsSnps = !!snpCount && !snpTable;
+    const needsMtdna = !!genetics?.mtdna && !haplogroupTable;
+    const needsEvidence = !_dashboardGenomeEvidence;
+    if (needsMtdna) refreshDashboardGenomeWidgetWhenDataReady({ needsSnps, needsMtdna, needsEvidence });
+    if (needsSnps || needsEvidence) {
+      refreshDashboardGenomeWidgetWhenDataReady({ needsSnps, needsMtdna, needsEvidence });
+      return renderDashboardGenomeLoading(snpCount);
+    }
+    const apoeProfile = _dashboardGenomeEvidence!.resolveSnpEvidenceProfile((snpTable)?.rs429358 || (snpTable)?.rs7412 || {});
+    const findings: GenomeFinding[] = Object.entries(snps)
+      .map(([rsid, stored]) => {
+        const entry = snpTable?.[rsid];
+        const impact = getDashboardGenomeImpact(stored, entry);
+        const category = entry?.category || stored.category || 'other';
+        return {
+          rsid,
+          ...stored,
+          category,
+          categoryLabel: category ? getSnpCategoryLabel(category) : '',
+          impactLabel: impact.label,
+          impactTone: impact.tone,
+          impactRank: impact.rank,
+          note: impact.note || stored.note || '',
+          evidenceProfile: impact.evidenceProfile,
+          references: entry?.references || [],
+          catalogEntry: entry || {},
+        };
+      })
+      .filter(f => f.gene || f.variant || f.genotype)
+      .sort((a, b) => ((a.impactRank as number) - (b.impactRank as number)) || String(a.gene || a.rsid).localeCompare(String(b.gene || b.rsid)) || String(a.variant || '').localeCompare(String(b.variant || '')));
+    if (!findings.length && !apoe && !genetics?.mtdna) {
+      return renderDashboardGenomeRows({kind:'empty',contributionHref:projectDashboardGenomeContribution()});
+    }
+    const visibleFindings = findings.filter(f => DASHBOARD_VISIBLE_SNP_TONES.has(f.impactTone));
+    const secondaryFindings = findings.filter(f => !DASHBOARD_VISIBLE_SNP_TONES.has(f.impactTone));
+    const groups = groupDashboardGenomeFindings(visibleFindings);
+    const secondaryGroups = groupDashboardGenomeFindings(secondaryFindings);
+    const rows = groups.map(group => projectDashboardGenomeGroup(group));
+    const secondary:Extract<DashboardGenomeView,{kind:'populated'}>['secondary'] = secondaryFindings.length
+      ? {count:`${secondaryFindings.length}`,groups:secondaryGroups.map(group=>projectDashboardGenomeGroup(group,{secondary:true}))}:null;
+    const noPriority=!!(snpCount && !visibleFindings.length);
+    const legend=!!visibleFindings.length;
+    const meta = [
+      snpCount ? `${snpCount} imported SNP${snpCount === 1 ? '' : 's'}` : '',
+      genetics?.source || '',
+      genetics?.importDate || '',
+    ].filter(Boolean).join(' · ');
+    const summary=meta?escapeHTML(meta):null;
+    const apoeView=apoe?{assessment:escapeHTML(dashboardSnpAssessmentText(apoeProfile)),value:escapeHTML(apoe)}:null;
+    const mtdnaHTML=genetics?.mtdna?renderDashboardMtdnaPanel(genetics.mtdna,haplogroupTable,genetics):'';
+    const contributionHref=projectDashboardGenomeContribution();
+    return renderDashboardGenomeRows({kind:'populated',meta:summary,legend,apoe:apoeView,
+      mtdnaHTML,noPriority,groups:rows,secondary,contributionHref});
+  }
+
+  return {
+    buildDashboardWidgetContext,
+    getCachedRecommendationsCatalog,
+    refreshRecommendationsWhenCatalogReady,
+    getGlobalRecommendationCandidates,
+    renderRecommendationCard,
+    renderRecommendationList,
+    renderRecommendationsEmpty,
+    renderDashboardRecommendationsWidget,
+    getDashboardMarkerById,
+    renderDashboardBioAgeWidget,
+    renderBiologyScoresWidget,
+    renderDashboardBiologyScoreWidget,
+    renderDashboardBiologicalCoherenceWidget,
+    renderDashboardQuickMarkersWidget,
+    renderDashboardSingleMarkerWidget,
+    renderDashboardSpotlightWidget,
+    renderLabsPriorityBanner,
+    renderDashboardInsightsListWidget,
+    getDashboardBiometricSelection,
+    saveDashboardBiometricSelection,
+    getDashboardBiometricMetricOrder,
+    getDashboardBiometricTile,
+    renderDashboardWearableTilesWidget,
+    renderDashboardGenomeWidget,
+    renderDashboardCorrelationWidget,
+    renderDashboardLightTodayWidget,
+    renderDashboardLightConditionsWidget,
+    renderDashboardLightLiveSessionWidget,
+    renderDashboardLightSessionLogWidget,
+    renderDashboardLightChannelsWidget,
+    renderDashboardKeyTrendsWidget,
+    renderDashboardAlertsWidget,
+    renderDashboardNotesWidget,
+    setRecommendationState,
+    isDashboardQuickMarkerPinned,
+    toggleDashboardQuickMarkerPin,
+  };
+}

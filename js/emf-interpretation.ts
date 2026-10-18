@@ -2,9 +2,10 @@
 
 import { state } from './state.js';
 import { SBM_2015_THRESHOLDS, getEMFSeverity, calculateCost, formatCost, trackUsage } from './schema.js';
-import { escapeHTML, escapeAttr } from './utils.js';
+import {renderEMFInterpretationModal, renderEMFInterpretationStatus, renderEMFInterpretationError} from './emf-interpretation-presentation.js';
 import { saveImportedData } from './data.js';
-import { callAssistantFeatureAI, getAssistantFeatureIdentity } from './ai-feature-routing.js';
+import { getAssistantFeatureIdentity } from './ai-feature-routing.js';
+import { configureEMFInterpretationRuntimeDeps, getEMFInterpretationRuntimeDeps, registerEMFInterpretationCloseHandler } from './emf-interpretation-runtime.js';
 import { renderMarkdown } from './markdown.js';
 import {
   detectMitigationsInText,
@@ -14,38 +15,20 @@ import {
 } from './health-data-loader.js';
 import { openModalOverlay, removeModalOverlay, trapModalFocus } from './modal-lifecycle.js';
 
-import type { InterpretationOperations, InterpretationDependencies, InterpretationOverlay, AssessmentOperations, RuntimeConfigInput, RuntimeInvocationOperations, ReplaceOperations, ResponseOperations, TokenOperations, GeneratedInterpretation, SeverityReader, CostReader, UsageReader, MitigationRendererReader, ErrorOperations } from '../types/emf-interpretation.js';
+import type { InterpretationOperations, InterpretationDependencies, InterpretationOverlay, AssessmentOperations, RuntimeInvocationOperations, ReplaceOperations, ResponseOperations, TokenOperations, GeneratedInterpretation, SeverityReader, CostReader, UsageReader, MitigationRendererReader, ErrorOperations } from '../types/emf-interpretation.js';
 
-const emfInterpretationRuntimeDeps: {callClaudeAPI: unknown;closeModal: unknown;openChatPanel: unknown} = {
-  callClaudeAPI: callAssistantFeatureAI,
-  closeModal: null,
-  openChatPanel: null,
-};
-
-export function configureEMFInterpretationRuntimeDeps(deps: unknown = {}) {
-  const previous = { ...emfInterpretationRuntimeDeps };
-  if (typeof (deps as RuntimeConfigInput).callClaudeAPI === 'function') emfInterpretationRuntimeDeps.callClaudeAPI = (deps as RuntimeConfigInput).callClaudeAPI;
-  if (Object.hasOwn(deps as object, 'closeModal')) {
-    emfInterpretationRuntimeDeps.closeModal = typeof (deps as RuntimeConfigInput).closeModal === 'function'
-      ? (deps as RuntimeConfigInput).closeModal
-      : null;
-  }
-  if (Object.prototype.hasOwnProperty.call(deps, 'openChatPanel')) {
-    emfInterpretationRuntimeDeps.openChatPanel = typeof (deps as RuntimeConfigInput).openChatPanel === 'function'
-      ? (deps as RuntimeConfigInput).openChatPanel
-      : null;
-  }
-  return previous;
-}
+export { configureEMFInterpretationRuntimeDeps };
 
 let _aiAbortController: AbortController | null = null;
+let _aiRequest = 0;
+let _interpretationSession = 0;
 
 function closeParentEMFModalRuntime() {
-  (emfInterpretationRuntimeDeps as RuntimeInvocationOperations).closeModal?.();
+  (getEMFInterpretationRuntimeDeps() as RuntimeInvocationOperations).closeModal?.();
 }
 
 function openEMFInterpretationChatRuntime(message: string) {
-  (emfInterpretationRuntimeDeps as RuntimeInvocationOperations).openChatPanel?.(message);
+  (getEMFInterpretationRuntimeDeps() as RuntimeInvocationOperations).openChatPanel?.(message);
 }
 
 function getAssessments(deps: InterpretationDependencies) {
@@ -79,26 +62,15 @@ function stripThinking(text: unknown) {
 
 const EMF_SYSTEM = `You are a Baubiologie (Building Biology) consultant interpreting EMF assessment data rated against SBM-2015 standards. Be specific about health implications, prioritize concerns by severity (sleeping areas are most critical), and suggest actionable mitigations in priority order. Keep the response concise and practical. Use markdown formatting with headers and bullet points.`;
 
-function emfInterpAttrString(attrs: Record<string, unknown>) {
-  return Object.entries(attrs)
-    .filter(([, value]) => value !== undefined && value !== null)
-    .map(([name, value]) => `${name}="${escapeAttr(String(value))}"`)
-    .join(' ');
-}
-
-function emfInterpActionAttrs(action: string, attrs: Record<string, unknown> = {}) {
-  return emfInterpAttrString({ 'data-emf-interp-action': action, ...attrs });
-}
-
 function _handleEMFInterpretationMouseDown(event: MouseEvent) {
   const overlay = (event.currentTarget instanceof HTMLElement ? event.currentTarget : null) as InterpretationOverlay | null;
-  if (!overlay) return;
+  if (!overlay || !overlay._canClose?.()) return;
   overlay._mouseDownInside = event.target !== overlay;
 }
 
 function _handleEMFInterpretationClick(event: MouseEvent) {
   const overlay = (event.currentTarget instanceof HTMLElement ? event.currentTarget : null) as InterpretationOverlay | null;
-  if (!overlay) return;
+  if (!overlay || !overlay._canClose?.()) return;
 
   const target = event.target;
   if (!(target instanceof Element)) {
@@ -115,6 +87,8 @@ function _handleEMFInterpretationClick(event: MouseEvent) {
       closeEMFInterpretation();
       return;
     }
+    // A retired data owner remains dismissible, but cannot generate or hand off.
+    if (!overlay._isCurrent?.()) return;
     if (action === 'discuss') {
       event.preventDefault();
       overlay._mouseDownInside = false;
@@ -147,6 +121,9 @@ function installEMFInterpretationDelegates(overlay: InterpretationOverlay) {
 }
 
 function openInterpretationModal(title: unknown, existingInterp: InterpretationOperations | null | undefined, onGenerate: () => unknown, mitigationTags: unknown[] = []) {
+  const session = ++_interpretationSession;
+  const profile = state.currentProfile;
+  const importedData = state.importedData;
   // Create overlay that sits on top of the EMF editor (z-index above modal-overlay)
   let overlay = document.getElementById('emf-interp-overlay') as InterpretationOverlay | null;
   if (!overlay) {
@@ -157,26 +134,7 @@ function openInterpretationModal(title: unknown, existingInterp: InterpretationO
 
   const hasExisting = existingInterp && existingInterp.text;
 
-  let html = `<div class="emf-interp-modal">
-    <div class="emf-interp-header">
-      <h3>${escapeHTML(title)}</h3>
-      <button class="modal-close" aria-label="Close" ${emfInterpActionAttrs('close')}>&times;</button>
-    </div>
-    <div class="emf-interp-body" id="emf-interp-body">
-      ${hasExisting ? renderMarkdown(existingInterp.text) : '<div class="emf-interp-placeholder">Click Interpret to get an AI interpretation of this assessment.</div>'}
-    </div>
-    <div id="emf-interp-recs"></div>
-    <div class="emf-interp-footer">
-      <div id="emf-interp-meta" class="emf-interp-meta">
-        ${hasExisting ? buildMetaLine(existingInterp) : ''}
-      </div>
-      <div class="emf-interp-actions">
-        <button class="import-btn import-btn-primary" id="emf-interp-generate" ${emfInterpActionAttrs('generate')}>${hasExisting ? 'Re-interpret' : 'Interpret'}</button>
-        ${hasExisting ? `<button class="import-btn import-btn-secondary" ${emfInterpActionAttrs('discuss')}>Discuss in Chat</button>` : ''}
-        <button class="import-btn import-btn-secondary" ${emfInterpActionAttrs('close')}>Close</button>
-      </div>
-    </div>
-  </div>`;
+  let html = renderEMFInterpretationModal(title, hasExisting, () => ({kind: 'markdown', sanitizedHTML: renderMarkdown(existingInterp!.text)}), () => buildMetaLine(existingInterp));
 
   overlay.innerHTML = html;
   const wasConnected = overlay.isConnected;
@@ -184,9 +142,18 @@ function openInterpretationModal(title: unknown, existingInterp: InterpretationO
   openModalOverlay(overlay);
   if (!wasConnected) try { trapModalFocus(overlay, { closeOnEscape: false }); } catch (_) {}
 
+  const ownedOverlay = overlay;
+  const body = overlay.querySelector('#emf-interp-body');
+  const canClose = () => session === _interpretationSession && ownedOverlay.isConnected
+    && document.getElementById('emf-interp-overlay') === ownedOverlay;
+  const isCurrent = () => canClose() && state.currentProfile === profile && state.importedData === importedData
+    && !!body && document.getElementById('emf-interp-body') === body && ownedOverlay.contains(body);
+  overlay._canClose = canClose;
+  overlay._isCurrent = isCurrent;
+
   // Store context for discuss button
   overlay._interpretText = hasExisting ? existingInterp.text : '';
-  overlay._onGenerate = onGenerate;
+  overlay._onGenerate = () => { if (isCurrent()) onGenerate(); };
   overlay._mouseDownInside = false;
   installEMFInterpretationDelegates(overlay);
 
@@ -216,18 +183,31 @@ function buildMetaLine(interp: InterpretationOperations | null | undefined) {
   if (interp.date) {
     parts.push(new Date(interp.date as string).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
   }
-  return parts.length ? escapeHTML(parts.join(separator)) : '';
+  return parts.length ? parts.join(separator) : '';
 }
 
 function streamInterpretation(prompt: string, onComplete: ((interp: GeneratedInterpretation) => unknown) | null | undefined) {
   if (_aiAbortController) _aiAbortController.abort();
-  _aiAbortController = new AbortController();
+  const request = ++_aiRequest;
+  const controller = new AbortController();
+  _aiAbortController = controller;
 
   const body = document.getElementById('emf-interp-body');
   const meta = document.getElementById('emf-interp-meta');
   if (!body) return;
 
-  body.innerHTML = '<div class="emf-interp-placeholder">Thinking\u2026</div>';
+  const profile = state.currentProfile;
+  const importedData = state.importedData;
+  const overlay = document.getElementById('emf-interp-overlay');
+  const isCurrent = () => request === _aiRequest && !controller.signal.aborted
+    && state.currentProfile === profile && state.importedData === importedData
+    && !!overlay?.isConnected && document.getElementById('emf-interp-overlay') === overlay
+    && document.getElementById('emf-interp-body') === body && overlay.contains(body);
+  const releaseController = () => {
+    if (_aiAbortController === controller) _aiAbortController = null;
+  };
+
+  body.innerHTML = renderEMFInterpretationStatus('Thinking…');
   if (meta) meta.textContent = '';
 
   let lastRender = 0;
@@ -238,11 +218,12 @@ function streamInterpretation(prompt: string, onComplete: ((interp: GeneratedInt
   const modelId = identity.modelId;
   const modelDisplay = identity.modelDisplay;
 
-  (emfInterpretationRuntimeDeps as RuntimeInvocationOperations).callClaudeAPI({
+  (getEMFInterpretationRuntimeDeps() as RuntimeInvocationOperations).callClaudeAPI({
     messages: [{ role: 'user', content: prompt }],
     system: EMF_SYSTEM,
-    signal: _aiAbortController.signal,
+    signal: controller.signal,
     onStream(fullText: unknown) {
+      if (!isCurrent()) return;
       const now = Date.now();
       if (now - lastRender < THROTTLE_MS) return;
       lastRender = now;
@@ -250,10 +231,11 @@ function streamInterpretation(prompt: string, onComplete: ((interp: GeneratedInt
       if (clean) body.innerHTML = renderMarkdown(clean);
     }
   }).then(response => {
-    _aiAbortController = null;
+    if (!isCurrent()) { releaseController(); return; }
+    releaseController();
     const finalText = stripThinking((response as ResponseOperations | null | undefined)?.text || '');
     const usage = ((response as ResponseOperations | null | undefined)?.usage || {}) as TokenOperations;
-    body.innerHTML = finalText ? renderMarkdown(finalText) : '<div class="emf-interp-placeholder">No response received.</div>';
+    body.innerHTML = finalText ? renderMarkdown(finalText) : renderEMFInterpretationStatus('No response received.');
 
     const interp = {
       text: finalText,
@@ -266,7 +248,7 @@ function streamInterpretation(prompt: string, onComplete: ((interp: GeneratedInt
     };
     if (!identity.subscription) (trackUsage as UsageReader)(provider, modelId, usage.inputTokens || 0, usage.outputTokens || 0);
 
-    if (meta) meta.innerHTML = buildMetaLine(interp);
+    if (meta) meta.textContent = buildMetaLine(interp);
 
     // Update generate button
     const btn = document.getElementById('emf-interp-generate') as HTMLButtonElement | null;
@@ -287,24 +269,30 @@ function streamInterpretation(prompt: string, onComplete: ((interp: GeneratedInt
     // Store for discuss
     if (overlay) overlay._interpretText = finalText;
 
-    if (onComplete) onComplete(interp);
+    if (onComplete && isCurrent()) onComplete(interp);
   }).catch((err: ErrorOperations) => {
-    _aiAbortController = null;
-    if (err.name === 'AbortError') return;
-    body.innerHTML = `<div style="color:var(--red);padding:12px">Error: ${escapeHTML(err.message)}</div>`;
+    const current = isCurrent();
+    releaseController();
+    if (!current || err.name === 'AbortError') return;
+    body.innerHTML = renderEMFInterpretationError(err.message);
     const btn = document.getElementById('emf-interp-generate') as HTMLButtonElement | null;
     if (btn) { btn.disabled = false; btn.textContent = 'Retry'; }
   });
 }
 
 export function closeEMFInterpretation() {
+  _interpretationSession += 1;
+  _aiRequest += 1;
   if (_aiAbortController) { _aiAbortController.abort(); _aiAbortController = null; }
   const overlay = document.getElementById('emf-interp-overlay');
   if (overlay) removeModalOverlay(overlay);
 }
 
+registerEMFInterpretationCloseHandler(closeEMFInterpretation);
+
 export function discussEMFInterpretation() {
   const overlay = document.getElementById('emf-interp-overlay') as InterpretationOverlay | null;
+  if (!overlay?._isCurrent?.()) return;
   const text = overlay?._interpretText;
   if (!text) return;
   closeEMFInterpretation();

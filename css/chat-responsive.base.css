@@ -1,0 +1,26 @@
+@import "tailwindcss" prefix(gb) source(none) reference;
+@utility chat-responsive-layout-body-chat-open-main-body-chat-autostart-reserved-main { padding-right: 20px; }
+@utility chat-responsive-layout-thread-rail-open {
+    position: absolute; top: 0; left: 0; bottom: 0; width: 100%;
+    z-index: 5; border-right: none;
+  }
+@utility chat-responsive-layout-onboard-supp-form { flex-direction: column; align-items: stretch; }
+@utility chat-responsive-layout-onboard-supp-form-chat-onboard-input { flex: unset; width: 100%; }
+@utility chat-responsive-layout-onboard-supp-form-select-chat-onboard-input { width: 100%; }
+@utility chat-responsive-layout-onboard-supp-add { width: 100%; }
+@utility chat-responsive-layout-onboard-cycle-dates { flex-direction: column; }
+
+@media (max-width: 768px) {
+  /* Mobile chat is full-screen takeover — no need to shift the
+     dashboard since the user can't see it anyway. */
+  body.chat-open .main,
+  body.chat-autostart-reserved .main { @apply gb:chat-responsive-layout-body-chat-open-main-body-chat-autostart-reserved-main; }
+  .chat-thread-rail.open { @apply gb:chat-responsive-layout-thread-rail-open; }
+}
+@media (max-width: 480px) {
+  .chat-onboard-supp-form { @apply gb:chat-responsive-layout-onboard-supp-form; }
+  .chat-onboard-supp-form .chat-onboard-input { @apply gb:chat-responsive-layout-onboard-supp-form-chat-onboard-input; }
+  .chat-onboard-supp-form select.chat-onboard-input { @apply gb:chat-responsive-layout-onboard-supp-form-select-chat-onboard-input; }
+  .chat-onboard-supp-add { @apply gb:chat-responsive-layout-onboard-supp-add; }
+  .chat-onboard-cycle-dates { @apply gb:chat-responsive-layout-onboard-cycle-dates; }
+}

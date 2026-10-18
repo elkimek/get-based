@@ -1,0 +1,6 @@
+<script lang="ts">
+ import type {WearableDetailFeedbackView} from '../wearable-detail-presentation.js';
+ 
+ let {view}:{view:WearableDetailFeedbackView}=$props();
+ 
+</script><svelte:options preserveWhitespace={true}/>{#if view.kind==='zeroActivity'}<div class="wearable-detail-empty">Every day shows 0 — Oura suppresses the Activity composite score while Rest Mode is on. Check the <b>Steps</b> card for raw movement data, or disable Rest Mode in the Oura app.</div>{:else if view.kind==='emptyChartWithManual'}<div class="wearable-detail-empty">No chart samples for this metric in {view.window}. Manual readings are listed below{view.olderHint}.</div>{:else if view.kind==='emptyChart'}<div class="wearable-detail-empty">No daily samples for this metric in {view.window}. Either your wearable doesn't share this metric, the feature is off on your device, or you didn't wear it. Try Sync now, or reconnect to refresh permissions.</div>{:else if view.kind==='emfHint'}<div class="wearable-detail-emf-hint"><span aria-hidden="true">💡</span> Sleep regressing? Sometimes it's the room. <!-- svelte-ignore a11y_invalid_attribute (Preserve the native delegated assessment action and preventDefault contract.) --><a href="#" data-wearable-action="open-emf-assessment" data-umami-event="emf-nudge-wearable-sleep">Check your EMF environment →</a></div>{/if}

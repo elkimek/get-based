@@ -7,7 +7,7 @@ import {
 } from './light-sun-loader.js';
 import { closeModalOverlay } from './modal-lifecycle.js';
 import { configureNavActions } from './nav.js';
-import { navigate } from './views.js';
+import { navigate } from './views-runtime.js';
 
 configureLightEnvironmentLoaderDeps({ navigate });
 

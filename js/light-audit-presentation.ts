@@ -1,36 +1,37 @@
+import type{EnvironmentAIView}from'./light-environment-ai-presentation.js';
 // Presentation-only contracts. Snapshot grading, persistence and actions remain
 // owned by light-env-audits.ts; components never read live environment state.
 export interface LightAuditSeverityView {
-  color: string;
-  label: string;
+  readonly color: string;
+  readonly label: string;
 }
 export interface LightAuditChannelView {
-  key: string;
-  label: string;
-  text: string;
+  readonly key: string;
+  readonly label: string;
+  readonly text: string;
 }
 export interface LightAuditRoomView {
-  name: string;
-  severity: LightAuditSeverityView;
-  channels: LightAuditChannelView[];
+  readonly name: string;
+  readonly severity: LightAuditSeverityView;
+  readonly channels: readonly LightAuditChannelView[];
 }
 export interface LightAuditDetailView {
-  date: string;
-  label: string;
-  trustedAIHTML: string;
-  rooms: LightAuditRoomView[];
+  readonly date: string;
+  readonly label: string;
+  readonly ai: Readonly<EnvironmentAIView> | null;
+  readonly rooms: readonly LightAuditRoomView[];
 }
 export interface LightAuditCardView {
-  id: string;
-  actionId: string | undefined;
-  expanded: boolean;
-  ariaLabel: string;
-  date: string;
-  label: string;
-  meta: string;
-  severity: LightAuditSeverityView;
-  trustedDotHTML: string;
-  detail: LightAuditDetailView | null;
+  readonly id: string;
+  readonly actionId: string | undefined;
+  readonly expanded: boolean;
+  readonly ariaLabel: string;
+  readonly date: string;
+  readonly label: string;
+  readonly meta: string;
+  readonly severity: LightAuditSeverityView;
+  readonly aiDot: Readonly<EnvironmentAIView> | null;
+  readonly detail: LightAuditDetailView | null;
 }
 
 export function auditActionValue(value: unknown): string | undefined {
@@ -38,39 +39,39 @@ export function auditActionValue(value: unknown): string | undefined {
 }
 
 export interface LightAuditArrowView {
-  glyph: string;
-  tone: 'good' | 'bad' | 'neutral';
+  readonly glyph: string;
+  readonly tone: 'good' | 'bad' | 'neutral';
 }
 export interface LightAuditComparisonRowView {
-  label: string;
-  title: string | undefined;
-  before: string;
-  after: string;
-  arrow: LightAuditArrowView;
+  readonly label: string;
+  readonly title: string | undefined;
+  readonly before: string;
+  readonly after: string;
+  readonly arrow: LightAuditArrowView;
 }
 export interface LightAuditComparisonRoomView {
-  name: string;
-  before: LightAuditSeverityView | null;
-  after: LightAuditSeverityView | null;
-  verdict: 'improved' | 'regressed' | 'measured' | 'unchanged';
-  rows: LightAuditComparisonRowView[];
+  readonly name: string;
+  readonly before: LightAuditSeverityView | null;
+  readonly after: LightAuditSeverityView | null;
+  readonly verdict: 'improved' | 'regressed' | 'measured' | 'unchanged';
+  readonly rows: readonly LightAuditComparisonRowView[];
 }
 export interface LightAuditComparisonView {
-  before: string;
-  after: string;
-  oldId: string | undefined;
-  newId: string | undefined;
-  hasAI: boolean;
-  note: string;
-  rooms: LightAuditComparisonRoomView[];
+  readonly before: string;
+  readonly after: string;
+  readonly oldId: string | undefined;
+  readonly newId: string | undefined;
+  readonly hasAI: boolean;
+  readonly note: string;
+  readonly rooms: readonly LightAuditComparisonRoomView[];
 }
 export interface LightAuditBlockView {
-  open: boolean;
-  count: number;
-  compareMode: boolean;
-  cards: LightAuditCardView[];
-  comparison: LightAuditComparisonView | null;
-  historyLabel: string;
+  readonly open: boolean;
+  readonly count: number;
+  readonly compareMode: boolean;
+  readonly cards: readonly LightAuditCardView[];
+  readonly comparison: LightAuditComparisonView | null;
+  readonly historyLabel: string;
 }
 
 // Preserve channel-specific direction and the caller's proxy deadband. This

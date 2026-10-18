@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { ownContextChild } from '../context-child-ownership.js';
   import { onMount, flushSync } from 'svelte';
   import { contextCardStatus, contextCardStatusTicket, emptyContextCardStatus, subscribeContextCardStatus } from '../context-card-status.js';
   import type { ContextCardStatusSlot } from '../context-card-status.js';
@@ -7,11 +8,14 @@
   let model = $state.raw(emptyContextCardStatus());
   let root = $state<HTMLElement>();
   onMount(() => {
+    const host = root?.closest('[data-context-status-host]');
+    const releaseHost = host ? ownContextChild(host) : () => {};
     const update = (owner: string, key: string, value: typeof model) => {
       if (root?.isConnected && owner === ticket && key === cardKey && contextCardStatusTicket() === ticket) flushSync(() => { model = value; });
     };
     update(ticket, cardKey, contextCardStatus(cardKey));
-    return subscribeContextCardStatus(update);
+    const stop = subscribeContextCardStatus(update);
+    return () => { stop(); releaseHost(); };
   });
 </script>
 {#if slot === 'indicator'}

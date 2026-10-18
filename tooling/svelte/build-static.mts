@@ -4,8 +4,10 @@ import { fileURLToPath } from 'node:url';
 import { createBuilder, defineConfig } from 'vite';
 import { sveltekit } from '@sveltejs/kit/vite';
 import adapter from '@sveltejs/adapter-static';
+import {createKitVendorExternals} from './kit-vendor-externals.mjs';
 import { rewriteNativeAssetBase } from '../../scripts/sveltekit-contracts.mjs';
-import { handleBuildLog } from '../../scripts/build-production.mjs';
+import { handleBuildLog } from '../../scripts/static-build-assets.mjs';
+import { createSvelteFacadePlugin, compiledSvelteModulePattern } from '../../scripts/svelte-facade-plugin.mjs';
 
 type StaticKitOptions = { root: string; temporary: string; version: string };
 export function staticKitConfig({ root, temporary, version }: StaticKitOptions) {
@@ -13,18 +15,15 @@ export function staticKitConfig({ root, temporary, version }: StaticKitOptions) 
     root: path.join(root, 'tooling/svelte'),
     resolve: { dedupe: ['svelte'] },
     build: { sourcemap: true, rolldownOptions: { onLog: handleBuildLog } },
-    plugins: [{
+    plugins: [createKitVendorExternals({root}), {
       name: 'getbased-native-contracts', enforce: 'pre',
       transform(code, id) { return rewriteNativeAssetBase(code, id.split('?')[0]!, root); },
-      load(id) {
-        if (!id.startsWith(path.join(root, 'js') + path.sep) || !id.endsWith('.svelte.native.js')) return null;
-        // Use the authored component and Kit's shared Svelte runtime, preserving
-        // the native adapter contract without bundling Svelte a second time.
-        return `export { default } from ${JSON.stringify(id.slice(0, -10))}; export { mount, unmount, flushSync, hydrate } from 'svelte';`;
-      },
-    }, sveltekit({
+    }, {...createSvelteFacadePlugin({root, client: 'kit'}), enforce: 'pre'}, sveltekit({
+      // Kit owns the full AppShell inside #kit-root. Native form delegates must
+      // cancel submissions before they bubble to that root (or handle capture).
+      embedded: true,
       // These generated artifacts are already compiled, not authored rune modules.
-      experimental: { compileModule: { exclude: [/\.svelte\.(?:native|html)\.js$/] } },
+      experimental: { compileModule: { exclude: [/\.svelte\.(?:native|html)\.js$/, compiledSvelteModulePattern(root)] } },
       adapter: adapter({ pages: path.join(temporary, 'site'), assets: path.join(temporary, 'site') }),
       files: {
         src: path.join(root, 'js/kit'), routes: path.join(root, 'js/kit/routes'),

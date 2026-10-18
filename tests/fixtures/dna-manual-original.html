@@ -1,0 +1,23 @@
+<div class="modal dna-preview-modal dna-manual-modal" role="dialog" aria-label="Add SNPs manually"><div class="dna-preview-header dna-manual-header">
+      <div>
+        <div class="dna-preview-title">Add SNPs manually</div>
+        <div class="dna-preview-stats">Paste one SNP or a whole small report table. Same path, no duplicate modes.</div>
+      </div>
+    </div>
+    <div class="dna-preview-body dna-manual-snp-body">
+      <div class="dna-manual-card dna-manual-card-bulk">
+        <div class="dna-manual-section-head">
+          <span>SNP calls</span>
+          <small>One per line: rsID + genotype. Notes after that are optional.</small>
+        </div>
+        <textarea id="manual-snp-bulk" class="dna-manual-textarea" rows="7" spellcheck="false" placeholder="rs1801133 CC&#10;rs8175347 6/7&#10;rs429358 TT APOE report"></textarea>
+      </div>
+      <label class="dna-manual-field dna-manual-source">Source label
+        <input id="manual-snp-source" class="dna-manual-input" type="text" placeholder="Manual entry / lab report name" autocomplete="off">
+      </label>
+      <p class="dna-manual-help">Use a single line for one SNP, or paste a dozen lines. getbased validates each rsID, normalizes strand-aware genotypes, and merges accepted rows into existing genome data.</p>
+    </div>
+    <div class="dna-preview-actions">
+      <button type="button" class="import-btn import-btn-secondary" data-dna-action="close-preview">Cancel</button>
+      <button type="button" class="import-btn import-btn-primary" data-dna-action="save-manual-snp">Save SNPs</button>
+    </div></div>

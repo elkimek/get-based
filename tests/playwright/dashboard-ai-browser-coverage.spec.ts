@@ -120,9 +120,13 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
         !!host.querySelector<HTMLElement>('.dashboard-cta[aria-label="Protect your data"]');
 
       const kbHtml = dashboardAi.renderKnowledgeBaseSection();
+      const kbNative = document.createElement('template'); kbNative.innerHTML = kbHtml;
       outcomes.renderKnowledgeBaseSectionShowsConfiguredExternalLibrary = kbHtml.includes('Knowledge Base')
-        && kbHtml.includes('Research &lt;Vault&gt;')
-        && kbHtml.includes('query rewriting on');
+        // Genuine Svelte text encoding escapes '<'; the native text remains exact.
+        && kbHtml.includes('Research &lt;Vault>')
+        && kbHtml.includes('query rewriting on')
+        && kbNative.content.querySelector('.lens-section-text')?.textContent === 'Research <Vault> · query rewriting on'
+        && !kbNative.content.querySelector('vault,script,[onclick]');
 
       localStorage.setItem('labcharts-lens-config', JSON.stringify({ enabled: false, backend: 'external-server', url: '', name: '' }));
       outcomes.renderKnowledgeBaseSectionHidesWhenUnconfigured = dashboardAi.renderKnowledgeBaseSection() === '';

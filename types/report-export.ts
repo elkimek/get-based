@@ -51,6 +51,7 @@ export interface ReportPresetView {
   categoryMode?: string; dateRange?: string;
 }
 export interface ReportLifecycle {
+  signal?: AbortSignal;
   payload?: PreparedReportPayload;
   onProgress?: (stage: 'preparing' | 'approval' | 'generating' | 'rendering') => unknown;
   isCurrent?: () => boolean;

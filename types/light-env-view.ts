@@ -1,3 +1,5 @@
+import type{EnvironmentAIView}from'../js/light-environment-ai-presentation.js';
+import type{ReviewAIView}from'../js/light-review-ai-presentation.js';
 import type { LightRoom, LightScreen } from '../js/light-env-model.js';
 import type { computeRoomSeverityForRoom, computeIndoorBurdenForEnvironment } from '../js/light-env-model.js';
 
@@ -17,10 +19,10 @@ export interface EnvironmentAuditCollection { length: unknown; slice(): Environm
 export interface EnvironmentCalls extends Record<string, unknown> {
   getMeasurementsForRoom: ((roomId: unknown) => unknown) | null;
   navigate: ((route: string, options?: unknown) => unknown) | null;
-  renderBurdenInterp: ((burden: ReturnType<typeof computeIndoorBurdenForEnvironment>) => unknown) | null;
-  renderMeasurementAIInline: ((measurement: EnvironmentMeasurementOperations) => unknown) | null;
-  renderRoomAIBlock: ((room: EnvironmentRoomOperations) => unknown) | null;
-  renderScreenAIBlock: unknown;
+  getBurdenInterpretationView: ((burden: ReturnType<typeof computeIndoorBurdenForEnvironment>) => Readonly<ReviewAIView>) | null;
+  getMeasurementAIView: ((measurement: EnvironmentMeasurementOperations) => Readonly<EnvironmentAIView> | null) | null;
+  getRoomAIView: ((room: EnvironmentRoomOperations) => Readonly<EnvironmentAIView> | null) | null;
+  getScreenAIView: unknown;
   openSpectrumClassifier: unknown; openLuxMeter: unknown; openFlickerDetector: unknown;
   openCCTMeter: unknown; openDarknessMeter: unknown;
 }

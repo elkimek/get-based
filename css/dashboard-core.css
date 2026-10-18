@@ -1,8 +1,11 @@
 /* Dashboard greeting, sticky actions, and shared dashboard action buttons. */
 
 .dashboard-greeting {
-  display: flex; align-items: flex-start; justify-content: space-between;
-  gap: 16px; margin-bottom: 16px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
 }
 .category-header { margin-bottom: 24px; }
 .dashboard-greeting h1 {
@@ -23,7 +26,9 @@
   color: var(--text-muted);
 }
 .dashboard-greeting-sub {
-  margin-top: 6px; font-family: var(--font-mono); font-size: 12px;
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 12px;
   color: var(--text-secondary);
 }
 .dashboard-widget-picker-actions, .dashboard-organize-footer {

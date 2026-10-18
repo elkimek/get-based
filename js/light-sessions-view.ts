@@ -1,3 +1,4 @@
+import type{LightSessionRowProps,LightSessionHistoryProps}from'./light-session-presentation.js';
 // light-sessions-view.ts — Unified Light & Sun session list and modal
 
 import { bindModalSyncRefresh, formatDate } from './utils.js';
@@ -17,7 +18,7 @@ export interface LightSessionsViewDeps {
   getSessions(): SunSessionRecord[];
   getDeviceSessions(): DeviceSessionRecord[];
   getDevices(): LightDeviceRecord[];
-  renderSunSessionRow(session: SunSessionRecord): string;
+  getSunSessionRowView(session: SunSessionRecord): LightSessionRowProps|null;
   openDeviceSessionDetail(id: string): unknown;
   addEventListener(type: string, listener: EventListener): void;
   removeEventListener(type: string, listener: EventListener): void;
@@ -32,7 +33,7 @@ const viewDeps: LightSessionsViewDeps = {
   getSessions: () => [],
   getDeviceSessions: () => [],
   getDevices: () => [],
-  renderSunSessionRow: () => '',
+  getSunSessionRowView: () => null,
   openDeviceSessionDetail: () => {},
   addEventListener: (type, listener) => {
     if (typeof globalThis !== 'undefined' && typeof globalThis.addEventListener === 'function') {
@@ -127,33 +128,34 @@ function _localSessionStamp(timestamp: number) {
   };
 }
 
-function _renderSessionRowsHTML(rows: SessionRow[]) {
+function getSessionRowViews(rows: SessionRow[]) {
   const devices = viewDeps.getDevices();
   const deviceById = Object.fromEntries(devices.map(d => [d.id, d]));
-  const renderSunRow = viewDeps.renderSunSessionRow;
-  let html = '';
+  const getSunRow = viewDeps.getSunSessionRowView;
+  const views:LightSessionRowProps[]=[];
   for (const row of rows) {
     if (row.kind === 'sun') {
-      html += renderSunRow(row.sess);
+      const view=getSunRow(row.sess);if(view)views.push(view);
     } else if (row.kind === 'device') {
       const sess = row.sess;
       const dev = deviceById[sess.deviceId as string] || sess.deviceSnapshot || null;
-      html += renderHTML({ kind: 'row', view: projectCompletedDeviceSession(sess, dev, _localSessionStamp(row.startedAt)) });
+      views.push({kind:'row',view:projectCompletedDeviceSession(sess,dev,_localSessionStamp(row.startedAt))});
     }
   }
-  return html;
+  return views;
 }
 
 // Inline render — caps at SESSIONS_DEFAULT_CAP and exposes the rest
 // via "View all" modal instead of expanding inline.
-export function renderUnifiedSessionsList() {
+export function getUnifiedSessionsView():LightSessionHistoryProps|null {
   const { rows, hasDeviceRows } = _collectUnifiedSessionRows();
-  if (rows.length === 0) return '';
+  if (rows.length === 0) return null;
   const visibleRows = rows.slice(0, SESSIONS_DEFAULT_CAP);
-  return renderHTML({ kind: 'history', rowsHTML: _renderSessionRowsHTML(visibleRows), total: rows.length,
+  return { kind: 'history', rows: getSessionRowViews(visibleRows), total: rows.length,
     sunCount: rows.filter(row => row.kind === 'sun').length, deviceCount: hasDeviceRows ? rows.filter(row => row.kind === 'device').length : 0,
-    modal: false, showMore: rows.length > visibleRows.length });
+    modal: false, showMore: rows.length > visibleRows.length };
 }
+export function renderUnifiedSessionsList(){const props=getUnifiedSessionsView();return props?renderHTML(props):'';}
 
 // Modal listing every session — opened from the "View all" button so
 // the Light & Sun page itself stays compact. Reuses the same per-row
@@ -181,7 +183,7 @@ export function _openAllSessionsModal() {
     const { rows, hasDeviceRows } = _collectUnifiedSessionRows();
     const sunCount = rows.filter(row => row.kind === 'sun').length;
     const deviceCount = rows.filter(row => row.kind === 'device').length;
-    overlay.innerHTML = renderHTML({ kind: 'history', rowsHTML: _renderSessionRowsHTML(rows), total: rows.length,
+    overlay.innerHTML = renderHTML({ kind: 'history', rows: getSessionRowViews(rows), total: rows.length,
       sunCount, deviceCount: hasDeviceRows ? deviceCount : 0, modal: true, showMore: false });
   };
   renderInto();

@@ -2,11 +2,11 @@
 
 import { state } from './state.js';
 import { createCustomMarkerId } from './custom-marker-identity.js';
-import { escapeHTML, showConfirmDialog, showNotification } from './utils.js';
+import { showConfirmDialog, showNotification } from './utils.js';
 import { getActiveData, saveImportedData, updateHeaderDates } from './data.js';
 import { deleteEmptyLabEntries, deleteLabEntryMarkerValues } from './lab-entry-mutations.js';
 import { getMarkerStorageDotKey } from './marker-placement.js';
-import { markerDetailActionAttrs } from './marker-detail-actions.js';
+import { renderCustomMarkerForm } from './custom-marker-presentation.js';
 import { openModalOverlay } from './modal-lifecycle.js';
 import {
   buildMarkerDetailSidebarRuntime,
@@ -44,61 +44,7 @@ function renderCreateMarkerModal() {
   const overlay = document.getElementById('modal-overlay');
   if (!modal) return;
   const data = getActiveData();
-  const categoryOptions = Object.entries(data.categories)
-    .map(([key, category]) => `<option value="${key}">${escapeHTML(category.label)}</option>`)
-    .join('');
-  modal.innerHTML = `<div class="gb-modal-head">
-      <div>
-        <div class="gb-modal-kicker">Custom marker</div>
-        <div class="gb-modal-title">Create New Biomarker</div>
-      </div>
-      <button class="modal-close" aria-label="Close" ${markerDetailActionAttrs('close-modal')}>&times;</button>
-    </div>
-    <div class="gb-form-body">
-    <div class="manual-entry-form">
-      <div class="me-field">
-        <label>Category</label>
-        <div class="cm-cat-row">
-          <select id="cm-category" ${markerDetailActionAttrs('toggle-custom-marker-category')}>
-            ${categoryOptions}
-            <option value="__new__">+ New category...</option>
-          </select>
-          <div id="cm-new-cat-row" style="display:none;margin-top:6px;gap:8px;align-items:center">
-            <span id="cm-new-cat-icon" title="Pick icon" style="cursor:pointer;font-size:20px;min-width:28px;text-align:center" role="button" tabindex="0" data-custom="" ${markerDetailActionAttrs('pick-new-cat-icon')}>\uD83D\uDD16</span>
-            <input type="text" id="cm-new-cat" placeholder="Category name" style="flex:1">
-          </div>
-        </div>
-      </div>
-      <div class="me-field">
-        <label>Marker name</label>
-        <input type="text" id="cm-name" placeholder="e.g. Lipoprotein(a)" autofocus>
-      </div>
-      <div class="me-field">
-        <label>Unit</label>
-        <input type="text" id="cm-unit" placeholder="e.g. mg/dL, nmol/L, %">
-      </div>
-      <div class="me-field">
-        <label>Reference range (optional)</label>
-        <div style="display:flex;gap:8px">
-          <input type="number" id="cm-ref-min" step="any" placeholder="Min">
-          <span style="line-height:36px">\u2013</span>
-          <input type="number" id="cm-ref-max" step="any" placeholder="Max">
-        </div>
-      </div>
-      <div class="me-field">
-        <label>Optimal range (optional)</label>
-        <div style="display:flex;gap:8px">
-          <input type="number" id="cm-opt-min" step="any" placeholder="Min">
-          <span style="line-height:36px">\u2013</span>
-          <input type="number" id="cm-opt-max" step="any" placeholder="Max">
-        </div>
-      </div>
-      <div class="gb-form-actions">
-        <button type="button" class="import-btn import-btn-primary" ${markerDetailActionAttrs('save-custom-marker')}>Create</button>
-        <button type="button" class="import-btn import-btn-secondary" ${markerDetailActionAttrs('close-modal')}>Cancel</button>
-      </div>
-    </div>
-    </div>`;
+  modal.innerHTML = renderCustomMarkerForm(data.categories);
   openModalOverlay(overlay, { initialFocus: '#cm-name', focusDelay: 50 });
 }
 

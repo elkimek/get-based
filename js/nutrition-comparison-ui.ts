@@ -4,7 +4,7 @@ import { analyzeMealPhoto, mealImagesFromPreparedPhotos, prepareMealPhotos } fro
 import { hydrateNutritionLocalAICatalog, listNutritionVisionModels } from './nutrition-ai-settings.js';
 import { parseReferenceIngredients } from './nutrition-comparison.js';
 import { renderComparisonModelPicker } from './nutrition-render.js';
-import { renderHTML } from './components/NutritionPresentation.svelte.html.js';
+import { renderHTML as renderBenchmarkStatus } from './components/NutritionBenchmarkStatus.svelte.html.js';
 import { projectNutritionComparisonProgress } from './nutrition-benchmark-model.js';
 import { isDebugMode, showNotification } from './utils.js';
 import { getErrorMessage } from './caught-error.js';
@@ -228,7 +228,7 @@ function updateComparisonHistoryBanner() {
   const savedLabel = Number.isFinite(date.getTime())
     ? date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
     : 'recently';
-  banner.innerHTML = renderHTML({ kind: 'benchmark-status', view: { kind: 'history', label: comparisonIsRestored ? 'Last comparison restored' : 'Comparison saved', savedLabel } });
+  banner.innerHTML = renderBenchmarkStatus({ view: { kind: 'history', label: comparisonIsRestored ? 'Last comparison restored' : 'Comparison saved', savedLabel } });
 }
 
 async function persistComparisonSnapshot(snapshot: ReturnType<typeof comparisonSnapshot>, profileId = comparisonProfileId || state.currentProfile, revision = comparisonPersistenceRevision) {
@@ -430,7 +430,7 @@ function setComparisonProgress(completed: number, total: number, label: unknown,
   if (!area) return;
   area.hidden = false;
   area.className = `nutrition-analysis-progress is-${state}`;
-  area.innerHTML = renderHTML({ kind: 'benchmark-status', view: projectNutritionComparisonProgress(completed, total, label, state) });
+  area.innerHTML = renderBenchmarkStatus({ view: projectNutritionComparisonProgress(completed, total, label, state) });
 }
 
 export function mountNutritionComparison() {
@@ -723,7 +723,7 @@ export function replaceComparisonRun(index: number) {
   if (progress) {
     progress.hidden = false;
     progress.className = 'nutrition-analysis-progress is-partial';
-    progress.innerHTML = renderHTML({ kind: 'benchmark-status', view: { kind: 'progress', state: 'partial', label: 'Choose a replacement model', detail: 'Only the new model will run', percent: null } });
+    progress.innerHTML = renderBenchmarkStatus({ view: { kind: 'progress', state: 'partial', label: 'Choose a replacement model', detail: 'Only the new model will run', percent: null } });
   }
   showNotification('Failed result removed. Choose another model, then run the replacement.', 'info');
   return true;

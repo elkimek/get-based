@@ -24,12 +24,31 @@ interface EmfFlowAssessmentRead {id: unknown;name?: unknown;notes?: unknown;date
 interface EmfFlowStateRead {importedData: {emfAssessment: {assessments: EmfFlowAssessmentRead[];compareMode?: unknown}}}
 
 
+// The standalone document creates partial nodes; retain their document owner so
+// the real delayed modal-focus callback can inspect this non-browser document.
+// No visibility, focus or timer behavior is fabricated by this fixture.
+const _ownsDefaultView = !('defaultView' in document);
+if (_ownsDefaultView) Object.defineProperty(document, 'defaultView', {value: null, configurable: true});
+const _origBodyAppendChild = document.body.appendChild.bind(document.body);
+(document.body as {appendChild: unknown}).appendChild = (node: Node) => {
+  const result = _origBodyAppendChild(node);
+  if (!('isConnected' in node)) Object.defineProperty(node, 'isConnected', {value: true, configurable: true});
+  return result;
+};
+const _origCreateElement = document.createElement.bind(document);
+(document as {createElement: unknown}).createElement = (tag: string, options?: ElementCreationOptions) => {
+  const node = _origCreateElement(tag, options);
+  if (!('ownerDocument' in node)) Object.defineProperty(node, 'ownerDocument', { value: document, configurable: true });
+  return node;
+};
+
 // emf.js's render functions write into #detail-modal / #modal-overlay,
 // which exist in index.html's skeleton but not in the Node DOM stub. Hand
 // back a persistent stub element for those two IDs so renderEMFEditor's
 // `modal.innerHTML = html` doesn't throw on null — the render output is
 // coverage-only; every assertion here checks state mutations or "X ran".
 const _modalStub = () => ({
+  ownerDocument: document, isConnected: true,
   _query: {} as Record<string, unknown>,
   style: {}, classList: { add() {}, remove() {}, contains() { return false; }, toggle() {} },
   appendChild() {}, remove() {}, setAttribute() {}, getAttribute() { return null; },
@@ -249,6 +268,11 @@ else delete ((state as unknown as EmfFlowStateRead).importedData as {emfAssessme
 // pattern). All assertions above are collected, never thrown, so
 // execution always reaches here.
 document.getElementById = _origGetById;
+
+
+(document as {createElement: unknown}).createElement = _origCreateElement;
+(document.body as {appendChild: unknown}).appendChild = _origBodyAppendChild;
+if (_ownsDefaultView) delete (document as {defaultView?: unknown}).defaultView;
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
 process.exit(fail > 0 ? 1 : 0);

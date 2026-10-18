@@ -1,3 +1,4 @@
+import{captureLightAIView}from'./light-ai-view-values.js';
 import type { ProfileData } from '../types/app-state.js';
 // light-tools-ai-analysis.js — per-measurement AI interpretation for the
 // Light Tools (Lux Meter, Flicker Detector, Sleep Darkness, CCT Meter,
@@ -243,11 +244,12 @@ export const maybeAnalyzeMeasurementAfterSave = engine.maybeAfterFinish;
 
 // ─── Render ────────────────────────────────────────────────────────────
 
-export function renderMeasurementAIInline(m: AILightMeasurement | null | undefined) {
-  if (!m) return '';
-  if (m.tool === 'audit') return ''; // aggregate row carries no per-tool verdict
-  if (!hasAssistantFeatureProvider() && !(m.aiAnalysis?.status === 'ok' && m.aiAnalysis?.dot)) return '';
-  return renderHTML({ view: projectEnvironmentAI({ kind: 'measurement', status: engine.getStatus(m), analysis: m.aiAnalysis,
+export function getMeasurementAIView(m: AILightMeasurement | null | undefined) {
+  if (!m) return null;
+  if (m.tool === 'audit') return null; // aggregate row carries no per-tool verdict
+  if (!hasAssistantFeatureProvider() && !(m.aiAnalysis?.status === 'ok' && m.aiAnalysis?.dot)) return null;
+  return captureLightAIView(projectEnvironmentAI({ kind: 'measurement', status: engine.getStatus(m), analysis: m.aiAnalysis,
     targetId: m.id, actionOwner: aiActionOwner(),
-  }) });
+  }));
 }
+export function renderMeasurementAIInline(m: AILightMeasurement | null | undefined){const view=getMeasurementAIView(m);return view?renderHTML({view}):'';}

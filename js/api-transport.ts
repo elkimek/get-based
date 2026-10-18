@@ -54,6 +54,18 @@ export function readWithStallTimeout<T>(reader: ApiStreamReader<T>, label = 'AI 
 export const FETCH_REQUEST_TIMEOUT_MS = 60000;
 export const AI_IMPORT_REQUEST_TIMEOUT_MS = 180000;
 
+/** Settle a caller-owned wait on abort even when an SDK cannot accept a signal. */
+export function waitForAbort<T>(pending: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return pending;
+  return new Promise<T>((resolve, reject) => {
+    const cleanup = () => signal.removeEventListener('abort', onAbort);
+    const onAbort = () => {cleanup(); reject(signal.reason ?? new DOMException('Operation cancelled.', 'AbortError'));};
+    if (signal.aborted) onAbort(); else signal.addEventListener('abort', onAbort, {once: true});
+    // Always observe late settlement, including rejection after cancellation.
+    pending.then(value => {cleanup(); resolve(value);}, error => {cleanup(); reject(error);});
+  });
+}
+
 export function createProxyFetch(shouldUseProxy: () => boolean) {
   return function proxyFetch(url: RequestInfo | URL, options: RequestInit) {
     if (!shouldUseProxy()) return fetch(url, options);

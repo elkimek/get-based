@@ -13,7 +13,7 @@ vi.mock('../js/modal-lifecycle.js',()=>({openModalOverlay:(overlay:HTMLElement|n
 vi.mock('../js/tour.js',()=>({startCycleTour:(automatic:boolean)=>owned.trace.push({port:'tour',automatic})}));
 // Keep the real original/current mutation queue, ownership and rollback owner.
 // Only the cold facade loader is replaced with its actual mutation export.
-vi.mock('../js/cycle-import-loader.js',async original=>({...await original<Record<string,unknown>>(),clearCycleProfileData:(await import('../js/cycle-import-mutations.js')).clearCycleProfileData}));
+vi.mock('../js/cycle-import-runtime.js',async original=>({...await original<Record<string,unknown>>(),clearCycleProfileData:(await import('../js/cycle-import-mutations.js')).clearCycleProfileData}));
 import {openMenstrualCycleEditor,addPeriodEntry,deletePeriodEntry,saveMenstrualCycle,clearMenstrualCycle,toggleCycleSymptomTag} from '../js/cycle.js';
 interface Control {tag:string;id:string;action:string|null;value:unknown;checked:unknown;disabled:unknown;hidden:HTMLElement['hidden'];pressed:string|null;selectedIndex:number|null;options:{value:string;text:string|null;selectedAttribute:boolean;selected:boolean;disabled:boolean}[]|null}
 interface Step {name:string;html:string;controls:Control[];state:Record<string,unknown>;raw:unknown[];meta:unknown[];runtimeTrace:unknown[]}

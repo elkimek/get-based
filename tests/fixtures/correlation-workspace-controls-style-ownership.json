@@ -1,0 +1,87 @@
+[
+  [
+    "corr-workspace-control-0",
+    ".corr-workspace-tools, .corr-workspace-tabs, .corr-series",
+    null
+  ],
+  [
+    "corr-workspace-control-1",
+    ".corr-workspace-tools",
+    null
+  ],
+  [
+    "corr-workspace-control-2",
+    ".corr-workspace-tabs button",
+    null
+  ],
+  [
+    "corr-workspace-control-3",
+    ".corr-workspace-tabs button[aria-pressed=\"true\"]",
+    null
+  ],
+  [
+    "corr-workspace-control-4",
+    ".corr-series button",
+    null
+  ],
+  [
+    "corr-workspace-control-5",
+    ".corr-series button[aria-pressed=\"false\"]",
+    null
+  ],
+  [
+    "corr-workspace-control-6",
+    ".corr-series i",
+    null
+  ],
+  [
+    "corr-workspace-control-7",
+    ".corr-workspace-tools > label",
+    "(max-width: 600px)"
+  ],
+  [
+    "corr-workspace-control-8",
+    ".corr-workspace-tabs button, .corr-series button",
+    "(max-width: 600px)"
+  ],
+  [
+    "corr-workspace-control-9",
+    ".corr-ingredient-picker",
+    null
+  ],
+  [
+    "corr-workspace-control-10",
+    ".corr-control",
+    null
+  ],
+  [
+    "corr-workspace-control-11",
+    ".corr-control .date-range-filter",
+    null
+  ],
+  [
+    "corr-workspace-control-12",
+    ".corr-custom-dates",
+    null
+  ],
+  [
+    "corr-workspace-control-13",
+    ".corr-ingredient-picker select:focus-visible",
+    null
+  ],
+  [
+    "corr-workspace-control-14",
+    ".corr-control .range-btn",
+    "(max-width: 600px)"
+  ],
+  [
+    "corr-workspace-control-15",
+    ".corr-custom-dates > label",
+    "(max-width: 600px)"
+  ],
+  [
+    "corr-workspace-control-16",
+    ".corr-ingredient-picker select",
+    "(max-width: 600px)"
+  ]
+]

@@ -1,0 +1,326 @@
+{
+  "owners": [
+    [
+      "category-page-category-title-text",
+      ".category-title-text",
+      null
+    ],
+    [
+      "category-page-empty-state-icon-category",
+      ".empty-state-icon-category",
+      null
+    ],
+    [
+      "category-page-view-toggle",
+      ".view-toggle",
+      null
+    ],
+    [
+      "category-page-view-content",
+      "#view-content",
+      null
+    ],
+    [
+      "category-page-chart-card-gap-section",
+      ".chart-card-gap-section",
+      null
+    ],
+    [
+      "category-page-chart-card-gap-section-p",
+      ".chart-card-gap-section > p",
+      null
+    ],
+    [
+      "category-page-chart-card-gap-list",
+      ".chart-card-gap-list",
+      null
+    ],
+    [
+      "category-page-chart-card-add",
+      ".chart-card-add",
+      null
+    ],
+    [
+      "category-page-chart-card-add-span-first-child",
+      ".chart-card-add > span:first-child",
+      null
+    ],
+    [
+      "category-page-chart-card-add-span-last-child",
+      ".chart-card-add > span:last-child",
+      null
+    ]
+  ],
+  "metadata": {
+    "beforePrefix": "/* Chart Layers utilities only; native selectors and category cascade stay in place. */\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
+    "afterPrefix": "/* Chart Layers utilities only; native selectors and category cascade stay in place. */\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
+    "inverseEdit": {
+      "start": 376,
+      "end": 387,
+      "before": "\n\n\n\n\n\n\n\n\n\n\n",
+      "after": ""
+    }
+  },
+  "ownedBodies": [
+    {
+      "selector": ".category-title-text",
+      "condition": null,
+      "compiled": "\n  min-width: 0;\n",
+      "native": "\n  min-width: 0;\n",
+      "declarations": [
+        {
+          "property": "min-width",
+          "value": "0",
+          "important": false
+        }
+      ]
+    },
+    {
+      "selector": ".empty-state-icon-category",
+      "condition": null,
+      "compiled": "\n  display: flex;\n  justify-content: center;\n  font-size: inherit;\n",
+      "native": "\n  display: flex;\n  justify-content: center;\n  font-size: inherit;\n",
+      "declarations": [
+        {
+          "property": "display",
+          "value": "flex",
+          "important": false
+        },
+        {
+          "property": "justify-content",
+          "value": "center",
+          "important": false
+        },
+        {
+          "property": "font-size",
+          "value": "inherit",
+          "important": false
+        }
+      ]
+    },
+    {
+      "selector": ".view-toggle",
+      "condition": null,
+      "compiled": "\n  display: flex;\n  gap: 4px;\n  background: var(--bg-secondary);\n  padding: 3px;\n  border-radius: var(--radius-sm);\n  border: 1px solid var(--border);\n  margin-bottom: 20px;\n  width: fit-content;\n",
+      "native": "\n  display: flex; gap: 4px; background: var(--bg-secondary); padding: 3px;\n  border-radius: var(--radius-sm); border: 1px solid var(--border);\n  margin-bottom: 20px; width: fit-content;\n",
+      "declarations": [
+        {
+          "property": "display",
+          "value": "flex",
+          "important": false
+        },
+        {
+          "property": "gap",
+          "value": "4px",
+          "important": false
+        },
+        {
+          "property": "background",
+          "value": "var(--bg-secondary)",
+          "important": false
+        },
+        {
+          "property": "padding",
+          "value": "3px",
+          "important": false
+        },
+        {
+          "property": "border-radius",
+          "value": "var(--radius-sm)",
+          "important": false
+        },
+        {
+          "property": "border",
+          "value": "1px solid var(--border)",
+          "important": false
+        },
+        {
+          "property": "margin-bottom",
+          "value": "20px",
+          "important": false
+        },
+        {
+          "property": "width",
+          "value": "fit-content",
+          "important": false
+        }
+      ]
+    },
+    {
+      "selector": "#view-content",
+      "condition": null,
+      "compiled": "\n  width: 100%;\n  min-width: 0;\n",
+      "native": "\n  width: 100%;\n  min-width: 0;\n",
+      "declarations": [
+        {
+          "property": "width",
+          "value": "100%",
+          "important": false
+        },
+        {
+          "property": "min-width",
+          "value": "0",
+          "important": false
+        }
+      ]
+    },
+    {
+      "selector": ".chart-card-gap-section",
+      "condition": null,
+      "compiled": "\n  margin-top: 16px;\n",
+      "native": " margin-top: 16px; ",
+      "declarations": [
+        {
+          "property": "margin-top",
+          "value": "16px",
+          "important": false
+        }
+      ]
+    },
+    {
+      "selector": ".chart-card-gap-section > p",
+      "condition": null,
+      "compiled": "\n  color: var(--text-secondary);\n  font-size: 13px;\n  margin-bottom: 8px;\n",
+      "native": " color: var(--text-secondary); font-size: 13px; margin-bottom: 8px; ",
+      "declarations": [
+        {
+          "property": "color",
+          "value": "var(--text-secondary)",
+          "important": false
+        },
+        {
+          "property": "font-size",
+          "value": "13px",
+          "important": false
+        },
+        {
+          "property": "margin-bottom",
+          "value": "8px",
+          "important": false
+        }
+      ]
+    },
+    {
+      "selector": ".chart-card-gap-list",
+      "condition": null,
+      "compiled": "\n  display: flex;\n  flex-wrap: wrap;\n  gap: 8px;\n",
+      "native": " display: flex; flex-wrap: wrap; gap: 8px; ",
+      "declarations": [
+        {
+          "property": "display",
+          "value": "flex",
+          "important": false
+        },
+        {
+          "property": "flex-wrap",
+          "value": "wrap",
+          "important": false
+        },
+        {
+          "property": "gap",
+          "value": "8px",
+          "important": false
+        }
+      ]
+    },
+    {
+      "selector": ".chart-card-add",
+      "condition": null,
+      "compiled": "\n  display: inline-flex;\n  flex: 0 0 auto;\n  width: auto;\n  min-height: auto;\n  height: auto;\n  flex-direction: row;\n  align-items: center;\n  padding: 12px 16px;\n  color: inherit;\n  font: inherit;\n  text-align: left;\n",
+      "native": "\n  display: inline-flex;\n  flex: 0 0 auto;\n  width: auto;\n  min-height: auto;\n  height: auto;\n  flex-direction: row;\n  align-items: center;\n  padding: 12px 16px;\n  color: inherit;\n  font: inherit;\n  text-align: left;\n",
+      "declarations": [
+        {
+          "property": "display",
+          "value": "inline-flex",
+          "important": false
+        },
+        {
+          "property": "flex",
+          "value": "0 0 auto",
+          "important": false
+        },
+        {
+          "property": "width",
+          "value": "auto",
+          "important": false
+        },
+        {
+          "property": "min-height",
+          "value": "auto",
+          "important": false
+        },
+        {
+          "property": "height",
+          "value": "auto",
+          "important": false
+        },
+        {
+          "property": "flex-direction",
+          "value": "row",
+          "important": false
+        },
+        {
+          "property": "align-items",
+          "value": "center",
+          "important": false
+        },
+        {
+          "property": "padding",
+          "value": "12px 16px",
+          "important": false
+        },
+        {
+          "property": "color",
+          "value": "inherit",
+          "important": false
+        },
+        {
+          "property": "font",
+          "value": "inherit",
+          "important": false
+        },
+        {
+          "property": "text-align",
+          "value": "left",
+          "important": false
+        }
+      ]
+    },
+    {
+      "selector": ".chart-card-add > span:first-child",
+      "condition": null,
+      "compiled": "\n  color: var(--text-secondary);\n",
+      "native": " color: var(--text-secondary); ",
+      "declarations": [
+        {
+          "property": "color",
+          "value": "var(--text-secondary)",
+          "important": false
+        }
+      ]
+    },
+    {
+      "selector": ".chart-card-add > span:last-child",
+      "condition": null,
+      "compiled": "\n  margin-left: 6px;\n  color: var(--text-muted);\n  font-size: 11px;\n",
+      "native": " margin-left: 6px; color: var(--text-muted); font-size: 11px; ",
+      "declarations": [
+        {
+          "property": "margin-left",
+          "value": "6px",
+          "important": false
+        },
+        {
+          "property": "color",
+          "value": "var(--text-muted)",
+          "important": false
+        },
+        {
+          "property": "font-size",
+          "value": "11px",
+          "important": false
+        }
+      ]
+    }
+  ]
+}

@@ -2,17 +2,8 @@ import type { ActiveData } from './data-view-types.js';
 import type { NormalizedProfileData } from '../types/app-state.js';
 
 type ReviewData = Partial<ActiveData> | null | undefined;
-interface ContextSuggestion { flag: string; value?: boolean; confidence: string; reason?: string; evidence?: string[]; affects?: string[] }
-export interface BiologyContextReview {
-  summary?: string; suggestions?: ContextSuggestion[]; profileId?: string; updatedAt?: number; range?: string;
-  fingerprint?: string; fingerprintsByRange?: Record<string, string>; contextSignature?: string;
-  contextSignaturesByRange?: Record<string, string>; unlockedRanges?: string[]; dismissed?: string[];
-  generation?: { provider: string; modelId: string; generatedAt: number; usage?: unknown };
-}
-interface ContextAIDeps {
-  callClaudeAPI: typeof callAssistantFeatureAI; hasAIProvider: typeof hasAssistantFeatureProvider;
-  isAIPaused: typeof isAIPaused; navigate: ((route?: string) => void) | null;
-}
+import type { BiologyContextReview } from './biology-score-context-contract.js';
+export type { BiologyContextReview } from './biology-score-context-contract.js';
 interface GeneticContext { source?: unknown; apoe?: unknown; mtdna?: unknown; mtDNA?: unknown; mtdnaHaplogroup?: unknown; mtDnaHaplogroup?: unknown; snps?: Record<string, { effect?: unknown; valence?: unknown; category?: string } | null> }
 type WearableSummary = NonNullable<Parameters<typeof getSleepContextMismatch>[1]> & { metrics: Record<string, NonNullable<Parameters<typeof getSleepContextMismatch>[1]>['metrics'][string] & { baselineP25?: unknown; baselineP75?: unknown }> };
 type ContextProfile = Pick<Partial<NormalizedProfileData>, 'diagnoses' | 'exercise' | 'sleepRest' | 'stress' | 'diet' | 'loveLife' | 'environment' | 'lightCircadian' | 'supplements' | 'healthGoals' | 'contextNotes' | 'interpretiveLens' | 'menstrualCycle'> & {
@@ -35,15 +26,13 @@ import { filterDatesByRange, getActiveData, invalidateActiveDataCache, saveImpor
 import {
   isGeneticsPriorityInAIContext,
   isGeneticsSummaryInAIContext,
-  getSleepContextMismatch,
   isInsightContextCardsEnabled,
   isLabMarkersContextEnabled,
   isLightSunContextEnabled,
   isSupplementsMedsContextEnabled,
-  isWearableContextEnabled,
-} from './lab-context.js';
-import { isAIPaused } from './api.js';
-import { callAssistantFeatureAI, getAssistantFeatureIdentity, hasAssistantFeatureProvider } from './ai-feature-routing.js';
+} from './lab-context-settings.js';
+import { getSleepContextMismatch, isWearableContextEnabled } from './lab-context-wearables.js';
+import { getAssistantFeatureIdentity } from './ai-feature-routing.js';
 import { getProfiles } from './profile.js';
 import { state } from './state.js';
 import {projectBiologyContextReview} from './biology-context-presentation.js';
@@ -54,23 +43,10 @@ import { getCurrentSupplements, getSupplementsOverlappingRange } from './supplem
 import { resolveActiveMarkerPath } from './marker-placement.js';
 import { buildCompactSupplementContextRecords } from './supplement-context.js';
 
-const biologyScoreContextAIDeps: ContextAIDeps = {
-  callClaudeAPI: callAssistantFeatureAI,
-  hasAIProvider: hasAssistantFeatureProvider,
-  isAIPaused,
-  navigate: null,
-};
-
-export function configureBiologyScoreContextAIDeps(deps: Partial<ContextAIDeps> = {}) {
-  const previous = { ...biologyScoreContextAIDeps };
-  if (typeof deps.callClaudeAPI === 'function') biologyScoreContextAIDeps.callClaudeAPI = deps.callClaudeAPI;
-  if (typeof deps.hasAIProvider === 'function') biologyScoreContextAIDeps.hasAIProvider = deps.hasAIProvider;
-  if (typeof deps.isAIPaused === 'function') biologyScoreContextAIDeps.isAIPaused = deps.isAIPaused;
-  if (Object.hasOwn(deps, 'navigate') && (deps.navigate === null || typeof deps.navigate === 'function')) {
-    biologyScoreContextAIDeps.navigate = deps.navigate!;
-  }
-  return previous;
-}
+import { biologyScoreContextAIDeps } from './biology-score-context-runtime.js';
+export { configureBiologyScoreContextAIDeps } from './biology-score-context-runtime.js';
+import { CONTEXT_REVIEW_RANGES } from './biology-score-context-contract.js';
+export { CONTEXT_REVIEW_RANGES } from './biology-score-context-contract.js';
 
 const FLAG_LABELS: Record<string, string> = {
   lowMuscleMass: 'Low muscle / creatinine unreliable',
@@ -82,7 +58,6 @@ const FLAG_LABELS: Record<string, string> = {
 const FLAG_KEYS = Object.keys(FLAG_LABELS);
 const applicableFlagKeys = () => FLAG_KEYS.filter(flag => flag !== 'postmenopause' || state.profileSex === 'female');
 const flagLabel = (flag: string) => flag === 'hormoneTherapy' && state.profileSex !== 'female' ? 'Hormone therapy / TRT' : FLAG_LABELS[flag];
-export const CONTEXT_REVIEW_RANGES = ['all', '1y', '6m', '3m'];
 let installed = false;
 
 function safeContextText(value: unknown, max = 500) {

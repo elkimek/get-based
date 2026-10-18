@@ -1,0 +1,24 @@
+{
+  "coordinateUnit": "JavaScript UTF-16",
+  "marker": "/* Category routes:",
+  "before": {
+    "text": "/* Chart Layers utilities only; native selectors and category cascade stay in place. */\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
+    "end": 177,
+    "bytes": 177,
+    "sha256": "393b0f970c0becefb57354e78b88db5381ecb5b1aa661310c830686bc35520d9"
+  },
+  "after": {
+    "text": "/* Chart Layers utilities only; native selectors and category cascade stay in place. */\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
+    "end": 195,
+    "bytes": 195,
+    "sha256": "dba8aafebe6bb7eab4cb69c0bdf86a752060d1e34b9a70f8c5825b85fd4ba4d1"
+  },
+  "inverseEdit": {
+    "start": 177,
+    "end": 195,
+    "before": "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
+    "after": ""
+  },
+  "fullExactPrefixBeforeInverse": true,
+  "scope": "Only the 18 metadata serialization newlines produced by the 17 newly added utility definitions; every original prefix/comment byte retained exactly."
+}

@@ -1,0 +1,177 @@
+import {compileNativeStyleBodies,type NativeStyleOwnership} from './native-recipe-styles.mjs';
+
+// Exact native selectors/media remain at their original cascade positions.
+// Mixed coarse Add/Save/Cancel and all detail/chart/card styles stay foreign.
+export const wearableEntryOwnership = {
+  receivers: [
+  [
+    "wearable-entry-01",
+    ".wearable-log-form",
+    null
+  ],
+  [
+    "wearable-entry-02",
+    ".wearable-log-input",
+    null
+  ],
+  [
+    "wearable-entry-03",
+    ".wearable-log-input:focus",
+    null
+  ],
+  [
+    "wearable-entry-04",
+    ".wearable-log-bp-row",
+    null
+  ],
+  [
+    "wearable-entry-05",
+    ".wearable-log-bp",
+    null
+  ],
+  [
+    "wearable-entry-06",
+    ".wearable-log-sep",
+    null
+  ],
+  [
+    "wearable-entry-07",
+    ".wearable-log-pulse-optional",
+    null
+  ],
+  [
+    "wearable-entry-08",
+    ".wearable-log-row",
+    null
+  ],
+  [
+    "wearable-entry-09",
+    ".wearable-log-date",
+    null
+  ],
+  [
+    "wearable-entry-10",
+    "[data-theme=\"light\"] .wearable-log-date",
+    null
+  ],
+  [
+    "wearable-entry-11",
+    ".wearable-log-save",
+    null
+  ],
+  [
+    "wearable-entry-12",
+    ".wearable-log-save:hover",
+    null
+  ],
+  [
+    "wearable-entry-13",
+    ".wearable-log-cancel",
+    null
+  ],
+  [
+    "wearable-entry-14",
+    ".wearable-log-cancel:hover",
+    null
+  ],
+  [
+    "wearable-entry-15",
+    ".wearable-log-tags",
+    null
+  ],
+  [
+    "wearable-entry-16",
+    ".wearable-log-chip",
+    null
+  ],
+  [
+    "wearable-entry-17",
+    ".wearable-log-chip:hover",
+    null
+  ],
+  [
+    "wearable-entry-18",
+    ".wearable-log-chip.active",
+    null
+  ],
+  [
+    "wearable-entry-19",
+    ".wearable-log-note",
+    null
+  ],
+  [
+    "wearable-entry-20",
+    ".wearable-log-note:focus",
+    null
+  ],
+  [
+    "wearable-entry-21",
+    ".wearable-log-note::placeholder",
+    null
+  ],
+  [
+    "wearable-entry-22",
+    ".wearable-manual-add-form",
+    null
+  ],
+  [
+    "wearable-entry-23",
+    ".wearable-manual-add-form .wearable-log-input",
+    null
+  ],
+  [
+    "wearable-entry-24",
+    ".wearable-manual-add-form .wearable-log-date",
+    null
+  ],
+  [
+    "wearable-entry-25",
+    ".wearable-manual-add-form-bp .wearable-log-bp-row",
+    null
+  ],
+  [
+    "wearable-entry-26",
+    ".wearable-source-picker",
+    null
+  ],
+  [
+    "wearable-entry-27",
+    ".wearable-source-picker-head",
+    null
+  ],
+  [
+    "wearable-entry-28",
+    ".wearable-source-picker-item",
+    null
+  ],
+  [
+    "wearable-entry-29",
+    ".wearable-source-picker-item:hover",
+    null
+  ],
+  [
+    "wearable-entry-30",
+    ".wearable-source-picker-item.selected",
+    null
+  ],
+  [
+    "wearable-entry-31",
+    ".wearable-source-picker-check",
+    null
+  ],
+  [
+    "wearable-entry-32",
+    ".wearable-source-picker-auto",
+    null
+  ],
+  [
+    "wearable-entry-33",
+    ".wearable-source-picker-item",
+    "(pointer: coarse)"
+  ]
+],
+  declarationCount: 139, compactMetadataPrefix: true, isolateRecipes: true,
+} as const satisfies NativeStyleOwnership;
+export function compileWearableEntryStyles(input:string,inputPath:string,root:string){
+  return compileNativeStyleBodies(input,inputPath,root,wearableEntryOwnership);
+}

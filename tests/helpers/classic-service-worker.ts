@@ -3,7 +3,7 @@ import { createContext, runInContext } from 'node:vm';
 
 /** Execute the emitted classic scripts together, including real importScripts loads. */
 export function executeClassicServiceWorker(runtime: Record<string, unknown>, loadVersion: () => void): void {
-  const context = createContext({ self: runtime, URL, Error, console });
+  const context = createContext({ self: runtime, URL, Response, Headers, crypto, Error, console, setTimeout, clearTimeout });
   for (const key of ['fetch', 'caches']) {
     Object.defineProperty(context, key, {
       get: () => (globalThis as Record<string, unknown>)[key],

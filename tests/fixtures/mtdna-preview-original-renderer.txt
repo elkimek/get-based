@@ -1,0 +1,38 @@
+function _showMtDNAPreview(resolved, coupling, mutations, fileName) {
+  const mismatch = coupling ? detectMtDNAMismatch({ mtdna: { haplogroup: resolved.haplogroup, coupling } }) : null;
+  let html = `<div class="dna-preview-header">
+    <div class="dna-preview-title">mtDNA Import</div>
+    <div class="dna-preview-stats">${mutations.length} mtDNA markers read from ${escapeHTML(fileName)}</div>
+  </div>
+  <div class="dna-preview-body">
+    <div class="mtdna-preview-haplogroup">
+      <div class="mtdna-hg-label">Haplogroup</div>
+      <div class="mtdna-hg-value">${escapeHTML(resolved.haplogroup)}</div>
+      <div class="mtdna-hg-confidence">${resolved.matchedMutations}/${resolved.totalDiagnostic} diagnostic markers matched</div>
+    </div>`;
+  if (coupling) {
+    html += `<div class="mtdna-preview-coupling">
+      <div class="mtdna-coupling-label">${escapeHTML(coupling.label)}</div>
+      <div class="mtdna-coupling-climate">${escapeHTML(coupling.climate)}</div>
+      <div class="mtdna-coupling-desc">${escapeHTML(coupling.description)}</div>
+    </div>`;
+  }
+  if (mismatch && mismatch.mismatch) {
+    html += `<div class="mtdna-preview-mismatch mtdna-mismatch-${mismatch.severity}">
+      <strong>Environment mismatch:</strong> ${escapeHTML(mismatch.message)}
+      ${mismatch.implications ? `<div class="mtdna-mismatch-implications">${escapeHTML(mismatch.implications)}</div>` : ''}
+    </div>`;
+  }
+  else if (mismatch && !mismatch.mismatch) {
+    html += `<div class="mtdna-preview-match">${escapeHTML(mismatch.message)}</div>`;
+  }
+  html += `</div>
+  <div class="dna-preview-disclaimer">Processed locally. Coupling classification follows the Wallace mitochondrial paradigm - a research framework, not an established clinical standard.</div>
+  <div class="dna-preview-actions">
+    <button class="import-btn import-btn-secondary" ${dnaActionAttrs('close-mtdna-preview')}>Cancel</button>
+    <button class="import-btn import-btn-primary" ${dnaActionAttrs('confirm-mtdna-import')}>Import Haplogroup ${escapeHTML(resolved.haplogroup)}</button>
+  </div>`;
+  const overlay = ensureDnaModalOverlay();
+  overlay.innerHTML = `<div class="modal dna-preview-modal" role="dialog">${html}</div>`;
+  openModalOverlay(overlay);
+}

@@ -1,4 +1,5 @@
 import { createRetryingStylesheetLoader, findStylesheet } from './retrying-module-loader.js';
+import { getModalFocusables } from './modal-focusable.js';
 export interface ModalFocusTrapOptions { autoFocus?: boolean | undefined; closeOnEscape?: boolean; onEscape?: () => void; }
 export interface ModalOverlayOptions {
   initialFocus?: string | HTMLElement; focusDelay?: number; showClass?: string;
@@ -17,7 +18,6 @@ type ModalWindow = Window & {
 // modal-lifecycle.js — shared modal backdrop, focus trap, and scroll lock.
 
 const DATA_PROTECTION_STYLESHEET_URL = new URL('../css/data-protection.css', import.meta.url).href;
-const FOCUSABLE_SELECTOR = 'button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])';
 const VISIBLE_MODAL_SELECTOR = '.modal-overlay.show,.confirm-overlay.show,[data-modal-focus-trap]';
 const dataProtectionStylesheetPromiseCache = createRetryingStylesheetLoader({
   existing: existingDataProtectionStylesheet,
@@ -185,6 +185,9 @@ function _resolveFocusTarget(target: string | HTMLElement | undefined, overlay: 
   return target;
 }
 
+// Each open owns its delayed focus, including a close/reopen of the same node.
+const _overlayFocusRequests = new WeakMap<Element, object>();
+
 function _canApplyDelayedInitialFocus(overlay: Element, activeElementAtOpen: Element | null): boolean {
   if (!_isNodeConnected(overlay)) return false;
   // Appended confirmations own keyboard focus while a parent's opening delay
@@ -212,6 +215,8 @@ export function openModalOverlay(overlayOrId: OverlayReference, options: ModalOv
     _overlayFocusTargets.set(overlay, activeElementAtOpen);
   }
   overlay.classList.add(showClass);
+  const focusRequest = {};
+  _overlayFocusRequests.set(overlay, focusRequest);
   if (!alreadyShown) {
     const contextEditor = (overlay.querySelector('.ctx-editor-modal') as HTMLElement | null);
     if (contextEditor) contextEditor.scrollTop = 0;
@@ -222,7 +227,9 @@ export function openModalOverlay(overlayOrId: OverlayReference, options: ModalOv
     const delay = Number.isFinite(options.focusDelay) ? Math.max(0, options.focusDelay!) : 30;
     setTimeout(() => {
       const currentOverlay = _resolveOverlay(overlayOrId);
-      if (!currentOverlay || !currentOverlay.classList.contains(showClass)) return;
+      if (!currentOverlay || currentOverlay !== overlay
+        || _overlayFocusRequests.get(overlay) !== focusRequest
+        || !currentOverlay.classList.contains(showClass)) return;
       if (!_canApplyDelayedInitialFocus(currentOverlay, activeElementAtOpen)) return;
       const target = _resolveFocusTarget(options.initialFocus, currentOverlay);
       const activeElement = document.activeElement;
@@ -243,10 +250,12 @@ export function openModalOverlay(overlayOrId: OverlayReference, options: ModalOv
     const delay = Number.isFinite(options.focusDelay) ? Math.max(0, options.focusDelay!) : 30;
     setTimeout(() => {
       const currentOverlay = _resolveOverlay(overlayOrId);
-      if (!currentOverlay || !currentOverlay.classList.contains(showClass)) return;
+      if (!currentOverlay || currentOverlay !== overlay
+        || _overlayFocusRequests.get(overlay) !== focusRequest
+        || !currentOverlay.classList.contains(showClass)) return;
       if (!_canApplyDelayedInitialFocus(currentOverlay, activeElementAtOpen)) return;
       if (currentOverlay.contains(document.activeElement)) return;
-      const target = (currentOverlay.querySelector(FOCUSABLE_SELECTOR) as HTMLElement | null);
+      const target = getModalFocusables(currentOverlay)[0];
       if (target) {
         try { target.focus(); } catch (_) {}
       }
@@ -261,6 +270,7 @@ export function closeModalOverlay(overlayOrId: OverlayReference, options: ModalO
   if (!overlay) return null;
   const showClass = options.showClass || 'show';
   overlay.classList.remove(showClass);
+  _overlayFocusRequests.delete(overlay);
   _releaseOverlayScrollLock(overlay);
 
   if (options.restoreFocus !== false) {
@@ -268,6 +278,12 @@ export function closeModalOverlay(overlayOrId: OverlayReference, options: ModalO
     _overlayFocusTargets.delete(overlay);
     if (_isRestorableFocusTarget(focusTarget)) {
       try { focusTarget.focus(); } catch (_) {}
+    }
+    // Some browsers keep a removed dialog's control focused when its trigger
+    // is gone. Leave the hidden overlay when caller restoration was unavailable.
+    const activeElement = document.activeElement;
+    if (_isRestorableFocusTarget(activeElement) && overlay.contains(activeElement)) {
+      activeElement.blur();
     }
   }
 
@@ -333,6 +349,7 @@ function _releaseOverlayScrollLock(overlay: Element): void {
 
 export function trapModalFocus(overlay: Element, options: ModalFocusTrapOptions = {}): (restoreFocus?: boolean) => void {
   const previouslyFocused = document.activeElement;
+  const focusRequest = _overlayFocusRequests.get(overlay);
   const closeOnEscape = options.closeOnEscape !== false;
   const onEscape = typeof options.onEscape === 'function'
     ? options.onEscape
@@ -342,10 +359,11 @@ export function trapModalFocus(overlay: Element, options: ModalFocusTrapOptions 
   let teardown = false;
   if (options.autoFocus !== false) {
     setTimeout(() => {
-      if (!_isNodeConnected(overlay)
+      if (teardown || _overlayFocusRequests.get(overlay) !== focusRequest
+        || !_isNodeConnected(overlay)
         || (typeof overlay.contains === 'function' && overlay.contains(document.activeElement))
         || typeof overlay.querySelectorAll !== 'function') return;
-      const focusables = overlay.querySelectorAll(FOCUSABLE_SELECTOR);
+      const focusables = getModalFocusables(overlay);
       const firstFocusable = (focusables[0] as HTMLElement | undefined);
       if (firstFocusable) try { firstFocusable.focus(); } catch (e) {}
     }, 30);
@@ -357,7 +375,7 @@ export function trapModalFocus(overlay: Element, options: ModalFocusTrapOptions 
         || overlay.querySelector?.('.modal')
         || overlay.querySelector?.('.confirm-dialog')
         || overlay;
-      const focusables = modal.querySelectorAll?.(FOCUSABLE_SELECTOR) || [];
+      const focusables = getModalFocusables(modal);
       if (focusables.length === 0) return;
       const first = (focusables[0] as HTMLElement);
       const last = (focusables[focusables.length - 1] as HTMLElement);

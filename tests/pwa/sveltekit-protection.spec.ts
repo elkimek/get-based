@@ -3,8 +3,13 @@ import fs from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { startKitServer } from './kit-server.js';
+import { artifactInputs } from './kit-native-receipts.js';
 
 const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
+const protectionOwners = ['js/state.js', 'js/settings-protection-classes.js', 'js/settings-protection-component.js',
+  'js/components/EncryptionSettings.svelte', 'js/components/BackupSettings.svelte'] as const;
+const protectionSheets = ['css/settings.css'] as const;
+const coarseTargetClass = 'gb:protection:[@media(pointer:coarse)]:min-h-11';
 async function ready(page: Page) {
   await expect(page.locator('html[data-app-ready][data-shell-framework="sveltekit"]')).toBeAttached({ timeout: 30_000 });
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => true));
@@ -18,6 +23,8 @@ async function data(page: Page) {
 
 test('Security and Backup preserve offline first use, keyboard actions, themes and encrypted cold launch', async ({ page, context }) => {
   test.setTimeout(150_000);
+  const ownedArtifact = await artifactInputs(protectionOwners, protectionSheets);
+  expect(ownedArtifact.directory).toBe(artifact);
   await context.addInitScript({ path: 'node_modules/axe-core/axe.min.js' });
   await context.addInitScript(() => {
     if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -93,8 +100,25 @@ test('Security and Backup preserve offline first use, keyboard actions, themes a
           });
           expect(violations, `${theme} ${viewport.width} ${await section.getAttribute('id')}`).toEqual([]);
         }
-        for (const button of [security.getByRole('button', { name: 'Enable Encryption' }), picker, toggle]) {
-          await expect(button).toHaveCSS('min-height', '44px'); await button.focus(); await page.keyboard.press('Tab'); await page.keyboard.press('Shift+Tab');
+        const coarsePointer = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
+        for (const [button, fineMinimum, parentDisplay] of [
+          [security.getByRole('button', { name: 'Enable Encryption' }), '0px', 'block'],
+          [picker, 'auto', 'flex'],
+          [toggle, '0px', 'block'],
+        ] as const) {
+          // Historical native block controls compute 0px; Restore is a flex
+          // item with an automatic minimum. Coarse pointers explicitly use 44px.
+          expect(await button.evaluate(element => getComputedStyle(element.parentElement!).display)).toBe(parentDisplay);
+          if (parentDisplay === 'flex') expect(await button.evaluate(element => element.parentElement!.classList.contains('gb:protection:flex'))).toBe(true);
+          expect(await button.evaluate((element, token) => element.classList.contains(token), coarseTargetClass)).toBe(true);
+          expect(await button.evaluate(element => element.classList.contains('gb:protection:min-h-11'))).toBe(false);
+          await expect(button).toHaveAttribute('type', 'button');
+          await expect(button).toHaveCSS('min-height', coarsePointer ? '44px' : fineMinimum);
+          if (coarsePointer) {
+            const target = await button.evaluate(element => { const rect = element.getBoundingClientRect(); return {width: rect.width, height: rect.height}; });
+            expect(target.width).toBeGreaterThanOrEqual(44); expect(target.height).toBeGreaterThanOrEqual(44);
+          }
+          await button.focus(); await page.keyboard.press('Tab'); await page.keyboard.press('Shift+Tab');
           await expect(button).toBeFocused(); await expect(button).toHaveCSS('outline-width', '2px');
         }
       }
@@ -136,5 +160,6 @@ test('Security and Backup preserve offline first use, keyboard actions, themes a
     expect(await cold.evaluate(async () => (await navigator.serviceWorker.getRegistrations()).map(registration => new URL(registration.active!.scriptURL).pathname))).toEqual(['/service-worker.js']);
     csp.push(...await cold.evaluate(() => (window as unknown as { protectionCsp?: string[] }).protectionCsp || []));
     expect(errors).toEqual([]); expect(csp).toEqual([]);
+    expect(await artifactInputs(protectionOwners, protectionSheets)).toEqual(ownedArtifact);
   } finally { await server.close(); }
 });

@@ -1,3 +1,5 @@
+import{captureLightAIView}from'./light-ai-view-values.js';
+import type{WeeklyFallbackView}from'./light-review-ai-presentation.js';
 import type { ProfileData } from '../types/app-state.js';
 // light-channels-ai-analysis.js — seven-day Light review. It compares the
 // most recent seven days with the seven before them, while keeping sunlight
@@ -277,24 +279,17 @@ registerAIActionHandler('refresh-channel-mix', refreshChannelMixAI);
 // other auto-fire surfaces; prevents tight-loop refire.
 const _autoFiredChannelKeys = new Set();
 
-function renderWeeklyAI(variant: ReviewAIVariant, status: import('./ai-verdict-engine.js').AIVerdictStatus, analysis: MixRead | null, fallbackHTML: unknown = '') {
-  return renderHTML({ view: projectReviewAI({ kind: 'weekly', variant, status,
-    analysis, fallbackHTML, actionOwner: aiActionOwner(),
-  }) });
-}
-
-// Existing callers supply their deterministic summary; providerless fallback
-// retains its original return contract. AI text never enters that HTML slot.
-export function renderChannelMixVerdict(staticFallback: unknown): unknown {
+type MixSelection<F>={readonly kind:'fallback';readonly value:F|''}|{readonly kind:'ai';readonly variant:ReviewAIVariant;readonly status:import('./ai-verdict-engine.js').AIVerdictStatus;readonly analysis:MixRead|null;readonly fallback:F|undefined};
+function selectChannelMixVerdict<F>(staticFallback:F):MixSelection<F>{
   const analysis = _getMix();
   const fingerprint = getChannelMixFingerprint();
   if (!hasAssistantFeatureProvider()) {
     return analysis?.status === 'ok' && analysis.dot && analysis.tip && analysis.fingerprint === fingerprint
-      ? renderWeeklyAI('cached', 'ok', analysis) : staticFallback || '';
+      ? {kind:'ai',variant:'cached',status:'ok',analysis,fallback:undefined} : {kind:'fallback',value:staticFallback||''};
   }
   const status = engine.getStatus(SINGLETON);
   const stale = !!(analysis?.fingerprint && analysis.fingerprint !== fingerprint);
-  if (!_hasWeeklyReviewData()) return renderWeeklyAI('unavailable', status, analysis, staticFallback);
+  if (!_hasWeeklyReviewData()) return {kind:'ai',variant:'unavailable',status,analysis,fallback:staticFallback};
 
   const owner = captureAIVerdictOwner();
   const key = owner.key(fingerprint);
@@ -304,5 +299,22 @@ export function renderChannelMixVerdict(staticFallback: unknown): unknown {
   }
   const variant = status === 'analyzing' || status === 'error' ? status
     : status === 'ok' && !stale ? 'ok' : stale ? 'stale' : 'idle';
-  return renderWeeklyAI(variant, status, analysis, staticFallback);
+  return {kind:'ai',variant,status,analysis,fallback:staticFallback};
+}
+function projectSelectedMixAI(selection:Extract<MixSelection<unknown>,{kind:'ai'}>,fallback:Parameters<typeof projectReviewAI>[0]['fallback']){
+ return captureLightAIView(projectReviewAI({kind:'weekly',variant:selection.variant,status:selection.status,analysis:selection.analysis,fallback:fallback??null,actionOwner:aiActionOwner()}));
+}
+/** Feature composition uses the already captured native deterministic summary. */
+export function getChannelMixVerdictView(staticFallback:Readonly<WeeklyFallbackView>|null){
+ const selection=selectChannelMixVerdict(staticFallback);
+ return selection.kind==='fallback'?selection.value||null:projectSelectedMixAI(selection,selection.fallback||null);
+}
+/**
+ * The native providerless value/identity contract remains. Legacy fallback data
+ * in an AI wrapper becomes literal text; it is never a serialized HTML child.
+ */
+export function renderChannelMixVerdict(staticFallback:unknown):unknown{
+ const selection=selectChannelMixVerdict(staticFallback);
+ if(selection.kind==='fallback')return selection.value;
+ return renderHTML({view:projectSelectedMixAI(selection,{kind:'public-html',value:selection.fallback})});
 }

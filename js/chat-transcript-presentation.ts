@@ -7,11 +7,13 @@ import { getAIOutputAttribution } from './cli-agent-brand-assets.js';
 import { shouldShowChatPersonaLabel, projectChatMessageAvatar } from './chat-message-avatars.js';
 import { projectChatMessageActions } from './chat-message-actions-contract.js';
 import { projectChatCitations, projectChatStoredImages } from './chat-message-content-contract.js';
-import { e2eeLockFootnote } from './chat-attestation.js';
+import './chat-attestation.js'; // Preserve the shared tooltip installation side effect.
+import { projectAttestationBadge, type AttestationBadgeView } from './chat-attestation-presentation.js';
 import { isChatRenderProductRecsEnabled, getChatRecommendationSectionViews } from './chat-render-runtime.js';
 import type {TipsSectionView} from './tips-presentation.js';
 type ChatMessage = (typeof state.chatHistory)[number];
 
+export interface ChatTranscriptReceipt { readonly badge: AttestationBadgeView | null; }
 export interface ChatTranscriptMessage {
   key: object;
   index: number;
@@ -26,7 +28,7 @@ export interface ChatTranscriptMessage {
   actions: ReturnType<typeof projectChatMessageActions>;
   images: ReturnType<typeof projectChatStoredImages>;
   citations: ReturnType<typeof projectChatCitations>;
-  usage: { text: string; receipt: string } | null;
+  usage: { readonly text: string; readonly receipt: ChatTranscriptReceipt | null } | null;
   attribution: string | null;
   emfHint: boolean;
   recommendationAttention: boolean;
@@ -46,14 +48,14 @@ export function projectChatTranscriptMessage(message: ChatMessage, index: number
   let usage: ChatTranscriptMessage['usage'] = null;
   if (role === 'assistant' && !shouldHideAppExtensionAIUsage(provider)) {
     if (provider === 'codex-agent' || provider === 'personal-agent-gateway') {
-      usage = { text: `${message.modelDisplay || 'CLI agent'} · CLI subscription${message.webSearch ? ' · 🌐 web' : ''}`, receipt: '' };
+      usage = { text: `${message.modelDisplay || 'CLI agent'} · CLI subscription${message.webSearch ? ' · 🌐 web' : ''}`, receipt: null };
     } else if (message.usage && (message.usage.inputTokens || message.usage.outputTokens)) {
       const input = Math.max(0, Number(message.usage.inputTokens) || 0);
       const output = Math.max(0, Number(message.usage.outputTokens) || 0);
       const cost = calculateCost(provider, message.modelId || getActiveModelId(), input, output);
       usage = {
         text: `${message.modelDisplay || getActiveModelDisplay()} · ${formatCost(cost)} · ${(input + output).toLocaleString()} tokens${message.webSearch ? ' · 🌐 web' : ''}`,
-        receipt: message.e2ee ? e2eeLockFootnote(message.attestation) : '',
+        receipt: message.e2ee ? { badge: projectAttestationBadge(message.attestation) } : null,
       };
     }
   }

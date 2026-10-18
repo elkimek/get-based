@@ -1,0 +1,759 @@
+{
+  "receivers": [
+    {
+      "utility": "sync-diagnose-modal",
+      "selector": ".sync-diagnose-modal",
+      "condition": null,
+      "start": 15504,
+      "end": 15613,
+      "before": "\n  width: min(720px, calc(100vw - 28px));\n  max-width: 720px;\n  max-height: min(860px, calc(100dvh - 28px));\n",
+      "after": " @apply gb:sync-diagnose-modal; "
+    },
+    {
+      "utility": "sync-diagnose-modal-modal-header",
+      "selector": ".sync-diagnose-modal .modal-header",
+      "condition": null,
+      "start": 15652,
+      "end": 15676,
+      "before": "\n  align-items: center;\n",
+      "after": " @apply gb:sync-diagnose-modal-modal-header; "
+    },
+    {
+      "utility": "sync-diagnose-modal-modal-header-h3",
+      "selector": ".sync-diagnose-modal .modal-header h3",
+      "condition": null,
+      "start": 15718,
+      "end": 15738,
+      "before": "\n  margin: 1px 0 0;\n",
+      "after": " @apply gb:sync-diagnose-modal-modal-header-h3; "
+    },
+    {
+      "utility": "sync-diagnose-group-4",
+      "selector": ".sync-diagnose-modal-kicker,\n.sync-diagnose-card-label,\n.sync-diagnose-summary-eyebrow",
+      "condition": null,
+      "start": 15829,
+      "end": 15951,
+      "before": "\n  color: var(--text-muted);\n  font-size: 10px;\n  font-weight: 700;\n  letter-spacing: .08em;\n  text-transform: uppercase;\n",
+      "after": " @apply gb:sync-diagnose-group-4; "
+    },
+    {
+      "utility": "sync-diagnose-body",
+      "selector": ".sync-diagnose-body",
+      "condition": null,
+      "start": 15975,
+      "end": 16015,
+      "before": "\n  font-size: 13px;\n  overflow-y: auto;\n",
+      "after": " @apply gb:sync-diagnose-body; "
+    },
+    {
+      "utility": "sync-diagnose-summary",
+      "selector": ".sync-diagnose-summary",
+      "condition": null,
+      "start": 16042,
+      "end": 16232,
+      "before": "\n  display: flex;\n  gap: 14px;\n  margin-bottom: 14px;\n  padding: 16px;\n  border: 1px solid var(--border);\n  border-left-width: 4px;\n  border-radius: 10px;\n  background: var(--bg-secondary);\n",
+      "after": " @apply gb:sync-diagnose-summary; "
+    },
+    {
+      "utility": "sync-diagnose-summary-success",
+      "selector": ".sync-diagnose-summary-success",
+      "condition": null,
+      "start": 16267,
+      "end": 16301,
+      "before": " border-left-color: var(--green); ",
+      "after": " @apply gb:sync-diagnose-summary-success; "
+    },
+    {
+      "utility": "sync-diagnose-summary-warning",
+      "selector": ".sync-diagnose-summary-warning",
+      "condition": null,
+      "start": 16335,
+      "end": 16370,
+      "before": " border-left-color: var(--orange); ",
+      "after": " @apply gb:sync-diagnose-summary-warning; "
+    },
+    {
+      "utility": "sync-diagnose-summary-danger",
+      "selector": ".sync-diagnose-summary-danger",
+      "condition": null,
+      "start": 16403,
+      "end": 16435,
+      "before": " border-left-color: var(--red); ",
+      "after": " @apply gb:sync-diagnose-summary-danger; "
+    },
+    {
+      "utility": "sync-diagnose-summary-neutral",
+      "selector": ".sync-diagnose-summary-neutral",
+      "condition": null,
+      "start": 16469,
+      "end": 16504,
+      "before": " border-left-color: var(--accent); ",
+      "after": " @apply gb:sync-diagnose-summary-neutral; "
+    },
+    {
+      "utility": "sync-diagnose-summary-icon",
+      "selector": ".sync-diagnose-summary-icon",
+      "condition": null,
+      "start": 16536,
+      "end": 16752,
+      "before": "\n  display: grid;\n  flex: 0 0 32px;\n  width: 32px;\n  height: 32px;\n  place-items: center;\n  border: 1px solid var(--border);\n  border-radius: 50%;\n  background: var(--surface);\n  font-size: 16px;\n  font-weight: 800;\n",
+      "after": " @apply gb:sync-diagnose-summary-icon; "
+    },
+    {
+      "utility": "sync-diagnose-summary-success-sync-diagnose-summary-icon",
+      "selector": ".sync-diagnose-summary-success .sync-diagnose-summary-icon",
+      "condition": null,
+      "start": 16815,
+      "end": 16837,
+      "before": " color: var(--green); ",
+      "after": " @apply gb:sync-diagnose-summary-success-sync-diagnose-summary-icon; "
+    },
+    {
+      "utility": "sync-diagnose-summary-warning-sync-diagnose-summary-icon",
+      "selector": ".sync-diagnose-summary-warning .sync-diagnose-summary-icon",
+      "condition": null,
+      "start": 16899,
+      "end": 16922,
+      "before": " color: var(--orange); ",
+      "after": " @apply gb:sync-diagnose-summary-warning-sync-diagnose-summary-icon; "
+    },
+    {
+      "utility": "sync-diagnose-summary-danger-sync-diagnose-summary-icon",
+      "selector": ".sync-diagnose-summary-danger .sync-diagnose-summary-icon",
+      "condition": null,
+      "start": 16983,
+      "end": 17003,
+      "before": " color: var(--red); ",
+      "after": " @apply gb:sync-diagnose-summary-danger-sync-diagnose-summary-icon; "
+    },
+    {
+      "utility": "sync-diagnose-summary-neutral-sync-diagnose-summary-icon",
+      "selector": ".sync-diagnose-summary-neutral .sync-diagnose-summary-icon",
+      "condition": null,
+      "start": 17065,
+      "end": 17088,
+      "before": " color: var(--accent); ",
+      "after": " @apply gb:sync-diagnose-summary-neutral-sync-diagnose-summary-icon; "
+    },
+    {
+      "utility": "sync-diagnose-summary-content",
+      "selector": ".sync-diagnose-summary-content",
+      "condition": null,
+      "start": 17123,
+      "end": 17138,
+      "before": " min-width: 0; ",
+      "after": " @apply gb:sync-diagnose-summary-content; "
+    },
+    {
+      "utility": "sync-diagnose-summary-content-h4",
+      "selector": ".sync-diagnose-summary-content h4",
+      "condition": null,
+      "start": 17175,
+      "end": 17212,
+      "before": " margin: 2px 0 5px; font-size: 17px; ",
+      "after": " @apply gb:sync-diagnose-summary-content-h4; "
+    },
+    {
+      "utility": "sync-diagnose-group-18",
+      "selector": ".sync-diagnose-summary-content p,\n.sync-diagnose-card-copy,\n.sync-diagnose-device-check p,\n.sync-diagnose-maintenance p,\n.sync-diagnose-row-content p",
+      "condition": null,
+      "start": 17365,
+      "end": 17427,
+      "before": "\n  margin: 0;\n  color: var(--text-muted);\n  line-height: 1.5;\n",
+      "after": " @apply gb:sync-diagnose-group-18; "
+    },
+    {
+      "utility": "sync-diagnose-summary-badges",
+      "selector": ".sync-diagnose-summary-badges",
+      "condition": null,
+      "start": 17461,
+      "end": 17530,
+      "before": "\n  display: flex;\n  flex-wrap: wrap;\n  gap: 6px;\n  margin-top: 10px;\n",
+      "after": " @apply gb:sync-diagnose-summary-badges; "
+    },
+    {
+      "utility": "sync-diagnose-summary-badges-span-sync-diagnose-badge",
+      "selector": ".sync-diagnose-summary-badges span,\n.sync-diagnose-badge",
+      "condition": null,
+      "start": 17591,
+      "end": 17772,
+      "before": "\n  padding: 3px 7px;\n  border: 1px solid var(--border);\n  border-radius: 999px;\n  background: var(--surface);\n  color: var(--text-secondary);\n  font-size: 10px;\n  font-weight: 600;\n",
+      "after": " @apply gb:sync-diagnose-summary-badges-span-sync-diagnose-badge; "
+    },
+    {
+      "utility": "sync-diagnose-badge-success",
+      "selector": ".sync-diagnose-badge-success",
+      "condition": null,
+      "start": 17805,
+      "end": 17855,
+      "before": " color: var(--green); border-color: var(--green); ",
+      "after": " @apply gb:sync-diagnose-badge-success; "
+    },
+    {
+      "utility": "sync-diagnose-badge-danger",
+      "selector": ".sync-diagnose-badge-danger",
+      "condition": null,
+      "start": 17886,
+      "end": 17932,
+      "before": " color: var(--red); border-color: var(--red); ",
+      "after": " @apply gb:sync-diagnose-badge-danger; "
+    },
+    {
+      "utility": "sync-diagnose-device-check",
+      "selector": ".sync-diagnose-device-check",
+      "condition": null,
+      "start": 17964,
+      "end": 18166,
+      "before": "\n  display: grid;\n  grid-template-columns: minmax(0, 1fr) auto;\n  gap: 16px;\n  align-items: center;\n  margin-bottom: 12px;\n  padding: 12px 14px;\n  border: 1px solid var(--border);\n  border-radius: 9px;\n",
+      "after": " @apply gb:sync-diagnose-device-check; "
+    },
+    {
+      "utility": "sync-diagnose-device-title",
+      "selector": ".sync-diagnose-device-title",
+      "condition": null,
+      "start": 18198,
+      "end": 18240,
+      "before": "\n  margin: 2px 0 3px;\n  font-weight: 650;\n",
+      "after": " @apply gb:sync-diagnose-device-title; "
+    },
+    {
+      "utility": "sync-diagnose-device-code",
+      "selector": ".sync-diagnose-device-code",
+      "condition": null,
+      "start": 18271,
+      "end": 18425,
+      "before": "\n  display: flex;\n  flex-direction: column;\n  gap: 3px;\n  min-width: 128px;\n  padding: 8px 10px;\n  border-radius: 7px;\n  background: var(--bg-secondary);\n",
+      "after": " @apply gb:sync-diagnose-device-code; "
+    },
+    {
+      "utility": "sync-diagnose-device-code-span",
+      "selector": ".sync-diagnose-device-code span",
+      "condition": null,
+      "start": 18461,
+      "end": 18505,
+      "before": " color: var(--text-muted); font-size: 10px; ",
+      "after": " @apply gb:sync-diagnose-device-code-span; "
+    },
+    {
+      "utility": "sync-diagnose-device-code-strong",
+      "selector": ".sync-diagnose-device-code strong",
+      "condition": null,
+      "start": 18542,
+      "end": 18560,
+      "before": " font-size: 11px; ",
+      "after": " @apply gb:sync-diagnose-device-code-strong; "
+    },
+    {
+      "utility": "sync-diagnose-card",
+      "selector": ".sync-diagnose-card",
+      "condition": null,
+      "start": 18584,
+      "end": 18687,
+      "before": "\n  margin-bottom: 12px;\n  padding: 12px 14px;\n  border: 1px solid var(--border);\n  border-radius: 9px;\n",
+      "after": " @apply gb:sync-diagnose-card; "
+    },
+    {
+      "utility": "sync-diagnose-card-head-sync-diagnose-card-footer",
+      "selector": ".sync-diagnose-card-head,\n.sync-diagnose-card-footer",
+      "condition": null,
+      "start": 18744,
+      "end": 18832,
+      "before": "\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 12px;\n",
+      "after": " @apply gb:sync-diagnose-card-head-sync-diagnose-card-footer; "
+    },
+    {
+      "utility": "sync-diagnose-card-title",
+      "selector": ".sync-diagnose-card-title",
+      "condition": null,
+      "start": 18862,
+      "end": 18915,
+      "before": " margin-top: 2px; font-size: 14px; font-weight: 650; ",
+      "after": " @apply gb:sync-diagnose-card-title; "
+    },
+    {
+      "utility": "sync-diagnose-card-copy",
+      "selector": ".sync-diagnose-card-copy",
+      "condition": null,
+      "start": 18943,
+      "end": 18978,
+      "before": " margin-top: 7px; font-size: 12px; ",
+      "after": " @apply gb:sync-diagnose-card-copy; "
+    },
+    {
+      "utility": "sync-diagnose-card-footer-sync-diagnose-card-copy",
+      "selector": ".sync-diagnose-card-footer .sync-diagnose-card-copy",
+      "condition": null,
+      "start": 19033,
+      "end": 19043,
+      "before": " flex: 1; ",
+      "after": " @apply gb:sync-diagnose-card-footer-sync-diagnose-card-copy; "
+    },
+    {
+      "utility": "sync-diagnose-refresh-sync-diagnose-storage-action",
+      "selector": ".sync-diagnose-refresh,\n.sync-diagnose-storage-action",
+      "condition": null,
+      "start": 19100,
+      "end": 19134,
+      "before": " flex: 0 0 auto; font-size: 11px; ",
+      "after": " @apply gb:sync-diagnose-refresh-sync-diagnose-storage-action; "
+    },
+    {
+      "utility": "sync-diagnose-storage-track",
+      "selector": ".sync-diagnose-storage-track",
+      "condition": null,
+      "start": 19167,
+      "end": 19279,
+      "before": "\n  height: 7px;\n  margin: 10px 0 8px;\n  overflow: hidden;\n  border-radius: 999px;\n  background: var(--surface);\n",
+      "after": " @apply gb:sync-diagnose-storage-track; "
+    },
+    {
+      "utility": "sync-diagnose-storage-track-span",
+      "selector": ".sync-diagnose-storage-track span",
+      "condition": null,
+      "start": 19317,
+      "end": 19372,
+      "before": " display: block; height: 100%; border-radius: inherit; ",
+      "after": " @apply gb:sync-diagnose-storage-track-span; "
+    },
+    {
+      "utility": "sync-diagnose-technical",
+      "selector": ".sync-diagnose-technical",
+      "condition": null,
+      "start": 19401,
+      "end": 19514,
+      "before": "\n  margin-top: 14px;\n  border: 1px solid var(--border);\n  border-radius: 9px;\n  background: var(--bg-secondary);\n",
+      "after": " @apply gb:sync-diagnose-technical; "
+    },
+    {
+      "utility": "sync-diagnose-technical-summary",
+      "selector": ".sync-diagnose-technical > summary",
+      "condition": null,
+      "start": 19553,
+      "end": 19723,
+      "before": "\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 12px;\n  padding: 12px 14px;\n  cursor: pointer;\n  list-style: none;\n  user-select: none;\n",
+      "after": " @apply gb:sync-diagnose-technical-summary; "
+    },
+    {
+      "utility": "sync-diagnose-technical-summary-webkit-details-marker",
+      "selector": ".sync-diagnose-technical > summary::-webkit-details-marker",
+      "condition": null,
+      "start": 19786,
+      "end": 19802,
+      "before": " display: none; ",
+      "after": " @apply gb:sync-diagnose-technical-summary-webkit-details-marker; "
+    },
+    {
+      "utility": "sync-diagnose-technical-summary-span-first-child",
+      "selector": ".sync-diagnose-technical > summary span:first-child",
+      "condition": null,
+      "start": 19857,
+      "end": 19907,
+      "before": " display: flex; flex-direction: column; gap: 2px; ",
+      "after": " @apply gb:sync-diagnose-technical-summary-span-first-child; "
+    },
+    {
+      "utility": "sync-diagnose-technical-summary-small",
+      "selector": ".sync-diagnose-technical > summary small",
+      "condition": null,
+      "start": 19951,
+      "end": 20013,
+      "before": " color: var(--text-muted); font-size: 10px; font-weight: 400; ",
+      "after": " @apply gb:sync-diagnose-technical-summary-small; "
+    },
+    {
+      "utility": "sync-diagnose-disclosure",
+      "selector": ".sync-diagnose-disclosure",
+      "condition": null,
+      "start": 20042,
+      "end": 20119,
+      "before": " color: var(--text-muted); font-size: 22px; transition: transform .15s ease; ",
+      "after": " @apply gb:sync-diagnose-disclosure; "
+    },
+    {
+      "utility": "sync-diagnose-technical-open-sync-diagnose-disclosure",
+      "selector": ".sync-diagnose-technical[open] .sync-diagnose-disclosure",
+      "condition": null,
+      "start": 20179,
+      "end": 20206,
+      "before": " transform: rotate(90deg); ",
+      "after": " @apply gb:sync-diagnose-technical-open-sync-diagnose-disclosure; "
+    },
+    {
+      "utility": "sync-diagnose-technical-content",
+      "selector": ".sync-diagnose-technical-content",
+      "condition": null,
+      "start": 20243,
+      "end": 20307,
+      "before": "\n  padding: 0 14px 14px;\n  border-top: 1px solid var(--border);\n",
+      "after": " @apply gb:sync-diagnose-technical-content; "
+    },
+    {
+      "utility": "sync-diagnose-facts",
+      "selector": ".sync-diagnose-facts",
+      "condition": null,
+      "start": 20332,
+      "end": 20538,
+      "before": "\n  display: grid;\n  grid-template-columns: repeat(2, minmax(0, 1fr));\n  gap: 1px;\n  margin: 12px 0;\n  overflow: hidden;\n  border: 1px solid var(--border);\n  border-radius: 7px;\n  background: var(--border);\n",
+      "after": " @apply gb:sync-diagnose-facts; "
+    },
+    {
+      "utility": "sync-diagnose-facts-div",
+      "selector": ".sync-diagnose-facts > div",
+      "condition": null,
+      "start": 20569,
+      "end": 20692,
+      "before": "\n  display: flex;\n  flex-direction: column;\n  gap: 3px;\n  min-width: 0;\n  padding: 9px 10px;\n  background: var(--surface);\n",
+      "after": " @apply gb:sync-diagnose-facts-div; "
+    },
+    {
+      "utility": "sync-diagnose-facts-span",
+      "selector": ".sync-diagnose-facts span",
+      "condition": null,
+      "start": 20722,
+      "end": 20766,
+      "before": " color: var(--text-muted); font-size: 10px; ",
+      "after": " @apply gb:sync-diagnose-facts-span; "
+    },
+    {
+      "utility": "sync-diagnose-facts-b-sync-diagnose-facts-code",
+      "selector": ".sync-diagnose-facts b,\n.sync-diagnose-facts code",
+      "condition": null,
+      "start": 20819,
+      "end": 20862,
+      "before": " overflow-wrap: anywhere; font-size: 11px; ",
+      "after": " @apply gb:sync-diagnose-facts-b-sync-diagnose-facts-code; "
+    },
+    {
+      "utility": "sync-diagnose-fact-wide",
+      "selector": ".sync-diagnose-fact-wide",
+      "condition": null,
+      "start": 20890,
+      "end": 20912,
+      "before": " grid-column: 1 / -1; ",
+      "after": " @apply gb:sync-diagnose-fact-wide; "
+    },
+    {
+      "utility": "sync-diagnose-technical-reason-sync-diagnose-row-warning",
+      "selector": ".sync-diagnose-technical-reason,\n.sync-diagnose-row-warning",
+      "condition": null,
+      "start": 20976,
+      "end": 21158,
+      "before": "\n  margin: 8px 0;\n  padding: 8px 10px;\n  border-left: 3px solid var(--orange);\n  border-radius: 4px;\n  background: var(--surface);\n  color: var(--text-secondary);\n  font-size: 11px;\n",
+      "after": " @apply gb:sync-diagnose-technical-reason-sync-diagnose-row-warning; "
+    },
+    {
+      "utility": "sync-diagnose-developer-block",
+      "selector": ".sync-diagnose-developer-block",
+      "condition": null,
+      "start": 21193,
+      "end": 21212,
+      "before": " margin-top: 12px; ",
+      "after": " @apply gb:sync-diagnose-developer-block; "
+    },
+    {
+      "utility": "sync-diagnose-section-heading",
+      "selector": ".sync-diagnose-section-heading",
+      "condition": null,
+      "start": 21246,
+      "end": 21302,
+      "before": " margin: 12px 0 7px; font-size: 12px; font-weight: 700; ",
+      "after": " @apply gb:sync-diagnose-section-heading; "
+    },
+    {
+      "utility": "sync-diagnose-row-details",
+      "selector": ".sync-diagnose-row-details",
+      "condition": null,
+      "start": 21333,
+      "end": 21441,
+      "before": "\n  margin-top: 10px;\n  border: 1px solid var(--border);\n  border-radius: 7px;\n  background: var(--surface);\n",
+      "after": " @apply gb:sync-diagnose-row-details; "
+    },
+    {
+      "utility": "sync-diagnose-row-details-summary",
+      "selector": ".sync-diagnose-row-details > summary",
+      "condition": null,
+      "start": 21482,
+      "end": 21638,
+      "before": "\n  display: flex;\n  justify-content: space-between;\n  gap: 10px;\n  padding: 9px 10px;\n  cursor: pointer;\n  color: var(--text-secondary);\n  font-size: 11px;\n",
+      "after": " @apply gb:sync-diagnose-row-details-summary; "
+    },
+    {
+      "utility": "sync-diagnose-row-content",
+      "selector": ".sync-diagnose-row-content",
+      "condition": null,
+      "start": 21669,
+      "end": 21692,
+      "before": " padding: 0 10px 10px; ",
+      "after": " @apply gb:sync-diagnose-row-content; "
+    },
+    {
+      "utility": "sync-diagnose-table-wrap",
+      "selector": ".sync-diagnose-table-wrap",
+      "condition": null,
+      "start": 21721,
+      "end": 21740,
+      "before": " overflow-x: auto; ",
+      "after": " @apply gb:sync-diagnose-table-wrap; "
+    },
+    {
+      "utility": "sync-diagnose-table-wrap-table",
+      "selector": ".sync-diagnose-table-wrap table",
+      "condition": null,
+      "start": 21775,
+      "end": 21851,
+      "before": " width: 100%; min-width: 590px; border-collapse: collapse; font-size: 11px; ",
+      "after": " @apply gb:sync-diagnose-table-wrap-table; "
+    },
+    {
+      "utility": "sync-diagnose-table-wrap-th",
+      "selector": ".sync-diagnose-table-wrap th",
+      "condition": null,
+      "start": 21883,
+      "end": 21960,
+      "before": " padding: 5px 7px; border-bottom: 1px solid var(--border); text-align: left; ",
+      "after": " @apply gb:sync-diagnose-table-wrap-th; "
+    },
+    {
+      "utility": "sync-diagnose-table-wrap-td",
+      "selector": ".sync-diagnose-table-wrap td",
+      "condition": null,
+      "start": 21992,
+      "end": 22022,
+      "before": " padding: 4px 7px !important; ",
+      "after": " @apply gb:sync-diagnose-table-wrap-td; "
+    },
+    {
+      "utility": "sync-diagnose-row-content-p",
+      "selector": ".sync-diagnose-row-content p",
+      "condition": null,
+      "start": 22054,
+      "end": 22089,
+      "before": " margin-top: 7px; font-size: 10px; ",
+      "after": " @apply gb:sync-diagnose-row-content-p; "
+    },
+    {
+      "utility": "sync-diagnose-maintenance",
+      "selector": ".sync-diagnose-maintenance",
+      "condition": null,
+      "start": 22120,
+      "end": 22139,
+      "before": " margin-top: 12px; ",
+      "after": " @apply gb:sync-diagnose-maintenance; "
+    },
+    {
+      "utility": "sync-diagnose-maintenance-p",
+      "selector": ".sync-diagnose-maintenance p",
+      "condition": null,
+      "start": 22171,
+      "end": 22189,
+      "before": " font-size: 11px; ",
+      "after": " @apply gb:sync-diagnose-maintenance-p; "
+    },
+    {
+      "utility": "sync-diagnose-maintenance-actions-sync-diagnose-footer",
+      "selector": ".sync-diagnose-maintenance-actions,\n.sync-diagnose-footer",
+      "condition": null,
+      "start": 22250,
+      "end": 22293,
+      "before": " display: flex; flex-wrap: wrap; gap: 8px; ",
+      "after": " @apply gb:sync-diagnose-maintenance-actions-sync-diagnose-footer; "
+    },
+    {
+      "utility": "sync-diagnose-maintenance-actions",
+      "selector": ".sync-diagnose-maintenance-actions",
+      "condition": null,
+      "start": 22331,
+      "end": 22349,
+      "before": " margin-top: 8px; ",
+      "after": " @apply gb:sync-diagnose-maintenance-actions; "
+    },
+    {
+      "utility": "sync-diagnose-maintenance-actions-ctx-btn-option",
+      "selector": ".sync-diagnose-maintenance-actions .ctx-btn-option",
+      "condition": null,
+      "start": 22403,
+      "end": 22421,
+      "before": " font-size: 11px; ",
+      "after": " @apply gb:sync-diagnose-maintenance-actions-ctx-btn-option; "
+    },
+    {
+      "utility": "sync-diagnose-danger-action",
+      "selector": ".sync-diagnose-danger-action",
+      "condition": null,
+      "start": 22453,
+      "end": 22499,
+      "before": " color: var(--red); border-color: var(--red); ",
+      "after": " @apply gb:sync-diagnose-danger-action; "
+    },
+    {
+      "utility": "sync-diagnose-footer",
+      "selector": ".sync-diagnose-footer",
+      "condition": null,
+      "start": 22524,
+      "end": 22570,
+      "before": " justify-content: flex-end; margin-top: 14px; ",
+      "after": " @apply gb:sync-diagnose-footer; "
+    },
+    {
+      "utility": "sync-diagnose-modal-phone",
+      "selector": ".sync-diagnose-modal",
+      "condition": "(max-width: 560px)",
+      "start": 22625,
+      "end": 22686,
+      "before": " width: calc(100vw - 20px); max-height: calc(100dvh - 20px); ",
+      "after": " @apply gb:sync-diagnose-modal-phone; "
+    },
+    {
+      "utility": "sync-diagnose-summary-phone",
+      "selector": ".sync-diagnose-summary",
+      "condition": "(max-width: 560px)",
+      "start": 22714,
+      "end": 22730,
+      "before": " padding: 13px; ",
+      "after": " @apply gb:sync-diagnose-summary-phone; "
+    },
+    {
+      "utility": "sync-diagnose-device-check-phone",
+      "selector": ".sync-diagnose-device-check",
+      "condition": "(max-width: 560px)",
+      "start": 22763,
+      "end": 22792,
+      "before": " grid-template-columns: 1fr; ",
+      "after": " @apply gb:sync-diagnose-device-check-phone; "
+    },
+    {
+      "utility": "sync-diagnose-device-code-phone",
+      "selector": ".sync-diagnose-device-code",
+      "condition": "(max-width: 560px)",
+      "start": 22824,
+      "end": 22839,
+      "before": " min-width: 0; ",
+      "after": " @apply gb:sync-diagnose-device-code-phone; "
+    },
+    {
+      "utility": "sync-diagnose-card-head-sync-diagnose-card-footer-phone",
+      "selector": ".sync-diagnose-card-head,\n  .sync-diagnose-card-footer",
+      "condition": "(max-width: 560px)",
+      "start": 22899,
+      "end": 22949,
+      "before": " align-items: flex-start; flex-direction: column; ",
+      "after": " @apply gb:sync-diagnose-card-head-sync-diagnose-card-footer-phone; "
+    },
+    {
+      "utility": "sync-diagnose-refresh-sync-diagnose-storage-action-phone",
+      "selector": ".sync-diagnose-refresh,\n  .sync-diagnose-storage-action",
+      "condition": "(max-width: 560px)",
+      "start": 23010,
+      "end": 23024,
+      "before": " width: 100%; ",
+      "after": " @apply gb:sync-diagnose-refresh-sync-diagnose-storage-action-phone; "
+    },
+    {
+      "utility": "sync-diagnose-facts-phone",
+      "selector": ".sync-diagnose-facts",
+      "condition": "(max-width: 560px)",
+      "start": 23050,
+      "end": 23079,
+      "before": " grid-template-columns: 1fr; ",
+      "after": " @apply gb:sync-diagnose-facts-phone; "
+    },
+    {
+      "utility": "sync-diagnose-fact-wide-phone",
+      "selector": ".sync-diagnose-fact-wide",
+      "condition": "(max-width: 560px)",
+      "start": 23109,
+      "end": 23129,
+      "before": " grid-column: auto; ",
+      "after": " @apply gb:sync-diagnose-fact-wide-phone; "
+    },
+    {
+      "utility": "sync-diagnose-maintenance-actions-ctx-btn-option-phone",
+      "selector": ".sync-diagnose-maintenance-actions .ctx-btn-option",
+      "condition": "(max-width: 560px)",
+      "start": 23185,
+      "end": 23199,
+      "before": " width: 100%; ",
+      "after": " @apply gb:sync-diagnose-maintenance-actions-ctx-btn-option-phone; "
+    }
+  ],
+  "rules": 75,
+  "declarations": 203,
+  "rotationStaticReceivers": [
+    {
+      "utility": "sync-rotation-qr",
+      "originalStyle": "flex-shrink:0;background:#fff;padding:8px;border-radius:8px;width:180px;height:180px",
+      "declarations": 6
+    },
+    {
+      "utility": "sync-rotation-modal",
+      "originalStyle": "max-width:560px",
+      "declarations": 1
+    },
+    {
+      "utility": "sync-rotation-body",
+      "originalStyle": "font-size:13px",
+      "declarations": 1
+    },
+    {
+      "utility": "sync-rotation-warning",
+      "originalStyle": "margin-bottom:12px;padding:8px;border:1px solid var(--red);border-radius:6px;background:rgba(255,80,80,0.08)",
+      "declarations": 5
+    },
+    {
+      "utility": "sync-rotation-warning-title",
+      "originalStyle": "font-weight:600;margin-bottom:4px",
+      "declarations": 2
+    },
+    {
+      "utility": "sync-rotation-warning-copy",
+      "originalStyle": "font-size:12px;color:var(--text-muted)",
+      "declarations": 2
+    },
+    {
+      "utility": "sync-rotation-layout",
+      "originalStyle": "display:flex;gap:16px;align-items:flex-start;margin-bottom:12px",
+      "declarations": 4
+    },
+    {
+      "utility": "sync-rotation-words-column",
+      "originalStyle": "flex:1",
+      "declarations": 1
+    },
+    {
+      "utility": "sync-rotation-instructions",
+      "originalStyle": "font-size:11px;color:var(--text-muted);margin-bottom:6px",
+      "declarations": 3
+    },
+    {
+      "utility": "sync-rotation-words",
+      "originalStyle": "display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px",
+      "declarations": 4
+    },
+    {
+      "utility": "sync-rotation-copy",
+      "originalStyle": "font-size:11px",
+      "declarations": 1
+    },
+    {
+      "utility": "sync-rotation-saved",
+      "originalStyle": "display:flex;align-items:center;gap:8px;margin-bottom:12px;cursor:pointer;font-size:12px",
+      "declarations": 6
+    },
+    {
+      "utility": "sync-rotation-actions",
+      "originalStyle": "display:flex;justify-content:flex-end;gap:8px",
+      "declarations": 3
+    },
+    {
+      "utility": "sync-rotation-word",
+      "originalStyle": "display:inline-flex;align-items:baseline;gap:4px;padding:2px 6px;background:var(--surface);border-radius:4px;font-family:monospace;font-size:12px",
+      "declarations": 8
+    },
+    {
+      "utility": "sync-rotation-word-number",
+      "originalStyle": "color:var(--text-muted);font-size:10px",
+      "declarations": 2
+    }
+  ],
+  "originalBaseSHA256": "01d25345963828c5730813250612b098ee096167bda9917e52d88ba1202d0d89"
+}

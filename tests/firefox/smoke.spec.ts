@@ -1,3 +1,4 @@
+import {waitForAsyncCondition} from '../helpers/awaited-condition.js';
 import type { Page } from '@playwright/test';
 import { expect, test } from '../playwright/coverage-fixture.js';
 
@@ -12,10 +13,10 @@ async function openApp(page: Page, path = '/app') {
     localStorage.setItem(`labcharts-${profileId}-tour`, 'completed');
   });
   await page.goto(path, { waitUntil: 'load' });
-  await page.waitForFunction(async () => {
+  await waitForAsyncCondition(() => page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     return !!state && !!document.getElementById('main-content');
-  });
+  }), 0);
   await page.evaluate(async () => {
     localStorage.setItem('labcharts-changelog-seen', (window as typeof window & { APP_VERSION?: string }).APP_VERSION || 'test');
     (window as typeof window & { endTour?: typeof import('../../js/tour.js').endTour }).endTour?.();
@@ -35,14 +36,14 @@ test('loads demo data and supports core navigation and settings', async ({ brows
   await page.evaluate(async () => {
     await (await import('/js/export.js')).loadDemoData('female');
   });
-  await page.waitForFunction(async () => {
+  await waitForAsyncCondition(() => page.evaluate(async () => {
     const [{ state }, { getProfiles }] = await Promise.all([
       import('/js/state.js'),
       import('/js/profile.js'),
     ]);
     const profile = getProfiles().find(item => item.id === state.currentProfile);
     return profile?.name === 'Demo Sarah' && state.importedData?.entries?.length > 0;
-  }, null, { timeout: 30_000 });
+  }, null), 30_000);
 
   await page.evaluate(async () => {
     const { state } = await import('/js/state.js');

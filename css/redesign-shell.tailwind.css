@@ -1,0 +1,5 @@
+/* Compile only owned Tweaks utilities at the existing eager redesign-shell.css URL.
+   No preflight/reset, global theme or property registration is introduced. */
+@theme prefix(gb) {}
+@import "tailwindcss/utilities.css" prefix(gb) source(none);
+@import "./tweaks-eager.tailwind.css";

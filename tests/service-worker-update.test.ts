@@ -341,6 +341,25 @@ describe('service worker update prompt', () => {
     expect(document.getElementById('version-update-banner')).toBeNull();
   });
 
+  it('silently treats offline probe 503 as unavailable without parsing metadata or requesting an update', async () => {
+    const response = new Response(null, {status: 503, headers: {'Cache-Control': 'no-store'}});
+    const readMetadata = vi.spyOn(response, 'text');
+    const fetchImpl = vi.fn(async () => response);
+    const waiting = {postMessage: vi.fn()};
+    const registration = {waiting, update: vi.fn(async () => {})};
+    const container: UpdateContainerView = {controller: {}};
+    const win = {APP_VERSION: '1.2.3', APP_BUILD_ID: 'build-a'};
+    await expect(serviceWorkerUpdate!.checkForAppVersionUpdate(registration, container, win,
+      {force: true, fetchImpl})).resolves.toBe(false);
+    expect(fetchImpl).toHaveBeenCalledExactlyOnceWith('/version.js?update-check=1', {
+      cache: 'no-store', credentials: 'same-origin',
+    });
+    expect(readMetadata).not.toHaveBeenCalled(); expect(response.bodyUsed).toBe(false);
+    expect(registration.update).not.toHaveBeenCalled(); expect(waiting.postMessage).not.toHaveBeenCalled();
+    expect(document.getElementById('version-update-banner')).toBeNull();
+    expect(document.body.classList.contains('version-update-visible')).toBe(false);
+  });
+
   it('shares the version-check throttle across tabs while allowing forced reload checks', async () => {
     const { checkForAppVersionUpdate } = serviceWorkerUpdate!;
     const stored = new Map<string, string>();
@@ -434,4 +453,157 @@ it('reports the document build to a replacement controller without confusing it 
   expect(nextWorker.postMessage).toHaveBeenCalledWith({ type: 'CLIENT_BUILD_ID', buildId: 'old-document' });
   requested!(new MessageEvent('message', { data: { type: 'REQUEST_CLIENT_BUILD_ID' } }));
   expect(nextWorker.postMessage).toHaveBeenCalledTimes(2);
+});
+
+async function directWaitingFixture(buildId = 'original-document') {
+  const active = { postMessage: vi.fn() };
+  const waiting = { state: 'installed' as const, postMessage: vi.fn() };
+  const reload = vi.fn();
+  let message: ((event: MessageEvent<unknown>) => void) | undefined;
+  let changed: (() => void) | undefined;
+  const registration: UpdateRegistrationView = { waiting, addEventListener: vi.fn() };
+  const container: UpdateContainerView = {
+    controller: active,
+    register: vi.fn(async () => registration),
+    addEventListener: vi.fn((type: unknown, listener: unknown) => {
+      if (type === 'message') message = listener as (event: MessageEvent<unknown>) => void;
+      if (type === 'controllerchange') changed = listener as () => void;
+    }),
+  };
+  await serviceWorkerUpdate!.registerServiceWorkerUpdates({
+    win: { APP_BUILD_ID: buildId, location: { hostname: 'getbased.health', search: '', reload } },
+    serviceWorkerContainer: container,
+    cacheStorage: null,
+  });
+  active.postMessage.mockClear();
+  const receive = (type: string, source: UpdateWorkerView | null = waiting, extra: Record<string, unknown> = {}) => {
+    const event = new MessageEvent<unknown>('message', { data: { type, ...extra } });
+    // JSDOM has no ServiceWorker constructor; retain real MessageEvent behavior
+    // with the exact configured worker object as its browser-owned source.
+    Object.defineProperty(event, 'source', { value: source });
+    message!(event);
+  };
+  return { active, waiting, reload, registration, container, receive, changed: () => changed!() };
+}
+
+describe('direct waiting-worker identity and deferred update notice', () => {
+  it('replies directly to the waiting source and the current controller with the document build', async () => {
+    const fixture = await directWaitingFixture();
+    fixture.receive('REQUEST_CLIENT_BUILD_ID');
+    const expected = { type: 'CLIENT_BUILD_ID', buildId: 'original-document' };
+    expect(fixture.active.postMessage).toHaveBeenCalledExactlyOnceWith(expected);
+    expect(fixture.waiting.postMessage).toHaveBeenCalledExactlyOnceWith(expected);
+    expect(fixture.reload).not.toHaveBeenCalled();
+  });
+
+  it('does not duplicate an active-source reply and preserves missing-source active reports', async () => {
+    const fixture = await directWaitingFixture();
+    fixture.receive('REQUEST_CLIENT_BUILD_ID', fixture.active);
+    expect(fixture.active.postMessage).toHaveBeenCalledTimes(1);
+    expect(fixture.waiting.postMessage).not.toHaveBeenCalled();
+    fixture.receive('REQUEST_CLIENT_BUILD_ID', null);
+    expect(fixture.active.postMessage).toHaveBeenCalledTimes(2);
+    expect(fixture.waiting.postMessage).not.toHaveBeenCalled();
+  });
+
+  it('does not send an identity to an unrelated message source', async () => {
+    const fixture = await directWaitingFixture();
+    const foreign = { postMessage: vi.fn() };
+    fixture.receive('REQUEST_CLIENT_BUILD_ID', foreign);
+    expect(foreign.postMessage).not.toHaveBeenCalled();
+    expect(fixture.active.postMessage).not.toHaveBeenCalled();
+    expect(fixture.waiting.postMessage).not.toHaveBeenCalled();
+  });
+
+  it('does not trust an installed worker that is not the registration waiting worker', async () => {
+    const fixture = await directWaitingFixture();
+    const installing = { state: 'installed' as const, postMessage: vi.fn() };
+    fixture.registration.waiting = null;
+    fixture.registration.installing = installing;
+    fixture.receive('REQUEST_CLIENT_BUILD_ID', installing);
+    expect(installing.postMessage).not.toHaveBeenCalled();
+    expect(fixture.active.postMessage).not.toHaveBeenCalled();
+  });
+
+  it('still directly replies when the previous controller has become unavailable', async () => {
+    const fixture = await directWaitingFixture();
+    fixture.active.postMessage.mockImplementation(() => { throw new Error('Previous worker closed'); });
+    fixture.receive('REQUEST_CLIENT_BUILD_ID');
+    expect(fixture.waiting.postMessage).toHaveBeenCalledExactlyOnceWith({ type: 'CLIENT_BUILD_ID', buildId: 'original-document' });
+    expect(fixture.reload).not.toHaveBeenCalled();
+  });
+
+  it.each(['', '../invalid-build', 'a'.repeat(129)])('never directly reports an invalid document build: %s', async build => {
+    const fixture = await directWaitingFixture(build);
+    fixture.receive('REQUEST_CLIENT_BUILD_ID');
+    expect(fixture.active.postMessage).not.toHaveBeenCalled();
+    expect(fixture.waiting.postMessage).not.toHaveBeenCalled();
+  });
+
+  it('shows the existing accessible banner after a genuine pending activation is deferred', async () => {
+    const fixture = await directWaitingFixture();
+    expect(serviceWorkerUpdate!.applyPendingServiceWorkerUpdate(fixture.registration)).toBe(true);
+    expect(fixture.waiting.postMessage).toHaveBeenCalledExactlyOnceWith({ type: 'SKIP_WAITING' });
+    expect(document.getElementById('version-update-banner')).toBeNull();
+    fixture.receive('UPDATE_ACTIVATION_DEFERRED', fixture.waiting, { reason: '<img src=x onerror=alert(1)>' });
+    const banner = document.getElementById('version-update-banner')!;
+    expect(banner.textContent).toContain('Update paused to protect open tabs. Close all getbased tabs and app windows, then reopen getbased to finish updating.');
+    expect(banner.getAttribute('role')).toBe('region');
+    expect(banner.getAttribute('aria-label')).toBe('App update paused');
+    expect(banner.getAttribute('aria-live')).toBe('polite');
+    expect(banner.getAttribute('aria-busy')).toBe('false');
+    expect(banner.querySelector('img')).toBeNull();
+    expect(banner.querySelector<HTMLButtonElement>('[data-version-update-action="apply"]')!.disabled).toBe(false);
+    expect(banner.querySelector<HTMLButtonElement>('[data-version-update-action="dismiss"]')!.disabled).toBe(false);
+    expect(document.body.classList.contains('version-update-visible')).toBe(true);
+    expect(fixture.reload).not.toHaveBeenCalled();
+  });
+
+  it('ignores unsolicited or unrelated deferral messages and keeps the pending request intact', async () => {
+    const fixture = await directWaitingFixture();
+    fixture.receive('UPDATE_ACTIVATION_DEFERRED');
+    expect(document.getElementById('version-update-banner')!.textContent).not.toContain('Update paused');
+    serviceWorkerUpdate!.applyPendingServiceWorkerUpdate(fixture.registration);
+    fixture.receive('UPDATE_ACTIVATION_DEFERRED', fixture.active);
+    expect(document.getElementById('version-update-banner')).toBeNull();
+    fixture.receive('UPDATE_ACTIVATION_DEFERRED', { postMessage: vi.fn() });
+    expect(document.getElementById('version-update-banner')).toBeNull();
+    fixture.receive('UPDATE_ACTIVATION_DEFERRED');
+    expect(document.getElementById('version-update-banner')!.textContent).toContain('Update paused');
+  });
+
+  it('clears pending reload intent after deferral so a later replacement cannot force a reload', async () => {
+    const fixture = await directWaitingFixture();
+    serviceWorkerUpdate!.applyPendingServiceWorkerUpdate(fixture.registration);
+    fixture.receive('UPDATE_ACTIVATION_DEFERRED');
+    fixture.container.controller = { postMessage: vi.fn() };
+    fixture.changed();
+    expect(fixture.reload).not.toHaveBeenCalled();
+    expect(document.getElementById('version-update-banner')!.textContent).toContain('New version installed');
+  });
+
+  it('retains the existing retry action and reloads only after that requested replacement activates', async () => {
+    const fixture = await directWaitingFixture();
+    serviceWorkerUpdate!.applyPendingServiceWorkerUpdate(fixture.registration);
+    fixture.receive('UPDATE_ACTIVATION_DEFERRED');
+    document.querySelector<HTMLButtonElement>('[data-version-update-action="apply"]')!.click();
+    expect(fixture.waiting.postMessage).toHaveBeenCalledTimes(2);
+    expect(fixture.waiting.postMessage.mock.calls[1]).toEqual([{ type: 'SKIP_WAITING' }]);
+    expect(document.getElementById('version-update-banner')).toBeNull();
+    expect(fixture.reload).not.toHaveBeenCalled();
+    fixture.container.controller = { postMessage: vi.fn() };
+    fixture.changed();
+    expect(fixture.reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps Later dismissal effective against duplicate deferred notices', async () => {
+    const fixture = await directWaitingFixture();
+    serviceWorkerUpdate!.applyPendingServiceWorkerUpdate(fixture.registration);
+    fixture.receive('UPDATE_ACTIVATION_DEFERRED');
+    document.querySelector<HTMLButtonElement>('[data-version-update-action="dismiss"]')!.click();
+    fixture.receive('UPDATE_ACTIVATION_DEFERRED');
+    expect(document.getElementById('version-update-banner')).toBeNull();
+    expect(serviceWorkerUpdate!.showVersionUpdateBanner(fixture.registration)).toBe(false);
+    expect(fixture.reload).not.toHaveBeenCalled();
+  });
 });

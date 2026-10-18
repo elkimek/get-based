@@ -51,7 +51,7 @@ export function disposeImportBenchmarksEntry(): void {
 export function isImportBenchmarksEntryCurrent(button: HTMLButtonElement): boolean {
   return !!entry && !!entryHost?.isConnected && entryHost.contains(button);
 }
-export function renderImportBenchmarkEntryHost(label: string, onOpen: (button: HTMLButtonElement) => unknown): string {
+export function prepareImportBenchmarkEntryHost(label: string, onOpen: (button: HTMLButtonElement) => unknown): number {
   const epoch = ++entryEpoch;
   queueMicrotask(() => {
     if (typeof document === 'undefined' || epoch !== entryEpoch) return;
@@ -62,5 +62,8 @@ export function renderImportBenchmarkEntryHost(label: string, onOpen: (button: H
     entry = mountEntry(ImportBenchmarkEntry,{ target:host,props:{ label,onOpen:button => { if (isImportBenchmarksEntryCurrent(button)) onOpen(button); } } });
     flushEntry();
   });
-  return `<div data-import-benchmark-entry-host="${epoch}"></div>`;
+  return epoch;
+}
+export function renderImportBenchmarkEntryHost(label: string, onOpen: (button: HTMLButtonElement) => unknown): string {
+  return `<div data-import-benchmark-entry-host="${prepareImportBenchmarkEntryHost(label, onOpen)}"></div>`;
 }

@@ -1,0 +1,82 @@
+[
+  {
+    "source": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/marker-detail-results-presentation.ts",
+    "destination": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/.local-notes/recovery-2026-10-15/coherent-source/isolated/tests/fixtures/archived-native-ui/marker-detail-results-presentation.ts",
+    "sha256": "985dfc992dd62dcf0e935490a897f835bb5fff1bba459ac7066973c57b8cb6c1"
+  },
+  {
+    "source": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/marker-detail-complete-presentation.ts",
+    "destination": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/.local-notes/recovery-2026-10-15/coherent-source/isolated/tests/fixtures/archived-native-ui/marker-detail-complete-presentation.ts",
+    "sha256": "c15a3ea2d38e7889805deea56f14299facc4ecef2cd3243e74a16ca62e059fc9"
+  },
+  {
+    "source": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/marker-detail-compiler-anchors.ts",
+    "destination": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/.local-notes/recovery-2026-10-15/coherent-source/isolated/tests/fixtures/archived-native-ui/marker-detail-compiler-anchors.ts",
+    "sha256": "fbb17cc4603f9e17976fdfbc5bca7cd2c6fcb5ff3af0ff05635d4231efadf925"
+  },
+  {
+    "source": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/marker-detail-complete-compiler.ts",
+    "destination": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/.local-notes/recovery-2026-10-15/coherent-source/isolated/tests/fixtures/archived-native-ui/marker-detail-complete-compiler.ts",
+    "sha256": "bc3ef01680d3894026f296341aff05c2548fba7caf4a3ff0eb21622f0b459900"
+  },
+  {
+    "source": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/MarkerDetailHistory.svelte.html.js",
+    "destination": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/.local-notes/recovery-2026-10-15/coherent-source/isolated/tests/fixtures/archived-native-ui/components/MarkerDetailHistory.svelte.html.js",
+    "sha256": "4b28da3ef100fbd2f45c5bfbcbe5f2929f2b5d96ddaf5ebbcdcace0355e4b18c"
+  },
+  {
+    "source": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/MarkerDetailHistory.svelte.html.d.ts",
+    "destination": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/.local-notes/recovery-2026-10-15/coherent-source/isolated/tests/fixtures/archived-native-ui/components/MarkerDetailHistory.svelte.html.d.ts",
+    "sha256": "ff1feaeb990f8579e1ee7448aea642fc436d18bb291c2189f42248af7cd9feec"
+  },
+  {
+    "source": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/MarkerDetailRange.svelte.html.js",
+    "destination": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/.local-notes/recovery-2026-10-15/coherent-source/isolated/tests/fixtures/archived-native-ui/components/MarkerDetailRange.svelte.html.js",
+    "sha256": "2106f42b55b92c70f92e24ce1c315243f67dbcb0942ed6f80f5c4e1b0313a762"
+  },
+  {
+    "source": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/MarkerDetailRange.svelte.html.d.ts",
+    "destination": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/.local-notes/recovery-2026-10-15/coherent-source/isolated/tests/fixtures/archived-native-ui/components/MarkerDetailRange.svelte.html.d.ts",
+    "sha256": "f44ac7e200efe0a89d620fd87fae64cb45299b2ff1871b8a4fa114d3233fe5a1"
+  },
+  {
+    "source": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/MarkerReferenceEditor.svelte.html.js",
+    "destination": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/.local-notes/recovery-2026-10-15/coherent-source/isolated/tests/fixtures/archived-native-ui/components/MarkerReferenceEditor.svelte.html.js",
+    "sha256": "cf03260d0ca29c337eb3575d95d3ed25991629f32543bdafda75e6cca05713d6"
+  },
+  {
+    "source": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/MarkerReferenceEditor.svelte.html.d.ts",
+    "destination": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/.local-notes/recovery-2026-10-15/coherent-source/isolated/tests/fixtures/archived-native-ui/components/MarkerReferenceEditor.svelte.html.d.ts",
+    "sha256": "ad9041a0f94422fcd42ac29b5de50841eaa1bfd29e28e33bba9d3ad6fe29bb34"
+  },
+  {
+    "source": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/MarkerDetailChrome.svelte.html.js",
+    "destination": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/.local-notes/recovery-2026-10-15/coherent-source/isolated/tests/fixtures/archived-native-ui/components/MarkerDetailChrome.svelte.html.js",
+    "sha256": "50e7ef427654c3d437e1f0be458ec2a372dc11f96ee73e8a30f1b4ed90d01b4c"
+  },
+  {
+    "source": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/MarkerDetailChrome.svelte.html.d.ts",
+    "destination": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/.local-notes/recovery-2026-10-15/coherent-source/isolated/tests/fixtures/archived-native-ui/components/MarkerDetailChrome.svelte.html.d.ts",
+    "sha256": "86d1a635a9823afc1494729960e736ed8bac9fa00a06015e7b0d246e64c230fc"
+  },
+  {
+    "source": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/MarkerDetailBioAge.svelte.html.js",
+    "destination": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/.local-notes/recovery-2026-10-15/coherent-source/isolated/tests/fixtures/archived-native-ui/components/MarkerDetailBioAge.svelte.html.js",
+    "sha256": "d4c4114800f78ca56904227306d880765e8e2ebc6ee299e35bede787ddd48fe5"
+  },
+  {
+    "source": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/MarkerDetailBioAge.svelte.html.d.ts",
+    "destination": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/.local-notes/recovery-2026-10-15/coherent-source/isolated/tests/fixtures/archived-native-ui/components/MarkerDetailBioAge.svelte.html.d.ts",
+    "sha256": "fac4d3b842c07dd73313679f534db19907b2184d74bf6f52214daa45fb476d46"
+  },
+  {
+    "source": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/MarkerDetailNotes.svelte.html.js",
+    "destination": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/.local-notes/recovery-2026-10-15/coherent-source/isolated/tests/fixtures/archived-native-ui/components/MarkerDetailNotes.svelte.html.js",
+    "sha256": "0488d4cc7985912da234da60050cd19a2a1e2a723b952a7531d8580b0de3da79"
+  },
+  {
+    "source": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/MarkerDetailNotes.svelte.html.d.ts",
+    "destination": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/.local-notes/recovery-2026-10-15/coherent-source/isolated/tests/fixtures/archived-native-ui/components/MarkerDetailNotes.svelte.html.d.ts",
+    "sha256": "21f3da0a6a4390693c2f7081a30d844ab74e93b51121ee5aa952bbd4cc39018c"
+  }
+]

@@ -4,6 +4,7 @@ import {expect,it} from 'vitest';
 import {projectGenomeImportDetails,projectBodySources,projectLensActions} from '../js/lens-content-presentation.js';
 import {createLensPageHandlers} from '../js/lens-pages.js';
 import {state} from '../js/state.js';
+import {getLensContentGrid} from '../js/lens-page-shell.js';
 import {renderHTML} from '../js/components/LensPageContent.svelte.html.js';
 interface Sample {name:string;kind:'genome'|'body'|'actions';input?:{genetics?:unknown;wearableConnections?:unknown;wearableSummary?:unknown};route?:string;hidden?:string[];html:string;actions?:string}
 const fixture=JSON.parse(readFileSync('tests/fixtures/lens-content-original.json','utf8')) as {samples:Sample[]};
@@ -38,7 +39,7 @@ it('components use escaped typed fields with no raw HTML slots or native control
 it('the controller omits an absent import panel while retaining maternal-only import details',()=>{
  const original=state.importedData;document.body.innerHTML='<main id="main-content"></main>';
  let ids:string[]=[];
- const handlers=createLensPageHandlers({renderDashboardGenomeWidget:()=>'',renderLensHeader:()=>'',renderLensPageWidgets:(_route:string,widgets:({id:string}|null)[])=>{ids=widgets.filter(widget=>!!widget).map(widget=>widget.id);return '';}});
+ const handlers=createLensPageHandlers({projectDashboardGenomeWidget:()=>({kind:'empty',contributionHref:null}),getLensContentGrid:(route:string,widgets:Parameters<typeof getLensContentGrid>[1])=>{ids=widgets.map(widget=>widget.id);return getLensContentGrid(route,widgets);}});
  try{
   (state as {importedData:unknown}).importedData={genetics:{snps:{}}};handlers.showGenomeLens();expect(ids).toEqual(['genome']);
   (state as {importedData:unknown}).importedData={genetics:{snps:{},mtdna:{haplogroup:'H1'}}};handlers.showGenomeLens();expect(ids).toEqual(['genome','genome-import']);

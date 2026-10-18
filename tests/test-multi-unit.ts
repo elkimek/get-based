@@ -221,12 +221,18 @@ console.log('\n-- source-shape pins (UI wiring) --');
   const markerDetail = [
     fs.readFileSync(new URL('../js/marker-detail-modal-impl.js', import.meta.url), 'utf8'),
     fs.readFileSync(new URL('../js/marker-detail-manual-entry.js', import.meta.url), 'utf8'),
+    fs.readFileSync(new URL('../js/components/ManualMarkerEntryUnits.svelte', import.meta.url), 'utf8'),
   ].join('\n');
   const markerDetailEditing = fs.readFileSync(new URL('../js/marker-detail-editing.js', import.meta.url), 'utf8');
   const settings = [
     fs.readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8'),
     fs.readFileSync(new URL('../js/settings-display-panel.js', import.meta.url), 'utf8'),
   ].join('\n');
+  const display = fs.readFileSync(new URL('../js/components/DisplaySettings.svelte', import.meta.url), 'utf8');
+  const displayPanel = fs.readFileSync(new URL('../js/settings-display-panel.ts', import.meta.url), 'utf8');
+  const displayButtons = display.match(/<button\b[^>]*>[\s\S]*?<\/button>/g) || [];
+  const unitButtons = displayButtons.filter(button => /\bdata-unit=/.test(button));
+  const altButtons = displayButtons.filter(button => /\bdata-alt-units=/.test(button));
   const data = fs.readFileSync(new URL('../js/data.js', import.meta.url), 'utf8');
   const dataViewControls = fs.readFileSync(new URL('../js/data-view-controls.js', import.meta.url), 'utf8');
   const state = fs.readFileSync(new URL('../js/state.js', import.meta.url), 'utf8');
@@ -257,22 +263,37 @@ console.log('\n-- source-shape pins (UI wiring) --');
   assert('closeModal clears state._activeDetailMarkerId',
     /export function closeModal\(\)[\s\S]{0,1600}state\._activeDetailMarkerId = null/.test(markerDetail));
 
-  // Settings → Display has the Alternate Units row + both buttons
-  assert('settings.js renders Alternate Units row in Display tab',
-    /label class="settings-label"[^>]*>Alternate Units</.test(settings));
-  assert('settings.js Off button maps to delegated toggleAltUnits(false)',
-    /data-alt-units="off"[^>]*data-settings-action="toggle-alt-units"/.test(settings)
-      && /toggleAltUnits\(actionEl\.dataset\.altUnits === 'on'\)/.test(settings));
-  assert('settings.js Show-both button maps to delegated toggleAltUnits(true)',
-    /data-alt-units="on"[^>]*data-settings-action="toggle-alt-units"/.test(settings)
-      && /toggleAltUnits\(actionEl\.dataset\.altUnits === 'on'\)/.test(settings));
-  assert('settings.js updateSettingsUI refreshes alt-units active state',
-    settings.includes('.unit-toggle-btn[data-alt-units]') &&
-      /altUnitButtons\.forEach[\s\S]{0,300}state\.showAltUnits/.test(settings));
-  assert('settings.js unit-toggle scope is narrowed to [data-unit] (so alt-units buttons aren\'t deactivated)',
-    /unit-toggle-btn\[data-unit\]/.test(settings));
-  assert('settings.js exposes the Australia / New Zealand unit profile',
-    /data-unit="ANZ"[^>]*>Australia \/ NZ</.test(settings));
+  // Svelte owns Display markup and per-button state; the settings delegate
+  // and synchronous adapter still own mutations and state refresh.
+  assert('Display Svelte renders Alternate Units row in Display tab',
+    /id="display-alt-label"[^>]*>Alternate Units</.test(display)
+      && /role="group" aria-labelledby="display-alt-label"/.test(display));
+  assert('Display Off button maps to delegated toggleAltUnits(false)',
+    /data-alt-units="off"[^>]*data-settings-action="toggle-alt-units"[^>]*>Off</.test(display)
+      && /action === 'toggle-alt-units'[\s\S]{0,200}toggleAltUnits\(actionEl\.dataset\.altUnits === 'on'\);\s+updateSettingsUI\(\)/.test(settings));
+  assert('Display Show-both button maps to delegated toggleAltUnits(true)',
+    /data-alt-units="on"[^>]*data-settings-action="toggle-alt-units"[^>]*>Show both</.test(display)
+      && /action === 'toggle-alt-units'[\s\S]{0,200}toggleAltUnits\(actionEl\.dataset\.altUnits === 'on'\);\s+updateSettingsUI\(\)/.test(settings));
+  assert('settings.js updateSettingsUI refreshes Display alt-units active state',
+    /export function updateSettingsUI\(\)\s*{\s*updateDisplaySettingsPanel\(\);/.test(settings)
+      && /showAltUnits: !!state\.showAltUnits/.test(displayPanel)
+      && /flushSync\(\(\) => mounted!\.refresh\(snapshot\(\)\)\)/.test(displayPanel)
+      && /export function refresh\(next: DisplayPreferences\): void { preferences = next; }/.test(display)
+      && /class="unit-toggle-btn\{!preferences\.showAltUnits \? ' active' : ''\}[^>]*aria-pressed="\{!preferences\.showAltUnits\}"[^>]*data-alt-units="off"/.test(display)
+      && /class="unit-toggle-btn\{preferences\.showAltUnits \? ' active' : ''\}[^>]*aria-pressed="\{!!preferences\.showAltUnits\}"[^>]*data-alt-units="on"/.test(display));
+  assert('Display unit-system bindings cannot deactivate alternate-unit buttons',
+    unitButtons.length === 3 && altButtons.length === 2
+      && ['EU', 'ANZ', 'US'].every(unit => unitButtons.some(button =>
+        button.includes(`preferences.unitSystem === '${unit}' ? ' active' : ''`)
+          && button.includes(`aria-pressed="{preferences.unitSystem === '${unit}'}"`)
+          && button.includes(`data-unit="${unit}" data-settings-action="switch-unit"`)
+          && !button.includes('preferences.showAltUnits')))
+      && altButtons.every(button => button.includes('preferences.showAltUnits')
+        && !button.includes('preferences.unitSystem'))
+      && !/querySelectorAll\([^)]*\.unit-toggle-btn/.test(settings + displayPanel));
+  assert('Display Svelte exposes the Australia / New Zealand unit profile',
+    /data-unit="ANZ"[^>]*data-settings-action="switch-unit"[^>]*>Australia \/ NZ</.test(display)
+      && /action === 'switch-unit'[\s\S]{0,180}switchUnitSystem\(actionEl\.dataset\.unit \|\| 'EU'\);\s+updateSettingsUI\(\)/.test(settings));
 
   // Data view controls: toggleAltUnits accepts force arg, persists, refreshes detail modal
   assert('data view controls toggleAltUnits accepts force arg',

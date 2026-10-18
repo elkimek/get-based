@@ -1,10 +1,12 @@
 # Contributing to getbased
 
-Thanks for wanting to help. This is the short version — the in-depth developer docs live in the Mintlify docs repo at [docs.getbased.health/developers](https://docs.getbased.health/developers). Code ownership and dependency rules live in [`ARCHITECTURE.md`](ARCHITECTURE.md).
+Use the [developer documentation](https://docs.getbased.health/developers) for
+feature guides and [ARCHITECTURE.md](ARCHITECTURE.md) for ownership and dependency
+rules. Keep changes focused and preserve unrelated working changes.
 
----
+## Run locally
 
-## Running locally
+Use Node.js 24 and a modern browser:
 
 ```bash
 git clone https://github.com/elkimek/get-based
@@ -13,203 +15,147 @@ npm ci
 npm run dev-server
 ```
 
-Open `http://localhost:8000/app`. The root URL may serve the sibling `get-based-site` landing page when that repository is present.
+Open `http://localhost:8000/app`. The root URL may serve a sibling
+`get-based-site` checkout when present. AI is optional; AI-assisted import and
+chat need a connected provider, local server or supported Companion capability.
 
-Prerequisites: a modern browser (Chrome or Firefox) and Node.js 24. `npm ci` installs dependencies and compiles the TypeScript sources; `npm run dev-server` recompiles them before starting the server. Edit the authored `.ts` and `.mts` files, and authored `.svelte` components. When running a Node entry point or Playwright directly after editing, first run `npm run typescript:build`. An AI provider key or a local Ollama instance is optional — only needed for PDF import and chat.
+`npm ci` installs the workspace dependencies and compiles the application.
+Standard development, test and production commands compile before use.
+After source edits, run `npm run typescript:build` before invoking emitted Node
+entry points or Playwright directly.
 
----
+## Source and ownership
 
-## Tests
+- Edit authored `.ts`, `.mts` and `.svelte` sources. Ignored `.js`/`.mjs` siblings,
+  compiled component declarations and CSS bundles are generated outputs.
+  Handwritten public declarations and ambient types remain authored contracts.
+- Find each feature's controller, projections, components and shared services in
+  [ARCHITECTURE.md](ARCHITECTURE.md) and the generated [MODULE_MAP.md](MODULE_MAP.md).
+  Keep persistence, provider execution and domain calculations in their owners;
+  compose UI through typed Svelte children.
+- Style changes belong in the owning Tailwind utility catalog or CSS recipe
+  input. `.base.css` can contain authored semantic recipes; its suffix does not
+  mean it is an uncompiled output. Consult [scripts/build-styles.mts](scripts/build-styles.mts)
+  for stylesheet ownership and [the inline-style registry](scripts/inline-style-map-owners.mts)
+  for generated typed style maps. Preserve public stylesheet URLs, cascade order,
+  action attributes and controller contracts.
+- `npm run styles:build` compiles styles; `npm run styles:check` verifies outputs.
+  `npm run svelte:check` checks authored component types and component emissions
+  without rewriting them. Application diagnostics use TypeScript 7; the
+  `tooling/svelte` workspace isolates the checker's supporting TypeScript 6 peer.
+- If runtime modules or imports change, run `npm run architecture:build`, inspect
+  and commit the regenerated map, then run `npm run architecture:check`.
+  Update the architecture contract when responsibilities or data flows change.
 
-Default to tests related to the files and behavior you changed:
+## Test a change
+
+Default to checks relevant to the changed behavior:
 
 ```bash
 npm test -- tests/<relevant-test>.test.ts
 npm run typecheck:migration
 npm run typecheck:migration-tests
+npm run architecture:check
+npm run quality
 npx playwright test tests/playwright/<relevant-spec>.spec.ts
-npx playwright install firefox
-npm run test:firefox
-npm run performance:check
 ```
 
-GitHub Actions owns the exhaustive Chromium and combined-coverage matrix. This
-avoids repeatedly creating large temporary browser profiles and V8 coverage
-snapshots on developer drives. If an exceptional local full run is necessary,
-acknowledge its high write volume explicitly:
+`typecheck:migration` checks application and tooling sources with strict
+TypeScript options; `typecheck:migration-tests` checks maintained tests.
+Other compiler projects cover compatibility, server,
+worker and strict-null contracts; see `package.json` and the
+[testing policy](engineering/testing-policy.md).
+
+Add meaningful assertions for changed behavior. Preserve compiler safety,
+security controls, native UI/data contracts, coverage floors and resource budgets;
+do not weaken them to obtain a passing result. Report what was tested and any
+remaining failures or acceptance limits. Documentation-only changes need link
+and consistency checks rather than an application build.
+
+Browser checks run headlessly and remove access to the desktop session.
+Install only the required engine, for example `npx playwright install firefox`.
+`npm run test:firefox` checks focused critical flows; `test:pwa` checks offline,
+update and data-preservation behavior across the configured browser engines.
+`test:evolu8-browsers` checks sync startup and identity/resource contracts.
+The retained `test:display-pilot` command runs the focused Display cross-browser
+contract; its name is not a whole-application acceptance claim.
+After a production build, `npm run performance:check -- --artifact dist` enforces
+SvelteKit startup and incremental first-use transfer budgets with synthetic profiles
+in headless Chromium. Production builds enforce the separate offline-cache growth
+budget. The previous native checks remain available as `performance:native:check`
+and `native:compatibility:check`. See the testing policy for release coverage.
+
+GitHub Actions owns the exhaustive browser and combined-coverage matrix by
+default. An exceptional local full run requires an explicit high-write opt-in:
 
 ```bash
 GETBASED_ALLOW_HIGH_WRITE_TESTS=1 ./run-tests.sh
 GETBASED_ALLOW_HIGH_WRITE_TESTS=1 COVERAGE=1 ./run-tests.sh
 ```
 
-`./run-tests.sh` auto-starts a server, runs Vitest, the origin guard, and the full Chromium Playwright suite. `COVERAGE=1` additionally enforces the combined function-coverage minimum in `scripts/coverage-baseline.json`. The commands are blocked outside CI without the explicit environment opt-in above. The Firefox command runs a focused cross-browser check of startup, demo data, navigation, settings, JSON round trips, and offline app-shell readiness. Exit code 0 = all pass. If you add a feature or fix a bug, add assertions to the relevant test file. See the [Testing developer doc](https://docs.getbased.health/developers/testing) for how the harness works.
-Raise the committed coverage minimum when coverage improves; `COVERAGE_MIN` may temporarily demand a stricter threshold but cannot weaken the repository baseline.
-`npm run performance:check` measures the cold mobile app path and enforces the committed request-count, compressed-transfer, and decoded-byte ceilings in `scripts/cold-load-budget.json`.
+The runner starts an isolated server and runs the Node/Vitest, origin-guard and
+full Chromium checks. `COVERAGE=1` combines Vitest and Playwright V8 function
+coverage against `scripts/coverage-baseline.json`. Raise the committed minimum
+when coverage improves; `COVERAGE_MIN` may demand more, never less. Function
+coverage does not establish branch coverage or complete workflow acceptance.
+Live paid providers, physical hardware and manual acceptance remain separate.
 
-If you add, remove, rename, or rewire a runtime module, regenerate and inspect the file map:
+## Build the static app
 
 ```bash
-npm run architecture:build
-npm run architecture:check
+npm run production:build
+npm run production:check
 ```
 
----
+`production:build` writes the complete static SvelteKit distribution to ignored
+`dist/`; `production:check` validates a disposable build. The core app needs no
+rendering backend. Preserve the `/app` rewrite, CSP, MIME and single-worker
+contracts when hosting it. Build success does not replace browser acceptance or
+the separately retained native compatibility budget checks.
 
-## Pull request guidelines
+`npm run sveltekit:build` retains the ignored local acceptance artifact;
+`npm run test:sveltekit` builds it first and runs its configured headless cases.
+See [static build and acceptance](engineering/static-sveltekit.md) for exact
+runtime, PWA and measurement boundaries, and
+[optional integrations](engineering/optional-integrations.md) for service setup.
 
-- Keep PRs focused. One thing at a time is easier to review.
-- Run change-scoped tests and relevant lightweight gates before opening a PR;
-  let GitHub Actions run the exhaustive browser and coverage matrix.
-- Edit canonical `.ts`/`.mts` sources, not generated `.js`/`.mjs` files. PWA cache identity comes from the production commit and deployment ID, so ordinary patches need no version bump. For a versioned release, update `version.ts` and the changelog.
-- Commit the regenerated [`MODULE_MAP.md`](MODULE_MAP.md) when runtime modules or imports change.
-- Update [`ARCHITECTURE.md`](ARCHITECTURE.md) when responsibilities, entry points, major data flows, or allowed dependency directions change.
-- Keep maintained feature and testing contracts under `engineering/`. Keep task progress, checkpoints, and audit logs local in `.local-notes/`, which Git ignores.
-- Keep [AGENTS.md](AGENTS.md) concise and limited to stable coding-agent instructions; it is not a task journal.
+To profile a built local static artifact separately from service-worker caching:
 
----
+```bash
+GETBASED_KIT_ARTIFACT="$PWD/dist" npx playwright test --config=playwright.sveltekit.config.js sveltekit-startup-performance.spec.ts --project=kit-chromium
+```
 
-## Architecture & deeper docs
+This records uncompressed local cold-start measurements; it introduces no new
+resource/timing budget or general speed claim. Build the artifact before running it.
 
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** — the human-maintained module ownership, dependency, state, storage, and privacy contract.
-- **[MODULE_MAP.md](MODULE_MAP.md)** — generated file-level ESM inventory, coupling hotspots, and current dependency cycles.
-- **[Engineering guidance](engineering/README.md)** — maintained testing and feature contracts.
-- **[AGENTS.md](AGENTS.md)** — stable repository instructions for coding agents.
-- **[Developer docs](https://docs.getbased.health/developers)** — architecture, module reference, data pipeline, storage schema, testing, deployment, and feature internals. Source lives in the separate `getbased-docs` Mintlify repo.
+For matched compressed measurements of two already built artifacts:
 
----
+```bash
+npm run benchmark:local -- --baseline .local-notes/baseline-dist --candidate dist --cases empty,control,combined --pairs 3 --device mobile
+```
 
-## Roadmap
+The pre-hook compiles the benchmark and its seed dependencies. It does not rebuild
+the two supplied artifacts. Results go into a unique ignored directory under
+`.local-notes/benchmarks`; see [matched benchmark scope](engineering/static-sveltekit.md#matched-local-benchmark)
+for fixture choices, guards and timing limits.
+Run the focused benchmark option, parity and failure checks with
+`npm test -- tests/benchmark-static.test.ts tests/benchmark-static-failures.test.ts`.
+Missing required artifact files and invalid metadata/version identity fail before
+browser acquisition. Cleanup failures remain visible and cannot produce a
+successful benchmark receipt.
 
-Check the [project board](https://github.com/users/elkimek/projects/2) for planned features and ideas. If something interests you, comment on the issue to discuss the approach before starting work.
+## Submit and maintain
 
-## Reporting bugs
-
-Open a GitHub issue or use the feedback button in the app (flag icon in the header). Include browser, OS, and steps to reproduce.
-
-Settings CSS is generated at its existing runtime URL. Edit
-`css/settings.base.css` for legacy Settings styles or
-`css/settings-display.tailwind.css` and `js/components/DisplaySettings.svelte`
-for the Svelte + Tailwind Display pilot. Protection dialogs use
-`css/data-protection.base.css`, `css/data-protection.tailwind.css` and
-`js/components/PassphraseDialog.svelte`; `css/data-protection.css` is generated at
-its existing lazy URL. The shared health-context catalog is authored in
-`js/components/ContextCardCatalog.svelte`; edit `css/context-catalog.tailwind.css`
-and `js/context-card-catalog-classes.ts` for its scoped utilities.
-`css/context-profile.base.css` retains the remaining context/editor styles;
-`css/context-profile.css` is generated at its existing eager URL.
-Nutrition setup and drink forms are authored in `js/components/NutritionEntry.svelte`,
-`NutritionTargets.svelte`, `NutritionFluidLog.svelte` and `NutritionNumberField.svelte`.
-Their pure form projections and captured-profile commits live in `js/nutrition-entry-model.ts`
-and `js/nutrition-entry-session.ts`.
-Nutrition dashboard projections and both authored widget branches are covered by
-`tests/nutrition-dashboard.test.ts`; the browser tests exercise the actual Dashboard
-and Body widgets, six themes, narrow containers, and first offline use through two
-cold launches without profile writes.
-
-Benchmark result cards and shared comparison tables are authored in
-`js/components/NutritionComparisonResults.svelte` and `NutritionComparisonTable.svelte`.
-The pure result projection is `js/nutrition-comparison-results-model.ts`; model
-execution and encrypted local persistence remain separate. Focused coverage lives
-in `tests/nutrition-comparison-results-model.test.ts`, the existing comparison and
-request-lifecycle suites, `tests/playwright/nutrition-comparison-owned.spec.ts`,
-`tests/playwright/nutrition-benchmark-owned.spec.ts` and
-`tests/pwa/sveltekit-nutrition-comparison.spec.ts`. The shared mode-switch focus
-race has a deterministic regression in `tests/modal-focus-handoff.test.ts`.
-
-Saved meal details and check-ins are authored in `js/components/NutritionMealDetail.svelte`
-and `NutritionMealResponse.svelte`, with pure projections and captured commits in
-`js/nutrition-meal-detail-model.ts` and `js/nutrition-meal-detail-session.ts`.
-Focused coverage lives in `tests/nutrition-meal-detail.test.ts`,
-`tests/nutrition-meal-detail-ownership.test.ts`,
-`tests/playwright/nutrition-meal-detail-owned.spec.ts` and
-`tests/pwa/sveltekit-nutrition-meal-detail.spec.ts`.
-
-Nutrition History and its shared meal, target and fuel displays are authored in
-`js/components/NutritionHistory.svelte` and the shared `Nutrition*.svelte` components.
-Edit `css/nutrition.tailwind.css` and `js/nutrition-view-classes.ts` for their scoped
-utilities; `css/nutrition.base.css` retains the remaining native nutrition styles.
-The build generates `css/nutrition.css` at its unchanged lazy URL.
-Current conditions use `js/components/LightConditionsPresentation.svelte` and
-its focused content/source/timeline/inspection children. Edit
-`js/light-conditions-presentation.ts` for display projections and
-`js/light-conditions-classes.ts` for scoped Tailwind utilities. The stable
-`css/light-conditions-now.css` URL is generated from its `.base.css` and
-`.tailwind.css` inputs; the base retains shared tooltip integration and
-foreground tokens. Provider execution and refresh/cache ownership remain in
-`js/light-conditions-now.ts`.
-Run `npm run styles:build` after styling edits;
-`npm run styles:check` verifies the bundle. The standard TypeScript build,
-prepare, development, test and production commands also compile these styles
-and the component. `npm run svelte:check` validates authored component types with
-TypeScript 7 and checks emitted output without rewriting it. `tooling/svelte`
-is an npm workspace that isolates the checker's supporting TypeScript 6 dependency;
-`npm ci` installs it along with the application toolchain.
-
-The bounded Display pilot has a focused cross-browser acceptance command,
-`npm run test:display-pilot`, covering Chromium, Firefox, desktop WebKit and
-mobile WebKit. The [focused pilot workflow](.github/workflows/display-pilot.yml) runs on the
-pilot branch and can be dispatched manually. It checks the affected tooling and
-settings contracts, strict typing, architecture, production budgets, critical
-coverage, and the Display and PWA browser matrices. Its retained JSON evidence
-is scoped to the pilot; it does not measure fresh whole-project combined coverage.
-The full release CI workflow also runs both browser matrices.
-
-PWA Chromium checks use the pinned full browser in its modern headless mode
-(`channel: chromium`), exercising Chrome's normal browser implementation without
-opening desktop windows. See [Playwright browser modes](https://playwright.dev/docs/browsers#chromium-new-headless-mode).
-
-The opt-in static SvelteKit bridge is built with `npm run sveltekit:build` and
-verified locally with `npm run test:sveltekit`. It outputs an ignored static
-artifact and does not require GitHub Actions. See
-[static Kit build and acceptance](engineering/static-sveltekit.md) for the
-preserved runtime, PWA and size-measurement contracts. Standard browser checks
-remove access to the user's desktop session in addition to requesting headless mode.
-
-Light channel drill-downs are authored in `LightChannelDetail.svelte`,
-`LightChannelChart.svelte` and `LightChannelResearch.svelte`. Edit
-`js/light-channel-presentation.ts` for pure chart/view projections,
-`js/light-channel-content.ts` for maintained explanations and research, and
-`js/light-channel-classes.ts` with `css/light-page.tailwind.css` for scoped styles.
-The existing channel adapter owns service reads and delegated navigation/actions;
-`LightChannelPills.svelte` and `LightDashboardPills.svelte` share the typed
-`LightChannelSparkline.svelte`; edit `js/light-channel-pill-classes.ts` for their
-scoped Tailwind styling. `LightChannelSection.svelte` and `LightLocationHint.svelte`
-compose typed children; `js/light-channel-section-classes.ts` owns container styles.
-`css/light-channels.css` remains an empty compatibility URL. Focused parity contracts are in
-`tests/light-channel-presentation.test.ts`, `tests/light-channel-pills.test.ts`
-and the headless `tests/playwright/light-channel-owned.spec.ts` and
-`tests/playwright/light-channel-pills-owned.spec.ts` and
-`tests/playwright/light-channel-section-owned.spec.ts`.
-
-Edit the Light device library and picker in `LightDeviceLibrary.svelte`,
-`LightDevicePicker.svelte` and `LightDeviceChannelChips.svelte`; their typed
-projections are in `js/light-device-library-presentation.ts`. The shared affiliate
-component is `LightDeviceAffiliate.svelte`; recommendation policy stays in
-`js/recommendations-products.ts`. Use `js/light-device-library-classes.ts` and
-`css/light-devices.tailwind.css` for styles. The base
-`css/light-devices.base.css` retains only the shared Lens widget-body gap. Never edit generated `css/light-devices.css`. Focused contracts are in
-`tests/light-device-library.test.ts` and
-`tests/playwright/light-device-library-owned.spec.ts`.
-
-
-Device setup lives in `LightDeviceSetup.svelte`, `LightDevicePresets.svelte`,
-`LightDeviceCustomForm.svelte` and `LightDeviceSpecFields.svelte`. Edit
-`js/light-device-setup-presentation.ts` for pure display projections and
-`js/light-device-setup-classes.ts` for scoped Tailwind styling. Existing modal,
-selection, conversion, AI extraction and save behavior stays in
-`js/light-device-setup-modal.ts`. Focused original-markup contracts and headless
-acceptance are in `tests/light-device-setup-presentation.test.ts`,
-`tests/playwright/light-device-setup-owned.spec.ts` and
-`tests/pwa/sveltekit-light-device-setup.spec.ts`.
-
-Channel device options use `LightDeviceRecommendations.svelte`, the pure
-`js/light-device-recommendations-presentation.ts` projection and scoped
-`js/light-device-recommendations-classes.ts` Tailwind catalog. Selection, regional
-filtering, trusted URLs, attribution and the recommendation toggle stay in
-`js/recommendations-products.ts`. The public renderer remains available without
-automatic insertion into the Light page. Its opt-out uses the real delegated
-privacy-settings action; native button semantics add Space activation. Focused
-contracts are in `tests/light-device-recommendations.test.ts`,
-`tests/playwright/light-device-recommendations-owned.spec.ts` and
-`tests/pwa/sveltekit-light-device-recommendations.spec.ts`.
+- Keep PRs focused and include change-scoped validation. Use CI for the exhaustive
+  regression and combined-coverage matrix.
+- PWA cache identity comes from the complete authored/build inputs and public
+  assets; revision provenance is recorded separately. Ordinary patches need no
+  release-version bump; versioned releases update `version.ts` and the changelog.
+- Keep maintained contracts in [engineering/](engineering/README.md), stable agent
+  instructions in [AGENTS.md](AGENTS.md), and brand rules in [brands/BRAND.md](brands/BRAND.md).
+  Task progress, plans, checkpoints and audit journals belong in ignored
+  `.local-notes/`, not tracked guidance.
+- Report bugs through a GitHub issue or the app's feedback button with browser,
+  OS and reproduction steps. Report vulnerabilities privately through
+  [SECURITY.md](SECURITY.md). Planned work is on the
+  [project board](https://github.com/users/elkimek/projects/2).

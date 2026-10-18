@@ -1,4 +1,5 @@
 <script lang="ts">
+  import LightEnvironmentAI from './LightEnvironmentAI.svelte';
   import type { LightAuditDetailView } from '../light-audit-presentation.js';
   import { lightAuditClasses as c } from '../light-audit-classes.js';
   let { view, actionId }: { view: LightAuditDetailView; actionId: string | undefined } = $props();
@@ -18,7 +19,7 @@
     </label>
   </div>
   <!-- The AI service retains request, provenance and persistence ownership. -->
-  {@html view.trustedAIHTML}
+  {#if view.ai}<LightEnvironmentAI view={view.ai}/>{/if}
   {#if !view.rooms.length}
     <p class={c('light-audit-empty')}>No rooms in this audit's snapshot.</p>
   {:else}

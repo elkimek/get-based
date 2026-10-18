@@ -1,31 +1,33 @@
+import type{OnboardingAIView}from'./light-onboarding-ai-presentation.js';
 import { SKIN_TYPE } from './constants.js';
 import type { SunSetupDefaults, SunSetupCoords } from './sun-defaults-model.js';
 import { EYEWEAR_OPTIONS, HOME_LIGHT_OPTIONS, fitzpatrickToSkinTypeIndex, skinTypeToFitzpatrick, ottScoreToLabel, photosensitiveTierOf } from './sun-defaults-model.js';
 
 export interface LightSetupChip {
-  kind: 'skin' | 'home' | 'eyewear' | 'ott' | 'skipped' | 'unset';
-  icon: string; label: string; value: string; title: string; sub?: string;
-  accent?: 'warm' | 'cool' | 'sun' | 'neutral';
-  tier?: number;
+  readonly kind: 'skin' | 'home' | 'eyewear' | 'ott' | 'skipped' | 'unset';
+  readonly icon: string; readonly label: string; readonly value: string; readonly title: string; readonly sub?: string;
+  readonly accent?: 'warm' | 'cool' | 'sun' | 'neutral';
+  readonly tier?: number;
 }
 export interface LightSetupView {
-  ownerTicket: string;
-  defaults: SunSetupDefaults;
-  complete: boolean;
-  initialFitzpatrick: string | null;
-  skinIndex: number;
-  filledCount: number;
-  selectedPatterns: number;
-  location: ReturnType<typeof projectSetupLocation>;
-  chips: LightSetupChip[];
-  photoWarning: string;
-  aiHTML: string;
+  readonly ownerTicket: string;
+  readonly defaults: SunSetupDefaults;
+  readonly complete: boolean;
+  readonly deferredPrompt?: boolean;
+  readonly initialFitzpatrick: string | null;
+  readonly skinIndex: number;
+  readonly filledCount: number;
+  readonly selectedPatterns: number;
+  readonly location: ReturnType<typeof projectSetupLocation>;
+  readonly chips: readonly LightSetupChip[];
+  readonly photoWarning: string;
+  readonly ai: Readonly<OnboardingAIView> | null;
 }
 export interface LightSetupPresentationProps {
-  surface: 'card' | 'editor' | 'actions' | 'location' | 'modal' | 'skin-label';
-  view: LightSetupView;
-  includeActions?: boolean;
-  skinIndex?: number;
+  readonly surface: 'card' | 'editor' | 'actions' | 'location' | 'modal' | 'skin-label';
+  readonly view: LightSetupView;
+  readonly includeActions?: boolean;
+  readonly skinIndex?: number;
 }
 
 export function projectLightSetup(input: {
@@ -35,7 +37,7 @@ export function projectLightSetup(input: {
   complete: boolean;
   coords: SunSetupCoords | null;
   profileLocation: { country?: string | null } | null;
-  aiHTML?: string;
+  ai?: Readonly<OnboardingAIView> | null;
   ownerTicket?: string;
 }): LightSetupView {
   const defaults = input.defaults || {};
@@ -83,7 +85,7 @@ export function projectLightSetup(input: {
     selectedPatterns: Math.max(0, Math.min(10, Number(selectedPatterns) || 0)),
     location: projectSetupLocation(input.coords, input.profileLocation), chips,
     photoWarning: photoWarnings[photosensitiveTierOf(defaults.photosensitiveMeds)] || '',
-    aiHTML: input.aiHTML || '',
+    ai: input.ai || null,
   };
 }
 

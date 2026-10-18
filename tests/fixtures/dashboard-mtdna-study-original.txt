@@ -1,0 +1,17 @@
+function originalMtdnaStudy(study) {
+    const pmid = String(study?.pmid || '').replace(/\D/g, '');
+    const direction = String(study?.direction || 'context').toLowerCase();
+    return `<article class="db-mtdna-study db-mtdna-study-${escapeAttr(direction)}">
+      <div class="db-mtdna-study-head">
+        <span>${escapeHTML(study?.studyLabel || 'Study')}</span>
+        <em>${escapeHTML(study?.direction || 'context')}</em>
+      </div>
+      <strong>${escapeHTML(study?.title || 'Mitochondrial evidence')}</strong>
+      ${study?.scopeLabel ? `<small>${escapeHTML(study.scopeLabel)}</small>` : ''}
+      ${study?.summary ? `<p>${escapeHTML(study.summary)}</p>` : ''}
+      ${study?.model ? `<dl><dt>Model</dt><dd>${escapeHTML(study.model)}</dd></dl>` : ''}
+      ${study?.limitations ? `<dl><dt>Limits</dt><dd>${escapeHTML(study.limitations)}</dd></dl>` : ''}
+      ${pmid ? `<a href="https://pubmed.ncbi.nlm.nih.gov/${escapeAttr(pmid)}/" target="_blank" rel="noopener">PubMed · PMID ${escapeHTML(pmid)}</a>` : ''}
+    </article>`;
+  }
+

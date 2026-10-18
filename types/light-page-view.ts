@@ -1,4 +1,9 @@
-import type { LensPageWidget } from '../js/lens-page-shell.js';
+import type{LensContentWidget}from'../js/lens-page-shell.js';
+import type{LightWidgetContent}from'../js/light-page-presentation.js';
+import type{ReviewAIView,ReviewPresentation,WeeklyFallbackView}from'../js/light-review-ai-presentation.js';
+import type{LightSessionRowProps,LightSessionPresentationProps}from'../js/light-session-presentation.js';
+import type{SunDataSourceView}from'../js/sun-data-source-presentation.js';
+import type{LightSetupPresentationProps}from'../js/light-setup-presentation.js';
 
 // Unchecked private operations preserve raw injected fields, numeric coercion,
 // and getter errors. They are not validated callback output or storage DTOs.
@@ -27,14 +32,14 @@ export interface PageCalls extends Record<string, unknown> {
   quickLogSunSession(): unknown; openDetailedSessionDialog(): unknown;
   navigate(view: string): unknown; requestPreciseLocation(): unknown;
   openLightEnvironmentAssessment(): unknown;
-  renderSunDataSourceSettings(): unknown; renderLightTodayDashboardChip(): unknown;
-  renderLightTodayHero(): unknown; renderSunSessionRow(session: PageSessionOperations): unknown;
-  renderActiveDeviceSessionCard(): unknown; renderSunSetupCard(): unknown;
-  renderChannelMixVerdict(fallback: string): unknown; renderDevicesSection(): unknown;
+  getSunDataSourceSettingsView():SunDataSourceView|null;getLightTodayDashboardView():Readonly<ReviewAIView>|null;
+  getLightTodayHeroView():Readonly<ReviewAIView>|null;getSunSessionRowView(session:PageSessionOperations):LightSessionRowProps|null;
+  getActiveDeviceSessionCardView():Extract<LightSessionPresentationProps,{kind:'active'}>|null;getSunSetupCardView():LightSetupPresentationProps|null;
+  getChannelMixVerdictView(fallback:Readonly<WeeklyFallbackView>|null):ReviewPresentation|null; renderDevicesSection(): unknown;
   renderEnvironmentAssessmentSummary(): unknown; renderLightTools(): unknown;
 }
 export interface PageDelegateRoot { contains(node: Node): unknown; addEventListener(type: string, listener: (event: PageActionEvent) => unknown): unknown }
 export interface PageActionEvent extends Omit<Event, 'currentTarget'> { currentTarget: PageDelegateRoot | null }
 export type PageInnerHTMLWriter = Omit<HTMLDivElement, 'innerHTML'> & { innerHTML: unknown };
 export type PageOuterHTMLWriter = Omit<HTMLElement, 'outerHTML'> & { outerHTML: unknown };
-export type PageWidget = LensPageWidget & { opts?: NonNullable<LensPageWidget['opts']> & { source?: string } };
+export type PageWidget=LensContentWidget<LightWidgetContent>;

@@ -41,21 +41,22 @@ describe('authored Light page presentation', () => {
     expect(location.querySelector('a[href="#"]')).toBeNull();
   });
   it('keeps methods collapsed, literal skin metadata and the separately owned source controls', () => {
-    const rendered = host({ kind: 'methods', skinBasis: 'Fitzpatrick <literal> & retained', dataSourceHTML: '<div data-source-control>Owned source control</div>', showDataSource: true });
+    const rendered = host({ kind: 'methods', skinBasis: 'Fitzpatrick <literal> & retained', dataSource:{officialHost:true,options:[{mode:'auto',label:'Automatic',description:'Native source',checked:true},{mode:'selfhost',label:'Own relay',description:'Private source',checked:false},{mode:'offline',label:'Offline',description:'Local source',checked:false}],showSelfhost:false,url:'',bearer:'',rounding:true} });
     expect([...rendered.querySelectorAll('details')].every(details => !details.open)).toBe(true);
     expect(rendered.querySelector('.light-explainer-body')?.textContent).toContain('Fitzpatrick <literal> & retained');
-    expect(rendered.querySelector('.light-data-source-body [data-source-control]')?.textContent).toBe('Owned source control');
+    expect(rendered.querySelectorAll('.light-data-source-body [data-sun-source-action="set-meteo-mode"]')).toHaveLength(3);
+    expect([...rendered.querySelectorAll<HTMLInputElement>('.light-data-source-body input[type="radio"]')].map(input=>[input.value,input.checked])).toEqual([['auto',true],['selfhost',false],['offline',false]]);
     expect(rendered.querySelectorAll('a[target="_blank"]')).toHaveLength(6);
     expect([...rendered.querySelectorAll('a')].every(anchor => anchor.rel === 'noopener')).toBe(true);
     expect(rendered.querySelector('.light-explainer-body')?.textContent).toContain('never stay longer just to raise an estimate');
-    expect(host({ kind: 'methods', skinBasis: '', dataSourceHTML: '', showDataSource: false }).querySelector('.light-data-source-details')).toBeNull();
+    expect(host({ kind: 'methods', skinBasis: '', dataSource:null }).querySelector('.light-data-source-details')).toBeNull();
   });
   it('announces loading and preserves child renderers and session target wrappers', () => {
     const loading = host({ kind: 'loading', id: 'light-devices-slot-1', label: 'Loading devices...' });
     expect(loading.querySelector('[role="status"]')?.id).toBe('light-devices-slot-1');
-    const live = host({ kind: 'live', sun: true, device: true, sunHTML: '<div data-session-id="sun">Sun</div>', deviceHTML: '<div data-device-session-id="device">Device</div>' });
-    expect(live.querySelector('[aria-label="Active sun session"] [data-session-id]')?.getAttribute('data-session-id')).toBe('sun');
-    expect(live.querySelector('[aria-label="Active device session"] [data-device-session-id]')?.getAttribute('data-device-session-id')).toBe('device');
+    const live = host({ kind: 'live', sun: true, sunView:{kind:'row',view:{kind:'sun',id:'sun',name:'Sunlight',date:'Native date',time:'',duration:'1 min',ariaLabel:'Sun details',vitaminD:'',mode:null,warning:null}},deviceView:{kind:'active',view:{kind:'device',id:'device',date:'Native device date',elapsed:'1 min',ariaLabel:'Active device session',body:'Native exposure',eyes:'',directEye:false,suffix:'',paused:false,rotated:false,forgotHours:null,readouts:[],chips:null}} });
+    expect(live.querySelector('[aria-label="Active sun session"] [data-sun-session-id]')?.getAttribute('data-sun-session-id')).toBe('sun');
+    expect(live.querySelector('[aria-label="Active device session"] [data-light-active-presentation]')?.getAttribute('data-id')).toBe('device');
   });
   it('escapes dashboard pill metadata and preserves explicit channel routing', () => {
     const literal = '<img src=x onerror=alert(1)> & "';

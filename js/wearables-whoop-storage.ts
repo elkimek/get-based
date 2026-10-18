@@ -8,6 +8,7 @@
 // normal runtime shape is restored transparently after reads, whether or not
 // the remaining profile blob also has optional passphrase protection.
 
+import { DEVICE_PROTECTED_WEARABLE_MARKER, hasWhoopStorageDataToken } from './wearables-whoop-storage-contract.js';
 import type { DeviceLocalEnvelope, StoredWearableRow } from './wearable-storage-types.js';
 interface WearableProfileSummary extends Record<string, unknown> {
   sources?: Record<string, unknown>;
@@ -37,10 +38,7 @@ interface WhoopStorageDeps {
 }
 
 export const WHOOP_PROFILE_DATA_META = 'whoop-profile-data:v1';
-const DEVICE_PROTECTED_WEARABLE_MARKER = '_deviceProtectedWearableProfile';
 const DEVICE_PROTECTED_WEARABLE_VERSION = 'v1';
-const WHOOP_SOURCE_TOKEN = '"whoop"';
-const WHOOP_STORAGE_MARKER_TOKEN = `"${DEVICE_PROTECTED_WEARABLE_MARKER}"`;
 const migratedSourcesByDatabase = new WeakMap<IDBDatabase, Set<string>>();
 
 export const WHOOP_CONNECT_DISCLOSURE = `WHOOP will let getbased read your basic profile plus physiological cycle, recovery, sleep, and workout data. No write access is requested.
@@ -288,10 +286,9 @@ async function hydrateWhoopStorageValue(key: string, value: string, deps: WhoopS
 
 export async function transformWhoopStorageValue<T>(key: string, value: T, mode: string, encrypted = false, deps: Partial<WhoopStorageDeps> = {}): Promise<{ value: T | string; storedValue: T | string; migrated: boolean }> {
   const unchanged = { value, storedValue: value, migrated: false };
-  if (typeof value !== 'string'
-      || (!value.includes(WHOOP_SOURCE_TOKEN) && !value.includes(WHOOP_STORAGE_MARKER_TOKEN))) return unchanged;
+  if (!hasWhoopStorageDataToken(value)) return unchanged;
   if (mode === 'hydrate') {
-    if (encrypted && !value.includes(WHOOP_STORAGE_MARKER_TOKEN)) return unchanged;
+    if (encrypted && !value.includes(`"${DEVICE_PROTECTED_WEARABLE_MARKER}"`)) return unchanged;
     return hydrateWhoopStorageValue(key, value, deps as WhoopStorageDeps);
   }
   return { ...unchanged, value: await protectWhoopStorageValue(key, value, deps as WhoopStorageDeps) };

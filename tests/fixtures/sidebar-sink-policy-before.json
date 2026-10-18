@@ -1,0 +1,1074 @@
+{
+  "schemaVersion": 1,
+  "scope": "Every authored JavaScript, TypeScript and Svelte module under js/",
+  "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
+  "scannedFiles": 1619,
+  "sinkCount": 401,
+  "files": {
+    "js/biology-scores.js": {
+      "count": 1,
+      "digest": "3b6634d0f70bf7fb29792e9954a2583f1a90cb82aca19eb1779b1a84f408a354",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/category-customization.js": {
+      "count": 1,
+      "digest": "c888e3f32944714a3195c2b2b802e2fc2a32dc021ca5341b00e0efa8f57470f1",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/category-page-view.js": {
+      "count": 7,
+      "digest": "167b7d14ce737c859d1ef831a14c3d919d4df424aa2fb8f164034432165f97ee",
+      "kinds": {
+        "innerHTML": 7
+      }
+    },
+    "js/changelog-impl.js": {
+      "count": 1,
+      "digest": "e1d1f7670ff382d4d1c3e308bfeccafea2d1610ba6d68f964f60b0ab96a63412",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/chat-empty-state.js": {
+      "count": 2,
+      "digest": "a241182dc771769a0b78af363cc29977a42690449be684e27a28e81d69e3f540",
+      "kinds": {
+        "innerHTML": 2
+      }
+    },
+    "js/chat-onboarding.js": {
+      "count": 3,
+      "digest": "681c81adc2e2ee707c7cc9d6a3f9f93c65a8d9bd944cee9d85f25687e1a8de73",
+      "kinds": {
+        "insertAdjacentHTML": 1,
+        "outerHTML": 2
+      }
+    },
+    "js/chat-summaries.js": {
+      "count": 4,
+      "digest": "35739c19c3852676c46049abbc31646992660ee580ed894709fa2e6a60ce144c",
+      "kinds": {
+        "document.write": 1,
+        "innerHTML": 3
+      }
+    },
+    "js/client-list-form.js": {
+      "count": 4,
+      "digest": "1df69f37bfd1f240c7c2456cf22edc3b5c1d135455923980be19fc96eba78985",
+      "kinds": {
+        "innerHTML": 4
+      }
+    },
+    "js/client-list-impl.js": {
+      "count": 3,
+      "digest": "501f86c0ffe581c9b59854a6ca6c7b29b162e345fcd5430ef92f3cb1649f3cb6",
+      "kinds": {
+        "innerHTML": 3
+      }
+    },
+    "js/cloud-ai-consent.js": {
+      "count": 1,
+      "digest": "99091c3093f2627242f106aef100196d798ff5874c6c059214a8944cf8aec0b5",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/commit-hash.js": {
+      "count": 1,
+      "digest": "b601a6dcdd99232f5e69573ea831a2d447df6c3b4eac54e7340ba1427e10623c",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/compare-correlations.js": {
+      "count": 10,
+      "digest": "b80af9843154e7be833f431f93f56b3bcccb451e6575099280ee0d0477c5b27b",
+      "kinds": {
+        "innerHTML": 9,
+        "insertAdjacentHTML": 1
+      }
+    },
+    "js/components/BiologyAIAnswer.svelte.native.js": {
+      "count": 1,
+      "digest": "d81cbb37100f617ed60c3a3c4bf1824665df3d01222818557c777e8e71e4684e",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/ChangelogPresentation.svelte.native.js": {
+      "count": 1,
+      "digest": "356d1a141bf5ea0974062f63cc015a6d5c983a7e2764a7c61b2a7d1e4afc4f5e",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/ChatMessage.svelte.native.js": {
+      "count": 2,
+      "digest": "ccbf8eb7ea9ae6d5d73c72a85968879144553757631df83639e098acf29de9bd",
+      "kinds": {
+        "svelte.html": 2
+      }
+    },
+    "js/components/ChatProviderSetup.svelte.native.js": {
+      "count": 1,
+      "digest": "9c37f8b90908cb4669ac25f1f75b89dedb5fd0bcad5e1a3f2c650a5f4a524db2",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/ChatSummaryDialog.svelte.native.js": {
+      "count": 1,
+      "digest": "4f7a879f1f398b04aefb05129b7ee53c3c5aeefd9fcfcc469af85cc0222d14a2",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/ChatSummaryPrint.svelte.native.js": {
+      "count": 1,
+      "digest": "4f7a879f1f398b04aefb05129b7ee53c3c5aeefd9fcfcc469af85cc0222d14a2",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/ContextCardCatalog.svelte.native.js": {
+      "count": 2,
+      "digest": "e1ce59482ade23a0497aefc91eba249670add42df58a7fc0f2430ca530740fb6",
+      "kinds": {
+        "svelte.html": 2
+      }
+    },
+    "js/components/CustomMarkerForm.svelte.native.js": {
+      "count": 1,
+      "digest": "77e82e8a56766565ac2b1f2d5da4a5b147f0cfea544ffc760a8e6e20e23bb2a3",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/DashboardMtdnaPanel.svelte.native.js": {
+      "count": 1,
+      "digest": "f71ee37a4beb44112016a8ae66f67ca4bddedb1a4c11c3265b5d994f19bc38d1",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/DashboardWelcome.svelte.native.js": {
+      "count": 3,
+      "digest": "cc4a7a29a1adf46a130f299b3a2ec720163e1e280047a8660a4067f39e68a183",
+      "kinds": {
+        "svelte.html": 3
+      }
+    },
+    "js/components/EMFInterpretationModal.svelte.native.js": {
+      "count": 4,
+      "digest": "6ee5d801d61bafbc83ad32468d661b7282127d95cec69bfc1b5c200c8911613e",
+      "kinds": {
+        "svelte.html": 4
+      }
+    },
+    "js/components/EMFInterpretationStatus.svelte.native.js": {
+      "count": 1,
+      "digest": "be32c7f1448f016b8549fe6d2193b06d6a3384703346a8fb579843265f2b6902",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/LensPageHeader.svelte.native.js": {
+      "count": 1,
+      "digest": "fc03a0ca6a1da3eed330dcc9755cf34a4b53d7961a30d73d1293f1a4c1f1e415",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/LensPageWidget.svelte.native.js": {
+      "count": 1,
+      "digest": "924332f037016b283eb77d85d83429f44c119ed9fcc16391c236a5f6ff16e4d0",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/LightAuditCard.svelte.native.js": {
+      "count": 1,
+      "digest": "b0c71d126f906d7fee85382a8ea8c76626416fec1a3ebee3043e6e922637e5b6",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/LightAuditDetail.svelte.native.js": {
+      "count": 1,
+      "digest": "d6046f24dc9e72070a8ea51901908b89023cb4fa06717053523f8125ceb0f328",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/LightEnvironmentRoom.svelte.native.js": {
+      "count": 2,
+      "digest": "262115cad9a7816dd49bf6eba36f02402d39b4f8771c58f5111902ce9fe8b242",
+      "kinds": {
+        "svelte.html": 2
+      }
+    },
+    "js/components/LightEnvironmentScreen.svelte.native.js": {
+      "count": 2,
+      "digest": "9a81163ffc68e610f0c53ec8328c5f9b95d6ed9e982101339cf5f1c88eb38eb8",
+      "kinds": {
+        "svelte.html": 2
+      }
+    },
+    "js/components/LightEnvironmentSummary.svelte.native.js": {
+      "count": 1,
+      "digest": "68d076555388099ed1654afeec637c0c99dc42e4e640c412596ab97b7c305805",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/LightMethods.svelte.native.js": {
+      "count": 1,
+      "digest": "3c5ec39c1f49449225734bbf5da8f872191883e370251c427163a5d2a34e13ec",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/LightPagePresentation.svelte.native.js": {
+      "count": 5,
+      "digest": "6ba13ea329cf3984efbc3b03a29165ca3047b6cb633cdff8f3ded15f10da7195",
+      "kinds": {
+        "svelte.html": 5
+      }
+    },
+    "js/components/LightSessionDetail.svelte.native.js": {
+      "count": 1,
+      "digest": "dc590f26d1e57a61d9bb31e91d19d1dabcfea5650dabff8a6b4717f5da67830a",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/LightSessionHistory.svelte.native.js": {
+      "count": 1,
+      "digest": "4bd508b5da522e5bf801f13ce7f2d9e374b6d647c7278ce0c494da721f7a76f5",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/LightSetupSummary.svelte.native.js": {
+      "count": 1,
+      "digest": "6a13dd91f748da26c31eab1365e3e3079c69d509bd6fa84b5a0e9450d4216de2",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/LightTodayStrip.svelte.native.js": {
+      "count": 3,
+      "digest": "531837e6754c2bd6181c4e239975663783f34221a56dc095c7cc445027a9add2",
+      "kinds": {
+        "svelte.html": 3
+      }
+    },
+    "js/components/LightWeeklyAI.svelte.native.js": {
+      "count": 1,
+      "digest": "0d6e21cef551be04fad2e04770210fc1bb2764fecd380cbc927ac6968b7a052b",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/ManualMarkerEntry.svelte.native.js": {
+      "count": 2,
+      "digest": "59484864ad28547706dfd439e263e25ac44a921ddf2ad1c6f57b6dede5538a6b",
+      "kinds": {
+        "svelte.html": 2
+      }
+    },
+    "js/components/MarkerPlacementForm.svelte.native.js": {
+      "count": 1,
+      "digest": "77e82e8a56766565ac2b1f2d5da4a5b147f0cfea544ffc760a8e6e20e23bb2a3",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/PIIDiffFragment.svelte.native.js": {
+      "count": 3,
+      "digest": "e2a08f9730209c8ee4eecbb14d89fa98bb9457074bd4e05b4ad7d24ecec4da6e",
+      "kinds": {
+        "svelte.html": 3
+      }
+    },
+    "js/components/PIIDiffViewer.svelte.native.js": {
+      "count": 2,
+      "digest": "a161e9f226775a0899a0df315968093d928d010aaf4410c62a2a3d7ef2bcdd18",
+      "kinds": {
+        "svelte.html": 2
+      }
+    },
+    "js/components/PIIReviewModal.svelte.native.js": {
+      "count": 2,
+      "digest": "7db7ea73ae571cd6442c343ad97880bca5aebe3a5892d3a65175358020d58036",
+      "kinds": {
+        "svelte.html": 2
+      }
+    },
+    "js/components/ProfileShareCreate.svelte.native.js": {
+      "count": 1,
+      "digest": "29edd5fee4efb8d71288fae6b6cf3f6f59fb43b8ebe1e621e9b7b8257a19c726",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/ProfileShareResult.svelte.native.js": {
+      "count": 1,
+      "digest": "29edd5fee4efb8d71288fae6b6cf3f6f59fb43b8ebe1e621e9b7b8257a19c726",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/ProfileShareShell.svelte.native.js": {
+      "count": 1,
+      "digest": "5e91b5edefb7d4048ea9c277a74361203564ab195905b9ff4c6225684d2ca344",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/SettingsShell.svelte.native.js": {
+      "count": 2,
+      "digest": "059d3a250f052384afc70a32a3f4b417618ce45b3075d2b37c1d00f8ec07e704",
+      "kinds": {
+        "svelte.html": 2
+      }
+    },
+    "js/components/SunBodyPickerFrame.svelte.native.js": {
+      "count": 1,
+      "digest": "fbdb577412dadc3e241db4b34d117c619fac4ff6725f876b9e7023d17622fbfa",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/SupplementMitoEvidence.svelte.native.js": {
+      "count": 7,
+      "digest": "1bfadcda1bc28fc2eb4eb6ba49694009a86c125ef6b47f34c524fe0e98c9c99c",
+      "kinds": {
+        "svelte.html": 7
+      }
+    },
+    "js/components/SupplementTimeline.svelte.native.js": {
+      "count": 4,
+      "digest": "163f57eb46b4c4be7226a088813864326d3d4263bd98f08b48f6bc742725846d",
+      "kinds": {
+        "svelte.html": 4
+      }
+    },
+    "js/components/SupplementTimelineRow.svelte.native.js": {
+      "count": 1,
+      "digest": "133c5359e8c38808a1aa630f617c7519633cead9d4af9ad633d01f17d53a698e",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/SyncIdentityRotation.svelte.native.js": {
+      "count": 1,
+      "digest": "b78da32e039117fccc97f12630535a7deda433a47b86a29b86f2eca6921d20d8",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/SyncPopoverPresentation.svelte.native.js": {
+      "count": 4,
+      "digest": "31045d5ba9bfc60ec454c0073eb8d390b8a63e88f9dc325b155faeae1d97651b",
+      "kinds": {
+        "svelte.html": 4
+      }
+    },
+    "js/components/WearableManualLog.svelte.native.js": {
+      "count": 11,
+      "digest": "1096a89056d42b7a549b3d18766e24028289c215d24b501319b17f6e6fd4b880",
+      "kinds": {
+        "svelte.html": 11
+      }
+    },
+    "js/components/WearableSourcePicker.svelte.native.js": {
+      "count": 3,
+      "digest": "99d1f85b9730c7c509d5f6f07d7557e0b026bdb3129ccc655f3692b7639b7a18",
+      "kinds": {
+        "svelte.html": 3
+      }
+    },
+    "js/context-card-editor-ui.js": {
+      "count": 1,
+      "digest": "7a470e267803dcbe1373fddf2d54fe3c35a2a2c5da313ae99fd8e8d32916e0ff",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/context-cards.js": {
+      "count": 1,
+      "digest": "fe841c598e2b255d41cc4696ba0cdcaa3c98f5353f15a3cc2b63f10cc5eef1bb",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/cycle-import.js": {
+      "count": 2,
+      "digest": "7aec52559ddb8313949fe373f81bd1a62fb3a0b01d61cc4ec63500456159e8d5",
+      "kinds": {
+        "innerHTML": 2
+      }
+    },
+    "js/cycle.js": {
+      "count": 1,
+      "digest": "699b59f1c705db4d32996987e48d539667e904d4f46fe6c59bde981d33714e17",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/dashboard-page-view.js": {
+      "count": 3,
+      "digest": "cd759a5bd8f17435101937f7aee064a737f06f9082556b24a91eba2db45d73f9",
+      "kinds": {
+        "innerHTML": 3
+      }
+    },
+    "js/dashboard-recommendation-widget.js": {
+      "count": 1,
+      "digest": "cbdee0db380f36a51df034d594df5cb99145ed6cd19cadda1d5b9b10951d0493",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/dashboard-widget-controls.js": {
+      "count": 1,
+      "digest": "3b6634d0f70bf7fb29792e9954a2583f1a90cb82aca19eb1779b1a84f408a354",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/dashboard-widget-renderers.js": {
+      "count": 1,
+      "digest": "e7d83870377d2f455e5365284215ef34395f8f3ceb493f5940ceae72d7451b03",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/data-view-controls.js": {
+      "count": 2,
+      "digest": "5c0a104b1f53b99b4395a781cfe9df5906e2493359d3cdda899a8fbf2eb6f7c1",
+      "kinds": {
+        "innerHTML": 2
+      }
+    },
+    "js/dna-mtdna.js": {
+      "count": 1,
+      "digest": "a71dc5fd7c62611ba9c6f7975f02434160ea77857c63a58dcd6953a5bf6c305c",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/dna-ui.js": {
+      "count": 2,
+      "digest": "fae0bcb7e3f29318ca4211a91fd804c6d7069f0396714abaaa8e969ad7cc7a43",
+      "kinds": {
+        "innerHTML": 2
+      }
+    },
+    "js/emf-editor.js": {
+      "count": 3,
+      "digest": "5302c4ab0d0a39da9c8ad50208afa2049a5f4efa901522cdb74f8c8d790bdf70",
+      "kinds": {
+        "innerHTML": 3
+      }
+    },
+    "js/emf-interpretation.js": {
+      "count": 7,
+      "digest": "9dd8f8c8cc9612fc655a55a9306e5f7bb88c8f476a7a22f9acfa677cfe8d9a91",
+      "kinds": {
+        "innerHTML": 7
+      }
+    },
+    "js/emf.js": {
+      "count": 1,
+      "digest": "6f79650128edab26ce19804b79d39a52b3a1882c52def4f043d33bd1da91c9e3",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/export-report-builder.js": {
+      "count": 1,
+      "digest": "7165f86b26a73f39938cb9100790cbb04fc965fd138bd9be5995dd444c6c4976",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/export-report-html.js": {
+      "count": 1,
+      "digest": "de5194c38294b04fd8138babefbfaca55112c9424bf9c8d30a5084738aace90a",
+      "kinds": {
+        "document.write": 1
+      }
+    },
+    "js/export-runtime.js": {
+      "count": 2,
+      "digest": "434feb30ae84c23b586df02544b41c34a08cfacf61701cb7dcf8b20130652cce",
+      "kinds": {
+        "innerHTML": 2
+      }
+    },
+    "js/feedback-rendering.js": {
+      "count": 1,
+      "digest": "e9a452df2891cc645fde276628a0723de88aadc8efe33b6699ad817907c234b9",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/focus-card.js": {
+      "count": 8,
+      "digest": "c3d5dd3e9a5d351c1d7bc4da0babbe9ed5b9f44c7a7b97dbe4dfca760899bfed",
+      "kinds": {
+        "innerHTML": 8
+      }
+    },
+    "js/import-marker-map-modal.js": {
+      "count": 3,
+      "digest": "c8791997a86878fa592b63efcd5013f8037933ac4facf591ff1191e8519ca9e4",
+      "kinds": {
+        "innerHTML": 3
+      }
+    },
+    "js/import-review-row-actions.js": {
+      "count": 1,
+      "digest": "1ea05d5eb842912ea476a961c9efefe7d0aaaa7a0f75b572c19d572079f3fc68",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/legal-consent.js": {
+      "count": 1,
+      "digest": "e1a33d351f8bbc45e249c5b0bcf27f8623eff4d3c49d4152aaf8b037594a51ea",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/lens-knowledge-base-ui.js": {
+      "count": 8,
+      "digest": "b828cf981b2503178d6bb23594859818e3c098dfc6c77ff949a01d5a519930f2",
+      "kinds": {
+        "innerHTML": 8
+      }
+    },
+    "js/lens-library.js": {
+      "count": 4,
+      "digest": "a1da29456abff2adefc453517adac31e83d5da81f1657dc5a2da5385f2b8d3f7",
+      "kinds": {
+        "innerHTML": 4
+      }
+    },
+    "js/lens-pages.js": {
+      "count": 9,
+      "digest": "7a6779ea8b3695c564555763fdb582621094742159280346bd5322dbb3a1fb7a",
+      "kinds": {
+        "innerHTML": 9
+      }
+    },
+    "js/lens.js": {
+      "count": 1,
+      "digest": "456ec053d24d4466144a23edb38858f44fcafb9fc5def853c99a3fa131f7887f",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/light-channel-view.js": {
+      "count": 2,
+      "digest": "b79d7024bf121330332f928400b2798c0b681fb3eb0618c634bd9e7cbca76ea2",
+      "kinds": {
+        "innerHTML": 2
+      }
+    },
+    "js/light-conditions-now.js": {
+      "count": 5,
+      "digest": "380bff3d1da23e54cd5c0dca159d6747f264b3351e172d09dd2e09b77a9c777c",
+      "kinds": {
+        "innerHTML": 5
+      }
+    },
+    "js/light-device-session-modal.js": {
+      "count": 2,
+      "digest": "e8fb3dd7e441ada80b29deb060667e1e5494cc7cea353167eaa615ff70c25c74",
+      "kinds": {
+        "innerHTML": 2
+      }
+    },
+    "js/light-device-setup-modal.js": {
+      "count": 2,
+      "digest": "abd947edd79a158c6d8015af7389ddc08ef93dfbc2a080ed0f0e32fef817850d",
+      "kinds": {
+        "innerHTML": 2
+      }
+    },
+    "js/light-devices.js": {
+      "count": 3,
+      "digest": "13ee8659d664efd5ce94bd8d1c2813043e27dac34d4b18bb8d962e84e478838a",
+      "kinds": {
+        "innerHTML": 3
+      }
+    },
+    "js/light-env.js": {
+      "count": 1,
+      "digest": "9b89a0fcd007cdb7b9b4c43f3bdb755eb92b2d1e01c30f61ac77576f0e6c4df0",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/light-page-view.js": {
+      "count": 9,
+      "digest": "806395e306e04fa186ce1f6f54fe1cb139712acdda94221cc9a846b4ab329c10",
+      "kinds": {
+        "innerHTML": 3,
+        "outerHTML": 6
+      }
+    },
+    "js/light-sessions-view.js": {
+      "count": 1,
+      "digest": "51efd8c419b0aa27f08361e2ea7b79ed3251b16061893952131b22813bca4501",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/light-today-ai.js": {
+      "count": 1,
+      "digest": "bb1199524015585757700c6e0c56c3d379b1494429875501c8a85859c2a5a6f8",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/light-tool-cct-meter.js": {
+      "count": 3,
+      "digest": "6b50248e25485ff5918d289e035b2f2781948f411c4f889311f26f846cdfeb28",
+      "kinds": {
+        "innerHTML": 3
+      }
+    },
+    "js/light-tool-darkness-meter.js": {
+      "count": 3,
+      "digest": "91912195c84969001ad7732089b0038e49c57b3cd6dd16843d6cd3dcc1f67e54",
+      "kinds": {
+        "innerHTML": 3
+      }
+    },
+    "js/light-tool-flicker-detector.js": {
+      "count": 4,
+      "digest": "896a2f09f1ca268d21e394ca39a71a080ec911e13afbf97af8145babd7974961",
+      "kinds": {
+        "innerHTML": 4
+      }
+    },
+    "js/light-tool-glass-transmission.js": {
+      "count": 2,
+      "digest": "00c6169902792e9a907327d123d694b6b3c3c98c7c87fc1f77f6f35450ad6a8c",
+      "kinds": {
+        "innerHTML": 2
+      }
+    },
+    "js/light-tool-lux-meter.js": {
+      "count": 4,
+      "digest": "ea2cb2d16a8a72610df8c4bf211c590d35488cebff1059fb9682cbe63f9c8be1",
+      "kinds": {
+        "innerHTML": 4
+      }
+    },
+    "js/light-tool-spectrum-classifier.js": {
+      "count": 4,
+      "digest": "54d3d59429810ab3480d2900839ad6619f49ab05b9f21cf58e7717e446e2cb65",
+      "kinds": {
+        "innerHTML": 4
+      }
+    },
+    "js/light-tools.js": {
+      "count": 5,
+      "digest": "95bfc44e0f8a40d7f9d9826b1e77c370da89158743d7acd30b9b90eea82bd343",
+      "kinds": {
+        "innerHTML": 5
+      }
+    },
+    "js/marker-detail-custom-markers.js": {
+      "count": 1,
+      "digest": "9f1887a44f5ae12965e6dd47780dccc1f7ac7d6f4a0096a24acf07a040b24c5b",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/marker-detail-editing.js": {
+      "count": 1,
+      "digest": "ba49c4c657b8ffd781100c99323729b793750c0c055a31378eed00e65a5dbb4d",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/marker-detail-manual-entry.js": {
+      "count": 1,
+      "digest": "1b0eacced8e857f3595da8ab5df92b5fcda9b306317adddc5171f7cee12aad5e",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/marker-detail-modal-impl.js": {
+      "count": 2,
+      "digest": "0050e72c749706f23cc5307ad5b3ccfc5b854849bea494c551b90f67e5ad4248",
+      "kinds": {
+        "innerHTML": 2
+      }
+    },
+    "js/marker-detail-placement.js": {
+      "count": 1,
+      "digest": "d421401b9f2cbbd297a59d92f463bfa465d8b76e542336bb5e9dd5be6536073e",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/mobile-dashboard.js": {
+      "count": 3,
+      "digest": "01575c2a991ba2c5ecf2f04030dbc589ecbf5c3882225f9bcb0f2b8df9391ced",
+      "kinds": {
+        "innerHTML": 1,
+        "insertAdjacentHTML": 1,
+        "outerHTML": 1
+      }
+    },
+    "js/nav.js": {
+      "count": 2,
+      "digest": "35fea5656c15aa800188f229dff1c34f532391dfaed62c2f2fc5bba755b20606",
+      "kinds": {
+        "innerHTML": 2
+      }
+    },
+    "js/notes.js": {
+      "count": 1,
+      "digest": "7409bbb55bf33978b82dcb2737e63cf8b7b6c2b136f853cea72060ed68f9816e",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/nutrition-benchmark-workspace.js": {
+      "count": 2,
+      "digest": "c3e7614e0bc85e1e26ca00997a35ef888431318758d776e203636e1709113425",
+      "kinds": {
+        "innerHTML": 2
+      }
+    },
+    "js/nutrition-comparison-results.js": {
+      "count": 1,
+      "digest": "169ee4c3a4ff8309c1f4e7335058c5704349438ece30494b20f9e17df0187769",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/nutrition-comparison-ui.js": {
+      "count": 6,
+      "digest": "40504c388b0a03cb291e6d53cc423fd4c8c1f12c1593d2fdfc32fabcee732ed0",
+      "kinds": {
+        "innerHTML": 5,
+        "outerHTML": 1
+      }
+    },
+    "js/nutrition-editor-navigation.js": {
+      "count": 2,
+      "digest": "4c5038ca5e2b8c44581de77de28b6c5e585119c29309f21da2da1ad9bbeb967f",
+      "kinds": {
+        "innerHTML": 2
+      }
+    },
+    "js/nutrition-render.js": {
+      "count": 3,
+      "digest": "7c5028e6bf9335bdc6c43c04cabb06beb532f031aa876bcad1ba40d093997c54",
+      "kinds": {
+        "innerHTML": 3
+      }
+    },
+    "js/nutrition-review-ui.js": {
+      "count": 9,
+      "digest": "9850c4794dd7a1415c4546265ad33bac3c90e7e130b066804851924352226472",
+      "kinds": {
+        "innerHTML": 9
+      }
+    },
+    "js/nutrition.js": {
+      "count": 4,
+      "digest": "91791df3bff6b529f6ff502204d94ba739313c7101c288a8d7e2c8e7d019d57f",
+      "kinds": {
+        "innerHTML": 3,
+        "outerHTML": 1
+      }
+    },
+    "js/pdf-import-file-handlers.js": {
+      "count": 1,
+      "digest": "f0f14323711d144f54df81a1ce223782ed12b8aace1197bf6567d00d4260af66",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/pdf-import-preflight.js": {
+      "count": 3,
+      "digest": "964a65cd3f69fa0f393f10389949896c300f7d52d1a929f8c3a9bdf432508e4f",
+      "kinds": {
+        "innerHTML": 3
+      }
+    },
+    "js/pdf-import-progress.js": {
+      "count": 4,
+      "digest": "e29b355433d0782731815bf7091c2a285ad4059f7fc4f1b1c054a3c87cdcd84a",
+      "kinds": {
+        "innerHTML": 4
+      }
+    },
+    "js/pdf-import-review.js": {
+      "count": 13,
+      "digest": "f489e89a19b92df3ee5588f5120de7a5440e7b1b122caffe74f0bd698f7653a7",
+      "kinds": {
+        "innerHTML": 13
+      }
+    },
+    "js/pii-review.js": {
+      "count": 5,
+      "digest": "88e4f91378ab5406736f7117c2a5e8b7b9f069b1400296032cddbab82c239ea4",
+      "kinds": {
+        "innerHTML": 5
+      }
+    },
+    "js/profile-share.js": {
+      "count": 3,
+      "digest": "f639d948d4b2c6810420e45a8897ae2f385739684456c130d0e69e975e28b188",
+      "kinds": {
+        "innerHTML": 1,
+        "outerHTML": 2
+      }
+    },
+    "js/provider-panels.js": {
+      "count": 2,
+      "digest": "f8a6d29c2daaf04f4c4b9548937b58174d08fce0ca1e7262776f3056116815fd",
+      "kinds": {
+        "innerHTML": 2
+      }
+    },
+    "js/provider-wallet-panels.js": {
+      "count": 1,
+      "digest": "5a8807a2623ea0ebee9b009078420e625d9356228805bef46ad344c5f46283ab",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/recommendation-actions.js": {
+      "count": 3,
+      "digest": "0f8f64683f7c2542bf40df307d015b4ab448c33cf436f93d0841419e559ec3b1",
+      "kinds": {
+        "innerHTML": 3
+      }
+    },
+    "js/service-worker-update.js": {
+      "count": 3,
+      "digest": "6adae1f2825595ac12b6c4333c76046d8c0c52a0c99a91b57186fbf7dabb7c65",
+      "kinds": {
+        "innerHTML": 3
+      }
+    },
+    "js/settings-provider-bridge.js": {
+      "count": 4,
+      "digest": "d3ee35699cb044e0b84059fb7dccd128beeee1cf9841c845e914550ffb849cc8",
+      "kinds": {
+        "innerHTML": 4
+      }
+    },
+    "js/settings-sync-panel.js": {
+      "count": 2,
+      "digest": "5cac7d5517fd9b9dab0e4c68df5b2c622ed8f4b928c4e9ea40297999588d2aca",
+      "kinds": {
+        "innerHTML": 2
+      }
+    },
+    "js/settings-tweaks.js": {
+      "count": 1,
+      "digest": "32b069d68b1fdc3b2839fef044d14f39c3b9266046c27e30d17d4378e50571bd",
+      "kinds": {
+        "insertAdjacentHTML": 1
+      }
+    },
+    "js/sun-active-session.js": {
+      "count": 10,
+      "digest": "884c03caa52337ce61088dd7af705e49a73570836f82fd0b0657255b9a41b414",
+      "kinds": {
+        "innerHTML": 7,
+        "insertAdjacentHTML": 2,
+        "outerHTML": 1
+      }
+    },
+    "js/sun-body-silhouette.js": {
+      "count": 1,
+      "digest": "fdff6e025e6bcd41f1af644a09b90a499f30e6d0ebb35c9e44a6d0d82d7001b1",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/sun-defaults-setup-ui.js": {
+      "count": 3,
+      "digest": "353c73ba1f8195834f96a584019a2a882b8bca6947179c1831148eb305232716",
+      "kinds": {
+        "innerHTML": 2,
+        "outerHTML": 1
+      }
+    },
+    "js/sun-session-ui.js": {
+      "count": 2,
+      "digest": "04910356dac0937178493c8e083d9550fadddca4b378f58811acf0699e7596c2",
+      "kinds": {
+        "innerHTML": 2
+      }
+    },
+    "js/sun.js": {
+      "count": 1,
+      "digest": "4eaee3b84fbc91a2e1856d9dd541edfc67e118064d08e5b551712211eb02f074",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/supplement-dashboard.js": {
+      "count": 1,
+      "digest": "dfa48a391deb467dffb86c7c9e9644d518f7e8c6208b0cd9a173da2223492707",
+      "kinds": {
+        "outerHTML": 1
+      }
+    },
+    "js/supplement-form-ui.js": {
+      "count": 3,
+      "digest": "9ea0949de4fd036a1a8e6582ebf6c31ff59dd8f0b748b9b6521ed1ed82b602e4",
+      "kinds": {
+        "insertAdjacentHTML": 3
+      }
+    },
+    "js/supplement-import-controller.js": {
+      "count": 4,
+      "digest": "d462e6092237cd4bcbdabad3fa2c26206247d092b388080b05085d10c8734d59",
+      "kinds": {
+        "innerHTML": 2,
+        "insertAdjacentHTML": 2
+      }
+    },
+    "js/supplements.js": {
+      "count": 7,
+      "digest": "ed2bfb8e4922ae60e6476eb9337dc3ad1da69b52dea04a7cccaa7bde78b79472",
+      "kinds": {
+        "innerHTML": 4,
+        "insertAdjacentHTML": 1,
+        "outerHTML": 2
+      }
+    },
+    "js/sync-diagnose-identity-actions.js": {
+      "count": 1,
+      "digest": "a3c2cb597d08881d2d8dd5fe4d1a41d2025033a7351832b26d3971aaabe38ce7",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/sync-diagnose-ui.js": {
+      "count": 1,
+      "digest": "752f4fd977e69b3fd4472f72353c27fbc3f218a78918744f7d400c09a2ff6ec1",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/sync-ui.js": {
+      "count": 3,
+      "digest": "dd2a7c8cc92f16e7bab46c2461edb115b89d6e8dc974e60f1a281a32b683cc29",
+      "kinds": {
+        "innerHTML": 3
+      }
+    },
+    "js/therapy-correlation-view.js": {
+      "count": 5,
+      "digest": "1a0cb7e9704ba37fec6ec7cb870c653d1c644aed6a7ad95efc9ae7f808bd1fe0",
+      "kinds": {
+        "innerHTML": 5
+      }
+    },
+    "js/tour.js": {
+      "count": 1,
+      "digest": "1ea7dfa9037e33ba7cfbf2b68ae816e794a577650a8ea6c3fc66f69e93f0315f",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/utils.js": {
+      "count": 3,
+      "digest": "d1aab7b4cce5c0d46c825e62d666c5f0bf660490e6284887dac60ec11ff6f665",
+      "kinds": {
+        "innerHTML": 3
+      }
+    },
+    "js/wearables-detail-modal.js": {
+      "count": 1,
+      "digest": "cf4f5cdb346521c43a3e0656c5cf86cface921e4b4e8657f6eb6c26a29aca08a",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/wearables-manual-detail.js": {
+      "count": 4,
+      "digest": "97160e1fc00a44b1c498a53712825646c035921bfa3652096ed6526232361724",
+      "kinds": {
+        "innerHTML": 4
+      }
+    },
+    "js/wearables-settings-groups.js": {
+      "count": 1,
+      "digest": "298dd96e5d37b058e91b65c1c9f16083a73ba35b818e166ec53ede091dfe65ef",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/wearables-strip-actions.js": {
+      "count": 4,
+      "digest": "983cf807a89363fb435a225d2eae545448d97351e5982755a31cc60fe612743c",
+      "kinds": {
+        "innerHTML": 4
+      }
+    },
+    "js/components/CompareDatesPage.svelte.native.js": {
+      "count": 2,
+      "digest": "459f3abe36b200d1a1ce51d650183e17ee24146d642a0b33f97d164f8c30fb76",
+      "kinds": {
+        "svelte.html": 2
+      }
+    },
+    "js/components/CompareDatesTable.svelte.native.js": {
+      "count": 2,
+      "digest": "8c8e712537f3e44cfe19bbfdbdf6192eb3b76dcc89265f4575c450c7f20b2177",
+      "kinds": {
+        "svelte.html": 2
+      }
+    },
+    "js/components/CompareRangeStack.svelte.native.js": {
+      "count": 4,
+      "digest": "26fb45549845b1cc1c21c5bc9ab5e8e8f5de0f9e31953360059c834301e8ceda",
+      "kinds": {
+        "svelte.html": 4
+      }
+    },
+    "js/components/CorrelationsSelectionPage.svelte.native.js": {
+      "count": 1,
+      "digest": "a6dd335eaf60fdfc4b7f33e62491970dec3ea9f882be94c8bbc1e91e34767cfb",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/TherapyComparisonResults.svelte.native.js": {
+      "count": 7,
+      "digest": "137541be0b97817b49cdca21f43eb68cfa3482435de46c04d7039ec015d7fedf",
+      "kinds": {
+        "svelte.html": 7
+      }
+    },
+    "js/components/MarkerPairComparison.svelte.native.js": {
+      "count": 1,
+      "digest": "da53270d13112bc9a5f95792bf1aec79f0a3223450b3ad98bd5d99d924bc101e",
+      "kinds": {
+        "svelte.html": 1
+      }
+    }
+  }
+}

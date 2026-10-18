@@ -1,0 +1,578 @@
+@import "tailwindcss" prefix(gb) source(none) reference;
+@utility dashboard-welcome-01 {
+  max-width: 920px;
+  margin: 18px auto 0;
+  padding: 28px 0 18px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+@utility dashboard-welcome-02 {
+  font-family: var(--font-display);
+  font-size: 24px;
+  color: var(--text-primary);
+  margin: 0;
+}
+@utility dashboard-welcome-03 {
+  max-width: 560px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+  margin: -8px auto 0;
+}
+@utility dashboard-welcome-04 {
+  max-width: 760px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 18px;
+  text-align: left;
+  background: color-mix(in srgb, var(--bg-secondary) 78%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border));
+  border-radius: var(--radius);
+  box-shadow: 0 16px 40px -28px color-mix(in srgb, var(--accent) 48%, transparent);
+}
+@utility dashboard-welcome-05 {
+  border: 1px solid color-mix(in srgb, var(--accent) 36%, var(--border));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 10%, var(--bg-secondary)), var(--bg-secondary));
+}
+@utility dashboard-welcome-06 {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+@utility dashboard-welcome-07 {
+  display: block;
+  color: var(--text-primary);
+  font-size: 16px;
+  line-height: 1.3;
+  margin-bottom: 4px;
+}
+@utility dashboard-welcome-08 {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+@utility dashboard-welcome-09 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+@utility dashboard-welcome-10 {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s, background 0.15s, color 0.15s;
+}
+@utility dashboard-welcome-11 {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+@utility dashboard-welcome-12 {
+  transform: translateY(-1px);
+  border-color: var(--accent);
+}
+@utility dashboard-welcome-13 {
+  background: transparent;
+}
+@utility dashboard-welcome-14 {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+}
+@utility dashboard-welcome-15 {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+@utility dashboard-welcome-16 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+@utility dashboard-welcome-17 {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 2px;
+  padding: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 0;
+  text-align: left;
+}
+@utility dashboard-welcome-18 {
+  border-color: var(--accent);
+  background: var(--accent-fill);
+  transform: translateY(-1px);
+}
+@utility dashboard-welcome-19 {
+  grid-row: span 2;
+  font-size: 24px;
+  line-height: 1;
+}
+@utility dashboard-welcome-20 {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+@utility dashboard-welcome-21 {
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--text-muted);
+}
+@utility dashboard-welcome-22 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: 4px;
+}
+@utility dashboard-welcome-23 {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  border: 2px solid var(--border);
+  color: var(--text-muted);
+  background: none;
+  flex-shrink: 0;
+}
+@utility dashboard-welcome-24 {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(79,140,255,0.1);
+}
+@utility dashboard-welcome-25 {
+  border-color: var(--green);
+  color: var(--green);
+  background: rgba(52,211,153,0.1);
+}
+@utility dashboard-welcome-26 {
+  width: 32px;
+  height: 2px;
+  background: var(--border);
+}
+@utility dashboard-welcome-27 {
+  display: flex;
+  justify-content: center;
+  gap: 32px;
+  margin-bottom: 8px;
+}
+@utility dashboard-welcome-28 {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+@utility dashboard-welcome-29 {
+  color: var(--accent);
+  font-weight: 600;
+}
+@utility dashboard-welcome-30 {
+  background: var(--bg-card);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-top: 16px;
+  text-align: center;
+}
+@utility dashboard-welcome-31 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: color-mix(in srgb, var(--purple) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--purple) 25%, transparent);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin-top: 16px;
+}
+@utility dashboard-welcome-32 {
+  font-size: 22px;
+  line-height: 1;
+  flex: 0 0 28px;
+  text-align: center;
+}
+@utility dashboard-welcome-33 {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+@utility dashboard-welcome-34 {
+  font-size: 13.5px;
+  color: var(--text-primary);
+}
+@utility dashboard-welcome-35 {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+@utility dashboard-welcome-36 {
+  background: var(--accent-gradient);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.05s;
+  font-family: inherit;
+  flex: 0 0 auto;
+}
+@utility dashboard-welcome-37 {
+  opacity: 0.9;
+}
+@utility dashboard-welcome-38 {
+  transform: translateY(1px);
+}
+@utility dashboard-welcome-39 {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 20px;
+  line-height: 1;
+  padding: 4px 8px;
+  cursor: pointer;
+  flex: 0 0 auto;
+  transition: color 0.15s;
+}
+@utility dashboard-welcome-40 {
+  color: var(--text-primary);
+}
+@utility dashboard-welcome-41 {
+  flex-wrap: wrap;
+}
+@utility dashboard-welcome-42 {
+  flex: 1 1 100%;
+  order: 2;
+}
+@utility dashboard-welcome-43 {
+  order: 1;
+}
+@utility dashboard-welcome-44 {
+  order: 3;
+}
+@utility dashboard-welcome-45 {
+  font-family: var(--font-display);
+  font-size: 17px;
+  color: var(--text-primary);
+  margin: 12px 0 4px;
+}
+@utility dashboard-welcome-46 {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin: 0 0 18px;
+}
+@utility dashboard-welcome-47 {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+@utility dashboard-welcome-48 {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+@utility dashboard-welcome-49 {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: left;
+}
+@utility dashboard-welcome-50 {
+  display: flex;
+  gap: 0;
+}
+@utility dashboard-welcome-51 {
+  padding: 7px 18px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  transition: all 0.15s;
+}
+@utility dashboard-welcome-52 {
+  border-radius: 6px 0 0 6px;
+}
+@utility dashboard-welcome-53 {
+  border-radius: 0 6px 6px 0;
+  border-left: none;
+}
+@utility dashboard-welcome-54 {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+@utility dashboard-welcome-55 {
+  border-left-color: var(--accent);
+}
+@utility dashboard-welcome-56 {
+  padding: 7px 12px;
+  font-size: 13px;
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: inherit;
+}
+@utility dashboard-welcome-57 {
+  color-scheme: light;
+}
+@utility dashboard-welcome-58 {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+@utility dashboard-welcome-59 {
+  padding: 8px 22px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--accent-gradient);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+@utility dashboard-welcome-60 {
+  box-shadow: 0 2px 12px rgba(79, 140, 255, 0.25);
+}
+@utility dashboard-welcome-61 {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+@utility dashboard-welcome-62 {
+  border-color: var(--accent);
+}
+@utility dashboard-welcome-63 {
+  padding: 8px 16px;
+  font-size: 13px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-decoration: underline;
+}
+@utility dashboard-welcome-64 {
+  color: var(--text-secondary);
+}
+@utility dashboard-welcome-65 {
+  flex-direction: column;
+  align-items: stretch;
+}
+@utility dashboard-welcome-66 {
+  align-items: stretch;
+}
+@utility dashboard-welcome-67 {
+  justify-content: center;
+}
+@utility dashboard-welcome-68 {
+  gap: 20px;
+}
+@utility dashboard-welcome-69 {
+  padding: 28px 14px 24px;
+}
+@utility dashboard-welcome-70 {
+  padding: 14px;
+  margin-bottom: 0;
+}
+@utility dashboard-welcome-71 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+@utility dashboard-welcome-72 {
+  width: 100%;
+  min-height: 36px;
+  padding: 8px;
+  justify-content: center;
+  font-size: 12px;
+}
+@utility dashboard-welcome-73 {
+  grid-template-columns: 1fr 1fr;
+}
+@utility dashboard-welcome-74 {
+  gap: 8px;
+}
+@utility dashboard-welcome-75 {
+  min-width: 0;
+}
+@utility dashboard-welcome-76 {
+  flex: 1 1 0;
+  padding: 12px 8px;
+}
+@utility dashboard-welcome-77 {
+  font-size: 22px;
+}
+@utility dashboard-welcome-78 {
+  display: none;
+}
+@utility dashboard-native-welcome-body-cards-focus-welcome-hero-h2-body-cards-focus-welcome-hero-welcome-hero--001 {
+  opacity: 0.18;
+  filter: blur(1px) grayscale(0.6);
+  pointer-events: none;
+  transition: opacity 0.35s, filter 0.35s;
+}
+@utility dashboard-native-welcome-body-cards-focus-profile-context-cards-body-import-focus-welcome-hero-welcom-002 {
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.4), 0 0 30px rgba(124, 58, 237, 0.18);
+  border-radius: 12px;
+  transition: box-shadow 0.35s;
+}
+
+/* Dashboard empty-state welcome, onboarding, and AI reminder styles. */
+
+/* Welcome Hero (empty state) */
+.welcome-hero { @apply gb:dashboard-welcome-01; }
+.welcome-hero h2 { @apply gb:dashboard-welcome-02; }
+.welcome-hero-subtitle { @apply gb:dashboard-welcome-03; }
+.welcome-primary-panel { @apply gb:dashboard-welcome-04; }
+.welcome-chat-panel { @apply gb:dashboard-welcome-05; }
+.welcome-primary-kicker { @apply gb:dashboard-welcome-06; }
+.welcome-primary-panel strong { @apply gb:dashboard-welcome-07; }
+.welcome-primary-panel p { @apply gb:dashboard-welcome-08; }
+.welcome-primary-actions { @apply gb:dashboard-welcome-09; }
+.welcome-action-btn { @apply gb:dashboard-welcome-10; }
+.welcome-action-primary { @apply gb:dashboard-welcome-11; }
+.welcome-action-btn:hover { @apply gb:dashboard-welcome-12; }
+.welcome-direct-import-btn { @apply gb:dashboard-welcome-13; }
+/* Onboarding */
+.welcome-demo-section { @apply gb:dashboard-welcome-14; }
+.welcome-section-label { @apply gb:dashboard-welcome-15; }
+.demo-cards { @apply gb:dashboard-welcome-16; }
+.demo-card { @apply gb:dashboard-welcome-17; }
+.demo-card:hover { @apply gb:dashboard-welcome-18; }
+.demo-card-avatar { @apply gb:dashboard-welcome-19; }
+.demo-card-name { @apply gb:dashboard-welcome-20; }
+.demo-card-desc { @apply gb:dashboard-welcome-21; }
+.onboarding-steps { @apply gb:dashboard-welcome-22; }
+.onboarding-step { @apply gb:dashboard-welcome-23; }
+.onboarding-step.active { @apply gb:dashboard-welcome-24; }
+.onboarding-step.completed { @apply gb:dashboard-welcome-25; }
+.onboarding-step-line { @apply gb:dashboard-welcome-26; }
+.onboarding-step-labels { @apply gb:dashboard-welcome-27; }
+.onboarding-step-label { @apply gb:dashboard-welcome-28; }
+.onboarding-step-label.active { @apply gb:dashboard-welcome-29; }
+.onboarding-banner { @apply gb:dashboard-welcome-30; }
+/* Onboarding focus mode — dims everything on the empty dashboard
+   except the section the user is meant to interact with. Chat panel
+   stays open as a guide. Triggered by setOnboardingFocus(mode). */
+body.cards-focus .welcome-hero > h2,
+body.cards-focus .welcome-hero > .welcome-hero-subtitle,
+body.cards-focus .welcome-hero > .welcome-hero-cta,
+body.cards-focus .welcome-hero > .welcome-primary-panel,
+body.cards-focus .welcome-hero > .welcome-demo-section,
+body.cards-focus .light-today-strip,
+body.cards-focus .wearable-strip,
+body.cards-focus .wearable-strip-empty,
+body.cards-focus .genetics-section,
+body.cards-focus .ai-reminder-banner,
+body.cards-focus .onboarding-banner,
+body.import-focus .welcome-hero > .welcome-hero-cta,
+body.import-focus .welcome-hero > .welcome-demo-section,
+body.import-focus .light-today-strip,
+body.import-focus .wearable-strip,
+body.import-focus .wearable-strip-empty,
+body.import-focus .genetics-section,
+body.import-focus .ai-reminder-banner,
+body.import-focus .onboarding-banner { @apply gb:dashboard-native-welcome-body-cards-focus-welcome-hero-h2-body-cards-focus-welcome-hero-welcome-hero--001; }
+/* Glow on the highlighted target so it reads as "do this". */
+body.cards-focus .profile-context-cards,
+body.import-focus .welcome-hero > .welcome-primary-panel,
+body.import-focus .welcome-hero > .drop-zone { @apply gb:dashboard-native-welcome-body-cards-focus-profile-context-cards-body-import-focus-welcome-hero-welcom-002; }
+/* Dashboard reminder for users who skipped the AI provider quiz. */
+.ai-reminder-banner { @apply gb:dashboard-welcome-31; }
+.ai-reminder-icon { @apply gb:dashboard-welcome-32; }
+.ai-reminder-body { @apply gb:dashboard-welcome-33; }
+.ai-reminder-body strong { @apply gb:dashboard-welcome-34; }
+.ai-reminder-body span { @apply gb:dashboard-welcome-35; }
+.ai-reminder-cta { @apply gb:dashboard-welcome-36; }
+.ai-reminder-cta:hover { @apply gb:dashboard-welcome-37; }
+.ai-reminder-cta:active { @apply gb:dashboard-welcome-38; }
+.ai-reminder-dismiss { @apply gb:dashboard-welcome-39; }
+.ai-reminder-dismiss:hover { @apply gb:dashboard-welcome-40; }
+@media (max-width: 600px) {
+  .ai-reminder-banner { @apply gb:dashboard-welcome-41; }
+  .ai-reminder-body { @apply gb:dashboard-welcome-42; }
+  .ai-reminder-icon { @apply gb:dashboard-welcome-43; }
+  .ai-reminder-cta, .ai-reminder-dismiss { @apply gb:dashboard-welcome-44; }
+}
+.onboarding-title { @apply gb:dashboard-welcome-45; }
+.onboarding-subtitle { @apply gb:dashboard-welcome-46; }
+.onboarding-form { @apply gb:dashboard-welcome-47; }
+.onboarding-field { @apply gb:dashboard-welcome-48; }
+.onboarding-label { @apply gb:dashboard-welcome-49; }
+.onboarding-sex-toggle { @apply gb:dashboard-welcome-50; }
+.onboarding-sex-btn { @apply gb:dashboard-welcome-51; }
+.onboarding-sex-btn:first-child { @apply gb:dashboard-welcome-52; }
+.onboarding-sex-btn:last-child { @apply gb:dashboard-welcome-53; }
+.onboarding-sex-btn.active { @apply gb:dashboard-welcome-54; }
+.onboarding-sex-btn.active + .onboarding-sex-btn { @apply gb:dashboard-welcome-55; }
+.onboarding-dob-input { @apply gb:dashboard-welcome-56; }
+[data-theme="light"] .onboarding-dob-input { @apply gb:dashboard-welcome-57; }
+.onboarding-actions { @apply gb:dashboard-welcome-58; }
+.onboarding-save-btn { @apply gb:dashboard-welcome-59; }
+.onboarding-save-btn:hover { @apply gb:dashboard-welcome-60; }
+.onboarding-file-btn { @apply gb:dashboard-welcome-61; }
+.onboarding-file-btn:hover { @apply gb:dashboard-welcome-62; }
+.onboarding-skip-btn { @apply gb:dashboard-welcome-63; }
+.onboarding-skip-btn:hover { @apply gb:dashboard-welcome-64; }
+@media (max-width: 600px) {
+  .onboarding-form { @apply gb:dashboard-welcome-65; }
+  .onboarding-field { @apply gb:dashboard-welcome-66; }
+  .onboarding-actions { @apply gb:dashboard-welcome-67; }
+  .onboarding-step-labels { @apply gb:dashboard-welcome-68; }
+}
+@media (max-width: 480px) {
+  .welcome-hero { @apply gb:dashboard-welcome-69; }
+  .welcome-primary-panel { @apply gb:dashboard-welcome-70; }
+  .welcome-primary-actions { @apply gb:dashboard-welcome-71; }
+  .welcome-action-btn { @apply gb:dashboard-welcome-72; }
+  .demo-cards { @apply gb:dashboard-welcome-73; }
+  .welcome-hero .demo-cards { @apply gb:dashboard-welcome-74; }
+  .demo-card { @apply gb:dashboard-welcome-75; }
+  .welcome-hero .demo-card { @apply gb:dashboard-welcome-76; }
+  .welcome-hero .demo-card-avatar { @apply gb:dashboard-welcome-77; }
+  .welcome-hero .demo-card-desc { @apply gb:dashboard-welcome-78; }
+}

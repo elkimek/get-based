@@ -34,7 +34,7 @@ export const VOICE_CONTROL = [
 
 export const VOICE_LINK = [
   'settings-link-btn gb:voice:bg-transparent gb:voice:border-0 gb:voice:text-muted gb:voice:text-[13px]',
-  'gb:voice:leading-[normal] gb:voice:font-body gb:voice:cursor-pointer gb:voice:px-0 gb:voice:py-1',
+  'gb:voice:leading-[normal] gb:voice:[font-family:inherit] gb:voice:cursor-pointer gb:voice:px-0 gb:voice:py-1',
   'gb:voice:no-underline gb:voice:transition-colors gb:voice:hover:text-ink gb:voice:hover:underline',
   'gb:voice:focus-visible:outline-2 gb:voice:focus-visible:outline-offset-2',
   'gb:voice:focus-visible:outline-accent gb:voice:disabled:opacity-50 gb:voice:disabled:cursor-not-allowed',
@@ -77,7 +77,7 @@ export const VOICE_SELECT = `${INPUT_BASE} gb:voice:bg-select-surface gb:voice:l
 const BUTTON_BASE = [
   'gb:voice:inline-flex gb:voice:items-center gb:voice:justify-center gb:voice:gap-1.5 gb:voice:border',
   'gb:voice:border-line gb:voice:rounded-control gb:voice:bg-surface gb:voice:text-ink',
-  'gb:voice:leading-[normal] gb:voice:font-semibold gb:voice:font-body gb:voice:cursor-pointer',
+  'gb:voice:leading-[normal] gb:voice:font-semibold gb:voice:[font-family:inherit] gb:voice:cursor-pointer',
   'gb:voice:transition-colors gb:voice:hover:bg-hover gb:voice:focus-visible:outline-2',
   'gb:voice:focus-visible:outline-offset-2 gb:voice:focus-visible:outline-accent',
   'gb:voice:disabled:opacity-50 gb:voice:disabled:cursor-not-allowed gb:voice:motion-reduce:transition-none',

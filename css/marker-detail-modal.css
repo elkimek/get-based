@@ -157,10 +157,21 @@
   font-size: 11px;
   white-space: nowrap;
 }
-.gb-detail-status-normal { color: var(--green); border-color: color-mix(in srgb, var(--green) 45%, var(--border)); }
-.gb-detail-status-high { color: var(--red); border-color: color-mix(in srgb, var(--red) 45%, var(--border)); }
-.gb-detail-status-low { color: var(--yellow); border-color: color-mix(in srgb, var(--yellow) 45%, var(--border)); }
-.gb-detail-status-unrated { color: var(--text-muted); }
+.gb-detail-status-normal {
+  color: var(--green);
+  border-color: color-mix(in srgb, var(--green) 45%, var(--border));
+}
+.gb-detail-status-high {
+  color: var(--red);
+  border-color: color-mix(in srgb, var(--red) 45%, var(--border));
+}
+.gb-detail-status-low {
+  color: var(--yellow);
+  border-color: color-mix(in srgb, var(--yellow) 45%, var(--border));
+}
+.gb-detail-status-unrated {
+  color: var(--text-muted);
+}
 .marker-detail-modal .marker-description,
 .marker-detail-modal .gb-detail-summary,
 .marker-detail-modal .gb-range-band,
@@ -317,10 +328,18 @@
   font-family: var(--font-mono);
   font-size: 16px;
 }
-.marker-detail-modal .stat-card-value.val-normal { color: var(--green); }
-.marker-detail-modal .stat-card-value.val-high { color: var(--red); }
-.marker-detail-modal .stat-card-value.val-low { color: var(--yellow); }
-.marker-detail-modal .stat-card-value.val-unrated { color: var(--text-primary); }
+.marker-detail-modal .stat-card-value.val-normal {
+  color: var(--green);
+}
+.marker-detail-modal .stat-card-value.val-high {
+  color: var(--red);
+}
+.marker-detail-modal .stat-card-value.val-low {
+  color: var(--yellow);
+}
+.marker-detail-modal .stat-card-value.val-unrated {
+  color: var(--text-primary);
+}
 .marker-detail-modal .stat-card-meta {
   margin-top: 7px;
   color: var(--text-secondary);
@@ -387,9 +406,18 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--bg-card) 65%, transparent);
   z-index: 2;
 }
-.gb-range-band-dot-normal { background: var(--green, #22c55e); box-shadow: 0 0 0 2px color-mix(in srgb, var(--bg-card) 65%, transparent), 0 0 10px color-mix(in srgb, var(--green, #22c55e) 45%, transparent); }
-.gb-range-band-dot-high { background: var(--red, #ef4444); box-shadow: 0 0 0 2px color-mix(in srgb, var(--bg-card) 65%, transparent), 0 0 10px color-mix(in srgb, var(--red, #ef4444) 45%, transparent); }
-.gb-range-band-dot-low { background: var(--yellow, #f59e0b); box-shadow: 0 0 0 2px color-mix(in srgb, var(--bg-card) 65%, transparent), 0 0 10px color-mix(in srgb, var(--yellow, #f59e0b) 45%, transparent); }
+.gb-range-band-dot-normal {
+  background: var(--green, #22c55e);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--bg-card) 65%, transparent), 0 0 10px color-mix(in srgb, var(--green, #22c55e) 45%, transparent);
+}
+.gb-range-band-dot-high {
+  background: var(--red, #ef4444);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--bg-card) 65%, transparent), 0 0 10px color-mix(in srgb, var(--red, #ef4444) 45%, transparent);
+}
+.gb-range-band-dot-low {
+  background: var(--yellow, #f59e0b);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--bg-card) 65%, transparent), 0 0 10px color-mix(in srgb, var(--yellow, #f59e0b) 45%, transparent);
+}
 .gb-range-band-scale {
   position: absolute;
   left: 0;
@@ -410,46 +438,48 @@
   margin-bottom: 22px;
 }
 @media (max-width: 768px) {
-  .marker-detail-modal .modal-values-grid { grid-template-columns: 1fr; }
+  .marker-detail-modal .modal-values-grid {
+  grid-template-columns: 1fr;
+}
 }
 @media (max-width: 640px) {
   .marker-detail-modal {
-    width: calc(100vw - 32px);
-    max-width: calc(100vw - 32px);
-    max-height: calc(100vh - 16px);
-    max-height: calc(100svh - 16px);
-    border-radius: var(--radius-sm);
-  }
+  width: calc(100vw - 32px);
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 16px);
+  max-height: calc(100svh - 16px);
+  border-radius: var(--radius-sm);
+}
   .marker-detail-modal .modal-close {
-    top: 10px;
-    right: 10px;
-    width: 38px;
-    height: 38px;
-    font-size: 22px;
-  }
+  top: 10px;
+  right: 10px;
+  width: 38px;
+  height: 38px;
+  font-size: 22px;
+}
   .marker-detail-modal .gb-detail-head {
     flex-direction: column;
     gap: 10px;
     padding: 14px 54px 12px 16px;
   }
   .marker-detail-modal h3 {
-    margin: 4px 0;
-    font-size: 20px;
-    line-height: 1.15;
-  }
+  margin: 4px 0;
+  font-size: 20px;
+  line-height: 1.15;
+}
   .marker-detail-modal .gb-detail-head-actions {
-    width: 100%;
-    margin-right: 0;
-    flex-wrap: wrap;
-    align-items: stretch;
-  }
+  width: 100%;
+  margin-right: 0;
+  flex-wrap: wrap;
+  align-items: stretch;
+}
   .marker-detail-modal .gb-detail-pin-btn,
   .marker-detail-modal .gb-detail-status {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 34px;
-  }
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+}
   .marker-detail-modal .marker-description,
   .marker-detail-modal .gb-detail-summary,
   .marker-detail-modal .gb-range-band,
@@ -464,99 +494,99 @@
   .marker-detail-modal .marker-note-section,
   .marker-detail-modal [id^="rec-modal-"],
   .marker-detail-modal .ask-ai-btn {
-    margin-left: 16px;
-    margin-right: 16px;
-  }
+  margin-left: 16px;
+  margin-right: 16px;
+}
   .marker-detail-modal .manual-entry-btn,
   .marker-detail-modal .ask-ai-btn {
-    width: calc(100% - 32px);
-  }
+  width: calc(100% - 32px);
+}
   .marker-detail-modal .marker-history-show-more {
-    width: calc(100% - 32px);
-  }
+  width: calc(100% - 32px);
+}
   .marker-detail-modal .marker-description {
-    margin-top: 14px;
-  }
+  margin-top: 14px;
+}
   .marker-detail-modal .gb-detail-summary {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-    margin-top: 12px;
-    margin-bottom: 12px;
-  }
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+  margin-bottom: 12px;
+}
   .marker-detail-modal .stat-card {
-    padding: 12px;
-  }
+  padding: 12px;
+}
   .marker-detail-modal .stat-card-value {
-    font-size: 22px;
-    line-height: 1.1;
-  }
+  font-size: 22px;
+  line-height: 1.1;
+}
   .marker-detail-modal .stat-card-value span {
-    font-size: 12px;
-  }
+  font-size: 12px;
+}
   .marker-detail-modal .stat-card-value-range {
-    font-size: 13px;
-    line-height: 1.35;
-  }
+  font-size: 13px;
+  line-height: 1.35;
+}
   .marker-detail-modal .gb-range-band {
-    height: 44px;
-    margin-bottom: 18px;
-  }
+  height: 44px;
+  margin-bottom: 18px;
+}
   .marker-detail-modal .gb-detail-section-label {
-    margin-top: 16px;
-    margin-bottom: 8px;
-  }
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
   .modal.marker-detail-modal .modal-chart {
-    height: 180px;
-    margin-bottom: 16px;
-  }
+  height: 180px;
+  margin-bottom: 16px;
+}
   .marker-detail-modal .modal-values-grid {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 10px;
-    margin-bottom: 16px;
-  }
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
   .marker-detail-modal .modal-value-card {
-    padding: 12px 38px 12px 12px;
-    text-align: left;
-  }
+  padding: 12px 38px 12px 12px;
+  text-align: left;
+}
   .marker-detail-modal .mv-delete {
-    top: 8px;
-    right: 8px;
-  }
+  top: 8px;
+  right: 8px;
+}
   .marker-detail-modal .modal-value-card .mv-value {
-    font-size: 22px;
-    line-height: 1.15;
-  }
+  font-size: 22px;
+  line-height: 1.15;
+}
   .marker-detail-modal .modal-value-card .mv-value-note {
-    justify-content: flex-start;
-  }
+  justify-content: flex-start;
+}
   .marker-detail-modal .modal-value-card .mv-value-note-text {
-    text-align: left;
-  }
+  text-align: left;
+}
   .marker-detail-modal .modal-ref-info {
-    padding: 12px;
-    line-height: 1.45;
-  }
+  padding: 12px;
+  line-height: 1.45;
+}
   .marker-detail-modal .marker-note-header {
-    gap: 10px;
-    align-items: flex-start;
-  }
+  gap: 10px;
+  align-items: flex-start;
+}
   .marker-detail-modal .marker-note-actions {
-    flex-wrap: wrap;
-  }
+  flex-wrap: wrap;
+}
   .marker-detail-modal .marker-note-actions .import-btn {
-    flex: 1 1 120px;
-  }
+  flex: 1 1 120px;
+}
   .marker-detail-modal .manual-entry-form .me-field select.me-unit-select {
-    max-width: 100%;
-    margin-left: 0;
-    margin-top: 6px;
-  }
+  max-width: 100%;
+  margin-left: 0;
+  margin-top: 6px;
+}
 }
 @media (max-width: 380px) {
   .marker-detail-modal .gb-detail-head {
-    padding-left: 14px;
-    padding-right: 52px;
-  }
+  padding-left: 14px;
+  padding-right: 52px;
+}
   .marker-detail-modal .marker-description,
   .marker-detail-modal .gb-detail-summary,
   .marker-detail-modal .gb-range-band,
@@ -571,90 +601,199 @@
   .marker-detail-modal .marker-note-section,
   .marker-detail-modal [id^="rec-modal-"],
   .marker-detail-modal .ask-ai-btn {
-    margin-left: 14px;
-    margin-right: 14px;
-  }
+  margin-left: 14px;
+  margin-right: 14px;
+}
   .marker-detail-modal .manual-entry-btn,
   .marker-detail-modal .ask-ai-btn {
-    width: calc(100% - 28px);
-  }
+  width: calc(100% - 28px);
+}
   .marker-detail-modal .marker-history-show-more {
-    width: calc(100% - 28px);
-  }
+  width: calc(100% - 28px);
+}
   .modal.marker-detail-modal .modal-chart {
-    height: 190px;
-  }
+  height: 190px;
+}
 }
 .marker-detail-modal .marker-description {
   font-size: 13px; color: var(--text-secondary); line-height: 1.4;
   margin-bottom: 16px; display: none;
 }
-.marker-detail-modal .marker-description.loaded { display: block; }
+.marker-detail-modal .marker-description.loaded {
+  display: block;
+}
 .marker-detail-modal .marker-description.loading {
-  display: block; height: 16px; width: 60%;
+  display: block;
+  height: 16px;
+  width: 60%;
   background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-hover) 50%, var(--bg-card) 75%);
-  background-size: 200% 100%; border-radius: 4px;
+  background-size: 200% 100%;
+  border-radius: 4px;
   animation: shimmer 1.5s infinite;
 }
 .modal.marker-detail-modal .modal-chart { height: 250px; margin-bottom: 24px; }
 .marker-detail-modal .modal-values-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
 }
 .marker-detail-modal .modal-value-card {
-  background: var(--bg-card); border-radius: var(--radius-sm); padding: 12px 14px; text-align: left;
-  position: relative; border: 1px solid var(--border); border-left: 3px solid var(--text-muted);
+  background: var(--bg-card);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  text-align: left;
+  position: relative;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--text-muted);
 }
-.marker-detail-modal .modal-value-card.status-normal { border-left-color: var(--green); }
-.marker-detail-modal .modal-value-card.status-high { border-left-color: var(--red); }
-.marker-detail-modal .modal-value-card.status-low { border-left-color: var(--yellow); }
+.marker-detail-modal .modal-value-card.status-normal {
+  border-left-color: var(--green);
+}
+.marker-detail-modal .modal-value-card.status-high {
+  border-left-color: var(--red);
+}
+.marker-detail-modal .modal-value-card.status-low {
+  border-left-color: var(--yellow);
+}
 .marker-detail-modal .mv-delete {
-  position: absolute; top: 4px; right: 4px; background: none; border: none;
-  color: var(--text-muted); font-size: 16px; cursor: pointer; padding: 0 4px;
-  line-height: 1; opacity: 0; transition: opacity 0.15s;
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.15s;
 }
-.marker-detail-modal .modal-value-card:hover .mv-delete { opacity: 1; }
-.marker-detail-modal .mv-delete:hover { color: var(--red); }
-.marker-detail-modal .modal-value-card .mv-date { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; padding-right: 20px; }
-.marker-detail-modal .modal-value-card .mv-source { font-size: 11px; color: var(--text-muted); opacity: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-height: 0; margin-bottom: 0; transition: opacity 0.2s, max-height 0.2s, margin-bottom 0.2s; }
-.marker-detail-modal .modal-value-card:hover .mv-source { opacity: 0.7; max-height: 1.2em; margin-bottom: 2px; }
-.marker-detail-modal .modal-value-card .mv-source-manual { font-style: italic; }
+.marker-detail-modal .modal-value-card:hover .mv-delete {
+  opacity: 1;
+}
+.marker-detail-modal .mv-delete:hover {
+  color: var(--red);
+}
+.marker-detail-modal .modal-value-card .mv-date {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  padding-right: 20px;
+}
+.marker-detail-modal .modal-value-card .mv-source {
+  font-size: 11px;
+  color: var(--text-muted);
+  opacity: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-height: 0;
+  margin-bottom: 0;
+  transition: opacity 0.2s, max-height 0.2s, margin-bottom 0.2s;
+}
+.marker-detail-modal .modal-value-card:hover .mv-source {
+  opacity: 0.7;
+  max-height: 1.2em;
+  margin-bottom: 2px;
+}
+.marker-detail-modal .modal-value-card .mv-source-manual {
+  font-style: italic;
+}
 .marker-detail-modal .modal-value-card .mv-value {
-  font-family: var(--font-mono); font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+  font-size: 24px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
 }
 .marker-detail-modal .modal-value-card .mv-alt {
-  font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);
-  margin-top: 2px; font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
 }
-.marker-detail-modal .modal-value-card .mv-status { font-size: 11px; font-weight: 600; margin-top: 4px; }
-.marker-detail-modal .modal-value-card .mv-phase { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
-.marker-detail-modal .modal-value-card .mv-collection-context { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+.marker-detail-modal .modal-value-card .mv-status {
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+.marker-detail-modal .modal-value-card .mv-phase {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.marker-detail-modal .modal-value-card .mv-collection-context {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
 .marker-detail-modal .modal-value-card .mv-value-note {
-  font-size: 11px; margin-top: 6px; padding-top: 6px;
+  font-size: 11px;
+  margin-top: 6px;
+  padding-top: 6px;
   border-top: 1px dashed var(--border);
-  display: flex; align-items: flex-start; gap: 4px; justify-content: flex-start;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  justify-content: flex-start;
 }
-.marker-detail-modal .modal-value-card .mv-value-note.has-note { color: var(--text-secondary); font-style: italic; }
+.marker-detail-modal .modal-value-card .mv-value-note.has-note {
+  color: var(--text-secondary);
+  font-style: italic;
+}
 .marker-detail-modal .modal-value-card .mv-value-note.add-note {
-  color: var(--text-muted); cursor: pointer; opacity: 0;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
   transition: opacity 0.15s, color 0.15s;
 }
-.marker-detail-modal .modal-value-card:hover .mv-value-note.add-note { opacity: 0.7; }
-.marker-detail-modal .modal-value-card .mv-value-note.add-note:hover { opacity: 1; color: var(--accent); }
+.marker-detail-modal .modal-value-card:hover .mv-value-note.add-note {
+  opacity: 0.7;
+}
+.marker-detail-modal .modal-value-card .mv-value-note.add-note:hover {
+  opacity: 1;
+  color: var(--accent);
+}
 .marker-detail-modal .modal-value-card .mv-value-note-text {
-  cursor: pointer; flex: 1; min-width: 0; word-break: break-word; text-align: left;
+  cursor: pointer;
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+  text-align: left;
 }
-.marker-detail-modal .modal-value-card .mv-value-note-text:hover { color: var(--accent); }
+.marker-detail-modal .modal-value-card .mv-value-note-text:hover {
+  color: var(--accent);
+}
 .marker-detail-modal .modal-value-card .mv-value-note-delete {
-  background: none; border: none; color: var(--text-muted); cursor: pointer;
-  font-size: 14px; line-height: 1; padding: 0 2px; opacity: 0; transition: opacity 0.15s;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
 }
-.marker-detail-modal .modal-value-card:hover .mv-value-note-delete { opacity: 0.7; }
-.marker-detail-modal .modal-value-card .mv-value-note-delete:hover { color: var(--red); opacity: 1; }
+.marker-detail-modal .modal-value-card:hover .mv-value-note-delete {
+  opacity: 0.7;
+}
+.marker-detail-modal .modal-value-card .mv-value-note-delete:hover {
+  color: var(--red);
+  opacity: 1;
+}
 .marker-detail-modal .modal-ref-info {
-  background: var(--bg-card); border-radius: var(--radius-sm);
-  padding: 14px 18px; font-size: 13px; color: var(--text-secondary);
+  background: var(--bg-card);
+  border-radius: var(--radius-sm);
+  padding: 14px 18px;
+  font-size: 13px;
+  color: var(--text-secondary);
 }
-.marker-detail-modal .modal-ref-info strong { color: var(--text-primary); }
+.marker-detail-modal .modal-ref-info strong {
+  color: var(--text-primary);
+}
 .marker-detail-modal .stat-card-range-controls {
   margin-top: 8px;
   padding-top: 8px;
@@ -674,8 +813,13 @@
   font: inherit;
   cursor: pointer;
 }
-.marker-detail-modal .stat-card-range-controls .ref-editable:hover { color: var(--accent); border-color: var(--accent); }
-.marker-detail-modal .stat-card-range-controls .ref-editable-optimal { color: var(--green); }
+.marker-detail-modal .stat-card-range-controls .ref-editable:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.marker-detail-modal .stat-card-range-controls .ref-editable-optimal {
+  color: var(--green);
+}
 .marker-detail-modal .marker-range-suggest {
   display: block;
   width: fit-content;
@@ -687,8 +831,16 @@
   text-decoration: none;
 }
 .marker-detail-modal .marker-range-suggest:hover,
-.marker-detail-modal .marker-range-suggest:focus-visible { color: var(--accent); text-decoration: underline; }
-.marker-detail-modal .gb-detail-section-label > span { margin-left: 5px; color: var(--text-muted); font-size: 10px; font-weight: 500; }
+.marker-detail-modal .marker-range-suggest:focus-visible {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.marker-detail-modal .gb-detail-section-label > span {
+  margin-left: 5px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 500;
+}
 .marker-detail-modal .marker-history-list {
   grid-template-columns: 1fr;
   gap: 8px;
@@ -821,48 +973,48 @@
     background: var(--bg-secondary);
   }
   .marker-detail-modal .gb-detail-head::after {
-    bottom: -12px;
-    height: 12px;
-  }
+  bottom: -12px;
+  height: 12px;
+}
   .marker-detail-modal .stat-card-range-controls {
-    font-size: 10px;
-    line-height: 1.35;
-  }
+  font-size: 10px;
+  line-height: 1.35;
+}
   .marker-detail-modal .marker-history-row {
-    grid-template-columns: 1fr;
-    min-height: 0;
-    padding: 12px 40px 12px 12px;
-    row-gap: 6px;
-  }
+  grid-template-columns: 1fr;
+  min-height: 0;
+  padding: 12px 40px 12px 12px;
+  row-gap: 6px;
+}
   .marker-detail-modal .marker-history-value-row {
-    justify-content: space-between;
-    gap: 12px;
-  }
+  justify-content: space-between;
+  gap: 12px;
+}
   .marker-detail-modal .marker-history-row .mv-value {
-    font-size: 24px;
-  }
+  font-size: 24px;
+}
   .marker-detail-modal .marker-history-row .mv-status {
-    font-size: 11px;
-  }
+  font-size: 11px;
+}
   .marker-detail-modal .gb-detail-actions {
-    margin: 18px 16px 24px;
-    padding-top: 14px;
-  }
+  margin: 18px 16px 24px;
+  padding-top: 14px;
+}
   .marker-detail-modal .gb-detail-action-row {
-    gap: 8px;
-  }
+  gap: 8px;
+}
   .gb-detail-category-origin {
-    flex-basis: auto;
-  }
+  flex-basis: auto;
+}
   .marker-placement-restore {
-    margin-right: 0;
-  }
+  margin-right: 0;
+}
 }
 @media (max-width: 380px) {
   .marker-detail-modal .gb-detail-actions {
-    margin-left: 14px;
-    margin-right: 14px;
-  }
+  margin-left: 14px;
+  margin-right: 14px;
+}
 }
 
 /* Manual Entry Button & Form */
@@ -874,48 +1026,103 @@
   margin-top: 8px;
 }
 .manual-entry-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(79,140,255,0.05); }
-.manual-entry-form { margin-top: 16px; }
-.manual-entry-form .me-field { margin-bottom: 12px; }
+.manual-entry-form {
+  margin-top: 16px;
+}
+.manual-entry-form .me-field {
+  margin-bottom: 12px;
+}
 .manual-entry-form .me-field label {
-  display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 4px; font-weight: 500;
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  font-weight: 500;
 }
 .manual-entry-form .me-field input {
-  width: 100%; padding: 8px 12px; border-radius: 6px;
-  border: 1px solid var(--border); background: var(--bg-primary);
-  color: var(--text-primary); font-size: 13px; font-family: inherit;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
 }
-.manual-entry-form .me-field input:focus { border-color: var(--accent); }
+.manual-entry-form .me-field input:focus {
+  border-color: var(--accent);
+}
 .manual-entry-form .me-field textarea {
-  width: 100%; padding: 8px 12px; border-radius: 6px;
-  border: 1px solid var(--border); background: var(--bg-primary);
-  color: var(--text-primary); font-size: 13px; font-family: inherit; resize: vertical;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  resize: vertical;
 }
-.manual-entry-form .me-field textarea:focus { border-color: var(--accent); }
+.manual-entry-form .me-field textarea:focus {
+  border-color: var(--accent);
+}
 .manual-entry-form .me-field select {
-  width: 100%; padding: 8px 12px; border-radius: 6px;
-  border: 1px solid var(--border); background: var(--bg-primary);
-  color: var(--text-primary); font-size: 13px; font-family: inherit;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
 }
-.manual-entry-form .me-field select:focus { border-color: var(--accent); }
+.manual-entry-form .me-field select:focus {
+  border-color: var(--accent);
+}
 .manual-entry-form .me-context-grid {
-  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
-.manual-entry-form .me-context-grid .me-field { min-width: 0; }
-.manual-entry-form .me-field .me-optional { color: var(--text-muted); font-weight: 400; text-transform: none; letter-spacing: 0; }
+.manual-entry-form .me-context-grid .me-field {
+  min-width: 0;
+}
+.manual-entry-form .me-field .me-optional {
+  color: var(--text-muted);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
 .manual-entry-form .me-field small {
-  display: block; margin-top: 5px; color: var(--text-muted); font-size: 10px; line-height: 1.35;
+  display: block;
+  margin-top: 5px;
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.35;
 }
 .manual-entry-form .me-field select.me-unit-select {
-  width: auto; padding: 2px 8px; font-size: 11px; margin-left: 6px;
-  font-weight: 400; color: var(--text-muted); vertical-align: middle;
+  width: auto;
+  padding: 2px 8px;
+  font-size: 11px;
+  margin-left: 6px;
+  font-weight: 400;
+  color: var(--text-muted);
+  vertical-align: middle;
 }
 .manual-entry-form .me-context {
-  font-size: 12px; color: var(--text-muted); margin-bottom: 16px;
-  padding: 10px; background: var(--bg-card); border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+  padding: 10px;
+  background: var(--bg-card);
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border);
 }
 @media (max-width: 520px) {
-  .manual-entry-form .me-context-grid { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .manual-entry-form .me-context-grid {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
 }
 
 /* Note icon in detail modal */
@@ -937,22 +1144,76 @@
 .mv-note-text.show { display: block; }
 
 /* Marker Notes in Detail Modal */
-.marker-detail-modal .marker-note-section { margin: 12px 0; padding: 10px 12px; background: var(--bg-hover); border-radius: var(--radius-sm); border: 1px solid var(--border); }
-.marker-detail-modal .marker-note-header { display: flex; justify-content: space-between; align-items: center; }
-.marker-detail-modal .marker-note-label { font-size: 12px; font-weight: 700; color: var(--text-secondary); }
-.marker-detail-modal .marker-note-edit-btn { background: none; border: none; color: var(--accent); font-size: 11px; cursor: pointer; font-family: inherit; padding: 0; }
-.marker-detail-modal .marker-note-edit-btn:hover { text-decoration: underline; }
-.marker-detail-modal .marker-note-text { font-size: 13px; color: var(--text-primary); margin-top: 6px; line-height: 1.5; white-space: pre-line; }
-.marker-detail-modal .marker-note-editor { margin-top: 8px; }
-.marker-detail-modal .marker-note-editor textarea { width: 100%; background: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px; font-size: 13px; font-family: inherit; resize: vertical; }
-.marker-detail-modal .marker-note-editor textarea:focus { outline: none; border-color: var(--accent); }
-.marker-detail-modal .marker-note-actions { display: flex; gap: 6px; margin-top: 6px; }
+.marker-detail-modal .marker-note-section {
+  margin: 12px 0;
+  padding: 10px 12px;
+  background: var(--bg-hover);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+.marker-detail-modal .marker-note-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.marker-detail-modal .marker-note-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+.marker-detail-modal .marker-note-edit-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 11px;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
+}
+.marker-detail-modal .marker-note-edit-btn:hover {
+  text-decoration: underline;
+}
+.marker-detail-modal .marker-note-text {
+  font-size: 13px;
+  color: var(--text-primary);
+  margin-top: 6px;
+  line-height: 1.5;
+  white-space: pre-line;
+}
+.marker-detail-modal .marker-note-editor {
+  margin-top: 8px;
+}
+.marker-detail-modal .marker-note-editor textarea {
+  width: 100%;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  resize: vertical;
+}
+.marker-detail-modal .marker-note-editor textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.marker-detail-modal .marker-note-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
 
 /* Calculated marker missing inputs */
 .calc-missing-inputs {
-  color: var(--text-muted); font-size: 0.8rem; text-align: center;
-  margin-top: 12px; padding: 8px 12px; border-radius: 6px;
-  background: var(--bg-secondary); border: 1px dashed var(--border);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-align: center;
+  margin-top: 12px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  border: 1px dashed var(--border);
 }
 /* Ask AI Button in Marker Detail Modal */
 .ask-ai-btn {
@@ -965,12 +1226,46 @@
 .ask-ai-btn:hover { background: var(--accent-gradient); color: white; border-color: transparent; box-shadow: 0 2px 12px rgba(79, 140, 255, 0.2); }
 
 @media (max-width: 480px) {
-  .modal.marker-detail-modal { padding: 0; }
+  .modal.marker-detail-modal {
+  padding: 0;
+}
 }
 @media (max-width: 375px) {
-  .modal.marker-detail-modal { padding: 0; max-width: calc(100vw - 16px); }
+  .modal.marker-detail-modal {
+  padding: 0;
+  max-width: calc(100vw - 16px);
+}
 }
 @media (hover: none) {
-  .marker-detail-modal .mv-delete { opacity: 0.7; }
-  .marker-detail-modal .modal-value-card .mv-source { opacity: 0.7; max-height: 1.2em; margin-bottom: 2px; }
+  .marker-detail-modal .mv-delete {
+  opacity: 0.7;
+}
+  .marker-detail-modal .modal-value-card .mv-source {
+  opacity: 0.7;
+  max-height: 1.2em;
+  margin-bottom: 2px;
+}
+}
+
+/* Fixed Custom Marker presentation; new-category display remains controller-owned. */
+.marker-form-modal #cm-new-cat-row {
+  margin-top: 6px;
+  gap: 8px;
+  align-items: center;
+}
+.marker-form-modal #cm-new-cat-icon {
+  cursor: pointer;
+  font-size: 20px;
+  min-width: 28px;
+  text-align: center;
+}
+.marker-form-modal #cm-new-cat {
+  flex: 1;
+}
+.marker-form-modal .cm-range-row {
+  display: flex;
+  gap: 8px;
+}
+.marker-form-modal .cm-range-divider {
+  line-height: 36px;
 }

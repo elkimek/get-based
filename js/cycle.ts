@@ -33,7 +33,7 @@ import { saveImportedData } from './data.js';
 import { openModalOverlay } from './modal-lifecycle.js';
 import { startCycleTour } from './tour.js';
 import { calculateCycleStats, createCyclePeriod, recentCyclePeriods, upgradeMenstrualCycleProfile } from './cycle-summary.js';
-import { clearCycleProfileData, getCycleImportSummarySectionView } from './cycle-import-loader.js';
+import { clearCycleProfileData, getCycleImportSummarySectionView } from './cycle-import-runtime.js';
 import { recordContextCardChangeRuntime } from './context-cards-runtime.js';
 import { closeCycleModalRuntime, configureCycleAnalysisBridge, isCycleStylesheetLoaded, loadCycleStylesheetForAction, navigateCycleViewRuntime } from './cycle-runtime.js';
 import { getRecordedDrawPhase } from './cycle-draw-phases.js';
@@ -506,7 +506,7 @@ export function deletePeriodEntry(startDate: string) {
   openMenstrualCycleEditor();
 }
 
-export function renderMenstrualCycleSection(data: ActiveData | ProfileData | null, opts: CycleDisplayOptions = {}) {
+export function projectMenstrualCycleSection(data: ActiveData | ProfileData | null, opts: CycleDisplayOptions = {}) {
   const compact = opts?.variant === 'dashboard';
   const showHeader = opts?.showHeader !== false;
   const mc = state.importedData!.menstrualCycle ? upgradeMenstrualCycleProfile(state.importedData!.menstrualCycle) : null;
@@ -602,6 +602,9 @@ export function renderMenstrualCycleSection(data: ActiveData | ProfileData | nul
     }
     input.alerts = alertViews;
   }
-  return renderCycleOverviewPresentation({view: projectCycleOverviewPresentation(input)});
+  return projectCycleOverviewPresentation(input);
+}
+export function renderMenstrualCycleSection(data: ActiveData | ProfileData | null, opts: CycleDisplayOptions = {}) {
+  return renderCycleOverviewPresentation({view: projectMenstrualCycleSection(data, opts)});
 }
 configureCycleAnalysisBridge({ detectCycleIronAlerts, detectPerimenopausePattern, getBloodDrawPhases, getNextBestDrawDate });

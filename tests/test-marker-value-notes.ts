@@ -11,6 +11,7 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 import './_node-shim.js';
 
 import fs from 'node:fs';
+import { JSDOM } from 'jsdom';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -88,11 +89,11 @@ const state = (await import('../js/state.js')).state;
   console.log('%c 4. saveManualEntry stores note ', 'font-weight:bold;color:#f59e0b');
 
   const viewsSrc = read('js/views.js');
-  const categoryViewRenderersSrc = read('js/category-view-renderers.js');
   const markerDetailActionsSrc = read('js/marker-detail-actions.js');
   const markerDetailSrc = [
     read('js/marker-detail-modal-impl.js'),
     read('js/marker-detail-manual-entry.js'),
+    read('js/components/ManualMarkerEntry.svelte'),
   ].join('\n');
   const markerDetailEditingSrc = read('js/marker-detail-editing.js');
   const markerDetailStoreSrc = read('js/marker-detail-store.js');
@@ -174,8 +175,61 @@ const state = (await import('../js/state.js')).state;
       && /saveMarkerValueNote[\s\S]{0,500}writeMarkerValueNote\(dotKey, date, noteText\)/.test(markerDetailStoreSrc)
       && !/insulinMirrorMapKey/.test(markerDetailStoreSrc));
 
+  // Exercise the genuine typed table/history owners and their delegated controls.
+  const { renderTableView } = await import('../js/category-view-renderers.js');
+  const { renderHTML: renderHistory } = await import('../js/components/MarkerDetailHistory.svelte.html.js');
+  const { projectMarkerDetailAction } = await import('../js/marker-detail-projection.js');
+  const { installMarkerDetailActionDelegates } = await import('../js/marker-detail-actions.js');
+  const id = 'biochemistry_glucose', date = '2024-03-16';
+  const tableDOM = new JSDOM(renderTableView({ markers: {
+    glucose: { name: 'Glucose', unit: 'mmol/L', refMin: 0, refMax: 10, values: [1, null] },
+    other: { name: 'Other', unit: 'mmol/L', refMin: 0, refMax: 10, values: [1, 2] },
+  } }, ['Mar 15', 'Mar 16'], 'biochemistry', ['2024-03-15', date]));
+  const manualCalls: unknown[][] = [];
+  installMarkerDetailActionDelegates({ openManualEntryForm: (...args) => manualCalls.push(args) }, tableDOM.window.document);
+  const emptyCell = tableDOM.window.document.querySelector('[data-marker-detail-action="open-manual-entry"]');
+  emptyCell?.dispatchEvent(new tableDOM.window.MouseEvent('click', { bubbles: true, cancelable: true }));
+  const emptyCellDelegates = emptyCell?.getAttribute('data-marker-detail-id') === id
+    && emptyCell.getAttribute('data-marker-detail-date') === date
+    && JSON.stringify(manualCalls) === JSON.stringify([[id, date]]);
+  tableDOM.window.close();
+
+  const editActions = projectMarkerDetailAction('edit-value-note', { id, date });
+  const deleteActions = projectMarkerDetailAction('delete-value-note', { id, date });
+  const addNoteDOM = new JSDOM(renderHistory({ view: { kind: 'add-note', actions: editActions } }));
+  const noteDOM = new JSDOM(renderHistory({ view: {
+    kind: 'value-note', editActions, deleteActions, text: '<synthetic note>',
+  } }));
+  const addNote = addNoteDOM.window.document.querySelector('.mv-value-note.add-note');
+  const note = noteDOM.window.document.querySelector('.mv-value-note-text');
+  const deleteNote = noteDOM.window.document.querySelector('.mv-value-note-delete');
+  const emptyNoteHint = addNote?.textContent === '+ note'
+    && addNote.getAttribute('data-marker-detail-action') === 'edit-value-note'
+    && addNote.getAttribute('data-marker-detail-id') === id
+    && addNote.getAttribute('data-marker-detail-date') === date;
+  const noteDeleteControl = deleteNote?.textContent === '×'
+    && deleteNote.getAttribute('data-marker-detail-action') === 'delete-value-note'
+    && deleteNote.getAttribute('data-marker-detail-id') === id
+    && deleteNote.getAttribute('data-marker-detail-date') === date;
+  const noteCalls: unknown[][] = [], cellCalls: unknown[][] = [];
+  const parentCell = noteDOM.window.document.createElement('div');
+  parentCell.setAttribute('data-marker-detail-action', 'edit-marker-value');
+  noteDOM.window.document.body.append(parentCell);
+  parentCell.append(...noteDOM.window.document.querySelectorAll('.mv-value-note'));
+  installMarkerDetailActionDelegates({
+    editValueNote: (...args) => noteCalls.push(args),
+    editMarkerValue: (...args) => cellCalls.push(args),
+  }, noteDOM.window.document);
+  const noteClick = new noteDOM.window.MouseEvent('click', { bubbles: true, cancelable: true });
+  note?.dispatchEvent(noteClick);
+  const noteDelegatesOnly = note?.textContent === '<synthetic note>' && !note.querySelector('synthetic')
+    && noteClick.defaultPrevented && JSON.stringify(noteCalls) === JSON.stringify([[id, date]])
+    && cellCalls.length === 0;
+  addNoteDOM.window.close();
+  noteDOM.window.close();
+
   assert('Empty-cell manual entry uses delegated id/date attrs',
-    categoryViewRenderersSrc.includes("markerDetailActionAttrs('open-manual-entry', { id, date: colDate })") &&
+    emptyCellDelegates &&
     /open-manual-entry'[\s\S]{0,180}openManualEntryForm\?\.\(id, date \|\| undefined\)/.test(markerDetailActionsSrc));
 
   // ═══════════════════════════════════════
@@ -186,18 +240,18 @@ const state = (await import('../js/state.js')).state;
   assert('Value card reads note from markerValueNotes by mvKey',
     /state\.importedData\.markerValueNotes\?\.\[mvKey\]/.test(markerDetailSrc));
   assert('Empty card shows "+ note" hint',
-    /mv-value-note add-note[\s\S]{0,200}\+ note/.test(markerDetailSrc));
+    emptyNoteHint);
   assert('Populated card has × delete button',
-    /mv-value-note-delete[\s\S]{0,400}markerDetailActionAttrs\('delete-value-note'/.test(markerDetailSrc));
+    noteDeleteControl);
   assert('Value-note actions use delegated click handling so cell-edit does not fire',
-    markerDetailSrc.includes("markerDetailActionAttrs('edit-value-note', { id, date: actionDate })"));
+    noteDelegatesOnly);
 
   // ═══════════════════════════════════════
   // 8. AI context emission — section:markerValueNotes
   // ═══════════════════════════════════════
   console.log('%c 8. AI context emission ', 'font-weight:bold;color:#f59e0b');
 
-  const labCtxSrc = read('js/lab-context.js');
+  const labCtxSrc = read('js/lab-context-assembly.js');
   assert('buildLabContext emits [section:markerValueNotes] block',
     labCtxSrc.includes('[section:markerValueNotes]') &&
     labCtxSrc.includes('[/section:markerValueNotes]'));

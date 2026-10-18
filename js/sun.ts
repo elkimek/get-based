@@ -21,7 +21,7 @@ import {
 } from './modal-lifecycle.js';
 import {
   BODY_REGIONS,
-  renderBodySilhouette,
+  projectBodySilhouette, renderBodySilhouette,
   bindBodySilhouette,
   resetBodySilhouetteState,
 } from './sun-body-silhouette.js';
@@ -328,7 +328,7 @@ export async function changeCoverageMidSession(id: unknown) {
   const currentRegions = new Set(sess.bodyExposure?.regions || []);
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
-  overlay.innerHTML = renderHTML({ kind: 'coverage', silhouetteHTML: renderBodySilhouette(currentRegions) });
+  overlay.innerHTML = renderHTML({ kind: 'coverage', silhouetteView: projectBodySilhouette(currentRegions) });
   const closeDialog = () => removeModalOverlay(overlay);
   overlay.querySelectorAll('[data-sun-coverage-close]').forEach(btn => {
     btn.addEventListener('click', closeDialog);
@@ -730,3 +730,5 @@ function _resetSunModuleState() {
 if (hasSunBrowserRuntime()) {
   addSunProfileSwitchListener(_resetSunModuleState);
 }
+
+export{getSunSessionRowView}from'./sun-session-ui.js';

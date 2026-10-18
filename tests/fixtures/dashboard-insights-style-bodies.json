@@ -1,0 +1,70 @@
+{
+  "ownedBodies": 9,
+  "edits": [
+    {
+      "selector": ".db-insights-list",
+      "start": 15185,
+      "end": 15216,
+      "before": "\n  display: grid;\n  gap: 10px;\n",
+      "after": " display: grid; gap: 10px; "
+    },
+    {
+      "selector": ".db-insight",
+      "start": 15231,
+      "end": 15538,
+      "before": "\n  width: 100%;\n  padding: 14px 16px;\n  border-radius: var(--radius-sm);\n  border: 1px solid var(--border);\n  background: var(--bg-hover);\n  color: var(--text-primary);\n  display: flex;\n  flex-direction: column;\n  gap: 6px;\n  align-items: flex-start;\n  text-align: left;\n  font: inherit;\n  cursor: pointer;\n",
+      "after": "\n  width: 100%; padding: 14px 16px; border-radius: var(--radius-sm);\n  border: 1px solid var(--border); background: var(--bg-hover);\n  color: var(--text-primary); display: flex; flex-direction: column; gap: 6px;\n  align-items: flex-start; text-align: left; font: inherit; cursor: pointer;\n"
+    },
+    {
+      "selector": ".db-insight-danger",
+      "start": 15560,
+      "end": 15598,
+      "before": "\n  border-left: 3px solid var(--red);\n",
+      "after": " border-left: 3px solid var(--red); "
+    },
+    {
+      "selector": ".db-insight-warn",
+      "start": 15618,
+      "end": 15659,
+      "before": "\n  border-left: 3px solid var(--yellow);\n",
+      "after": " border-left: 3px solid var(--yellow); "
+    },
+    {
+      "selector": ".db-insight-good",
+      "start": 15679,
+      "end": 15719,
+      "before": "\n  border-left: 3px solid var(--green);\n",
+      "after": " border-left: 3px solid var(--green); "
+    },
+    {
+      "selector": ".db-insight-info",
+      "start": 15739,
+      "end": 15780,
+      "before": "\n  border-left: 3px solid var(--accent);\n",
+      "after": " border-left: 3px solid var(--accent); "
+    },
+    {
+      "selector": ".db-insight-tag",
+      "start": 15799,
+      "end": 15929,
+      "before": "\n  font-family: var(--font-mono);\n  font-size: 10px;\n  font-weight: 700;\n  text-transform: uppercase;\n  color: var(--text-muted);\n",
+      "after": "\n  font-family: var(--font-mono); font-size: 10px; font-weight: 700;\n  text-transform: uppercase; color: var(--text-muted);\n"
+    },
+    {
+      "selector": ".db-insight strong",
+      "start": 15951,
+      "end": 15971,
+      "before": "\n  font-size: 14px;\n",
+      "after": " font-size: 14px; "
+    },
+    {
+      "selector": ".db-insight span:last-child",
+      "start": 16002,
+      "end": 16075,
+      "before": "\n  color: var(--text-secondary);\n  font-size: 13px;\n  line-height: 1.45;\n",
+      "after": " color: var(--text-secondary); font-size: 13px; line-height: 1.45; "
+    }
+  ],
+  "completePriorStylesheetRestoredExact": true,
+  "noMetadataWhitespaceAdjustment": true
+}

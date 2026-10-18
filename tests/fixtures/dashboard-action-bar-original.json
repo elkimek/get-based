@@ -1,0 +1,560 @@
+{
+  "scope": "original-public-renderer-only",
+  "cases": [
+    {
+      "key": "false:undefined",
+      "viewKey": "native-view-0"
+    },
+    {
+      "key": "false:false",
+      "viewKey": "native-view-0"
+    },
+    {
+      "key": "false:null",
+      "viewKey": "native-view-0"
+    },
+    {
+      "key": "false:zero",
+      "viewKey": "native-view-0"
+    },
+    {
+      "key": "false:one",
+      "viewKey": "native-view-1"
+    },
+    {
+      "key": "false:empty-string",
+      "viewKey": "native-view-0"
+    },
+    {
+      "key": "false:string",
+      "viewKey": "native-view-1"
+    },
+    {
+      "key": "false:array",
+      "viewKey": "native-view-1"
+    },
+    {
+      "key": "false:object",
+      "viewKey": "native-view-1"
+    },
+    {
+      "key": "false:boxed-false",
+      "viewKey": "native-view-1"
+    },
+    {
+      "key": "false:symbol",
+      "viewKey": "native-view-1"
+    },
+    {
+      "key": "false:zero-bigint",
+      "viewKey": "native-view-0"
+    },
+    {
+      "key": "false:one-bigint",
+      "viewKey": "native-view-1"
+    },
+    {
+      "key": "false:nan",
+      "viewKey": "native-view-0"
+    },
+    {
+      "key": "false:sticky",
+      "viewKey": "native-view-2"
+    },
+    {
+      "key": "true:undefined",
+      "viewKey": "native-view-3"
+    },
+    {
+      "key": "true:false",
+      "viewKey": "native-view-3"
+    },
+    {
+      "key": "true:null",
+      "viewKey": "native-view-3"
+    },
+    {
+      "key": "true:zero",
+      "viewKey": "native-view-3"
+    },
+    {
+      "key": "true:one",
+      "viewKey": "native-view-3"
+    },
+    {
+      "key": "true:empty-string",
+      "viewKey": "native-view-3"
+    },
+    {
+      "key": "true:string",
+      "viewKey": "native-view-3"
+    },
+    {
+      "key": "true:array",
+      "viewKey": "native-view-3"
+    },
+    {
+      "key": "true:object",
+      "viewKey": "native-view-3"
+    },
+    {
+      "key": "true:boxed-false",
+      "viewKey": "native-view-3"
+    },
+    {
+      "key": "true:symbol",
+      "viewKey": "native-view-3"
+    },
+    {
+      "key": "true:zero-bigint",
+      "viewKey": "native-view-3"
+    },
+    {
+      "key": "true:one-bigint",
+      "viewKey": "native-view-3"
+    },
+    {
+      "key": "true:nan",
+      "viewKey": "native-view-3"
+    },
+    {
+      "key": "true:sticky",
+      "viewKey": "native-view-4"
+    }
+  ],
+  "views": [
+    {
+      "key": "native-view-0",
+      "originalCase": "false:undefined",
+      "html": "<button class=\"dashboard-action-btn\" type=\"button\" data-dashboard-widget-action=\"toggle-organize\">Customize</button>\n      <button class=\"dashboard-action-btn dashboard-action-btn-primary\" type=\"button\" data-dashboard-widget-action=\"open-picker\">+ Add widget</button>\n      ",
+      "tree": [
+        {
+          "tag": "BUTTON",
+          "attrs": [
+            [
+              "class",
+              "dashboard-action-btn"
+            ],
+            [
+              "type",
+              "button"
+            ],
+            [
+              "data-dashboard-widget-action",
+              "toggle-organize"
+            ]
+          ],
+          "children": [
+            {
+              "text": "Customize"
+            }
+          ],
+          "type": "button",
+          "disabled": false,
+          "name": "",
+          "tabIndex": 0
+        },
+        {
+          "text": "\n      "
+        },
+        {
+          "tag": "BUTTON",
+          "attrs": [
+            [
+              "class",
+              "dashboard-action-btn dashboard-action-btn-primary"
+            ],
+            [
+              "type",
+              "button"
+            ],
+            [
+              "data-dashboard-widget-action",
+              "open-picker"
+            ]
+          ],
+          "children": [
+            {
+              "text": "+ Add widget"
+            }
+          ],
+          "type": "button",
+          "disabled": false,
+          "name": "",
+          "tabIndex": 0
+        },
+        {
+          "text": "\n      "
+        }
+      ]
+    },
+    {
+      "key": "native-view-1",
+      "originalCase": "false:one",
+      "html": "<button class=\"dashboard-action-btn\" type=\"button\" data-dashboard-widget-action=\"toggle-organize\">Customize</button>\n      <button class=\"dashboard-action-btn dashboard-action-btn-primary\" type=\"button\" data-dashboard-widget-action=\"open-picker\">+ Add widget</button>\n      <button type=\"button\" class=\"dashboard-action-btn\" data-dashboard-widget-action=\"reset-widgets\">Reset layout</button>",
+      "tree": [
+        {
+          "tag": "BUTTON",
+          "attrs": [
+            [
+              "class",
+              "dashboard-action-btn"
+            ],
+            [
+              "type",
+              "button"
+            ],
+            [
+              "data-dashboard-widget-action",
+              "toggle-organize"
+            ]
+          ],
+          "children": [
+            {
+              "text": "Customize"
+            }
+          ],
+          "type": "button",
+          "disabled": false,
+          "name": "",
+          "tabIndex": 0
+        },
+        {
+          "text": "\n      "
+        },
+        {
+          "tag": "BUTTON",
+          "attrs": [
+            [
+              "class",
+              "dashboard-action-btn dashboard-action-btn-primary"
+            ],
+            [
+              "type",
+              "button"
+            ],
+            [
+              "data-dashboard-widget-action",
+              "open-picker"
+            ]
+          ],
+          "children": [
+            {
+              "text": "+ Add widget"
+            }
+          ],
+          "type": "button",
+          "disabled": false,
+          "name": "",
+          "tabIndex": 0
+        },
+        {
+          "text": "\n      "
+        },
+        {
+          "tag": "BUTTON",
+          "attrs": [
+            [
+              "type",
+              "button"
+            ],
+            [
+              "class",
+              "dashboard-action-btn"
+            ],
+            [
+              "data-dashboard-widget-action",
+              "reset-widgets"
+            ]
+          ],
+          "children": [
+            {
+              "text": "Reset layout"
+            }
+          ],
+          "type": "button",
+          "disabled": false,
+          "name": "",
+          "tabIndex": 0
+        }
+      ]
+    },
+    {
+      "key": "native-view-2",
+      "originalCase": "false:sticky",
+      "html": "<div class=\"dashboard-sticky-actions\" aria-label=\"Floating dashboard widget controls\"><button class=\"dashboard-action-btn\" type=\"button\" data-dashboard-widget-action=\"toggle-organize\">Customize</button>\n      <button class=\"dashboard-action-btn dashboard-action-btn-primary\" type=\"button\" data-dashboard-widget-action=\"open-picker\">+ Add widget</button>\n      </div>",
+      "tree": [
+        {
+          "tag": "DIV",
+          "attrs": [
+            [
+              "class",
+              "dashboard-sticky-actions"
+            ],
+            [
+              "aria-label",
+              "Floating dashboard widget controls"
+            ]
+          ],
+          "children": [
+            {
+              "tag": "BUTTON",
+              "attrs": [
+                [
+                  "class",
+                  "dashboard-action-btn"
+                ],
+                [
+                  "type",
+                  "button"
+                ],
+                [
+                  "data-dashboard-widget-action",
+                  "toggle-organize"
+                ]
+              ],
+              "children": [
+                {
+                  "text": "Customize"
+                }
+              ],
+              "type": "button",
+              "disabled": false,
+              "name": "",
+              "tabIndex": 0
+            },
+            {
+              "text": "\n      "
+            },
+            {
+              "tag": "BUTTON",
+              "attrs": [
+                [
+                  "class",
+                  "dashboard-action-btn dashboard-action-btn-primary"
+                ],
+                [
+                  "type",
+                  "button"
+                ],
+                [
+                  "data-dashboard-widget-action",
+                  "open-picker"
+                ]
+              ],
+              "children": [
+                {
+                  "text": "+ Add widget"
+                }
+              ],
+              "type": "button",
+              "disabled": false,
+              "name": "",
+              "tabIndex": 0
+            },
+            {
+              "text": "\n      "
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "native-view-3",
+      "originalCase": "true:undefined",
+      "html": "<button class=\"dashboard-action-btn\" type=\"button\" data-dashboard-widget-action=\"toggle-organize\">Done</button>\n      <button class=\"dashboard-action-btn dashboard-action-btn-primary\" type=\"button\" data-dashboard-widget-action=\"open-picker\">+ Add widget</button>\n      <button type=\"button\" class=\"dashboard-action-btn\" data-dashboard-widget-action=\"reset-widgets\">Reset layout</button>",
+      "tree": [
+        {
+          "tag": "BUTTON",
+          "attrs": [
+            [
+              "class",
+              "dashboard-action-btn"
+            ],
+            [
+              "type",
+              "button"
+            ],
+            [
+              "data-dashboard-widget-action",
+              "toggle-organize"
+            ]
+          ],
+          "children": [
+            {
+              "text": "Done"
+            }
+          ],
+          "type": "button",
+          "disabled": false,
+          "name": "",
+          "tabIndex": 0
+        },
+        {
+          "text": "\n      "
+        },
+        {
+          "tag": "BUTTON",
+          "attrs": [
+            [
+              "class",
+              "dashboard-action-btn dashboard-action-btn-primary"
+            ],
+            [
+              "type",
+              "button"
+            ],
+            [
+              "data-dashboard-widget-action",
+              "open-picker"
+            ]
+          ],
+          "children": [
+            {
+              "text": "+ Add widget"
+            }
+          ],
+          "type": "button",
+          "disabled": false,
+          "name": "",
+          "tabIndex": 0
+        },
+        {
+          "text": "\n      "
+        },
+        {
+          "tag": "BUTTON",
+          "attrs": [
+            [
+              "type",
+              "button"
+            ],
+            [
+              "class",
+              "dashboard-action-btn"
+            ],
+            [
+              "data-dashboard-widget-action",
+              "reset-widgets"
+            ]
+          ],
+          "children": [
+            {
+              "text": "Reset layout"
+            }
+          ],
+          "type": "button",
+          "disabled": false,
+          "name": "",
+          "tabIndex": 0
+        }
+      ]
+    },
+    {
+      "key": "native-view-4",
+      "originalCase": "true:sticky",
+      "html": "<div class=\"dashboard-sticky-actions\" aria-label=\"Floating dashboard widget controls\"><button class=\"dashboard-action-btn\" type=\"button\" data-dashboard-widget-action=\"toggle-organize\">Done</button>\n      <button class=\"dashboard-action-btn dashboard-action-btn-primary\" type=\"button\" data-dashboard-widget-action=\"open-picker\">+ Add widget</button>\n      <button type=\"button\" class=\"dashboard-action-btn\" data-dashboard-widget-action=\"reset-widgets\">Reset layout</button></div>",
+      "tree": [
+        {
+          "tag": "DIV",
+          "attrs": [
+            [
+              "class",
+              "dashboard-sticky-actions"
+            ],
+            [
+              "aria-label",
+              "Floating dashboard widget controls"
+            ]
+          ],
+          "children": [
+            {
+              "tag": "BUTTON",
+              "attrs": [
+                [
+                  "class",
+                  "dashboard-action-btn"
+                ],
+                [
+                  "type",
+                  "button"
+                ],
+                [
+                  "data-dashboard-widget-action",
+                  "toggle-organize"
+                ]
+              ],
+              "children": [
+                {
+                  "text": "Done"
+                }
+              ],
+              "type": "button",
+              "disabled": false,
+              "name": "",
+              "tabIndex": 0
+            },
+            {
+              "text": "\n      "
+            },
+            {
+              "tag": "BUTTON",
+              "attrs": [
+                [
+                  "class",
+                  "dashboard-action-btn dashboard-action-btn-primary"
+                ],
+                [
+                  "type",
+                  "button"
+                ],
+                [
+                  "data-dashboard-widget-action",
+                  "open-picker"
+                ]
+              ],
+              "children": [
+                {
+                  "text": "+ Add widget"
+                }
+              ],
+              "type": "button",
+              "disabled": false,
+              "name": "",
+              "tabIndex": 0
+            },
+            {
+              "text": "\n      "
+            },
+            {
+              "tag": "BUTTON",
+              "attrs": [
+                [
+                  "type",
+                  "button"
+                ],
+                [
+                  "class",
+                  "dashboard-action-btn"
+                ],
+                [
+                  "data-dashboard-widget-action",
+                  "reset-widgets"
+                ]
+              ],
+              "children": [
+                {
+                  "text": "Reset layout"
+                }
+              ],
+              "type": "button",
+              "disabled": false,
+              "name": "",
+              "tabIndex": 0
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

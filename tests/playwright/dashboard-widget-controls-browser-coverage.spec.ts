@@ -172,7 +172,7 @@ test('dashboard widget controls browser coverage exercises delegates picker filt
 
       const widgetHtml = controls.renderDashboardWidget({
         def: fixedWidgets[0]!,
-        body: '<div class="summary-body">Ready</div>',
+        content: {kind:'notes',view:{kind:'notes',rows:[{index:0,dateLabel:'',preview:'Ready'}]}},
       }, prefs, 0, fixedWidgets);
       (fixture)!.innerHTML = widgetHtml;
       const widget = (fixture)!.querySelector<HTMLElement>('.dashboard-widget');

@@ -1,3 +1,4 @@
+import {tsStateStyles} from './ts-state-ui-inline-style-map.generated.js';
 import {renderHTML as renderCameraToolHTML} from './components/LightCameraPresentation.svelte.html.js';
 // Lux meter camera and AmbientLightSensor workflow.
 
@@ -301,7 +302,7 @@ export async function openLuxMeter(opts: LuxMeterOptions = {}, deps: MeterDepend
     valueEl.textContent = `${Math.round(Math.min(100, Math.max(0, rawLuma / 255 * 100)))}%`;
     unitEl.textContent = 'camera level';
     zoneEl.textContent = 'Calibration required for lux';
-    zoneEl.style.color = 'var(--text-muted)';
+    zoneEl.style.color = tsStateStyles.mutedColor;
   }
 
   const calApplyBtn = (queryOptionalLightToolElement(overlay, '#lux-cal-apply') as HTMLButtonElement | null);

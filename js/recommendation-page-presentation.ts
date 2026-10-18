@@ -1,6 +1,6 @@
 import type {LensHeaderView, LensWidgetChromeView} from './lens-shell-presentation.js';
 import type {LensActionsView} from './lens-content-presentation.js';
-import type {LensContentGrid} from './lens-page-shell.js';
+import type {LensContentGrid} from './lens-page-shell-core.js';
 import type {RecommendationCardView} from './recommendation-presentation.js';
 
 export type RecommendationPageContent =

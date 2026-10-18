@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import {readFileSync} from 'node:fs';
 import {afterEach, beforeEach, expect, it} from 'vitest';
-import {configureLensPageShell, renderLensHeader, renderLensWidget, renderLensPageWidgets} from '../js/lens-page-shell.js';
+import {evaluateLegacyLensShell} from './helpers/lens-shell-legacy.js';
+const {configureLensPageShell,renderLensHeader,renderLensWidget,renderLensPageWidgets}=await evaluateLegacyLensShell();
 import {state} from '../js/state.js';
 import {profileStorageKey} from '../js/profile.js';
 type Sample = {name: string; available: string[]; hidden: string[]; order: string[]; html: string} & (
@@ -30,14 +31,14 @@ for (const sample of fixture.samples) it(`preserves frozen shared ${sample.metho
   expect(sample).toEqual(before);
   expect(actual.querySelector('script,[onclick],[onmouseover]')).toBeNull();
 });
-it('removes native shared chrome templates while retaining named renderer-owned HTML boundaries', () => {
+it('removes native shared chrome templates and ordinary raw HTML boundaries', () => {
   const source = readFileSync('js/lens-page-shell.ts', 'utf8');
   expect(source).not.toMatch(/`<(?:div|section|button)/);
   expect(source).not.toContain('function renderLensPageMoveControls');
-  expect(readFileSync('js/components/LensPageHeader.svelte', 'utf8')).toContain('{@html view.actionsHTML}');
+  expect(readFileSync('js/components/LensPageHeader.svelte', 'utf8')).not.toContain('{@html');
   const widget = readFileSync('js/components/LensPageWidget.svelte', 'utf8');
-  expect(widget).toContain("{@html view.bodyHTML || ''}");
-  expect(widget.match(/\{@html/g)).toHaveLength(1);
+  expect(widget).not.toContain('{@html');
+  expect(widget).toContain('<LensWidgetBody');
   expect(widget).toContain('<LensWidgetFrame');
   expect(widget).not.toContain('{@html view.title}');
   const frame = readFileSync('js/components/LensWidgetFrame.svelte', 'utf8');

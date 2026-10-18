@@ -17,7 +17,6 @@
 
 import type { MetricOperations, SummaryOperations, CardOptions, CanonicalMetric, ActionTarget, DisplayItem, ProfileCacheReader } from '../types/wearables-view.js';
 
-import { escapeHTML, escapeAttr } from './utils.js';
 import { state } from './state.js';
 import { ADAPTERS, adapterById, canonicalMetric, metricsForSources } from './wearable-adapters.js';
 import { isWearableStripHidden } from './wearables-settings-panel.js';
@@ -55,6 +54,11 @@ import {
   toggleWearableReorder,
   toggleWearableStrip,
 } from './wearables-strip-actions.js';
+import {renderWearableStripView,type WearableMetricCardView,type WearableStripItemView} from './wearable-strip-presentation.js';
+import type {WearableSparklineView} from './wearable-strip-sparkline-presentation.js';
+import type {WearableEmptyCardView} from './wearable-strip-empty-presentation.js';
+import {projectWearableStripStubActions,renderWearableStripStubPresentation} from './wearable-strip-stub-presentation.js';
+import {qualifyWearableEmptyAction,wearableEmptyText} from './wearable-strip-empty-presentation.js';
 
 export { isWearableStripHidden, setWearableStripHidden, renderWearablesSettingsSection } from './wearables-settings-panel.js';
 export {
@@ -162,7 +166,7 @@ function installWearableDelegates() {
   wearableDelegatesInstalled = true;
   document.addEventListener('click', handleWearableActionClick);
   document.addEventListener('keydown', handleWearableActionKeydown);
-  document.addEventListener('submit', handleWearableFormSubmit);
+  document.addEventListener('submit', handleWearableFormSubmit, true);
 }
 
 export function openWearableDetail(metricId: Parameters<typeof openWearableDetailModal>[0], opts: Parameters<typeof openWearableDetailModal>[1] = {}) {
@@ -322,8 +326,8 @@ function trendClassFor(trend: unknown, worseWhen: unknown) {
 // SPARKLINE
 // ─────────────────────────────────────────────────────────
 
-function sparklineSVG(series: number[] | null | undefined, baseline: number, worseWhen: unknown) {
-  if (!series || series.length === 0) return '';
+function projectWearableSparkline(series: number[] | null | undefined, baseline: number, worseWhen: unknown):WearableSparklineView|null {
+  if (!series || series.length === 0) return null;
   const VW = 100, VH = 30, pad = 2;
   const all = series.concat([baseline]);
   const min = Math.min(...all), max = Math.max(...all);
@@ -342,11 +346,11 @@ function sparklineSVG(series: number[] | null | undefined, baseline: number, wor
     const bad = (endsBelow && worseWhen === 'down') || (!endsBelow && worseWhen === 'up');
     toneClass = bad ? 'spark-bad' : 'spark-good';
   }
-  return `<svg class="wearable-sparkline ${toneClass}" viewBox="0 0 ${VW} ${VH}" preserveAspectRatio="none" aria-hidden="true">
-    <line x1="0" y1="${baselineY}" x2="${VW}" y2="${baselineY}" class="spark-baseline"/>
-    <polyline points="${pts}" class="spark-line"/>
-    <circle cx="${lastX}" cy="${lastY}" r="2" class="spark-last"/>
-  </svg>`;
+  return {
+    toneClass: `${toneClass}`, width: `${VW}`, height: `${VH}`,
+    baselineStartY: `${baselineY}`, baselineWidth: `${VW}`, baselineEndY: `${baselineY}`,
+    points: `${pts}`, lastX: `${lastX}`, lastY: `${lastY}`,
+  };
 }
 
 // ─────────────────────────────────────────────────────────
@@ -359,23 +363,19 @@ function sparklineSVG(series: number[] | null | undefined, baseline: number, wor
 // optional pulse) on one card; bp_diastolic and rhr are folded into that
 // same card when BP is empty, so the user sees ONE "BP" affordance rather
 // than three.
-function renderEmptyManualCard(metricId: string, canon: CanonicalMetric, opts: CardOptions = {}) {
-  const subLabel = canon.sub ? ` <span class="wearable-metric-sub">${escapeHTML(canon.sub)}</span>` : '';
+function projectEmptyManualCard(metricId: string, canon: CanonicalMetric, opts: CardOptions = {}):WearableEmptyCardView {
+  const subLabel = canon.sub ? wearableEmptyText(canon.sub) : null;
   const label = metricId === 'bp_systolic' ? 'Blood pressure' : canon.label;
-  const actionAttrs = opts.interactive === false
-    ? 'aria-disabled="true"'
-    : `${wearableActionAttrs('open-manual-log', { metric: metricId })} role="button" tabindex="0"`;
-  return `<div class="wearable-card wearable-card-empty" data-empty-metric="${escapeAttr(metricId)}" ${actionAttrs} aria-label="Log ${escapeHTML(label.toLowerCase())} manually">
-    <div class="wearable-card-top">
-      <span class="wearable-metric-name">${escapeHTML(label)}${metricId === 'bp_systolic' ? '' : subLabel}</span>
-    </div>
-    <div class="wearable-value-row wearable-value-row-empty">
-      <span class="wearable-value wearable-value-dash">–</span>
-    </div>
-    <div class="wearable-card-bottom">
-      <div class="wearable-empty-cta">+ Log</div>
-    </div>
-  </div>`;
+  const interactive = opts.interactive !== false;
+  const actionAttrs = interactive
+    ? `${wearableActionAttrs('open-manual-log', { metric: metricId })} role="button" tabindex="0"`
+    : 'aria-disabled="true"';
+  const metric = wearableEmptyText(metricId);
+  const accessibleLabel = wearableEmptyText(label.toLowerCase());
+  const displayLabel = wearableEmptyText(label);
+  qualifyWearableEmptyAction(metric, interactive, actionAttrs);
+  return {metric, interactive, accessibleLabel, label: displayLabel,
+    sub: metricId === 'bp_systolic' ? null : subLabel};
 }
 
 function formatStalenessDate(date: string | null | undefined) {
@@ -385,7 +385,7 @@ function formatStalenessDate(date: string | null | undefined) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-function renderCard(metricId: string, canon: CanonicalMetric, metric: MetricOperations, showSourceBadge: unknown, sourceMaxDate: string | undefined, opts: CardOptions = {}) {
+function projectCard(metricId: string, canon: CanonicalMetric, metric: MetricOperations, showSourceBadge: unknown, sourceMaxDate: string | undefined, opts: CardOptions = {}):WearableMetricCardView {
   const pairedMetric = opts.pairedMetric || null;
   const interactive = opts.interactive !== false;
   // Paired BP card: relabel "BP sys" → "Blood pressure", swap latest/baseline
@@ -399,7 +399,7 @@ function renderCard(metricId: string, canon: CanonicalMetric, metric: MetricOper
   const deltaText = formatDelta(metric.latest, metric.baseline, metricId, canon);
   // Space-prefix the sub so screen readers hear "HRV RMSSD" not "HRVRMSSD".
   // Visual spacing is still margin-left via .wearable-metric-sub CSS.
-  const subLabel = cardSub ? ` <span class="wearable-metric-sub">${escapeHTML(cardSub)}</span>` : '';
+  const subLabel = cardSub ? wearableEmptyText(cardSub) : null;
   // Units starting with "/" (e.g. "/5" for resilience level) read tighter
   // without a separator between value and unit — render "1/5", not "1 /5".
   const displayUnit = wearableDisplayUnit(metricId, canon.unit || '', state.unitSystem);
@@ -410,9 +410,9 @@ function renderCard(metricId: string, canon: CanonicalMetric, metric: MetricOper
     state.unitSystem,
   );
   const unitTight = displayUnit.startsWith('/');
-  const unitLabel = displayUnit ? `<span class="wearable-unit${unitTight ? ' wearable-unit-tight' : ''}">${escapeHTML(displayUnit)}</span>` : '';
+  const unitLabel = displayUnit ? wearableEmptyText(displayUnit) : null;
   const baselineUnit = displayUnit
-    ? (unitTight ? escapeHTML(displayUnit) : ' ' + escapeHTML(displayUnit))
+    ? (unitTight ? wearableEmptyText(displayUnit) : ' ' + wearableEmptyText(displayUnit))
     : '';
   const trendCls = trendClassFor(metric.trend30d, canon.worseWhen);
   // Per-metric staleness: when this metric's latest sample is older than
@@ -422,8 +422,8 @@ function renderCard(metricId: string, canon: CanonicalMetric, metric: MetricOper
   // {date}" hint so the value reads honestly rather than "fresh."
   const isStale = metric.latestDate && sourceMaxDate && metric.latestDate < sourceMaxDate;
   const stalenessHint = isStale
-    ? `<span class="wearable-staleness" title="Latest sample for this metric is from ${escapeHTML(metric.latestDate)} — your wearable hasn't published a more recent reading yet (some metrics process slower than others).">as of ${escapeHTML(formatStalenessDate(metric.latestDate))}</span>`
-    : '';
+    ? {date:wearableEmptyText(metric.latestDate),label:wearableEmptyText(formatStalenessDate(metric.latestDate))}
+    : null;
   const adapter = adapterById(metric.primarySource);
   // Source badge is interactive when >1 wearable is connected — click it to
   // open a small picker that overrides the primary source for this metric.
@@ -431,7 +431,7 @@ function renderCard(metricId: string, canon: CanonicalMetric, metric: MetricOper
   // non-null value, which can feel arbitrary when two sources report similar
   // freshness. The override is per-metric, persisted in importedData.
   const sourceBadge = (interactive && showSourceBadge && adapter)
-    ? `<button type="button" class="wearable-source-badge wearable-source-badge-btn" ${wearableActionAttrs('choose-source', { metric: metricId })} title="Click to switch source for this metric">via ${escapeHTML(adapter.displayName)}</button>` : '';
+    ? {metric:metricId,name:wearableEmptyText(adapter.displayName)} : null;
   // Build a meaningful aria-label: value + unit + trend direction + metric
   // name so screen readers can read the card at a glance without entering it.
   const sysRead = formatDisplayValue(metric.latest);
@@ -459,25 +459,13 @@ function renderCard(metricId: string, canon: CanonicalMetric, metric: MetricOper
     ? `${deltaText.replace('↑', 'up').replace('↓', 'down').replace('→', 'flat at')} vs baseline, `
     : '';
   const ariaLabel = `${canonRead} ${valueRead}${displayUnit ? ' ' + displayUnit : ''}, ${deltaRead}${trendRead} — open detail`;
-  const actionAttrs = interactive
-    ? ` ${wearableActionAttrs('open-detail', { metric: metricId })} role="button" tabindex="0"`
-    : '';
-  return `<div class="wearable-card"${actionAttrs} aria-label="${escapeAttr(ariaLabel)}">
-    <div class="wearable-card-top">
-      <span class="wearable-metric-name">${escapeHTML(cardLabel)}${subLabel}</span>
-      ${deltaText ? `<span class="wearable-delta ${deltaCls}">${deltaText}</span>` : ''}
-    </div>
-    <div class="wearable-value-row">
-      <span class="wearable-value">${valueRead}</span>${unitLabel}
-      <span class="wearable-baseline">baseline ${escapeHTML(baselineRead)}${baselineUnit}</span>
-      ${stalenessHint}
-    </div>
-    ${sparklineSVG(metric.weekly, metric.baseline, canon.worseWhen)}
-    <div class="wearable-card-bottom">
-      <div class="wearable-trend-pill ${trendCls}">${trendLabel(metric.trend30d)}</div>
-      ${sourceBadge}
-    </div>
-  </div>`;
+  const accessibleLabel=wearableEmptyText(ariaLabel),label=wearableEmptyText(cardLabel);
+  const delta=deltaText?{className:`${deltaCls}`,text:`${deltaText}`}:null;
+  const value=`${valueRead}`,baselineValue=wearableEmptyText(baselineRead);
+  const sparkline=projectWearableSparkline(metric.weekly,metric.baseline,canon.worseWhen);
+  const trendClass=`${trendCls}`,trendLabelView=`${trendLabel(metric.trend30d)}`;
+  return {metric:metricId,interactive,accessibleLabel,label,subLabel,delta,value,unit:unitLabel,unitTight,
+    baselineValue,baselineUnit,staleness:stalenessHint,sparkline,trendClass,trendLabel:trendLabelView,sourceBadge};
 }
 
 // Compact "connect a wearable" stub for users who have lab data but no
@@ -489,19 +477,9 @@ function renderCard(metricId: string, canon: CanonicalMetric, metric: MetricOper
 function renderWearableStripStub() {
   const dismissed = localStorage.getItem(`labcharts-wearable-stub-dismissed-${state.currentProfile}`) === '1';
   if (dismissed) return '';
-  return `<section class="wearable-strip wearable-strip-stub">
-    <div class="wearable-strip-stub-body">
-      <span class="wearable-strip-icon" aria-hidden="true">⌬</span>
-      <div class="wearable-strip-stub-text">
-        <strong>Connect a wearable</strong> to see HRV, sleep, recovery and body composition trends alongside your blood work.
-        <span class="wearable-strip-stub-brands">Oura · Withings · Fitbit · Polar · Apple Health</span>
-      </div>
-      <div class="wearable-strip-stub-actions">
-        <button class="wearable-strip-stub-cta" ${wearableActionAttrs('open-settings-wearables')}>Connect</button>
-        <button class="wearable-strip-stub-dismiss" title="Hide this hint" aria-label="Dismiss wearable hint" ${wearableActionAttrs('dismiss-stub')}>×</button>
-      </div>
-    </div>
-  </section>`;
+  const connect = `${wearableActionAttrs('open-settings-wearables')}`;
+  const dismiss = `${wearableActionAttrs('dismiss-stub')}`;
+  return renderWearableStripStubPresentation(projectWearableStripStubActions(connect,dismiss));
 }
 
 export function dismissWearableStub() {
@@ -672,40 +650,16 @@ export function renderWearableStrip() {
   // "Wearables: Oura · 15d" header, the sync button (nothing remote to
   // sync), and the demo pill / waiting note.
   const manualOnly = wearablesHidden;
-  const titleHTML = manualOnly
-    ? '<span>Biometrics</span>'
-    : `<span>Wearables: <span class="wearable-source-label">${escapeHTML(sourceLabel)}${coverageLabel}</span></span>`;
+  const headerTitle = manualOnly ? '' : wearableEmptyText(sourceLabel);
   const hasStaleSource = !manualOnly && sourceIds.some(s => s !== 'manual' && Date.now() - (summary.sources?.[s]?.lastSyncAt || 0) >= 12 * 60 * 60 * 1000);
-  const lastSyncHTML = manualOnly ? '' : `<span class="wearable-strip-lastsync">last synced ${formatAgo(lastSyncAt)}</span>`;
-  const syncBtnHTML = manualOnly || !hasStaleSource ? '' : `<button type="button" class="wearable-strip-sync" aria-label="Sync stale wearables now" ${wearableActionAttrs('sync-now')}>
-    <svg class="wearable-strip-sync-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><polyline points="21 4 21 12 13 12"/></svg>
-    <span>Sync stale data</span>
-  </button>`;
+  const lastSync = manualOnly ? null : `${formatAgo(lastSyncAt)}`;
+  const sync = !manualOnly && hasStaleSource;
   const ariaLabel = manualOnly
     ? (collapsed ? 'Expand biometrics strip' : 'Collapse biometrics strip')
     : (collapsed ? 'Expand wearables strip' : 'Collapse wearables strip');
-
-  // axe nested-interactive: parent is mouse-clickable but keyboard toggle
-  // lives on the chevron button below. Nested buttons carry their own
-  // delegated actions, so the document handler only runs the closest action.
-  let html = `<section class="wearable-strip" id="wearable-strip">
-    <div class="wearable-strip-header" ${wearableActionAttrs('toggle-strip')} style="cursor:pointer">
-      <div class="wearable-strip-title">
-        <span class="wearable-strip-icon" aria-hidden="true">⌬</span>
-        ${titleHTML}
-        ${!manualOnly && showDemoPill ? `<button type="button" class="wearable-strip-demo-pill" ${wearableActionAttrs('open-settings-wearables')} title="This is a sample. Connect your own wearable to see real data here.">demo data — connect yours</button>` : ''}
-        ${reorderMode ? '<span class="wearable-strip-reorder-pill">⇄ Reorder mode — use ◀ ▶ on each card</span>' : ''}
-      </div>
-      <div class="wearable-strip-meta">
-        ${lastSyncHTML}
-        ${syncBtnHTML}
-        <button type="button" class="wearable-strip-reorder${reorderMode ? ' active' : ''}" aria-label="${reorderMode ? 'Done reordering' : 'Reorder cards'}" title="${reorderMode ? 'Done reordering' : 'Reorder cards'}" ${wearableActionAttrs('toggle-reorder')}>
-          ${reorderMode ? 'Done' : '⇄ Reorder'}
-        </button>
-        <button type="button" class="wearable-collapse-arrow${collapsed ? ' collapsed' : ''}" aria-expanded="${!collapsed}" aria-label="${ariaLabel}" ${wearableActionAttrs('toggle-strip')}>▾</button>
-      </div>
-    </div>
-    <div class="wearable-card-grid${collapsed ? ' hidden' : ''}${reorderMode ? ' wearable-card-grid-reorder' : ''}">`;
+  const header={manualOnly,sourceNames:headerTitle,coverage:coverageLabel,showDemo:!manualOnly&&showDemoPill,
+    reorderMode,lastSync,sync,collapsed,collapseLabel:ariaLabel};
+  const cards:WearableStripItemView[]=[];
 
   // Unified render loop — both populated and empty cards flow in the
   // user-defined order (finalOrder). In reorder mode each card gains ◀ ▶
@@ -715,45 +669,22 @@ export function renderWearableStrip() {
     const { id: metricId, empty } = finalOrder[i]!;
     const canon = canonicalMetric(metricId);
     if (!canon) continue;
-    let cardHtml;
+    let card:WearableStripItemView['card'];
     if (empty) {
-      cardHtml = renderEmptyManualCard(metricId, canon, { interactive: !reorderMode });
+      card={kind:'empty',view:projectEmptyManualCard(metricId,canon,{interactive:!reorderMode})};
     } else {
-      const metric = (summary.metrics as NonNullable<SummaryOperations['metrics']>)[metricId];
-      if (!metric) continue;
-      // Source badge appears on every populated card whenever ≥2 wearables
-      // are connected — users need to see at-a-glance which source backs each
-      // metric, not just the strip header. The badge stays clickable so they
-      // can swap source per metric (auto-picker fallback when only one source
-      // declares it). Single-source connections still hide the badge to avoid
-      // redundancy with the header.
-      // BP card: pull the dia partner so renderCard can format "120/80".
-      const pairedMetric = (metricId === 'bp_systolic') ? summary.metrics?.bp_diastolic : null;
-      cardHtml = renderCard(metricId, canon, metric, showSourceBadges, sourceMaxDate[metric.primarySource], { pairedMetric, interactive: !reorderMode });
+      const metric=(summary.metrics as NonNullable<SummaryOperations['metrics']>)[metricId];
+      if(!metric)continue;
+      const pairedMetric=(metricId==='bp_systolic')?summary.metrics?.bp_diastolic:null;
+      card={kind:'metric',view:projectCard(metricId,canon,metric,showSourceBadges,sourceMaxDate[metric.primarySource],{pairedMetric,interactive:!reorderMode})};
     }
-    if (reorderMode) {
-      const canLeft = i > 0;
-      const canRight = i < finalOrder.length - 1;
-      cardHtml = `<div class="wearable-card-reorder-wrap" data-reorder-metric="${escapeHTML(metricId)}">
-        ${cardHtml}
-        <div class="wearable-reorder-arrows">
-          <button type="button" class="wearable-reorder-arrow" aria-label="Move ${escapeHTML(canon.label)} left" ${canLeft ? '' : 'disabled'} ${wearableActionAttrs('move-card', { metric: metricId, delta: -1 })}>◀</button>
-          <button type="button" class="wearable-reorder-arrow" aria-label="Move ${escapeHTML(canon.label)} right" ${canRight ? '' : 'disabled'} ${wearableActionAttrs('move-card', { metric: metricId, delta: 1 })}>▶</button>
-        </div>
-      </div>`;
-    }
-    html += cardHtml;
+    const leftLabel=reorderMode?wearableEmptyText(canon.label):'';
+    const rightLabel=reorderMode?wearableEmptyText(canon.label):'';
+    cards.push({metric:metricId,leftLabel,rightLabel,canLeft:i>0,canRight:i<finalOrder.length-1,card});
   }
-
-  html += `</div>`;
-  if (waitingNote || hrvNote) {
-    html += `<div class="wearable-strip-footer${collapsed ? ' hidden' : ''}">`;
-    if (waitingNote) html += `<span class="wearable-strip-footer-note">${escapeHTML(waitingNote)}</span>`;
-    if (hrvNote)     html += `<span class="wearable-strip-footer-note">${escapeHTML(hrvNote)}</span>`;
-    html += `</div>`;
-  }
-  html += `</section>`;
-  return html;
+  const waiting=waitingNote?wearableEmptyText(waitingNote):null;
+  const hrv=hrvNote?wearableEmptyText(hrvNote):null;
+  return renderWearableStripView({header,cards,waitingNote:waiting,hrvNote:hrv});
 }
 installWearableDelegates();
 

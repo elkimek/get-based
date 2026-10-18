@@ -43,7 +43,7 @@ const uiDeps: SessionCalls = {
   setOzoneOverrideMidSession: () => {},
   forgotStopPrompt: () => {},
   openChannelOnLightPage: () => {},
-  renderSessionAIDetail: () => '',
+  getSessionAIDetailView: () => null,
   navigate: () => {},
   openLightSetup: () => {},
   solarZenithAngle: null, reconstructSpectrum: null,
@@ -103,19 +103,19 @@ function localSessionStamp(timestamp: unknown) {
   };
 }
 
-function renderCompletedSunSessionRow(sess: SessionReader) {
+function getCompletedSunSessionRowView(sess: SessionReader) {
   const stamp = localSessionStamp(sess.startedAt);
   const durationMin = resolvedSessionDurationMin(sess);
   const dur = durationMin != null ? `${Math.round(durationMin)} min` : 'duration unavailable';
   const vitaminD = sess.doses?.vitamin_d
     ? _sessionChipValue('vitamin_d', sess.doses.vitamin_d, sess)
     : '';
-  return renderHTML({ kind: 'row', view: projectCompletedSunSession(sess, stamp, dur, vitaminD) });
+  return { kind: 'row' as const, view: projectCompletedSunSession(sess, stamp, dur, vitaminD) };
 }
 
-export function renderSunSessionRow(sess: SessionReader) {
+export function getSunSessionRowView(sess: SessionReader) {
   const isActive = !sess.endedAt;
-  if (!isActive) return renderCompletedSunSessionRow(sess);
+  if (!isActive) return getCompletedSunSessionRowView(sess);
   const eyeLabels = Object.fromEntries(uiDeps.eyeModes.map(e => [e.key, e.label]));
   const start = localSessionStamp(sess.startedAt).date;
   const now = Date.now();
@@ -123,13 +123,14 @@ export function renderSunSessionRow(sess: SessionReader) {
   const activeElapsedMs = Math.max(0, now - (sess.startedAt as number) - ((sess.accumulatedPausedMs || 0) as number) - currentPauseMs);
   const elapsed = uiDeps.formatElapsed(activeElapsedMs);
   const chips = sessionChannelChipViews(sess.doses, sess);
-  return renderHTML({ kind: 'active', view: activeSunSessionView(sess, start, elapsed,
-    uiDeps.summarizeBodyExposure(sess), eyeLabels[sess.eyeExposure?.mode as string], chips, now) });
+  return { kind: 'active' as const, view: activeSunSessionView(sess, start, elapsed,
+    uiDeps.summarizeBodyExposure(sess), eyeLabels[sess.eyeExposure?.mode as string], chips, now) };
 }
+export function renderSunSessionRow(sess: SessionReader){return renderHTML(getSunSessionRowView(sess));}
 
 export function renderSessionsList() {
   const sessions = [...uiDeps.getSessions()].sort((a, b) => ((b.startedAt || 0) as number) - ((a.startedAt || 0) as number));
-  return renderHTML({ kind: 'history', rowsHTML: sessions.map(renderSunSessionRow).join(''), total: sessions.length,
+  return renderHTML({ kind: 'history', rows: collectSunSessionViews(sessions), total: sessions.length,
     sunCount: sessions.length, deviceCount: 0, modal: false, showMore: false, emptySun: true });
 }
 
@@ -289,7 +290,7 @@ export function openSunSessionDetail(id: unknown) {
     const surfLabel = ((uiDeps.surfaceOptions as OptionOperations[]).find(s => s.key === sess.surfaceAlbedo) || {}).label;
     if (surfLabel) modifierBits.push(surfLabel.split(' (')[0]); // drop the "(~25%)" suffix
   }
-  const aiDetailHtml = uiDeps.renderSessionAIDetail(sess);
+  const ai = uiDeps.getSessionAIDetailView(sess);
   const summary = [
     detailField('When', whenStr, 'Session start–end and duration'),
     detailField('Burn dose', medStr, 'Cumulative erythemal dose compared with a rough Fitzpatrick base MED. This is not a personal threshold; stop before redness and treat medication warnings separately.'),
@@ -302,7 +303,7 @@ export function openSunSessionDetail(id: unknown) {
     summary.push(detailField('Vitamin D estimate', uiDeps.formatChannelUnit('vitamin_d', sess.doses.vitamin_d, durationMin || 0, sess.safety?.fitzpatrick || 'I', sess.atmosphere?.uvIndex, sessZenith, !!sess.bodyExposure?.rotatedSides, sess.bodyExposure?.fraction || null),
       `Modeled vitamin D IU-equivalent from action-weighted incident UVB, exposed area, and a rough Fitzpatrick ${sess.safety?.fitzpatrick || 'I'} central modifier. It is not measured skin absorption or a predicted blood response. Rotation is preserved in session history but does not double dose.${geneNote} Expect broad multi-fold uncertainty.`));
   }
-  overlay.innerHTML = renderHTML({ kind: 'detail', aiHTML: aiDetailHtml ? String(aiDetailHtml) : '', view: {
+  overlay.innerHTML = renderHTML({ kind: 'detail', ai: ai || null, view: {
     kind: 'sun', id: String(sess.id ?? ''), title: `Sun session · ${fmtTitleDate(start)}`, summary,
     setup: [detailField(`Skin · ${fractionPct}%`, regionLabels), detailField('Eyes', eyeMode + lensTintStr),
       ...(modifierBits.length ? [detailField('Modifiers', modifierBits.join(' · '))] : [])],
@@ -563,3 +564,5 @@ export async function editSunSessionDuration(id: unknown) {
   }
   refreshLightView();
 }
+
+function collectSunSessionViews(sessions:SessionReader[]){const rows:import('./light-session-presentation.js').LightSessionRowProps[]=[];sessions.map(session=>{rows.push(getSunSessionRowView(session));return '';}).join('');return rows;}

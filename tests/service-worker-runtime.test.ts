@@ -473,3 +473,92 @@ it.each([['offline string', 'offline string'], [null, 'network error']] as const
   expect(fetchImpl.mock.calls.filter(([request]) => request === '/js/main.js')).toHaveLength(3);
   expect(matches.has('/styles.css')).toBe(true);
 });
+
+it('rejects repeated HTTP failures for a required precache entry with its status and original URL', async () => {
+  const fetchImpl = vi.fn(async (request: string | Request) => {
+    const url = typeof request === 'string' ? request : request.url;
+    return new Response('synthetic response', {status: url === '/js/main.js' ? 503 : 200});
+  });
+  const {listeners, matches, self} = await loadServiceWorker({hostname: 'app.getbased.health', fetchImpl});
+  const install = makeWaitEvent(); listeners.get('install')!(install);
+  await expect(install.done()).rejects.toThrow('Failed to precache /js/main.js: HTTP 503');
+  expect(fetchImpl.mock.calls.filter(([request]) => request === '/js/main.js')).toHaveLength(3);
+  expect(matches.has('/js/main.js')).toBe(false); expect(matches.has('/styles.css')).toBe(true);
+  expect(self.clients.claim).not.toHaveBeenCalled(); expect(self.skipWaiting).not.toHaveBeenCalled();
+});
+
+it('discards only its staging cache when pinned deployment metadata returns an HTTP failure', async () => {
+  const fetchImpl = vi.fn(async () => new Response('metadata unavailable', {status: 503}));
+  const {listeners, self, caches, cache} = await loadServiceWorker({hostname: 'app.getbased.health', fetchImpl});
+  const api = Reflect.get(self, 'GetBasedServiceWorkerRuntime') as {install(options: {
+    scope: typeof self; appShell: string[]; buildId: string; isProduction: boolean;
+    resolveCacheName: () => Promise<string>; shouldUseNetworkOnly: () => boolean;
+  }): void};
+  api.install({scope: self, appShell: ['/app'], buildId: 'build-b', isProduction: true,
+    resolveCacheName: async () => 'labcharts-vbuild-build-b', shouldUseNetworkOnly: () => false});
+  const install = makeWaitEvent(); listeners.get('install')!(install);
+  await expect(install.done()).rejects.toThrow('Deployment changed during app installation');
+  expect(fetchImpl).toHaveBeenCalledExactlyOnceWith('/version.js?update-check=1', {cache: 'no-store'});
+  expect(caches.delete).toHaveBeenCalledExactlyOnceWith('labcharts-vbuild-build-b');
+  expect(cache.put).not.toHaveBeenCalled(); expect(self.skipWaiting).not.toHaveBeenCalled(); expect(self.clients.claim).not.toHaveBeenCalled();
+});
+
+it('falls back only to the exact cached update-probe URL when fresh metadata is unavailable', async () => {
+  const {listeners, matches, cache} = await loadServiceWorker({hostname: 'app.getbased.health'});
+  matches.set('/version.js', new Response('plain installed version'));
+  matches.set('/version.js?update-check=1', new Response('previous exact update probe'));
+  (globalThis as unknown as {fetch: unknown}).fetch = vi.fn(async () => {throw Error('offline');});
+  const probe = makeFetchEvent('https://app.getbased.health/version.js?update-check=1'); listeners.get('fetch')!(probe);
+  expect(await (await probe.response()!).text()).toBe('previous exact update probe'); await probe.done();
+  expect(cache.put).not.toHaveBeenCalled(); expect(await matches.get('/version.js')!.text()).toBe('plain installed version');
+});
+
+it.each(['app.getbased.health', 'preview.getbased.health'])(
+  'returns an explicit non-cacheable 503 for an uncached offline update probe on %s without substituting installed metadata',
+  async hostname => {
+    const {listeners, matches, cache} = await loadServiceWorker({hostname});
+    matches.set('/version.js', new Response('plain installed version'));
+    const fetchImpl = vi.fn(async (_request: string | Request) => {throw Error('offline');});
+    (globalThis as unknown as {fetch: unknown}).fetch = fetchImpl;
+    const probe = makeFetchEvent(`https://${hostname}/version.js?update-check=1`); listeners.get('fetch')!(probe);
+    const response = await probe.response();
+    // respondWith must resolve a Response even when both the network and exact
+    // query cache miss. A 200 fallback would falsely claim a successful probe.
+    expect(response).toBeInstanceOf(Response);
+    expect(response!.type).toBe('default'); expect(response!.status).toBe(503); expect(response!.ok).toBe(false);
+    expect([...response!.headers.entries()]).toEqual([['cache-control', 'no-store']]);
+    expect(await response!.text()).toBe('');
+    await probe.done();
+    expect(fetchImpl.mock.calls.filter(([request]) => request instanceof Request)).toEqual([[probe.request]]);
+    expect(cache.match).toHaveBeenCalledExactlyOnceWith(probe.request);
+    expect(cache.put).not.toHaveBeenCalled();
+    expect(matches.size).toBe(1); expect(await matches.get('/version.js')!.text()).toBe('plain installed version');
+  }
+);
+
+it('serves a production offline deep link from index.html when the app alias is not cached', async () => {
+  const {listeners, matches} = await loadServiceWorker({hostname: 'app.getbased.health'});
+  matches.set('/index.html', new Response('installed index fallback'));
+  (globalThis as unknown as {fetch: unknown}).fetch = vi.fn(async () => {throw Error('offline');});
+  const navigation = makeFetchEvent('https://app.getbased.health/deep/link?from=saved');
+  Object.defineProperty(navigation.request, 'mode', {value: 'navigate'}); listeners.get('fetch')!(navigation);
+  expect(await (await navigation.response()!).text()).toBe('installed index fallback');
+  expect(matches.has('/app')).toBe(false); await navigation.done();
+});
+
+it('fetches and durably caches an app entry when neither installed document alias exists', async () => {
+  const {listeners, cache, matches} = await loadServiceWorker({hostname: 'app.getbased.health'});
+  (globalThis as unknown as {fetch: unknown}).fetch = vi.fn(async () => new Response('first available app document'));
+  const navigation = makeFetchEvent('https://app.getbased.health/app/?source=home');
+  Object.defineProperty(navigation.request, 'mode', {value: 'navigate'}); listeners.get('fetch')!(navigation);
+  expect(await (await navigation.response()!).text()).toBe('first available app document'); await navigation.done();
+  expect(cache.put).toHaveBeenCalledExactlyOnceWith(navigation.request, expect.any(Response));
+  expect(matches.has('/app/?source=home')).toBe(true);
+});
+
+it.each(['data:text/plain,synthetic', 'file:///synthetic/not-an-app-file'])('does not intercept unsupported scheme %s', async url => {
+  const {listeners, cache} = await loadServiceWorker({hostname: 'app.getbased.health'});
+  const fetchImpl = vi.fn(async () => new Response('must not fetch')); (globalThis as unknown as {fetch: unknown}).fetch = fetchImpl;
+  const event = makeFetchEvent(url); listeners.get('fetch')!(event);
+  expect(event.response()).toBeNull(); await event.done(); expect(fetchImpl).not.toHaveBeenCalled(); expect(cache.match).not.toHaveBeenCalled();
+});

@@ -1,3 +1,14 @@
+import {
+  renderSupplementIngredient,
+  renderSupplementPeriod,
+  renderSupplementQuality,
+  renderSupplementForm,
+  captureSupplementFormAction,
+  captureSupplementIndexedAction,
+} from './supplement-form-presentation.js';
+import type {SupplementIngredientView, SupplementPeriodView, SupplementQualityView, SupplementFormView} from './supplement-form-presentation.js';
+import {captureSupplementReviewText, captureSupplementReviewRows} from './supplement-import-review-view.js';
+import type {SupplementImportReviewView} from './supplement-import-review-view.js';
 // supplement-form-ui.js — Structured supplement/medication form controls and collection.
 
 import { state } from './state.js';
@@ -19,9 +30,7 @@ type QuantityReader = (ingredient: FormIngredientReader | null | undefined) => R
 type FormPeriodGetter = (supplement: FormSupplementReader | null | undefined) => FormPeriodReader[];
 type FormStatusGetter = (supplement: FormSupplementReader | null | undefined) => ReturnType<typeof getSupplementStatus>;
 
-import { escapeHTML } from './utils.js';
 import { assistantFeatureSupports, hasAssistantFeatureProvider } from './ai-feature-routing.js';
-import { suppActionAttrs } from './supplement-action-delegates.js';
 import { formatSupplementTotal, ingredientDailyTotal } from './supplement-impact.js';
 import {
   SUPPLEMENT_UNIT_OPTIONS,
@@ -117,6 +126,10 @@ export function sourceUrlParts(raw: unknown) {
 }
 
 export function ingredientRowHtml(idx: number, name: unknown = '', amount: unknown = '', timesPerDay: unknown = '', outerTimes: unknown = '', sourceIngredient: unknown = null) {
+  return renderSupplementIngredient(projectSupplementIngredientRow(idx, name, amount, timesPerDay, outerTimes, sourceIngredient));
+}
+
+export function projectSupplementIngredientRow(idx: number, name: unknown = '', amount: unknown = '', timesPerDay: unknown = '', outerTimes: unknown = '', sourceIngredient: unknown = null): SupplementIngredientView {
   const ingredient = sourceIngredient && typeof sourceIngredient === 'object'
     ? sourceIngredient as FormIngredientReader : { name, amount, timesPerDay };
   const quantity = (getIngredientQuantity as QuantityReader)(ingredient);
@@ -124,23 +137,31 @@ export function ingredientRowHtml(idx: number, name: unknown = '', amount: unkno
   const amountUnit = quantity?.unit || normalizeSupplementUnit(ingredient.amountUnit || '');
   const standardUnits = new Set(SUPPLEMENT_UNIT_OPTIONS.map(option => option.value));
   const selectedUnit = standardUnits.has(amountUnit) ? amountUnit : amountUnit ? '__custom__' : '';
-  const unitOptions = SUPPLEMENT_UNIT_OPTIONS.map(option =>
-    `<option value="${escapeHTML(option.value)}"${selectedUnit === option.value ? ' selected' : ''}>${escapeHTML(option.label)}</option>`
-  ).join('');
+  const unitOptions = captureSupplementReviewRows(SUPPLEMENT_UNIT_OPTIONS, option =>
+    ({
+    value: `${captureSupplementReviewText(option.value)}`,
+    selected: !!(selectedUnit === option.value),
+    label: `${captureSupplementReviewText(option.label)}`,
+  })
+  );
   const rowTimes = timesPerDay !== '' && timesPerDay != null ? String(timesPerDay) : '';
   const effective = rowTimes || outerTimes;
   const total = effective
     ? ingredientDailyTotal({ amount, amountValue: quantity?.value, amountUnit, timesPerDay: effective })
     : null;
-  return `<div class="supp-ingredient-row" data-idx="${idx}" data-original-index="${sourceIngredient ? idx : -1}">
-    <input type="text" class="supp-ing-name" aria-label="Ingredient name" placeholder="Ingredient" value="${escapeHTML(name)}">
-    <input type="text" inputmode="decimal" class="supp-ing-amount" aria-label="Amount per serving" placeholder="Amount" value="${escapeHTML(amountValue)}">
-    <select class="supp-ing-unit" aria-label="Amount unit">${unitOptions}<option value="__custom__"${selectedUnit === '__custom__' ? ' selected' : ''}>Other…</option></select>
-    <input type="text" class="supp-ing-unit-custom" aria-label="Custom amount unit" placeholder="Unit" value="${selectedUnit === '__custom__' ? escapeHTML(amountUnit) : ''}"${selectedUnit === '__custom__' ? '' : ' hidden'}>
-    <input type="number" class="supp-ing-times" aria-label="Ingredient servings per day override" placeholder="×/day" min="0" max="99" step="0.5" value="${escapeHTML(rowTimes)}">
-    <span class="supp-ing-total">${total ? escapeHTML(formatSupplementTotal(total)) : ''}</span>
-    <button class="supp-ing-remove" ${suppActionAttrs('remove-ingredient')} title="Remove">&times;</button>
-  </div>`;
+  return ({
+    index: `${idx}`,
+    originalIndex: `${sourceIngredient ? idx : -1}`,
+    name: `${captureSupplementReviewText(name)}`,
+    amount: `${captureSupplementReviewText(amountValue)}`,
+    unitOptions: unitOptions,
+    otherSelected: !!(selectedUnit === '__custom__'),
+    customUnit: `${selectedUnit === '__custom__' ? captureSupplementReviewText(amountUnit) : ''}`,
+    customHidden: !(selectedUnit === '__custom__'),
+    timesPerDay: `${captureSupplementReviewText(rowTimes)}`,
+    dailyTotal: `${total ? captureSupplementReviewText(formatSupplementTotal(total)) : ''}`,
+    removeAction: captureSupplementFormAction('remove-ingredient'),
+  });
 }
 
 export function getOuterTimesFromForm() {
@@ -195,15 +216,23 @@ export function removeIngredientRow(button: Element) {
 }
 
 export function periodRowHtml(idx: number, period: FormPeriodReader = {}, showRemove: unknown = true, originalIndex = -1) {
-  return `<div class="supp-period-row" data-idx="${idx}" data-original-index="${originalIndex}">
-    <input type="date" class="supp-period-start" aria-label="Period start" required value="${escapeHTML(period.start || '')}">
-    <span class="supp-period-arrow">&rarr;</span>
-    <input type="date" class="supp-period-end" aria-label="Period end" value="${escapeHTML(period.end || '')}" placeholder="ongoing">
-    <input type="text" class="supp-period-dose" aria-label="Dose or strength during period" placeholder="Dose / strength" value="${escapeHTML(supplementDoseText(period.dose))}">
-    <button type="button" class="supp-ingredient-add" ${suppActionAttrs('use-ingredient-dose')}>Use ingredient totals</button>
-    ${period.ingredientDoses?.length ? `<small class="supp-period-dose-summary">${period.ingredientDoses.map(d => `${escapeHTML(d.ingredient)}: ${escapeHTML(supplementDoseText(d))}`).join('; ')}</small>` : ''}
-    <button class="supp-period-remove" ${suppActionAttrs('remove-period')} aria-label="Remove period" title="Remove period"${showRemove ? '' : ' style="display:none"'}>&times;</button>
-  </div>`;
+  return renderSupplementPeriod(projectSupplementPeriodRow(idx, period, showRemove, originalIndex));
+}
+
+export function projectSupplementPeriodRow(idx: number, period: FormPeriodReader = {}, showRemove: unknown = true, originalIndex = -1): SupplementPeriodView {
+  return ({
+    index: `${idx}`,
+    originalIndex: `${originalIndex}`,
+    start: `${captureSupplementReviewText(period.start || '')}`,
+    end: `${captureSupplementReviewText(period.end || '')}`,
+    dose: `${captureSupplementReviewText(supplementDoseText(period.dose))}`,
+    useDoseAction: captureSupplementFormAction('use-ingredient-dose'),
+    doseSummary: period.ingredientDoses?.length ? ({
+    text: `${period.ingredientDoses.map(d => `${captureSupplementReviewText(d.ingredient)}: ${captureSupplementReviewText(supplementDoseText(d))}`).join('; ')}`,
+  }) : null,
+    removeAction: captureSupplementFormAction('remove-period'),
+    removeStyle: !showRemove,
+  });
 }
 
 /** Copy a current amount only after the user chooses the dated period. Saving remains explicit. */
@@ -330,19 +359,30 @@ export function collectIngredients(pendingImport: FormPendingImportReader | null
 }
 
 export function qualityTestRowHtml(idx: number, test: QualityTestView = {}, originalIndex = -1, importIndex = -1) {
+  return renderSupplementQuality(projectSupplementQualityRow(idx, test, originalIndex, importIndex));
+}
+
+export function projectSupplementQualityRow(idx: number, test: QualityTestView = {}, originalIndex = -1, importIndex = -1): SupplementQualityView {
   const categories = [
     ['contaminant', 'Contaminant / heavy metal'], ['potency', 'Potency / label claim'],
     ['microbiology', 'Microbiology'], ['identity', 'Identity / purity'], ['other', 'Other laboratory result'],
   ];
-  return `<div class="supp-quality-row" data-idx="${idx}" data-original-index="${originalIndex}" data-import-index="${importIndex}">
-    <select class="supp-quality-category" aria-label="Laboratory result category">${categories.map(([value, label]) => `<option value="${value}"${(test.category || 'other') === value ? ' selected' : ''}>${label}</option>`).join('')}</select>
-    <input type="text" class="supp-quality-analyte" aria-label="Tested analyte" placeholder="Analyte" value="${escapeHTML(test.analyte || '')}">
-    <input type="text" class="supp-quality-result" aria-label="Reported laboratory result" placeholder="ND, &lt; 0.01, 98…" value="${escapeHTML(test.resultText || '')}">
-    <input type="text" class="supp-quality-unit" aria-label="Laboratory result unit" placeholder="mg" value="${escapeHTML(test.unit || '')}">
-    <input type="text" class="supp-quality-basis" aria-label="Laboratory result basis" placeholder="per capsule, mg/kg…" value="${escapeHTML(test.basis || '')}">
-    <label class="supp-quality-ai-toggle" title="Include this result in AI health context"><input type="checkbox" class="supp-quality-ai-context"${test.includeInAIContext === false ? '' : ' checked'}><span>AI</span></label>
-    <button type="button" class="supp-ing-remove" ${suppActionAttrs('remove-quality-test')} title="Remove laboratory result">&times;</button>
-  </div>`;
+  return ({
+    index: `${idx}`,
+    originalIndex: `${originalIndex}`,
+    importIndex: `${importIndex}`,
+    categories: captureSupplementReviewRows(categories, ([value, label]) => ({
+    value: `${value}`,
+    selected: !!((test.category || 'other') === value),
+    label: `${label}`,
+  })),
+    analyte: `${captureSupplementReviewText(test.analyte || '')}`,
+    result: `${captureSupplementReviewText(test.resultText || '')}`,
+    unit: `${captureSupplementReviewText(test.unit || '')}`,
+    basis: `${captureSupplementReviewText(test.basis || '')}`,
+    aiChecked: !(test.includeInAIContext === false),
+    removeAction: captureSupplementFormAction('remove-quality-test'),
+  });
 }
 
 export function addQualityTestRow(test: QualityTestView = {}) {
@@ -426,7 +466,11 @@ export function collectQualityTests(pendingImport: FormPendingImportReader | nul
   return tests.length ? tests : undefined;
 }
 
-export function suppFormHtml(editIdx: number, supplement: FormSupplementReader | null | undefined, importReviewHtml: unknown = '') {
+export function suppFormHtml(editIdx: number, supplement: FormSupplementReader | null | undefined, importReview: SupplementImportReviewView | null = null) {
+  return renderSupplementForm(projectSupplementFormView(editIdx, supplement, importReview));
+}
+
+export function projectSupplementFormView(editIdx: number, supplement: FormSupplementReader | null | undefined, importReview: SupplementImportReviewView | null = null): SupplementFormView {
   const editing = !!supplement;
   const ingredients = editing && supplement.ingredients ? supplement.ingredients : [];
   const inactiveIngredients = editing && Array.isArray(supplement.inactiveIngredients) ? supplement.inactiveIngredients : [];
@@ -436,41 +480,68 @@ export function suppFormHtml(editIdx: number, supplement: FormSupplementReader |
   const schedule: FormScheduleRenderReader = editing && supplement.schedule && typeof supplement.schedule === 'object'
     ? supplement.schedule : { mode: editing && Number(supplement.timesPerDay) > 1 ? 'multiple' : 'daily' };
   const status = editing ? (getSupplementStatus as FormStatusGetter)(supplement) : 'planned';
-  return `<div class="supp-form" id="supp-form-panel" data-edit-index="${editIdx}">
-    <div class="supp-form-row supp-url-row"><div class="supp-form-field"><label>Import product facts <span class="supp-label-hint">Review required before anything is applied</span></label>
-      <div class="supp-url-input-row"><input type="url" id="supp-url" aria-label="Product URL" placeholder="https://..." autocomplete="off" value="${escapeHTML(editing ? supplement.sourceUrl || supplement.importProvenance?.url || '' : '')}"><button type="button" class="supp-url-fetch" ${suppActionAttrs('fetch-url')}>Review link</button>${hasAssistantFeatureProvider() && assistantFeatureSupports('image') ? `<button type="button" class="supp-url-fetch supp-scan-label" ${suppActionAttrs('scan-label')}>Review photos</button><input type="file" id="supp-label-input" accept="image/*" capture="environment" multiple hidden>` : ''}</div>
-      <div class="supp-form-help">Use front label + Facts/Drug Facts + directions (up to 4 photos). Images are processed for extraction and are not saved. Patient and prescription identifiers are ignored.</div><div id="supp-import-progress" class="supp-import-progress" aria-live="polite" hidden></div>
-    </div></div><div id="supp-import-review-area">${importReviewHtml}</div>
-    <p class="supp-form-help">* Required. Everything else is optional.</p><div class="supp-form-row">
-      <div class="supp-form-field"><label for="supp-name">Name *</label><input type="text" id="supp-name" required placeholder="e.g. Creatine, Metformin" value="${editing ? escapeHTML(supplement.name) : ''}"></div>
-      <div class="supp-form-field"><label for="supp-type">Type</label><select id="supp-type"><option value="supplement"${editing && supplement.type === 'medication' ? '' : ' selected'}>Supplement</option><option value="medication"${editing && supplement.type === 'medication' ? ' selected' : ''}>Medication</option></select></div>
-    </div>
-    <div class="supp-form-section-title">Active ingredients <span class="supp-label-hint">amount per serving</span></div><div class="supp-form-row">      <div class="supp-form-field supp-form-field-compact"><label for="supp-serving-value">Label serving size</label><input type="number" id="supp-serving-value" min="0" step="any" placeholder="1" value="${editing && supplement.servingSize?.value != null ? escapeHTML(String(supplement.servingSize.value)) : ''}"></div>
-      <div class="supp-form-field"><label for="supp-serving-unit">Label serving unit</label><input type="text" id="supp-serving-unit" list="supp-serving-unit-options" placeholder="capsule" value="${editing ? escapeHTML(supplement.servingSize?.unit || '') : ''}"><datalist id="supp-serving-unit-options"><option value="capsule"><option value="tablet"><option value="mL"><option value="drop"><option value="scoop"><option value="spray"><option value="patch"></datalist></div>
-      <div class="supp-form-field supp-form-field-compact"><label for="supp-times">Servings/day</label><input type="number" id="supp-times" placeholder="1" min="0" max="99" step="0.5" value="${editing && (supplement.timesPerDay ?? schedule.timesPerDay) != null ? escapeHTML(String(supplement.timesPerDay ?? schedule.timesPerDay)) : ''}"></div>
-</div><p class="supp-form-help">Label serving size describes the product. Servings/day changes calculated daily totals; a recorded period dose takes priority.</p><div class="supp-form-row"><div class="supp-form-field"><label>Ingredients</label><div id="supp-ingredients">${ingredients.map((ingredient, index) => ingredientRowHtml(index, ingredient.name, ingredient.amount, ingredient.timesPerDay, editing && supplement.timesPerDay ? supplement.timesPerDay : '', ingredient)).join('')}</div><div class="supp-ingredient-actions"><button class="supp-ingredient-add" ${suppActionAttrs('add-ingredient')}>+ Add</button></div></div></div>
-    <div class="supp-form-row"><div class="supp-form-field supp-form-field-wide"><label>Dose history <span class="supp-label-hint">start date * required; blank end = ongoing</span></label><div class="supp-period-column-labels"><span>Start *</span><span>End</span><span>Dose / strength during period</span></div><p class="supp-form-help">Leave dose blank to use ingredient amounts. Editing a saved dose corrects those dates; “New dose from today” keeps earlier doses.</p><div id="supp-periods">${periods.map((period, index) => periodRowHtml(index, period, periods.length > 1, index)).join('')}</div><div class="supp-period-actions">${editing && status === 'active' ? `<button type="button" class="supp-period-add" ${suppActionAttrs('change-dose', `data-supp-index="${editIdx}"`)}>New dose from today</button>` : ''}<button class="supp-period-add" ${suppActionAttrs('add-period')}>Add past / planned period</button></div></div></div>
-    <div class="supp-form-section-title">Your regimen <span class="supp-label-hint">optional</span></div><div class="supp-form-row">
-      <div class="supp-form-field supp-form-field-wide"><label for="supp-dosage">Personal directions</label><input type="text" id="supp-dosage" placeholder="e.g. with food, before bed" value="${editing ? escapeHTML(supplement.dosage || '') : ''}"></div>
-      <div class="supp-form-field"><label for="supp-schedule-mode">Schedule</label><select id="supp-schedule-mode">${[['daily','Daily'],['multiple','Multiple times daily'],['selected-days','Selected weekdays'],['interval','Every N days'],['prn','As needed (PRN)'],['course','Finite course'],['cycle','Cycle on/off'],['phased','Phased / taper'],['other','Other']].map(([value, label]) => `<option value="${value}"${schedule.mode === value ? ' selected' : ''}>${label}</option>`).join('')}</select></div>
-      <div class="supp-form-field"><label for="supp-route">Route</label><select id="supp-route">${['','oral','sublingual','topical','transdermal','inhaled','nasal','injection','ophthalmic','otic','rectal','vaginal','other'].map(route => `<option value="${route}"${(supplement?.route || '') === route ? ' selected' : ''}>${route ? route.charAt(0).toUpperCase() + route.slice(1) : 'Not specified'}</option>`).join('')}</select></div>
-      <div class="supp-form-field supp-form-field-compact"><label for="supp-max-per-day">PRN max/day</label><input type="number" id="supp-max-per-day" min="0" max="99" step="0.5" value="${schedule.maxPerDay != null ? escapeHTML(String(schedule.maxPerDay)) : ''}"></div>
-    </div><div class="supp-form-row"><div class="supp-form-field"><label for="supp-schedule-details">Schedule details</label><input type="text" id="supp-schedule-details" placeholder="Mon/Wed/Fri, every 3 days, 5 days on / 2 off…" value="${escapeHTML(schedule.details || (schedule.mode === 'selected-days' ? (schedule.daysOfWeek || []).map(day => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][day] || day).join('/') : schedule.mode === 'interval' && schedule.intervalDays ? `every ${schedule.intervalDays} days` : ''))}"></div></div>
-    <div class="supp-form-section-title">Product details <span class="supp-label-hint">optional</span></div><div class="supp-form-row">
-      <div class="supp-form-field"><label for="supp-brand">Brand <span class="supp-label-hint">optional</span></label><input type="text" id="supp-brand" value="${editing ? escapeHTML(supplement.brand || '') : ''}"></div>
-      <div class="supp-form-field"><label for="supp-generic-name">Generic / active name <span class="supp-label-hint">optional</span></label><input type="text" id="supp-generic-name" value="${editing ? escapeHTML(supplement.genericName || '') : ''}"></div>
-      <div class="supp-form-field"><label for="supp-dosage-form">Form</label><input type="text" id="supp-dosage-form" placeholder="capsule, tablet, liquid…" value="${editing ? escapeHTML(supplement.dosageForm || '') : ''}"></div>
-    </div>
-    <div class="supp-form-section-title">Product label <span class="supp-label-hint">optional</span></div><div class="supp-form-row">
-      <div class="supp-form-field supp-form-field-wide"><label for="supp-label-directions">Label directions <span class="supp-label-hint">product fact, not your regimen</span></label><input type="text" id="supp-label-directions" placeholder="Directions printed on the label" value="${editing ? escapeHTML(supplement.labelDirections || '') : ''}"></div>
-    </div>
-    <div class="supp-form-section-title">Other label ingredients <span class="supp-label-hint">excipients, fillers, capsule material — one per line</span></div><div class="supp-form-row"><div class="supp-form-field supp-form-field-wide"><textarea id="supp-inactive-ingredients" aria-label="Other label ingredients" rows="2" placeholder="Microcrystalline cellulose&#10;Vegetable capsule">${escapeHTML(inactiveIngredients.join('\n'))}</textarea></div></div>
-    <div class="supp-form-section-title">Laboratory & quality results <span class="supp-label-hint">COA, potency, heavy metals, microbiology — not active ingredients</span></div><div class="supp-form-row"><div class="supp-form-field supp-form-field-wide">
-      <div class="supp-form-row supp-quality-scope-row"><div class="supp-form-field"><label for="supp-quality-evidence-scope">Report relationship to your bottle</label><select id="supp-quality-evidence-scope">${[['unknown','Not verified / unknown'],['matching-lot','I confirmed the same lot'],['different-lot','Different lot'],['general-specification','General specification, not a bottle result']].map(([value, label]) => `<option value="${value}"${(!editing && value === 'unknown') || (supplement?.qualityEvidenceScope || 'unknown') === value ? ' selected' : ''}>${label}</option>`).join('')}</select></div></div>
-      <div class="supp-quality-column-labels"><span>Category</span><span>Analyte</span><span>Result</span><span>Unit</span><span>Basis</span><span>AI</span></div><div id="supp-quality-tests">${qualityTests.map((test, index) => qualityTestRowHtml(index, test, index)).join('')}</div><div class="supp-ingredient-actions"><button type="button" class="supp-ingredient-add" ${suppActionAttrs('add-quality-test')}>+ Add laboratory result</button></div><div class="supp-form-help">Results are source-reported and may be lot-specific. The AI checkbox controls context without deleting the result. Matching potency checks are informational and default off for AI; active ingredient doses remain the primary health context. ND/NQ and concentrations are not treated as intake amounts.</div>
-    </div></div>
-    <div class="supp-form-section-title">Clinical context <span class="supp-label-hint">optional</span></div><div class="supp-form-row">
-      <div class="supp-form-field"><label for="supp-reason">Reason / indication</label><input type="text" id="supp-reason" placeholder="e.g. low vitamin D" value="${editing ? escapeHTML(supplement.reason || '') : ''}"></div><div class="supp-form-field"><label for="supp-prescriber">Prescriber / clinician</label><input type="text" id="supp-prescriber" value="${editing ? escapeHTML(supplement.prescriber || '') : ''}"></div><div class="supp-form-field"><label for="supp-end-reason">End / pause reason</label><input type="text" id="supp-end-reason" placeholder="completed, side effects, cycling…" value="${editing ? escapeHTML(supplement.lifecycle?.reason || '') : ''}"></div><div class="supp-form-field"><label for="supp-note">Notes</label><input type="text" id="supp-note" placeholder="Anything else relevant" value="${editing ? escapeHTML(supplement.note || '') : ''}"></div>
-    </div><div class="note-editor-actions"><button class="import-btn import-btn-primary" ${suppActionAttrs('save', `data-supp-index="${editIdx}"`)}>${editing ? 'Save changes' : 'Add supplement'}</button>${editing && status === 'active' ? `<button type="button" class="import-btn import-btn-secondary" ${suppActionAttrs('pause', `data-supp-index="${editIdx}"`)}>Pause</button><button type="button" class="import-btn import-btn-secondary" ${suppActionAttrs('end', `data-supp-index="${editIdx}"`)}>Stop taking</button>` : ''}${editing && ['paused', 'ended'].includes(status) ? `<button type="button" class="import-btn import-btn-secondary" ${suppActionAttrs('restart', `data-supp-index="${editIdx}"`)}>Restart</button>` : ''}${editing ? `<button class="import-btn import-btn-secondary" style="color:var(--danger,#ef4444);border-color:var(--danger,#ef4444)" ${suppActionAttrs('delete', `data-supp-index="${editIdx}"`)}>Delete record</button>` : ''}<button class="import-btn import-btn-secondary" ${editing ? suppActionAttrs('toggle-accordion', `data-supp-index="${editIdx}"`) : suppActionAttrs('toggle-add-form')}>Cancel</button></div>
-  </div>`;
+  return ({
+    editIndex: `${editIdx}`,
+    sourceUrl: `${captureSupplementReviewText(editing ? supplement.sourceUrl || supplement.importProvenance?.url || '' : '')}`,
+    fetchAction: captureSupplementFormAction('fetch-url'),
+    photoControls: hasAssistantFeatureProvider() && assistantFeatureSupports('image') ? ({
+    action: captureSupplementFormAction('scan-label'),
+  }) : null,
+    importReview,
+    name: `${editing ? captureSupplementReviewText(supplement.name) : ''}`,
+    supplementSelected: !(editing && supplement.type === 'medication'),
+    medicationSelected: !!(editing && supplement.type === 'medication'),
+    servingSize: `${editing && supplement.servingSize?.value != null ? captureSupplementReviewText(String(supplement.servingSize.value)) : ''}`,
+    servingUnit: `${editing ? captureSupplementReviewText(supplement.servingSize?.unit || '') : ''}`,
+    timesPerDay: `${editing && (supplement.timesPerDay ?? schedule.timesPerDay) != null ? captureSupplementReviewText(String(supplement.timesPerDay ?? schedule.timesPerDay)) : ''}`,
+    ingredients: captureSupplementReviewRows(ingredients, (ingredient, index) => projectSupplementIngredientRow(index, ingredient.name, ingredient.amount, ingredient.timesPerDay, editing && supplement.timesPerDay ? supplement.timesPerDay : '', ingredient)),
+    addIngredientAction: captureSupplementFormAction('add-ingredient'),
+    periods: captureSupplementReviewRows(periods, (period, index) => projectSupplementPeriodRow(index, period, periods.length > 1, index)),
+    changeDose: editing && status === 'active' ? ({
+    action: captureSupplementIndexedAction('change-dose', editIdx),
+  }) : null,
+    addPeriodAction: captureSupplementFormAction('add-period'),
+    directions: `${editing ? captureSupplementReviewText(supplement.dosage || '') : ''}`,
+    scheduleOptions: captureSupplementReviewRows([['daily','Daily'],['multiple','Multiple times daily'],['selected-days','Selected weekdays'],['interval','Every N days'],['prn','As needed (PRN)'],['course','Finite course'],['cycle','Cycle on/off'],['phased','Phased / taper'],['other','Other']], ([value, label]) => ({
+    value: `${value}`,
+    selected: !!(schedule.mode === value),
+    label: `${label}`,
+  })),
+    routeOptions: captureSupplementReviewRows(['','oral','sublingual','topical','transdermal','inhaled','nasal','injection','ophthalmic','otic','rectal','vaginal','other'], route => ({
+    value: `${route}`,
+    selected: !!((supplement?.route || '') === route),
+    label: `${route ? route.charAt(0).toUpperCase() + route.slice(1) : 'Not specified'}`,
+  })),
+    maxPerDay: `${schedule.maxPerDay != null ? captureSupplementReviewText(String(schedule.maxPerDay)) : ''}`,
+    scheduleDetails: `${captureSupplementReviewText(schedule.details || (schedule.mode === 'selected-days' ? (schedule.daysOfWeek || []).map(day => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][day] || day).join('/') : schedule.mode === 'interval' && schedule.intervalDays ? `every ${schedule.intervalDays} days` : ''))}`,
+    brand: `${editing ? captureSupplementReviewText(supplement.brand || '') : ''}`,
+    genericName: `${editing ? captureSupplementReviewText(supplement.genericName || '') : ''}`,
+    dosageForm: `${editing ? captureSupplementReviewText(supplement.dosageForm || '') : ''}`,
+    labelDirections: `${editing ? captureSupplementReviewText(supplement.labelDirections || '') : ''}`,
+    inactiveIngredients: `${captureSupplementReviewText(inactiveIngredients.join('\n'))}`,
+    evidenceScopeOptions: captureSupplementReviewRows([['unknown','Not verified / unknown'],['matching-lot','I confirmed the same lot'],['different-lot','Different lot'],['general-specification','General specification, not a bottle result']], ([value, label]) => ({
+    value: `${value}`,
+    selected: !!((!editing && value === 'unknown') || (supplement?.qualityEvidenceScope || 'unknown') === value),
+    label: `${label}`,
+  })),
+    qualityTests: captureSupplementReviewRows(qualityTests, (test, index) => projectSupplementQualityRow(index, test, index)),
+    addQualityAction: captureSupplementFormAction('add-quality-test'),
+    reason: `${editing ? captureSupplementReviewText(supplement.reason || '') : ''}`,
+    prescriber: `${editing ? captureSupplementReviewText(supplement.prescriber || '') : ''}`,
+    endReason: `${editing ? captureSupplementReviewText(supplement.lifecycle?.reason || '') : ''}`,
+    note: `${editing ? captureSupplementReviewText(supplement.note || '') : ''}`,
+    saveAction: captureSupplementIndexedAction('save', editIdx),
+    saveLabel: `${editing ? 'Save changes' : 'Add supplement'}`,
+    pauseStop: editing && status === 'active' ? ({
+    pauseAction: captureSupplementIndexedAction('pause', editIdx),
+    stopAction: captureSupplementIndexedAction('end', editIdx),
+  }) : null,
+    restart: editing && ['paused', 'ended'].includes(status) ? ({
+    action: captureSupplementIndexedAction('restart', editIdx),
+  }) : null,
+    deleteRecord: editing ? ({
+    action: captureSupplementIndexedAction('delete', editIdx),
+  }) : null,
+    cancelAction: editing ? captureSupplementIndexedAction('toggle-accordion', editIdx) : captureSupplementFormAction('toggle-add-form'),
+  });
 }

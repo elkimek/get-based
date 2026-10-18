@@ -1,3 +1,4 @@
+import {tsStateStyles} from './ts-state-ui-inline-style-map.generated.js';
 import { isChatOptionalSetupActionCurrent } from './chat-optional-setup-component.js';
 // chat-onboarding.js — Chat-first onboarding handlers and render helpers
 
@@ -355,10 +356,10 @@ export function _updatePeriodBtn() {
     const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     if (days <= 10) {
       preview.textContent = `→ ${fmt(s)} – ${fmt(e)} (${days} day${days !== 1 ? 's' : ''})`;
-      preview.style.color = 'var(--text-muted)';
+      preview.style.color = tsStateStyles.mutedColor;
     } else {
       preview.textContent = `→ ${fmt(s)} – ${fmt(e)} (${days} days) — that seems long, double-check?`;
-      preview.style.color = 'var(--yellow)';
+      preview.style.color = tsStateStyles.cautionColor;
     }
   } else if (preview) {
     preview.textContent = '';

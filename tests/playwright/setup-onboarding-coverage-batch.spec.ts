@@ -84,7 +84,7 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
 
       sunDefaults.configureSunDefaults({
         maybeAnalyzeOnboardingAfterSave: () => calls.push(['onboarding-ai']),
-        renderOnboardingAIBlock: () => '<div id="setup-ai-block">AI setup block</div>',
+        getOnboardingAIView: () => ({status:'ok',dot:'green',prefix:'✓',tip:'AI setup block',detail:'',actions:[],message:'',actionOwner:'setup-ai-block'}),
       });
 
       const promptHost = document.createElement('div');
@@ -179,7 +179,8 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
       outcomes.savedSummaryIncludesBannerAndAiBlock =
         host.querySelector<HTMLElement>('.light-setup-summary')?.textContent!.includes('Your light setup')
         && host.querySelector<HTMLElement>('.light-setup-photo-banner')?.textContent!.includes('Prior reaction or strict sun warning recorded')
-        && !!host.querySelector<HTMLElement>('#setup-ai-block');
+        && host.querySelector<HTMLElement>('[data-light-onboarding-ai][data-ai-state="ok"]')?.textContent!.includes('AI setup block')
+        && !!host.querySelector<HTMLElement>('[data-ai-action="refresh-onboarding"][data-ai-owner="setup-ai-block"]');
 
       host.querySelector<HTMLElement>('.light-setup-summary-edit')?.click();
       await waitFor('#light-setup-focus-overlay', 'edit setup overlay');
@@ -221,7 +222,7 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
       data.invalidateActiveDataCache();
       sunDefaults.configureSunDefaults({
         maybeAnalyzeOnboardingAfterSave: () => {},
-        renderOnboardingAIBlock: () => '',
+        getOnboardingAIView: () => null,
       });
       sunDefaultsRuntime.configureSunDefaultsRuntimeDeps(previousSunDefaultsRuntimeDeps);
       localStorage.clear();

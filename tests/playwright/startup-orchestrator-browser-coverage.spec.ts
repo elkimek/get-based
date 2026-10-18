@@ -46,6 +46,13 @@ async function openStartupOrchestratorPage(page: Page) {
         window.__startupNotifications.push({ message, type, duration });
       }
     `);
+  // This failure-sequence fixture owns every startup phase. Keep draft loading
+  // isolated too, rather than linking its real UI against the narrow utils stub.
+  await routeJavaScript(page, '**/js/import-loader.js*', `
+      export async function restorePendingImportReviewDraft() {
+        window.__startupCalls.push('restore-draft');
+      }
+    `);
   await routeJavaScript(page, '**/js/sync.js*', `
       export function configureSyncLifecycleDeps({ enableSync, disableSync, pauseSync }) {
         window.__startupCalls.push(['sync-lifecycle-deps', typeof enableSync, typeof disableSync, typeof pauseSync]);
@@ -113,6 +120,7 @@ test('startup orchestrator browser coverage reports startup sequence failures', 
         && !(window as unknown as { __startupCalls: (string | unknown[])[] }).__startupCalls.includes('profile')
         && !(window as unknown as { __startupCalls: (string | unknown[])[] }).__startupCalls.includes('oauth')
         && !(window as unknown as { __startupCalls: (string | unknown[])[] }).__startupCalls.includes('ui')
+        && !(window as unknown as { __startupCalls: (string | unknown[])[] }).__startupCalls.includes('restore-draft')
         && (window as unknown as { __startupErrors: string[] }).__startupErrors.some(line => line.includes('Startup initialization failed'))
         && (window as unknown as { __startupErrors: string[] }).__startupErrors.some(line => line.includes('foundation unavailable'));
       outcomes.startupFailureNotificationIsUserFacing =

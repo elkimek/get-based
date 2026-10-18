@@ -1,0 +1,4 @@
+<script lang="ts">import SidebarIcon from './SidebarIcon.svelte';import type {ConditionalSidebarView} from '../sidebar-presentation.js';let {view}:{view:ConditionalSidebarView}=$props();</script><svelte:options preserveWhitespace={true}/><div class="nav-item" data-category={view.category} tabindex="0" role="button" data-nav-action={view.action.name} data-nav-route={view.action.route}>
+    <span class="nav-item-icon" aria-hidden="true"><SidebarIcon name={view.icon}/></span>
+    <span class="nav-item-label">{view.label}</span>
+    {#if view.badge.kind==='dot'}<span class="nav-item-dot"></span>{:else}<span class="nav-item-count nav-count">{view.badge.text}</span>{/if}</div>

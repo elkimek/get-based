@@ -6,6 +6,13 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Run: node tests/test-manual-entry-flow.js  (or via npm test)
 
 import fs from 'node:fs';
+import { JSDOM } from 'jsdom';
+import { tsStaticStyles } from '../js/ts-static-ui-inline-style-map.generated.js';
+import { renderHTML as renderMarkerHistory } from '../js/components/MarkerDetailHistory.svelte.html.js';
+import { renderHTML as renderMarkerChrome } from '../js/components/MarkerDetailChrome.svelte.html.js';
+import { renderManualMarkerEntry } from '../js/manual-marker-entry-presentation.js';
+import { projectMarkerDetailAction } from '../js/marker-detail-projection.js';
+import { installMarkerDetailActionDelegates } from '../js/marker-detail-actions.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -21,6 +28,7 @@ console.log('=== Manual Entry Flow Tests ===\n');
   const markerDetailSrc = [
     read('js/marker-detail-modal-impl.js'),
     read('js/marker-detail-manual-entry.js'),
+    read('js/components/ManualMarkerEntry.svelte'),
   ].join('\n');
   const markerDetailEditingSrc = read('js/marker-detail-editing.js').replace(/\s+/g, ' ');
   const markerDetailStoreSrc = read('js/marker-detail-store.js');
@@ -94,10 +102,20 @@ console.log('=== Manual Entry Flow Tests ===\n');
     /deleteMarkerValue[\s\S]{0,1200}deleteManualMarkerValue\(dotKey, date\)/.test(markerDetailEditingSrc)
       && /deleteManualMarkerValue[\s\S]{0,900}deleteLabEntryMarkerFromImportedData\(state\.importedData, entry, dotKey/.test(markerDetailStoreSrc)
       && /deleteLabEntryMarker[\s\S]{0,1800}stampLabEntryUpdated\(entry, now\)/.test(labEntrySrc));
+  const actionId = 'biochemistry_glucose', actionDate = '2026-01-01';
+  const revertDOM = new JSDOM(renderMarkerHistory({ view: {
+    kind: 'manual-revert', actions: projectMarkerDetailAction('revert-marker-value', { id: actionId, date: actionDate }),
+  } }));
+  const revertCalls: unknown[][] = [];
+  installMarkerDetailActionDelegates({ revertMarkerValue: (...args) => revertCalls.push(args) }, revertDOM.window.document);
+  const revertButton = revertDOM.window.document.querySelector('[data-marker-detail-action="revert-marker-value"]');
+  revertButton?.dispatchEvent(new revertDOM.window.MouseEvent('click', { bubbles: true, cancelable: true }));
   assert('Clickable manual badge reverts to imported value when original exists',
-    /manual \\u00d7/.test(markerDetailSrc) &&
-    /Revert manual value to imported value/.test(markerDetailSrc) &&
-    markerDetailSrc.includes("markerDetailActionAttrs('revert-marker-value', { id, date: actionDate })"));
+    /canRevert[\s\S]{0,120}kind: "manual-revert"/.test(markerDetailSrc)
+      && revertButton?.textContent === 'manual ×'
+      && revertButton.getAttribute('aria-label') === 'Revert manual value to imported value'
+      && JSON.stringify(revertCalls) === JSON.stringify([[actionId, actionDate]]));
+  revertDOM.window.close();
   assert('Manual badge reads the canonical marker original before falling back to plain manual state',
     /function getManualValueForMarker\(dotKey, date\)[\s\S]{0,500}const key = dotKey \+ ':' \+ date/.test(markerDetailSrc) &&
     /map\[key\] != null && map\[key\] !== true/.test(markerDetailSrc) &&
@@ -115,8 +133,22 @@ console.log('=== Manual Entry Flow Tests ===\n');
     /if \(keepOpen\)\s*\{[\s\S]{0,200}markerDetailDeps\.navigate\(navCat\)/.test(markerDetailEditingSrc));
   assert('Save & Add Another button rendered in form actions',
     /Save\s*&amp;\s*Add Another|Save & Add Another/.test(markerDetailSrc));
+  const manualDOM = new JSDOM(renderManualMarkerEntry({
+    category: () => 'Synthetic', name: () => 'Glucose', unit: () => 'mmol/L', reference: '',
+    date: actionDate, today: actionDate, placeholder: '5', sampleTime: '', fasting: 'unknown',
+    unitPicker: { multiple: false, rows: [], unit: 'mmol/L' },
+    closeAction: () => ({ action: 'show-detail-modal', id: actionId }),
+    saveAction: () => ({ action: 'save-manual-entry', id: actionId }),
+    addAction: () => ({ action: 'save-and-add-manual-entry', id: actionId }),
+    cancelAction: () => ({ action: 'show-detail-modal', id: actionId }),
+  }));
+  const addCalls: unknown[][] = [];
+  installMarkerDetailActionDelegates({ saveAndAddAnotherManualEntry: (...args) => addCalls.push(args) }, manualDOM.window.document);
+  const addButton = manualDOM.window.document.querySelector('[data-marker-detail-action="save-and-add-manual-entry"]');
+  addButton?.dispatchEvent(new manualDOM.window.MouseEvent('click', { bubbles: true, cancelable: true }));
   assert('Save & Add Another button delegates to saveAndAddAnotherManualEntry',
-    markerDetailSrc.includes("markerDetailActionAttrs('save-and-add-manual-entry', { id })"));
+    addButton?.textContent === 'Save & Add Another' && JSON.stringify(addCalls) === JSON.stringify([[actionId]]));
+  manualDOM.window.close();
 
   // ═══════════════════════════════════════
   // 5. Session-remembered last date
@@ -183,8 +215,13 @@ console.log('=== Manual Entry Flow Tests ===\n');
   // ═══════════════════════════════════════
   console.log('%c 7. Input width fix ', 'font-weight:bold;color:#f59e0b');
 
+  const editStyleDOM = new JSDOM('<input>');
+  const editStyle = editStyleDOM.window.document.querySelector('input')!.style;
+  editStyle.cssText = tsStaticStyles.editorInput;
   assert('Edit input uses width:100% with max-width:140px (replaces width:80px)',
-    /editMarkerValue[\s\S]{0,1500}width:100%;max-width:140px/.test(markerDetailEditingSrc));
+    /editMarkerValue[\s\S]{0,1500}input\.style\.cssText = tsStaticStyles\.editorInput/.test(markerDetailEditingSrc)
+      && editStyle.width === '100%' && editStyle.maxWidth === '140px');
+  editStyleDOM.window.close();
   assert('Old width:80px input style removed from editMarkerValue',
     !/editMarkerValue[\s\S]{0,1500}width:80px/.test(markerDetailEditingSrc));
 
@@ -193,14 +230,25 @@ console.log('=== Manual Entry Flow Tests ===\n');
   // ═══════════════════════════════════════
   console.log('%c 8. Add Value Manually placement ', 'font-weight:bold;color:#f59e0b');
 
+  const markerActionsDOM = new JSDOM(renderMarkerChrome({ view: {
+    kind: 'actions', primary: {
+      kind: 'primary-actions', manualActions: projectMarkerDetailAction('open-manual-entry', { id: actionId }),
+      askActions: projectMarkerDetailAction('ask-ai', { id: actionId }),
+    }, notes: {
+      kind: 'editor', editActions: projectMarkerDetailAction('toggle-marker-note-editor', { dotKey: 'biochemistry.glucose' }),
+      editLabel: 'Add note', note: null, text: '',
+      saveActions: projectMarkerDetailAction('save-marker-note', { id: actionId, dotKey: 'biochemistry.glucose' }),
+      cancelActions: projectMarkerDetailAction('toggle-marker-note-editor', { dotKey: 'biochemistry.glucose' }), delete: null,
+    }, recommendations: null,
+  } }));
+  const manualButton = markerActionsDOM.window.document.querySelector('[data-marker-detail-action="open-manual-entry"]');
+  const notesSection = markerActionsDOM.window.document.querySelector('.marker-note-section');
   assert('Add Value Manually button rendered BEFORE the marker-note-section',
-    (() => {
-      const idxBtn = markerDetailSrc.indexOf('+ Add Value Manually');
-      const idxNote = markerDetailSrc.indexOf('<div class="marker-note-section">');
-      return idxBtn > 0 && idxNote > 0 && idxBtn < idxNote;
-    })());
+    !!manualButton && !!notesSection
+      && !!(manualButton.compareDocumentPosition(notesSection) & markerActionsDOM.window.Node.DOCUMENT_POSITION_FOLLOWING));
   assert("Button rename: '+ Add Value' → '+ Add Value Manually'",
-    markerDetailSrc.includes('+ Add Value Manually'));
+    manualButton?.textContent === '+ Add Value Manually');
+  markerActionsDOM.window.close();
 
   // ═══════════════════════════════════════
   // 9. Manual entry form polish — Enter-to-save, max=today, midpoint placeholder
@@ -208,7 +256,8 @@ console.log('=== Manual Entry Flow Tests ===\n');
   console.log('%c 9. Form polish ', 'font-weight:bold;color:#f59e0b');
 
   assert('Date input gains max="${today}" (no future dates)',
-    /<input type="date" id="me-date" value="\$\{dateValue\}" max="\$\{today\}"/.test(markerDetailSrc));
+    /date: dateValue,\s+today,/.test(markerDetailSrc)
+      && /<input type="date" id="me-date" value="\{view\.date\}" max="\{view\.today\}"/.test(read('js/components/ManualMarkerEntry.svelte')));
   assert('Placeholder hint uses midpoint of refMin/refMax when known',
     /placeholderHint = `e\.g\. \$\{formatValue\(\(marker\.refMin \+ marker\.refMax\) \/ 2\)\}`/.test(markerDetailSrc));
   assert('Enter-to-save / Esc-to-cancel handlers on the value input',

@@ -385,7 +385,7 @@ assert('superseded native OAuth button CSS is removed', !cssSrc.includes('.or-oa
 assert('superseded OAuth divider CSS removed after owned wallet seed migration', !cssSrc.includes('.or-oauth-divider') && read('js/components/WalletSeed.svelte').includes('gb:cloud-provider:border-t'));
 assert('owned OpenRouter OAuth button uses scoped Tailwind and the delegated action',
   openRouterComponentSrc.includes('class={OR_PRIMARY} data-provider-panel-action="start-openrouter-oauth"')
-  && providerClassesSrc.includes('gb:cloud-provider:bg-accent') && openRouterClassesSrc.includes('PROVIDER_PRIMARY as OR_PRIMARY')
+  && providerClassesSrc.includes('gb:cloud-provider:bg-accent') && openRouterClassesSrc.includes('CREDENTIAL_PRIMARY as OR_PRIMARY') && providerClassesSrc.includes('export const CREDENTIAL_PRIMARY')
   && !openRouterComponentSrc.includes('or-oauth-btn'));
 assert('provider entry and wallet restore retain owned separators', openRouterComponentSrc.includes('or enter key manually') && read('js/components/WalletSeed.svelte').includes('Restore from your 12-word wallet seed') && !read('js/components/WalletNode.svelte').includes('or-oauth-divider'));
 assert('OAuth button conditional on disconnected snapshot', /\{#if !snapshot.connected\}[\s\S]*?data-provider-panel-action="start-openrouter-oauth"/.test(openRouterComponentSrc));

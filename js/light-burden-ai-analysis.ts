@@ -1,3 +1,4 @@
+import{captureLightAIView}from'./light-ai-view-values.js';
 import type { ProfileData } from '../types/app-state.js';
 // light-burden-ai-analysis.js — AI verdict for the live indoor-burden
 // summary at the bottom of the Light Environment block.
@@ -196,17 +197,17 @@ const _autoFiredKeys = new Set<string>();
 // state). Caller is renderEnvironment() in light-env.js, which now
 // delegates the interp content to this fn instead of using burden.interp
 // directly. Falls through to the heuristic interp when no AI provider.
-export function renderBurdenInterp(burden: { interp?: unknown } | null | undefined) {
+export function getBurdenInterpretationView(burden: { interp?: unknown } | null | undefined) {
   const heuristic = burden?.interp || '';
   const env = _getEnv();
   const analysis = env?.burdenAI;
-  const render = (variant: ReviewAIVariant, status: import('./ai-verdict-engine.js').AIVerdictStatus = 'idle') =>
-    renderHTML({ view: projectReviewAI({ kind: 'burden', variant, status, analysis, heuristic, actionOwner: aiActionOwner() }) });
-  if (!env || ((env.rooms || []).length === 0 && (env.screens || []).length === 0)) return render('heuristic');
+  const project = (variant: ReviewAIVariant, status: import('./ai-verdict-engine.js').AIVerdictStatus = 'idle') =>
+    captureLightAIView(projectReviewAI({ kind: 'burden', variant, status, analysis, heuristic, actionOwner: aiActionOwner() }));
+  if (!env || ((env.rooms || []).length === 0 && (env.screens || []).length === 0)) return project('heuristic');
   const fingerprint = getBurdenFingerprint();
   if (!hasAssistantFeatureProvider()) {
     return analysis?.status === 'ok' && analysis.dot && analysis.tip && analysis.fingerprint === fingerprint
-      ? render('cached', 'ok') : render('heuristic');
+      ? project('cached', 'ok') : project('heuristic');
   }
   const status = engine.getStatus(SINGLETON);
   const stale = !!(analysis?.fingerprint && analysis.fingerprint !== fingerprint);
@@ -218,7 +219,8 @@ export function renderBurdenInterp(burden: { interp?: unknown } | null | undefin
   }
   const variant = status === 'analyzing' || status === 'error' ? status
     : status === 'ok' && !stale ? 'ok' : stale ? 'stale' : 'idle';
-  return render(variant, status);
+  return project(variant, status);
 }
+export function renderBurdenInterp(burden: {interp?:unknown}|null|undefined){return renderHTML({view:getBurdenInterpretationView(burden)});}
 
-configureLightEnv({ renderBurdenInterp });
+configureLightEnv({ getBurdenInterpretationView });

@@ -1,0 +1,270 @@
+@import "tailwindcss" prefix(gb) source(none) reference;
+
+@utility shared-foundation-data-theme-light {
+  color-scheme: light;
+  --bg-primary: #f5f6fa;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  --sync-popover-bg: #ffffff;
+  --bg-hover: #f0f1f5;
+  --border: #e2e4ea;
+  --text-primary: #1a1d27;
+  --text-secondary: #5a5f73;
+  --text-muted: #6b7085;
+  --accent: #3b7cf5;
+  --accent-light: #2b6ce5;
+  --on-accent: #030712;
+  --accent-fill: rgba(59,124,245,0.10);
+  --accent-gradient: linear-gradient(135deg, #3b7cf5 0%, #5b5bf6 100%);
+  --green: #059669;
+  --green-bg: rgba(5,150,105,0.12);
+  --red: #dc2626;
+  --on-danger: #ffffff;
+  --danger-ink: #b91c1c;
+  --success-ink: #166534;
+  --warning-ink: #92400e;
+  --red-bg: rgba(220,38,38,0.1);
+  /* Light-theme yellow darkened from #d97706 (amber-600, ~4.0:1 on
+     light bg — fails WCAG AA 4.5:1) to #b45309 (amber-700, ~5.7:1).
+     Used for tip text on yellow verdicts; the dot/border still reads
+     warm-amber but body copy is now legible for low-vision users. */
+  --yellow: #b45309;
+  --yellow-bg: rgba(180,83,9,0.1);
+  --ref-band: rgba(59,124,245,0.06);
+  --ref-border: rgba(59,124,245,0.2);
+  --chart-grid: rgba(0,0,0,0.08);
+  --chart-tooltip-bg: rgba(255,255,255,0.95);
+  --orange: #ea580c;
+  --orange-bg: rgba(234,88,12,0.1);
+  --purple: #7c3aed;
+  --purple-light: rgba(124,58,237,0.12);
+  --cyan: rgba(14, 165, 233, 0.6);
+  --neutral-soft-bg: rgba(107, 112, 133, 0.10);
+  --alert-soft-bg: rgba(220, 38, 38, 0.08);
+  --select-surface: var(--bg-card);
+  --select-popup-surface: var(--bg-card);
+  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-lg: 0 4px 16px rgba(0,0,0,0.1);
+  --shadow-glow: 0 0 0 1px var(--accent), 0 4px 12px rgba(59, 124, 245, 0.08);
+}
+@utility shared-foundation-skip-link {
+  position: absolute; left: -9999px; top: auto; width: 1px; height: 1px; overflow: hidden;
+  z-index: 1000; padding: 8px 16px; background: var(--accent); color: var(--on-accent); border-radius: var(--radius-sm);
+  font-size: 14px; text-decoration: none;
+}
+@utility shared-foundation-skip-link-focus { left: 16px; top: 16px; width: auto; height: auto; overflow: visible; }
+@utility shared-foundation-data-theme-light-chart-card-data-theme-light-context-card-data-theme-light-focus-card-data-t { box-shadow: var(--shadow); border-color: transparent; }
+@utility shared-foundation-universal { margin: 0; padding: 0; box-sizing: border-box; }
+@utility shared-foundation-focus { outline: none; }
+@utility shared-foundation-focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@utility shared-foundation-html { overflow-x: hidden; background: var(--bg-primary); color-scheme: dark; }
+@utility shared-foundation-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+@utility shared-foundation-body {
+  font-family: var(--font-body);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+@utility shared-foundation-select {
+  background-color: var(--select-surface);
+  color: var(--text-primary);
+  color-scheme: dark;
+}
+@utility shared-foundation-select-option-select-optgroup {
+  background-color: var(--select-popup-surface);
+  color: var(--text-primary);
+}
+@utility shared-foundation-data-theme-light-select { color-scheme: light; }
+@utility shared-foundation-webkit-scrollbar { width: 6px; }
+@utility shared-foundation-webkit-scrollbar-track { background: var(--bg-primary); }
+@utility shared-foundation-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+@utility shared-foundation-data-theme-light-webkit-scrollbar-track { background: transparent; }
+@utility shared-foundation-data-theme-light-webkit-scrollbar-thumb { background: #b0b4be; border-radius: 3px; }
+@utility shared-foundation-data-theme-light-webkit-scrollbar-thumb-hover { background: #9499a5; }
+@utility shared-foundation-chart-container-min-width-1800px { height: 240px; }
+@utility shared-foundation-chart-container-min-width-2400px { height: 320px; }
+@utility shared-foundation-charts-grid-min-width-2400px { gap: 24px; }
+@utility shared-foundation-charts-grid-max-width-1024px { grid-template-columns: 1fr; }
+@utility shared-foundation-charts-grid-4col-max-width-1024px { grid-template-columns: repeat(2, 1fr); }
+@utility shared-foundation-charts-grid-4col-max-width-768px { grid-template-columns: 1fr; }
+@utility shared-foundation-is-ctx-health-dot-biology-score-ai-dot-ctx-health-dot-shimmer {
+  background: linear-gradient(90deg, var(--text-muted) 25%, var(--border) 50%, var(--text-muted) 75%);
+  background-size: 200% 100%; animation: shimmer 1.5s infinite; box-shadow: none; opacity: 1;
+}
+@utility shared-foundation-is-ctx-health-dot-biology-score-ai-dot-ctx-health-dot-shimmer-prefers-reduced-motion-reduce { animation: none; background: var(--text-muted); }
+@utility shared-foundation-empty-state {
+  background: var(--bg-card); border-radius: var(--radius);
+  border: 1px solid var(--border); padding: 48px 32px;
+  text-align: center; margin-bottom: 24px;
+}
+@utility shared-foundation-empty-state-icon { font-size: 48px; margin-bottom: 16px; }
+@utility shared-foundation-empty-state-h3 { font-family: var(--font-display); font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+@utility shared-foundation-empty-state-p { color: var(--text-secondary); font-size: 14px; margin-bottom: 16px; }
+@utility shared-foundation-empty-state-ul {
+  list-style: none; padding: 0; color: var(--text-secondary); font-size: 13px;
+}
+@utility shared-foundation-empty-state-ul-li { padding: 4px 0; }
+@utility shared-foundation-empty-state-ul-li-before { content: "\2022"; color: var(--accent); margin-right: 8px; }
+@utility shared-foundation-modal-max-width-480px { padding: 20px 16px; }
+@utility shared-foundation-modal-h3-max-width-480px { font-size: 18px; }
+@utility shared-foundation-empty-state-max-width-480px { padding: 32px 16px; }
+@utility shared-foundation-modal-max-width-375px { padding: 16px 12px; max-width: 98vw; }
+@utility shared-foundation-ie-remove-pointer-coarse { min-height: 44px; }
+@utility shared-foundation-view-btn-pointer-coarse { min-height: 44px; padding: 8px 16px; }
+@utility shared-foundation-date-range-filter {
+  display: flex; gap: 4px; background: var(--bg-secondary); padding: 3px;
+  border-radius: var(--radius-sm); border: 1px solid var(--border);
+  width: fit-content;
+}
+@utility shared-foundation-range-btn {
+  padding: 6px 12px; border-radius: 6px; border: none; background: transparent;
+  color: var(--text-secondary); font-size: 12px; cursor: pointer;
+  font-weight: 600; transition: all 0.15s; font-family: inherit;
+}
+@utility shared-foundation-range-btn-active { background: var(--accent-gradient); color: white; }
+@utility shared-foundation-range-btn-hover-not-active { background: var(--bg-hover); }
+@utility shared-foundation-range-btn-focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@utility shared-foundation-range-btn-disabled { opacity: .5; cursor: default; }
+
+/* getbased — Health intelligence that's actually yours */
+:root {
+  --bg-primary: #0f1117;
+  --bg-secondary: #1a1d27;
+  --bg-card: #222635;
+  --sync-popover-bg: #222635;
+  --bg-hover: #2a2e3d;
+  --border: #2e3348;
+  --text-primary: #e8eaf0;
+  /* WCAG AA bumps (2026-05-13): on dark backgrounds the prior values
+     (#8b90a0 / #7a7f93) failed 4.5:1 against bg-card, bg-secondary, and
+     bg-hover. Lifted both to clear AA on every neutral surface — muted
+     now reaches 4.93:1 on bg-hover, secondary 5.0:1+. Light theme already
+     passed and is unchanged. */
+  --text-secondary: #a0a5b8;
+  --text-muted: #9aa0b3;
+  --app-sticky-top: 65px;
+  --accent: #4f8cff;
+  --accent-light: #6ba0ff;
+  --on-accent: #030712;
+  --donate-accent: #f7931a;
+  --on-donate-accent: #030712;
+  --accent-fill: rgba(79, 140, 255, 0.10);
+  --accent-gradient: linear-gradient(135deg, #4f8cff 0%, #6366f1 100%);
+  --green: #34d399;
+  --green-bg: rgba(52, 211, 153, 0.15);
+  --red: #f87171;
+  --on-danger: #030712;
+  --danger-ink: var(--red);
+  --success-ink: var(--green);
+  --warning-ink: var(--yellow);
+  --red-bg: rgba(248, 113, 113, 0.15);
+  --yellow: #fbbf24;
+  --yellow-bg: rgba(251, 191, 36, 0.15);
+  --ref-band: rgba(79, 140, 255, 0.08);
+  --ref-border: rgba(79, 140, 255, 0.25);
+  --chart-grid: rgba(46,51,72,0.5);
+  --chart-tooltip-bg: rgba(34, 38, 53, 0.95);
+  --shadow: 0 2px 8px rgba(0,0,0,0.3);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.35);
+  --shadow-glow: 0 0 0 1px var(--accent), 0 4px 12px rgba(79, 140, 255, 0.1);
+  --orange: #fb923c;
+  --orange-bg: rgba(251,146,60,0.1);
+  --purple: #a78bfa;
+  --purple-light: rgba(167,139,250,0.15);
+  --cyan: rgba(56, 189, 248, 0.6);
+  --neutral-soft-bg: rgba(154, 160, 179, 0.10);
+  --alert-soft-bg: rgba(248, 113, 113, 0.10);
+  --select-surface: var(--bg-primary);
+  --select-popup-surface: var(--bg-primary);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'Outfit', 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+}
+[data-theme="light"] { @apply gb:shared-foundation-data-theme-light; }
+.skip-link { @apply gb:shared-foundation-skip-link; }
+.skip-link:focus { @apply gb:shared-foundation-skip-link-focus; }
+[data-theme="light"] .chart-card,
+[data-theme="light"] .context-card,
+[data-theme="light"] .focus-card,
+[data-theme="light"] .lens-section,
+[data-theme="light"] .trend-alert-card,
+[data-theme="light"] .supp-timeline,
+[data-theme="light"] .alert-card,
+[data-theme="light"] .light-today-strip,
+[data-theme="light"] .light-channels-section,
+[data-theme="light"] .light-explainer,
+[data-theme="light"] .light-data-source-details,
+[data-theme="light"] .light-channel-detail,
+[data-theme="light"] .light-med-banner,
+[data-theme="light"] .sun-session { @apply gb:shared-foundation-data-theme-light-chart-card-data-theme-light-context-card-data-theme-light-focus-card-data-t; }
+* { @apply gb:shared-foundation-universal; }
+:focus { @apply gb:shared-foundation-focus; }
+:focus-visible { @apply gb:shared-foundation-focus-visible; }
+html { @apply gb:shared-foundation-html; }
+.sr-only { @apply gb:shared-foundation-sr-only; }
+body { @apply gb:shared-foundation-body; }
+select { @apply gb:shared-foundation-select; }
+select option,
+select optgroup { @apply gb:shared-foundation-select-option-select-optgroup; }
+[data-theme="light"] select { @apply gb:shared-foundation-data-theme-light-select; }
+::-webkit-scrollbar { @apply gb:shared-foundation-webkit-scrollbar; }
+::-webkit-scrollbar-track { @apply gb:shared-foundation-webkit-scrollbar-track; }
+::-webkit-scrollbar-thumb { @apply gb:shared-foundation-webkit-scrollbar-thumb; }
+[data-theme="light"] ::-webkit-scrollbar-track { @apply gb:shared-foundation-data-theme-light-webkit-scrollbar-track; }
+[data-theme="light"] ::-webkit-scrollbar-thumb { @apply gb:shared-foundation-data-theme-light-webkit-scrollbar-thumb; }
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover { @apply gb:shared-foundation-data-theme-light-webkit-scrollbar-thumb-hover; }
+@media (min-width: 1800px) {
+  .chart-container { @apply gb:shared-foundation-chart-container-min-width-1800px; }
+}
+@media (min-width: 2400px) {
+  .chart-container { @apply gb:shared-foundation-chart-container-min-width-2400px; }
+  .charts-grid { @apply gb:shared-foundation-charts-grid-min-width-2400px; }
+}
+@media (max-width: 1024px) {
+  .charts-grid { @apply gb:shared-foundation-charts-grid-max-width-1024px; }
+  .charts-grid-4col { @apply gb:shared-foundation-charts-grid-4col-max-width-1024px; }
+}
+@media (max-width: 768px) {
+  .charts-grid-4col { @apply gb:shared-foundation-charts-grid-4col-max-width-768px; }
+}
+/* Shared shimmer animation used by loading indicators across CSS bundles. */
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+/* Shared by Context cards and Biology Scores, including their lazy-loaded views. */
+:is(.ctx-health-dot, .biology-score-ai-dot).ctx-health-dot-shimmer { @apply gb:shared-foundation-is-ctx-health-dot-biology-score-ai-dot-ctx-health-dot-shimmer; }
+@media (prefers-reduced-motion: reduce) {
+  :is(.ctx-health-dot, .biology-score-ai-dot).ctx-health-dot-shimmer { @apply gb:shared-foundation-is-ctx-health-dot-biology-score-ai-dot-ctx-health-dot-shimmer-prefers-reduced-motion-reduce; }
+}
+/* Empty State */
+.empty-state { @apply gb:shared-foundation-empty-state; }
+.empty-state-icon { @apply gb:shared-foundation-empty-state-icon; }
+.empty-state h3 { @apply gb:shared-foundation-empty-state-h3; }
+.empty-state p { @apply gb:shared-foundation-empty-state-p; }
+.empty-state ul { @apply gb:shared-foundation-empty-state-ul; }
+.empty-state ul li { @apply gb:shared-foundation-empty-state-ul-li; }
+.empty-state ul li::before { @apply gb:shared-foundation-empty-state-ul-li-before; }
+/* ═══ Mobile: 480px and below ═══ */
+@media (max-width: 480px) {
+  .modal { @apply gb:shared-foundation-modal-max-width-480px; }
+  .modal h3 { @apply gb:shared-foundation-modal-h3-max-width-480px; }
+  .empty-state { @apply gb:shared-foundation-empty-state-max-width-480px; }
+}
+/* ═══ Mobile: 375px and below (smallest phones) ═══ */
+@media (max-width: 375px) {
+  .modal { @apply gb:shared-foundation-modal-max-width-375px; }
+}
+/* ═══ Touch-friendly: minimum tap targets ═══ */
+@media (pointer: coarse) {
+  .ie-remove { @apply gb:shared-foundation-ie-remove-pointer-coarse; }
+  .view-btn { @apply gb:shared-foundation-view-btn-pointer-coarse; }
+}
+
+/* Shared date-range and segmented view controls. */
+.date-range-filter { @apply gb:shared-foundation-date-range-filter; }
+.range-btn { @apply gb:shared-foundation-range-btn; }
+.range-btn.active { @apply gb:shared-foundation-range-btn-active; }
+.range-btn:hover:not(.active) { @apply gb:shared-foundation-range-btn-hover-not-active; }
+
+.range-btn:focus-visible { @apply gb:shared-foundation-range-btn-focus-visible; }
+.range-btn:disabled { @apply gb:shared-foundation-range-btn-disabled; }

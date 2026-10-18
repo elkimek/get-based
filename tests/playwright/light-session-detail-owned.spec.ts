@@ -17,7 +17,7 @@ test('owned session detail layouts retain themes, disclosures, literal fields an
     const [{ renderHTML }, { detailField, detailChannel, sessionCalculationNotice }] = await Promise.all([import('/js/components/LightSessionPresentation.svelte.html.js'), import('/js/light-session-detail-presentation.js')]);
     const host = document.createElement('div'); host.id = 'light-details-acceptance'; host.className = 'modal-overlay show';
     host.style.cssText = 'position:fixed;inset:0;z-index:10000;overflow:auto;background:var(--bg-primary);padding:16px;box-sizing:border-box;display:block';
-    host.innerHTML = (['sun','device'] as const).map(kind => renderHTML({ kind: 'detail', aiHTML: '', view: {
+    host.innerHTML = (['sun','device'] as const).map(kind => renderHTML({ kind: 'detail', ai: null, view: {
       kind, id: '<ID>', title: kind === 'sun' ? 'Sun session · Wednesday, June 10, 2026' : 'Device session — 10 Jun 2026',
       summary: [detailField('When', '09:30–09:45 · 15 min'), detailField('Source', '<Brand> Panel & One')],
       setup: [detailField('Skin · 18%', 'Upper chest <literal>'), detailField('Eyes', 'UV-rated eye protection logged')],

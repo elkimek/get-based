@@ -3,7 +3,7 @@
   import type { NutritionTargetsView, NutritionTargetDraft, NutritionEntryActions } from '../nutrition-entry-model.js';
   import { TARGET_FIELDS, PROTEIN_OPTIONS, PROTEIN_PRESETS, targetProteinPreview } from '../nutrition-entry-model.js';
   import { normalizeNutritionTargets } from '../nutrition-targets.js';
-  import { button, primary, panel, copy, field, input, summary, formGrid, formHead, focus } from '../nutrition-view-classes.js';
+  import { button, primary, targetPanel as panel, copy, modalCopy, field, input, summary, formGrid, formHead, focus , closeButton } from '../nutrition-view-classes.js';
   import NumberField from './NutritionNumberField.svelte';
   let { view, actions }: { view: NutritionTargetsView; actions: NutritionEntryActions } = $props();
   let draft: NutritionTargetDraft = $state(untrack(() => structuredClone(view.targets)));
@@ -56,19 +56,19 @@
     } finally { if (actions.current()) busy = false; }
   }
 </script>
-<button type="button" class="modal-close {button}" aria-label="Close nutrition customization" data-nutrition-action="close">×</button>
+<button type="button" class={closeButton} aria-label="Close nutrition customization" data-nutrition-action="close">×</button>
 {#if view.returnTo === 'history'}
   <button type="button" class="nutrition-route-back {button}" data-nutrition-action="return-history">← Meals &amp; Nutrition</button>
 {/if}
 <header class="nutrition-modal-head gb:nutrition:pr-11">
-  <h3 id="nutrition-entry-title" class="gb:nutrition:mt-0 gb:nutrition:text-xl">Nutrition setup</h3>
-  <p class={copy}>Set daily guides and choose the nutrients you want in your widget.</p>
+  <h3 id="nutrition-entry-title" class="gb:nutrition:mt-0 gb:nutrition:text-xl gb:nutrition:leading-normal">Nutrition setup</h3>
+  <p class={modalCopy}>Set daily guides and choose the nutrients you want in your widget.</p>
 </header>
 <form bind:this={form} id="nutrition-target-settings" tabindex="-1" novalidate
-  class="nutrition-target-settings nutrition-target-settings-standalone {panel} {focus} gb:nutrition:mt-4"
+  class="nutrition-target-settings nutrition-target-settings-standalone {panel} {focus} gb:nutrition:mt-[18px]"
   onsubmit={event => { event.preventDefault(); event.stopPropagation(); void save(); }}>
   <div class="nutrition-target-settings-head {formHead}">
-    <h4 class="gb:nutrition:m-0 gb:nutrition:text-base">Daily targets</h4>
+    <h4 class="gb:nutrition:mt-0.5 gb:nutrition:mb-[3px] gb:nutrition:text-[17px]">Daily targets</h4>
     <span class="nutrition-target-weight {copy} gb:nutrition:rounded-full gb:nutrition:bg-hover gb:nutrition:px-3 gb:nutrition:py-1.5">{view.weight}</span>
   </div>
   {#if !view.targets.configured}
@@ -76,9 +76,9 @@
   {/if}
   <div class="nutrition-target-form {formGrid}">
     <NumberField definition={TARGET_FIELDS[0]!} bind:value={draft.energyKcal} disabled={busy}/>
-    <label class="nutrition-target-protein-basis {field} gb:nutrition:col-span-2 gb:nutrition:max-[380px]:col-span-1">
+    <label class="nutrition-target-protein-basis {field} gb:nutrition:col-span-2 gb:nutrition:max-[720px]:col-span-full">
       <span>Protein target</span>
-      <div class="gb:nutrition:relative gb:nutrition:min-w-0">
+      <div class="gb:nutrition:relative gb:nutrition:grid gb:nutrition:min-w-0">
         <!-- Native WebKit select chrome can overflow narrow monospace themes. -->
         <select id="nutrition-target-protein-basis" class="{input} gb:nutrition:appearance-none gb:nutrition:pr-9" value={draft.proteinBasis} disabled={busy}
           onchange={event => basisChanged(event.currentTarget.value)}>
@@ -96,14 +96,14 @@
   <div class="nutrition-target-note gb:nutrition:rounded-lg gb:nutrition:border-l-[3px] gb:nutrition:border-accent gb:nutrition:bg-hover gb:nutrition:p-3">
     <span id="nutrition-target-protein-preview" class="gb:nutrition:text-xs gb:nutrition:font-bold">{preview}</span>
   </div>
-  <details class="nutrition-target-optional gb:nutrition:border-t gb:nutrition:border-line">
+  <details class="nutrition-target-optional gb:nutrition:border-t gb:nutrition:border-line gb:nutrition:pt-[11px]">
     <summary class={summary}>Optional sugar and sodium guides</summary>
     <div class="nutrition-target-optional-form gb:nutrition:grid gb:nutrition:grid-cols-2 gb:nutrition:gap-3 gb:nutrition:max-[380px]:grid-cols-1">
       {#each optionalFields as definition}<NumberField {definition} bind:value={draft[definition.key]} disabled={busy}/>{/each}
       <p class="{copy} gb:nutrition:col-span-full">Optional references. Meal-photo estimates may not reliably separate total, added, and free sugar.</p>
     </div>
   </details>
-  <details class="nutrition-target-about gb:nutrition:border-t gb:nutrition:border-line">
+  <details class="nutrition-target-about gb:nutrition:border-t gb:nutrition:border-line gb:nutrition:pt-[11px]">
     <summary class={summary}>About these guides</summary>
     <p class={copy}>Targets are planning guides, not medical recommendations. Meal-photo values are estimates. Logged drinks measure beverage volume, not net hydration or water from food.</p>
   </details>
@@ -118,7 +118,7 @@
           <legend class="{copy} gb:nutrition:px-1 gb:nutrition:font-bold gb:nutrition:uppercase">{group.label}</legend>
           <div class="gb:nutrition:grid gb:nutrition:grid-cols-2 gb:nutrition:gap-1 gb:nutrition:max-[380px]:grid-cols-1">
             {#each group.nutrients as nutrient}
-              <label class="nutrition-widget-metric-option gb:nutrition:flex gb:nutrition:min-h-[45px] gb:nutrition:min-w-0 gb:nutrition:items-center gb:nutrition:gap-2 gb:nutrition:text-xs gb:nutrition:cursor-pointer">
+              <label class="nutrition-widget-metric-option gb:nutrition:flex gb:nutrition:[@media(pointer:coarse)]:min-h-[45px] gb:nutrition:min-w-0 gb:nutrition:items-center gb:nutrition:gap-2 gb:nutrition:text-xs gb:nutrition:cursor-pointer">
                 <input type="checkbox" value={nutrient.key} data-nutrition-widget-metric disabled={busy}
                   class="gb:nutrition:accent-accent {focus}" checked={draft.widgetNutrients.includes(nutrient.key)}
                   onchange={event => selectNutrient(nutrient.key, event.currentTarget.checked)}/>

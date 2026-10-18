@@ -2,14 +2,14 @@ import type { AIVerdictAnalysis, AIVerdictStatus } from './ai-verdict-engine.js'
 
 export type OnboardingAIDot = 'green' | 'yellow' | 'red' | 'gray';
 export interface OnboardingAIView {
-  actionOwner: string;
-  status: AIVerdictStatus;
-  dot: OnboardingAIDot;
-  prefix: string;
-  tip: string;
-  detail: string;
-  actions: string[];
-  message: string;
+  readonly actionOwner: string;
+  readonly status: AIVerdictStatus;
+  readonly dot: OnboardingAIDot;
+  readonly prefix: string;
+  readonly tip: string;
+  readonly detail: string;
+  readonly actions: readonly string[];
+  readonly message: string;
 }
 const text = (value: unknown) => value == null ? '' : String(value);
 

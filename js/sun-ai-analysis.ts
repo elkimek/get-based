@@ -1,3 +1,4 @@
+import{captureLightAIView}from'./light-ai-view-values.js';
 // sun-ai-analysis.js — per-session AI verdict + tip for sun sessions.
 //
 // Thin wrapper around ai-verdict-engine: supplies the sun-specific
@@ -241,13 +242,14 @@ function _hasCompleteModeledSession(sess: SunSessionRecord | null | undefined): 
 }
 
 // One authored presentation serves both inline rows and rich detail dialogs.
-function renderVerdict(sess: SunSessionRecord | null | undefined, mode: 'inline' | 'detail') {
-  if (!_hasCompleteModeledSession(sess)) return '';
+export function getSunSessionAIView(sess: SunSessionRecord | null | undefined, mode: 'inline' | 'detail') {
+  if (!_hasCompleteModeledSession(sess)) return null;
   const analysis = sess.aiAnalysis as VerdictRead | null | undefined;
-  if (!hasAssistantFeatureProvider() && !(analysis?.status === 'ok' && analysis.dot)) return '';
-  return renderHTML({ view: projectSessionAI({ mode, status: engine.getStatus(sess), analysis,
+  if (!hasAssistantFeatureProvider() && !(analysis?.status === 'ok' && analysis.dot)) return null;
+  return captureLightAIView(projectSessionAI({ mode, status: engine.getStatus(sess), analysis,
     action: 'refresh-sun-session', targetId: sess.id, actionOwner: aiActionOwner(),
-  }) });
+  }));
 }
+function renderVerdict(sess: SunSessionRecord | null | undefined, mode: 'inline' | 'detail'){const view=getSunSessionAIView(sess,mode);return view?renderHTML({view}):'';}
 export const renderSessionAIInline = (sess: SunSessionRecord | null | undefined) => renderVerdict(sess, 'inline');
 export const renderSessionAIDetail = (sess: SunSessionRecord | null | undefined) => renderVerdict(sess, 'detail');

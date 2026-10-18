@@ -11,28 +11,28 @@ import {
   openDetailedSessionDialog,
   quickLogSunSession,
   requestPreciseLocation,
-  renderSunSessionRow,
+  getSunSessionRowView,
   rollingChannelTotals,
   rollingVitaminDIU,
   vitaminDBudgetStatus,
   weeklyChannelTier,
 } from './sun.js';
 import { resumeActiveTickerIfNeeded } from './sun-active-session.js';
-import { renderSetupCard as renderSunSetupCard } from './sun-defaults.js';
+import{getSunSetupCardView}from'./sun-defaults.js';
 import { _openChannelOnLightPage } from './light-channel-view.js';
 import {
   ensureActiveDeviceTicker,
   openAddDeviceDialog,
   quickLogDeviceSession,
-  renderActiveDeviceSessionCard,
+  getActiveDeviceSessionCardView,
   renderDevicesSection,
 } from './light-devices.js';
 import { getActiveDeviceSession, getDeviceSessions, getDevices, rollingDeviceTotals } from './light-devices-store.js';
 import { openLightEnvironmentAssessment, renderEnvironmentAssessmentSummary } from './light-env.js';
 import { renderLightTools } from './light-tools.js';
-import { renderChannelMixVerdict } from './light-channels-ai-analysis.js';
-import { renderLightTodayDashboardChip, renderLightTodayHero } from './light-today-ai.js';
-import { installSunDataSourceDelegates, renderSunDataSourceSettings } from './settings-privacy.js';
+import { getChannelMixVerdictView } from './light-channels-ai-analysis.js';
+import { getLightTodayDashboardView, getLightTodayHeroView } from './light-today-ai.js';
+import { installSunDataSourceDelegates, getSunDataSourceSettingsView } from './settings-privacy.js';
 import { configureLightPageView } from './light-page-view.js';
 
 installSunDataSourceDelegates();
@@ -55,16 +55,16 @@ configureLightPageView({
   openLightEnvironmentAssessment,
   quickLogDeviceSession,
   quickLogSunSession,
-  renderActiveDeviceSessionCard,
-  renderChannelMixVerdict,
+  getActiveDeviceSessionCardView,
+  getChannelMixVerdictView,
   renderDevicesSection,
   renderEnvironmentAssessmentSummary,
-  renderLightTodayDashboardChip,
-  renderLightTodayHero,
+  getLightTodayDashboardView,
+  getLightTodayHeroView,
   renderLightTools,
-  renderSunDataSourceSettings,
-  renderSunSessionRow,
-  renderSunSetupCard,
+  getSunDataSourceSettingsView,
+  getSunSessionRowView,
+  getSunSetupCardView,
   requestPreciseLocation,
   resumeActiveTickerIfNeeded,
   rollingChannelTotals,

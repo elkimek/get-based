@@ -7,6 +7,10 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 
 import './_node-shim.js';
 
+import {JSDOM} from 'jsdom';
+import {renderHTML as renderTipsSection} from '../js/components/TipsSection.svelte.html.js';
+import {tipsClasses} from '../js/tips-classes.js';
+import {ownedRule, escapedClass} from './helpers/legacy-light-chat-contracts.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -29,6 +33,18 @@ const _realFetch = globalThis.fetch;
 globalThis.fetch = createSourceFetch(read, _realFetch);
 
 const recSrc = await fetchWithRetry('js/recommendations.js');
+const geneticsSrc = read('js/components/TipsGenetics.svelte');
+const hostileHint = '<img src=x onerror=alert(1)> & "quoted" <!--keep-->';
+const geneticsMarkup = JSDOM.fragment(renderTipsSection({view: {
+  variant: 'standard', header: 'Controlled genetic tips', gated: false, banner: false, normalNote: false,
+  genetics: [{
+    kind: 'hint', icon: '⚠', avoid: true, text: hostileHint,
+    evidence: 'Limited', relevance: 'Context', study: 'https://pubmed.ncbi.nlm.nih.gov/1/',
+  }],
+  tiers: [], products: [], coupon: null, suggestionHref: null,
+  footer: {region: 'EU'}, disclaimer: false,
+}}));
+const hintRow = geneticsMarkup.querySelector('.rec-dna-row');
 await fetchWithRetry('js/dna.js');
 await fetchWithRetry('js/context-cards.js');
 const cssSrc = [
@@ -163,13 +179,13 @@ assert('buildDNAHints returns [] with no genetics', Array.isArray(noGenResult) &
 console.log('4. Render Integration');
 
 assert('_renderRecSection calls buildDNAHints', recSrc.includes('buildDNAHints(slotKey)'));
-assert('YOUR GENETICS label in render', recSrc.includes('YOUR GENETICS'));
-assert('Avoid hints get amber styling', recSrc.includes('rec-dna-avoid'));
-assert('Study link rendered for hints', recSrc.includes('rec-dna-ref'));
-assert('escapeHTML used for hint text', recSrc.includes('escapeHTML(h.text)'));
+assert('YOUR GENETICS label in render', geneticsMarkup.textContent?.includes('YOUR GENETICS') && geneticsSrc.includes('YOUR GENETICS'));
+assert('Avoid hints get amber styling', hintRow?.classList.contains('rec-dna-avoid') && tipsClasses('rec-dna-avoid').includes('[border-left:3px_solid_var(--orange)]'));
+assert('Study link rendered for hints', geneticsMarkup.querySelector('a.rec-dna-ref')?.getAttribute('href') === 'https://pubmed.ncbi.nlm.nih.gov/1/' && geneticsMarkup.querySelector('a.rec-dna-ref')?.getAttribute('rel') === 'noopener');
+assert('escapeHTML used for hint text', hintRow?.textContent?.includes(hostileHint) && !hintRow.querySelector('img') && !hintRow.querySelector('[onerror]') && geneticsSrc.includes('{row.text}') && !geneticsSrc.includes('{@html') && recSrc.includes('text: tipsText(h.text)'));
 assert('Hint ref validated to https', recSrc.includes("'https?://'") || recSrc.includes('/^https?:\\/\\//'));
 assert('Recommendation genetics copy displays evidence and relevance',
-  recSrc.includes('rec-dna-evidence') && recSrc.includes('profile.evidenceShortLabel') && recSrc.includes('profile.relevanceShortLabel'));
+  geneticsMarkup.querySelector('.rec-dna-evidence')?.textContent === 'Evidence · Limited · Context' && recSrc.includes('profile.evidenceShortLabel') && recSrc.includes('profile.relevanceShortLabel'));
 
 // ═══════════════════════════════════════
 // 5. detectSupplementSlots DNA enhancement
@@ -205,10 +221,25 @@ assert('Card DNA section shows avoid styling', tipsComponentSrc.includes('ctx-ti
 // ═══════════════════════════════════════
 console.log('8. CSS Classes');
 
-assert('CSS has .rec-dna-hints', cssSrc.includes('.rec-dna-hints'));
-assert('CSS has .rec-dna-row', cssSrc.includes('.rec-dna-row'));
+assert('CSS has .rec-dna-hints',
+  geneticsMarkup.querySelector('.rec-dna-hints')?.classList.contains('gb:tips-ui:[padding:8px_12px]')
+    && geneticsMarkup.querySelector('.rec-dna-hints')?.closest('[data-tips-view]') !== null
+    && tipsClasses('rec-dna-hints').includes('gb:tips-ui:[padding:8px_12px]')
+    && ownedRule(cssSrc, escapedClass('gb:tips-ui:[padding:8px_12px]') + ':where([data-tips-view],[data-tips-view] *)',
+      {padding: '8px 12px'}));
+assert('CSS has .rec-dna-row',
+  hintRow?.classList.contains('gb:tips-ui:[font-size:13px]')
+    && hintRow.closest('[data-tips-view]') !== null
+    && tipsClasses('rec-dna-row').includes('gb:tips-ui:[font-size:13px]')
+    && ownedRule(cssSrc, escapedClass('gb:tips-ui:[font-size:13px]') + ':where([data-tips-view],[data-tips-view] *)',
+      {'font-size': '13px'}));
 assert('CSS has .rec-dna-avoid', cssSrc.includes('.rec-dna-avoid'));
-assert('CSS has .rec-dna-ref', cssSrc.includes('.rec-dna-ref'));
+assert('CSS has .rec-dna-ref',
+  geneticsMarkup.querySelector('.rec-dna-ref')?.classList.contains('gb:tips-ui:[color:var(--accent)]')
+    && geneticsMarkup.querySelector('.rec-dna-ref')?.closest('[data-tips-view]') !== null
+    && tipsClasses('rec-dna-ref').includes('gb:tips-ui:[color:var(--accent)]')
+    && ownedRule(cssSrc, escapedClass('gb:tips-ui:[color:var(--accent)]') + ':where([data-tips-view],[data-tips-view] *)',
+      {color: 'var(--accent)'}));
 assert('CSS has .rec-dna-evidence', cssSrc.includes('.rec-dna-evidence'));
 assert('Authored avoidance colors are generated from the theme', tipsComponentSrc.includes('text-[var(--orange)]') && cssSrc.includes('color:var(--orange)'));
 assert('CSS has .ctx-tips-badge', cssSrc.includes('.ctx-tips-badge'));

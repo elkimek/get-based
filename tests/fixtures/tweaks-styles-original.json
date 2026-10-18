@@ -1,0 +1,2928 @@
+{
+  "authority": "Exact unchanged original CSS frozen before Tweaks migration; independent original11 native baseline accepted. No migrated output forms the oracle.",
+  "counts": {
+    "retiredRules": 37,
+    "originalDeclarations": 146,
+    "originalSelectorRecipes": 41,
+    "expandedDeclarations": 165,
+    "uniqueTokens": 40,
+    "nodeReceiverKeys": 25,
+    "eagerTokens": 33,
+    "lazySettingsTokens": 7
+  },
+  "originalFiles": [
+    {
+      "path": "css/redesign-shell.css",
+      "sha256": "6c2a35a048df5a8009b44c4e590706e510648d7e25c1b0c98af4cad889acbc84",
+      "css": "\n/* Redesign chrome: header, sidebar, and Tweaks */\n.header {\n  min-height: 64px;\n  padding: 0 24px;\n  background: color-mix(in srgb, var(--bg-primary) 92%, var(--bg-secondary));\n  border-bottom: 1px solid var(--border);\n  gap: 18px;\n}\n.brand {\n  display: flex;\n  align-items: center;\n  gap: 10px;\n  min-width: 190px;\n}\n.brand-mark,\n.header h1.brand-mark {\n  margin: 0;\n  font-family: var(--font-display);\n  font-size: 20px;\n  line-height: 1;\n  font-weight: 800;\n  letter-spacing: 0;\n  color: var(--accent);\n  background: var(--accent-gradient);\n  -webkit-background-clip: text;\n  -webkit-text-fill-color: transparent;\n  background-clip: text;\n}\n.pill {\n  display: inline-flex;\n  align-items: center;\n  height: 22px;\n  padding: 0 8px;\n  border: 1px solid var(--border);\n  border-radius: 999px;\n  color: var(--text-muted);\n  background: var(--bg-card);\n  font-family: var(--font-mono);\n  font-size: 10px;\n  font-weight: 700;\n  text-transform: uppercase;\n  letter-spacing: 0.08em;\n}\n.header-mid {\n  flex: 1;\n  justify-content: center;\n  min-width: 0;\n  gap: 10px;\n}\n.header-right {\n  justify-content: flex-end;\n  gap: 8px;\n  min-width: 190px;\n}\n.chip {\n  display: inline-flex;\n  align-items: center;\n  min-height: 32px;\n  padding: 0 10px;\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  background: var(--bg-card);\n  color: var(--text-secondary);\n  font-family: var(--font-mono);\n  font-size: 11px;\n  white-space: nowrap;\n}\n.chip .label,\n.header-info .label {\n  color: var(--text-muted);\n}\n.profile-compact-btn {\n  min-height: 34px;\n  padding: 4px 10px 4px 5px;\n  border-radius: var(--radius-sm);\n  background: var(--bg-card);\n}\n.range-toggle {\n  display: inline-flex;\n  align-items: center;\n  gap: 0;\n  padding: 2px;\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  background: var(--bg-card);\n}\n.range-toggle-btn {\n  border: 0;\n  border-radius: calc(var(--radius-sm) - 2px);\n  background: transparent;\n  color: var(--text-secondary);\n  font-family: var(--font-mono);\n  font-size: 11px;\n  font-weight: 600;\n  padding: 6px 11px;\n}\n.range-toggle-btn.active {\n  background: var(--accent);\n  color: var(--on-accent);\n  border-color: transparent;\n}\n.header-icon-btn {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  width: 36px;\n  height: 36px;\n  padding: 0;\n  border-radius: var(--radius-sm);\n  border: 1px solid var(--border);\n  background: var(--bg-card);\n  color: var(--text-secondary);\n}\n.header-icon-btn:hover {\n  color: var(--text-primary);\n  border-color: var(--accent);\n  background: var(--bg-hover);\n}\n.header-share-btn {\n  color: var(--accent);\n  background: color-mix(in srgb, var(--accent) 8%, var(--bg-card));\n}\n.header-share-btn:hover {\n  color: var(--on-accent);\n  background: var(--accent);\n  border-color: var(--accent);\n}\n.donate-btn,\n.donate-btn:hover {\n  width: auto;\n  height: 36px;\n  padding: 0 14px;\n  border: 0;\n  background: var(--donate-accent);\n  color: var(--on-donate-accent);\n  font-size: 12px;\n  font-weight: 700;\n  text-decoration: none;\n  gap: 4px;\n  white-space: nowrap;\n}\n.donate-split,\n.donate-split:hover {\n  display: inline-grid;\n  grid-template-columns: 1fr 1fr;\n  min-width: 132px;\n  padding: 0;\n  overflow: hidden;\n  background: linear-gradient(100deg, #f7931a 0%, #f7931a 38%, #c98358 49%, #5aa2c9 61%, #29abe0 100%);\n  color: var(--on-donate-accent);\n}\n.donate-option {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  gap: 4px;\n  min-width: 0;\n  padding: 0 8px;\n  color: inherit;\n  font-size: 12px;\n  font-weight: 700;\n  line-height: 1;\n  text-decoration: none;\n  white-space: nowrap;\n  transition: filter 0.15s;\n}\n.donate-option:hover,\n.donate-option:focus-visible { filter: brightness(1.08); }\n.donate-option:focus-visible { outline: 2px solid rgba(255,255,255,0.75); outline-offset: -3px; }\n.sidebar {\n  top: 64px;\n  height: calc(100vh - 64px);\n  padding: 20px 16px;\n  background: var(--bg-primary);\n}\n.main {\n  margin-left: 260px;\n  max-width: calc(100vw - 260px);\n}\n.sidebar-search-wrap { margin: 0 0 18px; }\n.sidebar-search {\n  background: var(--bg-card);\n  border-color: var(--border);\n}\n.nav-section {\n  margin: 18px 8px 8px;\n  color: var(--text-muted);\n  letter-spacing: 0.1em;\n}\n.nav-item {\n  width: 100%;\n  min-height: 36px;\n  border: 0;\n  border-radius: var(--radius-sm);\n  color: var(--text-secondary);\n  font-size: 13px;\n}\n.nav-item:hover {\n  background: var(--bg-card);\n  color: var(--text-primary);\n}\n.nav-item.active,\n.nav-item.is-active {\n  background: var(--bg-card);\n  color: var(--text-primary);\n  border: 0;\n  font-weight: 600;\n}\n.nav-item.active .nav-item-icon,\n.nav-item.is-active .nav-item-icon {\n  color: var(--accent);\n}\n.nav-item-count,\n.nav-item .count,\n.nav-item .nav-count {\n  border: 1px solid var(--border);\n  background: var(--bg-card);\n  border-radius: 999px;\n  color: var(--text-muted);\n}\n.sidebar-add-marker {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  width: 22px;\n  height: 22px;\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  background: var(--bg-card);\n  color: var(--text-secondary);\n  cursor: pointer;\n}\n.sidebar-add-marker:hover {\n  color: var(--text-primary);\n  border-color: var(--accent);\n}\n.tweaks-overlay {\n  position: fixed;\n  inset: 0;\n  z-index: 850;\n  display: none;\n  overflow: hidden;\n  background: rgba(0,0,0,0.22);\n}\n.tweaks-overlay.show { display: block; }\n.tweaks-panel {\n  position: absolute;\n  top: 76px;\n  right: 16px;\n  display: flex;\n  flex-direction: column;\n  width: min(380px, calc(100vw - 24px));\n  max-height: calc(100vh - 92px);\n  overflow: hidden;\n  border: 1px solid var(--border);\n  border-radius: var(--radius);\n  background: var(--bg-secondary);\n  box-shadow: var(--shadow-lg);\n}\n.tweaks-head {\n  flex: 0 0 auto;\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 16px;\n  padding: 18px 20px;\n  border-bottom: 1px solid var(--border);\n  background: color-mix(in srgb, var(--bg-secondary) 92%, var(--bg-card));\n}\n.tweaks-head .modal-close {\n  position: static;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  width: 34px;\n  height: 34px;\n  padding: 0;\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  background: var(--bg-card);\n  color: var(--text-muted);\n  font-size: 22px;\n}\n.tweaks-body {\n  flex: 1 1 auto;\n  min-height: 0;\n  max-height: calc(100vh - 172px);\n  overflow-y: auto;\n  overscroll-behavior: contain;\n  -webkit-overflow-scrolling: touch;\n  padding: 16px 20px 20px;\n}\n.tweaks-section {\n  padding: 14px 0;\n  border-bottom: 1px solid var(--border);\n}\n.tweaks-section:first-child { padding-top: 0; }\n.tweaks-section:last-child { border-bottom: 0; padding-bottom: 0; }\n.tweaks-section-title {\n  margin-bottom: 10px;\n  color: var(--text-muted);\n  font-family: var(--font-mono);\n  font-size: 10px;\n  font-weight: 700;\n  letter-spacing: 0.1em;\n  text-transform: uppercase;\n}\n.tweaks-theme-grid {\n  display: grid;\n  grid-template-columns: 1fr;\n  gap: 8px;\n}\n.tweaks-theme-btn,\n.tweaks-action-grid button {\n  display: flex;\n  align-items: center;\n  gap: 9px;\n  min-width: 0;\n  width: 100%;\n  padding: 9px 10px;\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  background: var(--bg-card);\n  color: var(--text-primary);\n  font: inherit;\n  font-size: 13px;\n  cursor: pointer;\n  text-align: left;\n}\n.tweaks-theme-btn:hover,\n.tweaks-action-grid button:hover {\n  border-color: var(--accent);\n  background: var(--bg-hover);\n}\n.tweaks-theme-btn.active,\n.tweaks-accent-btn.active {\n  border-color: var(--accent);\n  box-shadow: inset 0 0 0 1px var(--accent-fill);\n}\n.tweaks-accent-row {\n  display: grid;\n  grid-template-columns: repeat(6, 1fr);\n  gap: 8px;\n}\n.tweaks-option-row {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 14px;\n}\n.tweaks-option-row .settings-copy {\n  min-width: 0;\n  flex: 1 1 auto;\n}\n.tweaks-option-row .settings-copy-title,\n.tweaks-option-row .settings-copy-desc {\n  overflow-wrap: anywhere;\n}\n.tweaks-option-row[hidden] {\n  display: none;\n}\n.tweaks-option-row + .tweaks-option-row {\n  margin-top: 12px;\n  padding-top: 12px;\n  border-top: 1px solid var(--border);\n}\n.tweaks-panel.sunset-active .tweaks-accent-row {\n  opacity: 0.58;\n}\n.tweaks-accent-btn {\n  height: 38px;\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  background: var(--bg-card);\n  cursor: pointer;\n  padding: 4px;\n}\n.tweaks-accent-swatch {\n  display: block;\n  width: 100%;\n  height: 100%;\n  border-radius: 5px;\n  background: var(--tweak-gradient, var(--tweak-accent));\n}\n.tweaks-action-grid {\n  display: grid;\n  grid-template-columns: 1fr 1fr;\n  gap: 8px;\n}\n@media (max-width: 1024px) {\n  .sidebar {\n    top: 0;\n    height: 100vh;\n    padding: 18px 16px;\n  }\n  .main {\n    margin-left: 0;\n    max-width: 100%;\n  }\n}\n@media (max-width: 768px) {\n  .header {\n    min-height: 58px;\n    padding: 0 12px;\n  }\n  .brand { min-width: auto; }\n  .header-data-group,\n  .feedback-btn,\n  .donate-btn {\n    display: none !important;\n  }\n  .header-mid {\n    flex: 0 1 auto;\n    margin-left: auto;\n    justify-content: flex-end;\n  }\n  .header-right {\n    min-width: auto;\n    gap: 6px;\n  }\n  .tweaks-overlay.show { display: flex; }\n  .tweaks-overlay {\n    align-items: center;\n    justify-content: center;\n    padding: calc(12px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));\n    box-sizing: border-box;\n    background: rgba(0, 0, 0, 0.68);\n    backdrop-filter: blur(4px);\n    -webkit-backdrop-filter: blur(4px);\n  }\n  .tweaks-panel {\n    position: relative;\n    top: auto;\n    right: auto;\n    left: auto;\n    width: min(100%, 380px);\n    min-width: 0;\n    max-width: 100%;\n    height: calc(100vh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));\n    max-height: calc(100vh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));\n    box-sizing: border-box;\n    box-shadow: 0 12px 24px -20px rgba(0, 0, 0, 0.75);\n  }\n  .tweaks-body { max-height: none; }\n  @supports (height: 100dvh) {\n    .tweaks-panel {\n      height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));\n      max-height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));\n    }\n  }\n}\n@media (max-width: 480px) {\n  .brand-mark,\n  .header h1.brand-mark {\n    font-size: 17px;\n  }\n  .profile-compact-btn {\n    background: transparent;\n  }\n  .tweaks-action-grid {\n    grid-template-columns: 1fr;\n  }\n}\n@media (max-width: 340px) {\n  .brand-mark,\n  .header h1.brand-mark {\n    display: none;\n  }\n}\n\n/* Redesign catch-up: sidebar icon sizing and nav count typography glue. */\n.sidebar-search-icon,\n.nav-item-icon {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  flex: 0 0 16px;\n  width: 16px;\n  height: 16px;\n  line-height: 1;\n}\n.sidebar-search-icon svg,\n.nav-item-icon svg {\n  display: block;\n  width: 15px;\n  height: 15px;\n  stroke: currentColor;\n}\n.nav-item-icon {\n  color: var(--text-muted);\n}\n.nav-item:hover .nav-item-icon {\n  color: var(--text-primary);\n}\n.nav-item.active .nav-item-icon,\n.nav-item.is-active .nav-item-icon {\n  color: var(--accent);\n}\n.nav-item[data-category=\"dashboard\"] .nav-item-dot {\n  background: var(--accent);\n}\n.nav-item-count,\n.nav-item .count,\n.nav-item .flag-count,\n.nav-item .nav-count {\n  flex: 0 0 auto;\n  max-width: 86px;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n.nav-item-dot {\n  flex: 0 0 8px;\n}\n.sidebar-add-marker {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  float: none;\n}\n\n@media (max-width: 768px), (pointer: coarse) {\n  .logo-link {\n    display: inline-flex;\n    align-items: center;\n    min-height: 44px;\n  }\n  .header-share-btn {\n    display: none;\n  }\n  .profile-compact-btn {\n    min-width: 44px;\n    min-height: 44px;\n    justify-content: center;\n    padding: 8px;\n  }\n  .dashboard-widget-tool,\n  .lens-widget-dashboard-toggle {\n    min-width: 44px;\n    min-height: 44px;\n    height: auto;\n    padding: 0 12px;\n    line-height: 1.25;\n  }\n  .lens-widget-dashboard-toggle {\n    padding-inline: 14px;\n  }\n  .analytics-consent-btn {\n    min-width: 44px;\n    min-height: 44px;\n    padding: 8px 12px;\n  }\n}\n"
+    },
+    {
+      "path": "css/settings.base.css",
+      "sha256": "17c4e5d34641b39c830b11bcccb8e8d75ea051bd91f45820d972efd125c63a3d",
+      "css": "/* Settings modal and settings-owned controls */\n\n.settings-modal .settings-tab-panel {\n  min-width: 0;\n  padding-top: 0;\n  overflow-x: clip;\n}\n.settings-modal .settings-row {\n  display: flex;\n  flex-direction: column;\n  gap: 0;\n}\n.settings-modal .settings-row .settings-section {\n  display: grid;\n  grid-template-columns: minmax(0, 1fr) minmax(180px, auto);\n  gap: 16px;\n  align-items: center;\n  margin: 0;\n  padding: 14px 0;\n  border-bottom: 1px solid var(--border);\n}\n.settings-modal .settings-row .settings-section > :only-child {\n  grid-column: 1 / -1;\n}\n.settings-modal .settings-section {\n  margin-top: 14px;\n}\n.settings-modal .settings-label {\n  margin: 0;\n  color: var(--text-primary);\n  font-size: 14px;\n}\n.settings-modal .settings-group-title {\n  margin-top: 22px;\n  border: 0;\n  padding-bottom: 0;\n  font-family: var(--font-mono);\n  letter-spacing: 0.1em;\n}\n.settings-modal .local-ai-settings {\n  background: var(--bg-card);\n  border-color: var(--border);\n}\n.settings-modal .settings-links-row {\n  padding-top: 8px;\n  border-top: 1px solid var(--border);\n}\n.settings-modal .settings-action-row {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 14px;\n}\n.settings-modal .settings-action-row + .settings-action-row {\n  margin-top: 14px;\n}\n.settings-modal .settings-copy {\n  min-width: 0;\n  flex: 1 1 auto;\n}\n.settings-modal .settings-copy-title {\n  color: var(--text-primary);\n  font-size: 13px;\n  font-weight: 600;\n  line-height: 1.35;\n}\n.settings-modal .settings-copy-desc {\n  margin-top: 2px;\n  color: var(--text-muted);\n  font-size: 11px;\n  line-height: 1.45;\n}\n.settings-modal .settings-divider {\n  margin-top: 18px;\n  padding-top: 14px;\n  border-top: 1px dashed var(--border);\n}\n.settings-modal .settings-token-head {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 10px;\n  margin-bottom: 6px;\n}\n.settings-modal .settings-token-actions {\n  display: flex;\n  gap: 6px;\n  flex-shrink: 0;\n}\n.settings-modal .settings-token-box {\n  min-height: 20px;\n  padding: 10px 12px;\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  background: var(--bg-secondary);\n  color: var(--text-primary);\n  font-family: var(--font-mono, monospace);\n  font-size: 11.5px;\n  line-height: 1.6;\n  word-break: break-all;\n  user-select: none;\n}\n.settings-modal .settings-select {\n  min-width: 90px;\n  padding: 6px 10px;\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  background: var(--select-surface);\n  color: var(--text-primary);\n  font: inherit;\n  font-size: 12px;\n}\n.settings-modal .settings-beta-badge {\n  display: inline-block;\n  margin-left: 5px;\n  padding: 2px 5px;\n  border: 1px solid var(--border);\n  border-radius: 5px;\n  color: var(--text-muted);\n  font-family: var(--font-mono);\n  font-size: 9px;\n  letter-spacing: .06em;\n}\n.settings-modal .settings-mini-btn {\n  padding: 3px 10px;\n  font-size: 11px;\n  white-space: nowrap;\n}\n.settings-modal .settings-full-btn {\n  width: 100%;\n  margin-top: 12px;\n  padding: 7px 14px;\n  font-size: 12px;\n  white-space: nowrap;\n}\n.settings-modal .api-key-input {\n  background: var(--bg-card);\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  color: var(--text-primary);\n  min-height: 40px;\n}\n.settings-modal .api-key-input:focus {\n  border-color: var(--accent);\n  box-shadow: 0 0 0 3px var(--accent-fill);\n}\n.settings-modal select.api-key-input {\n  appearance: auto;\n  -webkit-appearance: menulist;\n  cursor: pointer;\n  padding-right: 12px;\n  background-color: var(--select-surface);\n}\n.settings-modal select.api-key-input option {\n  background: var(--select-popup-surface);\n  color: var(--text-primary);\n}\n@supports (appearance: base-select) {\n  .settings-modal select.api-key-input,\n  .settings-modal select.api-key-input::picker(select) {\n    appearance: base-select;\n  }\n  .settings-modal select.api-key-input::picker(select) {\n    max-height: min(360px, 60vh);\n    border: 1px solid var(--border);\n    border-radius: var(--radius-sm);\n    background: var(--select-popup-surface);\n    color: var(--text-primary);\n    box-shadow: var(--shadow-lg);\n  }\n  .settings-modal select.api-key-input::picker-icon {\n    color: var(--text-muted);\n  }\n  .settings-modal select.api-key-input option {\n    padding: 8px 12px;\n  }\n}\n\n/* API key and provider settings */\n.api-key-input {\n  width: 100%; padding: 10px 12px; border-radius: 6px;\n  border: 1px solid var(--border); background: var(--bg-primary);\n  color: var(--text-primary); font-size: 13px; font-family: monospace;\n  margin-top: 8px; color-scheme: dark;\n}\n[data-theme=\"light\"] .api-key-input { color-scheme: light; }\n.api-key-input:focus { border-color: var(--accent); }\n.api-key-status { font-size: 13px; margin-bottom: 4px; }\n.api-key-notice {\n  font-size: 11px; color: var(--text-muted); margin-top: 12px;\n  padding: 10px; background: var(--bg-card); border-radius: var(--radius-sm);\n  border: 1px solid var(--border); line-height: 1.5;\n}\n.ai-provider-panel { margin-top: 12px; }\n.ai-provider-desc {\n  font-size: 12px; color: var(--text-muted); line-height: 1.5; margin-bottom: 10px;\n}\n.ai-model-tip {\n  font-size: 12px; line-height: 1.5; color: var(--text-secondary);\n  border-left: 3px solid var(--accent); padding: 8px 12px; margin-bottom: 12px;\n  background: var(--bg-hover); border-radius: 0 4px 4px 0;\n}\n/* Local AI settings in Settings modal */\n.local-ai-settings { margin-top: 4px; }\n.local-ai-status {\n  display: flex; align-items: center; gap: 8px; font-size: 13px;\n}\n.local-ai-status-dot {\n  width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted);\n  flex-shrink: 0;\n}\n.local-ai-status-dot.connected { background: var(--green); box-shadow: 0 0 6px rgba(34,197,94,0.5); }\n.local-ai-status-dot.disconnected { background: var(--red); }\n\n/* Settings sections */\n.settings-section { margin-top: 16px; }\n.settings-label { font-size: 13px; font-weight: 600; display: block; margin-bottom: 8px; color: var(--text-secondary); }\n.settings-group-title {\n  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;\n  color: var(--text-muted); margin-top: 24px; padding-bottom: 6px;\n  border-bottom: 1px solid var(--border);\n}\n\n/* Settings tabs */\n\n.settings-tab-panel { display: none; padding-top: 6px; }\n.settings-tab-panel.active {\n  display: block;\n  animation: settingsTabFadeIn 0.2s ease;\n}\n@keyframes settingsTabFadeIn {\n  from { opacity: 0; transform: translateY(4px); }\n  to { opacity: 1; transform: translateY(0); }\n}\n.settings-tab-panel .settings-section:first-child { margin-top: 8px; }\n.settings-tab-panel .settings-group-title:first-child { margin-top: 12px; }\n.settings-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }\n.settings-row .settings-section { margin-top: 8px; }\n.settings-links-row { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 8px; }\n.settings-link-btn {\n  background: none; border: none; color: var(--text-muted); font-size: 13px;\n  font-family: inherit; cursor: pointer; padding: 4px 0; text-decoration: none;\n  transition: color 0.15s;\n}\n.settings-link-btn:hover { color: var(--text-primary); text-decoration: underline; }\n\n/* Theme picker */\n.settings-theme-toggle { display: flex; align-items: center; gap: 4px; }\n.settings-theme-btn {\n  padding: 4px 12px; border-radius: 6px; border: 1px solid var(--border);\n  background: transparent; color: var(--text-secondary); font-size: 12px;\n  cursor: pointer; font-weight: 500; transition: all 0.15s; font-family: inherit;\n}\n.settings-theme-btn.active { background: var(--accent); color: white; border-color: var(--accent); }\n.settings-theme-btn:hover:not(.active) { background: var(--bg-hover); }\n.settings-theme-swatch {\n  width: 24px;\n  height: 24px;\n  border-radius: 6px;\n  flex-shrink: 0;\n  border: 1px solid rgba(255,255,255,0.06);\n}\n.settings-theme-swatch-dark { background: linear-gradient(135deg, #222635 0%, #4f8cff 100%); }\n.settings-theme-swatch-light { background: linear-gradient(135deg, #f5f6fa 0%, #3b7cf5 100%); }\n.settings-theme-swatch-cyberterm { background: linear-gradient(135deg, #0b0d0b 0%, #4ade80 100%); border-radius: 0; }\n.settings-theme-swatch-glass { background: linear-gradient(135deg, #c986ff 0%, #6ec4ff 100%); border-radius: 12px; }\n.settings-theme-swatch-synth-sunrise { background: linear-gradient(135deg, #ff7a18 0%, #ff2bd6 50%, #7c3aed 100%); border-radius: 2px; }\n.settings-theme-swatch-neuromancer { background: linear-gradient(135deg, #00e5ff 0%, #ff2bd6 100%); border-radius: 0; }\n\n@media (max-width: 720px) {\n\n  .settings-modal .settings-row .settings-section {\n    grid-template-columns: 1fr;\n    gap: 8px;\n    padding: 12px 0;\n  }\n  .settings-modal .settings-section {\n    margin-top: 12px;\n  }\n  .settings-modal .settings-group-title {\n    margin-top: 18px;\n  }\n  .settings-modal .settings-action-row {\n    align-items: flex-start;\n    gap: 12px;\n  }\n  .settings-modal .settings-action-row > .toggle-switch {\n    margin-top: 2px;\n  }\n  .settings-modal .unit-toggle,\n  .settings-modal .range-toggle {\n    flex-wrap: wrap;\n  }\n  .settings-modal .range-toggle {\n    width: 100%;\n  }\n  .settings-modal .range-toggle-btn {\n    flex: 1 1 0;\n    min-width: 0;\n  }\n  .import-reference-benchmark { align-items: stretch; flex-direction: column; }\n  .import-reference-benchmark-actions { flex-basis: auto; width: 100%; }\n  .import-reference-benchmark .import-btn { width: 100%; }\n}\n\n@media (max-width: 600px) {\n\n}\n\n@media (max-width: 500px) {\n\n  .settings-row { grid-template-columns: 1fr; }\n}\n"
+    }
+  ],
+  "rules": [
+    {
+      "source": "css/redesign-shell.css",
+      "path": [
+        33
+      ],
+      "selector": ".tweaks-overlay",
+      "selectors": [
+        ".tweaks-overlay"
+      ],
+      "ancestry": [],
+      "declarations": [
+        {
+          "property": "position",
+          "value": "fixed",
+          "important": false
+        },
+        {
+          "property": "inset",
+          "value": "0",
+          "important": false
+        },
+        {
+          "property": "z-index",
+          "value": "850",
+          "important": false
+        },
+        {
+          "property": "display",
+          "value": "none",
+          "important": false
+        },
+        {
+          "property": "overflow",
+          "value": "hidden",
+          "important": false
+        },
+        {
+          "property": "background",
+          "value": "rgba(0,0,0,0.22)",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".tweaks-overlay": [
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "source": "css/redesign-shell.css",
+      "path": [
+        34
+      ],
+      "selector": ".tweaks-overlay.show",
+      "selectors": [
+        ".tweaks-overlay.show"
+      ],
+      "ancestry": [],
+      "declarations": [
+        {
+          "property": "display",
+          "value": "block",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".tweaks-overlay.show": [
+          0,
+          2,
+          0
+        ]
+      }
+    },
+    {
+      "source": "css/redesign-shell.css",
+      "path": [
+        35
+      ],
+      "selector": ".tweaks-panel",
+      "selectors": [
+        ".tweaks-panel"
+      ],
+      "ancestry": [],
+      "declarations": [
+        {
+          "property": "position",
+          "value": "absolute",
+          "important": false
+        },
+        {
+          "property": "top",
+          "value": "76px",
+          "important": false
+        },
+        {
+          "property": "right",
+          "value": "16px",
+          "important": false
+        },
+        {
+          "property": "display",
+          "value": "flex",
+          "important": false
+        },
+        {
+          "property": "flex-direction",
+          "value": "column",
+          "important": false
+        },
+        {
+          "property": "width",
+          "value": "min(380px, calc(100vw - 24px))",
+          "important": false
+        },
+        {
+          "property": "max-height",
+          "value": "calc(100vh - 92px)",
+          "important": false
+        },
+        {
+          "property": "overflow",
+          "value": "hidden",
+          "important": false
+        },
+        {
+          "property": "border",
+          "value": "1px solid var(--border)",
+          "important": false
+        },
+        {
+          "property": "border-radius",
+          "value": "var(--radius)",
+          "important": false
+        },
+        {
+          "property": "background",
+          "value": "var(--bg-secondary)",
+          "important": false
+        },
+        {
+          "property": "box-shadow",
+          "value": "var(--shadow-lg)",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".tweaks-panel": [
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "source": "css/redesign-shell.css",
+      "path": [
+        36
+      ],
+      "selector": ".tweaks-head",
+      "selectors": [
+        ".tweaks-head"
+      ],
+      "ancestry": [],
+      "declarations": [
+        {
+          "property": "flex",
+          "value": "0 0 auto",
+          "important": false
+        },
+        {
+          "property": "display",
+          "value": "flex",
+          "important": false
+        },
+        {
+          "property": "align-items",
+          "value": "center",
+          "important": false
+        },
+        {
+          "property": "justify-content",
+          "value": "space-between",
+          "important": false
+        },
+        {
+          "property": "gap",
+          "value": "16px",
+          "important": false
+        },
+        {
+          "property": "padding",
+          "value": "18px 20px",
+          "important": false
+        },
+        {
+          "property": "border-bottom",
+          "value": "1px solid var(--border)",
+          "important": false
+        },
+        {
+          "property": "background",
+          "value": "color-mix(in srgb, var(--bg-secondary) 92%, var(--bg-card))",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".tweaks-head": [
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "source": "css/redesign-shell.css",
+      "path": [
+        37
+      ],
+      "selector": ".tweaks-head .modal-close",
+      "selectors": [
+        ".tweaks-head .modal-close"
+      ],
+      "ancestry": [],
+      "declarations": [
+        {
+          "property": "position",
+          "value": "static",
+          "important": false
+        },
+        {
+          "property": "display",
+          "value": "inline-flex",
+          "important": false
+        },
+        {
+          "property": "align-items",
+          "value": "center",
+          "important": false
+        },
+        {
+          "property": "justify-content",
+          "value": "center",
+          "important": false
+        },
+        {
+          "property": "width",
+          "value": "34px",
+          "important": false
+        },
+        {
+          "property": "height",
+          "value": "34px",
+          "important": false
+        },
+        {
+          "property": "padding",
+          "value": "0",
+          "important": false
+        },
+        {
+          "property": "border",
+          "value": "1px solid var(--border)",
+          "important": false
+        },
+        {
+          "property": "border-radius",
+          "value": "var(--radius-sm)",
+          "important": false
+        },
+        {
+          "property": "background",
+          "value": "var(--bg-card)",
+          "important": false
+        },
+        {
+          "property": "color",
+          "value": "var(--text-muted)",
+          "important": false
+        },
+        {
+          "property": "font-size",
+          "value": "22px",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".tweaks-head .modal-close": [
+          0,
+          2,
+          0
+        ]
+      }
+    },
+    {
+      "source": "css/redesign-shell.css",
+      "path": [
+        38
+      ],
+      "selector": ".tweaks-body",
+      "selectors": [
+        ".tweaks-body"
+      ],
+      "ancestry": [],
+      "declarations": [
+        {
+          "property": "flex",
+          "value": "1 1 auto",
+          "important": false
+        },
+        {
+          "property": "min-height",
+          "value": "0",
+          "important": false
+        },
+        {
+          "property": "max-height",
+          "value": "calc(100vh - 172px)",
+          "important": false
+        },
+        {
+          "property": "overflow-y",
+          "value": "auto",
+          "important": false
+        },
+        {
+          "property": "overscroll-behavior",
+          "value": "contain",
+          "important": false
+        },
+        {
+          "property": "-webkit-overflow-scrolling",
+          "value": "touch",
+          "important": false
+        },
+        {
+          "property": "padding",
+          "value": "16px 20px 20px",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".tweaks-body": [
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "source": "css/redesign-shell.css",
+      "path": [
+        39
+      ],
+      "selector": ".tweaks-section",
+      "selectors": [
+        ".tweaks-section"
+      ],
+      "ancestry": [],
+      "declarations": [
+        {
+          "property": "padding",
+          "value": "14px 0",
+          "important": false
+        },
+        {
+          "property": "border-bottom",
+          "value": "1px solid var(--border)",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".tweaks-section": [
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "source": "css/redesign-shell.css",
+      "path": [
+        40
+      ],
+      "selector": ".tweaks-section:first-child",
+      "selectors": [
+        ".tweaks-section:first-child"
+      ],
+      "ancestry": [],
+      "declarations": [
+        {
+          "property": "padding-top",
+          "value": "0",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".tweaks-section:first-child": [
+          0,
+          2,
+          0
+        ]
+      }
+    },
+    {
+      "source": "css/redesign-shell.css",
+      "path": [
+        41
+      ],
+      "selector": ".tweaks-section:last-child",
+      "selectors": [
+        ".tweaks-section:last-child"
+      ],
+      "ancestry": [],
+      "declarations": [
+        {
+          "property": "border-bottom",
+          "value": "0",
+          "important": false
+        },
+        {
+          "property": "padding-bottom",
+          "value": "0",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".tweaks-section:last-child": [
+          0,
+          2,
+          0
+        ]
+      }
+    },
+    {
+      "source": "css/redesign-shell.css",
+      "path": [
+        42
+      ],
+      "selector": ".tweaks-section-title",
+      "selectors": [
+        ".tweaks-section-title"
+      ],
+      "ancestry": [],
+      "declarations": [
+        {
+          "property": "margin-bottom",
+          "value": "10px",
+          "important": false
+        },
+        {
+          "property": "color",
+          "value": "var(--text-muted)",
+          "important": false
+        },
+        {
+          "property": "font-family",
+          "value": "var(--font-mono)",
+          "important": false
+        },
+        {
+          "property": "font-size",
+          "value": "10px",
+          "important": false
+        },
+        {
+          "property": "font-weight",
+          "value": "700",
+          "important": false
+        },
+        {
+          "property": "letter-spacing",
+          "value": "0.1em",
+          "important": false
+        },
+        {
+          "property": "text-transform",
+          "value": "uppercase",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".tweaks-section-title": [
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "source": "css/redesign-shell.css",
+      "path": [
+        43
+      ],
+      "selector": ".tweaks-theme-grid",
+      "selectors": [
+        ".tweaks-theme-grid"
+      ],
+      "ancestry": [],
+      "declarations": [
+        {
+          "property": "display",
+          "value": "grid",
+          "important": false
+        },
+        {
+          "property": "grid-template-columns",
+          "value": "1fr",
+          "important": false
+        },
+        {
+          "property": "gap",
+          "value": "8px",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".tweaks-theme-grid": [
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "source": "css/redesign-shell.css",
+      "path": [
+        44
+      ],
+      "selector": ".tweaks-theme-btn,\n.tweaks-action-grid button",
+      "selectors": [
+        ".tweaks-theme-btn",
+        ".tweaks-action-grid button"
+      ],
+      "ancestry": [],
+      "declarations": [
+        {
+          "property": "display",
+          "value": "flex",
+          "important": false
+        },
+        {
+          "property": "align-items",
+          "value": "center",
+          "important": false
+        },
+        {
+          "property": "gap",
+          "value": "9px",
+          "important": false
+        },
+        {
+          "property": "min-width",
+          "value": "0",
+          "important": false
+        },
+        {
+          "property": "width",
+          "value": "100%",
+          "important": false
+        },
+        {
+          "property": "padding",
+          "value": "9px 10px",
+          "important": false
+        },
+        {
+          "property": "border",
+          "value": "1px solid var(--border)",
+          "important": false
+        },
+        {
+          "property": "border-radius",
+          "value": "var(--radius-sm)",
+          "important": false
+        },
+        {
+          "property": "background",
+          "value": "var(--bg-card)",
+          "important": false
+        },
+        {
+          "property": "color",
+          "value": "var(--text-primary)",
+          "important": false
+        },
+        {
+          "property": "font",
+          "value": "inherit",
+          "important": false
+        },
+        {
+          "property": "font-size",
+          "value": "13px",
+          "important": false
+        },
+        {
+          "property": "cursor",
+          "value": "pointer",
+          "important": false
+        },
+        {
+          "property": "text-align",
+          "value": "left",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".tweaks-theme-btn": [
+          0,
+          1,
+          0
+        ],
+        ".tweaks-action-grid button": [
+          0,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "source": "css/redesign-shell.css",
+      "path": [
+        45
+      ],
+      "selector": ".tweaks-theme-btn:hover,\n.tweaks-action-grid button:hover",
+      "selectors": [
+        ".tweaks-theme-btn:hover",
+        ".tweaks-action-grid button:hover"
+      ],
+      "ancestry": [],
+      "declarations": [
+        {
+          "property": "border-color",
+          "value": "var(--accent)",
+          "important": false
+        },
+        {
+          "property": "background",
+          "value": "var(--bg-hover)",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".tweaks-theme-btn:hover": [
+          0,
+          2,
+          0
+        ],
+        ".tweaks-action-grid button:hover": [
+          0,
+          2,
+          1
+        ]
+      }
+    },
+    {
+      "source": "css/redesign-shell.css",
+      "path": [
+        46
+      ],
+      "selector": ".tweaks-theme-btn.active,\n.tweaks-accent-btn.active",
+      "selectors": [
+        ".tweaks-theme-btn.active",
+        ".tweaks-accent-btn.active"
+      ],
+      "ancestry": [],
+      "declarations": [
+        {
+          "property": "border-color",
+          "value": "var(--accent)",
+          "important": false
+        },
+        {
+          "property": "box-shadow",
+          "value": "inset 0 0 0 1px var(--accent-fill)",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".tweaks-theme-btn.active": [
+          0,
+          2,
+          0
+        ],
+        ".tweaks-accent-btn.active": [
+          0,
+          2,
+          0
+        ]
+      }
+    },
+    {
+      "source": "css/redesign-shell.css",
+      "path": [
+        47
+      ],
+      "selector": ".tweaks-accent-row",
+      "selectors": [
+        ".tweaks-accent-row"
+      ],
+      "ancestry": [],
+      "declarations": [
+        {
+          "property": "display",
+          "value": "grid",
+          "important": false
+        },
+        {
+          "property": "grid-template-columns",
+          "value": "repeat(6, 1fr)",
+          "important": false
+        },
+        {
+          "property": "gap",
+          "value": "8px",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".tweaks-accent-row": [
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "source": "css/redesign-shell.css",
+      "path": [
+        48
+      ],
+      "selector": ".tweaks-option-row",
+      "selectors": [
+        ".tweaks-option-row"
+      ],
+      "ancestry": [],
+      "declarations": [
+        {
+          "property": "display",
+          "value": "flex",
+          "important": false
+        },
+        {
+          "property": "align-items",
+          "value": "center",
+          "important": false
+        },
+        {
+          "property": "justify-content",
+          "value": "space-between",
+          "important": false
+        },
+        {
+          "property": "gap",
+          "value": "14px",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".tweaks-option-row": [
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "source": "css/redesign-shell.css",
+      "path": [
+        49
+      ],
+      "selector": ".tweaks-option-row .settings-copy",
+      "selectors": [
+        ".tweaks-option-row .settings-copy"
+      ],
+      "ancestry": [],
+      "declarations": [
+        {
+          "property": "min-width",
+          "value": "0",
+          "important": false
+        },
+        {
+          "property": "flex",
+          "value": "1 1 auto",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".tweaks-option-row .settings-copy": [
+          0,
+          2,
+          0
+        ]
+      }
+    },
+    {
+      "source": "css/redesign-shell.css",
+      "path": [
+        50
+      ],
+      "selector": ".tweaks-option-row .settings-copy-title,\n.tweaks-option-row .settings-copy-desc",
+      "selectors": [
+        ".tweaks-option-row .settings-copy-title",
+        ".tweaks-option-row .settings-copy-desc"
+      ],
+      "ancestry": [],
+      "declarations": [
+        {
+          "property": "overflow-wrap",
+          "value": "anywhere",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".tweaks-option-row .settings-copy-title": [
+          0,
+          2,
+          0
+        ],
+        ".tweaks-option-row .settings-copy-desc": [
+          0,
+          2,
+          0
+        ]
+      }
+    },
+    {
+      "source": "css/redesign-shell.css",
+      "path": [
+        51
+      ],
+      "selector": ".tweaks-option-row[hidden]",
+      "selectors": [
+        ".tweaks-option-row[hidden]"
+      ],
+      "ancestry": [],
+      "declarations": [
+        {
+          "property": "display",
+          "value": "none",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".tweaks-option-row[hidden]": [
+          0,
+          2,
+          0
+        ]
+      }
+    },
+    {
+      "source": "css/redesign-shell.css",
+      "path": [
+        52
+      ],
+      "selector": ".tweaks-option-row + .tweaks-option-row",
+      "selectors": [
+        ".tweaks-option-row + .tweaks-option-row"
+      ],
+      "ancestry": [],
+      "declarations": [
+        {
+          "property": "margin-top",
+          "value": "12px",
+          "important": false
+        },
+        {
+          "property": "padding-top",
+          "value": "12px",
+          "important": false
+        },
+        {
+          "property": "border-top",
+          "value": "1px solid var(--border)",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".tweaks-option-row + .tweaks-option-row": [
+          0,
+          2,
+          0
+        ]
+      }
+    },
+    {
+      "source": "css/redesign-shell.css",
+      "path": [
+        53
+      ],
+      "selector": ".tweaks-panel.sunset-active .tweaks-accent-row",
+      "selectors": [
+        ".tweaks-panel.sunset-active .tweaks-accent-row"
+      ],
+      "ancestry": [],
+      "declarations": [
+        {
+          "property": "opacity",
+          "value": "0.58",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".tweaks-panel.sunset-active .tweaks-accent-row": [
+          0,
+          3,
+          0
+        ]
+      }
+    },
+    {
+      "source": "css/redesign-shell.css",
+      "path": [
+        54
+      ],
+      "selector": ".tweaks-accent-btn",
+      "selectors": [
+        ".tweaks-accent-btn"
+      ],
+      "ancestry": [],
+      "declarations": [
+        {
+          "property": "height",
+          "value": "38px",
+          "important": false
+        },
+        {
+          "property": "border",
+          "value": "1px solid var(--border)",
+          "important": false
+        },
+        {
+          "property": "border-radius",
+          "value": "var(--radius-sm)",
+          "important": false
+        },
+        {
+          "property": "background",
+          "value": "var(--bg-card)",
+          "important": false
+        },
+        {
+          "property": "cursor",
+          "value": "pointer",
+          "important": false
+        },
+        {
+          "property": "padding",
+          "value": "4px",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".tweaks-accent-btn": [
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "source": "css/redesign-shell.css",
+      "path": [
+        55
+      ],
+      "selector": ".tweaks-accent-swatch",
+      "selectors": [
+        ".tweaks-accent-swatch"
+      ],
+      "ancestry": [],
+      "declarations": [
+        {
+          "property": "display",
+          "value": "block",
+          "important": false
+        },
+        {
+          "property": "width",
+          "value": "100%",
+          "important": false
+        },
+        {
+          "property": "height",
+          "value": "100%",
+          "important": false
+        },
+        {
+          "property": "border-radius",
+          "value": "5px",
+          "important": false
+        },
+        {
+          "property": "background",
+          "value": "var(--tweak-gradient, var(--tweak-accent))",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".tweaks-accent-swatch": [
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "source": "css/redesign-shell.css",
+      "path": [
+        56
+      ],
+      "selector": ".tweaks-action-grid",
+      "selectors": [
+        ".tweaks-action-grid"
+      ],
+      "ancestry": [],
+      "declarations": [
+        {
+          "property": "display",
+          "value": "grid",
+          "important": false
+        },
+        {
+          "property": "grid-template-columns",
+          "value": "1fr 1fr",
+          "important": false
+        },
+        {
+          "property": "gap",
+          "value": "8px",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".tweaks-action-grid": [
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "source": "css/redesign-shell.css",
+      "path": [
+        58,
+        5
+      ],
+      "selector": ".tweaks-overlay.show",
+      "selectors": [
+        ".tweaks-overlay.show"
+      ],
+      "ancestry": [
+        "@media (max-width: 768px)"
+      ],
+      "declarations": [
+        {
+          "property": "display",
+          "value": "flex",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".tweaks-overlay.show": [
+          0,
+          2,
+          0
+        ]
+      }
+    },
+    {
+      "source": "css/redesign-shell.css",
+      "path": [
+        58,
+        6
+      ],
+      "selector": ".tweaks-overlay",
+      "selectors": [
+        ".tweaks-overlay"
+      ],
+      "ancestry": [
+        "@media (max-width: 768px)"
+      ],
+      "declarations": [
+        {
+          "property": "align-items",
+          "value": "center",
+          "important": false
+        },
+        {
+          "property": "justify-content",
+          "value": "center",
+          "important": false
+        },
+        {
+          "property": "padding",
+          "value": "calc(12px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left))",
+          "important": false
+        },
+        {
+          "property": "box-sizing",
+          "value": "border-box",
+          "important": false
+        },
+        {
+          "property": "background",
+          "value": "rgba(0, 0, 0, 0.68)",
+          "important": false
+        },
+        {
+          "property": "backdrop-filter",
+          "value": "blur(4px)",
+          "important": false
+        },
+        {
+          "property": "-webkit-backdrop-filter",
+          "value": "blur(4px)",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".tweaks-overlay": [
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "source": "css/redesign-shell.css",
+      "path": [
+        58,
+        7
+      ],
+      "selector": ".tweaks-panel",
+      "selectors": [
+        ".tweaks-panel"
+      ],
+      "ancestry": [
+        "@media (max-width: 768px)"
+      ],
+      "declarations": [
+        {
+          "property": "position",
+          "value": "relative",
+          "important": false
+        },
+        {
+          "property": "top",
+          "value": "auto",
+          "important": false
+        },
+        {
+          "property": "right",
+          "value": "auto",
+          "important": false
+        },
+        {
+          "property": "left",
+          "value": "auto",
+          "important": false
+        },
+        {
+          "property": "width",
+          "value": "min(100%, 380px)",
+          "important": false
+        },
+        {
+          "property": "min-width",
+          "value": "0",
+          "important": false
+        },
+        {
+          "property": "max-width",
+          "value": "100%",
+          "important": false
+        },
+        {
+          "property": "height",
+          "value": "calc(100vh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom))",
+          "important": false
+        },
+        {
+          "property": "max-height",
+          "value": "calc(100vh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom))",
+          "important": false
+        },
+        {
+          "property": "box-sizing",
+          "value": "border-box",
+          "important": false
+        },
+        {
+          "property": "box-shadow",
+          "value": "0 12px 24px -20px rgba(0, 0, 0, 0.75)",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".tweaks-panel": [
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "source": "css/redesign-shell.css",
+      "path": [
+        58,
+        8
+      ],
+      "selector": ".tweaks-body",
+      "selectors": [
+        ".tweaks-body"
+      ],
+      "ancestry": [
+        "@media (max-width: 768px)"
+      ],
+      "declarations": [
+        {
+          "property": "max-height",
+          "value": "none",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".tweaks-body": [
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "source": "css/redesign-shell.css",
+      "path": [
+        58,
+        9,
+        0
+      ],
+      "selector": ".tweaks-panel",
+      "selectors": [
+        ".tweaks-panel"
+      ],
+      "ancestry": [
+        "@media (max-width: 768px)",
+        "@supports (height: 100dvh)"
+      ],
+      "declarations": [
+        {
+          "property": "height",
+          "value": "calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom))",
+          "important": false
+        },
+        {
+          "property": "max-height",
+          "value": "calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom))",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".tweaks-panel": [
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "source": "css/redesign-shell.css",
+      "path": [
+        59,
+        2
+      ],
+      "selector": ".tweaks-action-grid",
+      "selectors": [
+        ".tweaks-action-grid"
+      ],
+      "ancestry": [
+        "@media (max-width: 480px)"
+      ],
+      "declarations": [
+        {
+          "property": "grid-template-columns",
+          "value": "1fr",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".tweaks-action-grid": [
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "source": "css/settings.base.css",
+      "path": [
+        57
+      ],
+      "selector": ".settings-theme-swatch",
+      "selectors": [
+        ".settings-theme-swatch"
+      ],
+      "ancestry": [],
+      "declarations": [
+        {
+          "property": "width",
+          "value": "24px",
+          "important": false
+        },
+        {
+          "property": "height",
+          "value": "24px",
+          "important": false
+        },
+        {
+          "property": "border-radius",
+          "value": "6px",
+          "important": false
+        },
+        {
+          "property": "flex-shrink",
+          "value": "0",
+          "important": false
+        },
+        {
+          "property": "border",
+          "value": "1px solid rgba(255,255,255,0.06)",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".settings-theme-swatch": [
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "source": "css/settings.base.css",
+      "path": [
+        58
+      ],
+      "selector": ".settings-theme-swatch-dark",
+      "selectors": [
+        ".settings-theme-swatch-dark"
+      ],
+      "ancestry": [],
+      "declarations": [
+        {
+          "property": "background",
+          "value": "linear-gradient(135deg, #222635 0%, #4f8cff 100%)",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".settings-theme-swatch-dark": [
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "source": "css/settings.base.css",
+      "path": [
+        59
+      ],
+      "selector": ".settings-theme-swatch-light",
+      "selectors": [
+        ".settings-theme-swatch-light"
+      ],
+      "ancestry": [],
+      "declarations": [
+        {
+          "property": "background",
+          "value": "linear-gradient(135deg, #f5f6fa 0%, #3b7cf5 100%)",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".settings-theme-swatch-light": [
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "source": "css/settings.base.css",
+      "path": [
+        60
+      ],
+      "selector": ".settings-theme-swatch-cyberterm",
+      "selectors": [
+        ".settings-theme-swatch-cyberterm"
+      ],
+      "ancestry": [],
+      "declarations": [
+        {
+          "property": "background",
+          "value": "linear-gradient(135deg, #0b0d0b 0%, #4ade80 100%)",
+          "important": false
+        },
+        {
+          "property": "border-radius",
+          "value": "0",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".settings-theme-swatch-cyberterm": [
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "source": "css/settings.base.css",
+      "path": [
+        61
+      ],
+      "selector": ".settings-theme-swatch-glass",
+      "selectors": [
+        ".settings-theme-swatch-glass"
+      ],
+      "ancestry": [],
+      "declarations": [
+        {
+          "property": "background",
+          "value": "linear-gradient(135deg, #c986ff 0%, #6ec4ff 100%)",
+          "important": false
+        },
+        {
+          "property": "border-radius",
+          "value": "12px",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".settings-theme-swatch-glass": [
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "source": "css/settings.base.css",
+      "path": [
+        62
+      ],
+      "selector": ".settings-theme-swatch-synth-sunrise",
+      "selectors": [
+        ".settings-theme-swatch-synth-sunrise"
+      ],
+      "ancestry": [],
+      "declarations": [
+        {
+          "property": "background",
+          "value": "linear-gradient(135deg, #ff7a18 0%, #ff2bd6 50%, #7c3aed 100%)",
+          "important": false
+        },
+        {
+          "property": "border-radius",
+          "value": "2px",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".settings-theme-swatch-synth-sunrise": [
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "source": "css/settings.base.css",
+      "path": [
+        63
+      ],
+      "selector": ".settings-theme-swatch-neuromancer",
+      "selectors": [
+        ".settings-theme-swatch-neuromancer"
+      ],
+      "ancestry": [],
+      "declarations": [
+        {
+          "property": "background",
+          "value": "linear-gradient(135deg, #00e5ff 0%, #ff2bd6 100%)",
+          "important": false
+        },
+        {
+          "property": "border-radius",
+          "value": "0",
+          "important": false
+        }
+      ],
+      "specificities": {
+        ".settings-theme-swatch-neuromancer": [
+          0,
+          1,
+          0
+        ]
+      }
+    }
+  ],
+  "mapping": [
+    {
+      "token": "gb:tweaks-overlay:tweaks-overlay-block",
+      "utility": "tweaks-overlay-block",
+      "variant": "tweaks-overlay",
+      "receiver": "overlay",
+      "lane": "eager",
+      "selector": ".tweaks-overlay",
+      "source": "css/redesign-shell.css",
+      "atRules": [],
+      "declarations": [
+        {
+          "property": "position",
+          "value": "fixed",
+          "important": false
+        },
+        {
+          "property": "inset",
+          "value": "0",
+          "important": false
+        },
+        {
+          "property": "z-index",
+          "value": "850",
+          "important": false
+        },
+        {
+          "property": "display",
+          "value": "none",
+          "important": false
+        },
+        {
+          "property": "overflow",
+          "value": "hidden",
+          "important": false
+        },
+        {
+          "property": "background",
+          "value": "rgba(0,0,0,0.22)",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-overlay-show:tweaks-overlay-show-block",
+      "utility": "tweaks-overlay-show-block",
+      "variant": "tweaks-overlay-show",
+      "receiver": "overlay",
+      "lane": "eager",
+      "selector": ".tweaks-overlay.show",
+      "source": "css/redesign-shell.css",
+      "atRules": [],
+      "declarations": [
+        {
+          "property": "display",
+          "value": "block",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-panel:tweaks-panel-block",
+      "utility": "tweaks-panel-block",
+      "variant": "tweaks-panel",
+      "receiver": "panel",
+      "lane": "eager",
+      "selector": ".tweaks-panel",
+      "source": "css/redesign-shell.css",
+      "atRules": [],
+      "declarations": [
+        {
+          "property": "position",
+          "value": "absolute",
+          "important": false
+        },
+        {
+          "property": "top",
+          "value": "76px",
+          "important": false
+        },
+        {
+          "property": "right",
+          "value": "16px",
+          "important": false
+        },
+        {
+          "property": "display",
+          "value": "flex",
+          "important": false
+        },
+        {
+          "property": "flex-direction",
+          "value": "column",
+          "important": false
+        },
+        {
+          "property": "width",
+          "value": "min(380px, calc(100vw - 24px))",
+          "important": false
+        },
+        {
+          "property": "max-height",
+          "value": "calc(100vh - 92px)",
+          "important": false
+        },
+        {
+          "property": "overflow",
+          "value": "hidden",
+          "important": false
+        },
+        {
+          "property": "border",
+          "value": "1px solid var(--border)",
+          "important": false
+        },
+        {
+          "property": "border-radius",
+          "value": "var(--radius)",
+          "important": false
+        },
+        {
+          "property": "background",
+          "value": "var(--bg-secondary)",
+          "important": false
+        },
+        {
+          "property": "box-shadow",
+          "value": "var(--shadow-lg)",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-head:tweaks-head-block",
+      "utility": "tweaks-head-block",
+      "variant": "tweaks-head",
+      "receiver": "head",
+      "lane": "eager",
+      "selector": ".tweaks-head",
+      "source": "css/redesign-shell.css",
+      "atRules": [],
+      "declarations": [
+        {
+          "property": "flex",
+          "value": "0 0 auto",
+          "important": false
+        },
+        {
+          "property": "display",
+          "value": "flex",
+          "important": false
+        },
+        {
+          "property": "align-items",
+          "value": "center",
+          "important": false
+        },
+        {
+          "property": "justify-content",
+          "value": "space-between",
+          "important": false
+        },
+        {
+          "property": "gap",
+          "value": "16px",
+          "important": false
+        },
+        {
+          "property": "padding",
+          "value": "18px 20px",
+          "important": false
+        },
+        {
+          "property": "border-bottom",
+          "value": "1px solid var(--border)",
+          "important": false
+        },
+        {
+          "property": "background",
+          "value": "color-mix(in srgb, var(--bg-secondary) 92%, var(--bg-card))",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-close:tweaks-close-block",
+      "utility": "tweaks-close-block",
+      "variant": "tweaks-close",
+      "receiver": "close",
+      "lane": "eager",
+      "selector": ".tweaks-head .modal-close",
+      "source": "css/redesign-shell.css",
+      "atRules": [],
+      "declarations": [
+        {
+          "property": "position",
+          "value": "static",
+          "important": false
+        },
+        {
+          "property": "display",
+          "value": "inline-flex",
+          "important": false
+        },
+        {
+          "property": "align-items",
+          "value": "center",
+          "important": false
+        },
+        {
+          "property": "justify-content",
+          "value": "center",
+          "important": false
+        },
+        {
+          "property": "width",
+          "value": "34px",
+          "important": false
+        },
+        {
+          "property": "height",
+          "value": "34px",
+          "important": false
+        },
+        {
+          "property": "padding",
+          "value": "0",
+          "important": false
+        },
+        {
+          "property": "border",
+          "value": "1px solid var(--border)",
+          "important": false
+        },
+        {
+          "property": "border-radius",
+          "value": "var(--radius-sm)",
+          "important": false
+        },
+        {
+          "property": "background",
+          "value": "var(--bg-card)",
+          "important": false
+        },
+        {
+          "property": "color",
+          "value": "var(--text-muted)",
+          "important": false
+        },
+        {
+          "property": "font-size",
+          "value": "22px",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-body:tweaks-body-block",
+      "utility": "tweaks-body-block",
+      "variant": "tweaks-body",
+      "receiver": "body",
+      "lane": "eager",
+      "selector": ".tweaks-body",
+      "source": "css/redesign-shell.css",
+      "atRules": [],
+      "declarations": [
+        {
+          "property": "flex",
+          "value": "1 1 auto",
+          "important": false
+        },
+        {
+          "property": "min-height",
+          "value": "0",
+          "important": false
+        },
+        {
+          "property": "max-height",
+          "value": "calc(100vh - 172px)",
+          "important": false
+        },
+        {
+          "property": "overflow-y",
+          "value": "auto",
+          "important": false
+        },
+        {
+          "property": "overscroll-behavior",
+          "value": "contain",
+          "important": false
+        },
+        {
+          "property": "-webkit-overflow-scrolling",
+          "value": "touch",
+          "important": false
+        },
+        {
+          "property": "padding",
+          "value": "16px 20px 20px",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-section:tweaks-section-block",
+      "utility": "tweaks-section-block",
+      "variant": "tweaks-section",
+      "receiver": "section",
+      "lane": "eager",
+      "selector": ".tweaks-section",
+      "source": "css/redesign-shell.css",
+      "atRules": [],
+      "declarations": [
+        {
+          "property": "padding",
+          "value": "14px 0",
+          "important": false
+        },
+        {
+          "property": "border-bottom",
+          "value": "1px solid var(--border)",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-section-first:tweaks-section-first-block",
+      "utility": "tweaks-section-first-block",
+      "variant": "tweaks-section-first",
+      "receiver": "section",
+      "lane": "eager",
+      "selector": ".tweaks-section:first-child",
+      "source": "css/redesign-shell.css",
+      "atRules": [],
+      "declarations": [
+        {
+          "property": "padding-top",
+          "value": "0",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-section-last:tweaks-section-last-block",
+      "utility": "tweaks-section-last-block",
+      "variant": "tweaks-section-last",
+      "receiver": "section",
+      "lane": "eager",
+      "selector": ".tweaks-section:last-child",
+      "source": "css/redesign-shell.css",
+      "atRules": [],
+      "declarations": [
+        {
+          "property": "border-bottom",
+          "value": "0",
+          "important": false
+        },
+        {
+          "property": "padding-bottom",
+          "value": "0",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-section-title:tweaks-section-title-block",
+      "utility": "tweaks-section-title-block",
+      "variant": "tweaks-section-title",
+      "receiver": "section-title",
+      "lane": "eager",
+      "selector": ".tweaks-section-title",
+      "source": "css/redesign-shell.css",
+      "atRules": [],
+      "declarations": [
+        {
+          "property": "margin-bottom",
+          "value": "10px",
+          "important": false
+        },
+        {
+          "property": "color",
+          "value": "var(--text-muted)",
+          "important": false
+        },
+        {
+          "property": "font-family",
+          "value": "var(--font-mono)",
+          "important": false
+        },
+        {
+          "property": "font-size",
+          "value": "10px",
+          "important": false
+        },
+        {
+          "property": "font-weight",
+          "value": "700",
+          "important": false
+        },
+        {
+          "property": "letter-spacing",
+          "value": "0.1em",
+          "important": false
+        },
+        {
+          "property": "text-transform",
+          "value": "uppercase",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-theme-grid:tweaks-theme-grid-block",
+      "utility": "tweaks-theme-grid-block",
+      "variant": "tweaks-theme-grid",
+      "receiver": "theme-grid",
+      "lane": "eager",
+      "selector": ".tweaks-theme-grid",
+      "source": "css/redesign-shell.css",
+      "atRules": [],
+      "declarations": [
+        {
+          "property": "display",
+          "value": "grid",
+          "important": false
+        },
+        {
+          "property": "grid-template-columns",
+          "value": "1fr",
+          "important": false
+        },
+        {
+          "property": "gap",
+          "value": "8px",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-theme-button:tweaks-theme-button-block",
+      "utility": "tweaks-theme-button-block",
+      "variant": "tweaks-theme-button",
+      "receiver": "theme-button",
+      "lane": "eager",
+      "selector": ".tweaks-theme-btn",
+      "source": "css/redesign-shell.css",
+      "atRules": [],
+      "declarations": [
+        {
+          "property": "display",
+          "value": "flex",
+          "important": false
+        },
+        {
+          "property": "align-items",
+          "value": "center",
+          "important": false
+        },
+        {
+          "property": "gap",
+          "value": "9px",
+          "important": false
+        },
+        {
+          "property": "min-width",
+          "value": "0",
+          "important": false
+        },
+        {
+          "property": "width",
+          "value": "100%",
+          "important": false
+        },
+        {
+          "property": "padding",
+          "value": "9px 10px",
+          "important": false
+        },
+        {
+          "property": "border",
+          "value": "1px solid var(--border)",
+          "important": false
+        },
+        {
+          "property": "border-radius",
+          "value": "var(--radius-sm)",
+          "important": false
+        },
+        {
+          "property": "background",
+          "value": "var(--bg-card)",
+          "important": false
+        },
+        {
+          "property": "color",
+          "value": "var(--text-primary)",
+          "important": false
+        },
+        {
+          "property": "font",
+          "value": "inherit",
+          "important": false
+        },
+        {
+          "property": "font-size",
+          "value": "13px",
+          "important": false
+        },
+        {
+          "property": "cursor",
+          "value": "pointer",
+          "important": false
+        },
+        {
+          "property": "text-align",
+          "value": "left",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-action-button:tweaks-action-button-block",
+      "utility": "tweaks-action-button-block",
+      "variant": "tweaks-action-button",
+      "receiver": "action-button",
+      "lane": "eager",
+      "selector": ".tweaks-action-grid button",
+      "source": "css/redesign-shell.css",
+      "atRules": [],
+      "declarations": [
+        {
+          "property": "display",
+          "value": "flex",
+          "important": false
+        },
+        {
+          "property": "align-items",
+          "value": "center",
+          "important": false
+        },
+        {
+          "property": "gap",
+          "value": "9px",
+          "important": false
+        },
+        {
+          "property": "min-width",
+          "value": "0",
+          "important": false
+        },
+        {
+          "property": "width",
+          "value": "100%",
+          "important": false
+        },
+        {
+          "property": "padding",
+          "value": "9px 10px",
+          "important": false
+        },
+        {
+          "property": "border",
+          "value": "1px solid var(--border)",
+          "important": false
+        },
+        {
+          "property": "border-radius",
+          "value": "var(--radius-sm)",
+          "important": false
+        },
+        {
+          "property": "background",
+          "value": "var(--bg-card)",
+          "important": false
+        },
+        {
+          "property": "color",
+          "value": "var(--text-primary)",
+          "important": false
+        },
+        {
+          "property": "font",
+          "value": "inherit",
+          "important": false
+        },
+        {
+          "property": "font-size",
+          "value": "13px",
+          "important": false
+        },
+        {
+          "property": "cursor",
+          "value": "pointer",
+          "important": false
+        },
+        {
+          "property": "text-align",
+          "value": "left",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-theme-button-hover:tweaks-theme-button-hover-block",
+      "utility": "tweaks-theme-button-hover-block",
+      "variant": "tweaks-theme-button-hover",
+      "receiver": "theme-button",
+      "lane": "eager",
+      "selector": ".tweaks-theme-btn:hover",
+      "source": "css/redesign-shell.css",
+      "atRules": [],
+      "declarations": [
+        {
+          "property": "border-color",
+          "value": "var(--accent)",
+          "important": false
+        },
+        {
+          "property": "background",
+          "value": "var(--bg-hover)",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-action-button-hover:tweaks-action-button-hover-block",
+      "utility": "tweaks-action-button-hover-block",
+      "variant": "tweaks-action-button-hover",
+      "receiver": "action-button",
+      "lane": "eager",
+      "selector": ".tweaks-action-grid button:hover",
+      "source": "css/redesign-shell.css",
+      "atRules": [],
+      "declarations": [
+        {
+          "property": "border-color",
+          "value": "var(--accent)",
+          "important": false
+        },
+        {
+          "property": "background",
+          "value": "var(--bg-hover)",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-theme-button-active:tweaks-theme-button-active-block",
+      "utility": "tweaks-theme-button-active-block",
+      "variant": "tweaks-theme-button-active",
+      "receiver": "theme-button",
+      "lane": "eager",
+      "selector": ".tweaks-theme-btn.active",
+      "source": "css/redesign-shell.css",
+      "atRules": [],
+      "declarations": [
+        {
+          "property": "border-color",
+          "value": "var(--accent)",
+          "important": false
+        },
+        {
+          "property": "box-shadow",
+          "value": "inset 0 0 0 1px var(--accent-fill)",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-accent-button-active:tweaks-accent-button-active-block",
+      "utility": "tweaks-accent-button-active-block",
+      "variant": "tweaks-accent-button-active",
+      "receiver": "accent-button",
+      "lane": "eager",
+      "selector": ".tweaks-accent-btn.active",
+      "source": "css/redesign-shell.css",
+      "atRules": [],
+      "declarations": [
+        {
+          "property": "border-color",
+          "value": "var(--accent)",
+          "important": false
+        },
+        {
+          "property": "box-shadow",
+          "value": "inset 0 0 0 1px var(--accent-fill)",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-accent-row:tweaks-accent-row-block",
+      "utility": "tweaks-accent-row-block",
+      "variant": "tweaks-accent-row",
+      "receiver": "accent-row",
+      "lane": "eager",
+      "selector": ".tweaks-accent-row",
+      "source": "css/redesign-shell.css",
+      "atRules": [],
+      "declarations": [
+        {
+          "property": "display",
+          "value": "grid",
+          "important": false
+        },
+        {
+          "property": "grid-template-columns",
+          "value": "repeat(6, 1fr)",
+          "important": false
+        },
+        {
+          "property": "gap",
+          "value": "8px",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-option-row:tweaks-option-row-block",
+      "utility": "tweaks-option-row-block",
+      "variant": "tweaks-option-row",
+      "receiver": "option-row",
+      "lane": "eager",
+      "selector": ".tweaks-option-row",
+      "source": "css/redesign-shell.css",
+      "atRules": [],
+      "declarations": [
+        {
+          "property": "display",
+          "value": "flex",
+          "important": false
+        },
+        {
+          "property": "align-items",
+          "value": "center",
+          "important": false
+        },
+        {
+          "property": "justify-content",
+          "value": "space-between",
+          "important": false
+        },
+        {
+          "property": "gap",
+          "value": "14px",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-option-copy:tweaks-option-copy-block",
+      "utility": "tweaks-option-copy-block",
+      "variant": "tweaks-option-copy",
+      "receiver": "option-copy",
+      "lane": "eager",
+      "selector": ".tweaks-option-row .settings-copy",
+      "source": "css/redesign-shell.css",
+      "atRules": [],
+      "declarations": [
+        {
+          "property": "min-width",
+          "value": "0",
+          "important": false
+        },
+        {
+          "property": "flex",
+          "value": "1 1 auto",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-option-title:tweaks-option-title-block",
+      "utility": "tweaks-option-title-block",
+      "variant": "tweaks-option-title",
+      "receiver": "option-title",
+      "lane": "eager",
+      "selector": ".tweaks-option-row .settings-copy-title",
+      "source": "css/redesign-shell.css",
+      "atRules": [],
+      "declarations": [
+        {
+          "property": "overflow-wrap",
+          "value": "anywhere",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-option-description:tweaks-option-description-block",
+      "utility": "tweaks-option-description-block",
+      "variant": "tweaks-option-description",
+      "receiver": "option-description",
+      "lane": "eager",
+      "selector": ".tweaks-option-row .settings-copy-desc",
+      "source": "css/redesign-shell.css",
+      "atRules": [],
+      "declarations": [
+        {
+          "property": "overflow-wrap",
+          "value": "anywhere",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-option-hidden:tweaks-option-hidden-block",
+      "utility": "tweaks-option-hidden-block",
+      "variant": "tweaks-option-hidden",
+      "receiver": "option-row",
+      "lane": "eager",
+      "selector": ".tweaks-option-row[hidden]",
+      "source": "css/redesign-shell.css",
+      "atRules": [],
+      "declarations": [
+        {
+          "property": "display",
+          "value": "none",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-option-following:tweaks-option-following-block",
+      "utility": "tweaks-option-following-block",
+      "variant": "tweaks-option-following",
+      "receiver": "option-row",
+      "lane": "eager",
+      "selector": ".tweaks-option-row + .tweaks-option-row",
+      "source": "css/redesign-shell.css",
+      "atRules": [],
+      "declarations": [
+        {
+          "property": "margin-top",
+          "value": "12px",
+          "important": false
+        },
+        {
+          "property": "padding-top",
+          "value": "12px",
+          "important": false
+        },
+        {
+          "property": "border-top",
+          "value": "1px solid var(--border)",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-sunset-accent-row:tweaks-sunset-accent-row-block",
+      "utility": "tweaks-sunset-accent-row-block",
+      "variant": "tweaks-sunset-accent-row",
+      "receiver": "accent-row",
+      "lane": "eager",
+      "selector": ".tweaks-panel.sunset-active .tweaks-accent-row",
+      "source": "css/redesign-shell.css",
+      "atRules": [],
+      "declarations": [
+        {
+          "property": "opacity",
+          "value": "0.58",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-accent-button:tweaks-accent-button-block",
+      "utility": "tweaks-accent-button-block",
+      "variant": "tweaks-accent-button",
+      "receiver": "accent-button",
+      "lane": "eager",
+      "selector": ".tweaks-accent-btn",
+      "source": "css/redesign-shell.css",
+      "atRules": [],
+      "declarations": [
+        {
+          "property": "height",
+          "value": "38px",
+          "important": false
+        },
+        {
+          "property": "border",
+          "value": "1px solid var(--border)",
+          "important": false
+        },
+        {
+          "property": "border-radius",
+          "value": "var(--radius-sm)",
+          "important": false
+        },
+        {
+          "property": "background",
+          "value": "var(--bg-card)",
+          "important": false
+        },
+        {
+          "property": "cursor",
+          "value": "pointer",
+          "important": false
+        },
+        {
+          "property": "padding",
+          "value": "4px",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-accent-swatch:tweaks-accent-swatch-block",
+      "utility": "tweaks-accent-swatch-block",
+      "variant": "tweaks-accent-swatch",
+      "receiver": "accent-swatch",
+      "lane": "eager",
+      "selector": ".tweaks-accent-swatch",
+      "source": "css/redesign-shell.css",
+      "atRules": [],
+      "declarations": [
+        {
+          "property": "display",
+          "value": "block",
+          "important": false
+        },
+        {
+          "property": "width",
+          "value": "100%",
+          "important": false
+        },
+        {
+          "property": "height",
+          "value": "100%",
+          "important": false
+        },
+        {
+          "property": "border-radius",
+          "value": "5px",
+          "important": false
+        },
+        {
+          "property": "background",
+          "value": "var(--tweak-gradient, var(--tweak-accent))",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-action-grid:tweaks-action-grid-block",
+      "utility": "tweaks-action-grid-block",
+      "variant": "tweaks-action-grid",
+      "receiver": "action-grid",
+      "lane": "eager",
+      "selector": ".tweaks-action-grid",
+      "source": "css/redesign-shell.css",
+      "atRules": [],
+      "declarations": [
+        {
+          "property": "display",
+          "value": "grid",
+          "important": false
+        },
+        {
+          "property": "grid-template-columns",
+          "value": "1fr 1fr",
+          "important": false
+        },
+        {
+          "property": "gap",
+          "value": "8px",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-phone-overlay-show:tweaks-phone-overlay-show-block",
+      "utility": "tweaks-phone-overlay-show-block",
+      "variant": "tweaks-phone-overlay-show",
+      "receiver": "overlay",
+      "lane": "eager",
+      "selector": ".tweaks-overlay.show",
+      "source": "css/redesign-shell.css",
+      "atRules": [
+        "@media (max-width: 768px)"
+      ],
+      "declarations": [
+        {
+          "property": "display",
+          "value": "flex",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-phone-overlay:tweaks-phone-overlay-block",
+      "utility": "tweaks-phone-overlay-block",
+      "variant": "tweaks-phone-overlay",
+      "receiver": "overlay",
+      "lane": "eager",
+      "selector": ".tweaks-overlay",
+      "source": "css/redesign-shell.css",
+      "atRules": [
+        "@media (max-width: 768px)"
+      ],
+      "declarations": [
+        {
+          "property": "align-items",
+          "value": "center",
+          "important": false
+        },
+        {
+          "property": "justify-content",
+          "value": "center",
+          "important": false
+        },
+        {
+          "property": "padding",
+          "value": "calc(12px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left))",
+          "important": false
+        },
+        {
+          "property": "box-sizing",
+          "value": "border-box",
+          "important": false
+        },
+        {
+          "property": "background",
+          "value": "rgba(0, 0, 0, 0.68)",
+          "important": false
+        },
+        {
+          "property": "backdrop-filter",
+          "value": "blur(4px)",
+          "important": false
+        },
+        {
+          "property": "-webkit-backdrop-filter",
+          "value": "blur(4px)",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-phone-panel:tweaks-phone-panel-block",
+      "utility": "tweaks-phone-panel-block",
+      "variant": "tweaks-phone-panel",
+      "receiver": "panel",
+      "lane": "eager",
+      "selector": ".tweaks-panel",
+      "source": "css/redesign-shell.css",
+      "atRules": [
+        "@media (max-width: 768px)"
+      ],
+      "declarations": [
+        {
+          "property": "position",
+          "value": "relative",
+          "important": false
+        },
+        {
+          "property": "top",
+          "value": "auto",
+          "important": false
+        },
+        {
+          "property": "right",
+          "value": "auto",
+          "important": false
+        },
+        {
+          "property": "left",
+          "value": "auto",
+          "important": false
+        },
+        {
+          "property": "width",
+          "value": "min(100%, 380px)",
+          "important": false
+        },
+        {
+          "property": "min-width",
+          "value": "0",
+          "important": false
+        },
+        {
+          "property": "max-width",
+          "value": "100%",
+          "important": false
+        },
+        {
+          "property": "height",
+          "value": "calc(100vh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom))",
+          "important": false
+        },
+        {
+          "property": "max-height",
+          "value": "calc(100vh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom))",
+          "important": false
+        },
+        {
+          "property": "box-sizing",
+          "value": "border-box",
+          "important": false
+        },
+        {
+          "property": "box-shadow",
+          "value": "0 12px 24px -20px rgba(0, 0, 0, 0.75)",
+          "important": false
+        }
+      ],
+      "nestedSupports": {
+        "receiver": "panel",
+        "selector": ".tweaks-panel",
+        "specificity": [
+          0,
+          1,
+          0
+        ],
+        "source": "css/redesign-shell.css",
+        "path": [
+          58,
+          9,
+          0
+        ],
+        "line": 447,
+        "ancestry": [
+          "@media (max-width: 768px)",
+          "@supports (height: 100dvh)"
+        ],
+        "variant": "tweaks-phone-dvh-panel",
+        "variantSelector": ":where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.tweaks-panel)",
+        "orderedDeclarations": [
+          {
+            "property": "height",
+            "value": "calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom))",
+            "important": false
+          },
+          {
+            "property": "max-height",
+            "value": "calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom))",
+            "important": false
+          }
+        ],
+        "candidateTokens": [
+          "gb:tweaks-phone-dvh-panel:[height:calc(100dvh_-_24px_-_env(safe-area-inset-top)_-_env(safe-area-inset-bottom))]",
+          "gb:tweaks-phone-dvh-panel:[max-height:calc(100dvh_-_24px_-_env(safe-area-inset-top)_-_env(safe-area-inset-bottom))]"
+        ],
+        "acceptance": "uncompiled source-only recipe; emitted selector/property/order/native parser proof required",
+        "primaryRecipe": "gb:tweaks-phone-dvh-panel:tweaks-phone-dvh-panel-block",
+        "candidateTokensBoundary": "Alternative primitive candidates only; do not emit blindly. Primary single ordered custom utility preserves the complete declaration block/font and border dependencies; identical values may share recipes only if selectors keep independent strength."
+      }
+    },
+    {
+      "token": "gb:tweaks-phone-body:tweaks-phone-body-block",
+      "utility": "tweaks-phone-body-block",
+      "variant": "tweaks-phone-body",
+      "receiver": "body",
+      "lane": "eager",
+      "selector": ".tweaks-body",
+      "source": "css/redesign-shell.css",
+      "atRules": [
+        "@media (max-width: 768px)"
+      ],
+      "declarations": [
+        {
+          "property": "max-height",
+          "value": "none",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-narrow-action-grid:tweaks-narrow-action-grid-block",
+      "utility": "tweaks-narrow-action-grid-block",
+      "variant": "tweaks-narrow-action-grid",
+      "receiver": "action-grid",
+      "lane": "eager",
+      "selector": ".tweaks-action-grid",
+      "source": "css/redesign-shell.css",
+      "atRules": [
+        "@media (max-width: 480px)"
+      ],
+      "declarations": [
+        {
+          "property": "grid-template-columns",
+          "value": "1fr",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-theme-swatch:tweaks-theme-swatch-block",
+      "utility": "tweaks-theme-swatch-block",
+      "variant": "tweaks-theme-swatch",
+      "receiver": "theme-swatch",
+      "lane": "settings",
+      "selector": ".settings-theme-swatch",
+      "source": "css/settings.base.css",
+      "atRules": [],
+      "declarations": [
+        {
+          "property": "width",
+          "value": "24px",
+          "important": false
+        },
+        {
+          "property": "height",
+          "value": "24px",
+          "important": false
+        },
+        {
+          "property": "border-radius",
+          "value": "6px",
+          "important": false
+        },
+        {
+          "property": "flex-shrink",
+          "value": "0",
+          "important": false
+        },
+        {
+          "property": "border",
+          "value": "1px solid rgba(255,255,255,0.06)",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-theme-swatch-dark:tweaks-theme-swatch-dark-block",
+      "utility": "tweaks-theme-swatch-dark-block",
+      "variant": "tweaks-theme-swatch-dark",
+      "receiver": "theme-swatch-dark",
+      "lane": "settings",
+      "selector": ".settings-theme-swatch-dark",
+      "source": "css/settings.base.css",
+      "atRules": [],
+      "declarations": [
+        {
+          "property": "background",
+          "value": "linear-gradient(135deg, #222635 0%, #4f8cff 100%)",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-theme-swatch-light:tweaks-theme-swatch-light-block",
+      "utility": "tweaks-theme-swatch-light-block",
+      "variant": "tweaks-theme-swatch-light",
+      "receiver": "theme-swatch-light",
+      "lane": "settings",
+      "selector": ".settings-theme-swatch-light",
+      "source": "css/settings.base.css",
+      "atRules": [],
+      "declarations": [
+        {
+          "property": "background",
+          "value": "linear-gradient(135deg, #f5f6fa 0%, #3b7cf5 100%)",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-theme-swatch-cyberterm:tweaks-theme-swatch-cyberterm-block",
+      "utility": "tweaks-theme-swatch-cyberterm-block",
+      "variant": "tweaks-theme-swatch-cyberterm",
+      "receiver": "theme-swatch-cyberterm",
+      "lane": "settings",
+      "selector": ".settings-theme-swatch-cyberterm",
+      "source": "css/settings.base.css",
+      "atRules": [],
+      "declarations": [
+        {
+          "property": "background",
+          "value": "linear-gradient(135deg, #0b0d0b 0%, #4ade80 100%)",
+          "important": false
+        },
+        {
+          "property": "border-radius",
+          "value": "0",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-theme-swatch-glass:tweaks-theme-swatch-glass-block",
+      "utility": "tweaks-theme-swatch-glass-block",
+      "variant": "tweaks-theme-swatch-glass",
+      "receiver": "theme-swatch-glass",
+      "lane": "settings",
+      "selector": ".settings-theme-swatch-glass",
+      "source": "css/settings.base.css",
+      "atRules": [],
+      "declarations": [
+        {
+          "property": "background",
+          "value": "linear-gradient(135deg, #c986ff 0%, #6ec4ff 100%)",
+          "important": false
+        },
+        {
+          "property": "border-radius",
+          "value": "12px",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-theme-swatch-synth-sunrise:tweaks-theme-swatch-synth-sunrise-block",
+      "utility": "tweaks-theme-swatch-synth-sunrise-block",
+      "variant": "tweaks-theme-swatch-synth-sunrise",
+      "receiver": "theme-swatch-synth-sunrise",
+      "lane": "settings",
+      "selector": ".settings-theme-swatch-synth-sunrise",
+      "source": "css/settings.base.css",
+      "atRules": [],
+      "declarations": [
+        {
+          "property": "background",
+          "value": "linear-gradient(135deg, #ff7a18 0%, #ff2bd6 50%, #7c3aed 100%)",
+          "important": false
+        },
+        {
+          "property": "border-radius",
+          "value": "2px",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    },
+    {
+      "token": "gb:tweaks-theme-swatch-neuromancer:tweaks-theme-swatch-neuromancer-block",
+      "utility": "tweaks-theme-swatch-neuromancer-block",
+      "variant": "tweaks-theme-swatch-neuromancer",
+      "receiver": "theme-swatch-neuromancer",
+      "lane": "settings",
+      "selector": ".settings-theme-swatch-neuromancer",
+      "source": "css/settings.base.css",
+      "atRules": [],
+      "declarations": [
+        {
+          "property": "background",
+          "value": "linear-gradient(135deg, #00e5ff 0%, #ff2bd6 100%)",
+          "important": false
+        },
+        {
+          "property": "border-radius",
+          "value": "0",
+          "important": false
+        }
+      ],
+      "nestedSupports": null
+    }
+  ]
+}

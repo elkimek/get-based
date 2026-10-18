@@ -1,3 +1,4 @@
+import{captureLightAIView}from'./light-ai-view-values.js';
 // light-device-ai-analysis.js — per-session AI verdict for light therapy
 // device sessions (PBM panels, SAD lamps, dawn simulators, UVB phototherapy).
 //
@@ -266,13 +267,14 @@ function _hasCompleteModeledDeviceSession(sess: DeviceSessionRecord | null | und
 }
 
 // One authored presentation serves both inline rows and rich detail dialogs.
-function renderVerdict(sess: DeviceSessionRecord | null | undefined, mode: 'inline' | 'detail') {
-  if (!_hasCompleteModeledDeviceSession(sess)) return '';
+export function getDeviceSessionAIView(sess: DeviceSessionRecord | null | undefined, mode: 'inline' | 'detail') {
+  if (!_hasCompleteModeledDeviceSession(sess)) return null;
   const analysis = sess.aiAnalysis as VerdictRead | null | undefined;
-  if (!hasAssistantFeatureProvider() && !(analysis?.status === 'ok' && analysis.dot)) return '';
-  return renderHTML({ view: projectSessionAI({ mode, status: engine.getStatus(sess), analysis,
+  if (!hasAssistantFeatureProvider() && !(analysis?.status === 'ok' && analysis.dot)) return null;
+  return captureLightAIView(projectSessionAI({ mode, status: engine.getStatus(sess), analysis,
     action: 'refresh-device-session', targetId: sess.id, actionOwner: aiActionOwner(),
-  }) });
+  }));
 }
+function renderVerdict(sess: DeviceSessionRecord | null | undefined, mode: 'inline' | 'detail'){const view=getDeviceSessionAIView(sess,mode);return view?renderHTML({view}):'';}
 export const renderDeviceSessionAIInline = (sess: DeviceSessionRecord | null | undefined) => renderVerdict(sess, 'inline');
 export const renderDeviceSessionAIDetail = (sess: DeviceSessionRecord | null | undefined) => renderVerdict(sess, 'detail');

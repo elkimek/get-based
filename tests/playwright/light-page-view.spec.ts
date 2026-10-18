@@ -1,3 +1,4 @@
+import {waitForAsyncCondition} from '../helpers/awaited-condition.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
@@ -5,10 +6,10 @@ const moduleUrl = createModuleUrl('lightPageViewCoverage');
 
 test('Light page view delegates session, link, channel, and prompt actions', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(async () => {
+  await waitForAsyncCondition(() => page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     return !!state;
-  });
+  }), 0);
 
   const results = await page.evaluate(async () => {
     const { configureLightPageView, renderDashboardLightChannelPills, renderLightLiveSession, renderLightSessionLogActions } = await import('/js/light-page-view.js');

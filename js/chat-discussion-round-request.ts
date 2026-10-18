@@ -6,7 +6,7 @@ import {
   getAIProvider, getActiveModelId, getActiveModelDisplay, supportsWebSearch,
   isPpqPrivateModeActive, isRoutstrPrivateModeActive, isVeniceE2EEActive,
 } from './api.js';
-import { injectLensChunks } from './lab-context.js';
+import { injectLensChunks } from './lab-context-output.js';
 import { hasLens, queryLensMulti } from './lens.js';
 import { getActivePersonality, getCustomPersonality } from './chat-personalities.js';
 import {

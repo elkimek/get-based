@@ -3,11 +3,11 @@
 import { state } from './state.js';
 import { getActiveData } from './data.js';
 import { getEffectiveRangeForDate, getLatestValueIndex } from './marker-analysis.js';
-import { computeBiologyScores } from './biology-scores.js';
+import { computeBiologyScores } from './biology-score-compute.js';
 import { profileStorageKey } from './profile.js';
 import { formatValue, getStatus } from './utils.js';
 import { actionAttributes } from './action-attributes.js';
-import {projectRecommendationCard, projectRecommendationEmpty, projectRecommendationList} from './recommendation-presentation.js';
+import {projectRecommendationCard, projectRecommendationEmpty, projectRecommendationList, type RecommendationPresentationView} from './recommendation-presentation.js';
 import {renderHTML as renderRecommendationPresentation} from './components/RecommendationPresentation.svelte.html.js';
 import {
   getRecommendationModuleFunction,
@@ -308,18 +308,22 @@ export function createDashboardRecommendationWidget({
     return renderRecommendationPresentation({view: {kind: 'empty', empty: projectRecommendationEmpty(message)}});
   }
 
-  function renderDashboardRecommendationsWidget(ctx: unknown) {
+  function projectDashboardRecommendationsWidget(ctx: unknown): RecommendationPresentationView {
     if (!getRecommendationModuleFunction('isProductRecsEnabled')?.()) {
-      return renderRecommendationPresentation({view: {kind: 'disabled'}});
+      return {kind: 'disabled'};
     }
     const catalog = getCachedRecommendationsCatalog() as RecCatalogReader | null;
     if (!catalog) {
       refreshRecommendationsWhenCatalogReady();
-      return renderRecommendationPresentation({view: {kind: 'loading'}});
+      return {kind: 'loading'};
     }
     const candidates = getGlobalRecommendationCandidates(ctx, catalog).slice(0, 3);
-    if (!candidates.length) return renderRecommendationsEmpty();
-    return renderRecommendationPresentation({view: {kind: 'widget', cards: projectRecommendationList(candidates, true)}});
+    if (!candidates.length) return {kind: 'empty', empty: projectRecommendationEmpty('No data-linked tips yet.')};
+    return {kind: 'widget', cards: projectRecommendationList(candidates, true)};
+  }
+
+  function renderDashboardRecommendationsWidget(ctx: unknown) {
+    return renderRecommendationPresentation({view: projectDashboardRecommendationsWidget(ctx)});
   }
 
   return {
@@ -330,6 +334,7 @@ export function createDashboardRecommendationWidget({
     renderRecommendationList,
     renderRecommendationsEmpty,
     renderDashboardRecommendationsWidget,
+    projectDashboardRecommendationsWidget,
     setRecommendationState,
   };
 }

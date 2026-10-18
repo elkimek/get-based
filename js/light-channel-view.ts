@@ -205,7 +205,7 @@ function _sessionCountText(count: number, source: string) {
 // missing records never become a claim that the person received no light.
 // Session arrays are optional so older consumers that only have channel
 // totals still receive a useful source summary.
-export function renderSuggestion(sunTotals7d: unknown = {}, deviceTotals7d: unknown = {}, sunSessions: unknown = null, deviceSessions: unknown = null) {
+export function getWeeklyFallbackView(sunTotals7d: unknown = {}, deviceTotals7d: unknown = {}, sunSessions: unknown = null, deviceSessions: unknown = null) {
   const hasSun = Object.values(sunTotals7d as object).some(_hasSignal);
   const hasDevice = Object.values(deviceTotals7d as object).some(_hasSignal);
   const now = Date.now();
@@ -263,5 +263,6 @@ export function renderSuggestion(sunTotals7d: unknown = {}, deviceTotals7d: unkn
     comparison = `Previous 7 days: ${_sessionCountText(previousSun.sessions, 'outdoor')} and ${_sessionCountText(previousDevice.sessions, 'device')}.`;
   }
 
-  return renderLightReview({ view: { kind: 'weekly-fallback', headline, comparison, nextStep, empty: currentTotal === 0 } });
+  return { kind: 'weekly-fallback', headline, comparison, nextStep, empty: currentTotal === 0 } as const;
 }
+export function renderSuggestion(sunTotals7d: unknown = {},deviceTotals7d: unknown = {},sunSessions: unknown = null,deviceSessions: unknown = null){return renderLightReview({view:getWeeklyFallbackView(sunTotals7d,deviceTotals7d,sunSessions,deviceSessions)});}

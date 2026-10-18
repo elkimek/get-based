@@ -1,0 +1,4 @@
+/* Tweaks swatches append unminified after the unchanged existing Settings utilities. */
+@theme prefix(gb) {}
+@import "tailwindcss/utilities.css" prefix(gb) source(none);
+@import "./tweaks-settings.tailwind.css";

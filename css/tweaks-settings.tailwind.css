@@ -1,0 +1,67 @@
+/* Tweaks settings ownership at its established lazy Settings URL; shared Glass/Sunset/toggle/title rules retain their owners. */
+@source "../js/tweaks-classes.ts";
+@source "../js/components/TweaksPresentation.svelte";
+
+@custom-variant tweaks-theme-swatch {
+  :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.settings-theme-swatch) { @slot; }
+}
+
+@custom-variant tweaks-theme-swatch-dark {
+  :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.settings-theme-swatch-dark) { @slot; }
+}
+
+@custom-variant tweaks-theme-swatch-light {
+  :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.settings-theme-swatch-light) { @slot; }
+}
+
+@custom-variant tweaks-theme-swatch-cyberterm {
+  :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.settings-theme-swatch-cyberterm) { @slot; }
+}
+
+@custom-variant tweaks-theme-swatch-glass {
+  :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.settings-theme-swatch-glass) { @slot; }
+}
+
+@custom-variant tweaks-theme-swatch-synth-sunrise {
+  :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.settings-theme-swatch-synth-sunrise) { @slot; }
+}
+
+@custom-variant tweaks-theme-swatch-neuromancer {
+  :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.settings-theme-swatch-neuromancer) { @slot; }
+}
+
+@utility tweaks-theme-swatch-block {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+@utility tweaks-theme-swatch-dark-block {
+  background: linear-gradient(135deg, #222635 0%, #4f8cff 100%);
+}
+
+@utility tweaks-theme-swatch-light-block {
+  background: linear-gradient(135deg, #f5f6fa 0%, #3b7cf5 100%);
+}
+
+@utility tweaks-theme-swatch-cyberterm-block {
+  background: linear-gradient(135deg, #0b0d0b 0%, #4ade80 100%);
+  border-radius: 0;
+}
+
+@utility tweaks-theme-swatch-glass-block {
+  background: linear-gradient(135deg, #c986ff 0%, #6ec4ff 100%);
+  border-radius: 12px;
+}
+
+@utility tweaks-theme-swatch-synth-sunrise-block {
+  background: linear-gradient(135deg, #ff7a18 0%, #ff2bd6 50%, #7c3aed 100%);
+  border-radius: 2px;
+}
+
+@utility tweaks-theme-swatch-neuromancer-block {
+  background: linear-gradient(135deg, #00e5ff 0%, #ff2bd6 100%);
+  border-radius: 0;
+}

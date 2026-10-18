@@ -2,7 +2,7 @@ import type {BiologyRenderScore} from './biology-score-render.js';
 import type {BiologyAIState, BiologyAISummaryView, BiologyAIAnswerView} from './biology-ai-presentation.js';
 import type {BiologyScoreMetricView} from './biology-card-presentation.js';
 import type {BiologyReadingFact} from './biology-reading-presentation.js';
-import type {LensDashboardToggleView} from './lens-page-shell.js';
+import type {LensDashboardToggleView} from './lens-page-shell-core.js';
 import {clamp} from './biology-score-engine.js';
 import {getScorePresentation, biologyScoreSentence, projectBiologyScoreMetric} from './biology-card-presentation.js';
 import {biologyScoreColor, projectBiologyFacts} from './biology-reading-presentation.js';

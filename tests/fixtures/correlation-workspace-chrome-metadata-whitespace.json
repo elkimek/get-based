@@ -1,0 +1,23 @@
+{
+  "scope": "Exactly 51 metadata linefeeds emitted by the 50 new owned recipes",
+  "marker": "/* Category routes:",
+  "before": {
+    "text": "/* Chart Layers utilities only; native selectors and category cascade stay in place. */\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
+    "bytes": 195,
+    "sha256": "dba8aafebe6bb7eab4cb69c0bdf86a752060d1e34b9a70f8c5825b85fd4ba4d1",
+    "utf16End": 195
+  },
+  "after": {
+    "text": "/* Chart Layers utilities only; native selectors and category cascade stay in place. */\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
+    "bytes": 246,
+    "sha256": "dee6b4947fc7a5d77c8f1c0e9d96adb5ede7cac4bfd1c26d83c7ed405ccc6d32",
+    "utf16End": 246
+  },
+  "inverseEdit": {
+    "start": 195,
+    "end": 246,
+    "before": "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
+    "after": ""
+  },
+  "allOriginalPrefixBytesExact": true
+}

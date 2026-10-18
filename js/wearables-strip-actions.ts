@@ -1,9 +1,10 @@
+import {projectWearableTagChips, projectWearableNoteField, renderWearableManualLog, renderWearableSourcePicker} from './wearables-entry-presentation.js';
 // wearables-strip-actions.js — Wearable strip interaction and manual-log owner.
 
 import type { CanonicalWearableMetricId } from './wearable-adapters.js';
 
 import { getErrorMessage } from './caught-error.js';
-import { escapeHTML, showNotification } from './utils.js';
+import { showNotification } from './utils.js';
 import { state } from './state.js';
 import { weightToKilograms } from './wearables-formatters.js';
 import {
@@ -24,8 +25,6 @@ import {
 } from './wearables-manual.js';
 import {
   _collectActiveChips,
-  _renderNoteField,
-  _renderTagChips,
   inputValueById,
   inputValueFromElement,
 } from './wearables-manual-form-ui.js';
@@ -123,21 +122,11 @@ export async function chooseWearableSource(metricId: string, event: unknown) {
   const current = effectivePrimary || overrideSource || eligible[0];
   const picker = document.createElement('div');
   picker.className = 'wearable-source-picker';
-  picker.innerHTML = `
-    <div class="wearable-source-picker-head">${escapeHTML(canon.label)} source</div>
-    ${eligible.map(sid => {
-      const a = adapterById(sid);
-      const selected = sid === current;
-      return `<button type="button" class="wearable-source-picker-item${selected ? ' selected' : ''}" data-source="${escapeHTML(sid)}">
-        <span>${escapeHTML(a?.displayName || sid)}</span>
-        ${selected ? '<span class="wearable-source-picker-check">✓</span>' : ''}
-      </button>`;
-    }).join('')}
-    <button type="button" class="wearable-source-picker-item wearable-source-picker-auto" data-source="">
-      <span>Auto (most recent)</span>
-      ${!state.importedData?.wearablePrimaryOverride?.[metricId] ? '<span class="wearable-source-picker-check">✓</span>' : ''}
-    </button>
-  `;
+  picker.innerHTML = renderWearableSourcePicker({
+    label: () => canon.label, ids: eligible, current,
+    name: sid => adapterById(sid)?.displayName || sid,
+    automatic: () => state.importedData?.wearablePrimaryOverride?.[metricId],
+  });
   const rect = (event as WearableSourceEvent).target.getBoundingClientRect();
   picker.style.position = 'fixed';
   picker.style.visibility = 'hidden';
@@ -301,48 +290,33 @@ export function openManualLogForm(metricId: string, event?: unknown, opts: Manua
   }
   const today = isoDay();
   if (metricId === 'weight') {
-    card.innerHTML = `
-      <div class="wearable-card-top"><span class="wearable-metric-name">Weight</span></div>
-      <div class="wearable-log-form">
-        <input type="number" step="0.1" inputmode="decimal" class="wearable-log-input" id="wl-weight-val" placeholder="${state.unitSystem === 'US' ? 'lb' : 'kg'}" aria-label="${state.unitSystem === 'US' ? 'Weight in pounds' : 'Weight in kilograms'}" autofocus>
-        ${_renderNoteField('wl-weight-note')}
-        <div class="wearable-log-row">
-          <input type="date" class="wearable-log-date" id="wl-weight-date" value="${today}" max="${today}" aria-label="Date">
-          <button type="button" class="wearable-log-save" ${wearableActionAttrs('manual-log-save', { kind: 'weight' })}>Save</button>
-          <button type="button" class="wearable-log-cancel" ${wearableActionAttrs('manual-log-cancel')} aria-label="Cancel">✕</button>
-        </div>
-      </div>`;
+    card.innerHTML = renderWearableManualLog({
+      mode: 'strip-weight',
+      today,
+      placeholder: () => state.unitSystem === 'US' ? 'lb' : 'kg',
+      label: () => state.unitSystem === 'US' ? 'Weight in pounds' : 'Weight in kilograms',
+      note: () => projectWearableNoteField('wl-weight-note'),
+      save: () => wearableActionAttrs('manual-log-save', {kind: 'weight'}),
+      cancel: () => wearableActionAttrs('manual-log-cancel'),
+    });
   } else if (metricId === 'bp_systolic') {
-    card.innerHTML = `
-      <div class="wearable-card-top"><span class="wearable-metric-name">Blood pressure</span></div>
-      <div class="wearable-log-form">
-        <div class="wearable-log-bp-row">
-          <input type="number" inputmode="numeric" class="wearable-log-input wearable-log-bp" id="wl-bp-sys" placeholder="sys" aria-label="Systolic" autofocus>
-          <span class="wearable-log-sep">/</span>
-          <input type="number" inputmode="numeric" class="wearable-log-input wearable-log-bp" id="wl-bp-dia" placeholder="dia" aria-label="Diastolic">
-        </div>
-        <input type="number" inputmode="numeric" class="wearable-log-input wearable-log-pulse-optional" id="wl-bp-pulse" placeholder="pulse (optional)" aria-label="Pulse (optional)">
-        ${_renderTagChips('bp_systolic')}
-        ${_renderNoteField('wl-bp-note')}
-        <div class="wearable-log-row">
-          <input type="date" class="wearable-log-date" id="wl-bp-date" value="${today}" max="${today}" aria-label="Date">
-          <button type="button" class="wearable-log-save" ${wearableActionAttrs('manual-log-save', { kind: 'bp' })}>Save</button>
-          <button type="button" class="wearable-log-cancel" ${wearableActionAttrs('manual-log-cancel')} aria-label="Cancel">✕</button>
-        </div>
-      </div>`;
+    card.innerHTML = renderWearableManualLog({
+      mode: 'strip-bp',
+      today,
+      tags: () => projectWearableTagChips('bp_systolic'),
+      note: () => projectWearableNoteField('wl-bp-note'),
+      save: () => wearableActionAttrs('manual-log-save', {kind: 'bp'}),
+      cancel: () => wearableActionAttrs('manual-log-cancel'),
+    });
   } else if (metricId === 'rhr') {
-    card.innerHTML = `
-      <div class="wearable-card-top"><span class="wearable-metric-name">Resting HR</span></div>
-      <div class="wearable-log-form">
-        <input type="number" inputmode="numeric" class="wearable-log-input" id="wl-rhr-val" placeholder="bpm" aria-label="Resting heart rate in bpm" autofocus>
-        ${_renderTagChips('rhr')}
-        ${_renderNoteField('wl-rhr-note')}
-        <div class="wearable-log-row">
-          <input type="date" class="wearable-log-date" id="wl-rhr-date" value="${today}" max="${today}" aria-label="Date">
-          <button type="button" class="wearable-log-save" ${wearableActionAttrs('manual-log-save', { kind: 'rhr' })}>Save</button>
-          <button type="button" class="wearable-log-cancel" ${wearableActionAttrs('manual-log-cancel')} aria-label="Cancel">✕</button>
-        </div>
-      </div>`;
+    card.innerHTML = renderWearableManualLog({
+      mode: 'strip-rhr',
+      today,
+      tags: () => projectWearableTagChips('rhr'),
+      note: () => projectWearableNoteField('wl-rhr-note'),
+      save: () => wearableActionAttrs('manual-log-save', {kind: 'rhr'}),
+      cancel: () => wearableActionAttrs('manual-log-cancel'),
+    });
   }
   // Focus the first input.
   setTimeout(() => {

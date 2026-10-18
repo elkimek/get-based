@@ -5,7 +5,7 @@ type PickerInputEvent = (MouseEvent | TouchEvent | PointerEvent) & { target: Ele
 // sun-body-silhouette.js — Anatomical body-region picker for sun sessions.
 
 import { renderHTML } from './components/SunBodyPicker.svelte.html.js';
-import { projectBodyPicker } from './sun-body-picker-presentation.js';
+import { projectBodyPicker, type BodyPickerView } from './sun-body-picker-presentation.js';
 import { buildBody, buildLandmarks, buildDetails } from './silhouette-paths.js';
 import {
   addSunOverlayReadyListenerRuntime,
@@ -434,19 +434,24 @@ function _renderSelectionOverlay(selected: Set<string>, onReady: OverlayReady) {
 
 // Preserve the synchronous public render contract. Geometry, source-cell placement,
 // selection overlays and input binding stay here; Svelte owns SVG presentation.
-export function renderBodySilhouette(selected: Set<string>) {
+export function projectBodySilhouette(selected: Set<string>): BodyPickerView {
   const sex = _activeProfileSex();
   const regions = _silhouetteRegionPaths(sex);
   const overlay = _renderSelectionOverlay(selected, () => dispatchSunOverlayReadyRuntime());
   const overlayState = selected.size ? (overlay && _overlayCache.key === _selectedKey(selected) ? 'ready' : 'pending') : 'none';
-  return renderHTML({ view: projectBodyPicker({ sex, stock: STOCK_FIGURE_PROTOTYPE,
+  return projectBodyPicker({ sex, stock: STOCK_FIGURE_PROTOTYPE,
     source: STOCK_IMG.src, mask: STOCK_IMG.mask, overlay, overlayState,
     views: (['front', 'back'] as const).map(side => {
       const cell = STOCK_IMG.cells[`${sex}-${side}`]!;
       const scale = 210 / cell.ch;
       return { side, outline: buildBody(sex, side).d, landmarks: buildLandmarks(sex, side), details: buildDetails(sex, side), regions: regions[side],
         placement: { imgX: (100 - cell.cw * scale) / 2 - cell.sx * scale, imgY: -cell.sy * scale, fullW: STOCK_IMG.imgW * scale, fullH: STOCK_IMG.imgH * scale } };
-    }), labels: BODY_REGIONS, selected }) });
+    }), labels: BODY_REGIONS, selected });
+}
+
+// Public synchronous HTML contract remains one native projection and one genuine owner render.
+export function renderBodySilhouette(selected: Set<string>): string {
+  return renderHTML({ view: projectBodySilhouette(selected) });
 }
 
 // Bind silhouette tap + keyboard handlers — call once after inserting the

@@ -1,7 +1,10 @@
+import {renderHTML as renderSupplementImportReview} from './components/SupplementImportReview.svelte.html.js';
+import {captureSupplementReviewRows, captureSupplementReviewText, type SupplementImportReviewView, type SupplementImportIngredientChoice, type SupplementImportQualityChoice} from './supplement-import-review-view.js';
+import { projectSupplementImportProgress, renderSupplementImportProgress } from './supplement-import-progress-presentation.js';
 // supplement-import-controller.js — URL/photo extraction progress and selective review.
 
 import { getErrorMessage } from './caught-error.js';
-import { escapeHTML, isDebugMode, showNotification } from './utils.js';
+import { isDebugMode, showNotification } from './utils.js';
 import { getAIProvider } from './api.js';
 import { loadContextEditorStylesheet } from './context-card-editor-ui.js';
 import { callAssistantFeatureAI, hasAssistantFeatureProvider } from './ai-feature-routing.js';
@@ -58,11 +61,6 @@ export function clearPendingSupplementImport() {
   pendingSupplementImport = null;
 }
 
-function importElapsed(startedAt: number) {
-  const seconds = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
-  return seconds < 60 ? `${seconds}s elapsed` : `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, '0')}s elapsed`;
-}
-
 function renderImportProgress(id: number, state = 'running') {
   if (!supplementImportProgress || supplementImportProgress.id !== id) return;
   const area = document.getElementById('supp-import-progress');
@@ -74,7 +72,9 @@ function renderImportProgress(id: number, state = 'running') {
     ? ' · Large pages and COA tables can take longer; the import is still working.' : '';
   area.hidden = false;
   area.className = `supp-import-progress supp-import-progress-${state}`;
-  area.innerHTML = `<div class="supp-import-progress-head"><strong>${escapeHTML(label)}</strong><span>${state === 'running' ? `Step ${phase} of 4 · ${importElapsed(startedAt)}${slowHint}` : state === 'success' ? 'Complete' : 'Stopped'}</span></div><div class="supp-import-progress-track" role="progressbar" aria-label="Supplement import progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}"><span style="width:${percent}%"></span></div>`;
+  area.innerHTML = renderSupplementImportProgress(projectSupplementImportProgress({
+    label, phase, startedAt, state, percent, slowHint,
+  }));
 }
 
 function startImportProgress(activeButton: Element | null, label: string) {
@@ -154,8 +154,8 @@ export async function scanSupplementLabel(input: { files?: ArrayLike<File> | Ite
   }
 }
 
-export function renderPendingImportReview() {
-  if (!pendingSupplementImport) return '';
+export function projectPendingImportReview(): SupplementImportReviewView | null {
+  if (!pendingSupplementImport) return null;
   const { draft, issues } = pendingSupplementImport as ImportResultOperations;
   const applied = draft.source?.reviewed === true;
   const evidence = Array.isArray(draft.source?.evidence) && draft.source.evidence.length
@@ -163,20 +163,53 @@ export function renderPendingImportReview() {
   const sourceFacts = evidence.map(source => `${source.kind}${source.reviewed ? ' ✓' : ' · pending'}`);
   const facts = [draft.product, draft.genericName, draft.brand, draft.dosageForm,
     draft.servingSize?.value != null ? formatSupplementAmount(draft.servingSize.value, draft.servingSize.unit) : ''].filter(Boolean);
+  const base = {applied, combined: false, sources: [] as readonly string[], facts: [] as readonly string[], issues: [] as readonly string[], showFacts: false, showIssues: false, hasIngredients: false, ingredients: [] as readonly SupplementImportIngredientChoice[], showInactive: false, inactive: [] as readonly Readonly<{index: string; name: string}>[], showQuality: false, quality: [] as readonly SupplementImportQualityChoice[], directions: null as string | null, warnings: null as string | null, editAction: 'Save changes' as 'Add supplement' | 'Save changes'};
   if (applied) {
-    return `<div class="supp-import-review supp-import-review-applied" role="status"><div class="supp-import-review-header"><strong>Selected facts are ready to edit</strong><span>Nothing is saved yet.</span></div><div class="supp-import-review-facts supp-import-review-sources">${sourceFacts.map(fact => `<span>${escapeHTML(fact)}</span>`).join('')}</div><div class="supp-import-review-directions">Review the editable identity, active ingredients, other label ingredients, quality evidence, personal regimen, and dates below. Correct or remove anything before choosing ${document.getElementById('supp-form-panel')?.getAttribute('data-edit-index') === '-1' ? 'Add supplement' : 'Save changes'}.</div></div>`;
+    const sources = captureSupplementReviewRows(sourceFacts, fact => captureSupplementReviewText(fact));
+    const editAction = document.getElementById('supp-form-panel')?.getAttribute('data-edit-index') === '-1' ? 'Add supplement' : 'Save changes';
+    return {...base, sources, editAction};
   }
-  return `<div class="supp-import-review" role="region" aria-label="Review imported supplement facts">
-    <div class="supp-import-review-header"><strong>${evidence.length > 1 ? 'Choose facts from combined evidence' : 'Choose facts to import'}</strong><span>Uncheck anything irrelevant. You will edit selected facts in the form before saving.</span></div>
-    <div class="supp-import-review-facts supp-import-review-sources">${sourceFacts.map(fact => `<span>${escapeHTML(fact)}</span>`).join('')}</div>${facts.length ? `<div class="supp-import-review-facts">${facts.map(fact => `<span>${escapeHTML(String(fact))}</span>`).join('')}</div>` : ''}${issues.length ? `<div class="supp-import-review-issues">${issues.map(issue => `<div>Check: ${escapeHTML(issue)}</div>`).join('')}</div>` : ''}
-    <div class="supp-import-review-label">Active ingredients</div><div class="supp-import-review-ingredients">${draft.ingredients.length ? draft.ingredients.map((ingredient, index) => `<label class="supp-import-choice"><input type="checkbox" data-supp-import-kind="ingredient" data-supp-import-index="${index}" checked><span><strong>${escapeHTML(ingredient.name)}</strong> ${escapeHTML(ingredient.amount || 'amount not found')} <small>${escapeHTML([ingredient.basis, ...(ingredient.sourceKinds || [])].filter(Boolean).join(' · '))}</small></span></label>`).join('') : '<div>No active ingredients found.</div>'}</div>
-    ${draft.inactiveIngredients?.length ? `<div class="supp-import-review-label">Other / inactive label ingredients <small>label or website data; verify against your bottle</small></div><div class="supp-import-review-choices">${draft.inactiveIngredients.map((ingredient, index) => `<label class="supp-import-choice"><input type="checkbox" data-supp-import-kind="inactive" data-supp-import-index="${index}" checked><span>${escapeHTML(ingredient)}</span></label>`).join('')}</div>` : ''}
-    ${draft.qualityTests?.length ? `<div class="supp-import-review-label supp-import-review-quality-label"><span>Laboratory & quality results <small>COA lot may not match your bottle · choose which rows to import</small></span><button type="button" class="supp-import-filter-btn" aria-pressed="false" title="Uncheck potency, identity, and other quality rows. No data is saved until you continue and confirm the form." ${suppActionAttrs('quality-safety-only')}>Select only contaminants + microbiology</button></div><div class="supp-import-review-quality">${draft.qualityTests.map((test, index) => {
+  const combined = evidence.length > 1;
+  const sources = captureSupplementReviewRows(sourceFacts, fact => captureSupplementReviewText(fact));
+  const showFacts = !!facts.length;
+  const capturedFacts = showFacts ? captureSupplementReviewRows(facts, fact => captureSupplementReviewText(String(fact))) : [];
+  const showIssues = !!issues.length;
+  const capturedIssues = showIssues ? captureSupplementReviewRows(issues, issue => captureSupplementReviewText(issue)) : [];
+  const hasIngredients = !!draft.ingredients.length;
+  const ingredients = hasIngredients ? captureSupplementReviewRows(draft.ingredients, (ingredient, index) => {
+    const capturedIndex = `${index}`;
+    const name = captureSupplementReviewText(ingredient.name);
+    const amount = captureSupplementReviewText(ingredient.amount || 'amount not found');
+    const source = captureSupplementReviewText([ingredient.basis, ...(ingredient.sourceKinds || [])].filter(Boolean).join(' · '));
+    return {index: capturedIndex, name, amount, source};
+  }) : [];
+  const showInactive = !!draft.inactiveIngredients?.length;
+  const inactive = showInactive ? captureSupplementReviewRows(draft.inactiveIngredients!, (ingredient, index) => ({index: `${index}`, name: captureSupplementReviewText(ingredient)})) : [];
+  const showQuality = !!draft.qualityTests?.length;
+  let quality: readonly SupplementImportQualityChoice[] = [];
+  if (showQuality) {
+    void `${suppActionAttrs('quality-safety-only')}`;
+    quality = captureSupplementReviewRows(draft.qualityTests!, (test, index) => {
       const duplicatePotency = isInformationalActiveIngredientPotencyTest(test, draft);
-      return `<label class="supp-import-choice"><input type="checkbox" data-supp-import-kind="quality" data-supp-import-category="${escapeHTML(test.category || 'other')}" data-supp-import-index="${index}"${duplicatePotency ? '' : ' checked'}><span><span class="supp-quality-kind">${escapeHTML(test.category)}</span> <strong>${escapeHTML(test.analyte)}</strong> ${escapeHTML(formatSupplementQualityResult(test))}<small>${duplicatePotency ? 'active-ingredient verification · not selected by default · AI context off if kept' : 'eligible for AI context; editable after continuing'}</small></span></label>`;
-    }).join('')}</div>` : ''}
-    ${draft.labelDirections ? `<div class="supp-import-review-directions"><strong>Label directions:</strong> ${escapeHTML(draft.labelDirections)}</div>` : ''}${draft.warnings?.length ? `<div class="supp-import-review-directions"><strong>Label warnings:</strong> ${draft.warnings.map(warning => escapeHTML(warning)).join(' · ')}</div>` : ''}
-    <div class="supp-import-review-actions"><button type="button" class="import-btn import-btn-primary" ${suppActionAttrs('apply-import')}>Continue to editable form</button><button type="button" class="import-btn import-btn-secondary" ${suppActionAttrs('discard-import')}>Discard</button></div></div>`;
+      const categoryValue = captureSupplementReviewText(test.category || 'other');
+      const capturedIndex = `${index}`;
+      const selected = !duplicatePotency;
+      const category = captureSupplementReviewText(test.category);
+      const analyte = captureSupplementReviewText(test.analyte);
+      const result = captureSupplementReviewText(formatSupplementQualityResult(test));
+      return {index: capturedIndex, categoryValue, selected, category, analyte, result};
+    });
+  }
+  const directions = draft.labelDirections ? captureSupplementReviewText(draft.labelDirections) : null;
+  const warnings = draft.warnings?.length ? `${draft.warnings.map(warning => captureSupplementReviewText(warning)).join(' · ')}` : null;
+  void `${suppActionAttrs('apply-import')}`;
+  void `${suppActionAttrs('discard-import')}`;
+  return {...base, combined, sources, facts: capturedFacts, issues: capturedIssues, showFacts, showIssues, hasIngredients, ingredients, showInactive, inactive, showQuality, quality, directions, warnings};
+}
+
+/** Public synchronous renderer URL; the form can also compose the captured genuine child. */
+export function renderPendingImportReview(): string {
+  return renderSupplementImportReview({view: projectPendingImportReview()});
 }
 
 function showPendingImportReview() {

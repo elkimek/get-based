@@ -19,6 +19,10 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 
 import './_node-shim.js';
 
+import {JSDOM} from 'jsdom';
+import {renderHTML as renderWearableHeader} from '../js/components/WearableStripHeader.svelte.html.js';
+import {renderHTML as renderWearableStats} from '../js/components/WearableDetailStats.svelte.html.js';
+import {renderHTML as renderWearableEntries} from '../js/components/WearableManualEntries.svelte.html.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -1537,6 +1541,7 @@ assert('Wearable storage receives crypto providers without a reverse import',
 // ═══════════════════════════════════════
 console.log('17t. Settings Tab Split');
 
+const settingsPanelsV30 = read('js/components/SettingsPanels.svelte');
 const settingsV30 = [await fetch('/js/settings.js').then(r => r.text()), await fetch('/js/settings-shell-contract.js').then(r => r.text()), await fetch('/js/components/SettingsShell.svelte').then(r => r.text())].join('\n');
 // Tab buttons
 assert('Settings has a Wearables tab button',
@@ -1547,15 +1552,15 @@ assert('Old Integrations tab button is gone',
   !/data-tab="integrations"/.test(settingsV30));
 // Tab panels
 assert('Wearables panel renders the wearables-section (adapter rows)',
-  /data-tab-panel="wearables"[\s\S]{0,400}id="wearables-section"/.test(settingsV30));
+  /data-tab-panel="wearables"[\s\S]{0,400}id="wearables-section"/.test(settingsPanelsV30) && settingsV30.includes('<SettingsPanels {panels}/>'));
 assert('Agent Access panel renders the messenger-section (token mgmt + series toggle)',
-  /data-tab-panel="agent"[\s\S]{0,400}id="messenger-section"/.test(settingsV30));
+  /data-tab-panel="agent"[\s\S]{0,400}id="messenger-section"/.test(settingsPanelsV30) && settingsV30.includes('<SettingsPanels {panels}/>'));
 // Backward-compat redirect for legacy 'integrations' tab id
 assert('switchSettingsTab redirects legacy "integrations" → "wearables"',
   /if\s*\(tabId\s*===\s*'integrations'\)\s*tabId\s*=\s*'wearables'/.test(settingsV30));
 // Wearables-rendered event fires on the renamed tab
 assert('settings:wearables-rendered event fires when tabId === "wearables" (renamed from integrations)',
-  /tabId\s*===\s*'wearables'[\s\S]{0,200}settings:wearables-rendered/.test(settingsV30));
+  /tabId\s*===\s*'wearables'[\s\S]{0,250}notifySettingsWearablesRendered\(\)/.test(settingsV30) && /function notifySettingsWearablesRendered\(\)[\s\S]{0,160}settings:wearables-rendered/.test(settingsV30));
 
 // ═══════════════════════════════════════
 // 17u. Tri-state agent series + IDB encryption (v1.29.0)
@@ -1800,13 +1805,24 @@ assert('_scrubError redacts Bearer tokens in error messages',
 assert('Backfill + sync error toasts run their messages through _scrubError',
   /_scrubError\(getErrorMessage\(e\)\)/.test(connectSrcP2));
 
-// P2 a11y: friendlier aria on manual delete button + collapse-arrow header.
+// P2 a11y: real authored children retain the spoken labels and native controls.
+const manualDeleteLabel = 'Delete blood pressure reading from January 2, 2026, 120/80 mmHg';
+const manualEntryMarkup = JSDOM.fragment(renderWearableEntries({view: {
+  kind: 'list', metric: 'bp_systolic', count: 1, rows: [{
+    date: '2026-01-02', shortDate: 'Jan 2', value: '120/80', unit: 'mmHg',
+    tags: null, note: null, deleteLabel: manualDeleteLabel, deleteDate: '2026-01-02', metric: 'bp_systolic',
+  }],
+}}));
+const headerMarkup = JSDOM.fragment(renderWearableHeader({view: {
+  manualOnly: false, sourceNames: 'Controlled source', coverage: '', showDemo: false,
+  reorderMode: true, lastSync: null, sync: false, collapsed: false, collapseLabel: 'Collapse wearables strip',
+}}));
 assert('Manual-entry delete aria reads as a sentence (long date + value + unit)',
-  /aria-label="\$\{escapeHTML\(ariaText\)\}"/.test(wearablesDetailSrcP2) &&
+  manualEntryMarkup.querySelector('.wearable-manual-entry-del')?.getAttribute('aria-label') === manualDeleteLabel && read('js/components/WearableManualEntries.svelte').includes('aria-label="{entry.deleteLabel}"') &&
   /Delete\s+\$\{isBloodPressure\s*\?\s*'blood pressure'\s*:\s*metricLabel\.toLowerCase\(\)\}\s+reading\s+from/.test(wearablesDetailSrcP2));
 assert('Strip-header role="button" carries an aria-label distinct from the live source list',
   /'(Expand|Collapse) wearables strip'/.test(wearablesSrcP2)
-  && /aria-label="\$\{ariaLabel\}"/.test(wearablesSrcP2));
+  && headerMarkup.querySelector('button.wearable-collapse-arrow')?.getAttribute('aria-label') === 'Collapse wearables strip' && headerMarkup.querySelector('button.wearable-collapse-arrow')?.getAttribute('aria-expanded') === 'true' && headerMarkup.querySelector('.wearable-source-label')?.textContent === 'Controlled source');
 
 // (Niche-disclosure copy assertion was here. The disclosure was removed in
 // v1.30.1 — see the matching "STRIP_NICHE_METRICS / disclosure / nicheDeferred
@@ -2077,7 +2093,7 @@ console.log('17a. UX Audit Fixes');
 const wearablesSrc2 = await fetch('/js/wearables.js').then(r => r.text());
 const wearablesDetailSrc2 = await fetch('/js/wearables-detail-modal.js').then(r => r.text());
 assert('Strip passes showSourceBadges (whole-strip flag) into renderCard, not the per-metric provider count',
-  /renderCard\(metricId,\s*canon,\s*metric,\s*showSourceBadges/.test(wearablesSrc2));
+  /projectCard\(metricId,\s*canon,\s*metric,\s*showSourceBadges/.test(wearablesSrc2));
 assert('No leftover per-metric providersForMetric.length > 1 gate',
   !/providersForMetric\.length\s*>\s*1/.test(wearablesSrc2));
 
@@ -2095,7 +2111,7 @@ assert('Detail modal mirrors delta-suppression rules',
 
 // P0-5: source-swap reachable from the detail modal when ≥2 wearables connected
 assert('Detail modal renders source-swap button when ≥2 wearables connected',
-  /wearable-modal-source-swap/.test(wearablesDetailSrc2));
+  read('js/components/WearableDetailChrome.svelte').includes('wearable-modal-source-swap') && /Object.keys\(connectedSources\).length > 1 && !!adapter/.test(wearablesDetailSrc2) && wearablesDetailSrc2.includes('sourceSwap: swapButton'));
 
 // P1-1: glyph subs + RHR drops sub
 assert('hrv_rmssd uses 🌙 glyph not "overnight" word',
@@ -2112,7 +2128,7 @@ assert('Daytime-empty state passes a tooltip as the 4th tuple element',
 assert('Daytime tooltip references v2 (not the v1 typo)',
   /v2 API exposes overnight HRV only/.test(wearablesDetailSrc2) && !/v1 API exposes overnight HRV only/.test(wearablesDetailSrc2));
 assert('Stats grid renders the optional title attribute',
-  /\$\{tooltip\s*\?\s*` title="\$\{escapeHTML\(tooltip\)\}"`/.test(wearablesDetailSrc2));
+  JSDOM.fragment(renderWearableStats({view: [{tooltip: 'Controlled <hint> "quote"', label: 'Sample', value: '1', sub: null}]})).querySelector('.wearable-detail-stat')?.getAttribute('title') === 'Controlled <hint> "quote"' && read('js/components/WearableDetailStats.svelte').includes('title={stat.tooltip??undefined}') && wearablesDetailSrc2.includes('tooltip: tooltip ? wearableEmptyText(tooltip) : null'));
 
 // P1-3: BP carries spoken-aria override
 assert('renderCard prefers canon.ariaLabel over derived label for spoken text',
@@ -2120,7 +2136,7 @@ assert('renderCard prefers canon.ariaLabel over derived label for spoken text',
 
 // P1-6: reorder-mode banner pill
 assert('Reorder mode shows a banner pill in the header',
-  /wearable-strip-reorder-pill/.test(wearablesSrc2));
+  headerMarkup.querySelector('.wearable-strip-reorder-pill')?.textContent === '⇄ Reorder mode — use ◀ ▶ on each card' && wearablesSrc2.includes('reorderMode, lastSync, sync, collapsed, collapseLabel: ariaLabel'));
 
 // P1-8: the "vendor-specific scores" disclosure was removed in v1.30.1
 // — it framed Oura-only resilience as different from Oura-only cardio

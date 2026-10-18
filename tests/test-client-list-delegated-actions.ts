@@ -1,11 +1,20 @@
 #!/usr/bin/env node
-import { readRepositorySource } from './helpers/repository-source.js';
+import { readRepositorySource, readAuthoredRepositorySource } from './helpers/repository-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Static client-list delegated-action source guards.
 
 const clientListImplSrc = readRepositorySource('js/client-list-impl.js', 'utf8');
 const clientListFormSrc = readRepositorySource('js/client-list-form.js', 'utf8').replace(/\s+/g, ' ');
 const clientListSrc = `${clientListImplSrc}\n${clientListFormSrc}`;
+const clientPresentationSrc = readAuthoredRepositorySource('js/client-list-presentation.js', 'utf8');
+const overviewSrc = readRepositorySource('js/components/ClientListOverview.svelte', 'utf8');
+const rowSrc = readRepositorySource('js/components/ClientListRow.svelte', 'utf8');
+const menuSrc = readRepositorySource('js/components/ClientListMenuButton.svelte', 'utf8');
+const iconSrc = readRepositorySource('js/components/ClientListIcon.svelte', 'utf8');
+const formComponentSrc = readRepositorySource('js/components/ClientListFormPresentation.svelte', 'utf8');
+const formRenderingSrc = readRepositorySource('js/client-list-form-rendering.js', 'utf8');
+const authoredClientListSrc = [overviewSrc, rowSrc, menuSrc, iconSrc, formComponentSrc].join('\n');
+const actionMarkupSrc = `${authoredClientListSrc}\n${clientListFormSrc}`;
 const profileSrc = readRepositorySource('js/profile.js', 'utf8');
 const clientListUsesScrollLockedOverlay = /openModalOverlay\s*\(\s*overlay\s*,\s*\{\s*initialFocus:\s*['"]#cl-search['"]\s*,\s*scrollLock:\s*true\s*,?\s*\}\s*\)/s.test(clientListSrc);
 const clientListClosesOverlay = /closeModalOverlay\s*\(\s*['"]client-list-overlay['"]\s*\)/.test(clientListSrc);
@@ -16,21 +25,32 @@ console.log('=== Client List Delegated Actions ===');
 
 assert('client-list.js renders no inline event attributes',
   !/\bon(?:click|change|input|search|keydown|keyup|submit)=/.test(clientListSrc));
+assert('Client List authored components retain delegated events only',
+  !/(?:\s|\{)(?:on[a-z]+|on:[a-z]+(?:\|[a-z]+)*)(?:\s*=|\s*}|[\s/>])/.test(authoredClientListSrc));
 assert('client-list.js uses data action attributes',
-  clientListSrc.includes('data-cl-action') &&
-    clientListSrc.includes('data-cl-input-action') &&
-    clientListSrc.includes('data-cl-change-action') &&
-    clientListSrc.includes('data-cl-submit-action') &&
-    clientListSrc.includes('data-cl-key-action'));
+  actionMarkupSrc.includes('data-cl-action') &&
+    actionMarkupSrc.includes('data-cl-input-action') &&
+    actionMarkupSrc.includes('data-cl-change-action') &&
+    actionMarkupSrc.includes('data-cl-submit-action') &&
+    actionMarkupSrc.includes('data-cl-key-action'));
+assert('Client List form uses authored synchronous rendering without duplicate templates',
+  clientListFormSrc.includes('modal.innerHTML = renderClientListForm(projectClientListForm(') &&
+    clientListFormSrc.includes('renderClientFormAvatar(') && clientListFormSrc.includes('renderClientFormTagBody(') &&
+    formRenderingSrc.includes("from './components/ClientListFormPresentation.svelte.html.js'") &&
+    !clientListFormSrc.includes('const FORM_ICONS') && !clientListFormSrc.includes('modal.innerHTML = `'));
 assert('client-list.js installs idempotent delegates',
   clientListSrc.includes('let clientListDelegatesInstalled = false') &&
     clientListSrc.includes("document.addEventListener('click', _handleClientClick)") &&
     clientListSrc.includes("document.addEventListener('input', _handleClientInput)") &&
     clientListSrc.includes("document.addEventListener('change', _handleClientChange)") &&
-    clientListSrc.includes("document.addEventListener('submit', _handleClientSubmit)") &&
+    clientListSrc.includes("document.addEventListener('submit', _handleClientSubmit, true)") &&
     clientListSrc.includes("document.addEventListener('keydown', _handleClientKeydown)"));
 assert('client-list menu buttons are data-driven',
   clientListSrc.includes('function _clMenuButton') &&
+    clientListSrc.includes('return renderClientListMenuButton(icon, label, action, profileId, danger)') &&
+    clientPresentationSrc.includes('return menuHTML({view})') &&
+    menuSrc.includes('data-cl-action={view.action}') &&
+    menuSrc.includes('data-cl-profile-id={view.profileId}') &&
     clientListSrc.includes("action: 'pin-profile'") &&
     clientListSrc.includes("action: 'share-profile'") &&
     clientListSrc.includes("action: 'delete-profile'") &&

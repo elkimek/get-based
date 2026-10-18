@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { ownContextChild } from '../context-child-ownership.js';
   import { onMount, untrack, flushSync } from 'svelte';
   import { CONTEXT_ACTION, CONTEXT_FOCUS } from '../context-card-catalog-classes.js';
   import { acceptContextNotes, contextNotesPresentation, subscribeContextNotes, useSavedContextNotes } from '../context-notes-session.js';
@@ -9,11 +10,14 @@
   function current(): boolean { return root?.isConnected && contextNotesPresentation().ticket === initial.ticket; }
   function submit(value: string): void { if (current()) acceptContextNotes(initial.ticket, value); }
   onMount(() => {
+    const host = root?.closest('[data-context-notes-host]');
+    const releaseHost = host ? ownContextChild(host) : () => {};
     const update = (value: ContextNotesPresentation) => {
       if (current() && value.ticket === initial.ticket) flushSync(() => { notes = value; });
     };
     update(contextNotesPresentation());
-    return subscribeContextNotes(update);
+    const stop = subscribeContextNotes(update);
+    return () => { stop(); releaseHost(); };
   });
 </script>
   <div bind:this={root} class="ctx-notes-section gb:context-catalog:mt-1 gb:context-catalog:mb-4 gb:context-catalog:py-4 gb:context-catalog:px-[18px] gb:context-catalog:border gb:context-catalog:border-line gb:context-catalog:rounded-control gb:context-catalog:bg-surface gb:context-catalog:[@media(max-width:480px)]:p-3.5">

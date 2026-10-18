@@ -1,3 +1,4 @@
+import{nativeEnvironmentView,nativeTodayView,expectedGenuineLightChildren,genuineLightChildReceipts}from'./helpers/light-genuine-child-native-receipts.js';
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -19,15 +20,15 @@ function describe(html:string) {
     copy:[...card.querySelectorAll('.light-env-screen-card-name,.light-env-screen-card-summary,.light-env-sev-dot,.light-env-picker-label')].map(element=>element.textContent?.replace(/\s+/g,' ').trim()),
     actions:[...card.querySelectorAll('[data-light-env-action]')].filter(element=>element!==disclosure).map(element=>({tag:element.tagName,attrs:attrs(element),options:[...element.querySelectorAll('option')].map(option=>({value:option.value,text:option.textContent,selected:option.hasAttribute('selected')}))})),
     chips:[...card.querySelectorAll('.light-env-chip')].map(chip=>({text:chip.textContent,active:chip.getAttribute('aria-pressed'),activeClass:chip.classList.contains('light-env-chip-active')})),
-    trusted:[...card.querySelectorAll('[data-fixture-ai],[data-fixture-today]')].map(element=>element.outerHTML),
+    trusted:genuineLightChildReceipts(card),
     blocker:card.querySelector('.light-env-screen-blocker')?.textContent?.replace(/\s+/g,' ').trim(),
   };
 }
 for(const sample of original.cases)it(`preserves independent original screen controls: ${sample.name}`,()=>{
   const before=JSON.stringify(sample);
   const current=renderScreenCard(sample.screen,{expanded:sample.expanded,rooms:sample.rooms,
-    ...(sample.todayHTML?{renderTodayToggle:()=>sample.todayHTML}:{}),...(sample.aiHTML?{renderScreenAIBlock:()=>sample.aiHTML}:{})});
-  expect(describe(current)).toEqual(describe(sample.html));expect(JSON.stringify(sample)).toBe(before);
+    ...(sample.todayHTML?{getTodayView:()=>nativeTodayView(sample.name)}:{}),...(sample.aiHTML?{getScreenAIView:()=>nativeEnvironmentView('screen')}:{})});
+  expect(describe(current)).toEqual(describe(expectedGenuineLightChildren(sample.html,sample.name)));expect(JSON.stringify(sample)).toBe(before);
   const root=document.createElement('div');root.innerHTML=current;
   expect(root.querySelector('img,script,[onerror]')).toBeNull();
   expect(root.querySelector('[data-light-env-action="toggle-screen-expanded"]')?.tagName).toBe('BUTTON');
@@ -36,12 +37,12 @@ for(const sample of original.cases)it(`preserves independent original screen con
 });
 it('evaluates public callbacks with original arguments and only expands AI when requested',()=>{
   const screen={id:'callback',device:'phone'},today=vi.fn(()=>undefined),ai=vi.fn(()=>null);
-  const collapsed=renderScreenCard(screen,{renderTodayToggle:today,renderScreenAIBlock:ai});
-  expect(today).toHaveBeenCalledExactlyOnceWith('screen','callback',true);expect(ai).not.toHaveBeenCalled();expect(collapsed).toContain('undefined');
-  expect(renderScreenCard(screen,{expanded:true,renderTodayToggle:today,renderScreenAIBlock:ai})).toContain('null');expect(ai).toHaveBeenCalledExactlyOnceWith(screen);
+  const collapsed=renderScreenCard(screen,{getTodayView:today,getScreenAIView:ai});
+  expect(today).toHaveBeenCalledExactlyOnceWith('screen','callback',true);expect(ai).not.toHaveBeenCalled();expect(collapsed).not.toContain('undefined');
+  expect(renderScreenCard(screen,{expanded:true,getTodayView:today,getScreenAIView:ai})).not.toContain('>null<');expect(ai).toHaveBeenCalledExactlyOnceWith(screen);
 });
 it('composes the typed today child without invoking the compatibility callback',()=>{
-  const fallback=vi.fn();const root=document.createElement('div');root.innerHTML=renderScreenCard({id:'typed'},{todayToggle:true,renderTodayToggle:fallback});
+  const fallback=vi.fn();const root=document.createElement('div');root.innerHTML=renderScreenCard({id:'typed'},{todayToggle:true,getTodayView:fallback});
   expect(fallback).not.toHaveBeenCalled();expect(root.querySelectorAll('[data-light-environment-today]')).toHaveLength(1);
   expect(root.querySelector('[data-light-env-action="set-today-active"]')?.getAttribute('data-light-env-id')).toBe('typed');
 });

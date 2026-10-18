@@ -180,9 +180,10 @@ export function maybeAnalyzeOnboardingAfterSave() {
 
 // ─── Render ────────────────────────────────────────────────────────────
 
-export function renderOnboardingAIBlock() {
+export function getOnboardingAIView() {
   const defaults = _getDefaults();
   const view = projectOnboardingAI({ actionOwner: aiActionOwner(), completed: !!defaults?.completedAt, provider: hasAssistantFeatureProvider(),
     status: engine.getStatus(SINGLETON_TARGET), analysis: defaults?.aiAnalysis, prefix: dotPrefix(defaults?.aiAnalysis?.dot) });
-  return view ? renderHTML({ view }) : '';
+  return view;
 }
+export function renderOnboardingAIBlock(){const view=getOnboardingAIView();return view?renderHTML({view}):'';}

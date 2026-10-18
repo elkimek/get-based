@@ -1,7 +1,8 @@
+export { scheduleBiologyScoreAIReconcile } from './biology-scores.js';
 import {renderHTML} from './components/BiologyScoresPage.svelte.html.js';
 import {computeBiologyScores,getBiologyScorePresentationRecords} from './biology-scores.js';
 import {getBiologyContextSectionView} from './biology-context-view.js';
-import {getLensPageWidgetOrder} from './lens-page-shell.js';
+import {getLensPageWidgetOrder} from './lens-page-shell-core.js';
 import {projectBiologyPage,biologyPageDefaultOrder} from './biology-page-presentation.js';
 import {state} from './state.js';
 /** Read-only page composition; calculation, request, ordering and writes retain their owners. */

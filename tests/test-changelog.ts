@@ -30,9 +30,12 @@ const changelogModule = await import('../js/changelog.js');
 
 const changelogFacadeSrc = await fetchWithRetry('js/changelog.js');
 const changelogImplSrc = await fetchWithRetry('js/changelog-impl.js');
+const changelogDataSrc = await fetchWithRetry('js/changelog-data.js');
 const changelogCurrentSrc = await fetchWithRetry('js/changelog-current.js');
 const changelogStateSrc = await fetchWithRetry('js/changelog-state.js');
-const changelogSrc = `${changelogFacadeSrc}\n${changelogCurrentSrc}\n${changelogImplSrc}\n${changelogStateSrc}`;
+const changelogComponentSrc = await fetchWithRetry('js/components/ChangelogPresentation.svelte');
+const changelogRenderingSrc = await fetchWithRetry('js/changelog-rendering.js');
+const changelogSrc = `${changelogFacadeSrc}\n${changelogCurrentSrc}\n${changelogDataSrc}\n${changelogImplSrc}\n${changelogStateSrc}`;
 const utilsSrc = await fetchWithRetry('js/utils.js');
 const startupUiSrc = await fetchWithRetry('js/startup-ui.js');
 const appEventsSrc = await fetchWithRetry('js/app-event-listeners.js');
@@ -60,8 +63,8 @@ assert('Startup footer delegates APP_VERSION through utils runtime',
     && !startupUiSrc.includes("getStartupRuntimeValue('APP_VERSION')"));
 assert('changelog.js has CHANGELOG array', changelogSrc.includes('const CHANGELOG'));
 assert('changelog retains CLI settings and dashboard release notes',
-  changelogImplSrc.includes('CURRENT_RELEASE,') && changelogImplSrc.includes('details can be collapsed')
-    && changelogImplSrc.includes('Widgets rebalance their widths'));
+  changelogDataSrc.includes('CURRENT_RELEASE,') && changelogDataSrc.includes('details can be collapsed')
+    && changelogDataSrc.includes('Widgets rebalance their widths'));
 assert('changelog.js exports openChangelog', changelogSrc.includes('export function openChangelog'));
 assert('changelog.js exports closeChangelog', changelogSrc.includes('export function closeChangelog'));
 assert('changelog.js exports maybeShowChangelog', changelogSrc.includes('export function maybeShowChangelog'));
@@ -72,7 +75,12 @@ assert('changelog.js uses shared modal overlay lifecycle helpers',
 assert('changelog.js delegates modal close button without inline handlers',
   changelogSrc.includes('data-changelog-action') &&
     changelogSrc.includes('installChangelogDelegates(modal)') &&
-    !/\bon(?:click|change|input|submit|keydown|keyup)=/.test(changelogSrc));
+    changelogComponentSrc.includes('data-changelog-action="close"') &&
+    changelogImplSrc.includes("from './changelog-rendering.js'") &&
+    changelogImplSrc.includes('modal.innerHTML = renderChangelog(projectChangelogView(entries, renderChangelogItem));') &&
+    changelogRenderingSrc.includes("from './components/ChangelogPresentation.svelte.html.js'") &&
+    changelogRenderingSrc.includes('return renderHTML({ view });') &&
+    !/\bon(?:click|change|input|submit|keydown|keyup)=/.test(changelogSrc + changelogComponentSrc));
 assert('changelog.js keeps its actions module-only',
   !changelogSrc.includes('registerUtilsRuntimeExports')
     && !/Object\.assign\(window/.test(changelogSrc)
@@ -90,11 +98,11 @@ assert('changelog.js has _semverGt helper for forceShow gate',
   /function\s+_semverGt\s*\(/.test(changelogSrc));
 assert('maybeShowChangelog scans all entries for forceShow (not just [0])',
   /FORCE_SHOW_VERSIONS\.some\s*\(\s*version\s*=>\s*_semverGt\(version,\s*seen\)/.test(changelogFacadeSrc));
-const changelogVersionMatches = [...changelogImplSrc.matchAll(/version:\s*'([^']+)'/g)];
+const changelogVersionMatches = [...changelogDataSrc.matchAll(/version:\s*'([^']+)'/g)];
 const forceShowVersionsInArchive = changelogVersionMatches
   .filter((match, index) => {
-    const nextIndex = changelogVersionMatches[index + 1]?.index ?? changelogImplSrc.length;
-    return /forceShow:\s*true/.test(changelogImplSrc.slice(match.index, nextIndex));
+    const nextIndex = changelogVersionMatches[index + 1]?.index ?? changelogDataSrc.length;
+    return /forceShow:\s*true/.test(changelogDataSrc.slice(match.index, nextIndex));
   })
   .map(match => match[1])
   .sort();
@@ -342,7 +350,7 @@ if (typeof hcc === 'function') {
 // ═══════════════════════════════════════
 console.log('7. Auto-Gating in lab-context.js');
 
-const labCtxSrc = await fetchWithRetry('js/lab-context.js');
+const labCtxSrc = await fetchWithRetry('js/lab-context-assembly.js');
 const hccMatches = (labCtxSrc.match(/hasCardContent\(/g) || []).length;
 assert('lab-context.js has 7+ hasCardContent calls', hccMatches >= 7, `found ${hccMatches}`);
 assert('lab-context.js imports hasCardContent', labCtxSrc.includes('hasCardContent'));

@@ -1,0 +1,22 @@
+// Archived original private codec contracts. Current genuine owners are exercised by native/current presentation and browser tests.
+// @vitest-environment jsdom
+import {afterEach,expect,it,vi} from 'vitest';
+const fault=vi.hoisted(()=>({owner:'',change:(html:string)=>html}));
+vi.mock('./fixtures/archived-native-ui/components/DashboardBiometricSyncStatus.svelte.html.js',async importOriginal=>{const real=await importOriginal<typeof import('./fixtures/archived-native-ui/components/DashboardBiometricSyncStatus.svelte.html.js')>();return{...real,renderHTML:(props:Parameters<typeof real.renderHTML>[0])=>{const html=real.renderHTML(props);return fault.owner==='renderDashboardBiometricSyncStatus'?fault.change(html):html;}}});
+vi.mock('./fixtures/archived-native-ui/components/DashboardBiometricTile.svelte.html.js',async importOriginal=>{const real=await importOriginal<typeof import('./fixtures/archived-native-ui/components/DashboardBiometricTile.svelte.html.js')>();return{...real,renderHTML:(props:Parameters<typeof real.renderHTML>[0])=>{const html=real.renderHTML(props);return fault.owner==='renderDashboardBiometricTile'?fault.change(html):html;}}});
+vi.mock('./fixtures/archived-native-ui/components/DashboardBiometricsOverview.svelte.html.js',async importOriginal=>{const real=await importOriginal<typeof import('./fixtures/archived-native-ui/components/DashboardBiometricsOverview.svelte.html.js')>();return{...real,renderHTML:(props:Parameters<typeof real.renderHTML>[0])=>{const html=real.renderHTML(props);return fault.owner==='renderDashboardWearableTilesWidget'?fault.change(html):html;}}});
+import {renderDashboardBiometricPresentation,type DashboardBiometricPresentationPorts} from './fixtures/archived-native-ui/dashboard-biometric-presentation.js';
+import {dashboardBiometricPresentationAnchors} from './fixtures/archived-native-ui/dashboard-biometric-presentation-compiler-anchors.js';
+import {readFileSync} from 'node:fs';
+import path from 'node:path';
+type Branch={owner:keyof DashboardBiometricPresentationPorts;kind:string;slots:{coordinate:string;port:string}[];nativeSkeleton:string};
+const branches=JSON.parse(readFileSync(path.join(import.meta.dirname,'fixtures/dashboard-biometric-presentation-branches.json'),'utf8')) as Branch[];
+afterEach(()=>{fault.owner='';fault.change=html=>html;});
+it.each(branches)('$owner / $kind retains all named port evaluations in original order and inserts native data once',branch=>{
+ const trace:string[]=[];const ports=Object.fromEntries(branch.slots.map((slot,i)=>[slot.port,()=>{trace.push(slot.port);return i===0?'gb-biometric-dashboardbiometrictile-populated-value-end <&> '+slot.coordinate:'native-'+slot.port;} ]));
+ const expected=branch.nativeSkeleton;let cursor=0,output='';for(let i=0;i<branch.slots.length;i++){const slot=branch.slots[i]!;const at=expected.indexOf(slot.coordinate,cursor);output+=expected.slice(cursor,at)+(i===0?'gb-biometric-dashboardbiometrictile-populated-value-end <&> '+slot.coordinate:'native-'+slot.port);cursor=at+slot.coordinate.length;}output+=expected.slice(cursor);
+ expect(renderDashboardBiometricPresentation(branch.owner,branch.kind as never,ports as never)).toBe(output);expect(trace).toEqual(branch.slots.map(slot=>slot.port));
+});
+it.each(Object.keys(dashboardBiometricPresentationAnchors) as (keyof DashboardBiometricPresentationPorts)[])('%s rejects whole compiler-frame corruption before any original native callback',owner=>{const branch=branches.find(row=>row.owner===owner)!;const trace:string[]=[];const ports=Object.fromEntries(branch.slots.map(slot=>[slot.port,()=>{trace.push(slot.port);return 'original';}]));fault.owner=owner;fault.change=html=>html+'<!-- altered -->';expect(()=>renderDashboardBiometricPresentation(owner,branch.kind as never,ports as never)).toThrow('Unqualified complete Biometrics compiler frame');expect(trace).toEqual([]);});
+it('retains native string-hint coercion and Symbol throw order at a named callback port',()=>{const trace:string[]=[];expect(()=>renderDashboardBiometricPresentation('renderDashboardBiometricSyncStatus','sync-action',{actionAttributes:()=>({[Symbol.toPrimitive](hint:string){trace.push(hint);return Symbol('native-port');}})})).toThrow(TypeError);expect(trace).toEqual(['string']);});
+it('rejects a missing named callback without inserting a later value',()=>{expect(()=>renderDashboardBiometricPresentation('renderDashboardBiometricSyncStatus','sync-action',{} as never)).toThrow('Unqualified Biometrics presentation ports');});

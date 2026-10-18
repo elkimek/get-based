@@ -30,6 +30,7 @@ import type { ReportBuilderOptions, ReportNoteReader, ReportNoteSnapshot, Report
 let reportBuilderDelegatesInstalled = false;
 const reportNoteSnapshots = new WeakMap<HTMLElement, ReportNoteSnapshot>();
 const reportAISnapshots = new WeakMap<HTMLElement, ReportAISnapshot>();
+const reportAIRequests = new WeakMap<HTMLElement, AbortController>();
 const BUILDER_SECTIONS = REPORT_SECTION_DEFS.filter(section => !['flagged', 'summary', 'trends'].includes(section.id)).map(section => ({ ...section, label: ({ categories: 'Lab results', genetics: 'Genome', context: 'Personal context', nutrition: 'Nutrition and hydration', wearables: 'Body and wearables', light: 'Sun and light sessions', environment: 'Environment', notes: 'Timeline notes' } as Record<string, string>)[section.id] || section.label }));
 const HISTORY_SECTIONS = ['categories', 'supplements', 'notes', 'context', 'nutrition', 'wearables', 'light', 'environment'];
 function selectedReportSections(overlay: HTMLElement) {
@@ -277,6 +278,8 @@ async function generateReportBuilderAISummary(overlay: HTMLElement, progress: Re
   const statusEl = overlay.querySelector<HTMLElement>('[data-report-ai-status]');
   if (overlay.dataset.reportAiBusy === 'true') return false;
   const ownProgress = !progress;
+  const controller = new AbortController();
+  reportAIRequests.set(overlay, controller);
   progress ||= startReportProgress(overlay);
   const enabled = overlay.querySelector<HTMLInputElement>('#report-include-ai')?.checked;
   const revision = overlay.dataset.reportAiRevision;
@@ -301,7 +304,7 @@ async function generateReportBuilderAISummary(overlay: HTMLElement, progress: Re
       return overlay.isConnected && revision === overlay.dataset.reportAiRevision && enabled === overlay.querySelector<HTMLInputElement>('#report-include-ai')?.checked && profileId === state.currentProfile && selection === JSON.stringify(currentOptions);
     };
     const payload = buildPreparedReportPayload(options);
-    const summary = await generateReportAISummary(options, { payload, onProgress: progress.stage, isCurrent });
+    const summary = await generateReportAISummary(options, { payload, onProgress: progress.stage, isCurrent, signal: controller.signal });
     if (!isCurrent()) {
       overlay.dataset.reportAiFailed = 'true';
       if (statusEl) statusEl.textContent = 'Report selection changed. Generate the overview again.';
@@ -316,12 +319,14 @@ async function generateReportBuilderAISummary(overlay: HTMLElement, progress: Re
       if (statusEl) statusEl.textContent = 'Overview unavailable. Retry or preview without AI.';
     }
   } catch (e) {
+    if (controller.signal.aborted && !overlay.isConnected) return false;
     const message = String(getErrorMessage(e, e) || 'Unknown error').slice(0, 180);
     overlay.dataset.reportAiFailed = 'true';
     const declined = ['AITransparencyDeclinedError', 'AIRouteConfirmationDeclinedError', 'CloudAIConsentDeclinedError'].includes(getErrorName(e));
     if (statusEl) statusEl.textContent = declined ? 'AI generation cancelled. No report data was sent. You can preview without AI.' : 'Generation failed. Try again or preview without the overview.';
     showNotification(declined ? 'AI generation cancelled. No report data was sent.' : 'AI summary failed: ' + message, declined ? 'info' : 'error');
   } finally {
+    if (reportAIRequests.get(overlay) === controller) reportAIRequests.delete(overlay);
     if (ownProgress) progress.stop();
     delete overlay.dataset.reportAiBusy;
     updateReportAIControls(overlay);
@@ -474,5 +479,9 @@ export function openReportBuilder(presetId: unknown = DEFAULT_REPORT_PRESET) {
 
 export function closeReportBuilder() {
   const overlay = document.getElementById(REPORT_BUILDER_OVERLAY_ID);
-  if (overlay) { cancelReportProgress(overlay); removeModalOverlay(overlay); }
+  if (overlay) {
+    reportAIRequests.get(overlay)?.abort(new DOMException('Report generation cancelled.', 'AbortError'));
+    reportAIRequests.delete(overlay);
+    cancelReportProgress(overlay); removeModalOverlay(overlay);
+  }
 }

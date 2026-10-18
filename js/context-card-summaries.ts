@@ -209,34 +209,16 @@ export function isContextFilled(key: string) {
   return state.importedData[key] != null;
 }
 
-const CONTEXT_ICON_ATTRS = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" focusable="false"';
-
-function contextIcon(body: string) {
-  return `<svg ${CONTEXT_ICON_ATTRS} aria-hidden="true">${body}</svg>`;
-}
-
-const CONTEXT_ICONS = {
-  healthGoals: contextIcon('<circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3"></path>'),
-  diagnoses: contextIcon('<rect x="5" y="3" width="14" height="18" rx="2"></rect><path d="M9 3.5h6V7H9zM12 10v7M8.5 13.5h7"></path>'),
-  diet: contextIcon('<path d="M6 3v6a3 3 0 0 0 6 0V3M9 3v18M17 3v18M17 3c2.5 2 3.5 4.5 3.5 8H17"></path>'),
-  exercise: contextIcon('<path d="M3 10v4M6 7v10M18 7v10M21 10v4M6 12h12"></path>'),
-  sleepRest: contextIcon('<path d="M20.5 14.5A8 8 0 0 1 9.5 3.5 8.5 8.5 0 1 0 20.5 14.5Z"></path>'),
-  lightCircadian: contextIcon('<circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>'),
-  stress: contextIcon('<path d="M9.5 3a3.5 3.5 0 0 0-3 5.3M14.5 3a3.5 3.5 0 0 1 3 5.3M6.5 8.3A4 4 0 0 0 4 12c0 1.7.7 3.2 1.8 4.3M17.5 8.3A4 4 0 0 1 20 12c0 1.7-.7 3.2-1.8 4.3M9 21a2 2 0 0 1-2-2v-2M15 21a2 2 0 0 0 2-2v-2M12 6v15"></path>'),
-  loveLife: contextIcon('<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"></path>'),
-  environment: contextIcon('<circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"></path>'),
-};
-
 export function getContextCardDefs() {
   return [
-    { key: 'healthGoals', icon: CONTEXT_ICONS.healthGoals, label: 'Health Goals', editor: 'openHealthGoalsEditor', tooltip: 'Define what you\'re trying to solve or improve. AI prioritizes analysis around your stated goals.', placeholder: 'Add health goals', summaryFn: getGoalsSummary },
-    { key: 'diagnoses', icon: CONTEXT_ICONS.diagnoses, label: 'Medical History', editor: 'openDiagnosesEditor', tooltip: 'Your diagnoses + family history shape how lab markers should be interpreted. What\'s abnormal for most may be expected for you; a parent\'s heart attack at 52 reframes a borderline LDL.', placeholder: 'Add diagnoses or family history', summaryFn: () => getConditionsSummary(state.importedData.diagnoses) },
-    { key: 'diet', icon: CONTEXT_ICONS.diet, label: 'Diet & Digestion', editor: 'openDietEditor', tooltip: 'Nutrition and digestion directly affect blood markers \u2014 diet type impacts lipids, B12, iron; GI symptoms correlate with inflammation and nutrient absorption.', placeholder: 'Describe your diet & digestion', summaryFn: () => getDietSummary(state.importedData.diet) },
-    { key: 'exercise', icon: CONTEXT_ICONS.exercise, label: 'Exercise', editor: 'openExerciseEditor', tooltip: 'Training type and intensity affect CK, liver enzymes, cholesterol, and inflammatory markers.', placeholder: 'Describe your routine', summaryFn: () => getExerciseSummary(state.importedData.exercise) },
-    { key: 'sleepRest', icon: CONTEXT_ICONS.sleepRest, label: 'Sleep & Rest', editor: 'openSleepRestEditor', tooltip: 'Sleep duration and quality directly affect inflammation, insulin sensitivity, cortisol, and immune function.', placeholder: 'Describe your sleep', summaryFn: () => getSleepSummary(state.importedData.sleepRest) },
-    { key: 'lightCircadian', icon: CONTEXT_ICONS.lightCircadian, label: 'Light & Circadian', editor: 'openLightCircadianEditor', tooltip: 'Light, cold, grounding, screen time, and meal timing drive circadian rhythm, hormones, melatonin, cortisol, and metabolic health.', placeholder: 'Describe your light habits', summaryFn: () => getLightCircadianSummary(state.importedData.lightCircadian) },
-    { key: 'stress', icon: CONTEXT_ICONS.stress, label: 'Stress', editor: 'openStressEditor', tooltip: 'Chronic stress elevates cortisol, disrupts thyroid function, raises inflammation, and impairs immune response.', placeholder: 'Rate your stress level', summaryFn: () => getStressSummary(state.importedData.stress) },
-    { key: 'loveLife', icon: CONTEXT_ICONS.loveLife, label: 'Love Life & Relationships', editor: 'openLoveLifeEditor', tooltip: 'Sexual health and relationships directly affect hormones (testosterone, estrogen, oxytocin, cortisol), immune function, and cardiovascular markers.', placeholder: 'Share your status', summaryFn: () => getLoveLifeSummary(state.importedData.loveLife) },
-    { key: 'environment', icon: CONTEXT_ICONS.environment, label: 'Environment', editor: 'openEnvironmentEditor', tooltip: 'Water quality, EMF exposure, air quality, toxins, and building materials shape mitochondrial function, inflammation, hormones, and oxidative stress.', placeholder: 'Describe your environment', summaryFn: () => getEnvironmentSummary(state.importedData.environment) },
+    { key: 'healthGoals', icon: 'healthGoals' as const, label: 'Health Goals', editor: 'openHealthGoalsEditor', tooltip: 'Define what you\'re trying to solve or improve. AI prioritizes analysis around your stated goals.', placeholder: 'Add health goals', summaryFn: getGoalsSummary },
+    { key: 'diagnoses', icon: 'diagnoses' as const, label: 'Medical History', editor: 'openDiagnosesEditor', tooltip: 'Your diagnoses + family history shape how lab markers should be interpreted. What\'s abnormal for most may be expected for you; a parent\'s heart attack at 52 reframes a borderline LDL.', placeholder: 'Add diagnoses or family history', summaryFn: () => getConditionsSummary(state.importedData.diagnoses) },
+    { key: 'diet', icon: 'diet' as const, label: 'Diet & Digestion', editor: 'openDietEditor', tooltip: 'Nutrition and digestion directly affect blood markers \u2014 diet type impacts lipids, B12, iron; GI symptoms correlate with inflammation and nutrient absorption.', placeholder: 'Describe your diet & digestion', summaryFn: () => getDietSummary(state.importedData.diet) },
+    { key: 'exercise', icon: 'exercise' as const, label: 'Exercise', editor: 'openExerciseEditor', tooltip: 'Training type and intensity affect CK, liver enzymes, cholesterol, and inflammatory markers.', placeholder: 'Describe your routine', summaryFn: () => getExerciseSummary(state.importedData.exercise) },
+    { key: 'sleepRest', icon: 'sleepRest' as const, label: 'Sleep & Rest', editor: 'openSleepRestEditor', tooltip: 'Sleep duration and quality directly affect inflammation, insulin sensitivity, cortisol, and immune function.', placeholder: 'Describe your sleep', summaryFn: () => getSleepSummary(state.importedData.sleepRest) },
+    { key: 'lightCircadian', icon: 'lightCircadian' as const, label: 'Light & Circadian', editor: 'openLightCircadianEditor', tooltip: 'Light, cold, grounding, screen time, and meal timing drive circadian rhythm, hormones, melatonin, cortisol, and metabolic health.', placeholder: 'Describe your light habits', summaryFn: () => getLightCircadianSummary(state.importedData.lightCircadian) },
+    { key: 'stress', icon: 'stress' as const, label: 'Stress', editor: 'openStressEditor', tooltip: 'Chronic stress elevates cortisol, disrupts thyroid function, raises inflammation, and impairs immune response.', placeholder: 'Rate your stress level', summaryFn: () => getStressSummary(state.importedData.stress) },
+    { key: 'loveLife', icon: 'loveLife' as const, label: 'Love Life & Relationships', editor: 'openLoveLifeEditor', tooltip: 'Sexual health and relationships directly affect hormones (testosterone, estrogen, oxytocin, cortisol), immune function, and cardiovascular markers.', placeholder: 'Share your status', summaryFn: () => getLoveLifeSummary(state.importedData.loveLife) },
+    { key: 'environment', icon: 'environment' as const, label: 'Environment', editor: 'openEnvironmentEditor', tooltip: 'Water quality, EMF exposure, air quality, toxins, and building materials shape mitochondrial function, inflammation, hormones, and oxidative stress.', placeholder: 'Describe your environment', summaryFn: () => getEnvironmentSummary(state.importedData.environment) },
   ];
 }

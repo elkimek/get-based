@@ -1,3 +1,4 @@
+import{captureLightAIView}from'./light-ai-view-values.js';
 import type { ProfileData } from '../types/app-state.js';
 // light-today-ai.js — Light Today daily/weekly hero verdict.
 //
@@ -348,30 +349,32 @@ function queueDayAnalysis(target: DayTarget, status: import('./ai-verdict-engine
   setTimeout(() => { if (owner.current()) void engine.analyze(target).catch(() => {}); }, 0);
 }
 
-export function renderLightTodayHero() {
+export function getLightTodayHeroView() {
   const today = new Date();
   const target = _wrapDate(today);
   const status = engine.getStatus(target);
   const cached = _getDailyVerdicts()[target.key] as VerdictRead | undefined;
-  if (!hasAssistantFeatureProvider() && !(cached?.status === 'ok' && cached?.dot)) return '';
+  if (!hasAssistantFeatureProvider() && !(cached?.status === 'ok' && cached?.dot)) return null;
   queueDayAnalysis(target, status, cached);
-  return renderHTML({ view: projectReviewAI({ kind: 'today', status, variant: status,
+  return captureLightAIView(projectReviewAI({ kind: 'today', status, variant: status,
     analysis: cached, actionOwner: aiActionOwner(), trends: computeLightTrends(today).signals,
-  }) });
+  }));
 }
+export function renderLightTodayHero(){const view=getLightTodayHeroView();return view?renderHTML({view}):'';}
 
 // The dashboard reads the same daily cache and exposes full detail without hover.
-export function renderLightTodayDashboardChip() {
+export function getLightTodayDashboardView() {
   const target = _wrapDate(new Date());
   const status = engine.getStatus(target);
   const cached = _getDailyVerdicts()[target.key] as VerdictRead | undefined;
-  if (!hasAssistantFeatureProvider() && !(cached?.status === 'ok' && cached?.dot)) return '';
+  if (!hasAssistantFeatureProvider() && !(cached?.status === 'ok' && cached?.dot)) return null;
   queueDayAnalysis(target, status, cached);
-  return renderHTML({ view: projectReviewAI({ kind: 'dashboard', status,
+  return captureLightAIView(projectReviewAI({ kind: 'dashboard', status,
     variant: status === 'ok' && !cached?.dot ? 'idle' : status,
     analysis: cached, actionOwner: aiActionOwner(),
-  }) });
+  }));
 }
+export function renderLightTodayDashboardChip(){const view=getLightTodayDashboardView();return view?renderHTML({view}):'';}
 
 // Cross-page live-update — when a verdict completes elsewhere (e.g. an
 // auto-fire on the Light & Sun page while the user is reading the

@@ -28,6 +28,36 @@ test('static Chat owns persisted splitter geometry through an unavailable-origin
   try{
     await open(page,server.origin);
     const panel=page.locator('#chat-panel');const panelHandle=page.locator('#chat-panel-resize-handle');const railHandle=page.locator('#chat-rail-resize-handle');
+    const rail=page.locator('#chat-thread-rail'),toggle=page.getByRole('button',{name:'Toggle conversations',exact:true});
+    // Closed clipped rail controls must be absent from genuine keyboard traversal.
+    if(await rail.evaluate(node=>node.classList.contains('open')))await toggle.click();
+    await expect(rail).toHaveAttribute('inert','');await toggle.focus();
+    for(let step=0;step<16;step++){
+      await page.keyboard.press('Tab');
+      expect(await rail.evaluate(node=>node.contains(document.activeElement))).toBe(false);
+    }
+    await toggle.focus();await page.keyboard.press('Enter');await expect(rail).not.toHaveAttribute('inert');
+    const railControl=page.getByRole('button',{name:mobile?'Close conversations':'New conversation',exact:true});
+    if(mobile){
+      // The explicit opener must transfer focus before its header is covered.
+      await expect(railControl).toBeFocused();await expect(railControl).toBeInViewport();
+      await page.keyboard.press('Tab');await expect(page.getByRole('button',{name:'New conversation',exact:true})).toBeFocused();
+      await page.keyboard.press('Shift+Tab');await expect(railControl).toBeFocused();
+    }else{
+      // Desktop retains header focus; traverse into preceding live rail controls.
+      await toggle.focus();let reached=false;
+      for(let step=0;step<80;step++){
+        await page.keyboard.press('Shift+Tab');
+        if(await railControl.evaluate(node=>document.activeElement===node)){reached=true;break;}
+      }
+      expect(reached,'Opened rail control is reachable by physical keyboard events').toBe(true);
+      await expect(railControl).toBeFocused();await expect(railControl).toBeInViewport();await toggle.focus();
+    }
+    await page.keyboard.press('Enter');
+    await expect(rail).toHaveAttribute('inert','');await expect(toggle).toBeFocused();
+    // Restore the exact persisted starting layout for existing geometry/cold-launch checks.
+    if(!mobile){await toggle.click();await expect(rail).not.toHaveAttribute('inert');}
+
     if(mobile){
       await expect(panelHandle).toBeHidden();await expect(railHandle).toBeHidden();await expect(panel).toHaveCSS('width',`${page.viewportSize()!.width}px`);
     }else{

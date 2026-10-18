@@ -4,6 +4,10 @@
 @import "tailwindcss/utilities.css" prefix(gb) source(none);
 @import "./ui-tokens.tailwind.css";
 @source "../js/components/LightPagePresentation.svelte";
+@source "../js/components/LightPageBody.svelte";
+@source "../js/components/LightPageHeader.svelte";
+@source "../js/components/LightPageWidgets.svelte";
+@source "../js/components/LightWidgetBody.svelte";
 @source "../js/components/LightMethods.svelte";
 @source "../js/components/LightSessionActions.svelte";
 @source "../js/components/LightUVSafety.svelte";

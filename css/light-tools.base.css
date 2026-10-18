@@ -1,6 +1,10 @@
-/* Host placement and overlay scrolling; presentation is owned by scoped Tailwind. */
-.light-page .dashboard-widget[data-widget-id="light-tools"] .dashboard-widget-body { gap: 0; }
-.light-tool-overlay.modal-overlay.show {
+@import "tailwindcss" prefix(gb) source(none) reference;
+@utility light-layout-tools-page-dashboard-widget-data-widget-id-light-tools-dashbo { gap: 0; }
+@utility light-layout-tools-tool-overlay-modal-overlay-show {
   align-items: flex-start;
   overflow-y: auto;
 }
+
+/* Host placement and overlay scrolling; presentation is owned by scoped Tailwind. */
+.light-page .dashboard-widget[data-widget-id="light-tools"] .dashboard-widget-body { @apply gb:light-layout-tools-page-dashboard-widget-data-widget-id-light-tools-dashbo; }
+.light-tool-overlay.modal-overlay.show { @apply gb:light-layout-tools-tool-overlay-modal-overlay-show; }

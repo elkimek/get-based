@@ -92,12 +92,12 @@ export function showDetailModal(id: unknown, opts: unknown = {}) {
   return runMarkerDetailAction('showDetailModal', [id, opts]);
 }
 
-// Category cards already render the shared delegated action contract while the
+// Category cards and empty table cells render the delegated contract while the
 // heavy modal implementation is still cold. Bridge their first click through
 // this facade; the implementation upgrades the same delegate with its complete
 // action set once the lazy import resolves.
 if (typeof document !== 'undefined') {
-  installMarkerDetailActionDelegates({ showDetailModal });
+  installMarkerDetailActionDelegates({ showDetailModal, openManualEntryForm });
 }
 
 export function editRefRange(...args: unknown[]) {

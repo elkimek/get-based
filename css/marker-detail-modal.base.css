@@ -1,0 +1,1207 @@
+@import "tailwindcss" prefix(gb) source(none) reference;
+@utility marker-detail-dialog {
+  max-width: 920px;
+  background: var(--bg-secondary);
+  box-shadow: var(--shadow-lg);
+  box-sizing: border-box;
+  isolation: isolate;
+}
+@utility marker-detail-children {
+  box-sizing: border-box;
+}
+@utility marker-detail-head-content-group {
+  min-width: 0;
+}
+@utility marker-detail-h3-group {
+  overflow-wrap: anywhere;
+}
+@utility marker-detail-modal-close {
+  top: 18px;
+  right: 20px;
+  z-index: 40;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  font-size: 22px;
+  line-height: 1;
+  padding: 0;
+}
+@utility marker-detail-head {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 22px;
+  padding: 22px 28px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+  box-shadow: 0 1px 0 var(--border);
+}
+@utility marker-detail-head-fade {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -16px;
+  height: 16px;
+  background: linear-gradient(to bottom, var(--bg-secondary), transparent);
+  pointer-events: none;
+}
+@utility marker-detail-kicker-group {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+@utility marker-detail-h3 {
+  margin: 4px 48px 4px 0;
+  font-size: 23px;
+}
+@utility marker-detail-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 32px;
+  flex-shrink: 0;
+}
+@utility marker-detail-pin-btn {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 10px;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+}
+@utility marker-detail-pin-btn-hover-group {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  background: var(--bg-hover);
+}
+@utility marker-detail-pin-btn-focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@utility marker-detail-status {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 10px;
+  color: var(--text-secondary);
+  background: var(--bg-card);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  white-space: nowrap;
+}
+@utility marker-detail-status-normal { color: var(--green); border-color: color-mix(in srgb, var(--green) 45%, var(--border)); }
+@utility marker-detail-status-high { color: var(--red); border-color: color-mix(in srgb, var(--red) 45%, var(--border)); }
+@utility marker-detail-status-low { color: var(--yellow); border-color: color-mix(in srgb, var(--yellow) 45%, var(--border)); }
+@utility marker-detail-status-unrated { color: var(--text-muted); }
+@utility marker-detail-marker-description-group {
+  margin-left: 28px;
+  margin-right: 28px;
+}
+@utility marker-detail-bio-age-breakdown {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-card) 74%, transparent);
+}
+@utility marker-detail-bio-age-breakdown-head {
+  margin-bottom: 4px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+@utility marker-detail-bio-age-breakdown-sub-group {
+  margin-bottom: 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+@utility marker-detail-bio-age-breakdown-warning {
+  color: var(--yellow);
+}
+@utility marker-detail-bio-age-component {
+  padding: 8px 0;
+  font-size: 14px;
+}
+@utility marker-detail-bio-age-component-bio-age-component {
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 62%, transparent);
+}
+@utility marker-detail-bio-age-component-header {
+  margin-bottom: 6px;
+}
+@utility marker-detail-bio-age-glyph {
+  display: inline-block;
+  width: 18px;
+  font-weight: 700;
+}
+@utility marker-detail-bio-age-component-ok-bio-age-glyph-group {
+  color: var(--green);
+}
+@utility marker-detail-bio-age-component-missing-bio-age-glyph-group {
+  color: var(--yellow);
+}
+@utility marker-detail-bio-age-delta {
+  margin-left: 4px;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+@utility marker-detail-bio-age-input-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-top: 4px;
+  margin-left: 22px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+@utility marker-detail-bio-age-input {
+  white-space: nowrap;
+}
+@utility marker-detail-bio-age-input-is-missing {
+  font-weight: 600;
+}
+@utility marker-detail-manual-entry-btn-group {
+  width: calc(100% - 56px);
+  display: block;
+}
+@utility marker-detail-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 20px;
+  margin-bottom: 16px;
+}
+@utility marker-detail-summary-card {
+  padding: 12px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+@utility marker-detail-summary-card-label {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+@utility marker-detail-summary-card-value {
+  margin-top: 6px;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+}
+@utility marker-detail-summary-card-value-span {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+@utility marker-detail-summary-card-value-range {
+  font-family: var(--font-mono);
+  font-size: 16px;
+}
+@utility marker-detail-summary-card-value-val-normal { color: var(--green); }
+@utility marker-detail-summary-card-value-val-high { color: var(--red); }
+@utility marker-detail-summary-card-value-val-low { color: var(--yellow); }
+@utility marker-detail-summary-card-value-val-unrated { color: var(--text-primary); }
+@utility marker-detail-summary-card-meta {
+  margin-top: 7px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+@utility marker-detail-section-label {
+  margin-top: 18px;
+  margin-bottom: 10px;
+}
+@utility marker-detail-dialog-narrow-640 {
+    width: calc(100vw - 32px);
+    max-width: calc(100vw - 32px);
+    max-height: calc(100vh - 16px);
+    max-height: calc(100svh - 16px);
+    border-radius: var(--radius-sm);
+  }
+@utility marker-detail-modal-close-narrow-640 {
+    top: 10px;
+    right: 10px;
+    width: 38px;
+    height: 38px;
+    font-size: 22px;
+  }
+@utility marker-detail-h3-narrow-640 {
+    margin: 4px 0;
+    font-size: 20px;
+    line-height: 1.15;
+  }
+@utility marker-detail-head-actions-narrow-640 {
+    width: 100%;
+    margin-right: 0;
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+@utility marker-detail-pin-btn-group-narrow-640 {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 34px;
+  }
+@utility marker-detail-marker-description-group-narrow-640 {
+    margin-left: 16px;
+    margin-right: 16px;
+  }
+@utility marker-detail-manual-entry-btn-group-narrow-640 {
+    width: calc(100% - 32px);
+  }
+@utility marker-detail-marker-description-narrow-640 {
+    margin-top: 14px;
+  }
+@utility marker-detail-summary-narrow-640 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+    margin-bottom: 12px;
+  }
+@utility marker-detail-summary-card-narrow-640 {
+    padding: 12px;
+  }
+@utility marker-detail-summary-card-value-narrow-640 {
+    font-size: 22px;
+    line-height: 1.1;
+  }
+@utility marker-detail-summary-card-value-span-narrow-640 {
+    font-size: 12px;
+  }
+@utility marker-detail-summary-card-value-range-narrow-640 {
+    font-size: 13px;
+    line-height: 1.35;
+  }
+@utility marker-detail-gb-range-band-narrow-640 {
+    height: 44px;
+    margin-bottom: 18px;
+  }
+@utility marker-detail-section-label-narrow-640 {
+    margin-top: 16px;
+    margin-bottom: 8px;
+  }
+@utility marker-detail-dialog-modal-chart-narrow-640 {
+    height: 180px;
+    margin-bottom: 16px;
+  }
+@utility marker-detail-note-header-narrow-640 {
+    gap: 10px;
+    align-items: flex-start;
+  }
+@utility marker-detail-note-actions-narrow-640 {
+    flex-wrap: wrap;
+  }
+@utility marker-detail-note-actions-import-btn-narrow-640 {
+    flex: 1 1 120px;
+  }
+@utility marker-detail-manual-entry-form-me-field-select-me-unit-select-narrow-640 {
+    max-width: 100%;
+    margin-left: 0;
+    margin-top: 6px;
+  }
+@utility marker-detail-head-narrow-380 {
+    padding-left: 14px;
+    padding-right: 52px;
+  }
+@utility marker-detail-marker-description-group-narrow-380 {
+    margin-left: 14px;
+    margin-right: 14px;
+  }
+@utility marker-detail-manual-entry-btn-group-narrow-380 {
+    width: calc(100% - 28px);
+  }
+@utility marker-detail-dialog-modal-chart-narrow-380 {
+    height: 190px;
+  }
+@utility marker-detail-marker-description-loaded { display: block; }
+@utility marker-detail-marker-description-loading {
+  display: block; height: 16px; width: 60%;
+  background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-hover) 50%, var(--bg-card) 75%);
+  background-size: 200% 100%; border-radius: 4px;
+  animation: shimmer 1.5s infinite;
+}
+@utility marker-detail-section-label-span { margin-left: 5px; color: var(--text-muted); font-size: 10px; font-weight: 500; }
+@utility marker-detail-actions {
+  margin: 22px 28px 28px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 12px;
+}
+@utility marker-detail-action-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+@utility marker-detail-actions-manual-entry-btn-group {
+  width: 100%;
+  margin: 0;
+  min-height: 42px;
+  line-height: 1.2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+@utility marker-detail-actions-manual-entry-btn {
+  border-style: solid;
+  background: color-mix(in srgb, var(--bg-card) 68%, transparent);
+}
+@utility marker-detail-actions-ask-ai-btn {
+  border-color: color-mix(in srgb, var(--accent) 62%, var(--border));
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  font-weight: 650;
+}
+@utility marker-detail-actions-note-section-group {
+  margin: 0;
+}
+@utility marker-detail-actions-id-rec-modal-empty {
+  display: none;
+}
+@utility marker-detail-head-fade-narrow-640 {
+    bottom: -12px;
+    height: 12px;
+  }
+@utility marker-detail-actions-narrow-640 {
+    margin: 18px 16px 24px;
+    padding-top: 14px;
+  }
+@utility marker-detail-action-row-narrow-640 {
+    gap: 8px;
+  }
+@utility marker-detail-actions-narrow-380 {
+    margin-left: 14px;
+    margin-right: 14px;
+  }
+@utility marker-detail-note-section { margin: 12px 0; padding: 10px 12px; background: var(--bg-hover); border-radius: var(--radius-sm); border: 1px solid var(--border); }
+@utility marker-detail-note-header { display: flex; justify-content: space-between; align-items: center; }
+@utility marker-detail-note-label { font-size: 12px; font-weight: 700; color: var(--text-secondary); }
+@utility marker-detail-note-edit-btn { background: none; border: none; color: var(--accent); font-size: 11px; cursor: pointer; font-family: inherit; padding: 0; }
+@utility marker-detail-note-edit-btn-hover { text-decoration: underline; }
+@utility marker-detail-note-text { font-size: 13px; color: var(--text-primary); margin-top: 6px; line-height: 1.5; white-space: pre-line; }
+@utility marker-detail-note-editor { margin-top: 8px; }
+@utility marker-detail-note-editor-textarea { width: 100%; background: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px; font-size: 13px; font-family: inherit; resize: vertical; }
+@utility marker-detail-note-editor-textarea-focus { outline: none; border-color: var(--accent); }
+@utility marker-detail-note-actions { display: flex; gap: 6px; margin-top: 6px; }
+@utility marker-detail-calc-missing-inputs {
+  color: var(--text-muted); font-size: 0.8rem; text-align: center;
+  margin-top: 12px; padding: 8px 12px; border-radius: 6px;
+  background: var(--bg-secondary); border: 1px dashed var(--border);
+}
+@utility marker-detail-dialog-narrow-480 { padding: 0; }
+@utility marker-detail-dialog-narrow-375 { padding: 0; max-width: calc(100vw - 16px); }
+@utility marker-detail-history-show-more {
+  width: calc(100% - 56px);
+  display: block;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+@utility marker-detail-history-show-more-hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  border-style: solid;
+}
+@utility marker-detail-range-band {
+  position: relative;
+  height: 48px;
+  margin-top: 4px;
+  margin-bottom: 22px;
+}
+@utility marker-detail-range-band-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 18px;
+  height: 7px;
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  border-radius: 999px;
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+@utility marker-detail-range-band-track-gb-range-band-zone-group {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  height: auto;
+}
+@utility marker-detail-range-band-dot {
+  position: absolute;
+  top: calc(18px + 3.5px);
+  width: 10px;
+  height: 16px;
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+  border: 1px solid color-mix(in srgb, var(--bg-primary) 80%, black);
+  background: var(--text-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--bg-card) 65%, transparent);
+  z-index: 2;
+}
+@utility marker-detail-range-band-dot-normal { background: var(--green, #22c55e); box-shadow: 0 0 0 2px color-mix(in srgb, var(--bg-card) 65%, transparent), 0 0 10px color-mix(in srgb, var(--green, #22c55e) 45%, transparent); }
+@utility marker-detail-range-band-dot-high { background: var(--red, #ef4444); box-shadow: 0 0 0 2px color-mix(in srgb, var(--bg-card) 65%, transparent), 0 0 10px color-mix(in srgb, var(--red, #ef4444) 45%, transparent); }
+@utility marker-detail-range-band-dot-low { background: var(--yellow, #f59e0b); box-shadow: 0 0 0 2px color-mix(in srgb, var(--bg-card) 65%, transparent), 0 0 10px color-mix(in srgb, var(--yellow, #f59e0b) 45%, transparent); }
+@utility marker-detail-range-band-scale {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+@utility marker-detail-history-grid-narrow-768 { grid-template-columns: 1fr; }
+@utility marker-detail-history-show-more-narrow-640 {
+    width: calc(100% - 32px);
+  }
+@utility marker-detail-history-grid-narrow-640 {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+@utility marker-detail-history-card-narrow-640 {
+    padding: 12px 38px 12px 12px;
+    text-align: left;
+  }
+@utility marker-detail-mv-delete-narrow-640 {
+    top: 8px;
+    right: 8px;
+  }
+@utility marker-detail-history-card-mv-value-narrow-640 {
+    font-size: 22px;
+    line-height: 1.15;
+  }
+@utility marker-detail-history-card-mv-value-note-narrow-640 {
+    justify-content: flex-start;
+  }
+@utility marker-detail-history-card-mv-value-note-text-narrow-640 {
+    text-align: left;
+  }
+@utility marker-detail-history-trend-narrow-640 {
+    padding: 12px;
+    line-height: 1.45;
+  }
+@utility marker-detail-history-show-more-narrow-380 {
+    width: calc(100% - 28px);
+  }
+@utility marker-detail-history-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px;
+}
+@utility marker-detail-history-card {
+  background: var(--bg-card); border-radius: var(--radius-sm); padding: 12px 14px; text-align: left;
+  position: relative; border: 1px solid var(--border); border-left: 3px solid var(--text-muted);
+}
+@utility marker-detail-history-card-status-normal { border-left-color: var(--green); }
+@utility marker-detail-history-card-status-high { border-left-color: var(--red); }
+@utility marker-detail-history-card-status-low { border-left-color: var(--yellow); }
+@utility marker-detail-mv-delete {
+  position: absolute; top: 4px; right: 4px; background: none; border: none;
+  color: var(--text-muted); font-size: 16px; cursor: pointer; padding: 0 4px;
+  line-height: 1; opacity: 0; transition: opacity 0.15s;
+}
+@utility marker-detail-history-card-hover-mv-delete { opacity: 1; }
+@utility marker-detail-mv-delete-hover { color: var(--red); }
+@utility marker-detail-history-card-mv-date { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; padding-right: 20px; }
+@utility marker-detail-history-card-mv-source { font-size: 11px; color: var(--text-muted); opacity: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-height: 0; margin-bottom: 0; transition: opacity 0.2s, max-height 0.2s, margin-bottom 0.2s; }
+@utility marker-detail-history-card-hover-mv-source { opacity: 0.7; max-height: 1.2em; margin-bottom: 2px; }
+@utility marker-detail-history-card-mv-source-manual { font-style: italic; }
+@utility marker-detail-history-card-mv-value {
+  font-family: var(--font-mono); font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums;
+}
+@utility marker-detail-history-card-mv-alt {
+  font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);
+  margin-top: 2px; font-variant-numeric: tabular-nums;
+}
+@utility marker-detail-history-card-mv-status { font-size: 11px; font-weight: 600; margin-top: 4px; }
+@utility marker-detail-history-card-mv-phase { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+@utility marker-detail-history-card-mv-collection-context { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+@utility marker-detail-history-card-mv-value-note {
+  font-size: 11px; margin-top: 6px; padding-top: 6px;
+  border-top: 1px dashed var(--border);
+  display: flex; align-items: flex-start; gap: 4px; justify-content: flex-start;
+}
+@utility marker-detail-history-card-mv-value-note-has-note { color: var(--text-secondary); font-style: italic; }
+@utility marker-detail-history-card-mv-value-note-add-note {
+  color: var(--text-muted); cursor: pointer; opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+@utility marker-detail-history-card-hover-mv-value-note-add-note { opacity: 0.7; }
+@utility marker-detail-history-card-mv-value-note-add-note-hover { opacity: 1; color: var(--accent); }
+@utility marker-detail-history-card-mv-value-note-text {
+  cursor: pointer; flex: 1; min-width: 0; word-break: break-word; text-align: left;
+}
+@utility marker-detail-history-card-mv-value-note-text-hover { color: var(--accent); }
+@utility marker-detail-history-card-mv-value-note-delete {
+  background: none; border: none; color: var(--text-muted); cursor: pointer;
+  font-size: 14px; line-height: 1; padding: 0 2px; opacity: 0; transition: opacity 0.15s;
+}
+@utility marker-detail-history-card-hover-mv-value-note-delete { opacity: 0.7; }
+@utility marker-detail-history-card-mv-value-note-delete-hover { color: var(--red); opacity: 1; }
+@utility marker-detail-history-trend {
+  background: var(--bg-card); border-radius: var(--radius-sm);
+  padding: 14px 18px; font-size: 13px; color: var(--text-secondary);
+}
+@utility marker-detail-history-trend-strong { color: var(--text-primary); }
+@utility marker-detail-range-controls {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.45;
+}
+@utility marker-detail-range-controls-ref-editable {
+  white-space: nowrap;
+  padding: 2px 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+@utility marker-detail-range-controls-ref-editable-hover { color: var(--accent); border-color: var(--accent); }
+@utility marker-detail-range-controls-ref-editable-optimal { color: var(--green); }
+@utility marker-detail-range-suggestion {
+  display: block;
+  width: fit-content;
+  margin-top: 7px;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 10px;
+  line-height: 1.35;
+  text-decoration: none;
+}
+@utility marker-detail-range-suggestion-hover-group { color: var(--accent); text-decoration: underline; }
+@utility marker-detail-history-list {
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+@utility marker-detail-history-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 14px;
+  row-gap: 4px;
+  min-height: 66px;
+  padding: 10px 42px 10px 14px;
+  background: color-mix(in srgb, var(--bg-card) 78%, transparent);
+  content-visibility: auto;
+  contain-intrinsic-size: 66px;
+}
+@utility marker-detail-history-date-row {
+  min-width: 0;
+}
+@utility marker-detail-history-value-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 0;
+}
+@utility marker-detail-history-row-mv-date {
+  margin-bottom: 2px;
+  padding-right: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+@utility marker-detail-history-row-mv-source {
+  opacity: 0.72;
+  max-height: 1.4em;
+  margin-bottom: 0;
+}
+@utility marker-detail-history-row-mv-value {
+  font-size: 22px;
+  line-height: 1;
+}
+@utility marker-detail-history-row-mv-status {
+  margin-top: 0;
+  white-space: nowrap;
+}
+@utility marker-detail-history-row-mv-alt-group {
+  grid-column: 1 / -1;
+}
+@utility marker-detail-history-row-mv-value-note {
+  margin-top: 4px;
+  padding-top: 5px;
+}
+@utility marker-detail-range-controls-narrow-640 {
+    font-size: 10px;
+    line-height: 1.35;
+  }
+@utility marker-detail-history-row-narrow-640 {
+    grid-template-columns: 1fr;
+    min-height: 0;
+    padding: 12px 40px 12px 12px;
+    row-gap: 6px;
+  }
+@utility marker-detail-history-value-row-narrow-640 {
+    justify-content: space-between;
+    gap: 12px;
+  }
+@utility marker-detail-history-row-mv-value-narrow-640 {
+    font-size: 24px;
+  }
+@utility marker-detail-history-row-mv-status-narrow-640 {
+    font-size: 11px;
+  }
+@utility marker-detail-mv-delete-hover-none { opacity: 0.7; }
+@utility marker-detail-history-card-mv-source-hover-none { opacity: 0.7; max-height: 1.2em; margin-bottom: 2px; }
+@utility manual-entry-form { margin-top: 16px; }
+@utility manual-entry-field { margin-bottom: 12px; }
+@utility manual-entry-label {
+  display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 4px; font-weight: 500;
+}
+@utility manual-entry-input {
+  width: 100%; padding: 8px 12px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--bg-primary);
+  color: var(--text-primary); font-size: 13px; font-family: inherit;
+}
+@utility manual-entry-input-focus { border-color: var(--accent); }
+@utility manual-entry-textarea {
+  width: 100%; padding: 8px 12px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--bg-primary);
+  color: var(--text-primary); font-size: 13px; font-family: inherit; resize: vertical;
+}
+@utility manual-entry-textarea-focus { border-color: var(--accent); }
+@utility manual-entry-select {
+  width: 100%; padding: 8px 12px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--bg-primary);
+  color: var(--text-primary); font-size: 13px; font-family: inherit;
+}
+@utility manual-entry-select-focus { border-color: var(--accent); }
+@utility manual-entry-context-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;
+}
+@utility manual-entry-context-field { min-width: 0; }
+@utility manual-entry-optional { color: var(--text-muted); font-weight: 400; text-transform: none; letter-spacing: 0; }
+@utility manual-entry-help {
+  display: block; margin-top: 5px; color: var(--text-muted); font-size: 10px; line-height: 1.35;
+}
+@utility manual-entry-unit-select {
+  width: auto; padding: 2px 8px; font-size: 11px; margin-left: 6px;
+  font-weight: 400; color: var(--text-muted); vertical-align: middle;
+}
+@utility manual-entry-context {
+  font-size: 12px; color: var(--text-muted); margin-bottom: 16px;
+  padding: 10px; background: var(--bg-card); border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+@utility manual-entry-context-grid-phone { grid-template-columns: minmax(0, 1fr); gap: 0; }
+@utility marker-placement-summary-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 9px;
+}
+@utility marker-placement-summary-actions {
+  appearance: none;
+  border: 0;
+  padding: 1px 0;
+  background: transparent;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+@utility marker-placement-summary-actions-hover {
+  text-decoration: underline;
+}
+@utility marker-placement-summary-actions-focus {
+  border-radius: 3px;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@utility marker-placement-summary-origin {
+  border-left: 1px solid var(--border);
+  padding-left: 9px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+@utility marker-placement-form {
+  max-width: 580px;
+}
+@utility marker-placement-safety-note {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--border));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) 7%, var(--bg-card));
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.45;
+}
+@utility marker-placement-safety-note-heading {
+  color: var(--text-primary);
+  font-size: 14px;
+}
+@utility marker-placement-category-select {
+  width: 100%;
+}
+@utility marker-placement-help-text {
+  margin-top: 7px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+@utility marker-placement-current-category-name {
+  color: var(--text-secondary);
+}
+@utility marker-placement-restore-action {
+  margin-right: auto;
+}
+@utility marker-placement-summary-origin-phone {
+    flex-basis: auto;
+  }
+@utility marker-placement-restore-action-phone {
+    margin-right: 0;
+  }
+
+@utility custom-marker-category-row { margin-top: 6px; gap: 8px; align-items: center; }
+@utility custom-marker-category-icon { cursor: pointer; font-size: 20px; min-width: 28px; text-align: center; }
+@utility custom-marker-category-name { flex: 1; }
+@utility custom-marker-range-row { display: flex; gap: 8px; }
+@utility custom-marker-range-divider { line-height: 36px; }
+@utility feature-native-marker-marker-detail-modal-marker-description-001 {
+  margin-top: 18px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-card) 62%, transparent);
+}
+@utility feature-native-marker-gb-range-band-zone-low-002 {
+  background: var(--yellow);
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--yellow, #f59e0b) 74%, var(--bg-secondary) 8%),
+    color-mix(in srgb, var(--green, #22c55e) 42%, var(--accent) 12%));
+}
+@utility feature-native-marker-gb-range-band-zone-high-003 {
+  background: var(--red);
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--green, #22c55e) 42%, var(--accent) 12%),
+    color-mix(in srgb, var(--red, #ef4444) 78%, var(--bg-secondary) 6%));
+}
+@utility feature-native-marker-gb-range-band-opt-004 {
+  position: absolute;
+  top: 18px;
+  height: 7px;
+  border-radius: 999px;
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--green, #22c55e) 46%, var(--accent) 14%),
+    color-mix(in srgb, var(--green, #22c55e) 68%, var(--accent) 24%),
+    color-mix(in srgb, var(--green, #22c55e) 46%, var(--accent) 14%));
+  opacity: 0.9;
+  z-index: 1;
+}
+@utility feature-native-marker-modal-marker-detail-modal-modal-chart-005 {
+  height: 240px;
+  margin-bottom: 22px;
+}
+@utility feature-native-marker-marker-detail-modal-gb-detail-head-006 {
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px 54px 12px 16px;
+  }
+@utility feature-native-marker-marker-detail-modal-marker-description-007 {
+  font-size: 13px; color: var(--text-secondary); line-height: 1.4;
+  margin-bottom: 16px; display: none;
+}
+@utility feature-native-marker-modal-marker-detail-modal-modal-chart-008 { height: 250px; margin-bottom: 24px; }
+@utility feature-native-marker-marker-detail-modal-gb-detail-head-009 {
+    background: var(--bg-secondary);
+  }
+@utility feature-native-marker-manual-entry-btn-010 {
+  width: 100%; padding: 10px; border-radius: 6px;
+  border: 1px dashed var(--border); background: transparent;
+  color: var(--text-secondary); font-size: 13px; font-weight: 500;
+  cursor: pointer; font-family: inherit; transition: all 0.15s;
+  margin-top: 8px;
+}
+@utility feature-native-marker-manual-entry-btn-hover-011 { border-color: var(--accent); color: var(--accent); background: rgba(79,140,255,0.05); }
+@utility feature-native-marker-mv-note-012 {
+  display: inline-flex; align-items: center; justify-content: center;
+  margin-left: 6px; padding: 1px 5px;
+  border: 1px solid var(--border); border-radius: 999px;
+  background: transparent; color: var(--text-muted);
+  font-family: var(--font-mono); font-size: 9px; font-weight: 700;
+  text-transform: uppercase; cursor: pointer;
+}
+@utility feature-native-marker-mv-note-hover-013 { border-color: var(--accent); color: var(--accent); }
+@utility feature-native-marker-mv-note-text-014 {
+  display: none; font-size: 11px; color: var(--yellow);
+  margin-top: 6px; padding: 6px 8px; line-height: 1.4;
+  background: var(--yellow-bg); border-radius: 4px;
+  text-align: left; word-break: break-word;
+}
+@utility feature-native-marker-mv-note-text-show-015 { display: block; }
+@utility feature-native-marker-ask-ai-btn-016 {
+  width: 100%; padding: 10px; border-radius: 6px;
+  border: 1px solid var(--accent); background: transparent;
+  color: var(--accent); font-size: 13px; font-weight: 500;
+  cursor: pointer; font-family: inherit; transition: all 0.2s;
+  margin-top: 16px;
+}
+@utility feature-native-marker-ask-ai-btn-hover-017 { background: var(--accent-gradient); color: white; border-color: transparent; box-shadow: 0 2px 12px rgba(79, 140, 255, 0.2); }
+
+.marker-detail-modal { @apply gb:marker-detail-dialog; }
+.marker-detail-modal * { @apply gb:marker-detail-children; }
+.marker-detail-modal .gb-detail-head > div:first-child,
+.marker-detail-modal .modal-unit,
+.marker-detail-modal .gb-detail-summary,
+.marker-detail-modal .modal-values-grid,
+.marker-detail-modal .modal-ref-info,
+.marker-detail-modal .marker-note-section,
+.marker-detail-modal .calc-missing-inputs,
+.marker-detail-modal .bio-age-breakdown { @apply gb:marker-detail-head-content-group; }
+.marker-detail-modal h3,
+.marker-detail-modal .modal-unit,
+.marker-detail-modal .stat-card-value,
+.marker-detail-modal .stat-card-meta,
+.marker-detail-modal .mv-value,
+.marker-detail-modal .modal-ref-info,
+.marker-detail-modal .marker-note-text,
+.marker-detail-modal .calc-missing-inputs,
+.marker-detail-modal .bio-age-breakdown { @apply gb:marker-detail-h3-group; }
+.marker-detail-modal .modal-close { @apply gb:marker-detail-modal-close; }
+.gb-detail-head { @apply gb:marker-detail-head; }
+.gb-detail-head::after { @apply gb:marker-detail-head-fade; }
+.gb-detail-kicker,
+.gb-detail-section-label { @apply gb:marker-detail-kicker-group; }
+.gb-detail-category-row { @apply gb:marker-placement-summary-row; }
+.gb-detail-category-change,
+.gb-detail-category-restore { @apply gb:marker-placement-summary-actions; }
+.gb-detail-category-change:hover,
+.gb-detail-category-restore:hover { @apply gb:marker-placement-summary-actions-hover; }
+.gb-detail-category-change:focus-visible,
+.gb-detail-category-restore:focus-visible { @apply gb:marker-placement-summary-actions-focus; }
+.gb-detail-category-origin { @apply gb:marker-placement-summary-origin; }
+.marker-detail-modal h3 { @apply gb:marker-detail-h3; }
+.gb-detail-head-actions { @apply gb:marker-detail-head-actions; }
+.gb-detail-pin-btn { @apply gb:marker-detail-pin-btn; }
+.gb-detail-pin-btn:hover,
+.gb-detail-pin-btn.is-pinned { @apply gb:marker-detail-pin-btn-hover-group; }
+.gb-detail-pin-btn:focus-visible { @apply gb:marker-detail-pin-btn-focus; }
+.gb-detail-status { @apply gb:marker-detail-status; }
+.gb-detail-status-normal { @apply gb:marker-detail-status-normal; }
+.gb-detail-status-high { @apply gb:marker-detail-status-high; }
+.gb-detail-status-low { @apply gb:marker-detail-status-low; }
+.gb-detail-status-unrated { @apply gb:marker-detail-status-unrated; }
+.marker-detail-modal .marker-description,
+.marker-detail-modal .gb-detail-summary,
+.marker-detail-modal .gb-range-band,
+.marker-detail-modal .gb-detail-section-label,
+.marker-detail-modal .modal-chart,
+.marker-detail-modal .modal-values-grid,
+.marker-detail-modal .marker-history-show-more,
+.marker-detail-modal .modal-ref-info,
+.marker-detail-modal .calc-missing-inputs,
+.marker-detail-modal .bio-age-breakdown,
+.marker-detail-modal .manual-entry-btn,
+.marker-detail-modal .marker-note-section,
+.marker-detail-modal [id^="rec-modal-"],
+.marker-detail-modal .ask-ai-btn { @apply gb:marker-detail-marker-description-group; }
+.marker-detail-modal .bio-age-breakdown { @apply gb:marker-detail-bio-age-breakdown; }
+.marker-detail-modal .bio-age-breakdown-head { @apply gb:marker-detail-bio-age-breakdown-head; }
+.marker-detail-modal .bio-age-breakdown-sub,
+.marker-detail-modal .bio-age-breakdown-warning { @apply gb:marker-detail-bio-age-breakdown-sub-group; }
+.marker-detail-modal .bio-age-breakdown-warning { @apply gb:marker-detail-bio-age-breakdown-warning; }
+.marker-detail-modal .bio-age-component { @apply gb:marker-detail-bio-age-component; }
+.marker-detail-modal .bio-age-component + .bio-age-component { @apply gb:marker-detail-bio-age-component-bio-age-component; }
+.marker-detail-modal .bio-age-component-header { @apply gb:marker-detail-bio-age-component-header; }
+.marker-detail-modal .bio-age-glyph { @apply gb:marker-detail-bio-age-glyph; }
+.marker-detail-modal .bio-age-component-ok .bio-age-glyph,
+.marker-detail-modal .bio-age-component-ok .bio-age-component-header strong,
+.marker-detail-modal .bio-age-input.is-present { @apply gb:marker-detail-bio-age-component-ok-bio-age-glyph-group; }
+.marker-detail-modal .bio-age-component-missing .bio-age-glyph,
+.marker-detail-modal .bio-age-input.is-missing { @apply gb:marker-detail-bio-age-component-missing-bio-age-glyph-group; }
+.marker-detail-modal .bio-age-delta { @apply gb:marker-detail-bio-age-delta; }
+.marker-detail-modal .bio-age-input-grid { @apply gb:marker-detail-bio-age-input-grid; }
+.marker-detail-modal .bio-age-input { @apply gb:marker-detail-bio-age-input; }
+.marker-detail-modal .bio-age-input.is-missing { @apply gb:marker-detail-bio-age-input-is-missing; }
+.marker-detail-modal .manual-entry-btn,
+.marker-detail-modal .ask-ai-btn { @apply gb:marker-detail-manual-entry-btn-group; }
+.marker-detail-modal .marker-history-show-more { @apply gb:marker-detail-history-show-more; }
+.marker-detail-modal .marker-history-show-more:hover { @apply gb:marker-detail-history-show-more-hover; }
+.marker-detail-modal .marker-description { @apply gb:feature-native-marker-marker-detail-modal-marker-description-001; }
+.gb-detail-summary { @apply gb:marker-detail-summary; }
+.marker-detail-modal .stat-card { @apply gb:marker-detail-summary-card; }
+.marker-detail-modal .stat-card-label { @apply gb:marker-detail-summary-card-label; }
+.marker-detail-modal .stat-card-value { @apply gb:marker-detail-summary-card-value; }
+.marker-detail-modal .stat-card-value span { @apply gb:marker-detail-summary-card-value-span; }
+.marker-detail-modal .stat-card-value-range { @apply gb:marker-detail-summary-card-value-range; }
+.marker-detail-modal .stat-card-value.val-normal { @apply gb:marker-detail-summary-card-value-val-normal; }
+.marker-detail-modal .stat-card-value.val-high { @apply gb:marker-detail-summary-card-value-val-high; }
+.marker-detail-modal .stat-card-value.val-low { @apply gb:marker-detail-summary-card-value-val-low; }
+.marker-detail-modal .stat-card-value.val-unrated { @apply gb:marker-detail-summary-card-value-val-unrated; }
+.marker-detail-modal .stat-card-meta { @apply gb:marker-detail-summary-card-meta; }
+.gb-range-band { @apply gb:marker-detail-range-band; }
+.gb-range-band-track { @apply gb:marker-detail-range-band-track; }
+.gb-range-band-track .gb-range-band-zone,
+.gb-range-band-track .gb-range-band-opt { @apply gb:marker-detail-range-band-track-gb-range-band-zone-group; }
+.gb-range-band-zone-low { @apply gb:feature-native-marker-gb-range-band-zone-low-002; }
+.gb-range-band-zone-high { @apply gb:feature-native-marker-gb-range-band-zone-high-003; }
+.gb-range-band-opt { @apply gb:feature-native-marker-gb-range-band-opt-004; }
+.gb-range-band-dot { @apply gb:marker-detail-range-band-dot; }
+.gb-range-band-dot-normal { @apply gb:marker-detail-range-band-dot-normal; }
+.gb-range-band-dot-high { @apply gb:marker-detail-range-band-dot-high; }
+.gb-range-band-dot-low { @apply gb:marker-detail-range-band-dot-low; }
+.gb-range-band-scale { @apply gb:marker-detail-range-band-scale; }
+.marker-detail-modal .gb-detail-section-label { @apply gb:marker-detail-section-label; }
+.modal.marker-detail-modal .modal-chart { @apply gb:feature-native-marker-modal-marker-detail-modal-modal-chart-005; }
+@media (max-width: 768px) {
+  .marker-detail-modal .modal-values-grid { @apply gb:marker-detail-history-grid-narrow-768; }
+}
+@media (max-width: 640px) {
+  .marker-detail-modal { @apply gb:marker-detail-dialog-narrow-640; }
+  .marker-detail-modal .modal-close { @apply gb:marker-detail-modal-close-narrow-640; }
+  .marker-detail-modal .gb-detail-head { @apply gb:feature-native-marker-marker-detail-modal-gb-detail-head-006; }
+  .marker-detail-modal h3 { @apply gb:marker-detail-h3-narrow-640; }
+  .marker-detail-modal .gb-detail-head-actions { @apply gb:marker-detail-head-actions-narrow-640; }
+  .marker-detail-modal .gb-detail-pin-btn,
+  .marker-detail-modal .gb-detail-status { @apply gb:marker-detail-pin-btn-group-narrow-640; }
+  .marker-detail-modal .marker-description,
+  .marker-detail-modal .gb-detail-summary,
+  .marker-detail-modal .gb-range-band,
+  .marker-detail-modal .gb-detail-section-label,
+  .marker-detail-modal .modal-chart,
+  .marker-detail-modal .modal-values-grid,
+  .marker-detail-modal .marker-history-show-more,
+  .marker-detail-modal .modal-ref-info,
+  .marker-detail-modal .calc-missing-inputs,
+  .marker-detail-modal .bio-age-breakdown,
+  .marker-detail-modal .manual-entry-btn,
+  .marker-detail-modal .marker-note-section,
+  .marker-detail-modal [id^="rec-modal-"],
+  .marker-detail-modal .ask-ai-btn { @apply gb:marker-detail-marker-description-group-narrow-640; }
+  .marker-detail-modal .manual-entry-btn,
+  .marker-detail-modal .ask-ai-btn { @apply gb:marker-detail-manual-entry-btn-group-narrow-640; }
+  .marker-detail-modal .marker-history-show-more { @apply gb:marker-detail-history-show-more-narrow-640; }
+  .marker-detail-modal .marker-description { @apply gb:marker-detail-marker-description-narrow-640; }
+  .marker-detail-modal .gb-detail-summary { @apply gb:marker-detail-summary-narrow-640; }
+  .marker-detail-modal .stat-card { @apply gb:marker-detail-summary-card-narrow-640; }
+  .marker-detail-modal .stat-card-value { @apply gb:marker-detail-summary-card-value-narrow-640; }
+  .marker-detail-modal .stat-card-value span { @apply gb:marker-detail-summary-card-value-span-narrow-640; }
+  .marker-detail-modal .stat-card-value-range { @apply gb:marker-detail-summary-card-value-range-narrow-640; }
+  .marker-detail-modal .gb-range-band { @apply gb:marker-detail-gb-range-band-narrow-640; }
+  .marker-detail-modal .gb-detail-section-label { @apply gb:marker-detail-section-label-narrow-640; }
+  .modal.marker-detail-modal .modal-chart { @apply gb:marker-detail-dialog-modal-chart-narrow-640; }
+  .marker-detail-modal .modal-values-grid { @apply gb:marker-detail-history-grid-narrow-640; }
+  .marker-detail-modal .modal-value-card { @apply gb:marker-detail-history-card-narrow-640; }
+  .marker-detail-modal .mv-delete { @apply gb:marker-detail-mv-delete-narrow-640; }
+  .marker-detail-modal .modal-value-card .mv-value { @apply gb:marker-detail-history-card-mv-value-narrow-640; }
+  .marker-detail-modal .modal-value-card .mv-value-note { @apply gb:marker-detail-history-card-mv-value-note-narrow-640; }
+  .marker-detail-modal .modal-value-card .mv-value-note-text { @apply gb:marker-detail-history-card-mv-value-note-text-narrow-640; }
+  .marker-detail-modal .modal-ref-info { @apply gb:marker-detail-history-trend-narrow-640; }
+  .marker-detail-modal .marker-note-header { @apply gb:marker-detail-note-header-narrow-640; }
+  .marker-detail-modal .marker-note-actions { @apply gb:marker-detail-note-actions-narrow-640; }
+  .marker-detail-modal .marker-note-actions .import-btn { @apply gb:marker-detail-note-actions-import-btn-narrow-640; }
+  .marker-detail-modal .manual-entry-form .me-field select.me-unit-select { @apply gb:marker-detail-manual-entry-form-me-field-select-me-unit-select-narrow-640; }
+}
+@media (max-width: 380px) {
+  .marker-detail-modal .gb-detail-head { @apply gb:marker-detail-head-narrow-380; }
+  .marker-detail-modal .marker-description,
+  .marker-detail-modal .gb-detail-summary,
+  .marker-detail-modal .gb-range-band,
+  .marker-detail-modal .gb-detail-section-label,
+  .marker-detail-modal .modal-chart,
+  .marker-detail-modal .modal-values-grid,
+  .marker-detail-modal .marker-history-show-more,
+  .marker-detail-modal .modal-ref-info,
+  .marker-detail-modal .calc-missing-inputs,
+  .marker-detail-modal .bio-age-breakdown,
+  .marker-detail-modal .manual-entry-btn,
+  .marker-detail-modal .marker-note-section,
+  .marker-detail-modal [id^="rec-modal-"],
+  .marker-detail-modal .ask-ai-btn { @apply gb:marker-detail-marker-description-group-narrow-380; }
+  .marker-detail-modal .manual-entry-btn,
+  .marker-detail-modal .ask-ai-btn { @apply gb:marker-detail-manual-entry-btn-group-narrow-380; }
+  .marker-detail-modal .marker-history-show-more { @apply gb:marker-detail-history-show-more-narrow-380; }
+  .modal.marker-detail-modal .modal-chart { @apply gb:marker-detail-dialog-modal-chart-narrow-380; }
+}
+.marker-detail-modal .marker-description { @apply gb:feature-native-marker-marker-detail-modal-marker-description-007; }
+.marker-detail-modal .marker-description.loaded { @apply gb:marker-detail-marker-description-loaded; }
+.marker-detail-modal .marker-description.loading { @apply gb:marker-detail-marker-description-loading; }
+.modal.marker-detail-modal .modal-chart { @apply gb:feature-native-marker-modal-marker-detail-modal-modal-chart-008; }
+.marker-detail-modal .modal-values-grid { @apply gb:marker-detail-history-grid; }
+.marker-detail-modal .modal-value-card { @apply gb:marker-detail-history-card; }
+.marker-detail-modal .modal-value-card.status-normal { @apply gb:marker-detail-history-card-status-normal; }
+.marker-detail-modal .modal-value-card.status-high { @apply gb:marker-detail-history-card-status-high; }
+.marker-detail-modal .modal-value-card.status-low { @apply gb:marker-detail-history-card-status-low; }
+.marker-detail-modal .mv-delete { @apply gb:marker-detail-mv-delete; }
+.marker-detail-modal .modal-value-card:hover .mv-delete { @apply gb:marker-detail-history-card-hover-mv-delete; }
+.marker-detail-modal .mv-delete:hover { @apply gb:marker-detail-mv-delete-hover; }
+.marker-detail-modal .modal-value-card .mv-date { @apply gb:marker-detail-history-card-mv-date; }
+.marker-detail-modal .modal-value-card .mv-source { @apply gb:marker-detail-history-card-mv-source; }
+.marker-detail-modal .modal-value-card:hover .mv-source { @apply gb:marker-detail-history-card-hover-mv-source; }
+.marker-detail-modal .modal-value-card .mv-source-manual { @apply gb:marker-detail-history-card-mv-source-manual; }
+.marker-detail-modal .modal-value-card .mv-value { @apply gb:marker-detail-history-card-mv-value; }
+.marker-detail-modal .modal-value-card .mv-alt { @apply gb:marker-detail-history-card-mv-alt; }
+.marker-detail-modal .modal-value-card .mv-status { @apply gb:marker-detail-history-card-mv-status; }
+.marker-detail-modal .modal-value-card .mv-phase { @apply gb:marker-detail-history-card-mv-phase; }
+.marker-detail-modal .modal-value-card .mv-collection-context { @apply gb:marker-detail-history-card-mv-collection-context; }
+.marker-detail-modal .modal-value-card .mv-value-note { @apply gb:marker-detail-history-card-mv-value-note; }
+.marker-detail-modal .modal-value-card .mv-value-note.has-note { @apply gb:marker-detail-history-card-mv-value-note-has-note; }
+.marker-detail-modal .modal-value-card .mv-value-note.add-note { @apply gb:marker-detail-history-card-mv-value-note-add-note; }
+.marker-detail-modal .modal-value-card:hover .mv-value-note.add-note { @apply gb:marker-detail-history-card-hover-mv-value-note-add-note; }
+.marker-detail-modal .modal-value-card .mv-value-note.add-note:hover { @apply gb:marker-detail-history-card-mv-value-note-add-note-hover; }
+.marker-detail-modal .modal-value-card .mv-value-note-text { @apply gb:marker-detail-history-card-mv-value-note-text; }
+.marker-detail-modal .modal-value-card .mv-value-note-text:hover { @apply gb:marker-detail-history-card-mv-value-note-text-hover; }
+.marker-detail-modal .modal-value-card .mv-value-note-delete { @apply gb:marker-detail-history-card-mv-value-note-delete; }
+.marker-detail-modal .modal-value-card:hover .mv-value-note-delete { @apply gb:marker-detail-history-card-hover-mv-value-note-delete; }
+.marker-detail-modal .modal-value-card .mv-value-note-delete:hover { @apply gb:marker-detail-history-card-mv-value-note-delete-hover; }
+.marker-detail-modal .modal-ref-info { @apply gb:marker-detail-history-trend; }
+.marker-detail-modal .modal-ref-info strong { @apply gb:marker-detail-history-trend-strong; }
+.marker-detail-modal .stat-card-range-controls { @apply gb:marker-detail-range-controls; }
+.marker-detail-modal .stat-card-range-controls .ref-editable { @apply gb:marker-detail-range-controls-ref-editable; }
+.marker-detail-modal .stat-card-range-controls .ref-editable:hover { @apply gb:marker-detail-range-controls-ref-editable-hover; }
+.marker-detail-modal .stat-card-range-controls .ref-editable-optimal { @apply gb:marker-detail-range-controls-ref-editable-optimal; }
+.marker-detail-modal .marker-range-suggest { @apply gb:marker-detail-range-suggestion; }
+.marker-detail-modal .marker-range-suggest:hover,
+.marker-detail-modal .marker-range-suggest:focus-visible { @apply gb:marker-detail-range-suggestion-hover-group; }
+.marker-detail-modal .gb-detail-section-label > span { @apply gb:marker-detail-section-label-span; }
+.marker-detail-modal .marker-history-list { @apply gb:marker-detail-history-list; }
+.marker-detail-modal .marker-history-row { @apply gb:marker-detail-history-row; }
+.marker-detail-modal .marker-history-date-row { @apply gb:marker-detail-history-date-row; }
+.marker-detail-modal .marker-history-value-row { @apply gb:marker-detail-history-value-row; }
+.marker-detail-modal .marker-history-row .mv-date { @apply gb:marker-detail-history-row-mv-date; }
+.marker-detail-modal .marker-history-row .mv-source { @apply gb:marker-detail-history-row-mv-source; }
+.marker-detail-modal .marker-history-row .mv-value { @apply gb:marker-detail-history-row-mv-value; }
+.marker-detail-modal .marker-history-row .mv-status { @apply gb:marker-detail-history-row-mv-status; }
+.marker-detail-modal .marker-history-row .mv-alt,
+.marker-detail-modal .marker-history-row .mv-phase,
+.marker-detail-modal .marker-history-row .mv-collection-context,
+.marker-detail-modal .marker-history-row .mv-value-note { @apply gb:marker-detail-history-row-mv-alt-group; }
+.marker-detail-modal .marker-history-row .mv-value-note { @apply gb:marker-detail-history-row-mv-value-note; }
+.marker-detail-modal .gb-detail-actions { @apply gb:marker-detail-actions; }
+.marker-detail-modal .gb-detail-action-row { @apply gb:marker-detail-action-row; }
+.marker-detail-modal .gb-detail-actions .manual-entry-btn,
+.marker-detail-modal .gb-detail-actions .ask-ai-btn { @apply gb:marker-detail-actions-manual-entry-btn-group; }
+.marker-detail-modal .gb-detail-actions .manual-entry-btn { @apply gb:marker-detail-actions-manual-entry-btn; }
+.marker-detail-modal .gb-detail-actions .ask-ai-btn { @apply gb:marker-detail-actions-ask-ai-btn; }
+.marker-detail-modal .gb-detail-actions .marker-note-section,
+.marker-detail-modal .gb-detail-actions [id^="rec-modal-"] { @apply gb:marker-detail-actions-note-section-group; }
+.marker-detail-modal .gb-detail-actions [id^="rec-modal-"]:empty { @apply gb:marker-detail-actions-id-rec-modal-empty; }
+.marker-placement-form { @apply gb:marker-placement-form; }
+.marker-placement-safety { @apply gb:marker-placement-safety-note; }
+.marker-placement-safety strong { @apply gb:marker-placement-safety-note-heading; }
+.marker-placement-form #marker-placement-category { @apply gb:marker-placement-category-select; }
+.marker-placement-current,
+.marker-placement-help { @apply gb:marker-placement-help-text; }
+.marker-placement-current strong { @apply gb:marker-placement-current-category-name; }
+.marker-placement-restore { @apply gb:marker-placement-restore-action; }
+@media (max-width: 640px) {
+  .marker-detail-modal .gb-detail-head { @apply gb:feature-native-marker-marker-detail-modal-gb-detail-head-009; }
+  .marker-detail-modal .gb-detail-head::after { @apply gb:marker-detail-head-fade-narrow-640; }
+  .marker-detail-modal .stat-card-range-controls { @apply gb:marker-detail-range-controls-narrow-640; }
+  .marker-detail-modal .marker-history-row { @apply gb:marker-detail-history-row-narrow-640; }
+  .marker-detail-modal .marker-history-value-row { @apply gb:marker-detail-history-value-row-narrow-640; }
+  .marker-detail-modal .marker-history-row .mv-value { @apply gb:marker-detail-history-row-mv-value-narrow-640; }
+  .marker-detail-modal .marker-history-row .mv-status { @apply gb:marker-detail-history-row-mv-status-narrow-640; }
+  .marker-detail-modal .gb-detail-actions { @apply gb:marker-detail-actions-narrow-640; }
+  .marker-detail-modal .gb-detail-action-row { @apply gb:marker-detail-action-row-narrow-640; }
+  .gb-detail-category-origin { @apply gb:marker-placement-summary-origin-phone; }
+  .marker-placement-restore { @apply gb:marker-placement-restore-action-phone; }
+}
+@media (max-width: 380px) {
+  .marker-detail-modal .gb-detail-actions { @apply gb:marker-detail-actions-narrow-380; }
+}
+
+/* Manual Entry Button & Form */
+.manual-entry-btn { @apply gb:feature-native-marker-manual-entry-btn-010; }
+.manual-entry-btn:hover { @apply gb:feature-native-marker-manual-entry-btn-hover-011; }
+.manual-entry-form { @apply gb:manual-entry-form; }
+.manual-entry-form .me-field { @apply gb:manual-entry-field; }
+.manual-entry-form .me-field label { @apply gb:manual-entry-label; }
+.manual-entry-form .me-field input { @apply gb:manual-entry-input; }
+.manual-entry-form .me-field input:focus { @apply gb:manual-entry-input-focus; }
+.manual-entry-form .me-field textarea { @apply gb:manual-entry-textarea; }
+.manual-entry-form .me-field textarea:focus { @apply gb:manual-entry-textarea-focus; }
+.manual-entry-form .me-field select { @apply gb:manual-entry-select; }
+.manual-entry-form .me-field select:focus { @apply gb:manual-entry-select-focus; }
+.manual-entry-form .me-context-grid { @apply gb:manual-entry-context-grid; }
+.manual-entry-form .me-context-grid .me-field { @apply gb:manual-entry-context-field; }
+.manual-entry-form .me-field .me-optional { @apply gb:manual-entry-optional; }
+.manual-entry-form .me-field small { @apply gb:manual-entry-help; }
+.manual-entry-form .me-field select.me-unit-select { @apply gb:manual-entry-unit-select; }
+.manual-entry-form .me-context { @apply gb:manual-entry-context; }
+@media (max-width: 520px) {
+  .manual-entry-form .me-context-grid { @apply gb:manual-entry-context-grid-phone; }
+}
+
+/* Note icon in detail modal */
+.mv-note { @apply gb:feature-native-marker-mv-note-012; }
+.mv-note:hover { @apply gb:feature-native-marker-mv-note-hover-013; }
+.mv-note-text { @apply gb:feature-native-marker-mv-note-text-014; }
+.mv-note-text.show { @apply gb:feature-native-marker-mv-note-text-show-015; }
+
+/* Marker Notes in Detail Modal */
+.marker-detail-modal .marker-note-section { @apply gb:marker-detail-note-section; }
+.marker-detail-modal .marker-note-header { @apply gb:marker-detail-note-header; }
+.marker-detail-modal .marker-note-label { @apply gb:marker-detail-note-label; }
+.marker-detail-modal .marker-note-edit-btn { @apply gb:marker-detail-note-edit-btn; }
+.marker-detail-modal .marker-note-edit-btn:hover { @apply gb:marker-detail-note-edit-btn-hover; }
+.marker-detail-modal .marker-note-text { @apply gb:marker-detail-note-text; }
+.marker-detail-modal .marker-note-editor { @apply gb:marker-detail-note-editor; }
+.marker-detail-modal .marker-note-editor textarea { @apply gb:marker-detail-note-editor-textarea; }
+.marker-detail-modal .marker-note-editor textarea:focus { @apply gb:marker-detail-note-editor-textarea-focus; }
+.marker-detail-modal .marker-note-actions { @apply gb:marker-detail-note-actions; }
+
+/* Calculated marker missing inputs */
+.calc-missing-inputs { @apply gb:marker-detail-calc-missing-inputs; }
+/* Ask AI Button in Marker Detail Modal */
+.ask-ai-btn { @apply gb:feature-native-marker-ask-ai-btn-016; }
+.ask-ai-btn:hover { @apply gb:feature-native-marker-ask-ai-btn-hover-017; }
+
+@media (max-width: 480px) {
+  .modal.marker-detail-modal { @apply gb:marker-detail-dialog-narrow-480; }
+}
+@media (max-width: 375px) {
+  .modal.marker-detail-modal { @apply gb:marker-detail-dialog-narrow-375; }
+}
+@media (hover: none) {
+  .marker-detail-modal .mv-delete { @apply gb:marker-detail-mv-delete-hover-none; }
+  .marker-detail-modal .modal-value-card .mv-source { @apply gb:marker-detail-history-card-mv-source-hover-none; }
+}
+
+/* Fixed Custom Marker presentation; new-category display remains controller-owned. */
+.marker-form-modal #cm-new-cat-row { @apply gb:custom-marker-category-row; }
+.marker-form-modal #cm-new-cat-icon { @apply gb:custom-marker-category-icon; }
+.marker-form-modal #cm-new-cat { @apply gb:custom-marker-category-name; }
+.marker-form-modal .cm-range-row { @apply gb:custom-marker-range-row; }
+.marker-form-modal .cm-range-divider { @apply gb:custom-marker-range-divider; }

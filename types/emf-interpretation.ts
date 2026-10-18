@@ -12,7 +12,7 @@ export interface GeneratedInterpretation extends TokenOperations {inputTokens:un
 export interface InterpretationDependencies {collectActiveAssessmentState?:unknown;getAssessments?:unknown}
 export interface RuntimeConfigInput {callClaudeAPI?:unknown;closeModal?:unknown;openChatPanel?:unknown}
 export interface RuntimeInvocationOperations {callClaudeAPI:(...args:Parameters<typeof callAssistantFeatureAI>)=>Promise<unknown>;closeModal?:((()=>unknown)|null);openChatPanel?:(((message?:string)=>unknown)|null)}
-export interface InterpretationOverlay extends HTMLElement {_interpretText?:unknown;_onGenerate?:unknown;_mouseDownInside?:unknown;_delegatesInstalled?:unknown}
+export interface InterpretationOverlay extends HTMLElement {_canClose?:()=>boolean;_isCurrent?:()=>boolean;_interpretText?:unknown;_onGenerate?:unknown;_mouseDownInside?:unknown;_delegatesInstalled?:unknown}
 export interface ReplaceOperations {replace(search:RegExp,replacement:string):ReplaceOperations;trim():unknown}
 // Private consumed collection and joined-tag views retain original unchecked read errors.
 export type RoomOperations=Omit<EditorRoom,'sources'|'mitigations'>&{sources?:unknown[]|null;mitigations?:unknown[]|null};

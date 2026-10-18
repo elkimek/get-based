@@ -41,7 +41,7 @@ import {projectBiologySummaryWidget, projectBiologyCompatibilityLens} from './bi
 import {projectBiologyContextLabels} from './biology-context-presentation.js';
 import { getBiologyAIState } from './biology-score-sections.js';
 import { getBiologyProfileContext } from './profile-context.js';
-import { getLensDashboardToggleView } from './lens-page-shell.js';
+import { getLensDashboardToggleView } from './lens-page-shell-core.js';
 
 // Priority is a reading order, independent of AI state and clinical urgency.
 export function groupBiologyScores<Score extends BiologyRenderScore>(scores: readonly Score[]) {
@@ -83,14 +83,21 @@ export function renderBiologicalCoherenceLensHero(ctx: ScoreContext, computeBiol
   return renderBiologicalCoherenceHero(coherence);
 }
 
-export function renderDashboardBiologyScoreWidget(ctx: ScoreContext, scoreId: string, computeBiologyScores: ComputeScores) {
+export function projectDashboardBiologyScoreWidget(ctx: ScoreContext, scoreId: string, computeBiologyScores: ComputeScores) {
   const score = computeBiologyScores((ctx?.data || {}) as ScoringData).find(item => item.id === scoreId);
-  return score ? renderOverview({kind: 'dashboard-score', view: projectBiologyDashboardScore(score)}) : '';
+  return score ? projectBiologyDashboardScore(score) : null;
 }
-
-export function renderDashboardBiologicalCoherenceWidget(ctx: ScoreContext, computeBiologyScores: ComputeScores) {
+export function projectDashboardBiologicalCoherenceWidget(ctx: ScoreContext, computeBiologyScores: ComputeScores) {
   const score = computeBiologyScores((ctx?.data || {}) as ScoringData).find(item => item.id === 'biologicalCoherence');
-  return score ? renderOverview({kind: 'dashboard-coherence', view: projectBiologyDashboardCoherence(score)}) : '';
+  return score ? projectBiologyDashboardCoherence(score) : null;
+}
+export function renderDashboardBiologyScoreWidget(ctx: ScoreContext, scoreId: string, computeBiologyScores: ComputeScores) {
+  const view = projectDashboardBiologyScoreWidget(ctx, scoreId, computeBiologyScores);
+  return view ? renderOverview({kind: 'dashboard-score', view}) : '';
+}
+export function renderDashboardBiologicalCoherenceWidget(ctx: ScoreContext, computeBiologyScores: ComputeScores) {
+  const view = projectDashboardBiologicalCoherenceWidget(ctx, computeBiologyScores);
+  return view ? renderOverview({kind: 'dashboard-coherence', view}) : '';
 }
 
 /** Legacy summary widget — still exported for backward compatibility. The dashboard

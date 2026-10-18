@@ -1,0 +1,1452 @@
+[
+  {
+    "owner": "_renderConditionalNavItem",
+    "component": "ConditionalSidebarItem",
+    "start": 8898,
+    "end": 8974,
+    "literals": [
+      "<span class=\"nav-item-count nav-count\">",
+      "</span>"
+    ],
+    "expressions": [
+      {
+        "start": 8940,
+        "end": 8965,
+        "source": "escapeHTML(String(badge))"
+      }
+    ],
+    "kind": "badge",
+    "ports": [
+      "value"
+    ],
+    "originalSource": "`<span class=\"nav-item-count nav-count\">${escapeHTML(String(badge))}</span>`",
+    "slots": [
+      {
+        "port": "value",
+        "coordinate": "gb-sidebar-conditionalsidebaritem-badge-value-end"
+      }
+    ],
+    "nativeSkeleton": "<span class=\"nav-item-count nav-count\">gb-sidebar-conditionalsidebaritem-badge-value-end</span>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "privateAttributeLexemes": [],
+    "authoredSkeleton": "<span class=\"nav-item-count nav-count\">gb-sidebar-conditionalsidebaritem-badge-value-end</span>"
+  },
+  {
+    "owner": "_renderConditionalNavItem",
+    "component": "ConditionalSidebarItem",
+    "start": 8977,
+    "end": 9013,
+    "literals": [
+      "<span class=\"nav-item-dot\"></span>"
+    ],
+    "expressions": [],
+    "kind": "dot",
+    "ports": [],
+    "originalSource": "'<span class=\"nav-item-dot\"></span>'",
+    "slots": [],
+    "nativeSkeleton": "<span class=\"nav-item-dot\"></span>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "privateAttributeLexemes": [],
+    "authoredSkeleton": "<span class=\"nav-item-dot\"></span>"
+  },
+  {
+    "owner": "_renderConditionalNavItem",
+    "component": "ConditionalSidebarItem",
+    "start": 9122,
+    "end": 9383,
+    "literals": [
+      "<div class=\"nav-item\" data-category=\"",
+      "\" tabindex=\"0\" role=\"button\" ",
+      ">\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">",
+      "</span>\n    <span class=\"nav-item-label\">",
+      "</span>\n    ",
+      "</div>"
+    ],
+    "expressions": [
+      {
+        "start": 9162,
+        "end": 9177,
+        "source": "escapeAttr(key)"
+      },
+      {
+        "start": 9209,
+        "end": 9220,
+        "source": "actionAttrs"
+      },
+      {
+        "start": 9276,
+        "end": 9290,
+        "source": "_iconSvg(icon)"
+      },
+      {
+        "start": 9334,
+        "end": 9351,
+        "source": "escapeHTML(label)"
+      },
+      {
+        "start": 9366,
+        "end": 9375,
+        "source": "badgeHtml"
+      }
+    ],
+    "kind": "item",
+    "ports": [
+      "category",
+      "actionAttributes",
+      "icon",
+      "label",
+      "badge"
+    ],
+    "originalSource": "`<div class=\"nav-item\" data-category=\"${escapeAttr(key)}\" tabindex=\"0\" role=\"button\" ${actionAttrs}>\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">${_iconSvg(icon)}</span>\n    <span class=\"nav-item-label\">${escapeHTML(label)}</span>\n    ${badgeHtml}</div>`",
+    "slots": [
+      {
+        "port": "category",
+        "coordinate": "gb-sidebar-conditionalsidebaritem-item-category-end"
+      },
+      {
+        "port": "actionAttributes",
+        "coordinate": "gb-sidebar-conditionalsidebaritem-item-action-attributes-end"
+      },
+      {
+        "port": "icon",
+        "coordinate": "gb-sidebar-conditionalsidebaritem-item-icon-end"
+      },
+      {
+        "port": "label",
+        "coordinate": "gb-sidebar-conditionalsidebaritem-item-label-end"
+      },
+      {
+        "port": "badge",
+        "coordinate": "gb-sidebar-conditionalsidebaritem-item-badge-end"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"nav-item\" data-category=\"gb-sidebar-conditionalsidebaritem-item-category-end\" tabindex=\"0\" role=\"button\" gb-sidebar-conditionalsidebaritem-item-action-attributes-end>\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">gb-sidebar-conditionalsidebaritem-item-icon-end</span>\n    <span class=\"nav-item-label\">gb-sidebar-conditionalsidebaritem-item-label-end</span>\n    gb-sidebar-conditionalsidebaritem-item-badge-end</div>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "privateAttributeLexemes": [
+      {
+        "coordinate": "gb-sidebar-conditionalsidebaritem-item-action-attributes-end",
+        "authored": "data-gb-sidebar-conditionalsidebaritem-item-action-attributes-end=\"\""
+      }
+    ],
+    "authoredSkeleton": "<div class=\"nav-item\" data-category=\"gb-sidebar-conditionalsidebaritem-item-category-end\" tabindex=\"0\" role=\"button\" data-gb-sidebar-conditionalsidebaritem-item-action-attributes-end=\"\">\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">gb-sidebar-conditionalsidebaritem-item-icon-end</span>\n    <span class=\"nav-item-label\">gb-sidebar-conditionalsidebaritem-item-label-end</span>\n    gb-sidebar-conditionalsidebaritem-item-badge-end</div>"
+  },
+  {
+    "owner": "_buildNavItem",
+    "component": "SidebarCategoryItem",
+    "start": 10374,
+    "end": 10433,
+    "literals": [
+      "<span class=\"nav-item-count flag-count\">",
+      "</span>"
+    ],
+    "expressions": [
+      {
+        "start": 10417,
+        "end": 10424,
+        "source": "flagged"
+      }
+    ],
+    "kind": "flagged-badge",
+    "ports": [
+      "value"
+    ],
+    "originalSource": "`<span class=\"nav-item-count flag-count\">${flagged}</span>`",
+    "slots": [
+      {
+        "port": "value",
+        "coordinate": "gb-sidebar-sidebarcategoryitem-flagged-badge-value-end"
+      }
+    ],
+    "nativeSkeleton": "<span class=\"nav-item-count flag-count\">gb-sidebar-sidebarcategoryitem-flagged-badge-value-end</span>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "privateAttributeLexemes": [],
+    "authoredSkeleton": "<span class=\"nav-item-count flag-count\">gb-sidebar-sidebarcategoryitem-flagged-badge-value-end</span>"
+  },
+  {
+    "owner": "_buildNavItem",
+    "component": "SidebarCategoryItem",
+    "start": 10440,
+    "end": 10495,
+    "literals": [
+      "<span class=\"nav-item-count count\">",
+      "</span>"
+    ],
+    "expressions": [
+      {
+        "start": 10478,
+        "end": 10486,
+        "source": "withData"
+      }
+    ],
+    "kind": "count-badge",
+    "ports": [
+      "value"
+    ],
+    "originalSource": "`<span class=\"nav-item-count count\">${withData}</span>`",
+    "slots": [
+      {
+        "port": "value",
+        "coordinate": "gb-sidebar-sidebarcategoryitem-count-badge-value-end"
+      }
+    ],
+    "nativeSkeleton": "<span class=\"nav-item-count count\">gb-sidebar-sidebarcategoryitem-count-badge-value-end</span>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "privateAttributeLexemes": [],
+    "authoredSkeleton": "<span class=\"nav-item-count count\">gb-sidebar-sidebarcategoryitem-count-badge-value-end</span>"
+  },
+  {
+    "owner": "_buildNavItem",
+    "component": "SidebarCategoryItem",
+    "start": 10801,
+    "end": 11146,
+    "literals": [
+      "<div class=\"nav-item\" data-category=\"",
+      "\" data-markers=\"",
+      "\" data-group=\"",
+      "\" tabindex=\"0\" role=\"button\" ",
+      ">\n      <span class=\"nav-item-dot\" aria-hidden=\"true\"></span>\n      <span class=\"nav-item-label\">",
+      "</span>\n      ",
+      "</div>"
+    ],
+    "expressions": [
+      {
+        "start": 10841,
+        "end": 10856,
+        "source": "escapeAttr(key)"
+      },
+      {
+        "start": 10875,
+        "end": 10898,
+        "source": "escapeAttr(markerNames)"
+      },
+      {
+        "start": 10915,
+        "end": 10942,
+        "source": "escapeAttr(cat.group || '')"
+      },
+      {
+        "start": 10974,
+        "end": 10996,
+        "source": "_navNavigateAttrs(key)"
+      },
+      {
+        "start": 11096,
+        "end": 11113,
+        "source": "escapeHTML(label)"
+      },
+      {
+        "start": 11130,
+        "end": 11138,
+        "source": "flagHtml"
+      }
+    ],
+    "kind": "item",
+    "ports": [
+      "category",
+      "markerNames",
+      "groupName",
+      "actionAttributes",
+      "label",
+      "badge"
+    ],
+    "originalSource": "`<div class=\"nav-item\" data-category=\"${escapeAttr(key)}\" data-markers=\"${escapeAttr(markerNames)}\" data-group=\"${escapeAttr(cat.group || '')}\" tabindex=\"0\" role=\"button\" ${_navNavigateAttrs(key)}>\n      <span class=\"nav-item-dot\" aria-hidden=\"true\"></span>\n      <span class=\"nav-item-label\">${escapeHTML(label)}</span>\n      ${flagHtml}</div>`",
+    "slots": [
+      {
+        "port": "category",
+        "coordinate": "gb-sidebar-sidebarcategoryitem-item-category-end"
+      },
+      {
+        "port": "markerNames",
+        "coordinate": "gb-sidebar-sidebarcategoryitem-item-marker-names-end"
+      },
+      {
+        "port": "groupName",
+        "coordinate": "gb-sidebar-sidebarcategoryitem-item-group-name-end"
+      },
+      {
+        "port": "actionAttributes",
+        "coordinate": "gb-sidebar-sidebarcategoryitem-item-action-attributes-end"
+      },
+      {
+        "port": "label",
+        "coordinate": "gb-sidebar-sidebarcategoryitem-item-label-end"
+      },
+      {
+        "port": "badge",
+        "coordinate": "gb-sidebar-sidebarcategoryitem-item-badge-end"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"nav-item\" data-category=\"gb-sidebar-sidebarcategoryitem-item-category-end\" data-markers=\"gb-sidebar-sidebarcategoryitem-item-marker-names-end\" data-group=\"gb-sidebar-sidebarcategoryitem-item-group-name-end\" tabindex=\"0\" role=\"button\" gb-sidebar-sidebarcategoryitem-item-action-attributes-end>\n      <span class=\"nav-item-dot\" aria-hidden=\"true\"></span>\n      <span class=\"nav-item-label\">gb-sidebar-sidebarcategoryitem-item-label-end</span>\n      gb-sidebar-sidebarcategoryitem-item-badge-end</div>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "privateAttributeLexemes": [
+      {
+        "coordinate": "gb-sidebar-sidebarcategoryitem-item-action-attributes-end",
+        "authored": "data-gb-sidebar-sidebarcategoryitem-item-action-attributes-end=\"\""
+      }
+    ],
+    "authoredSkeleton": "<div class=\"nav-item\" data-category=\"gb-sidebar-sidebarcategoryitem-item-category-end\" data-markers=\"gb-sidebar-sidebarcategoryitem-item-marker-names-end\" data-group=\"gb-sidebar-sidebarcategoryitem-item-group-name-end\" tabindex=\"0\" role=\"button\" data-gb-sidebar-sidebarcategoryitem-item-action-attributes-end=\"\">\n      <span class=\"nav-item-dot\" aria-hidden=\"true\"></span>\n      <span class=\"nav-item-label\">gb-sidebar-sidebarcategoryitem-item-label-end</span>\n      gb-sidebar-sidebarcategoryitem-item-badge-end</div>"
+  },
+  {
+    "owner": "buildSidebar",
+    "component": "SidebarNavigation",
+    "start": 11725,
+    "end": 11993,
+    "literals": [
+      "<div class=\"sidebar-search-wrap\">\n    <span class=\"sidebar-search-icon\" aria-hidden=\"true\">",
+      "</span>\n    <input type=\"text\" class=\"sidebar-search\" id=\"sidebar-search\" placeholder=\"Search markers...\" data-nav-input-action=\"filter-sidebar\">\n  </div>"
+    ],
+    "expressions": [
+      {
+        "start": 11819,
+        "end": 11837,
+        "source": "_iconSvg('search')"
+      }
+    ],
+    "kind": "search",
+    "ports": [
+      "icon"
+    ],
+    "originalSource": "`<div class=\"sidebar-search-wrap\">\n    <span class=\"sidebar-search-icon\" aria-hidden=\"true\">${_iconSvg('search')}</span>\n    <input type=\"text\" class=\"sidebar-search\" id=\"sidebar-search\" placeholder=\"Search markers...\" data-nav-input-action=\"filter-sidebar\">\n  </div>`",
+    "slots": [
+      {
+        "port": "icon",
+        "coordinate": "gb-sidebar-sidebarnavigation-search-icon-end"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"sidebar-search-wrap\">\n    <span class=\"sidebar-search-icon\" aria-hidden=\"true\">gb-sidebar-sidebarnavigation-search-icon-end</span>\n    <input type=\"text\" class=\"sidebar-search\" id=\"sidebar-search\" placeholder=\"Search markers...\" data-nav-input-action=\"filter-sidebar\">\n  </div>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "privateAttributeLexemes": [],
+    "authoredSkeleton": "<div class=\"sidebar-search-wrap\">\n    <span class=\"sidebar-search-icon\" aria-hidden=\"true\">gb-sidebar-sidebarnavigation-search-icon-end</span>\n    <input type=\"text\" class=\"sidebar-search\" id=\"sidebar-search\" placeholder=\"Search markers...\" data-nav-input-action=\"filter-sidebar\">\n  </div>"
+  },
+  {
+    "owner": "buildSidebar",
+    "component": "SidebarNavigation",
+    "start": 12005,
+    "end": 12042,
+    "literals": [
+      "<div class=\"nav-section\">Home</div>"
+    ],
+    "expressions": [],
+    "kind": "home-section",
+    "ports": [],
+    "originalSource": "`<div class=\"nav-section\">Home</div>`",
+    "slots": [],
+    "nativeSkeleton": "<div class=\"nav-section\">Home</div>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "privateAttributeLexemes": [],
+    "authoredSkeleton": "<div class=\"nav-section\">Home</div>"
+  },
+  {
+    "owner": "buildSidebar",
+    "component": "SidebarNavigation",
+    "start": 12054,
+    "end": 12371,
+    "literals": [
+      "<div class=\"nav-item active is-active\" data-category=\"dashboard\" tabindex=\"0\" role=\"button\" ",
+      ">\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">",
+      "</span>\n    <span class=\"nav-item-label\">Dashboard</span>\n    <span class=\"nav-item-count\">",
+      "</span></div>"
+    ],
+    "expressions": [
+      {
+        "start": 12149,
+        "end": 12179,
+        "source": "_navNavigateAttrs('dashboard')"
+      },
+      {
+        "start": 12235,
+        "end": 12256,
+        "source": "_iconSvg('dashboard')"
+      },
+      {
+        "start": 12350,
+        "end": 12356,
+        "source": "counts"
+      }
+    ],
+    "kind": "dashboard",
+    "ports": [
+      "actionAttributes",
+      "icon",
+      "count"
+    ],
+    "originalSource": "`<div class=\"nav-item active is-active\" data-category=\"dashboard\" tabindex=\"0\" role=\"button\" ${_navNavigateAttrs('dashboard')}>\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">${_iconSvg('dashboard')}</span>\n    <span class=\"nav-item-label\">Dashboard</span>\n    <span class=\"nav-item-count\">${counts}</span></div>`",
+    "slots": [
+      {
+        "port": "actionAttributes",
+        "coordinate": "gb-sidebar-sidebarnavigation-dashboard-action-attributes-end"
+      },
+      {
+        "port": "icon",
+        "coordinate": "gb-sidebar-sidebarnavigation-dashboard-icon-end"
+      },
+      {
+        "port": "count",
+        "coordinate": "gb-sidebar-sidebarnavigation-dashboard-count-end"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"nav-item active is-active\" data-category=\"dashboard\" tabindex=\"0\" role=\"button\" gb-sidebar-sidebarnavigation-dashboard-action-attributes-end>\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">gb-sidebar-sidebarnavigation-dashboard-icon-end</span>\n    <span class=\"nav-item-label\">Dashboard</span>\n    <span class=\"nav-item-count\">gb-sidebar-sidebarnavigation-dashboard-count-end</span></div>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "privateAttributeLexemes": [
+      {
+        "coordinate": "gb-sidebar-sidebarnavigation-dashboard-action-attributes-end",
+        "authored": "data-gb-sidebar-sidebarnavigation-dashboard-action-attributes-end=\"\""
+      }
+    ],
+    "authoredSkeleton": "<div class=\"nav-item active is-active\" data-category=\"dashboard\" tabindex=\"0\" role=\"button\" data-gb-sidebar-sidebarnavigation-dashboard-action-attributes-end=\"\">\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">gb-sidebar-sidebarnavigation-dashboard-icon-end</span>\n    <span class=\"nav-item-label\">Dashboard</span>\n    <span class=\"nav-item-count\">gb-sidebar-sidebarnavigation-dashboard-count-end</span></div>"
+  },
+  {
+    "owner": "buildSidebar",
+    "component": "SidebarNavigation",
+    "start": 12383,
+    "end": 12422,
+    "literals": [
+      "<div class=\"nav-section\">Lenses</div>"
+    ],
+    "expressions": [],
+    "kind": "lenses-section",
+    "ports": [],
+    "originalSource": "`<div class=\"nav-section\">Lenses</div>`",
+    "slots": [],
+    "nativeSkeleton": "<div class=\"nav-section\">Lenses</div>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "privateAttributeLexemes": [],
+    "authoredSkeleton": "<div class=\"nav-section\">Lenses</div>"
+  },
+  {
+    "owner": "buildSidebar",
+    "component": "SidebarNavigation",
+    "start": 12434,
+    "end": 12714,
+    "literals": [
+      "<div class=\"nav-item\" data-category=\"labs\" tabindex=\"0\" role=\"button\" ",
+      ">\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">",
+      "</span>\n    <span class=\"nav-item-label\">Labs</span>\n    <span class=\"nav-item-count\">",
+      "</span></div>"
+    ],
+    "expressions": [
+      {
+        "start": 12507,
+        "end": 12532,
+        "source": "_navNavigateAttrs('labs')"
+      },
+      {
+        "start": 12588,
+        "end": 12604,
+        "source": "_iconSvg('labs')"
+      },
+      {
+        "start": 12693,
+        "end": 12699,
+        "source": "counts"
+      }
+    ],
+    "kind": "labs",
+    "ports": [
+      "actionAttributes",
+      "icon",
+      "count"
+    ],
+    "originalSource": "`<div class=\"nav-item\" data-category=\"labs\" tabindex=\"0\" role=\"button\" ${_navNavigateAttrs('labs')}>\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">${_iconSvg('labs')}</span>\n    <span class=\"nav-item-label\">Labs</span>\n    <span class=\"nav-item-count\">${counts}</span></div>`",
+    "slots": [
+      {
+        "port": "actionAttributes",
+        "coordinate": "gb-sidebar-sidebarnavigation-labs-action-attributes-end"
+      },
+      {
+        "port": "icon",
+        "coordinate": "gb-sidebar-sidebarnavigation-labs-icon-end"
+      },
+      {
+        "port": "count",
+        "coordinate": "gb-sidebar-sidebarnavigation-labs-count-end"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"nav-item\" data-category=\"labs\" tabindex=\"0\" role=\"button\" gb-sidebar-sidebarnavigation-labs-action-attributes-end>\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">gb-sidebar-sidebarnavigation-labs-icon-end</span>\n    <span class=\"nav-item-label\">Labs</span>\n    <span class=\"nav-item-count\">gb-sidebar-sidebarnavigation-labs-count-end</span></div>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "privateAttributeLexemes": [
+      {
+        "coordinate": "gb-sidebar-sidebarnavigation-labs-action-attributes-end",
+        "authored": "data-gb-sidebar-sidebarnavigation-labs-action-attributes-end=\"\""
+      }
+    ],
+    "authoredSkeleton": "<div class=\"nav-item\" data-category=\"labs\" tabindex=\"0\" role=\"button\" data-gb-sidebar-sidebarnavigation-labs-action-attributes-end=\"\">\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">gb-sidebar-sidebarnavigation-labs-icon-end</span>\n    <span class=\"nav-item-label\">Labs</span>\n    <span class=\"nav-item-count\">gb-sidebar-sidebarnavigation-labs-count-end</span></div>"
+  },
+  {
+    "owner": "buildSidebar",
+    "component": "SidebarNavigation",
+    "start": 12726,
+    "end": 13034,
+    "literals": [
+      "<div class=\"nav-item\" data-category=\"biology-scores\" tabindex=\"0\" role=\"button\" ",
+      ">\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">",
+      "</span>\n    <span class=\"nav-item-label\">Biology Scores</span>\n    <span class=\"nav-item-dot\"></span></div>"
+    ],
+    "expressions": [
+      {
+        "start": 12809,
+        "end": 12844,
+        "source": "_navNavigateAttrs('biology-scores')"
+      },
+      {
+        "start": 12900,
+        "end": 12925,
+        "source": "_iconSvg('biologyScores')"
+      }
+    ],
+    "kind": "biology-scores",
+    "ports": [
+      "actionAttributes",
+      "icon"
+    ],
+    "originalSource": "`<div class=\"nav-item\" data-category=\"biology-scores\" tabindex=\"0\" role=\"button\" ${_navNavigateAttrs('biology-scores')}>\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">${_iconSvg('biologyScores')}</span>\n    <span class=\"nav-item-label\">Biology Scores</span>\n    <span class=\"nav-item-dot\"></span></div>`",
+    "slots": [
+      {
+        "port": "actionAttributes",
+        "coordinate": "gb-sidebar-sidebarnavigation-biology-scores-action-attributes-end"
+      },
+      {
+        "port": "icon",
+        "coordinate": "gb-sidebar-sidebarnavigation-biology-scores-icon-end"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"nav-item\" data-category=\"biology-scores\" tabindex=\"0\" role=\"button\" gb-sidebar-sidebarnavigation-biology-scores-action-attributes-end>\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">gb-sidebar-sidebarnavigation-biology-scores-icon-end</span>\n    <span class=\"nav-item-label\">Biology Scores</span>\n    <span class=\"nav-item-dot\"></span></div>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "privateAttributeLexemes": [
+      {
+        "coordinate": "gb-sidebar-sidebarnavigation-biology-scores-action-attributes-end",
+        "authored": "data-gb-sidebar-sidebarnavigation-biology-scores-action-attributes-end=\"\""
+      }
+    ],
+    "authoredSkeleton": "<div class=\"nav-item\" data-category=\"biology-scores\" tabindex=\"0\" role=\"button\" data-gb-sidebar-sidebarnavigation-biology-scores-action-attributes-end=\"\">\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">gb-sidebar-sidebarnavigation-biology-scores-icon-end</span>\n    <span class=\"nav-item-label\">Biology Scores</span>\n    <span class=\"nav-item-dot\"></span></div>"
+  },
+  {
+    "owner": "buildSidebar",
+    "component": "SidebarNavigation",
+    "start": 13571,
+    "end": 13941,
+    "literals": [
+      "<div class=\"nav-item\" data-category=\"genome\" tabindex=\"0\" role=\"button\" ",
+      ">\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">",
+      "</span>\n    <span class=\"nav-item-label\">Genome</span>\n    ",
+      "</div>"
+    ],
+    "expressions": [
+      {
+        "start": 13646,
+        "end": 13673,
+        "source": "_navNavigateAttrs('genome')"
+      },
+      {
+        "start": 13729,
+        "end": 13747,
+        "source": "_iconSvg('genome')"
+      },
+      {
+        "start": 13809,
+        "end": 13933,
+        "source": "gParts.length ? `<span class=\"nav-item-count\">${escapeHTML(gParts.join(' '))}</span>` : '<span class=\"nav-item-dot\"></span>'"
+      }
+    ],
+    "kind": "genome",
+    "ports": [
+      "actionAttributes",
+      "icon",
+      "badge"
+    ],
+    "originalSource": "`<div class=\"nav-item\" data-category=\"genome\" tabindex=\"0\" role=\"button\" ${_navNavigateAttrs('genome')}>\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">${_iconSvg('genome')}</span>\n    <span class=\"nav-item-label\">Genome</span>\n    ${gParts.length ? `<span class=\"nav-item-count\">${escapeHTML(gParts.join(' '))}</span>` : '<span class=\"nav-item-dot\"></span>'}</div>`",
+    "slots": [
+      {
+        "port": "actionAttributes",
+        "coordinate": "gb-sidebar-sidebarnavigation-genome-action-attributes-end"
+      },
+      {
+        "port": "icon",
+        "coordinate": "gb-sidebar-sidebarnavigation-genome-icon-end"
+      },
+      {
+        "port": "badge",
+        "coordinate": "gb-sidebar-sidebarnavigation-genome-badge-end"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"nav-item\" data-category=\"genome\" tabindex=\"0\" role=\"button\" gb-sidebar-sidebarnavigation-genome-action-attributes-end>\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">gb-sidebar-sidebarnavigation-genome-icon-end</span>\n    <span class=\"nav-item-label\">Genome</span>\n    gb-sidebar-sidebarnavigation-genome-badge-end</div>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "privateAttributeLexemes": [
+      {
+        "coordinate": "gb-sidebar-sidebarnavigation-genome-action-attributes-end",
+        "authored": "data-gb-sidebar-sidebarnavigation-genome-action-attributes-end=\"\""
+      }
+    ],
+    "authoredSkeleton": "<div class=\"nav-item\" data-category=\"genome\" tabindex=\"0\" role=\"button\" data-gb-sidebar-sidebarnavigation-genome-action-attributes-end=\"\">\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">gb-sidebar-sidebarnavigation-genome-icon-end</span>\n    <span class=\"nav-item-label\">Genome</span>\n    gb-sidebar-sidebarnavigation-genome-badge-end</div>"
+  },
+  {
+    "owner": "buildSidebar",
+    "component": "SidebarNavigation",
+    "start": 13825,
+    "end": 13894,
+    "literals": [
+      "<span class=\"nav-item-count\">",
+      "</span>"
+    ],
+    "expressions": [
+      {
+        "start": 13857,
+        "end": 13885,
+        "source": "escapeHTML(gParts.join(' '))"
+      }
+    ],
+    "kind": "genome-badge",
+    "ports": [
+      "value"
+    ],
+    "originalSource": "`<span class=\"nav-item-count\">${escapeHTML(gParts.join(' '))}</span>`",
+    "slots": [
+      {
+        "port": "value",
+        "coordinate": "gb-sidebar-sidebarnavigation-genome-badge-value-end"
+      }
+    ],
+    "nativeSkeleton": "<span class=\"nav-item-count\">gb-sidebar-sidebarnavigation-genome-badge-value-end</span>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "privateAttributeLexemes": [],
+    "authoredSkeleton": "<span class=\"nav-item-count\">gb-sidebar-sidebarnavigation-genome-badge-value-end</span>"
+  },
+  {
+    "owner": "buildSidebar",
+    "component": "SidebarNavigation",
+    "start": 13897,
+    "end": 13933,
+    "literals": [
+      "<span class=\"nav-item-dot\"></span>"
+    ],
+    "expressions": [],
+    "kind": "genome-dot",
+    "ports": [],
+    "originalSource": "'<span class=\"nav-item-dot\"></span>'",
+    "slots": [],
+    "nativeSkeleton": "<span class=\"nav-item-dot\"></span>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "privateAttributeLexemes": [],
+    "authoredSkeleton": "<span class=\"nav-item-dot\"></span>"
+  },
+  {
+    "owner": "buildSidebar",
+    "component": "SidebarNavigation",
+    "start": 14082,
+    "end": 14429,
+    "literals": [
+      "<div class=\"nav-item\" data-category=\"body\" tabindex=\"0\" role=\"button\" ",
+      ">\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">",
+      "</span>\n    <span class=\"nav-item-label\">Body</span>\n    ",
+      "</div>"
+    ],
+    "expressions": [
+      {
+        "start": 14155,
+        "end": 14180,
+        "source": "_navNavigateAttrs('body')"
+      },
+      {
+        "start": 14236,
+        "end": 14252,
+        "source": "_iconSvg('body')"
+      },
+      {
+        "start": 14312,
+        "end": 14421,
+        "source": "wearableCount ? `<span class=\"nav-item-count\">${wearableCount}</span>` : '<span class=\"nav-item-dot\"></span>'"
+      }
+    ],
+    "kind": "body",
+    "ports": [
+      "actionAttributes",
+      "icon",
+      "badge"
+    ],
+    "originalSource": "`<div class=\"nav-item\" data-category=\"body\" tabindex=\"0\" role=\"button\" ${_navNavigateAttrs('body')}>\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">${_iconSvg('body')}</span>\n    <span class=\"nav-item-label\">Body</span>\n    ${wearableCount ? `<span class=\"nav-item-count\">${wearableCount}</span>` : '<span class=\"nav-item-dot\"></span>'}</div>`",
+    "slots": [
+      {
+        "port": "actionAttributes",
+        "coordinate": "gb-sidebar-sidebarnavigation-body-action-attributes-end"
+      },
+      {
+        "port": "icon",
+        "coordinate": "gb-sidebar-sidebarnavigation-body-icon-end"
+      },
+      {
+        "port": "badge",
+        "coordinate": "gb-sidebar-sidebarnavigation-body-badge-end"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"nav-item\" data-category=\"body\" tabindex=\"0\" role=\"button\" gb-sidebar-sidebarnavigation-body-action-attributes-end>\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">gb-sidebar-sidebarnavigation-body-icon-end</span>\n    <span class=\"nav-item-label\">Body</span>\n    gb-sidebar-sidebarnavigation-body-badge-end</div>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "privateAttributeLexemes": [
+      {
+        "coordinate": "gb-sidebar-sidebarnavigation-body-action-attributes-end",
+        "authored": "data-gb-sidebar-sidebarnavigation-body-action-attributes-end=\"\""
+      }
+    ],
+    "authoredSkeleton": "<div class=\"nav-item\" data-category=\"body\" tabindex=\"0\" role=\"button\" data-gb-sidebar-sidebarnavigation-body-action-attributes-end=\"\">\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">gb-sidebar-sidebarnavigation-body-icon-end</span>\n    <span class=\"nav-item-label\">Body</span>\n    gb-sidebar-sidebarnavigation-body-badge-end</div>"
+  },
+  {
+    "owner": "buildSidebar",
+    "component": "SidebarNavigation",
+    "start": 14328,
+    "end": 14382,
+    "literals": [
+      "<span class=\"nav-item-count\">",
+      "</span>"
+    ],
+    "expressions": [
+      {
+        "start": 14360,
+        "end": 14373,
+        "source": "wearableCount"
+      }
+    ],
+    "kind": "body-badge",
+    "ports": [
+      "value"
+    ],
+    "originalSource": "`<span class=\"nav-item-count\">${wearableCount}</span>`",
+    "slots": [
+      {
+        "port": "value",
+        "coordinate": "gb-sidebar-sidebarnavigation-body-badge-value-end"
+      }
+    ],
+    "nativeSkeleton": "<span class=\"nav-item-count\">gb-sidebar-sidebarnavigation-body-badge-value-end</span>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "privateAttributeLexemes": [],
+    "authoredSkeleton": "<span class=\"nav-item-count\">gb-sidebar-sidebarnavigation-body-badge-value-end</span>"
+  },
+  {
+    "owner": "buildSidebar",
+    "component": "SidebarNavigation",
+    "start": 14385,
+    "end": 14421,
+    "literals": [
+      "<span class=\"nav-item-dot\"></span>"
+    ],
+    "expressions": [],
+    "kind": "body-dot",
+    "ports": [],
+    "originalSource": "'<span class=\"nav-item-dot\"></span>'",
+    "slots": [],
+    "nativeSkeleton": "<span class=\"nav-item-dot\"></span>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "privateAttributeLexemes": [],
+    "authoredSkeleton": "<span class=\"nav-item-dot\"></span>"
+  },
+  {
+    "owner": "buildSidebar",
+    "component": "SidebarNavigation",
+    "start": 15047,
+    "end": 15328,
+    "literals": [
+      "<div class=\"nav-item\" data-category=\"insight\" tabindex=\"0\" role=\"button\" ",
+      ">\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">",
+      "</span>\n    <span class=\"nav-item-label\">Insight</span>\n    <span class=\"nav-item-dot\"></span></div>"
+    ],
+    "expressions": [
+      {
+        "start": 15123,
+        "end": 15151,
+        "source": "_navNavigateAttrs('insight')"
+      },
+      {
+        "start": 15207,
+        "end": 15226,
+        "source": "_iconSvg('insight')"
+      }
+    ],
+    "kind": "insight",
+    "ports": [
+      "actionAttributes",
+      "icon"
+    ],
+    "originalSource": "`<div class=\"nav-item\" data-category=\"insight\" tabindex=\"0\" role=\"button\" ${_navNavigateAttrs('insight')}>\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">${_iconSvg('insight')}</span>\n    <span class=\"nav-item-label\">Insight</span>\n    <span class=\"nav-item-dot\"></span></div>`",
+    "slots": [
+      {
+        "port": "actionAttributes",
+        "coordinate": "gb-sidebar-sidebarnavigation-insight-action-attributes-end"
+      },
+      {
+        "port": "icon",
+        "coordinate": "gb-sidebar-sidebarnavigation-insight-icon-end"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"nav-item\" data-category=\"insight\" tabindex=\"0\" role=\"button\" gb-sidebar-sidebarnavigation-insight-action-attributes-end>\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">gb-sidebar-sidebarnavigation-insight-icon-end</span>\n    <span class=\"nav-item-label\">Insight</span>\n    <span class=\"nav-item-dot\"></span></div>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "privateAttributeLexemes": [
+      {
+        "coordinate": "gb-sidebar-sidebarnavigation-insight-action-attributes-end",
+        "authored": "data-gb-sidebar-sidebarnavigation-insight-action-attributes-end=\"\""
+      }
+    ],
+    "authoredSkeleton": "<div class=\"nav-item\" data-category=\"insight\" tabindex=\"0\" role=\"button\" data-gb-sidebar-sidebarnavigation-insight-action-attributes-end=\"\">\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">gb-sidebar-sidebarnavigation-insight-icon-end</span>\n    <span class=\"nav-item-label\">Insight</span>\n    <span class=\"nav-item-dot\"></span></div>"
+  },
+  {
+    "owner": "buildSidebar",
+    "component": "SidebarNavigation",
+    "start": 15340,
+    "end": 15632,
+    "literals": [
+      "<div class=\"nav-item\" data-category=\"recommendations\" tabindex=\"0\" role=\"button\" ",
+      ">\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">",
+      "</span><span class=\"nav-item-label\">Tips</span><span class=\"nav-item-dot\"></span></div>"
+    ],
+    "expressions": [
+      {
+        "start": 15424,
+        "end": 15460,
+        "source": "_navNavigateAttrs('recommendations')"
+      },
+      {
+        "start": 15516,
+        "end": 15543,
+        "source": "_iconSvg('recommendations')"
+      }
+    ],
+    "kind": "recommendations",
+    "ports": [
+      "actionAttributes",
+      "icon"
+    ],
+    "originalSource": "`<div class=\"nav-item\" data-category=\"recommendations\" tabindex=\"0\" role=\"button\" ${_navNavigateAttrs('recommendations')}>\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">${_iconSvg('recommendations')}</span><span class=\"nav-item-label\">Tips</span><span class=\"nav-item-dot\"></span></div>`",
+    "slots": [
+      {
+        "port": "actionAttributes",
+        "coordinate": "gb-sidebar-sidebarnavigation-recommendations-action-attributes-end"
+      },
+      {
+        "port": "icon",
+        "coordinate": "gb-sidebar-sidebarnavigation-recommendations-icon-end"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"nav-item\" data-category=\"recommendations\" tabindex=\"0\" role=\"button\" gb-sidebar-sidebarnavigation-recommendations-action-attributes-end>\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">gb-sidebar-sidebarnavigation-recommendations-icon-end</span><span class=\"nav-item-label\">Tips</span><span class=\"nav-item-dot\"></span></div>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "privateAttributeLexemes": [
+      {
+        "coordinate": "gb-sidebar-sidebarnavigation-recommendations-action-attributes-end",
+        "authored": "data-gb-sidebar-sidebarnavigation-recommendations-action-attributes-end=\"\""
+      }
+    ],
+    "authoredSkeleton": "<div class=\"nav-item\" data-category=\"recommendations\" tabindex=\"0\" role=\"button\" data-gb-sidebar-sidebarnavigation-recommendations-action-attributes-end=\"\">\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">gb-sidebar-sidebarnavigation-recommendations-icon-end</span><span class=\"nav-item-label\">Tips</span><span class=\"nav-item-dot\"></span></div>"
+  },
+  {
+    "owner": "buildSidebar",
+    "component": "SidebarNavigation",
+    "start": 15645,
+    "end": 15692,
+    "literals": [
+      "<div class=\"nav-section\">Analysis tools</div>"
+    ],
+    "expressions": [],
+    "kind": "analysis-section",
+    "ports": [],
+    "originalSource": "`<div class=\"nav-section\">Analysis tools</div>`",
+    "slots": [],
+    "nativeSkeleton": "<div class=\"nav-section\">Analysis tools</div>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "privateAttributeLexemes": [],
+    "authoredSkeleton": "<div class=\"nav-section\">Analysis tools</div>"
+  },
+  {
+    "owner": "buildSidebar",
+    "component": "SidebarNavigation",
+    "start": 15704,
+    "end": 15981,
+    "literals": [
+      "<div class=\"nav-item\" data-category=\"compare\" tabindex=\"0\" role=\"button\" ",
+      ">\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">",
+      "</span><span class=\"nav-item-label\">Compare dates</span><span class=\"nav-item-dot\"></span></div>"
+    ],
+    "expressions": [
+      {
+        "start": 15780,
+        "end": 15808,
+        "source": "_navNavigateAttrs('compare')"
+      },
+      {
+        "start": 15864,
+        "end": 15883,
+        "source": "_iconSvg('compare')"
+      }
+    ],
+    "kind": "compare",
+    "ports": [
+      "actionAttributes",
+      "icon"
+    ],
+    "originalSource": "`<div class=\"nav-item\" data-category=\"compare\" tabindex=\"0\" role=\"button\" ${_navNavigateAttrs('compare')}>\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">${_iconSvg('compare')}</span><span class=\"nav-item-label\">Compare dates</span><span class=\"nav-item-dot\"></span></div>`",
+    "slots": [
+      {
+        "port": "actionAttributes",
+        "coordinate": "gb-sidebar-sidebarnavigation-compare-action-attributes-end"
+      },
+      {
+        "port": "icon",
+        "coordinate": "gb-sidebar-sidebarnavigation-compare-icon-end"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"nav-item\" data-category=\"compare\" tabindex=\"0\" role=\"button\" gb-sidebar-sidebarnavigation-compare-action-attributes-end>\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">gb-sidebar-sidebarnavigation-compare-icon-end</span><span class=\"nav-item-label\">Compare dates</span><span class=\"nav-item-dot\"></span></div>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "privateAttributeLexemes": [
+      {
+        "coordinate": "gb-sidebar-sidebarnavigation-compare-action-attributes-end",
+        "authored": "data-gb-sidebar-sidebarnavigation-compare-action-attributes-end=\"\""
+      }
+    ],
+    "authoredSkeleton": "<div class=\"nav-item\" data-category=\"compare\" tabindex=\"0\" role=\"button\" data-gb-sidebar-sidebarnavigation-compare-action-attributes-end=\"\">\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">gb-sidebar-sidebarnavigation-compare-icon-end</span><span class=\"nav-item-label\">Compare dates</span><span class=\"nav-item-dot\"></span></div>"
+  },
+  {
+    "owner": "buildSidebar",
+    "component": "SidebarNavigation",
+    "start": 15993,
+    "end": 16284,
+    "literals": [
+      "<div class=\"nav-item\" data-category=\"correlations\" tabindex=\"0\" role=\"button\" ",
+      ">\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">",
+      "</span><span class=\"nav-item-label\">Correlations</span><span class=\"nav-item-dot\"></span></div>"
+    ],
+    "expressions": [
+      {
+        "start": 16074,
+        "end": 16107,
+        "source": "_navNavigateAttrs('correlations')"
+      },
+      {
+        "start": 16163,
+        "end": 16187,
+        "source": "_iconSvg('correlations')"
+      }
+    ],
+    "kind": "correlations",
+    "ports": [
+      "actionAttributes",
+      "icon"
+    ],
+    "originalSource": "`<div class=\"nav-item\" data-category=\"correlations\" tabindex=\"0\" role=\"button\" ${_navNavigateAttrs('correlations')}>\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">${_iconSvg('correlations')}</span><span class=\"nav-item-label\">Correlations</span><span class=\"nav-item-dot\"></span></div>`",
+    "slots": [
+      {
+        "port": "actionAttributes",
+        "coordinate": "gb-sidebar-sidebarnavigation-correlations-action-attributes-end"
+      },
+      {
+        "port": "icon",
+        "coordinate": "gb-sidebar-sidebarnavigation-correlations-icon-end"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"nav-item\" data-category=\"correlations\" tabindex=\"0\" role=\"button\" gb-sidebar-sidebarnavigation-correlations-action-attributes-end>\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">gb-sidebar-sidebarnavigation-correlations-icon-end</span><span class=\"nav-item-label\">Correlations</span><span class=\"nav-item-dot\"></span></div>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "privateAttributeLexemes": [
+      {
+        "coordinate": "gb-sidebar-sidebarnavigation-correlations-action-attributes-end",
+        "authored": "data-gb-sidebar-sidebarnavigation-correlations-action-attributes-end=\"\""
+      }
+    ],
+    "authoredSkeleton": "<div class=\"nav-item\" data-category=\"correlations\" tabindex=\"0\" role=\"button\" data-gb-sidebar-sidebarnavigation-correlations-action-attributes-end=\"\">\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">gb-sidebar-sidebarnavigation-correlations-icon-end</span><span class=\"nav-item-label\">Correlations</span><span class=\"nav-item-dot\"></span></div>"
+  },
+  {
+    "owner": "buildSidebar",
+    "component": "SidebarNavigation",
+    "start": 17163,
+    "end": 17202,
+    "literals": [
+      "<div class=\"nav-section\">Manage</div>"
+    ],
+    "expressions": [],
+    "kind": "manage-section",
+    "ports": [],
+    "originalSource": "`<div class=\"nav-section\">Manage</div>`",
+    "slots": [],
+    "nativeSkeleton": "<div class=\"nav-section\">Manage</div>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "privateAttributeLexemes": [],
+    "authoredSkeleton": "<div class=\"nav-section\">Manage</div>"
+  },
+  {
+    "owner": "buildSidebar",
+    "component": "SidebarNavigation",
+    "start": 17214,
+    "end": 17494,
+    "literals": [
+      "<div class=\"nav-item\" data-category=\"reports\" tabindex=\"0\" role=\"button\" ",
+      ">\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">",
+      "</span><span class=\"nav-item-label\">Reports</span><span class=\"nav-item-dot\"></span></div>"
+    ],
+    "expressions": [
+      {
+        "start": 17290,
+        "end": 17328,
+        "source": "_navActionAttrs('open-report-builder')"
+      },
+      {
+        "start": 17384,
+        "end": 17402,
+        "source": "_iconSvg('report')"
+      }
+    ],
+    "kind": "reports",
+    "ports": [
+      "actionAttributes",
+      "icon"
+    ],
+    "originalSource": "`<div class=\"nav-item\" data-category=\"reports\" tabindex=\"0\" role=\"button\" ${_navActionAttrs('open-report-builder')}>\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">${_iconSvg('report')}</span><span class=\"nav-item-label\">Reports</span><span class=\"nav-item-dot\"></span></div>`",
+    "slots": [
+      {
+        "port": "actionAttributes",
+        "coordinate": "gb-sidebar-sidebarnavigation-reports-action-attributes-end"
+      },
+      {
+        "port": "icon",
+        "coordinate": "gb-sidebar-sidebarnavigation-reports-icon-end"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"nav-item\" data-category=\"reports\" tabindex=\"0\" role=\"button\" gb-sidebar-sidebarnavigation-reports-action-attributes-end>\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">gb-sidebar-sidebarnavigation-reports-icon-end</span><span class=\"nav-item-label\">Reports</span><span class=\"nav-item-dot\"></span></div>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "privateAttributeLexemes": [
+      {
+        "coordinate": "gb-sidebar-sidebarnavigation-reports-action-attributes-end",
+        "authored": "data-gb-sidebar-sidebarnavigation-reports-action-attributes-end=\"\""
+      }
+    ],
+    "authoredSkeleton": "<div class=\"nav-item\" data-category=\"reports\" tabindex=\"0\" role=\"button\" data-gb-sidebar-sidebarnavigation-reports-action-attributes-end=\"\">\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">gb-sidebar-sidebarnavigation-reports-icon-end</span><span class=\"nav-item-label\">Reports</span><span class=\"nav-item-dot\"></span></div>"
+  },
+  {
+    "owner": "buildSidebar",
+    "component": "SidebarNavigation",
+    "start": 17506,
+    "end": 17780,
+    "literals": [
+      "<div class=\"nav-item\" data-category=\"context\" tabindex=\"0\" role=\"button\" ",
+      ">\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">",
+      "</span><span class=\"nav-item-label\">Context</span><span class=\"nav-item-dot\"></span></div>"
+    ],
+    "expressions": [
+      {
+        "start": 17582,
+        "end": 17613,
+        "source": "_navActionAttrs('open-context')"
+      },
+      {
+        "start": 17669,
+        "end": 17688,
+        "source": "_iconSvg('context')"
+      }
+    ],
+    "kind": "context",
+    "ports": [
+      "actionAttributes",
+      "icon"
+    ],
+    "originalSource": "`<div class=\"nav-item\" data-category=\"context\" tabindex=\"0\" role=\"button\" ${_navActionAttrs('open-context')}>\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">${_iconSvg('context')}</span><span class=\"nav-item-label\">Context</span><span class=\"nav-item-dot\"></span></div>`",
+    "slots": [
+      {
+        "port": "actionAttributes",
+        "coordinate": "gb-sidebar-sidebarnavigation-context-action-attributes-end"
+      },
+      {
+        "port": "icon",
+        "coordinate": "gb-sidebar-sidebarnavigation-context-icon-end"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"nav-item\" data-category=\"context\" tabindex=\"0\" role=\"button\" gb-sidebar-sidebarnavigation-context-action-attributes-end>\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">gb-sidebar-sidebarnavigation-context-icon-end</span><span class=\"nav-item-label\">Context</span><span class=\"nav-item-dot\"></span></div>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "privateAttributeLexemes": [
+      {
+        "coordinate": "gb-sidebar-sidebarnavigation-context-action-attributes-end",
+        "authored": "data-gb-sidebar-sidebarnavigation-context-action-attributes-end=\"\""
+      }
+    ],
+    "authoredSkeleton": "<div class=\"nav-item\" data-category=\"context\" tabindex=\"0\" role=\"button\" data-gb-sidebar-sidebarnavigation-context-action-attributes-end=\"\">\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">gb-sidebar-sidebarnavigation-context-icon-end</span><span class=\"nav-item-label\">Context</span><span class=\"nav-item-dot\"></span></div>"
+  },
+  {
+    "owner": "buildSidebar",
+    "component": "SidebarNavigation",
+    "start": 17792,
+    "end": 18089,
+    "literals": [
+      "<div class=\"nav-item\" data-category=\"knowledge-base\" tabindex=\"0\" role=\"button\" ",
+      ">\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">",
+      "</span><span class=\"nav-item-label\">Knowledge Base</span><span class=\"nav-item-dot\"></span></div>"
+    ],
+    "expressions": [
+      {
+        "start": 17875,
+        "end": 17913,
+        "source": "_navActionAttrs('open-knowledge-base')"
+      },
+      {
+        "start": 17969,
+        "end": 17990,
+        "source": "_iconSvg('knowledge')"
+      }
+    ],
+    "kind": "knowledge-base",
+    "ports": [
+      "actionAttributes",
+      "icon"
+    ],
+    "originalSource": "`<div class=\"nav-item\" data-category=\"knowledge-base\" tabindex=\"0\" role=\"button\" ${_navActionAttrs('open-knowledge-base')}>\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">${_iconSvg('knowledge')}</span><span class=\"nav-item-label\">Knowledge Base</span><span class=\"nav-item-dot\"></span></div>`",
+    "slots": [
+      {
+        "port": "actionAttributes",
+        "coordinate": "gb-sidebar-sidebarnavigation-knowledge-base-action-attributes-end"
+      },
+      {
+        "port": "icon",
+        "coordinate": "gb-sidebar-sidebarnavigation-knowledge-base-icon-end"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"nav-item\" data-category=\"knowledge-base\" tabindex=\"0\" role=\"button\" gb-sidebar-sidebarnavigation-knowledge-base-action-attributes-end>\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">gb-sidebar-sidebarnavigation-knowledge-base-icon-end</span><span class=\"nav-item-label\">Knowledge Base</span><span class=\"nav-item-dot\"></span></div>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "privateAttributeLexemes": [
+      {
+        "coordinate": "gb-sidebar-sidebarnavigation-knowledge-base-action-attributes-end",
+        "authored": "data-gb-sidebar-sidebarnavigation-knowledge-base-action-attributes-end=\"\""
+      }
+    ],
+    "authoredSkeleton": "<div class=\"nav-item\" data-category=\"knowledge-base\" tabindex=\"0\" role=\"button\" data-gb-sidebar-sidebarnavigation-knowledge-base-action-attributes-end=\"\">\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">gb-sidebar-sidebarnavigation-knowledge-base-icon-end</span><span class=\"nav-item-label\">Knowledge Base</span><span class=\"nav-item-dot\"></span></div>"
+  },
+  {
+    "owner": "buildSidebar",
+    "component": "SidebarNavigation",
+    "start": 18101,
+    "end": 18392,
+    "literals": [
+      "<div class=\"nav-item\" data-category=\"custom-markers\" tabindex=\"0\" role=\"button\" ",
+      ">\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">",
+      "</span><span class=\"nav-item-label\">Custom markers</span><span class=\"nav-item-dot\"></span></div>"
+    ],
+    "expressions": [
+      {
+        "start": 18184,
+        "end": 18221,
+        "source": "_navActionAttrs('open-custom-marker')"
+      },
+      {
+        "start": 18277,
+        "end": 18293,
+        "source": "_iconSvg('plus')"
+      }
+    ],
+    "kind": "custom-markers",
+    "ports": [
+      "actionAttributes",
+      "icon"
+    ],
+    "originalSource": "`<div class=\"nav-item\" data-category=\"custom-markers\" tabindex=\"0\" role=\"button\" ${_navActionAttrs('open-custom-marker')}>\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">${_iconSvg('plus')}</span><span class=\"nav-item-label\">Custom markers</span><span class=\"nav-item-dot\"></span></div>`",
+    "slots": [
+      {
+        "port": "actionAttributes",
+        "coordinate": "gb-sidebar-sidebarnavigation-custom-markers-action-attributes-end"
+      },
+      {
+        "port": "icon",
+        "coordinate": "gb-sidebar-sidebarnavigation-custom-markers-icon-end"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"nav-item\" data-category=\"custom-markers\" tabindex=\"0\" role=\"button\" gb-sidebar-sidebarnavigation-custom-markers-action-attributes-end>\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">gb-sidebar-sidebarnavigation-custom-markers-icon-end</span><span class=\"nav-item-label\">Custom markers</span><span class=\"nav-item-dot\"></span></div>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "privateAttributeLexemes": [
+      {
+        "coordinate": "gb-sidebar-sidebarnavigation-custom-markers-action-attributes-end",
+        "authored": "data-gb-sidebar-sidebarnavigation-custom-markers-action-attributes-end=\"\""
+      }
+    ],
+    "authoredSkeleton": "<div class=\"nav-item\" data-category=\"custom-markers\" tabindex=\"0\" role=\"button\" data-gb-sidebar-sidebarnavigation-custom-markers-action-attributes-end=\"\">\n    <span class=\"nav-item-icon\" aria-hidden=\"true\">gb-sidebar-sidebarnavigation-custom-markers-icon-end</span><span class=\"nav-item-label\">Custom markers</span><span class=\"nav-item-dot\"></span></div>"
+  },
+  {
+    "owner": "buildSidebar",
+    "component": "SidebarNavigation",
+    "start": 19206,
+    "end": 19386,
+    "literals": [
+      "<div class=\"nav-section sidebar-title\">Lab categories <button class=\"sidebar-add-marker\" ",
+      " title=\"Create custom biomarker\">+</button></div>"
+    ],
+    "expressions": [
+      {
+        "start": 19298,
+        "end": 19335,
+        "source": "_navActionAttrs('open-custom-marker')"
+      }
+    ],
+    "kind": "lab-categories",
+    "ports": [
+      "actionAttributes"
+    ],
+    "originalSource": "`<div class=\"nav-section sidebar-title\">Lab categories <button class=\"sidebar-add-marker\" ${_navActionAttrs('open-custom-marker')} title=\"Create custom biomarker\">+</button></div>`",
+    "slots": [
+      {
+        "port": "actionAttributes",
+        "coordinate": "gb-sidebar-sidebarnavigation-lab-categories-action-attributes-end"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"nav-section sidebar-title\">Lab categories <button class=\"sidebar-add-marker\" gb-sidebar-sidebarnavigation-lab-categories-action-attributes-end title=\"Create custom biomarker\">+</button></div>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "privateAttributeLexemes": [
+      {
+        "coordinate": "gb-sidebar-sidebarnavigation-lab-categories-action-attributes-end",
+        "authored": "data-gb-sidebar-sidebarnavigation-lab-categories-action-attributes-end=\"\""
+      }
+    ],
+    "authoredSkeleton": "<div class=\"nav-section sidebar-title\">Lab categories <button class=\"sidebar-add-marker\" data-gb-sidebar-sidebarnavigation-lab-categories-action-attributes-end=\"\" title=\"Create custom biomarker\">+</button></div>"
+  },
+  {
+    "owner": "buildSidebar",
+    "component": "SidebarNavigation",
+    "start": 19644,
+    "end": 19699,
+    "literals": [
+      "<span class=\"flag-count\">",
+      "</span>"
+    ],
+    "expressions": [
+      {
+        "start": 19672,
+        "end": 19690,
+        "source": "group.totalFlagged"
+      }
+    ],
+    "kind": "specialty-flagged-badge",
+    "ports": [
+      "value"
+    ],
+    "originalSource": "`<span class=\"flag-count\">${group.totalFlagged}</span>`",
+    "slots": [
+      {
+        "port": "value",
+        "coordinate": "gb-sidebar-sidebarnavigation-specialty-flagged-badge-value-end"
+      }
+    ],
+    "nativeSkeleton": "<span class=\"flag-count\">gb-sidebar-sidebarnavigation-specialty-flagged-badge-value-end</span>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "privateAttributeLexemes": [],
+    "authoredSkeleton": "<span class=\"flag-count\">gb-sidebar-sidebarnavigation-specialty-flagged-badge-value-end</span>"
+  },
+  {
+    "owner": "buildSidebar",
+    "component": "SidebarNavigation",
+    "start": 19878,
+    "end": 20415,
+    "literals": [
+      "<div class=\"sidebar-group-header",
+      "\" data-group-name=\"",
+      "\" ",
+      ">\n      <button class=\"sidebar-group-toggle\" ",
+      " aria-expanded=\"",
+      "\" aria-label=\"",
+      " group\">\n        <span class=\"sidebar-group-label\">",
+      "</span>\n        ",
+      "\n      </button>\n      <span class=\"sidebar-group-arrow\" aria-hidden=\"true\">\u25b8</span>\n    </div>"
+    ],
+    "expressions": [
+      {
+        "start": 19913,
+        "end": 19942,
+        "source": "collapsed ? ' collapsed' : ''"
+      },
+      {
+        "start": 19964,
+        "end": 19985,
+        "source": "escapeAttr(groupName)"
+      },
+      {
+        "start": 19990,
+        "end": 20043,
+        "source": "_navActionAttrs('toggle-group', { group: groupName })"
+      },
+      {
+        "start": 20091,
+        "end": 20144,
+        "source": "_navActionAttrs('toggle-group', { group: groupName })"
+      },
+      {
+        "start": 20163,
+        "end": 20173,
+        "source": "!collapsed"
+      },
+      {
+        "start": 20190,
+        "end": 20211,
+        "source": "escapeAttr(groupName)"
+      },
+      {
+        "start": 20265,
+        "end": 20286,
+        "source": "escapeHTML(groupName)"
+      },
+      {
+        "start": 20305,
+        "end": 20313,
+        "source": "flagHtml"
+      }
+    ],
+    "kind": "specialty-header",
+    "ports": [
+      "collapsedClass",
+      "groupName",
+      "headerActionAttributes",
+      "toggleActionAttributes",
+      "expanded",
+      "accessibleGroupName",
+      "label",
+      "badge"
+    ],
+    "originalSource": "`<div class=\"sidebar-group-header${collapsed ? ' collapsed' : ''}\" data-group-name=\"${escapeAttr(groupName)}\" ${_navActionAttrs('toggle-group', { group: groupName })}>\n      <button class=\"sidebar-group-toggle\" ${_navActionAttrs('toggle-group', { group: groupName })} aria-expanded=\"${!collapsed}\" aria-label=\"${escapeAttr(groupName)} group\">\n        <span class=\"sidebar-group-label\">${escapeHTML(groupName)}</span>\n        ${flagHtml}\n      </button>\n      <span class=\"sidebar-group-arrow\" aria-hidden=\"true\">\\u25B8</span>\n    </div>`",
+    "slots": [
+      {
+        "port": "collapsedClass",
+        "coordinate": "gb-sidebar-sidebarnavigation-specialty-header-collapsed-class-end"
+      },
+      {
+        "port": "groupName",
+        "coordinate": "gb-sidebar-sidebarnavigation-specialty-header-group-name-end"
+      },
+      {
+        "port": "headerActionAttributes",
+        "coordinate": "gb-sidebar-sidebarnavigation-specialty-header-header-action-attributes-end"
+      },
+      {
+        "port": "toggleActionAttributes",
+        "coordinate": "gb-sidebar-sidebarnavigation-specialty-header-toggle-action-attributes-end"
+      },
+      {
+        "port": "expanded",
+        "coordinate": "gb-sidebar-sidebarnavigation-specialty-header-expanded-end"
+      },
+      {
+        "port": "accessibleGroupName",
+        "coordinate": "gb-sidebar-sidebarnavigation-specialty-header-accessible-group-name-end"
+      },
+      {
+        "port": "label",
+        "coordinate": "gb-sidebar-sidebarnavigation-specialty-header-label-end"
+      },
+      {
+        "port": "badge",
+        "coordinate": "gb-sidebar-sidebarnavigation-specialty-header-badge-end"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"sidebar-group-headergb-sidebar-sidebarnavigation-specialty-header-collapsed-class-end\" data-group-name=\"gb-sidebar-sidebarnavigation-specialty-header-group-name-end\" gb-sidebar-sidebarnavigation-specialty-header-header-action-attributes-end>\n      <button class=\"sidebar-group-toggle\" gb-sidebar-sidebarnavigation-specialty-header-toggle-action-attributes-end aria-expanded=\"gb-sidebar-sidebarnavigation-specialty-header-expanded-end\" aria-label=\"gb-sidebar-sidebarnavigation-specialty-header-accessible-group-name-end group\">\n        <span class=\"sidebar-group-label\">gb-sidebar-sidebarnavigation-specialty-header-label-end</span>\n        gb-sidebar-sidebarnavigation-specialty-header-badge-end\n      </button>\n      <span class=\"sidebar-group-arrow\" aria-hidden=\"true\">\u25b8</span>\n    </div>",
+    "typedBooleanFraming": {
+      "attribute": "aria-expanded",
+      "authored": "true",
+      "nativeCoordinate": "gb-sidebar-sidebarnavigation-specialty-header-expanded-end"
+    },
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "privateAttributeLexemes": [
+      {
+        "coordinate": "gb-sidebar-sidebarnavigation-specialty-header-header-action-attributes-end",
+        "authored": "data-gb-sidebar-sidebarnavigation-specialty-header-header-action-attributes-end=\"\""
+      },
+      {
+        "coordinate": "gb-sidebar-sidebarnavigation-specialty-header-toggle-action-attributes-end",
+        "authored": "data-gb-sidebar-sidebarnavigation-specialty-header-toggle-action-attributes-end=\"\""
+      }
+    ],
+    "authoredSkeleton": "<div class=\"sidebar-group-headergb-sidebar-sidebarnavigation-specialty-header-collapsed-class-end\" data-group-name=\"gb-sidebar-sidebarnavigation-specialty-header-group-name-end\" data-gb-sidebar-sidebarnavigation-specialty-header-header-action-attributes-end=\"\">\n      <button class=\"sidebar-group-toggle\" data-gb-sidebar-sidebarnavigation-specialty-header-toggle-action-attributes-end=\"\" aria-expanded=\"true\" aria-label=\"gb-sidebar-sidebarnavigation-specialty-header-accessible-group-name-end group\">\n        <span class=\"sidebar-group-label\">gb-sidebar-sidebarnavigation-specialty-header-label-end</span>\n        gb-sidebar-sidebarnavigation-specialty-header-badge-end\n      </button>\n      <span class=\"sidebar-group-arrow\" aria-hidden=\"true\">\u25b8</span>\n    </div>"
+  },
+  {
+    "owner": "buildSidebar",
+    "component": "SidebarNavigation",
+    "start": 20429,
+    "end": 20551,
+    "literals": [
+      "<div class=\"sidebar-group-items\" data-group-items=\"",
+      "\"",
+      ">"
+    ],
+    "expressions": [
+      {
+        "start": 20483,
+        "end": 20504,
+        "source": "escapeAttr(groupName)"
+      },
+      {
+        "start": 20508,
+        "end": 20548,
+        "source": "collapsed ? ' style=\"display:none\"' : ''"
+      }
+    ],
+    "kind": "open-specialty",
+    "ports": [
+      "groupName",
+      "collapsedStyleAttributes"
+    ],
+    "originalSource": "`<div class=\"sidebar-group-items\" data-group-items=\"${escapeAttr(groupName)}\"${collapsed ? ' style=\"display:none\"' : ''}>`",
+    "slots": [
+      {
+        "port": "groupName",
+        "coordinate": "gb-sidebar-sidebarnavigation-open-specialty-group-name-end"
+      },
+      {
+        "port": "collapsedStyleAttributes",
+        "coordinate": "gb-sidebar-sidebarnavigation-open-specialty-collapsed-style-attributes-end"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"sidebar-group-items\" data-group-items=\"gb-sidebar-sidebarnavigation-open-specialty-group-name-end\"gb-sidebar-sidebarnavigation-open-specialty-collapsed-style-attributes-end>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "</div>",
+    "privateAttributeLexemes": [
+      {
+        "coordinate": "gb-sidebar-sidebarnavigation-open-specialty-collapsed-style-attributes-end",
+        "authored": " data-gb-sidebar-sidebarnavigation-open-specialty-collapsed-style-attributes-end=\"\""
+      }
+    ],
+    "authoredSkeleton": "<div class=\"sidebar-group-items\" data-group-items=\"gb-sidebar-sidebarnavigation-open-specialty-group-name-end\" data-gb-sidebar-sidebarnavigation-open-specialty-collapsed-style-attributes-end=\"\"></div>"
+  },
+  {
+    "owner": "buildSidebar",
+    "component": "SidebarNavigation",
+    "start": 20620,
+    "end": 20628,
+    "literals": [
+      "</div>"
+    ],
+    "expressions": [],
+    "kind": "close-specialty",
+    "ports": [],
+    "originalSource": "`</div>`",
+    "slots": [],
+    "nativeSkeleton": "</div>",
+    "syntheticPrefix": "<div>",
+    "syntheticSuffix": "",
+    "privateAttributeLexemes": [],
+    "authoredSkeleton": "<div></div>"
+  }
+]

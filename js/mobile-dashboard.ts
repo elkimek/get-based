@@ -1,10 +1,14 @@
+import {disposeDashboardPage} from './dashboard-page-owner.js';
+import {getLoadedMobileDashboardRenderer, loadMobileDashboardRenderer} from './dashboard-renderer-loader.js';
+import {beginDashboardRenderRequest, showDashboardRendererLoading, showDashboardRendererFailure} from './dashboard-render-request.js';
+import type {MobileDashboardStackView} from './mobile-dashboard-presentation.js';
+import {renderMobileNavigation} from './mobile-navigation-presentation.js';
 import type { MobileDataReader, MobileMarkerReader, MobileContextReader, MobileSummary, MobileInsight, MobileCallbacks, MobileMetricReader, MobileWearableReader, MobileCanonReader } from '../types/mobile-dashboard.js';
 // mobile-dashboard.js - Mobile dashboard shell and bottom navigation
 
 import { state } from './state.js';
-import { escapeHTML, getStatus, formatValue, getTrend, formatDate, safeMarkerId } from './utils.js';
-import { camelCaseActionAttributes } from './action-attributes.js';
-import { getActiveData, renderDateRangeFilter } from './data.js';
+import { getStatus, formatValue, getTrend, formatDate, safeMarkerId } from './utils.js';
+import { getActiveData, projectDateRangeFilter } from './data.js';
 import { getAllFlaggedMarkers, getEffectiveRangeForDate, getLatestValueIndex } from './marker-analysis.js';
 import { getProfiles } from './profile.js';
 import { canonicalMetric, metricsForSources } from './wearable-adapters.js';
@@ -43,10 +47,10 @@ const MOBILE_DASHBOARD_ACTION_SELECTOR = `[${MOBILE_DASHBOARD_ACTION_ATTR}]`;
 const mobileDashboardDeps: MobileCallbacks = {
   buildDashboardWidgetContext: (_data) => ({ data: getActiveData(), filteredData: getActiveData() }),
   getDashboardWidgetPrefs: () => ({ order: [], hidden: [] }),
-  getVisibleDashboardWidgetEntries: (_ctx, _prefs) => [],
-  renderDashboardControlButtons: (_options) => '',
+  getVisibleDashboardWidgetViews: (_ctx, _prefs) => [],
+  projectDashboardControlButtons: (_options) => null,
   isDashboardOrganizeMode: () => false,
-  renderDashboardWidget: (_entry, _prefs, _index, _visibleEntries) => '',
+  projectDashboardWidget: (_entry, _prefs, _index, _visibleEntries) => null,
   setupDropZone: () => {},
   loadCommitHash: () => {},
   navigate: () => {},
@@ -62,10 +66,6 @@ export function configureMobileDashboardView(deps: unknown = {}) {
 
 function markerHasData(m: MobileMarkerReader) {
   return (m.values as {some(callback:(value:unknown)=>boolean):unknown}|null|undefined)?.some(v => v !== null) ?? false;
-}
-
-function mobileDashboardActionAttrs(action: unknown, attrs: Record<string,unknown> = {}) {
-  return camelCaseActionAttributes(MOBILE_DASHBOARD_ACTION_ATTR, "mobile-dashboard", action, attrs);
 }
 
 function closestMobileDashboardAction(target: {closest?:unknown}|null|undefined) {
@@ -386,36 +386,6 @@ export function getMobileWearableTiles() {
   return tiles;
 }
 
-/**
- * @param {string} actionKey Delegated mobile dashboard action key; raw JavaScript expressions are not supported.
- * @param {Record<string, string | number | boolean>} actionAttrs Additional action payload attributes.
- */
-function renderMobileSectionHead(title:unknown, count:unknown, actionLabel:unknown = '', actionKey:unknown = '', actionAttrs:Record<string,unknown> = {}) {
-  return `<div class="m-section-head">
-    <div class="m-section-labels">
-      <span class="m-section-title">${escapeHTML(title)}</span>
-      ${count ? `<span class="m-section-count">${escapeHTML(count)}</span>` : ''}
-    </div>
-    ${actionLabel && actionKey ? `<button type="button" ${mobileDashboardActionAttrs(actionKey, actionAttrs)}>${escapeHTML(actionLabel)}</button>` : ''}
-  </div>`;
-}
-
-function renderMobileIcon(name: string) {
-  const icons: Record<string,string> = {
-    labs: '<rect x="4" y="4" width="6" height="6" rx="1.2"></rect><rect x="14" y="4" width="6" height="6" rx="1.2"></rect><rect x="4" y="14" width="6" height="6" rx="1.2"></rect><rect x="14" y="14" width="6" height="6" rx="1.2"></rect>',
-    genome: '<path d="M8 4c4 4 4 12 8 16"></path><path d="M16 4c-4 4-4 12-8 16"></path><path d="M9.5 8h5"></path><path d="M9.5 12h5"></path><path d="M9.5 16h5"></path>',
-    body: '<path d="M4 12h4l2-6 4 12 2-6h4"></path>',
-    light: '<circle cx="12" cy="12" r="4"></circle><path d="M12 2v3"></path><path d="M12 19v3"></path><path d="M4.93 4.93l2.12 2.12"></path><path d="M16.95 16.95l2.12 2.12"></path><path d="M2 12h3"></path><path d="M19 12h3"></path><path d="M4.93 19.07l2.12-2.12"></path><path d="M16.95 7.05l2.12-2.12"></path>',
-    insight: '<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"></path><path d="M8 9h8"></path><path d="M8 13h5"></path>',
-    more: '<path d="M4 7h16"></path><path d="M4 12h16"></path><path d="M4 17h16"></path>',
-    tweaks: '<line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line>',
-    settings: '<circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>',
-    search: '<circle cx="11" cy="11" r="6"></circle><path d="m16 16 4 4"></path>',
-    chat: '<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"></path>',
-  };
-  return `<svg class="m-svg-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name] || icons.labs}</svg>`;
-}
-
 export function mobileDashboardSetTab(tab: unknown) {
   document.querySelectorAll('.m-tab').forEach(btn => {
     const tabButton = (btn as HTMLElement);
@@ -425,30 +395,20 @@ export function mobileDashboardSetTab(tab: unknown) {
   });
 }
 
-function renderMobileBottomTabs(activeTab: unknown = 'dashboard', { id = '' }: {id?:unknown} = {}) {
-  const navId = id ? ` id="${id}"` : '';
-  const tabAttrs = (tab: string) => `class="m-tab${activeTab === tab ? ' active' : ''}" data-tab="${tab}" aria-current="${activeTab === tab ? 'page' : 'false'}"`;
-  return `<nav${navId} class="m-tabbar" aria-label="Mobile primary navigation">
-    <button type="button" ${tabAttrs('dashboard')} ${mobileDashboardActionAttrs('navigate-tab', { tab: 'dashboard', route: 'dashboard' })} aria-label="Home"><span class="m-tab-icon">${renderMobileIcon('labs')}</span><small>Home</small></button>
-    <button type="button" ${tabAttrs('labs')} ${mobileDashboardActionAttrs('navigate-tab', { tab: 'labs', route: 'labs' })} aria-label="Labs"><span class="m-tab-icon">${renderMobileIcon('labs')}</span><small>Labs</small></button>
-    <button type="button" ${tabAttrs('body')} ${mobileDashboardActionAttrs('navigate-tab', { tab: 'body', route: 'body' })} aria-label="Body"><span class="m-tab-icon">${renderMobileIcon('body')}</span><small>Body</small></button>
-    <button type="button" ${tabAttrs('light')} ${mobileDashboardActionAttrs('navigate-tab', { tab: 'light', route: 'light' })} aria-label="Light"><span class="m-tab-icon">${renderMobileIcon('light')}</span><small>Light</small></button>
-    <button type="button" ${tabAttrs('insight')} ${mobileDashboardActionAttrs('navigate-tab', { tab: 'insight', route: 'insight' })} aria-label="Insight"><span class="m-tab-icon">${renderMobileIcon('insight')}</span><small>Insight</small></button>
-  </nav>`;
+function renderMobileBottomTabs(activeTab: unknown = 'dashboard', { id = '' }: {id?: unknown} = {}) {
+  const active = activeTab === 'dashboard' || activeTab === 'labs' || activeTab === 'body'
+    || activeTab === 'light' || activeTab === 'insight' ? activeTab : null;
+  return renderMobileNavigation({activeTab: active, id: id ? `${id}` : null});
 }
 
-function renderMobileDashboardWidgetStack(ctx: unknown) {
-  const prefs = mobileDashboardDeps.getDashboardWidgetPrefs();
-  const visibleEntries = mobileDashboardDeps.getVisibleDashboardWidgetEntries(ctx, prefs);
-  return `<section class="m-section m-dashboard-widget-section">
-    ${renderMobileSectionHead('Dashboard widgets', String(visibleEntries.length))}
-    <div class="m-dashboard-widget-actions">${mobileDashboardDeps.renderDashboardControlButtons({ includeReset: mobileDashboardDeps.isDashboardOrganizeMode() })}</div>
-    <div class="dashboard-widgets m-dashboard-widgets">
-      ${visibleEntries.length
-        ? visibleEntries.map((entry, index) => mobileDashboardDeps.renderDashboardWidget(entry, prefs, index, visibleEntries)).join('')
-        : '<div class="dashboard-widget dashboard-widget-full is-empty"><div class="dashboard-widget-empty">No widgets are visible.</div></div>'}
-    </div>
-  </section>`;
+function projectMobileDashboardWidgetStack(ctx:unknown):MobileDashboardStackView {
+ const prefs=mobileDashboardDeps.getDashboardWidgetPrefs();
+ const visibleEntries=mobileDashboardDeps.getVisibleDashboardWidgetViews(ctx,prefs);
+ const count=String(visibleEntries.length);
+ const actions=mobileDashboardDeps.projectDashboardControlButtons({includeReset:mobileDashboardDeps.isDashboardOrganizeMode()});
+ const hasEntries=!!visibleEntries.length;
+ const widgets=hasEntries?visibleEntries.map((entry,index)=>mobileDashboardDeps.projectDashboardWidget(entry,prefs,index,visibleEntries)):[];
+ return {count,actions,hasEntries,widgets};
 }
 
 export function openMobileDashboardSearch() {
@@ -465,39 +425,55 @@ export function mobileDashboardJump(section: string) {
 export function renderMobileDashboard(data: MobileDataReader, { resetScroll = false }: {resetScroll?:unknown} = {}) {
   const main = document.getElementById("main-content");
   if (!main) return;
-  const ctx = mobileDashboardDeps.buildDashboardWidgetContext(data);
-  const profile = getMobileDashboardProfile();
-  const mobileWidgetStack = renderMobileDashboardWidgetStack(ctx);
-  const firstName = getMobileGreetingName(profile);
-  const counts = getMobileDashboardCounts(data);
-  const greetingSub = [
-    `${counts.markerCount || 0} markers`,
-    counts.latestDate ? `last draw ${(formatDate as (value:unknown,format:string)=>string)(counts.latestDate, 'short')}` : '',
-    `${data.dates?.length || 0} draw${data.dates?.length === 1 ? '' : 's'}`,
-  ].filter(Boolean).join(' · ');
+  const request = beginDashboardRenderRequest(main, isMobileDashboardViewport);
+  const render = ({renderMobileDashboardPage, hydrateMobileDashboardPage}: NonNullable<ReturnType<typeof getLoadedMobileDashboardRenderer>>) => {
+    const ctx = mobileDashboardDeps.buildDashboardWidgetContext(data);
+    const profile = getMobileDashboardProfile();
+    const mobileWidgetStack = projectMobileDashboardWidgetStack(ctx);
+    const firstName = getMobileGreetingName(profile);
+    const counts = getMobileDashboardCounts(data);
+    const greetingSub = [
+      `${counts.markerCount || 0} markers`,
+      counts.latestDate ? `last draw ${(formatDate as (value:unknown,format:string)=>string)(counts.latestDate, 'short')}` : '',
+      `${data.dates?.length || 0} draw${data.dates?.length === 1 ? '' : 's'}`,
+    ].filter(Boolean).join(' · ');
 
-  document.body.classList.add('mobile-dashboard-active');
-  syncMobileChromeRootState();
-  main.innerHTML = `<div class="drop-zone drop-zone-hidden" id="drop-zone"></div>
-    <div class="m-shell">
-      <div class="m-bg" aria-hidden="true"></div>
-      <div class="m-content">
-        <section class="m-greeting">
-          <h1>Hey ${escapeHTML(firstName)}.</h1>
-          <div class="m-greeting-sub">${escapeHTML(greetingSub)}</div>
-        </section>
+    if (!request.isCurrent()) return false;
+    document.body.classList.add('mobile-dashboard-active');
+    syncMobileChromeRootState();
+    // Preserve the native template's text conversion and date-control read positions.
+    const firstNameText=firstName==null?'':String(firstName);
+    const greetingSubText=greetingSub==null?'':String(greetingSub);
+    const range=data.dates?.length?projectDateRangeFilter({showScope:true}):null;
+    const view={firstName:firstNameText,greetingSub:greetingSubText,range,stack:mobileWidgetStack};
+    const html=renderMobileDashboardPage(view);
+    if (!request.isCurrent()) return false;
+    disposeDashboardPage();
+    main.innerHTML=html;
+    hydrateMobileDashboardPage(main,view);
+    if (!request.isCurrent()) return false;
 
-        ${data.dates?.length ? renderDateRangeFilter({ showScope: true }) : ''}
-        ${mobileWidgetStack}
-      </div>
-    </div>
-    ${renderMobileBottomTabs('dashboard')}`;
-
-  if (resetScroll) scrollMobileDashboardToTop();
-  mobileDashboardDeps.setupDropZone();
-  refreshMobileDashboardActiveTab();
-  loadContextHealthDots();
-  mobileDashboardDeps.loadContextCardTips();
-  mobileDashboardDeps.loadCommitHash();
-  mobileDashboardDeps.loadCatalog().then(c => { mobileDashboardDeps.cacheCatalog(c); });
+    if (resetScroll && request.mayRunFocusEffects()) scrollMobileDashboardToTop();
+    mobileDashboardDeps.setupDropZone();
+    if (!request.isCurrent()) return false;
+    refreshMobileDashboardActiveTab();
+    loadContextHealthDots();
+    mobileDashboardDeps.loadContextCardTips();
+    if (!request.isCurrent()) return false;
+    mobileDashboardDeps.loadCommitHash();
+    if (!request.isCurrent()) return false;
+    mobileDashboardDeps.loadCatalog().then(c => { if (request.isCurrent()) mobileDashboardDeps.cacheCatalog(c); });
+    return;
+  };
+  const loaded = getLoadedMobileDashboardRenderer();
+  if (loaded) return render(loaded);
+  showDashboardRendererLoading(main);
+  return loadMobileDashboardRenderer().then(renderer => {
+    if (!request.isCurrent()) return false;
+    return render(renderer);
+  }).catch(error => {
+    console.error('Failed to load Mobile Dashboard renderer', error);
+    if (request.isCurrent()) showDashboardRendererFailure(main, () => request.isCurrent() ? renderMobileDashboard(data, {resetScroll}) : false);
+    return false;
+  });
 }

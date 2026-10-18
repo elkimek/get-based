@@ -1,5 +1,5 @@
 // Stable DOM adapter for authored benchmark results; execution stays in the controller.
-import { renderHTML } from './components/NutritionPresentation.svelte.html.js';
+import { renderHTML as renderComparisonResults } from './components/NutritionComparisonResults.svelte.html.js';
 import { projectNutritionComparisonResults } from './nutrition-comparison-results-model.js';
 import type { NutritionComparisonResultsOptions } from './nutrition-comparison-results-model.js';
 export { comparisonTotalWeight } from './nutrition-comparison-results-model.js';
@@ -9,7 +9,7 @@ export function renderNutritionComparisonResults(options: NutritionComparisonRes
   const area = document.getElementById('nutrition-comparison-results');
   if (!area) return;
   const view = projectNutritionComparisonResults(options);
-  area.innerHTML = renderHTML({ kind: 'comparison-results', view });
+  area.innerHTML = renderComparisonResults({ view });
   if (view.cards.length) area.dataset.resultCount = String(view.cards.length);
   else area.removeAttribute('data-result-count');
   const button = document.querySelector<HTMLButtonElement>('[data-nutrition-action="toggle-comparison-presentation"]');

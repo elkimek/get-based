@@ -1,0 +1,4 @@
+/* Append unminified owned Feedback utilities after unchanged shared-modal utilities. */
+@theme prefix(gb) {}
+@import "tailwindcss/utilities.css" prefix(gb) source(none);
+@import "./feedback.tailwind.css";

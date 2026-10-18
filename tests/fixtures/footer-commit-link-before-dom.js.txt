@@ -1,0 +1,13 @@
+import { renderHTML as commitLinkHTML } from './components/FooterCommitLink.svelte.html.js';
+/** Only this component's fixed SSR root is private; native callers receive one anchor. */
+export function renderFooterCommitLink(full, short) {
+  const raw = commitLinkHTML({ full, short });
+  const open = '<!--[-->', close = '<!--]-->';
+  if (!raw.startsWith(open + '<a href="https://github.com/elkimek/get-based/commit/')
+    || !raw.endsWith('</a>' + close))
+    throw new Error('Unexpected footer commit SSR envelope');
+  const html = raw.slice(open.length, -close.length);
+  if (html.includes('<!--'))
+    throw new Error('Unexpected footer commit compiler comment');
+  return html;
+}

@@ -1,0 +1,719 @@
+{
+  "nativeSha256": "700e3c2e36ada1b3926b7791ce7ccbc81235bb76eff82bdc250ac1919e5def5b",
+  "receivers": [
+    {
+      "utility": "wearable-structure-strip",
+      "selector": ".wearable-strip",
+      "condition": null,
+      "before": ".wearable-strip {\n  margin: 20px 0 8px;\n  background: var(--bg-card);\n  border: 1px solid var(--border);\n  border-radius: 10px;\n  padding: 14px 16px 12px;\n  /* On mobile the chat + import FABs sit at the bottom-right and overlap the\n     last strip card. Reserve enough bottom margin so the FABs don't obscure\n     readings. (Desktop FAB is smaller and the strip isn't bottom-anchored.) */\n  box-shadow: var(--shadow);\n}",
+      "after": ".wearable-strip /* On mobile the chat + import FABs sit at the bottom-right and overlap the\n     last strip card. Reserve enough bottom margin so the FABs don't obscure\n     readings. (Desktop FAB is smaller and the strip isn't bottom-anchored.) */ {\n  margin: 20px 0 8px;\n  background: var(--bg-card);\n  border: 1px solid var(--border);\n  border-radius: 10px;\n  padding: 14px 16px 12px;\n  box-shadow: var(--shadow);\n}"
+    },
+    {
+      "utility": "wearable-structure-strip-max-width-600px",
+      "selector": ".wearable-strip",
+      "condition": "(max-width: 600px)",
+      "before": ".wearable-strip {\n    margin-bottom: 80px; /* room for chat FAB + import FAB stacked */\n  }",
+      "after": ".wearable-strip /* room for chat FAB + import FAB stacked */ {\n  margin-bottom: 80px;\n}"
+    },
+    {
+      "utility": "wearable-structure-card-grid",
+      "selector": ".wearable-card-grid",
+      "condition": null,
+      "before": ".wearable-card-grid {\n  display: grid;\n  /* auto-fit so the grid stays even no matter how many cards the adapter\n     registry produces (4 for Oura basics, 8-9 with full scopes, more when\n     WHOOP/Apple Health join). Cards want ~220px min; the row refills across\n     the available width without leaving half-empty tail rows. */\n  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));\n  gap: 10px;\n}",
+      "after": ".wearable-card-grid /* auto-fit so the grid stays even no matter how many cards the adapter\n     registry produces (4 for Oura basics, 8-9 with full scopes, more when\n     WHOOP/Apple Health join). Cards want ~220px min; the row refills across\n     the available width without leaving half-empty tail rows. */ {\n  display: grid;\n  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));\n  gap: 10px;\n}"
+    },
+    {
+      "utility": "wearable-structure-card",
+      "selector": ".wearable-card",
+      "condition": null,
+      "before": ".wearable-card {\n  background: var(--bg-primary);\n  border: 1px solid var(--border);\n  border-radius: 8px;\n  padding: 10px 12px 8px;\n  display: flex; flex-direction: column; gap: 6px;\n  cursor: pointer;\n  transition: border-color 0.15s ease, transform 0.15s ease;\n  min-width: 0;\n}",
+      "after": ".wearable-card {\n  background: var(--bg-primary);\n  border: 1px solid var(--border);\n  border-radius: 8px;\n  padding: 10px 12px 8px;\n  display: flex;\n  flex-direction: column;\n  gap: 6px;\n  cursor: pointer;\n  transition: border-color 0.15s ease, transform 0.15s ease;\n  min-width: 0;\n}"
+    },
+    {
+      "utility": "wearable-structure-card-state-hover",
+      "selector": ".wearable-card:hover",
+      "condition": null,
+      "before": ".wearable-card:hover {\n  border-color: var(--accent);\n  transform: translateY(-1px);\n}",
+      "after": ".wearable-card:hover {\n  border-color: var(--accent);\n  transform: translateY(-1px);\n}"
+    },
+    {
+      "utility": "wearable-structure-card-state-focus-visible",
+      "selector": ".wearable-card:focus-visible",
+      "condition": null,
+      "before": ".wearable-card:focus-visible {\n  outline: 2px solid var(--accent); outline-offset: 2px;\n}",
+      "after": ".wearable-card:focus-visible {\n  outline: 2px solid var(--accent);\n  outline-offset: 2px;\n}"
+    },
+    {
+      "utility": "wearable-structure-card-empty",
+      "selector": ".wearable-card-empty",
+      "condition": null,
+      "before": ".wearable-card-empty {\n  border-style: dashed;\n  opacity: 0.82;\n}",
+      "after": ".wearable-card-empty {\n  border-style: dashed;\n  opacity: 0.82;\n}"
+    },
+    {
+      "utility": "wearable-structure-card-empty-state-hover",
+      "selector": ".wearable-card-empty:hover",
+      "condition": null,
+      "before": ".wearable-card-empty:hover { opacity: 1; }",
+      "after": ".wearable-card-empty:hover {\n  opacity: 1;\n}"
+    },
+    {
+      "utility": "wearable-structure-value-row-empty",
+      "selector": ".wearable-value-row-empty",
+      "condition": null,
+      "before": ".wearable-value-row-empty { justify-content: flex-start; }",
+      "after": ".wearable-value-row-empty {\n  justify-content: flex-start;\n}"
+    },
+    {
+      "utility": "wearable-structure-value-dash",
+      "selector": ".wearable-value-dash",
+      "condition": null,
+      "before": ".wearable-value-dash { color: var(--text-muted); font-weight: 400; }",
+      "after": ".wearable-value-dash {\n  color: var(--text-muted);\n  font-weight: 400;\n}"
+    },
+    {
+      "utility": "wearable-structure-empty-cta",
+      "selector": ".wearable-empty-cta",
+      "condition": null,
+      "before": ".wearable-empty-cta {\n  font-size: 11px; color: var(--accent); font-weight: 600;\n  letter-spacing: 0.02em;\n}",
+      "after": ".wearable-empty-cta {\n  font-size: 11px;\n  color: var(--accent);\n  font-weight: 600;\n  letter-spacing: 0.02em;\n}"
+    },
+    {
+      "utility": "wearable-structure-card-reorder-wrap-child-is-wearable-card",
+      "selector": ".wearable-card-reorder-wrap > .wearable-card",
+      "condition": null,
+      "before": ".wearable-card-reorder-wrap > .wearable-card {\n  cursor: default;\n  pointer-events: none; /* suppress clicks/badges on underlying card while reordering */\n  opacity: 0.92;\n}",
+      "after": ".wearable-card-reorder-wrap > .wearable-card /* suppress clicks/badges on underlying card while reordering */ {\n  cursor: default;\n  pointer-events: none;\n  opacity: 0.92;\n}"
+    },
+    {
+      "utility": "wearable-structure-card-reorder-wrap-child-is-wearable-card-state-hover",
+      "selector": ".wearable-card-reorder-wrap > .wearable-card:hover",
+      "condition": null,
+      "before": ".wearable-card-reorder-wrap > .wearable-card:hover {\n  border-color: var(--border); transform: none; /* cancel hover-lift */\n}",
+      "after": ".wearable-card-reorder-wrap > .wearable-card:hover /* cancel hover-lift */ {\n  border-color: var(--border);\n  transform: none;\n}"
+    },
+    {
+      "utility": "wearable-structure-card-top",
+      "selector": ".wearable-card-top",
+      "condition": null,
+      "before": ".wearable-card-top {\n  display: flex; align-items: center; justify-content: space-between; gap: 8px;\n}",
+      "after": ".wearable-card-top {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 8px;\n}"
+    },
+    {
+      "utility": "wearable-structure-metric-name",
+      "selector": ".wearable-metric-name",
+      "condition": null,
+      "before": ".wearable-metric-name {\n  font-size: 12px; font-weight: 600; color: var(--text-secondary);\n  text-transform: uppercase; letter-spacing: 0.04em;\n  display: flex; align-items: baseline; gap: 4px; min-width: 0;\n  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;\n}",
+      "after": ".wearable-metric-name {\n  font-size: 12px;\n  font-weight: 600;\n  color: var(--text-secondary);\n  text-transform: uppercase;\n  letter-spacing: 0.04em;\n  display: flex;\n  align-items: baseline;\n  gap: 4px;\n  min-width: 0;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}"
+    },
+    {
+      "utility": "wearable-structure-metric-sub",
+      "selector": ".wearable-metric-sub",
+      "condition": null,
+      "before": ".wearable-metric-sub {\n  font-size: 10px; font-weight: 500; color: var(--text-muted);\n  text-transform: none; letter-spacing: 0;\n}",
+      "after": ".wearable-metric-sub {\n  font-size: 10px;\n  font-weight: 500;\n  color: var(--text-muted);\n  text-transform: none;\n  letter-spacing: 0;\n}"
+    },
+    {
+      "utility": "wearable-structure-delta",
+      "selector": ".wearable-delta",
+      "condition": null,
+      "before": ".wearable-delta {\n  font-size: 11px; font-weight: 600;\n  padding: 1px 6px; border-radius: 8px; white-space: nowrap;\n  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);\n}",
+      "after": ".wearable-delta {\n  font-size: 11px;\n  font-weight: 600;\n  padding: 1px 6px;\n  border-radius: 8px;\n  white-space: nowrap;\n  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);\n}"
+    },
+    {
+      "utility": "wearable-structure-delta-is-delta-good",
+      "selector": ".wearable-delta.delta-good",
+      "condition": null,
+      "before": ".wearable-delta.delta-good { background: var(--green-bg); color: var(--green); }",
+      "after": ".wearable-delta.delta-good {\n  background: var(--green-bg);\n  color: var(--green);\n}"
+    },
+    {
+      "utility": "wearable-structure-delta-is-delta-bad",
+      "selector": ".wearable-delta.delta-bad",
+      "condition": null,
+      "before": ".wearable-delta.delta-bad  { background: var(--red-bg);   color: var(--red); }",
+      "after": ".wearable-delta.delta-bad  {\n  background: var(--red-bg);\n  color: var(--red);\n}"
+    },
+    {
+      "utility": "wearable-structure-delta-is-delta-flat",
+      "selector": ".wearable-delta.delta-flat",
+      "condition": null,
+      "before": ".wearable-delta.delta-flat { background: var(--neutral-soft-bg); color: var(--text-muted); }",
+      "after": ".wearable-delta.delta-flat {\n  background: var(--neutral-soft-bg);\n  color: var(--text-muted);\n}"
+    },
+    {
+      "utility": "wearable-structure-value-row",
+      "selector": ".wearable-value-row",
+      "condition": null,
+      "before": ".wearable-value-row {\n  display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap;\n  min-height: 24px;\n}",
+      "after": ".wearable-value-row {\n  display: flex;\n  align-items: baseline;\n  gap: 4px;\n  flex-wrap: wrap;\n  min-height: 24px;\n}"
+    },
+    {
+      "utility": "wearable-structure-value",
+      "selector": ".wearable-value",
+      "condition": null,
+      "before": ".wearable-value {\n  font-size: 22px; font-weight: 700; color: var(--text-primary);\n  font-variant-numeric: tabular-nums;\n  line-height: 1;\n}",
+      "after": ".wearable-value {\n  font-size: 22px;\n  font-weight: 700;\n  color: var(--text-primary);\n  font-variant-numeric: tabular-nums;\n  line-height: 1;\n}"
+    },
+    {
+      "utility": "wearable-structure-unit",
+      "selector": ".wearable-unit",
+      "condition": null,
+      "before": ".wearable-unit {\n  font-size: 12px; color: var(--text-muted); font-weight: 500;\n}",
+      "after": ".wearable-unit {\n  font-size: 12px;\n  color: var(--text-muted);\n  font-weight: 500;\n}"
+    },
+    {
+      "utility": "wearable-structure-unit-tight",
+      "selector": ".wearable-unit-tight",
+      "condition": null,
+      "before": ".wearable-unit-tight {\n  margin-left: 0 !important;\n}",
+      "after": ".wearable-unit-tight {\n  margin-left: 0 !important;\n}"
+    },
+    {
+      "utility": "wearable-structure-value-row-is-wearable-unit-tight",
+      "selector": ".wearable-value-row .wearable-unit-tight",
+      "condition": null,
+      "before": ".wearable-value-row .wearable-unit-tight {\n  /* Value-row default has flex gap; tight unit cancels it. */\n  margin-left: -4px !important;\n}",
+      "after": ".wearable-value-row .wearable-unit-tight /* Value-row default has flex gap; tight unit cancels it. */ {\n  margin-left: -4px !important;\n}"
+    },
+    {
+      "utility": "wearable-structure-baseline",
+      "selector": ".wearable-baseline",
+      "condition": null,
+      "before": ".wearable-baseline {\n  margin-left: auto; font-size: 10px; color: var(--text-muted);\n  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);\n  white-space: nowrap;\n}",
+      "after": ".wearable-baseline {\n  margin-left: auto;\n  font-size: 10px;\n  color: var(--text-muted);\n  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);\n  white-space: nowrap;\n}"
+    },
+    {
+      "utility": "wearable-structure-staleness",
+      "selector": ".wearable-staleness",
+      "condition": null,
+      "before": ".wearable-staleness {\n  flex-basis: 100%; margin-top: 2px; font-size: 10px;\n  color: var(--text-muted); font-style: italic; white-space: nowrap;\n  cursor: help;\n}",
+      "after": ".wearable-staleness {\n  flex-basis: 100%;\n  margin-top: 2px;\n  font-size: 10px;\n  color: var(--text-muted);\n  font-style: italic;\n  white-space: nowrap;\n  cursor: help;\n}"
+    },
+    {
+      "utility": "wearable-structure-card-is-wearable-staleness-is-wearable-baseline-is-wearable-card-state-has-is-wearable-staleness-is-wearable-baseline-max-width-600px",
+      "selector": ".wearable-card .wearable-staleness ~ .wearable-baseline,\n  .wearable-card:has(.wearable-staleness) .wearable-baseline",
+      "condition": "(max-width: 600px)",
+      "before": ".wearable-card .wearable-staleness ~ .wearable-baseline,\n  .wearable-card:has(.wearable-staleness) .wearable-baseline { display: none; }",
+      "after": ".wearable-card .wearable-staleness ~ .wearable-baseline,\n  .wearable-card:has(.wearable-staleness) .wearable-baseline {\n  display: none;\n}"
+    },
+    {
+      "utility": "wearable-structure-sparkline",
+      "selector": ".wearable-sparkline",
+      "condition": null,
+      "before": ".wearable-sparkline {\n  width: 100%; height: 32px; display: block;\n  color: var(--text-muted);\n}",
+      "after": ".wearable-sparkline {\n  width: 100%;\n  height: 32px;\n  display: block;\n  color: var(--text-muted);\n}"
+    },
+    {
+      "utility": "wearable-structure-sparkline-is-spark-baseline",
+      "selector": ".wearable-sparkline .spark-baseline",
+      "condition": null,
+      "before": ".wearable-sparkline .spark-baseline {\n  stroke: currentColor; stroke-opacity: 0.25;\n  stroke-dasharray: 2 3; stroke-width: 0.5;\n}",
+      "after": ".wearable-sparkline .spark-baseline {\n  stroke: currentColor;\n  stroke-opacity: 0.25;\n  stroke-dasharray: 2 3;\n  stroke-width: 0.5;\n}"
+    },
+    {
+      "utility": "wearable-structure-sparkline-is-spark-line",
+      "selector": ".wearable-sparkline .spark-line",
+      "condition": null,
+      "before": ".wearable-sparkline .spark-line {\n  fill: none; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round;\n  vector-effect: non-scaling-stroke;\n}",
+      "after": ".wearable-sparkline .spark-line {\n  fill: none;\n  stroke-width: 1.4;\n  stroke-linecap: round;\n  stroke-linejoin: round;\n  vector-effect: non-scaling-stroke;\n}"
+    },
+    {
+      "utility": "wearable-structure-sparkline-is-spark-last",
+      "selector": ".wearable-sparkline .spark-last",
+      "condition": null,
+      "before": ".wearable-sparkline .spark-last { stroke: var(--bg-card); stroke-width: 0.8; }",
+      "after": ".wearable-sparkline .spark-last {\n  stroke: var(--bg-card);\n  stroke-width: 0.8;\n}"
+    },
+    {
+      "utility": "wearable-structure-sparkline-is-spark-bad-is-spark-line-is-wearable-sparkline-is-spark-bad-is-spark-last",
+      "selector": ".wearable-sparkline.spark-bad .spark-line,\n.wearable-sparkline.spark-bad .spark-last",
+      "condition": null,
+      "before": ".wearable-sparkline.spark-bad .spark-line,\n.wearable-sparkline.spark-bad .spark-last { stroke: var(--red); fill: var(--red); }",
+      "after": ".wearable-sparkline.spark-bad .spark-line,\n.wearable-sparkline.spark-bad .spark-last {\n  stroke: var(--red);\n  fill: var(--red);\n}"
+    },
+    {
+      "utility": "wearable-structure-sparkline-is-spark-good-is-spark-line-is-wearable-sparkline-is-spark-good-is-spark-last",
+      "selector": ".wearable-sparkline.spark-good .spark-line,\n.wearable-sparkline.spark-good .spark-last",
+      "condition": null,
+      "before": ".wearable-sparkline.spark-good .spark-line,\n.wearable-sparkline.spark-good .spark-last { stroke: var(--green); fill: var(--green); }",
+      "after": ".wearable-sparkline.spark-good .spark-line,\n.wearable-sparkline.spark-good .spark-last {\n  stroke: var(--green);\n  fill: var(--green);\n}"
+    },
+    {
+      "utility": "wearable-structure-sparkline-is-spark-neutral-is-spark-line-is-wearable-sparkline-is-spark-neutral-is-spark-last",
+      "selector": ".wearable-sparkline.spark-neutral .spark-line,\n.wearable-sparkline.spark-neutral .spark-last",
+      "condition": null,
+      "before": ".wearable-sparkline.spark-neutral .spark-line,\n.wearable-sparkline.spark-neutral .spark-last { stroke: var(--accent); fill: var(--accent); }",
+      "after": ".wearable-sparkline.spark-neutral .spark-line,\n.wearable-sparkline.spark-neutral .spark-last {\n  stroke: var(--accent);\n  fill: var(--accent);\n}"
+    },
+    {
+      "utility": "wearable-structure-card-bottom",
+      "selector": ".wearable-card-bottom",
+      "condition": null,
+      "before": ".wearable-card-bottom {\n  display: flex; align-items: center; justify-content: space-between; gap: 8px;\n  min-height: 18px;\n}",
+      "after": ".wearable-card-bottom {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 8px;\n  min-height: 18px;\n}"
+    },
+    {
+      "utility": "wearable-structure-trend-pill",
+      "selector": ".wearable-trend-pill",
+      "condition": null,
+      "before": ".wearable-trend-pill {\n  font-size: 10px; font-weight: 500; color: var(--text-muted);\n  padding: 1px 6px; border-radius: 6px;\n  background: var(--neutral-soft-bg);\n  text-transform: none; letter-spacing: 0;\n  white-space: nowrap; flex-shrink: 0;\n}",
+      "after": ".wearable-trend-pill {\n  font-size: 10px;\n  font-weight: 500;\n  color: var(--text-muted);\n  padding: 1px 6px;\n  border-radius: 6px;\n  background: var(--neutral-soft-bg);\n  text-transform: none;\n  letter-spacing: 0;\n  white-space: nowrap;\n  flex-shrink: 0;\n}"
+    },
+    {
+      "utility": "wearable-structure-trend-bad",
+      "selector": ".wearable-trend-bad",
+      "condition": null,
+      "before": ".wearable-trend-bad       { color: var(--red);   background: var(--red-bg); }",
+      "after": ".wearable-trend-bad       {\n  color: var(--red);\n  background: var(--red-bg);\n}"
+    },
+    {
+      "utility": "wearable-structure-trend-good",
+      "selector": ".wearable-trend-good",
+      "condition": null,
+      "before": ".wearable-trend-good      { color: var(--green); background: var(--green-bg); }",
+      "after": ".wearable-trend-good      {\n  color: var(--green);\n  background: var(--green-bg);\n}"
+    },
+    {
+      "utility": "wearable-structure-trend-improving",
+      "selector": ".wearable-trend-improving",
+      "condition": null,
+      "before": ".wearable-trend-improving { color: var(--green); background: var(--green-bg); }",
+      "after": ".wearable-trend-improving {\n  color: var(--green);\n  background: var(--green-bg);\n}"
+    },
+    {
+      "utility": "wearable-structure-trend-flat",
+      "selector": ".wearable-trend-flat",
+      "condition": null,
+      "before": ".wearable-trend-flat      { color: var(--text-muted); background: var(--neutral-soft-bg); }",
+      "after": ".wearable-trend-flat      {\n  color: var(--text-muted);\n  background: var(--neutral-soft-bg);\n}"
+    },
+    {
+      "utility": "wearable-structure-source-badge",
+      "selector": ".wearable-source-badge",
+      "condition": null,
+      "before": ".wearable-source-badge {\n  font-size: 10px; font-weight: 600; color: var(--text-muted);\n  letter-spacing: 0.02em;\n  padding: 1px 5px; border-radius: 4px;\n  background: var(--neutral-soft-bg);\n  min-width: 0; max-width: 100%;\n  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;\n}",
+      "after": ".wearable-source-badge {\n  font-size: 10px;\n  font-weight: 600;\n  color: var(--text-muted);\n  letter-spacing: 0.02em;\n  padding: 1px 5px;\n  border-radius: 4px;\n  background: var(--neutral-soft-bg);\n  min-width: 0;\n  max-width: 100%;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}"
+    },
+    {
+      "utility": "wearable-structure-source-badge-max-width-600px",
+      "selector": ".wearable-source-badge",
+      "condition": "(max-width: 600px)",
+      "before": ".wearable-source-badge {\n    font-size: 10px;\n    text-transform: none;\n    letter-spacing: 0.01em;\n  }",
+      "after": ".wearable-source-badge {\n  font-size: 10px;\n  text-transform: none;\n  letter-spacing: 0.01em;\n}"
+    },
+    {
+      "utility": "wearable-structure-relay-consent-summary-child-div",
+      "selector": ".wearable-relay-consent-summary > div",
+      "condition": null,
+      "before": ".wearable-relay-consent-summary > div { line-height: 1.45; }",
+      "after": ".wearable-relay-consent-summary > div {\n  line-height: 1.45;\n}"
+    },
+    {
+      "utility": "wearable-structure-adapter-chip",
+      "selector": ".wearable-adapter-chip",
+      "condition": null,
+      "before": ".wearable-adapter-chip {\n  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;\n  padding: 2px 8px; border-radius: 8px;\n}",
+      "after": ".wearable-adapter-chip {\n  font-size: 10px;\n  font-weight: 600;\n  text-transform: uppercase;\n  letter-spacing: 0.05em;\n  padding: 2px 8px;\n  border-radius: 8px;\n}"
+    },
+    {
+      "utility": "wearable-structure-adapter-chip-off",
+      "selector": ".wearable-adapter-chip-off",
+      "condition": null,
+      "before": ".wearable-adapter-chip-off { background: var(--neutral-soft-bg); color: var(--text-muted); }",
+      "after": ".wearable-adapter-chip-off {\n  background: var(--neutral-soft-bg);\n  color: var(--text-muted);\n}"
+    },
+    {
+      "utility": "wearable-structure-adapter-chip-ok",
+      "selector": ".wearable-adapter-chip-ok",
+      "condition": null,
+      "before": ".wearable-adapter-chip-ok  { background: var(--green-bg); color: var(--green); }",
+      "after": ".wearable-adapter-chip-ok  {\n  background: var(--green-bg);\n  color: var(--green);\n}"
+    },
+    {
+      "utility": "wearable-structure-adapter-chip-bad",
+      "selector": ".wearable-adapter-chip-bad",
+      "condition": null,
+      "before": ".wearable-adapter-chip-bad { background: var(--red-bg); color: var(--red); }",
+      "after": ".wearable-adapter-chip-bad {\n  background: var(--red-bg);\n  color: var(--red);\n}"
+    },
+    {
+      "utility": "wearable-structure-source-badge-btn",
+      "selector": ".wearable-source-badge-btn",
+      "condition": null,
+      "before": ".wearable-source-badge-btn {\n  border: 0;\n  cursor: pointer;\n  font: inherit;\n}",
+      "after": ".wearable-source-badge-btn {\n  border: 0;\n  cursor: pointer;\n  font: inherit;\n}"
+    },
+    {
+      "utility": "wearable-structure-source-badge-btn-state-hover",
+      "selector": ".wearable-source-badge-btn:hover",
+      "condition": null,
+      "before": ".wearable-source-badge-btn:hover {\n  text-decoration: underline;\n}",
+      "after": ".wearable-source-badge-btn:hover {\n  text-decoration: underline;\n}"
+    },
+    {
+      "utility": "wearable-structure-adapter-chip-beta",
+      "selector": ".wearable-adapter-chip-beta",
+      "condition": null,
+      "before": ".wearable-adapter-chip-beta {\n  background: linear-gradient(90deg, color-mix(in srgb, var(--purple) 18%, transparent), color-mix(in srgb, var(--accent) 18%, transparent));\n  color: var(--purple);\n  border: 1px solid color-mix(in srgb, var(--purple) 35%, transparent);\n  font-size: 9px;\n  letter-spacing: 0.08em;\n  margin-left: 4px;\n}",
+      "after": ".wearable-adapter-chip-beta {\n  background: linear-gradient(90deg, color-mix(in srgb, var(--purple) 18%, transparent), color-mix(in srgb, var(--accent) 18%, transparent));\n  color: var(--purple);\n  border: 1px solid color-mix(in srgb, var(--purple) 35%, transparent);\n  font-size: 9px;\n  letter-spacing: 0.08em;\n  margin-left: 4px;\n}"
+    },
+    {
+      "utility": "wearable-structure-adapter-body",
+      "selector": ".wearable-adapter-body",
+      "condition": null,
+      "before": ".wearable-adapter-body { display: flex; flex-direction: column; gap: 8px; }",
+      "after": ".wearable-adapter-body {\n  display: flex;\n  flex-direction: column;\n  gap: 8px;\n}"
+    },
+    {
+      "utility": "wearable-structure-adapter-hint",
+      "selector": ".wearable-adapter-hint",
+      "condition": null,
+      "before": ".wearable-adapter-hint { font-size: 12px; color: var(--text-muted); margin: 0; }",
+      "after": ".wearable-adapter-hint {\n  font-size: 12px;\n  color: var(--text-muted);\n  margin: 0;\n}"
+    },
+    {
+      "utility": "wearable-structure-adapter-hint-a",
+      "selector": ".wearable-adapter-hint a",
+      "condition": null,
+      "before": ".wearable-adapter-hint a { color: var(--accent); text-decoration: none; }",
+      "after": ".wearable-adapter-hint a {\n  color: var(--accent);\n  text-decoration: none;\n}"
+    },
+    {
+      "utility": "wearable-structure-adapter-hint-a-state-hover",
+      "selector": ".wearable-adapter-hint a:hover",
+      "condition": null,
+      "before": ".wearable-adapter-hint a:hover { text-decoration: underline; }",
+      "after": ".wearable-adapter-hint a:hover {\n  text-decoration: underline;\n}"
+    },
+    {
+      "utility": "wearable-structure-adapter-input",
+      "selector": ".wearable-adapter-input",
+      "condition": null,
+      "before": ".wearable-adapter-input {\n  width: 100%; padding: 8px 10px; border-radius: 6px;\n  border: 1px solid var(--border); background: var(--bg-card); color: var(--text-primary);\n  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace); font-size: 13px;\n}",
+      "after": ".wearable-adapter-input {\n  width: 100%;\n  padding: 8px 10px;\n  border-radius: 6px;\n  border: 1px solid var(--border);\n  background: var(--bg-card);\n  color: var(--text-primary);\n  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);\n  font-size: 13px;\n}"
+    },
+    {
+      "utility": "wearable-structure-adapter-actions",
+      "selector": ".wearable-adapter-actions",
+      "condition": null,
+      "before": ".wearable-adapter-actions {\n  display: flex; gap: 6px; flex-wrap: wrap;\n}",
+      "after": ".wearable-adapter-actions {\n  display: flex;\n  gap: 6px;\n  flex-wrap: wrap;\n}"
+    },
+    {
+      "utility": "wearable-structure-adapter-identity",
+      "selector": ".wearable-adapter-identity",
+      "condition": null,
+      "before": ".wearable-adapter-identity {\n  font-size: 13px; color: var(--text-primary); font-weight: 500;\n}",
+      "after": ".wearable-adapter-identity {\n  font-size: 13px;\n  color: var(--text-primary);\n  font-weight: 500;\n}"
+    },
+    {
+      "utility": "wearable-structure-adapter-meta",
+      "selector": ".wearable-adapter-meta",
+      "condition": null,
+      "before": ".wearable-adapter-meta {\n  font-size: 11px; color: var(--text-muted);\n}",
+      "after": ".wearable-adapter-meta {\n  font-size: 11px;\n  color: var(--text-muted);\n}"
+    },
+    {
+      "utility": "wearable-structure-adapter-note",
+      "selector": ".wearable-adapter-note",
+      "condition": null,
+      "before": ".wearable-adapter-note {\n  font-size: 12px; color: var(--text-muted); font-style: italic; margin: 0;\n}",
+      "after": ".wearable-adapter-note {\n  font-size: 12px;\n  color: var(--text-muted);\n  font-style: italic;\n  margin: 0;\n}"
+    },
+    {
+      "utility": "wearable-structure-vendor-icon",
+      "selector": ".wearable-vendor-icon",
+      "condition": null,
+      "before": ".wearable-vendor-icon {\n  display: inline-flex; align-items: center; justify-content: center;\n  color: var(--text-secondary);\n  flex-shrink: 0;\n}",
+      "after": ".wearable-vendor-icon {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  color: var(--text-secondary);\n  flex-shrink: 0;\n}"
+    },
+    {
+      "utility": "wearable-structure-adapter-name",
+      "selector": ".wearable-adapter-name",
+      "condition": null,
+      "before": ".wearable-adapter-name {\n  display: inline-flex; align-items: center; gap: 8px;\n}",
+      "after": ".wearable-adapter-name {\n  display: inline-flex;\n  align-items: center;\n  gap: 8px;\n}"
+    },
+    {
+      "utility": "wearable-structure-adapter-card-is-is-connected-is-wearable-vendor-icon",
+      "selector": ".wearable-adapter-card.is-connected .wearable-vendor-icon",
+      "condition": null,
+      "before": ".wearable-adapter-card.is-connected .wearable-vendor-icon {\n  color: var(--accent);\n}",
+      "after": ".wearable-adapter-card.is-connected .wearable-vendor-icon {\n  color: var(--accent);\n}"
+    },
+    {
+      "utility": "wearable-structure-adapter-card-is-is-connected",
+      "selector": ".wearable-adapter-card.is-connected",
+      "condition": null,
+      "before": ".wearable-adapter-card.is-connected {\n  border-color: color-mix(in srgb, var(--accent) 25%, transparent);\n}",
+      "after": ".wearable-adapter-card.is-connected {\n  border-color: color-mix(in srgb, var(--accent) 25%, transparent);\n}"
+    },
+    {
+      "utility": "wearable-structure-action",
+      "selector": ".wearable-action",
+      "condition": null,
+      "before": ".wearable-action {\n  display: inline-flex; align-items: center; gap: 6px;\n  padding: 7px 14px; border-radius: 999px;\n  border: 1px solid var(--border);\n  background: transparent; color: var(--text-secondary);\n  font: inherit; font-size: 12px; font-weight: 500;\n  cursor: pointer; transition: all 0.15s ease; line-height: 1;\n  white-space: nowrap;\n}",
+      "after": ".wearable-action {\n  display: inline-flex;\n  align-items: center;\n  gap: 6px;\n  padding: 7px 14px;\n  border-radius: 999px;\n  border: 1px solid var(--border);\n  background: transparent;\n  color: var(--text-secondary);\n  font: inherit;\n  font-size: 12px;\n  font-weight: 500;\n  cursor: pointer;\n  transition: all 0.15s ease;\n  line-height: 1;\n  white-space: nowrap;\n}"
+    },
+    {
+      "utility": "wearable-structure-action-state-hover-state-not-state-disabled",
+      "selector": ".wearable-action:hover:not(:disabled)",
+      "condition": null,
+      "before": ".wearable-action:hover:not(:disabled) {\n  border-color: var(--accent); color: var(--accent); background: var(--bg-secondary);\n}",
+      "after": ".wearable-action:hover:not(:disabled) {\n  border-color: var(--accent);\n  color: var(--accent);\n  background: var(--bg-secondary);\n}"
+    },
+    {
+      "utility": "wearable-structure-action-state-disabled",
+      "selector": ".wearable-action:disabled",
+      "condition": null,
+      "before": ".wearable-action:disabled { opacity: 0.7; cursor: progress; }",
+      "after": ".wearable-action:disabled {\n  opacity: 0.7;\n  cursor: progress;\n}"
+    },
+    {
+      "utility": "wearable-structure-action-secondary",
+      "selector": ".wearable-action-secondary",
+      "condition": null,
+      "before": ".wearable-action-secondary {\n  /* \"Re-sync 90 days\" / disconnect-style actions — heavier than incremental\n     \"Sync.\" Use a softer styling so a routine sync isn't visually identical\n     to a 90-day refetch that hits rate limits and takes 30s+. */\n  font-weight: 400; opacity: 0.8;\n}",
+      "after": ".wearable-action-secondary /* \"Re-sync 90 days\" / disconnect-style actions — heavier than incremental\n     \"Sync.\" Use a softer styling so a routine sync isn't visually identical\n     to a 90-day refetch that hits rate limits and takes 30s+. */ {\n  font-weight: 400;\n  opacity: 0.8;\n}"
+    },
+    {
+      "utility": "wearable-structure-action-secondary-state-hover-state-not-state-disabled",
+      "selector": ".wearable-action-secondary:hover:not(:disabled)",
+      "condition": null,
+      "before": ".wearable-action-secondary:hover:not(:disabled) {\n  opacity: 1;\n}",
+      "after": ".wearable-action-secondary:hover:not(:disabled) {\n  opacity: 1;\n}"
+    },
+    {
+      "utility": "wearable-structure-action-hint",
+      "selector": ".wearable-action-hint",
+      "condition": null,
+      "before": ".wearable-action-hint {\n  font-size: 10px; color: var(--text-muted); margin-left: 4px;\n}",
+      "after": ".wearable-action-hint {\n  font-size: 10px;\n  color: var(--text-muted);\n  margin-left: 4px;\n}"
+    },
+    {
+      "utility": "wearable-structure-action-icon",
+      "selector": ".wearable-action-icon",
+      "condition": null,
+      "before": ".wearable-action-icon { flex-shrink: 0; transition: transform 0.2s ease; }",
+      "after": ".wearable-action-icon {\n  flex-shrink: 0;\n  transition: transform 0.2s ease;\n}"
+    },
+    {
+      "utility": "wearable-structure-action-is-is-syncing-is-wearable-action-icon",
+      "selector": ".wearable-action.is-syncing .wearable-action-icon",
+      "condition": null,
+      "before": ".wearable-action.is-syncing .wearable-action-icon {\n  animation: wearable-spin 0.9s linear infinite;\n}",
+      "after": ".wearable-action.is-syncing .wearable-action-icon {\n  animation: wearable-spin 0.9s linear infinite;\n}"
+    },
+    {
+      "utility": "wearable-structure-action-primary",
+      "selector": ".wearable-action-primary",
+      "condition": null,
+      "before": ".wearable-action-primary {\n  background: var(--accent-gradient);\n  border-color: transparent;\n  color: white;\n}",
+      "after": ".wearable-action-primary {\n  background: var(--accent-gradient);\n  border-color: transparent;\n  color: white;\n}"
+    },
+    {
+      "utility": "wearable-structure-action-primary-state-hover-state-not-state-disabled",
+      "selector": ".wearable-action-primary:hover:not(:disabled)",
+      "condition": null,
+      "before": ".wearable-action-primary:hover:not(:disabled) {\n  filter: brightness(1.08);\n  border-color: transparent; color: white; background: var(--accent-gradient);\n}",
+      "after": ".wearable-action-primary:hover:not(:disabled) {\n  filter: brightness(1.08);\n  border-color: transparent;\n  color: white;\n  background: var(--accent-gradient);\n}"
+    },
+    {
+      "utility": "wearable-structure-action-danger",
+      "selector": ".wearable-action-danger",
+      "condition": null,
+      "before": ".wearable-action-danger {\n  color: var(--text-muted);\n}",
+      "after": ".wearable-action-danger {\n  color: var(--text-muted);\n}"
+    },
+    {
+      "utility": "wearable-structure-action-danger-state-hover-state-not-state-disabled",
+      "selector": ".wearable-action-danger:hover:not(:disabled)",
+      "condition": null,
+      "before": ".wearable-action-danger:hover:not(:disabled) {\n  border-color: var(--red); color: var(--red); background: var(--red-bg);\n}",
+      "after": ".wearable-action-danger:hover:not(:disabled) {\n  border-color: var(--red);\n  color: var(--red);\n  background: var(--red-bg);\n}"
+    },
+    {
+      "utility": "wearable-structure-action-connect",
+      "selector": ".wearable-action-connect",
+      "condition": null,
+      "before": ".wearable-action-connect {\n  padding: 7px 18px;\n  font-size: 13px;\n}",
+      "after": ".wearable-action-connect {\n  padding: 7px 18px;\n  font-size: 13px;\n}"
+    },
+    {
+      "utility": "wearable-structure-action-connect-is-wearable-vendor-icon",
+      "selector": ".wearable-action-connect .wearable-vendor-icon",
+      "condition": null,
+      "before": ".wearable-action-connect .wearable-vendor-icon {\n  color: rgba(255, 255, 255, 0.95);\n}",
+      "after": ".wearable-action-connect .wearable-vendor-icon {\n  color: rgba(255, 255, 255, 0.95);\n}"
+    },
+    {
+      "utility": "wearable-structure-action-branded",
+      "selector": ".wearable-action-branded",
+      "condition": null,
+      "before": ".wearable-action-branded {\n  background: var(--brand-color);\n  border-color: transparent;\n  color: white;\n  /* Subtle brand-coloured ring on focus for accessibility. */\n}",
+      "after": ".wearable-action-branded /* Subtle brand-coloured ring on focus for accessibility. */ {\n  background: var(--brand-color);\n  border-color: transparent;\n  color: white;\n}"
+    },
+    {
+      "utility": "wearable-structure-action-branded-state-hover-state-not-state-disabled",
+      "selector": ".wearable-action-branded:hover:not(:disabled)",
+      "condition": null,
+      "before": ".wearable-action-branded:hover:not(:disabled) {\n  background: var(--brand-color);\n  filter: brightness(1.1);\n  border-color: transparent;\n  color: white;\n}",
+      "after": ".wearable-action-branded:hover:not(:disabled) {\n  background: var(--brand-color);\n  filter: brightness(1.1);\n  border-color: transparent;\n  color: white;\n}"
+    },
+    {
+      "utility": "wearable-structure-action-branded-state-focus-visible",
+      "selector": ".wearable-action-branded:focus-visible",
+      "condition": null,
+      "before": ".wearable-action-branded:focus-visible {\n  outline: 2px solid var(--brand-color);\n  outline-offset: 2px;\n}",
+      "after": ".wearable-action-branded:focus-visible {\n  outline: 2px solid var(--brand-color);\n  outline-offset: 2px;\n}"
+    },
+    {
+      "utility": "wearable-structure-action-signin",
+      "selector": ".wearable-action-signin",
+      "condition": null,
+      "before": ".wearable-action-signin {\n  border: 0;\n  background: transparent;\n  padding: 0;\n  cursor: pointer;\n  display: inline-flex;\n  align-items: center;\n  line-height: 0;\n}",
+      "after": ".wearable-action-signin {\n  border: 0;\n  background: transparent;\n  padding: 0;\n  cursor: pointer;\n  display: inline-flex;\n  align-items: center;\n  line-height: 0;\n}"
+    },
+    {
+      "utility": "wearable-structure-action-signin-img",
+      "selector": ".wearable-action-signin img",
+      "condition": null,
+      "before": ".wearable-action-signin img {\n  height: 36px;\n  width: auto;\n  max-width: 220px;\n  display: block;\n}",
+      "after": ".wearable-action-signin img {\n  height: 36px;\n  width: auto;\n  max-width: 220px;\n  display: block;\n}"
+    },
+    {
+      "utility": "wearable-structure-action-signin-state-focus-visible",
+      "selector": ".wearable-action-signin:focus-visible",
+      "condition": null,
+      "before": ".wearable-action-signin:focus-visible {\n  outline: 2px solid var(--accent);\n  outline-offset: 3px;\n  border-radius: 4px;\n}",
+      "after": ".wearable-action-signin:focus-visible {\n  outline: 2px solid var(--accent);\n  outline-offset: 3px;\n  border-radius: 4px;\n}"
+    },
+    {
+      "utility": "wearable-structure-action-signin-branded",
+      "selector": ".wearable-action-signin-branded",
+      "condition": null,
+      "before": ".wearable-action-signin-branded {\n  background: var(--brand-color);\n  border-radius: 999px;\n  padding: 9px 18px;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  transition: filter 0.15s ease;\n}",
+      "after": ".wearable-action-signin-branded {\n  background: var(--brand-color);\n  border-radius: 999px;\n  padding: 9px 18px;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  transition: filter 0.15s ease;\n}"
+    },
+    {
+      "utility": "wearable-structure-action-signin-branded-state-hover-state-not-state-disabled",
+      "selector": ".wearable-action-signin-branded:hover:not(:disabled)",
+      "condition": null,
+      "before": ".wearable-action-signin-branded:hover:not(:disabled) {\n  filter: brightness(1.1);\n}",
+      "after": ".wearable-action-signin-branded:hover:not(:disabled) {\n  filter: brightness(1.1);\n}"
+    },
+    {
+      "utility": "wearable-structure-action-signin-branded-img",
+      "selector": ".wearable-action-signin-branded img",
+      "condition": null,
+      "before": ".wearable-action-signin-branded img {\n  height: 18px;\n  width: auto;\n  max-width: 160px;\n}",
+      "after": ".wearable-action-signin-branded img {\n  height: 18px;\n  width: auto;\n  max-width: 160px;\n}"
+    },
+    {
+      "utility": "wearable-structure-action-signin-accent",
+      "selector": ".wearable-action-signin-accent",
+      "condition": null,
+      "before": ".wearable-action-signin-accent {\n  background: var(--accent-gradient);\n  border-radius: 999px;\n  padding: 9px 18px;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  transition: filter 0.15s ease;\n}",
+      "after": ".wearable-action-signin-accent {\n  background: var(--accent-gradient);\n  border-radius: 999px;\n  padding: 9px 18px;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  transition: filter 0.15s ease;\n}"
+    },
+    {
+      "utility": "wearable-structure-action-signin-accent-state-hover-state-not-state-disabled",
+      "selector": ".wearable-action-signin-accent:hover:not(:disabled)",
+      "condition": null,
+      "before": ".wearable-action-signin-accent:hover:not(:disabled) {\n  filter: brightness(1.1);\n}",
+      "after": ".wearable-action-signin-accent:hover:not(:disabled) {\n  filter: brightness(1.1);\n}"
+    },
+    {
+      "utility": "wearable-structure-action-signin-accent-img",
+      "selector": ".wearable-action-signin-accent img",
+      "condition": null,
+      "before": ".wearable-action-signin-accent img {\n  height: 18px;\n  width: auto;\n  max-width: 160px;\n}",
+      "after": ".wearable-action-signin-accent img {\n  height: 18px;\n  width: auto;\n  max-width: 160px;\n}"
+    },
+    {
+      "utility": "wearable-structure-vendor-mark",
+      "selector": ".wearable-vendor-mark",
+      "condition": null,
+      "before": ".wearable-vendor-mark {\n  display: inline-block;\n  width: var(--mark-size, 18px);\n  height: var(--mark-size, 18px);\n  background-color: currentColor;\n  -webkit-mask: var(--mark-url) center / contain no-repeat;\n  mask: var(--mark-url) center / contain no-repeat;\n  flex-shrink: 0;\n}",
+      "after": ".wearable-vendor-mark {\n  display: inline-block;\n  width: var(--mark-size, 18px);\n  height: var(--mark-size, 18px);\n  background-color: currentColor;\n  -webkit-mask: var(--mark-url) center / contain no-repeat;\n  mask: var(--mark-url) center / contain no-repeat;\n  flex-shrink: 0;\n}"
+    },
+    {
+      "utility": "wearable-structure-vendor-icon-img",
+      "selector": ".wearable-vendor-icon-img",
+      "condition": null,
+      "before": ".wearable-vendor-icon-img {\n  display: block;\n  flex-shrink: 0;\n  height: 18px;\n  width: auto;\n  max-width: 90px;\n  object-fit: contain;\n  object-position: left center;\n}",
+      "after": ".wearable-vendor-icon-img {\n  display: block;\n  flex-shrink: 0;\n  height: 18px;\n  width: auto;\n  max-width: 90px;\n  object-fit: contain;\n  object-position: left center;\n}"
+    },
+    {
+      "utility": "wearable-structure-action-link",
+      "selector": ".wearable-action-link",
+      "condition": null,
+      "before": ".wearable-action-link {\n  border: 0;\n  padding: 7px 10px;\n  color: var(--text-muted);\n  background: transparent;\n}",
+      "after": ".wearable-action-link {\n  border: 0;\n  padding: 7px 10px;\n  color: var(--text-muted);\n  background: transparent;\n}"
+    },
+    {
+      "utility": "wearable-structure-action-link-state-hover-state-not-state-disabled",
+      "selector": ".wearable-action-link:hover:not(:disabled)",
+      "condition": null,
+      "before": ".wearable-action-link:hover:not(:disabled) {\n  color: var(--accent);\n  background: transparent;\n  border-color: transparent;\n}",
+      "after": ".wearable-action-link:hover:not(:disabled) {\n  color: var(--accent);\n  background: transparent;\n  border-color: transparent;\n}"
+    },
+    {
+      "utility": "wearable-structure-adapter-body-compact",
+      "selector": ".wearable-adapter-body-compact",
+      "condition": null,
+      "before": ".wearable-adapter-body-compact {\n  gap: 10px;\n}",
+      "after": ".wearable-adapter-body-compact {\n  gap: 10px;\n}"
+    },
+    {
+      "utility": "wearable-structure-adapter-hint-warn",
+      "selector": ".wearable-adapter-hint-warn",
+      "condition": null,
+      "before": ".wearable-adapter-hint-warn { color: var(--red); }",
+      "after": ".wearable-adapter-hint-warn {\n  color: var(--red);\n}"
+    },
+    {
+      "utility": "wearable-structure-adapter-hint-pending",
+      "selector": ".wearable-adapter-hint-pending",
+      "condition": null,
+      "before": ".wearable-adapter-hint-pending {\n  font-size: 12px;\n  color: var(--text-muted);\n  font-style: italic;\n}",
+      "after": ".wearable-adapter-hint-pending {\n  font-size: 12px;\n  color: var(--text-muted);\n  font-style: italic;\n}"
+    },
+    {
+      "utility": "wearable-structure-adapter-help",
+      "selector": ".wearable-adapter-help",
+      "condition": null,
+      "before": ".wearable-adapter-help {\n  display: none;\n  padding-top: 8px;\n  border-top: 1px dashed var(--border);\n  margin-top: 4px;\n}",
+      "after": ".wearable-adapter-help {\n  display: none;\n  padding-top: 8px;\n  border-top: 1px dashed var(--border);\n  margin-top: 4px;\n}"
+    },
+    {
+      "utility": "wearable-structure-adapter-card-is-show-help-is-wearable-adapter-help",
+      "selector": ".wearable-adapter-card.show-help .wearable-adapter-help",
+      "condition": null,
+      "before": ".wearable-adapter-card.show-help .wearable-adapter-help { display: block; }",
+      "after": ".wearable-adapter-card.show-help .wearable-adapter-help {\n  display: block;\n}"
+    },
+    {
+      "utility": "wearable-structure-source-badge-btn-pointer-coarse",
+      "selector": ".wearable-source-badge-btn",
+      "condition": "(pointer: coarse)",
+      "before": ".wearable-source-badge-btn { min-height: 32px; padding: 4px 10px; }",
+      "after": ".wearable-source-badge-btn {\n  min-height: 32px;\n  padding: 4px 10px;\n}"
+    },
+    {
+      "utility": "wearable-structure-action-pointer-coarse",
+      "selector": ".wearable-action",
+      "condition": "(pointer: coarse)",
+      "before": ".wearable-action { min-height: 44px; padding: 10px 16px; }",
+      "after": ".wearable-action {\n  min-height: 44px;\n  padding: 10px 16px;\n}"
+    },
+    {
+      "utility": "wearable-structure-manual-add-btn-is-wearable-log-save-is-wearable-log-cancel-pointer-coarse",
+      "selector": ".wearable-manual-add-btn,\n  .wearable-log-save,\n  .wearable-log-cancel",
+      "condition": "(pointer: coarse)",
+      "before": ".wearable-manual-add-btn,\n  .wearable-log-save,\n  .wearable-log-cancel { min-height: 44px; padding: 8px 14px; }",
+      "after": ".wearable-manual-add-btn,\n  .wearable-log-save,\n  .wearable-log-cancel {\n  min-height: 44px;\n  padding: 8px 14px;\n}"
+    }
+  ]
+}

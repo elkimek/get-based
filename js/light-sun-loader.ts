@@ -91,6 +91,23 @@ export function getLoadedLightSunModule() {
   return _lightSunModules;
 }
 
+/** Typed first-party ports; exported HTML renderers below remain legacy injection APIs. */
+export function getLoadedLightTodayHeroView() {
+  return _lightSunModules?.getLightTodayHeroView?.() || null;
+}
+export function getLoadedLightConditionsWidgetView(options?:import('./light-conditions-now.js').ConditionsNowOptions) {
+  return _lightSunModules?.getLightConditionsWidgetView?.(options) || null;
+}
+export function getLoadedDashboardLightChannelsWidgetView(totalSessions:number) {
+  return _lightSunModules?.getDashboardLightChannelsWidgetView?.(totalSessions) || null;
+}
+export function getLoadedLightSessionLogActionsView() {
+  return _lightSunModules?.getLightSessionLogActionsView?.() || null;
+}
+export function getLoadedLightLiveSessionView(options?:{includeEmptyState?:unknown}) {
+  return _lightSunModules?.getLightLiveSessionView?.(options) || null;
+}
+
 export function renderLoadedLightTodayHero() {
   return _lightSunModules?.renderLightTodayHero?.() || '';
 }

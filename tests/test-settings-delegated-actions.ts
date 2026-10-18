@@ -28,9 +28,11 @@ const voiceSrc = readRepositorySource('js/settings-voice-panel.js', 'utf8');
 const voiceComponentSrc = readRepositorySource('js/components/VoiceSettings.svelte', 'utf8');
 const voiceViewSrc = readRepositorySource('js/settings-voice-view.js', 'utf8');
 const tweaksSrc = readAuthoredRepositorySource('js/settings-tweaks.js', 'utf8');
+const tweaksComponentSrc = readRepositorySource('js/components/TweaksPresentation.svelte', 'utf8');
+const tweaksRendererSrc = readAuthoredRepositorySource('js/tweaks-rendering.js', 'utf8');
 const appShellCss = readRepositorySource('css/app-shell.css', 'utf8');
 const settingsCss = readRepositorySource('css/settings.css', 'utf8');
-const settingsSurfaceSrc = `${src}\n${displaySrc}\n${eventTargetSrc}\n${privacySrc}\n${privacyComponentSrc}\n${toggleComponentSrc}\n${settingsDataSrc}\n${voiceSrc}\n${voiceComponentSrc}\n${tweaksSrc}`;
+const settingsSurfaceSrc = `${src}\n${displaySrc}\n${eventTargetSrc}\n${privacySrc}\n${privacyComponentSrc}\n${toggleComponentSrc}\n${settingsDataSrc}\n${voiceSrc}\n${voiceComponentSrc}\n${tweaksSrc}\n${tweaksComponentSrc}`;
 
 const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
 
@@ -80,9 +82,9 @@ const tweaksBlock = matchBlock(
   tweaksSrc,
 );
 const renderThemeButtonBlock = matchBlock(
-  'renderThemeButton',
-  /function renderThemeButton[\s\S]*?\n}\n\nfunction refreshVisualSurfaces/,
-  tweaksSrc,
+  'Authored Tweaks theme button',
+  /<button type="button"[^>]*data-tweaks-action="select-theme">[\s\S]*?<\/button>/,
+  tweaksComponentSrc,
 );
 
 // Keep every native inline-handler form forbidden; Svelte expressions compile to listeners.
@@ -106,6 +108,13 @@ assert('Tweaks panel has no inline event attributes',
   tweaksBlock && !inlineHandlerRe.test(tweaksBlock));
 assert('Theme button renderer has no inline event attributes',
   renderThemeButtonBlock && !inlineHandlerRe.test(renderThemeButtonBlock));
+assert('Tweaks authored presentation keeps the synchronous public renderer boundary',
+  tweaksSrc.includes("from './tweaks-rendering.js'")
+    && tweaksSrc.includes('renderTweaksPanel({')
+    && tweaksRendererSrc.includes("from './components/TweaksPresentation.svelte.html.js'")
+    && !tweaksSrc.includes('function renderThemeButton')
+    && !inlineHandlerRe.test(tweaksComponentSrc)
+    && !tweaksComponentSrc.includes('{@html'));
 
 assert('Settings modal installs delegated click listener',
   /modal\.addEventListener\('click', handleSettingsClick\)/.test(src));
@@ -134,7 +143,10 @@ assert('Tweaks panel uses shared overlay lifecycle helpers',
   'start-guided-tour',
   'open-changelog',
 ].forEach(action => {
-  assert(`Display action ${action} is rendered`, displaySrc.includes(`data-settings-action="${action}"`));
+  assert(`Display action ${action} is rendered`,
+    action === 'set-product-recs' || action === 'set-debug-mode'
+      ? displaySrc.includes(`action="${action}"`) && toggleComponentSrc.includes('data-settings-action={action}')
+      : displaySrc.includes(`data-settings-action="${action}"`));
 });
 
 [
@@ -172,7 +184,7 @@ assert('Settings AI no longer owns context source toggles',
   'organize-dashboard',
   'send-feedback',
 ].forEach(action => {
-  assert(`Tweaks action ${action} is rendered`, tweaksSrc.includes(`data-tweaks-action="${action}"`));
+  assert(`Tweaks action ${action} is rendered`, tweaksComponentSrc.includes(`data-tweaks-action="${action}"`));
 });
 
 [
@@ -186,7 +198,7 @@ assert('Settings AI no longer owns context source toggles',
 
 assert('Sun public controller renders the authored component through its synchronous facade',
   privacySrc.includes("from './sun-data-source-rendering.js'")
-    && privacySrc.includes('return renderSunDataSource({')
+    && privacySrc.includes('return renderSunDataSource(getSunDataSourceSettingsView());') && privacySrc.includes('export function getSunDataSourceSettingsView')
     && sunRendererSrc.includes("from './components/SunDataSourcePresentation.svelte.html.js'"));
 assert('Sun mode controls belong to the authored internal option child',
   sunComponentSrc.includes("import SunModeOption from './SunModeOption.svelte'")

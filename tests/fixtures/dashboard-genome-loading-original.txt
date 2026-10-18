@@ -1,0 +1,7 @@
+`<div class="db-genome-list">
+        <div class="db-genome-summary">${snpCount} imported SNP${snpCount === 1 ? '' : 's'}</div>
+        <div class="db-genome-empty db-genome-loading" aria-live="polite">
+          <strong>Loading SNP interpretations</strong>
+          <span>Matching your variants to the SNP catalog so effect, category, and notes render correctly.</span>
+        </div>
+      </div>`

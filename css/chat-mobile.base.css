@@ -1,0 +1,47 @@
+@import "tailwindcss" prefix(gb) source(none) reference;
+@utility chat-mobile-layout-messages { padding: 14px 12px; }
+@utility chat-mobile-layout-thread-rail-chat-thread-search { min-height: 44px; box-sizing: border-box; font-size: 16px; }
+@utility chat-mobile-layout-panel-open {
+    top: var(--chat-visual-viewport-top, 0px);
+    bottom: var(--chat-visual-viewport-bottom, 0px);
+  }
+@utility chat-mobile-layout-panel-conversation {
+    min-height: 0;
+    overflow: hidden;
+  }
+@utility chat-mobile-layout-messages-2 { min-height: 0; }
+@utility chat-mobile-layout-thread-rail-open-chat-thread-rail-header { padding-top: 10px; }
+@utility chat-mobile-layout-thread-new-btn { width: 44px; height: 44px; }
+@utility chat-mobile-layout-project-new-btn { min-width: 44px; min-height: 44px; }
+@utility chat-mobile-layout-rail-back { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+@utility chat-mobile-layout-history-earlier { min-height: 44px; }
+
+@media (max-width: 375px) {
+  .chat-messages { @apply gb:chat-mobile-layout-messages; }
+}
+
+@media (max-width: 768px) {
+  .chat-thread-rail .chat-thread-search { @apply gb:chat-mobile-layout-thread-rail-chat-thread-search; }
+
+}
+
+/* ═══ Chat thread rail: back button on mobile overlay ═══ */
+@media (max-width: 768px) {
+  /*
+   * Mobile keyboards resize and, on iOS, can also pan the visual viewport
+   * without changing the layout viewport used by position: fixed. Keep both
+   * the header and composer inside the actually visible portion.
+   */
+  .chat-panel.open { @apply gb:chat-mobile-layout-panel-open; }
+  .chat-panel-conversation { @apply gb:chat-mobile-layout-panel-conversation; }
+  .chat-messages { @apply gb:chat-mobile-layout-messages-2; }
+  .chat-thread-rail.open .chat-thread-rail-header { @apply gb:chat-mobile-layout-thread-rail-open-chat-thread-rail-header; }
+}
+
+@media (pointer: coarse) {
+  .chat-thread-new-btn { @apply gb:chat-mobile-layout-thread-new-btn; }
+  .chat-project-new-btn { @apply gb:chat-mobile-layout-project-new-btn; }
+  .chat-rail-back { @apply gb:chat-mobile-layout-rail-back; }
+
+  .chat-history-earlier { @apply gb:chat-mobile-layout-history-earlier; }
+}

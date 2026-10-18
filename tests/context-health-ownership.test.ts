@@ -14,12 +14,11 @@ vi.mock('../js/ai-feature-routing.js', () => ({
   callAssistantFeatureAI: () => new Promise((resolve, reject) => ai.pending.push({ resolve, reject })),
 }));
 vi.mock('../js/context-card-summaries.js', () => ({ CONTEXT_CARD_KEYS: ['diet', 'exercise'] }));
-vi.mock('../js/lab-context.js', () => ({ buildLabContext: () => ai.context }));
 vi.mock('../js/local-ai-provider-shared.js', () => ({ isCloudModel: () => false }));
 vi.mock('../js/profile.js', () => ({ getProfiles: () => ai.demo ? [{ id: 'origin', tags: ['demo'] }] : [], profileStorageKey: (id: string, key: string) => `${id}:${key}` }));
 vi.mock('../js/schema.js', () => ({ trackUsage: ai.usage }));
 import { state } from '../js/state.js';
-import { getCardFingerprint, loadContextHealthDots, refreshAllHealthDots, enableDemoContextLiveAI, disableDemoContextLiveAI } from '../js/context-card-health-dots.js';
+import { getCardFingerprint, loadContextHealthDots, refreshAllHealthDots, enableDemoContextLiveAI, disableDemoContextLiveAI, configureContextCardHealthDots } from '../js/context-card-health-dots.js';
 const response = (summary: string) => ({ text: JSON.stringify({ diet: { dot: 'green', tip: 'Fresh tip', summary }, exercise: { dot: 'yellow', tip: '', summary: '' } }), usage: { inputTokens: 7, outputTokens: 3 } });
 function data(breakfast = 'eggs'): typeof state.importedData { return { ...state.importedData, entries: [], diet: { breakfast } }; }
 function markup() {
@@ -30,6 +29,7 @@ beforeEach(() => {
   localStorage.clear(); ai.pending.length = 0; ai.usage.mockClear();
   ai.provider = 'ollama'; ai.modelId = 'first-model'; ai.subscription = false; ai.enabled = true; ai.paused = false; ai.demo = false;
   ai.context = '[section:diet]reported diet[/section:diet]';
+  configureContextCardHealthDots({ buildLabContext: () => ai.context });
   state.currentProfile = 'origin'; state.importedData = data(); state.profileSex = 'female'; state.profileDob = '1990-01-01'; markup();
 });
 describe('context insight request ownership', () => {

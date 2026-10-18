@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { state } from '../js/state.js';
 import { configureClientListRuntimeDeps } from '../js/client-list-runtime.js';
+import { closeModalOverlay } from '../js/modal-lifecycle.js';
 
 let importId = 0;
 
@@ -72,6 +73,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  closeModalOverlay('client-list-overlay');
   vi.restoreAllMocks();
   document.querySelectorAll(
     '[data-client-list-stylesheet-anchor], link[data-client-list-stylesheet]',
@@ -93,6 +95,114 @@ describe('client list runtime behavior', () => {
       defaults.openProfileShareModal('alice');
     }).not.toThrow();
     expect(clientList.isClientListModuleLoaded()).toBe(false);
+  });
+
+  it('keeps focused search continuously attached through a deferred-RAF typing burst', async () => {
+    const clientList = await loadClientList();
+    await clientList.openClientList();
+    const frames: FrameRequestCallback[] = [];
+    const previous = globalThis.requestAnimationFrame;
+    const deferred = (callback: FrameRequestCallback) => { frames.push(callback); return frames.length; };
+    globalThis.requestAnimationFrame = window.requestAnimationFrame = deferred;
+    try {
+      const modal = document.getElementById('client-list-modal')!;
+      const search = document.getElementById('cl-search') as HTMLInputElement;
+      search.focus();
+      const observer = new MutationObserver(() => {});
+      observer.observe(modal, {childList: true, subtree: true});
+      for (const value of ['A', 'Al', 'Ali', 'Alic', 'Alice']) {
+        search.value = value; search.setSelectionRange(value.length, value.length);
+        search.dispatchEvent(new InputEvent('input', {bubbles: true, inputType: 'insertText', data: value.at(-1)!}));
+        expect(document.getElementById('cl-search')).toBe(search);
+        expect(document.activeElement).toBe(search);
+        expect([search.value, search.defaultValue, search.getAttribute('value')]).toEqual([value, value, value]);
+        expect([search.selectionStart, search.selectionEnd]).toEqual([value.length, value.length]);
+        expect(frames).toHaveLength(0);
+        expect(observer.takeRecords().every(record => [...record.removedNodes].every(node => node !== search && !node.contains(search)))).toBe(true);
+      }
+      observer.disconnect();
+      expect([...document.querySelectorAll('.cl-list > .cl-row')].map(node => node.getAttribute('data-id'))).toEqual(['alice']);
+    } finally { globalThis.requestAnimationFrame = window.requestAnimationFrame = previous; }
+  });
+
+  it('preserves mid-string selection direction and deletion without a stale end-caret callback', async () => {
+    const clientList = await loadClientList(); await clientList.openClientList();
+    const frames: FrameRequestCallback[] = [], previous = globalThis.requestAnimationFrame;
+    globalThis.requestAnimationFrame = window.requestAnimationFrame = callback => {frames.push(callback);return frames.length;};
+    try {
+      const search = document.getElementById('cl-search') as HTMLInputElement; search.focus();
+      search.value = 'Alice'; search.setSelectionRange(1, 4, 'backward');
+      search.dispatchEvent(new InputEvent('input', {bubbles: true, inputType: 'insertText', data: 'lic'}));
+      expect(document.getElementById('cl-search')).toBe(search);
+      expect([search.selectionStart, search.selectionEnd, search.selectionDirection]).toEqual([1, 4, 'backward']);
+      search.value = 'Ae'; search.setSelectionRange(1, 1, 'forward');
+      search.dispatchEvent(new InputEvent('input', {bubbles: true, inputType: 'deleteContentBackward'}));
+      expect([search.value, search.defaultValue, search.selectionStart, search.selectionEnd, search.selectionDirection]).toEqual(['Ae', 'Ae', 1, 1, 'forward']);
+      expect(document.activeElement).toBe(search); expect(frames).toHaveLength(0);
+    } finally {globalThis.requestAnimationFrame = window.requestAnimationFrame = previous;}
+  });
+
+  it('keeps the same control for composing input until composition ends', async () => {
+    const clientList = await loadClientList(); await clientList.openClientList();
+    const search = document.getElementById('cl-search') as HTMLInputElement; search.focus();
+    search.dispatchEvent(new CompositionEvent('compositionstart', {bubbles: true, data: ''}));
+    for (const value of ['A', 'Al']) {
+      search.value = value; search.setSelectionRange(value.length, value.length);
+      search.dispatchEvent(new InputEvent('input', {bubbles: true, data: value, isComposing: true}));
+      expect(document.getElementById('cl-search')).toBe(search); expect(document.activeElement).toBe(search);
+      expect(search.defaultValue).toBe(value);
+    }
+    search.dispatchEvent(new CompositionEvent('compositionend', {bubbles: true, data: 'Al'}));
+    search.dispatchEvent(new InputEvent('input', {bubbles: true, data: 'Al', isComposing: false}));
+    expect(document.getElementById('cl-search')).toBe(search); expect(search.selectionStart).toBe(2);
+  });
+
+  it('retains the exact nonfocused programmatic search RAF fallback', async () => {
+    const clientList = await loadClientList(); await clientList.openClientList();
+    const frames: FrameRequestCallback[] = [], previous = globalThis.requestAnimationFrame;
+    globalThis.requestAnimationFrame = window.requestAnimationFrame = callback => {frames.push(callback);return frames.length;};
+    try {
+      const old = document.getElementById('cl-search') as HTMLInputElement; old.blur(); old.value = 'Bob';
+      old.dispatchEvent(new Event('input', {bubbles: true}));
+      expect(old.isConnected).toBe(false); expect(frames).toHaveLength(1);
+      frames.shift()!(performance.now());
+      const current = document.getElementById('cl-search') as HTMLInputElement;
+      expect(current).not.toBe(old); expect(document.activeElement).toBe(current);
+      expect([current.value, current.defaultValue, current.selectionStart, current.selectionEnd]).toEqual(['Bob', 'Bob', 3, 3]);
+    } finally {globalThis.requestAnimationFrame = window.requestAnimationFrame = previous;}
+  });
+
+  it('does not let a prior nonfocused RAF move the caret after focused typing', async () => {
+    const clientList = await loadClientList(); await clientList.openClientList();
+    const frames: FrameRequestCallback[] = [], previous = globalThis.requestAnimationFrame;
+    globalThis.requestAnimationFrame = window.requestAnimationFrame = callback => {frames.push(callback);return frames.length;};
+    try {
+      const old = document.getElementById('cl-search') as HTMLInputElement; old.blur(); old.value = 'Bob';
+      old.dispatchEvent(new Event('input', {bubbles: true})); expect(frames).toHaveLength(1);
+      const current = document.getElementById('cl-search') as HTMLInputElement; current.focus();
+      current.value = 'Alice'; current.setSelectionRange(1, 3, 'backward');
+      current.dispatchEvent(new InputEvent('input', {bubbles: true, inputType: 'insertText', data: 'Alice'}));
+      expect(document.getElementById('cl-search')).toBe(current); expect(frames).toHaveLength(1);
+      frames.shift()!(performance.now());
+      expect(document.activeElement).toBe(current); expect([current.value, current.selectionStart, current.selectionEnd, current.selectionDirection]).toEqual(['Alice', 1, 3, 'backward']);
+    } finally {globalThis.requestAnimationFrame = window.requestAnimationFrame = previous;}
+  });
+
+  it('leaves all existing rendered nodes and focused caret intact when a profile getter throws', async () => {
+    const clientList = await loadClientList(); await clientList.openClientList();
+    const modal = document.getElementById('client-list-modal')!, search = document.getElementById('cl-search') as HTMLInputElement;
+    search.focus(); search.value = 'A'; search.setSelectionRange(1, 1);
+    const before = modal.innerHTML, first = modal.firstChild, profiles = state.profiles as ReturnType<typeof profile>[];
+    const descriptor = Object.getOwnPropertyDescriptor(profiles[0]!, 'name')!;
+    const errors: string[] = []; const observed = (event: ErrorEvent) => {errors.push(event.message);event.preventDefault();};
+    window.addEventListener('error', observed);
+    Object.defineProperty(profiles[0]!, 'name', {configurable: true, enumerable: true, get() {throw new Error('search profile getter');}});
+    try {
+      search.dispatchEvent(new Event('input', {bubbles: true}));
+      expect(errors).toEqual(['search profile getter']); expect(modal.innerHTML).toBe(before); expect(modal.firstChild).toBe(first);
+      expect(document.getElementById('cl-search')).toBe(search); expect(document.activeElement).toBe(search);
+      expect([search.value, search.defaultValue, search.selectionStart, search.selectionEnd]).toEqual(['A', '', 1, 1]);
+    } finally {Object.defineProperty(profiles[0]!, 'name', descriptor);window.removeEventListener('error', observed);}
   });
 
   it('drives list filters, row menus, and edit form through delegated handlers', async () => {
@@ -154,7 +264,13 @@ describe('client list runtime behavior', () => {
     const tagInput = (document.getElementById('cl-tag-input') as HTMLInputElement);
     tagInput.value = 'longevity';
     tagInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
-    expect([...document.querySelectorAll('.cl-tag-pill')].map(el => el.firstChild!.textContent!.trim())).toContain('longevity');
+    const tagPills = [...document.querySelectorAll('.cl-tag-pill')];
+    expect(tagPills.map(el => Array.from(el.childNodes)
+      .filter(node => node.nodeType === 3).map(node => node.textContent).join('').trim()))
+      .toEqual(['vip', 'longevity']);
+    // Rendering anchors are comments; only direct text nodes carry saved tag data.
+    expect(tagPills.map(el => ({ type: el.firstChild!.nodeType, value: el.firstChild!.nodeValue })))
+      .toEqual([{ type: 8, value: '' }, { type: 8, value: '[' }]);
     const emptyTagPill = document.createElement('span');
     emptyTagPill.className = 'cl-tag-pill';
     (document.getElementById('cl-tags-wrap') as HTMLElement).prepend(emptyTagPill);
@@ -186,4 +302,45 @@ describe('client list runtime behavior', () => {
     expect((document.getElementById('client-list-overlay') as HTMLElement).classList.contains('show')).toBe(false);
     expect(document.body.style.overflow).toBe('');
   }, 15_000);
+
+  it('keeps nested row buttons native while only row-target Enter/Space selects a profile', async () => {
+    const service = await import('../js/profile.js');
+    const chronology: string[] = [];
+    const switchProfile = vi.spyOn(service, 'switchProfile').mockImplementation(async id => {chronology.push('switch:' + id);});
+    configureClientListRuntimeDeps({renderProfileButton: () => chronology.push('refresh')});
+    const appEvents = await import('../js/app-event-listeners.js');
+    appEvents.installGlobalEventListeners();
+    const clientList = await loadClientList();
+    await clientList.openClientList();
+    const overlay = document.getElementById('client-list-overlay')!;
+    const more = document.querySelector<HTMLButtonElement>('.cl-list > .cl-row[data-id="bob"] [data-cl-action="toggle-menu"]')!;
+    more.focus();
+    const nestedEnter = new KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true});
+    more.dispatchEvent(nestedEnter);
+    expect(nestedEnter.defaultPrevented).toBe(false);
+    expect(switchProfile).not.toHaveBeenCalled();
+    expect(overlay.classList.contains('show')).toBe(true);
+    // JSDOM key dispatch has no native activation default. Exercise its actual click delegate separately.
+    more.click();
+    expect(document.getElementById('cl-active-menu')!.classList.contains('show')).toBe(true);
+    expect(switchProfile).not.toHaveBeenCalled();
+    const edit = document.querySelector<HTMLButtonElement>('.cl-list > .cl-row[data-id="bob"] [data-cl-action="edit-profile"]')!;
+    const editEnter = new KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true});
+    edit.dispatchEvent(editEnter);
+    expect(editEnter.defaultPrevented).toBe(false);
+    expect(switchProfile).not.toHaveBeenCalled();
+    edit.click();
+    expect(document.querySelector('.cl-form')).not.toBeNull();
+    for (const key of ['Enter', ' ']) {
+      await clientList.openClientList();
+      const row = document.querySelector<HTMLElement>('.cl-list > .cl-row[data-id="bob"]')!;
+      row.focus();
+      const event = new KeyboardEvent('keydown', {key, bubbles: true, cancelable: true});
+      row.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(true);
+      expect(overlay.classList.contains('show')).toBe(false);
+    }
+    expect(switchProfile.mock.calls).toEqual([['bob'], ['bob']]);
+    expect(chronology).toEqual(['switch:bob', 'refresh', 'switch:bob', 'refresh']);
+  });
 });

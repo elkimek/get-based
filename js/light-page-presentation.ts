@@ -3,14 +3,14 @@ import type { LightTodayView } from './light-today-presentation.js';
 // Pure display contracts. Light/Sun services keep calculations, persistence,
 // session ownership and the rendering of their separately owned children.
 export interface LightAction {
-  action: string;
-  label: string;
-  title?: string;
-  primary?: boolean;
-  active?: boolean;
-  more?: boolean;
-  liveId?: string;
-  elapsed?: string;
+  readonly action: string;
+  readonly label: string;
+  readonly title?: string;
+  readonly primary?: boolean;
+  readonly active?: boolean;
+  readonly more?: boolean;
+  readonly liveId?: string;
+  readonly elapsed?: string;
 }
 export function projectLightSessionActions(input: {
   sunActive: boolean;
@@ -51,80 +51,46 @@ export function projectLightUVSafety(medToday: number, medYesterday: number) {
 export type LightUVSafetyView = ReturnType<typeof projectLightUVSafety>;
 export type LightSessionActionsView = ReturnType<typeof projectLightSessionActions>;
 export interface LightPromptView {
-  status: string;
-  label: string;
-  action: string;
-  hint: string;
-  extraClass: string;
+  readonly status: string;
+  readonly label: string;
+  readonly action: string;
+  readonly hint: string;
+  readonly extraClass: string;
 }
-// HTML fields below are outputs of named existing presentation owners, never
-// untrusted profile strings. They keep child lifecycle/import contracts during
-// the migration of those child owners; literal fields always use Svelte escaping.
 export interface LightDashboardPill {
-  key: string;
-  name: string;
-  icon: string;
-  title: string;
-  label: string;
-  active: boolean;
-  days: string;
-  chart: ChannelSparkline | null;
+  readonly key: string;
+  readonly name: string;
+  readonly icon: string;
+  readonly title: string;
+  readonly label: string;
+  readonly active: boolean;
+  readonly days: string;
+  readonly chart: ChannelSparkline | null;
 }
 export interface LightLocationHintView {
-  country: boolean;
-  latitude?: string;
+  readonly country: boolean;
+  readonly latitude?: string;
 }
-export type LightPagePresentationProps = {
-  kind: 'pills';
-  pills: readonly LightDashboardPill[];
-} | {
-  kind: 'actions';
-  view: LightSessionActionsView;
-} | {
-  kind: 'prompt';
-  view: LightPromptView;
-} | {
-  kind: 'safety';
-  view: LightUVSafetyView;
-} | {
-  kind: 'methods';
-  skinBasis: string;
-  dataSourceHTML: string;
-  showDataSource: boolean;
-} | {
-  kind: 'live';
-  sunHTML: string;
-  deviceHTML: string;
-  sun: boolean;
-  device: boolean;
-} | {
-  kind: 'location';
-  country: boolean;
-  latitude?: string;
-} | {
-  kind: 'loading';
-  id: string;
-  label: string;
-} | {
-  kind: 'channels';
-  lead: string;
-  pills: readonly ChannelPillView[];
-  location: LightLocationHintView | null;
-} | {
-  kind: 'dashboard-channels';
-  lead: string;
-  pills: readonly LightDashboardPill[];
-} | {
-  kind: 'weekly';
-  reviewHTML: string;
-} | {
-  kind: 'today';
-  view: LightTodayView;
-  dashboardHTML: string;
-  conditionsHTML: string;
-  pillsHTML: string;
-} | {
-  kind: 'page';
-  headerHTML: string;
-  widgetsHTML: string;
-};
+
+export type LightPageBodyProps =
+ | {readonly kind:'pills';readonly pills:readonly LightDashboardPill[]}
+ | {readonly kind:'actions';readonly view:LightSessionActionsView}
+ | {readonly kind:'prompt';readonly view:LightPromptView}
+ | {readonly kind:'safety';readonly view:LightUVSafetyView}
+ | {readonly kind:'methods';readonly skinBasis:string;readonly dataSource:import('./sun-data-source-presentation.js').SunDataSourceView|null}
+ | {readonly kind:'live';readonly sun:boolean;readonly sunView:import('./light-session-presentation.js').LightSessionRowProps|null;readonly deviceView:Extract<import('./light-session-presentation.js').LightSessionPresentationProps,{kind:'active'}>|null}
+ | {readonly kind:'location';readonly country:boolean;readonly latitude?:string}
+ | {readonly kind:'loading';readonly id:string;readonly label:string}
+ | {readonly kind:'channels';readonly lead:string;readonly pills:readonly ChannelPillView[];readonly location:LightLocationHintView|null}
+ | {readonly kind:'dashboard-channels';readonly lead:string;readonly pills:readonly LightDashboardPill[]}
+ | {readonly kind:'weekly';readonly review:import('./light-review-ai-presentation.js').ReviewPresentation|null}
+ | {readonly kind:'today';readonly view:LightTodayView;readonly dashboard:Readonly<import('./light-review-ai-presentation.js').ReviewAIView>|null;readonly conditions:import('./light-conditions-presentation.js').ConditionsPresentationProps;readonly pills:readonly LightDashboardPill[]};
+export type LightWidgetContent =
+ | {readonly kind:'body';readonly props:LightPageBodyProps}
+ | {readonly kind:'today-hero';readonly safety:LightUVSafetyView|null;readonly ai:Readonly<import('./light-review-ai-presentation.js').ReviewAIView>|null}
+ | {readonly kind:'conditions';readonly location:LightLocationHintView|null;readonly props:import('./light-conditions-presentation.js').ConditionsPresentationProps}
+ | {readonly kind:'setup';readonly props:import('./light-setup-presentation.js').LightSetupPresentationProps|null}
+ | {readonly kind:'history';readonly props:import('./light-session-presentation.js').LightSessionHistoryProps};
+export interface LightPageHeaderView {readonly title:string;readonly subtitle:string|null;readonly className:string}
+export interface LightPageView {readonly header:LightPageHeaderView;readonly grid:import('./lens-page-shell-core.js').LensContentGrid<LightWidgetContent>}
+export type LightPagePresentationProps=LightPageBodyProps|{readonly kind:'page';readonly view:LightPageView};

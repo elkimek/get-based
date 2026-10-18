@@ -53,7 +53,7 @@ test('static authored protection picker opens offline, hands off existing setup 
       await open(target); await picker.getByRole('button', { name: 'Close', exact: true }).focus(); await target.keyboard.press('Enter'); await expect(picker).toHaveCount(0);
       expect(await target.evaluate(() => document.body.style.overflow)).toBe(''); expect(await target.evaluate(() => localStorage.getItem('labcharts-encryption-enabled'))).not.toBe('true'); expect(await target.evaluate(() => localStorage.getItem('labcharts-sync-enabled'))).not.toBe('true'); expect(await stored(target)).toEqual(saved);
     };
-    if (testInfo.project.name === 'kit-chromium') await page.screenshot({ path: '.local-notes/full-ui-migration/data-protection-static-dark.png' });
+    if (testInfo.project.name === 'kit-chromium') await page.screenshot({ path: testInfo.outputPath('data-protection-static-dark.png') });
     await verify(page); await page.close();
     for (let launch = 0; launch < 2; launch++) { const cold = await context.newPage(); await cold.goto(server.origin + '/app?dev-sw=1'); await ready(cold); await prepare(cold); await open(cold); await verify(cold); await cold.close(); }
     expect(errors).toEqual([]); expect(csp).toEqual([]);

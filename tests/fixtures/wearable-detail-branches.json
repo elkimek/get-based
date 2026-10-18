@@ -1,0 +1,334 @@
+[
+  {
+    "component": "WearableManualEntries",
+    "kind": "compactEmpty",
+    "slots": [
+      {
+        "port": "addActionAttributes",
+        "coordinate": "gb-wearable-detail-wearablemanualentries-compactempty-add-action-attributes-end"
+      }
+    ],
+    "nativeSkeleton": "<section class=\"wearable-manual-entries wearable-manual-entries-compact\">\n        <button type=\"button\" class=\"wearable-manual-add-btn\" gb-wearable-detail-wearablemanualentries-compactempty-add-action-attributes-end>+ Add a manual reading</button>\n        <div id=\"wearable-manual-add-slot\"></div>\n      </section>"
+  },
+  {
+    "component": "WearableManualEntries",
+    "kind": "empty",
+    "slots": [
+      {
+        "port": "addActionAttributes",
+        "coordinate": "gb-wearable-detail-wearablemanualentries-empty-add-action-attributes-end"
+      }
+    ],
+    "nativeSkeleton": "<section class=\"wearable-manual-entries\">\n      <div class=\"wearable-manual-entries-head\">\n        <span class=\"wearable-manual-entries-title\">Manual entries</span>\n        <button type=\"button\" class=\"wearable-manual-add-btn\" gb-wearable-detail-wearablemanualentries-empty-add-action-attributes-end>+ Add reading</button>\n      </div>\n      <div class=\"wearable-manual-entries-empty\">No manual entries for this metric yet.</div>\n      <div id=\"wearable-manual-add-slot\"></div>\n    </section>"
+  },
+  {
+    "component": "WearableManualEntries",
+    "kind": "tags",
+    "slots": [
+      {
+        "port": "tagItems",
+        "coordinate": "gb-wearable-detail-wearablemanualentries-tags-tag-items-end"
+      }
+    ],
+    "nativeSkeleton": "<span class=\"wearable-manual-entry-tags\">gb-wearable-detail-wearablemanualentries-tags-tag-items-end</span>"
+  },
+  {
+    "component": "WearableManualEntries",
+    "kind": "tag",
+    "slots": [
+      {
+        "port": "tag",
+        "coordinate": "gb-wearable-detail-wearablemanualentries-tag-tag-end"
+      }
+    ],
+    "nativeSkeleton": "<span class=\"wearable-manual-entry-tag\">gb-wearable-detail-wearablemanualentries-tag-tag-end</span>"
+  },
+  {
+    "component": "WearableManualEntries",
+    "kind": "note",
+    "slots": [
+      {
+        "port": "note",
+        "coordinate": "gb-wearable-detail-wearablemanualentries-note-note-end"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"wearable-manual-entry-note\">gb-wearable-detail-wearablemanualentries-note-note-end</div>"
+  },
+  {
+    "component": "WearableManualEntries",
+    "kind": "row",
+    "slots": [
+      {
+        "port": "noteClass",
+        "coordinate": "gb-wearable-detail-wearablemanualentries-row-note-class-end"
+      },
+      {
+        "port": "dateAttribute",
+        "coordinate": "gb-wearable-detail-wearablemanualentries-row-date-attribute-end"
+      },
+      {
+        "port": "shortDate",
+        "coordinate": "gb-wearable-detail-wearablemanualentries-row-short-date-end"
+      },
+      {
+        "port": "value",
+        "coordinate": "gb-wearable-detail-wearablemanualentries-row-value-end"
+      },
+      {
+        "port": "optionalUnit",
+        "coordinate": "gb-wearable-detail-wearablemanualentries-row-optional-unit-end"
+      },
+      {
+        "port": "tags",
+        "coordinate": "gb-wearable-detail-wearablemanualentries-row-tags-end"
+      },
+      {
+        "port": "accessibleDeleteLabel",
+        "coordinate": "gb-wearable-detail-wearablemanualentries-row-accessible-delete-label-end"
+      },
+      {
+        "port": "deleteActionAttributes",
+        "coordinate": "gb-wearable-detail-wearablemanualentries-row-delete-action-attributes-end"
+      },
+      {
+        "port": "note",
+        "coordinate": "gb-wearable-detail-wearablemanualentries-row-note-end"
+      }
+    ],
+    "nativeSkeleton": "<li class=\"wearable-manual-entrygb-wearable-detail-wearablemanualentries-row-note-class-end\" data-entry-date=\"gb-wearable-detail-wearablemanualentries-row-date-attribute-end\">\n      <span class=\"wearable-manual-entry-date\">gb-wearable-detail-wearablemanualentries-row-short-date-end</span>\n      <span class=\"wearable-manual-entry-val\">gb-wearable-detail-wearablemanualentries-row-value-endgb-wearable-detail-wearablemanualentries-row-optional-unit-end</span>\n      gb-wearable-detail-wearablemanualentries-row-tags-end\n      <button type=\"button\" class=\"wearable-manual-entry-del\" title=\"Delete this reading\" aria-label=\"gb-wearable-detail-wearablemanualentries-row-accessible-delete-label-end\" gb-wearable-detail-wearablemanualentries-row-delete-action-attributes-end>×</button>\n      gb-wearable-detail-wearablemanualentries-row-note-end\n    </li>"
+  },
+  {
+    "component": "WearableManualEntries",
+    "kind": "unit",
+    "slots": [
+      {
+        "port": "unit",
+        "coordinate": "gb-wearable-detail-wearablemanualentries-unit-unit-end"
+      }
+    ],
+    "nativeSkeleton": " <span class=\"wearable-manual-entry-unit\">gb-wearable-detail-wearablemanualentries-unit-unit-end</span>"
+  },
+  {
+    "component": "WearableManualEntries",
+    "kind": "list",
+    "slots": [
+      {
+        "port": "entryCount",
+        "coordinate": "gb-wearable-detail-wearablemanualentries-list-entry-count-end"
+      },
+      {
+        "port": "addActionAttributes",
+        "coordinate": "gb-wearable-detail-wearablemanualentries-list-add-action-attributes-end"
+      },
+      {
+        "port": "rows",
+        "coordinate": "gb-wearable-detail-wearablemanualentries-list-rows-end"
+      }
+    ],
+    "nativeSkeleton": "<section class=\"wearable-manual-entries\">\n    <div class=\"wearable-manual-entries-head\">\n      <span class=\"wearable-manual-entries-title\">Manual entries <span class=\"wearable-manual-entries-count\">gb-wearable-detail-wearablemanualentries-list-entry-count-end</span></span>\n      <button type=\"button\" class=\"wearable-manual-add-btn\" gb-wearable-detail-wearablemanualentries-list-add-action-attributes-end>+ Add reading</button>\n    </div>\n    <div id=\"wearable-manual-add-slot\"></div>\n    <ul class=\"wearable-manual-entries-list\">gb-wearable-detail-wearablemanualentries-list-rows-end</ul>\n  </section>"
+  },
+  {
+    "component": "WearableDetailChrome",
+    "kind": "subLabel",
+    "slots": [
+      {
+        "port": "subLabel",
+        "coordinate": "gb-wearable-detail-wearabledetailchrome-sublabel-sub-label-end"
+      }
+    ],
+    "nativeSkeleton": " <span style=\"opacity:0.6;font-size:0.7em;margin-left:6px;font-weight:normal\">gb-wearable-detail-wearabledetailchrome-sublabel-sub-label-end</span>"
+  },
+  {
+    "component": "WearableDetailStats",
+    "kind": "stat",
+    "slots": [
+      {
+        "port": "optionalTooltipAttributes",
+        "coordinate": "gb-wearable-detail-wearabledetailstats-stat-optional-tooltip-attributes-end"
+      },
+      {
+        "port": "label",
+        "coordinate": "gb-wearable-detail-wearabledetailstats-stat-label-end"
+      },
+      {
+        "port": "value",
+        "coordinate": "gb-wearable-detail-wearabledetailstats-stat-value-end"
+      },
+      {
+        "port": "optionalSubLabel",
+        "coordinate": "gb-wearable-detail-wearabledetailstats-stat-optional-sub-label-end"
+      }
+    ],
+    "nativeSkeleton": "\n    <div class=\"wearable-detail-stat\"gb-wearable-detail-wearabledetailstats-stat-optional-tooltip-attributes-end>\n      <div class=\"wearable-detail-stat-label\">gb-wearable-detail-wearabledetailstats-stat-label-end</div>\n      <div class=\"wearable-detail-stat-val\">gb-wearable-detail-wearabledetailstats-stat-value-end</div>\n      gb-wearable-detail-wearabledetailstats-stat-optional-sub-label-end\n    </div>"
+  },
+  {
+    "component": "WearableDetailStats",
+    "kind": "subLabel",
+    "slots": [
+      {
+        "port": "subLabel",
+        "coordinate": "gb-wearable-detail-wearabledetailstats-sublabel-sub-label-end"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"wearable-detail-stat-sub\">gb-wearable-detail-wearabledetailstats-sublabel-sub-label-end</div>"
+  },
+  {
+    "component": "WearableDetailFeedback",
+    "kind": "zeroActivity",
+    "slots": [],
+    "nativeSkeleton": "<div class=\"wearable-detail-empty\">Every day shows 0 — Oura suppresses the Activity composite score while Rest Mode is on. Check the <b>Steps</b> card for raw movement data, or disable Rest Mode in the Oura app.</div>"
+  },
+  {
+    "component": "WearableDetailFeedback",
+    "kind": "emptyChartWithManual",
+    "slots": [
+      {
+        "port": "emptyWindow",
+        "coordinate": "gb-wearable-detail-wearabledetailfeedback-emptychartwithmanual-empty-window-end"
+      },
+      {
+        "port": "olderManualHint",
+        "coordinate": "gb-wearable-detail-wearabledetailfeedback-emptychartwithmanual-older-manual-hint-end"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"wearable-detail-empty\">No chart samples for this metric in gb-wearable-detail-wearabledetailfeedback-emptychartwithmanual-empty-window-end. Manual readings are listed belowgb-wearable-detail-wearabledetailfeedback-emptychartwithmanual-older-manual-hint-end.</div>"
+  },
+  {
+    "component": "WearableDetailFeedback",
+    "kind": "emptyChart",
+    "slots": [
+      {
+        "port": "emptyWindow",
+        "coordinate": "gb-wearable-detail-wearabledetailfeedback-emptychart-empty-window-end"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"wearable-detail-empty\">No daily samples for this metric in gb-wearable-detail-wearabledetailfeedback-emptychart-empty-window-end. Either your wearable doesn't share this metric, the feature is off on your device, or you didn't wear it. Try Sync now, or reconnect to refresh permissions.</div>"
+  },
+  {
+    "component": "WearableDetailChrome",
+    "kind": "pairedSourceSwap",
+    "slots": [
+      {
+        "port": "systolicActionAttributes",
+        "coordinate": "gb-wearable-detail-wearabledetailchrome-pairedsourceswap-systolic-action-attributes-end"
+      },
+      {
+        "port": "systolicSource",
+        "coordinate": "gb-wearable-detail-wearabledetailchrome-pairedsourceswap-systolic-source-end"
+      },
+      {
+        "port": "diastolicActionAttributes",
+        "coordinate": "gb-wearable-detail-wearabledetailchrome-pairedsourceswap-diastolic-action-attributes-end"
+      },
+      {
+        "port": "diastolicSource",
+        "coordinate": "gb-wearable-detail-wearabledetailchrome-pairedsourceswap-diastolic-source-end"
+      }
+    ],
+    "nativeSkeleton": "<button type=\"button\" class=\"wearable-source-badge wearable-source-badge-btn wearable-modal-source-swap\" gb-wearable-detail-wearabledetailchrome-pairedsourceswap-systolic-action-attributes-end title=\"Switch systolic source\">sys via gb-wearable-detail-wearabledetailchrome-pairedsourceswap-systolic-source-end · swap</button>\n            <button type=\"button\" class=\"wearable-source-badge wearable-source-badge-btn wearable-modal-source-swap\" gb-wearable-detail-wearabledetailchrome-pairedsourceswap-diastolic-action-attributes-end title=\"Switch diastolic source\">dia via gb-wearable-detail-wearabledetailchrome-pairedsourceswap-diastolic-source-end · swap</button>"
+  },
+  {
+    "component": "WearableDetailChrome",
+    "kind": "sourceSwap",
+    "slots": [
+      {
+        "port": "sourceActionAttributes",
+        "coordinate": "gb-wearable-detail-wearabledetailchrome-sourceswap-source-action-attributes-end"
+      },
+      {
+        "port": "sourceName",
+        "coordinate": "gb-wearable-detail-wearabledetailchrome-sourceswap-source-name-end"
+      }
+    ],
+    "nativeSkeleton": "<button type=\"button\" class=\"wearable-source-badge wearable-source-badge-btn wearable-modal-source-swap\" gb-wearable-detail-wearabledetailchrome-sourceswap-source-action-attributes-end title=\"Switch source for this metric\">via gb-wearable-detail-wearabledetailchrome-sourceswap-source-name-end · swap</button>"
+  },
+  {
+    "component": "WearableDetailChrome",
+    "kind": "rangePill",
+    "slots": [
+      {
+        "port": "activeClass",
+        "coordinate": "gb-wearable-detail-wearabledetailchrome-rangepill-active-class-end"
+      },
+      {
+        "port": "pressed",
+        "coordinate": "gb-wearable-detail-wearabledetailchrome-rangepill-pressed-end"
+      },
+      {
+        "port": "rangeActionAttributes",
+        "coordinate": "gb-wearable-detail-wearabledetailchrome-rangepill-range-action-attributes-end"
+      },
+      {
+        "port": "label",
+        "coordinate": "gb-wearable-detail-wearabledetailchrome-rangepill-label-end"
+      }
+    ],
+    "nativeSkeleton": "<button type=\"button\" class=\"ctx-btn-optiongb-wearable-detail-wearabledetailchrome-rangepill-active-class-end\" aria-pressed=\"gb-wearable-detail-wearabledetailchrome-rangepill-pressed-end\" gb-wearable-detail-wearabledetailchrome-rangepill-range-action-attributes-end>gb-wearable-detail-wearabledetailchrome-rangepill-label-end</button>"
+  },
+  {
+    "component": "WearableDetailChrome",
+    "kind": "modal",
+    "slots": [
+      {
+        "port": "closeActionAttributes",
+        "coordinate": "gb-wearable-detail-wearabledetailchrome-modal-close-action-attributes-end"
+      },
+      {
+        "port": "label",
+        "coordinate": "gb-wearable-detail-wearabledetailchrome-modal-label-end"
+      },
+      {
+        "port": "subLabel",
+        "coordinate": "gb-wearable-detail-wearabledetailchrome-modal-sub-label-end"
+      },
+      {
+        "port": "sourceName",
+        "coordinate": "gb-wearable-detail-wearabledetailchrome-modal-source-name-end"
+      },
+      {
+        "port": "optionalDelta",
+        "coordinate": "gb-wearable-detail-wearabledetailchrome-modal-optional-delta-end"
+      },
+      {
+        "port": "trend",
+        "coordinate": "gb-wearable-detail-wearabledetailchrome-modal-trend-end"
+      },
+      {
+        "port": "sourceSwap",
+        "coordinate": "gb-wearable-detail-wearabledetailchrome-modal-source-swap-end"
+      },
+      {
+        "port": "rangePills",
+        "coordinate": "gb-wearable-detail-wearabledetailchrome-modal-range-pills-end"
+      },
+      {
+        "port": "emptyHint",
+        "coordinate": "gb-wearable-detail-wearabledetailchrome-modal-empty-hint-end"
+      },
+      {
+        "port": "stats",
+        "coordinate": "gb-wearable-detail-wearabledetailchrome-modal-stats-end"
+      },
+      {
+        "port": "manualEntries",
+        "coordinate": "gb-wearable-detail-wearabledetailchrome-modal-manual-entries-end"
+      },
+      {
+        "port": "emfHint",
+        "coordinate": "gb-wearable-detail-wearabledetailchrome-modal-emf-hint-end"
+      }
+    ],
+    "nativeSkeleton": "<button class=\"modal-close\" gb-wearable-detail-wearabledetailchrome-modal-close-action-attributes-end>&times;</button>\n    <h3>gb-wearable-detail-wearabledetailchrome-modal-label-endgb-wearable-detail-wearabledetailchrome-modal-sub-label-end</h3>\n    <div class=\"modal-unit\">\n      gb-wearable-detail-wearabledetailchrome-modal-source-name-endgb-wearable-detail-wearabledetailchrome-modal-optional-delta-end · gb-wearable-detail-wearabledetailchrome-modal-trend-end 30d\n      gb-wearable-detail-wearabledetailchrome-modal-source-swap-end\n    </div>\n    <div class=\"ctx-btn-group wearable-detail-range\" role=\"group\" aria-label=\"Chart range\">gb-wearable-detail-wearabledetailchrome-modal-range-pills-end</div>\n    <div class=\"modal-chart\" style=\"height:260px\"><canvas id=\"chart-modal\"></canvas></div>\n    gb-wearable-detail-wearabledetailchrome-modal-empty-hint-end\n    <div class=\"wearable-detail-stats\">gb-wearable-detail-wearabledetailchrome-modal-stats-end</div>\n    gb-wearable-detail-wearabledetailchrome-modal-manual-entries-end\n    gb-wearable-detail-wearabledetailchrome-modal-emf-hint-end"
+  },
+  {
+    "component": "WearableDetailFeedback",
+    "kind": "emfHint",
+    "slots": [
+      {
+        "port": "assessmentActionAttributes",
+        "coordinate": "gb-wearable-detail-wearabledetailfeedback-emfhint-assessment-action-attributes-end"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"wearable-detail-emf-hint\"><span aria-hidden=\"true\">💡</span> Sleep regressing? Sometimes it's the room. <a href=\"#\" gb-wearable-detail-wearabledetailfeedback-emfhint-assessment-action-attributes-end data-umami-event=\"emf-nudge-wearable-sleep\">Check your EMF environment →</a></div>"
+  }
+]

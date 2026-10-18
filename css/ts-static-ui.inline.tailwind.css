@@ -1,0 +1,23 @@
+@import "tailwindcss" prefix(gb) source(none) reference;
+
+@utility ts-static-editor-input {width:100%;max-width:140px;text-align:center;font-size:inherit;box-sizing:border-box;padding:2px 4px}
+@utility ts-static-commit-link-color {color:var(--text-muted)}
+@utility ts-static-commit-link-decoration {text-decoration:none}
+@utility ts-static-commit-suffix-color {color:var(--text-muted)}
+@utility ts-static-commit-suffix-opacity {opacity:0.7}
+@utility ts-static-sync-events-fallback {position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:80vw;max-width:600px;height:60vh;z-index:10000;background:var(--bg-card,#222);color:var(--text-primary,#fff);border:1px solid var(--border,#444);padding:12px;font:12px monospace;border-radius:8px}
+@utility ts-static-sync-popover-anchor {position:relative}
+@utility ts-static-live-message-host {display:contents}
+@utility ts-static-message-actions-host {display:contents}
+@utility ts-static-speech-host {display:contents}
+
+.ts-static-editor-input { @apply gb:ts-static-editor-input; }
+.ts-static-commit-link-color { @apply gb:ts-static-commit-link-color; }
+.ts-static-commit-link-decoration { @apply gb:ts-static-commit-link-decoration; }
+.ts-static-commit-suffix-color { @apply gb:ts-static-commit-suffix-color; }
+.ts-static-commit-suffix-opacity { @apply gb:ts-static-commit-suffix-opacity; }
+.ts-static-sync-events-fallback { @apply gb:ts-static-sync-events-fallback; }
+.ts-static-sync-popover-anchor { @apply gb:ts-static-sync-popover-anchor; }
+.ts-static-live-message-host { @apply gb:ts-static-live-message-host; }
+.ts-static-message-actions-host { @apply gb:ts-static-message-actions-host; }
+.ts-static-speech-host { @apply gb:ts-static-speech-host; }

@@ -1,8 +1,14 @@
+import {compileRemainingFeatureStyles} from '../scripts/remaining-feature-style-ownership.mjs';
+import {compileSettingsChatLayoutStyles} from '../scripts/settings-chat-layout-style-ownership.mjs';
 import fs from 'node:fs/promises';
+import {createHash} from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import postcss from 'postcss';
+import {compileStartupBannerStyles} from '../scripts/startup-banner-style-ownership.mjs';
+import {compileModalPresentationStyles} from '../scripts/modal-presentation-style-ownership.mjs';
+import {compilePIIReviewStyles} from '../scripts/pii-review-style-ownership.mjs';
 import {cycleSharedUtilities} from '../js/cycle-shared-classes.js';
 import { buildStyles, buildProtectionStyles, buildChatStyles, buildAppShellStyles, buildModalStyles, buildImportStyles, buildRecommendationStyles, buildCycleStyles } from '../scripts/build-styles.mjs';
 
@@ -21,16 +27,75 @@ beforeAll(async () => {
 });
 afterAll(async () => { await fs.rm(directory, { recursive: true, force: true }); });
 
+/** Check the actual Display utility owners, including emitted behavioral states. */
+function verifyDisplayUtilities(source: string, component: string): void {
+  const expected = [...new Set(component.match(/\bgb:display:[^\s"'`<>}]+/g) || [])].sort();
+  expect(expected.length).toBeGreaterThan(0);
+  const rules: postcss.Rule[] = [];
+  postcss.parse(source).walkRules(rule => {if (rule.selector.includes('.gb\\:display')) rules.push(rule);});
+  const actual = rules.flatMap(rule => rule.selectors.map(selector => {
+    expect(selector.startsWith('#settings-tab-display ')).toBe(true);
+    const decoded = decodedCssSelector(selector);
+    const token = expected.find(token => decoded === '#settings-tab-display .' + token
+      || decoded === '#settings-tab-display .' + token + ':focus-visible');
+    expect(token, selector).toBeDefined();
+    return token!;
+  })).sort();
+  expect(actual).toEqual(expected);
+  for (const [token, property, value, media] of [
+    ['focus-visible:outline-2', 'outline-width', '2px', null],
+    ['focus-visible:outline-offset-2', 'outline-offset', '2px', null],
+    ['focus-visible:outline-accent', 'outline-color', 'var(--accent)', null],
+    ['motion-reduce:transition-none', 'transition-property', 'none', '(prefers-reduced-motion:reduce)'],
+    ['[@media(pointer:coarse)]:min-h-11', 'min-height', 'calc(var(--gb-spacing)*11)', '(pointer:coarse)'],
+    ['[@media(pointer:coarse)]:min-w-11', 'min-width', 'calc(var(--gb-spacing)*11)', '(pointer:coarse)'],
+    ['[@media(pointer:coarse)]:shrink-0', 'flex-shrink', '0', '(pointer:coarse)'],
+  ] as const) {
+    const matched = rules.filter(rule => rule.selectors.some(selector => {
+      const decoded = decodedCssSelector(selector), target = '#settings-tab-display .gb:display:' + token;
+      return decoded === target || decoded === target + ':focus-visible';
+    }));
+    expect(matched, token).toHaveLength(1);
+    const rule = matched[0]!;
+    expect(rule.nodes.some(node => node.type === 'decl' && node.prop === property
+      && node.value.replace(/\s+/g, '') === value && !node.important), token).toBe(true);
+    const ancestry: string[] = [];
+    for (let parent: postcss.Rule['parent'] | postcss.Document = rule.parent; parent; parent = parent.parent) {
+      if (parent.type === 'atrule') ancestry.unshift(parent.name + ':' + parent.params.replace(/\s+/g, ''));
+    }
+    expect(ancestry, token).toEqual(media ? ['media:' + media] : []);
+    if (token.startsWith('focus-visible:')) expect(rule.selector.endsWith(':focus-visible')).toBe(true);
+  }
+}
+
 it('preserves legacy Settings CSS and scopes generated utilities without a reset', async () => {
   const source = await fs.readFile(outputPath, 'utf8');
-  const base = (await fs.readFile('css/settings.base.css', 'utf8')).trimEnd();
+  const base = (await compileSettingsChatLayoutStyles('settings',await fs.readFile('css/settings.base.css','utf8'),path.resolve('css/settings.base.css'),path.resolve('.'))).css.trimEnd();
   expect(source).toContain(base);
   const utilities = source.slice(source.indexOf(base) + base.length);
   const selectors: string[] = [];
   postcss.parse(utilities).walkRules(rule => { selectors.push(...rule.selectors); });
-  const pilot = selectors.filter(selector => selector.includes('.gb\\:display'));
-  expect(pilot.length).toBeGreaterThan(30);
-  expect(pilot.every(selector => selector.startsWith('#settings-tab-display '))).toBe(true);
+  // Compact Display uses shared semantic recipes plus its own focus/touch/
+  // reduced-motion utilities. Guard both owners instead of counting retired
+  // utility spellings or reintroducing inert classes just to inflate that count.
+  const originalText = await fs.readFile('tests/fixtures/settings-chat-native.json', 'utf8');
+  expect(createHash('sha256').update(originalText).digest('hex')).toBe('ae1c1483c6ebc51de21b0ffafb3fba96460c7c45ea783defdff5da9c9e13b308');
+  const original = (JSON.parse(originalText) as {lane: string; native: string; declarations: number; receivers: number}[]).find(row => row.lane === 'settings')!;
+  expect(original.declarations).toBe(234); expect(original.receivers).toBe(71);
+  expect(base).toBe(original.native.trimEnd());
+  let layoutReceivers = 0, layoutDeclarations = 0;
+  postcss.parse(base).walkRules(rule => {
+    // The frozen receiver/declaration inventory excludes the animation's from/to
+    // frames; the full-byte equality above still protects that animation too.
+    for (let parent: postcss.Rule['parent'] | postcss.Document = rule.parent; parent; parent = parent.parent) {
+      if (parent.type === 'atrule' && /keyframes$/.test(parent.name)) return;
+    }
+    layoutReceivers++;
+    layoutDeclarations += rule.nodes.filter(node => node.type === 'decl').length;
+  });
+  expect(layoutReceivers).toBeGreaterThan(30);
+  expect(layoutReceivers).toBe(original.receivers); expect(layoutDeclarations).toBe(original.declarations);
+  verifyDisplayUtilities(utilities, await fs.readFile('js/components/DisplaySettings.svelte', 'utf8'));
   const sync = selectors.filter(selector => selector.includes('.gb\\:sync\\:'));
   expect(sync.length).toBeGreaterThan(30);
   expect(sync.every(selector => selector.startsWith('#sync-section '))).toBe(true);
@@ -56,6 +121,28 @@ it('preserves legacy Settings CSS and scopes generated utilities without a reset
   expect(utilities).toContain('@container');
 });
 
+it('rejects missing Display utilities, escaped scope and changed focus/touch/motion behavior', async () => {
+  const source = await fs.readFile(outputPath, 'utf8');
+  const component = await fs.readFile('js/components/DisplaySettings.svelte', 'utf8');
+  for (const change of ['remove-utility', 'scope', 'focus', 'coarse', 'motion'] as const) {
+    const tree = postcss.parse(source); let changed = false;
+    tree.walkRules(rule => {
+      if (changed || !rule.selector.includes('.gb\\:display')) return;
+      if (change === 'scope') {rule.selector = rule.selector.replace('#settings-tab-display', '#settings-tab-ai'); changed = true;}
+      else if (change === 'remove-utility') {rule.remove(); changed = true;}
+      else if (change === 'focus' && rule.selector.includes('outline-offset-2')) {
+        rule.walkDecls('outline-offset', declaration => {declaration.value = '0'; changed = true;});
+      } else if (change === 'coarse' && rule.selector.includes('min-h-11')
+        || change === 'motion' && rule.selector.includes('transition-none')) {
+        const parent = rule.parent;
+        if (parent?.type === 'atrule') {parent.params = '(hover:hover)'; changed = true;}
+      }
+    });
+    expect(changed, change).toBe(true);
+    expect(() => verifyDisplayUtilities(tree.toString(), component), change).toThrow();
+  }
+});
+
 it('rebuilds deterministically and rejects stale CSS without overwriting it', async () => {
   const source = await fs.readFile(outputPath, 'utf8');
   await buildStyles({ outputPath, check: true });
@@ -67,7 +154,7 @@ it('rebuilds deterministically and rejects stale CSS without overwriting it', as
 
 it('preserves PII base styles and scopes protection dialog utilities without a reset', async () => {
   const source = await fs.readFile(protectionOutputPath,'utf8');
-  const base = (await fs.readFile('css/data-protection.base.css','utf8')).trimEnd();
+  const base = (await compilePIIReviewStyles(await fs.readFile('css/data-protection.base.css','utf8'),path.resolve('css/data-protection.base.css'),path.resolve('.'))).css.trimEnd();
   expect(source).toContain(base); expect(base).not.toContain('.passphrase-dialog');
   const selectors: string[] = []; postcss.parse(source.slice(source.indexOf(base)+base.length)).walkRules(rule=>{selectors.push(...rule.selectors);});
   const owned = selectors.filter(selector=>selector.includes('.gb\\:passphrase'));
@@ -85,7 +172,7 @@ it('rebuilds protection CSS deterministically and rejects stale output without o
 
 it('retains the lazy Chat stylesheet URL, scopes navigation utilities and rejects stale output', async () => {
   const source = await fs.readFile(chatOutputPath, 'utf8');
-  const base = (await fs.readFile('css/chat-panel-open.base.css', 'utf8')).trimEnd();
+  const base = (await compileSettingsChatLayoutStyles('chat-open',await fs.readFile('css/chat-panel-open.base.css','utf8'),path.resolve('css/chat-panel-open.base.css'),path.resolve('.'))).css.trimEnd();
   expect(source).toContain(base);
   expect(base).not.toMatch(/\.chat-thread-item(?:\s|\{|:|\.)/);
   const utilities = source.slice(source.indexOf(base) + base.length);
@@ -109,7 +196,12 @@ it('keeps app-shell and modal runtime URLs with owned utilities and no reset', a
     const outputPath = path.join(directory, `${name}.css`);
     await build({outputPath});
     const source = await fs.readFile(outputPath, 'utf8');
-    const base = (await fs.readFile(`css/${name}.base.css`, 'utf8')).trimEnd();
+    const basePath = path.resolve(`css/${name}.base.css`);
+    const baseInput = await fs.readFile(basePath, 'utf8');
+    const compiled = name === 'app-shell'
+      ? await compileStartupBannerStyles('app-shell', baseInput, basePath, path.resolve('.'))
+      : await compileModalPresentationStyles(baseInput, basePath, path.resolve('.'));
+    const base = compiled.css.trimEnd();
     expect(source).toContain(base);
     const utilities = source.slice(source.indexOf(base) + base.length);
     expect(utilities).not.toContain('button,input,optgroup,select,textarea');
@@ -150,7 +242,7 @@ it('retains shared import styles, scopes marker mapping and rejects stale lazy C
   const outputPath = path.join(directory, 'import.css');
   await buildImportStyles({outputPath});
   const source = await fs.readFile(outputPath, 'utf8');
-  const base = (await fs.readFile('css/import.base.css', 'utf8')).trimEnd();
+  const base = (await compileRemainingFeatureStyles('import',await fs.readFile('css/import.base.css','utf8'),path.resolve('css/import.base.css'),path.resolve('.'))).css.trimEnd();
   expect(source).toContain(base);
   expect(base).not.toContain('.import-marker-map-modal');
   expect(base).not.toContain('.import-preview-modal');
@@ -194,7 +286,7 @@ it('compiles recommendation card utilities at the stable lazy URL without changi
   const outputPath = path.join(directory, 'recommendations.css');
   await buildRecommendationStyles({outputPath});
   const source = await fs.readFile(outputPath, 'utf8');
-  const base = (await fs.readFile('css/recommendations.base.css', 'utf8')).trimEnd();
+  const base = (await compileRemainingFeatureStyles('recommendations',await fs.readFile('css/recommendations.base.css','utf8'),path.resolve('css/recommendations.base.css'),path.resolve('.'))).css.trimEnd();
   expect(source).toContain(base);
   expect(base).not.toContain('.rec-next-card');
   expect(base).not.toContain('.recommendation-detail-modal .rec-section');
@@ -226,7 +318,7 @@ it('scopes both laboratory review and its body-level popup without a reset or de
   const outputPath = path.join(directory, 'import-review.css');
   await buildImportStyles({outputPath});
   const source = await fs.readFile(outputPath, 'utf8');
-  const base = (await fs.readFile('css/import.base.css', 'utf8')).trimEnd();
+  const base = (await compileRemainingFeatureStyles('import',await fs.readFile('css/import.base.css','utf8'),path.resolve('css/import.base.css'),path.resolve('.'))).css.trimEnd();
   const utilities = source.slice(source.indexOf(base) + base.length);
   const selectors: string[] = [];
   let hoverRules = 0;

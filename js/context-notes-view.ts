@@ -1,3 +1,4 @@
+import { contextChildIsOwned } from './context-child-ownership.js';
 // Native string-render consumers hydrate the same authored notes component.
 import Notes, { hydrate, unmount, flushSync } from './components/ContextNotes.svelte.native.js';
 import { acceptContextNotes, contextNotesPresentation, useSavedContextNotes } from './context-notes-session.js';
@@ -21,7 +22,7 @@ export function ensureContextNotes(): void {
   if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') return;
   sweep();
   for (const root of document.querySelectorAll<HTMLElement>('[data-context-notes-host]')) {
-    if (mounted.has(root) || retired.has(root) || !current(root)) continue;
+    if (mounted.has(root) || retired.has(root) || contextChildIsOwned(root) || !current(root)) continue;
     const input = root.querySelector<HTMLTextAreaElement>('.ctx-notes-textarea');
     if (!input) continue;
     const value = contextNotesPresentation();
@@ -57,7 +58,7 @@ if (typeof document !== 'undefined') {
     if (!(event.target instanceof Element)) return;
     const button = event.target.closest<HTMLButtonElement>('.ctx-notes-retry, .ctx-notes-use-saved');
     const root = button?.closest<HTMLElement>('[data-context-notes-host]');
-    if (!button || !root || mounted.has(root) || retired.has(root) || !current(root)) return;
+    if (!button || !root || mounted.has(root) || retired.has(root) || contextChildIsOwned(root) || !current(root)) return;
     ensureContextNotes();
     if (button.matches('.ctx-notes-use-saved')) useSavedContextNotes(root.dataset.contextNotesTicket || '');
     else debounceContextNotes(root.querySelector<HTMLTextAreaElement>('.ctx-notes-textarea'));

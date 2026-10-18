@@ -4,6 +4,9 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Chat empty-state delegated-action source guards.
 
 const src = readRepositorySource('js/chat-empty-state.js', 'utf8');
+const profileView = readRepositorySource('js/components/ChatProfileSetup.svelte');
+const emptyView = readRepositorySource('js/components/ChatEmptyState.svelte');
+const emptyProjection = readRepositorySource('js/chat-empty-presentation.ts');
 
 const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
 
@@ -56,14 +59,17 @@ assert('Rendered chat empty-state buttons declare button type',
   'set-onboarding-focus',
 ].forEach(action => {
   assert(`Chat empty action ${action} is rendered or handled`,
-    src.includes(`data-chat-empty-action="${action}"`) || src.includes(`action === '${action}'`));
+    src.includes(`data-chat-empty-action="${action}"`) || src.includes(`action === '${action}'`)
+      || src.includes(`actionEl.dataset.chatEmptyAction === '${action}'`));
 });
 
 assert('Profile sex action passes sex through data attribute',
-  /data-chat-empty-action="set-profile-sex" data-sex="male"/.test(src)
+  profileView.includes("[['male', 'Male'], ['female', 'Female']]")
+    && profileView.includes('data-chat-empty-action="set-profile-sex" data-sex={value}')
     && /setChatProfileSex\(actionEl\.dataset\.sex/.test(src));
 assert('Prompt buttons store prompt text in data attributes',
-  /data-chat-empty-action="use-prompt" data-prompt=/.test(src)
+  emptyView.includes('data-chat-empty-action={item.action} data-prompt={item.prompt}')
+    && emptyProjection.includes("action: 'use-prompt'")
     && /useChatPrompt\(actionEl\.dataset\.prompt/.test(src));
 assert('mtDNA file import clears the file input after handoff',
   /action === 'import-mtdna-file'[\s\S]*handleMtDNAFile[\s\S]*actionEl\.value = '';/.test(src));

@@ -1,0 +1,166 @@
+@import "tailwindcss" prefix(gb) source(none) reference;
+@utility chat-onboarding-layout-quiz-options { display: flex; flex-direction: column; gap: 8px; margin: 12px 0 10px; }
+@utility chat-onboarding-layout-quiz-option {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; padding: 12px 14px;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+  color: var(--text-primary); text-align: left; cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.05s;
+  font: inherit;
+}
+@utility chat-onboarding-layout-quiz-option-hover { border-color: var(--accent); background: color-mix(in srgb, var(--purple) 6%, transparent); }
+@utility chat-onboarding-layout-quiz-option-active { transform: translateY(1px); }
+@utility chat-onboarding-layout-quiz-option-focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@utility chat-onboarding-layout-quiz-recommended { border-color: color-mix(in srgb, var(--purple) 50%, transparent); }
+@utility chat-onboarding-layout-quiz-recommended-hover { border-color: var(--accent); }
+@utility chat-onboarding-layout-quiz-icon { font-size: 22px; line-height: 1; flex: 0 0 28px; text-align: center; }
+@utility chat-onboarding-layout-quiz-body { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+@utility chat-onboarding-layout-quiz-body-strong { font-size: 13.5px; }
+@utility chat-onboarding-layout-quiz-body-span { font-size: 12px; color: var(--text-muted); line-height: 1.35; }
+@utility chat-onboarding-layout-quiz-body-em-chat-quiz-rec { font-style: normal; color: var(--accent); font-weight: 500; }
+@utility chat-onboarding-layout-quiz-arrow { font-size: 16px; color: var(--text-muted); flex: 0 0 auto; }
+@utility chat-onboarding-layout-quiz-option-hover-chat-quiz-arrow { color: var(--accent); }
+@utility chat-onboarding-layout-quiz-back {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: transparent; border: none; color: var(--text-muted);
+  font-size: 12px; cursor: pointer; padding: 0 0 8px;
+}
+@utility chat-onboarding-layout-quiz-back-hover { color: var(--accent); }
+@utility chat-onboarding-layout-quiz-link {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: var(--text-muted);
+  cursor: pointer;
+  font: inherit;
+}
+@utility chat-onboarding-layout-quiz-link-hover { color: var(--accent); }
+@utility chat-onboarding-layout-quiz-link-focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+@utility chat-onboarding-layout-quiz-skip { text-align: center; margin-top: 14px; }
+@utility chat-onboarding-layout-quiz-skip-btn {
+  background: transparent; border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text-secondary); padding: 8px 14px; font-size: 12.5px;
+  cursor: pointer; transition: border-color 0.15s, color 0.15s;
+  font-family: inherit;
+}
+@utility chat-onboarding-layout-quiz-skip-btn-hover { border-color: var(--accent); color: var(--accent); }
+@utility chat-onboarding-layout-onboard-input {
+  flex: 1; min-width: 0; background: var(--bg-input, var(--bg-sidebar)); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text-primary); padding: 7px 10px; font-size: 13px;
+  font-family: var(--font-body); transition: border-color 0.2s;
+}
+@utility chat-onboarding-layout-onboard-input-2 { border-color: var(--accent); outline: none; }
+@utility chat-onboarding-layout-select-chat-onboard-input { background: var(--bg-input, var(--bg-sidebar)); color: var(--text-primary); }
+@utility chat-onboarding-layout-select-chat-onboard-input-2 { background: var(--select-popup-surface); color: var(--text-primary); }
+@utility chat-onboarding-layout-onboard-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+@utility chat-onboarding-layout-onboard-complete-label {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 0 10px;
+  padding: 3px 0 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+@utility chat-onboarding-layout-onboard-cta {
+  display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px;
+  border-radius: 10px; border: 1px solid var(--accent); background: transparent;
+  color: var(--accent); font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: all 0.2s; text-align: left;
+}
+@utility chat-onboarding-layout-onboard-cta-2 { background: var(--accent); color: #fff; }
+@utility chat-onboarding-layout-onboard-cycle-hint {
+  font-size: 12px; color: var(--text-secondary); background: var(--bg-sidebar);
+  border-radius: 8px; padding: 10px 12px; margin: 10px 0 0;
+  border: 1px solid var(--border);
+}
+@utility chat-onboarding-layout-onboard-cycle-hint-p { margin: 0 0 8px; line-height: 1.5; }
+@utility chat-onboarding-layout-onboard-cycle-form { display: flex; flex-direction: column; gap: 8px; }
+@utility chat-onboarding-layout-onboard-cycle-dates { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+@utility chat-onboarding-layout-onboard-day { width: 48px; text-align: center; -moz-appearance: textfield; }
+@utility chat-onboarding-layout-onboard-day-webkit-inner-spin-button-chat-onboard-day-w { -webkit-appearance: none; margin: 0; }
+@utility chat-onboarding-layout-onboard-cycle-form-chat-onboard-next { align-self: flex-end; }
+@utility chat-onboarding-layout-onboard-supps {
+  font-size: 12px; color: var(--text-secondary); background: var(--bg-sidebar);
+  border-radius: 8px; padding: 10px 12px; margin: 10px 0 0;
+  border: 1px solid var(--border);
+}
+@utility chat-onboarding-layout-onboard-supps-p { margin: 0 0 8px; line-height: 1.5; }
+@utility chat-onboarding-layout-onboard-supp-form {
+  display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+}
+@utility chat-onboarding-layout-onboard-supp-form-chat-onboard-input { min-width: 80px; }
+@utility chat-onboarding-layout-onboard-supp-add {
+  width: 32px; height: 32px; border-radius: var(--radius); border: 1px solid var(--accent);
+  background: transparent; color: var(--accent); font-size: 18px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  transition: background 0.2s, color 0.2s;
+}
+@utility chat-onboarding-layout-onboard-supp-add-hover { background: var(--accent); color: #fff; }
+@utility chat-onboarding-layout-onboard-supp-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 4px 0; border-bottom: 1px solid var(--border); font-size: 12px;
+}
+@utility chat-onboarding-layout-onboard-supp-item-last-child { border-bottom: none; }
+@utility chat-onboarding-layout-onboard-supp-remove {
+  background: none; border: none; color: var(--text-muted); cursor: pointer;
+  font-size: 16px; padding: 0 4px; line-height: 1;
+}
+@utility chat-onboarding-layout-onboard-supp-remove-hover { color: var(--red); }
+
+/* App-extension quiz HTML retains its established class contract. First-party quiz uses scoped Tailwind. */
+.chat-quiz-options:where(:not([data-chat-provider-view], [data-chat-provider-view] *)) { @apply gb:chat-onboarding-layout-quiz-options; }
+.chat-quiz-option:where(:not([data-chat-provider-view], [data-chat-provider-view] *)) { @apply gb:chat-onboarding-layout-quiz-option; }
+.chat-quiz-option:hover:where(:not([data-chat-provider-view], [data-chat-provider-view] *)) { @apply gb:chat-onboarding-layout-quiz-option-hover; }
+.chat-quiz-option:active:where(:not([data-chat-provider-view], [data-chat-provider-view] *)) { @apply gb:chat-onboarding-layout-quiz-option-active; }
+.chat-quiz-option:focus-visible:where(:not([data-chat-provider-view], [data-chat-provider-view] *)) { @apply gb:chat-onboarding-layout-quiz-option-focus-visible; }
+.chat-quiz-recommended:where(:not([data-chat-provider-view], [data-chat-provider-view] *)) { @apply gb:chat-onboarding-layout-quiz-recommended; }
+.chat-quiz-recommended:hover:where(:not([data-chat-provider-view], [data-chat-provider-view] *)) { @apply gb:chat-onboarding-layout-quiz-recommended-hover; }
+.chat-quiz-icon:where(:not([data-chat-provider-view], [data-chat-provider-view] *)) { @apply gb:chat-onboarding-layout-quiz-icon; }
+.chat-quiz-body:where(:not([data-chat-provider-view], [data-chat-provider-view] *)) { @apply gb:chat-onboarding-layout-quiz-body; }
+.chat-quiz-body strong:where(:not([data-chat-provider-view], [data-chat-provider-view] *)) { @apply gb:chat-onboarding-layout-quiz-body-strong; }
+.chat-quiz-body span:where(:not([data-chat-provider-view], [data-chat-provider-view] *)) { @apply gb:chat-onboarding-layout-quiz-body-span; }
+.chat-quiz-body em.chat-quiz-rec:where(:not([data-chat-provider-view], [data-chat-provider-view] *)) { @apply gb:chat-onboarding-layout-quiz-body-em-chat-quiz-rec; }
+.chat-quiz-arrow:where(:not([data-chat-provider-view], [data-chat-provider-view] *)) { @apply gb:chat-onboarding-layout-quiz-arrow; }
+.chat-quiz-option:hover .chat-quiz-arrow:where(:not([data-chat-provider-view], [data-chat-provider-view] *)) { @apply gb:chat-onboarding-layout-quiz-option-hover-chat-quiz-arrow; }
+.chat-quiz-back:where(:not([data-chat-provider-view], [data-chat-provider-view] *)) { @apply gb:chat-onboarding-layout-quiz-back; }
+.chat-quiz-back:hover:where(:not([data-chat-provider-view], [data-chat-provider-view] *)) { @apply gb:chat-onboarding-layout-quiz-back-hover; }
+.chat-quiz-link:where(:not([data-chat-provider-view], [data-chat-provider-view] *)) { @apply gb:chat-onboarding-layout-quiz-link; }
+.chat-quiz-link:hover:where(:not([data-chat-provider-view], [data-chat-provider-view] *)) { @apply gb:chat-onboarding-layout-quiz-link-hover; }
+.chat-quiz-link:focus-visible:where(:not([data-chat-provider-view], [data-chat-provider-view] *)) { @apply gb:chat-onboarding-layout-quiz-link-focus-visible; }
+.chat-quiz-skip:where(:not([data-chat-provider-view], [data-chat-provider-view] *)) { @apply gb:chat-onboarding-layout-quiz-skip; }
+.chat-quiz-skip-btn:where(:not([data-chat-provider-view], [data-chat-provider-view] *)) { @apply gb:chat-onboarding-layout-quiz-skip-btn; }
+.chat-quiz-skip-btn:hover:where(:not([data-chat-provider-view], [data-chat-provider-view] *)) { @apply gb:chat-onboarding-layout-quiz-skip-btn-hover; }
+/* Remaining cycle/supplement HTML shares these inputs until those owners migrate. */
+.chat-onboard-input:where(:not([data-chat-profile-setup-view] *)) { @apply gb:chat-onboarding-layout-onboard-input; }
+.chat-onboard-input:where(:not([data-chat-profile-setup-view] *)):focus { @apply gb:chat-onboarding-layout-onboard-input-2; }
+select.chat-onboard-input:where(:not([data-chat-profile-setup-view] *)) { @apply gb:chat-onboarding-layout-select-chat-onboard-input; }
+select.chat-onboard-input:where(:not([data-chat-profile-setup-view] *)) option { @apply gb:chat-onboarding-layout-select-chat-onboard-input-2; }
+.chat-onboard-actions:where(:not([data-chat-provider-setup-view] *, [data-chat-optional-setup-view] *, [data-chat-empty-view] *)) { @apply gb:chat-onboarding-layout-onboard-actions; }
+.chat-onboard-complete-label:where(:not([data-chat-provider-setup-view] *, [data-chat-optional-setup-view] *, [data-chat-empty-view] *)) { @apply gb:chat-onboarding-layout-onboard-complete-label; }
+.chat-onboard-cta:where(:not([data-chat-provider-setup-view] *, [data-chat-optional-setup-view] *, [data-chat-empty-view] *)) { @apply gb:chat-onboarding-layout-onboard-cta; }
+.chat-onboard-cta:where(:not([data-chat-provider-setup-view] *, [data-chat-optional-setup-view] *, [data-chat-empty-view] *)):hover { @apply gb:chat-onboarding-layout-onboard-cta-2; }
+.chat-onboard-cycle-hint { @apply gb:chat-onboarding-layout-onboard-cycle-hint; }
+.chat-onboard-cycle-hint p { @apply gb:chat-onboarding-layout-onboard-cycle-hint-p; }
+.chat-onboard-cycle-form { @apply gb:chat-onboarding-layout-onboard-cycle-form; }
+.chat-onboard-cycle-dates { @apply gb:chat-onboarding-layout-onboard-cycle-dates; }
+.chat-onboard-day { @apply gb:chat-onboarding-layout-onboard-day; }
+.chat-onboard-day::-webkit-inner-spin-button,
+.chat-onboard-day::-webkit-outer-spin-button { @apply gb:chat-onboarding-layout-onboard-day-webkit-inner-spin-button-chat-onboard-day-w; }
+.chat-onboard-cycle-form .chat-onboard-next:where(:not([data-chat-profile-setup-view] *)) { @apply gb:chat-onboarding-layout-onboard-cycle-form-chat-onboard-next; }
+.chat-onboard-supps { @apply gb:chat-onboarding-layout-onboard-supps; }
+.chat-onboard-supps p { @apply gb:chat-onboarding-layout-onboard-supps-p; }
+.chat-onboard-supp-form { @apply gb:chat-onboarding-layout-onboard-supp-form; }
+.chat-onboard-supp-form .chat-onboard-input:where(:not([data-chat-profile-setup-view] *)) { @apply gb:chat-onboarding-layout-onboard-supp-form-chat-onboard-input; }
+.chat-onboard-supp-add { @apply gb:chat-onboarding-layout-onboard-supp-add; }
+.chat-onboard-supp-add:hover { @apply gb:chat-onboarding-layout-onboard-supp-add-hover; }
+.chat-onboard-supp-item { @apply gb:chat-onboarding-layout-onboard-supp-item; }
+.chat-onboard-supp-item:last-child { @apply gb:chat-onboarding-layout-onboard-supp-item-last-child; }
+.chat-onboard-supp-remove { @apply gb:chat-onboarding-layout-onboard-supp-remove; }
+.chat-onboard-supp-remove:hover { @apply gb:chat-onboarding-layout-onboard-supp-remove-hover; }

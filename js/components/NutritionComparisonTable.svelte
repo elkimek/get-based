@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { ComparisonTableRow } from '../nutrition-comparison-results-model.js';
-  import { summary } from '../nutrition-view-classes.js';
+  import { comparisonSummary as summary } from '../nutrition-view-classes.js';
   let { rows, detailed = false, count = '', referenceHeading }: { rows: ComparisonTableRow[]; detailed?: boolean; count?: string; referenceHeading: string } = $props();
   const cell = 'gb:nutrition:border-b gb:nutrition:border-line gb:nutrition:px-[9px] gb:nutrition:py-2 gb:nutrition:text-right gb:nutrition:align-middle gb:nutrition:whitespace-nowrap gb:nutrition:group-last:border-b-0';
   const column = `${cell} gb:nutrition:bg-[color-mix(in_srgb,var(--text-muted)_5%,var(--bg-card))] gb:nutrition:text-secondary gb:nutrition:text-[11px] gb:nutrition:font-bold gb:nutrition:uppercase gb:nutrition:tracking-[.04em]`;

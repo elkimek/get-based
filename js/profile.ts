@@ -1,3 +1,4 @@
+import {tsStateStyles} from './ts-state-ui-inline-style-map.generated.js';
 import { rememberProfileData } from './profile-data-writes.js';
 import { readProfileForLoad } from './profile-load-safety.js';
 import { state, resetCorrelationSelection } from './state.js';
@@ -583,7 +584,7 @@ export async function detectLatitudeWithAI(country: string, zip: string) {
       var el = document.getElementById('loc-lat-display');
       if (el) {
         var band = latitudeToBand(lat);
-        el.style.color = 'var(--green)';
+        el.style.color = tsStateStyles.successColor;
         el.textContent = '\u2713 ' + Math.abs(Math.round(lat)) + '\u00b0' + (lat >= 0 ? 'N' : 'S') + ' \u2014 ' + LATITUDE_BANDS[band]!;
       }
     }

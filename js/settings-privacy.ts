@@ -76,10 +76,10 @@ function _renderMeteoModeOption(mode: unknown, label: unknown, desc: unknown) {
 // in v1.7.x because the URL/bearer/mode fields are feature config, not
 // privacy posture. The `Round location to ~11 km grid` toggle inside is
 // privacy-flavored but stays here for cohesion.
-export function renderSunDataSourceSettings() {
+export function getSunDataSourceSettingsView(): import('./sun-data-source-presentation.js').SunDataSourceView {
   const cfg = (getSettingsMeteoConfig() as MeteoConfigOperations);
   const officialHost = isOfficialGetbasedHost();
-  return renderSunDataSource({
+  return {
     officialHost,
     options: [
       _renderMeteoModeOption('auto', officialHost ? 'Private CAMS relay + fallback' : 'Deployment CAMS relay', officialHost
@@ -92,8 +92,9 @@ export function renderSunDataSourceSettings() {
     url: projectSunCredential(cfg.selfhostUrl || ''),
     bearer: projectSunCredential(cfg.selfhostBearer || ''),
     rounding: officialHost ? null : (cfg.privacyRounding ?? 0.1) > 0,
-  });
+  };
 }
+export function renderSunDataSourceSettings(){return renderSunDataSource(getSunDataSourceSettingsView());}
 
 async function setMeteoMode(mode: unknown) {
   const cfg = (getSettingsMeteoConfig() as MeteoConfigOperations);

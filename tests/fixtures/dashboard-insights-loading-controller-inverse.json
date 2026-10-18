@@ -1,0 +1,65 @@
+{
+  "coordinateUnit": "JavaScript UTF16 code units",
+  "edits": [
+    {
+      "start": 0,
+      "end": 0,
+      "before": "",
+      "after": "import { renderDashboardLoadingState } from './dashboard-loading-state-presentation.js';\n",
+      "owner": "Loading",
+      "candidateStart": 0,
+      "candidateEnd": 89
+    },
+    {
+      "start": 1978,
+      "end": 1978,
+      "before": "",
+      "after": "\nimport { renderDashboardInsightsPresentation } from './dashboard-insights-presentation.js';",
+      "owner": "Insights",
+      "candidateStart": 2067,
+      "candidateEnd": 2159
+    },
+    {
+      "start": 3402,
+      "end": 3518,
+      "before": "`<div class=\"dashboard-widget-empty\" aria-busy=\"true\" aria-live=\"polite\">\n      Loading Light &amp; Sun\u2026\n    </div>`",
+      "after": "renderDashboardLoadingState({ kind: 'light-sun-loading' })",
+      "owner": "Loading",
+      "candidateStart": 3583,
+      "candidateEnd": 3641
+    },
+    {
+      "start": 6141,
+      "end": 6174,
+      "before": "`<div class=\"db-insights-list\">${",
+      "after": "renderDashboardInsightsPresentation(\"renderDashboardInsightsListWidget\", \"list\", { itemsHTML: () => (",
+      "owner": "Insights",
+      "candidateStart": 6264,
+      "candidateEnd": 6365
+    },
+    {
+      "start": 6324,
+      "end": 6607,
+      "before": "`<button type=\"button\" class=\"db-insight db-insight-${escapeAttr(insight.tone)}\"${open}>\n        <span class=\"db-insight-tag\">${escapeHTML(insight.eyebrow)}</span>\n        <strong>${escapeHTML(insight.title)}</strong>\n        <span>${escapeHTML(insight.body)}</span>\n      </button>`",
+      "after": "renderDashboardInsightsPresentation(\"renderDashboardInsightsListWidget\", \"card\", {\n        toneClass: () => (escapeAttr(insight.tone)),\n        optionalDetailAttributes: () => (open),\n        eyebrow: () => (escapeHTML(insight.eyebrow)),\n        title: () => (escapeHTML(insight.title)),\n        body: () => (escapeHTML(insight.body))\n      })",
+      "owner": "Insights",
+      "candidateStart": 6515,
+      "candidateEnd": 6858
+    },
+    {
+      "start": 6624,
+      "end": 6632,
+      "before": "}</div>`",
+      "after": ") })",
+      "owner": "Insights",
+      "candidateStart": 6875,
+      "candidateEnd": 6879
+    }
+  ],
+  "nativeFullForwardInverseExact": true,
+  "bothSingleOwnerWholeSourceProjectionsExact": true,
+  "imports": "Loading import at original offset0; Insights import after all native imports at originaloffset1978. Deliberate disjoint insertion, no incidental import reordering.",
+  "allNativeForeignBodiesExact": true,
+  "nativeBeforeSHA256": "cf048d7adb3458745e8ab85efecf39cf012852f87e33f48d7bd85e51b5af7053",
+  "candidateAfterSHA256": "74901cd8c9d5c9fb6fababa79b1e22f9a799309fa250a846629b6bed3dbed37e"
+}

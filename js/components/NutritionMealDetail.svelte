@@ -2,7 +2,7 @@
   import type { NutritionMealDetailView, NutritionMealDetailActions } from '../nutrition-meal-detail-model.js';
   import Fuel from './NutritionFuelCard.svelte';
   import Response from './NutritionMealResponse.svelte';
-  import { button, primary, copy, heading } from '../nutrition-view-classes.js';
+  import { closeButton, button, primary, copy, heading } from '../nutrition-view-classes.js';
   let { view, actions = { current: () => true, save: async () => false, failureMessage: () => '', notify: () => {} } }: { view: NutritionMealDetailView; actions?: NutritionMealDetailActions } = $props();
   let root: HTMLDivElement;
   let response = $state<ReturnType<typeof Response>>();
@@ -16,7 +16,7 @@
 </script>
 <svelte:document onclickcapture={guard} oninputcapture={guard} onchangecapture={guard} onsubmitcapture={guard}/>
 <div bind:this={root} data-nutrition-meal-detail-view data-nutrition-view class="gb:nutrition:min-w-0 gb:nutrition:text-ink gb:nutrition:[overflow-wrap:anywhere]">
-  <button type="button" class="modal-close {button}" aria-label="Close Meals & Nutrition" data-nutrition-action="close">×</button>
+  <button type="button" class={closeButton} aria-label="Close Meals & Nutrition" data-nutrition-action="close">×</button>
   <header class="nutrition-modal-head gb:nutrition:pr-11"><div><h3 id="nutrition-meal-detail-title" class="gb:nutrition:mt-0 gb:nutrition:text-xl">{view.name}</h3><p class={copy}>{view.date}</p></div></header>
   <div class="nutrition-detail-layout gb:nutrition:mt-[18px] gb:nutrition:grid gb:nutrition:gap-4">
     {#if view.images.length}

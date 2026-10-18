@@ -4,6 +4,7 @@ import { state } from './state.js';
 import { registerRefreshCallback } from './data.js';
 import { buildSidebar } from './nav.js';
 import { endTour } from './tour.js';
+import { getModalFocusables } from './modal-focusable.js';
 
 export interface AppEventListenerDependencies {
   closeChangelog: () => unknown; closeChatPanel: () => unknown; closeClientList: () => unknown;
@@ -184,13 +185,15 @@ function handleRoleButtonKeydown(e: KeyboardEvent) {
   const tag = t.tagName;
   if (tag === 'BUTTON' || tag === 'A' || tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
   // Don't fire twice if the element already has its own keydown wiring.
-  if (t.hasAttribute('onkeydown') || t.hasAttribute('data-chat-key-action') || t.hasAttribute('data-chat-message-action')) return;
+  if (t.hasAttribute('onkeydown') || t.hasAttribute('data-chat-key-action') || t.hasAttribute('data-chat-message-action') || t.hasAttribute('data-cl-key-action') || t.hasAttribute('data-dna-action')) return;
   e.preventDefault();
   t.click();
 }
 
 function handleAppKeydown(e: KeyboardEvent) {
   if (e.key === "Escape") {
+    // A local dialog handler owns an Escape it has already consumed.
+    if (e.defaultPrevented) return;
     // Passphrase overlay should not be dismissible via Escape.
     const passphraseOverlay = document.getElementById("passphrase-overlay");
     if (passphraseOverlay && passphraseOverlay.style.display === 'flex') return;
@@ -261,7 +264,7 @@ function handleAppKeydown(e: KeyboardEvent) {
     if (ov?.hasAttribute('data-modal-lifecycle-managed')) return;
     if (ov) {
         const modal = ov.querySelector('[role="dialog"]') || ov.querySelector('.modal') || ov.querySelector('.confirm-dialog') || ov;
-        const focusable = modal.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])');
+        const focusable = getModalFocusables(modal);
         if (focusable.length === 0) return;
         const first = (focusable[0] as HTMLElement);
         const last = (focusable[focusable.length - 1] as HTMLElement);

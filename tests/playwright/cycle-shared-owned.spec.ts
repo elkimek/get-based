@@ -93,10 +93,10 @@ async function mountPairs(page: Page): Promise<void> {
         if (anchor) {const before = document.querySelector(anchor); if (!before) throw new Error('Missing Cycle stylesheet anchor'); before.before(link);} else document.head.append(link);
       });
     }
-    const [{state}, cycle, runtime, rendering, shell, controlsModule] = await Promise.all([
-      import('/js/state.js'), import('/js/cycle.js'), import('/js/cycle-runtime.js'), import('/js/cycle-import-rendering.js'), import('/js/lens-page-shell.js'), import('/js/dashboard-widget-controls.js'),
+    const [{state}, cycle, runtime, rendering, controlsModule] = await Promise.all([
+      import('/js/state.js'), import('/js/cycle.js'), import('/js/cycle-runtime.js'), import('/js/cycle-import-rendering.js'), import('/js/dashboard-widget-controls.js'),
     ]);
-    await runtime.loadCycleStylesheetForAction();
+    const fixtureShell=await import('/tests/helpers/lens-chrome-fixture.js');await runtime.loadCycleStylesheetForAction();
     const modal = document.getElementById('detail-modal')!, overlay = document.getElementById('modal-overlay')!;
     const readShellAttributes = (node: Element): Record<string, string> => Object.fromEntries<string>([...node.attributes].filter(attr => !['id', 'class'].includes(attr.name)).map(attr => [attr.name, attr.value] as const).sort(([a], [b]) => a.localeCompare(b)));
     const savedShellAttributes = readShellAttributes(modal);
@@ -130,12 +130,12 @@ async function mountPairs(page: Page): Promise<void> {
     document.body.append(host);
     const wrap = (html: string, entry: Case) => {
       if (entry.placement === 'modal') return '<div class="modal-overlay show">' + html + '</div>';
-      if (entry.placement === 'body-full') return shell.renderLensPageWidgets('body', [{id: 'cycle', title: 'Cycle', description: 'Menstrual cycle context', body: html, size: 'full'}]);
+      if (entry.placement === 'body-full') return fixtureShell.renderLensPageWidgetsChromeFixture('body', [{id: 'cycle', title: 'Cycle', description: 'Menstrual cycle context', body: html, size: 'full'}]);
       if (entry.placement === 'dashboard-half') {
         const widget = {def: {id: 'cycle', source: 'Body', title: 'Cycle', description: 'Menstrual cycle context', size: 'half'}, body: html};
-        return '<div class="dashboard-widgets">' + controls.renderDashboardWidget(widget, {hidden: [], order: []}, 0, [widget]) + '</div>';
+        return '<div class="dashboard-widgets">' + fixtureShell.renderDashboardWidgetChromeFixture(controls, widget, {hidden: [], order: []}, 0, [widget]) + '</div>';
       }
-      return shell.renderLensPageWidgets('body', [{id: 'cycle', title: 'Cycle', description: 'Menstrual cycle context', body: html, size: 'full'}]);
+      return fixtureShell.renderLensPageWidgetsChromeFixture('body', [{id: 'cycle', title: 'Cycle', description: 'Menstrual cycle context', body: html, size: 'full'}]);
     };
     for (const {entry, current} of prepared) {
       const pair = document.createElement('div'); pair.dataset.name = entry.owner + '/' + entry.sample.name + '/' + entry.placement; pair.dataset.owner = entry.owner; pair.dataset.icons = String(entry.icons); pair.style.cssText = 'position:absolute;inset:0;padding:12px';

@@ -5,13 +5,13 @@ import type { SessionAIView } from './light-session-ai-presentation.js';
 export type EnvironmentAIKind = 'measurement' | 'room' | 'screen' | 'audit' | 'audit-dot';
 type SavedAnalysis = { dot?: unknown; tip?: unknown; detail?: unknown; errorMessage?: unknown };
 export interface EnvironmentAIView extends VerdictControlView {
-  kind: EnvironmentAIKind;
-  dot: SessionAIView['dot'];
-  prefix: string;
-  tip: string;
-  detail: string;
-  message: string;
-  buttonLabel: string;
+  readonly kind: EnvironmentAIKind;
+  readonly dot: SessionAIView['dot'];
+  readonly prefix: string;
+  readonly tip: string;
+  readonly detail: string;
+  readonly message: string;
+  readonly buttonLabel: string;
 }
 const actions = {
   measurement: 'refresh-measurement', room: 'refresh-room', screen: 'refresh-screen',

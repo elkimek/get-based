@@ -1,4 +1,7 @@
 <script lang="ts">
+  import {untrack} from 'svelte';
+  import ContextCardCatalog from './ContextCardCatalog.svelte';
+  import type {ContextCatalogView} from '../context-card-catalog-presentation.js';
   import type { ChatEmptyAction, ChatEmptyView } from '../chat-empty-presentation.js';
   import {
     ONBOARDING_BUBBLE, ONBOARDING_WIDE_BUBBLE, ONBOARDING_COMPLETE,
@@ -6,7 +9,9 @@
   } from '../chat-onboarding-classes.js';
   import Persona from './ChatPersonaLabel.svelte';
   import Progress from './ChatOnboardingProgress.svelte';
-  let { view }: { view: ChatEmptyView } = $props();
+  let { view, contextCatalog = null }: { view: ChatEmptyView; contextCatalog?: ContextCatalogView | null } = $props();
+  let catalog = $state.raw<ContextCatalogView | null>(untrack(() => contextCatalog));
+  export function setCatalog(next: ContextCatalogView | null): void { catalog = next; }
   const pausedPrimary = 'import-btn import-btn-primary gb:onboarding:inline-flex gb:onboarding:items-center gb:onboarding:justify-center gb:onboarding:cursor-pointer gb:onboarding:rounded-control gb:onboarding:border-0 gb:onboarding:bg-accent gb:onboarding:px-[18px] gb:onboarding:py-2.5 gb:onboarding:font-body gb:onboarding:text-[13px] gb:onboarding:font-semibold gb:onboarding:text-on-accent gb:onboarding:hover:opacity-90';
   const target = 'gb:onboarding:min-h-[45px] gb:onboarding:min-w-[45px]';
 
@@ -37,7 +42,7 @@
         <p class="gb:onboarding:mt-1 gb:onboarding:mb-0 gb:onboarding:text-xs gb:onboarding:text-muted">The more context I have, the better I can interpret results and recommend what to test. Everything is optional.</p>
       {/if}
       {#if view.contextCards}
-        <div data-chat-empty-context-slot class="chat-context-cards gb:onboarding:mt-3.5"></div>
+        <div data-chat-empty-context-slot class="chat-context-cards gb:onboarding:mt-3.5">{#if catalog}<ContextCardCatalog view={catalog}/>{/if}</div>
         <div class="chat-onboard-actions chat-onboard-step4-actions gb:onboarding:mt-3 gb:onboarding:flex gb:onboarding:flex-col gb:onboarding:gap-[7px]">
           <div class="chat-onboard-primary-actions chat-onboard-primary-actions-single gb:onboarding:grid gb:onboarding:grid-cols-1 gb:onboarding:gap-2"><button type="button" class={`chat-onboard-cta ${ONBOARDING_CTA} ${ONBOARDING_FOCUS} ${target} gb:onboarding:justify-center gb:onboarding:text-center`} data-chat-empty-action="continue-after-context-cards">{view.continueLabel}</button></div>
           <div class="chat-onboard-tertiary-actions gb:onboarding:flex gb:onboarding:flex-wrap gb:onboarding:items-center gb:onboarding:justify-center gb:onboarding:gap-x-3 gb:onboarding:gap-y-1 gb:onboarding:pt-0.5"><button type="button" class={`chat-onboard-text-action ${ONBOARDING_FOCUS} ${target} gb:onboarding:cursor-pointer gb:onboarding:rounded-sm gb:onboarding:border-0 gb:onboarding:bg-transparent gb:onboarding:px-0.5 gb:onboarding:py-[3px] gb:onboarding:font-body gb:onboarding:text-xs gb:onboarding:text-muted gb:onboarding:underline gb:onboarding:underline-offset-[3px] gb:onboarding:hover:text-accent`} data-chat-empty-action="skip-context-cards">Skip context cards</button></div>

@@ -52,7 +52,7 @@ export function setNutritionHistoryView(view: unknown) {
   return valid;
 }
 
-export async function openNutritionHistory(rangeKey: unknown = getNutritionHistoryRange(), options: NutritionHistoryOptions = {}) {
+export async function openNutritionHistory(rangeKey: unknown = getNutritionHistoryRange(), options: NutritionHistoryOptions = {}, isCurrent: () => boolean = () => true) {
   const { view = getNutritionHistoryView(), focus = '', resetMeals = false, preserveScroll = false } = options;
   const generation = ++historyRequestGeneration;
   const previousScrollTop = preserveScroll ? Number(document.getElementById('detail-modal')?.scrollTop || 0) : 0;
@@ -68,7 +68,7 @@ export async function openNutritionHistory(rangeKey: unknown = getNutritionHisto
   const pending = () => generation === historyRequestGeneration && state.currentProfile === profile && state.importedData === data
     && modal.firstElementChild === content && routeRevision() === route
     && document.getElementById('detail-modal') === modal && document.getElementById('modal-overlay') === overlay
-    && overlay.classList.contains('show') === shown;
+    && overlay.classList.contains('show') === shown && isCurrent();
   const stylesheet = await ensureNutritionStylesheet();
   if (!pending()) return false;
   if (stylesheet?.type === 'error') { showNotification('Nutrition styles could not be loaded. Try opening History again.', 'error'); return false; }

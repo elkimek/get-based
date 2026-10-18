@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import type { NutritionMealDetailView, NutritionMealDetailActions, MealResponseDraft } from '../nutrition-meal-detail-model.js';
-  import { button, primary, copy, formHead } from '../nutrition-view-classes.js';
+  import { primary, copy, textAction } from '../nutrition-view-classes.js';
   let { view, actions }: { view: NutritionMealDetailView; actions: NutritionMealDetailActions } = $props();
   let response: MealResponseDraft = $state(untrack(() => ({ ...view.response })));
   let form: HTMLFormElement;
@@ -30,7 +30,7 @@
 </script>
 <form bind:this={form} class="nutrition-response-card gb:nutrition:grid gb:nutrition:gap-3 gb:nutrition:rounded-xl gb:nutrition:border gb:nutrition:border-[color-mix(in_srgb,var(--accent)_24%,var(--border))] gb:nutrition:bg-[color-mix(in_srgb,var(--accent)_3%,var(--bg-card))] gb:nutrition:p-3.5"
   onsubmit={event => { event.preventDefault(); event.stopPropagation(); void save(); }} aria-labelledby="nutrition-response-title" aria-describedby="nutrition-response-help">
-  <div class="nutrition-response-head {formHead}">
+  <div class="nutrition-response-head gb:nutrition:flex gb:nutrition:items-start gb:nutrition:justify-between gb:nutrition:gap-3">
     <div class="gb:nutrition:grid gb:nutrition:gap-1 gb:nutrition:min-w-0">
       <span class="nutrition-fuel-kicker {copy}">Personal evidence</span>
       <strong id="nutrition-response-title" class="gb:nutrition:text-[13px]">How did this meal feel 2–3 hours later?</strong>
@@ -44,7 +44,7 @@
         <legend class="gb:nutrition:px-1 gb:nutrition:text-[10px] gb:nutrition:font-bold">{group.legend}</legend>
         <div class="gb:nutrition:grid gb:nutrition:grid-cols-3 gb:nutrition:gap-1.5">
           {#each group.labels as label, index}
-            <label class="nutrition-response-choice gb:nutrition:relative gb:nutrition:grid gb:nutrition:min-h-11 gb:nutrition:min-w-0 gb:nutrition:place-items-center gb:nutrition:rounded-lg gb:nutrition:border gb:nutrition:border-line gb:nutrition:p-1.5 gb:nutrition:text-center gb:nutrition:text-[10px] gb:nutrition:font-bold gb:nutrition:text-secondary gb:nutrition:cursor-pointer gb:nutrition:has-checked:border-accent gb:nutrition:has-checked:bg-hover gb:nutrition:has-checked:text-ink gb:nutrition:focus-within:outline-2 gb:nutrition:focus-within:outline-accent gb:nutrition:focus-within:outline-offset-2">
+            <label class="nutrition-response-choice gb:nutrition:relative gb:nutrition:grid gb:nutrition:min-h-[38px] gb:nutrition:[@media(pointer:coarse)]:min-h-11 gb:nutrition:min-w-0 gb:nutrition:place-items-center gb:nutrition:rounded-lg gb:nutrition:border gb:nutrition:border-line gb:nutrition:p-1.5 gb:nutrition:text-center gb:nutrition:text-[9px] gb:nutrition:leading-[1.25] gb:nutrition:font-bold gb:nutrition:text-muted gb:nutrition:cursor-pointer gb:nutrition:has-checked:border-accent gb:nutrition:has-checked:bg-hover gb:nutrition:has-checked:text-ink gb:nutrition:focus-within:outline-2 gb:nutrition:focus-within:outline-accent gb:nutrition:focus-within:outline-offset-2">
               <input type="radio" name={group.name} value={index + 1} bind:group={response[group.key]} class="gb:nutrition:absolute gb:nutrition:inset-0 gb:nutrition:h-full gb:nutrition:w-full gb:nutrition:m-0 gb:nutrition:opacity-0 gb:nutrition:cursor-pointer"/><span>{label}</span>
             </label>
           {/each}
@@ -55,7 +55,7 @@
   <div class="nutrition-response-actions gb:nutrition:flex gb:nutrition:items-center gb:nutrition:justify-between gb:nutrition:gap-3 gb:nutrition:max-[600px]:flex-col gb:nutrition:max-[600px]:items-stretch">
     <small class="{copy} gb:nutrition:max-w-[470px]">Saved and cross-synced with this meal. It is not added to the compact AI nutrition summary.</small>
     <div class="gb:nutrition:flex gb:nutrition:justify-end gb:nutrition:gap-2">
-      {#if view.checkedIn}<button type="button" class="nutrition-text-btn {button}" data-nutrition-action="clear-response" data-nutrition-id={view.id} disabled={busy} onclick={event => { event.stopPropagation(); void save(true); }}>Clear</button>{/if}
+      {#if view.checkedIn}<button type="button" class="nutrition-text-btn {textAction}" data-nutrition-action="clear-response" data-nutrition-id={view.id} disabled={busy} onclick={event => { event.stopPropagation(); void save(true); }}>Clear</button>{/if}
       <button type="submit" class="import-btn import-btn-primary {primary}" data-nutrition-action="save-response" data-nutrition-id={view.id} disabled={busy} onclick={event => event.stopPropagation()}>{busy ? 'Saving…' : 'Save check-in'}</button>
     </div>
   </div>

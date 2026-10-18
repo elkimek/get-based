@@ -1,7 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
 import baseConfig from './playwright.config.js';
 
-const { launchOptions: _chromiumLaunchOptions, ...sharedUse } = baseConfig.use || {};
+const { launchOptions: chromiumLaunchOptions, ...sharedUse } = baseConfig.use || {};
+const firefoxEnvironment = chromiumLaunchOptions?.env;
+if (!firefoxEnvironment) throw new Error('Firefox smoke tests require the isolated headless launch environment');
 
 export default defineConfig({
   ...baseConfig,
@@ -10,7 +12,7 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   timeout: 60_000,
-  use: sharedUse,
+  use: {...sharedUse, launchOptions: {env: firefoxEnvironment}},
   projects: [
     {
       name: 'firefox-smoke',

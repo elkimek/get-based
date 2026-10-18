@@ -1,25 +1,16 @@
-
-/* ═══════════════════════════════════════════════
-   LIGHT & SUN — Light Today strip + dedicated page
-   Mirrors the .wearable-strip token + structural conventions so the
-   two adjacent dashboard panels read as siblings.
-   Tokens used: --accent-gradient (CTA) · --orange/--orange-bg (warn) ·
-   --red/--red-bg (over) · --green (ok) · --shadow / --radius / --radius-sm.
-   ═══════════════════════════════════════════════ */
-
-/* Strip — matches .wearable-strip surface treatment */
-.light-page .lens-page-header h2 {
+@import "tailwindcss" prefix(gb) source(none) reference;
+@utility light-layout-page-page-lens-page-header-h2 {
   letter-spacing: 0;
 }
-.light-page .lens-page-widgets {
+@utility light-layout-page-page-lens-page-widgets {
   width: 100%;
 }
-.light-page .dashboard-widget[data-widget-id^="light-"] .dashboard-widget-body {
+@utility light-layout-page-page-dashboard-widget-data-widget-id-light-dashboard-wi {
   display: grid;
   gap: 14px;
   min-width: 0;
 }
-.light-device-safety:not([data-light-detail-presentation] *) {
+@utility light-layout-page-device-safety {
   display: grid;
   gap: 4px;
   padding: 10px 12px;
@@ -30,45 +21,21 @@
   font-size: 12px;
   line-height: 1.45;
 }
-.light-device-safety strong:not([data-light-detail-presentation] *) { color: var(--text-primary); }
-.light-device-safety.is-over:not([data-light-detail-presentation] *) {
+@utility light-layout-page-device-safety-strong { color: var(--text-primary); }
+@utility light-layout-page-device-safety-is-over {
   border-color: color-mix(in srgb, var(--red) 55%, var(--border));
   background: color-mix(in srgb, var(--red-bg) 68%, var(--bg-card));
 }
-
-@media (max-width: 720px) {
-  .light-page small,
-  .light-page .dashboard-widget-description,
-  .light-page .light-section-hint,
-  .light-page .dev-session-hint { font-size: 12px; line-height: 1.45; }
-}
-.dashboard-widget[data-widget-id="light-today"] .dashboard-widget-body {
+@utility light-layout-page-page-small-light-page-dashboard-widget-description-ligh { font-size: 12px; line-height: 1.45; }
+@utility light-layout-page-dashboard-widget-data-widget-id-light-today-dashboard-w {
   display: grid;
   gap: 14px;
   min-width: 0;
 }
-.dashboard-widget[data-widget-id="light-today"] .light-today-hero {
+@utility light-layout-page-dashboard-widget-data-widget-id-light-today-light-today {
   margin: 0;
 }
-.dashboard-widget[data-widget-id="light-today"] .light-today-strip {
-  margin: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-}
-.dashboard-widget[data-widget-id="light-live-session"] .light-active-session-pinned,
-.light-page .dashboard-widget[data-widget-id="light-today"] .light-med-banner {
-  margin: 0;
-}
-.light-page .dashboard-widget[data-widget-id="light-methods"] .dashboard-widget-body {
-  gap: 0;
-}
-.light-page .dashboard-widget[data-widget-id="light-session-log"] .dashboard-widget-body {
-  gap: 0;
-}
-.dashboard-widget[data-widget-id="light-session-log"] .light-quicklog-row {
+@utility light-layout-page-dashboard-widget-data-widget-id-light-today-light-today-2 {
   margin: 0;
   padding: 0;
   border: 0;
@@ -76,7 +43,24 @@
   background: transparent;
   box-shadow: none;
 }
-.light-widget-prompt:not(:where([data-light-widget-prompt], [data-light-widget-prompt] *)) {
+@utility light-layout-page-dashboard-widget-data-widget-id-light-live-session-ligh {
+  margin: 0;
+}
+@utility light-layout-page-page-dashboard-widget-data-widget-id-light-methods-dash {
+  gap: 0;
+}
+@utility light-layout-page-page-dashboard-widget-data-widget-id-light-session-log {
+  gap: 0;
+}
+@utility light-layout-page-dashboard-widget-data-widget-id-light-session-log-light {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+@utility light-layout-page-widget-prompt {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -87,24 +71,190 @@
   background: color-mix(in srgb, var(--bg-secondary) 60%, transparent);
   min-width: 0;
 }
-.light-widget-prompt-copy:not(:where([data-light-widget-prompt], [data-light-widget-prompt] *)) {
+@utility light-layout-page-widget-prompt-copy {
   min-width: 0;
 }
-.light-widget-prompt-copy strong:not(:where([data-light-widget-prompt], [data-light-widget-prompt] *)) {
+@utility light-layout-page-widget-prompt-copy-strong {
   display: block;
   color: var(--text-primary);
   font-size: 13px;
   margin-bottom: 3px;
 }
-.light-widget-prompt-copy p:not(:where([data-light-widget-prompt], [data-light-widget-prompt] *)) {
+@utility light-layout-page-widget-prompt-copy-p {
   margin: 0;
   color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.5;
 }
-.light-widget-prompt-cta:not(:where([data-light-widget-prompt], [data-light-widget-prompt] *)) {
+@utility light-layout-page-widget-prompt-cta {
   flex-shrink: 0;
 }
+@utility light-layout-page-active-session-pinned {
+  margin: 4px 0 14px;
+}
+@utility light-layout-page-summary-tally { color: var(--text-secondary); font-size: 13px; }
+@utility light-layout-page-recent-sessions-header {
+  margin-top: 24px;
+}
+@utility light-layout-page-section-title {
+  font-family: var(--font-display);
+  font-size: 15px; font-weight: 700; color: var(--text-primary); margin: 0 0 4px;
+}
+@utility light-layout-page-section-hint { font-size: 13px; color: var(--text-secondary); margin: 0 0 12px; }
+@utility light-layout-page-today-cta-sun-silhouette-region {
+    transition: none !important;
+    animation: none !important;
+    transform: none !important;
+  }
+@utility light-layout-page-context-label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+@utility light-layout-page-context-input-ctx-select {
+  width: 100%;
+  padding: 8px 10px;
+  margin-top: 4px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+@utility light-layout-page-context-input-focus-ctx-select-focus {
+  border-color: var(--accent);
+  outline: none;
+}
+@utility light-layout-page-context-select {
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M0 0l5 6 5-6z' fill='%238b8fa3'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+}
+@utility light-layout-page-context-select-option {
+  background: var(--select-popup-surface);
+  color: var(--text-primary);
+}
+@utility light-layout-page-data-theme-light-ctx-select {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M0 0l5 6 5-6z' fill='%235a5e6e'/></svg>");
+}
+@utility light-layout-page-context-label-input-type-checkbox {
+  width: auto;
+  margin: 0 6px 0 0;
+  vertical-align: middle;
+}
+@utility light-layout-page-textarea-ctx-input { resize: vertical; min-height: 56px; }
+@utility light-layout-page-sun-detail-section { margin: 14px 0; }
+@utility light-layout-page-sun-detail-section-label {
+  font-size: 11px; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+@utility light-layout-page-sun-detail-section-value {
+  font-size: 13px; color: var(--text-primary); line-height: 1.5;
+}
+@utility light-layout-page-sun-detail-disclosure {
+  margin: 12px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-secondary) 48%, transparent);
+  overflow: hidden;
+}
+@utility light-layout-page-sun-detail-disclosure-summary {
+  padding: 11px 13px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  list-style-position: inside;
+}
+@utility light-layout-page-sun-detail-disclosure-open-summary { border-bottom: 1px solid var(--border); }
+@utility light-layout-page-sun-detail-disclosure-p { margin: 10px 12px; }
+@utility light-layout-page-sun-detail-disclosure-p-2 { color: var(--text-muted); font-size: 12px; line-height: 1.45; }
+@utility light-layout-page-sun-silhouette-hint {
+  font-family: 'EB Garamond', 'Cormorant Garamond', Georgia, serif;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--fresco-cream);
+  opacity: 0.72;
+  text-align: center; line-height: 1.5;
+  margin: 6px 0 12px; min-height: 18px;
+  letter-spacing: 0.2px;
+}
+@utility light-layout-page-sun-silhouette-hint-error {
+  color: var(--red);
+  font-weight: 500;
+}
+@utility light-layout-page-touch-tooltip {
+  position: fixed; z-index: 10000;
+  max-width: min(280px, calc(100vw - 24px));
+  padding: 8px 12px;
+  background: var(--bg-elevated, #1f2330); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: 8px;
+  font-size: 13px; line-height: 1.4;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  opacity: 0; transform: translateY(4px);
+  transition: opacity 0.12s, transform 0.12s;
+  pointer-events: none; /* never blocks subsequent taps */
+  white-space: pre-wrap; word-wrap: break-word;
+}
+@utility light-layout-page-touch-tooltip-show { opacity: 1; transform: translateY(0); }
+@utility light-layout-page-sun-empty {
+  background: var(--bg-secondary); border: 1px dashed var(--border);
+  border-radius: 12px; padding: 24px; text-align: center; color: var(--text-secondary);
+}
+@utility light-layout-page-sun-empty-p { margin-bottom: 12px; }
+@utility light-layout-page-widget-prompt-2 {
+    flex-direction: column;
+    align-items: stretch;
+  }
+@utility light-layout-page-widget-prompt-cta-2 {
+    width: 100%;
+  }
+
+
+/* ═══════════════════════════════════════════════
+   LIGHT & SUN — Light Today strip + dedicated page
+   Mirrors the .wearable-strip token + structural conventions so the
+   two adjacent dashboard panels read as siblings.
+   Tokens used: --accent-gradient (CTA) · --orange/--orange-bg (warn) ·
+   --red/--red-bg (over) · --green (ok) · --shadow / --radius / --radius-sm.
+   ═══════════════════════════════════════════════ */
+
+/* Strip — matches .wearable-strip surface treatment */
+.light-page .lens-page-header h2 { @apply gb:light-layout-page-page-lens-page-header-h2; }
+.light-page .lens-page-widgets { @apply gb:light-layout-page-page-lens-page-widgets; }
+.light-page .dashboard-widget[data-widget-id^="light-"] .dashboard-widget-body { @apply gb:light-layout-page-page-dashboard-widget-data-widget-id-light-dashboard-wi; }
+.light-device-safety:not([data-light-detail-presentation] *) { @apply gb:light-layout-page-device-safety; }
+.light-device-safety strong:not([data-light-detail-presentation] *) { @apply gb:light-layout-page-device-safety-strong; }
+.light-device-safety.is-over:not([data-light-detail-presentation] *) { @apply gb:light-layout-page-device-safety-is-over; }
+
+@media (max-width: 720px) {
+  .light-page small,
+  .light-page .dashboard-widget-description,
+  .light-page .light-section-hint,
+  .light-page .dev-session-hint { @apply gb:light-layout-page-page-small-light-page-dashboard-widget-description-ligh; }
+}
+.dashboard-widget[data-widget-id="light-today"] .dashboard-widget-body { @apply gb:light-layout-page-dashboard-widget-data-widget-id-light-today-dashboard-w; }
+.dashboard-widget[data-widget-id="light-today"] .light-today-hero { @apply gb:light-layout-page-dashboard-widget-data-widget-id-light-today-light-today; }
+.dashboard-widget[data-widget-id="light-today"] .light-today-strip { @apply gb:light-layout-page-dashboard-widget-data-widget-id-light-today-light-today-2; }
+.dashboard-widget[data-widget-id="light-live-session"] .light-active-session-pinned,
+.light-page .dashboard-widget[data-widget-id="light-today"] .light-med-banner { @apply gb:light-layout-page-dashboard-widget-data-widget-id-light-live-session-ligh; }
+.light-page .dashboard-widget[data-widget-id="light-methods"] .dashboard-widget-body { @apply gb:light-layout-page-page-dashboard-widget-data-widget-id-light-methods-dash; }
+.light-page .dashboard-widget[data-widget-id="light-session-log"] .dashboard-widget-body { @apply gb:light-layout-page-page-dashboard-widget-data-widget-id-light-session-log; }
+.dashboard-widget[data-widget-id="light-session-log"] .light-quicklog-row { @apply gb:light-layout-page-dashboard-widget-data-widget-id-light-session-log-light; }
+.light-widget-prompt:not(:where([data-light-widget-prompt], [data-light-widget-prompt] *)) { @apply gb:light-layout-page-widget-prompt; }
+.light-widget-prompt-copy:not(:where([data-light-widget-prompt], [data-light-widget-prompt] *)) { @apply gb:light-layout-page-widget-prompt-copy; }
+.light-widget-prompt-copy strong:not(:where([data-light-widget-prompt], [data-light-widget-prompt] *)) { @apply gb:light-layout-page-widget-prompt-copy-strong; }
+.light-widget-prompt-copy p:not(:where([data-light-widget-prompt], [data-light-widget-prompt] *)) { @apply gb:light-layout-page-widget-prompt-copy-p; }
+.light-widget-prompt-cta:not(:where([data-light-widget-prompt], [data-light-widget-prompt] *)) { @apply gb:light-layout-page-widget-prompt-cta; }
 
 /* Strip footer — burn-risk gauge + CTA */
 
@@ -127,30 +277,19 @@
    Sun page when a session is running, above Conditions / Setup / the
    Stop CTA. Heavier visual treatment than ordinary rows so the live
    readout reads as the page's focal point. */
-.light-active-session-pinned {
-  margin: 4px 0 14px;
-}
+.light-active-session-pinned { @apply gb:light-layout-page-active-session-pinned; }
 /* Light & Sun page — quick-log row + section headings */
-.light-summary-tally { color: var(--text-secondary); font-size: 13px; }
-.light-recent-sessions-header {
-  margin-top: 24px;
-}
-.light-section-title {
-  font-family: var(--font-display);
-  font-size: 15px; font-weight: 700; color: var(--text-primary); margin: 0 0 4px;
-}
-.light-section-hint { font-size: 13px; color: var(--text-secondary); margin: 0 0 12px; }
+.light-summary-tally { @apply gb:light-layout-page-summary-tally; }
+.light-recent-sessions-header { @apply gb:light-layout-page-recent-sessions-header; }
+.light-section-title { @apply gb:light-layout-page-section-title; }
+.light-section-hint { @apply gb:light-layout-page-section-hint; }
 
 /* Reduced motion — strip transforms + transitions for users with the OS
    preference set. Hover lifts and tier-changed badge flashes feel disorienting
    for vestibular-sensitive users. */
 @media (prefers-reduced-motion: reduce) {
   .light-today-cta,
-  .sun-silhouette-region {
-    transition: none !important;
-    animation: none !important;
-    transform: none !important;
-  }
+  .sun-silhouette-region { @apply gb:light-layout-page-today-cta-sun-silhouette-region; }
 }
 
 /* Touch tap-target sizing — coarse pointer (touchscreen) gets 44×44 minimum
@@ -161,88 +300,32 @@
    tools). Mirrors the supp-form-field pattern so dropdowns + inputs
    match the rest of the app's dark/light themes instead of the browser
    defaults. */
-.ctx-label {
-  display: block;
-  font-size: 12px;
-  color: var(--text-muted);
-  font-weight: 500;
-  margin-bottom: 8px;
-}
+.ctx-label { @apply gb:light-layout-page-context-label; }
 .ctx-input,
-.ctx-select {
-  width: 100%;
-  padding: 8px 10px;
-  margin-top: 4px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  font-size: 13px;
-  font-family: inherit;
-  box-sizing: border-box;
-}
+.ctx-select { @apply gb:light-layout-page-context-input-ctx-select; }
 .ctx-input:focus,
-.ctx-select:focus {
-  border-color: var(--accent);
-  outline: none;
-}
-.ctx-select {
-  cursor: pointer;
-  appearance: none;
-  -webkit-appearance: none;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M0 0l5 6 5-6z' fill='%238b8fa3'/></svg>");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-  padding-right: 28px;
-}
-.ctx-select option {
-  background: var(--select-popup-surface);
-  color: var(--text-primary);
-}
-[data-theme="light"] .ctx-select {
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M0 0l5 6 5-6z' fill='%235a5e6e'/></svg>");
-}
+.ctx-select:focus { @apply gb:light-layout-page-context-input-focus-ctx-select-focus; }
+.ctx-select { @apply gb:light-layout-page-context-select; }
+.ctx-select option { @apply gb:light-layout-page-context-select-option; }
+[data-theme="light"] .ctx-select { @apply gb:light-layout-page-data-theme-light-ctx-select; }
 /* Inline checkboxes inside .ctx-label rows (e.g. "Glass between..." */
-.ctx-label > input[type="checkbox"] {
-  width: auto;
-  margin: 0 6px 0 0;
-  vertical-align: middle;
-}
+.ctx-label > input[type="checkbox"] { @apply gb:light-layout-page-context-label-input-type-checkbox; }
 /* Textarea variant */
-textarea.ctx-input { resize: vertical; min-height: 56px; }
+textarea.ctx-input { @apply gb:light-layout-page-textarea-ctx-input; }
 
 /* Shared native AI-extraction sections; authored session/conditions details own their utilities. */
-.sun-detail-section:not([data-light-detail-presentation] *):not(:where([data-light-conditions-presentation], [data-light-conditions-presentation] *)) { margin: 14px 0; }
-.sun-detail-section-label:not([data-light-detail-presentation] *):not(:where([data-light-conditions-presentation], [data-light-conditions-presentation] *)) {
-  font-size: 11px; color: var(--text-muted);
-  text-transform: uppercase; letter-spacing: 0.5px;
-  margin-bottom: 6px;
-}
-.sun-detail-section-value:not([data-light-detail-presentation] *):not(:where([data-light-conditions-presentation], [data-light-conditions-presentation] *)) {
-  font-size: 13px; color: var(--text-primary); line-height: 1.5;
-}
-.sun-detail-disclosure:not([data-light-detail-presentation] *) {
-  margin: 12px 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--bg-secondary) 48%, transparent);
-  overflow: hidden;
-}
-.sun-detail-disclosure > summary:not([data-light-detail-presentation] *) {
-  padding: 11px 13px;
-  color: var(--text-primary);
-  font-size: 13px;
-  font-weight: 650;
-  cursor: pointer;
-  list-style-position: inside;
-}
-.sun-detail-disclosure[open] > summary:not([data-light-detail-presentation] *) { border-bottom: 1px solid var(--border); }
+.sun-detail-section:not([data-light-detail-presentation] *):not(:where([data-light-conditions-presentation], [data-light-conditions-presentation] *)) { @apply gb:light-layout-page-sun-detail-section; }
+.sun-detail-section-label:not([data-light-detail-presentation] *):not(:where([data-light-conditions-presentation], [data-light-conditions-presentation] *)) { @apply gb:light-layout-page-sun-detail-section-label; }
+.sun-detail-section-value:not([data-light-detail-presentation] *):not(:where([data-light-conditions-presentation], [data-light-conditions-presentation] *)) { @apply gb:light-layout-page-sun-detail-section-value; }
+.sun-detail-disclosure:not([data-light-detail-presentation] *) { @apply gb:light-layout-page-sun-detail-disclosure; }
+.sun-detail-disclosure > summary:not([data-light-detail-presentation] *) { @apply gb:light-layout-page-sun-detail-disclosure-summary; }
+.sun-detail-disclosure[open] > summary:not([data-light-detail-presentation] *) { @apply gb:light-layout-page-sun-detail-disclosure-open-summary; }
 .sun-detail-disclosure > p:not([data-light-detail-presentation] *),
 .sun-detail-disclosure > .sun-detail-channels:not([data-light-detail-presentation] *),
 .sun-detail-disclosure > .sun-detail-atm:not([data-light-detail-presentation] *),
 .sun-detail-disclosure > .sun-detail-input-location:not([data-light-detail-presentation] *),
-.sun-detail-disclosure > .light-device-safety:not([data-light-detail-presentation] *) { margin: 10px 12px; }
-.sun-detail-disclosure > p:not([data-light-detail-presentation] *) { color: var(--text-muted); font-size: 12px; line-height: 1.45; }
+.sun-detail-disclosure > .light-device-safety:not([data-light-detail-presentation] *) { @apply gb:light-layout-page-sun-detail-disclosure-p; }
+.sun-detail-disclosure > p:not([data-light-detail-presentation] *) { @apply gb:light-layout-page-sun-detail-disclosure-p-2; }
 
 /* ─── Fresco-style body region picker ──────────────────────────────────
    The picker is staged as a small fresco panel — figures rendered as
@@ -280,42 +363,15 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
 
 
 
-.sun-silhouette-hint {
-  font-family: 'EB Garamond', 'Cormorant Garamond', Georgia, serif;
-  font-size: 13px;
-  font-style: italic;
-  color: var(--fresco-cream);
-  opacity: 0.72;
-  text-align: center; line-height: 1.5;
-  margin: 6px 0 12px; min-height: 18px;
-  letter-spacing: 0.2px;
-}
-.sun-silhouette-hint-error {
-  color: var(--red);
-  font-weight: 500;
-}
+.sun-silhouette-hint { @apply gb:light-layout-page-sun-silhouette-hint; }
+.sun-silhouette-hint-error { @apply gb:light-layout-page-sun-silhouette-hint-error; }
 /* Legacy touch-tooltip class kept for any cached DOM created by older app
-   code; new tooltips use .app-tooltip from light-conditions-now.css. */
-.touch-tooltip {
-  position: fixed; z-index: 10000;
-  max-width: min(280px, calc(100vw - 24px));
-  padding: 8px 12px;
-  background: var(--bg-elevated, #1f2330); color: var(--text-primary);
-  border: 1px solid var(--border); border-radius: 8px;
-  font-size: 13px; line-height: 1.4;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-  opacity: 0; transform: translateY(4px);
-  transition: opacity 0.12s, transform 0.12s;
-  pointer-events: none; /* never blocks subsequent taps */
-  white-space: pre-wrap; word-wrap: break-word;
-}
-.touch-tooltip-show { opacity: 1; transform: translateY(0); }
+   code; new tooltips use .app-tooltip from eager app-shell.css. */
+.touch-tooltip { @apply gb:light-layout-page-touch-tooltip; }
+.touch-tooltip-show { @apply gb:light-layout-page-touch-tooltip-show; }
 
-.sun-empty {
-  background: var(--bg-secondary); border: 1px dashed var(--border);
-  border-radius: 12px; padding: 24px; text-align: center; color: var(--text-secondary);
-}
-.sun-empty p { margin-bottom: 12px; }
+.sun-empty { @apply gb:light-layout-page-sun-empty; }
+.sun-empty p { @apply gb:light-layout-page-sun-empty-p; }
 
 /* ═══════════════════════════════════════════════════════════════════
    Light & Sun — mobile responsive pass
@@ -333,12 +389,7 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
   /* Quick-log CTA row stacks: primary CTAs full-width, tally on its
      own line below. Was a 4-element flex row that collapsed into a
      visual pile of buttons + text on narrow widths. */
-  .light-widget-prompt:not(:where([data-light-widget-prompt], [data-light-widget-prompt] *)) {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .light-widget-prompt-cta:not(:where([data-light-widget-prompt], [data-light-widget-prompt] *)) {
-    width: 100%;
-  }
+  .light-widget-prompt:not(:where([data-light-widget-prompt], [data-light-widget-prompt] *)) { @apply gb:light-layout-page-widget-prompt-2; }
+  .light-widget-prompt-cta:not(:where([data-light-widget-prompt], [data-light-widget-prompt] *)) { @apply gb:light-layout-page-widget-prompt-cta-2; }
 
 }

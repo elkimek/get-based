@@ -1,0 +1,5 @@
+@import "tailwindcss" prefix(gb) source(none) reference;
+
+@utility inline-startup-layout-main-content {min-height:calc(100vh - 64px + 180px)}
+
+#main-content{ @apply gb:inline-startup-layout-main-content; }

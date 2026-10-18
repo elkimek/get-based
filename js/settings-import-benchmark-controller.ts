@@ -8,7 +8,7 @@ import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.
 import { getImportBenchmarkSnapshots } from './settings-data.js';
 import { importBenchmarkModelIdentity } from './import-benchmark-data.js';
 import { getImportBenchmarkContext } from './import-benchmark-facade.js';
-import { mountImportBenchmarks, renderImportBenchmarkEntryHost } from './import-benchmark-component.js';
+import { mountImportBenchmarks, prepareImportBenchmarkEntryHost } from './import-benchmark-component.js';
 import { buildBenchmarkSnapshot } from './import-benchmark-presentation.js';
 import { createImportBenchmarksController } from './import-benchmark-controller.js';
 import { createBenchmarkRun } from './import-benchmark-run.js';
@@ -61,9 +61,13 @@ export function openImportBenchmarksModal(): boolean {
   return true;
 }
 
-export function renderImportBenchmarksEntrySection(onOpen: (button: HTMLButtonElement) => unknown = openImportBenchmarksModal): string {
+export function prepareImportBenchmarksEntrySection(onOpen: (button: HTMLButtonElement) => unknown = openImportBenchmarksModal): number {
   const stored = read().filter(snap => !snap.benchmarkLocked);
   const modelCount = new Set(stored.map(importBenchmarkModelIdentity).filter(Boolean)).size;
   const label = `Built-in 100% answer key · ${stored.length} saved test${stored.length === 1 ? '' : 's'}${stored.length ? ` across ${modelCount} model setup${modelCount === 1 ? '' : 's'}` : ''} · compare accuracy and speed on this device`;
-  return renderImportBenchmarkEntryHost(label, onOpen);
+  return prepareImportBenchmarkEntryHost(label, onOpen);
+}
+
+export function renderImportBenchmarksEntrySection(onOpen: (button: HTMLButtonElement) => unknown = openImportBenchmarksModal): string {
+  return `<div data-import-benchmark-entry-host="${prepareImportBenchmarksEntrySection(onOpen)}"></div>`;
 }

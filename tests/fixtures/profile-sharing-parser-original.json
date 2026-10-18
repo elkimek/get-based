@@ -1,0 +1,1905 @@
+{
+  "schemaVersion": 1,
+  "scope": "actual original Sharing native-template and compiler/parser fixtures; no browser or provider acceptance",
+  "provenance": {
+    "presentationFreezeSHA256": "75ab68681ec12d846709754fde5f90f1a8659d393f33d2037c937503776bdd1d",
+    "compilerFreezeSHA256": "c360baf585c927da7d860ba2fb63fa6849390162e37dcf4b4ebad5b27ac433d7",
+    "originalSource": {
+      "path": "js/profile-share.js",
+      "bytes": 32842,
+      "sha256": "f47beac03a25892655249d8b74e327b560b5c763e9ecc43c218a439f16c09515"
+    },
+    "parserResultSHA256": "39e30baae2e6498a956031432659b194bc4345620ec8185b587404df346f355f",
+    "execution": {
+      "exitCode": 0,
+      "consumedTerminal": true,
+      "completionChunk": "94ae58"
+    }
+  },
+  "cases": [
+    {
+      "fixture": {
+        "label": "active-empty",
+        "kind": "active",
+        "id": "p",
+        "name": "Alice",
+        "secret": "secret",
+        "records": []
+      },
+      "original": "\n    <section class=\"profile-share-active\" data-profile-share-active-list data-profile-id=\"p\">\n      <div class=\"profile-share-active-head\">\n        <span>Active links</span>\n        <small>Created on this device</small>\n      </div>\n      <div class=\"profile-share-active-list\"><div class=\"profile-share-active-empty\">No active links created on this device.</div></div>\n    </section>\n  ",
+      "candidate": "\n    <section class=\"profile-share-active\" data-profile-share-active-list=\"\" data-profile-id=\"p\">\n      <div class=\"profile-share-active-head\">\n        <span>Active links</span>\n        <small>Created on this device</small>\n      </div>\n      <div class=\"profile-share-active-list\"><!--[-1--><div class=\"profile-share-active-empty\">No active links created on this device.</div><!--]--></div>\n    </section>\n  ",
+      "anchors": [
+        {
+          "path": [
+            1,
+            3,
+            0
+          ],
+          "value": "[-1",
+          "parentChildren": [
+            {
+              "type": 8,
+              "value": "[-1"
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": "]"
+            }
+          ]
+        },
+        {
+          "path": [
+            1,
+            3,
+            2
+          ],
+          "value": "]",
+          "parentChildren": [
+            {
+              "type": 8,
+              "value": "[-1"
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": "]"
+            }
+          ]
+        }
+      ],
+      "activeExpiryLabels": [],
+      "resultExpiryLabel": null,
+      "guards": [
+        "attribute-addition",
+        "attribute-order",
+        "namespace",
+        "text",
+        "unknown-comment",
+        "extra-known-comment"
+      ]
+    },
+    {
+      "fixture": {
+        "label": "active-one-escaped",
+        "kind": "active",
+        "id": "<img src=x onerror=alert(1)>\"&'☃ <!--literal-->",
+        "name": "Alice",
+        "secret": "secret",
+        "records": [
+          {
+            "id": "id\"<&",
+            "expiresAt": "2099-01-01T00:00:00Z",
+            "shareUrl": "https://example.invalid/?a=\"&b=<"
+          }
+        ]
+      },
+      "original": "\n    <section class=\"profile-share-active\" data-profile-share-active-list data-profile-id=\"&lt;img src=x onerror=alert(1)&gt;&quot;&amp;&#39;☃ &lt;!--literal--&gt;\">\n      <div class=\"profile-share-active-head\">\n        <span>Active links</span>\n        <small>Created on this device</small>\n      </div>\n      <div class=\"profile-share-active-list\">\n        <div class=\"profile-share-active-row\" data-profile-share-record=\"id&quot;&lt;&amp;\">\n          <div class=\"profile-share-active-main\">\n            <span class=\"profile-share-active-title\">Shared link</span>\n            <span class=\"profile-share-active-meta\">Expires Jan 1, 01:00 AM</span>\n          </div>\n          <div class=\"profile-share-active-actions\">\n            <button type=\"button\" class=\"profile-share-icon-btn\" data-profile-share-action=\"copy\" data-copy-value=\"https://example.invalid/?a=&quot;&amp;b=&lt;\" data-copy-label=\"Link copied\" title=\"Copy link\" aria-label=\"Copy active link\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\"/><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"/></svg></button>\n            <button type=\"button\" class=\"profile-share-stop-btn\" data-profile-share-action=\"delete-link\" data-share-id=\"id&quot;&lt;&amp;\">Stop sharing</button>\n          </div>\n        </div></div>\n    </section>\n  ",
+      "candidate": "\n    <section class=\"profile-share-active\" data-profile-share-active-list=\"\" data-profile-id=\"&lt;img src=x onerror=alert(1)>&quot;&amp;'☃ &lt;!--literal-->\">\n      <div class=\"profile-share-active-head\">\n        <span>Active links</span>\n        <small>Created on this device</small>\n      </div>\n      <div class=\"profile-share-active-list\"><!--[0--><!--[--><!---->\n        <div class=\"profile-share-active-row\" data-profile-share-record=\"id&quot;&lt;&amp;\">\n          <div class=\"profile-share-active-main\">\n            <span class=\"profile-share-active-title\">Shared link</span>\n            <span class=\"profile-share-active-meta\">Expires Jan 1, 01:00 AM</span>\n          </div>\n          <div class=\"profile-share-active-actions\">\n            <button type=\"button\" class=\"profile-share-icon-btn\" data-profile-share-action=\"copy\" data-copy-value=\"https://example.invalid/?a=&quot;&amp;b=&lt;\" data-copy-label=\"Link copied\" title=\"Copy link\" aria-label=\"Copy active link\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\"></rect><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"></path></svg></button>\n            <button type=\"button\" class=\"profile-share-stop-btn\" data-profile-share-action=\"delete-link\" data-share-id=\"id&quot;&lt;&amp;\">Stop sharing</button>\n          </div>\n        </div><!--]--><!--]--></div>\n    </section>\n  ",
+      "anchors": [
+        {
+          "path": [
+            1,
+            3,
+            0
+          ],
+          "value": "[0",
+          "parentChildren": [
+            {
+              "type": 8,
+              "value": "[0"
+            },
+            {
+              "type": 8,
+              "value": "["
+            },
+            {
+              "type": 8,
+              "value": ""
+            },
+            {
+              "type": 3,
+              "value": "\n        "
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": "]"
+            },
+            {
+              "type": 8,
+              "value": "]"
+            }
+          ]
+        },
+        {
+          "path": [
+            1,
+            3,
+            1
+          ],
+          "value": "[",
+          "parentChildren": [
+            {
+              "type": 8,
+              "value": "[0"
+            },
+            {
+              "type": 8,
+              "value": "["
+            },
+            {
+              "type": 8,
+              "value": ""
+            },
+            {
+              "type": 3,
+              "value": "\n        "
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": "]"
+            },
+            {
+              "type": 8,
+              "value": "]"
+            }
+          ]
+        },
+        {
+          "path": [
+            1,
+            3,
+            2
+          ],
+          "value": "",
+          "parentChildren": [
+            {
+              "type": 8,
+              "value": "[0"
+            },
+            {
+              "type": 8,
+              "value": "["
+            },
+            {
+              "type": 8,
+              "value": ""
+            },
+            {
+              "type": 3,
+              "value": "\n        "
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": "]"
+            },
+            {
+              "type": 8,
+              "value": "]"
+            }
+          ]
+        },
+        {
+          "path": [
+            1,
+            3,
+            5
+          ],
+          "value": "]",
+          "parentChildren": [
+            {
+              "type": 8,
+              "value": "[0"
+            },
+            {
+              "type": 8,
+              "value": "["
+            },
+            {
+              "type": 8,
+              "value": ""
+            },
+            {
+              "type": 3,
+              "value": "\n        "
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": "]"
+            },
+            {
+              "type": 8,
+              "value": "]"
+            }
+          ]
+        },
+        {
+          "path": [
+            1,
+            3,
+            6
+          ],
+          "value": "]",
+          "parentChildren": [
+            {
+              "type": 8,
+              "value": "[0"
+            },
+            {
+              "type": 8,
+              "value": "["
+            },
+            {
+              "type": 8,
+              "value": ""
+            },
+            {
+              "type": 3,
+              "value": "\n        "
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": "]"
+            },
+            {
+              "type": 8,
+              "value": "]"
+            }
+          ]
+        }
+      ],
+      "activeExpiryLabels": [
+        [
+          "2099-01-01T00:00:00Z",
+          "Jan 1, 01:00 AM"
+        ]
+      ],
+      "resultExpiryLabel": null,
+      "guards": [
+        "attribute-addition",
+        "attribute-order",
+        "namespace",
+        "text",
+        "unknown-comment",
+        "extra-known-comment",
+        "native-control-default",
+        "action"
+      ]
+    },
+    {
+      "fixture": {
+        "label": "active-two-expiry",
+        "kind": "active",
+        "id": "p",
+        "name": "Alice",
+        "secret": "secret",
+        "records": [
+          {
+            "id": "id\"<&",
+            "expiresAt": "2099-01-01T00:00:00Z",
+            "shareUrl": "https://example.invalid/?a=\"&b=<"
+          },
+          {
+            "id": "second",
+            "expiresAt": "invalid",
+            "shareUrl": "url"
+          }
+        ]
+      },
+      "original": "\n    <section class=\"profile-share-active\" data-profile-share-active-list data-profile-id=\"p\">\n      <div class=\"profile-share-active-head\">\n        <span>Active links</span>\n        <small>Created on this device</small>\n      </div>\n      <div class=\"profile-share-active-list\">\n        <div class=\"profile-share-active-row\" data-profile-share-record=\"id&quot;&lt;&amp;\">\n          <div class=\"profile-share-active-main\">\n            <span class=\"profile-share-active-title\">Shared link</span>\n            <span class=\"profile-share-active-meta\">Expires Jan 1, 01:00 AM</span>\n          </div>\n          <div class=\"profile-share-active-actions\">\n            <button type=\"button\" class=\"profile-share-icon-btn\" data-profile-share-action=\"copy\" data-copy-value=\"https://example.invalid/?a=&quot;&amp;b=&lt;\" data-copy-label=\"Link copied\" title=\"Copy link\" aria-label=\"Copy active link\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\"/><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"/></svg></button>\n            <button type=\"button\" class=\"profile-share-stop-btn\" data-profile-share-action=\"delete-link\" data-share-id=\"id&quot;&lt;&amp;\">Stop sharing</button>\n          </div>\n        </div>\n        <div class=\"profile-share-active-row\" data-profile-share-record=\"second\">\n          <div class=\"profile-share-active-main\">\n            <span class=\"profile-share-active-title\">Shared link</span>\n            <span class=\"profile-share-active-meta\">Expires Unknown expiry</span>\n          </div>\n          <div class=\"profile-share-active-actions\">\n            <button type=\"button\" class=\"profile-share-icon-btn\" data-profile-share-action=\"copy\" data-copy-value=\"url\" data-copy-label=\"Link copied\" title=\"Copy link\" aria-label=\"Copy active link\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\"/><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"/></svg></button>\n            <button type=\"button\" class=\"profile-share-stop-btn\" data-profile-share-action=\"delete-link\" data-share-id=\"second\">Stop sharing</button>\n          </div>\n        </div></div>\n    </section>\n  ",
+      "candidate": "\n    <section class=\"profile-share-active\" data-profile-share-active-list=\"\" data-profile-id=\"p\">\n      <div class=\"profile-share-active-head\">\n        <span>Active links</span>\n        <small>Created on this device</small>\n      </div>\n      <div class=\"profile-share-active-list\"><!--[0--><!--[--><!---->\n        <div class=\"profile-share-active-row\" data-profile-share-record=\"id&quot;&lt;&amp;\">\n          <div class=\"profile-share-active-main\">\n            <span class=\"profile-share-active-title\">Shared link</span>\n            <span class=\"profile-share-active-meta\">Expires Jan 1, 01:00 AM</span>\n          </div>\n          <div class=\"profile-share-active-actions\">\n            <button type=\"button\" class=\"profile-share-icon-btn\" data-profile-share-action=\"copy\" data-copy-value=\"https://example.invalid/?a=&quot;&amp;b=&lt;\" data-copy-label=\"Link copied\" title=\"Copy link\" aria-label=\"Copy active link\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\"></rect><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"></path></svg></button>\n            <button type=\"button\" class=\"profile-share-stop-btn\" data-profile-share-action=\"delete-link\" data-share-id=\"id&quot;&lt;&amp;\">Stop sharing</button>\n          </div>\n        </div><!---->\n        <div class=\"profile-share-active-row\" data-profile-share-record=\"second\">\n          <div class=\"profile-share-active-main\">\n            <span class=\"profile-share-active-title\">Shared link</span>\n            <span class=\"profile-share-active-meta\">Expires Unknown expiry</span>\n          </div>\n          <div class=\"profile-share-active-actions\">\n            <button type=\"button\" class=\"profile-share-icon-btn\" data-profile-share-action=\"copy\" data-copy-value=\"url\" data-copy-label=\"Link copied\" title=\"Copy link\" aria-label=\"Copy active link\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\"></rect><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"></path></svg></button>\n            <button type=\"button\" class=\"profile-share-stop-btn\" data-profile-share-action=\"delete-link\" data-share-id=\"second\">Stop sharing</button>\n          </div>\n        </div><!--]--><!--]--></div>\n    </section>\n  ",
+      "anchors": [
+        {
+          "path": [
+            1,
+            3,
+            0
+          ],
+          "value": "[0",
+          "parentChildren": [
+            {
+              "type": 8,
+              "value": "[0"
+            },
+            {
+              "type": 8,
+              "value": "["
+            },
+            {
+              "type": 8,
+              "value": ""
+            },
+            {
+              "type": 3,
+              "value": "\n        "
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": ""
+            },
+            {
+              "type": 3,
+              "value": "\n        "
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": "]"
+            },
+            {
+              "type": 8,
+              "value": "]"
+            }
+          ]
+        },
+        {
+          "path": [
+            1,
+            3,
+            1
+          ],
+          "value": "[",
+          "parentChildren": [
+            {
+              "type": 8,
+              "value": "[0"
+            },
+            {
+              "type": 8,
+              "value": "["
+            },
+            {
+              "type": 8,
+              "value": ""
+            },
+            {
+              "type": 3,
+              "value": "\n        "
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": ""
+            },
+            {
+              "type": 3,
+              "value": "\n        "
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": "]"
+            },
+            {
+              "type": 8,
+              "value": "]"
+            }
+          ]
+        },
+        {
+          "path": [
+            1,
+            3,
+            2
+          ],
+          "value": "",
+          "parentChildren": [
+            {
+              "type": 8,
+              "value": "[0"
+            },
+            {
+              "type": 8,
+              "value": "["
+            },
+            {
+              "type": 8,
+              "value": ""
+            },
+            {
+              "type": 3,
+              "value": "\n        "
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": ""
+            },
+            {
+              "type": 3,
+              "value": "\n        "
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": "]"
+            },
+            {
+              "type": 8,
+              "value": "]"
+            }
+          ]
+        },
+        {
+          "path": [
+            1,
+            3,
+            5
+          ],
+          "value": "",
+          "parentChildren": [
+            {
+              "type": 8,
+              "value": "[0"
+            },
+            {
+              "type": 8,
+              "value": "["
+            },
+            {
+              "type": 8,
+              "value": ""
+            },
+            {
+              "type": 3,
+              "value": "\n        "
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": ""
+            },
+            {
+              "type": 3,
+              "value": "\n        "
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": "]"
+            },
+            {
+              "type": 8,
+              "value": "]"
+            }
+          ]
+        },
+        {
+          "path": [
+            1,
+            3,
+            8
+          ],
+          "value": "]",
+          "parentChildren": [
+            {
+              "type": 8,
+              "value": "[0"
+            },
+            {
+              "type": 8,
+              "value": "["
+            },
+            {
+              "type": 8,
+              "value": ""
+            },
+            {
+              "type": 3,
+              "value": "\n        "
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": ""
+            },
+            {
+              "type": 3,
+              "value": "\n        "
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": "]"
+            },
+            {
+              "type": 8,
+              "value": "]"
+            }
+          ]
+        },
+        {
+          "path": [
+            1,
+            3,
+            9
+          ],
+          "value": "]",
+          "parentChildren": [
+            {
+              "type": 8,
+              "value": "[0"
+            },
+            {
+              "type": 8,
+              "value": "["
+            },
+            {
+              "type": 8,
+              "value": ""
+            },
+            {
+              "type": 3,
+              "value": "\n        "
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": ""
+            },
+            {
+              "type": 3,
+              "value": "\n        "
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": "]"
+            },
+            {
+              "type": 8,
+              "value": "]"
+            }
+          ]
+        }
+      ],
+      "activeExpiryLabels": [
+        [
+          "2099-01-01T00:00:00Z",
+          "Jan 1, 01:00 AM"
+        ],
+        [
+          "invalid",
+          "Unknown expiry"
+        ]
+      ],
+      "resultExpiryLabel": null,
+      "guards": [
+        "attribute-addition",
+        "attribute-order",
+        "namespace",
+        "text",
+        "unknown-comment",
+        "extra-known-comment",
+        "native-control-default",
+        "action"
+      ]
+    },
+    {
+      "fixture": {
+        "label": "create-empty",
+        "kind": "create",
+        "id": "p",
+        "name": "Alice",
+        "secret": "secret",
+        "records": []
+      },
+      "original": "\n    <div class=\"gb-form-body profile-share-body\">\n      <div class=\"profile-share-intro\">\n        <div class=\"profile-share-intro-title\">Encrypted link for <b>Alice</b></div>\n        <div class=\"profile-share-intro-copy\">The link finds a locked copy of the profile. The password is the only way to unlock it, and it is never added to the link or sent to us.</div>\n      </div>\n      <form class=\"profile-share-form\" data-profile-share-form=\"create\" data-profile-id=\"p\">\n        <label class=\"profile-share-field\">\n          <span>Password</span>\n          <div class=\"profile-share-input-row\">\n            <input id=\"profile-share-password\" class=\"api-key-input\" type=\"text\" value=\"secret\" autocomplete=\"off\" spellcheck=\"false\">\n            <button type=\"button\" class=\"profile-share-icon-btn\" data-profile-share-action=\"regenerate\" title=\"Generate new password\" aria-label=\"Generate new password\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M21 12a9 9 0 0 1-15.4 6.4L3 16\"/><path d=\"M3 21v-5h5\"/><path d=\"M3 12A9 9 0 0 1 18.4 5.6L21 8\"/><path d=\"M21 3v5h-5\"/></svg></button>\n          </div>\n        </label>\n        <label class=\"profile-share-field\">\n          <span>Expires</span>\n          <select id=\"profile-share-expires\" class=\"api-key-input\">\n            <option value=\"7\">7 days</option>\n            <option value=\"14\">14 days</option>\n            <option value=\"30\">30 days</option>\n          </select>\n        </label>\n        <label class=\"profile-share-consent\">\n          <input id=\"profile-share-consent\" type=\"checkbox\" required>\n          <span>I agree to upload a password-locked copy of this profile for temporary sharing. Anyone with both the link and password can open it, so I will send the password separately.</span>\n        </label>\n        <div class=\"profile-share-note\">If the password is lost, this shared copy cannot be recovered. On the official hosted app, temporary share copies are not backed up and may also be lost after a service failure; a self-hosted operator may use a different retention policy.</div>\n        <div id=\"profile-share-status\" class=\"profile-share-status\" hidden></div>\n        <div class=\"gb-form-actions\">\n          <button type=\"button\" class=\"import-btn import-btn-secondary\" data-profile-share-action=\"close\">Cancel</button>\n          <button type=\"submit\" class=\"import-btn import-btn-primary\" data-profile-share-action=\"create\">Create Link</button>\n        </div>\n      </form>\n      \n    <section class=\"profile-share-active\" data-profile-share-active-list data-profile-id=\"p\">\n      <div class=\"profile-share-active-head\">\n        <span>Active links</span>\n        <small>Created on this device</small>\n      </div>\n      <div class=\"profile-share-active-list\"><div class=\"profile-share-active-empty\">No active links created on this device.</div></div>\n    </section>\n  \n    </div>\n  ",
+      "candidate": "\n    <div class=\"gb-form-body profile-share-body\">\n      <div class=\"profile-share-intro\">\n        <div class=\"profile-share-intro-title\">Encrypted link for <b>Alice</b></div>\n        <div class=\"profile-share-intro-copy\">The link finds a locked copy of the profile. The password is the only way to unlock it, and it is never added to the link or sent to us.</div>\n      </div>\n      <form class=\"profile-share-form\" data-profile-share-form=\"create\" data-profile-id=\"p\">\n        <label class=\"profile-share-field\">\n          <span>Password</span>\n          <div class=\"profile-share-input-row\">\n            <input id=\"profile-share-password\" class=\"api-key-input\" type=\"text\" value=\"secret\" autocomplete=\"off\" spellcheck=\"false\"/>\n            <button type=\"button\" class=\"profile-share-icon-btn\" data-profile-share-action=\"regenerate\" title=\"Generate new password\" aria-label=\"Generate new password\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M21 12a9 9 0 0 1-15.4 6.4L3 16\"></path><path d=\"M3 21v-5h5\"></path><path d=\"M3 12A9 9 0 0 1 18.4 5.6L21 8\"></path><path d=\"M21 3v5h-5\"></path></svg></button>\n          </div>\n        </label>\n        <label class=\"profile-share-field\">\n          <span>Expires</span>\n          <select id=\"profile-share-expires\" class=\"api-key-input\">\n            <option value=\"7\">7 days</option>\n            <option value=\"14\">14 days</option>\n            <option value=\"30\">30 days</option>\n          </select>\n        </label>\n        <label class=\"profile-share-consent\">\n          <input id=\"profile-share-consent\" type=\"checkbox\" required=\"\"/>\n          <span>I agree to upload a password-locked copy of this profile for temporary sharing. Anyone with both the link and password can open it, so I will send the password separately.</span>\n        </label>\n        <div class=\"profile-share-note\">If the password is lost, this shared copy cannot be recovered. On the official hosted app, temporary share copies are not backed up and may also be lost after a service failure; a self-hosted operator may use a different retention policy.</div>\n        <div id=\"profile-share-status\" class=\"profile-share-status\" hidden=\"\"></div>\n        <div class=\"gb-form-actions\">\n          <button type=\"button\" class=\"import-btn import-btn-secondary\" data-profile-share-action=\"close\">Cancel</button>\n          <button type=\"submit\" class=\"import-btn import-btn-primary\" data-profile-share-action=\"create\">Create Link</button>\n        </div>\n      </form>\n      \n    <section class=\"profile-share-active\" data-profile-share-active-list=\"\" data-profile-id=\"p\">\n      <div class=\"profile-share-active-head\">\n        <span>Active links</span>\n        <small>Created on this device</small>\n      </div>\n      <div class=\"profile-share-active-list\"><!--[-1--><div class=\"profile-share-active-empty\">No active links created on this device.</div><!--]--></div>\n    </section>\n  \n    </div>\n  ",
+      "anchors": [
+        {
+          "path": [
+            1,
+            5,
+            3,
+            0
+          ],
+          "value": "[-1",
+          "parentChildren": [
+            {
+              "type": 8,
+              "value": "[-1"
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": "]"
+            }
+          ]
+        },
+        {
+          "path": [
+            1,
+            5,
+            3,
+            2
+          ],
+          "value": "]",
+          "parentChildren": [
+            {
+              "type": 8,
+              "value": "[-1"
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": "]"
+            }
+          ]
+        }
+      ],
+      "activeExpiryLabels": [],
+      "resultExpiryLabel": null,
+      "guards": [
+        "attribute-addition",
+        "attribute-order",
+        "namespace",
+        "text",
+        "unknown-comment",
+        "extra-known-comment",
+        "native-control-default",
+        "action"
+      ]
+    },
+    {
+      "fixture": {
+        "label": "create-active-escaped",
+        "kind": "create",
+        "id": "<img src=x onerror=alert(1)>\"&'☃ <!--literal-->",
+        "name": "<img src=x onerror=alert(1)>\"&'☃ <!--literal-->",
+        "secret": "<img src=x onerror=alert(1)>\"&'☃ <!--literal-->",
+        "records": [
+          {
+            "id": "id\"<&",
+            "expiresAt": "2099-01-01T00:00:00Z",
+            "shareUrl": "https://example.invalid/?a=\"&b=<"
+          }
+        ]
+      },
+      "original": "\n    <div class=\"gb-form-body profile-share-body\">\n      <div class=\"profile-share-intro\">\n        <div class=\"profile-share-intro-title\">Encrypted link for <b>&lt;img src=x onerror=alert(1)&gt;&quot;&amp;&#39;☃ &lt;!--literal--&gt;</b></div>\n        <div class=\"profile-share-intro-copy\">The link finds a locked copy of the profile. The password is the only way to unlock it, and it is never added to the link or sent to us.</div>\n      </div>\n      <form class=\"profile-share-form\" data-profile-share-form=\"create\" data-profile-id=\"&lt;img src=x onerror=alert(1)&gt;&quot;&amp;&#39;☃ &lt;!--literal--&gt;\">\n        <label class=\"profile-share-field\">\n          <span>Password</span>\n          <div class=\"profile-share-input-row\">\n            <input id=\"profile-share-password\" class=\"api-key-input\" type=\"text\" value=\"&lt;img src=x onerror=alert(1)&gt;&quot;&amp;&#39;☃ &lt;!--literal--&gt;\" autocomplete=\"off\" spellcheck=\"false\">\n            <button type=\"button\" class=\"profile-share-icon-btn\" data-profile-share-action=\"regenerate\" title=\"Generate new password\" aria-label=\"Generate new password\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M21 12a9 9 0 0 1-15.4 6.4L3 16\"/><path d=\"M3 21v-5h5\"/><path d=\"M3 12A9 9 0 0 1 18.4 5.6L21 8\"/><path d=\"M21 3v5h-5\"/></svg></button>\n          </div>\n        </label>\n        <label class=\"profile-share-field\">\n          <span>Expires</span>\n          <select id=\"profile-share-expires\" class=\"api-key-input\">\n            <option value=\"7\">7 days</option>\n            <option value=\"14\">14 days</option>\n            <option value=\"30\">30 days</option>\n          </select>\n        </label>\n        <label class=\"profile-share-consent\">\n          <input id=\"profile-share-consent\" type=\"checkbox\" required>\n          <span>I agree to upload a password-locked copy of this profile for temporary sharing. Anyone with both the link and password can open it, so I will send the password separately.</span>\n        </label>\n        <div class=\"profile-share-note\">If the password is lost, this shared copy cannot be recovered. On the official hosted app, temporary share copies are not backed up and may also be lost after a service failure; a self-hosted operator may use a different retention policy.</div>\n        <div id=\"profile-share-status\" class=\"profile-share-status\" hidden></div>\n        <div class=\"gb-form-actions\">\n          <button type=\"button\" class=\"import-btn import-btn-secondary\" data-profile-share-action=\"close\">Cancel</button>\n          <button type=\"submit\" class=\"import-btn import-btn-primary\" data-profile-share-action=\"create\">Create Link</button>\n        </div>\n      </form>\n      \n    <section class=\"profile-share-active\" data-profile-share-active-list data-profile-id=\"&lt;img src=x onerror=alert(1)&gt;&quot;&amp;&#39;☃ &lt;!--literal--&gt;\">\n      <div class=\"profile-share-active-head\">\n        <span>Active links</span>\n        <small>Created on this device</small>\n      </div>\n      <div class=\"profile-share-active-list\">\n        <div class=\"profile-share-active-row\" data-profile-share-record=\"id&quot;&lt;&amp;\">\n          <div class=\"profile-share-active-main\">\n            <span class=\"profile-share-active-title\">Shared link</span>\n            <span class=\"profile-share-active-meta\">Expires Jan 1, 01:00 AM</span>\n          </div>\n          <div class=\"profile-share-active-actions\">\n            <button type=\"button\" class=\"profile-share-icon-btn\" data-profile-share-action=\"copy\" data-copy-value=\"https://example.invalid/?a=&quot;&amp;b=&lt;\" data-copy-label=\"Link copied\" title=\"Copy link\" aria-label=\"Copy active link\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\"/><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"/></svg></button>\n            <button type=\"button\" class=\"profile-share-stop-btn\" data-profile-share-action=\"delete-link\" data-share-id=\"id&quot;&lt;&amp;\">Stop sharing</button>\n          </div>\n        </div></div>\n    </section>\n  \n    </div>\n  ",
+      "candidate": "\n    <div class=\"gb-form-body profile-share-body\">\n      <div class=\"profile-share-intro\">\n        <div class=\"profile-share-intro-title\">Encrypted link for <b>&lt;img src=x onerror=alert(1)>\"&amp;'☃ &lt;!--literal--></b></div>\n        <div class=\"profile-share-intro-copy\">The link finds a locked copy of the profile. The password is the only way to unlock it, and it is never added to the link or sent to us.</div>\n      </div>\n      <form class=\"profile-share-form\" data-profile-share-form=\"create\" data-profile-id=\"&lt;img src=x onerror=alert(1)>&quot;&amp;'☃ &lt;!--literal-->\">\n        <label class=\"profile-share-field\">\n          <span>Password</span>\n          <div class=\"profile-share-input-row\">\n            <input id=\"profile-share-password\" class=\"api-key-input\" type=\"text\" value=\"&lt;img src=x onerror=alert(1)>&quot;&amp;'☃ &lt;!--literal-->\" autocomplete=\"off\" spellcheck=\"false\"/>\n            <button type=\"button\" class=\"profile-share-icon-btn\" data-profile-share-action=\"regenerate\" title=\"Generate new password\" aria-label=\"Generate new password\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M21 12a9 9 0 0 1-15.4 6.4L3 16\"></path><path d=\"M3 21v-5h5\"></path><path d=\"M3 12A9 9 0 0 1 18.4 5.6L21 8\"></path><path d=\"M21 3v5h-5\"></path></svg></button>\n          </div>\n        </label>\n        <label class=\"profile-share-field\">\n          <span>Expires</span>\n          <select id=\"profile-share-expires\" class=\"api-key-input\">\n            <option value=\"7\">7 days</option>\n            <option value=\"14\">14 days</option>\n            <option value=\"30\">30 days</option>\n          </select>\n        </label>\n        <label class=\"profile-share-consent\">\n          <input id=\"profile-share-consent\" type=\"checkbox\" required=\"\"/>\n          <span>I agree to upload a password-locked copy of this profile for temporary sharing. Anyone with both the link and password can open it, so I will send the password separately.</span>\n        </label>\n        <div class=\"profile-share-note\">If the password is lost, this shared copy cannot be recovered. On the official hosted app, temporary share copies are not backed up and may also be lost after a service failure; a self-hosted operator may use a different retention policy.</div>\n        <div id=\"profile-share-status\" class=\"profile-share-status\" hidden=\"\"></div>\n        <div class=\"gb-form-actions\">\n          <button type=\"button\" class=\"import-btn import-btn-secondary\" data-profile-share-action=\"close\">Cancel</button>\n          <button type=\"submit\" class=\"import-btn import-btn-primary\" data-profile-share-action=\"create\">Create Link</button>\n        </div>\n      </form>\n      \n    <section class=\"profile-share-active\" data-profile-share-active-list=\"\" data-profile-id=\"&lt;img src=x onerror=alert(1)>&quot;&amp;'☃ &lt;!--literal-->\">\n      <div class=\"profile-share-active-head\">\n        <span>Active links</span>\n        <small>Created on this device</small>\n      </div>\n      <div class=\"profile-share-active-list\"><!--[0--><!--[--><!---->\n        <div class=\"profile-share-active-row\" data-profile-share-record=\"id&quot;&lt;&amp;\">\n          <div class=\"profile-share-active-main\">\n            <span class=\"profile-share-active-title\">Shared link</span>\n            <span class=\"profile-share-active-meta\">Expires Jan 1, 01:00 AM</span>\n          </div>\n          <div class=\"profile-share-active-actions\">\n            <button type=\"button\" class=\"profile-share-icon-btn\" data-profile-share-action=\"copy\" data-copy-value=\"https://example.invalid/?a=&quot;&amp;b=&lt;\" data-copy-label=\"Link copied\" title=\"Copy link\" aria-label=\"Copy active link\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\"></rect><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"></path></svg></button>\n            <button type=\"button\" class=\"profile-share-stop-btn\" data-profile-share-action=\"delete-link\" data-share-id=\"id&quot;&lt;&amp;\">Stop sharing</button>\n          </div>\n        </div><!--]--><!--]--></div>\n    </section>\n  \n    </div>\n  ",
+      "anchors": [
+        {
+          "path": [
+            1,
+            5,
+            3,
+            0
+          ],
+          "value": "[0",
+          "parentChildren": [
+            {
+              "type": 8,
+              "value": "[0"
+            },
+            {
+              "type": 8,
+              "value": "["
+            },
+            {
+              "type": 8,
+              "value": ""
+            },
+            {
+              "type": 3,
+              "value": "\n        "
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": "]"
+            },
+            {
+              "type": 8,
+              "value": "]"
+            }
+          ]
+        },
+        {
+          "path": [
+            1,
+            5,
+            3,
+            1
+          ],
+          "value": "[",
+          "parentChildren": [
+            {
+              "type": 8,
+              "value": "[0"
+            },
+            {
+              "type": 8,
+              "value": "["
+            },
+            {
+              "type": 8,
+              "value": ""
+            },
+            {
+              "type": 3,
+              "value": "\n        "
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": "]"
+            },
+            {
+              "type": 8,
+              "value": "]"
+            }
+          ]
+        },
+        {
+          "path": [
+            1,
+            5,
+            3,
+            2
+          ],
+          "value": "",
+          "parentChildren": [
+            {
+              "type": 8,
+              "value": "[0"
+            },
+            {
+              "type": 8,
+              "value": "["
+            },
+            {
+              "type": 8,
+              "value": ""
+            },
+            {
+              "type": 3,
+              "value": "\n        "
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": "]"
+            },
+            {
+              "type": 8,
+              "value": "]"
+            }
+          ]
+        },
+        {
+          "path": [
+            1,
+            5,
+            3,
+            5
+          ],
+          "value": "]",
+          "parentChildren": [
+            {
+              "type": 8,
+              "value": "[0"
+            },
+            {
+              "type": 8,
+              "value": "["
+            },
+            {
+              "type": 8,
+              "value": ""
+            },
+            {
+              "type": 3,
+              "value": "\n        "
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": "]"
+            },
+            {
+              "type": 8,
+              "value": "]"
+            }
+          ]
+        },
+        {
+          "path": [
+            1,
+            5,
+            3,
+            6
+          ],
+          "value": "]",
+          "parentChildren": [
+            {
+              "type": 8,
+              "value": "[0"
+            },
+            {
+              "type": 8,
+              "value": "["
+            },
+            {
+              "type": 8,
+              "value": ""
+            },
+            {
+              "type": 3,
+              "value": "\n        "
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": "]"
+            },
+            {
+              "type": 8,
+              "value": "]"
+            }
+          ]
+        }
+      ],
+      "activeExpiryLabels": [
+        [
+          "2099-01-01T00:00:00Z",
+          "Jan 1, 01:00 AM"
+        ]
+      ],
+      "resultExpiryLabel": null,
+      "guards": [
+        "attribute-addition",
+        "attribute-order",
+        "namespace",
+        "text",
+        "unknown-comment",
+        "extra-known-comment",
+        "native-control-default",
+        "action"
+      ]
+    },
+    {
+      "fixture": {
+        "label": "create-null-name",
+        "kind": "create",
+        "id": null,
+        "name": null,
+        "secret": "secret",
+        "records": []
+      },
+      "original": "\n    <div class=\"gb-form-body profile-share-body\">\n      <div class=\"profile-share-intro\">\n        <div class=\"profile-share-intro-title\">Encrypted link for <b></b></div>\n        <div class=\"profile-share-intro-copy\">The link finds a locked copy of the profile. The password is the only way to unlock it, and it is never added to the link or sent to us.</div>\n      </div>\n      <form class=\"profile-share-form\" data-profile-share-form=\"create\" data-profile-id=\"\">\n        <label class=\"profile-share-field\">\n          <span>Password</span>\n          <div class=\"profile-share-input-row\">\n            <input id=\"profile-share-password\" class=\"api-key-input\" type=\"text\" value=\"secret\" autocomplete=\"off\" spellcheck=\"false\">\n            <button type=\"button\" class=\"profile-share-icon-btn\" data-profile-share-action=\"regenerate\" title=\"Generate new password\" aria-label=\"Generate new password\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M21 12a9 9 0 0 1-15.4 6.4L3 16\"/><path d=\"M3 21v-5h5\"/><path d=\"M3 12A9 9 0 0 1 18.4 5.6L21 8\"/><path d=\"M21 3v5h-5\"/></svg></button>\n          </div>\n        </label>\n        <label class=\"profile-share-field\">\n          <span>Expires</span>\n          <select id=\"profile-share-expires\" class=\"api-key-input\">\n            <option value=\"7\">7 days</option>\n            <option value=\"14\">14 days</option>\n            <option value=\"30\">30 days</option>\n          </select>\n        </label>\n        <label class=\"profile-share-consent\">\n          <input id=\"profile-share-consent\" type=\"checkbox\" required>\n          <span>I agree to upload a password-locked copy of this profile for temporary sharing. Anyone with both the link and password can open it, so I will send the password separately.</span>\n        </label>\n        <div class=\"profile-share-note\">If the password is lost, this shared copy cannot be recovered. On the official hosted app, temporary share copies are not backed up and may also be lost after a service failure; a self-hosted operator may use a different retention policy.</div>\n        <div id=\"profile-share-status\" class=\"profile-share-status\" hidden></div>\n        <div class=\"gb-form-actions\">\n          <button type=\"button\" class=\"import-btn import-btn-secondary\" data-profile-share-action=\"close\">Cancel</button>\n          <button type=\"submit\" class=\"import-btn import-btn-primary\" data-profile-share-action=\"create\">Create Link</button>\n        </div>\n      </form>\n      \n    <section class=\"profile-share-active\" data-profile-share-active-list data-profile-id=\"\">\n      <div class=\"profile-share-active-head\">\n        <span>Active links</span>\n        <small>Created on this device</small>\n      </div>\n      <div class=\"profile-share-active-list\"><div class=\"profile-share-active-empty\">No active links created on this device.</div></div>\n    </section>\n  \n    </div>\n  ",
+      "candidate": "\n    <div class=\"gb-form-body profile-share-body\">\n      <div class=\"profile-share-intro\">\n        <div class=\"profile-share-intro-title\">Encrypted link for <b></b></div>\n        <div class=\"profile-share-intro-copy\">The link finds a locked copy of the profile. The password is the only way to unlock it, and it is never added to the link or sent to us.</div>\n      </div>\n      <form class=\"profile-share-form\" data-profile-share-form=\"create\" data-profile-id=\"\">\n        <label class=\"profile-share-field\">\n          <span>Password</span>\n          <div class=\"profile-share-input-row\">\n            <input id=\"profile-share-password\" class=\"api-key-input\" type=\"text\" value=\"secret\" autocomplete=\"off\" spellcheck=\"false\"/>\n            <button type=\"button\" class=\"profile-share-icon-btn\" data-profile-share-action=\"regenerate\" title=\"Generate new password\" aria-label=\"Generate new password\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M21 12a9 9 0 0 1-15.4 6.4L3 16\"></path><path d=\"M3 21v-5h5\"></path><path d=\"M3 12A9 9 0 0 1 18.4 5.6L21 8\"></path><path d=\"M21 3v5h-5\"></path></svg></button>\n          </div>\n        </label>\n        <label class=\"profile-share-field\">\n          <span>Expires</span>\n          <select id=\"profile-share-expires\" class=\"api-key-input\">\n            <option value=\"7\">7 days</option>\n            <option value=\"14\">14 days</option>\n            <option value=\"30\">30 days</option>\n          </select>\n        </label>\n        <label class=\"profile-share-consent\">\n          <input id=\"profile-share-consent\" type=\"checkbox\" required=\"\"/>\n          <span>I agree to upload a password-locked copy of this profile for temporary sharing. Anyone with both the link and password can open it, so I will send the password separately.</span>\n        </label>\n        <div class=\"profile-share-note\">If the password is lost, this shared copy cannot be recovered. On the official hosted app, temporary share copies are not backed up and may also be lost after a service failure; a self-hosted operator may use a different retention policy.</div>\n        <div id=\"profile-share-status\" class=\"profile-share-status\" hidden=\"\"></div>\n        <div class=\"gb-form-actions\">\n          <button type=\"button\" class=\"import-btn import-btn-secondary\" data-profile-share-action=\"close\">Cancel</button>\n          <button type=\"submit\" class=\"import-btn import-btn-primary\" data-profile-share-action=\"create\">Create Link</button>\n        </div>\n      </form>\n      \n    <section class=\"profile-share-active\" data-profile-share-active-list=\"\" data-profile-id=\"\">\n      <div class=\"profile-share-active-head\">\n        <span>Active links</span>\n        <small>Created on this device</small>\n      </div>\n      <div class=\"profile-share-active-list\"><!--[-1--><div class=\"profile-share-active-empty\">No active links created on this device.</div><!--]--></div>\n    </section>\n  \n    </div>\n  ",
+      "anchors": [
+        {
+          "path": [
+            1,
+            5,
+            3,
+            0
+          ],
+          "value": "[-1",
+          "parentChildren": [
+            {
+              "type": 8,
+              "value": "[-1"
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": "]"
+            }
+          ]
+        },
+        {
+          "path": [
+            1,
+            5,
+            3,
+            2
+          ],
+          "value": "]",
+          "parentChildren": [
+            {
+              "type": 8,
+              "value": "[-1"
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": "]"
+            }
+          ]
+        }
+      ],
+      "activeExpiryLabels": [],
+      "resultExpiryLabel": null,
+      "guards": [
+        "attribute-addition",
+        "attribute-order",
+        "namespace",
+        "text",
+        "unknown-comment",
+        "extra-known-comment",
+        "native-control-default",
+        "action"
+      ]
+    },
+    {
+      "fixture": {
+        "label": "result-empty",
+        "kind": "result",
+        "id": "p",
+        "name": "Alice",
+        "secret": "separate-secret",
+        "records": []
+      },
+      "original": "\n    <div class=\"gb-form-body profile-share-body\">\n      <div class=\"profile-share-intro\">\n        <div class=\"profile-share-intro-title\">Link ready for <b>Alice</b></div>\n        <div class=\"profile-share-intro-copy\">Copy both values, but send them through separate channels.</div>\n      </div>\n      <div class=\"profile-share-result-list\">\n        <label class=\"profile-share-field\">\n          <span>Link</span>\n          <div class=\"profile-share-input-row\">\n            <input id=\"profile-share-link\" class=\"api-key-input\" type=\"text\" value=\"&lt;img src=x onerror=alert(1)&gt;&quot;&amp;&#39;☃ &lt;!--literal--&gt;\" readonly>\n            <button type=\"button\" class=\"profile-share-icon-btn\" data-profile-share-action=\"copy\" data-copy-target=\"profile-share-link\" data-copy-label=\"Link copied\" title=\"Copy link\" aria-label=\"Copy link\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\"/><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"/></svg></button>\n          </div>\n        </label>\n        <label class=\"profile-share-field\">\n          <span>Password</span>\n          <div class=\"profile-share-input-row\">\n            <input id=\"profile-share-result-password\" class=\"api-key-input\" type=\"text\" value=\"separate-secret\" readonly>\n            <button type=\"button\" class=\"profile-share-icon-btn\" data-profile-share-action=\"copy\" data-copy-target=\"profile-share-result-password\" data-copy-label=\"Password copied\" title=\"Copy password\" aria-label=\"Copy password\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\"/><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"/></svg></button>\n          </div>\n        </label>\n      </div>\n      <div class=\"profile-share-note\">Expires 1/1/2099, 1:00:00 AM. Recipients import this as a new profile.</div>\n      \n    <section class=\"profile-share-active\" data-profile-share-active-list data-profile-id=\"p\">\n      <div class=\"profile-share-active-head\">\n        <span>Active links</span>\n        <small>Created on this device</small>\n      </div>\n      <div class=\"profile-share-active-list\"><div class=\"profile-share-active-empty\">No active links created on this device.</div></div>\n    </section>\n  \n      <div id=\"profile-share-status\" class=\"profile-share-status\" hidden></div>\n      <div class=\"gb-form-actions\">\n        <button type=\"button\" class=\"import-btn import-btn-primary\" data-profile-share-action=\"close\">Done</button>\n      </div>\n    </div>\n  ",
+      "candidate": "\n    <div class=\"gb-form-body profile-share-body\">\n      <div class=\"profile-share-intro\">\n        <div class=\"profile-share-intro-title\">Link ready for <b>Alice</b></div>\n        <div class=\"profile-share-intro-copy\">Copy both values, but send them through separate channels.</div>\n      </div>\n      <div class=\"profile-share-result-list\">\n        <label class=\"profile-share-field\">\n          <span>Link</span>\n          <div class=\"profile-share-input-row\">\n            <input id=\"profile-share-link\" class=\"api-key-input\" type=\"text\" value=\"&lt;img src=x onerror=alert(1)>&quot;&amp;'☃ &lt;!--literal-->\" readonly=\"\"/>\n            <button type=\"button\" class=\"profile-share-icon-btn\" data-profile-share-action=\"copy\" data-copy-target=\"profile-share-link\" data-copy-label=\"Link copied\" title=\"Copy link\" aria-label=\"Copy link\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\"></rect><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"></path></svg></button>\n          </div>\n        </label>\n        <label class=\"profile-share-field\">\n          <span>Password</span>\n          <div class=\"profile-share-input-row\">\n            <input id=\"profile-share-result-password\" class=\"api-key-input\" type=\"text\" value=\"separate-secret\" readonly=\"\"/>\n            <button type=\"button\" class=\"profile-share-icon-btn\" data-profile-share-action=\"copy\" data-copy-target=\"profile-share-result-password\" data-copy-label=\"Password copied\" title=\"Copy password\" aria-label=\"Copy password\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\"></rect><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"></path></svg></button>\n          </div>\n        </label>\n      </div>\n      <div class=\"profile-share-note\">Expires 1/1/2099, 1:00:00 AM. Recipients import this as a new profile.</div>\n      \n    <section class=\"profile-share-active\" data-profile-share-active-list=\"\" data-profile-id=\"p\">\n      <div class=\"profile-share-active-head\">\n        <span>Active links</span>\n        <small>Created on this device</small>\n      </div>\n      <div class=\"profile-share-active-list\"><!--[-1--><div class=\"profile-share-active-empty\">No active links created on this device.</div><!--]--></div>\n    </section>\n  \n      <div id=\"profile-share-status\" class=\"profile-share-status\" hidden=\"\"></div>\n      <div class=\"gb-form-actions\">\n        <button type=\"button\" class=\"import-btn import-btn-primary\" data-profile-share-action=\"close\">Done</button>\n      </div>\n    </div>\n  ",
+      "anchors": [
+        {
+          "path": [
+            1,
+            7,
+            3,
+            0
+          ],
+          "value": "[-1",
+          "parentChildren": [
+            {
+              "type": 8,
+              "value": "[-1"
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": "]"
+            }
+          ]
+        },
+        {
+          "path": [
+            1,
+            7,
+            3,
+            2
+          ],
+          "value": "]",
+          "parentChildren": [
+            {
+              "type": 8,
+              "value": "[-1"
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": "]"
+            }
+          ]
+        }
+      ],
+      "activeExpiryLabels": [],
+      "resultExpiryLabel": "1/1/2099, 1:00:00 AM",
+      "guards": [
+        "attribute-addition",
+        "attribute-order",
+        "namespace",
+        "text",
+        "unknown-comment",
+        "extra-known-comment",
+        "native-control-default",
+        "action"
+      ]
+    },
+    {
+      "fixture": {
+        "label": "result-active-escaped",
+        "kind": "result",
+        "id": "<img src=x onerror=alert(1)>\"&'☃ <!--literal-->",
+        "name": "<img src=x onerror=alert(1)>\"&'☃ <!--literal-->",
+        "secret": "<img src=x onerror=alert(1)>\"&'☃ <!--literal-->",
+        "records": [
+          {
+            "id": "id\"<&",
+            "expiresAt": "2099-01-01T00:00:00Z",
+            "shareUrl": "https://example.invalid/?a=\"&b=<"
+          }
+        ]
+      },
+      "original": "\n    <div class=\"gb-form-body profile-share-body\">\n      <div class=\"profile-share-intro\">\n        <div class=\"profile-share-intro-title\">Link ready for <b>&lt;img src=x onerror=alert(1)&gt;&quot;&amp;&#39;☃ &lt;!--literal--&gt;</b></div>\n        <div class=\"profile-share-intro-copy\">Copy both values, but send them through separate channels.</div>\n      </div>\n      <div class=\"profile-share-result-list\">\n        <label class=\"profile-share-field\">\n          <span>Link</span>\n          <div class=\"profile-share-input-row\">\n            <input id=\"profile-share-link\" class=\"api-key-input\" type=\"text\" value=\"&lt;img src=x onerror=alert(1)&gt;&quot;&amp;&#39;☃ &lt;!--literal--&gt;\" readonly>\n            <button type=\"button\" class=\"profile-share-icon-btn\" data-profile-share-action=\"copy\" data-copy-target=\"profile-share-link\" data-copy-label=\"Link copied\" title=\"Copy link\" aria-label=\"Copy link\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\"/><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"/></svg></button>\n          </div>\n        </label>\n        <label class=\"profile-share-field\">\n          <span>Password</span>\n          <div class=\"profile-share-input-row\">\n            <input id=\"profile-share-result-password\" class=\"api-key-input\" type=\"text\" value=\"&lt;img src=x onerror=alert(1)&gt;&quot;&amp;&#39;☃ &lt;!--literal--&gt;\" readonly>\n            <button type=\"button\" class=\"profile-share-icon-btn\" data-profile-share-action=\"copy\" data-copy-target=\"profile-share-result-password\" data-copy-label=\"Password copied\" title=\"Copy password\" aria-label=\"Copy password\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\"/><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"/></svg></button>\n          </div>\n        </label>\n      </div>\n      <div class=\"profile-share-note\">Expires 1/1/2099, 1:00:00 AM. Recipients import this as a new profile.</div>\n      \n    <section class=\"profile-share-active\" data-profile-share-active-list data-profile-id=\"&lt;img src=x onerror=alert(1)&gt;&quot;&amp;&#39;☃ &lt;!--literal--&gt;\">\n      <div class=\"profile-share-active-head\">\n        <span>Active links</span>\n        <small>Created on this device</small>\n      </div>\n      <div class=\"profile-share-active-list\">\n        <div class=\"profile-share-active-row\" data-profile-share-record=\"id&quot;&lt;&amp;\">\n          <div class=\"profile-share-active-main\">\n            <span class=\"profile-share-active-title\">Shared link</span>\n            <span class=\"profile-share-active-meta\">Expires Jan 1, 01:00 AM</span>\n          </div>\n          <div class=\"profile-share-active-actions\">\n            <button type=\"button\" class=\"profile-share-icon-btn\" data-profile-share-action=\"copy\" data-copy-value=\"https://example.invalid/?a=&quot;&amp;b=&lt;\" data-copy-label=\"Link copied\" title=\"Copy link\" aria-label=\"Copy active link\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\"/><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"/></svg></button>\n            <button type=\"button\" class=\"profile-share-stop-btn\" data-profile-share-action=\"delete-link\" data-share-id=\"id&quot;&lt;&amp;\">Stop sharing</button>\n          </div>\n        </div></div>\n    </section>\n  \n      <div id=\"profile-share-status\" class=\"profile-share-status\" hidden></div>\n      <div class=\"gb-form-actions\">\n        <button type=\"button\" class=\"import-btn import-btn-primary\" data-profile-share-action=\"close\">Done</button>\n      </div>\n    </div>\n  ",
+      "candidate": "\n    <div class=\"gb-form-body profile-share-body\">\n      <div class=\"profile-share-intro\">\n        <div class=\"profile-share-intro-title\">Link ready for <b>&lt;img src=x onerror=alert(1)>\"&amp;'☃ &lt;!--literal--></b></div>\n        <div class=\"profile-share-intro-copy\">Copy both values, but send them through separate channels.</div>\n      </div>\n      <div class=\"profile-share-result-list\">\n        <label class=\"profile-share-field\">\n          <span>Link</span>\n          <div class=\"profile-share-input-row\">\n            <input id=\"profile-share-link\" class=\"api-key-input\" type=\"text\" value=\"&lt;img src=x onerror=alert(1)>&quot;&amp;'☃ &lt;!--literal-->\" readonly=\"\"/>\n            <button type=\"button\" class=\"profile-share-icon-btn\" data-profile-share-action=\"copy\" data-copy-target=\"profile-share-link\" data-copy-label=\"Link copied\" title=\"Copy link\" aria-label=\"Copy link\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\"></rect><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"></path></svg></button>\n          </div>\n        </label>\n        <label class=\"profile-share-field\">\n          <span>Password</span>\n          <div class=\"profile-share-input-row\">\n            <input id=\"profile-share-result-password\" class=\"api-key-input\" type=\"text\" value=\"&lt;img src=x onerror=alert(1)>&quot;&amp;'☃ &lt;!--literal-->\" readonly=\"\"/>\n            <button type=\"button\" class=\"profile-share-icon-btn\" data-profile-share-action=\"copy\" data-copy-target=\"profile-share-result-password\" data-copy-label=\"Password copied\" title=\"Copy password\" aria-label=\"Copy password\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\"></rect><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"></path></svg></button>\n          </div>\n        </label>\n      </div>\n      <div class=\"profile-share-note\">Expires 1/1/2099, 1:00:00 AM. Recipients import this as a new profile.</div>\n      \n    <section class=\"profile-share-active\" data-profile-share-active-list=\"\" data-profile-id=\"&lt;img src=x onerror=alert(1)>&quot;&amp;'☃ &lt;!--literal-->\">\n      <div class=\"profile-share-active-head\">\n        <span>Active links</span>\n        <small>Created on this device</small>\n      </div>\n      <div class=\"profile-share-active-list\"><!--[0--><!--[--><!---->\n        <div class=\"profile-share-active-row\" data-profile-share-record=\"id&quot;&lt;&amp;\">\n          <div class=\"profile-share-active-main\">\n            <span class=\"profile-share-active-title\">Shared link</span>\n            <span class=\"profile-share-active-meta\">Expires Jan 1, 01:00 AM</span>\n          </div>\n          <div class=\"profile-share-active-actions\">\n            <button type=\"button\" class=\"profile-share-icon-btn\" data-profile-share-action=\"copy\" data-copy-value=\"https://example.invalid/?a=&quot;&amp;b=&lt;\" data-copy-label=\"Link copied\" title=\"Copy link\" aria-label=\"Copy active link\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\"></rect><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"></path></svg></button>\n            <button type=\"button\" class=\"profile-share-stop-btn\" data-profile-share-action=\"delete-link\" data-share-id=\"id&quot;&lt;&amp;\">Stop sharing</button>\n          </div>\n        </div><!--]--><!--]--></div>\n    </section>\n  \n      <div id=\"profile-share-status\" class=\"profile-share-status\" hidden=\"\"></div>\n      <div class=\"gb-form-actions\">\n        <button type=\"button\" class=\"import-btn import-btn-primary\" data-profile-share-action=\"close\">Done</button>\n      </div>\n    </div>\n  ",
+      "anchors": [
+        {
+          "path": [
+            1,
+            7,
+            3,
+            0
+          ],
+          "value": "[0",
+          "parentChildren": [
+            {
+              "type": 8,
+              "value": "[0"
+            },
+            {
+              "type": 8,
+              "value": "["
+            },
+            {
+              "type": 8,
+              "value": ""
+            },
+            {
+              "type": 3,
+              "value": "\n        "
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": "]"
+            },
+            {
+              "type": 8,
+              "value": "]"
+            }
+          ]
+        },
+        {
+          "path": [
+            1,
+            7,
+            3,
+            1
+          ],
+          "value": "[",
+          "parentChildren": [
+            {
+              "type": 8,
+              "value": "[0"
+            },
+            {
+              "type": 8,
+              "value": "["
+            },
+            {
+              "type": 8,
+              "value": ""
+            },
+            {
+              "type": 3,
+              "value": "\n        "
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": "]"
+            },
+            {
+              "type": 8,
+              "value": "]"
+            }
+          ]
+        },
+        {
+          "path": [
+            1,
+            7,
+            3,
+            2
+          ],
+          "value": "",
+          "parentChildren": [
+            {
+              "type": 8,
+              "value": "[0"
+            },
+            {
+              "type": 8,
+              "value": "["
+            },
+            {
+              "type": 8,
+              "value": ""
+            },
+            {
+              "type": 3,
+              "value": "\n        "
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": "]"
+            },
+            {
+              "type": 8,
+              "value": "]"
+            }
+          ]
+        },
+        {
+          "path": [
+            1,
+            7,
+            3,
+            5
+          ],
+          "value": "]",
+          "parentChildren": [
+            {
+              "type": 8,
+              "value": "[0"
+            },
+            {
+              "type": 8,
+              "value": "["
+            },
+            {
+              "type": 8,
+              "value": ""
+            },
+            {
+              "type": 3,
+              "value": "\n        "
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": "]"
+            },
+            {
+              "type": 8,
+              "value": "]"
+            }
+          ]
+        },
+        {
+          "path": [
+            1,
+            7,
+            3,
+            6
+          ],
+          "value": "]",
+          "parentChildren": [
+            {
+              "type": 8,
+              "value": "[0"
+            },
+            {
+              "type": 8,
+              "value": "["
+            },
+            {
+              "type": 8,
+              "value": ""
+            },
+            {
+              "type": 3,
+              "value": "\n        "
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": "]"
+            },
+            {
+              "type": 8,
+              "value": "]"
+            }
+          ]
+        }
+      ],
+      "activeExpiryLabels": [
+        [
+          "2099-01-01T00:00:00Z",
+          "Jan 1, 01:00 AM"
+        ]
+      ],
+      "resultExpiryLabel": "1/1/2099, 1:00:00 AM",
+      "guards": [
+        "attribute-addition",
+        "attribute-order",
+        "namespace",
+        "text",
+        "unknown-comment",
+        "extra-known-comment",
+        "native-control-default",
+        "action"
+      ]
+    },
+    {
+      "fixture": {
+        "label": "load",
+        "kind": "load",
+        "id": "abcdefghijklmnopqrstuvwx",
+        "name": "Alice",
+        "secret": "",
+        "records": []
+      },
+      "original": "\n    <div class=\"gb-form-body profile-share-body\">\n      <div class=\"modal-unit\">Enter the password for this shared profile. It will import as a new profile in this browser.</div>\n      <form class=\"profile-share-form\" data-profile-share-form=\"load\" data-share-id=\"abcdefghijklmnopqrstuvwx\">\n        <label class=\"profile-share-field\">\n          <span>Password</span>\n          <input id=\"profile-share-load-password\" class=\"api-key-input\" type=\"password\" autocomplete=\"current-password\">\n        </label>\n        <div id=\"profile-share-status\" class=\"profile-share-status\" hidden></div>\n        <div class=\"gb-form-actions\">\n          <button type=\"button\" class=\"import-btn import-btn-secondary\" data-profile-share-action=\"close\">Cancel</button>\n          <button type=\"submit\" class=\"import-btn import-btn-primary\" data-profile-share-action=\"load\">Load Profile</button>\n        </div>\n      </form>\n    </div>\n  ",
+      "candidate": "\n    <div class=\"gb-form-body profile-share-body\">\n      <div class=\"modal-unit\">Enter the password for this shared profile. It will import as a new profile in this browser.</div>\n      <form class=\"profile-share-form\" data-profile-share-form=\"load\" data-share-id=\"abcdefghijklmnopqrstuvwx\">\n        <label class=\"profile-share-field\">\n          <span>Password</span>\n          <input id=\"profile-share-load-password\" class=\"api-key-input\" type=\"password\" autocomplete=\"current-password\"/>\n        </label>\n        <div id=\"profile-share-status\" class=\"profile-share-status\" hidden=\"\"></div>\n        <div class=\"gb-form-actions\">\n          <button type=\"button\" class=\"import-btn import-btn-secondary\" data-profile-share-action=\"close\">Cancel</button>\n          <button type=\"submit\" class=\"import-btn import-btn-primary\" data-profile-share-action=\"load\">Load Profile</button>\n        </div>\n      </form>\n    </div>\n  ",
+      "anchors": [],
+      "activeExpiryLabels": [],
+      "resultExpiryLabel": null,
+      "guards": [
+        "attribute-addition",
+        "attribute-order",
+        "namespace",
+        "text",
+        "unknown-comment",
+        "extra-known-comment",
+        "native-control-default",
+        "action"
+      ]
+    },
+    {
+      "fixture": {
+        "label": "load-null",
+        "kind": "load",
+        "id": null,
+        "name": "",
+        "secret": "",
+        "records": []
+      },
+      "original": "\n    <div class=\"gb-form-body profile-share-body\">\n      <div class=\"modal-unit\">Enter the password for this shared profile. It will import as a new profile in this browser.</div>\n      <form class=\"profile-share-form\" data-profile-share-form=\"load\" data-share-id=\"\">\n        <label class=\"profile-share-field\">\n          <span>Password</span>\n          <input id=\"profile-share-load-password\" class=\"api-key-input\" type=\"password\" autocomplete=\"current-password\">\n        </label>\n        <div id=\"profile-share-status\" class=\"profile-share-status\" hidden></div>\n        <div class=\"gb-form-actions\">\n          <button type=\"button\" class=\"import-btn import-btn-secondary\" data-profile-share-action=\"close\">Cancel</button>\n          <button type=\"submit\" class=\"import-btn import-btn-primary\" data-profile-share-action=\"load\">Load Profile</button>\n        </div>\n      </form>\n    </div>\n  ",
+      "candidate": "\n    <div class=\"gb-form-body profile-share-body\">\n      <div class=\"modal-unit\">Enter the password for this shared profile. It will import as a new profile in this browser.</div>\n      <form class=\"profile-share-form\" data-profile-share-form=\"load\" data-share-id=\"\">\n        <label class=\"profile-share-field\">\n          <span>Password</span>\n          <input id=\"profile-share-load-password\" class=\"api-key-input\" type=\"password\" autocomplete=\"current-password\"/>\n        </label>\n        <div id=\"profile-share-status\" class=\"profile-share-status\" hidden=\"\"></div>\n        <div class=\"gb-form-actions\">\n          <button type=\"button\" class=\"import-btn import-btn-secondary\" data-profile-share-action=\"close\">Cancel</button>\n          <button type=\"submit\" class=\"import-btn import-btn-primary\" data-profile-share-action=\"load\">Load Profile</button>\n        </div>\n      </form>\n    </div>\n  ",
+      "anchors": [],
+      "activeExpiryLabels": [],
+      "resultExpiryLabel": null,
+      "guards": [
+        "attribute-addition",
+        "attribute-order",
+        "namespace",
+        "text",
+        "unknown-comment",
+        "extra-known-comment",
+        "native-control-default",
+        "action"
+      ]
+    },
+    {
+      "fixture": {
+        "label": "load-escaped",
+        "kind": "load",
+        "id": "<img src=x onerror=alert(1)>\"&'☃ <!--literal-->",
+        "name": "",
+        "secret": "",
+        "records": []
+      },
+      "original": "\n    <div class=\"gb-form-body profile-share-body\">\n      <div class=\"modal-unit\">Enter the password for this shared profile. It will import as a new profile in this browser.</div>\n      <form class=\"profile-share-form\" data-profile-share-form=\"load\" data-share-id=\"&lt;img src=x onerror=alert(1)&gt;&quot;&amp;&#39;☃ &lt;!--literal--&gt;\">\n        <label class=\"profile-share-field\">\n          <span>Password</span>\n          <input id=\"profile-share-load-password\" class=\"api-key-input\" type=\"password\" autocomplete=\"current-password\">\n        </label>\n        <div id=\"profile-share-status\" class=\"profile-share-status\" hidden></div>\n        <div class=\"gb-form-actions\">\n          <button type=\"button\" class=\"import-btn import-btn-secondary\" data-profile-share-action=\"close\">Cancel</button>\n          <button type=\"submit\" class=\"import-btn import-btn-primary\" data-profile-share-action=\"load\">Load Profile</button>\n        </div>\n      </form>\n    </div>\n  ",
+      "candidate": "\n    <div class=\"gb-form-body profile-share-body\">\n      <div class=\"modal-unit\">Enter the password for this shared profile. It will import as a new profile in this browser.</div>\n      <form class=\"profile-share-form\" data-profile-share-form=\"load\" data-share-id=\"&lt;img src=x onerror=alert(1)>&quot;&amp;'☃ &lt;!--literal-->\">\n        <label class=\"profile-share-field\">\n          <span>Password</span>\n          <input id=\"profile-share-load-password\" class=\"api-key-input\" type=\"password\" autocomplete=\"current-password\"/>\n        </label>\n        <div id=\"profile-share-status\" class=\"profile-share-status\" hidden=\"\"></div>\n        <div class=\"gb-form-actions\">\n          <button type=\"button\" class=\"import-btn import-btn-secondary\" data-profile-share-action=\"close\">Cancel</button>\n          <button type=\"submit\" class=\"import-btn import-btn-primary\" data-profile-share-action=\"load\">Load Profile</button>\n        </div>\n      </form>\n    </div>\n  ",
+      "anchors": [],
+      "activeExpiryLabels": [],
+      "resultExpiryLabel": null,
+      "guards": [
+        "attribute-addition",
+        "attribute-order",
+        "namespace",
+        "text",
+        "unknown-comment",
+        "extra-known-comment",
+        "native-control-default",
+        "action"
+      ]
+    },
+    {
+      "fixture": {
+        "label": "shell-create-desktop",
+        "kind": "shell",
+        "shellBody": "create",
+        "id": "p",
+        "name": "Alice",
+        "secret": "secret",
+        "records": [],
+        "width": 1440
+      },
+      "original": "<div class=\"modal-overlay\" id=\"profile-share-overlay\">\n      <div class=\"modal gb-form-modal profile-share-modal\" role=\"dialog\" aria-modal=\"true\" aria-label=\"Alice\">\n        <div class=\"gb-modal-head\">\n          <div>\n            <div class=\"gb-modal-kicker\">Encrypted Link</div>\n            <div class=\"gb-modal-title\">Alice</div>\n          </div>\n          <button type=\"button\" class=\"modal-close\" aria-label=\"Close\" data-profile-share-action=\"close\">&times;</button>\n        </div>\n        \n    <div class=\"gb-form-body profile-share-body\">\n      <div class=\"profile-share-intro\">\n        <div class=\"profile-share-intro-title\">Encrypted link for <b>Alice</b></div>\n        <div class=\"profile-share-intro-copy\">The link finds a locked copy of the profile. The password is the only way to unlock it, and it is never added to the link or sent to us.</div>\n      </div>\n      <form class=\"profile-share-form\" data-profile-share-form=\"create\" data-profile-id=\"p\">\n        <label class=\"profile-share-field\">\n          <span>Password</span>\n          <div class=\"profile-share-input-row\">\n            <input id=\"profile-share-password\" class=\"api-key-input\" type=\"text\" value=\"secret\" autocomplete=\"off\" spellcheck=\"false\">\n            <button type=\"button\" class=\"profile-share-icon-btn\" data-profile-share-action=\"regenerate\" title=\"Generate new password\" aria-label=\"Generate new password\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M21 12a9 9 0 0 1-15.4 6.4L3 16\"/><path d=\"M3 21v-5h5\"/><path d=\"M3 12A9 9 0 0 1 18.4 5.6L21 8\"/><path d=\"M21 3v5h-5\"/></svg></button>\n          </div>\n        </label>\n        <label class=\"profile-share-field\">\n          <span>Expires</span>\n          <select id=\"profile-share-expires\" class=\"api-key-input\">\n            <option value=\"7\">7 days</option>\n            <option value=\"14\">14 days</option>\n            <option value=\"30\">30 days</option>\n          </select>\n        </label>\n        <label class=\"profile-share-consent\">\n          <input id=\"profile-share-consent\" type=\"checkbox\" required>\n          <span>I agree to upload a password-locked copy of this profile for temporary sharing. Anyone with both the link and password can open it, so I will send the password separately.</span>\n        </label>\n        <div class=\"profile-share-note\">If the password is lost, this shared copy cannot be recovered. On the official hosted app, temporary share copies are not backed up and may also be lost after a service failure; a self-hosted operator may use a different retention policy.</div>\n        <div id=\"profile-share-status\" class=\"profile-share-status\" hidden></div>\n        <div class=\"gb-form-actions\">\n          <button type=\"button\" class=\"import-btn import-btn-secondary\" data-profile-share-action=\"close\">Cancel</button>\n          <button type=\"submit\" class=\"import-btn import-btn-primary\" data-profile-share-action=\"create\">Create Link</button>\n        </div>\n      </form>\n      \n    <section class=\"profile-share-active\" data-profile-share-active-list data-profile-id=\"p\">\n      <div class=\"profile-share-active-head\">\n        <span>Active links</span>\n        <small>Created on this device</small>\n      </div>\n      <div class=\"profile-share-active-list\"><div class=\"profile-share-active-empty\">No active links created on this device.</div></div>\n    </section>\n  \n    </div>\n  \n      </div>\n    </div>",
+      "candidate": "<div class=\"modal-overlay\" id=\"profile-share-overlay\">\n      <div class=\"modal gb-form-modal profile-share-modal\" role=\"dialog\" aria-modal=\"true\" aria-label=\"Alice\">\n        <div class=\"gb-modal-head\">\n          <div>\n            <div class=\"gb-modal-kicker\">Encrypted Link</div>\n            <div class=\"gb-modal-title\">Alice</div>\n          </div>\n          <button type=\"button\" class=\"modal-close\" aria-label=\"Close\" data-profile-share-action=\"close\">×</button>\n        </div>\n        \n    <div class=\"gb-form-body profile-share-body\">\n      <div class=\"profile-share-intro\">\n        <div class=\"profile-share-intro-title\">Encrypted link for <b>Alice</b></div>\n        <div class=\"profile-share-intro-copy\">The link finds a locked copy of the profile. The password is the only way to unlock it, and it is never added to the link or sent to us.</div>\n      </div>\n      <form class=\"profile-share-form\" data-profile-share-form=\"create\" data-profile-id=\"p\">\n        <label class=\"profile-share-field\">\n          <span>Password</span>\n          <div class=\"profile-share-input-row\">\n            <input id=\"profile-share-password\" class=\"api-key-input\" type=\"text\" value=\"secret\" autocomplete=\"off\" spellcheck=\"false\"/>\n            <button type=\"button\" class=\"profile-share-icon-btn\" data-profile-share-action=\"regenerate\" title=\"Generate new password\" aria-label=\"Generate new password\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M21 12a9 9 0 0 1-15.4 6.4L3 16\"></path><path d=\"M3 21v-5h5\"></path><path d=\"M3 12A9 9 0 0 1 18.4 5.6L21 8\"></path><path d=\"M21 3v5h-5\"></path></svg></button>\n          </div>\n        </label>\n        <label class=\"profile-share-field\">\n          <span>Expires</span>\n          <select id=\"profile-share-expires\" class=\"api-key-input\">\n            <option value=\"7\">7 days</option>\n            <option value=\"14\">14 days</option>\n            <option value=\"30\">30 days</option>\n          </select>\n        </label>\n        <label class=\"profile-share-consent\">\n          <input id=\"profile-share-consent\" type=\"checkbox\" required=\"\"/>\n          <span>I agree to upload a password-locked copy of this profile for temporary sharing. Anyone with both the link and password can open it, so I will send the password separately.</span>\n        </label>\n        <div class=\"profile-share-note\">If the password is lost, this shared copy cannot be recovered. On the official hosted app, temporary share copies are not backed up and may also be lost after a service failure; a self-hosted operator may use a different retention policy.</div>\n        <div id=\"profile-share-status\" class=\"profile-share-status\" hidden=\"\"></div>\n        <div class=\"gb-form-actions\">\n          <button type=\"button\" class=\"import-btn import-btn-secondary\" data-profile-share-action=\"close\">Cancel</button>\n          <button type=\"submit\" class=\"import-btn import-btn-primary\" data-profile-share-action=\"create\">Create Link</button>\n        </div>\n      </form>\n      \n    <section class=\"profile-share-active\" data-profile-share-active-list=\"\" data-profile-id=\"p\">\n      <div class=\"profile-share-active-head\">\n        <span>Active links</span>\n        <small>Created on this device</small>\n      </div>\n      <div class=\"profile-share-active-list\"><!--[-1--><div class=\"profile-share-active-empty\">No active links created on this device.</div><!--]--></div>\n    </section>\n  \n    </div>\n  \n      </div>\n    </div>",
+      "anchors": [
+        {
+          "path": [
+            0,
+            1,
+            3,
+            5,
+            3,
+            0
+          ],
+          "value": "[-1",
+          "parentChildren": [
+            {
+              "type": 8,
+              "value": "[-1"
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": "]"
+            }
+          ]
+        },
+        {
+          "path": [
+            0,
+            1,
+            3,
+            5,
+            3,
+            2
+          ],
+          "value": "]",
+          "parentChildren": [
+            {
+              "type": 8,
+              "value": "[-1"
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": "]"
+            }
+          ]
+        }
+      ],
+      "activeExpiryLabels": [],
+      "resultExpiryLabel": null,
+      "guards": [
+        "attribute-addition",
+        "attribute-order",
+        "namespace",
+        "text",
+        "unknown-comment",
+        "extra-known-comment",
+        "native-control-default",
+        "action"
+      ]
+    },
+    {
+      "fixture": {
+        "label": "shell-result-mobile",
+        "kind": "shell",
+        "shellBody": "result",
+        "id": "p",
+        "name": "<img src=x onerror=alert(1)>\"&'☃ <!--literal-->",
+        "secret": "<img src=x onerror=alert(1)>\"&'☃ <!--literal-->",
+        "records": [
+          {
+            "id": "id\"<&",
+            "expiresAt": "2099-01-01T00:00:00Z",
+            "shareUrl": "https://example.invalid/?a=\"&b=<"
+          }
+        ],
+        "width": 480
+      },
+      "original": "<div class=\"modal-overlay\" id=\"profile-share-overlay\">\n      <div class=\"modal gb-form-modal profile-share-modal\" role=\"dialog\" aria-modal=\"true\" aria-label=\"&lt;img src=x onerror=alert(1)&gt;&quot;&amp;&#39;☃ &lt;!--literal--&gt;\">\n        <div class=\"gb-modal-head\">\n          <div>\n            <div class=\"gb-modal-kicker\">Encrypted Link</div>\n            <div class=\"gb-modal-title\">&lt;img src=x onerror=alert(1)&gt;&quot;&amp;&#39;☃ &lt;!--literal--&gt;</div>\n          </div>\n          <button type=\"button\" class=\"modal-close\" aria-label=\"Close\" data-profile-share-action=\"close\">&times;</button>\n        </div>\n        \n    <div class=\"gb-form-body profile-share-body\">\n      <div class=\"profile-share-intro\">\n        <div class=\"profile-share-intro-title\">Link ready for <b>&lt;img src=x onerror=alert(1)&gt;&quot;&amp;&#39;☃ &lt;!--literal--&gt;</b></div>\n        <div class=\"profile-share-intro-copy\">Copy both values, but send them through separate channels.</div>\n      </div>\n      <div class=\"profile-share-result-list\">\n        <label class=\"profile-share-field\">\n          <span>Link</span>\n          <div class=\"profile-share-input-row\">\n            <input id=\"profile-share-link\" class=\"api-key-input\" type=\"text\" value=\"&lt;img src=x onerror=alert(1)&gt;&quot;&amp;&#39;☃ &lt;!--literal--&gt;\" readonly>\n            <button type=\"button\" class=\"profile-share-icon-btn\" data-profile-share-action=\"copy\" data-copy-target=\"profile-share-link\" data-copy-label=\"Link copied\" title=\"Copy link\" aria-label=\"Copy link\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\"/><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"/></svg></button>\n          </div>\n        </label>\n        <label class=\"profile-share-field\">\n          <span>Password</span>\n          <div class=\"profile-share-input-row\">\n            <input id=\"profile-share-result-password\" class=\"api-key-input\" type=\"text\" value=\"&lt;img src=x onerror=alert(1)&gt;&quot;&amp;&#39;☃ &lt;!--literal--&gt;\" readonly>\n            <button type=\"button\" class=\"profile-share-icon-btn\" data-profile-share-action=\"copy\" data-copy-target=\"profile-share-result-password\" data-copy-label=\"Password copied\" title=\"Copy password\" aria-label=\"Copy password\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\"/><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"/></svg></button>\n          </div>\n        </label>\n      </div>\n      <div class=\"profile-share-note\">Expires 1/1/2099, 1:00:00 AM. Recipients import this as a new profile.</div>\n      \n    <section class=\"profile-share-active\" data-profile-share-active-list data-profile-id=\"p\">\n      <div class=\"profile-share-active-head\">\n        <span>Active links</span>\n        <small>Created on this device</small>\n      </div>\n      <div class=\"profile-share-active-list\">\n        <div class=\"profile-share-active-row\" data-profile-share-record=\"id&quot;&lt;&amp;\">\n          <div class=\"profile-share-active-main\">\n            <span class=\"profile-share-active-title\">Shared link</span>\n            <span class=\"profile-share-active-meta\">Expires Jan 1, 01:00 AM</span>\n          </div>\n          <div class=\"profile-share-active-actions\">\n            <button type=\"button\" class=\"profile-share-icon-btn\" data-profile-share-action=\"copy\" data-copy-value=\"https://example.invalid/?a=&quot;&amp;b=&lt;\" data-copy-label=\"Link copied\" title=\"Copy link\" aria-label=\"Copy active link\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\"/><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"/></svg></button>\n            <button type=\"button\" class=\"profile-share-stop-btn\" data-profile-share-action=\"delete-link\" data-share-id=\"id&quot;&lt;&amp;\">Stop sharing</button>\n          </div>\n        </div></div>\n    </section>\n  \n      <div id=\"profile-share-status\" class=\"profile-share-status\" hidden></div>\n      <div class=\"gb-form-actions\">\n        <button type=\"button\" class=\"import-btn import-btn-primary\" data-profile-share-action=\"close\">Done</button>\n      </div>\n    </div>\n  \n      </div>\n    </div>",
+      "candidate": "<div class=\"modal-overlay\" id=\"profile-share-overlay\">\n      <div class=\"modal gb-form-modal profile-share-modal\" role=\"dialog\" aria-modal=\"true\" aria-label=\"&lt;img src=x onerror=alert(1)>&quot;&amp;'☃ &lt;!--literal-->\">\n        <div class=\"gb-modal-head\">\n          <div>\n            <div class=\"gb-modal-kicker\">Encrypted Link</div>\n            <div class=\"gb-modal-title\">&lt;img src=x onerror=alert(1)>\"&amp;'☃ &lt;!--literal--></div>\n          </div>\n          <button type=\"button\" class=\"modal-close\" aria-label=\"Close\" data-profile-share-action=\"close\">×</button>\n        </div>\n        \n    <div class=\"gb-form-body profile-share-body\">\n      <div class=\"profile-share-intro\">\n        <div class=\"profile-share-intro-title\">Link ready for <b>&lt;img src=x onerror=alert(1)>\"&amp;'☃ &lt;!--literal--></b></div>\n        <div class=\"profile-share-intro-copy\">Copy both values, but send them through separate channels.</div>\n      </div>\n      <div class=\"profile-share-result-list\">\n        <label class=\"profile-share-field\">\n          <span>Link</span>\n          <div class=\"profile-share-input-row\">\n            <input id=\"profile-share-link\" class=\"api-key-input\" type=\"text\" value=\"&lt;img src=x onerror=alert(1)>&quot;&amp;'☃ &lt;!--literal-->\" readonly=\"\"/>\n            <button type=\"button\" class=\"profile-share-icon-btn\" data-profile-share-action=\"copy\" data-copy-target=\"profile-share-link\" data-copy-label=\"Link copied\" title=\"Copy link\" aria-label=\"Copy link\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\"></rect><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"></path></svg></button>\n          </div>\n        </label>\n        <label class=\"profile-share-field\">\n          <span>Password</span>\n          <div class=\"profile-share-input-row\">\n            <input id=\"profile-share-result-password\" class=\"api-key-input\" type=\"text\" value=\"&lt;img src=x onerror=alert(1)>&quot;&amp;'☃ &lt;!--literal-->\" readonly=\"\"/>\n            <button type=\"button\" class=\"profile-share-icon-btn\" data-profile-share-action=\"copy\" data-copy-target=\"profile-share-result-password\" data-copy-label=\"Password copied\" title=\"Copy password\" aria-label=\"Copy password\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\"></rect><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"></path></svg></button>\n          </div>\n        </label>\n      </div>\n      <div class=\"profile-share-note\">Expires 1/1/2099, 1:00:00 AM. Recipients import this as a new profile.</div>\n      \n    <section class=\"profile-share-active\" data-profile-share-active-list=\"\" data-profile-id=\"p\">\n      <div class=\"profile-share-active-head\">\n        <span>Active links</span>\n        <small>Created on this device</small>\n      </div>\n      <div class=\"profile-share-active-list\"><!--[0--><!--[--><!---->\n        <div class=\"profile-share-active-row\" data-profile-share-record=\"id&quot;&lt;&amp;\">\n          <div class=\"profile-share-active-main\">\n            <span class=\"profile-share-active-title\">Shared link</span>\n            <span class=\"profile-share-active-meta\">Expires Jan 1, 01:00 AM</span>\n          </div>\n          <div class=\"profile-share-active-actions\">\n            <button type=\"button\" class=\"profile-share-icon-btn\" data-profile-share-action=\"copy\" data-copy-value=\"https://example.invalid/?a=&quot;&amp;b=&lt;\" data-copy-label=\"Link copied\" title=\"Copy link\" aria-label=\"Copy active link\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\"></rect><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"></path></svg></button>\n            <button type=\"button\" class=\"profile-share-stop-btn\" data-profile-share-action=\"delete-link\" data-share-id=\"id&quot;&lt;&amp;\">Stop sharing</button>\n          </div>\n        </div><!--]--><!--]--></div>\n    </section>\n  \n      <div id=\"profile-share-status\" class=\"profile-share-status\" hidden=\"\"></div>\n      <div class=\"gb-form-actions\">\n        <button type=\"button\" class=\"import-btn import-btn-primary\" data-profile-share-action=\"close\">Done</button>\n      </div>\n    </div>\n  \n      </div>\n    </div>",
+      "anchors": [
+        {
+          "path": [
+            0,
+            1,
+            3,
+            7,
+            3,
+            0
+          ],
+          "value": "[0",
+          "parentChildren": [
+            {
+              "type": 8,
+              "value": "[0"
+            },
+            {
+              "type": 8,
+              "value": "["
+            },
+            {
+              "type": 8,
+              "value": ""
+            },
+            {
+              "type": 3,
+              "value": "\n        "
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": "]"
+            },
+            {
+              "type": 8,
+              "value": "]"
+            }
+          ]
+        },
+        {
+          "path": [
+            0,
+            1,
+            3,
+            7,
+            3,
+            1
+          ],
+          "value": "[",
+          "parentChildren": [
+            {
+              "type": 8,
+              "value": "[0"
+            },
+            {
+              "type": 8,
+              "value": "["
+            },
+            {
+              "type": 8,
+              "value": ""
+            },
+            {
+              "type": 3,
+              "value": "\n        "
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": "]"
+            },
+            {
+              "type": 8,
+              "value": "]"
+            }
+          ]
+        },
+        {
+          "path": [
+            0,
+            1,
+            3,
+            7,
+            3,
+            2
+          ],
+          "value": "",
+          "parentChildren": [
+            {
+              "type": 8,
+              "value": "[0"
+            },
+            {
+              "type": 8,
+              "value": "["
+            },
+            {
+              "type": 8,
+              "value": ""
+            },
+            {
+              "type": 3,
+              "value": "\n        "
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": "]"
+            },
+            {
+              "type": 8,
+              "value": "]"
+            }
+          ]
+        },
+        {
+          "path": [
+            0,
+            1,
+            3,
+            7,
+            3,
+            5
+          ],
+          "value": "]",
+          "parentChildren": [
+            {
+              "type": 8,
+              "value": "[0"
+            },
+            {
+              "type": 8,
+              "value": "["
+            },
+            {
+              "type": 8,
+              "value": ""
+            },
+            {
+              "type": 3,
+              "value": "\n        "
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": "]"
+            },
+            {
+              "type": 8,
+              "value": "]"
+            }
+          ]
+        },
+        {
+          "path": [
+            0,
+            1,
+            3,
+            7,
+            3,
+            6
+          ],
+          "value": "]",
+          "parentChildren": [
+            {
+              "type": 8,
+              "value": "[0"
+            },
+            {
+              "type": 8,
+              "value": "["
+            },
+            {
+              "type": 8,
+              "value": ""
+            },
+            {
+              "type": 3,
+              "value": "\n        "
+            },
+            {
+              "type": 1,
+              "tag": "DIV",
+              "value": null
+            },
+            {
+              "type": 8,
+              "value": "]"
+            },
+            {
+              "type": 8,
+              "value": "]"
+            }
+          ]
+        }
+      ],
+      "activeExpiryLabels": [
+        [
+          "2099-01-01T00:00:00Z",
+          "Jan 1, 01:00 AM"
+        ]
+      ],
+      "resultExpiryLabel": "1/1/2099, 1:00:00 AM",
+      "guards": [
+        "attribute-addition",
+        "attribute-order",
+        "namespace",
+        "text",
+        "unknown-comment",
+        "extra-known-comment",
+        "native-control-default",
+        "action"
+      ]
+    },
+    {
+      "fixture": {
+        "label": "shell-load-mobile",
+        "kind": "shell",
+        "shellBody": "load",
+        "id": "p",
+        "name": "<img src=x onerror=alert(1)>\"&'☃ <!--literal-->",
+        "secret": "",
+        "records": [],
+        "width": 480
+      },
+      "original": "<div class=\"modal-overlay\" id=\"profile-share-overlay\">\n      <div class=\"modal gb-form-modal profile-share-modal\" role=\"dialog\" aria-modal=\"true\" aria-label=\"&lt;img src=x onerror=alert(1)&gt;&quot;&amp;&#39;☃ &lt;!--literal--&gt;\">\n        <div class=\"gb-modal-head\">\n          <div>\n            <div class=\"gb-modal-kicker\">Encrypted Link</div>\n            <div class=\"gb-modal-title\">&lt;img src=x onerror=alert(1)&gt;&quot;&amp;&#39;☃ &lt;!--literal--&gt;</div>\n          </div>\n          <button type=\"button\" class=\"modal-close\" aria-label=\"Close\" data-profile-share-action=\"close\">&times;</button>\n        </div>\n        \n    <div class=\"gb-form-body profile-share-body\">\n      <div class=\"modal-unit\">Enter the password for this shared profile. It will import as a new profile in this browser.</div>\n      <form class=\"profile-share-form\" data-profile-share-form=\"load\" data-share-id=\"p\">\n        <label class=\"profile-share-field\">\n          <span>Password</span>\n          <input id=\"profile-share-load-password\" class=\"api-key-input\" type=\"password\" autocomplete=\"current-password\">\n        </label>\n        <div id=\"profile-share-status\" class=\"profile-share-status\" hidden></div>\n        <div class=\"gb-form-actions\">\n          <button type=\"button\" class=\"import-btn import-btn-secondary\" data-profile-share-action=\"close\">Cancel</button>\n          <button type=\"submit\" class=\"import-btn import-btn-primary\" data-profile-share-action=\"load\">Load Profile</button>\n        </div>\n      </form>\n    </div>\n  \n      </div>\n    </div>",
+      "candidate": "<div class=\"modal-overlay\" id=\"profile-share-overlay\">\n      <div class=\"modal gb-form-modal profile-share-modal\" role=\"dialog\" aria-modal=\"true\" aria-label=\"&lt;img src=x onerror=alert(1)>&quot;&amp;'☃ &lt;!--literal-->\">\n        <div class=\"gb-modal-head\">\n          <div>\n            <div class=\"gb-modal-kicker\">Encrypted Link</div>\n            <div class=\"gb-modal-title\">&lt;img src=x onerror=alert(1)>\"&amp;'☃ &lt;!--literal--></div>\n          </div>\n          <button type=\"button\" class=\"modal-close\" aria-label=\"Close\" data-profile-share-action=\"close\">×</button>\n        </div>\n        \n    <div class=\"gb-form-body profile-share-body\">\n      <div class=\"modal-unit\">Enter the password for this shared profile. It will import as a new profile in this browser.</div>\n      <form class=\"profile-share-form\" data-profile-share-form=\"load\" data-share-id=\"p\">\n        <label class=\"profile-share-field\">\n          <span>Password</span>\n          <input id=\"profile-share-load-password\" class=\"api-key-input\" type=\"password\" autocomplete=\"current-password\"/>\n        </label>\n        <div id=\"profile-share-status\" class=\"profile-share-status\" hidden=\"\"></div>\n        <div class=\"gb-form-actions\">\n          <button type=\"button\" class=\"import-btn import-btn-secondary\" data-profile-share-action=\"close\">Cancel</button>\n          <button type=\"submit\" class=\"import-btn import-btn-primary\" data-profile-share-action=\"load\">Load Profile</button>\n        </div>\n      </form>\n    </div>\n  \n      </div>\n    </div>",
+      "anchors": [],
+      "activeExpiryLabels": [],
+      "resultExpiryLabel": null,
+      "guards": [
+        "attribute-addition",
+        "attribute-order",
+        "namespace",
+        "text",
+        "unknown-comment",
+        "extra-known-comment",
+        "native-control-default",
+        "action"
+      ]
+    }
+  ],
+  "chronology": [
+    {
+      "throwing": null,
+      "trace": [
+        "read:name",
+        "name:string",
+        "read:url",
+        "url:string",
+        "read:password",
+        "password:string",
+        "read:expiry",
+        "read:profile"
+      ],
+      "error": null,
+      "candidateHTML": "\n    <div class=\"gb-form-body profile-share-body\">\n      <div class=\"profile-share-intro\">\n        <div class=\"profile-share-intro-title\">Link ready for <b>name</b></div>\n        <div class=\"profile-share-intro-copy\">Copy both values, but send them through separate channels.</div>\n      </div>\n      <div class=\"profile-share-result-list\">\n        <label class=\"profile-share-field\">\n          <span>Link</span>\n          <div class=\"profile-share-input-row\">\n            <input id=\"profile-share-link\" class=\"api-key-input\" type=\"text\" value=\"url\" readonly=\"\"/>\n            <button type=\"button\" class=\"profile-share-icon-btn\" data-profile-share-action=\"copy\" data-copy-target=\"profile-share-link\" data-copy-label=\"Link copied\" title=\"Copy link\" aria-label=\"Copy link\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\"></rect><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"></path></svg></button>\n          </div>\n        </label>\n        <label class=\"profile-share-field\">\n          <span>Password</span>\n          <div class=\"profile-share-input-row\">\n            <input id=\"profile-share-result-password\" class=\"api-key-input\" type=\"text\" value=\"password\" readonly=\"\"/>\n            <button type=\"button\" class=\"profile-share-icon-btn\" data-profile-share-action=\"copy\" data-copy-target=\"profile-share-result-password\" data-copy-label=\"Password copied\" title=\"Copy password\" aria-label=\"Copy password\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\"></rect><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"></path></svg></button>\n          </div>\n        </label>\n      </div>\n      <div class=\"profile-share-note\">Expires 1/1/2099, 1:00:00 AM. Recipients import this as a new profile.</div>\n      \n    <section class=\"profile-share-active\" data-profile-share-active-list=\"\" data-profile-id=\"p\">\n      <div class=\"profile-share-active-head\">\n        <span>Active links</span>\n        <small>Created on this device</small>\n      </div>\n      <div class=\"profile-share-active-list\"><!--[-1--><div class=\"profile-share-active-empty\">No active links created on this device.</div><!--]--></div>\n    </section>\n  \n      <div id=\"profile-share-status\" class=\"profile-share-status\" hidden=\"\"></div>\n      <div class=\"gb-form-actions\">\n        <button type=\"button\" class=\"import-btn import-btn-primary\" data-profile-share-action=\"close\">Done</button>\n      </div>\n    </div>\n  ",
+      "resultExpiryLabel": "1/1/2099, 1:00:00 AM"
+    },
+    {
+      "throwing": "name",
+      "trace": [
+        "read:name"
+      ],
+      "error": {
+        "name": "Error",
+        "message": "name failed"
+      },
+      "candidateHTML": null,
+      "resultExpiryLabel": "1/1/2099, 1:00:00 AM"
+    },
+    {
+      "throwing": "url",
+      "trace": [
+        "read:name",
+        "name:string",
+        "read:url"
+      ],
+      "error": {
+        "name": "Error",
+        "message": "url failed"
+      },
+      "candidateHTML": null,
+      "resultExpiryLabel": "1/1/2099, 1:00:00 AM"
+    },
+    {
+      "throwing": "password",
+      "trace": [
+        "read:name",
+        "name:string",
+        "read:url",
+        "url:string",
+        "read:password"
+      ],
+      "error": {
+        "name": "Error",
+        "message": "password failed"
+      },
+      "candidateHTML": null,
+      "resultExpiryLabel": "1/1/2099, 1:00:00 AM"
+    },
+    {
+      "throwing": "expiry",
+      "trace": [
+        "read:name",
+        "name:string",
+        "read:url",
+        "url:string",
+        "read:password",
+        "password:string",
+        "read:expiry"
+      ],
+      "error": {
+        "name": "Error",
+        "message": "expiry failed"
+      },
+      "candidateHTML": null,
+      "resultExpiryLabel": "1/1/2099, 1:00:00 AM"
+    },
+    {
+      "throwing": "profile",
+      "trace": [
+        "read:name",
+        "name:string",
+        "read:url",
+        "url:string",
+        "read:password",
+        "password:string",
+        "read:expiry",
+        "read:profile"
+      ],
+      "error": {
+        "name": "Error",
+        "message": "profile failed"
+      },
+      "candidateHTML": null,
+      "resultExpiryLabel": "1/1/2099, 1:00:00 AM"
+    }
+  ]
+}

@@ -2,15 +2,18 @@
 
 import { state } from './state.js';
 import { trackUsage } from './schema.js';
-import { escapeAttr, escapeHTML, hasCardContent, getStatus } from './utils.js';
+import { hasCardContent, getStatus } from './utils.js';
 import { getActiveData, getFocusCardFingerprint } from './data.js';
 import { getAllFlaggedMarkers } from './marker-analysis.js';
 import { profileStorageKey } from './profile.js';
 import { getAIProvider, getActiveModelId } from './api.js';
 import { callAssistantFeatureAI, getAssistantFeatureIdentity, hasAssistantFeatureProvider } from './ai-feature-routing.js';
-import { injectLensChunks, isGroupInAIContext, isInsightContextCardsEnabled, isLabMarkersContextEnabled, isSupplementsMedsContextEnabled } from './lab-context.js';
+import { injectLensChunks } from './lab-context-output.js';
+import { isGroupInAIContext, isInsightContextCardsEnabled, isLabMarkersContextEnabled, isSupplementsMedsContextEnabled } from './lab-context-settings.js';
 import { hasLens, queryLens } from './lens.js';
-import { applyInlineMarkdown } from './markdown.js';
+import {projectFocusCardMarkdown, renderFocusCardView} from './focus-card-presentation.js';
+import type {FocusCardView} from './focus-card-presentation.js';
+import {replaceFocusCardBody, createFocusCardStream} from './focus-card-host.js';
 import { computeAllImpacts } from './supplement-impact.js';
 import { getCurrentSupplements, getSupplementPeriods, getSupplementsOverlappingRange } from './supplement-medication-domain.js';
 
@@ -23,10 +26,6 @@ export interface FocusCardOptions { refreshStale?: unknown; userInitiated?: unkn
 
 const focusCardActionDelegateRoots = new WeakSet();
 const FOCUS_CARD_ACTION_ATTR = 'data-focus-card-action';
-
-function focusCardActionAttrs(action: unknown) {
-  return `${FOCUS_CARD_ACTION_ATTR}="${escapeAttr(action)}"`;
-}
 
 function closestFocusCardAction(target: FocusActionTarget | null) {
   return (
@@ -63,18 +62,16 @@ function getFocusFlaggedMarkers(data: FocusData) {
   return getAllFlaggedMarkers(data).filter(f => focusCategoryInContext(data, f.categoryKey));
 }
 
-export function renderFocusCard() {
+export function projectFocusCard(): FocusCardView {
   const cacheKey = profileStorageKey(state.currentProfile, 'focusCard');
   const cached: FocusCacheReader | null = (() => { try { return JSON.parse(localStorage.getItem(cacheKey) || 'null'); } catch(e) { return null; } })();
   const fp = getFocusCardFingerprint();
   const text = (cached && cached.fingerprint === fp) ? cached.text : null;
-  return `<div class="focus-card" id="focus-card">
-    <div class="focus-card-icon">\uD83D\uDD2C</div>
-    <div class="focus-card-body" id="focus-card-body">${text
-      ? `<span class="focus-card-text">${applyInlineMarkdown(text)}</span>`
-      : `<span class="focus-card-shimmer"></span>`}</div>
-    <button class="focus-card-refresh" ${focusCardActionAttrs('refresh')} aria-label="Regenerate insight" title="Regenerate insight">\u21BB</button>
-  </div>`;
+  return {body: text ? projectFocusCardMarkdown(text) : {kind: 'shimmer'}};
+}
+
+export function renderFocusCard() {
+  return renderFocusCardView(projectFocusCard());
 }
 
 export function buildFocusContext() {
@@ -192,7 +189,7 @@ export async function loadFocusCard(opts: FocusCardOptions = {}) {
   const cached: FocusCacheReader | null = (() => { try { return JSON.parse(localStorage.getItem(cacheKey) || 'null'); } catch(e) { return null; } })();
   const fp = getFocusCardFingerprint();
   if (cached && cached.text) {
-    el.innerHTML = `<span class="focus-card-text">${applyInlineMarkdown(cached.text)}</span>`;
+    replaceFocusCardBody(el, projectFocusCardMarkdown(cached.text));
     // Hand-authored prefill (demo profiles only) ships without a
     // fingerprint; never auto-refresh. The manual refresh button still
     // works because refreshFocusCard clears the cache entirely.
@@ -201,14 +198,14 @@ export async function loadFocusCard(opts: FocusCardOptions = {}) {
     if (!refreshStale) return;
   }
   if (!hasAssistantFeatureProvider()) {
-    if (!cached?.text) el.innerHTML = `<span class="focus-card-text" style="color:var(--text-muted)">Enable AI to generate insights</span>`;
+    if (!cached?.text) replaceFocusCardBody(el, {kind: 'message', text: 'Enable AI to generate insights'});
     return;
   }
-  el.innerHTML = `<span class="focus-card-text" style="color:var(--text-muted)">\uD83D\uDD0D Looking into your results\u2026</span>`;
+  replaceFocusCardBody(el, {kind: 'message', text: '\uD83D\uDD0D Looking into your results\u2026'});
   try {
     let ctx = buildFocusContext();
     if (!ctx) {
-      el.innerHTML = `<span class="focus-card-text" style="color:var(--text-muted)">No insight available</span>`;
+      replaceFocusCardBody(el, {kind: 'message', text: 'No insight available'});
       return;
     }
     if (hasLens()) {
@@ -231,14 +228,13 @@ export async function loadFocusCard(opts: FocusCardOptions = {}) {
 - Never attribute changes to supplements started after the last lab date
 - CRITICAL: Output ONLY the insight text. No thinking, no reasoning, no "Let me analyze", no numbered analysis steps, no preamble. Start directly with your finding.`;
 
-    const textEl = document.createElement('span');
-    textEl.className = 'focus-card-text';
+    const stream = createFocusCardStream(el);
     let target = '', displayed = 0, timer: ReturnType<typeof setTimeout> | null = null;
     function tick() {
       if (displayed >= target.length) { timer = null; return; }
       const batch = Math.max(1, Math.ceil((target.length - displayed) * 0.3));
       displayed = Math.min(displayed + batch, target.length);
-      textEl.textContent = target.slice(0, displayed);
+      stream.setText(target.slice(0, displayed));
       timer = setTimeout(tick, 16);
     }
 
@@ -253,7 +249,7 @@ export async function loadFocusCard(opts: FocusCardOptions = {}) {
       onStream(text) {
         if (text.length < target.length) displayed = 0;
         target = text;
-        if (!textEl.parentNode) { el.innerHTML = ''; el.appendChild(textEl); }
+        stream.attach();
         if (!timer) tick();
       }
     }) as FocusResponseReader;
@@ -273,9 +269,9 @@ export async function loadFocusCard(opts: FocusCardOptions = {}) {
     if (trimmed.length > 1500) { const cut = trimmed.slice(0, 1500).lastIndexOf('.'); if (cut > 100) trimmed = trimmed.slice(0, cut + 1); }
     if (trimmed) {
       localStorage.setItem(cacheKey, JSON.stringify({ fingerprint: fp, text: trimmed }));
-      el.innerHTML = `<span class="focus-card-text">${applyInlineMarkdown(trimmed)}</span>`;
+      replaceFocusCardBody(el, projectFocusCardMarkdown(trimmed));
     } else {
-      el.innerHTML = `<span class="focus-card-text" style="color:var(--text-muted)">No insight available</span>`;
+      replaceFocusCardBody(el, {kind: 'message', text: 'No insight available'});
     }
   } catch(e) {
     // Show why. The transport raises actionable messages here (e.g. a local
@@ -283,7 +279,7 @@ export async function loadFocusCard(opts: FocusCardOptions = {}) {
     // "Could not load insight" sends people debugging the network instead.
     console.error('Focus card insight failed:', e);
     const reason = e instanceof Error && e.message ? e.message : '';
-    el.innerHTML = `<span class="focus-card-text" style="color:var(--text-muted)">Could not load insight${reason ? ` — ${escapeHTML(reason)}` : ''}</span>`;
+    replaceFocusCardBody(el, {kind: 'message', text: 'Could not load insight' + (reason ? ' — ' + String(reason) : '')});
   }
 }
 

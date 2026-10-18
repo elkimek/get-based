@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { LiveSessionReadout } from '../light-active-session-presentation.js';
-  let { readouts }: { readouts: LiveSessionReadout[] } = $props();
+  let { readouts }: { readouts: readonly LiveSessionReadout[] } = $props();
   const badge = 'gb:light-active:inline-flex gb:light-active:items-center gb:light-active:flex-wrap gb:light-active:gap-x-2 gb:light-active:gap-y-1 gb:light-active:min-w-0 gb:light-active:max-w-full gb:light-active:wrap-anywhere gb:light-active:border gb:light-active:rounded-control gb:light-active:px-[9px] gb:light-active:py-[5px] gb:light-active:text-[11px] gb:light-active:leading-normal gb:light-active:text-ink';
 </script>
 <div class="sun-session-live-readouts gb:light-active:flex gb:light-active:flex-wrap gb:light-active:items-stretch gb:light-active:gap-[7px] gb:light-active:min-w-0 gb:light-active:mt-[9px]" aria-label="Live session estimates" data-light-active-presentation>

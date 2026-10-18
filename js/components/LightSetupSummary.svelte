@@ -1,4 +1,5 @@
 <script lang="ts">
+  import LightOnboardingAI from './LightOnboardingAI.svelte';
   import { setupClasses, setupChipClasses } from '../light-setup-classes.js';
   import type { LightSetupView } from '../light-setup-presentation.js';
   let { view }: { view: LightSetupView } = $props();
@@ -17,5 +18,5 @@
       </div>
     </div>
   {/each}</div>
-  {@html view.aiHTML}
+  {#if view.ai}<LightOnboardingAI view={view.ai}/>{/if}
 </div>

@@ -27,6 +27,6 @@ export function navigateWearablesDashboard() {
 }
 
 export async function confirmWearableSettingsAction(message: string, options: Parameters<typeof showConfirmDialog>[1] = {}) {
-  const confirm = wearableSettingsRuntimeDeps.showConfirmDialog;
-  return confirm ? !!await confirm(message, options) : false;
+  const confirmAction = wearableSettingsRuntimeDeps.showConfirmDialog;
+  return confirmAction ? !!await confirmAction(message, options) : false;
 }

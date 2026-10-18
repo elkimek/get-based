@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "description": "Immutable synthetic native Wearables browser receipts and only the three Chart callback-owner/binding chunk and source-map pairs required by the exact source-binding comparator. Original receipt bytes and hashes are preserved. This fixture does not contain a runnable application.",
+  "archive": {
+    "file": "receipts.bin.gz",
+    "bytes": 1822406,
+    "sha256": "ed3df38ce942312e2ce8a5b6ad8d6007caaf3caa35f0879df56a3f9457ddc31c",
+    "payloadBytes": 22364477
+  },
+  "files": [
+    {
+      "file": "clone/.local-notes/original-browser-capture/kit-chromium.json",
+      "bytes": 5303848,
+      "sha256": "30fbc2fc2dcf5ab2e043a52437f5e731f0de95bcc5cf8cdba3b9c70647faac04"
+    },
+    {
+      "file": "clone/.local-notes/original-browser-capture/kit-firefox.json",
+      "bytes": 5238374,
+      "sha256": "06103f134b6a89bcd3bdcb4f4fbc7caa775b94ea23689133dd44c187396689ff"
+    },
+    {
+      "file": "clone/.local-notes/original-browser-capture/kit-mobile-webkit.json",
+      "bytes": 5241563,
+      "sha256": "1a2eb606f9f2029d5734cc27a80f0b8ceaf3b5e17dcac5f899b6293458a63fda"
+    },
+    {
+      "file": "clone/.local-notes/original-browser-capture/kit-webkit.json",
+      "bytes": 5240639,
+      "sha256": "e603c2d8a5fd1596092dd1d58e403fe227002e37ea0bffad2e57210165edb015"
+    },
+    {
+      "file": "clone/.local-notes/original-kit-artifact/_app/immutable/chunks/CtdYO843.js",
+      "bytes": 815,
+      "sha256": "8a8006310ebf649bfe6ea80ef31ffce6d1236cba3221554df45de3788521035d"
+    },
+    {
+      "file": "clone/.local-notes/original-kit-artifact/_app/immutable/chunks/CtdYO843.js.map",
+      "bytes": 3184,
+      "sha256": "70673af2f410e4be18a46ece771cc2fb8f95959d3ca884be673f10a07f256f49"
+    },
+    {
+      "file": "clone/.local-notes/original-kit-artifact/_app/immutable/chunks/Pietaq_b.js",
+      "bytes": 99041,
+      "sha256": "16e0624afe593f70d9e1ab8409cba6e96aa8bbb14043a57ff5a0444d75d24461"
+    },
+    {
+      "file": "clone/.local-notes/original-kit-artifact/_app/immutable/chunks/Pietaq_b.js.map",
+      "bytes": 227675,
+      "sha256": "e0cc4af41eab18cb4d862aca64090086307936da5d98bdb74d335d7133bba0ea"
+    },
+    {
+      "file": "clone/.local-notes/original-kit-artifact/_app/immutable/chunks/sx8fdhZF.js",
+      "bytes": 16064,
+      "sha256": "d6b26076da6cb19ca61086cb29ec1e2bd4847b053951267b3dc355abbd8e4f81"
+    },
+    {
+      "file": "clone/.local-notes/original-kit-artifact/_app/immutable/chunks/sx8fdhZF.js.map",
+      "bytes": 54997,
+      "sha256": "80a6c7ad7ea99d33ce42de42d7121cf9f0e0f0e27dd9a0bbc12743e669321c56"
+    },
+    {
+      "file": "original-browser-generation1/run-original-wearables-capture/raw/0-kit-chromium-0-wearable-native-warm-baseline.json",
+      "bytes": 233192,
+      "sha256": "9189dbf767908fbe0e66ae7ed52369bc2e37fe777af0cf1dee310015a112b96d"
+    },
+    {
+      "file": "original-browser-generation1/run-original-wearables-capture/raw/1-kit-firefox-0-wearable-native-warm-baseline.json",
+      "bytes": 233192,
+      "sha256": "934a2eb377e33631086b94a3bbafcf65198bb07555eb4d9fccbf571ad65d7f27"
+    },
+    {
+      "file": "original-browser-generation1/run-original-wearables-capture/raw/2-kit-webkit-0-wearable-native-warm-baseline.json",
+      "bytes": 233192,
+      "sha256": "ea75c44e852725e82f69caf3859249f9ccdff844b2e760903b8bd5e51abb147e"
+    },
+    {
+      "file": "original-browser-generation1/run-original-wearables-capture/raw/3-kit-mobile-webkit-0-wearable-native-warm-baseline.json",
+      "bytes": 233192,
+      "sha256": "f60881ec0eb2afd2c1cd7bfd1a65f3941e141b196d4f11ee40dd846763fc142a"
+    },
+    {
+      "file": "native-input-manifest.json",
+      "bytes": 2753,
+      "sha256": "b32fbd595d3a08e323335c3d15a8c07cea729dcb02721e183ca55ff96d1e817e"
+    }
+  ]
+}

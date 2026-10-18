@@ -1,2 +1,3 @@
 import type { ChatEmptyView } from '../chat-empty-presentation.js';
-export function renderHTML(props: { view: ChatEmptyView }): string;
+import type { ContextCatalogView } from '../context-card-catalog-presentation.js';
+export function renderHTML(props: { view: ChatEmptyView; contextCatalog?: ContextCatalogView | null }): string;

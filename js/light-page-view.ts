@@ -6,16 +6,18 @@ import { renderHTML as renderLightPresentation } from './components/LightPagePre
 import { LIGHT_CHANNEL_ORDER } from './light-channel-presentation.js';
 import { projectLightToday } from './light-today-presentation.js';
 import { projectLightSessionActions, projectLightUVSafety } from './light-page-presentation.js';
-import { renderLensHeader, renderLensPageWidgets } from './lens-page-shell.js';
-import { renderLightConditionsWidgetBody, renderConditionsNow, _formatElapsedShort } from './light-conditions-now.js';
-import { renderUnifiedSessionsList } from './light-sessions-view.js';
+import { getLensContentGrid } from './lens-page-shell-core.js';
+import{projectLensHeader}from'./lens-shell-presentation.js';
+import type{LightPageBodyProps}from'./light-page-presentation.js';
+import { getLightConditionsWidgetView, getConditionsNowView, _formatElapsedShort } from './light-conditions-now.js';
+import { getUnifiedSessionsView } from './light-sessions-view.js';
 import {
   _channelSparklineView,
   _channelDayCount,
   renderChannelPills,
   getChannelPillsView,
   _toggleChannelDetail,
-  renderSuggestion,
+  getWeeklyFallbackView,
 } from './light-channel-view.js';
 
 const lightPageDeps: PageCalls = {
@@ -44,13 +46,13 @@ const lightPageDeps: PageCalls = {
   navigate: () => {},
   requestPreciseLocation: () => {},
   openLightEnvironmentAssessment: () => {},
-  renderSunDataSourceSettings: () => '',
-  renderLightTodayDashboardChip: () => '',
-  renderLightTodayHero: () => '',
-  renderSunSessionRow: () => '',
-  renderActiveDeviceSessionCard: () => '',
-  renderSunSetupCard: () => '',
-  renderChannelMixVerdict: staticFallback => staticFallback,
+  getSunDataSourceSettingsView: () => null,
+  getLightTodayDashboardView: () => null,
+  getLightTodayHeroView: () => null,
+  getSunSessionRowView: () => null,
+  getActiveDeviceSessionCardView: () => null,
+  getSunSetupCardView: () => null,
+  getChannelMixVerdictView: staticFallback => staticFallback,
   renderDevicesSection: async () => '',
   renderEnvironmentAssessmentSummary: () => '',
   renderLightTools: () => '',
@@ -114,7 +116,7 @@ if (typeof document !== 'undefined') installLightPageActionDelegates();
 // LIGHT TODAY STRIP — legacy compact surface used by welcome/embedded views
 // ═══════════════════════════════════════════════
 
-function getDashboardLightChannelPills() {
+export function getDashboardLightChannelPills() {
   const channels = (lightPageDeps.channelDisplay || {}) as Record<string, PageMetaOperations | undefined>;
   const sun = lightPageDeps.rollingChannelTotals(7) || {};
   const device = lightPageDeps.rollingDeviceTotals(7) || {};
@@ -137,22 +139,27 @@ export function renderDashboardLightChannelPills() {
 }
 
 // Called through the lazy dashboard port; the widget controller owns its log count.
-export function renderDashboardLightChannelsWidget(totalSessions: number) {
+export function getDashboardLightChannelsWidgetView(totalSessions:number):Extract<LightPageBodyProps,{kind:'dashboard-channels'}> {
   const lead = totalSessions === 0
     ? 'No light sessions yet. Log sunlight or a device session to see which pathways may have received a signal.'
     : 'Seven-day light rhythm, with sunlight and device signals kept separate.';
-  return renderLightPresentation({ kind: 'dashboard-channels', lead, pills: getDashboardLightChannelPills() });
+  return { kind: 'dashboard-channels', lead, pills: getDashboardLightChannelPills() };
 }
 
-export function renderLightSessionLogActions() {
+export function renderDashboardLightChannelsWidget(totalSessions:number) {
+  return renderLightPresentation(getDashboardLightChannelsWidgetView(totalSessions));
+}
+
+export function getLightSessionLogActionsView() {
   const sessions = lightPageDeps.getSessions() || [];
   const devices = lightPageDeps.getDevices() || [];
   const deviceSessions = lightPageDeps.getDeviceSessions() || [];
-  return renderLightPresentation({ kind: 'actions', view: projectLightSessionActions({
+  return { kind: 'actions' as const, view: projectLightSessionActions({
     sunActive: !!lightPageDeps.getActiveSession(), deviceActive: !!lightPageDeps.getActiveDeviceSession(),
     hasDevices: devices.length > 0, totalSessions: sessions.length + deviceSessions.length,
-  }) });
+  }) };
 }
+export function renderLightSessionLogActions(){return renderLightPresentation(getLightSessionLogActionsView());}
 
 /**
  * Shared live-session surface for the Light page and its optional dashboard
@@ -162,37 +169,33 @@ export function renderLightSessionLogActions() {
  *
  * @param {{ includeEmptyState?: boolean }} [options]
  */
-export function renderLightLiveSession({ includeEmptyState = false }: { includeEmptyState?: unknown } = {}) {
+export function getLightLiveSessionView({ includeEmptyState = false }: { includeEmptyState?: unknown } = {}) {
   const activeSun = lightPageDeps.getActiveSession() || null;
-  const sunHTML = activeSun ? String(lightPageDeps.renderSunSessionRow(activeSun)) : '';
-  const deviceHTML = lightPageDeps.renderActiveDeviceSessionCard();
-  if (activeSun || deviceHTML) return renderLightPresentation({ kind: 'live',
-    sun: !!activeSun, device: !!deviceHTML, sunHTML, deviceHTML: String(deviceHTML),
-  });
-  if (!includeEmptyState) return '';
-  return renderLightWidgetPrompt('No light session is running', 'Open Light & Sun', 'navigate-light',
+  const sunView = activeSun ? lightPageDeps.getSunSessionRowView(activeSun) : null;
+  const deviceView = lightPageDeps.getActiveDeviceSessionCardView();
+  if (activeSun || deviceView) return { kind:'live' as const,sun:!!activeSun,sunView,deviceView };
+  if (!includeEmptyState) return null;
+  return getLightWidgetPromptView('No light session is running', 'Open Light & Sun', 'navigate-light',
     'Start an outdoor or therapy-device session there; this widget will then show its live timer, estimates, and stop controls.', 'light-live-session-empty');
 }
 
-function renderLightWidgetPrompt(status: unknown, ctaLabel: unknown, ctaAction: unknown, hint: unknown, extraClass = '') {
-  return renderLightPresentation({ kind: 'prompt', view: {
+function getLightWidgetPromptView(status: unknown, ctaLabel: unknown, ctaAction: unknown, hint: unknown, extraClass = '') {
+  return { kind: 'prompt' as const, view: {
     status: String(status ?? ''), label: String(ctaLabel ?? ''), action: String(ctaAction ?? ''),
     hint: String(hint ?? ''), extraClass,
-  } });
+  } };
 }
 
-function renderLightMethodsWidgetBody() {
+function getLightMethodsWidgetView() {
   const fitzpatrick = state.importedData?.sunDefaults?.fitzpatrick || null;
   const skinBasis = fitzpatrick
     ? `The current model uses Fitzpatrick ${fitzpatrick} as a rough base-MED reference, not a personal safe exposure time.`
     : 'Personalized burn-time guidance stays hidden until a skin type is configured.';
-  const dataSource = lightPageDeps.renderSunDataSourceSettings();
-  return renderLightPresentation({ kind: 'methods', skinBasis,
-    showDataSource: !!dataSource, dataSourceHTML: String(dataSource || ''),
-  });
+  const dataSource = lightPageDeps.getSunDataSourceSettingsView();
+  return {kind:'methods' as const,skinBasis,dataSource:dataSource||null};
 }
 
-export function renderLightTodayStrip() {
+export function getLightTodayStripView() {
   const sessions = lightPageDeps.getSessions() || [];
   const solarWindow = isSolarWindow();
   const active = lightPageDeps.getActiveSession() || null;
@@ -212,10 +215,8 @@ export function renderLightTodayStrip() {
   const view = projectLightToday({ sessions, solarWindow, windowLabel: solarWindowLabel(), active, medToday,
     devices, hasSetup, hasRooms, now, elapsed, deviceSessions, weeklyIU, budget, coords,
   });
-  return renderLightPresentation({ kind: 'today', view,
-    dashboardHTML: String(lightPageDeps.renderLightTodayDashboardChip() || ''),
-    conditionsHTML: renderConditionsNow({ variant: 'compact' }), pillsHTML: renderDashboardLightChannelPills(),
-  });
+  return {kind:'today' as const,view,dashboard:lightPageDeps.getLightTodayDashboardView()||null,
+    conditions:getConditionsNowView({variant:'compact'}),pills:getDashboardLightChannelPills()};
 }
 
 // In-place re-render of the Light & Sun page channel pill row only.
@@ -267,9 +268,9 @@ function _hasCompletedSunSessionToday(sessions: unknown) {
   });
 }
 
-function renderTodayUVSafety(sessions: unknown, medToday: number, medYesterday: number) {
-  if (!_hasCompletedSunSessionToday(sessions) && !(medToday > 0)) return '';
-  return renderLightPresentation({ kind: 'safety', view: projectLightUVSafety(medToday, medYesterday) });
+function getTodayUVSafetyView(sessions: unknown, medToday: number, medYesterday: number) {
+  if (!_hasCompletedSunSessionToday(sessions) && !(medToday > 0)) return null;
+  return projectLightUVSafety(medToday,medYesterday);
 }
 
 // ═══════════════════════════════════════════════
@@ -292,22 +293,22 @@ export function showLight(_data: unknown) {
   const totalSessions = sessions.length + deviceSessionsAll.length;
   const widgets: PageWidget[] = [];
 
-  const headerHTML = renderLensHeader('Light & Sun', 'Sunlight, indoor light, and your daily rhythm.');
+  const projectedHeader=projectLensHeader('Light & Sun','Sunlight, indoor light, and your daily rhythm.');
+  const header={title:projectedHeader.title,subtitle:projectedHeader.subtitle,className:projectedHeader.className};
 
   // AI hero verdict — synthesizes today's full picture (sun + devices +
   // environment + trends) into one read. Sits above active-session and
   // conditions so the user gets the "how am I doing?" answer before the
   // raw inputs.
   try {
-    const uvSafetyBody = renderTodayUVSafety(sessions, medToday, medYesterday);
-    const aiTodayBody = lightPageDeps.renderLightTodayHero() || '';
-    const todayBody = `${uvSafetyBody}${aiTodayBody}`;
-    if (todayBody) {
+    const safety = getTodayUVSafetyView(sessions, medToday, medYesterday);
+    const ai = lightPageDeps.getLightTodayHeroView() || null;
+    if (safety || ai) {
       widgets.push({
         id: 'light-today',
         title: 'Today',
         description: 'What stands out today, including modeled UV safety and one useful next step',
-        body: todayBody,
+        content: {kind:'today-hero',safety,ai},
         size: 'full',
         opts: { source: 'Light', dashboardId: 'light-today' },
       });
@@ -319,13 +320,13 @@ export function showLight(_data: unknown) {
   // first thing the user sees when a session is running. Renders above
   // Conditions / Setup / Stop CTA. Filtered out of the historical
   // sessions list further down so the same row doesn't render twice.
-  const activeSessionBody = renderLightLiveSession();
+  const activeSessionBody = getLightLiveSessionView();
   if (activeSessionBody) {
     widgets.push({
       id: 'light-live-session',
       title: 'Live Session',
       description: 'Running sun or therapy sessions with stop controls',
-      body: activeSessionBody,
+      content: {kind:'body',props:activeSessionBody},
       size: 'full',
       opts: { source: 'Light', dashboardId: 'light-live-session' },
     });
@@ -334,19 +335,19 @@ export function showLight(_data: unknown) {
   // Always-visible "Conditions now" panel — UVI / ozone / AQI / sun angle.
   // Tells the user whether right now is a good time to go out, even before
   // they have any session history.
-  // Setup card / saved summary. renderSunSetupCard() returns the editor
+  // Setup card / saved summary. getSunSetupCardView() returns the editor
   // when onboarding is incomplete or the user has reopened to edit, and a
   // compact "Light setup saved" summary with an Edit button otherwise.
-  let setupHtml: unknown = '';
-  try { setupHtml = lightPageDeps.renderSunSetupCard() || ''; } catch (_) {}
+  let setupView:ReturnType<PageCalls['getSunSetupCardView']>=null;
+  try { setupView = lightPageDeps.getSunSetupCardView() || null; } catch (_) {}
   const conditionsCoords = lightPageDeps.getSunCoords();
-  const conditionsLocationHint = conditionsCoords?.source === 'country-band' ? getSunCoordsHint() : '';
-  const conditionsBody = `${conditionsLocationHint}${renderLightConditionsWidgetBody({ variant: 'full' })}`;
+  const location=conditionsCoords?.source==='country-band'?getSunCoordsHintView():null;
+  const conditions=getLightConditionsWidgetView({variant:'full'});
   widgets.push({
     id: 'light-conditions-now',
     title: 'Conditions Now',
     description: 'Current outdoor UVI, atmosphere, air quality, and sun timing',
-    body: conditionsBody,
+    content: {kind:'conditions',location,props:conditions},
     size: 'full',
     opts: { source: 'Light', dashboardId: 'light-conditions-now' },
   });
@@ -354,16 +355,16 @@ export function showLight(_data: unknown) {
     id: 'light-setup',
     title: 'Light Setup',
     description: 'Skin type, indoor light context, and personal light assumptions',
-    body: setupHtml,
+    content: {kind:'setup',props:setupView},
     size: 'half',
     opts: { source: 'Light', dashboardId: '' },
   });
-  const logBody = renderLightSessionLogActions();
+  const logBody = getLightSessionLogActionsView();
   widgets.push({
     id: 'light-session-log',
     title: 'Log Sessions',
     description: 'Start sun or therapy sessions and backfill past exposure',
-    body: logBody,
+    content: {kind:'body',props:logBody},
     size: 'half',
     opts: { source: 'Light', dashboardId: 'light-session-log' },
   });
@@ -377,14 +378,12 @@ export function showLight(_data: unknown) {
   const lead = isEmpty
     ? 'Sunlight does more than make vitamin D. Start a session to see which light-responsive systems the exposure may have reached.'
     : 'Each card shows a light-responsive pathway seen in your recent logs. It is an exposure story, not a daily score or quota.';
-  const channelsBody = renderLightPresentation({ kind: 'channels', lead,
-    pills: getChannelPillsView(totals7d, devTotals7d), location: isEmpty ? getSunCoordsHintView() : null,
-  });
+  const channelsBody:LightPageBodyProps={kind:'channels',lead,pills:getChannelPillsView(totals7d,devTotals7d),location:isEmpty?getSunCoordsHintView():null};
   widgets.push({
     id: 'light-channels',
     title: 'What Your Light May Stimulate',
     description: 'Simple eye, skin, and body signals from sunlight and devices',
-    body: channelsBody,
+    content: {kind:'body',props:channelsBody},
     size: 'full',
     opts: { source: 'Light', dashboardId: 'light-channels' },
   });
@@ -393,14 +392,14 @@ export function showLight(_data: unknown) {
   // widget id for saved page-order compatibility while giving the visible
   // module a precise job. It remains useful when no sessions were logged:
   // that state is labeled as missing data rather than missing exposure.
-  const staticWeeklyReview = renderSuggestion(totals7d, devTotals7d, sessions, deviceSessionsAll);
-  const weeklyReview = lightPageDeps.renderChannelMixVerdict(staticWeeklyReview) || staticWeeklyReview;
-  const weeklyBody = renderLightPresentation({ kind: 'weekly', reviewHTML: String(weeklyReview) });
+  const staticWeeklyReview = getWeeklyFallbackView(totals7d,devTotals7d,sessions,deviceSessionsAll);
+  const weeklyReview = lightPageDeps.getChannelMixVerdictView(staticWeeklyReview) || staticWeeklyReview;
+  const weeklyBody:LightPageBodyProps={kind:'weekly',review:weeklyReview};
   widgets.push({
     id: 'light-guidance',
     title: 'Weekly Light Review',
     description: 'What your past 7 days show, what changed, and one conservative next step',
-    body: weeklyBody,
+    content: {kind:'body',props:weeklyBody},
     size: 'full',
     opts: { source: 'Light', dashboardId: '' },
   });
@@ -412,8 +411,8 @@ export function showLight(_data: unknown) {
     // historical (ended) ones. Skip the section header when empty so
     // a freshly-started session doesn't render an orphan "Sessions"
     // heading with no rows under it.
-    const _unifiedHtml = renderUnifiedSessionsList();
-    if (_unifiedHtml) {
+    const sessionHistory = getUnifiedSessionsView();
+    if (sessionHistory) {
       // Header carries the count so the user gets a quick "do I have a
       // history yet?" answer alongside the section name. Replaces the
       // earlier orphan tally that sat above the CTAs.
@@ -422,7 +421,7 @@ export function showLight(_data: unknown) {
         id: 'light-sessions',
         title: `Recent Sessions${_countLabel}`,
         description: 'Chronological outdoor sun and therapy device history',
-        body: _unifiedHtml,
+        content: {kind:'history',props:sessionHistory},
         size: 'full',
         opts: { source: 'Light', dashboardId: '' },
       });
@@ -439,7 +438,7 @@ export function showLight(_data: unknown) {
     id: 'light-devices',
     title: 'Light Devices',
     description: 'Therapy panels, SAD lamps, dawn simulators, and device logging',
-    body: renderLightPresentation({ kind: 'loading', id: devicesSlotId, label: 'Loading devices...' }),
+    content: {kind:'body',props:{kind:'loading',id:devicesSlotId,label:'Loading devices...'}},
     size: 'full',
     opts: { source: 'Light', dashboardId: '' },
   });
@@ -447,7 +446,7 @@ export function showLight(_data: unknown) {
     id: 'light-environment',
     title: 'Indoor Light Assessment',
     description: 'Rooms, screens, readings, and saved audit snapshots',
-    body: renderLightPresentation({ kind: 'loading', id: environmentSlotId, label: 'Loading environment...' }),
+    content: {kind:'body',props:{kind:'loading',id:environmentSlotId,label:'Loading environment...'}},
     size: 'full',
     opts: { source: 'Light', dashboardId: '' },
   });
@@ -455,7 +454,7 @@ export function showLight(_data: unknown) {
     id: 'light-tools',
     title: 'Measurement Tools',
     description: 'On-device light checks and room measurement workflows',
-    body: renderLightPresentation({ kind: 'loading', id: toolsSlotId, label: 'Loading tools...' }),
+    content: {kind:'body',props:{kind:'loading',id:toolsSlotId,label:'Loading tools...'}},
     size: 'full',
     opts: { source: 'Light', dashboardId: '' },
   });
@@ -463,12 +462,12 @@ export function showLight(_data: unknown) {
     id: 'light-methods',
     title: 'Methods & Sources',
     description: 'Estimation model, uncertainty, and sun data source controls',
-    body: renderLightMethodsWidgetBody(),
+    content: {kind:'body',props:getLightMethodsWidgetView()},
     size: 'full',
     opts: { source: 'Light', dashboardId: '' },
   });
 
-  main.innerHTML = renderLightPresentation({ kind: 'page', headerHTML, widgetsHTML: renderLensPageWidgets('light', widgets) });
+  main.innerHTML = renderLightPresentation({kind:'page',view:{header,grid:getLensContentGrid('light',widgets)}});
   main.querySelector('.light-page')?.classList.add('is-ready');
 
   let devicesRender: unknown;
@@ -527,7 +526,8 @@ function getSunCoordsHintView() {
   return null;
 }
 
-function getSunCoordsHint() {
-  const view = getSunCoordsHintView();
-  return view ? renderLightPresentation({ kind: 'location', ...view }) : '';
-}
+
+
+export function renderLightLiveSession(options: {includeEmptyState?:unknown}={}){const props=getLightLiveSessionView(options);return props?renderLightPresentation(props):'';}
+function renderLightWidgetPrompt(status:unknown,ctaLabel:unknown,ctaAction:unknown,hint:unknown,extraClass=''){return renderLightPresentation(getLightWidgetPromptView(status,ctaLabel,ctaAction,hint,extraClass));}
+export function renderLightTodayStrip(){return renderLightPresentation(getLightTodayStripView());}

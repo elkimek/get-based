@@ -1,5 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 import path from 'node:path';
+import { chromiumWorkers } from './scripts/ci-workers.mjs';
 import { headlessBrowserEnvironment } from './scripts/headless-browser-environment.js';
 
 const PORT = process.env.PORT || '8000';
@@ -13,6 +14,7 @@ export default defineConfig({
   testDir: './tests/playwright',
   outputDir: process.env.PLAYWRIGHT_OUTPUT_DIR || '/tmp/getbased-playwright-results',
   fullyParallel: true,
+  workers: chromiumWorkers(),
   timeout: 30_000,
   expect: {
     timeout: 5_000,

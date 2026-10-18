@@ -1,0 +1,71 @@
+import {renderHTML} from './components/DashboardGenomeRows.svelte.html.js';
+
+export interface GenomeEvidenceView {
+  rsid:string; assessment:string; interpretation:{scope:string|null;context:string|null}|null;
+  references:Array<{href:string;label:string}>; askActions:string; issueHref:string;
+}
+export interface GenomeRowView {
+  classes:string;gene:string;subline:string;impact:string;genotype:string;note:string|null;
+  evidence:GenomeEvidenceView|null;
+}
+export interface GenomeGroupView {classes:string;label:string;count:string;impact:string;rows:GenomeRowView[]}
+export type DashboardGenomeView = {
+  kind:'empty';contributionHref:string|null;
+} | {
+  kind:'populated';meta:string|null;legend:boolean;apoe:{assessment:string;value:string}|null;
+  mtdnaHTML:string;noPriority:boolean;groups:GenomeGroupView[];
+  secondary:{count:string;groups:GenomeGroupView[]}|null;contributionHref:string|null;
+};
+
+// Only prepared private tokens enter SSR. Controller-owned escaped text,
+// delegated action attributes and the accepted mtDNA child are inserted last.
+export function renderDashboardGenomeRows(view:DashboardGenomeView):string {
+  const slots:Array<{token:string;value:string;action:boolean}>=[];
+  const slot=(value:string,action=false)=>{const token=`getbased-dashboard-genome-slot-${slots.length}-end`;slots.push({token,value,action});return token;};
+  const evidence=(e:GenomeEvidenceView):GenomeEvidenceView=>({rsid:slot(e.rsid),assessment:slot(e.assessment),
+    interpretation:e.interpretation?{scope:e.interpretation.scope===null?null:slot(e.interpretation.scope),context:e.interpretation.context===null?null:slot(e.interpretation.context)}:null,
+    references:e.references.map(r=>({href:slot(r.href),label:slot(r.label)})),askActions:slot(e.askActions,true),issueHref:slot(e.issueHref)});
+  const group=(g:GenomeGroupView):GenomeGroupView=>({classes:slot(g.classes),label:slot(g.label),count:slot(g.count),impact:slot(g.impact),rows:g.rows.map(row=>({
+    classes:slot(row.classes),gene:slot(row.gene),subline:slot(row.subline),impact:slot(row.impact),genotype:slot(row.genotype),note:row.note===null?null:slot(row.note),evidence:row.evidence?evidence(row.evidence):null}))});
+  const privateView:DashboardGenomeView=view.kind==='empty'
+    ?{kind:'empty',contributionHref:view.contributionHref===null?null:slot(view.contributionHref)}
+    :{kind:'populated',meta:view.meta===null?null:slot(view.meta),legend:view.legend,
+      apoe:view.apoe?{assessment:slot(view.apoe.assessment),value:slot(view.apoe.value)}:null,
+      mtdnaHTML:slot(view.mtdnaHTML),noPriority:view.noPriority,groups:view.groups.map(group),
+      secondary:view.secondary?{count:slot(view.secondary.count),groups:view.secondary.groups.map(group)}:null,
+      contributionHref:view.contributionHref===null?null:slot(view.contributionHref)};
+  const raw=renderHTML({view:privateView});
+  const comments=[...raw.matchAll(/<!--([\s\S]*?)-->/g)],expected=privateMarkers(view);
+  if(comments.length!==expected.length||comments.some((m,i)=>m[1]!==expected[i]))throw new Error('Unqualified Dashboard Genome private markers');
+  let html=raw;
+  for(const m of [...comments].reverse())html=html.slice(0,m.index)+html.slice(m.index+m[0].length);
+  if(!html.startsWith('<div class="db-genome-list">')||!html.endsWith('</div>'))throw new Error('Unqualified Dashboard Genome root');
+  const edits=slots.map(({token,value,action})=>{const needle=action?' data-dashboard-genome-action="'+token+'"':token,start=html.indexOf(needle);
+    if(start<0||html.indexOf(needle,start+1)!==-1)throw new Error('Unqualified Dashboard Genome private slot');
+    return {start,end:start+needle.length,value:action?' '+value:value};});
+  for(const edit of edits.sort((a,b)=>b.start-a.start))html=html.slice(0,edit.start)+edit.value+html.slice(edit.end);
+  return html;
+}
+function privateMarkers(view:DashboardGenomeView):string[] {
+  const markers=['[',view.kind==='empty'?'[0':'[-1'];
+  const contribution=(href:string|null)=>{markers.push(href===null?'[-1':'[0',']','');};
+  const groups=(rows:GenomeGroupView[])=>{
+    markers.push('[');
+    for(const group of rows){markers.push('[');
+      for(const row of group.rows){markers.push(row.note===null?'[-1':'[0',']',row.evidence?'[0':'[-1');
+        if(row.evidence){const e=row.evidence;markers.push(e.interpretation?'[0':'[-1');
+          if(e.interpretation)markers.push(e.interpretation.scope===null?'[-1':'[0',']',e.interpretation.context===null?'[-1':'[0',']');
+          markers.push(']',e.references.length?'[0':'[-1');
+          if(e.references.length){markers.push('[');e.references.forEach((_,i)=>markers.push(i?'[0':'[-1',']'));markers.push(']');}
+          markers.push(']');}
+        markers.push(']');}
+      markers.push(']');}
+    markers.push(']','');
+  };
+  if(view.kind==='empty')contribution(view.contributionHref);
+  else{
+    markers.push(view.meta===null?'[-1':'[0',']',view.legend?'[0':'[-1',']',view.apoe?'[0':'[-1',']',view.noPriority?'[0':'[-1',']');
+    groups(view.groups);markers.push(view.secondary?'[0':'[-1');if(view.secondary)groups(view.secondary.groups);markers.push(']');contribution(view.contributionHref);
+  }
+  markers.push(']',']');return markers;
+}

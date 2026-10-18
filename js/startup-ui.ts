@@ -47,6 +47,23 @@ export function configureStartupUIDeps(deps: unknown = {}) {
   return previous;
 }
 
+export interface StartupNavigationCompletion {
+  completeInitial(navigation: unknown): unknown;
+  drain(): Promise<unknown> | undefined;
+}
+let startupNavigationCompletion: StartupNavigationCompletion | null = null;
+
+/** First-party completion is separate from the original injected UI callbacks. */
+export function configureStartupNavigationCompletion(completion: StartupNavigationCompletion | null = null) {
+  const previous = startupNavigationCompletion;
+  startupNavigationCompletion = completion;
+  return previous;
+}
+
+export function finishStartupNavigation(): Promise<unknown> | undefined {
+  return startupNavigationCompletion?.drain();
+}
+
 function startupRuntime() {
   return globalThis as unknown as StartupGlobalOperations;
 }
@@ -64,7 +81,7 @@ export function renderStartupUI() {
   populateFooterVersion();
   buildSidebar();
   renderSyncIndicator();
-  (startupUIDeps as StartupUIOperations).navigate((startupUIDeps as StartupUIOperations).getInitialView() || 'dashboard');
+  const navigation = (startupUIDeps as StartupUIOperations).navigate((startupUIDeps as StartupUIOperations).getInitialView() || 'dashboard');
   scheduleDeferredSyncAndCatalogWarmup();
   const legalGateShown = scheduleStartupNudges();
   if (legalGateShown) {
@@ -75,6 +92,8 @@ export function renderStartupUI() {
   refreshStartupChrome();
   updateChatNudgeRuntime();
   bindImportFileInput();
+  // Keep setup synchronous while exposing completion of the saved route.
+  return startupNavigationCompletion ? startupNavigationCompletion.completeInitial(navigation) : navigation;
 }
 
 function populateFooterVersion() {

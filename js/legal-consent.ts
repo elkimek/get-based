@@ -3,6 +3,9 @@
 import { dispatchUtilsRuntimeEvent, getAppVersionRuntime } from './utils-runtime.js';
 import { showNotification } from './utils.js';
 import { getDeploymentOperatorPolicy } from './deployment-policy.js';
+import { renderFirstLaunchLegal } from './legal-first-launch-presentation.js';
+import { TERMS_VERSION, PRIVACY_VERSION } from './legal-first-launch-view.js';
+export { TERMS_VERSION, PRIVACY_VERSION } from './legal-first-launch-view.js';
 
 export interface LegalAcceptanceReader {
   accepted?: unknown;
@@ -17,8 +20,6 @@ interface LegalConsentClickTarget { closest?: (selector: string) => Element | nu
 interface LegalConsentClickRoot { contains?: (element: Element) => boolean; }
 
 const LEGAL_ACCEPTANCE_KEY = 'labcharts-legal-acceptance';
-export const TERMS_VERSION = '2026-08-22';
-export const PRIVACY_VERSION = '2026-08-22';
 
 const LEGAL_ACTION_ATTR = 'data-legal-consent-action';
 let bootstrapNotificationBound = false;
@@ -75,52 +76,8 @@ function currentPolicyScope() {
     : 'self-hosted-notice';
 }
 
-function policyAcceptanceMarkup(policy: ReturnType<typeof getDeploymentOperatorPolicy>) {
-  const links: string[] = [];
-  if (policy.termsUrl) links.push(`<a href="${policy.termsUrl}" data-legal-kind="terms" target="_blank" rel="noopener">Terms of Service</a>`);
-  if (policy.privacyUrl) links.push(`<a href="${policy.privacyUrl}" data-legal-kind="privacy" target="_blank" rel="noopener">Privacy Policy</a>`);
-  if (!links.length) {
-    return 'I acknowledge that this self-hosted getbased deployment is operated independently and that optional network features send data to the destinations disclosed at activation.';
-  }
-  return `I have read and agree to ${policy.name ? `${policy.name}'s ` : 'the deployment operator\'s '}${links.join(' and ')}.`;
-}
-
 function renderLegalConsentModal({ update = false }: LegalConsentOptions = {}) {
-  const policy = currentPolicy();
-  const hasPolicies = !!(policy.termsUrl || policy.privacyUrl);
-  const intro = update
-    ? (hasPolicies
-      ? 'The deployment policy identity or links changed since this browser last accepted them. Please review the current documents before continuing.'
-      : 'The self-hosted app notice changed since this browser last acknowledged it. Please review it before continuing.')
-    : (hasPolicies
-      ? `Before using getbased, please review ${policy.name ? `${policy.name}'s` : 'the deployment operator\'s'} policies.`
-      : 'This independent self-hosted deployment has not configured operator Terms or Privacy links.');
-  const title = update
-    ? (hasPolicies ? 'Review updated Terms & Privacy' : 'Review updated app notice')
-    : (hasPolicies ? 'Accept Terms & Privacy' : 'Review self-hosted app notice');
-  return `
-    <div class="legal-consent-modal" role="dialog" aria-modal="true" aria-labelledby="legal-consent-title" aria-describedby="legal-consent-desc">
-      <div class="legal-consent-kicker">${hasPolicies ? `${policy.name || 'Deployment'} legal` : 'Self-hosted getbased'}</div>
-      <h2 id="legal-consent-title">${title}</h2>
-      <p id="legal-consent-desc" class="legal-consent-copy">${intro}</p>
-      <div class="legal-consent-summary">
-        <div><strong>Terms:</strong> ${TERMS_VERSION}</div>
-        <div><strong>Privacy:</strong> ${PRIVACY_VERSION}</div>
-      </div>
-      <ul class="legal-consent-points">
-        <li>getbased is a wellness, self-tracking, and educational tool — not medical advice or a medical device.</li>
-        <li>Your health data is stored locally by default; optional network features are described in the Privacy Policy.</li>
-        <li>AI transparency is acknowledged separately from destination-specific sensitive-data approval.</li>
-        <li>Cookieless product analytics may run on the hosted app and can be turned off in Settings → Privacy; the analytics service does not store the raw IP address, while ordinary hosting metadata is described in the Privacy Policy.</li>
-      </ul>
-      <label class="legal-consent-check">
-        <input type="checkbox" id="legal-consent-checkbox">
-        <span>${policyAcceptanceMarkup(policy)}</span>
-      </label>
-      <div class="legal-consent-actions">
-        <button type="button" class="legal-consent-accept" ${LEGAL_ACTION_ATTR}="accept" disabled>${hasPolicies ? 'Accept & continue' : 'Acknowledge & continue'}</button>
-      </div>
-    </div>`;
+  return renderFirstLaunchLegal(currentPolicy(), update);
 }
 
 function closeLegalConsentGate() {

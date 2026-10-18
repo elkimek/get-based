@@ -1,3 +1,4 @@
+import{nativeOnboardingView}from'./helpers/light-genuine-child-native-receipts.js';
 // @vitest-environment jsdom
 import { expect, it } from 'vitest';
 import { renderHTML } from '../js/components/LightSetupPresentation.svelte.html.js';
@@ -37,9 +38,9 @@ for (let score = 0; score <= 10; score++) it(`preserves pattern meter and summar
 });
 it('escapes stored and runtime text, retaining only the existing AI owner slot', () => {
   const literal = '<img src=x onerror=alert(1)> & "';
-  const view = projectLightSetup({ ...input, complete: true, defaults: { homeLight: literal, eyewear: literal }, profileLocation: { country: literal }, coords: { lat: 50, lon: 14, source: 'country-band' }, aiHTML: '<p data-ai-owner>Existing analysis</p>' });
+  const view = projectLightSetup({ ...input, complete: true, defaults: { homeLight: literal, eyewear: literal }, profileLocation: { country: literal }, coords: { lat: 50, lon: 14, source: 'country-band' }, ai:nativeOnboardingView() });
   const host = document.createElement('div'); host.innerHTML = renderHTML({ surface: 'card', view });
-  expect(host.querySelector('img,script,[onerror]')).toBeNull(); expect([...host.querySelectorAll('[title]')].map(node => node.getAttribute('title'))).toContain(literal); expect(host.querySelector('[data-ai-owner]')?.textContent).toBe('Existing analysis');
+  expect(host.querySelector('img,script,[onerror]')).toBeNull(); expect([...host.querySelectorAll('[title]')].map(node => node.getAttribute('title'))).toContain(literal); expect(host.querySelector('[data-light-onboarding-ai]')?.textContent).toContain('Existing analysis');
   host.innerHTML = renderHTML({ surface: 'location', view }); expect(host.querySelector('img,script,[onerror]')).toBeNull(); expect(host.textContent).toContain(literal);
 });
 for (const source of ['current-device','profile-precise','home-postal','country-band','unknown']) it(`preserves ${source} location privacy and action rules`, () => {

@@ -98,7 +98,7 @@ const views = await import('../js/views.js');
   console.log('%c 3. Filter logic shape ', 'font-weight:bold;color:#f59e0b');
   const categoryViewRenderersSrc = read('js/category-view-renderers.js');
   assert('Table/Heatmap share populated-date column filtering',
-    (categoryViewRenderersSrc.match(/const dateColumnIndexes = populatedDateColumnIndexes\(markerEntries, labels\)/g) || []).length === 2);
+    (categoryViewRenderersSrc.match(/const indexes = populatedDateColumnIndexes\(markerEntries, labels\)/g) || []).length === 2);
   assert('Populated-date filtering treats null and undefined as missing',
     /value !== null && value !== undefined/.test(categoryViewRenderersSrc));
 

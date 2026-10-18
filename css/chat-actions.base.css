@@ -1,0 +1,26 @@
+@import "tailwindcss" prefix(gb) source(none) reference;
+@utility chat-actions-layout-prompt-btn {
+  padding: 10px 16px; border-radius: 20px; border: 1px solid var(--border);
+  background: transparent; color: var(--text-secondary); font-size: 13px;
+  cursor: pointer; font-family: inherit; transition: all 0.15s; text-align: left;
+}
+@utility chat-actions-layout-prompt-btn-2 { border-color: var(--accent); color: var(--accent); background: rgba(79,140,255,0.05); }
+@utility chat-actions-layout-cost-footnote-not {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 6px;
+  opacity: 0.6;
+}
+@utility chat-actions-layout-provider-attribution-not {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 650;
+  margin-top: 6px;
+}
+
+/* Chat Example Prompts */
+.chat-prompt-btn:where(:not([data-chat-provider-setup-view] *, [data-chat-empty-view] *)) { @apply gb:chat-actions-layout-prompt-btn; }
+.chat-prompt-btn:where(:not([data-chat-provider-setup-view] *, [data-chat-empty-view] *)):hover { @apply gb:chat-actions-layout-prompt-btn-2; }
+
+.chat-cost-footnote:not(:where([data-chat-transcript-message] *)) { @apply gb:chat-actions-layout-cost-footnote-not; }
+.chat-provider-attribution:not(:where([data-chat-transcript-message] *, [data-chat-summary-dialog] *)) { @apply gb:chat-actions-layout-provider-attribution-not; }

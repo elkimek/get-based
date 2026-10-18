@@ -1,5 +1,7 @@
 // service-worker-update.js - explicit PWA update prompt and SW registration
 
+import { renderVersionUpdateBody, renderVersionUpdateCopy } from './version-update-rendering.js';
+
 export interface UpdateWorkerView {
   state?: ServiceWorker['state'];
   postMessage?: ServiceWorker['postMessage'];
@@ -58,6 +60,7 @@ const APP_VERSION_RE = /\bAPP_VERSION\s*=\s*(['"])([^'"]+)\1/;
 let pendingRegistration: UpdateRegistrationView | null = null;
 let dismissedWaitingWorker: UpdateWorkerView | null = null;
 let updateRequested = false;
+let activationDeferred = false;
 let reloadAvailable = false;
 let lastUpdateCheckAt = 0;
 
@@ -143,6 +146,7 @@ function removeBanner() {
 
 export function hideVersionUpdateBanner() {
   reloadAvailable = false;
+  activationDeferred = false;
   removeBanner();
 }
 
@@ -161,17 +165,7 @@ export function showVersionUpdateBanner(registration?: UpdateRegistrationView | 
     banner.setAttribute('role', 'region');
     banner.setAttribute('aria-label', 'App update available');
     banner.setAttribute('aria-live', 'polite');
-    banner.innerHTML = `
-      <div class="version-update-body">
-        <div class="version-update-copy-row">
-          <span class="version-update-copy"><strong>Update ready.</strong> Reload when you are ready.</span>
-        </div>
-      </div>
-      <div class="version-update-actions">
-        <button type="button" class="version-update-btn version-update-btn-primary" ${UPDATE_ACTION_ATTR}="apply">Reload</button>
-        <button type="button" class="version-update-btn" ${UPDATE_ACTION_ATTR}="dismiss">Later</button>
-      </div>
-    `;
+    banner.innerHTML = renderVersionUpdateBody();
     banner.addEventListener('click', handleVersionUpdateActionClick);
     document.body.appendChild(banner);
   }
@@ -188,7 +182,7 @@ function renderVersionUpdateBanner(banner: HTMLElement) {
   if (reloadAvailable) {
     banner.setAttribute('aria-live', 'polite');
     banner.setAttribute('aria-busy', 'false');
-    if (copy) copy.innerHTML = '<strong>New version installed.</strong> Reload when you are ready.';
+    if (copy) copy.innerHTML = renderVersionUpdateCopy(true);
     if (primaryButton) primaryButton.textContent = 'Reload';
     if (primaryButton) primaryButton.disabled = false;
     if (dismissButton) dismissButton.disabled = false;
@@ -196,9 +190,20 @@ function renderVersionUpdateBanner(banner: HTMLElement) {
     return;
   }
 
+  if (activationDeferred) {
+    banner.setAttribute('aria-live', 'polite');
+    banner.setAttribute('aria-busy', 'false');
+    if (copy) copy.textContent = 'Update paused to protect open tabs. Close all getbased tabs and app windows, then reopen getbased to finish updating.';
+    if (primaryButton) primaryButton.textContent = 'Reload';
+    if (primaryButton) primaryButton.disabled = false;
+    if (dismissButton) dismissButton.disabled = false;
+    banner.setAttribute('aria-label', 'App update paused');
+    return;
+  }
+
   banner.setAttribute('aria-live', 'polite');
   banner.setAttribute('aria-busy', 'false');
-  if (copy) copy.innerHTML = '<strong>Update ready.</strong> Reload when you are ready.';
+  if (copy) copy.innerHTML = renderVersionUpdateCopy(false);
   if (primaryButton) primaryButton.textContent = 'Reload';
   if (primaryButton) primaryButton.disabled = false;
   if (dismissButton) dismissButton.disabled = false;
@@ -264,6 +269,7 @@ export function watchServiceWorkerRegistration(
           && replacesController
           && canPromptForUpdate(registration, serviceWorkerContainer)) {
         dismissedWaitingWorker = null;
+        activationDeferred = false;
         reloadAvailable = false;
         showVersionUpdateBanner(registration);
       }
@@ -369,16 +375,34 @@ export async function registerServiceWorkerUpdates({
   try {
     const registration = await serviceWorkerContainer.register!('/service-worker.js', { updateViaCache: 'none' });
     reloadPage = () => win.location!.reload();
-    const reportClientBuild = () => {
+    const reportClientBuildTo = (...workers: Array<UpdateWorkerView | null | undefined>) => {
       const id = typeof win.APP_BUILD_ID === 'string' ? win.APP_BUILD_ID.trim() : '';
       if (!/^[a-z\d._-]{1,128}$/i.test(id)) return;
-      try {
-        const active = serviceWorkerContainer.controller as UpdateWorkerView | null | undefined;
-        active?.postMessage?.({ type: 'CLIENT_BUILD_ID', buildId: id });
-      } catch { /* Cache retirement is retried on the next message or focus. */ }
+      for (const worker of new Set(workers)) {
+        try {
+          worker?.postMessage?.({ type: 'CLIENT_BUILD_ID', buildId: id });
+        } catch { /* A closed recipient cannot prevent another worker's reply. */ }
+      }
+    };
+    const reportClientBuild = () => {
+      reportClientBuildTo(serviceWorkerContainer.controller as UpdateWorkerView | null | undefined);
     };
     serviceWorkerContainer.addEventListener?.('message', (event: MessageEvent<unknown>) => {
-      if ((event.data as { type?: unknown } | null | undefined)?.type === 'REQUEST_CLIENT_BUILD_ID') reportClientBuild();
+      const type = (event.data as { type?: unknown } | null | undefined)?.type;
+      const active = serviceWorkerContainer.controller as UpdateWorkerView | null | undefined;
+      const waiting = registration.waiting;
+      if (type === 'REQUEST_CLIENT_BUILD_ID') {
+        // A waiting worker needs a direct reply; reporting only to the active
+        // controller cannot establish that the open document is safe to update.
+        if (event.source && event.source !== active && event.source !== waiting) return;
+        reportClientBuildTo(active, event.source === waiting ? waiting : null);
+      } else if (type === 'UPDATE_ACTIVATION_DEFERRED' && updateRequested
+        && waiting && event.source === waiting) {
+        updateRequested = false;
+        activationDeferred = true;
+        dismissedWaitingWorker = null;
+        showVersionUpdateBanner(registration);
+      }
     });
     win.addEventListener?.('focus', reportClientBuild);
     reportClientBuild();
@@ -389,6 +413,7 @@ export async function registerServiceWorkerUpdates({
       if (refreshing || !nextController || nextController === controller) return;
       const previousController = controller;
       controller = nextController;
+      activationDeferred = false;
       reportClientBuild();
       // A first install claims an already current page. Only replacement of
       // an existing controller is evidence that this page needs a reload.

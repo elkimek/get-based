@@ -1,3 +1,9 @@
+import type {createDashboardQuickMarkerCore} from './dashboard-quick-marker-core.js';
+import {projectFocusCard} from './focus-card.js';
+import {createDashboardBiologyProjectionScope, projectDashboardBiologyScoreWidget, projectDashboardBiologicalCoherenceWidget} from './biology-score-dashboard.js';
+import type {DashboardWidgetContent} from './dashboard-widget-presentation.js';
+import type {LabContext} from '../types/dashboard-lab-widget-renderers.js';
+import type {DashboardWidgetContext} from '../types/dashboard-widgets.js';
 // dashboard-view-composition.js - dashboard route/widget composition wiring
 
 import { state } from './state.js';
@@ -6,12 +12,12 @@ import { getEffectiveRangeForDate, getLatestValueIndex } from './marker-analysis
 import { canonicalMetric } from './wearable-adapters.js';
 import { setupDropZone } from './import-drop-zone.js';
 import { loadCommitHash } from './commit-hash.js';
-import { loadCatalog, loadContextCardTips, renderFuelWidget, renderNutritionWidget } from './health-data-loader.js';
+import { loadCatalog, loadContextCardTips, renderFuelWidget, renderNutritionWidget, projectFuelWidget, projectNutritionWidget, projectMenstrualCycleSection, projectSupplementsSection, projectProfileContextCards } from './health-data-loader.js';
 import { openChatPanel } from './chat-loader.js';
 import { toggleMobileSidebar } from './nav.js';
 import { setRecommendationsCatalogCache } from './recommendations-runtime.js';
 import { createDashboardPageView } from './dashboard-page-view.js';
-import { configureLensPageShell } from './lens-page-shell.js';
+import { configureLensPageShell } from './lens-page-shell-core.js';
 import { createDashboardWidgetRegistry } from './dashboard-widgets.js';
 import { createDashboardWidgetControls } from './dashboard-widget-controls.js';
 import { createDashboardWidgetRenderers } from './dashboard-widget-renderers.js';
@@ -19,6 +25,11 @@ import { configureMarkerDetailModal } from './marker-detail-modal.js';
 import { configureMarkerDetailRuntime } from './marker-detail-runtime.js';
 import { navigateViewportRuntime } from './views-router-runtime.js';
 import {
+  getLoadedLightTodayHeroView,
+  getLoadedLightConditionsWidgetView,
+  getLoadedLightLiveSessionView,
+  getLoadedLightSessionLogActionsView,
+  getLoadedDashboardLightChannelsWidgetView,
   ensureLoadedActiveDeviceTicker,
   isLightSunUILoaded,
   loadLightSunUI,
@@ -49,9 +60,12 @@ export function createDashboardViewComposition({
   showEmojiPicker,
   renderFocusCard,
   loadFocusCard,
-  renderOnboardingBanner,
-  renderAIConnectionReminder,
-}: {navigate:unknown;showRecommendations:unknown;showEmojiPicker:unknown;renderFocusCard:unknown;loadFocusCard:unknown;renderOnboardingBanner:unknown;renderAIConnectionReminder:unknown}) {
+  projectOnboardingBanner,
+  projectAIConnectionReminder,
+}: {navigate:unknown;showRecommendations:unknown;showEmojiPicker:unknown;renderFocusCard:unknown;loadFocusCard:unknown;projectOnboardingBanner:unknown;projectAIConnectionReminder:unknown}, prepared: {
+  quickMarkers?: ReturnType<typeof createDashboardQuickMarkerCore>;
+  deferRuntimeWiring?: boolean;
+} = {}) {
   let dashboardWidgetControls: ReturnType<typeof createDashboardWidgetControls> | undefined;
 
   function rerenderDashboardFromWidgetChange() {
@@ -60,6 +74,11 @@ export function createDashboardViewComposition({
 
   const dashboardWidgetRenderers = createDashboardWidgetRenderers({
     markerHasData,
+    getLightTodayHeroView:getLoadedLightTodayHeroView,
+    getLightConditionsWidgetView:getLoadedLightConditionsWidgetView,
+    getLightLiveSessionView:getLoadedLightLiveSessionView,
+    getLightSessionLogActionsView:getLoadedLightSessionLogActionsView,
+    getDashboardLightChannelsWidgetView:getLoadedDashboardLightChannelsWidgetView,
     renderDashboardLightChannelsWidget: renderLoadedDashboardLightChannelsWidget,
     renderLightConditionsWidgetBody: renderLoadedLightConditionsWidgetBody,
     renderLightLiveSession: renderLoadedLightLiveSession,
@@ -75,7 +94,7 @@ export function createDashboardViewComposition({
     rerenderDashboardFromWidgetChange,
     renderLightTodayHero: renderLoadedLightTodayHero,
     showRecommendations,
-  });
+  }, prepared.quickMarkers);
 
   const {
     buildDashboardWidgetContext,
@@ -86,14 +105,22 @@ export function createDashboardViewComposition({
     renderRecommendationList,
     renderRecommendationsEmpty,
     renderDashboardBioAgeWidget,
+    projectDashboardBioAgeWidget,
+    projectDashboardAlertsWidget,
+    projectDashboardCorrelationWidget,
     renderBiologyScoresWidget,
     renderDashboardBiologyScoreWidget,
     renderDashboardBiologicalCoherenceWidget,
     renderDashboardRecommendationsWidget,
     renderDashboardSpotlightWidget,
+    projectDashboardSpotlightWidget,
     renderDashboardWearableTilesWidget,
+    prepareDashboardWearableTilesWidget,
     renderDashboardQuickMarkersWidget,
+    projectDashboardQuickMarkersWidget,
+    projectDashboardNotesWidget,
     renderDashboardInsightsListWidget,
+    prepareDashboardInsightsListWidget,
     renderDashboardGenomeWidget,
     renderDashboardAlertsWidget,
     renderDashboardCorrelationWidget,
@@ -105,23 +132,37 @@ export function createDashboardViewComposition({
     renderDashboardKeyTrendsWidget,
     renderDashboardNotesWidget,
     renderLabsPriorityBanner,
+    projectLabsPriorityBanner,
+    projectDashboardWearableTilesWidget,
+    projectDashboardInsightsListWidget,
+    projectDashboardRecommendationsWidget,
+    projectDashboardKeyTrendsWidget,
+    projectDashboardGenomeWidget,
     getDashboardMarkerById,
     getDashboardBiometricSelection,
     saveDashboardBiometricSelection,
     getDashboardBiometricMetricOrder,
     getDashboardBiometricTile,
     renderDashboardSingleMarkerWidget,
+    projectDashboardSingleMarkerWidget,
     isDashboardQuickMarkerPinned,
     toggleDashboardQuickMarkerPin,
+    projectDashboardLightTodayWidget,
+    projectDashboardLightConditionsWidget,
+    projectDashboardLightLiveSessionWidget,
+    projectDashboardLightSessionLogWidget,
+    projectDashboardLightChannelsWidget,
   } = dashboardWidgetRenderers;
 
-  configureMarkerDetailRuntime({
-    isDashboardQuickMarkerPinned,
-    navigate,
-    showEmojiPicker,
-    toggleDashboardQuickMarkerPin,
-  });
-  configureMarkerDetailModal({ navigate, isDashboardQuickMarkerPinned, toggleDashboardQuickMarkerPin, showEmojiPicker });
+  if (!prepared.deferRuntimeWiring) {
+    configureMarkerDetailRuntime({
+      isDashboardQuickMarkerPinned,
+      navigate,
+      showEmojiPicker,
+      toggleDashboardQuickMarkerPin,
+    });
+    configureMarkerDetailModal({ navigate, isDashboardQuickMarkerPinned, toggleDashboardQuickMarkerPin, showEmojiPicker });
+  }
 
   function getDashboardMarkerWidgetDefinition(widgetId: unknown, ctx: {data?:unknown;filteredData?:unknown}|null = null) {
     const markerId = dashboardMarkerIdFromWidgetId(widgetId);
@@ -139,7 +180,51 @@ export function createDashboardViewComposition({
       size: 'quarter',
       customMarkerWidget: true,
       render: (renderCtx: import("../types/dashboard-lab-widget-renderers.js").LabContext) => renderDashboardSingleMarkerWidget(renderCtx, markerId),
+      project: (renderCtx: import("../types/dashboard-lab-widget-renderers.js").LabContext) => projectDashboardSingleMarkerWidget(renderCtx, markerId),
     };
+  }
+
+  /** Route composition selects feature-owned data; the Svelte body owns child rendering. */
+  function projectWidgetBody(id: string, input: unknown, biology?: ReturnType<typeof createDashboardBiologyProjectionScope>): DashboardWidgetContent | null {
+    const ctx = input as LabContext;
+    if (id.startsWith('marker_')) {
+      const view = projectDashboardSingleMarkerWidget(ctx, dashboardMarkerIdFromWidgetId(id));
+      return view ? {kind: 'lab-marker', view} : null;
+    }
+    if (id.startsWith('biology-score-')) {
+      if (id === 'biology-score-biologicalCoherence') {
+        const view = biology ? biology.projectCoherenceWidget(input) : projectDashboardBiologicalCoherenceWidget(input);
+        return view ? {kind: 'biology-dashboard-coherence', view} : null;
+      }
+      const scoreId = id.slice('biology-score-'.length);
+      const view = biology ? biology.projectScoreWidget(input, scoreId) : projectDashboardBiologyScoreWidget(input, scoreId);
+      return view ? {kind: 'biology-dashboard-score', view} : null;
+    }
+    switch (id) {
+      case 'bio-age': return {kind: 'lab-summary', view: projectDashboardBioAgeWidget(ctx)};
+      case 'alerts': {const view = projectDashboardAlertsWidget(ctx); return view ? {kind: 'lab-summary', view} : null;}
+      case 'correlation': return {kind: 'lab-summary', view: projectDashboardCorrelationWidget(ctx)};
+      case 'focus': return {kind: 'focus', view: projectFocusCard()};
+      case 'recommendations': return {kind: 'recommendations', view: projectDashboardRecommendationsWidget(input)};
+      case 'spotlight': {const view = projectDashboardSpotlightWidget(ctx); return view ? {kind: 'lab-marker', view} : null;}
+      case 'wearables': return {kind: 'wearables', view: projectDashboardWearableTilesWidget()};
+      case 'nutrition': return {kind: 'nutrition', view: projectNutritionWidget()};
+      case 'nutrition-fuel-mix': return {kind: 'fuel', view: projectFuelWidget()};
+      case 'quick-markers': return {kind: 'quick-markers', view: projectDashboardQuickMarkersWidget(ctx)};
+      case 'insights': return {kind: 'insights', view: projectDashboardInsightsListWidget(input)};
+      case 'genome': return {kind: 'genome', view: projectDashboardGenomeWidget()};
+      case 'profile-context': return {kind: 'profile-context', view: projectProfileContextCards({embedded: true})};
+      case 'cycle': return input ? {kind: 'cycle', view: projectMenstrualCycleSection((input as DashboardWidgetContext).data, {variant: 'dashboard', showHeader: false})} : null;
+      case 'supplements': return {kind: 'supplements', view: projectSupplementsSection()};
+      case 'key-trends': return {kind: 'key-trends', view: projectDashboardKeyTrendsWidget(ctx)};
+      case 'notes': return {kind: 'notes', view: projectDashboardNotesWidget()};
+      case 'light-today': return {kind: 'dashboard-light', view: projectDashboardLightTodayWidget()};
+      case 'light-conditions-now': return {kind: 'dashboard-light', view: projectDashboardLightConditionsWidget()};
+      case 'light-live-session': return {kind: 'dashboard-light', view: projectDashboardLightLiveSessionWidget()};
+      case 'light-session-log': return {kind: 'dashboard-light', view: projectDashboardLightSessionLogWidget()};
+      case 'light-channels': return {kind: 'dashboard-light', view: projectDashboardLightChannelsWidget()};
+      default: throw new Error(`Missing typed Dashboard feature: ${id}`);
+    }
   }
 
   const dashboardWidgetRegistry = createDashboardWidgetRegistry({
@@ -150,11 +235,16 @@ export function createDashboardViewComposition({
     renderFocusCard,
     renderDashboardRecommendationsWidget,
     renderDashboardSpotlightWidget,
+    projectDashboardSpotlightWidget,
     renderDashboardWearableTilesWidget,
+    prepareDashboardWearableTilesWidget,
     renderDashboardNutritionWidget: renderNutritionWidget,
     renderFuelWidget,
     renderDashboardQuickMarkersWidget,
+    projectDashboardQuickMarkersWidget,
+    projectDashboardNotesWidget,
     renderDashboardInsightsListWidget,
+    prepareDashboardInsightsListWidget,
     renderDashboardGenomeWidget,
     renderDashboardAlertsWidget,
     renderDashboardCorrelationWidget,
@@ -167,6 +257,7 @@ export function createDashboardViewComposition({
     renderDashboardNotesWidget,
   }, {
     getDashboardMarkerWidgetDefinition,
+    projectWidgetBody,
     isOrganizeMode: () => dashboardWidgetControls?.isOrganizeMode() || false,
   });
 
@@ -179,8 +270,19 @@ export function createDashboardViewComposition({
     getDashboardWidgetPrefs,
     saveDashboardWidgetPrefs,
     resetDashboardWidgetPrefs,
-    getVisibleDashboardWidgetEntries,
+    getVisibleDashboardWidgetViews: projectVisibleDashboardWidgetViews,
   } = dashboardWidgetRegistry;
+
+  /** One render owns the scope; intervening feature callbacks retire its score snapshot. */
+  function getVisibleDashboardWidgetViews(ctx: unknown,
+    prefs?: Parameters<typeof projectVisibleDashboardWidgetViews>[1],
+    options?: Parameters<typeof projectVisibleDashboardWidgetViews>[2]) {
+    const biology = createDashboardBiologyProjectionScope();
+    return projectVisibleDashboardWidgetViews(ctx, prefs, options, (id, input) => {
+      if (!id.startsWith('biology-score-')) biology.clear();
+      return projectWidgetBody(id, input, biology);
+    });
+  }
 
   dashboardWidgetControls = createDashboardWidgetControls({
     state,
@@ -206,9 +308,8 @@ export function createDashboardViewComposition({
   });
 
   const {
-    renderDashboardControlButtons,
-    renderDashboardStickyControls,
-    renderDashboardWidget,
+    projectDashboardControlButtons,
+    projectDashboardWidget,
   } = dashboardWidgetControls;
 
   const dashboardPageView = createDashboardPageView({
@@ -216,12 +317,11 @@ export function createDashboardViewComposition({
     markerHasData,
     buildDashboardWidgetContext,
     getDashboardWidgetPrefs,
-    getVisibleDashboardWidgetEntries,
-    renderOnboardingBanner,
-    renderAIConnectionReminder,
-    renderDashboardStickyControls,
-    renderDashboardControlButtons,
-    renderDashboardWidget,
+    getVisibleDashboardWidgetViews,
+    projectOnboardingBanner,
+    projectAIConnectionReminder,
+    projectDashboardControlButtons,
+    projectDashboardWidget,
     isDashboardOrganizeMode: () => dashboardWidgetControls!.isOrganizeMode(),
     loadFocusCard,
     loadContextCardTips,
@@ -229,32 +329,39 @@ export function createDashboardViewComposition({
     resumeActiveTickerIfNeeded: resumeLoadedActiveSunTickerIfNeeded,
   });
 
-  (configureLensPageShell as (deps:unknown)=>ReturnType<typeof configureLensPageShell>)({
-    addDashboardWidgetFromLens: (...args: Parameters<NonNullable<typeof dashboardWidgetControls>["addDashboardWidgetFromLens"]>) => dashboardWidgetControls!.addDashboardWidgetFromLens(...args),
-    getAvailableDashboardFixedWidgetIds,
-    getDashboardWidgetPrefs,
-    openChatPanel,
-    openDashboardBiometricPicker: () => dashboardWidgetControls.openDashboardBiometricPicker(),
-    removeDashboardWidgetFromLens: (...args: Parameters<NonNullable<typeof dashboardWidgetControls>["removeDashboardWidgetFromLens"]>) => dashboardWidgetControls!.removeDashboardWidgetFromLens(...args),
-  });
+  if (!prepared.deferRuntimeWiring) {
+    (configureLensPageShell as (deps:unknown)=>ReturnType<typeof configureLensPageShell>)({
+      addDashboardWidgetFromLens: (...args: Parameters<NonNullable<typeof dashboardWidgetControls>["addDashboardWidgetFromLens"]>) => dashboardWidgetControls!.addDashboardWidgetFromLens(...args),
+      getAvailableDashboardFixedWidgetIds,
+      getDashboardWidgetPrefs,
+      openChatPanel,
+      openDashboardBiometricPicker: () => dashboardWidgetControls.openDashboardBiometricPicker(),
+      removeDashboardWidgetFromLens: (...args: Parameters<NonNullable<typeof dashboardWidgetControls>["removeDashboardWidgetFromLens"]>) => dashboardWidgetControls!.removeDashboardWidgetFromLens(...args),
+    });
 
-  configureMobileDashboardView({
-    buildDashboardWidgetContext,
-    getDashboardWidgetPrefs,
-    getVisibleDashboardWidgetEntries,
-    renderDashboardControlButtons,
-    isDashboardOrganizeMode: () => dashboardWidgetControls!.isOrganizeMode(),
-    renderDashboardWidget,
-    setupDropZone,
-    loadCommitHash,
-    navigate,
-    toggleMobileSidebar,
-    loadContextCardTips,
-    loadCatalog,
-    cacheCatalog: setRecommendationsCatalogCache,
-  });
+    configureMobileDashboardView({
+      buildDashboardWidgetContext,
+      getDashboardWidgetPrefs,
+      getVisibleDashboardWidgetViews,
+      projectDashboardControlButtons,
+      isDashboardOrganizeMode: () => dashboardWidgetControls!.isOrganizeMode(),
+      projectDashboardWidget,
+      setupDropZone,
+      loadCommitHash,
+      navigate,
+      toggleMobileSidebar,
+      loadContextCardTips,
+      loadCatalog,
+      cacheCatalog: setRecommendationsCatalogCache,
+    });
+  }
 
   return {
+    getAvailableDashboardFixedWidgetIds,
+    getVisibleDashboardWidgetViews,
+    projectDashboardControlButtons,
+    projectDashboardWidget,
+    isDashboardOrganizeMode: () => dashboardWidgetControls!.isOrganizeMode(),
     showDashboard: (...args: Parameters<typeof dashboardPageView.showDashboard>) => dashboardPageView.showDashboard(...args),
     buildDashboardWidgetContext,
     getCachedRecommendationsCatalog,
@@ -264,10 +371,14 @@ export function createDashboardViewComposition({
     renderRecommendationList,
     renderRecommendationsEmpty,
     renderDashboardQuickMarkersWidget,
+    projectDashboardQuickMarkersWidget,
+    projectDashboardNotesWidget,
     renderDashboardKeyTrendsWidget,
     renderDashboardGenomeWidget,
     renderDashboardWearableTilesWidget,
+    prepareDashboardWearableTilesWidget,
     renderDashboardInsightsListWidget,
+    prepareDashboardInsightsListWidget,
     renderDashboardRecommendationsWidget,
     renderLabsPriorityBanner,
     getDashboardWidgetPrefs,
@@ -298,5 +409,11 @@ export function createDashboardViewComposition({
     allowDashboardWidgetDrop: (...args: Parameters<NonNullable<typeof dashboardWidgetControls>["allowDashboardWidgetDrop"]>) => dashboardWidgetControls!.allowDashboardWidgetDrop(...args),
     dropDashboardWidget: (...args: Parameters<NonNullable<typeof dashboardWidgetControls>["dropDashboardWidget"]>) => dashboardWidgetControls!.dropDashboardWidget(...args),
     toggleDashboardQuickMarkerPin,
+    projectLabsPriorityBanner,
+    projectDashboardWearableTilesWidget,
+    projectDashboardInsightsListWidget,
+    projectDashboardRecommendationsWidget,
+    projectDashboardKeyTrendsWidget,
+    projectDashboardGenomeWidget,
   };
 }

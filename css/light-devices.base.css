@@ -1,4 +1,7 @@
-/* Shared Lens layout integration; ordinary device presentation is Tailwind-owned. */
-.light-page .dashboard-widget[data-widget-id="light-devices"] .dashboard-widget-body {
+@import "tailwindcss" prefix(gb) source(none) reference;
+@utility light-layout-devices-page-dashboard-widget-data-widget-id-light-devices-dash {
   gap: 0;
 }
+
+/* Shared Lens layout integration; ordinary device presentation is Tailwind-owned. */
+.light-page .dashboard-widget[data-widget-id="light-devices"] .dashboard-widget-body { @apply gb:light-layout-devices-page-dashboard-widget-data-widget-id-light-devices-dash; }

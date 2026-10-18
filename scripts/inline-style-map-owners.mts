@@ -1,0 +1,546 @@
+export interface InlineStyleMapOwner {
+    readonly id: string;
+    readonly input: string;
+    readonly output: string;
+    readonly exportName: string;
+    readonly declarationCount: number;
+    readonly recipes: readonly (readonly [key: string, utility: string, property?: string])[];
+}
+export const inlineStyleMapOwners = [
+{
+  "id": "sync-inline",
+  "input": "css/sync-inline.tailwind.css",
+  "output": "js/sync-inline-style-map.generated.js",
+  "exportName": "syncInlineStyles",
+  "declarationCount": 181,
+  "recipes": [
+    [
+      "emptyTable",
+      "sync-inline-empty-table"
+    ],
+    [
+      "storageName",
+      "sync-inline-storage-name"
+    ],
+    [
+      "storageOverflowHint",
+      "sync-inline-storage-overflow-hint"
+    ],
+    [
+      "storageBytes",
+      "sync-inline-storage-bytes"
+    ],
+    [
+      "storageWarning",
+      "sync-inline-storage-warning"
+    ],
+    [
+      "storageType",
+      "sync-inline-storage-type"
+    ],
+    [
+      "storageValue",
+      "sync-inline-storage-value"
+    ],
+    [
+      "storagePercent",
+      "sync-inline-storage-percent"
+    ],
+    [
+      "successText",
+      "sync-inline-success-text"
+    ],
+    [
+      "warningText",
+      "sync-inline-warning-text"
+    ],
+    [
+      "diagnosticCard",
+      "sync-inline-diagnostic-card"
+    ],
+    [
+      "diagnosticCardHeader",
+      "sync-inline-diagnostic-card-header"
+    ],
+    [
+      "diagnosticCaption",
+      "sync-inline-diagnostic-caption"
+    ],
+    [
+      "diagnosticControl",
+      "sync-inline-diagnostic-control"
+    ],
+    [
+      "sectionTitle",
+      "sync-inline-section-title"
+    ],
+    [
+      "strongText",
+      "sync-inline-strong-text"
+    ],
+    [
+      "mutedText",
+      "sync-inline-muted-text"
+    ],
+    [
+      "mutedParagraph",
+      "sync-inline-muted-paragraph"
+    ],
+    [
+      "telemetryTable",
+      "sync-inline-telemetry-table"
+    ],
+    [
+      "telemetryTableHeader",
+      "sync-inline-telemetry-table-header"
+    ],
+    [
+      "telemetryCell",
+      "sync-inline-telemetry-cell"
+    ],
+    [
+      "telemetryNumber",
+      "sync-inline-telemetry-number"
+    ],
+    [
+      "telemetryName",
+      "sync-inline-telemetry-name"
+    ],
+    [
+      "telemetryValue",
+      "sync-inline-telemetry-value"
+    ],
+    [
+      "telemetryDescription",
+      "sync-inline-telemetry-description"
+    ],
+    [
+      "telemetryFootnote",
+      "sync-inline-telemetry-footnote"
+    ],
+    [
+      "technicalValue",
+      "sync-inline-technical-value"
+    ],
+    [
+      "spacingTop",
+      "sync-inline-spacing-top"
+    ],
+    [
+      "readyBadge",
+      "sync-inline-ready-badge"
+    ],
+    [
+      "cutoverCaption",
+      "sync-inline-cutover-caption"
+    ],
+    [
+      "cutoverActions",
+      "sync-inline-cutover-actions"
+    ],
+    [
+      "warningAction",
+      "sync-inline-warning-action"
+    ],
+    [
+      "successAction",
+      "sync-inline-success-action"
+    ],
+    [
+      "disabledAction",
+      "sync-inline-disabled-action"
+    ],
+    [
+      "cutoverHint",
+      "sync-inline-cutover-hint"
+    ],
+    [
+      "blockerPanel",
+      "sync-inline-blocker-panel"
+    ],
+    [
+      "blockerHeading",
+      "sync-inline-blocker-heading"
+    ],
+    [
+      "blockerTitle",
+      "sync-inline-blocker-title"
+    ],
+    [
+      "smallText",
+      "sync-inline-small-text"
+    ],
+    [
+      "blockerTable",
+      "sync-inline-blocker-table"
+    ],
+    [
+      "blockerName",
+      "sync-inline-blocker-name"
+    ],
+    [
+      "blockerShape",
+      "sync-inline-blocker-shape"
+    ],
+    [
+      "blockerCount",
+      "sync-inline-blocker-count"
+    ],
+    [
+      "blockerHint",
+      "sync-inline-blocker-hint"
+    ],
+    [
+      "relayHeader",
+      "sync-inline-relay-header"
+    ],
+    [
+      "relayDotGeometry",
+      "sync-inline-relay-dot-geometry"
+    ],
+    [
+      "inlineDot",
+      "sync-inline-inline-dot"
+    ],
+    [
+      "relayLabel",
+      "sync-inline-relay-label"
+    ],
+    [
+      "relayAddress",
+      "sync-inline-relay-address"
+    ],
+    [
+      "transferDetails",
+      "sync-inline-transfer-details"
+    ],
+    [
+      "dangerText",
+      "sync-inline-danger-text"
+    ],
+    [
+      "quotaRow",
+      "sync-inline-quota-row"
+    ],
+    [
+      "quotaDotGeometry",
+      "sync-inline-quota-dot-geometry"
+    ],
+    [
+      "recentError",
+      "sync-inline-recent-error"
+    ],
+    [
+      "eventsPanel",
+      "sync-inline-events-panel"
+    ],
+    [
+      "eventsHeading",
+      "sync-inline-events-heading"
+    ],
+    [
+      "eventsTitle",
+      "sync-inline-events-title"
+    ],
+    [
+      "copyEventsAction",
+      "sync-inline-copy-events-action"
+    ],
+    [
+      "eventRow",
+      "sync-inline-event-row"
+    ],
+    [
+      "eventText",
+      "sync-inline-event-text"
+    ],
+    [
+      "popoverActions",
+      "sync-inline-popover-actions"
+    ],
+    [
+      "popoverAction",
+      "sync-inline-popover-action"
+    ],
+    [
+      "reloadAction",
+      "sync-inline-reload-action"
+    ],
+    [
+      "forceResendWarning",
+      "sync-inline-force-resend-warning"
+    ]
+  ]
+}
+,
+{
+  "id": "component-inline",
+  "input": "css/component-inline.tailwind.css",
+  "output": "js/component-inline-style-map.generated.js",
+  "exportName": "componentStaticStyles",
+  "declarationCount": 47,
+  "recipes": [
+    [
+      "dialogMaximumWidth",
+      "component-inline-dialog-maximum-width"
+    ],
+    [
+      "hidden",
+      "component-inline-hidden"
+    ],
+    [
+      "pointer",
+      "component-inline-pointer"
+    ],
+    [
+      "cellCursor",
+      "component-inline-cell-cursor"
+    ],
+    [
+      "categoryEmpty",
+      "component-inline-category-empty"
+    ],
+    [
+      "fattyAcidsCard",
+      "component-inline-fatty-acids-card"
+    ],
+    [
+      "fattyAcidsHeading",
+      "component-inline-fatty-acids-heading"
+    ],
+    [
+      "renameControl",
+      "component-inline-rename-control"
+    ],
+    [
+      "categoryControls",
+      "component-inline-category-controls"
+    ],
+    [
+      "noBottomMargin",
+      "component-inline-no-bottom-margin"
+    ],
+    [
+      "rangeLowStart",
+      "component-inline-range-low-start"
+    ],
+    [
+      "optimalRange",
+      "component-inline-optimal-range"
+    ],
+    [
+      "optimalRangeSmall",
+      "component-inline-optimal-range-small"
+    ],
+    [
+      "contents",
+      "component-inline-contents"
+    ],
+    [
+      "mutedUnit",
+      "component-inline-muted-unit"
+    ],
+    [
+      "emphasis",
+      "component-inline-emphasis"
+    ],
+    [
+      "muted",
+      "component-inline-muted"
+    ],
+    [
+      "optionalLabel",
+      "component-inline-optional-label"
+    ],
+    [
+      "markerDeletePosition",
+      "component-inline-marker-delete-position"
+    ],
+    [
+      "markerDeleteLabel",
+      "component-inline-marker-delete-label"
+    ],
+    [
+      "danger",
+      "component-inline-danger"
+    ],
+    [
+      "supplementDelete",
+      "component-inline-supplement-delete"
+    ],
+    [
+      "wearableSubLabel",
+      "component-inline-wearable-sub-label"
+    ],
+    [
+      "wearableChart",
+      "component-inline-wearable-chart"
+    ],
+    [
+      "categoryCardRail",
+      "component-inline-category-card-rail"
+    ]
+  ]
+}
+,
+{
+  "id": "emf-inline",
+  "input": "css/emf-inline.tailwind.css",
+  "output": "js/emf-inline-style-map.generated.js",
+  "exportName": "emfStaticStyles",
+  "declarationCount": 22,
+  "recipes": [
+    [
+      "sectionSpacing",
+      "emf-inline-section-spacing"
+    ],
+    [
+      "rowFill",
+      "emf-inline-row-fill"
+    ],
+    [
+      "deleteAction",
+      "emf-inline-delete-action"
+    ],
+    [
+      "valueEmphasis",
+      "emf-inline-value-emphasis"
+    ],
+    [
+      "mutedValue",
+      "emf-inline-muted-value"
+    ],
+    [
+      "filePickerHidden",
+      "emf-inline-file-picker-hidden"
+    ],
+    [
+      "roomLocation",
+      "emf-inline-room-location"
+    ],
+    [
+      "severityLabelFont",
+      "emf-inline-severity-label-font"
+    ],
+    [
+      "roomSources",
+      "emf-inline-room-sources"
+    ],
+    [
+      "roomMitigations",
+      "emf-inline-room-mitigations"
+    ],
+    [
+      "photoButton",
+      "emf-inline-photo-button"
+    ]
+  ]
+}
+,
+{
+  "id": "ts-static-ui",
+  "input": "css/ts-static-ui.inline.tailwind.css",
+  "output": "js/ts-static-ui-inline-style-map.generated.js",
+  "exportName": "tsStaticStyles",
+  "declarationCount": 28,
+  "recipes": [
+    [
+      "editorInput",
+      "ts-static-editor-input"
+    ],
+    [
+      "commitLinkColor",
+      "ts-static-commit-link-color",
+      "color"
+    ],
+    [
+      "commitLinkDecoration",
+      "ts-static-commit-link-decoration",
+      "text-decoration"
+    ],
+    [
+      "commitSuffixColor",
+      "ts-static-commit-suffix-color",
+      "color"
+    ],
+    [
+      "commitSuffixOpacity",
+      "ts-static-commit-suffix-opacity",
+      "opacity"
+    ],
+    [
+      "syncEventsFallback",
+      "ts-static-sync-events-fallback"
+    ],
+    [
+      "syncPopoverAnchor",
+      "ts-static-sync-popover-anchor",
+      "position"
+    ],
+    [
+      "liveMessageHost",
+      "ts-static-live-message-host",
+      "display"
+    ],
+    [
+      "messageActionsHost",
+      "ts-static-message-actions-host"
+    ],
+    [
+      "speechHost",
+      "ts-static-speech-host"
+    ]
+  ]
+}
+,
+{
+  "id": "ts-state-ui",
+  "input": "css/ts-state-ui.inline.tailwind.css",
+  "output": "js/ts-state-ui-inline-style-map.generated.js",
+  "exportName": "tsStateStyles",
+  "declarationCount": 8,
+  "recipes": [
+    [
+      "successColor",
+      "ts-state-success-color",
+      "color"
+    ],
+    [
+      "mutedColor",
+      "ts-state-muted-color",
+      "color"
+    ],
+    [
+      "cautionColor",
+      "ts-state-caution-color",
+      "color"
+    ],
+    [
+      "fadeOpacity",
+      "ts-state-fade-opacity",
+      "opacity"
+    ],
+    [
+      "bannerTransition",
+      "ts-state-banner-transition",
+      "transition"
+    ],
+    [
+      "bannerTransform",
+      "ts-state-banner-transform",
+      "transform"
+    ],
+    [
+      "toastTransition",
+      "ts-state-toast-transition",
+      "transition"
+    ],
+    [
+      "toastTransform",
+      "ts-state-toast-transform",
+      "transform"
+    ]
+  ]
+}
+] as const satisfies readonly InlineStyleMapOwner[];
+export const generatedInlineStyleMapOutputs: readonly string[] = inlineStyleMapOwners.flatMap((owner: InlineStyleMapOwner) => [owner.output, owner.output.replace(/\.js$/, '.d.ts')]);

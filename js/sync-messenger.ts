@@ -33,7 +33,10 @@ const AGENT_ACCESS_SYNC_VERSION = 1;
 let _getSyncRelay: () => string = () => 'wss://sync.getbased.health';
 let _getAppOwner: () => MessengerOwner | null = () => null;
 let _debug: (...args: unknown[]) => void = () => {};
-let _buildLabContext: (options?: LabContextOptions) => string = () => '';
+export const buildDefaultSyncMessengerContext = (_options?: LabContextOptions) => '';
+let _buildLabContext: (options?: LabContextOptions) => string = buildDefaultSyncMessengerContext;
+type ContextPreparation = () => Promise<(options?: LabContextOptions) => string>;
+let _prepareContext: ContextPreparation | null = null;
 let _buildWearableSeriesSection: typeof buildWearableSeries = async () => '';
 let _getAgentWearableSeriesDays: () => number = () => 0;
 let _getProfiles: () => StoredProfileRecord[] = () => [];
@@ -76,6 +79,14 @@ export function configureSyncMessenger({
   if (typeof buildWearableSeriesSection === 'function') _buildWearableSeriesSection = buildWearableSeriesSection;
   if (typeof getAgentWearableSeriesDays === 'function') _getAgentWearableSeriesDays = getAgentWearableSeriesDays;
   if (typeof getProfiles === 'function') _getProfiles = getProfiles;
+}
+
+// Separate from the existing configuration object: its getter order and
+// synchronous injected-provider contract remain unchanged.
+export function configureSyncMessengerContextPreparation(prepare: ContextPreparation | null) {
+  const previous = _prepareContext;
+  _prepareContext = typeof prepare === 'function' ? prepare : null;
+  return previous;
 }
 
 function currentSyncRelay() {
@@ -643,10 +654,43 @@ export function pushContextToGateway() {
         dbg(`Skipped stale Agent Access context push (profile: ${profileId})`);
         return;
       }
+      const configured = {
+        getSyncRelay: _getSyncRelay, getAppOwner: _getAppOwner, debug: _debug,
+        buildLabContext: _buildLabContext, prepareContext: _prepareContext,
+        buildWearableSeriesSection: _buildWearableSeriesSection,
+        getAgentWearableSeriesDays: _getAgentWearableSeriesDays, getProfiles: _getProfiles,
+      };
+      const preparationOwnerCurrent = () => {
+        const access = getAgentAccessState();
+        return scope.isCurrent() && state.currentProfile === profileId
+          && access.enabled === true && access.token === token && access.contextKey === contextKey
+          && _blockedContextPushIdentity !== pushIdentity
+          && configured.getSyncRelay === _getSyncRelay && configured.getAppOwner === _getAppOwner
+          && configured.debug === _debug && configured.buildLabContext === _buildLabContext
+          && configured.prepareContext === _prepareContext
+          && configured.buildWearableSeriesSection === _buildWearableSeriesSection
+          && configured.getAgentWearableSeriesDays === _getAgentWearableSeriesDays
+          && configured.getProfiles === _getProfiles;
+      };
+      const preparationCurrent = () => {
+        if (!preparationOwnerCurrent()) return false;
+        const demo = isDemoProfileId(profileId, _getProfiles());
+        // Profile/tag callbacks can replace ownership while being read.
+        return !demo && preparationOwnerCurrent();
+      };
+      let preparedBuild: ((options?: LabContextOptions) => string) | null = null;
+      if (_buildLabContext === buildDefaultSyncMessengerContext && configured.prepareContext) {
+        if (!origin.owner) return;
+        preparedBuild = await configured.prepareContext();
+        if (!preparationCurrent()) {
+          dbg(`Skipped stale Agent Access context after preparation (profile: ${profileId})`);
+          return;
+        }
+      }
       // Manage Context remains the source-level gate for both in-app chat and
       // external Agent Access. Enabling Agent Access is transport consent; it
       // does not silently re-enable profile sources the user turned off.
-      const baseContext = buildLabContext();
+      const baseContext = preparedBuild ? preparedBuild() : buildLabContext();
       // Optional wearable daily-series section - user picks 0 (off) / 7 /
       // 30 / 90 days in Settings -> Agent Access. It also respects the
       // Wearables source toggle and reads L1 IDB on the
@@ -658,6 +702,10 @@ export function pushContextToGateway() {
       const seriesBlock = seriesDays > 0
         ? await buildWearableSeriesSection(seriesDays).catch(() => '')
         : '';
+      if (!preparationCurrent()) {
+        dbg(`Skipped stale Agent Access context after preparation (profile: ${profileId})`);
+        return;
+      }
       const context = seriesBlock ? `${baseContext}\n${seriesBlock}\n` : baseContext;
       const encryptedContext = await encryptAgentContextForRelay(context, contextKey, profileId);
       // The gateway only needs the active profileId - do not leak the full
@@ -675,7 +723,7 @@ export function pushContextToGateway() {
         timestamp,
       });
       const latestBeforeSend = getAgentAccessState();
-      if (!scope.isCurrent() || latestBeforeSend.enabled !== true
+      if (!preparationCurrent() || !scope.isCurrent() || latestBeforeSend.enabled !== true
         || latestBeforeSend.token !== token || latestBeforeSend.contextKey !== contextKey) {
         dbg(`Skipped stale Agent Access context after preparation (profile: ${profileId})`);
         return;

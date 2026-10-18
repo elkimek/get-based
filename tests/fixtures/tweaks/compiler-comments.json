@@ -1,0 +1,1218 @@
+{
+  "status": "reviewed-actual-compiled-comments",
+  "byKey": {
+    "dark": [
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          1
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          5
+        ],
+        "value": "",
+        "joinText": true
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          9
+        ],
+        "value": "",
+        "joinText": true
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          13
+        ],
+        "value": "",
+        "joinText": true
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          17
+        ],
+        "value": "",
+        "joinText": true
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          21
+        ],
+        "value": "",
+        "joinText": true
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          25
+        ],
+        "value": "]"
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          1
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          4
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          7
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          10
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          13
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          16
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          19
+        ],
+        "value": "]"
+      }
+    ],
+    "light": [
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          1
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          5
+        ],
+        "value": "",
+        "joinText": true
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          9
+        ],
+        "value": "",
+        "joinText": true
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          13
+        ],
+        "value": "",
+        "joinText": true
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          17
+        ],
+        "value": "",
+        "joinText": true
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          21
+        ],
+        "value": "",
+        "joinText": true
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          25
+        ],
+        "value": "]"
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          1
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          4
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          7
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          10
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          13
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          16
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          19
+        ],
+        "value": "]"
+      }
+    ],
+    "cyberterm": [
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          1
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          5
+        ],
+        "value": "",
+        "joinText": true
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          9
+        ],
+        "value": "",
+        "joinText": true
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          13
+        ],
+        "value": "",
+        "joinText": true
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          17
+        ],
+        "value": "",
+        "joinText": true
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          21
+        ],
+        "value": "",
+        "joinText": true
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          25
+        ],
+        "value": "]"
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          1
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          4
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          7
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          10
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          13
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          16
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          19
+        ],
+        "value": "]"
+      }
+    ],
+    "glass": [
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          1
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          5
+        ],
+        "value": "",
+        "joinText": true
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          9
+        ],
+        "value": "",
+        "joinText": true
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          13
+        ],
+        "value": "",
+        "joinText": true
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          17
+        ],
+        "value": "",
+        "joinText": true
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          21
+        ],
+        "value": "",
+        "joinText": true
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          25
+        ],
+        "value": "]"
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          1
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          4
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          7
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          10
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          13
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          16
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          19
+        ],
+        "value": "]"
+      }
+    ],
+    "synth-sunrise": [
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          1
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          5
+        ],
+        "value": "",
+        "joinText": true
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          9
+        ],
+        "value": "",
+        "joinText": true
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          13
+        ],
+        "value": "",
+        "joinText": true
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          17
+        ],
+        "value": "",
+        "joinText": true
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          21
+        ],
+        "value": "",
+        "joinText": true
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          25
+        ],
+        "value": "]"
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          1
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          4
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          7
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          10
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          13
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          16
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          19
+        ],
+        "value": "]"
+      }
+    ],
+    "neuromancer": [
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          1
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          5
+        ],
+        "value": "",
+        "joinText": true
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          9
+        ],
+        "value": "",
+        "joinText": true
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          13
+        ],
+        "value": "",
+        "joinText": true
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          17
+        ],
+        "value": "",
+        "joinText": true
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          21
+        ],
+        "value": "",
+        "joinText": true
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          25
+        ],
+        "value": "]"
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          1
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          4
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          7
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          10
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          13
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          16
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          19
+        ],
+        "value": "]"
+      }
+    ],
+    "dark+sunset": [
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          1
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          5
+        ],
+        "value": "",
+        "joinText": true
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          9
+        ],
+        "value": "",
+        "joinText": true
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          13
+        ],
+        "value": "",
+        "joinText": true
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          17
+        ],
+        "value": "",
+        "joinText": true
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          21
+        ],
+        "value": "",
+        "joinText": true
+      },
+      {
+        "path": [
+          1,
+          3,
+          1,
+          3,
+          25
+        ],
+        "value": "]"
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          0
+        ],
+        "value": "["
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          1
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          4
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          7
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          10
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          13
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          16
+        ],
+        "value": ""
+      },
+      {
+        "path": [
+          1,
+          3,
+          3,
+          3,
+          19
+        ],
+        "value": "]"
+      }
+    ]
+  },
+  "sourceIdentities": [
+    {
+      "path": "js/components/TweaksPresentation.svelte",
+      "bytes": 4686,
+      "sha256": "c47ba048715e0fb40583990e205866580233dbb571a21c5cbe15b1504b04ce25"
+    },
+    {
+      "path": "js/components/TweaksPresentation.svelte.html.js",
+      "bytes": 27845,
+      "sha256": "6cfbe17afb1d010510227833dae33322a55c53d42e21d0614b695875ec13ffb4"
+    },
+    {
+      "path": "js/tweaks-presentation.ts",
+      "bytes": 1825,
+      "sha256": "0318e2702b48f73e38c0096d7b1fe660d672ff00b855a48bacfe6de649e8aff2"
+    },
+    {
+      "path": "js/tweaks-rendering.ts",
+      "bytes": 338,
+      "sha256": "b9e425914a454880cb9050133502b4356298467d6ec758fdffbd77c8b69448b5"
+    },
+    {
+      "path": "js/tweaks-classes.ts",
+      "bytes": 4418,
+      "sha256": "d5f497760aad7c6c14c651980641124d02990dd8a7da27b45c8a4336b9eb3269"
+    },
+    {
+      "path": "scripts/build-svelte.mts",
+      "bytes": 7656,
+      "sha256": "a4b685531f3027b690494d23bff02fc7167586cd0198f89c668311eaf51f72cd"
+    },
+    {
+      "path": "tests/fixtures/tweaks/original-contract.json",
+      "bytes": 49695,
+      "sha256": "fd7278a4bc9b93a45c3875139160c06c3c983dd844090f0b6c40c7a2b11e04c5"
+    }
+  ],
+  "boundary": "Exact compiled anchors inside overlay only. Adjacent text joins are recorded per actual anchor; complete original DOM/forms parity remains mandatory. No universal comment/whitespace removal.",
+  "independentReviewSHA256": "f50f7aef8ca41eeabd3476105ce6bf5c37e85b905cb0fa0824673f959e9884e6",
+  "compilerInventoryExecution": {
+    "chunk": "e5101f",
+    "exitCode": 0,
+    "boundary": "Actual compiled renderer inventory; full native controller DOM and browser parity remain mandatory."
+  }
+}

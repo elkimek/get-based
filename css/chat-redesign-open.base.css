@@ -1,0 +1,269 @@
+@import "tailwindcss" prefix(gb) source(none) reference;
+
+@utility analytics-chat {
+  transform: none;
+  z-index: 220;
+  animation: none;
+}
+@utility analytics-chat-wide {
+    left: 18px;
+    right: auto;
+    transform: none;
+    max-width: min(640px, calc(100vw - 520px));
+  }
+@utility complete-chat-redesign-open-chat-panel-open {
+  transform: translateX(0);
+}
+@utility complete-chat-redesign-open-chat-panel-chat-panel-fullscreen {
+  width: 100vw;
+}
+@utility complete-chat-redesign-open-body-chat-open-main {
+  padding-right: calc(32px + min(var(--chat-panel-current-width, 600px), 100vw));
+}
+@utility complete-chat-redesign-open-body-chat-open-chat-fullscreen-main {
+  padding-right: 32px;
+}
+@utility complete-chat-redesign-open-chat-panel-conversation {
+  background: var(--bg-secondary);
+  position: relative;
+}
+@utility complete-chat-redesign-open-chat-thread-new-btn-chat-project-new-btn {
+  border-radius: var(--radius-sm);
+}
+@utility complete-chat-redesign-open-chat-rail-back-svg-chat-thread-new-btn-svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+@utility complete-chat-redesign-open-chat-thread-rail {
+  background: var(--bg-primary);
+}
+@utility complete-chat-redesign-open-chat-thread-rail-open {
+  width: var(--chat-rail-width, 220px);
+}
+@utility complete-chat-redesign-open-chat-messages {
+  padding: 18px;
+  gap: 14px;
+}
+@utility complete-chat-redesign-open-chat-msg-not-data-chat-transcript-message-data-chat-onboarding-message {
+  max-width: 85%;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  font-size: 14px;
+  line-height: 1.58;
+}
+@utility complete-chat-redesign-open-chat-msg-chat-ai-not-data-chat-transcript-message-data-chat-onboarding-message {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 1px solid color-mix(in srgb, var(--accent) 55%, var(--border));
+  border-bottom-left-radius: var(--radius-sm);
+}
+@utility complete-chat-redesign-open-chat-msg-chat-user-not-data-chat-transcript-message-data-chat-onboarding-message {
+  color: var(--on-accent);
+  border-bottom-right-radius: var(--radius-sm);
+}
+@utility complete-chat-redesign-open-chat-user-a {
+  color: var(--on-accent);
+}
+@utility complete-chat-redesign-open-chat-prompt-btn-where-not-data-chat-provider-setup-view-data-chat-empty-view-chat-quiz-option-w {
+  border-radius: var(--radius-sm);
+}
+@utility complete-chat-redesign-open-chat-msg-chat-ai-not-data-chat-onboarding-message-has-chat-quiz-options-chat-msg-chat-ai-not-da {
+  align-self: stretch;
+  width: 100% !important;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 16px;
+  border-left: 1px solid var(--border);
+  border-bottom-left-radius: var(--radius);
+  background: color-mix(in srgb, var(--bg-card) 86%, var(--bg-secondary));
+}
+@utility complete-chat-redesign-open-chat-onboard-input-where-not-data-chat-profile-setup-view {
+  min-height: 38px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+}
+@utility complete-chat-redesign-open-chat-onboard-cta-where-not-data-chat-provider-setup-view-data-chat-empty-view-chat-setup-btn-wh {
+  min-height: 38px;
+}
+@utility complete-chat-redesign-open-chat-panel-chat-onboarding-active-chat-msg-chat-ai-not-data-chat-onboarding-message-chat-panel {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 94%, transparent), color-mix(in srgb, var(--bg-secondary) 74%, transparent)),
+    var(--bg-primary);
+}
+@utility complete-chat-redesign-open-chat-panel-chat-onboarding-active-chat-quiz-option-where-not-data-chat-provider-view-data-chat {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 82%, transparent), color-mix(in srgb, var(--bg-secondary) 58%, transparent)),
+    var(--bg-primary);
+}
+@utility complete-chat-redesign-open-body-chat-open-main-min-width-1400px { padding-right: calc(32px + min(var(--chat-panel-current-width, 600px), 100vw)); }
+@utility complete-chat-redesign-open-body-chat-open-chat-fullscreen-main-min-width-1400px { padding-right: 32px; }
+@utility complete-chat-redesign-open-chat-messages-min-width-1400px { padding: 18px; gap: 14px; }
+@utility complete-chat-redesign-open-chat-msg-not-data-chat-transcript-message-data-chat-onboarding-message-min-width-1400px { font-size: 14px; padding: 12px 14px; }
+@utility complete-chat-redesign-open-body-chat-open-m-tabbar-max-width-768px {
+    display: none;
+  }
+@utility complete-chat-redesign-open-body-chat-open-main-max-width-768px { padding-right: 0; }
+@utility complete-chat-redesign-open-body-chat-open-chat-fullscreen-main-max-width-768px { padding-right: 0; }
+@utility complete-chat-redesign-open-chat-messages-max-width-768px { padding: 14px 12px; }
+@utility complete-chat-redesign-open-chat-msg-not-data-chat-transcript-message-data-chat-onboarding-message-max-width-768px { max-width: 92%; }
+@utility complete-chat-redesign-open-chat-msg-chat-ai-not-data-chat-onboarding-message-has-chat-quiz-options-chat-msg-chat-ai-not-da-2 {
+    padding: 14px;
+  }
+@utility complete-chat-redesign-open-chat-panel-chat-onboarding-active-chat-messages-max-width-768px {
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
+  }
+@utility complete-chat-redesign-open-chat-thread-rail-open-max-width-768px {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    z-index: 10;
+    border-right: 0;
+    background: var(--bg-secondary);
+    box-shadow: none;
+  }
+@utility complete-chat-redesign-open-chat-thread-rail-open-chat-thread-rail-header-max-width-768px {
+    min-height: 60px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+@utility complete-chat-redesign-open-chat-thread-rail-open-chat-rail-back-chat-thread-new-btn-max-width-768px {
+    width: 38px;
+    height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+@utility complete-chat-redesign-open-chat-thread-search-max-width-768px {
+    min-height: 44px;
+    margin: 12px 14px;
+    padding: 9px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+  }
+@utility complete-chat-redesign-open-chat-thread-list-max-width-768px {
+    padding: 0 12px 16px;
+  }
+@utility complete-chat-redesign-open-chat-panel-chat-panel-fullscreen-chat-panel-chat-panel-fullscreen-has-chat-thread-rail-open {
+  left: 0;
+  right: 0;
+  width: 100vw;
+  max-width: none;
+}
+@utility complete-chat-redesign-open-chat-panel-chat-panel-fullscreen-chat-messages {
+  padding-inline: clamp(18px, 2.5vw, 48px);
+}
+@utility complete-chat-redesign-open-chat-panel-chat-panel-fullscreen-chat-msg-chat-ai-not-data-chat-transcript-message-data-chat-on {
+  width: 100% !important;
+  max-width: 100%;
+}
+@utility complete-chat-redesign-open-chat-panel-chat-panel-fullscreen-chat-msg-chat-ai-chat-avatar-anchor-not-data-chat-transcript-m {
+  width: calc(100% - 36px) !important;
+  max-width: calc(100% - 36px);
+}
+@utility complete-chat-redesign-open-chat-panel-chat-panel-fullscreen-chat-msg-chat-user-not-data-chat-transcript-message-data-chat {
+  max-width: min(100%, 1120px);
+}
+@utility complete-chat-redesign-open-body-chat-open-chat-fullscreen-has-chat-thread-rail-open-main {
+  padding-right: 32px;
+}
+@utility complete-chat-redesign-open-chat-panel-has-chat-thread-rail-open-chat-thread-rail-open-max-width-768px { width: 100%; }
+@utility complete-chat-redesign-open-body-chat-open-has-chat-thread-rail-open-main-max-width-768px { padding-right: 0; }
+@utility complete-chat-redesign-open-body-chat-layout-resizing-min-width-769px { cursor: col-resize; user-select: none; }
+@utility complete-chat-redesign-open-body-chat-layout-resizing-chat-panel-body-chat-layout-resizing-chat-thread-rail-min-width-769px { transition: none !important; }
+
+/* Loaded immediately before Chat opens, after the eager redesign shell. */
+.chat-panel.open { @apply gb:complete-chat-redesign-open-chat-panel-open; }
+.chat-panel.chat-panel-fullscreen { @apply gb:complete-chat-redesign-open-chat-panel-chat-panel-fullscreen; }
+body.chat-open .main { @apply gb:complete-chat-redesign-open-body-chat-open-main; }
+body.chat-open.chat-fullscreen .main { @apply gb:complete-chat-redesign-open-body-chat-open-chat-fullscreen-main; }
+body.chat-open .analytics-consent-banner { @apply gb:analytics-chat; }
+@media (min-width: 769px) {
+  body.chat-open .analytics-consent-banner { @apply gb:analytics-chat-wide; }
+}
+.chat-panel-conversation { @apply gb:complete-chat-redesign-open-chat-panel-conversation; }
+
+
+.chat-thread-new-btn,
+.chat-project-new-btn { @apply gb:complete-chat-redesign-open-chat-thread-new-btn-chat-project-new-btn; }
+
+.chat-rail-back svg,
+.chat-thread-new-btn svg { @apply gb:complete-chat-redesign-open-chat-rail-back-svg-chat-thread-new-btn-svg; }
+
+.chat-thread-rail { @apply gb:complete-chat-redesign-open-chat-thread-rail; }
+.chat-thread-rail.open { @apply gb:complete-chat-redesign-open-chat-thread-rail-open; }
+.chat-messages { @apply gb:complete-chat-redesign-open-chat-messages; }
+.chat-msg:not([data-chat-transcript-message], [data-chat-onboarding-message]) { @apply gb:complete-chat-redesign-open-chat-msg-not-data-chat-transcript-message-data-chat-onboarding-message; }
+.chat-msg.chat-ai:not([data-chat-transcript-message], [data-chat-onboarding-message]) { @apply gb:complete-chat-redesign-open-chat-msg-chat-ai-not-data-chat-transcript-message-data-chat-onboarding-message; }
+.chat-msg.chat-user:not([data-chat-transcript-message], [data-chat-onboarding-message]) { @apply gb:complete-chat-redesign-open-chat-msg-chat-user-not-data-chat-transcript-message-data-chat-onboarding-message; }
+.chat-user a { @apply gb:complete-chat-redesign-open-chat-user-a; }
+.chat-prompt-btn:where(:not([data-chat-provider-setup-view] *, [data-chat-empty-view] *)),
+.chat-quiz-option:where(:not([data-chat-provider-view], [data-chat-provider-view] *)),
+.chat-setup-btn:where(:not([data-chat-provider-view], [data-chat-provider-view] *)),
+.chat-onboard-cta:where(:not([data-chat-provider-setup-view] *, [data-chat-empty-view] *)) { @apply gb:complete-chat-redesign-open-chat-prompt-btn-where-not-data-chat-provider-setup-view-data-chat-empty-view-chat-quiz-option-w; }
+.chat-msg.chat-ai:not([data-chat-onboarding-message]):has(.chat-quiz-options),
+.chat-msg.chat-ai:not([data-chat-onboarding-message]):has(.chat-onboard-actions) { @apply gb:complete-chat-redesign-open-chat-msg-chat-ai-not-data-chat-onboarding-message-has-chat-quiz-options-chat-msg-chat-ai-not-da; }
+.chat-onboard-input:where(:not([data-chat-profile-setup-view] *)) { @apply gb:complete-chat-redesign-open-chat-onboard-input-where-not-data-chat-profile-setup-view; }
+.chat-onboard-cta:where(:not([data-chat-provider-setup-view] *, [data-chat-empty-view] *)),
+.chat-setup-btn:where(:not([data-chat-provider-view], [data-chat-provider-view] *)),
+.chat-quiz-option:where(:not([data-chat-provider-view], [data-chat-provider-view] *)) { @apply gb:complete-chat-redesign-open-chat-onboard-cta-where-not-data-chat-provider-setup-view-data-chat-empty-view-chat-setup-btn-wh; }
+.chat-panel.chat-onboarding-active .chat-msg.chat-ai:not([data-chat-onboarding-message]),
+.chat-panel.chat-onboarding-active .chat-msg.chat-ai:not([data-chat-onboarding-message]):has(.chat-quiz-options),
+.chat-panel.chat-onboarding-active .chat-msg.chat-ai:not([data-chat-onboarding-message]):has(.chat-onboard-actions) { @apply gb:complete-chat-redesign-open-chat-panel-chat-onboarding-active-chat-msg-chat-ai-not-data-chat-onboarding-message-chat-panel; }
+.chat-panel.chat-onboarding-active .chat-quiz-option:where(:not([data-chat-provider-view], [data-chat-provider-view] *)) { @apply gb:complete-chat-redesign-open-chat-panel-chat-onboarding-active-chat-quiz-option-where-not-data-chat-provider-view-data-chat; }
+
+@media (min-width: 1400px) {
+  /* Keep the dashboard reservation coupled to the live panel width. A fixed
+     desktop value makes widths above 600px overlap the dashboard while the
+     user drags the resize handle or opens the conversation rail. */
+  body.chat-open .main { @apply gb:complete-chat-redesign-open-body-chat-open-main-min-width-1400px; }
+  body.chat-open.chat-fullscreen .main { @apply gb:complete-chat-redesign-open-body-chat-open-chat-fullscreen-main-min-width-1400px; }
+  .chat-messages { @apply gb:complete-chat-redesign-open-chat-messages-min-width-1400px; }
+
+  .chat-msg:not([data-chat-transcript-message], [data-chat-onboarding-message]) { @apply gb:complete-chat-redesign-open-chat-msg-not-data-chat-transcript-message-data-chat-onboarding-message-min-width-1400px; }
+}
+@media (max-width: 768px) {
+  body.chat-open .m-tabbar { @apply gb:complete-chat-redesign-open-body-chat-open-m-tabbar-max-width-768px; }
+  body.chat-open .main { @apply gb:complete-chat-redesign-open-body-chat-open-main-max-width-768px; }
+  body.chat-open.chat-fullscreen .main { @apply gb:complete-chat-redesign-open-body-chat-open-chat-fullscreen-main-max-width-768px; }
+
+  .chat-messages { @apply gb:complete-chat-redesign-open-chat-messages-max-width-768px; }
+  .chat-msg:not([data-chat-transcript-message], [data-chat-onboarding-message]) { @apply gb:complete-chat-redesign-open-chat-msg-not-data-chat-transcript-message-data-chat-onboarding-message-max-width-768px; }
+  .chat-msg.chat-ai:not([data-chat-onboarding-message]):has(.chat-quiz-options),
+  .chat-msg.chat-ai:not([data-chat-onboarding-message]):has(.chat-onboard-actions) { @apply gb:complete-chat-redesign-open-chat-msg-chat-ai-not-data-chat-onboarding-message-has-chat-quiz-options-chat-msg-chat-ai-not-da-2; }
+  .chat-panel.chat-onboarding-active .chat-messages { @apply gb:complete-chat-redesign-open-chat-panel-chat-onboarding-active-chat-messages-max-width-768px; }
+
+  .chat-thread-rail.open { @apply gb:complete-chat-redesign-open-chat-thread-rail-open-max-width-768px; }
+  .chat-thread-rail.open .chat-thread-rail-header { @apply gb:complete-chat-redesign-open-chat-thread-rail-open-chat-thread-rail-header-max-width-768px; }
+  .chat-thread-rail.open .chat-rail-back,
+  .chat-thread-new-btn { @apply gb:complete-chat-redesign-open-chat-thread-rail-open-chat-rail-back-chat-thread-new-btn-max-width-768px; }
+  .chat-thread-search { @apply gb:complete-chat-redesign-open-chat-thread-search-max-width-768px; }
+  .chat-thread-list { @apply gb:complete-chat-redesign-open-chat-thread-list-max-width-768px; }
+
+}
+.chat-panel.chat-panel-fullscreen,
+.chat-panel.chat-panel-fullscreen:has(.chat-thread-rail.open) { @apply gb:complete-chat-redesign-open-chat-panel-chat-panel-fullscreen-chat-panel-chat-panel-fullscreen-has-chat-thread-rail-open; }
+.chat-panel.chat-panel-fullscreen .chat-messages { @apply gb:complete-chat-redesign-open-chat-panel-chat-panel-fullscreen-chat-messages; }
+.chat-panel.chat-panel-fullscreen .chat-msg.chat-ai:not([data-chat-transcript-message], [data-chat-onboarding-message]),
+.chat-panel.chat-panel-fullscreen .chat-msg.chat-ai:not([data-chat-onboarding-message]):has(.chat-quiz-options),
+.chat-panel.chat-panel-fullscreen .chat-msg.chat-ai:not([data-chat-onboarding-message]):has(.chat-onboard-actions) { @apply gb:complete-chat-redesign-open-chat-panel-chat-panel-fullscreen-chat-msg-chat-ai-not-data-chat-transcript-message-data-chat-on; }
+.chat-panel.chat-panel-fullscreen .chat-msg.chat-ai.chat-avatar-anchor:not([data-chat-transcript-message], [data-chat-onboarding-message]) { @apply gb:complete-chat-redesign-open-chat-panel-chat-panel-fullscreen-chat-msg-chat-ai-chat-avatar-anchor-not-data-chat-transcript-m; }
+.chat-panel.chat-panel-fullscreen .chat-msg.chat-user:not([data-chat-transcript-message], [data-chat-onboarding-message]) { @apply gb:complete-chat-redesign-open-chat-panel-chat-panel-fullscreen-chat-msg-chat-user-not-data-chat-transcript-message-data-chat; }
+body.chat-open.chat-fullscreen:has(#chat-thread-rail.open) .main { @apply gb:complete-chat-redesign-open-body-chat-open-chat-fullscreen-has-chat-thread-rail-open-main; }
+@media (max-width: 768px) {
+  .chat-panel:has(.chat-thread-rail.open) .chat-thread-rail.open { @apply gb:complete-chat-redesign-open-chat-panel-has-chat-thread-rail-open-chat-thread-rail-open-max-width-768px; }
+  body.chat-open:has(#chat-thread-rail.open) .main { @apply gb:complete-chat-redesign-open-body-chat-open-has-chat-thread-rail-open-main-max-width-768px; }
+}
+
+/* The Svelte splitters own their visuals; this body state also disables
+   transitions on the adjacent shell during a live resize. */
+@media (min-width: 769px) {
+  body.chat-layout-resizing { @apply gb:complete-chat-redesign-open-body-chat-layout-resizing-min-width-769px; }
+  body.chat-layout-resizing .chat-panel,
+  body.chat-layout-resizing .chat-thread-rail { @apply gb:complete-chat-redesign-open-body-chat-layout-resizing-chat-panel-body-chat-layout-resizing-chat-thread-rail-min-width-769px; }
+}

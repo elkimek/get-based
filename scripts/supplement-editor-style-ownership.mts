@@ -1,0 +1,203 @@
+import type { NativeStyleOwnership } from "./native-recipe-styles.mjs";
+
+/** Supplement editor and shared chrome retain their exact native cascade. */
+export const supplementEditorOwnership = {
+  receivers: [
+  [
+    "supplement-editor-add-button",
+    ".supp-add-btn",
+    null
+  ],
+  [
+    "supplement-editor-add-button-hover",
+    ".supp-add-btn:hover",
+    null
+  ],
+  [
+    "supplement-editor-timeline-dosage",
+    ".supp-bar-dosage",
+    null
+  ],
+  [
+    "supplement-editor-list",
+    ".supp-list",
+    null
+  ],
+  [
+    "supplement-editor-group-heading",
+    ".supp-list-group-title",
+    null
+  ],
+  [
+    "supplement-editor-first-group-heading",
+    ".supp-list-group-title:first-child",
+    null
+  ],
+  [
+    "supplement-editor-item",
+    ".supp-list-item",
+    null
+  ],
+  [
+    "supplement-editor-item-spacing",
+    ".supp-list-item:not(:last-child):not(.supp-list-item-active)",
+    null
+  ],
+  [
+    "supplement-editor-item-hover",
+    ".supp-list-item:hover",
+    null
+  ],
+  [
+    "supplement-editor-active-item",
+    ".supp-list-item-active",
+    null
+  ],
+  [
+    "supplement-editor-expanded",
+    ".supp-list-expanded",
+    null
+  ],
+  [
+    "supplement-editor-expanded-form",
+    ".supp-list-expanded .supp-form",
+    null
+  ],
+  [
+    "supplement-editor-add-section",
+    ".supp-add-section",
+    null
+  ],
+  [
+    "supplement-editor-wide-add-button",
+    ".supp-add-section .supp-add-btn",
+    null
+  ],
+  [
+    "supplement-editor-wide-add-button-hover",
+    ".supp-add-section .supp-add-btn:hover",
+    null
+  ],
+  [
+    "supplement-editor-add-form",
+    ".supp-add-section .supp-form",
+    null
+  ],
+  [
+    "supplement-editor-icon",
+    ".supp-list-icon",
+    null
+  ],
+  [
+    "supplement-editor-information",
+    ".supp-list-info",
+    null
+  ],
+  [
+    "supplement-editor-name",
+    ".supp-list-name",
+    null
+  ],
+  [
+    "supplement-editor-status-badge",
+    ".supp-status-badge",
+    null
+  ],
+  [
+    "supplement-editor-active-status",
+    ".supp-status-active",
+    null
+  ],
+  [
+    "supplement-editor-paused-scheduled-status",
+    ".supp-status-paused, .supp-status-scheduled",
+    null
+  ],
+  [
+    "supplement-editor-metadata",
+    ".supp-list-meta",
+    null
+  ],
+  [
+    "supplement-editor-source-link",
+    ".supp-list-source",
+    null
+  ],
+  [
+    "supplement-editor-source-link-hover",
+    ".supp-list-source:hover",
+    null
+  ],
+  [
+    "supplement-editor-note",
+    ".supp-list-note",
+    null
+  ],
+  [
+    "supplement-editor-form-title",
+    ".supp-form-title",
+    null
+  ],
+  [
+    "supplement-editor-quality-kind",
+    ".supp-quality-kind",
+    null
+  ],
+  [
+    "supplement-editor-ingredients",
+    ".supp-list-ingredients",
+    null
+  ],
+  [
+    "supplement-editor-ingredient-pill",
+    ".supp-ing-pill",
+    null
+  ],
+  [
+    "supplement-editor-quality-summary",
+    ".supp-list-quality",
+    null
+  ],
+  [
+    "supplement-editor-quality-overview",
+    ".supp-quality-overview",
+    null
+  ],
+  [
+    "supplement-editor-quality-overview-heading",
+    ".supp-quality-overview .supp-form-section-title",
+    null
+  ],
+  [
+    "supplement-editor-quality-overview-scroll",
+    ".supp-quality-overview-scroll",
+    null
+  ],
+  [
+    "supplement-editor-quality-table",
+    ".supp-quality-overview table",
+    null
+  ],
+  [
+    "supplement-editor-quality-cell",
+    ".supp-quality-overview th,\n.supp-quality-overview td",
+    null
+  ],
+  [
+    "supplement-editor-quality-total-cell",
+    ".supp-quality-overview td:last-child",
+    null
+  ],
+  [
+    "supplement-editor-touch-actions",
+    ".supp-list-actions button",
+    "(pointer: coarse)"
+  ],
+  [
+    "supplement-editor-recorded-dose",
+    ".supp-list-dose",
+    null
+  ]
+],
+  declarationCount: 156, compactMetadataPrefix: true, isolateRecipes: true,
+} as const satisfies NativeStyleOwnership;

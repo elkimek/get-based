@@ -1,0 +1,31 @@
+/* Compact profile button only; existing eager stylesheet URL/chronology retained. */
+@theme prefix(gb) {}
+@import "tailwindcss/utilities.css" prefix(gb) source(none);
+@source "../js/components/ProfileButtonPresentation.svelte";
+
+@custom-variant profile-button-redesign-button {
+  :where(&):where(#profile-selector *):is(.profile-compact-btn) { @slot; }
+}
+@utility profile-button-redesign-button-block {
+  min-height: 34px;
+  padding: 4px 10px 4px 5px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+}
+
+@custom-variant profile-button-redesign-button-small {
+  @media (max-width: 480px) { :where(&):where(#profile-selector *):is(.profile-compact-btn) { @slot; } }
+}
+@utility profile-button-redesign-button-small-block {
+  background: transparent;
+}
+
+@custom-variant profile-button-redesign-button-touch {
+  @media (max-width: 768px), (pointer: coarse) { :where(&):where(#profile-selector *):is(.profile-compact-btn) { @slot; } }
+}
+@utility profile-button-redesign-button-touch-block {
+  min-width: 44px;
+  min-height: 44px;
+  justify-content: center;
+  padding: 8px;
+}

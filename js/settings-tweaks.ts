@@ -26,7 +26,8 @@ import {
   THEMES,
   TWEAK_ACCENTS,
 } from './theme.js';
-import { escapeAttr, escapeHTML } from './utils.js';
+import { projectTweaksTheme, projectTweaksAccent } from './tweaks-presentation.js';
+import { renderTweaksPanel } from './tweaks-rendering.js';
 import {
   closestSettingsTarget,
   getSettingsProxyToggle,
@@ -48,18 +49,6 @@ const settingsTweaksRuntime: SettingsTweaksCalls = {
 
 export function configureSettingsTweaksRuntime(runtime: unknown = {}) {
   Object.assign(settingsTweaksRuntime, runtime);
-}
-
-function renderThemeButton(theme: typeof THEMES[number], currentTheme: unknown) {
-  const id = escapeAttr(theme.id);
-  const label = escapeHTML(theme.label);
-  const active = currentTheme === theme.id ? ' active' : '';
-  return `
-    <button type="button" class="tweaks-theme-btn${active}" data-theme-id="${id}" data-tweaks-action="select-theme">
-      <span class="settings-theme-swatch settings-theme-swatch-${id}" aria-hidden="true"></span>
-      <span>${label}</span>
-    </button>
-  `;
 }
 
 function refreshVisualSurfaces() {
@@ -300,68 +289,18 @@ export function openTweaksPanel() {
   const currentSunset = isSunsetMode();
   const currentCrtEffects = isCrtEffectsEnabled();
   const currentCrtSupported = supportsCrtEffects(currentTheme);
-  const themeButtons = THEMES.map(theme => renderThemeButton(theme, currentTheme)).join('');
+  const themeButtons = THEMES.map(theme => projectTweaksTheme(theme, currentTheme));
   const accentButtons = TWEAK_ACCENTS.map(accent => {
     const swatch = accentSwatchSpec(accent, currentTheme);
-    return `
-    <button type="button" class="tweaks-accent-btn${currentAccent === accent.id ? ' active' : ''}" data-accent-id="${escapeAttr(accent.id)}" data-tweaks-action="select-accent" title="${escapeAttr(accent.label)}" aria-label="${escapeAttr(accent.label)}">
-      <span class="tweaks-accent-swatch" style="--tweak-accent:${escapeAttr(swatch.color)};--tweak-gradient:${escapeAttr(swatch.gradient)}"></span>
-    </button>`;
-  }).join('');
-  document.body.insertAdjacentHTML('beforeend', `
-    <div class="tweaks-overlay" id="tweaks-panel-overlay">
-      <aside class="tweaks-panel" id="tweaks-panel" role="dialog" aria-modal="true" aria-label="Tweaks">
-        <div class="tweaks-head">
-          <div>
-            <div class="gb-modal-title">Tweaks</div>
-          </div>
-          <button class="modal-close" aria-label="Close" data-tweaks-action="close">&times;</button>
-        </div>
-        <div class="tweaks-body">
-          <section class="tweaks-section">
-            <div class="tweaks-section-title">Theme world</div>
-            <div class="tweaks-theme-grid">${themeButtons}</div>
-          </section>
-          <section class="tweaks-section">
-            <div class="tweaks-section-title">Accent color</div>
-            <div class="tweaks-accent-row">${accentButtons}</div>
-          </section>
-          <section class="tweaks-section">
-            <div class="tweaks-section-title">Visual modes</div>
-            <div class="tweaks-option-row">
-              <div class="settings-copy">
-                <div class="settings-copy-title">Sunset mode</div>
-                <div class="settings-copy-desc">Warm high-contrast palette for red blue-blocking glasses.</div>
-              </div>
-              <label class="toggle-switch" title="Use warm tokens that remain legible through red lenses">
-                <input type="checkbox" id="tweaks-sunset-mode" ${currentSunset ? 'checked' : ''} data-tweaks-action="toggle-sunset">
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-            <div class="tweaks-option-row" id="tweaks-crt-effects-row"${currentCrtSupported ? '' : ' hidden'}>
-              <div class="settings-copy">
-                <div class="settings-copy-title">CRT effects</div>
-                <div class="settings-copy-desc">Scanlines and phosphor glow for Terminal, Synth Sunrise, and Neuromancer.</div>
-              </div>
-              <label class="toggle-switch" title="Apply CRT scanline effects to terminal-style themes">
-                <input type="checkbox" id="tweaks-crt-effects" ${currentCrtEffects ? 'checked' : ''}${currentCrtSupported ? '' : ' disabled'} data-tweaks-action="toggle-crt">
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-          </section>
-          <section class="tweaks-section">
-            <div class="tweaks-section-title">Dashboard</div>
-            <div class="tweaks-action-grid">
-              <button type="button" data-tweaks-action="reset-dashboard">Reset layout</button>
-              <button type="button" data-tweaks-action="clear-dashboard">Clear all widgets</button>
-              <button type="button" data-tweaks-action="organize-dashboard">Organize widgets</button>
-              <button type="button" data-tweaks-action="send-feedback">Send feedback</button>
-            </div>
-          </section>
-        </div>
-      </aside>
-    </div>
-  `);
+    return projectTweaksAccent(accent, currentAccent, swatch);
+  });
+  document.body.insertAdjacentHTML('beforeend', renderTweaksPanel({
+    themes: themeButtons,
+    accents: accentButtons,
+    sunset: currentSunset,
+    crt: currentCrtEffects,
+    crtSupported: currentCrtSupported,
+  }));
   const overlay = document.getElementById('tweaks-panel-overlay');
   installTweaksDelegates(overlay);
   updateTweaksUI();

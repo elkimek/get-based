@@ -1,0 +1,169 @@
+{
+  "sourceHashes": {
+    "js/chat-attestation.ts": "df3c409331224f4bb548bb3b87e73d3f18d0358b3d856b3930bb32c9dc8a0324",
+    "js/components/ChatAttestationBadge.svelte": "394f137096b16c756b6e73da00c7bf7da751d50d3feee5d7f433834c2839a9e0",
+    "js/chat-attestation-presentation.ts": "2de6de4f83af598769d4c26002c294ab9b620f3176f38aef3bfc7db7ece97c0c"
+  },
+  "cases": [
+    {
+      "name": "no-data",
+      "attestation": null,
+      "badge": null,
+      "header": "<!--[--><!----> <!--[-1-->🔒<!--[-1--><!--]--><!--]--><!--]-->",
+      "footnote": "<!--[--><!----> · <!--[-1-->🔒<!--[0-->e2ee<!--]--><!--]--><!--]-->"
+    },
+    {
+      "name": "verified",
+      "attestation": {
+        "securityVerified": true,
+        "enclaveHost": "synthetic.invalid",
+        "codeFingerprint": "0123456789abcdef012345"
+      },
+      "badge": {
+        "color": "#22c55e",
+        "mark": "verified",
+        "tooltip": "TEE attestation verified\nSecurity verified: ✓\nEnclave: synthetic.invalid\nCode fingerprint: 0123456789abcdef…"
+      },
+      "header": "<!--[--><!----> <!--[0--><button type=\"button\" data-chat-attestation-view=\"\" class=\"e2ee-attestation-badge gb:attestation:inline-flex gb:attestation:items-baseline gb:attestation:rounded gb:attestation:cursor-help gb:attestation:border-0 gb:attestation:bg-transparent gb:attestation:p-0 gb:attestation:[font:inherit] gb:attestation:text-inherit gb:attestation:focus-visible:outline-2 gb:attestation:focus-visible:outline-accent gb:attestation:focus-visible:outline-offset-2\" aria-expanded=\"false\" aria-label=\"TEE attestation verified\nSecurity verified: ✓\nEnclave: synthetic.invalid\nCode fingerprint: 0123456789abcdef…\" data-attestation-tooltip=\"TEE attestation verified\nSecurity verified: ✓\nEnclave: synthetic.invalid\nCode fingerprint: 0123456789abcdef…\">🔒 <span class=\"gb:attestation:font-bold\" style=\"color: color-mix(in srgb, #22c55e 50%, var(--text-primary));\">verified</span><!--[-1--><!--]--></button><!--]--><!--]-->",
+      "footnote": "<!--[--><!----> · <!--[0--><button type=\"button\" data-chat-attestation-view=\"\" class=\"e2ee-attestation-badge gb:attestation:inline-flex gb:attestation:items-baseline gb:attestation:rounded gb:attestation:cursor-help gb:attestation:border-0 gb:attestation:bg-transparent gb:attestation:p-0 gb:attestation:[font:inherit] gb:attestation:text-inherit gb:attestation:focus-visible:outline-2 gb:attestation:focus-visible:outline-accent gb:attestation:focus-visible:outline-offset-2\" aria-expanded=\"false\" aria-label=\"TEE attestation verified\nSecurity verified: ✓\nEnclave: synthetic.invalid\nCode fingerprint: 0123456789abcdef…\" data-attestation-tooltip=\"TEE attestation verified\nSecurity verified: ✓\nEnclave: synthetic.invalid\nCode fingerprint: 0123456789abcdef…\">🔒 <span class=\"gb:attestation:font-bold\" style=\"color: color-mix(in srgb, #22c55e 50%, var(--text-primary));\">verified</span><!--[0--> encrypted<!--]--></button><!--]--><!--]-->"
+    },
+    {
+      "name": "failed",
+      "attestation": {
+        "securityVerified": false,
+        "enclaveHost": "synthetic.invalid",
+        "steps": {
+          "verifyCode": {
+            "status": "failed"
+          }
+        }
+      },
+      "badge": {
+        "color": "#ef4444",
+        "mark": "failed",
+        "tooltip": "TEE attestation FAILED\nSecurity verified: ✗\nEnclave: synthetic.invalid\nCode fingerprint: unknown\nCode: failed"
+      },
+      "header": "<!--[--><!----> <!--[0--><button type=\"button\" data-chat-attestation-view=\"\" class=\"e2ee-attestation-badge gb:attestation:inline-flex gb:attestation:items-baseline gb:attestation:rounded gb:attestation:cursor-help gb:attestation:border-0 gb:attestation:bg-transparent gb:attestation:p-0 gb:attestation:[font:inherit] gb:attestation:text-inherit gb:attestation:focus-visible:outline-2 gb:attestation:focus-visible:outline-accent gb:attestation:focus-visible:outline-offset-2\" aria-expanded=\"false\" aria-label=\"TEE attestation FAILED\nSecurity verified: ✗\nEnclave: synthetic.invalid\nCode fingerprint: unknown\nCode: failed\" data-attestation-tooltip=\"TEE attestation FAILED\nSecurity verified: ✗\nEnclave: synthetic.invalid\nCode fingerprint: unknown\nCode: failed\">🔒 <span class=\"gb:attestation:font-bold\" style=\"color: color-mix(in srgb, #ef4444 50%, var(--text-primary));\">failed</span><!--[-1--><!--]--></button><!--]--><!--]-->",
+      "footnote": "<!--[--><!----> · <!--[0--><button type=\"button\" data-chat-attestation-view=\"\" class=\"e2ee-attestation-badge gb:attestation:inline-flex gb:attestation:items-baseline gb:attestation:rounded gb:attestation:cursor-help gb:attestation:border-0 gb:attestation:bg-transparent gb:attestation:p-0 gb:attestation:[font:inherit] gb:attestation:text-inherit gb:attestation:focus-visible:outline-2 gb:attestation:focus-visible:outline-accent gb:attestation:focus-visible:outline-offset-2\" aria-expanded=\"false\" aria-label=\"TEE attestation FAILED\nSecurity verified: ✗\nEnclave: synthetic.invalid\nCode fingerprint: unknown\nCode: failed\" data-attestation-tooltip=\"TEE attestation FAILED\nSecurity verified: ✗\nEnclave: synthetic.invalid\nCode fingerprint: unknown\nCode: failed\">🔒 <span class=\"gb:attestation:font-bold\" style=\"color: color-mix(in srgb, #ef4444 50%, var(--text-primary));\">failed</span><!--[0--> encrypted<!--]--></button><!--]--><!--]-->"
+    },
+    {
+      "name": "basic",
+      "attestation": {
+        "nonceVerified": true,
+        "signingKeyBound": true
+      },
+      "badge": {
+        "color": "#f59e0b",
+        "mark": "basic",
+        "tooltip": "Encrypted Venice session · basic checks only\nVerified in your browser:\n✓ Fresh session\n✓ Encryption key bound to this session\n✓ Debug mode disabled\n✗ Intel TDX environment not verified\n✗ NVIDIA GPU evidence not verified\n\nCurrent limits:\n• Approved code measurements are not independently checked\n• The source of each response is not independently verified"
+      },
+      "header": "<!--[--><!----> <!--[0--><button type=\"button\" data-chat-attestation-view=\"\" class=\"e2ee-attestation-badge gb:attestation:inline-flex gb:attestation:items-baseline gb:attestation:rounded gb:attestation:cursor-help gb:attestation:border-0 gb:attestation:bg-transparent gb:attestation:p-0 gb:attestation:[font:inherit] gb:attestation:text-inherit gb:attestation:focus-visible:outline-2 gb:attestation:focus-visible:outline-accent gb:attestation:focus-visible:outline-offset-2\" aria-expanded=\"false\" aria-label=\"Encrypted Venice session · basic checks only\nVerified in your browser:\n✓ Fresh session\n✓ Encryption key bound to this session\n✓ Debug mode disabled\n✗ Intel TDX environment not verified\n✗ NVIDIA GPU evidence not verified\n\nCurrent limits:\n• Approved code measurements are not independently checked\n• The source of each response is not independently verified\" data-attestation-tooltip=\"Encrypted Venice session · basic checks only\nVerified in your browser:\n✓ Fresh session\n✓ Encryption key bound to this session\n✓ Debug mode disabled\n✗ Intel TDX environment not verified\n✗ NVIDIA GPU evidence not verified\n\nCurrent limits:\n• Approved code measurements are not independently checked\n• The source of each response is not independently verified\">🔒 <span class=\"gb:attestation:font-bold\" style=\"color: color-mix(in srgb, #f59e0b 50%, var(--text-primary));\">basic</span><!--[-1--><!--]--></button><!--]--><!--]-->",
+      "footnote": "<!--[--><!----> · <!--[0--><button type=\"button\" data-chat-attestation-view=\"\" class=\"e2ee-attestation-badge gb:attestation:inline-flex gb:attestation:items-baseline gb:attestation:rounded gb:attestation:cursor-help gb:attestation:border-0 gb:attestation:bg-transparent gb:attestation:p-0 gb:attestation:[font:inherit] gb:attestation:text-inherit gb:attestation:focus-visible:outline-2 gb:attestation:focus-visible:outline-accent gb:attestation:focus-visible:outline-offset-2\" aria-expanded=\"false\" aria-label=\"Encrypted Venice session · basic checks only\nVerified in your browser:\n✓ Fresh session\n✓ Encryption key bound to this session\n✓ Debug mode disabled\n✗ Intel TDX environment not verified\n✗ NVIDIA GPU evidence not verified\n\nCurrent limits:\n• Approved code measurements are not independently checked\n• The source of each response is not independently verified\" data-attestation-tooltip=\"Encrypted Venice session · basic checks only\nVerified in your browser:\n✓ Fresh session\n✓ Encryption key bound to this session\n✓ Debug mode disabled\n✗ Intel TDX environment not verified\n✗ NVIDIA GPU evidence not verified\n\nCurrent limits:\n• Approved code measurements are not independently checked\n• The source of each response is not independently verified\">🔒 <span class=\"gb:attestation:font-bold\" style=\"color: color-mix(in srgb, #f59e0b 50%, var(--text-primary));\">basic</span><!--[0--> encrypted<!--]--></button><!--]--><!--]-->"
+    },
+    {
+      "name": "dcap",
+      "attestation": {
+        "nonceVerified": true,
+        "signingKeyBound": true,
+        "dcapVerified": true,
+        "dcap": {
+          "status": "UpToDate"
+        }
+      },
+      "badge": {
+        "color": "#38bdf8",
+        "mark": "TEE",
+        "tooltip": "Encrypted Venice session · TEE check passed\nVerified in your browser:\n✓ Fresh session\n✓ Encryption key bound to this session\n✓ Debug mode disabled\n✓ Intel TDX environment (DCAP: UpToDate)\n✗ NVIDIA GPU evidence not verified\n\nCurrent limits:\n• Approved code measurements are not independently checked\n• The source of each response is not independently verified"
+      },
+      "header": "<!--[--><!----> <!--[0--><button type=\"button\" data-chat-attestation-view=\"\" class=\"e2ee-attestation-badge gb:attestation:inline-flex gb:attestation:items-baseline gb:attestation:rounded gb:attestation:cursor-help gb:attestation:border-0 gb:attestation:bg-transparent gb:attestation:p-0 gb:attestation:[font:inherit] gb:attestation:text-inherit gb:attestation:focus-visible:outline-2 gb:attestation:focus-visible:outline-accent gb:attestation:focus-visible:outline-offset-2\" aria-expanded=\"false\" aria-label=\"Encrypted Venice session · TEE check passed\nVerified in your browser:\n✓ Fresh session\n✓ Encryption key bound to this session\n✓ Debug mode disabled\n✓ Intel TDX environment (DCAP: UpToDate)\n✗ NVIDIA GPU evidence not verified\n\nCurrent limits:\n• Approved code measurements are not independently checked\n• The source of each response is not independently verified\" data-attestation-tooltip=\"Encrypted Venice session · TEE check passed\nVerified in your browser:\n✓ Fresh session\n✓ Encryption key bound to this session\n✓ Debug mode disabled\n✓ Intel TDX environment (DCAP: UpToDate)\n✗ NVIDIA GPU evidence not verified\n\nCurrent limits:\n• Approved code measurements are not independently checked\n• The source of each response is not independently verified\">🔒 <span class=\"gb:attestation:font-bold\" style=\"color: color-mix(in srgb, #38bdf8 50%, var(--text-primary));\">TEE</span><!--[-1--><!--]--></button><!--]--><!--]-->",
+      "footnote": "<!--[--><!----> · <!--[0--><button type=\"button\" data-chat-attestation-view=\"\" class=\"e2ee-attestation-badge gb:attestation:inline-flex gb:attestation:items-baseline gb:attestation:rounded gb:attestation:cursor-help gb:attestation:border-0 gb:attestation:bg-transparent gb:attestation:p-0 gb:attestation:[font:inherit] gb:attestation:text-inherit gb:attestation:focus-visible:outline-2 gb:attestation:focus-visible:outline-accent gb:attestation:focus-visible:outline-offset-2\" aria-expanded=\"false\" aria-label=\"Encrypted Venice session · TEE check passed\nVerified in your browser:\n✓ Fresh session\n✓ Encryption key bound to this session\n✓ Debug mode disabled\n✓ Intel TDX environment (DCAP: UpToDate)\n✗ NVIDIA GPU evidence not verified\n\nCurrent limits:\n• Approved code measurements are not independently checked\n• The source of each response is not independently verified\" data-attestation-tooltip=\"Encrypted Venice session · TEE check passed\nVerified in your browser:\n✓ Fresh session\n✓ Encryption key bound to this session\n✓ Debug mode disabled\n✓ Intel TDX environment (DCAP: UpToDate)\n✗ NVIDIA GPU evidence not verified\n\nCurrent limits:\n• Approved code measurements are not independently checked\n• The source of each response is not independently verified\">🔒 <span class=\"gb:attestation:font-bold\" style=\"color: color-mix(in srgb, #38bdf8 50%, var(--text-primary));\">TEE</span><!--[0--> encrypted<!--]--></button><!--]--><!--]-->"
+    },
+    {
+      "name": "gpu",
+      "attestation": {
+        "nonceVerified": true,
+        "signingKeyBound": true,
+        "dcapVerified": true,
+        "gpuVerified": true,
+        "gpu": {
+          "tokensVerified": true,
+          "arch": "synthetic GPU"
+        }
+      },
+      "badge": {
+        "color": "#a78bfa",
+        "mark": "TEE + GPU",
+        "tooltip": "Encrypted Venice session · TEE + GPU checks passed\nVerified in your browser:\n✓ Fresh session\n✓ Encryption key bound to this session\n✓ Debug mode disabled\n✓ Intel TDX environment (DCAP: unknown status)\n✓ NVIDIA GPU evidence (NRAS, ES384 signed, synthetic GPU)\n\nCurrent limits:\n• TDX and GPU are each verified, but not proven to run together\n• Approved code measurements are not independently checked\n• The source of each response is not independently verified"
+      },
+      "header": "<!--[--><!----> <!--[0--><button type=\"button\" data-chat-attestation-view=\"\" class=\"e2ee-attestation-badge gb:attestation:inline-flex gb:attestation:items-baseline gb:attestation:rounded gb:attestation:cursor-help gb:attestation:border-0 gb:attestation:bg-transparent gb:attestation:p-0 gb:attestation:[font:inherit] gb:attestation:text-inherit gb:attestation:focus-visible:outline-2 gb:attestation:focus-visible:outline-accent gb:attestation:focus-visible:outline-offset-2\" aria-expanded=\"false\" aria-label=\"Encrypted Venice session · TEE + GPU checks passed\nVerified in your browser:\n✓ Fresh session\n✓ Encryption key bound to this session\n✓ Debug mode disabled\n✓ Intel TDX environment (DCAP: unknown status)\n✓ NVIDIA GPU evidence (NRAS, ES384 signed, synthetic GPU)\n\nCurrent limits:\n• TDX and GPU are each verified, but not proven to run together\n• Approved code measurements are not independently checked\n• The source of each response is not independently verified\" data-attestation-tooltip=\"Encrypted Venice session · TEE + GPU checks passed\nVerified in your browser:\n✓ Fresh session\n✓ Encryption key bound to this session\n✓ Debug mode disabled\n✓ Intel TDX environment (DCAP: unknown status)\n✓ NVIDIA GPU evidence (NRAS, ES384 signed, synthetic GPU)\n\nCurrent limits:\n• TDX and GPU are each verified, but not proven to run together\n• Approved code measurements are not independently checked\n• The source of each response is not independently verified\">🔒 <span class=\"gb:attestation:font-bold\" style=\"color: color-mix(in srgb, #a78bfa 50%, var(--text-primary));\">TEE + GPU</span><!--[-1--><!--]--></button><!--]--><!--]-->",
+      "footnote": "<!--[--><!----> · <!--[0--><button type=\"button\" data-chat-attestation-view=\"\" class=\"e2ee-attestation-badge gb:attestation:inline-flex gb:attestation:items-baseline gb:attestation:rounded gb:attestation:cursor-help gb:attestation:border-0 gb:attestation:bg-transparent gb:attestation:p-0 gb:attestation:[font:inherit] gb:attestation:text-inherit gb:attestation:focus-visible:outline-2 gb:attestation:focus-visible:outline-accent gb:attestation:focus-visible:outline-offset-2\" aria-expanded=\"false\" aria-label=\"Encrypted Venice session · TEE + GPU checks passed\nVerified in your browser:\n✓ Fresh session\n✓ Encryption key bound to this session\n✓ Debug mode disabled\n✓ Intel TDX environment (DCAP: unknown status)\n✓ NVIDIA GPU evidence (NRAS, ES384 signed, synthetic GPU)\n\nCurrent limits:\n• TDX and GPU are each verified, but not proven to run together\n• Approved code measurements are not independently checked\n• The source of each response is not independently verified\" data-attestation-tooltip=\"Encrypted Venice session · TEE + GPU checks passed\nVerified in your browser:\n✓ Fresh session\n✓ Encryption key bound to this session\n✓ Debug mode disabled\n✓ Intel TDX environment (DCAP: unknown status)\n✓ NVIDIA GPU evidence (NRAS, ES384 signed, synthetic GPU)\n\nCurrent limits:\n• TDX and GPU are each verified, but not proven to run together\n• Approved code measurements are not independently checked\n• The source of each response is not independently verified\">🔒 <span class=\"gb:attestation:font-bold\" style=\"color: color-mix(in srgb, #a78bfa 50%, var(--text-primary));\">TEE + GPU</span><!--[0--> encrypted<!--]--></button><!--]--><!--]-->"
+    },
+    {
+      "name": "debug",
+      "attestation": {
+        "nonceVerified": true,
+        "signingKeyBound": true,
+        "debugMode": true
+      },
+      "badge": {
+        "color": "#ef4444",
+        "mark": "failed",
+        "tooltip": "Encrypted Venice session · verification FAILED\nChecks that must pass:\n✓ Fresh session\n✓ Encryption key bound to this session\n✗ Debug mode disabled\n✗ Intel TDX environment not verified\n✗ NVIDIA GPU evidence not verified\n\nCurrent limits:\n• Approved code measurements are not independently checked\n• The source of each response is not independently verified"
+      },
+      "header": "<!--[--><!----> <!--[0--><button type=\"button\" data-chat-attestation-view=\"\" class=\"e2ee-attestation-badge gb:attestation:inline-flex gb:attestation:items-baseline gb:attestation:rounded gb:attestation:cursor-help gb:attestation:border-0 gb:attestation:bg-transparent gb:attestation:p-0 gb:attestation:[font:inherit] gb:attestation:text-inherit gb:attestation:focus-visible:outline-2 gb:attestation:focus-visible:outline-accent gb:attestation:focus-visible:outline-offset-2\" aria-expanded=\"false\" aria-label=\"Encrypted Venice session · verification FAILED\nChecks that must pass:\n✓ Fresh session\n✓ Encryption key bound to this session\n✗ Debug mode disabled\n✗ Intel TDX environment not verified\n✗ NVIDIA GPU evidence not verified\n\nCurrent limits:\n• Approved code measurements are not independently checked\n• The source of each response is not independently verified\" data-attestation-tooltip=\"Encrypted Venice session · verification FAILED\nChecks that must pass:\n✓ Fresh session\n✓ Encryption key bound to this session\n✗ Debug mode disabled\n✗ Intel TDX environment not verified\n✗ NVIDIA GPU evidence not verified\n\nCurrent limits:\n• Approved code measurements are not independently checked\n• The source of each response is not independently verified\">🔒 <span class=\"gb:attestation:font-bold\" style=\"color: color-mix(in srgb, #ef4444 50%, var(--text-primary));\">failed</span><!--[-1--><!--]--></button><!--]--><!--]-->",
+      "footnote": "<!--[--><!----> · <!--[0--><button type=\"button\" data-chat-attestation-view=\"\" class=\"e2ee-attestation-badge gb:attestation:inline-flex gb:attestation:items-baseline gb:attestation:rounded gb:attestation:cursor-help gb:attestation:border-0 gb:attestation:bg-transparent gb:attestation:p-0 gb:attestation:[font:inherit] gb:attestation:text-inherit gb:attestation:focus-visible:outline-2 gb:attestation:focus-visible:outline-accent gb:attestation:focus-visible:outline-offset-2\" aria-expanded=\"false\" aria-label=\"Encrypted Venice session · verification FAILED\nChecks that must pass:\n✓ Fresh session\n✓ Encryption key bound to this session\n✗ Debug mode disabled\n✗ Intel TDX environment not verified\n✗ NVIDIA GPU evidence not verified\n\nCurrent limits:\n• Approved code measurements are not independently checked\n• The source of each response is not independently verified\" data-attestation-tooltip=\"Encrypted Venice session · verification FAILED\nChecks that must pass:\n✓ Fresh session\n✓ Encryption key bound to this session\n✗ Debug mode disabled\n✗ Intel TDX environment not verified\n✗ NVIDIA GPU evidence not verified\n\nCurrent limits:\n• Approved code measurements are not independently checked\n• The source of each response is not independently verified\">🔒 <span class=\"gb:attestation:font-bold\" style=\"color: color-mix(in srgb, #ef4444 50%, var(--text-primary));\">failed</span><!--[0--> encrypted<!--]--></button><!--]--><!--]-->"
+    },
+    {
+      "name": "errors",
+      "attestation": {
+        "nonceVerified": true,
+        "signingKeyBound": true,
+        "errors": [
+          "synthetic failure"
+        ]
+      },
+      "badge": {
+        "color": "#ef4444",
+        "mark": "failed",
+        "tooltip": "Encrypted Venice session · verification FAILED\nChecks that must pass:\n✓ Fresh session\n✓ Encryption key bound to this session\n✓ Debug mode disabled\n✗ Intel TDX environment not verified\n✗ NVIDIA GPU evidence not verified\n\nCurrent limits:\n• Approved code measurements are not independently checked\n• The source of each response is not independently verified"
+      },
+      "header": "<!--[--><!----> <!--[0--><button type=\"button\" data-chat-attestation-view=\"\" class=\"e2ee-attestation-badge gb:attestation:inline-flex gb:attestation:items-baseline gb:attestation:rounded gb:attestation:cursor-help gb:attestation:border-0 gb:attestation:bg-transparent gb:attestation:p-0 gb:attestation:[font:inherit] gb:attestation:text-inherit gb:attestation:focus-visible:outline-2 gb:attestation:focus-visible:outline-accent gb:attestation:focus-visible:outline-offset-2\" aria-expanded=\"false\" aria-label=\"Encrypted Venice session · verification FAILED\nChecks that must pass:\n✓ Fresh session\n✓ Encryption key bound to this session\n✓ Debug mode disabled\n✗ Intel TDX environment not verified\n✗ NVIDIA GPU evidence not verified\n\nCurrent limits:\n• Approved code measurements are not independently checked\n• The source of each response is not independently verified\" data-attestation-tooltip=\"Encrypted Venice session · verification FAILED\nChecks that must pass:\n✓ Fresh session\n✓ Encryption key bound to this session\n✓ Debug mode disabled\n✗ Intel TDX environment not verified\n✗ NVIDIA GPU evidence not verified\n\nCurrent limits:\n• Approved code measurements are not independently checked\n• The source of each response is not independently verified\">🔒 <span class=\"gb:attestation:font-bold\" style=\"color: color-mix(in srgb, #ef4444 50%, var(--text-primary));\">failed</span><!--[-1--><!--]--></button><!--]--><!--]-->",
+      "footnote": "<!--[--><!----> · <!--[0--><button type=\"button\" data-chat-attestation-view=\"\" class=\"e2ee-attestation-badge gb:attestation:inline-flex gb:attestation:items-baseline gb:attestation:rounded gb:attestation:cursor-help gb:attestation:border-0 gb:attestation:bg-transparent gb:attestation:p-0 gb:attestation:[font:inherit] gb:attestation:text-inherit gb:attestation:focus-visible:outline-2 gb:attestation:focus-visible:outline-accent gb:attestation:focus-visible:outline-offset-2\" aria-expanded=\"false\" aria-label=\"Encrypted Venice session · verification FAILED\nChecks that must pass:\n✓ Fresh session\n✓ Encryption key bound to this session\n✓ Debug mode disabled\n✗ Intel TDX environment not verified\n✗ NVIDIA GPU evidence not verified\n\nCurrent limits:\n• Approved code measurements are not independently checked\n• The source of each response is not independently verified\" data-attestation-tooltip=\"Encrypted Venice session · verification FAILED\nChecks that must pass:\n✓ Fresh session\n✓ Encryption key bound to this session\n✓ Debug mode disabled\n✗ Intel TDX environment not verified\n✗ NVIDIA GPU evidence not verified\n\nCurrent limits:\n• Approved code measurements are not independently checked\n• The source of each response is not independently verified\">🔒 <span class=\"gb:attestation:font-bold\" style=\"color: color-mix(in srgb, #ef4444 50%, var(--text-primary));\">failed</span><!--[0--> encrypted<!--]--></button><!--]--><!--]-->"
+    },
+    {
+      "name": "hostile-host",
+      "attestation": {
+        "securityVerified": true,
+        "enclaveHost": "<img data-probe src=x onerror=bad()> & \"quoted\" <!--[-->",
+        "codeFingerprint": "<synthetic fingerprint>"
+      },
+      "badge": {
+        "color": "#22c55e",
+        "mark": "verified",
+        "tooltip": "TEE attestation verified\nSecurity verified: ✓\nEnclave: <img data-probe src=x onerror=bad()> & \"quoted\" <!--[-->\nCode fingerprint: <synthetic finge…"
+      },
+      "header": "<!--[--><!----> <!--[0--><button type=\"button\" data-chat-attestation-view=\"\" class=\"e2ee-attestation-badge gb:attestation:inline-flex gb:attestation:items-baseline gb:attestation:rounded gb:attestation:cursor-help gb:attestation:border-0 gb:attestation:bg-transparent gb:attestation:p-0 gb:attestation:[font:inherit] gb:attestation:text-inherit gb:attestation:focus-visible:outline-2 gb:attestation:focus-visible:outline-accent gb:attestation:focus-visible:outline-offset-2\" aria-expanded=\"false\" aria-label=\"TEE attestation verified\nSecurity verified: ✓\nEnclave: &lt;img data-probe src=x onerror=bad()&gt; &amp; &quot;quoted&quot; &lt;!--[--&gt;\nCode fingerprint: &lt;synthetic finge…\" data-attestation-tooltip=\"TEE attestation verified\nSecurity verified: ✓\nEnclave: &lt;img data-probe src=x onerror=bad()&gt; &amp; &quot;quoted&quot; &lt;!--[--&gt;\nCode fingerprint: &lt;synthetic finge…\">🔒 <span class=\"gb:attestation:font-bold\" style=\"color: color-mix(in srgb, #22c55e 50%, var(--text-primary));\">verified</span><!--[-1--><!--]--></button><!--]--><!--]-->",
+      "footnote": "<!--[--><!----> · <!--[0--><button type=\"button\" data-chat-attestation-view=\"\" class=\"e2ee-attestation-badge gb:attestation:inline-flex gb:attestation:items-baseline gb:attestation:rounded gb:attestation:cursor-help gb:attestation:border-0 gb:attestation:bg-transparent gb:attestation:p-0 gb:attestation:[font:inherit] gb:attestation:text-inherit gb:attestation:focus-visible:outline-2 gb:attestation:focus-visible:outline-accent gb:attestation:focus-visible:outline-offset-2\" aria-expanded=\"false\" aria-label=\"TEE attestation verified\nSecurity verified: ✓\nEnclave: &lt;img data-probe src=x onerror=bad()&gt; &amp; &quot;quoted&quot; &lt;!--[--&gt;\nCode fingerprint: &lt;synthetic finge…\" data-attestation-tooltip=\"TEE attestation verified\nSecurity verified: ✓\nEnclave: &lt;img data-probe src=x onerror=bad()&gt; &amp; &quot;quoted&quot; &lt;!--[--&gt;\nCode fingerprint: &lt;synthetic finge…\">🔒 <span class=\"gb:attestation:font-bold\" style=\"color: color-mix(in srgb, #22c55e 50%, var(--text-primary));\">verified</span><!--[0--> encrypted<!--]--></button><!--]--><!--]-->"
+    },
+    {
+      "name": "hostile-gpu",
+      "attestation": {
+        "nonceVerified": true,
+        "signingKeyBound": true,
+        "dcapVerified": true,
+        "gpuVerified": true,
+        "gpu": {
+          "tokensVerified": true,
+          "arch": "<GPU data-probe> & \"quoted\""
+        }
+      },
+      "badge": {
+        "color": "#a78bfa",
+        "mark": "TEE + GPU",
+        "tooltip": "Encrypted Venice session · TEE + GPU checks passed\nVerified in your browser:\n✓ Fresh session\n✓ Encryption key bound to this session\n✓ Debug mode disabled\n✓ Intel TDX environment (DCAP: unknown status)\n✓ NVIDIA GPU evidence (NRAS, ES384 signed, <GPU data-probe> & \"quoted\")\n\nCurrent limits:\n• TDX and GPU are each verified, but not proven to run together\n• Approved code measurements are not independently checked\n• The source of each response is not independently verified"
+      },
+      "header": "<!--[--><!----> <!--[0--><button type=\"button\" data-chat-attestation-view=\"\" class=\"e2ee-attestation-badge gb:attestation:inline-flex gb:attestation:items-baseline gb:attestation:rounded gb:attestation:cursor-help gb:attestation:border-0 gb:attestation:bg-transparent gb:attestation:p-0 gb:attestation:[font:inherit] gb:attestation:text-inherit gb:attestation:focus-visible:outline-2 gb:attestation:focus-visible:outline-accent gb:attestation:focus-visible:outline-offset-2\" aria-expanded=\"false\" aria-label=\"Encrypted Venice session · TEE + GPU checks passed\nVerified in your browser:\n✓ Fresh session\n✓ Encryption key bound to this session\n✓ Debug mode disabled\n✓ Intel TDX environment (DCAP: unknown status)\n✓ NVIDIA GPU evidence (NRAS, ES384 signed, &lt;GPU data-probe&gt; &amp; &quot;quoted&quot;)\n\nCurrent limits:\n• TDX and GPU are each verified, but not proven to run together\n• Approved code measurements are not independently checked\n• The source of each response is not independently verified\" data-attestation-tooltip=\"Encrypted Venice session · TEE + GPU checks passed\nVerified in your browser:\n✓ Fresh session\n✓ Encryption key bound to this session\n✓ Debug mode disabled\n✓ Intel TDX environment (DCAP: unknown status)\n✓ NVIDIA GPU evidence (NRAS, ES384 signed, &lt;GPU data-probe&gt; &amp; &quot;quoted&quot;)\n\nCurrent limits:\n• TDX and GPU are each verified, but not proven to run together\n• Approved code measurements are not independently checked\n• The source of each response is not independently verified\">🔒 <span class=\"gb:attestation:font-bold\" style=\"color: color-mix(in srgb, #a78bfa 50%, var(--text-primary));\">TEE + GPU</span><!--[-1--><!--]--></button><!--]--><!--]-->",
+      "footnote": "<!--[--><!----> · <!--[0--><button type=\"button\" data-chat-attestation-view=\"\" class=\"e2ee-attestation-badge gb:attestation:inline-flex gb:attestation:items-baseline gb:attestation:rounded gb:attestation:cursor-help gb:attestation:border-0 gb:attestation:bg-transparent gb:attestation:p-0 gb:attestation:[font:inherit] gb:attestation:text-inherit gb:attestation:focus-visible:outline-2 gb:attestation:focus-visible:outline-accent gb:attestation:focus-visible:outline-offset-2\" aria-expanded=\"false\" aria-label=\"Encrypted Venice session · TEE + GPU checks passed\nVerified in your browser:\n✓ Fresh session\n✓ Encryption key bound to this session\n✓ Debug mode disabled\n✓ Intel TDX environment (DCAP: unknown status)\n✓ NVIDIA GPU evidence (NRAS, ES384 signed, &lt;GPU data-probe&gt; &amp; &quot;quoted&quot;)\n\nCurrent limits:\n• TDX and GPU are each verified, but not proven to run together\n• Approved code measurements are not independently checked\n• The source of each response is not independently verified\" data-attestation-tooltip=\"Encrypted Venice session · TEE + GPU checks passed\nVerified in your browser:\n✓ Fresh session\n✓ Encryption key bound to this session\n✓ Debug mode disabled\n✓ Intel TDX environment (DCAP: unknown status)\n✓ NVIDIA GPU evidence (NRAS, ES384 signed, &lt;GPU data-probe&gt; &amp; &quot;quoted&quot;)\n\nCurrent limits:\n• TDX and GPU are each verified, but not proven to run together\n• Approved code measurements are not independently checked\n• The source of each response is not independently verified\">🔒 <span class=\"gb:attestation:font-bold\" style=\"color: color-mix(in srgb, #a78bfa 50%, var(--text-primary));\">TEE + GPU</span><!--[0--> encrypted<!--]--></button><!--]--><!--]-->"
+    }
+  ]
+}

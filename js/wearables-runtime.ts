@@ -153,13 +153,15 @@ export function loadWearablesStylesheet() {
   return wearablesStylesheetPromiseCache.load();
 }
 
-export async function loadWearablesStylesheetForAction() {
+// Retiring a caller suppresses only its notification; shared loading and retry
+// state remain available to other callers, which keep the default reporting.
+export async function loadWearablesStylesheetForAction(isCurrent: () => boolean = () => true) {
   try {
     await loadWearablesStylesheet();
     return true;
   } catch (err) {
     console.error('Failed to load Wearables presentation', err);
-    showNotification('Wearables could not be loaded. Try again.', 'error');
+    if (isCurrent()) showNotification('Wearables could not be loaded. Try again.', 'error');
     return false;
   }
 }

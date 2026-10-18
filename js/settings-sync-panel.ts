@@ -118,3 +118,15 @@ export function disposeMessengerSection(): void {
   settingsSyncPanelModuleLoader.module?.disposeAgentAccessSection();
   settingsSyncPanelModuleLoader.module?.disposeSyncSection?.();
 }
+
+/** Prepare an owned Settings host without serializing child markup. */
+export function prepareSettingsSyncHost(surface: 'sync' | 'messenger'): boolean {
+  const module = settingsSyncPanelModuleLoader.module;
+  if (module) {
+    if (surface === 'sync') module.prepareSyncSection();
+    else module.prepareMessengerSection();
+    return true;
+  }
+  void loadSettingsSyncPanelModule().catch(() => {});
+  return false;
+}

@@ -2,6 +2,7 @@ FROM node:24-bookworm-slim@sha256:3638d9a6fe4030bd716be989438248074489337ba32756
 
 WORKDIR /app
 COPY package.json package-lock.json ./
+COPY tooling/svelte/package.json ./tooling/svelte/
 COPY scripts/vendor-packages ./scripts/vendor-packages
 RUN npm ci --ignore-scripts
 

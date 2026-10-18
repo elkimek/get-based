@@ -94,3 +94,7 @@ export const chatShellCompatible: typeof NativeChatShell = ChatShell;
 import ContextCardCatalog from '../../js/components/ContextCardCatalog.svelte';
 import type NativeContextCardCatalog from '../../js/components/ContextCardCatalog.svelte.native.js';
 export const contextCardCatalogCompatible: typeof NativeContextCardCatalog = ContextCardCatalog;
+
+import DashboardOwnedWidget from '../../js/components/DashboardOwnedWidget.svelte';
+import type NativeDashboardOwnedWidget from '../../js/components/DashboardOwnedWidget.svelte.native.js';
+export const dashboardOwnedWidgetCompatible:typeof NativeDashboardOwnedWidget=DashboardOwnedWidget;

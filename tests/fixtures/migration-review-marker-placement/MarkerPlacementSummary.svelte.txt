@@ -1,0 +1,8 @@
+<script lang="ts">
+  let {moved}: {moved:boolean} = $props();
+</script><svelte:options preserveWhitespace /><div class="gb-detail-category-row">
+    <span class="gb-detail-kicker">gb-placement-summary-current</span>
+    <button type="button" class="gb-detail-category-change" aria-label="Change category for gb-placement-summary-marker-name" data-marker-placement-private-action="open">Change category</button>
+    {#if moved}<span class="gb-detail-category-origin">Originally gb-placement-summary-native</span>
+      <button type="button" class="gb-detail-category-restore" data-marker-placement-private-action="restore">Restore</button>{/if}
+  </div>

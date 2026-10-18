@@ -1,0 +1,148 @@
+@import "tailwindcss" prefix(gb) source(none) reference;
+@utility chat-messages-layout-messages {
+  flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 20px 24px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+@utility chat-messages-layout-msg-not-data-chat-transcript-message-data-chat-onboardi {
+  max-width: 88%; padding: 12px 16px; border-radius: 12px;
+  font-size: 14px; line-height: 1.7; word-wrap: break-word;
+  white-space: normal;
+}
+@utility chat-messages-layout-avatar-anchor { position: relative; }
+@utility chat-messages-layout-msg-chat-avatar-anchor-chat-ai-typing-indicator-chat-av { margin-left: 36px; }
+@utility chat-messages-layout-msg-chat-avatar-anchor-chat-user { margin-right: 36px; }
+@utility chat-messages-layout-avatar-anchor-before {
+  content: attr(data-chat-avatar-text);
+  position: absolute; bottom: 0; display: grid; place-items: center;
+  width: 28px; height: 28px; box-sizing: border-box; border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  background-color: var(--bg-card); background-image: var(--chat-avatar-image, none);
+  background-position: center; background-repeat: no-repeat;
+  background-size: var(--chat-avatar-image-size, auto);
+  color: var(--text-primary); font-size: 15px; line-height: 1;
+  box-shadow: 0 2px 8px color-mix(in srgb, #000 12%, transparent);
+}
+@utility chat-messages-layout-msg-chat-ai-chat-avatar-anchor-before-typing-indicator { left: -36px; }
+@utility chat-messages-layout-msg-chat-user-chat-avatar-anchor-before { right: -36px; }
+@utility chat-messages-layout-avatar-anchor-chat-avatar-branded-before { background-color: #fff; }
+@utility chat-messages-layout-avatar-anchor-data-chat-avatar-role-user-not-chat-avata {
+  background: var(--accent-gradient); color: var(--on-accent); border-color: transparent;
+}
+@utility chat-messages-layout-msg-code { background: var(--bg-hover); padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+@utility chat-messages-layout-msg-strong { font-weight: 600; }
+@utility chat-messages-layout-msg-chat-user-not-data-chat-transcript-message-data-cha {
+  align-self: flex-end; background: var(--accent-gradient); color: white;
+  border-bottom-right-radius: 4px;
+}
+@utility chat-messages-layout-msg-chat-ai-not-data-chat-transcript-message-data-chat {
+  align-self: flex-start; background: var(--bg-card); color: var(--text-primary);
+  border: 1px solid var(--border); border-bottom-left-radius: 4px;
+  border-left: 2px solid color-mix(in srgb, var(--accent) 30%, transparent);
+}
+@utility chat-messages-layout-persona-label-not-data-chat-persona-label {
+  align-self: flex-start; font-size: 11px; color: var(--text-muted);
+  font-weight: 500; padding: 2px 0; margin-top: 4px; font-family: var(--font-mono);
+}
+@utility chat-messages-layout-h1 { font-size: 17px; font-weight: 700; margin: 14px 0 8px; font-family: var(--font-display); }
+@utility chat-messages-layout-h1-first-child { margin-top: 0; }
+@utility chat-messages-layout-h2 { font-size: 15px; font-weight: 600; margin: 12px 0 6px; font-family: var(--font-display); }
+@utility chat-messages-layout-h2-first-child { margin-top: 0; }
+@utility chat-messages-layout-h3 { font-size: 14px; font-weight: 600; margin: 10px 0 4px; color: var(--text-secondary); }
+@utility chat-messages-layout-h3-first-child { margin-top: 0; }
+@utility chat-messages-layout-para { margin: 0 0 10px 0; }
+@utility chat-messages-layout-para-last-child { margin-bottom: 0; }
+@utility chat-messages-layout-list { margin: 0 0 10px 0; padding-left: 20px; }
+@utility chat-messages-layout-list-last-child { margin-bottom: 0; }
+@utility chat-messages-layout-list-li { margin-bottom: 4px; }
+@utility chat-messages-layout-list-li-marker { color: var(--accent); }
+@utility chat-messages-layout-list-chat-list { margin: 4px 0 4px 0; }
+@utility chat-messages-layout-code-block {
+  background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px;
+  padding: 12px 14px; margin: 8px 0; overflow-x: auto;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 12px; line-height: 1.5; white-space: pre;
+}
+@utility chat-messages-layout-table-wrap { overflow-x: auto; margin: 8px 0; border-radius: 6px; }
+@utility chat-messages-layout-table {
+  width: 100%; border-collapse: collapse; font-size: 13px;
+}
+@utility chat-messages-layout-table-th-chat-table-td {
+  padding: 6px 10px; border: 1px solid var(--border); text-align: left;
+}
+@utility chat-messages-layout-table-th {
+  background: var(--bg-primary); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.3px;
+}
+@utility chat-messages-layout-table-tr-nth-child-even-td { background: var(--bg-hover); }
+@utility chat-messages-layout-callout {
+  margin: 8px 0; padding: 10px 14px; border-radius: 8px;
+  background: var(--bg-hover); border: 1px solid var(--border);
+  font-size: 13px; line-height: 1.6;
+}
+@utility chat-messages-layout-blockquote {
+  margin: 8px 0; padding: 8px 14px; border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0;
+  background: var(--bg-hover); color: var(--text-secondary);
+}
+@utility chat-messages-layout-blockquote-chat-para { margin-bottom: 6px; }
+@utility chat-messages-layout-blockquote-chat-para-last-child { margin-bottom: 0; }
+@utility chat-messages-layout-hr { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+@utility chat-messages-layout-msg-a { color: var(--accent); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; }
+@utility chat-messages-layout-msg-a-hover { text-decoration-thickness: 2px; }
+@utility chat-messages-layout-user-a { color: #fff; text-decoration-color: rgba(255,255,255,0.6); }
+@utility chat-messages-layout-msg-em { font-style: italic; }
+@utility chat-messages-layout-user-chat-para { margin-bottom: 4px; }
+@utility chat-messages-layout-user-chat-list { margin-bottom: 4px; }
+
+.chat-messages { @apply gb:chat-messages-layout-messages; }
+.chat-msg:not([data-chat-transcript-message], [data-chat-onboarding-message]) { @apply gb:chat-messages-layout-msg-not-data-chat-transcript-message-data-chat-onboardi; }
+.chat-avatar-anchor { @apply gb:chat-messages-layout-avatar-anchor; }
+.chat-msg.chat-avatar-anchor.chat-ai,
+.typing-indicator.chat-avatar-anchor { @apply gb:chat-messages-layout-msg-chat-avatar-anchor-chat-ai-typing-indicator-chat-av; }
+.chat-msg.chat-avatar-anchor.chat-user { @apply gb:chat-messages-layout-msg-chat-avatar-anchor-chat-user; }
+.chat-avatar-anchor::before { @apply gb:chat-messages-layout-avatar-anchor-before; }
+.chat-msg.chat-ai.chat-avatar-anchor::before,
+.typing-indicator.chat-avatar-anchor::before { @apply gb:chat-messages-layout-msg-chat-ai-chat-avatar-anchor-before-typing-indicator; }
+.chat-msg.chat-user.chat-avatar-anchor::before { @apply gb:chat-messages-layout-msg-chat-user-chat-avatar-anchor-before; }
+.chat-avatar-anchor.chat-avatar-branded::before { @apply gb:chat-messages-layout-avatar-anchor-chat-avatar-branded-before; }
+.chat-avatar-anchor[data-chat-avatar-role="user"]:not(.chat-avatar-photo)::before { @apply gb:chat-messages-layout-avatar-anchor-data-chat-avatar-role-user-not-chat-avata; }
+.chat-msg code { @apply gb:chat-messages-layout-msg-code; }
+.chat-msg strong { @apply gb:chat-messages-layout-msg-strong; }
+.chat-msg.chat-user:not([data-chat-transcript-message], [data-chat-onboarding-message]) { @apply gb:chat-messages-layout-msg-chat-user-not-data-chat-transcript-message-data-cha; }
+.chat-msg.chat-ai:not([data-chat-transcript-message], [data-chat-onboarding-message]) { @apply gb:chat-messages-layout-msg-chat-ai-not-data-chat-transcript-message-data-chat; }
+/* Legacy empty/onboarding labels; discussion and transcript labels use Tailwind. */
+.chat-persona-label:not([data-chat-persona-label]) { @apply gb:chat-messages-layout-persona-label-not-data-chat-persona-label; }
+/* Sanitized Markdown renderer classes: shared by transcript and onboarding. */
+.chat-h1 { @apply gb:chat-messages-layout-h1; }
+.chat-h1:first-child { @apply gb:chat-messages-layout-h1-first-child; }
+.chat-h2 { @apply gb:chat-messages-layout-h2; }
+.chat-h2:first-child { @apply gb:chat-messages-layout-h2-first-child; }
+.chat-h3 { @apply gb:chat-messages-layout-h3; }
+.chat-h3:first-child { @apply gb:chat-messages-layout-h3-first-child; }
+.chat-para { @apply gb:chat-messages-layout-para; }
+.chat-para:last-child { @apply gb:chat-messages-layout-para-last-child; }
+.chat-list { @apply gb:chat-messages-layout-list; }
+.chat-list:last-child { @apply gb:chat-messages-layout-list-last-child; }
+.chat-list li { @apply gb:chat-messages-layout-list-li; }
+.chat-list li::marker { @apply gb:chat-messages-layout-list-li-marker; }
+.chat-list .chat-list { @apply gb:chat-messages-layout-list-chat-list; }
+.chat-code-block { @apply gb:chat-messages-layout-code-block; }
+.chat-table-wrap { @apply gb:chat-messages-layout-table-wrap; }
+.chat-table { @apply gb:chat-messages-layout-table; }
+.chat-table th, .chat-table td { @apply gb:chat-messages-layout-table-th-chat-table-td; }
+.chat-table th { @apply gb:chat-messages-layout-table-th; }
+.chat-table tr:nth-child(even) td { @apply gb:chat-messages-layout-table-tr-nth-child-even-td; }
+.chat-callout { @apply gb:chat-messages-layout-callout; }
+.chat-blockquote { @apply gb:chat-messages-layout-blockquote; }
+.chat-blockquote .chat-para { @apply gb:chat-messages-layout-blockquote-chat-para; }
+.chat-blockquote .chat-para:last-child { @apply gb:chat-messages-layout-blockquote-chat-para-last-child; }
+.chat-hr { @apply gb:chat-messages-layout-hr; }
+.chat-msg a { @apply gb:chat-messages-layout-msg-a; }
+.chat-msg a:hover { @apply gb:chat-messages-layout-msg-a-hover; }
+.chat-user a { @apply gb:chat-messages-layout-user-a; }
+.chat-msg em { @apply gb:chat-messages-layout-msg-em; }
+.chat-user .chat-para { @apply gb:chat-messages-layout-user-chat-para; }
+.chat-user .chat-list { @apply gb:chat-messages-layout-user-chat-list; }
+/* Owned pre-response status animation; geometry and motion preference use Tailwind. */
+@keyframes typingBounce {
+  0%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-6px); }
+}

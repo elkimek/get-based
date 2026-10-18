@@ -5,6 +5,7 @@ import * as ts from 'typescript/unstable/ast';
 import { withParsedSource } from '../scripts/native-typescript-ast.js';
 import { describe, expect, it } from 'vitest';
 import { BRAND_ASSETS } from '../js/brand-assets.js';
+import { parseAppShellEntries } from '../scripts/app-shell-budget.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const VIRTUAL_APP_SHELL_URLS = new Set(['/app']);
@@ -17,8 +18,7 @@ function appShellEntries() {
   const bootstrap = readRepoFile('/service-worker.js');
   expect(bootstrap).toContain("importScripts('/service-worker-assets.js');");
   const source = readRepoFile('/service-worker-assets.js');
-  const body = source.match(/const APP_SHELL = \[([\s\S]*?)\n\];/)?.[1] || '';
-  return [...body.matchAll(/'([^']+)'\s*,/g)].map((match) => match[1]!);
+  return parseAppShellEntries(source);
 }
 
 function resolveLocalAsset(importerUrl: string, specifier: string) {
@@ -110,6 +110,15 @@ function cssDependencies(cssUrl: string) {
 }
 
 describe('service worker app-shell completeness', () => {
+  it('reads mixed-quote URLs with the production parser and rejects duplicate spellings', () => {
+    expect(parseAppShellEntries(`const APP_SHELL = ['/app', "/js/quoted.js", '/styles.css'];`))
+      .toEqual(['/app', '/js/quoted.js', '/styles.css']);
+    expect(() => parseAppShellEntries(`const APP_SHELL = ['/app', "/app"];`))
+      .toThrow('APP_SHELL contains duplicate entries: /app');
+    expect(() => parseAppShellEntries(`const APP_SHELL = ['/app', dynamicURL];`))
+      .toThrow('APP_SHELL entries must be static string literals.');
+  });
+
   it('tracks runtime imports without treating JSDoc import types as modules', () => {
     const source = `
       /** @type {import('./types.js').RuntimeContract} */

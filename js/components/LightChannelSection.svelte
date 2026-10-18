@@ -7,7 +7,7 @@
   let { view }: { view: Extract<LightPagePresentationProps, { kind: 'channels' | 'dashboard-channels' }> } = $props();
 </script>
 <div class={c(view.kind === 'dashboard-channels')} data-light-channel-section data-light-page-presentation>
-  <p class={`light-section-hint ${view.kind === 'channels' ? 'gb:light-page:text-xs gb:light-page:text-secondary' : 'gb:channel-section:mb-0'}`}>{view.lead}</p>
+  <p class={`light-section-hint ${view.kind === 'channels' ? 'gb:light-page:text-secondary' : 'gb:channel-section:mb-0'}`}>{view.lead}</p>
   {#if view.kind === 'channels'}
     <LightChannelPills pills={view.pills}/>
     {#if view.location}<LightLocationHint view={view.location}/>{/if}

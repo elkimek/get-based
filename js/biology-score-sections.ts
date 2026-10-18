@@ -73,6 +73,83 @@ export function getBiologyAIState(score: BiologySectionScore) {
     error: scoreExplanationErrors.get(getScoreAIRequestKey(score)) || '', encryption: getEncryptionEnabled()};
 }
 
+
+/** One material snapshot for a fresh first-party computed score; no state survives this call. */
+export function getBiologyAIRenderState(score: BiologySectionScore) {
+  if (!plainRenderMaterialInputs(score)) return getBiologyAIState(score);
+  let material: string | undefined;
+  const key = () => material ??= getScoreAIMaterialKey(score);
+  const read = () => {
+    const profileAnswer = state.importedData?.biologyScoreAI?.[score.id] as BiologySectionAnswer | undefined;
+    return scoreAIAnswerForMaterial(score, profileAnswer, key());
+  };
+  const refresh = () => {
+    const record = read();
+    return record?.text ? scoreAIRefreshReasonForMaterial(record, key()) : '';
+  };
+  // Keep both saved-record reads and each profile/pending/error/encryption read
+  // at their original positions. Only the immutable material derivation is shared.
+  return {record: read(), processing: pendingScoreExplanations.has(`${state.currentProfile}:${key()}`),
+    refreshReason: refresh(), retry: hasUnsavedScoreAIAnswers(),
+    error: scoreExplanationErrors.get(`${state.currentProfile}:${key()}`) || '', encryption: getEncryptionEnabled()};
+}
+
+/** Descriptor-only eligibility, scoped to evidence and metadata actually read by this render. */
+function plainRenderMaterialInputs(score: BiologySectionScore): boolean {
+  const rejected = Symbol();
+  const value = (object: unknown, key: string): unknown => {
+    if (object == null) return undefined;
+    if (typeof object !== 'object' || ![null, Object.prototype, Array.prototype].includes(Object.getPrototypeOf(object))) return rejected;
+    const descriptor = Object.getOwnPropertyDescriptor(object, key);
+    return descriptor && !('value' in descriptor) ? rejected : descriptor?.value;
+  };
+  try {
+    const id = value(score, 'id'), range = value(score, 'aiRangeMode');
+    if (typeof id !== 'string' || !['reference', 'optimal', 'both'].includes(range as string)) return false;
+    const historical = value(score, 'historicalSnapshot');
+    // Demo copy also reads presentation fields. Reject every own root accessor
+    // without traversing unrelated root values such as genetic context Sets.
+    for (const root of [score, historical]) {
+      if (root == null) continue;
+      if (typeof root !== 'object' || ![null, Object.prototype].includes(Object.getPrototypeOf(root))) return false;
+      const keys = Reflect.ownKeys(root);
+      if (keys.length > 5000) return false;
+      for (const key of keys) {
+        const descriptor = Object.getOwnPropertyDescriptor(root, key);
+        if (!descriptor || !('value' in descriptor)) return false;
+      }
+    }
+    const fields = ['id', 'panelRoute', 'score', 'rawScore', 'presentationDates', 'aiRangeMode', 'scoreConfidence', 'recencyStatus',
+      'flags', 'available', 'missing', 'boundary', 'attention', 'anchorWarning', 'scoreConfidenceLabel'];
+    const roots = fields.map(field => value(score, field));
+    roots.push(...fields.map(field => value(historical, field)));
+    const profile = value(score, 'profileContext');
+    roots.push(...['sex', 'ageYears', 'cycleStatus', 'menopauseStatus', 'hormoneTherapy', 'lowMuscleMass', 'recentHardTraining', 'acuteInflammationContext'].map(field => value(profile, field)));
+    const imported = value(state, 'importedData'), profiles = value(state, 'profiles');
+    const currentProfile = value(state, 'currentProfile');
+    if (typeof currentProfile !== 'string' || !Array.isArray(profiles)) return false;
+    roots.push(profiles, value(value(imported, 'biologyScoreAI'), id));
+    const pending = [...roots], seen = new WeakSet<object>();
+    let properties = 0;
+    while (pending.length) {
+      const item = pending.pop();
+      if (item === rejected || typeof item === 'function') return false;
+      if (item === null || typeof item !== 'object' || seen.has(item)) continue;
+      if (![null, Object.prototype, Array.prototype].includes(Object.getPrototypeOf(item))) return false;
+      seen.add(item);
+      const keys = Reflect.ownKeys(item);
+      properties += keys.length;
+      if (properties > 5000) return false;
+      for (const key of keys) {
+        const descriptor = Object.getOwnPropertyDescriptor(item, key);
+        if (!descriptor || !('value' in descriptor)) return false;
+        pending.push(descriptor.value);
+      }
+    }
+    return true;
+  } catch { return false; }
+}
+
 function stable(value: unknown): unknown {
   if (typeof value === 'number' && Number.isFinite(value)) return Number(value.toPrecision(12));
   if (Array.isArray(value)) return value.map(stable);
@@ -133,6 +210,10 @@ export function getScoreAIRefreshReason(score: BiologySectionScore) {
   const record = readScoreAIAnswer(score);
   if (!record?.text) return '';
   const current = getScoreAIMaterialKey(score);
+  return scoreAIRefreshReasonForMaterial(record, current);
+}
+
+function scoreAIRefreshReasonForMaterial(record: BiologySectionAnswer, current: string) {
   if (answerMatches(record, current)) return '';
   try {
     const after = normalizeMaterial(JSON.parse(current as string) as MaterialSnapshot);
@@ -166,6 +247,10 @@ export function getScoreAIMaterialKey(score: BiologySectionScore) {
 export function readScoreAIAnswer(score: BiologySectionScore): BiologySectionAnswer | null {
   const profileAnswer = state.importedData?.biologyScoreAI?.[score.id] as BiologySectionAnswer | undefined;
   const material = getScoreAIMaterialKey(score);
+  return scoreAIAnswerForMaterial(score, profileAnswer, material);
+}
+
+function scoreAIAnswerForMaterial(score: BiologySectionScore, profileAnswer: BiologySectionAnswer | undefined, material: string): BiologySectionAnswer | null {
   const matching = biologyAIRecords(profileAnswer).find(record => answerMatches(record, material));
   // Keep the last answer visible, explicitly stale, if this evidence is new.
   if (matching || profileAnswer?.text) return matching || profileAnswer!;
@@ -248,4 +333,12 @@ export function scoreAIAnswerNeedsRefresh(score: BiologySectionScore) {
 
 export function renderScoreAIAnswer(score: BiologySectionScore) {
   return renderBiologyAI({kind: 'answer', view: projectBiologyAIAnswer(score, getBiologyAIState(score))});
+}
+
+/** Explicit first-party renderer: callers keep separate snapshots across DOM/focus publication. */
+export function renderScoreAISummaryForRender(score: BiologySectionScore) {
+  return renderBiologyAI({kind: 'summary', view: projectBiologyAISummary(score, getBiologyAIRenderState(score))});
+}
+export function renderScoreAIAnswerForRender(score: BiologySectionScore) {
+  return renderBiologyAI({kind: 'answer', view: projectBiologyAIAnswer(score, getBiologyAIRenderState(score))});
 }

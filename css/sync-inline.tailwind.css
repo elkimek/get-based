@@ -1,0 +1,130 @@
+@import "tailwindcss" prefix(gb) source(none) reference;
+@utility sync-inline-empty-table {padding:8px;color:var(--text-muted);text-align:center}
+@utility sync-inline-storage-name {padding:4px 8px;font-family:monospace;font-size:11px}
+@utility sync-inline-storage-overflow-hint {color:var(--orange);font-size:10px}
+@utility sync-inline-storage-bytes {padding:4px 8px;text-align:right;font-size:11px}
+@utility sync-inline-storage-warning {color:var(--orange);font-weight:600}
+@utility sync-inline-storage-type {padding:4px 8px;font-family:monospace;font-size:11px;color:var(--text-muted)}
+@utility sync-inline-storage-value {padding:4px 8px;text-align:right}
+@utility sync-inline-storage-percent {padding:4px 8px;text-align:right;color:var(--text-muted);font-size:11px}
+@utility sync-inline-success-text {color:var(--green)}
+@utility sync-inline-warning-text {color:var(--orange)}
+@utility sync-inline-diagnostic-card {margin-bottom:12px;padding:10px;border:1px solid var(--border);border-radius:6px}
+@utility sync-inline-diagnostic-card-header {display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;gap:8px}
+@utility sync-inline-diagnostic-caption {font-weight:normal;color:var(--text-muted);font-size:11px}
+@utility sync-inline-diagnostic-control {font-size:11px;flex-shrink:0}
+@utility sync-inline-section-title {margin-bottom:4px}
+@utility sync-inline-strong-text {font-weight:600}
+@utility sync-inline-muted-text {color:var(--text-muted);font-size:11px}
+@utility sync-inline-muted-paragraph {color:var(--text-muted);font-size:11px;margin-bottom:8px}
+@utility sync-inline-telemetry-table {width:100%;border-collapse:collapse;font-size:11px}
+@utility sync-inline-telemetry-table-header {border-bottom:1px solid var(--border);text-align:left}
+@utility sync-inline-telemetry-cell {padding:3px 6px}
+@utility sync-inline-telemetry-number {padding:3px 6px;text-align:right}
+@utility sync-inline-telemetry-name {padding:3px 6px;font-family:monospace;font-size:11px;color:var(--text-muted)}
+@utility sync-inline-telemetry-value {padding:3px 6px;text-align:right;font-family:monospace;font-size:11px}
+@utility sync-inline-telemetry-description {padding:3px 6px;font-family:monospace;font-size:10px;color:var(--text-muted)}
+@utility sync-inline-telemetry-footnote {margin-top:8px;font-size:11px;color:var(--text-muted)}
+@utility sync-inline-technical-value {font-family:monospace;font-size:11px}
+@utility sync-inline-spacing-top {margin-top:4px}
+@utility sync-inline-ready-badge {color:var(--green);font-size:10px;font-weight:600;padding:2px 6px;border:1px solid var(--green);border-radius:3px;margin-left:6px}
+@utility sync-inline-cutover-caption {font-weight:normal;color:var(--text-muted);font-size:11px;margin-top:2px}
+@utility sync-inline-cutover-actions {display:flex;align-items:center;gap:8px;flex-shrink:0}
+@utility sync-inline-warning-action {font-size:11px;color:var(--orange);border-color:var(--orange)}
+@utility sync-inline-success-action {font-size:11px;color:var(--green);border-color:var(--green)}
+@utility sync-inline-disabled-action {font-size:11px;opacity:0.5;cursor:not-allowed}
+@utility sync-inline-cutover-hint {color:var(--text-muted);font-size:11px;margin-top:4px}
+@utility sync-inline-blocker-panel {margin-top:6px;padding:8px;background:var(--surface);border-left:3px solid var(--orange);border-radius:4px}
+@utility sync-inline-blocker-heading {display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}
+@utility sync-inline-blocker-title {color:var(--orange);font-weight:600;font-size:12px}
+@utility sync-inline-small-text {font-size:11px}
+@utility sync-inline-blocker-table {width:100%;font-size:11px}
+@utility sync-inline-blocker-name {font-family:monospace;padding:2px 6px}
+@utility sync-inline-blocker-shape {padding:2px 6px;color:var(--text-muted)}
+@utility sync-inline-blocker-count {padding:2px 6px;text-align:right}
+@utility sync-inline-blocker-hint {color:var(--text-muted);font-size:10px;margin-top:4px}
+@utility sync-inline-relay-header {display:flex;align-items:center;gap:6px;margin-bottom:6px}
+@utility sync-inline-relay-dot-geometry {width:8px;height:8px;border-radius:50%;}
+@utility sync-inline-inline-dot {display:inline-block}
+@utility sync-inline-relay-label {font-size:13px}
+@utility sync-inline-relay-address {font-size:10px;color:var(--text-muted);font-family:monospace;margin-bottom:8px;word-break:break-all}
+@utility sync-inline-transfer-details {font-size:12px;color:var(--text-muted);line-height:1.8}
+@utility sync-inline-danger-text {color:var(--red)}
+@utility sync-inline-quota-row {display:flex;align-items:center;gap:6px;margin-top:4px}
+@utility sync-inline-quota-dot-geometry {width:6px;height:6px;border-radius:50%;}
+@utility sync-inline-recent-error {font-size:11px;color:var(--text-muted);margin-top:6px}
+@utility sync-inline-events-panel {margin-top:10px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--text-muted);max-height:160px;overflow-y:auto}
+@utility sync-inline-events-heading {display:flex;align-items:center;gap:8px;margin-bottom:4px}
+@utility sync-inline-events-title {font-weight:600;color:var(--text-secondary);flex:1}
+@utility sync-inline-copy-events-action {font-size:10px;padding:2px 8px}
+@utility sync-inline-event-row {margin-bottom:3px}
+@utility sync-inline-event-text {font-family:monospace;font-size:10px}
+@utility sync-inline-popover-actions {margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
+@utility sync-inline-popover-action {font-size:12px}
+@utility sync-inline-reload-action {font-size:12px;color:var(--red);border-color:var(--red)}
+@utility sync-inline-force-resend-warning {color:var(--orange);border-color:var(--orange)}
+
+.sync-inline-empty-table { @apply gb:sync-inline-empty-table; }
+.sync-inline-storage-name { @apply gb:sync-inline-storage-name; }
+.sync-inline-storage-overflow-hint { @apply gb:sync-inline-storage-overflow-hint; }
+.sync-inline-storage-bytes { @apply gb:sync-inline-storage-bytes; }
+.sync-inline-storage-warning { @apply gb:sync-inline-storage-warning; }
+.sync-inline-storage-type { @apply gb:sync-inline-storage-type; }
+.sync-inline-storage-value { @apply gb:sync-inline-storage-value; }
+.sync-inline-storage-percent { @apply gb:sync-inline-storage-percent; }
+.sync-inline-success-text { @apply gb:sync-inline-success-text; }
+.sync-inline-warning-text { @apply gb:sync-inline-warning-text; }
+.sync-inline-diagnostic-card { @apply gb:sync-inline-diagnostic-card; }
+.sync-inline-diagnostic-card-header { @apply gb:sync-inline-diagnostic-card-header; }
+.sync-inline-diagnostic-caption { @apply gb:sync-inline-diagnostic-caption; }
+.sync-inline-diagnostic-control { @apply gb:sync-inline-diagnostic-control; }
+.sync-inline-section-title { @apply gb:sync-inline-section-title; }
+.sync-inline-strong-text { @apply gb:sync-inline-strong-text; }
+.sync-inline-muted-text { @apply gb:sync-inline-muted-text; }
+.sync-inline-muted-paragraph { @apply gb:sync-inline-muted-paragraph; }
+.sync-inline-telemetry-table { @apply gb:sync-inline-telemetry-table; }
+.sync-inline-telemetry-table-header { @apply gb:sync-inline-telemetry-table-header; }
+.sync-inline-telemetry-cell { @apply gb:sync-inline-telemetry-cell; }
+.sync-inline-telemetry-number { @apply gb:sync-inline-telemetry-number; }
+.sync-inline-telemetry-name { @apply gb:sync-inline-telemetry-name; }
+.sync-inline-telemetry-value { @apply gb:sync-inline-telemetry-value; }
+.sync-inline-telemetry-description { @apply gb:sync-inline-telemetry-description; }
+.sync-inline-telemetry-footnote { @apply gb:sync-inline-telemetry-footnote; }
+.sync-inline-technical-value { @apply gb:sync-inline-technical-value; }
+.sync-inline-spacing-top { @apply gb:sync-inline-spacing-top; }
+.sync-inline-ready-badge { @apply gb:sync-inline-ready-badge; }
+.sync-inline-cutover-caption { @apply gb:sync-inline-cutover-caption; }
+.sync-inline-cutover-actions { @apply gb:sync-inline-cutover-actions; }
+.sync-inline-warning-action { @apply gb:sync-inline-warning-action; }
+.sync-inline-success-action { @apply gb:sync-inline-success-action; }
+.sync-inline-disabled-action { @apply gb:sync-inline-disabled-action; }
+.sync-inline-cutover-hint { @apply gb:sync-inline-cutover-hint; }
+.sync-inline-blocker-panel { @apply gb:sync-inline-blocker-panel; }
+.sync-inline-blocker-heading { @apply gb:sync-inline-blocker-heading; }
+.sync-inline-blocker-title { @apply gb:sync-inline-blocker-title; }
+.sync-inline-small-text { @apply gb:sync-inline-small-text; }
+.sync-inline-blocker-table { @apply gb:sync-inline-blocker-table; }
+.sync-inline-blocker-name { @apply gb:sync-inline-blocker-name; }
+.sync-inline-blocker-shape { @apply gb:sync-inline-blocker-shape; }
+.sync-inline-blocker-count { @apply gb:sync-inline-blocker-count; }
+.sync-inline-blocker-hint { @apply gb:sync-inline-blocker-hint; }
+.sync-inline-relay-header { @apply gb:sync-inline-relay-header; }
+.sync-inline-relay-dot-geometry { @apply gb:sync-inline-relay-dot-geometry; }
+.sync-inline-inline-dot { @apply gb:sync-inline-inline-dot; }
+.sync-inline-relay-label { @apply gb:sync-inline-relay-label; }
+.sync-inline-relay-address { @apply gb:sync-inline-relay-address; }
+.sync-inline-transfer-details { @apply gb:sync-inline-transfer-details; }
+.sync-inline-danger-text { @apply gb:sync-inline-danger-text; }
+.sync-inline-quota-row { @apply gb:sync-inline-quota-row; }
+.sync-inline-quota-dot-geometry { @apply gb:sync-inline-quota-dot-geometry; }
+.sync-inline-recent-error { @apply gb:sync-inline-recent-error; }
+.sync-inline-events-panel { @apply gb:sync-inline-events-panel; }
+.sync-inline-events-heading { @apply gb:sync-inline-events-heading; }
+.sync-inline-events-title { @apply gb:sync-inline-events-title; }
+.sync-inline-copy-events-action { @apply gb:sync-inline-copy-events-action; }
+.sync-inline-event-row { @apply gb:sync-inline-event-row; }
+.sync-inline-event-text { @apply gb:sync-inline-event-text; }
+.sync-inline-popover-actions { @apply gb:sync-inline-popover-actions; }
+.sync-inline-popover-action { @apply gb:sync-inline-popover-action; }
+.sync-inline-reload-action { @apply gb:sync-inline-reload-action; }
+ .sync-inline-force-resend-warning { @apply gb:sync-inline-force-resend-warning; }

@@ -1,0 +1,130 @@
+{
+  "rows": [
+    {
+      "file": "css/dashboard-data.base.css",
+      "selected": [
+        {
+          "selector": ".db-spotlight",
+          "media": null
+        },
+        {
+          "selector": ".db-spotlight-head",
+          "media": null
+        },
+        {
+          "selector": ".db-spotlight-name",
+          "media": null
+        },
+        {
+          "selector": ".db-spotlight-meta",
+          "media": null
+        },
+        {
+          "selector": ".db-spotlight-priority",
+          "media": null
+        },
+        {
+          "selector": ".db-spotlight-value",
+          "media": null
+        },
+        {
+          "selector": ".db-spotlight-value small",
+          "media": null
+        },
+        {
+          "selector": ".db-spotlight .db-spark",
+          "media": null
+        },
+        {
+          "selector": ".labs-priority-banner",
+          "media": null
+        },
+        {
+          "selector": ".labs-priority-banner:hover",
+          "media": null
+        },
+        {
+          "selector": ".labs-priority-banner:focus-visible",
+          "media": null
+        },
+        {
+          "selector": ".labs-priority-copy",
+          "media": null
+        },
+        {
+          "selector": ".labs-priority-kicker",
+          "media": null
+        },
+        {
+          "selector": ".labs-priority-copy strong",
+          "media": null
+        },
+        {
+          "selector": ".labs-priority-copy small",
+          "media": null
+        },
+        {
+          "selector": ".labs-priority-spark",
+          "media": null
+        },
+        {
+          "selector": ".labs-priority-value",
+          "media": null
+        },
+        {
+          "selector": ".labs-priority-value small",
+          "media": null
+        },
+        {
+          "selector": "[data-theme=\"cyberterm\"] .labs-priority-banner",
+          "media": null
+        },
+        {
+          "selector": ".labs-priority-banner",
+          "media": "(max-width: 900px)"
+        },
+        {
+          "selector": ".labs-priority-spark",
+          "media": "(max-width: 900px)"
+        },
+        {
+          "selector": ".db-quick-marker-grid",
+          "media": null
+        },
+        {
+          "selector": ".db-quick-marker-grid .db-stat-widget",
+          "media": null
+        },
+        {
+          "selector": ".db-quick-marker-grid .db-stat-widget:hover",
+          "media": null
+        },
+        {
+          "selector": ".db-quick-marker-grid",
+          "media": "(max-width: 640px)"
+        },
+        {
+          "selector": ".db-quick-marker-grid .db-stat-widget",
+          "media": "(max-width: 640px)"
+        }
+      ]
+    },
+    {
+      "file": "css/dashboard-widgets.base.css",
+      "selected": [
+        {
+          "selector": ".dashboard-widgets.is-adaptive .db-spotlight .db-spark",
+          "media": null
+        },
+        {
+          "selector": ".db-quick-marker-grid",
+          "media": "(max-width: 1100px)"
+        },
+        {
+          "selector": ".db-quick-marker-grid",
+          "media": "(max-width: 640px)"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,242 @@
+{
+  "coordinateUnit": "JavaScript UTF-16 offsets",
+  "fullNativeForwardInverseExact": true,
+  "excludedOwners": [
+    "all data/calculations/domain/factory/delegates/export contracts",
+    "existing manual-entry/detail/source-picker owners"
+  ],
+  "edits": [
+    {
+      "start": 14670,
+      "end": 15005,
+      "before": "`<svg class=\"wearable-sparkline ${toneClass}\" viewBox=\"0 0 ${VW} ${VH}\" preserveAspectRatio=\"none\" aria-hidden=\"true\">\n    <line x1=\"0\" y1=\"${baselineY}\" x2=\"${VW}\" y2=\"${baselineY}\" class=\"spark-baseline\"/>\n    <polyline points=\"${pts}\" class=\"spark-line\"/>\n    <circle cx=\"${lastX}\" cy=\"${lastY}\" r=\"2\" class=\"spark-last\"/>\n  </svg>`",
+      "after": "renderWearableStripPresentation(\"WearableSparkline\", \"sparkline\", {\n      toneClass: () => (toneClass),\n      viewWidth: () => (VW),\n      viewHeight: () => (VH),\n      baselineStartY: () => (baselineY),\n      baselineWidth: () => (VW),\n      baselineEndY: () => (baselineY),\n      points: () => (pts),\n      lastX: () => (lastX),\n      lastY: () => (lastY)\n    })",
+      "component": "WearableSparkline",
+      "kind": "sparkline",
+      "candidateStart": 14754,
+      "candidateEnd": 15118
+    },
+    {
+      "start": 15657,
+      "end": 15725,
+      "before": "` <span class=\"wearable-metric-sub\">${escapeHTML(canon.sub)}</span>`",
+      "after": "renderWearableStripPresentation(\"WearableEmptyCard\", \"subLabel\", {\n      escapedSubLabel: () => (escapeHTML(canon.sub))\n    })",
+      "component": "WearableEmptyCard",
+      "kind": "subLabel",
+      "candidateStart": 15770,
+      "candidateEnd": 15896
+    },
+    {
+      "start": 15996,
+      "end": 16572,
+      "before": "`<div class=\"wearable-card wearable-card-empty\" data-empty-metric=\"${escapeAttr(metricId)}\" ${actionAttrs} aria-label=\"Log ${escapeHTML(label.toLowerCase())} manually\">\n    <div class=\"wearable-card-top\">\n      <span class=\"wearable-metric-name\">${escapeHTML(label)}${metricId === 'bp_systolic' ? '' : subLabel}</span>\n    </div>\n    <div class=\"wearable-value-row wearable-value-row-empty\">\n      <span class=\"wearable-value wearable-value-dash\">\u2013</span>\n    </div>\n    <div class=\"wearable-card-bottom\">\n      <div class=\"wearable-empty-cta\">+ Log</div>\n    </div>\n  </div>`",
+      "after": "renderWearableStripPresentation(\"WearableEmptyCard\", \"card\", {\n      metricAttribute: () => (escapeAttr(metricId)),\n      actionAttributes: () => (actionAttrs),\n      accessibleLabel: () => (escapeHTML(label.toLowerCase())),\n      label: () => (escapeHTML(label)),\n      optionalSubLabel: () => (metricId === 'bp_systolic' ? '' : subLabel)\n    })",
+      "component": "WearableEmptyCard",
+      "kind": "card",
+      "candidateStart": 16167,
+      "candidateEnd": 16513
+    },
+    {
+      "start": 17901,
+      "end": 17967,
+      "before": "` <span class=\"wearable-metric-sub\">${escapeHTML(cardSub)}</span>`",
+      "after": "renderWearableStripPresentation(\"WearableMetricCard\", \"subLabel\", {\n      escapedSubLabel: () => (escapeHTML(cardSub))\n    })",
+      "component": "WearableMetricCard",
+      "kind": "subLabel",
+      "candidateStart": 17842,
+      "candidateEnd": 17967
+    },
+    {
+      "start": 18465,
+      "end": 18570,
+      "before": "`<span class=\"wearable-unit${unitTight ? ' wearable-unit-tight' : ''}\">${escapeHTML(displayUnit)}</span>`",
+      "after": "renderWearableStripPresentation(\"WearableMetricCard\", \"unit\", {\n      tightUnitClass: () => (unitTight ? ' wearable-unit-tight' : ''),\n      escapedUnit: () => (escapeHTML(displayUnit))\n    })",
+      "component": "WearableMetricCard",
+      "kind": "unit",
+      "candidateStart": 18465,
+      "candidateEnd": 18657
+    },
+    {
+      "start": 19256,
+      "end": 19538,
+      "before": "`<span class=\"wearable-staleness\" title=\"Latest sample for this metric is from ${escapeHTML(metric.latestDate)} \u2014 your wearable hasn't published a more recent reading yet (some metrics process slower than others).\">as of ${escapeHTML(formatStalenessDate(metric.latestDate))}</span>`",
+      "after": "renderWearableStripPresentation(\"WearableMetricCard\", \"staleness\", {\n      latestDate: () => (escapeHTML(metric.latestDate)),\n      formattedDate: () => (escapeHTML(formatStalenessDate(metric.latestDate)))\n    })",
+      "component": "WearableMetricCard",
+      "kind": "staleness",
+      "candidateStart": 19343,
+      "candidateEnd": 19555
+    },
+    {
+      "start": 20048,
+      "end": 20284,
+      "before": "`<button type=\"button\" class=\"wearable-source-badge wearable-source-badge-btn\" ${wearableActionAttrs('choose-source', { metric: metricId })} title=\"Click to switch source for this metric\">via ${escapeHTML(adapter.displayName)}</button>`",
+      "after": "renderWearableStripPresentation(\"WearableMetricCard\", \"sourceBadge\", {\n      sourceActionAttributes: () => (wearableActionAttrs('choose-source', { metric: metricId })),\n      sourceName: () => (escapeHTML(adapter.displayName))\n    })",
+      "component": "WearableMetricCard",
+      "kind": "sourceBadge",
+      "candidateStart": 20065,
+      "candidateEnd": 20298
+    },
+    {
+      "start": 21957,
+      "end": 22730,
+      "before": "`<div class=\"wearable-card\"${actionAttrs} aria-label=\"${escapeAttr(ariaLabel)}\">\n    <div class=\"wearable-card-top\">\n      <span class=\"wearable-metric-name\">${escapeHTML(cardLabel)}${subLabel}</span>\n      ${deltaText ? `<span class=\"wearable-delta ${deltaCls}\">${deltaText}</span>` : ''}\n    </div>\n    <div class=\"wearable-value-row\">\n      <span class=\"wearable-value\">${valueRead}</span>${unitLabel}\n      <span class=\"wearable-baseline\">baseline ${escapeHTML(baselineRead)}${baselineUnit}</span>\n      ${stalenessHint}\n    </div>\n    ${sparklineSVG(metric.weekly, metric.baseline, canon.worseWhen)}\n    <div class=\"wearable-card-bottom\">\n      <div class=\"wearable-trend-pill ${trendCls}\">${trendLabel(metric.trend30d)}</div>\n      ${sourceBadge}\n    </div>\n  </div>`",
+      "after": "renderWearableStripPresentation(\"WearableMetricCard\", \"card\", {\n      actionAttributes: () => (actionAttrs),\n      accessibleLabel: () => (escapeAttr(ariaLabel)),\n      label: () => (escapeHTML(cardLabel)),\n      subLabel: () => (subLabel),\n      optionalDelta: () => (deltaText ? renderWearableStripPresentation(\"WearableMetricCard\", \"delta\", {\n      deltaClass: () => (deltaCls),\n      deltaText: () => (deltaText)\n    }) : ''),\n      value: () => (valueRead),\n      unit: () => (unitLabel),\n      baselineValue: () => (escapeHTML(baselineRead)),\n      baselineUnit: () => (baselineUnit),\n      staleness: () => (stalenessHint),\n      sparkline: () => (sparklineSVG(metric.weekly, metric.baseline, canon.worseWhen)),\n      trendClass: () => (trendCls),\n      trendLabel: () => (trendLabel(metric.trend30d)),\n      sourceBadge: () => (sourceBadge)\n    })",
+      "component": "WearableMetricCard",
+      "kind": "card",
+      "candidateStart": 21971,
+      "candidateEnd": 22826
+    },
+    {
+      "start": 23323,
+      "end": 24137,
+      "before": "`<section class=\"wearable-strip wearable-strip-stub\">\n    <div class=\"wearable-strip-stub-body\">\n      <span class=\"wearable-strip-icon\" aria-hidden=\"true\">\u232c</span>\n      <div class=\"wearable-strip-stub-text\">\n        <strong>Connect a wearable</strong> to see HRV, sleep, recovery and body composition trends alongside your blood work.\n        <span class=\"wearable-strip-stub-brands\">Oura \u00b7 Withings \u00b7 Fitbit \u00b7 Polar \u00b7 Apple Health</span>\n      </div>\n      <div class=\"wearable-strip-stub-actions\">\n        <button class=\"wearable-strip-stub-cta\" ${wearableActionAttrs('open-settings-wearables')}>Connect</button>\n        <button class=\"wearable-strip-stub-dismiss\" title=\"Hide this hint\" aria-label=\"Dismiss wearable hint\" ${wearableActionAttrs('dismiss-stub')}>\u00d7</button>\n      </div>\n    </div>\n  </section>`",
+      "after": "renderWearableStripPresentation(\"WearableStripStub\", \"stub\", {\n      connectActionAttributes: () => (wearableActionAttrs('open-settings-wearables')),\n      dismissActionAttributes: () => (wearableActionAttrs('dismiss-stub'))\n    })",
+      "component": "WearableStripStub",
+      "kind": "stub",
+      "candidateStart": 23419,
+      "candidateEnd": 23650
+    },
+    {
+      "start": 32971,
+      "end": 32996,
+      "before": "'<span>Biometrics</span>'",
+      "after": "renderWearableStripPresentation(\"WearableStripHeader\", \"manualTitle\", {})",
+      "component": "WearableStripHeader",
+      "kind": "manualTitle",
+      "candidateStart": 32484,
+      "candidateEnd": 32557
+    },
+    {
+      "start": 33003,
+      "end": 33114,
+      "before": "`<span>Wearables: <span class=\"wearable-source-label\">${escapeHTML(sourceLabel)}${coverageLabel}</span></span>`",
+      "after": "renderWearableStripPresentation(\"WearableStripHeader\", \"sourceTitle\", {\n      sourceNames: () => (escapeHTML(sourceLabel)),\n      coverage: () => (coverageLabel)\n    })",
+      "component": "WearableStripHeader",
+      "kind": "sourceTitle",
+      "candidateStart": 32564,
+      "candidateEnd": 32732
+    },
+    {
+      "start": 33313,
+      "end": 33396,
+      "before": "`<span class=\"wearable-strip-lastsync\">last synced ${formatAgo(lastSyncAt)}</span>`",
+      "after": "renderWearableStripPresentation(\"WearableStripHeader\", \"lastSync\", {\n      lastSyncAge: () => (formatAgo(lastSyncAt))\n    })",
+      "component": "WearableStripHeader",
+      "kind": "lastSync",
+      "candidateStart": 32931,
+      "candidateEnd": 33055
+    },
+    {
+      "start": 33457,
+      "end": 33909,
+      "before": "`<button type=\"button\" class=\"wearable-strip-sync\" aria-label=\"Sync stale wearables now\" ${wearableActionAttrs('sync-now')}>\n    <svg class=\"wearable-strip-sync-icon\" width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M21 12a9 9 0 1 1-3-6.7\"/><polyline points=\"21 4 21 12 13 12\"/></svg>\n    <span>Sync stale data</span>\n  </button>`",
+      "after": "renderWearableStripPresentation(\"WearableStripHeader\", \"syncButton\", {\n      syncActionAttributes: () => (wearableActionAttrs('sync-now'))\n    })",
+      "component": "WearableStripHeader",
+      "kind": "syncButton",
+      "candidateStart": 33116,
+      "candidateEnd": 33261
+    },
+    {
+      "start": 34331,
+      "end": 35769,
+      "before": "`<section class=\"wearable-strip\" id=\"wearable-strip\">\n    <div class=\"wearable-strip-header\" ${wearableActionAttrs('toggle-strip')} style=\"cursor:pointer\">\n      <div class=\"wearable-strip-title\">\n        <span class=\"wearable-strip-icon\" aria-hidden=\"true\">\u232c</span>\n        ${titleHTML}\n        ${!manualOnly && showDemoPill ? `<button type=\"button\" class=\"wearable-strip-demo-pill\" ${wearableActionAttrs('open-settings-wearables')} title=\"This is a sample. Connect your own wearable to see real data here.\">demo data \u2014 connect yours</button>` : ''}\n        ${reorderMode ? '<span class=\"wearable-strip-reorder-pill\">\u21c4 Reorder mode \u2014 use \u25c0 \u25b6 on each card</span>' : ''}\n      </div>\n      <div class=\"wearable-strip-meta\">\n        ${lastSyncHTML}\n        ${syncBtnHTML}\n        <button type=\"button\" class=\"wearable-strip-reorder${reorderMode ? ' active' : ''}\" aria-label=\"${reorderMode ? 'Done reordering' : 'Reorder cards'}\" title=\"${reorderMode ? 'Done reordering' : 'Reorder cards'}\" ${wearableActionAttrs('toggle-reorder')}>\n          ${reorderMode ? 'Done' : '\u21c4 Reorder'}\n        </button>\n        <button type=\"button\" class=\"wearable-collapse-arrow${collapsed ? ' collapsed' : ''}\" aria-expanded=\"${!collapsed}\" aria-label=\"${ariaLabel}\" ${wearableActionAttrs('toggle-strip')}>\u25be</button>\n      </div>\n    </div>\n    <div class=\"wearable-card-grid${collapsed ? ' hidden' : ''}${reorderMode ? ' wearable-card-grid-reorder' : ''}\">`",
+      "after": "renderWearableStripPresentation(\"WearableStripHeader\", \"header\", {\n      toggleHeaderAttributes: () => (wearableActionAttrs('toggle-strip')),\n      title: () => (titleHTML),\n      optionalDemoPill: () => (!manualOnly && showDemoPill ? renderWearableStripPresentation(\"WearableStripHeader\", \"demoPill\", {\n      settingsActionAttributes: () => (wearableActionAttrs('open-settings-wearables'))\n    }) : ''),\n      optionalReorderHint: () => (reorderMode ? renderWearableStripPresentation(\"WearableStripHeader\", \"reorderHint\", {}) : ''),\n      lastSync: () => (lastSyncHTML),\n      syncButton: () => (syncBtnHTML),\n      reorderActiveClass: () => (reorderMode ? ' active' : ''),\n      reorderAccessibleLabel: () => (reorderMode ? 'Done reordering' : 'Reorder cards'),\n      reorderTitle: () => (reorderMode ? 'Done reordering' : 'Reorder cards'),\n      reorderActionAttributes: () => (wearableActionAttrs('toggle-reorder')),\n      reorderText: () => (reorderMode ? 'Done' : '\u21c4 Reorder'),\n      collapseClass: () => (collapsed ? ' collapsed' : ''),\n      expanded: () => (!collapsed),\n      collapseAccessibleLabel: () => (ariaLabel),\n      collapseActionAttributes: () => (wearableActionAttrs('toggle-strip')),\n      gridHiddenClass: () => (collapsed ? ' hidden' : ''),\n      gridReorderClass: () => (reorderMode ? ' wearable-card-grid-reorder' : '')\n    })",
+      "component": "WearableStripHeader",
+      "kind": "header",
+      "candidateStart": 33683,
+      "candidateEnd": 35036
+    },
+    {
+      "start": 37284,
+      "end": 37911,
+      "before": "`<div class=\"wearable-card-reorder-wrap\" data-reorder-metric=\"${escapeHTML(metricId)}\">\n        ${cardHtml}\n        <div class=\"wearable-reorder-arrows\">\n          <button type=\"button\" class=\"wearable-reorder-arrow\" aria-label=\"Move ${escapeHTML(canon.label)} left\" ${canLeft ? '' : 'disabled'} ${wearableActionAttrs('move-card', { metric: metricId, delta: -1 })}>\u25c0</button>\n          <button type=\"button\" class=\"wearable-reorder-arrow\" aria-label=\"Move ${escapeHTML(canon.label)} right\" ${canRight ? '' : 'disabled'} ${wearableActionAttrs('move-card', { metric: metricId, delta: 1 })}>\u25b6</button>\n        </div>\n      </div>`",
+      "after": "renderWearableStripPresentation(\"WearableStripBody\", \"reorderCard\", {\n      metricAttribute: () => (escapeHTML(metricId)),\n      card: () => (cardHtml),\n      leftAccessibleLabel: () => (escapeHTML(canon.label)),\n      leftDisabled: () => (canLeft ? '' : 'disabled'),\n      leftActionAttributes: () => (wearableActionAttrs('move-card', { metric: metricId, delta: -1 })),\n      rightAccessibleLabel: () => (escapeHTML(canon.label)),\n      rightDisabled: () => (canRight ? '' : 'disabled'),\n      rightActionAttributes: () => (wearableActionAttrs('move-card', { metric: metricId, delta: 1 }))\n    })",
+      "component": "WearableStripBody",
+      "kind": "reorderCard",
+      "candidateStart": 36559,
+      "candidateEnd": 37156
+    },
+    {
+      "start": 37956,
+      "end": 37964,
+      "before": "`</div>`",
+      "after": "renderWearableStripPresentation(\"WearableStripBody\", \"gridEnd\", {})",
+      "component": "WearableStripBody",
+      "kind": "gridEnd",
+      "candidateStart": 37201,
+      "candidateEnd": 37268
+    },
+    {
+      "start": 38010,
+      "end": 38076,
+      "before": "`<div class=\"wearable-strip-footer${collapsed ? ' hidden' : ''}\">`",
+      "after": "renderWearableStripPresentation(\"WearableStripBody\", \"footerStart\", {\n      hiddenClass: () => (collapsed ? ' hidden' : '')\n    })",
+      "component": "WearableStripBody",
+      "kind": "footerStart",
+      "candidateStart": 37314,
+      "candidateEnd": 37444
+    },
+    {
+      "start": 38107,
+      "end": 38183,
+      "before": "`<span class=\"wearable-strip-footer-note\">${escapeHTML(waitingNote)}</span>`",
+      "after": "renderWearableStripPresentation(\"WearableStripBody\", \"waitingNote\", {\n      waitingNote: () => (escapeHTML(waitingNote))\n    })",
+      "component": "WearableStripBody",
+      "kind": "waitingNote",
+      "candidateStart": 37475,
+      "candidateEnd": 37602
+    },
+    {
+      "start": 38214,
+      "end": 38286,
+      "before": "`<span class=\"wearable-strip-footer-note\">${escapeHTML(hrvNote)}</span>`",
+      "after": "renderWearableStripPresentation(\"WearableStripBody\", \"hrvNote\", {\n      hrvNote: () => (escapeHTML(hrvNote))\n    })",
+      "component": "WearableStripBody",
+      "kind": "hrvNote",
+      "candidateStart": 37633,
+      "candidateEnd": 37748
+    },
+    {
+      "start": 38300,
+      "end": 38308,
+      "before": "`</div>`",
+      "after": "renderWearableStripPresentation(\"WearableStripBody\", \"footerEnd\", {})",
+      "component": "WearableStripBody",
+      "kind": "footerEnd",
+      "candidateStart": 37762,
+      "candidateEnd": 37831
+    },
+    {
+      "start": 38324,
+      "end": 38336,
+      "before": "`</section>`",
+      "after": "renderWearableStripPresentation(\"WearableStripBody\", \"stripEnd\", {})",
+      "component": "WearableStripBody",
+      "kind": "stripEnd",
+      "candidateStart": 37847,
+      "candidateEnd": 37915
+    },
+    {
+      "start": 2347,
+      "end": 2347,
+      "before": "",
+      "after": "\nimport { renderWearableStripPresentation } from './wearable-strip-presentation.js';",
+      "component": null,
+      "kind": "import",
+      "candidateStart": 2347,
+      "candidateEnd": 2431
+    },
+    {
+      "start": 36151,
+      "end": 36164,
+      "before": "let cardHtml;",
+      "after": "let cardHtml: string;",
+      "component": null,
+      "kind": "unchanged-native-string-result-type",
+      "candidateStart": 35418,
+      "candidateEnd": 35439
+    }
+  ],
+  "sourceBeforeSHA256": "cc35a7113919e7a76145e4ddd42ffce247dc46e875d8eab1f4512c4d037c50f3",
+  "sourceAfterSHA256": "b98e57aa6c6d61110a1c033a8009722fd63595ed9386d20f64473f0db1889461"
+}

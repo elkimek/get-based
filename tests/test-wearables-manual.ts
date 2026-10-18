@@ -82,9 +82,16 @@ const wearablesDetailSrc = [
 const wearablesDetailRuntimeSrc = await fetch('js/wearables-detail-runtime.js').then(r => r.text());
 const manualFormUiSrc = await fetch('js/wearables-manual-form-ui.js').then(r => r.text());
 const wearablesSettingsSrc = await fetch('js/wearables-settings-panel.js').then(r => r.text());
+const emptyCardViewSrc = read('js/components/WearableEmptyCard.svelte');
+const stripViewSrc = read('js/components/WearableStripBody.svelte');
+const manualNoteViewSrc = read('js/components/WearableManualNote.svelte');
+const manualEntriesViewSrc = read('js/components/WearableManualEntries.svelte');
 const inlineHandlerRe = /\bon(?:click|keydown|submit|change|input)=/;
 assert('wearables.js renders empty manual cards',
-  wearablesSrc.includes('renderEmptyManualCard') && wearablesSrc.includes('wearable-card-empty'));
+  wearablesSrc.includes('projectEmptyManualCard')
+    && /kind: ['"]empty['"], view: projectEmptyManualCard/.test(wearablesSrc)
+    && stripViewSrc.includes('<WearableEmptyCard view={item.card.view}')
+    && emptyCardViewSrc.includes('class="wearable-card wearable-card-empty"'));
 assert('wearables.js MANUAL_EMPTY_METRICS covers weight/bp/rhr',
   /MANUAL_EMPTY_METRICS\s*=\s*\[[^\]]*weight[^\]]*bp_systolic[^\]]*rhr/.test(wearablesSrc));
 assert('wearables manual form UI delegates tag chip actions',
@@ -298,7 +305,7 @@ try {
     (weightRow?.tags as {includes(value: string): unknown} | undefined)?.includes('resting') &&
     (weightRow?.tags as {includes(value: string): unknown} | undefined)?.includes('post-workout'));
 
-  assert('wearables strip actions render tag chips on bp form', wearablesActionsSrc.includes('_renderTagChips'));
+  assert('wearables strip actions render tag chips on bp form', wearablesActionsSrc.includes('projectWearableTagChips'));
   assert('toggleManualLogChip is a module export',
     typeof wearables.toggleManualLogChip === 'function');
 
@@ -383,36 +390,38 @@ try {
 
   // Detail-modal form has chips for rhr + bp (parity with empty-card form).
   const combinedManualFormSrc = wearablesActionsSrc + '\n' + wearablesDetailSrc;
-  const rhrChipMatches = (combinedManualFormSrc.match(/_renderTagChips\('rhr'\)/g) || []).length;
-  const bpChipMatches = (combinedManualFormSrc.match(/_renderTagChips\('bp_systolic'\)/g) || []).length;
-  assert("_renderTagChips('rhr') called from both empty-card AND detail-modal forms",
+  const rhrChipMatches = (combinedManualFormSrc.match(/projectWearableTagChips\('rhr'\)/g) || []).length;
+  const bpChipMatches = (combinedManualFormSrc.match(/projectWearableTagChips\('bp_systolic'\)/g) || []).length;
+  assert("projectWearableTagChips('rhr') called from both empty-card AND detail-modal forms",
     rhrChipMatches >= 2, `count=${rhrChipMatches}`);
-  assert("_renderTagChips('bp_systolic') called from both empty-card AND detail-modal forms",
+  assert("projectWearableTagChips('bp_systolic') called from both empty-card AND detail-modal forms",
     bpChipMatches >= 2, `count=${bpChipMatches}`);
   const openDetailStart = wearablesDetailSrc.indexOf('function openManualAddFromDetail');
   const closeManualFnStart = wearablesDetailSrc.indexOf('function closeManualAddFromDetail');
   const openDetailFn = (openDetailStart !== -1 && closeManualFnStart !== -1)
     ? wearablesDetailSrc.slice(openDetailStart, closeManualFnStart) : '';
   assert('Detail-modal RHR branch renders tag chips',
-    /kind === 'rhr'[\s\S]{0,800}_renderTagChips\('rhr'\)/.test(openDetailFn));
+    /kind === 'rhr'[\s\S]{0,800}projectWearableTagChips\('rhr'\)/.test(openDetailFn));
   assert('Detail-modal BP branch renders tag chips',
-    /kind === 'bp'[\s\S]{0,1500}_renderTagChips\('bp_systolic'\)/.test(openDetailFn));
+    /kind === 'bp'[\s\S]{0,1500}projectWearableTagChips\('bp_systolic'\)/.test(openDetailFn));
   assert('Detail-modal weight branch does NOT render tag chips (matches empty-card convention)',
-    !/kind === 'weight'[\s\S]{0,400}_renderTagChips/.test(openDetailFn));
+    !/kind === 'weight'[\s\S]{0,400}projectWearableTagChips/.test(openDetailFn));
 
   assert('Detail-modal form renders the wlad-note textarea',
-    /openManualAddFromDetail[\s\S]{0,3000}_renderNoteField\('wlad-note'\)/.test(wearablesDetailSrc));
+    /openManualAddFromDetail[\s\S]{0,3000}projectWearableNoteField\('wlad-note'\)/.test(wearablesDetailSrc));
   assert('Empty-card weight form renders wl-weight-note textarea',
-    /metricId === 'weight'[\s\S]{0,1000}_renderNoteField\('wl-weight-note'\)/.test(wearablesActionsSrc));
+    /metricId === 'weight'[\s\S]{0,1000}projectWearableNoteField\('wl-weight-note'\)/.test(wearablesActionsSrc));
   assert('Empty-card BP form renders wl-bp-note textarea',
-    /metricId === 'bp_systolic'[\s\S]{0,1500}_renderNoteField\('wl-bp-note'\)/.test(wearablesActionsSrc));
+    /metricId === 'bp_systolic'[\s\S]{0,1500}projectWearableNoteField\('wl-bp-note'\)/.test(wearablesActionsSrc));
   assert('Empty-card RHR form renders wl-rhr-note textarea',
-    /metricId === 'rhr'[\s\S]{0,1000}_renderNoteField\('wl-rhr-note'\)/.test(wearablesActionsSrc));
+    /metricId === 'rhr'[\s\S]{0,1000}projectWearableNoteField\('wl-rhr-note'\)/.test(wearablesActionsSrc));
 
   assert('_renderNoteField helper defined',
     /function _renderNoteField\(idSuffix = 'wl-note'\)/.test(manualFormUiSrc));
   assert('_renderNoteField outputs a wearable-log-note textarea',
-    /<textarea class="wearable-log-note"/.test(manualFormUiSrc));
+    /<textarea class="wearable-log-note" id="guard-note" rows="2"/.test(
+      (await import('../js/wearables-manual-form-ui.js'))._renderNoteField('guard-note'))
+      && /<textarea class="wearable-log-note" id=\{view.id\} rows="2"/.test(manualNoteViewSrc));
 
   const saveLogFn = wearablesActionsSrc.match(/async function saveManualLog[\s\S]*?\n\}\s*\n/)?.[0] || '';
   assert('saveManualLog reads note from `wl-${kind}-note` (or `wl-bp-note`)',
@@ -432,13 +441,15 @@ try {
     /logManualMetric\(profileId, 'rhr', \{[^}]*tags, note,?\s*\}\)/.test(saveFromDetailFn) &&
     /logManualBP\(profileId, \{[^}]*tags,[^}]*note,?\s*\}\)/.test(saveFromDetailFn));
 
-  const entriesSectionFn = wearablesDetailSrc.match(/function buildManualEntriesSection[\s\S]*?\n\}\s*\n/)?.[0] || '';
+  const entriesSectionFn = wearablesDetailSrc.match(/function projectManualEntriesSection[\s\S]*?\n\}\s*\n/)?.[0] || '';
   assert('manualEntries map pulls note: r.note from the IDB row',
     /note:\s*r\.note/.test(wearablesDetailSrc));
   assert('Entries-list row renders the note (.wearable-manual-entry-note) when present',
-    /typeof e\.note === 'string' && e\.note\.trim\(\)[\s\S]{0,200}wearable-manual-entry-note/.test(entriesSectionFn));
+    /typeof e\.note === 'string' && e\.note\.trim\(\)/.test(entriesSectionFn)
+      && manualEntriesViewSrc.includes('{#if entry.note!==null}<div class="wearable-manual-entry-note">{entry.note}</div>{/if}'));
   assert("Row gains 'has-note' modifier class for layout when note is present",
-    /wearable-manual-entry\$\{noteRow \? ' has-note' : ''\}/.test(entriesSectionFn));
+    manualEntriesViewSrc.includes(`class="wearable-manual-entry{entry.note!==null?' has-note':''}"`));
+
 
   const stylesSrc = await fetchCssBundle();
   assert('CSS defines .wearable-log-note',

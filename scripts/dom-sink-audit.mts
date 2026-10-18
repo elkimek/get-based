@@ -13,7 +13,7 @@ import { sourcePath, runtimePath, walkSourceFiles } from './source-files.js';
 export interface DomSink { kind: string; line: number; source: string }
 export interface DomSinkFilePolicy { count: number; digest: string; kinds: Record<string, number> }
 // Policy JSON is not normalized; this view describes only its original reads.
-type PolicyReader = { scannedFiles?: unknown; sinkCount?: unknown; files?: Record<string, {count?: unknown; digest?: unknown}> };
+type PolicyReader = {schemaVersion?:unknown;scope?:unknown;reviewRule?:unknown;sourceInventoryDigest?:unknown;scannedFiles?:unknown;sinkCount?:unknown;files?:Record<string,{count?:unknown;digest?:unknown;kinds?:Record<string,unknown>}>};
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE_ROOT = path.join(ROOT, 'js');
@@ -142,8 +142,8 @@ function sinkDigest(sinks: readonly DomSink[]) {
   return crypto.createHash('sha256').update(JSON.stringify(reviewedSurface)).digest('hex');
 }
 
-export function createDomSinkPolicy() {
-  const files = listJavaScriptFiles();
+export function createDomSinkPolicy(root = ROOT) {
+  const files = listJavaScriptFiles(path.join(root, 'js'));
   const sinkFiles: Record<string, DomSinkFilePolicy> = {};
   let sinkCount = 0;
   const parsedSources = files.length ? withParsedSources(
@@ -151,7 +151,7 @@ export function createDomSinkPolicy() {
     sources => new Map([...sources].map(([file, sourceFile]) => [file, domSinksFromFile(sourceFile)])),
   ) : new Map<string, DomSink[]>();
   for (const absolute of files) {
-    const relative = runtimePath(path.relative(ROOT, absolute).split(path.sep).join('/'));
+    const relative = runtimePath(path.relative(root, absolute).split(path.sep).join('/'));
     const sinks = [...parsedSources.get(syntaxFile(absolute))!, ...svelteMarkupSinks(fs.readFileSync(absolute, 'utf8'), absolute)];
     if (!sinks.length) continue;
     sinkCount += sinks.length;
@@ -169,15 +169,23 @@ export function createDomSinkPolicy() {
     schemaVersion: 1,
     scope: 'Every authored JavaScript, TypeScript and Svelte module under js/',
     reviewRule: 'Any added or modified HTML-writing sink requires security review and a policy refresh.',
+    // A compact path-set receipt also detects a balanced add/remove of sink-free sources.
+    sourceInventoryDigest: crypto.createHash('sha256').update(JSON.stringify(files.map(file => path.relative(root, file).split(path.sep).join('/')).sort())).digest('hex'),
     scannedFiles: files.length,
     sinkCount,
     files: sinkFiles,
   };
 }
 
-export function auditDomSinks(policy: unknown = JSON.parse(fs.readFileSync(POLICY_PATH, 'utf8'))) {
-  const current = createDomSinkPolicy();
+export function auditDomSinks(policy: unknown = JSON.parse(fs.readFileSync(POLICY_PATH, 'utf8')), root = ROOT) {
+  const current = createDomSinkPolicy(root);
   const failures: string[] = [];
+  for (const field of ['schemaVersion', 'scope', 'reviewRule'] as const) {
+    if ((policy as PolicyReader)[field] !== current[field]) failures.push(`sink policy ${field} changed`);
+  }
+  if (current.sourceInventoryDigest !== (policy as PolicyReader).sourceInventoryDigest) {
+    failures.push('authored source inventory changed');
+  }
   if (current.scannedFiles !== (policy as PolicyReader).scannedFiles) {
     failures.push(`scanned file count changed: ${(policy as PolicyReader).scannedFiles} -> ${current.scannedFiles}`);
   }
@@ -196,8 +204,10 @@ export function auditDomSinks(policy: unknown = JSON.parse(fs.readFileSync(POLIC
       failures.push(`new sink-bearing file: ${file}`);
     } else if (!actual) {
       failures.push(`stale sink policy entry: ${file}`);
+    } else if (JSON.stringify(Object.entries(expected.kinds || {}).sort()) !== JSON.stringify(Object.entries(actual.kinds).sort())) {
+      failures.push(`reviewed sink kinds changed in ${file}`);
     } else if (expected.count !== actual.count || expected.digest !== actual.digest) {
-      const details = scanDomSinks(fs.readFileSync(sourcePath(path.join(ROOT, file)), 'utf8'), sourcePath(file))
+      const details = scanDomSinks(fs.readFileSync(sourcePath(path.join(root, file)), 'utf8'), sourcePath(path.join(root, file)))
         .map(sink => `${sink.kind}@${sink.line}: ${sink.source.slice(0, 140)}`)
         .join('\n    ');
       failures.push(`reviewed sink surface changed in ${file}\n    ${details}`);

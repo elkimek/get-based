@@ -1,3 +1,4 @@
+import {renderLegalConsentModal} from './legal-consent-presentation.js';
 // Presentation grouping and provider-scoped consent UI for Settings → Wearables.
 
 interface GroupingAdapter {
@@ -165,51 +166,15 @@ function showConsentPrompt(profileId: unknown, adapterId: unknown, providerName?
   const overlay = document.createElement('div');
   overlay.id = 'wearable-relay-consent-overlay';
   overlay.className = 'modal-overlay legal-consent-overlay show';
-  overlay.innerHTML = `
-    <div class="legal-consent-modal" role="dialog" aria-modal="true" aria-labelledby="wearable-relay-consent-title" aria-describedby="wearable-relay-consent-desc">
-      <div class="legal-consent-kicker">Wearable privacy</div>
-      <h2 id="wearable-relay-consent-title"></h2>
-      <p id="wearable-relay-consent-desc" class="legal-consent-copy"></p>
-      <div class="legal-consent-summary wearable-relay-consent-summary">
-        <div><strong>Purpose</strong><br><span id="wearable-relay-consent-purpose"></span></div>
-        <div><strong>Secure relay</strong><br>Data is readable while being forwarded; request and response contents are not intentionally stored.</div>
-        <div><strong>On this device</strong><br>Your connection key is encrypted. Encrypted sync and cloud AI are separate choices.</div>
-        <div><strong>Your control</strong><br><span id="wearable-relay-consent-withdrawal"></span></div>
-      </div>
-      <label class="legal-consent-check">
-        <input type="checkbox" id="wearable-relay-consent-checkbox">
-        <span id="wearable-relay-consent-statement"></span>
-      </label>
-      <p class="cloud-ai-consent-links"><a href="https://getbased.health/privacy" target="_blank" rel="noopener">Read the Privacy Policy</a></p>
-      <div class="legal-consent-actions">
-        <button type="button" class="cloud-ai-consent-cancel" data-wearable-relay-consent-action="cancel">Not now</button>
-        <button type="button" class="legal-consent-accept" data-wearable-relay-consent-action="approve" disabled></button>
-      </div>
-    </div>`;
-
-  const provider = String(providerName || adapterId || 'wearable provider');
-  const title = overlay.querySelector('#wearable-relay-consent-title');
-  const description = overlay.querySelector('#wearable-relay-consent-desc');
-  const purpose = overlay.querySelector('#wearable-relay-consent-purpose');
-  const withdrawal = overlay.querySelector('#wearable-relay-consent-withdrawal');
-  const statement = overlay.querySelector('#wearable-relay-consent-statement');
-  const approve = (
-    overlay.querySelector<HTMLButtonElement>('[data-wearable-relay-consent-action="approve"]')
-  );
-  if (title) title.textContent = `Connect ${provider}`;
-  if (description) {
-    description.textContent = `getbased will open ${provider}, where you choose which data to share. On getbased.health, getbased s.r.o. forwards the connection and readings through its secure relay.`;
-  }
-  if (purpose) {
-    purpose.textContent = `Connect ${provider} and import the account details and health readings you choose into this profile.`;
-  }
-  if (withdrawal) {
-    withdrawal.textContent = `Disconnect ${provider} to stop imports and remove the local connection and data. You can also revoke access in ${provider}.`;
-  }
-  if (statement) {
-    statement.textContent = `I explicitly consent to getbased s.r.o. processing the ${provider} account details and health readings I choose, only to connect ${provider} and import them into this profile.`;
-  }
-  if (approve) approve.textContent = `Continue to ${provider}`;
+  const provider=String(providerName||adapterId||'wearable provider');
+  overlay.innerHTML=renderLegalConsentModal({kind:'wearable',
+    title:`Connect ${provider}`,
+    description:`getbased will open ${provider}, where you choose which data to share. On getbased.health, getbased s.r.o. forwards the connection and readings through its secure relay.`,
+    purpose:`Connect ${provider} and import the account details and health readings you choose into this profile.`,
+    withdrawal:`Disconnect ${provider} to stop imports and remove the local connection and data. You can also revoke access in ${provider}.`,
+    statement:`I explicitly consent to getbased s.r.o. processing the ${provider} account details and health readings I choose, only to connect ${provider} and import them into this profile.`,
+    approveLabel:`Continue to ${provider}`});
+  const approve=overlay.querySelector<HTMLButtonElement>('[data-wearable-relay-consent-action="approve"]');
 
   document.body.appendChild(overlay);
   document.body.classList.add('wearable-relay-consent-visible');

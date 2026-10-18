@@ -16,6 +16,9 @@ interface DemoRawRead {
 
 
 import fs from 'node:fs';
+import { JSDOM } from 'jsdom';
+import { projectDashboardWelcomeView, renderDashboardWelcomeFragment } from '../js/dashboard-welcome-presentation.js';
+import postcss from 'postcss';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -87,19 +90,26 @@ function invalidContextOptions(demoJson: unknown) {
   // ── 1. Source: dashboard-page-view.js ──
   console.log('\n1. dashboard-page-view.js — Onboarding HTML');
   const dashboardPageViewSrc = read('js/dashboard-page-view.js');
-  assert('Has welcome-demo-section', dashboardPageViewSrc.includes('welcome-demo-section'));
-  assert('Has welcome-section-label', dashboardPageViewSrc.includes('welcome-section-label'));
-  assert('Old onboarding divider markup removed', !dashboardPageViewSrc.includes('onboarding-divider'));
-  assert('Has demo-cards container', dashboardPageViewSrc.includes('demo-cards'));
-  assert('Has demo-card class', dashboardPageViewSrc.includes('demo-card'));
-  assert('Has delegated female demo card action', dashboardPageViewSrc.includes("dashboardWelcomeActionAttrs('load-demo', { demo: 'female' })"));
-  assert('Has delegated male demo card action', dashboardPageViewSrc.includes("dashboardWelcomeActionAttrs('load-demo', { demo: 'male' })"));
-  assert('Has Sarah, 34 label', dashboardPageViewSrc.includes('Sarah, 34'));
-  assert('Has Alex, 38 label', dashboardPageViewSrc.includes('Alex, 38'));
-  assert('Has demo-card-avatar', dashboardPageViewSrc.includes('demo-card-avatar'));
-  assert('Has demo-card-name', dashboardPageViewSrc.includes('demo-card-name'));
-  assert('Has demo-card-desc', dashboardPageViewSrc.includes('demo-card-desc'));
-  assert('No old onboarding-demo-btn', !dashboardPageViewSrc.includes('onboarding-demo-btn'));
+  const dashboardWelcomeMarkup = read('js/components/DashboardWelcome.svelte');
+  const dashboardPresentationSources = dashboardPageViewSrc + '\n' + dashboardWelcomeMarkup;
+  assert('Has welcome-demo-section', dashboardWelcomeMarkup.includes('welcome-demo-section'));
+  assert('Has welcome-section-label', dashboardWelcomeMarkup.includes('welcome-section-label'));
+  assert('Old onboarding divider markup removed', !dashboardPresentationSources.includes('onboarding-divider'));
+  assert('Has demo-cards container', dashboardWelcomeMarkup.includes('demo-cards'));
+  assert('Has demo-card class', dashboardWelcomeMarkup.includes('demo-card'));
+  const demoWelcomeDOM = new JSDOM(renderDashboardWelcomeFragment(projectDashboardWelcomeView({ ready: false, paused: false, reminder: null })));
+  const demoDelegatePresent = /action === 'load-demo'[\s\S]{0,180}dashboardPageRuntimeDeps\.loadDemoData\(actionEl\.dataset\.dashboardWelcomeDemo \|\| 'female'\)/.test(dashboardPageViewSrc);
+  assert('Has delegated female demo card action', demoDelegatePresent
+    && demoWelcomeDOM.window.document.querySelector('[data-dashboard-welcome-action="load-demo"][data-dashboard-welcome-demo="female"]')?.textContent?.includes('Sarah, 34') === true);
+  assert('Has delegated male demo card action', demoDelegatePresent
+    && demoWelcomeDOM.window.document.querySelector('[data-dashboard-welcome-action="load-demo"][data-dashboard-welcome-demo="male"]')?.textContent?.includes('Alex, 38') === true);
+  demoWelcomeDOM.window.close();
+  assert('Has Sarah, 34 label', dashboardWelcomeMarkup.includes('Sarah, 34'));
+  assert('Has Alex, 38 label', dashboardWelcomeMarkup.includes('Alex, 38'));
+  assert('Has demo-card-avatar', dashboardWelcomeMarkup.includes('demo-card-avatar'));
+  assert('Has demo-card-name', dashboardWelcomeMarkup.includes('demo-card-name'));
+  assert('Has demo-card-desc', dashboardWelcomeMarkup.includes('demo-card-desc'));
+  assert('No old onboarding-demo-btn', !dashboardPresentationSources.includes('onboarding-demo-btn'));
 
   // ── 2. Source: export.js ──
   console.log('\n2. export.js — loadDemoData(sex)');
@@ -137,10 +147,22 @@ function invalidContextOptions(demoJson: unknown) {
   assert('Has .demo-card-name rule', cssSrc.includes('.demo-card-name'));
   assert('Has .demo-card-desc rule', cssSrc.includes('.demo-card-desc'));
   assert('No old .onboarding-demo-btn rule', !cssSrc.includes('.onboarding-demo-btn'));
-  assert('Demo cards grid layout', cssSrc.includes('.demo-cards { display: grid'));
+  const demoTree = postcss.parse(read('css/dashboard-welcome.css'));
+  const demoGridRules: postcss.Rule[] = [];
+  demoTree.walkRules(rule => { if (rule.selector === '.demo-cards') demoGridRules.push(rule); });
+  const gridDeclaration = (rule: postcss.Rule, property: string, value: string) => {
+    const declarations = rule.nodes.filter(node => node.type === 'decl' && node.prop === property);
+    return declarations.length === 1 && declarations[0]?.type === 'decl'
+      && declarations[0].value === value && !declarations[0].important;
+  };
+  const desktopGrid = demoGridRules.filter(rule => rule.parent?.type === 'root');
+  assert('Demo cards grid layout', desktopGrid.length === 1 && gridDeclaration(desktopGrid[0]!, 'display', 'grid'));
   assert('Demo card cursor pointer', cssSrc.includes('cursor: pointer'));
   assert('Hidden drop zone stays invisible without progress', cssSrc.includes('.drop-zone-hidden:not(:has(.import-progress-bar)) { display: none; }'));
-  assert('Mobile 480px: demo-cards stay two-column grid', cssSrc.includes('.demo-cards { grid-template-columns: 1fr 1fr; }'));
+  const mobileGrid = demoGridRules.filter(rule => rule.parent?.type === 'atrule'
+    && rule.parent.name === 'media' && rule.parent.params === '(max-width: 480px)');
+  assert('Mobile 480px: demo-cards stay two-column grid', mobileGrid.length === 1
+    && gridDeclaration(mobileGrid[0]!, 'grid-template-columns', '1fr 1fr'));
 
   // ── 4. Computed styles (if onboarding visible) ──
   console.log('\n4. Computed styles (live DOM)');

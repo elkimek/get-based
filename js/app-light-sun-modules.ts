@@ -24,7 +24,7 @@ import './sun-defaults.js';
 import './sun-onboarding-ai.js';
 import './light-ai-save-hooks.js';
 import './sun-correlations.js';
-import { renderLightTodayHero } from './light-today-ai.js';
+import { getLightTodayHeroView, renderLightTodayHero } from './light-today-ai.js';
 import './light-channel-view-hooks.js';
 import './light-page-view-hooks.js';
 import {
@@ -36,9 +36,12 @@ import {
   configureLightPageView,
   _expandLightToolsSection,
   renderDashboardLightChannelPills,
+  getDashboardLightChannelsWidgetView,
   renderDashboardLightChannelsWidget,
   renderLightChannelsLive,
+  getLightLiveSessionView,
   renderLightLiveSession,
+  getLightSessionLogActionsView,
   renderLightSessionLogActions,
   renderLightTodayStrip,
   showLight,
@@ -47,6 +50,7 @@ import {
   _inspectConditionsNow,
   _refreshConditionsNow,
   renderConditionsNow,
+  getLightConditionsWidgetView,
   renderLightConditionsWidgetBody,
 } from './light-conditions-now.js';
 import { _openAllSessionsModal } from './light-sessions-view.js';
@@ -68,11 +72,16 @@ export {
   openLightEnvironmentAssessment,
   renderConditionsNow,
   renderDashboardLightChannelPills,
+  getDashboardLightChannelsWidgetView,
   renderDashboardLightChannelsWidget,
   renderLightChannelsLive,
+  getLightConditionsWidgetView,
   renderLightConditionsWidgetBody,
+  getLightLiveSessionView,
   renderLightLiveSession,
+  getLightSessionLogActionsView,
   renderLightSessionLogActions,
+  getLightTodayHeroView,
   renderLightTodayHero,
   renderLightTodayStrip,
   resumeActiveTickerIfNeeded,

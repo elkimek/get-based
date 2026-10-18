@@ -1,0 +1,2531 @@
+[
+  {
+    "scenario": "pending",
+    "keys": [
+      "buildDashboardWidgetContext",
+      "getCachedRecommendationsCatalog",
+      "refreshRecommendationsWhenCatalogReady",
+      "getGlobalRecommendationCandidates",
+      "renderRecommendationCard",
+      "renderRecommendationList",
+      "renderRecommendationsEmpty",
+      "renderDashboardRecommendationsWidget",
+      "getDashboardMarkerById",
+      "renderDashboardBioAgeWidget",
+      "renderBiologyScoresWidget",
+      "renderDashboardBiologyScoreWidget",
+      "renderDashboardBiologicalCoherenceWidget",
+      "renderDashboardQuickMarkersWidget",
+      "renderDashboardSingleMarkerWidget",
+      "renderDashboardSpotlightWidget",
+      "renderLabsPriorityBanner",
+      "renderDashboardInsightsListWidget",
+      "getDashboardBiometricSelection",
+      "saveDashboardBiometricSelection",
+      "getDashboardBiometricMetricOrder",
+      "getDashboardBiometricTile",
+      "renderDashboardWearableTilesWidget",
+      "renderDashboardGenomeWidget",
+      "renderDashboardCorrelationWidget",
+      "renderDashboardLightTodayWidget",
+      "renderDashboardLightConditionsWidget",
+      "renderDashboardLightLiveSessionWidget",
+      "renderDashboardLightSessionLogWidget",
+      "renderDashboardLightChannelsWidget",
+      "renderDashboardKeyTrendsWidget",
+      "renderDashboardAlertsWidget",
+      "renderDashboardNotesWidget",
+      "setRecommendationState",
+      "isDashboardQuickMarkerPinned",
+      "toggleDashboardQuickMarkerPin"
+    ],
+    "factoryTrace": [
+      "dependency:markerHasData",
+      "dependency:renderDashboardLightChannelsWidget",
+      "dependency:renderLightConditionsWidgetBody",
+      "dependency:renderLightLiveSession",
+      "dependency:renderLightSessionLogActions",
+      "dependency:getMobileDashboardMarkers",
+      "dependency:getMobileDashboardInsights",
+      "dependency:getMobileWearableTiles",
+      "dependency:formatMobileWearableValue",
+      "dependency:formatMobileWearableDelta",
+      "dependency:getMobileWearablePriority",
+      "dependency:isLightSunUILoaded",
+      "dependency:loadLightSunUI",
+      "dependency:rerenderDashboardFromWidgetChange",
+      "dependency:renderLightTodayHero",
+      "dependency:showRecommendations"
+    ],
+    "outputs": [
+      {
+        "owner": "renderDashboardLightTodayWidget",
+        "raw": "<div class=\"dashboard-widget-empty\" aria-busy=\"true\" aria-live=\"polite\">\n      Loading Light &amp; Sun…\n    </div>",
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": [
+            {
+              "tag": "DIV",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "dashboard-widget-empty"
+                ],
+                [
+                  "aria-busy",
+                  "true"
+                ],
+                [
+                  "aria-live",
+                  "polite"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n      Loading Light & Sun…\n    "
+                }
+              ]
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "owner": "renderDashboardLightConditionsWidget",
+        "raw": "<div class=\"dashboard-widget-empty\" aria-busy=\"true\" aria-live=\"polite\">\n      Loading Light &amp; Sun…\n    </div>",
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": [
+            {
+              "tag": "DIV",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "dashboard-widget-empty"
+                ],
+                [
+                  "aria-busy",
+                  "true"
+                ],
+                [
+                  "aria-live",
+                  "polite"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n      Loading Light & Sun…\n    "
+                }
+              ]
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "owner": "renderDashboardLightSessionLogWidget",
+        "raw": "<div class=\"dashboard-widget-empty\" aria-busy=\"true\" aria-live=\"polite\">\n      Loading Light &amp; Sun…\n    </div>",
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": [
+            {
+              "tag": "DIV",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "dashboard-widget-empty"
+                ],
+                [
+                  "aria-busy",
+                  "true"
+                ],
+                [
+                  "aria-live",
+                  "polite"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n      Loading Light & Sun…\n    "
+                }
+              ]
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "owner": "renderDashboardLightLiveSessionWidget",
+        "raw": "<div class=\"dashboard-widget-empty\" aria-busy=\"true\" aria-live=\"polite\">\n      Loading Light &amp; Sun…\n    </div>",
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": [
+            {
+              "tag": "DIV",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "dashboard-widget-empty"
+                ],
+                [
+                  "aria-busy",
+                  "true"
+                ],
+                [
+                  "aria-live",
+                  "polite"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n      Loading Light & Sun…\n    "
+                }
+              ]
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "owner": "renderDashboardLightChannelsWidget",
+        "raw": "<div class=\"dashboard-widget-empty\" aria-busy=\"true\" aria-live=\"polite\">\n      Loading Light &amp; Sun…\n    </div>",
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": [
+            {
+              "tag": "DIV",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "dashboard-widget-empty"
+                ],
+                [
+                  "aria-busy",
+                  "true"
+                ],
+                [
+                  "aria-live",
+                  "polite"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n      Loading Light & Sun…\n    "
+                }
+              ]
+            }
+          ]
+        },
+        "error": null
+      }
+    ],
+    "beforeSettlement": [
+      "ready",
+      "load",
+      "ready",
+      "ready",
+      "ready",
+      "ready"
+    ],
+    "afterSettlement": [
+      "ready",
+      "load",
+      "ready",
+      "ready",
+      "ready",
+      "ready"
+    ],
+    "trace": [
+      "ready",
+      "load",
+      "ready",
+      "ready",
+      "ready",
+      "ready"
+    ],
+    "logs": []
+  },
+  {
+    "scenario": "resolve",
+    "keys": [
+      "buildDashboardWidgetContext",
+      "getCachedRecommendationsCatalog",
+      "refreshRecommendationsWhenCatalogReady",
+      "getGlobalRecommendationCandidates",
+      "renderRecommendationCard",
+      "renderRecommendationList",
+      "renderRecommendationsEmpty",
+      "renderDashboardRecommendationsWidget",
+      "getDashboardMarkerById",
+      "renderDashboardBioAgeWidget",
+      "renderBiologyScoresWidget",
+      "renderDashboardBiologyScoreWidget",
+      "renderDashboardBiologicalCoherenceWidget",
+      "renderDashboardQuickMarkersWidget",
+      "renderDashboardSingleMarkerWidget",
+      "renderDashboardSpotlightWidget",
+      "renderLabsPriorityBanner",
+      "renderDashboardInsightsListWidget",
+      "getDashboardBiometricSelection",
+      "saveDashboardBiometricSelection",
+      "getDashboardBiometricMetricOrder",
+      "getDashboardBiometricTile",
+      "renderDashboardWearableTilesWidget",
+      "renderDashboardGenomeWidget",
+      "renderDashboardCorrelationWidget",
+      "renderDashboardLightTodayWidget",
+      "renderDashboardLightConditionsWidget",
+      "renderDashboardLightLiveSessionWidget",
+      "renderDashboardLightSessionLogWidget",
+      "renderDashboardLightChannelsWidget",
+      "renderDashboardKeyTrendsWidget",
+      "renderDashboardAlertsWidget",
+      "renderDashboardNotesWidget",
+      "setRecommendationState",
+      "isDashboardQuickMarkerPinned",
+      "toggleDashboardQuickMarkerPin"
+    ],
+    "factoryTrace": [
+      "dependency:markerHasData",
+      "dependency:renderDashboardLightChannelsWidget",
+      "dependency:renderLightConditionsWidgetBody",
+      "dependency:renderLightLiveSession",
+      "dependency:renderLightSessionLogActions",
+      "dependency:getMobileDashboardMarkers",
+      "dependency:getMobileDashboardInsights",
+      "dependency:getMobileWearableTiles",
+      "dependency:formatMobileWearableValue",
+      "dependency:formatMobileWearableDelta",
+      "dependency:getMobileWearablePriority",
+      "dependency:isLightSunUILoaded",
+      "dependency:loadLightSunUI",
+      "dependency:rerenderDashboardFromWidgetChange",
+      "dependency:renderLightTodayHero",
+      "dependency:showRecommendations"
+    ],
+    "outputs": [
+      {
+        "owner": "renderDashboardLightTodayWidget",
+        "raw": "<div class=\"dashboard-widget-empty\" aria-busy=\"true\" aria-live=\"polite\">\n      Loading Light &amp; Sun…\n    </div>",
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": [
+            {
+              "tag": "DIV",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "dashboard-widget-empty"
+                ],
+                [
+                  "aria-busy",
+                  "true"
+                ],
+                [
+                  "aria-live",
+                  "polite"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n      Loading Light & Sun…\n    "
+                }
+              ]
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "owner": "renderDashboardLightConditionsWidget",
+        "raw": "<div class=\"dashboard-widget-empty\" aria-busy=\"true\" aria-live=\"polite\">\n      Loading Light &amp; Sun…\n    </div>",
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": [
+            {
+              "tag": "DIV",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "dashboard-widget-empty"
+                ],
+                [
+                  "aria-busy",
+                  "true"
+                ],
+                [
+                  "aria-live",
+                  "polite"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n      Loading Light & Sun…\n    "
+                }
+              ]
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "owner": "renderDashboardLightSessionLogWidget",
+        "raw": "<div class=\"dashboard-widget-empty\" aria-busy=\"true\" aria-live=\"polite\">\n      Loading Light &amp; Sun…\n    </div>",
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": [
+            {
+              "tag": "DIV",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "dashboard-widget-empty"
+                ],
+                [
+                  "aria-busy",
+                  "true"
+                ],
+                [
+                  "aria-live",
+                  "polite"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n      Loading Light & Sun…\n    "
+                }
+              ]
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "owner": "renderDashboardLightLiveSessionWidget",
+        "raw": "<div class=\"dashboard-widget-empty\" aria-busy=\"true\" aria-live=\"polite\">\n      Loading Light &amp; Sun…\n    </div>",
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": [
+            {
+              "tag": "DIV",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "dashboard-widget-empty"
+                ],
+                [
+                  "aria-busy",
+                  "true"
+                ],
+                [
+                  "aria-live",
+                  "polite"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n      Loading Light & Sun…\n    "
+                }
+              ]
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "owner": "renderDashboardLightChannelsWidget",
+        "raw": "<div class=\"dashboard-widget-empty\" aria-busy=\"true\" aria-live=\"polite\">\n      Loading Light &amp; Sun…\n    </div>",
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": [
+            {
+              "tag": "DIV",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "dashboard-widget-empty"
+                ],
+                [
+                  "aria-busy",
+                  "true"
+                ],
+                [
+                  "aria-live",
+                  "polite"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n      Loading Light & Sun…\n    "
+                }
+              ]
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "owner": "renderDashboardLightTodayWidget",
+        "raw": "<div class=\"dashboard-widget-empty\" aria-busy=\"true\" aria-live=\"polite\">\n      Loading Light &amp; Sun…\n    </div>",
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": [
+            {
+              "tag": "DIV",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "dashboard-widget-empty"
+                ],
+                [
+                  "aria-busy",
+                  "true"
+                ],
+                [
+                  "aria-live",
+                  "polite"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n      Loading Light & Sun…\n    "
+                }
+              ]
+            }
+          ]
+        },
+        "error": null
+      }
+    ],
+    "beforeSettlement": [
+      "ready",
+      "load",
+      "ready",
+      "ready",
+      "ready",
+      "ready"
+    ],
+    "afterSettlement": [
+      "ready",
+      "load",
+      "ready",
+      "ready",
+      "ready",
+      "ready",
+      "rerender"
+    ],
+    "trace": [
+      "ready",
+      "load",
+      "ready",
+      "ready",
+      "ready",
+      "ready",
+      "rerender",
+      "ready",
+      "load",
+      "rerender"
+    ],
+    "logs": []
+  },
+  {
+    "scenario": "rerender-throw",
+    "keys": [
+      "buildDashboardWidgetContext",
+      "getCachedRecommendationsCatalog",
+      "refreshRecommendationsWhenCatalogReady",
+      "getGlobalRecommendationCandidates",
+      "renderRecommendationCard",
+      "renderRecommendationList",
+      "renderRecommendationsEmpty",
+      "renderDashboardRecommendationsWidget",
+      "getDashboardMarkerById",
+      "renderDashboardBioAgeWidget",
+      "renderBiologyScoresWidget",
+      "renderDashboardBiologyScoreWidget",
+      "renderDashboardBiologicalCoherenceWidget",
+      "renderDashboardQuickMarkersWidget",
+      "renderDashboardSingleMarkerWidget",
+      "renderDashboardSpotlightWidget",
+      "renderLabsPriorityBanner",
+      "renderDashboardInsightsListWidget",
+      "getDashboardBiometricSelection",
+      "saveDashboardBiometricSelection",
+      "getDashboardBiometricMetricOrder",
+      "getDashboardBiometricTile",
+      "renderDashboardWearableTilesWidget",
+      "renderDashboardGenomeWidget",
+      "renderDashboardCorrelationWidget",
+      "renderDashboardLightTodayWidget",
+      "renderDashboardLightConditionsWidget",
+      "renderDashboardLightLiveSessionWidget",
+      "renderDashboardLightSessionLogWidget",
+      "renderDashboardLightChannelsWidget",
+      "renderDashboardKeyTrendsWidget",
+      "renderDashboardAlertsWidget",
+      "renderDashboardNotesWidget",
+      "setRecommendationState",
+      "isDashboardQuickMarkerPinned",
+      "toggleDashboardQuickMarkerPin"
+    ],
+    "factoryTrace": [
+      "dependency:markerHasData",
+      "dependency:renderDashboardLightChannelsWidget",
+      "dependency:renderLightConditionsWidgetBody",
+      "dependency:renderLightLiveSession",
+      "dependency:renderLightSessionLogActions",
+      "dependency:getMobileDashboardMarkers",
+      "dependency:getMobileDashboardInsights",
+      "dependency:getMobileWearableTiles",
+      "dependency:formatMobileWearableValue",
+      "dependency:formatMobileWearableDelta",
+      "dependency:getMobileWearablePriority",
+      "dependency:isLightSunUILoaded",
+      "dependency:loadLightSunUI",
+      "dependency:rerenderDashboardFromWidgetChange",
+      "dependency:renderLightTodayHero",
+      "dependency:showRecommendations"
+    ],
+    "outputs": [
+      {
+        "owner": "renderDashboardLightTodayWidget",
+        "raw": "<div class=\"dashboard-widget-empty\" aria-busy=\"true\" aria-live=\"polite\">\n      Loading Light &amp; Sun…\n    </div>",
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": [
+            {
+              "tag": "DIV",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "dashboard-widget-empty"
+                ],
+                [
+                  "aria-busy",
+                  "true"
+                ],
+                [
+                  "aria-live",
+                  "polite"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n      Loading Light & Sun…\n    "
+                }
+              ]
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "owner": "renderDashboardLightConditionsWidget",
+        "raw": "<div class=\"dashboard-widget-empty\" aria-busy=\"true\" aria-live=\"polite\">\n      Loading Light &amp; Sun…\n    </div>",
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": [
+            {
+              "tag": "DIV",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "dashboard-widget-empty"
+                ],
+                [
+                  "aria-busy",
+                  "true"
+                ],
+                [
+                  "aria-live",
+                  "polite"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n      Loading Light & Sun…\n    "
+                }
+              ]
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "owner": "renderDashboardLightSessionLogWidget",
+        "raw": "<div class=\"dashboard-widget-empty\" aria-busy=\"true\" aria-live=\"polite\">\n      Loading Light &amp; Sun…\n    </div>",
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": [
+            {
+              "tag": "DIV",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "dashboard-widget-empty"
+                ],
+                [
+                  "aria-busy",
+                  "true"
+                ],
+                [
+                  "aria-live",
+                  "polite"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n      Loading Light & Sun…\n    "
+                }
+              ]
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "owner": "renderDashboardLightLiveSessionWidget",
+        "raw": "<div class=\"dashboard-widget-empty\" aria-busy=\"true\" aria-live=\"polite\">\n      Loading Light &amp; Sun…\n    </div>",
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": [
+            {
+              "tag": "DIV",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "dashboard-widget-empty"
+                ],
+                [
+                  "aria-busy",
+                  "true"
+                ],
+                [
+                  "aria-live",
+                  "polite"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n      Loading Light & Sun…\n    "
+                }
+              ]
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "owner": "renderDashboardLightChannelsWidget",
+        "raw": "<div class=\"dashboard-widget-empty\" aria-busy=\"true\" aria-live=\"polite\">\n      Loading Light &amp; Sun…\n    </div>",
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": [
+            {
+              "tag": "DIV",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "dashboard-widget-empty"
+                ],
+                [
+                  "aria-busy",
+                  "true"
+                ],
+                [
+                  "aria-live",
+                  "polite"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n      Loading Light & Sun…\n    "
+                }
+              ]
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "owner": "renderDashboardLightTodayWidget",
+        "raw": "<div class=\"dashboard-widget-empty\" aria-busy=\"true\" aria-live=\"polite\">\n      Loading Light &amp; Sun…\n    </div>",
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": [
+            {
+              "tag": "DIV",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "dashboard-widget-empty"
+                ],
+                [
+                  "aria-busy",
+                  "true"
+                ],
+                [
+                  "aria-live",
+                  "polite"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n      Loading Light & Sun…\n    "
+                }
+              ]
+            }
+          ]
+        },
+        "error": null
+      }
+    ],
+    "beforeSettlement": [
+      "ready",
+      "load",
+      "ready",
+      "ready",
+      "ready",
+      "ready"
+    ],
+    "afterSettlement": [
+      "ready",
+      "load",
+      "ready",
+      "ready",
+      "ready",
+      "ready",
+      "rerender"
+    ],
+    "trace": [
+      "ready",
+      "load",
+      "ready",
+      "ready",
+      "ready",
+      "ready",
+      "rerender",
+      "ready",
+      "load",
+      "rerender"
+    ],
+    "logs": [
+      "Failed to load Light & Sun dashboard modules:RangeError:rerender",
+      "Failed to load Light & Sun dashboard modules:RangeError:rerender"
+    ]
+  },
+  {
+    "scenario": "reject",
+    "keys": [
+      "buildDashboardWidgetContext",
+      "getCachedRecommendationsCatalog",
+      "refreshRecommendationsWhenCatalogReady",
+      "getGlobalRecommendationCandidates",
+      "renderRecommendationCard",
+      "renderRecommendationList",
+      "renderRecommendationsEmpty",
+      "renderDashboardRecommendationsWidget",
+      "getDashboardMarkerById",
+      "renderDashboardBioAgeWidget",
+      "renderBiologyScoresWidget",
+      "renderDashboardBiologyScoreWidget",
+      "renderDashboardBiologicalCoherenceWidget",
+      "renderDashboardQuickMarkersWidget",
+      "renderDashboardSingleMarkerWidget",
+      "renderDashboardSpotlightWidget",
+      "renderLabsPriorityBanner",
+      "renderDashboardInsightsListWidget",
+      "getDashboardBiometricSelection",
+      "saveDashboardBiometricSelection",
+      "getDashboardBiometricMetricOrder",
+      "getDashboardBiometricTile",
+      "renderDashboardWearableTilesWidget",
+      "renderDashboardGenomeWidget",
+      "renderDashboardCorrelationWidget",
+      "renderDashboardLightTodayWidget",
+      "renderDashboardLightConditionsWidget",
+      "renderDashboardLightLiveSessionWidget",
+      "renderDashboardLightSessionLogWidget",
+      "renderDashboardLightChannelsWidget",
+      "renderDashboardKeyTrendsWidget",
+      "renderDashboardAlertsWidget",
+      "renderDashboardNotesWidget",
+      "setRecommendationState",
+      "isDashboardQuickMarkerPinned",
+      "toggleDashboardQuickMarkerPin"
+    ],
+    "factoryTrace": [
+      "dependency:markerHasData",
+      "dependency:renderDashboardLightChannelsWidget",
+      "dependency:renderLightConditionsWidgetBody",
+      "dependency:renderLightLiveSession",
+      "dependency:renderLightSessionLogActions",
+      "dependency:getMobileDashboardMarkers",
+      "dependency:getMobileDashboardInsights",
+      "dependency:getMobileWearableTiles",
+      "dependency:formatMobileWearableValue",
+      "dependency:formatMobileWearableDelta",
+      "dependency:getMobileWearablePriority",
+      "dependency:isLightSunUILoaded",
+      "dependency:loadLightSunUI",
+      "dependency:rerenderDashboardFromWidgetChange",
+      "dependency:renderLightTodayHero",
+      "dependency:showRecommendations"
+    ],
+    "outputs": [
+      {
+        "owner": "renderDashboardLightTodayWidget",
+        "raw": "<div class=\"dashboard-widget-empty\" aria-busy=\"true\" aria-live=\"polite\">\n      Loading Light &amp; Sun…\n    </div>",
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": [
+            {
+              "tag": "DIV",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "dashboard-widget-empty"
+                ],
+                [
+                  "aria-busy",
+                  "true"
+                ],
+                [
+                  "aria-live",
+                  "polite"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n      Loading Light & Sun…\n    "
+                }
+              ]
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "owner": "renderDashboardLightConditionsWidget",
+        "raw": "<div class=\"dashboard-widget-empty\" aria-busy=\"true\" aria-live=\"polite\">\n      Loading Light &amp; Sun…\n    </div>",
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": [
+            {
+              "tag": "DIV",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "dashboard-widget-empty"
+                ],
+                [
+                  "aria-busy",
+                  "true"
+                ],
+                [
+                  "aria-live",
+                  "polite"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n      Loading Light & Sun…\n    "
+                }
+              ]
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "owner": "renderDashboardLightSessionLogWidget",
+        "raw": "<div class=\"dashboard-widget-empty\" aria-busy=\"true\" aria-live=\"polite\">\n      Loading Light &amp; Sun…\n    </div>",
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": [
+            {
+              "tag": "DIV",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "dashboard-widget-empty"
+                ],
+                [
+                  "aria-busy",
+                  "true"
+                ],
+                [
+                  "aria-live",
+                  "polite"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n      Loading Light & Sun…\n    "
+                }
+              ]
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "owner": "renderDashboardLightLiveSessionWidget",
+        "raw": "<div class=\"dashboard-widget-empty\" aria-busy=\"true\" aria-live=\"polite\">\n      Loading Light &amp; Sun…\n    </div>",
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": [
+            {
+              "tag": "DIV",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "dashboard-widget-empty"
+                ],
+                [
+                  "aria-busy",
+                  "true"
+                ],
+                [
+                  "aria-live",
+                  "polite"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n      Loading Light & Sun…\n    "
+                }
+              ]
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "owner": "renderDashboardLightChannelsWidget",
+        "raw": "<div class=\"dashboard-widget-empty\" aria-busy=\"true\" aria-live=\"polite\">\n      Loading Light &amp; Sun…\n    </div>",
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": [
+            {
+              "tag": "DIV",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "dashboard-widget-empty"
+                ],
+                [
+                  "aria-busy",
+                  "true"
+                ],
+                [
+                  "aria-live",
+                  "polite"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n      Loading Light & Sun…\n    "
+                }
+              ]
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "owner": "renderDashboardLightTodayWidget",
+        "raw": "<div class=\"dashboard-widget-empty\" aria-busy=\"true\" aria-live=\"polite\">\n      Loading Light &amp; Sun…\n    </div>",
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": [
+            {
+              "tag": "DIV",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "dashboard-widget-empty"
+                ],
+                [
+                  "aria-busy",
+                  "true"
+                ],
+                [
+                  "aria-live",
+                  "polite"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n      Loading Light & Sun…\n    "
+                }
+              ]
+            }
+          ]
+        },
+        "error": null
+      }
+    ],
+    "beforeSettlement": [
+      "ready",
+      "load",
+      "ready",
+      "ready",
+      "ready",
+      "ready"
+    ],
+    "afterSettlement": [
+      "ready",
+      "load",
+      "ready",
+      "ready",
+      "ready",
+      "ready"
+    ],
+    "trace": [
+      "ready",
+      "load",
+      "ready",
+      "ready",
+      "ready",
+      "ready",
+      "ready",
+      "load"
+    ],
+    "logs": [
+      "Failed to load Light & Sun dashboard modules:RangeError:rejected",
+      "Failed to load Light & Sun dashboard modules:RangeError:rejected"
+    ]
+  },
+  {
+    "scenario": "readiness-throw",
+    "keys": [
+      "buildDashboardWidgetContext",
+      "getCachedRecommendationsCatalog",
+      "refreshRecommendationsWhenCatalogReady",
+      "getGlobalRecommendationCandidates",
+      "renderRecommendationCard",
+      "renderRecommendationList",
+      "renderRecommendationsEmpty",
+      "renderDashboardRecommendationsWidget",
+      "getDashboardMarkerById",
+      "renderDashboardBioAgeWidget",
+      "renderBiologyScoresWidget",
+      "renderDashboardBiologyScoreWidget",
+      "renderDashboardBiologicalCoherenceWidget",
+      "renderDashboardQuickMarkersWidget",
+      "renderDashboardSingleMarkerWidget",
+      "renderDashboardSpotlightWidget",
+      "renderLabsPriorityBanner",
+      "renderDashboardInsightsListWidget",
+      "getDashboardBiometricSelection",
+      "saveDashboardBiometricSelection",
+      "getDashboardBiometricMetricOrder",
+      "getDashboardBiometricTile",
+      "renderDashboardWearableTilesWidget",
+      "renderDashboardGenomeWidget",
+      "renderDashboardCorrelationWidget",
+      "renderDashboardLightTodayWidget",
+      "renderDashboardLightConditionsWidget",
+      "renderDashboardLightLiveSessionWidget",
+      "renderDashboardLightSessionLogWidget",
+      "renderDashboardLightChannelsWidget",
+      "renderDashboardKeyTrendsWidget",
+      "renderDashboardAlertsWidget",
+      "renderDashboardNotesWidget",
+      "setRecommendationState",
+      "isDashboardQuickMarkerPinned",
+      "toggleDashboardQuickMarkerPin"
+    ],
+    "factoryTrace": [
+      "dependency:markerHasData",
+      "dependency:renderDashboardLightChannelsWidget",
+      "dependency:renderLightConditionsWidgetBody",
+      "dependency:renderLightLiveSession",
+      "dependency:renderLightSessionLogActions",
+      "dependency:getMobileDashboardMarkers",
+      "dependency:getMobileDashboardInsights",
+      "dependency:getMobileWearableTiles",
+      "dependency:formatMobileWearableValue",
+      "dependency:formatMobileWearableDelta",
+      "dependency:getMobileWearablePriority",
+      "dependency:isLightSunUILoaded",
+      "dependency:loadLightSunUI",
+      "dependency:rerenderDashboardFromWidgetChange",
+      "dependency:renderLightTodayHero",
+      "dependency:showRecommendations"
+    ],
+    "outputs": [
+      {
+        "owner": "renderDashboardLightTodayWidget",
+        "raw": null,
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": []
+        },
+        "error": "RangeError:readiness"
+      },
+      {
+        "owner": "renderDashboardLightConditionsWidget",
+        "raw": null,
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": []
+        },
+        "error": "RangeError:readiness"
+      },
+      {
+        "owner": "renderDashboardLightSessionLogWidget",
+        "raw": null,
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": []
+        },
+        "error": "RangeError:readiness"
+      },
+      {
+        "owner": "renderDashboardLightLiveSessionWidget",
+        "raw": null,
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": []
+        },
+        "error": "RangeError:readiness"
+      },
+      {
+        "owner": "renderDashboardLightChannelsWidget",
+        "raw": null,
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": []
+        },
+        "error": "RangeError:readiness"
+      }
+    ],
+    "beforeSettlement": [
+      "ready",
+      "ready",
+      "ready",
+      "ready",
+      "ready"
+    ],
+    "afterSettlement": [
+      "ready",
+      "ready",
+      "ready",
+      "ready",
+      "ready"
+    ],
+    "trace": [
+      "ready",
+      "ready",
+      "ready",
+      "ready",
+      "ready"
+    ],
+    "logs": []
+  },
+  {
+    "scenario": "loader-throw",
+    "keys": [
+      "buildDashboardWidgetContext",
+      "getCachedRecommendationsCatalog",
+      "refreshRecommendationsWhenCatalogReady",
+      "getGlobalRecommendationCandidates",
+      "renderRecommendationCard",
+      "renderRecommendationList",
+      "renderRecommendationsEmpty",
+      "renderDashboardRecommendationsWidget",
+      "getDashboardMarkerById",
+      "renderDashboardBioAgeWidget",
+      "renderBiologyScoresWidget",
+      "renderDashboardBiologyScoreWidget",
+      "renderDashboardBiologicalCoherenceWidget",
+      "renderDashboardQuickMarkersWidget",
+      "renderDashboardSingleMarkerWidget",
+      "renderDashboardSpotlightWidget",
+      "renderLabsPriorityBanner",
+      "renderDashboardInsightsListWidget",
+      "getDashboardBiometricSelection",
+      "saveDashboardBiometricSelection",
+      "getDashboardBiometricMetricOrder",
+      "getDashboardBiometricTile",
+      "renderDashboardWearableTilesWidget",
+      "renderDashboardGenomeWidget",
+      "renderDashboardCorrelationWidget",
+      "renderDashboardLightTodayWidget",
+      "renderDashboardLightConditionsWidget",
+      "renderDashboardLightLiveSessionWidget",
+      "renderDashboardLightSessionLogWidget",
+      "renderDashboardLightChannelsWidget",
+      "renderDashboardKeyTrendsWidget",
+      "renderDashboardAlertsWidget",
+      "renderDashboardNotesWidget",
+      "setRecommendationState",
+      "isDashboardQuickMarkerPinned",
+      "toggleDashboardQuickMarkerPin"
+    ],
+    "factoryTrace": [
+      "dependency:markerHasData",
+      "dependency:renderDashboardLightChannelsWidget",
+      "dependency:renderLightConditionsWidgetBody",
+      "dependency:renderLightLiveSession",
+      "dependency:renderLightSessionLogActions",
+      "dependency:getMobileDashboardMarkers",
+      "dependency:getMobileDashboardInsights",
+      "dependency:getMobileWearableTiles",
+      "dependency:formatMobileWearableValue",
+      "dependency:formatMobileWearableDelta",
+      "dependency:getMobileWearablePriority",
+      "dependency:isLightSunUILoaded",
+      "dependency:loadLightSunUI",
+      "dependency:rerenderDashboardFromWidgetChange",
+      "dependency:renderLightTodayHero",
+      "dependency:showRecommendations"
+    ],
+    "outputs": [
+      {
+        "owner": "renderDashboardLightTodayWidget",
+        "raw": null,
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": []
+        },
+        "error": "RangeError:loader"
+      },
+      {
+        "owner": "renderDashboardLightConditionsWidget",
+        "raw": null,
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": []
+        },
+        "error": "RangeError:loader"
+      },
+      {
+        "owner": "renderDashboardLightSessionLogWidget",
+        "raw": null,
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": []
+        },
+        "error": "RangeError:loader"
+      },
+      {
+        "owner": "renderDashboardLightLiveSessionWidget",
+        "raw": null,
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": []
+        },
+        "error": "RangeError:loader"
+      },
+      {
+        "owner": "renderDashboardLightChannelsWidget",
+        "raw": null,
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": []
+        },
+        "error": "RangeError:loader"
+      }
+    ],
+    "beforeSettlement": [
+      "ready",
+      "load",
+      "ready",
+      "load",
+      "ready",
+      "load",
+      "ready",
+      "load",
+      "ready",
+      "load"
+    ],
+    "afterSettlement": [
+      "ready",
+      "load",
+      "ready",
+      "load",
+      "ready",
+      "load",
+      "ready",
+      "load",
+      "ready",
+      "load"
+    ],
+    "trace": [
+      "ready",
+      "load",
+      "ready",
+      "load",
+      "ready",
+      "load",
+      "ready",
+      "load",
+      "ready",
+      "load"
+    ],
+    "logs": []
+  },
+  {
+    "scenario": "then-getter-throw",
+    "keys": [
+      "buildDashboardWidgetContext",
+      "getCachedRecommendationsCatalog",
+      "refreshRecommendationsWhenCatalogReady",
+      "getGlobalRecommendationCandidates",
+      "renderRecommendationCard",
+      "renderRecommendationList",
+      "renderRecommendationsEmpty",
+      "renderDashboardRecommendationsWidget",
+      "getDashboardMarkerById",
+      "renderDashboardBioAgeWidget",
+      "renderBiologyScoresWidget",
+      "renderDashboardBiologyScoreWidget",
+      "renderDashboardBiologicalCoherenceWidget",
+      "renderDashboardQuickMarkersWidget",
+      "renderDashboardSingleMarkerWidget",
+      "renderDashboardSpotlightWidget",
+      "renderLabsPriorityBanner",
+      "renderDashboardInsightsListWidget",
+      "getDashboardBiometricSelection",
+      "saveDashboardBiometricSelection",
+      "getDashboardBiometricMetricOrder",
+      "getDashboardBiometricTile",
+      "renderDashboardWearableTilesWidget",
+      "renderDashboardGenomeWidget",
+      "renderDashboardCorrelationWidget",
+      "renderDashboardLightTodayWidget",
+      "renderDashboardLightConditionsWidget",
+      "renderDashboardLightLiveSessionWidget",
+      "renderDashboardLightSessionLogWidget",
+      "renderDashboardLightChannelsWidget",
+      "renderDashboardKeyTrendsWidget",
+      "renderDashboardAlertsWidget",
+      "renderDashboardNotesWidget",
+      "setRecommendationState",
+      "isDashboardQuickMarkerPinned",
+      "toggleDashboardQuickMarkerPin"
+    ],
+    "factoryTrace": [
+      "dependency:markerHasData",
+      "dependency:renderDashboardLightChannelsWidget",
+      "dependency:renderLightConditionsWidgetBody",
+      "dependency:renderLightLiveSession",
+      "dependency:renderLightSessionLogActions",
+      "dependency:getMobileDashboardMarkers",
+      "dependency:getMobileDashboardInsights",
+      "dependency:getMobileWearableTiles",
+      "dependency:formatMobileWearableValue",
+      "dependency:formatMobileWearableDelta",
+      "dependency:getMobileWearablePriority",
+      "dependency:isLightSunUILoaded",
+      "dependency:loadLightSunUI",
+      "dependency:rerenderDashboardFromWidgetChange",
+      "dependency:renderLightTodayHero",
+      "dependency:showRecommendations"
+    ],
+    "outputs": [
+      {
+        "owner": "renderDashboardLightTodayWidget",
+        "raw": null,
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": []
+        },
+        "error": "RangeError:then-getter"
+      },
+      {
+        "owner": "renderDashboardLightConditionsWidget",
+        "raw": null,
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": []
+        },
+        "error": "RangeError:then-getter"
+      },
+      {
+        "owner": "renderDashboardLightSessionLogWidget",
+        "raw": null,
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": []
+        },
+        "error": "RangeError:then-getter"
+      },
+      {
+        "owner": "renderDashboardLightLiveSessionWidget",
+        "raw": null,
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": []
+        },
+        "error": "RangeError:then-getter"
+      },
+      {
+        "owner": "renderDashboardLightChannelsWidget",
+        "raw": null,
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": []
+        },
+        "error": "RangeError:then-getter"
+      }
+    ],
+    "beforeSettlement": [
+      "ready",
+      "load",
+      "then-get",
+      "ready",
+      "load",
+      "then-get",
+      "ready",
+      "load",
+      "then-get",
+      "ready",
+      "load",
+      "then-get",
+      "ready",
+      "load",
+      "then-get"
+    ],
+    "afterSettlement": [
+      "ready",
+      "load",
+      "then-get",
+      "ready",
+      "load",
+      "then-get",
+      "ready",
+      "load",
+      "then-get",
+      "ready",
+      "load",
+      "then-get",
+      "ready",
+      "load",
+      "then-get"
+    ],
+    "trace": [
+      "ready",
+      "load",
+      "then-get",
+      "ready",
+      "load",
+      "then-get",
+      "ready",
+      "load",
+      "then-get",
+      "ready",
+      "load",
+      "then-get",
+      "ready",
+      "load",
+      "then-get"
+    ],
+    "logs": []
+  },
+  {
+    "scenario": "then-call-throw",
+    "keys": [
+      "buildDashboardWidgetContext",
+      "getCachedRecommendationsCatalog",
+      "refreshRecommendationsWhenCatalogReady",
+      "getGlobalRecommendationCandidates",
+      "renderRecommendationCard",
+      "renderRecommendationList",
+      "renderRecommendationsEmpty",
+      "renderDashboardRecommendationsWidget",
+      "getDashboardMarkerById",
+      "renderDashboardBioAgeWidget",
+      "renderBiologyScoresWidget",
+      "renderDashboardBiologyScoreWidget",
+      "renderDashboardBiologicalCoherenceWidget",
+      "renderDashboardQuickMarkersWidget",
+      "renderDashboardSingleMarkerWidget",
+      "renderDashboardSpotlightWidget",
+      "renderLabsPriorityBanner",
+      "renderDashboardInsightsListWidget",
+      "getDashboardBiometricSelection",
+      "saveDashboardBiometricSelection",
+      "getDashboardBiometricMetricOrder",
+      "getDashboardBiometricTile",
+      "renderDashboardWearableTilesWidget",
+      "renderDashboardGenomeWidget",
+      "renderDashboardCorrelationWidget",
+      "renderDashboardLightTodayWidget",
+      "renderDashboardLightConditionsWidget",
+      "renderDashboardLightLiveSessionWidget",
+      "renderDashboardLightSessionLogWidget",
+      "renderDashboardLightChannelsWidget",
+      "renderDashboardKeyTrendsWidget",
+      "renderDashboardAlertsWidget",
+      "renderDashboardNotesWidget",
+      "setRecommendationState",
+      "isDashboardQuickMarkerPinned",
+      "toggleDashboardQuickMarkerPin"
+    ],
+    "factoryTrace": [
+      "dependency:markerHasData",
+      "dependency:renderDashboardLightChannelsWidget",
+      "dependency:renderLightConditionsWidgetBody",
+      "dependency:renderLightLiveSession",
+      "dependency:renderLightSessionLogActions",
+      "dependency:getMobileDashboardMarkers",
+      "dependency:getMobileDashboardInsights",
+      "dependency:getMobileWearableTiles",
+      "dependency:formatMobileWearableValue",
+      "dependency:formatMobileWearableDelta",
+      "dependency:getMobileWearablePriority",
+      "dependency:isLightSunUILoaded",
+      "dependency:loadLightSunUI",
+      "dependency:rerenderDashboardFromWidgetChange",
+      "dependency:renderLightTodayHero",
+      "dependency:showRecommendations"
+    ],
+    "outputs": [
+      {
+        "owner": "renderDashboardLightTodayWidget",
+        "raw": null,
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": []
+        },
+        "error": "RangeError:then-call"
+      },
+      {
+        "owner": "renderDashboardLightConditionsWidget",
+        "raw": null,
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": []
+        },
+        "error": "RangeError:then-call"
+      },
+      {
+        "owner": "renderDashboardLightSessionLogWidget",
+        "raw": null,
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": []
+        },
+        "error": "RangeError:then-call"
+      },
+      {
+        "owner": "renderDashboardLightLiveSessionWidget",
+        "raw": null,
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": []
+        },
+        "error": "RangeError:then-call"
+      },
+      {
+        "owner": "renderDashboardLightChannelsWidget",
+        "raw": null,
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": []
+        },
+        "error": "RangeError:then-call"
+      }
+    ],
+    "beforeSettlement": [
+      "ready",
+      "load",
+      "then-call",
+      "ready",
+      "load",
+      "then-call",
+      "ready",
+      "load",
+      "then-call",
+      "ready",
+      "load",
+      "then-call",
+      "ready",
+      "load",
+      "then-call"
+    ],
+    "afterSettlement": [
+      "ready",
+      "load",
+      "then-call",
+      "ready",
+      "load",
+      "then-call",
+      "ready",
+      "load",
+      "then-call",
+      "ready",
+      "load",
+      "then-call",
+      "ready",
+      "load",
+      "then-call"
+    ],
+    "trace": [
+      "ready",
+      "load",
+      "then-call",
+      "ready",
+      "load",
+      "then-call",
+      "ready",
+      "load",
+      "then-call",
+      "ready",
+      "load",
+      "then-call",
+      "ready",
+      "load",
+      "then-call"
+    ],
+    "logs": []
+  },
+  {
+    "scenario": "catch-getter-throw",
+    "keys": [
+      "buildDashboardWidgetContext",
+      "getCachedRecommendationsCatalog",
+      "refreshRecommendationsWhenCatalogReady",
+      "getGlobalRecommendationCandidates",
+      "renderRecommendationCard",
+      "renderRecommendationList",
+      "renderRecommendationsEmpty",
+      "renderDashboardRecommendationsWidget",
+      "getDashboardMarkerById",
+      "renderDashboardBioAgeWidget",
+      "renderBiologyScoresWidget",
+      "renderDashboardBiologyScoreWidget",
+      "renderDashboardBiologicalCoherenceWidget",
+      "renderDashboardQuickMarkersWidget",
+      "renderDashboardSingleMarkerWidget",
+      "renderDashboardSpotlightWidget",
+      "renderLabsPriorityBanner",
+      "renderDashboardInsightsListWidget",
+      "getDashboardBiometricSelection",
+      "saveDashboardBiometricSelection",
+      "getDashboardBiometricMetricOrder",
+      "getDashboardBiometricTile",
+      "renderDashboardWearableTilesWidget",
+      "renderDashboardGenomeWidget",
+      "renderDashboardCorrelationWidget",
+      "renderDashboardLightTodayWidget",
+      "renderDashboardLightConditionsWidget",
+      "renderDashboardLightLiveSessionWidget",
+      "renderDashboardLightSessionLogWidget",
+      "renderDashboardLightChannelsWidget",
+      "renderDashboardKeyTrendsWidget",
+      "renderDashboardAlertsWidget",
+      "renderDashboardNotesWidget",
+      "setRecommendationState",
+      "isDashboardQuickMarkerPinned",
+      "toggleDashboardQuickMarkerPin"
+    ],
+    "factoryTrace": [
+      "dependency:markerHasData",
+      "dependency:renderDashboardLightChannelsWidget",
+      "dependency:renderLightConditionsWidgetBody",
+      "dependency:renderLightLiveSession",
+      "dependency:renderLightSessionLogActions",
+      "dependency:getMobileDashboardMarkers",
+      "dependency:getMobileDashboardInsights",
+      "dependency:getMobileWearableTiles",
+      "dependency:formatMobileWearableValue",
+      "dependency:formatMobileWearableDelta",
+      "dependency:getMobileWearablePriority",
+      "dependency:isLightSunUILoaded",
+      "dependency:loadLightSunUI",
+      "dependency:rerenderDashboardFromWidgetChange",
+      "dependency:renderLightTodayHero",
+      "dependency:showRecommendations"
+    ],
+    "outputs": [
+      {
+        "owner": "renderDashboardLightTodayWidget",
+        "raw": null,
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": []
+        },
+        "error": "RangeError:catch-getter"
+      },
+      {
+        "owner": "renderDashboardLightConditionsWidget",
+        "raw": null,
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": []
+        },
+        "error": "RangeError:catch-getter"
+      },
+      {
+        "owner": "renderDashboardLightSessionLogWidget",
+        "raw": null,
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": []
+        },
+        "error": "RangeError:catch-getter"
+      },
+      {
+        "owner": "renderDashboardLightLiveSessionWidget",
+        "raw": null,
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": []
+        },
+        "error": "RangeError:catch-getter"
+      },
+      {
+        "owner": "renderDashboardLightChannelsWidget",
+        "raw": null,
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": []
+        },
+        "error": "RangeError:catch-getter"
+      }
+    ],
+    "beforeSettlement": [
+      "ready",
+      "load",
+      "then-call",
+      "catch-get",
+      "ready",
+      "load",
+      "then-call",
+      "catch-get",
+      "ready",
+      "load",
+      "then-call",
+      "catch-get",
+      "ready",
+      "load",
+      "then-call",
+      "catch-get",
+      "ready",
+      "load",
+      "then-call",
+      "catch-get"
+    ],
+    "afterSettlement": [
+      "ready",
+      "load",
+      "then-call",
+      "catch-get",
+      "ready",
+      "load",
+      "then-call",
+      "catch-get",
+      "ready",
+      "load",
+      "then-call",
+      "catch-get",
+      "ready",
+      "load",
+      "then-call",
+      "catch-get",
+      "ready",
+      "load",
+      "then-call",
+      "catch-get"
+    ],
+    "trace": [
+      "ready",
+      "load",
+      "then-call",
+      "catch-get",
+      "ready",
+      "load",
+      "then-call",
+      "catch-get",
+      "ready",
+      "load",
+      "then-call",
+      "catch-get",
+      "ready",
+      "load",
+      "then-call",
+      "catch-get",
+      "ready",
+      "load",
+      "then-call",
+      "catch-get"
+    ],
+    "logs": []
+  },
+  {
+    "scenario": "finally-getter-throw",
+    "keys": [
+      "buildDashboardWidgetContext",
+      "getCachedRecommendationsCatalog",
+      "refreshRecommendationsWhenCatalogReady",
+      "getGlobalRecommendationCandidates",
+      "renderRecommendationCard",
+      "renderRecommendationList",
+      "renderRecommendationsEmpty",
+      "renderDashboardRecommendationsWidget",
+      "getDashboardMarkerById",
+      "renderDashboardBioAgeWidget",
+      "renderBiologyScoresWidget",
+      "renderDashboardBiologyScoreWidget",
+      "renderDashboardBiologicalCoherenceWidget",
+      "renderDashboardQuickMarkersWidget",
+      "renderDashboardSingleMarkerWidget",
+      "renderDashboardSpotlightWidget",
+      "renderLabsPriorityBanner",
+      "renderDashboardInsightsListWidget",
+      "getDashboardBiometricSelection",
+      "saveDashboardBiometricSelection",
+      "getDashboardBiometricMetricOrder",
+      "getDashboardBiometricTile",
+      "renderDashboardWearableTilesWidget",
+      "renderDashboardGenomeWidget",
+      "renderDashboardCorrelationWidget",
+      "renderDashboardLightTodayWidget",
+      "renderDashboardLightConditionsWidget",
+      "renderDashboardLightLiveSessionWidget",
+      "renderDashboardLightSessionLogWidget",
+      "renderDashboardLightChannelsWidget",
+      "renderDashboardKeyTrendsWidget",
+      "renderDashboardAlertsWidget",
+      "renderDashboardNotesWidget",
+      "setRecommendationState",
+      "isDashboardQuickMarkerPinned",
+      "toggleDashboardQuickMarkerPin"
+    ],
+    "factoryTrace": [
+      "dependency:markerHasData",
+      "dependency:renderDashboardLightChannelsWidget",
+      "dependency:renderLightConditionsWidgetBody",
+      "dependency:renderLightLiveSession",
+      "dependency:renderLightSessionLogActions",
+      "dependency:getMobileDashboardMarkers",
+      "dependency:getMobileDashboardInsights",
+      "dependency:getMobileWearableTiles",
+      "dependency:formatMobileWearableValue",
+      "dependency:formatMobileWearableDelta",
+      "dependency:getMobileWearablePriority",
+      "dependency:isLightSunUILoaded",
+      "dependency:loadLightSunUI",
+      "dependency:rerenderDashboardFromWidgetChange",
+      "dependency:renderLightTodayHero",
+      "dependency:showRecommendations"
+    ],
+    "outputs": [
+      {
+        "owner": "renderDashboardLightTodayWidget",
+        "raw": null,
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": []
+        },
+        "error": "RangeError:finally-getter"
+      },
+      {
+        "owner": "renderDashboardLightConditionsWidget",
+        "raw": null,
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": []
+        },
+        "error": "RangeError:finally-getter"
+      },
+      {
+        "owner": "renderDashboardLightSessionLogWidget",
+        "raw": null,
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": []
+        },
+        "error": "RangeError:finally-getter"
+      },
+      {
+        "owner": "renderDashboardLightLiveSessionWidget",
+        "raw": null,
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": []
+        },
+        "error": "RangeError:finally-getter"
+      },
+      {
+        "owner": "renderDashboardLightChannelsWidget",
+        "raw": null,
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": []
+        },
+        "error": "RangeError:finally-getter"
+      }
+    ],
+    "beforeSettlement": [
+      "ready",
+      "load",
+      "then-call",
+      "catch-call",
+      "finally-get",
+      "ready",
+      "load",
+      "then-call",
+      "catch-call",
+      "finally-get",
+      "ready",
+      "load",
+      "then-call",
+      "catch-call",
+      "finally-get",
+      "ready",
+      "load",
+      "then-call",
+      "catch-call",
+      "finally-get",
+      "ready",
+      "load",
+      "then-call",
+      "catch-call",
+      "finally-get"
+    ],
+    "afterSettlement": [
+      "ready",
+      "load",
+      "then-call",
+      "catch-call",
+      "finally-get",
+      "ready",
+      "load",
+      "then-call",
+      "catch-call",
+      "finally-get",
+      "ready",
+      "load",
+      "then-call",
+      "catch-call",
+      "finally-get",
+      "ready",
+      "load",
+      "then-call",
+      "catch-call",
+      "finally-get",
+      "ready",
+      "load",
+      "then-call",
+      "catch-call",
+      "finally-get"
+    ],
+    "trace": [
+      "ready",
+      "load",
+      "then-call",
+      "catch-call",
+      "finally-get",
+      "ready",
+      "load",
+      "then-call",
+      "catch-call",
+      "finally-get",
+      "ready",
+      "load",
+      "then-call",
+      "catch-call",
+      "finally-get",
+      "ready",
+      "load",
+      "then-call",
+      "catch-call",
+      "finally-get",
+      "ready",
+      "load",
+      "then-call",
+      "catch-call",
+      "finally-get"
+    ],
+    "logs": []
+  },
+  {
+    "scenario": "loader-undefined",
+    "keys": [
+      "buildDashboardWidgetContext",
+      "getCachedRecommendationsCatalog",
+      "refreshRecommendationsWhenCatalogReady",
+      "getGlobalRecommendationCandidates",
+      "renderRecommendationCard",
+      "renderRecommendationList",
+      "renderRecommendationsEmpty",
+      "renderDashboardRecommendationsWidget",
+      "getDashboardMarkerById",
+      "renderDashboardBioAgeWidget",
+      "renderBiologyScoresWidget",
+      "renderDashboardBiologyScoreWidget",
+      "renderDashboardBiologicalCoherenceWidget",
+      "renderDashboardQuickMarkersWidget",
+      "renderDashboardSingleMarkerWidget",
+      "renderDashboardSpotlightWidget",
+      "renderLabsPriorityBanner",
+      "renderDashboardInsightsListWidget",
+      "getDashboardBiometricSelection",
+      "saveDashboardBiometricSelection",
+      "getDashboardBiometricMetricOrder",
+      "getDashboardBiometricTile",
+      "renderDashboardWearableTilesWidget",
+      "renderDashboardGenomeWidget",
+      "renderDashboardCorrelationWidget",
+      "renderDashboardLightTodayWidget",
+      "renderDashboardLightConditionsWidget",
+      "renderDashboardLightLiveSessionWidget",
+      "renderDashboardLightSessionLogWidget",
+      "renderDashboardLightChannelsWidget",
+      "renderDashboardKeyTrendsWidget",
+      "renderDashboardAlertsWidget",
+      "renderDashboardNotesWidget",
+      "setRecommendationState",
+      "isDashboardQuickMarkerPinned",
+      "toggleDashboardQuickMarkerPin"
+    ],
+    "factoryTrace": [
+      "dependency:markerHasData",
+      "dependency:renderDashboardLightChannelsWidget",
+      "dependency:renderLightConditionsWidgetBody",
+      "dependency:renderLightLiveSession",
+      "dependency:renderLightSessionLogActions",
+      "dependency:getMobileDashboardMarkers",
+      "dependency:getMobileDashboardInsights",
+      "dependency:getMobileWearableTiles",
+      "dependency:formatMobileWearableValue",
+      "dependency:formatMobileWearableDelta",
+      "dependency:getMobileWearablePriority",
+      "dependency:isLightSunUILoaded",
+      "dependency:loadLightSunUI",
+      "dependency:rerenderDashboardFromWidgetChange",
+      "dependency:renderLightTodayHero",
+      "dependency:showRecommendations"
+    ],
+    "outputs": [
+      {
+        "owner": "renderDashboardLightTodayWidget",
+        "raw": null,
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": []
+        },
+        "error": "TypeError:Cannot read properties of undefined (reading 'then')"
+      },
+      {
+        "owner": "renderDashboardLightConditionsWidget",
+        "raw": null,
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": []
+        },
+        "error": "TypeError:Cannot read properties of undefined (reading 'then')"
+      },
+      {
+        "owner": "renderDashboardLightSessionLogWidget",
+        "raw": null,
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": []
+        },
+        "error": "TypeError:Cannot read properties of undefined (reading 'then')"
+      },
+      {
+        "owner": "renderDashboardLightLiveSessionWidget",
+        "raw": null,
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": []
+        },
+        "error": "TypeError:Cannot read properties of undefined (reading 'then')"
+      },
+      {
+        "owner": "renderDashboardLightChannelsWidget",
+        "raw": null,
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": []
+        },
+        "error": "TypeError:Cannot read properties of undefined (reading 'then')"
+      }
+    ],
+    "beforeSettlement": [
+      "ready",
+      "load",
+      "ready",
+      "load",
+      "ready",
+      "load",
+      "ready",
+      "load",
+      "ready",
+      "load"
+    ],
+    "afterSettlement": [
+      "ready",
+      "load",
+      "ready",
+      "load",
+      "ready",
+      "load",
+      "ready",
+      "load",
+      "ready",
+      "load"
+    ],
+    "trace": [
+      "ready",
+      "load",
+      "ready",
+      "load",
+      "ready",
+      "load",
+      "ready",
+      "load",
+      "ready",
+      "load"
+    ],
+    "logs": []
+  },
+  {
+    "scenario": "ready",
+    "keys": [
+      "buildDashboardWidgetContext",
+      "getCachedRecommendationsCatalog",
+      "refreshRecommendationsWhenCatalogReady",
+      "getGlobalRecommendationCandidates",
+      "renderRecommendationCard",
+      "renderRecommendationList",
+      "renderRecommendationsEmpty",
+      "renderDashboardRecommendationsWidget",
+      "getDashboardMarkerById",
+      "renderDashboardBioAgeWidget",
+      "renderBiologyScoresWidget",
+      "renderDashboardBiologyScoreWidget",
+      "renderDashboardBiologicalCoherenceWidget",
+      "renderDashboardQuickMarkersWidget",
+      "renderDashboardSingleMarkerWidget",
+      "renderDashboardSpotlightWidget",
+      "renderLabsPriorityBanner",
+      "renderDashboardInsightsListWidget",
+      "getDashboardBiometricSelection",
+      "saveDashboardBiometricSelection",
+      "getDashboardBiometricMetricOrder",
+      "getDashboardBiometricTile",
+      "renderDashboardWearableTilesWidget",
+      "renderDashboardGenomeWidget",
+      "renderDashboardCorrelationWidget",
+      "renderDashboardLightTodayWidget",
+      "renderDashboardLightConditionsWidget",
+      "renderDashboardLightLiveSessionWidget",
+      "renderDashboardLightSessionLogWidget",
+      "renderDashboardLightChannelsWidget",
+      "renderDashboardKeyTrendsWidget",
+      "renderDashboardAlertsWidget",
+      "renderDashboardNotesWidget",
+      "setRecommendationState",
+      "isDashboardQuickMarkerPinned",
+      "toggleDashboardQuickMarkerPin"
+    ],
+    "factoryTrace": [
+      "dependency:markerHasData",
+      "dependency:renderDashboardLightChannelsWidget",
+      "dependency:renderLightConditionsWidgetBody",
+      "dependency:renderLightLiveSession",
+      "dependency:renderLightSessionLogActions",
+      "dependency:getMobileDashboardMarkers",
+      "dependency:getMobileDashboardInsights",
+      "dependency:getMobileWearableTiles",
+      "dependency:formatMobileWearableValue",
+      "dependency:formatMobileWearableDelta",
+      "dependency:getMobileWearablePriority",
+      "dependency:isLightSunUILoaded",
+      "dependency:loadLightSunUI",
+      "dependency:rerenderDashboardFromWidgetChange",
+      "dependency:renderLightTodayHero",
+      "dependency:showRecommendations"
+    ],
+    "outputs": [
+      {
+        "owner": "renderDashboardLightTodayWidget",
+        "raw": "hero",
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": [
+            {
+              "type": 3,
+              "text": "hero"
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "owner": "renderDashboardLightConditionsWidget",
+        "raw": "conditions",
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": [
+            {
+              "type": 3,
+              "text": "conditions"
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "owner": "renderDashboardLightSessionLogWidget",
+        "raw": "session",
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": [
+            {
+              "type": 3,
+              "text": "session"
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "owner": "renderDashboardLightLiveSessionWidget",
+        "raw": "live",
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": [
+            {
+              "type": 3,
+              "text": "live"
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "owner": "renderDashboardLightChannelsWidget",
+        "raw": "channels",
+        "dom": {
+          "tag": "DIV",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": [
+            {
+              "type": 3,
+              "text": "channels"
+            }
+          ]
+        },
+        "error": null
+      }
+    ],
+    "beforeSettlement": [
+      "ready",
+      "hero",
+      "ready",
+      "conditions:{\"variant\":\"full\",\"slotId\":\"cond-now-dashboard-widget\"}",
+      "ready",
+      "session",
+      "ready",
+      "live:{\"includeEmptyState\":true}",
+      "ready",
+      "channels:0"
+    ],
+    "afterSettlement": [
+      "ready",
+      "hero",
+      "ready",
+      "conditions:{\"variant\":\"full\",\"slotId\":\"cond-now-dashboard-widget\"}",
+      "ready",
+      "session",
+      "ready",
+      "live:{\"includeEmptyState\":true}",
+      "ready",
+      "channels:0"
+    ],
+    "trace": [
+      "ready",
+      "hero",
+      "ready",
+      "conditions:{\"variant\":\"full\",\"slotId\":\"cond-now-dashboard-widget\"}",
+      "ready",
+      "session",
+      "ready",
+      "live:{\"includeEmptyState\":true}",
+      "ready",
+      "channels:0"
+    ],
+    "logs": []
+  }
+]

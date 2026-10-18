@@ -2,6 +2,9 @@ importScripts('/version.js');
 importScripts('/service-worker-runtime.js');
 // Build output pins the deployment identity.
 const BUILD_ID = ''; // Replaced by the production builder.
+const FONT_ALIASES: Readonly<Record<string, string>> = {}; // Verified aliases injected only by the static native and Kit builders.
+const SQLITE_ASSET_ALIASES: Readonly<Record<string, string>> = {}; // Only four complete, pinned SQLite pairs; public URLs stay available.
+const RETRY_CHUNK_ALIASES: Readonly<Record<string, string>> = {}; // Native byte-proven canonical chunk hashes only.
 const PROD_HOSTS = new Set(['app.getbased.health', 'getbased.health', 'www.getbased.health']);
 const IS_PROD = PROD_HOSTS.has(self.location.hostname);
 let _cacheNamePromise: Promise<string> | null = null;
@@ -39,6 +42,9 @@ serviceWorkerScope.GetBasedServiceWorkerRuntime!.install({
   scope: serviceWorkerScope,
   buildId: BUILD_ID,
   appShell: serviceWorkerScope.GetBasedServiceWorkerAssets!,
+  fontAliases: FONT_ALIASES,
+  sqliteAssetAliases: SQLITE_ASSET_ALIASES,
+  retryChunkAliases: RETRY_CHUNK_ALIASES,
   isProduction: IS_PROD || !!BUILD_ID,
   resolveCacheName,
   shouldUseNetworkOnly,

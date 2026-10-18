@@ -1,0 +1,457 @@
+[
+  {
+    "component": "WearableSparkline",
+    "kind": "sparkline",
+    "slots": [
+      {
+        "port": "toneClass",
+        "coordinate": "gb-wearable-strip-wearablesparkline-sparkline-tone-class-end"
+      },
+      {
+        "port": "viewWidth",
+        "coordinate": "gb-wearable-strip-wearablesparkline-sparkline-view-width-end"
+      },
+      {
+        "port": "viewHeight",
+        "coordinate": "gb-wearable-strip-wearablesparkline-sparkline-view-height-end"
+      },
+      {
+        "port": "baselineStartY",
+        "coordinate": "gb-wearable-strip-wearablesparkline-sparkline-baseline-start-y-end"
+      },
+      {
+        "port": "baselineWidth",
+        "coordinate": "gb-wearable-strip-wearablesparkline-sparkline-baseline-width-end"
+      },
+      {
+        "port": "baselineEndY",
+        "coordinate": "gb-wearable-strip-wearablesparkline-sparkline-baseline-end-y-end"
+      },
+      {
+        "port": "points",
+        "coordinate": "gb-wearable-strip-wearablesparkline-sparkline-points-end"
+      },
+      {
+        "port": "lastX",
+        "coordinate": "gb-wearable-strip-wearablesparkline-sparkline-last-x-end"
+      },
+      {
+        "port": "lastY",
+        "coordinate": "gb-wearable-strip-wearablesparkline-sparkline-last-y-end"
+      }
+    ],
+    "nativeSkeleton": "<svg class=\"wearable-sparkline gb-wearable-strip-wearablesparkline-sparkline-tone-class-end\" viewBox=\"0 0 gb-wearable-strip-wearablesparkline-sparkline-view-width-end gb-wearable-strip-wearablesparkline-sparkline-view-height-end\" preserveAspectRatio=\"none\" aria-hidden=\"true\">\n    <line x1=\"0\" y1=\"gb-wearable-strip-wearablesparkline-sparkline-baseline-start-y-end\" x2=\"gb-wearable-strip-wearablesparkline-sparkline-baseline-width-end\" y2=\"gb-wearable-strip-wearablesparkline-sparkline-baseline-end-y-end\" class=\"spark-baseline\"/>\n    <polyline points=\"gb-wearable-strip-wearablesparkline-sparkline-points-end\" class=\"spark-line\"/>\n    <circle cx=\"gb-wearable-strip-wearablesparkline-sparkline-last-x-end\" cy=\"gb-wearable-strip-wearablesparkline-sparkline-last-y-end\" r=\"2\" class=\"spark-last\"/>\n  </svg>"
+  },
+  {
+    "component": "WearableEmptyCard",
+    "kind": "subLabel",
+    "slots": [
+      {
+        "port": "escapedSubLabel",
+        "coordinate": "gb-wearable-strip-wearableemptycard-sublabel-escaped-sub-label-end"
+      }
+    ],
+    "nativeSkeleton": " <span class=\"wearable-metric-sub\">gb-wearable-strip-wearableemptycard-sublabel-escaped-sub-label-end</span>"
+  },
+  {
+    "component": "WearableEmptyCard",
+    "kind": "card",
+    "slots": [
+      {
+        "port": "metricAttribute",
+        "coordinate": "gb-wearable-strip-wearableemptycard-card-metric-attribute-end"
+      },
+      {
+        "port": "actionAttributes",
+        "coordinate": "gb-wearable-strip-wearableemptycard-card-action-attributes-end"
+      },
+      {
+        "port": "accessibleLabel",
+        "coordinate": "gb-wearable-strip-wearableemptycard-card-accessible-label-end"
+      },
+      {
+        "port": "label",
+        "coordinate": "gb-wearable-strip-wearableemptycard-card-label-end"
+      },
+      {
+        "port": "optionalSubLabel",
+        "coordinate": "gb-wearable-strip-wearableemptycard-card-optional-sub-label-end"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"wearable-card wearable-card-empty\" data-empty-metric=\"gb-wearable-strip-wearableemptycard-card-metric-attribute-end\" gb-wearable-strip-wearableemptycard-card-action-attributes-end aria-label=\"Log gb-wearable-strip-wearableemptycard-card-accessible-label-end manually\">\n    <div class=\"wearable-card-top\">\n      <span class=\"wearable-metric-name\">gb-wearable-strip-wearableemptycard-card-label-endgb-wearable-strip-wearableemptycard-card-optional-sub-label-end</span>\n    </div>\n    <div class=\"wearable-value-row wearable-value-row-empty\">\n      <span class=\"wearable-value wearable-value-dash\">–</span>\n    </div>\n    <div class=\"wearable-card-bottom\">\n      <div class=\"wearable-empty-cta\">+ Log</div>\n    </div>\n  </div>"
+  },
+  {
+    "component": "WearableMetricCard",
+    "kind": "subLabel",
+    "slots": [
+      {
+        "port": "escapedSubLabel",
+        "coordinate": "gb-wearable-strip-wearablemetriccard-sublabel-escaped-sub-label-end"
+      }
+    ],
+    "nativeSkeleton": " <span class=\"wearable-metric-sub\">gb-wearable-strip-wearablemetriccard-sublabel-escaped-sub-label-end</span>"
+  },
+  {
+    "component": "WearableMetricCard",
+    "kind": "unit",
+    "slots": [
+      {
+        "port": "tightUnitClass",
+        "coordinate": "gb-wearable-strip-wearablemetriccard-unit-tight-unit-class-end"
+      },
+      {
+        "port": "escapedUnit",
+        "coordinate": "gb-wearable-strip-wearablemetriccard-unit-escaped-unit-end"
+      }
+    ],
+    "nativeSkeleton": "<span class=\"wearable-unitgb-wearable-strip-wearablemetriccard-unit-tight-unit-class-end\">gb-wearable-strip-wearablemetriccard-unit-escaped-unit-end</span>"
+  },
+  {
+    "component": "WearableMetricCard",
+    "kind": "staleness",
+    "slots": [
+      {
+        "port": "latestDate",
+        "coordinate": "gb-wearable-strip-wearablemetriccard-staleness-latest-date-end"
+      },
+      {
+        "port": "formattedDate",
+        "coordinate": "gb-wearable-strip-wearablemetriccard-staleness-formatted-date-end"
+      }
+    ],
+    "nativeSkeleton": "<span class=\"wearable-staleness\" title=\"Latest sample for this metric is from gb-wearable-strip-wearablemetriccard-staleness-latest-date-end — your wearable hasn't published a more recent reading yet (some metrics process slower than others).\">as of gb-wearable-strip-wearablemetriccard-staleness-formatted-date-end</span>"
+  },
+  {
+    "component": "WearableMetricCard",
+    "kind": "sourceBadge",
+    "slots": [
+      {
+        "port": "sourceActionAttributes",
+        "coordinate": "gb-wearable-strip-wearablemetriccard-sourcebadge-source-action-attributes-end"
+      },
+      {
+        "port": "sourceName",
+        "coordinate": "gb-wearable-strip-wearablemetriccard-sourcebadge-source-name-end"
+      }
+    ],
+    "nativeSkeleton": "<button type=\"button\" class=\"wearable-source-badge wearable-source-badge-btn\" gb-wearable-strip-wearablemetriccard-sourcebadge-source-action-attributes-end title=\"Click to switch source for this metric\">via gb-wearable-strip-wearablemetriccard-sourcebadge-source-name-end</button>"
+  },
+  {
+    "component": "WearableMetricCard",
+    "kind": "card",
+    "slots": [
+      {
+        "port": "actionAttributes",
+        "coordinate": "gb-wearable-strip-wearablemetriccard-card-action-attributes-end"
+      },
+      {
+        "port": "accessibleLabel",
+        "coordinate": "gb-wearable-strip-wearablemetriccard-card-accessible-label-end"
+      },
+      {
+        "port": "label",
+        "coordinate": "gb-wearable-strip-wearablemetriccard-card-label-end"
+      },
+      {
+        "port": "subLabel",
+        "coordinate": "gb-wearable-strip-wearablemetriccard-card-sub-label-end"
+      },
+      {
+        "port": "optionalDelta",
+        "coordinate": "gb-wearable-strip-wearablemetriccard-card-optional-delta-end"
+      },
+      {
+        "port": "value",
+        "coordinate": "gb-wearable-strip-wearablemetriccard-card-value-end"
+      },
+      {
+        "port": "unit",
+        "coordinate": "gb-wearable-strip-wearablemetriccard-card-unit-end"
+      },
+      {
+        "port": "baselineValue",
+        "coordinate": "gb-wearable-strip-wearablemetriccard-card-baseline-value-end"
+      },
+      {
+        "port": "baselineUnit",
+        "coordinate": "gb-wearable-strip-wearablemetriccard-card-baseline-unit-end"
+      },
+      {
+        "port": "staleness",
+        "coordinate": "gb-wearable-strip-wearablemetriccard-card-staleness-end"
+      },
+      {
+        "port": "sparkline",
+        "coordinate": "gb-wearable-strip-wearablemetriccard-card-sparkline-end"
+      },
+      {
+        "port": "trendClass",
+        "coordinate": "gb-wearable-strip-wearablemetriccard-card-trend-class-end"
+      },
+      {
+        "port": "trendLabel",
+        "coordinate": "gb-wearable-strip-wearablemetriccard-card-trend-label-end"
+      },
+      {
+        "port": "sourceBadge",
+        "coordinate": "gb-wearable-strip-wearablemetriccard-card-source-badge-end"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"wearable-card\"gb-wearable-strip-wearablemetriccard-card-action-attributes-end aria-label=\"gb-wearable-strip-wearablemetriccard-card-accessible-label-end\">\n    <div class=\"wearable-card-top\">\n      <span class=\"wearable-metric-name\">gb-wearable-strip-wearablemetriccard-card-label-endgb-wearable-strip-wearablemetriccard-card-sub-label-end</span>\n      gb-wearable-strip-wearablemetriccard-card-optional-delta-end\n    </div>\n    <div class=\"wearable-value-row\">\n      <span class=\"wearable-value\">gb-wearable-strip-wearablemetriccard-card-value-end</span>gb-wearable-strip-wearablemetriccard-card-unit-end\n      <span class=\"wearable-baseline\">baseline gb-wearable-strip-wearablemetriccard-card-baseline-value-endgb-wearable-strip-wearablemetriccard-card-baseline-unit-end</span>\n      gb-wearable-strip-wearablemetriccard-card-staleness-end\n    </div>\n    gb-wearable-strip-wearablemetriccard-card-sparkline-end\n    <div class=\"wearable-card-bottom\">\n      <div class=\"wearable-trend-pill gb-wearable-strip-wearablemetriccard-card-trend-class-end\">gb-wearable-strip-wearablemetriccard-card-trend-label-end</div>\n      gb-wearable-strip-wearablemetriccard-card-source-badge-end\n    </div>\n  </div>"
+  },
+  {
+    "component": "WearableMetricCard",
+    "kind": "delta",
+    "slots": [
+      {
+        "port": "deltaClass",
+        "coordinate": "gb-wearable-strip-wearablemetriccard-delta-delta-class-end"
+      },
+      {
+        "port": "deltaText",
+        "coordinate": "gb-wearable-strip-wearablemetriccard-delta-delta-text-end"
+      }
+    ],
+    "nativeSkeleton": "<span class=\"wearable-delta gb-wearable-strip-wearablemetriccard-delta-delta-class-end\">gb-wearable-strip-wearablemetriccard-delta-delta-text-end</span>"
+  },
+  {
+    "component": "WearableStripStub",
+    "kind": "stub",
+    "slots": [
+      {
+        "port": "connectActionAttributes",
+        "coordinate": "gb-wearable-strip-wearablestripstub-stub-connect-action-attributes-end"
+      },
+      {
+        "port": "dismissActionAttributes",
+        "coordinate": "gb-wearable-strip-wearablestripstub-stub-dismiss-action-attributes-end"
+      }
+    ],
+    "nativeSkeleton": "<section class=\"wearable-strip wearable-strip-stub\">\n    <div class=\"wearable-strip-stub-body\">\n      <span class=\"wearable-strip-icon\" aria-hidden=\"true\">⌬</span>\n      <div class=\"wearable-strip-stub-text\">\n        <strong>Connect a wearable</strong> to see HRV, sleep, recovery and body composition trends alongside your blood work.\n        <span class=\"wearable-strip-stub-brands\">Oura · Withings · Fitbit · Polar · Apple Health</span>\n      </div>\n      <div class=\"wearable-strip-stub-actions\">\n        <button class=\"wearable-strip-stub-cta\" gb-wearable-strip-wearablestripstub-stub-connect-action-attributes-end>Connect</button>\n        <button class=\"wearable-strip-stub-dismiss\" title=\"Hide this hint\" aria-label=\"Dismiss wearable hint\" gb-wearable-strip-wearablestripstub-stub-dismiss-action-attributes-end>×</button>\n      </div>\n    </div>\n  </section>"
+  },
+  {
+    "component": "WearableStripHeader",
+    "kind": "manualTitle",
+    "slots": [],
+    "nativeSkeleton": "<span>Biometrics</span>"
+  },
+  {
+    "component": "WearableStripHeader",
+    "kind": "sourceTitle",
+    "slots": [
+      {
+        "port": "sourceNames",
+        "coordinate": "gb-wearable-strip-wearablestripheader-sourcetitle-source-names-end"
+      },
+      {
+        "port": "coverage",
+        "coordinate": "gb-wearable-strip-wearablestripheader-sourcetitle-coverage-end"
+      }
+    ],
+    "nativeSkeleton": "<span>Wearables: <span class=\"wearable-source-label\">gb-wearable-strip-wearablestripheader-sourcetitle-source-names-endgb-wearable-strip-wearablestripheader-sourcetitle-coverage-end</span></span>"
+  },
+  {
+    "component": "WearableStripHeader",
+    "kind": "lastSync",
+    "slots": [
+      {
+        "port": "lastSyncAge",
+        "coordinate": "gb-wearable-strip-wearablestripheader-lastsync-last-sync-age-end"
+      }
+    ],
+    "nativeSkeleton": "<span class=\"wearable-strip-lastsync\">last synced gb-wearable-strip-wearablestripheader-lastsync-last-sync-age-end</span>"
+  },
+  {
+    "component": "WearableStripHeader",
+    "kind": "syncButton",
+    "slots": [
+      {
+        "port": "syncActionAttributes",
+        "coordinate": "gb-wearable-strip-wearablestripheader-syncbutton-sync-action-attributes-end"
+      }
+    ],
+    "nativeSkeleton": "<button type=\"button\" class=\"wearable-strip-sync\" aria-label=\"Sync stale wearables now\" gb-wearable-strip-wearablestripheader-syncbutton-sync-action-attributes-end>\n    <svg class=\"wearable-strip-sync-icon\" width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M21 12a9 9 0 1 1-3-6.7\"/><polyline points=\"21 4 21 12 13 12\"/></svg>\n    <span>Sync stale data</span>\n  </button>"
+  },
+  {
+    "component": "WearableStripHeader",
+    "kind": "header",
+    "slots": [
+      {
+        "port": "toggleHeaderAttributes",
+        "coordinate": "gb-wearable-strip-wearablestripheader-header-toggle-header-attributes-end"
+      },
+      {
+        "port": "title",
+        "coordinate": "gb-wearable-strip-wearablestripheader-header-title-end"
+      },
+      {
+        "port": "optionalDemoPill",
+        "coordinate": "gb-wearable-strip-wearablestripheader-header-optional-demo-pill-end"
+      },
+      {
+        "port": "optionalReorderHint",
+        "coordinate": "gb-wearable-strip-wearablestripheader-header-optional-reorder-hint-end"
+      },
+      {
+        "port": "lastSync",
+        "coordinate": "gb-wearable-strip-wearablestripheader-header-last-sync-end"
+      },
+      {
+        "port": "syncButton",
+        "coordinate": "gb-wearable-strip-wearablestripheader-header-sync-button-end"
+      },
+      {
+        "port": "reorderActiveClass",
+        "coordinate": "gb-wearable-strip-wearablestripheader-header-reorder-active-class-end"
+      },
+      {
+        "port": "reorderAccessibleLabel",
+        "coordinate": "gb-wearable-strip-wearablestripheader-header-reorder-accessible-label-end"
+      },
+      {
+        "port": "reorderTitle",
+        "coordinate": "gb-wearable-strip-wearablestripheader-header-reorder-title-end"
+      },
+      {
+        "port": "reorderActionAttributes",
+        "coordinate": "gb-wearable-strip-wearablestripheader-header-reorder-action-attributes-end"
+      },
+      {
+        "port": "reorderText",
+        "coordinate": "gb-wearable-strip-wearablestripheader-header-reorder-text-end"
+      },
+      {
+        "port": "collapseClass",
+        "coordinate": "gb-wearable-strip-wearablestripheader-header-collapse-class-end"
+      },
+      {
+        "port": "expanded",
+        "coordinate": "gb-wearable-strip-wearablestripheader-header-expanded-end"
+      },
+      {
+        "port": "collapseAccessibleLabel",
+        "coordinate": "gb-wearable-strip-wearablestripheader-header-collapse-accessible-label-end"
+      },
+      {
+        "port": "collapseActionAttributes",
+        "coordinate": "gb-wearable-strip-wearablestripheader-header-collapse-action-attributes-end"
+      },
+      {
+        "port": "gridHiddenClass",
+        "coordinate": "gb-wearable-strip-wearablestripheader-header-grid-hidden-class-end"
+      },
+      {
+        "port": "gridReorderClass",
+        "coordinate": "gb-wearable-strip-wearablestripheader-header-grid-reorder-class-end"
+      }
+    ],
+    "nativeSkeleton": "<section class=\"wearable-strip\" id=\"wearable-strip\">\n    <div class=\"wearable-strip-header\" gb-wearable-strip-wearablestripheader-header-toggle-header-attributes-end style=\"cursor:pointer\">\n      <div class=\"wearable-strip-title\">\n        <span class=\"wearable-strip-icon\" aria-hidden=\"true\">⌬</span>\n        gb-wearable-strip-wearablestripheader-header-title-end\n        gb-wearable-strip-wearablestripheader-header-optional-demo-pill-end\n        gb-wearable-strip-wearablestripheader-header-optional-reorder-hint-end\n      </div>\n      <div class=\"wearable-strip-meta\">\n        gb-wearable-strip-wearablestripheader-header-last-sync-end\n        gb-wearable-strip-wearablestripheader-header-sync-button-end\n        <button type=\"button\" class=\"wearable-strip-reordergb-wearable-strip-wearablestripheader-header-reorder-active-class-end\" aria-label=\"gb-wearable-strip-wearablestripheader-header-reorder-accessible-label-end\" title=\"gb-wearable-strip-wearablestripheader-header-reorder-title-end\" gb-wearable-strip-wearablestripheader-header-reorder-action-attributes-end>\n          gb-wearable-strip-wearablestripheader-header-reorder-text-end\n        </button>\n        <button type=\"button\" class=\"wearable-collapse-arrowgb-wearable-strip-wearablestripheader-header-collapse-class-end\" aria-expanded=\"gb-wearable-strip-wearablestripheader-header-expanded-end\" aria-label=\"gb-wearable-strip-wearablestripheader-header-collapse-accessible-label-end\" gb-wearable-strip-wearablestripheader-header-collapse-action-attributes-end>▾</button>\n      </div>\n    </div>\n    <div class=\"wearable-card-gridgb-wearable-strip-wearablestripheader-header-grid-hidden-class-endgb-wearable-strip-wearablestripheader-header-grid-reorder-class-end\">"
+  },
+  {
+    "component": "WearableStripHeader",
+    "kind": "demoPill",
+    "slots": [
+      {
+        "port": "settingsActionAttributes",
+        "coordinate": "gb-wearable-strip-wearablestripheader-demopill-settings-action-attributes-end"
+      }
+    ],
+    "nativeSkeleton": "<button type=\"button\" class=\"wearable-strip-demo-pill\" gb-wearable-strip-wearablestripheader-demopill-settings-action-attributes-end title=\"This is a sample. Connect your own wearable to see real data here.\">demo data — connect yours</button>"
+  },
+  {
+    "component": "WearableStripHeader",
+    "kind": "reorderHint",
+    "slots": [],
+    "nativeSkeleton": "<span class=\"wearable-strip-reorder-pill\">⇄ Reorder mode — use ◀ ▶ on each card</span>"
+  },
+  {
+    "component": "WearableStripBody",
+    "kind": "reorderCard",
+    "slots": [
+      {
+        "port": "metricAttribute",
+        "coordinate": "gb-wearable-strip-wearablestripbody-reordercard-metric-attribute-end"
+      },
+      {
+        "port": "card",
+        "coordinate": "gb-wearable-strip-wearablestripbody-reordercard-card-end"
+      },
+      {
+        "port": "leftAccessibleLabel",
+        "coordinate": "gb-wearable-strip-wearablestripbody-reordercard-left-accessible-label-end"
+      },
+      {
+        "port": "leftDisabled",
+        "coordinate": "gb-wearable-strip-wearablestripbody-reordercard-left-disabled-end"
+      },
+      {
+        "port": "leftActionAttributes",
+        "coordinate": "gb-wearable-strip-wearablestripbody-reordercard-left-action-attributes-end"
+      },
+      {
+        "port": "rightAccessibleLabel",
+        "coordinate": "gb-wearable-strip-wearablestripbody-reordercard-right-accessible-label-end"
+      },
+      {
+        "port": "rightDisabled",
+        "coordinate": "gb-wearable-strip-wearablestripbody-reordercard-right-disabled-end"
+      },
+      {
+        "port": "rightActionAttributes",
+        "coordinate": "gb-wearable-strip-wearablestripbody-reordercard-right-action-attributes-end"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"wearable-card-reorder-wrap\" data-reorder-metric=\"gb-wearable-strip-wearablestripbody-reordercard-metric-attribute-end\">\n        gb-wearable-strip-wearablestripbody-reordercard-card-end\n        <div class=\"wearable-reorder-arrows\">\n          <button type=\"button\" class=\"wearable-reorder-arrow\" aria-label=\"Move gb-wearable-strip-wearablestripbody-reordercard-left-accessible-label-end left\" gb-wearable-strip-wearablestripbody-reordercard-left-disabled-end gb-wearable-strip-wearablestripbody-reordercard-left-action-attributes-end>◀</button>\n          <button type=\"button\" class=\"wearable-reorder-arrow\" aria-label=\"Move gb-wearable-strip-wearablestripbody-reordercard-right-accessible-label-end right\" gb-wearable-strip-wearablestripbody-reordercard-right-disabled-end gb-wearable-strip-wearablestripbody-reordercard-right-action-attributes-end>▶</button>\n        </div>\n      </div>"
+  },
+  {
+    "component": "WearableStripBody",
+    "kind": "gridEnd",
+    "slots": [],
+    "nativeSkeleton": "</div>"
+  },
+  {
+    "component": "WearableStripBody",
+    "kind": "footerStart",
+    "slots": [
+      {
+        "port": "hiddenClass",
+        "coordinate": "gb-wearable-strip-wearablestripbody-footerstart-hidden-class-end"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"wearable-strip-footergb-wearable-strip-wearablestripbody-footerstart-hidden-class-end\">"
+  },
+  {
+    "component": "WearableStripBody",
+    "kind": "waitingNote",
+    "slots": [
+      {
+        "port": "waitingNote",
+        "coordinate": "gb-wearable-strip-wearablestripbody-waitingnote-waiting-note-end"
+      }
+    ],
+    "nativeSkeleton": "<span class=\"wearable-strip-footer-note\">gb-wearable-strip-wearablestripbody-waitingnote-waiting-note-end</span>"
+  },
+  {
+    "component": "WearableStripBody",
+    "kind": "hrvNote",
+    "slots": [
+      {
+        "port": "hrvNote",
+        "coordinate": "gb-wearable-strip-wearablestripbody-hrvnote-hrv-note-end"
+      }
+    ],
+    "nativeSkeleton": "<span class=\"wearable-strip-footer-note\">gb-wearable-strip-wearablestripbody-hrvnote-hrv-note-end</span>"
+  },
+  {
+    "component": "WearableStripBody",
+    "kind": "footerEnd",
+    "slots": [],
+    "nativeSkeleton": "</div>"
+  },
+  {
+    "component": "WearableStripBody",
+    "kind": "stripEnd",
+    "slots": [],
+    "nativeSkeleton": "</section>"
+  }
+]

@@ -1,13 +1,14 @@
+import {waitForAsyncCondition} from '../helpers/awaited-condition.js';
 import { expect, test } from './coverage-fixture.js';
 
 test('dashboard widget delegated actions cover organize, picker, biometrics, and body actions', async ({ page }) => {
   // These contracts exercise desktop sticky controls and the desktop organizing grid.
   await page.setViewportSize({width: 1280, height: 720});
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(async () => {
+  await waitForAsyncCondition(() => page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     return !!state;
-  });
+  }), 0);
 
   const results = await page.evaluate(async () => {
     const [{ state }, dataModule, dashboardWidgetsModule, contextCardsRuntime, dashboardWidgetRuntime, wearablesRuntime, viewsModule, navModule] = await Promise.all([
@@ -262,10 +263,10 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
   // These contracts exercise desktop sticky controls and the desktop organizing grid.
   await page.setViewportSize({width: 1280, height: 720});
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(async () => {
+  await waitForAsyncCondition(() => page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     return !!state;
-  });
+  }), 0);
 
   const results = await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
@@ -393,7 +394,11 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
         await delay(10);
         return catalog;
       },
-      renderRecommendationSection: async (slotKey: unknown) => `<div class="rec-detail-coverage">Options for ${slotKey}</div>`,
+      getRecommendationSectionView: async (slotKey: unknown) => ({
+        variant: 'standard', header: `Options for ${slotKey}`, gated: false, banner: false,
+        normalNote: false, genetics: [], tiers: [], products: [], coupon: null,
+        suggestionHref: null, footer: {region: 'Worldwide'}, disclaimer: false,
+      }),
     });
     previousRecommendationRuntime = recommendationRuntime.configureRecommendationsRuntime({
       openChatPanel: (prompt: unknown) => calls.push(['chat', prompt]),

@@ -21,16 +21,54 @@ PR tests do not ordinarily collect whole-project coverage. Main-branch pushes,
 manual full test runs, and explicit release verification run the complete
 regression suite, critical coverage gates, and combined production measurement.
 A passing selective check is not a new whole-project coverage measurement.
-The [Display pilot workflow](../.github/workflows/display-pilot.yml) provides
-focused acceptance on its isolated branch without invoking the exhaustive suite;
-full regression and combined-coverage requirements for release remain unchanged.
+The [Display pilot workflow](../.github/workflows/display-pilot.yml) reuses
+the complete acceptance workflow on its isolated migration branch. Release
+verification retains separate real-model and container runtime checks.
 
-The [static SvelteKit bridge](static-sveltekit.md) has a local focused acceptance
+The [static SvelteKit distribution](static-sveltekit.md) has a local focused acceptance
 command, `npm run test:sveltekit`, covering static aliases, CSP, delegated Display
 preferences, offline first use, cold launch, stored data and explicit worker updates.
-Headless launch environments cannot access the user's desktop session. Historical
-size/cache ceilings are recorded for this local evaluation; quality, compiler and
-coverage safety remain intact. The native production build keeps its budget gates.
+The [main-route acceptance supplement](../tests/pwa/sveltekit-main-route-acceptance.spec.ts)
+walks the main routes with the keyboard in Dark desktop Chromium and emulated
+mobile WebKit, checks scoped accessibility and horizontal overflow, and retains
+screenshots and exact profile receipts through stopped-origin and cold launches.
+It also checks the three empty manual-metric calls to action across six themes
+and two widths: primary text ink is an intentional readability improvement.
+The manual-card Remove control sits at the bottom right so its coarse-pointer
+target cannot cover the metric label.
+Any scoped axe violation fails the journey, even when collection continues to
+record later routes. Finite animations settle before visual sampling; motion stays
+enabled, and the checks do not certify every intermediate animation frame.
+The [category contrast case](../tests/pwa/sveltekit-category.spec.ts) checks actual
+high-status badges and settled adverse trends in six themes, including the
+intentional reduction of the scoped badge tint while retaining semantic red.
+For gradient backgrounds that axe cannot resolve, these focused contrast cases
+require each affected text node to pass a [rendered-background pixel check](../tests/helpers/rendered-gradient-contrast.ts).
+The check retains the gradient, foreground semantics and geometry; unsupported
+indeterminate results still fail. [Normative contrast cases](../tests/rendered-gradient-contrast.test.ts)
+verify the pixel calculation independently of the browser journey.
+These cases do not certify OS speech or physical devices.
+Headless launch environments cannot access the user's desktop session.
+`production:check` validates the default SvelteKit distribution in a disposable
+directory and enforces its committed offline-cache absolute and reference-growth
+budgets. Build an artifact and run `npm run performance:check -- --artifact dist`
+for its separate startup and first-use transfer gates; all measured samples must
+pass, while timing remains diagnostic. These checks use synthetic data and preserve
+UI, data, CSP and request qualification independently of resource limits. The
+[static-build contract](static-sveltekit.md#build-identity-and-size-measurements)
+defines conditions, headroom and retained-cache ownership.
+`performance:native:check` and `native:compatibility:check` keep the original native
+budget gates as separate compatibility measurements. The native cold-load
+diagnostic has its own Playwright configuration; the four functional lazy-loading
+cases remain in the default browser suite. Compiler and coverage safety remain intact.
+
+`tests/production-build.test.ts` qualifies the shipping Kit artifact. With
+`GETBASED_KIT_ARTIFACT` it rejects stale source inventories and changed public
+assets before checking the complete generated graph and resource policy. Without
+it, the test creates and cleans up one isolated build. CI resolves the catalog
+before building once, then reuses those bytes for the contract and transfer gates.
+Generated coverage reports do not change application identity; their maintained
+producer sources and configuration remain authored build inputs.
 
 The shared health-context catalog has focused component contracts in
 [`context-card-catalog.test.ts`](../tests/context-card-catalog.test.ts), native
@@ -344,8 +382,8 @@ opens the actual Labs, Genome, Body, Insight and disabled-Tips routes, changes
 Labs ordering with the keyboard, and verifies it and the complete accepted
 profile through two closed-client launches. Adjacent Biology card acceptance
 retains the compact score-tools contract. Named HTML body/action compatibility
-inputs remain reviewed content boundaries; typed composition for other lens pages
-and whole-app release acceptance remain separate work.
+inputs remain reviewed content boundaries. These scoped lens checks complement
+the individual page contracts and whole-application release acceptance.
 
 The actual Biology page has [frozen full-composition checks](../tests/biology-page-presentation.test.ts)
 for male, female, sparse-data and persisted-order states, plus shared date option
@@ -435,9 +473,17 @@ Preserve independently failing assertions for these workflows:
 | Profiles and notes | Late work stays with its originating profile; failed reads block saves; drafts and records survive failed writes | [Profile races](../tests/chat-profile-races.test.ts), [profile persistence](../tests/profile-persistence.test.ts), [notes](../tests/notes-safety.test.ts) |
 | PDF preflight presentation | Preserve literal labels, whitespace, native button defaults, model conversion order, duplicate date formatting, specialty link attributes and scoped style ownership; retain ordered checks, cancellation and explicit model switching; create an accessible scanned-warning host when absent, keep Escape active after Tab, settle and clean up once, and protect a visible native confirmation | [Frozen presentation contracts](../tests/pdf-preflight-presentation.test.ts), [public PDF workflows](../tests/playwright/pdf-import-browser-coverage.spec.ts), [real-parser image-warning lifecycle](../tests/playwright/pdf-image-mode-lifecycle.spec.ts), [static PDF first use and cold launches](../tests/pwa/sveltekit-pdf-preflight.spec.ts), [modal lifecycle contracts](../tests/test-modal-lifecycle-integrations.ts) |
 | Standalone Note editor | Preserve original Add/Edit serialization, native form values and reset defaults, literal whitespace and coercion order; retain captured profile writes, aborted-write drafts, reload survival and both edit/delete sync tombstones; verify themes and stylesheet order, nested confirmation focus, first offline use and stopped-origin cold launches | [Frozen presentation contracts](../tests/note-editor-presentation.test.ts), [Note safety](../tests/notes-safety.test.ts), [native persistence](../tests/playwright/notes-persistence.spec.ts), [modal focus handoffs](../tests/modal-focus-handoff.test.ts), [static offline Note](../tests/pwa/sveltekit-note-editor.spec.ts) |
+| Client List overview | Preserve filtering, sorting, pinning, profile selection, protected records, native menus and form handoffs; keep the focused search toolbar attached during rapid typing and caret edits, retire stale deferred focus, and retain keyboard dismissal and offline first use through two cold launches | [Presentation contracts](../tests/client-list-presentation.test.ts), [search ownership](../tests/client-list-runtime.test.ts), [delegated actions](../tests/test-client-list-delegated-actions.ts), [shared focus](../tests/modal-focusable.test.ts), [static PWA workflows](../tests/pwa/sveltekit-client-list.spec.ts) |
+| Client List forms | Preserve native New/Edit defaults and validation, literal avatar/tag rendering, case-insensitive tag deduplication, canceled drafts, persisted metadata and tag edits, named controls and all unrelated profiles/preferences | [Form presentation](../tests/client-list-form-presentation.test.ts), [actual controller tag saves](../tests/client-list-form-tags.test.ts), [delegated runtime](../tests/client-list-runtime.test.ts), [offline form workflows](../tests/pwa/sveltekit-client-list.spec.ts) |
+| Shared tooltip overlay | Load global tooltip styles before Light; preserve trusted hover/focus/Escape lifecycle, title restoration, one fixed overlay and reduced-motion behavior | [Cold shell regression](../tests/playwright/tooltip-cold-shell.spec.ts), [runtime adapter](../tests/touch-tooltip-runtime.test.ts) |
+| Compact profile button | Preserve real profile selection and fallback, avatar/initial escaping, native coercion order and atomic failure, delegated activation, Client List focus restoration and responsive styles | [Projection contracts](../tests/profile-button-presentation.test.ts), [Nav source contracts](../tests/test-nav-delegated-actions.ts), [Runtime adapters](../tests/nav-runtime-adapters.test.ts), [Native nav workflows](../tests/playwright/nav-delegated-actions.spec.ts), [Static PWA offline and cold launch](../tests/pwa/sveltekit-profile-button.spec.ts) |
+| Chart Layers menu | Read only available modes in native order; retain exact checkbox defaults, delegated changes, per-profile preferences, category reconstruction, trusted pointer and keyboard input, Escape focus, outside dismissal and first offline use through two cold launches | [Presentation contracts](../tests/chart-layers-presentation.test.ts), [stylesheet ownership](../tests/category-views-styles.test.ts), [dismissal lifecycle](../tests/chart-layers-dismissal.test.ts), [delegated wiring](../tests/data-delegated-actions.test.ts), [native menu workflows](../tests/playwright/chart-layers.spec.ts), [static offline and cold launches](../tests/pwa/sveltekit-chart-layers.spec.ts) |
+| Header dates and range controls | Preserve formatter text, getter/coercion order and atomic failure; render supplied labels literally; keep empty no-clear behavior, native button defaults, in-place focus/listener identity, delegated persistence and deferred callback order | [Header public contracts](../tests/header-date-range.test.ts), [Delegated wiring](../tests/data-delegated-actions.test.ts), [Data browser coverage](../tests/playwright/data-browser-coverage.spec.ts), [Static PWA offline range persistence](../tests/pwa/sveltekit-header-date-range.spec.ts) |
+| Changelog presentation | Preserve escaped metadata, ordered coercion and atomic failure, safe item markup, current/archive release selection, version gates, native close/focus/scroll and Settings handoff | [Public presentation contracts](../tests/changelog-presentation-contract.test.ts), [Source and release contracts](../tests/test-changelog.ts), [Native browser workflows](../tests/playwright/changelog.spec.ts), [Cold loader coverage](../tests/playwright/changelog-loader-browser-coverage.spec.ts), [Static PWA offline and cold launch](../tests/pwa/sveltekit-changelog.spec.ts) |
+| Feedback draft | Preserve literal form markup, native defaults and validation, public header/mobile entry, type routing, complete long-report fallback and clipboard-denial selection; keep drafts in the current document, clear them on profile switch and cold launch, submit before SvelteKit navigation, and preserve unrelated stored profiles through offline first use and two cold launches | [Frozen presentation contracts](../tests/feedback-presentation.test.ts), [Notice rule restoration](../tests/feedback-native-rule.test.ts), [Native submit ownership](../tests/feedback-submit-delegation.test.ts), [Public browser workflows](../tests/playwright/feedback-flow.spec.ts), [Static offline Feedback](../tests/pwa/sveltekit-feedback.spec.ts) |
 | Agent chat and proposals | Exercise the actual application and tools; keep retries bounded; retain uploads and journals; do not replay an uncertain mutation | [Agent workflow](../tests/playwright/agent-chat-workflow.spec.ts), [backend recovery](../tests/agent-chat-backend.test.ts), [draft persistence](../tests/agent-draft-persistence.test.ts) |
 | Conversation navigation | Preserve pinned/project/date grouping, sorting, rename/delete/move semantics, encrypted message search, result limits and shifted-prefix jumps; reject late profile/view/query/read/frame replies; keep keyboard menus, pointer cancellation, mobile return-to-chat, scoped theme contrast and cached cold-launch records | [Owned navigation](../tests/chat-thread-navigation.test.ts), [search ownership](../tests/chat-thread-search-owned.test.ts), [original thread workflows](../tests/playwright/chat-threads-dom.spec.ts), [themes/layout/accessibility](../tests/playwright/chat-thread-navigation-owned.spec.ts), [static PWA persistence](../tests/pwa/sveltekit-chat-navigation.spec.ts) |
-| Chat shell and composer | Keep one shared shell, hydrate without replacing focused controls or live hosts, retire replaced input owners and decrypted draft replies, preserve growing input, IME, encrypted local drafts, resize/keyboard/mobile geometry, drag cancellation at capture/blur/closure/fullscreen/rail/mobile boundaries and reopen during generation | [Owned shell](../tests/chat-shell-owned.test.ts), [owned layout](../tests/chat-layout-owned.test.ts), [composer](../tests/playwright/chat-composer.spec.ts), [resize](../tests/playwright/chat-layout-resize.spec.ts), [live reopen](../tests/playwright/chat-reopen-streaming.spec.ts), [static composer](../tests/pwa/sveltekit-chat-shell.spec.ts) |
+| Chat shell and composer | Keep one shared shell, hydrate without replacing focused controls or live hosts, retire replaced input owners and decrypted draft replies, preserve growing input, IME, encrypted local drafts, resize/keyboard/mobile geometry, drag cancellation at capture/blur/closure/fullscreen/rail/mobile boundaries, inert closed rails with focus return on dismissal, and reopen during generation | [Owned shell](../tests/chat-shell-owned.test.ts), [owned layout](../tests/chat-layout-owned.test.ts), [composer](../tests/playwright/chat-composer.spec.ts), [resize](../tests/playwright/chat-layout-resize.spec.ts), [live reopen](../tests/playwright/chat-reopen-streaming.spec.ts), [static composer](../tests/pwa/sveltekit-chat-shell.spec.ts), [static rail keyboard and persisted layout](../tests/pwa/sveltekit-chat-layout.spec.ts) |
 | Chat profile onboarding | Preserve basic/optional fields, units, same-day weight replacement, latitude and connected/disconnected/paused continuation; capture accepted fields before writes, retain per-module callback isolation, serialize profile saves and reject retired profile/thread/history/data/root controls; retain draft/focus/disclosure and recover failed saves; verify themes, keyboard, touch targets, no narrow overflow and static offline first use/cold launch with IndexedDB-backed export | [Save ownership](../tests/chat-profile-onboarding-controller.test.ts), [existing helpers](../tests/playwright/chat-onboarding-browser-coverage.spec.ts), [headless form](../tests/playwright/chat-onboarding-profile-owned.spec.ts), [original funnels](../tests/playwright/chat-empty-state.spec.ts), [static offline profile](../tests/pwa/sveltekit-chat-onboarding-profile.spec.ts) |
 | Light page presentation | Preserve session/action availability, live target IDs, rolling-week counts, UV notices, separate vitamin D quantities, methods/source disclosure, literal fields and delegate contracts; check themes, narrow widths, keyboard, touch targets, offline actual-route session commits, cold launches, unrelated profile equality and backup | [Presentation contracts](../tests/light-page-presentation.test.ts), [Delayed Chat cancellation](../tests/dashboard-onboarding-route.test.ts), [Existing browser contracts](../tests/playwright/light-page-view.spec.ts), [Authored acceptance](../tests/playwright/light-page-owned.spec.ts), [Static offline route](../tests/pwa/sveltekit-light-page.spec.ts) |
 | Light current conditions | Preserve full/compact provider classifications, UV consistency warnings, ozone distinction, attribution, source/freshness and chronological sun events; retain coordinate-keyed fetch/cache bypass and raw inspection; check escaped payloads, six themes, narrow/wide layouts, AA foregrounds, named keyboard scroll regions, tooltip focus, coarse targets and reduced motion; verify real static offline first use, refresh/inspection, two cold launches and complete stored-profile equality | [Projection and escaped markup](../tests/light-conditions-presentation.test.ts), [Existing provider/cache contracts](../tests/playwright/light-conditions-now-browser-coverage.spec.ts), [Authored keyboard/themes](../tests/playwright/light-conditions-owned.spec.ts), [Static offline conditions](../tests/pwa/sveltekit-light-conditions.spec.ts) |
@@ -454,7 +500,7 @@ Preserve independently failing assertions for these workflows:
 | Context overview and source settings | Preserve source order, availability, specialty groups, prompt/score mappings and all nutrition windows; commit before publication, migrate legacy choices durably, retain failed intents, expose peer conflicts and reject retired controls; verify themes, keyboard, offline first use and two cold launches | [Projection and captured autosave](../tests/context-hub-ownership.test.ts), [headless accessibility and storage failures](../tests/playwright/context-hub-owned.spec.ts), [prompt and score integration](../tests/playwright/dashboard-knowledge-base.spec.ts), [static offline persistence](../tests/pwa/sveltekit-context-hub.spec.ts) |
 | Medical History | Preserve conditions, impacts/status/since, all relatives and original row indices, procedures, flags, notes and unknown stored metadata; keep edits local until an awaited guarded save, retain failed/conflicted drafts and reject retired opens/confirmations; verify literal suggestions, keyboard, six themes, narrow/wide layouts, offline first use and two cold launches | [Draft and captured transaction](../tests/context-medical-history.test.ts), [headless UI and actual storage](../tests/playwright/family-history-dom.spec.ts), [cold facade](../tests/playwright/context-card-medical-history-editor-loader-browser-coverage.spec.ts), [static offline persistence](../tests/pwa/sveltekit-medical-history.spec.ts) |
 | Interpretive Lens | Preserve literal multiline text, trim on accepted save, empty-string clear, existing header/navigation and Back to Context; retain failed and conflicted drafts, commit history before success, reject retired confirmations and delayed/cold Back loads, and keep controls reachable after mobile navigation; verify themes, keyboard, offline first use and two cold launches | [Shared projection and captured session](../tests/context-lifestyle-form-ownership.test.ts), [atomic peer guard](../tests/profile-write-concurrency.test.ts), [headless themes and cold-load race](../tests/playwright/context-lens-owned.spec.ts), [loader contracts](../tests/playwright/context-card-dashboard-ai-loader-browser-coverage.spec.ts), [static offline persistence](../tests/pwa/sveltekit-context-lens.spec.ts) |
-| Nutrition dashboard widgets | Preserve seven-day local calendar coverage, selected nutrient order, starter/personal guides, unknown values, drink/food distinctions, existing actions and unchanged profile data; verify Dashboard and Body, narrow containers, themes, accessibility and two offline cold launches | [Pure dashboard projections](../tests/nutrition-dashboard.test.ts), [headless widget acceptance](../tests/playwright/nutrition-dashboard-owned.spec.ts), [static offline widgets](../tests/pwa/sveltekit-nutrition-dashboard.spec.ts) |
+| Nutrition dashboard widgets | Preserve seven-day local calendar coverage, selected nutrient order, starter/personal guides, unknown values, drink/food distinctions, existing actions and unchanged profile data; verify Dashboard and Body, narrow containers, themes, accessibility and two offline cold launches | [Pure dashboard projections](../tests/nutrition-dashboard.test.ts), [direct summary component parity and import boundary](../tests/nutrition-dashboard-leaf-boundary.test.ts), [cold summary action ownership](../tests/nutrition-summary-loading.test.ts), [held module and storage cancellation](../tests/playwright/nutrition-summary-cold-owned.spec.ts), [headless widget acceptance](../tests/playwright/nutrition-dashboard-owned.spec.ts), [static offline widgets](../tests/pwa/sveltekit-nutrition-dashboard.spec.ts) |
 | Nutrition benchmark workspace and results | Preserve domain ranking, original action indices, baseline/known-value distinctions, unknown/zero nutrients, cost visibility and retry/cancel/replace/use contracts; verify keyboard tables, reduced motion, six themes, narrow layouts, encrypted local restore and metadata-only clearing through offline cold launches without profile changes | [Projection contracts](../tests/nutrition-comparison-results-model.test.ts), [renderer semantics](../tests/nutrition-comparison-results.test.ts), [existing workflow](../tests/playwright/nutrition-module.spec.ts), [headless themes and layouts](../tests/playwright/nutrition-comparison-owned.spec.ts), [workspace reference, photo and draft ownership](../tests/playwright/nutrition-benchmark-owned.spec.ts), [modal focus handoffs](../tests/modal-focus-handoff.test.ts), [static offline restore](../tests/pwa/sveltekit-nutrition-comparison.spec.ts) |
 | Meal editor and review | Preserve photo/label/manual entry, all nutrient fields and unknown/zero values, model routing, analysis/correction/cancel state, ingredient and historical evidence, draft suspension and save/edit/reuse contracts; verify six themes, narrow layouts, keyboard, touch targets, accessibility and actual offline writes through closed-client cold launches with exact unrelated profile and decrypted-cache parity | [Authored field and review contracts](../tests/nutrition-editor-review.test.ts), [Draft recovery](../tests/nutrition-editor-navigation.test.ts), [request ownership](../tests/nutrition-request-lifecycle.test.ts), [photo provenance](../tests/nutrition-photo-provenance.test.ts), [persistence contracts](../tests/nutrition-persistence-contracts.test.ts), [existing workflows](../tests/playwright/nutrition-module.spec.ts), [headless editor acceptance](../tests/playwright/nutrition-editor-owned.spec.ts), [static offline writes](../tests/pwa/sveltekit-nutrition-editor.spec.ts) |
 | Saved meal details and check-ins | Preserve provenance, photos, reviewed portions, unknown/zero nutrients, saved notes and return/edit/reuse/delete contracts; support keyboard check-ins and clear, retain failed choices, reject retired or peer-changed meal owners, and finish accepted writes on their initiating profile; verify themes, narrow layouts, accessibility, first offline use and two cold launches with unrelated profile parity | [Projection contracts](../tests/nutrition-meal-detail.test.ts), [captured commits](../tests/nutrition-meal-detail-ownership.test.ts), [headless detail acceptance](../tests/playwright/nutrition-meal-detail-owned.spec.ts), [static offline details](../tests/pwa/sveltekit-nutrition-meal-detail.spec.ts) |
@@ -519,6 +565,16 @@ source inventory, and per-module thresholds are defined in
 [vitest.critical.config.ts](../vitest.critical.config.ts), rather than a fixed
 suite count in prose. Missing execution must fail the applicable floor.
 This gate supplements the complete denominator; it does not replace it.
+The service-worker portion includes [old-client and font-alias ownership](../tests/service-worker-client-cache.test.ts)
+as well as [installation, version and offline failure paths](../tests/service-worker-runtime.test.ts)
+and [proved retry-chunk behavior](../tests/service-worker-retry-aliases.test.ts).
+Early activation requires direct identity replies from all live documents; missing
+replies must defer activation without reloading an old document. Verify both that
+legacy close-and-reopen boundary and normal identified-tab updates. Stylesheet
+ownership tests must reject unknown or missing owned bodies, retain the same rule
+for exact retry URLs, and bind startup CSS only to proven cached app navigations.
+Their inclusion must retain the same module floors; additional selected execution
+does not establish a fresh whole-project combined measurement.
 
 ## Release and integration evidence
 
@@ -638,3 +694,35 @@ current-theme foreground, readable-ink and coarse-target improvements, AA and ke
 headless browser profiles. The existing delegated editor and static environment
 cases exercise assessment actions, saved data and adjacent cached verdicts;
 they retain first-offline and two closed-client cold-launch acceptance.
+
+The [startup banner contract](../tests/analytics-consent-lifecycle.test.ts) checks consent, retry lifetime and duplicate roots; the [update presentation contract](../tests/version-update-presentation.test.ts) retains button identity and native copy. [Styles contracts](../tests/startup-banner-styles.test.ts) preserve foreign declarations, shared keyframes and cascade positions. The [static banner acceptance](../tests/pwa/sveltekit-startup-banners.spec.ts) constructs Analytics for the first time offline, preserves consent and complete canonical profiles over two zero-page cold launches, and checks exact cached presentation sources. Its waiting-worker offer is synthetic; the unchanged [real update acceptance](../tests/pwa/sveltekit.spec.ts) separately checks failed installs, Later, explicit offline Reload, retained old-tab code and cache retirement. These focused checks do not establish physical installation or whole-application acceptance.
+
+## CI artifact and execution qualification
+
+The workflow separates artifact preparation, units, native browser coverage,
+shipping SvelteKit acceptance, and isolated performance measurement. Every
+consumer restores the producer's exact catalog before its one dependency-install
+compilation, then verifies the complete artifact inventory and current authored
+source fingerprint. Lifecycle suites remain serial within each runner; independent
+Chromium tests use a bounded CPU-aware worker count. Four native Chromium shards
+feed the unchanged combined-coverage collector. Four SvelteKit projects use up to
+two file shards each, with complete selected-case identity and finite capability
+skip checks at the final gate. Partial coverage inputs or missing selected jobs
+fail the gate. PR runs cancel superseded scoped runs; full release evidence stays
+separate. The required merge-check context remains `test`.
+
+Use focused local unit, collection and headless browser checks when changing this
+orchestration. These checks validate the workflow contracts; only a real GitHub
+Actions run establishes hosted-runner timing and exhaustive matrix acceptance.
+
+
+Frozen native renderer oracles are historical test inputs. The TypeScript
+migration check qualifies the two original archive manifests by fixed SHA-256
+and checks all fifteen recorded renderer bodies as regular, unlinked files
+before distinguishing those bytes from authored JavaScript. The manifests'
+historical absolute paths are provenance and are never followed. Missing or
+changed evidence fails qualification; additional JavaScript remains authored
+and blocks completion. The complete source inventory and LOC baseline remain
+unchanged, with the qualified archive reported separately as
+`frozenHistoricalOracles`. These test fixtures are excluded from application
+output; they must not be regenerated from migrated components.

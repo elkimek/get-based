@@ -1,6 +1,7 @@
 <script lang="ts">
   import { flushSync } from 'svelte';
   import ChatMessageActions from './ChatMessageActions.svelte';
+  import ChatAttestationBadge from './ChatAttestationBadge.svelte';
   import ChatStoredImages from './ChatStoredImages.svelte';
   import ChatCitations from './ChatCitations.svelte';
   import ChatMessageEditor from './ChatMessageEditor.svelte';
@@ -31,7 +32,7 @@
     {#if view.error !== null}<span class="gb:transcript:text-[var(--red)]">{view.error}</span>{:else}{@html view.body}{/if}
     {#if view.stopped}<div class="chat-stopped-note gb:transcript:mt-1.5 gb:transcript:italic gb:transcript:text-[11px] gb:transcript:text-secondary">[stopped]</div>{/if}
     {#if view.truncated}<div class="chat-stopped-note gb:transcript:mt-1.5 gb:transcript:italic gb:transcript:text-[11px] gb:transcript:text-secondary">[output limit reached - ask "continue" to finish]</div>{/if}
-    {#if view.usage}<div class="chat-cost-footnote gb:transcript:mt-1.5 gb:transcript:text-[11px] gb:transcript:text-secondary">{view.usage.text}{@html view.usage.receipt}</div>{/if}
+    {#if view.usage}<div class="chat-cost-footnote gb:transcript:mt-1.5 gb:transcript:text-[11px] gb:transcript:text-secondary">{view.usage.text}{#if view.usage.receipt}<ChatAttestationBadge view={view.usage.receipt.badge} footnote/>{/if}</div>{/if}
     {#if view.attribution}<div class="chat-provider-attribution gb:transcript:font-[650] gb:transcript:mt-1.5 gb:transcript:text-[11px] gb:transcript:text-secondary">{view.attribution}</div>{/if}
     {#if view.actions}<ChatMessageActions view={view.actions}/>{/if}
     {#if view.citations}<ChatCitations view={view.citations}/>{/if}

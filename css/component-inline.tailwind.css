@@ -1,0 +1,53 @@
+@import "tailwindcss" prefix(gb) source(none) reference;
+@utility component-inline-dialog-maximum-width {max-width:600px}
+@utility component-inline-hidden {display:none}
+@utility component-inline-pointer {cursor:pointer}
+@utility component-inline-cell-cursor {cursor:cell}
+@utility component-inline-category-empty {padding:32px;text-align:center;color:var(--text-muted)}
+@utility component-inline-fatty-acids-card {background:var(--bg-card);border-radius:var(--radius);padding:20px;margin-bottom:20px;border:1px solid var(--border)}
+@utility component-inline-fatty-acids-heading {margin-bottom:16px;font-size:16px}
+@utility component-inline-rename-control {cursor:pointer;font-size:12px}
+@utility component-inline-category-controls {display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:20px}
+@utility component-inline-no-bottom-margin {margin-bottom:0}
+@utility component-inline-range-low-start {left:0%;}
+@utility component-inline-optimal-range {color:var(--green)}
+@utility component-inline-optimal-range-small {color:var(--green);font-size:11px}
+@utility component-inline-contents {display:contents}
+@utility component-inline-muted-unit {color:var(--text-muted);font-size:12px}
+@utility component-inline-emphasis {font-weight:600}
+@utility component-inline-muted {color:var(--text-muted)}
+@utility component-inline-optional-label {color:var(--text-muted);font-weight:400}
+@utility component-inline-marker-delete-position {text-align:center;margin-top:8px}
+@utility component-inline-marker-delete-label {color:var(--text-muted);font-size:0.8rem}
+@utility component-inline-danger {color:var(--red)}
+@utility component-inline-supplement-delete {color:var(--danger,#ef4444);border-color:var(--danger,#ef4444)}
+@utility component-inline-wearable-sub-label {opacity:0.6;font-size:0.7em;margin-left:6px;font-weight:normal}
+@utility component-inline-wearable-chart {height:260px}
+@utility component-inline-category-card-rail {margin-top:8px;width:100%}
+
+.component-inline-dialog-maximum-width {@apply gb:component-inline-dialog-maximum-width;}
+.component-inline-hidden {@apply gb:component-inline-hidden;}
+.component-inline-pointer {@apply gb:component-inline-pointer;}
+.component-inline-cell-cursor {@apply gb:component-inline-cell-cursor;}
+.component-inline-category-empty {@apply gb:component-inline-category-empty;}
+.component-inline-fatty-acids-card {@apply gb:component-inline-fatty-acids-card;}
+.component-inline-fatty-acids-heading {@apply gb:component-inline-fatty-acids-heading;}
+.component-inline-rename-control {@apply gb:component-inline-rename-control;}
+.component-inline-category-controls {@apply gb:component-inline-category-controls;}
+.component-inline-no-bottom-margin {@apply gb:component-inline-no-bottom-margin;}
+.component-inline-range-low-start {@apply gb:component-inline-range-low-start;}
+.component-inline-optimal-range {@apply gb:component-inline-optimal-range;}
+.component-inline-optimal-range-small {@apply gb:component-inline-optimal-range-small;}
+.component-inline-contents {@apply gb:component-inline-contents;}
+.component-inline-muted-unit {@apply gb:component-inline-muted-unit;}
+.component-inline-emphasis {@apply gb:component-inline-emphasis;}
+.component-inline-muted {@apply gb:component-inline-muted;}
+.component-inline-optional-label {@apply gb:component-inline-optional-label;}
+.component-inline-marker-delete-position {@apply gb:component-inline-marker-delete-position;}
+.component-inline-marker-delete-label {@apply gb:component-inline-marker-delete-label;}
+.component-inline-danger {@apply gb:component-inline-danger;}
+.component-inline-supplement-delete {@apply gb:component-inline-supplement-delete;}
+.component-inline-wearable-sub-label {@apply gb:component-inline-wearable-sub-label;}
+.component-inline-wearable-chart {@apply gb:component-inline-wearable-chart;}
+
+.component-inline-category-card-rail {@apply gb:component-inline-category-card-rail;}

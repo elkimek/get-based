@@ -36,16 +36,16 @@ async function mountPairs(page:Page,samples:Sample[]){
    if([...document.head.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')].some(link=>new URL(link.href).pathname===href))continue;
    await new Promise<void>((resolve,reject)=>{const link=document.createElement('link');link.rel='stylesheet';link.href=href;link.onload=()=>resolve();link.onerror=()=>reject(new Error(href));if(anchor){const before=document.querySelector(anchor);if(!before)throw new Error('Missing stylesheet anchor '+anchor);before.before(link);}else document.head.append(link);});
   }
-  const [{state},cycle,runtime,shell,controlsModule]=await Promise.all([import('/js/state.js'),import('/js/cycle.js'),import('/js/cycle-runtime.js'),import('/js/lens-page-shell.js'),import('/js/dashboard-widget-controls.js')]);
-  await runtime.loadCycleStylesheetForAction();
+  const [{state},cycle,runtime,controlsModule]=await Promise.all([import('/js/state.js'),import('/js/cycle.js'),import('/js/cycle-runtime.js'),import('/js/dashboard-widget-controls.js')]);
+  const fixtureShell=await import('/tests/helpers/lens-chrome-fixture.js');await runtime.loadCycleStylesheetForAction();
   const saved={data:state.importedData,dob:state.profileDob};
   const controls=controlsModule.createDashboardWidgetControls({state});
   const host:PairHost=Object.assign(document.createElement('div'),{pairs:[] as HTMLElement[]});host.id='cycle-overview-parity';host.style.cssText='position:fixed;inset:0;background:var(--bg-primary);z-index:20000;overflow:auto';document.body.append(host);
   const wrap=(html:string,placement:string)=>{
-   if(placement==='body-full')return shell.renderLensPageWidgets('body',[{id:'cycle',title:'Cycle',description:'Menstrual cycle context',body:html,size:'full'}]);
+   if(placement==='body-full')return fixtureShell.renderLensPageWidgetsChromeFixture('body',[{id:'cycle',title:'Cycle',description:'Menstrual cycle context',body:html,size:'full'}]);
    const size=placement==='dashboard-half'?'half':'full';
    const entry={def:{id:'cycle',source:'Body',title:'Cycle',description:'Menstrual cycle context',size},body:html};
-   return '<div class="dashboard-widgets">'+controls.renderDashboardWidget(entry,{hidden:[],order:[]},0,[entry])+'</div>';
+   return '<div class="dashboard-widgets">'+fixtureShell.renderDashboardWidgetChromeFixture(controls,entry,{hidden:[],order:[]},0,[entry])+'</div>';
   };
   try{for(const sample of samples){
    state.importedData={menstrualCycle:structuredClone(sample.input.mc??null)} as typeof state.importedData;

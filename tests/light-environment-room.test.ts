@@ -1,3 +1,4 @@
+import{nativeEnvironmentView,nativeBurdenView,expectedGenuineLightChildren,genuineLightChildReceipts}from'./helpers/light-genuine-child-native-receipts.js';
 // @vitest-environment jsdom
 import {readFileSync} from 'node:fs';
 import {afterEach,beforeEach,expect,it,vi} from 'vitest';
@@ -8,7 +9,7 @@ import type {EnvironmentMeasurementOperations} from '../types/light-env-view.js'
 interface Sample{name:string;data:unknown;expanded:boolean;callbacks:boolean;embedded:boolean;section:string}
 const original=JSON.parse(readFileSync('tests/fixtures/light-environment-room-original.json','utf8')) as {now:number;cases:Sample[]};
 const saved=state.importedData;let previous:Record<string,unknown>;
-beforeEach(()=>{vi.useFakeTimers();vi.setSystemTime(original.now);localStorage.clear();sessionStorage.clear();previous=configureLightEnv({getMeasurementsForRoom:null,renderBurdenInterp:null,renderMeasurementAIInline:null,renderRoomAIBlock:null,renderScreenAIBlock:null,navigate:null});});
+beforeEach(()=>{vi.useFakeTimers();vi.setSystemTime(original.now);localStorage.clear();sessionStorage.clear();previous=configureLightEnv({getMeasurementsForRoom:null,getBurdenInterpretationView:null,getMeasurementAIView:null,getRoomAIView:null,getScreenAIView:null,navigate:null});});
 afterEach(()=>{configureLightEnv(previous);state.importedData=saved;vi.useRealTimers();});
 const clean=(value:string|null|undefined)=>value?.replace(/\s+/g,' ').trim();
 function describe(html:string){
@@ -25,7 +26,7 @@ function describe(html:string){
     actions:[...host.querySelectorAll('[data-light-env-action]')].filter(element=>element.getAttribute('data-light-env-action')!=='toggle-room-expanded').map(element=>({tag:element.tagName,attrs:attrs(element),text:element.matches('button,summary')?clean(element.textContent):undefined})),
     fields:[...host.querySelectorAll('input,select')].map(element=>({attrs:attrs(element),options:[...element.querySelectorAll('option')].map(option=>({value:option.value,text:option.textContent,selected:option.hasAttribute('selected')}))})),
     chips:[...host.querySelectorAll('.light-env-chip')].map(element=>({text:element.textContent,active:element.getAttribute('aria-pressed'),selected:element.classList.contains('light-env-chip-active')})),
-    trusted:[...host.querySelectorAll('[data-fixture-room-ai],[data-fixture-reading-ai],[data-fixture-burden]')].map(node=>node.outerHTML),
+    trusted:genuineLightChildReceipts(host),
     empty:[...host.querySelectorAll('.light-env-empty-cta p')].map(node=>clean(node.textContent)),
     quickLabels:[...host.querySelectorAll('.light-env-quickpicks-label')].map(node=>node.textContent),
   };
@@ -35,11 +36,11 @@ for(const sample of original.cases)it(`preserves independent room and section co
   const rooms=state.importedData?.lightEnvironment?.rooms||[];
   localStorage.setItem('labcharts-light-env-active-room',sample.expanded?String(rooms[0]?.id||''):'__none__');
   configureLightEnv({getMeasurementsForRoom:(id:unknown)=>(state.importedData?.lightMeasurements||[]).filter(m=>m.roomId===id),
-    renderBurdenInterp:sample.callbacks?()=>'<div data-fixture-burden>Trusted burden verdict</div>':null,
-    renderMeasurementAIInline:sample.callbacks?()=>'<span data-fixture-reading-ai>Trusted reading verdict</span>':null,
-    renderRoomAIBlock:sample.callbacks?()=>'<div data-fixture-room-ai>Trusted room verdict</div>':null});
+    getBurdenInterpretationView:sample.callbacks?()=>nativeBurdenView():null,
+    getMeasurementAIView:sample.callbacks?()=>nativeEnvironmentView('measurement'):null,
+    getRoomAIView:sample.callbacks?()=>nativeEnvironmentView('room'):null});
   const before=JSON.stringify(state.importedData),html=renderEnvironmentSection({embedded:sample.embedded});
-  const expected=describe(sample.section);
+  const expected=describe(expectedGenuineLightChildren(sample.section));
   // Audit cards now use a native sibling button. Keep the comparator and all
   // unrelated expectations exact; assert the old and new semantic contracts
   // explicitly rather than discarding role, tab order or action text globally.
@@ -78,11 +79,11 @@ it('preserves callback order, latest-per-tool identity and collapsed-room lazine
   const calls:string[]=[],older={id:'older',roomId:'r',tool:'lux',value:5,capturedAt:1},latest={id:'latest',roomId:'r',tool:'lux',value:20,capturedAt:2};
   (state as {importedData:unknown}).importedData={lightEnvironment:{rooms:[{id:'r',name:'Bedroom'}],screens:[{id:'nested',roomId:'r',device:'phone'}]},lightMeasurements:[older,latest]};
   const measurement=vi.fn((item:EnvironmentMeasurementOperations)=>{calls.push(`reading:${(item as {id?:string}).id}`);return null;}),room=vi.fn(()=>{calls.push('room');return undefined;});
-  configureLightEnv({getMeasurementsForRoom:()=>[older,latest],renderBurdenInterp:()=>{calls.push('burden');return '<p data-trusted>Configured burden</p>';},renderMeasurementAIInline:measurement,renderRoomAIBlock:room,renderScreenAIBlock:()=>{calls.push('screen');return '<p>Screen callback</p>';}});
+  configureLightEnv({getMeasurementsForRoom:()=>[older,latest],getBurdenInterpretationView:()=>{calls.push('burden');return nativeBurdenView();},getMeasurementAIView:measurement,getRoomAIView:room,getScreenAIView:()=>{calls.push('screen');return nativeEnvironmentView('screen');}});
   localStorage.setItem('labcharts-light-env-active-room','__none__');renderEnvironmentSection();expect(calls).toEqual(['burden']);expect(room).not.toHaveBeenCalled();expect(measurement).not.toHaveBeenCalled();
   localStorage.setItem('labcharts-light-env-active-room','r');calls.length=0;
   const html=renderEnvironmentSection();expect(calls).toEqual(['burden','reading:latest','room']);expect(measurement).toHaveBeenCalledExactlyOnceWith(latest);expect(room).toHaveBeenCalledExactlyOnceWith(state.importedData!.lightEnvironment!.rooms[0]);
-  expect(html).toContain('null');expect(html).toContain('undefined');
+  const host=document.createElement('div');host.innerHTML=html;expect(host.querySelectorAll('[data-light-environment-ai]')).toHaveLength(0);expect(host.querySelector('[data-light-review-ai]')?.textContent).toBe('Trusted burden verdict');
 });
 it('escapes persisted fields and unsafe exact-hour values while preserving action omission',()=>{
   const literal='"><img src=x onerror=alert(1)> & literal';
@@ -101,6 +102,6 @@ it('keeps measurement method distinctions and time boundaries independent of ren
 it('has one authored owner for room/section/modal templates with only named configured slots and typed audit composition',()=>{
   const adapter=readFileSync('js/light-env.ts','utf8'),room=readFileSync('js/components/LightEnvironmentRoom.svelte','utf8'),section=readFileSync('js/components/LightEnvironmentSection.svelte','utf8'),css=readFileSync('css/light-env.base.css','utf8');
   expect(adapter).not.toContain('let html =');expect(adapter).not.toContain('renderRoomExpandedBody');expect(adapter).not.toContain('renderSourcePicker');expect(adapter).not.toContain('overlay.innerHTML = `');
-  expect(room.match(/\{@html /g)).toHaveLength(2);expect(room).toContain('{@html reading.trustedAIHTML}');expect(room).toContain('{@html body.trustedRoomHTML}');expect(section.match(/\{@html /g)).toBeNull();expect(section).toContain('<LightAuditBlock view={view.audits}/>');expect(section).not.toContain('trustedAuditsHTML');expect(room).toContain('<LightEnvironmentScreen view={screen}/>');
+  expect(room.match(/\{@html /g)).toBeNull();expect(room).toContain('<LightEnvironmentAI view={reading.ai}/>');expect(room).toContain('<LightEnvironmentAI view={body.ai}/>');expect(section.match(/\{@html /g)).toBeNull();expect(section).toContain('<LightAuditBlock view={view.audits}/>');expect(section).not.toContain('trustedAuditsHTML');expect(room).toContain('<LightEnvironmentScreen view={screen}/>');
   expect(css).not.toContain('.light-env-block-head');expect(css).not.toContain('.light-audit');expect(css).toContain('.dashboard-widget[data-widget-id="light-environment"]');expect(css).not.toMatch(/\.light-env-(?:room-|picker|chip|quickpick|tool-pill|reading|assessment|section)/);
 });

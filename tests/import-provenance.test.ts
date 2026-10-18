@@ -1,3 +1,4 @@
+import {renderMarkerDetailHistory} from '../js/marker-detail-results-presentation.js';
 // @vitest-environment jsdom
 import { beforeEach, expect, it, vi } from 'vitest';
 vi.mock('../js/data.js', () => ({ saveImportedData: vi.fn(async () => true), invalidateActiveDataCache: vi.fn() }));
@@ -29,7 +30,7 @@ it('retains report ancestry across both edit paths and revert, while stamping ea
   const entry = state.importedData.entries[0];
   expect(entry!.markerSources![key]).toEqual({ snapshotId: 'report', file: 'lab.pdf', at: 300, manuallyEdited: true });
   expect(state.importedData.manualValues![mapKey]).toBe(5);
-  const history = buildMarkerHistoryMetadata(entry, entry!.markerSources![key], date).sourceHtml;
+  const history = buildMarkerHistoryMetadata(entry, entry!.markerSources![key], date).sources.map(renderMarkerDetailHistory).join('');
   expect(history).toContain('lab.pdf');
   expect(history).toContain('manually edited');
   await revertManualMarkerValue(key, date, { now: 400 });
@@ -57,7 +58,7 @@ it('retains a zero original and a report link even without a filename', async ()
   await revertManualMarkerValue(key, date, { now: 400 });
   expect(entry!.markers[key]).toBe(0);
   expect(entry!.markerSources![key]).toEqual({ file: null, snapshotId: 'report', at: 400 });
-  expect(buildMarkerHistoryMetadata(entry, entry!.markerSources![key], date).sourceHtml).toContain('Imported report');
+  expect(buildMarkerHistoryMetadata(entry, entry!.markerSources![key], date).sources.map(renderMarkerDetailHistory).join('')).toContain('Imported report');
 });
 
 function lostLink() {

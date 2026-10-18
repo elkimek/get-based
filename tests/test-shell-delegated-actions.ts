@@ -19,14 +19,17 @@ const categoryPageViewSrc = fs.readFileSync(path.join(root, 'js/category-page-vi
 const chatEmptyStateSrc = fs.readFileSync(path.join(root, 'js/chat-empty-state.js'), 'utf8');
 const chatLoaderSrc = fs.readFileSync(path.join(root, 'js/chat-loader.js'), 'utf8');
 const chatRuntimeSrc = fs.readFileSync(path.join(root, 'js/chat-runtime.js'), 'utf8');
+// The native statement helper parses JavaScript; keep the authored import contract separate.
 const cycleImportLoaderSrc = fs.readFileSync(path.join(root, 'js/cycle-import-loader.js'), 'utf8');
+const cycleImportRuntimeSrc = fs.readFileSync(path.join(root, 'js/cycle-import-runtime.js'), 'utf8');
+const cycleImportRuntimeAuthoredSrc = readAuthoredRepositorySource('js/cycle-import-runtime.js', 'utf8');
 const cycleSrc = fs.readFileSync(path.join(root, 'js/cycle.ts'), 'utf8');
 const dashboardRecommendationWidgetSrc = fs.readFileSync(path.join(root, 'js/dashboard-recommendation-widget.js'), 'utf8');
 const emfRuntimeSrc = fs.readFileSync(path.join(root, 'js/emf-runtime.js'), 'utf8');
 const emfSrc = fs.readFileSync(path.join(root, 'js/emf.js'), 'utf8');
 const exportLoaderSrc = fs.readFileSync(path.join(root, 'js/export-loader.js'), 'utf8');
 const exportSrc = fs.readFileSync(path.join(root, 'js/export.js'), 'utf8');
-const lensPageShellSrc = fs.readFileSync(path.join(root, 'js/lens-page-shell.js'), 'utf8');
+const lensPageShellSrc = fs.readFileSync(path.join(root, 'js/lens-page-shell-core.js'), 'utf8');
 const appLightSunSrc = fs.readFileSync(path.join(root, 'js/app-light-sun-modules.js'), 'utf8');
 const lightSunLoaderSrc = fs.readFileSync(path.join(root, 'js/light-sun-loader.js'), 'utf8');
 const mainSrc = fs.readFileSync(path.join(root, 'js/main.js'), 'utf8');
@@ -165,7 +168,7 @@ assert('App shell injects Biology Score context navigation without bridge or win
     && !biologyScoreContextAISrc.includes('window.showNotification')
     && biologyScoreContextAISrc.includes("biologyScoreContextAIDeps.navigate?.('biology-scores')")
     && biologyScoreContextAISrc.includes("showNotification('Context flag applied', 'success')")
-    && appShellHooksSrc.includes("import { configureBiologyScoreContextAIDeps } from './biology-score-context-ai.js';")
+    && appShellHooksSrc.includes("import { configureBiologyScoreContextAIDeps } from './biology-score-context-runtime.js';")
     && appShellHooksSrc.includes('configureBiologyScoreContextAIDeps({ navigate });'));
 
 assert('App shell wires Chat close consumers without window globals',
@@ -238,7 +241,7 @@ assert('App shell injects Lens page navigation without bridge or window fallback
   !lensPageShellSrc.includes("from './views-runtime-bridge.js'")
     && lensPageShellSrc.includes("const fn = name === 'navigate'")
     && lensPageShellSrc.includes('? _shellDeps.navigate')
-    && appShellHooksSrc.includes("import { configureLensPageShell } from './lens-page-shell.js';")
+    && appShellHooksSrc.includes("import { configureLensPageShell } from './lens-page-shell-core.js';")
     && appShellHooksSrc.includes('configureLensPageShell({ navigate });'));
 
 assert('App shell injects crypto cross-tab refresh callbacks without bridge lookups',
@@ -253,7 +256,7 @@ assert('App shell injects Cycle view callbacks without bridge lookups',
     && appShellHooksSrc.includes('openEditor: openMenstrualCycleEditor,'));
 
 assert('App shell injects Apple Health cycle import callbacks',
-  appShellHooksSrc.includes("import { parseAppleHealthCycleBlob, showCycleImportPreview } from './cycle-import-loader.js'")
+  appShellHooksSrc.includes("import { parseAppleHealthCycleBlob, showCycleImportPreview } from './cycle-import-runtime.js'")
     && appShellHooksSrc.includes("import { configureAppleHealthRuntimeDeps } from './wearables-apple-health-runtime.js'")
     && appShellHooksSrc.includes('parseCycleBlob: parseAppleHealthCycleBlob,')
     && appShellHooksSrc.includes('showCyclePreview: showCycleImportPreview,')
@@ -261,14 +264,18 @@ assert('App shell injects Apple Health cycle import callbacks',
 
 assert('Cycle import implementation stays behind a retryable cold facade',
   cycleSrc.includes('clearCycleProfileData')
-    && cycleSrc.includes('renderCycleImportPickerControls')
-    && cycleSrc.includes('renderCycleImportSummarySection')
-    && cycleSrc.includes("from './cycle-import-loader.js'")
+    && cycleSrc.includes('getCycleImportSummarySectionView')
+    && cycleSrc.includes("from './cycle-import-runtime.js'")
     && !cycleSrc.includes("from './cycle-import.js'")
-    && cycleImportLoaderSrc.includes("import('./cycle-import.js')")
-    && cycleImportLoaderSrc.includes("import('./cycle-import.js?lazy-retry=1')")
-    && cycleImportLoaderSrc.includes("document.addEventListener('click', handleDeferredCycleImportAction)")
-    && cycleImportLoaderSrc.includes("document.addEventListener('change', handleDeferredCycleImportAction)"));
+    && sourceFunctionHasStatement(cycleImportLoaderSrc, 'renderCycleImportPickerControls', 'return renderCycleImportPicker();')
+    && sourceFunctionHasStatement(cycleImportLoaderSrc, 'renderCycleImportSummarySection',
+      'return renderCycleImportSummary(mc, source => { const label = cycleImportSourceLabel(source); return () => label; });')
+    && cycleImportRuntimeAuthoredSrc.includes("retry => retry ? loadCycleImportRetryModule() : import('./cycle-import.js')")
+    && cycleImportRuntimeAuthoredSrc.includes("return import('./cycle-import.js?lazy-retry=1');")
+    && sourceFunctionHasStatement(cycleImportRuntimeSrc, 'loadCycleImportRetryModule', "return import('./cycle-import.js?lazy-retry=1');", 'last')
+    && sourceFunctionHasStatement(cycleImportRuntimeSrc, 'loadCycleImportModule', 'return cycleImportModuleLoader.load();', 'last')
+    && sourceFunctionHasStatement(cycleImportRuntimeSrc, 'installCycleImportLoaderDelegates', "document.addEventListener('click', handleDeferredCycleImportAction);")
+    && sourceFunctionHasStatement(cycleImportRuntimeSrc, 'installCycleImportLoaderDelegates', "document.addEventListener('change', handleDeferredCycleImportAction);"));
 
 assert('App shell injects Supplements view callbacks without bridge lookups',
   appShellHooksSrc.includes("import { configureSupplementsRuntimeDeps } from './supplements-runtime.js'")

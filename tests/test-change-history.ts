@@ -170,7 +170,7 @@ const contextCards = await import('../js/context-cards.js');
   // ═══════════════════════════════════════
   console.log('14. AI Context');
 
-  const labCtxSrc = read('js/lab-context.js');
+  const labCtxSrc = read('js/lab-context-assembly.js');
   const labCtxOutputSrc = read('js/lab-context-output.js');
   assert('buildLabContext reads changeHistory', labCtxSrc.includes('changeHistory'));
   assert('Context Change Timeline section', labCtxSrc.includes('Context Change Timeline'));
@@ -187,23 +187,51 @@ const contextCards = await import('../js/context-cards.js');
   const ctxLifestyleSpecialSrc = read('js/context-card-lifestyle-special-editors.js');
   assert('saveAndRefresh has field parameter', ctxSrc.includes('function saveAndRefresh(msg, field)'));
   const formSessionSrc = read('js/context-lifestyle-form-session.js');
+  const fieldSessionSrc = read('js/context-field-session.js');
+  const lifestyleViewSrc = read('js/context-lifestyle-form-view.js');
+  const medicalSessionSrc = read('js/context-medical-history-session.js');
+  const medicalViewSrc = read('js/context-medical-history-view.js');
+  // The draft transaction now owns recording before its profile-scoped commit.
+  const draftAt = fieldSessionSrc.indexOf('const draft = structuredClone(base);');
+  const applyAt = fieldSessionSrc.indexOf('apply(draft, value);', draftAt);
+  const recordAt = fieldSessionSrc.indexOf('recordContextCardChange(key, draft);', applyAt);
+  const persistAt = fieldSessionSrc.indexOf('const saved = await saveImportedDataForProfile(profile, draft, {', recordAt);
+  const capturedHistoryBeforePersistence = draftAt >= 0 && applyAt > draftAt && recordAt > applyAt && persistAt > recordAt
+    && fieldSessionSrc.includes('const profile = state.currentProfile, origin = state.importedData;')
+    && fieldSessionSrc.includes('const base = structuredClone(profileDataBaseline(origin) || origin);')
+    && fieldSessionSrc.includes('forceProfileScope: true, baseData: base')
+    && /expectedContextField: \{\s*key, value: base\[key\] \?\? null/.test(fieldSessionSrc);
+  const lifestyleCapturedSession = formSessionSrc.includes("from './context-field-session.js'")
+    && formSessionSrc.includes('return createContextFieldSession(key, (draft, value) => applyLifestyleDraft(draft, key, value));')
+    && lifestyleViewSrc.includes('const session = createLifestyleFormSession(key), model = lifestyleFormModel(')
+    && lifestyleViewSrc.includes('const result = await owned.session.save(draft);')
+    && capturedHistoryBeforePersistence;
+  const medicalCapturedSession = ctxMedicalSrc.includes("from './context-medical-history-view.js'")
+    && medicalSessionSrc.includes("return createContextFieldSession('diagnoses', (draft, value) => {")
+    && medicalSessionSrc.includes('draft.diagnoses = value === null ? null : medicalHistoryValue(value);')
+    && medicalViewSrc.includes('session: createMedicalHistorySession()')
+    && medicalViewSrc.includes('const result = await owned.session.save(value);')
+    && capturedHistoryBeforePersistence;
   for (const [label, key, owner] of [
     ['Diet', 'diet', ctxLifestyleSrc], ['Exercise', 'exercise', ctxLifestyleSrc],
     ['Sleep', 'sleepRest', ctxLifestyleSrc], ['Light', 'lightCircadian', ctxLifestyleSpecialSrc],
     ['Stress', 'stress', ctxLifestyleSrc], ['Love life', 'loveLife', ctxLifestyleSrc],
     ['Environment', 'environment', ctxLifestyleSrc],
   ]) assert(`${label} records captured draft history before scoped persistence`,
-    owner!.includes(`saveLifestyleForm('${key}')`) && formSessionSrc.includes('recordContextCardChange(key, draft)') && formSessionSrc.includes('saveImportedDataForProfile(profile, draft'));
-  assert('Diagnoses passes field to saveAndRefresh', ctxMedicalSrc.includes("saveContextAndRefresh('Medical history saved', 'diagnoses')"));
+    owner!.includes(`saveLifestyleForm('${key}')`) && lifestyleCapturedSession);
+  assert('Diagnoses passes field to saveAndRefresh', medicalCapturedSession
+    && medicalViewSrc.includes('const callback = deps.saveAndRefresh;')
+    && medicalViewSrc.includes("afterCommit = message => callback(message, 'diagnoses');")
+    && medicalViewSrc.includes('owned.afterCommit(message);'));
 
   // ═══════════════════════════════════════
   // 16. Direct persistence paths call recordChange
   // ═══════════════════════════════════════
   console.log('16. Direct Persistence Paths');
 
-  assert('Medical history draft records when saved', ctxMedicalSrc.includes("saveContextAndRefresh('Medical history saved', 'diagnoses')"));
+  assert('Medical history draft records when saved', medicalCapturedSession);
   assert('Goal mutations record captured draft history', read('js/context-health-goals-session.js').includes("recordContextCardChange('healthGoals', draft)"));
-  assert('Interpretive lens uses captured history session', ctxLifestyleSpecialSrc.includes("saveLifestyleForm('interpretiveLens')") && read('js/context-lifestyle-form-session.js').includes('recordContextCardChange(key, draft)'));
+  assert('Interpretive lens uses captured history session', ctxLifestyleSpecialSrc.includes("saveLifestyleForm('interpretiveLens')") && lifestyleCapturedSession);
   assert('Context notes persistence records its captured draft history', read('js/context-notes-session.js').includes("recordContextCardChange('contextNotes', draft)"));
 
   const cycleSrc = read('js/cycle.ts');

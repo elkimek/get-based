@@ -232,3 +232,19 @@ test('correlations presets keep treatments, use available markers, enforce limit
   await expect(page.locator('.corr-chip')).toHaveCount(1);
   await expect(page.locator('.corr-chip')).toContainText('Glucose');
 });
+
+test('genuine default Compare Dates composes native tables and preserves select swap and input data',async({page})=>{
+ await openBlankPage(page);
+ const before=await page.evaluate(async()=>{
+  const [{state},data,compare]=await Promise.all([import('/js/state.js'),import('/js/data.js'),import('/js/compare-correlations.js')]);
+  state.importedData={...state.importedData,entries:[{date:'2026-01-01',markers:{'biochemistry.glucose':4.5}},{date:'2026-02-01',markers:{'biochemistry.glucose':6.2}},{date:'2026-03-01',markers:{'biochemistry.glucose':5}}]};
+  state.rangeMode='both';state.dateRangeFilter='all';state.compareDate1=null;state.compareDate2=null;data.invalidateActiveDataCache();
+  compare.configureCompareCorrelationViews({renderTableColgroup:null,renderScrollableTableShell:null,renderCategoryGlyph:null});compare.showCompare();return JSON.stringify(state.importedData);
+ });
+ const main=page.locator('#main-content');await expect(main.locator('.gb-table-shell-compare .compare-table-wrapper')).toBeVisible();await expect(main.locator('.gb-table-sticky-head')).toHaveAttribute('aria-hidden','true');
+ await expect(main.locator('.compare-table-wrapper col')).toHaveCount(7);await expect(main.locator('.compare-category-label .category-glyph')).toContainText('BC');await expect(main.locator('.compare-range-stack')).not.toHaveCount(0);
+ const first=main.locator('#compare-select-1'),second=main.locator('#compare-select-2');await expect(first).toHaveValue('2026-01-01');await expect(second).toHaveValue('2026-03-01');
+ await first.selectOption('2026-02-01');await main.getByRole('button',{name:'Swap dates',exact:true}).click();await expect(first).toHaveValue('2026-03-01');await expect(second).toHaveValue('2026-02-01');
+ expect(await page.evaluate(async()=>JSON.stringify((await import('/js/state.js')).state.importedData))).toBe(before);
+ expect(await main.evaluate(element=>element.querySelector('[data-compare-private]')===null)).toBe(true);
+});

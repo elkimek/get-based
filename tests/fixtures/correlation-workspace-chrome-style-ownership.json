@@ -1,0 +1,252 @@
+[
+  [
+    "corr-workspace-chrome-0",
+    ".corr-dose-chart",
+    null
+  ],
+  [
+    "corr-workspace-chrome-1",
+    ".corr-current-dose",
+    null
+  ],
+  [
+    "corr-workspace-chrome-2",
+    ".corr-current-heading",
+    null
+  ],
+  [
+    "corr-workspace-chrome-3",
+    ".corr-review-dose",
+    null
+  ],
+  [
+    "corr-workspace-chrome-4",
+    ".corr-current-dose ul",
+    null
+  ],
+  [
+    "corr-workspace-chrome-5",
+    ".corr-current-dose li",
+    null
+  ],
+  [
+    "corr-workspace-chrome-6",
+    ".corr-current-dose li > span",
+    null
+  ],
+  [
+    "corr-workspace-chrome-7",
+    ".corr-current-dose li > span:last-child",
+    null
+  ],
+  [
+    "corr-workspace-chrome-8",
+    ".corr-current-dose p",
+    null
+  ],
+  [
+    "corr-workspace-chrome-9",
+    ".corr-use-timeline",
+    null
+  ],
+  [
+    "corr-workspace-chrome-10",
+    ".corr-use-heading",
+    null
+  ],
+  [
+    "corr-workspace-chrome-11",
+    ".corr-use-heading > span",
+    null
+  ],
+  [
+    "corr-workspace-chrome-12",
+    ".corr-use-track",
+    null
+  ],
+  [
+    "corr-workspace-chrome-13",
+    ".corr-use-segment",
+    null
+  ],
+  [
+    "corr-workspace-chrome-14",
+    ".corr-use-segment:focus",
+    null
+  ],
+  [
+    "corr-workspace-chrome-15",
+    ".corr-use-recorded",
+    null
+  ],
+  [
+    "corr-workspace-chrome-16",
+    ".corr-use-paused",
+    null
+  ],
+  [
+    "corr-workspace-chrome-17",
+    ".corr-use-unknown",
+    null
+  ],
+  [
+    "corr-workspace-chrome-18",
+    ".corr-current-dose li",
+    "(max-width: 600px)"
+  ],
+  [
+    "corr-workspace-chrome-19",
+    ".corr-current-dose li > span:last-child",
+    "(max-width: 600px)"
+  ],
+  [
+    "corr-workspace-chrome-20",
+    ".corr-current-heading",
+    "(max-width: 600px)"
+  ],
+  [
+    "corr-workspace-chrome-21",
+    ".corr-timeline-panel",
+    null
+  ],
+  [
+    "corr-workspace-chrome-22",
+    ".corr-timeline-panel h4",
+    null
+  ],
+  [
+    "corr-workspace-chrome-23",
+    ".corr-lane-chart",
+    null
+  ],
+  [
+    "corr-workspace-chrome-24",
+    ".corr-inspector",
+    null
+  ],
+  [
+    "corr-workspace-chrome-25",
+    "#corr-readout",
+    null
+  ],
+  [
+    "corr-workspace-chrome-26",
+    "#corr-readout > div",
+    null
+  ],
+  [
+    "corr-workspace-chrome-27",
+    "#corr-readout span",
+    null
+  ],
+  [
+    "corr-workspace-chrome-28",
+    ".corr-current-references",
+    null
+  ],
+  [
+    "corr-workspace-chrome-29",
+    ".corr-current-references .corr-current-dose",
+    null
+  ],
+  [
+    "corr-workspace-chrome-30",
+    ".corr-dose-notice p",
+    null
+  ],
+  [
+    "corr-workspace-chrome-31",
+    ".corr-pair-panel + .corr-pair-panel",
+    null
+  ],
+  [
+    "corr-workspace-chrome-32",
+    ".corr-date-heading",
+    null
+  ],
+  [
+    "corr-workspace-chrome-33",
+    ".corr-jump summary",
+    null
+  ],
+  [
+    "corr-workspace-chrome-34",
+    ".corr-jump input",
+    null
+  ],
+  [
+    "corr-workspace-chrome-35",
+    ".corr-pair-tabs",
+    null
+  ],
+  [
+    "corr-workspace-chrome-36",
+    ".corr-pair-tabs button",
+    null
+  ],
+  [
+    "corr-workspace-chrome-37",
+    ".corr-pair-tabs button[aria-selected=\"true\"]",
+    null
+  ],
+  [
+    "corr-workspace-chrome-38",
+    ".corr-pair-tabs button:focus-visible",
+    null
+  ],
+  [
+    "corr-workspace-chrome-39",
+    ".corr-method, .corr-history, .corr-analysis-disclosure",
+    null
+  ],
+  [
+    "corr-workspace-chrome-40",
+    ".corr-method summary, .corr-history summary, .corr-analysis-disclosure > summary",
+    null
+  ],
+  [
+    "corr-workspace-chrome-41",
+    ".corr-method p",
+    null
+  ],
+  [
+    "corr-workspace-chrome-42",
+    ".corr-analysis-disclosure[open] > summary",
+    null
+  ],
+  [
+    "corr-workspace-chrome-43",
+    ".corr-scale-label",
+    null
+  ],
+  [
+    "corr-workspace-chrome-44",
+    ".corr-dose-notice > span",
+    null
+  ],
+  [
+    "corr-workspace-chrome-45",
+    ".corr-confirm-dose",
+    null
+  ],
+  [
+    "corr-workspace-chrome-46",
+    ".corr-confirm-dose summary",
+    null
+  ],
+  [
+    "corr-workspace-chrome-47",
+    ".corr-confirm-dose > div",
+    null
+  ],
+  [
+    "corr-workspace-chrome-48",
+    ".corr-confirm-status:empty",
+    null
+  ],
+  [
+    "corr-workspace-chrome-49",
+    ".corr-analysis-disclosure:not([data-analysis-tab=\"timeline\"])",
+    null
+  ]
+]

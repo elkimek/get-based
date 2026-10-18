@@ -113,7 +113,7 @@ test('mobile dashboard browser coverage exercises defaults breakpoint search and
       outcomes.breakpointRefreshNavigatesOrSyncsTabs = calls.some(call => call[0] === 'navigate' && call[1] === 'dashboard')
         && document.getElementById('mobile-bottom-tabs')?.querySelector('[data-tab="labs"]')?.classList.contains('active') === true;
 
-      mobileDashboard.renderMobileDashboard(mobileData, { resetScroll: true });
+      await mobileDashboard.renderMobileDashboard(mobileData, { resetScroll: true });
       await wait(0);
       const firstRenderHtml = document.getElementById('main-content')?.innerHTML || '';
       const defaultDepsOk = document.body.classList.contains('mobile-dashboard-active') === true
@@ -133,9 +133,9 @@ test('mobile dashboard browser coverage exercises defaults breakpoint search and
       };
 
       mobileDashboard.configureMobileDashboardView({
-        getVisibleDashboardWidgetEntries: () => [{ def: { id: 'coverage-widget' }, body: '<p>custom body ignored by default renderer</p>' }],
+        getVisibleDashboardWidgetViews: () => [{ def: { id: 'coverage-widget' }, content: {kind:'genome',view:{kind:'empty',contributionHref:null}}, body: '<p>custom body ignored by default renderer</p>' }],
       });
-      mobileDashboard.renderMobileDashboard(mobileData);
+      await mobileDashboard.renderMobileDashboard(mobileData);
       const secondRenderHtml = document.getElementById('main-content')?.innerHTML || '';
       outcomes.defaultRenderDashboardWidgetCallbackHandlesVisibleEntries = secondRenderHtml.includes('Dashboard widgets')
         && secondRenderHtml.includes('m-dashboard-widgets')

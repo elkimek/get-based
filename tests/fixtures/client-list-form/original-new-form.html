@@ -1,0 +1,135 @@
+<div class="cl-header cl-form-header">
+    <div class="cl-header-left">
+      <button type="button" class="cl-back-btn cl-icon-btn" data-cl-action="back-to-list" aria-label="Back to clients"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg></button>
+      <div>
+        <h2 class="cl-title">New Client</h2>
+        <div class="cl-count">Create a local profile</div>
+      </div>
+    </div>
+    <div class="cl-header-right">
+      <button type="button" class="modal-close cl-icon-btn" data-cl-action="close" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button>
+    </div>
+  </div>
+  <form class="cl-form" data-cl-submit-action="save-form">
+    <div class="cl-form-body">
+      <section class="cl-form-section">
+        <div class="cl-section-title">Profile</div>
+        <div class="cl-form-row cl-avatar-row">
+          <div class="cl-avatar-picker" data-cl-action="choose-avatar" data-cl-key-action="choose-avatar" role="button" tabindex="0">
+            <span class="cl-avatar-preview-initial" id="cl-avatar-img" style="background:#a3e635">?</span>
+            <span class="cl-avatar-edit-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 4 13 6H8a3 3 0 0 0-3 3v8a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3V9a3 3 0 0 0-3-3h-.5L14.5 4z"></path><circle cx="12" cy="13" r="3"></circle></svg></span>
+          </div>
+          <input type="file" id="cl-avatar-input" accept="image/*" style="display:none" data-cl-change-action="avatar-changed">
+          
+        </div>
+        <div class="cl-form-row">
+          <label class="cl-form-label" for="cl-name">Name <span class="cl-required">*</span></label>
+          <input type="text" class="cl-form-input" id="cl-name" value="" required="" autofocus="">
+        </div>
+        <div class="cl-form-row-split">
+          <div class="cl-form-row cl-form-col">
+            <label class="cl-form-label">Sex</label>
+            <div class="cl-sex-toggle" id="cl-sex-toggle">
+              <button type="button" class="sex-toggle-btn" data-sex="male" data-cl-action="set-sex" data-cl-sex="male">Male</button>
+              <button type="button" class="sex-toggle-btn" data-sex="female" data-cl-action="set-sex" data-cl-sex="female">Female</button>
+            </div>
+          </div>
+          <div class="cl-form-row cl-form-col">
+            <label class="cl-form-label" for="cl-dob">Date of Birth</label>
+            <input type="date" class="cl-form-input cl-form-date" id="cl-dob" value="">
+          </div>
+        </div>
+      </section>
+
+      <section class="cl-form-section">
+        <div class="cl-section-title">Region</div>
+        <div class="cl-form-row">
+          <label class="cl-form-label" for="cl-country">Home location <span class="cl-label-detail">circadian, seasonal, and regional context</span></label>
+          <div class="cl-form-row-split">
+            <div class="cl-form-col">
+              <input type="text" class="cl-form-input" id="cl-country" value="" placeholder="Country (e.g. Slovakia)" data-cl-input-action="update-lat" list="cl-country-list" autocomplete="country-name">
+              <datalist id="cl-country-list">
+                <option value="Czech Republic"></option>
+                <option value="Slovakia"></option>
+                <option value="Germany"></option>
+                <option value="Austria"></option>
+                <option value="United States"></option>
+                <option value="France"></option>
+                <option value="Italy"></option>
+                <option value="Spain"></option>
+                <option value="Netherlands"></option>
+                <option value="Belgium"></option>
+                <option value="Poland"></option>
+                <option value="Hungary"></option>
+                <option value="Portugal"></option>
+                <option value="Ireland"></option>
+                <option value="Denmark"></option>
+                <option value="Sweden"></option>
+                <option value="Finland"></option>
+                <option value="United Kingdom"></option>
+                <option value="Canada"></option>
+                <option value="Australia"></option>
+              </datalist>
+            </div>
+            <div class="cl-form-col">
+              <input type="text" class="cl-form-input" id="cl-zip" value="" placeholder="ZIP / postal code" data-cl-input-action="update-lat">
+            </div>
+          </div>
+          <div id="cl-lat-display" class="cl-lat-display"></div>
+          <div class="cl-form-help">Postal codes are optional. This self-hosted deployment may ask OpenStreetMap for a privacy-rounded postal area (~11 km); current phone location remains a separate opt-in. © OpenStreetMap contributors.</div>
+        </div>
+      </section>
+
+      <section class="cl-form-section">
+        <div class="cl-section-title">Health Metadata</div>
+        <div class="cl-form-row-split">
+          <div class="cl-form-row cl-form-col">
+            <label class="cl-form-label" for="cl-height">Height <a href="#" class="cl-bio-unit-toggle" id="cl-height-unit-toggle" data-unit="cm" data-cl-action="height-unit">cm</a></label>
+            <input type="number" class="cl-form-input" id="cl-height" value="" step="1" placeholder="cm" data-cl-input-action="update-bmi">
+            <input type="hidden" id="cl-height-unit" value="cm">
+          </div>
+          
+        </div>
+        <div class="cl-health-note">
+          Log weight, blood pressure and pulse on the dashboard after creating the client.
+        </div>
+        <div class="cl-form-row">
+          <label class="cl-form-label" for="cl-haplogroup">mtDNA Haplogroup <span class="cl-label-detail">maternal lineage</span></label>
+          <div class="cl-haplogroup-row">
+            <select class="cl-form-input cl-haplogroup-select" id="cl-haplogroup" data-cl-change-action="haplogroup-changed">
+              <option value="">Not set</option>
+              <option value="A">A</option><option value="A2">A2</option><option value="B">B</option><option value="C">C</option><option value="D">D</option><option value="E">E</option><option value="F">F</option><option value="G">G</option><option value="H">H</option><option value="H1">H1</option><option value="H3">H3</option><option value="HV">HV</option><option value="I">I</option><option value="J">J</option><option value="J1">J1</option><option value="J2">J2</option><option value="K">K</option><option value="K1">K1</option><option value="L0">L0</option><option value="L1">L1</option><option value="L2">L2</option><option value="L3">L3</option><option value="L4">L4</option><option value="L5">L5</option><option value="L6">L6</option><option value="M">M</option><option value="N">N</option><option value="R">R</option><option value="T">T</option><option value="T1">T1</option><option value="T2">T2</option><option value="U">U</option><option value="U5a">U5a</option><option value="U5b">U5b</option><option value="U6">U6</option><option value="V">V</option><option value="W">W</option><option value="X">X</option><option value="Z">Z</option>
+            </select>
+            <span id="cl-hg-coupling" class="cl-hg-coupling"></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="cl-form-section">
+        <div class="cl-section-title">Client Notes</div>
+        <div class="cl-form-row">
+          <label class="cl-form-label">Tags</label>
+          <div class="cl-tags-wrap" id="cl-tags-wrap">
+            
+            <input type="text" class="cl-tag-input" id="cl-tag-input" placeholder="Add tag + Enter" data-cl-key-action="tag-input">
+          </div>
+        </div>
+        <div class="cl-form-row">
+          <label class="cl-form-label" for="cl-notes">Notes</label>
+          <textarea class="cl-form-textarea" id="cl-notes" rows="3" placeholder="Practitioner notes..."></textarea>
+        </div>
+        <div class="cl-form-row">
+          <label class="cl-form-label">Status</label>
+          <div class="cl-status-radios">
+            <label class="cl-radio"><input type="radio" name="cl-status" value="active" checked=""> Active</label>
+            <label class="cl-radio"><input type="radio" name="cl-status" value="flagged"> Flagged</label>
+            <label class="cl-radio"><input type="radio" name="cl-status" value="archived"> Archived</label>
+          </div>
+        </div>
+      </section>
+    </div>
+    <div class="cl-form-actions">
+      <button type="button" class="cl-form-cancel" data-cl-action="back-to-list">Cancel</button>
+      <button type="submit" class="cl-form-save">Create Client</button>
+    </div>
+  </form>

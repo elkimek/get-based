@@ -1,3 +1,4 @@
+<svelte:options runes={true}/>
 <script lang="ts">
   import {cycleSharedClasses} from '../cycle-shared-classes.js';
 </script>

@@ -24,7 +24,9 @@ test('Display preferences remain delegated, accessible, and persistent', async (
   });
   const panel = page.locator('#settings-tab-display');
   const us = panel.locator('[data-unit="US"]');
-  await expect(us).toHaveCSS('min-height', '44px');
+  await expect(us).toHaveCSS('font-size', '12px');
+  await expect(us).toHaveCSS('padding', '4px 12px');
+  await expect(us).toHaveCSS('min-height', await page.evaluate(() => matchMedia('(pointer:coarse)').matches) ? '44px' : 'auto');
   await expect(panel.getByRole('group', { name: 'Unit System', exact: true })).toBeVisible();
   await us.click();
   await expect(us).toHaveAttribute('aria-pressed', 'true');

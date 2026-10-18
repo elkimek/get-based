@@ -1,4 +1,5 @@
 <script lang="ts">
+  import LightEnvironmentAI from './LightEnvironmentAI.svelte';
   import type {EnvironmentRoomView} from '../light-environment-room-presentation.js';
   import {environmentRoomClasses as c} from '../light-environment-room-classes.js';
   import LightEnvironmentTodayToggle from './LightEnvironmentTodayToggle.svelte';
@@ -36,13 +37,13 @@
           </div>
           {#if !body.readings.length}<p class={c('light-env-room-empty')}>No measurements yet. Run any tool above and the result lives here.</p>{:else}
             <div class={c('light-env-room-readings')}>
-              {#each body.readings as reading}<div class={c('light-env-reading')}><span class={c('light-env-reading-icon')}>{reading.icon}</span><span class={c('light-env-reading-value')}>{reading.value}</span><span class={c('light-env-reading-time')}>{reading.time}</span></div><!-- Configured measurement renderer owns this trusted markup. -->{@html reading.trustedAIHTML}{/each}
+              {#each body.readings as reading}<div class={c('light-env-reading')}><span class={c('light-env-reading-icon')}>{reading.icon}</span><span class={c('light-env-reading-value')}>{reading.value}</span><span class={c('light-env-reading-time')}>{reading.time}</span></div>{#if reading.ai}<LightEnvironmentAI view={reading.ai}/>{/if}{/each}
             </div>
           {/if}
         </div>
       </div>
       <!-- Configured room renderer owns this trusted markup, never saved fields. -->
-      {@html body.trustedRoomHTML}
+      {#if body.ai}<LightEnvironmentAI view={body.ai}/>{/if}
       <div class={c('light-env-room-step')}>
         <div class={c('light-env-room-step-head')}>{body.screenHeading}</div>
         <div class={c('light-env-room-step-body')}>

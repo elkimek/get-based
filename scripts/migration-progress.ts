@@ -4,6 +4,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { isSourceFile } from './source-files.js';
+import { qualifyFrozenNativeOracles } from './frozen-native-oracles.mjs';
 import { projectOwnedVendorFiles, readVendorManifest } from './project-owned-vendor.mjs';
 
 type Counts = { lines: number; nonblank: number };
@@ -19,6 +20,7 @@ export function countLines(source: string): Counts {
 
 /** Count every Git-inventoried authored file; ignored compiler output never enters this inventory. */
 export function migrationSourceFiles(root: string, inventory: readonly string[]): string[] {
+  qualifyFrozenNativeOracles(root, inventory);
   const ownedVendor = projectOwnedVendorFiles(readVendorManifest(root), inventory);
   return [...new Set(inventory)].filter(file => {
     const absolute = path.join(root, file);
@@ -42,7 +44,9 @@ export function buildMigrationProgress(root: string, inventory: readonly string[
   const ownedVendorFiles = files.filter(file => file.startsWith('vendor/'));
   const totals = countSourceLines(root, files.filter(file => !file.startsWith('vendor/')));
   const ownedVendorTotals = countSourceLines(root, ownedVendorFiles);
-  const javascript = files.filter(file => /\.[cm]?js$/.test(file));
+  const frozen = qualifyFrozenNativeOracles(root, inventory);
+  const frozenFiles = files.filter(file => frozen.has(file));
+  const javascript = files.filter(file => /\.[cm]?js$/.test(file) && !frozen.has(file));
   const typescript = files.filter(file => /\.[cm]?ts$/.test(file) && !/\.d\.[cm]?ts$/.test(file));
   const reduction = {
     lines: 1 - totals.lines / baseline.totals.lines,
@@ -50,6 +54,7 @@ export function buildMigrationProgress(root: string, inventory: readonly string[
   };
   return { baselineCommit: baseline.commit, baseline: baseline.totals, current: totals,
     projectOwnedVendor: { files: ownedVendorFiles, ...ownedVendorTotals },
+    frozenHistoricalOracles: {files: frozenFiles, ...countSourceLines(root, frozenFiles)},
     reduction,
     authoredJavaScriptFiles: javascript.length, authoredTypeScriptFiles: typescript.length,
     migrated: javascript.length === 0,

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import LightEnvironmentAI from './LightEnvironmentAI.svelte';
   import type { LightAuditCardView } from '../light-audit-presentation.js';
   import { lightAuditClasses as c } from '../light-audit-classes.js';
   import LightAuditDetail from './LightAuditDetail.svelte';
@@ -13,7 +14,7 @@
     <div class={c('light-audit-info')}>
       <div class={c('light-audit-info-top')}>
         <!-- Configured AI owns this trusted, possibly interactive renderer. -->
-        <div class={c('light-audit-ai-dot')}>{@html view.trustedDotHTML}</div>
+        <div class={c('light-audit-ai-dot')}>{#if view.aiDot}<LightEnvironmentAI view={view.aiDot}/>{/if}</div>
         <span class={c('light-audit-date')}>{view.date}</span>
         {#if view.label}<span class={c('light-audit-label')}>{view.label}</span>{/if}
       </div>

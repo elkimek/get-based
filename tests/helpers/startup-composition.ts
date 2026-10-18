@@ -9,7 +9,7 @@ const startupImports = [
   "import './feedback.js';",
   "import './tour.js';",
   "import './touch-tooltip.js';",
-  "import './views.js';",
+  "import './views-runtime.js';",
   "import './app-shell-hooks.js';",
   "import './light-env-shell-hooks.js';",
 ].join('\n');

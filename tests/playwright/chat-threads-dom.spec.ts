@@ -1,11 +1,12 @@
+import {waitForAsyncCondition} from '../helpers/awaited-condition.js';
 import { expect, test } from './coverage-fixture.js';
 
 test('chat thread rail and delegated thread actions work in the live DOM', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(async () => {
+  await waitForAsyncCondition(() => page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     return !!state;
-  });
+  }), 0);
 
   const results = await page.evaluate(async () => {
     const chatThreads = await import('/js/chat-threads.js');

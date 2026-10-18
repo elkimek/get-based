@@ -1,7 +1,9 @@
+import {tsStateStyles} from './ts-state-ui-inline-style-map.generated.js';
 // client-list-form.js — Create/edit form owner for the Client List modal
 
 import { state } from './state.js';
-import { escapeAttr, escapeHTML } from './utils.js';
+import {projectClientFormAvatar,projectClientFormTag,projectClientListForm} from './client-list-form-presentation.js';
+import {renderClientFormAvatar,renderClientFormTagBody,renderClientListForm} from './client-list-form-rendering.js';
 import {
   createProfile,
   detectLatitudeWithAI,
@@ -23,13 +25,6 @@ import {
   setClientManualHaplogroup,
   showClientListNotification,
 } from './client-list-runtime.js';
-
-const FORM_ICONS = Object.freeze({
-  arrowLeft: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>',
-  camera: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 4 13 6H8a3 3 0 0 0-3 3v8a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3V9a3 3 0 0 0-3-3h-.5L14.5 4z"/><circle cx="12" cy="13" r="3"/></svg>',
-  close: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
-});
-
 
 interface ClientListFormCalls { closeClientList: () => unknown; renderClientList: () => unknown }
 export type ClientListFormSnapshot = { [Key in keyof ClientListFormCalls]: unknown };
@@ -55,25 +50,6 @@ export function resetClientListFormState() {
   pendingAvatar = undefined;
 }
 
-function _clActionAttrs(action: unknown, attrs: Record<string, unknown> = {}) {
-  return Object.entries({ 'data-cl-action': action, ...attrs })
-    .filter(([, value]) => value !== undefined && value !== null)
-    .map(([name, value]) => `${name}="${escapeAttr(String(value))}"`)
-    .join(' ');
-}
-
-function _clInputAttrs(action: unknown) {
-  return `data-cl-input-action="${escapeAttr(action)}"`;
-}
-
-function _clChangeAttrs(action: unknown) {
-  return `data-cl-change-action="${escapeAttr(action)}"`;
-}
-
-function _clKeyAttrs(action: unknown) {
-  return `data-cl-key-action="${escapeAttr(action)}"`;
-}
-
 function _clInput(id: string) {
   const el = document.getElementById(id);
   return el instanceof HTMLInputElement ? el : null;
@@ -90,7 +66,10 @@ function _clSelectElement(id: string) {
 }
 
 function _clTagText(pill: Element) {
-  return pill.firstChild?.textContent?.trim() || '';
+  return Array.from(pill.childNodes)
+    .filter(node => node.nodeType === 3)
+    .map(node => node.textContent || '')
+    .join('').trim();
 }
 
 function _resizeAvatar(file: File) {
@@ -145,152 +124,16 @@ export function openClientForm(profileId?: string) {
 
   const avatarColor = getAvatarColor(profile ? profile.id : 'new');
   const avatarInitial = (name || '?')[0]!.toUpperCase();
-  const avatarPreview = avatar && _isSafeAvatarSrc(avatar)
-    ? `<img class="cl-avatar-preview-img" id="cl-avatar-img" src="${escapeAttr(avatar)}" alt="">`
-    : `<span class="cl-avatar-preview-initial" id="cl-avatar-img" style="background:${avatarColor}">${escapeHTML(avatarInitial)}</span>`;
+  const avatarPreview = projectClientFormAvatar(avatar, !!(avatar && _isSafeAvatarSrc(avatar)), avatarColor, avatarInitial);
 
-  modal.innerHTML = `<div class="cl-header cl-form-header">
-    <div class="cl-header-left">
-      <button type="button" class="cl-back-btn cl-icon-btn" ${_clActionAttrs('back-to-list')} aria-label="Back to clients">${FORM_ICONS.arrowLeft}</button>
-      <div>
-        <h2 class="cl-title">${profile ? 'Edit Client' : 'New Client'}</h2>
-        <div class="cl-count">${profile ? escapeHTML(profile.name || 'Profile') : 'Create a local profile'}</div>
-      </div>
-    </div>
-    <div class="cl-header-right">
-      <button type="button" class="modal-close cl-icon-btn" ${_clActionAttrs('close')} aria-label="Close">${FORM_ICONS.close}</button>
-    </div>
-  </div>
-  <form class="cl-form" data-cl-submit-action="save-form">
-    <div class="cl-form-body">
-      <section class="cl-form-section">
-        <div class="cl-section-title">Profile</div>
-        <div class="cl-form-row cl-avatar-row">
-          <div class="cl-avatar-picker" ${_clActionAttrs('choose-avatar')} ${_clKeyAttrs('choose-avatar')} role="button" tabindex="0">
-            ${avatarPreview}
-            <span class="cl-avatar-edit-icon">${FORM_ICONS.camera}</span>
-          </div>
-          <input type="file" id="cl-avatar-input" accept="image/*" style="display:none" ${_clChangeAttrs('avatar-changed')}>
-          ${avatar ? `<button type="button" class="cl-avatar-remove" ${_clActionAttrs('remove-avatar')}>Remove photo</button>` : ''}
-        </div>
-        <div class="cl-form-row">
-          <label class="cl-form-label" for="cl-name">Name <span class="cl-required">*</span></label>
-          <input type="text" class="cl-form-input" id="cl-name" value="${escapeHTML(name)}" required autofocus>
-        </div>
-        <div class="cl-form-row-split">
-          <div class="cl-form-row cl-form-col">
-            <label class="cl-form-label">Sex</label>
-            <div class="cl-sex-toggle" id="cl-sex-toggle">
-              <button type="button" class="sex-toggle-btn${sex === 'male' ? ' active' : ''}" data-sex="male" ${_clActionAttrs('set-sex', { 'data-cl-sex': 'male' })}>Male</button>
-              <button type="button" class="sex-toggle-btn${sex === 'female' ? ' active' : ''}" data-sex="female" ${_clActionAttrs('set-sex', { 'data-cl-sex': 'female' })}>Female</button>
-            </div>
-          </div>
-          <div class="cl-form-row cl-form-col">
-            <label class="cl-form-label" for="cl-dob">Date of Birth</label>
-            <input type="date" class="cl-form-input cl-form-date" id="cl-dob" value="${escapeHTML(dob)}">
-          </div>
-        </div>
-      </section>
-
-      <section class="cl-form-section">
-        <div class="cl-section-title">Region</div>
-        <div class="cl-form-row">
-          <label class="cl-form-label" for="cl-country">Home location <span class="cl-label-detail">circadian, seasonal, and regional context</span></label>
-          <div class="cl-form-row-split">
-            <div class="cl-form-col">
-              <input type="text" class="cl-form-input" id="cl-country" value="${escapeHTML(country)}" placeholder="Country (e.g. Slovakia)" ${_clInputAttrs('update-lat')} list="cl-country-list" autocomplete="country-name">
-              <datalist id="cl-country-list">
-                <option value="Czech Republic"></option>
-                <option value="Slovakia"></option>
-                <option value="Germany"></option>
-                <option value="Austria"></option>
-                <option value="United States"></option>
-                <option value="France"></option>
-                <option value="Italy"></option>
-                <option value="Spain"></option>
-                <option value="Netherlands"></option>
-                <option value="Belgium"></option>
-                <option value="Poland"></option>
-                <option value="Hungary"></option>
-                <option value="Portugal"></option>
-                <option value="Ireland"></option>
-                <option value="Denmark"></option>
-                <option value="Sweden"></option>
-                <option value="Finland"></option>
-                <option value="United Kingdom"></option>
-                <option value="Canada"></option>
-                <option value="Australia"></option>
-              </datalist>
-            </div>
-            <div class="cl-form-col">
-              <input type="text" class="cl-form-input" id="cl-zip" value="${escapeHTML(zip)}" placeholder="ZIP / postal code" ${_clInputAttrs('update-lat')}>
-            </div>
-          </div>
-          <div id="cl-lat-display" class="cl-lat-display"></div>
-          <div class="cl-form-help">${isOfficialGetbasedHost()
-            ? 'Postal codes are optional and stay in this browser. The hosted app uses country-level latitude rather than sending your postal code through getbased or Vercel; current phone location remains a separate opt-in.'
-            : 'Postal codes are optional. This self-hosted deployment may ask OpenStreetMap for a privacy-rounded postal area (~11 km); current phone location remains a separate opt-in. © OpenStreetMap contributors.'}</div>
-        </div>
-      </section>
-
-      <section class="cl-form-section">
-        <div class="cl-section-title">Health Metadata</div>
-        <div class="cl-form-row-split">
-          <div class="cl-form-row cl-form-col">
-            <label class="cl-form-label" for="cl-height">Height <a href="#" class="cl-bio-unit-toggle" id="cl-height-unit-toggle" data-unit="${heightUnit}" ${_clActionAttrs('height-unit')}>${heightUnit}</a></label>
-            <input type="number" class="cl-form-input" id="cl-height" value="${escapeHTML(String(heightDisplay))}" step="${heightUnit === 'in' ? '0.1' : '1'}" placeholder="${heightUnit === 'in' ? 'inches' : 'cm'}" ${_clInputAttrs('update-bmi')}>
-            <input type="hidden" id="cl-height-unit" value="${heightUnit}">
-          </div>
-          ${profile ? `<div class="cl-form-row cl-form-col">
-            <label class="cl-form-label">BMI</label>
-            <div class="mc-auto-value cl-bmi-display" id="cl-bmi-display"></div>
-          </div>` : ''}
-        </div>
-        <div class="cl-health-note">
-          ${profile
-            ? `<a href="#" class="cl-health-link" ${_clActionAttrs('health-metrics')}>Log weight, blood pressure and pulse on the dashboard</a>`
-            : 'Log weight, blood pressure and pulse on the dashboard after creating the client.'}
-        </div>
-        <div class="cl-form-row">
-          <label class="cl-form-label" for="cl-haplogroup">mtDNA Haplogroup <span class="cl-label-detail">maternal lineage</span></label>
-          <div class="cl-haplogroup-row">
-            <select class="cl-form-input cl-haplogroup-select" id="cl-haplogroup" ${_clChangeAttrs('haplogroup-changed')}>
-              <option value="">Not set</option>
-              ${getClientHaplogroupList().map(haplogroup => '<option value="' + haplogroup + '"' + (state.importedData?.genetics?.mtdna?.haplogroup === haplogroup ? ' selected' : '') + '>' + haplogroup + '</option>').join('')}
-            </select>
-            <span id="cl-hg-coupling" class="cl-hg-coupling">${state.importedData?.genetics?.mtdna?.coupling?.shortLabel || ''}</span>
-          </div>
-        </div>
-      </section>
-
-      <section class="cl-form-section">
-        <div class="cl-section-title">Client Notes</div>
-        <div class="cl-form-row">
-          <label class="cl-form-label">Tags</label>
-          <div class="cl-tags-wrap" id="cl-tags-wrap">
-            ${tags.map(tag => `<span class="cl-tag-pill">${escapeHTML(tag)}<button type="button" class="cl-tag-remove" ${_clActionAttrs('remove-tag')} aria-label="Remove tag">${FORM_ICONS.close}</button></span>`).join('')}
-            <input type="text" class="cl-tag-input" id="cl-tag-input" placeholder="Add tag + Enter" ${_clKeyAttrs('tag-input')}>
-          </div>
-        </div>
-        <div class="cl-form-row">
-          <label class="cl-form-label" for="cl-notes">Notes</label>
-          <textarea class="cl-form-textarea" id="cl-notes" rows="3" placeholder="Practitioner notes...">${escapeHTML(notes)}</textarea>
-        </div>
-        <div class="cl-form-row">
-          <label class="cl-form-label">Status</label>
-          <div class="cl-status-radios">
-            <label class="cl-radio"><input type="radio" name="cl-status" value="active"${status === 'active' ? ' checked' : ''}> Active</label>
-            <label class="cl-radio"><input type="radio" name="cl-status" value="flagged"${status === 'flagged' ? ' checked' : ''}> Flagged</label>
-            <label class="cl-radio"><input type="radio" name="cl-status" value="archived"${status === 'archived' ? ' checked' : ''}> Archived</label>
-          </div>
-        </div>
-      </section>
-    </div>
-    <div class="cl-form-actions">
-      <button type="button" class="cl-form-cancel" ${_clActionAttrs('back-to-list')}>Cancel</button>
-      <button type="submit" class="cl-form-save">${profile ? 'Save Changes' : 'Create Client'}</button>
-    </div>
-  </form>`;
+  modal.innerHTML = renderClientListForm(projectClientListForm({
+    editing:!!profile, avatar:avatarPreview, removeAvatar:!!avatar,
+    readCount:()=>profile ? profile.name || 'Profile' : 'Create a local profile',
+    name, sex, dob, country, zip, tags, notes, status, heightUnit, heightDisplay,
+    officialHost:isOfficialGetbasedHost, readHaplogroups:getClientHaplogroupList,
+    readSelectedHaplogroup:()=>state.importedData?.genetics?.mtdna?.haplogroup,
+    readCouplingLabel:()=>state.importedData?.genetics?.mtdna?.coupling?.shortLabel,
+  }));
   requestAnimationFrame(() => {
     _clUpdateLat();
     _clUpdateBMI();
@@ -378,7 +221,7 @@ async function _clAvatarChanged(input: HTMLInputElement) {
     pendingAvatar = dataUrl;
     const container = document.querySelector('.cl-avatar-picker');
     if (container) {
-      container.innerHTML = `<img class="cl-avatar-preview-img" id="cl-avatar-img" src="${escapeAttr(dataUrl)}" alt=""><span class="cl-avatar-edit-icon">${FORM_ICONS.camera}</span>`;
+      container.innerHTML = renderClientFormAvatar(projectClientFormAvatar(dataUrl, true, '', ''));
     }
     if (!document.querySelector('.cl-avatar-remove')) {
       const row = document.querySelector('.cl-avatar-row');
@@ -404,7 +247,7 @@ function _clRemoveAvatar() {
     const color = getAvatarColor(editingId || 'new');
     const nameInput = _clInput('cl-name');
     const initial = ((nameInput?.value || '?')[0]!).toUpperCase();
-    container.innerHTML = `<span class="cl-avatar-preview-initial" id="cl-avatar-img" style="background:${color}">${escapeHTML(initial)}</span><span class="cl-avatar-edit-icon">${FORM_ICONS.camera}</span>`;
+    container.innerHTML = renderClientFormAvatar(projectClientFormAvatar('', false, color, initial));
   }
   document.querySelector('.cl-avatar-remove')?.remove();
 }
@@ -417,7 +260,7 @@ function _clSetSex(sex: string) {
 
 function _clShowLat(element: HTMLElement, latitude: number, suffix: unknown) {
   const band = latitudeToBand(latitude);
-  element.style.color = 'var(--green)';
+  element.style.color = tsStateStyles.successColor;
   element.textContent = '\u2713 ' + Math.abs(Math.round(latitude)) + '\u00b0' + (latitude >= 0 ? 'N' : 'S') + ' \u2014 ' + LATITUDE_BANDS[band] + (suffix || '');
 }
 
@@ -454,10 +297,10 @@ function _clUpdateLat() {
   if (isOfficialGetbasedHost()) {
     const bandLabel = getLatitudeFromLocation(country, '');
     if (bandLabel) {
-      element.style.color = 'var(--green)';
+      element.style.color = tsStateStyles.successColor;
       element.textContent = `✓ ${bandLabel}${zip ? ' — postal code stays local' : ''}`;
     } else {
-      element.style.color = 'var(--text-muted)';
+      element.style.color = tsStateStyles.mutedColor;
       element.textContent = 'Country not recognized — try the full name';
     }
     return;
@@ -467,13 +310,13 @@ function _clUpdateLat() {
   } else {
     const bandLabel = getLatitudeFromLocation(country, zip);
     if (bandLabel) {
-      element.style.color = 'var(--green)';
+      element.style.color = tsStateStyles.successColor;
       element.textContent = '\u2713 ' + bandLabel + (zip ? ' \u2014 resolving postal area\u2026' : '');
     } else if (zip) {
-      element.style.color = 'var(--text-muted)';
+      element.style.color = tsStateStyles.mutedColor;
       element.textContent = 'Resolving postal area\u2026';
     } else {
-      element.style.color = 'var(--text-muted)';
+      element.style.color = tsStateStyles.mutedColor;
       element.textContent = 'Country not recognized \u2014 try the full name';
     }
   }
@@ -510,7 +353,7 @@ function _clTagKeydown(event: KeyboardEvent) {
   if (!wrap) return;
   const pill = document.createElement('span');
   pill.className = 'cl-tag-pill';
-  pill.innerHTML = `${escapeHTML(value)}<button type="button" class="cl-tag-remove" ${_clActionAttrs('remove-tag')} aria-label="Remove tag">${FORM_ICONS.close}</button>`;
+  pill.innerHTML = renderClientFormTagBody(projectClientFormTag(value));
   wrap.insertBefore(pill, input);
   input.value = '';
 }

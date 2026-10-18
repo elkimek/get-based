@@ -20,7 +20,7 @@ import {
   _safeText,
 } from './sun-context-runtime.js';
 import { lightEnvironmentBlock } from './sun-context-environment.js';
-import { isLightSunContextEnabled } from './lab-context.js';
+import { isLightSunContextEnabled } from './lab-context-settings.js';
 
 import type { SunSessionRecord } from './sun-sessions-store.js';
 import type { DeviceSessionRecord } from './light-devices-store.js';

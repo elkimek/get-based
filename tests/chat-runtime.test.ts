@@ -23,6 +23,7 @@ const MOCK_PATHS = [
   '../js/constants.js',
   '../js/schema.js',
   '../js/lab-context.js',
+  '../js/lab-context-output.js',
   '../js/lens.js',
   '../js/chat-personalities.js',
   '../js/chat-prompt-context.js',
@@ -671,8 +672,8 @@ function installRoundRequestMocks({ lens = true, provider = 'venice', e2ee = tru
   vi.doMock('../js/lab-context.js', () => ({
     buildLabContext: deps.buildLabContext,
     getContextSummary: deps.getContextSummary,
-    injectLensChunks: deps.injectLensChunks,
   }));
+  vi.doMock('../js/lab-context-output.js', () => ({ injectLensChunks: deps.injectLensChunks }));
   vi.doMock('../js/lens.js', () => ({
     hasLens: deps.hasLens,
     queryLensMulti: deps.queryLensMulti,

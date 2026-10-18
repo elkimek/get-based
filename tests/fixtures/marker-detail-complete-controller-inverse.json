@@ -1,0 +1,145 @@
+{
+  "file": "js/marker-detail-modal-impl.ts",
+  "header": "import {renderMarkerDetailChrome, renderMarkerDetailBioAge, renderMarkerDetailNotes} from './marker-detail-complete-presentation.js';\n",
+  "edits": [
+    {
+      "start": 20236,
+      "end": 20697,
+      "before": "` <span class=\"ref-edited-badge\" role=\"button\" tabindex=\"0\" aria-label=\"Revert renamed marker to original\" title=\"Renamed \u2014 click to revert to original\" ${markerDetailActionAttrs('revert-marker-name', { id })} style=\"cursor:pointer\">renamed \u00d7</span> <span class=\"ref-edited-badge\" role=\"button\" tabindex=\"0\" aria-label=\"Rename marker\" title=\"Rename marker\" ${markerDetailActionAttrs('rename-marker', { id })} style=\"cursor:pointer;font-size:12px\">rename</span>`",
+      "after": "renderMarkerDetailChrome({kind: \"renamed\", revertActions: `${markerDetailActionAttrs('revert-marker-name', { id })}`, renameActions: `${markerDetailActionAttrs('rename-marker', { id })}`})"
+    },
+    {
+      "start": 20704,
+      "end": 20917,
+      "before": "` <span class=\"ref-edited-badge\" role=\"button\" tabindex=\"0\" aria-label=\"Rename marker\" title=\"Rename marker\" ${markerDetailActionAttrs('rename-marker', { id })} style=\"cursor:pointer;font-size:12px\">rename</span>`",
+      "after": "renderMarkerDetailChrome({kind: \"rename\", actions: `${markerDetailActionAttrs('rename-marker', { id })}`})"
+    },
+    {
+      "start": 22249,
+      "end": 22357,
+      "before": "` &middot; <span style=\"color:var(--green)\">Optimal: ${altRange(optimalRange.min, optimalRange.max)}</span>`",
+      "after": "renderMarkerDetailChrome({kind: \"alternate-optimal\", range: `${altRange(optimalRange.min, optimalRange.max)}`})"
+    },
+    {
+      "start": 22650,
+      "end": 22776,
+      "before": "`<div class=\"modal-unit modal-unit-alt\" title=\"Same marker, alternate unit system\">\u2248 ${escapeHTML(altUnit)}${altRanges}</div>`",
+      "after": "renderMarkerDetailChrome({kind: \"alternate-unit\", unit: `${escapeHTML(altUnit)}`, ranges: `${altRanges}`})"
+    },
+    {
+      "start": 23051,
+      "end": 25398,
+      "before": "`<div class=\"gb-detail-head\">\n      <div>\n        ${renderMarkerPlacementSummary(id, marker, data.categories)}\n        <h3>${escapeHTML(marker.name)}${renameLink}</h3>\n        <div class=\"modal-unit\">${escapeHTML(marker.unit)}</div>\n        ${altUnitInfo}\n      </div>\n      <div class=\"gb-detail-head-actions\">\n        <button type=\"button\" class=\"gb-detail-pin-btn${quickMarkerPinned ? ' is-pinned' : ''}\" aria-pressed=\"${quickMarkerPinned ? 'true' : 'false'}\" title=\"${escapeAttr(quickMarkerPinTitle)}\" ${markerDetailActionAttrs('quick-pin', { id })}>${escapeHTML(quickMarkerPinText)}</button>\n        <span class=\"gb-detail-status gb-detail-status-${escapeAttr(latestStatus)}\">${escapeHTML(statusText)}</span>\n      </div>\n      <button type=\"button\" class=\"modal-close\" aria-label=\"Close\" ${markerDetailActionAttrs('close-modal')}>&times;</button>\n    </div>\n    <div class=\"marker-description\" id=\"marker-desc\"></div>\n    <div class=\"gb-detail-summary\">\n      <div class=\"stat-card\">\n        <div class=\"stat-card-label\">Latest</div>\n        <div class=\"stat-card-value val-${escapeAttr(latestStatus)}\">${escapeHTML(latestDisplay)}${latestUnit ? ` <span>${escapeHTML(latestUnit)}</span>` : ''}</div>\n        <div class=\"stat-card-meta\">${escapeHTML(latestDateLabel)}${deltaFromPrev != null ? ` \u00b7 ${deltaFromPrev >= 0 ? '+' : ''}${deltaFromPrev.toFixed(1)}% vs prev` : ''}</div>\n      </div>\n      <div class=\"stat-card\">\n        <div class=\"stat-card-label\">Ranges</div>\n        <div class=\"stat-card-value stat-card-value-range\">${escapeHTML(rangeMainDisplay)} <span>${escapeHTML(rangeMainLabel)}</span></div>\n        ${rangeSecondaryDisplay\n          ? `<div class=\"stat-card-meta\">${escapeHTML(rangeSecondaryLabel)} ${escapeHTML(rangeSecondaryDisplay)}</div>`\n          : (hasLatestPhaseRange || latestContextRange) ? `<div class=\"stat-card-meta\">Used for the latest status</div>` : ''}\n        ${(rangeCardControls || rangeSuggestionLink) ? `<div class=\"stat-card-range-controls\">${rangeCardControls}${rangeSuggestionLink}</div>` : ''}\n      </div>\n    </div>\n    ${rangeBandHtml}\n    <div class=\"gb-detail-section-label\">Trend</div>\n    <div class=\"modal-chart\"><canvas id=\"chart-modal\"></canvas></div>\n    <div class=\"gb-detail-section-label\">History <span>All time</span></div>\n    <div class=\"modal-values-grid marker-history-list\">`",
+      "after": "renderMarkerDetailChrome({\n  kind: \"header\", placement: `${renderMarkerPlacementSummary(id, marker, data.categories)}`,\n  name: `${escapeHTML(marker.name)}`, rename: `${renameLink}`, unit: `${escapeHTML(marker.unit)}`,\n  alternate: `${altUnitInfo}`, pinClass: `${quickMarkerPinned ? ' is-pinned' : ''}`,\n  pinPressed: `${quickMarkerPinned ? 'true' : 'false'}`, pinTitle: `${escapeAttr(quickMarkerPinTitle)}`,\n  pinActions: `${markerDetailActionAttrs('quick-pin', { id })}`, pinText: `${escapeHTML(quickMarkerPinText)}`,\n  statusClass: `${escapeAttr(latestStatus)}`, status: `${escapeHTML(statusText)}`,\n  closeActions: `${markerDetailActionAttrs('close-modal')}`, latestStatus: `${escapeAttr(latestStatus)}`,\n  latest: `${escapeHTML(latestDisplay)}`,\n  latestUnit: `${latestUnit ? renderMarkerDetailChrome({kind: \"latest-unit\", unit: `${escapeHTML(latestUnit)}`}) : ''}`,\n  latestDate: `${escapeHTML(latestDateLabel)}`,\n  latestDelta: `${deltaFromPrev != null ? ` \u00b7 ${deltaFromPrev >= 0 ? '+' : ''}${deltaFromPrev.toFixed(1)}% vs prev` : ''}`,\n  range: `${escapeHTML(rangeMainDisplay)}`, rangeLabel: `${escapeHTML(rangeMainLabel)}`,\n  secondary: `${rangeSecondaryDisplay\n          ? renderMarkerDetailChrome({kind: \"secondary-range\", label: `${escapeHTML(rangeSecondaryLabel)}`, range: `${escapeHTML(rangeSecondaryDisplay)}`})\n          : (hasLatestPhaseRange || latestContextRange) ? renderMarkerDetailChrome({kind: \"latest-range\"}) : ''}`,\n  rangeControls: `${(rangeCardControls || rangeSuggestionLink) ? renderMarkerDetailChrome({kind: \"range-controls\", controls: `${rangeCardControls}`, suggestion: `${rangeSuggestionLink}`}) : ''}`,\n  rangeBand: `${rangeBandHtml}`\n})"
+    },
+    {
+      "start": 25400,
+      "end": 25445,
+      "before": "  for (const point of visibleHistoryPoints) {",
+      "after": "  let historyRows = '';\n  for (const point of visibleHistoryPoints) {"
+    },
+    {
+      "start": 28768,
+      "end": 28820,
+      "before": "    html += renderMarkerDetailHistory({ kind: \"row\",",
+      "after": "    historyRows += renderMarkerDetailHistory({ kind: \"row\","
+    },
+    {
+      "start": 29243,
+      "end": 29262,
+      "before": "  html += `</div>`;",
+      "after": "  html += renderMarkerDetailChrome({kind: 'history', rows: historyRows});"
+    },
+    {
+      "start": 38785,
+      "end": 38941,
+      "before": "`<span class=\"bio-age-input ${s.present ? 'is-present' : 'is-missing'}\" title=\"${escapeAttr(title)}\">${s.present ? '\u2713' : '\u26a0'} ${escapeHTML(s.label)}</span>`",
+      "after": "renderMarkerDetailBioAge({\n  kind: \"input\", state: `${s.present ? 'is-present' : 'is-missing'}`, title: `${escapeAttr(title)}`,\n  glyph: `${s.present ? '\u2713' : '\u26a0'}`, label: `${escapeHTML(s.label)}`\n})"
+    },
+    {
+      "start": 39219,
+      "end": 39328,
+      "before": "` <span class=\"bio-age-delta\">(${value - usableAge > 0 ? '+' : ''}${(value - usableAge).toFixed(1)}y)</span>`",
+      "after": "renderMarkerDetailBioAge({kind: \"delta\", sign: `${value - usableAge > 0 ? '+' : ''}`, years: `${(value - usableAge).toFixed(1)}`})"
+    },
+    {
+      "start": 39354,
+      "end": 39460,
+      "before": "`<span class=\"bio-age-glyph\">\u2713</span> <strong>${escapeHTML(name)}:</strong> ${formatValue(value)}${delta}`",
+      "after": "renderMarkerDetailBioAge({kind: \"present-heading\", name: `${escapeHTML(name)}`, value: `${formatValue(value)}`, delta: `${delta}`})"
+    },
+    {
+      "start": 39564,
+      "end": 39694,
+      "before": "`<span class=\"bio-age-glyph\">\u26a0</span> <strong>${escapeHTML(name)}:</strong> missing ${missing.length} of ${status.length} ${noun}`",
+      "after": "renderMarkerDetailBioAge({kind: \"missing-heading\", name: `${escapeHTML(name)}`, missing: `${missing.length}`, total: `${status.length}`, noun: `${noun}`})"
+    },
+    {
+      "start": 39813,
+      "end": 40009,
+      "before": "`<div class=\"bio-age-component ${klass}\">\n          <div class=\"bio-age-component-header\">${header}</div>\n          <div class=\"bio-age-input-grid\">${renderInputGrid(status)}</div>\n        </div>`",
+      "after": "renderMarkerDetailBioAge({kind: \"component\", state: `${klass}`, heading: `${header}`, inputs: `${renderInputGrid(status)}`})"
+    },
+    {
+      "start": 40066,
+      "end": 40161,
+      "before": "`<div class=\"bio-age-breakdown-sub\">Based on your panel from ${escapeHTML(refDateLabel)}</div>`",
+      "after": "renderMarkerDetailBioAge({kind: \"panel-date\", date: `${escapeHTML(refDateLabel)}`})"
+    },
+    {
+      "start": 40318,
+      "end": 40410,
+      "before": "`<div class=\"bio-age-breakdown-warning\">${breakdownIssues.map(escapeHTML).join('. ')}</div>`",
+      "after": "renderMarkerDetailBioAge({kind: \"warning\", issues: `${breakdownIssues.map(escapeHTML).join('. ')}`})"
+    },
+    {
+      "start": 40439,
+      "end": 40709,
+      "before": "`<div class=\"bio-age-breakdown\">\n        <div class=\"bio-age-breakdown-head\">Component breakdown</div>\n        ${dateNote}\n        ${issueNote}\n        ${componentRow('PhenoAge', pheno, phenoStatus)}\n        ${componentRow('Bortz Age', bortz, bortzStatus)}\n      </div>`",
+      "after": "renderMarkerDetailBioAge({\n  kind: \"breakdown\", date: `${dateNote}`, warning: `${issueNote}`,\n  pheno: `${componentRow('PhenoAge', pheno, phenoStatus)}`, bortz: `${componentRow('Bortz Age', bortz, bortzStatus)}`\n})"
+    },
+    {
+      "start": 40761,
+      "end": 40839,
+      "before": "`<div class=\"calc-missing-inputs\">Not calculated \u2014 ${issues.join('. ')}</div>`",
+      "after": "renderMarkerDetailBioAge({kind: \"missing\", issues: `${issues.join('. ')}`})"
+    },
+    {
+      "start": 41151,
+      "end": 41463,
+      "before": "  html += `<div class=\"gb-detail-actions\">\n    <div class=\"gb-detail-action-row\">\n      <button class=\"manual-entry-btn\" ${markerDetailActionAttrs('open-manual-entry', { id })}>+ Add Value Manually</button>\n      <button class=\"ask-ai-btn\" ${markerDetailActionAttrs('ask-ai', { id })}>Ask AI</button>\n    </div>`",
+      "after": "  const primaryActions = renderMarkerDetailChrome({kind: \"primary-actions\", manualActions: `${markerDetailActionAttrs('open-manual-entry', { id })}`, askActions: `${markerDetailActionAttrs('ask-ai', { id })}`})"
+    },
+    {
+      "start": 41551,
+      "end": 42728,
+      "before": "  html += `<div class=\"marker-note-section\">\n    <div class=\"marker-note-header\"><span class=\"marker-note-label\">Note</span><button class=\"marker-note-edit-btn\" ${markerDetailActionAttrs('toggle-marker-note-editor', { dotKey })}>${markerNote ? 'Edit' : '+ Add note'}</button></div>\n    ${markerNote ? `<div class=\"marker-note-text\">${escapeHTML(markerNote)}</div>` : ''}\n    <div class=\"marker-note-editor\" id=\"marker-note-editor\" style=\"display:none\">\n      <textarea id=\"marker-note-input\" placeholder=\"Your notes about this marker (e.g. why it's high, what to watch for, what you've learned...)\" rows=\"3\">${escapeHTML(markerNote)}</textarea>\n      <div class=\"marker-note-actions\">\n        <button class=\"import-btn import-btn-primary\" ${markerDetailActionAttrs('save-marker-note', { dotKey, id })}>Save</button>\n        <button class=\"import-btn import-btn-secondary\" ${markerDetailActionAttrs('toggle-marker-note-editor', { dotKey })}>Cancel</button>\n        ${markerNote ? `<button class=\"import-btn import-btn-secondary\" style=\"color:var(--red)\" ${markerDetailActionAttrs('delete-marker-note', { dotKey, id })}>Delete</button>` : ''}\n\t      </div>\n\t    </div>\n\t  </div>`",
+      "after": "  const noteEditor = renderMarkerDetailNotes({\n    kind: \"editor\", editActions: `${markerDetailActionAttrs('toggle-marker-note-editor', { dotKey })}`,\n    editLabel: `${markerNote ? 'Edit' : '+ Add note'}`,\n    note: `${markerNote ? renderMarkerDetailNotes({kind: \"text\", text: `${escapeHTML(markerNote)}`}) : ''}`,\n    text: `${escapeHTML(markerNote)}`, saveActions: `${markerDetailActionAttrs('save-marker-note', { dotKey, id })}`,\n    cancelActions: `${markerDetailActionAttrs('toggle-marker-note-editor', { dotKey })}`,\n    delete: `${markerNote ? renderMarkerDetailNotes({kind: \"delete\", actions: `${markerDetailActionAttrs('delete-marker-note', { dotKey, id })}`}) : ''}`\n  })"
+    },
+    {
+      "start": 42730,
+      "end": 42804,
+      "before": "  // Recommendation placeholder \u2014 shown for any marker with a catalog slot",
+      "after": "  let recommendationMount = '';\n  // Recommendation placeholder \u2014 shown for any marker with a catalog slot"
+    },
+    {
+      "start": 42842,
+      "end": 42888,
+      "before": "    html += `<div id=\"rec-modal-${id}\"></div>`",
+      "after": "    recommendationMount = renderMarkerDetailChrome({kind: \"recommendations\", id: `${id}`})"
+    },
+    {
+      "start": 42894,
+      "end": 42913,
+      "before": "  html += `</div>`;",
+      "after": "  html += renderMarkerDetailChrome({kind: 'actions', primary: primaryActions, notes: noteEditor, recommendations: recommendationMount});"
+    },
+    {
+      "start": 43025,
+      "end": 43221,
+      "before": "`<div style=\"text-align:center;margin-top:8px\"><a href=\"#\" style=\"color:var(--text-muted);font-size:0.8rem\" ${markerDetailActionAttrs('delete-custom-marker', { id })}>Delete this marker</a></div>`",
+      "after": "renderMarkerDetailChrome({kind: \"delete-marker\", actions: `${markerDetailActionAttrs('delete-custom-marker', { id })}`})"
+    }
+  ],
+  "offsetUnit": "UTF-16 code units matching TypeScript string.slice"
+}

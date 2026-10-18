@@ -14,6 +14,6 @@
 
 @import "./import-review.tailwind.css";
 
-@import "./cycle-import.tailwind.css";
+/* Cycle previews await their dedicated stylesheet before rendering. */
 
 @import "./import-progress.tailwind.css";

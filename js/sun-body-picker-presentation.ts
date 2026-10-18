@@ -7,7 +7,7 @@ export interface BodyPickerInput {
   views: Array<{ side: BodyPickerSide; outline: string; landmarks: string[]; details: string[];
     regions: Record<string, string>; placement: { imgX: number; imgY: number; fullW: number; fullH: number } }>;
 }
-export function projectBodyPicker(input: BodyPickerInput) {
+export function projectBodyPicker(input: BodyPickerInput): BodyPickerView {
   return { sex: input.sex, stock: input.stock, source: input.source, mask: input.mask,
     overlay: input.overlay, overlayState: input.overlayState,
     views: input.views.map(view => ({ ...view,
@@ -19,4 +19,6 @@ export function projectBodyPicker(input: BodyPickerInput) {
         return { key, path, selected, aria: /\((front|back)\)/.test(label) ? label : `${label} (${view.side})`, title: label + (selected ? ' (selected)' : '') };
       }) })) };
 }
-export type BodyPickerView = ReturnType<typeof projectBodyPicker>;
+export interface BodyPickerRegionView {readonly key:string;readonly path:string;readonly selected:boolean;readonly aria:string;readonly title:string}
+export interface BodyPickerFigureView {readonly side:BodyPickerSide;readonly outline:string;readonly landmarks:readonly string[];readonly details:readonly string[];readonly clipId:string;readonly maskId:string;readonly placement:{readonly x:string;readonly y:string;readonly width:string;readonly height:string};readonly regions:readonly BodyPickerRegionView[]}
+export interface BodyPickerView {readonly sex:'male'|'female';readonly stock:boolean;readonly source:string;readonly mask:string;readonly overlay:string|null;readonly overlayState:'none'|'pending'|'ready';readonly views:readonly BodyPickerFigureView[]}

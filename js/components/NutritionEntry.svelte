@@ -17,7 +17,7 @@
 </script>
 <svelte:document onclickcapture={guard} oninputcapture={guard} onchangecapture={guard}/>
 <div bind:this={root} data-nutrition-entry-view={view.kind} data-nutrition-view
-  class="gb:nutrition:[&_button]:min-h-[45px] gb:nutrition:[&_button]:min-w-[45px] gb:nutrition:min-w-0 gb:nutrition:text-ink gb:nutrition:[overflow-wrap:anywhere]">
+  class="gb:nutrition:[@media(pointer:coarse)]:[&_button]:min-h-[45px] gb:nutrition:[@media(pointer:coarse)]:[&_button]:min-w-[45px] gb:nutrition:min-w-0 gb:nutrition:text-ink gb:nutrition:[overflow-wrap:anywhere]">
   {#if view.kind === 'targets'}<Targets bind:this={child} {view} {actions}/>
   {:else}<Fluid bind:this={child} {view} {actions}/>{/if}
 </div>

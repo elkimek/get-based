@@ -1,3 +1,4 @@
+import {renderEMFPhoto, type EMFPhotoView} from './emf-photo-presentation.js';
 import { configureRuntimeFunctions } from './runtime-callbacks.js';
 // emf.js — Baubiologie EMF Assessment sub-module
 // Room-by-room EMF measurements with SBM-2015 severity ratings
@@ -6,7 +7,6 @@ import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { SBM_2015_THRESHOLDS } from './schema.js';
 import {
-  escapeHTML,
   showNotification,
   showConfirmDialog,
   showPromptDialog,
@@ -491,7 +491,9 @@ export function viewEMFPhoto(assessmentId: unknown, roomIdx: number, photoIdx: n
   const overlay = document.createElement('div');
   overlay.className = 'emf-lightbox';
   overlay.addEventListener('click', () => removeModalOverlay(overlay));
-  overlay.innerHTML = `<img src="data:${safeMediaType(photo.mediaType)};base64,${photo.base64}" alt="${escapeHTML(photo.name || 'Photo')}">`;
+  const source = `data:${safeMediaType(photo.mediaType)};base64,${photo.base64}`;
+  const view: EMFPhotoView = {source, name: String(photo.name || 'Photo')};
+  overlay.innerHTML = renderEMFPhoto(view);
   document.body.appendChild(overlay);
   openModalOverlay(overlay);
   try { trapModalFocus(overlay); } catch (_) {}

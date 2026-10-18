@@ -7,11 +7,11 @@ test('typed lens controls preserve shell action delegates without changing impor
   await prepareDemoProfile(page);
 
   const result = await page.evaluate(async () => {
-    const [{state}, {createLensPageHandlers}, shell, content, presentation, contextRuntime, dnaBridge, settingsBridge] = await Promise.all([
+    const [{state}, {createLensPageHandlers}, shell, presentation, contextRuntime, dnaBridge, settingsBridge] = await Promise.all([
       import('/js/state.js'),
       import('/js/lens-pages.js'),
       import('/js/lens-page-shell.js'),
-      import('/js/components/LensPageContent.svelte.html.js'),
+
       import('/js/lens-content-presentation.js'),
       import('/js/context-cards-runtime.js'),
       import('/js/dna-runtime-bridge.js'),
@@ -131,9 +131,7 @@ test('typed lens controls preserve shell action delegates without changing impor
 
       // Exercise the actual typed Insight controls and real header/delegate owner,
       // without invoking unrelated context-card health/AI loaders in this action fixture.
-      main.innerHTML = shell.renderLensHeader('Insight', '', content.renderHTML({
-        kind: 'actions', view: presentation.projectLensActions('insight'),
-      }));
+      main.innerHTML = shell.renderLensHeader('Insight', '', {kind:'actions',view:presentation.projectLensActions('insight')});
       click(headerAction('open-ai-chat'), 'Open AI chat');
       click(headerAction('open-emf-assessment'), 'EMF assessment');
       click(headerAction('open-recommendations'), 'Tips');

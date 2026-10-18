@@ -65,6 +65,21 @@ describe('shared standalone and Vitest browser fixtures', () => {
     `);
   });
 
+  it('gives synthetic nodes a stable owning document without claiming a browsing context or focus support', () => {
+    runIsolated(`
+      fixtures.installNodeDocument();
+      const owner = document;
+      const nodes = [document.body, document.head, document.documentElement,
+        document.createElement('div'), document.createDocumentFragment(), document.createTextNode('owned')];
+      assert.equal(owner.defaultView, null);
+      for (const node of nodes) assert.equal(node.ownerDocument, owner);
+      const {getModalFocusables} = await import(${JSON.stringify(new URL('../js/modal-focusable.js', import.meta.url).href)});
+      for (const node of nodes.slice(0, -1)) assert.deepEqual(getModalFocusables(node), []);
+      globalThis.document = {replacement: true};
+      for (const node of nodes) assert.equal(node.ownerDocument, owner);
+    `);
+  });
+
   it('routes Blob worker messages asynchronously and isolates separate worker instances', () => {
     runIsolated(`
       fixtures.installNodeWorker();

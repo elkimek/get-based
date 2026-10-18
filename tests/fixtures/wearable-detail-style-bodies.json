@@ -1,0 +1,262 @@
+{
+  "edits": [
+    {
+      "selector": ".wearable-manual-entries",
+      "media": null,
+      "start": 9111,
+      "end": 9192,
+      "before": "\n  margin-top: 14px;\n  padding-top: 12px;\n  border-top: 1px solid var(--border);\n",
+      "after": "\n  margin-top: 14px; padding-top: 12px;\n  border-top: 1px solid var(--border);\n"
+    },
+    {
+      "selector": ".wearable-manual-entries-compact",
+      "media": null,
+      "start": 9228,
+      "end": 9250,
+      "before": "\n  text-align: right;\n",
+      "after": "\n  text-align: right;\n"
+    },
+    {
+      "selector": ".wearable-manual-entries-compact .wearable-manual-add-btn",
+      "media": null,
+      "start": 9311,
+      "end": 9348,
+      "before": "\n  font-size: 12px;\n  opacity: 0.85;\n",
+      "after": "\n  font-size: 12px; opacity: 0.85;\n"
+    },
+    {
+      "selector": ".wearable-manual-entries-head",
+      "media": null,
+      "start": 9381,
+      "end": 9478,
+      "before": "\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  margin-bottom: 8px;\n",
+      "after": "\n  display: flex; align-items: center; justify-content: space-between;\n  margin-bottom: 8px;\n"
+    },
+    {
+      "selector": ".wearable-manual-entries-title",
+      "media": null,
+      "start": 9512,
+      "end": 9582,
+      "before": "\n  font-size: 13px;\n  font-weight: 600;\n  color: var(--text-primary);\n",
+      "after": "\n  font-size: 13px; font-weight: 600; color: var(--text-primary);\n"
+    },
+    {
+      "selector": ".wearable-manual-entries-count",
+      "media": null,
+      "start": 9616,
+      "end": 9829,
+      "before": "\n  display: inline-block;\n  margin-left: 6px;\n  padding: 1px 6px;\n  font-size: 10px;\n  font-weight: 500;\n  color: var(--text-muted);\n  background: var(--bg-tertiary, rgba(128,128,128,0.08));\n  border-radius: 8px;\n",
+      "after": "\n  display: inline-block; margin-left: 6px; padding: 1px 6px;\n  font-size: 10px; font-weight: 500; color: var(--text-muted);\n  background: var(--bg-tertiary, rgba(128,128,128,0.08)); border-radius: 8px;\n"
+    },
+    {
+      "selector": ".wearable-manual-add-btn",
+      "media": null,
+      "start": 9857,
+      "end": 10045,
+      "before": "\n  padding: 4px 10px;\n  font-size: 11px;\n  font-weight: 600;\n  background: transparent;\n  color: var(--accent);\n  border: 1px solid var(--accent);\n  border-radius: 6px;\n  cursor: pointer;\n",
+      "after": "\n  padding: 4px 10px; font-size: 11px; font-weight: 600;\n  background: transparent; color: var(--accent);\n  border: 1px solid var(--accent); border-radius: 6px;\n  cursor: pointer;\n"
+    },
+    {
+      "selector": ".wearable-manual-add-btn:hover",
+      "media": null,
+      "start": 10079,
+      "end": 10138,
+      "before": "\n  background: var(--accent-faded, rgba(99,102,241,0.12));\n",
+      "after": " background: var(--accent-faded, rgba(99,102,241,0.12)); "
+    },
+    {
+      "selector": ".wearable-manual-entries-empty",
+      "media": null,
+      "start": 10172,
+      "end": 10238,
+      "before": "\n  font-size: 12px;\n  color: var(--text-muted);\n  padding: 6px 0;\n",
+      "after": "\n  font-size: 12px; color: var(--text-muted); padding: 6px 0;\n"
+    },
+    {
+      "selector": ".wearable-manual-entries-list",
+      "media": null,
+      "start": 10271,
+      "end": 10417,
+      "before": "\n  list-style: none;\n  padding: 0;\n  margin: 0;\n  max-height: 240px;\n  overflow-y: auto;\n  border: 1px solid var(--border);\n  border-radius: 6px;\n",
+      "after": "\n  list-style: none; padding: 0; margin: 0;\n  max-height: 240px; overflow-y: auto;\n  border: 1px solid var(--border); border-radius: 6px;\n"
+    },
+    {
+      "selector": ".wearable-manual-entry",
+      "media": null,
+      "start": 10443,
+      "end": 10579,
+      "before": "\n  display: flex;\n  align-items: center;\n  gap: 10px;\n  padding: 6px 10px;\n  font-size: 12px;\n  border-bottom: 1px solid var(--border);\n",
+      "after": "\n  display: flex; align-items: center; gap: 10px;\n  padding: 6px 10px; font-size: 12px;\n  border-bottom: 1px solid var(--border);\n"
+    },
+    {
+      "selector": ".wearable-manual-entry:last-child",
+      "media": null,
+      "start": 10616,
+      "end": 10637,
+      "before": "\n  border-bottom: 0;\n",
+      "after": " border-bottom: 0; "
+    },
+    {
+      "selector": ".wearable-manual-entry-date",
+      "media": null,
+      "start": 10668,
+      "end": 10754,
+      "before": "\n  color: var(--text-muted);\n  min-width: 84px;\n  font-variant-numeric: tabular-nums;\n",
+      "after": " color: var(--text-muted); min-width: 84px; font-variant-numeric: tabular-nums; "
+    },
+    {
+      "selector": ".wearable-manual-entry-val",
+      "media": null,
+      "start": 10784,
+      "end": 10843,
+      "before": "\n  font-weight: 600;\n  font-variant-numeric: tabular-nums;\n",
+      "after": " font-weight: 600; font-variant-numeric: tabular-nums; "
+    },
+    {
+      "selector": ".wearable-manual-entry-unit",
+      "media": null,
+      "start": 10874,
+      "end": 10942,
+      "before": "\n  font-weight: 400;\n  color: var(--text-muted);\n  font-size: 11px;\n",
+      "after": " font-weight: 400; color: var(--text-muted); font-size: 11px; "
+    },
+    {
+      "selector": ".wearable-manual-entry-tags",
+      "media": null,
+      "start": 10973,
+      "end": 11029,
+      "before": "\n  display: inline-flex;\n  gap: 3px;\n  flex-wrap: wrap;\n",
+      "after": " display: inline-flex; gap: 3px; flex-wrap: wrap; "
+    },
+    {
+      "selector": ".wearable-manual-entry-tag",
+      "media": null,
+      "start": 11059,
+      "end": 11235,
+      "before": "\n  font-size: 9px;\n  padding: 1px 5px;\n  border-radius: 8px;\n  background: var(--bg-tertiary, rgba(128,128,128,0.08));\n  color: var(--text-muted);\n  text-transform: lowercase;\n",
+      "after": "\n  font-size: 9px; padding: 1px 5px; border-radius: 8px;\n  background: var(--bg-tertiary, rgba(128,128,128,0.08));\n  color: var(--text-muted); text-transform: lowercase;\n"
+    },
+    {
+      "selector": ".wearable-manual-entry-del",
+      "media": null,
+      "start": 11265,
+      "end": 11453,
+      "before": "\n  margin-left: auto;\n  padding: 2px 7px;\n  font-size: 13px;\n  line-height: 1;\n  background: transparent;\n  border: 0;\n  color: var(--text-muted);\n  cursor: pointer;\n  border-radius: 4px;\n",
+      "after": "\n  margin-left: auto; padding: 2px 7px; font-size: 13px; line-height: 1;\n  background: transparent; border: 0; color: var(--text-muted);\n  cursor: pointer; border-radius: 4px;\n"
+    },
+    {
+      "selector": ".wearable-manual-entry-del:hover",
+      "media": null,
+      "start": 11489,
+      "end": 11576,
+      "before": "\n  color: var(--red, #ef4444);\n  background: var(--bg-tertiary, rgba(239,68,68,0.08));\n",
+      "after": " color: var(--red, #ef4444); background: var(--bg-tertiary, rgba(239,68,68,0.08)); "
+    },
+    {
+      "selector": ".wearable-manual-entry.has-note",
+      "media": null,
+      "start": 11611,
+      "end": 11631,
+      "before": "\n  flex-wrap: wrap;\n",
+      "after": " flex-wrap: wrap; "
+    },
+    {
+      "selector": ".wearable-manual-entry-note",
+      "media": null,
+      "start": 11662,
+      "end": 11841,
+      "before": "\n  flex-basis: 100%;\n  font-size: 11px;\n  color: var(--text-secondary);\n  font-style: italic;\n  margin-top: 2px;\n  padding-left: 0;\n  line-height: 1.35;\n  word-break: break-word;\n",
+      "after": "\n  flex-basis: 100%; font-size: 11px; color: var(--text-secondary);\n  font-style: italic; margin-top: 2px; padding-left: 0; line-height: 1.35;\n  word-break: break-word;\n"
+    },
+    {
+      "selector": ".wearable-detail-range",
+      "media": null,
+      "start": 19064,
+      "end": 19118,
+      "before": "\n  margin: 10px 0 4px;\n  justify-content: flex-start;\n",
+      "after": " margin: 10px 0 4px; justify-content: flex-start; "
+    },
+    {
+      "selector": ".wearable-detail-stats",
+      "media": null,
+      "start": 19144,
+      "end": 19258,
+      "before": "\n  display: grid;\n  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));\n  gap: 10px;\n  margin-top: 16px;\n",
+      "after": "\n  display: grid;\n  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));\n  gap: 10px;\n  margin-top: 16px;\n"
+    },
+    {
+      "selector": ".wearable-detail-stat",
+      "media": null,
+      "start": 19283,
+      "end": 19451,
+      "before": "\n  background: var(--bg-primary);\n  border: 1px solid var(--border);\n  border-radius: 8px;\n  padding: 10px 12px;\n  display: flex;\n  flex-direction: column;\n  gap: 2px;\n",
+      "after": "\n  background: var(--bg-primary);\n  border: 1px solid var(--border);\n  border-radius: 8px;\n  padding: 10px 12px;\n  display: flex; flex-direction: column; gap: 2px;\n"
+    },
+    {
+      "selector": ".wearable-detail-stat-label",
+      "media": null,
+      "start": 19482,
+      "end": 19609,
+      "before": "\n  font-size: 11px;\n  text-transform: uppercase;\n  letter-spacing: 0.04em;\n  color: var(--text-secondary);\n  font-weight: 600;\n",
+      "after": "\n  font-size: 11px;\n  text-transform: uppercase;\n  letter-spacing: 0.04em;\n  color: var(--text-secondary);\n  font-weight: 600;\n"
+    },
+    {
+      "selector": ".wearable-detail-stat-val",
+      "media": null,
+      "start": 19638,
+      "end": 19708,
+      "before": "\n  font-size: 18px;\n  font-weight: 600;\n  color: var(--text-primary);\n",
+      "after": "\n  font-size: 18px;\n  font-weight: 600;\n  color: var(--text-primary);\n"
+    },
+    {
+      "selector": ".wearable-detail-stat-sub",
+      "media": null,
+      "start": 19737,
+      "end": 19806,
+      "before": "\n  font-size: 11px;\n  color: var(--text-secondary);\n  opacity: 0.75;\n",
+      "after": "\n  font-size: 11px;\n  color: var(--text-secondary);\n  opacity: 0.75;\n"
+    },
+    {
+      "selector": ".wearable-detail-empty",
+      "media": null,
+      "start": 19832,
+      "end": 20037,
+      "before": "\n  margin-top: 14px;\n  padding: 12px 14px;\n  background: var(--bg-primary);\n  border: 1px dashed var(--border);\n  border-radius: 8px;\n  font-size: 12px;\n  color: var(--text-secondary);\n  line-height: 1.5;\n",
+      "after": "\n  margin-top: 14px;\n  padding: 12px 14px;\n  background: var(--bg-primary);\n  border: 1px dashed var(--border);\n  border-radius: 8px;\n  font-size: 12px;\n  color: var(--text-secondary);\n  line-height: 1.5;\n"
+    },
+    {
+      "selector": ".wearable-detail-emf-hint",
+      "media": null,
+      "start": 29997,
+      "end": 30240,
+      "before": "\n  font-size: 12px;\n  color: var(--text-secondary);\n  margin-top: 14px;\n  padding: 8px 10px;\n  background: rgba(99, 102, 241, 0.05);\n  border-left: 3px solid var(--accent);\n  border-radius: 0 var(--radius) var(--radius) 0;\n  line-height: 1.5;\n",
+      "after": " font-size: 12px; color: var(--text-secondary); margin-top: 14px; padding: 8px 10px; background: rgba(99, 102, 241, 0.05); border-left: 3px solid var(--accent); border-radius: 0 var(--radius) var(--radius) 0; line-height: 1.5; "
+    },
+    {
+      "selector": ".wearable-detail-emf-hint a",
+      "media": null,
+      "start": 30271,
+      "end": 30341,
+      "before": "\n  color: var(--accent);\n  text-decoration: none;\n  font-weight: 500;\n",
+      "after": " color: var(--accent); text-decoration: none; font-weight: 500; "
+    },
+    {
+      "selector": ".wearable-detail-emf-hint a:hover",
+      "media": null,
+      "start": 30378,
+      "end": 30409,
+      "before": "\n  text-decoration: underline;\n",
+      "after": " text-decoration: underline; "
+    },
+    {
+      "selector": ".wearable-manual-entry-del",
+      "media": "(pointer: coarse)",
+      "start": 31121,
+      "end": 31235,
+      "before": "\n  min-width: 44px;\n  min-height: 44px;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n",
+      "after": " min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; "
+    }
+  ],
+  "completePriorStylesheetRestoredExact": true,
+  "noMetadataWhitespaceAdjustment": true
+}

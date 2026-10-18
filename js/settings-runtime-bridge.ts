@@ -11,3 +11,8 @@ export function configureSettingsModuleBridge(api: Record<string, unknown> = {})
 export function getSettingsModuleFunction(name: string) {
   return getModuleBridgeFunction(settingsModuleBridge, name);
 }
+
+/** Forward a choice synchronously once Settings has registered its mounted UI owner. */
+export function switchSettingsAIProvider(provider: unknown): void {
+  getSettingsModuleFunction('switchAIProvider')?.(provider);
+}

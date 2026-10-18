@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { expect, it } from 'vitest';
+import {projectBodySilhouette} from '../js/sun-body-silhouette.js';
 import { renderHTML } from '../js/components/LightSessionPresentation.svelte.html.js';
 import { projectCompletedSunSession, projectCompletedDeviceSession, projectPastSessionForm, projectDeviceSessionForm } from '../js/light-session-presentation.js';
 import type { DeviceSessionRecord, LightDeviceRecord } from '../js/light-devices-store.js';
@@ -52,11 +53,11 @@ it('keeps option selection based on original keys, picker labels and past-sessio
   const view = projectPastSessionForm({ lastRegions: new Set(), eyeMode: 2, lensTint: 'clear', localStartDefault: '<date>', localNow: '2026-06-10T10:00', eyeModes: [{ key: 2, label: 'fallback', pickerLabel: '<Eyes>' }, { key: '2', label: 'not selected' }], lensTints: [{ key: 'clear', label: 'Clear' }], postureOptions: [{ key: 'standing', label: 'Standing' }], surfaceOptions: [{ key: 'grass', label: 'Grass' }] });
   expect(view.eyeModes.map(item => item.selected)).toEqual([true, false]); expect(view.eyeModes[0]?.label).toBe('<Eyes>');
   expect(view.postures[0]?.selected).toBe(true); expect(view.surfaces[0]?.selected).toBe(true);
-  const host = document.createElement('div'); host.innerHTML = renderHTML({ kind: 'past', view, silhouetteHTML: '<button type="button" data-region="face">Face</button>' });
+  const host = document.createElement('div'); host.innerHTML = renderHTML({ kind: 'past', view, silhouetteView: projectBodySilhouette(new Set(['face'])) });
   expect(host.querySelector<HTMLInputElement>('#det-started-at')?.getAttribute('value')).toBe('<date>');
   expect(host.querySelector('#det-eye-mode option:checked')?.textContent).toBe('<Eyes>');
   expect(host.querySelector('#det-glass')?.getAttribute('aria-labelledby')).toBe('det-glass-label');
-  expect(host.querySelectorAll('[data-region]')).toHaveLength(1); expect(host.querySelector('img')).toBeNull();
+  expect(host.querySelectorAll('[data-region]')).toHaveLength(16);expect(host.querySelectorAll('[data-region][aria-pressed="true"]')).toHaveLength(1); expect(host.querySelector('img')).toBeNull();
 });
 for (const useUS of [false, true]) it(`projects device distance defaults and measured-model hint in ${useUS ? 'US' : 'SI'} units`, () => {
   const device: LightDeviceRecord = { id: 'panel', brand: '<Brand>', model: 'Panel', recommendedDistanceCm: 15, lastSession: { distanceCm: 30 }, irradianceByDistanceCm: [{ distanceCm: 15, mwPerCm2: 10 }, { distanceCm: 30, mwPerCm2: 5 }] };
@@ -64,7 +65,7 @@ for (const useUS of [false, true]) it(`projects device distance defaults and mea
   expect(view.distance).toBe(useUS ? 11.8 : 30); expect(view.unit).toBe(useUS ? 'in' : 'cm');
   expect(view.distanceHint).toBe("Vendor reference: 15 cm (5.9 in). You usually log at 30 cm — prefilled below. Dose uses the device's measured distance table.");
   expect(view.eyeLabel).toBe('UV-rated goggles worn (closed eyelids are not protection)');
-  const host = document.createElement('div'); host.innerHTML = renderHTML({ kind: 'device', view, silhouetteHTML: '' });
+  const host = document.createElement('div'); host.innerHTML = renderHTML({ kind: 'device', view, silhouetteView: null });
   expect(host.querySelector<HTMLInputElement>('#dev-session-mode')?.value).toBe('all');
   expect(host.querySelector('[role="radio"][aria-checked="true"]')?.getAttribute('tabindex')).toBe('0');
   expect(host.querySelector('[data-unit="'+view.unit+'"][aria-pressed="true"]')).not.toBeNull();

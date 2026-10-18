@@ -15,7 +15,8 @@ import { isAIPaused } from './api.js';
 import { hasChatResponseBackend } from './chat-backend-selection.js';
 import { getActiveData } from './data.js';
 import { getProfileHeight, getProfileLocation, getProfiles } from './profile.js';
-import { renderProfileContextCards } from './context-cards.js';
+import { projectProfileContextCards } from './context-cards.js';
+import { disposeChatEmptyCatalog, hydrateChatEmptyCatalog } from './chat-empty-catalog-component.js';
 import { triggerContextCardDNAFilePickerRuntime } from './context-cards-runtime.js';
 import { openMenstrualCycleEditor } from './cycle.js';
 import { openSupplementsEditor } from './supplements.js';
@@ -243,15 +244,16 @@ function setOnboardingActive(panel: HTMLElement|null|undefined) {
   panel?.classList.add('chat-onboarding-active');
 }
 
-// Context cards retain their established owner and delegated actions inside a
-// reserved presentation slot; no provider or profile writes happen while rendering.
+// Preserve the committed parent before catalog projection; genuine parent hydration
+// then owns the catalog and its existing delegated actions and child lifetimes.
 function renderEmptyPresentationState(container: HTMLElement, kind: ChatEmptyKind, context: PersonaContext, extras: { filled?: number; skipped?: boolean; prompts?: readonly string[] } = {}) {
   const { personality, name } = context;
   const view = projectChatEmpty({ kind, personalityLabel: `${personality.icon} ${personality.name}`, name,
     icon: personality.icon, greeting: personality.greeting, connected: hasChatResponseBackend(), ...extras });
+  disposeChatEmptyCatalog(container);
   container.innerHTML = renderEmptyPresentation({ view });
   const slot = container.querySelector('[data-chat-empty-context-slot]');
-  if (slot) slot.innerHTML = renderProfileContextCards();
+  if (slot) hydrateChatEmptyCatalog(container, view, projectProfileContextCards());
   return true;
 }
 

@@ -1,8 +1,12 @@
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { startKitServer } from './kit-server.js';
+import { artifactInputs } from './kit-native-receipts.js';
 
 const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
+const syncOwners = ['js/state.js', 'js/settings-sync-classes.js', 'js/settings-sync-component.js', 'js/components/SyncSettings.svelte',
+  'js/sync-dialog-classes.js', 'js/sync-dialog-component.js', 'js/components/SyncDialog.svelte'] as const;
+const syncSheets = ['css/settings.css'] as const;
 async function ready(page: Page) {
   await expect(page.locator('html[data-app-ready][data-shell-framework="sveltekit"]')).toBeAttached({ timeout: 30_000 });
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => true));
@@ -16,6 +20,8 @@ async function openSync(page: Page) {
 
 test('Sync settings mount on offline first use and cold launch without changing identity or persisted preferences', async ({ page, context }) => {
   test.setTimeout(150_000);
+  const ownedArtifact = await artifactInputs(syncOwners, syncSheets);
+  expect(ownedArtifact.directory).toBe(artifact);
   await context.addInitScript({ path: 'node_modules/axe-core/axe.min.js' });
   await context.addInitScript(() => {
     if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -73,7 +79,21 @@ test('Sync settings mount on offline first use and cold launch without changing 
         });
         expect(violations, `${theme} ${viewport.width}`).toEqual([]);
         const join = panel.locator('[data-sync-action="setup-restore-direct"]');
-        await expect(join).toHaveCSS('min-height', '44px');
+        const coarsePointer = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
+        for (const control of [setup, join]) {
+          // Original Sync management controls are 36px on fine pointers;
+          // their explicit coarse variants enlarge accessible touch targets.
+          expect(await control.evaluate(element => ['gb:sync:min-h-9',
+            'gb:sync:[@media(pointer:coarse)]:min-h-11', 'gb:sync:[@media(pointer:coarse)]:min-w-11']
+            .every(token => element.classList.contains(token)))).toBe(true);
+          expect(await control.evaluate(element => element.classList.contains('gb:sync:min-h-11'))).toBe(false);
+          await expect(control).toHaveAttribute('type', 'button');
+          await expect(control).toHaveCSS('min-height', coarsePointer ? '44px' : '36px');
+          if (coarsePointer) {
+            const target = await control.evaluate(element => { const rect = element.getBoundingClientRect(); return {width: rect.width, height: rect.height}; });
+            expect(target.width).toBeGreaterThanOrEqual(44); expect(target.height).toBeGreaterThanOrEqual(44);
+          }
+        }
         if (missingCapability) await expect(join).toBeDisabled();
         else {
           await expect(join).toBeEnabled(); await join.focus();
@@ -110,5 +130,6 @@ test('Sync settings mount on offline first use and cold launch without changing 
     expect(await cold.evaluate(() => Object.fromEntries(Object.entries(localStorage).filter(([key]) => /sync|messenger|agent-access/.test(key))))).toEqual(preferences);
     expect(await cold.evaluate(async () => (await navigator.serviceWorker.getRegistrations()).map(registration => new URL(registration.active!.scriptURL).pathname))).toEqual(['/service-worker.js']);
     expect(errors).toEqual([]);
+    expect(await artifactInputs(syncOwners, syncSheets)).toEqual(ownedArtifact);
   } finally { await server.close(); }
 });

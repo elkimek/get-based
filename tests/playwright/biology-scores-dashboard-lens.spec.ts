@@ -1,3 +1,4 @@
+import {waitForAsyncCondition} from '../helpers/awaited-condition.js';
 import { expect, test } from './coverage-fixture.js';
 
 const TRANSLUCENT_THEMES = ['glass', 'synth-sunrise', 'neuromancer'];
@@ -520,7 +521,7 @@ test('requested insights survive reload and backups; bulk updates reuse complete
   expect(exported.restored).toEqual(exported.backup);
   expect((Object.keys as (value: unknown) => string[])(exported.json).length).toBeGreaterThan(10);
   await page.reload({ waitUntil: 'load' });
-  await page.waitForFunction(async () => !!(await import('/js/state.js')).state.importedData.biologyScoreAI?.metabolicFlexibility?.summary);
+  await waitForAsyncCondition(() => page.evaluate(async () => !!(await import('/js/state.js')).state.importedData.biologyScoreAI?.metabolicFlexibility?.summary), 0);
   await installProvider();
   await page.evaluate(async () => {
     (await import('/js/views.js')).navigate('biology-scores');
@@ -983,7 +984,7 @@ test('bounded comparison assessment survives range switching, reload and JSON re
   await page.evaluate(async () => (await import('/js/biology-scores.js')).loadBiologyScoreInsights());
   expect(calls).toHaveLength(warmedCalls);
   await page.reload({ waitUntil: 'load' });
-  await page.waitForFunction(async () => !!(await import('/js/state.js')).state.importedData.biologyScoreAI?.redoxStress?.coveredMaterials?.length);
+  await waitForAsyncCondition(() => page.evaluate(async () => !!(await import('/js/state.js')).state.importedData.biologyScoreAI?.redoxStress?.coveredMaterials?.length), 0);
   await install();
   expect(await checkViews()).toEqual(before);
   expect(calls).toHaveLength(warmedCalls);

@@ -21,6 +21,7 @@ test('shared lens chrome preserves frozen geometry and themes with independently
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await page.evaluate(async ({samples, css}) => {
     const shell = await import('/js/lens-page-shell.js');
+    const fixtureShell=await import('/tests/helpers/lens-chrome-fixture.js');
     const {state} = await import('/js/state.js'); const {profileStorageKey} = await import('/js/profile.js');
     const prior = shell.configureLensPageShell(); state.currentProfile = 'lens-shell-fixture';
     const style = document.createElement('style'); style.textContent = css; document.head.append(style);
@@ -30,8 +31,8 @@ test('shared lens chrome preserves frozen geometry and themes with independently
       const key = profileStorageKey('lens-shell-fixture', 'lensPageOrder-biology-scores-baseline-v1');
       localStorage.removeItem(key); if (sample.order.length) localStorage.setItem(key, JSON.stringify(sample.order));
       shell.configureLensPageShell({getAvailableDashboardFixedWidgetIds: () => sample.available, getDashboardWidgetPrefs: () => ({hidden: sample.hidden})});
-      const html = sample.method === 'header' ? shell.renderLensHeader(...sample.args)
-        : sample.method === 'widget' ? shell.renderLensWidget(...sample.args) : shell.renderLensPageWidgets(...sample.args);
+      const html = sample.method === 'header' ? fixtureShell.renderLensHeaderChromeFixture(...sample.args)
+        : sample.method === 'widget' ? fixtureShell.renderLensWidgetChromeFixture(...sample.args) : fixtureShell.renderLensPageWidgetsChromeFixture(...sample.args);
       const pair = document.createElement('div'); pair.dataset.pair = `${sample.method}-${sample.name}`;
       for (const [kind, markup] of [['original',sample.html],['current',html]]) {
         const side = document.createElement('section'); side.dataset[kind!] = ''; side.innerHTML = markup!; pair.append(side);

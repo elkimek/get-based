@@ -62,7 +62,12 @@ test('static shell preserves aliases, manifest, CSP, lazy styles and delegated p
     expect(await page.locator('link[data-settings-stylesheet]').count()).toBe(0);
     await display(page);
     const us = page.locator('#settings-tab-display [data-unit="US"]');
-    await us.click(); await expect(us).toHaveAttribute('aria-pressed', 'true'); await expect(us).toHaveCSS('min-height', '44px');
+    await us.click(); await expect(us).toHaveAttribute('aria-pressed', 'true');
+    if (await page.evaluate(() => matchMedia('(pointer:coarse)').matches)) await expect(us).toHaveCSS('min-height', '44px');
+    else {
+      await expect(us).toHaveCSS('font-size', '12px');
+      await expect(us).toHaveCSS('padding', '4px 12px');
+    }
     expect(await page.locator('link[data-settings-stylesheet]').getAttribute('href')).toBe(server.origin + '/css/settings.css');
     await page.keyboard.press('Tab'); await page.keyboard.press('Shift+Tab');
     await expect(us).toBeFocused(); await expect(us).toHaveCSS('outline-width', '2px');

@@ -1,0 +1,167 @@
+[
+  [
+    "corr-selection-controls",
+    ".correlation-controls",
+    null
+  ],
+  [
+    "corr-selection-heading",
+    ".correlation-controls h3",
+    null
+  ],
+  [
+    "corr-selection-row",
+    ".corr-select-row",
+    null
+  ],
+  [
+    "corr-selection-dropdown",
+    ".corr-dropdown",
+    null
+  ],
+  [
+    "corr-selection-search",
+    ".corr-search",
+    null
+  ],
+  [
+    "corr-selection-search-focus",
+    ".corr-search:focus",
+    null
+  ],
+  [
+    "corr-selection-options-open",
+    ".corr-options.show",
+    null
+  ],
+  [
+    "corr-selection-option",
+    ".corr-option",
+    null
+  ],
+  [
+    "corr-selection-option-hover",
+    ".corr-option:hover",
+    null
+  ],
+  [
+    "corr-selection-option-selected",
+    ".corr-option.selected",
+    null
+  ],
+  [
+    "corr-selection-option-category",
+    ".corr-option .opt-cat",
+    null
+  ],
+  [
+    "corr-selection-chips",
+    ".corr-chips",
+    null
+  ],
+  [
+    "corr-selection-chip",
+    ".corr-chip",
+    null
+  ],
+  [
+    "corr-selection-chip-remove",
+    ".corr-chip .chip-remove",
+    null
+  ],
+  [
+    "corr-selection-chip-remove-hover",
+    ".corr-chip .chip-remove:hover",
+    null
+  ],
+  [
+    "corr-selection-presets",
+    ".corr-presets",
+    null
+  ],
+  [
+    "corr-selection-preset",
+    ".corr-preset-btn",
+    null
+  ],
+  [
+    "corr-selection-preset-hover",
+    ".corr-preset-btn:hover",
+    null
+  ],
+  [
+    "corr-selection-chart-shell",
+    ".corr-chart-container",
+    null
+  ],
+  [
+    "corr-selection-chart-heading",
+    ".corr-chart-container h3",
+    null
+  ],
+  [
+    "corr-selection-ask-ai",
+    ".corr-ask-ai-btn",
+    null
+  ],
+  [
+    "corr-selection-ask-ai-hover",
+    ".corr-ask-ai-btn:hover",
+    null
+  ],
+  [
+    "corr-selection-dropdown-narrow",
+    ".corr-dropdown",
+    "(max-width: 480px)"
+  ],
+  [
+    "corr-selection-chip-button",
+    ".corr-chip button.chip-remove",
+    null
+  ],
+  [
+    "corr-selection-option-active",
+    ".corr-option-active",
+    null
+  ],
+  [
+    "corr-selection-no-results",
+    "#corr-no-results",
+    null
+  ],
+  [
+    "corr-selection-shell-mobile",
+    ".corr-chart-container, .correlation-controls",
+    "(max-width: 600px)"
+  ],
+  [
+    "corr-selection-preset-summary",
+    ".corr-presets summary",
+    null
+  ],
+  [
+    "corr-selection-preset-grid",
+    ".corr-preset-grid",
+    null
+  ],
+  [
+    "corr-selection-preset-grid-button",
+    ".corr-preset-grid .corr-preset-btn",
+    null
+  ],
+  [
+    "corr-selection-preset-names",
+    ".corr-preset-btn span",
+    null
+  ],
+  [
+    "corr-selection-preset-count",
+    ".corr-preset-btn small",
+    null
+  ],
+  [
+    "corr-selection-preset-disabled",
+    ".corr-preset-btn:disabled",
+    null
+  ]
+]

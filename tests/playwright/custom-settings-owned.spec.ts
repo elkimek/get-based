@@ -1,5 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { routeHtml } from '../helpers/browser-static-routes.js';
+// The 44px target contract applies to coarse pointer input. Desktop density
+// is checked against the original UI in sveltekit-settings-density.spec.ts.
+test.use({ hasTouch: true });
+
 test('owned Custom API fields, model drafts and accessible states remain private and stable', async ({ page, context }) => {
   test.setTimeout(180_000); await context.addInitScript({ path: 'node_modules/axe-core/axe.min.js' });
   await routeHtml(page, '**/custom-owned-test', '<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/css/settings.css"></head><body><main id="settings-modal" class="settings-modal"><div id="ai-provider-panel"><div data-custom-settings-host></div></div></main></body></html>');

@@ -1,6 +1,10 @@
 import { expect, test } from '@playwright/test';
 import { routeHtml } from '../helpers/browser-static-routes.js';
 import type { OpenRouterSettingsSnapshot } from '../../js/openrouter-settings-contract.js';
+// The 44px target contract applies to coarse pointer input. Desktop density
+// is checked against the original UI in sveltekit-settings-density.spec.ts.
+test.use({ hasTouch: true });
+
 test('owned OpenRouter Settings preserve private fields, focused models and accessible theme layouts', async ({ page, context }) => {
   test.setTimeout(150_000); await context.addInitScript({ path: 'node_modules/axe-core/axe.min.js' });
   await routeHtml(page,'**/openrouter-owned-test','<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/css/settings.css"></head><body><main class="settings-modal"><div id="owned-provider-host"></div></main></body></html>');

@@ -1,4 +1,3 @@
-type LightSessionsFixtureDeps = Partial<Parameters<typeof import('../../js/light-sessions-view.js').configureLightSessionsView>[0]> & {deleteDeviceSession?: (id?: unknown)=>unknown; renderDeviceSessionAIInline?: (session: {id?: unknown})=>unknown;channelDisplay?: unknown;channelTier?: (value:number,key:string)=>unknown;formatChannelUnit?: (key:string,value:number)=>unknown};
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
@@ -10,38 +9,26 @@ test('light sessions view edge coverage handles empty and compact device history
 
   const results = await page.evaluate(async ({ sessionsUrl }) => {
     const sessionsView = (await import(sessionsUrl) as unknown) as Pick<typeof import('../../js/light-sessions-view.js'), "configureLightSessionsView" | "renderUnifiedSessionsList" | "_openAllSessionsModal" | "installLightSessionsActionDelegates">;
+    const {projectCompletedSunSession}=await import('/js/light-session-presentation.js');
     const outcomes: Record<string, unknown> = {};
     const calls: [string, unknown][] = [];
     const base = Date.UTC(2026, 5, 10, 10, 0);
     const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-    const resetDeps = () => (sessionsView.configureLightSessionsView as (deps: LightSessionsFixtureDeps) => ReturnType<typeof sessionsView.configureLightSessionsView>)({
+    const resetDeps = () => sessionsView.configureLightSessionsView({
       getSessions: () => [],
       getDeviceSessions: () => [],
       getDevices: () => [],
-      renderSunSessionRow: () => '',
+      getSunSessionRowView: () => null,
       openDeviceSessionDetail: () => {},
-      deleteDeviceSession: () => {},
-      renderDeviceSessionAIInline: () => '',
-      channelDisplay: {},
-      channelTier: () => 0,
-      formatChannelUnit: () => '',
     });
 
     try {
-      (sessionsView.configureLightSessionsView as (deps: LightSessionsFixtureDeps) => ReturnType<typeof sessionsView.configureLightSessionsView>)({
+      sessionsView.configureLightSessionsView({
         getSessions: () => [],
         getDeviceSessions: () => [],
         getDevices: () => [],
-        renderSunSessionRow: sess => `<div class="sun-session light-session-row light-session-sun" data-id="${sess.id}" role="button">${sess.id}</div>`,
+        getSunSessionRowView: sess => ({kind:'row',view:projectCompletedSunSession(sess,{date:String(sess.id),time:''},String(sess.durationMin??''),'')}),
         openDeviceSessionDetail: id => calls.push(['detail', id]),
-        deleteDeviceSession: (id: unknown) => calls.push(['delete', id]),
-        renderDeviceSessionAIInline: (sess: {id?: unknown}) => `<span class="ai-inline">AI ${sess.id}</span>`,
-        channelDisplay: {
-          pbm_red: { icon: 'R', label: 'Red <unsafe>', what: 'Red channel' },
-          pbm_nir: { icon: 'N', label: 'NIR', what: 'Near infrared' },
-        },
-        channelTier: (value: number, key: string) => key === 'pbm_nir' && value > 0 ? 3 : 0,
-        formatChannelUnit: (key: string, value: number) => `${Math.round(value)} ${key}`,
       });
 
       outcomes.emptyInlineReturnsBlank = sessionsView.renderUnifiedSessionsList() === '';
@@ -52,7 +39,7 @@ test('light sessions view edge coverage handles empty and compact device history
         && overlay?.querySelectorAll('.sun-session').length === 0;
       overlay?.remove();
 
-      (sessionsView.configureLightSessionsView as (deps: LightSessionsFixtureDeps) => ReturnType<typeof sessionsView.configureLightSessionsView>)({
+      sessionsView.configureLightSessionsView({
         getSessions: () => [
           { id: 'sun-only-a', startedAt: base - 60000, endedAt: base, durationMin: 10 },
           { id: 'sun-active', startedAt: base + 1000, endedAt: null, durationMin: 0 },
@@ -65,7 +52,7 @@ test('light sessions view edge coverage handles empty and compact device history
         && !sunOnlyHost.querySelector('.light-sessions-list-unified')
         && !sunOnlyHost.querySelector('.light-sessions-show-more');
 
-      (sessionsView.configureLightSessionsView as (deps: LightSessionsFixtureDeps) => ReturnType<typeof sessionsView.configureLightSessionsView>)({
+      sessionsView.configureLightSessionsView({
         getSessions: () => [],
         getDevices: () => [{
           id: 'panel-a',

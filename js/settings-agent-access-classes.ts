@@ -8,7 +8,7 @@ export const AGENT_ROW = [
 
 const BUTTON = [
   'gb:agent:inline-flex gb:agent:items-center gb:agent:justify-center gb:agent:gap-1.5 gb:agent:border',
-  'gb:agent:rounded-control gb:agent:font-body gb:agent:font-semibold gb:agent:leading-[normal]',
+  'gb:agent:rounded-control gb:agent:[font-family:inherit] gb:agent:font-semibold gb:agent:leading-[normal]',
   'gb:agent:cursor-pointer gb:agent:whitespace-nowrap gb:agent:transition-colors',
   'gb:agent:focus-visible:outline-2 gb:agent:focus-visible:outline-offset-2 gb:agent:focus-visible:outline-accent',
   'gb:agent:disabled:opacity-50 gb:agent:disabled:cursor-not-allowed gb:agent:motion-reduce:transition-none',

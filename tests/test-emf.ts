@@ -11,6 +11,7 @@ import { createSourceFetch } from './helpers/source-fetch.js';
 // fallback that always resolved to a hardcoded 130).
 
 import './_node-shim.js';
+import {currentEMFSidebarHTML,hasCurrentEMFSidebarEntry,currentInsightEMFActionsHTML,hasCurrentInsightEMFAction,hasCurrentEMFRegionLink} from './helpers/emf-current-controls.js';
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -149,12 +150,19 @@ const emfLauncherSrc = read('js/components/ContextEMFLauncher.svelte');
 const contextEditorCss = read('css/context-editor.css');
 const lensPagesSrc = read('js/lens-pages.js');
 const emfSrc = read('js/emf.js').replace(/\}\s+else if \(piiAvailable\.available\) \{/g, '} else if (piiAvailable.available) {');
+const sidebarOwnerSrc=read('js/components/SidebarNavigation.svelte');
+const currentSidebarHTML=currentEMFSidebarHTML(0);
 assert('45f. Sidebar exposes EMF assessment under Analysis tools', (() => {
-  const analysisIndex = navSrc.indexOf('Analysis tools');
-  const emfIndex = navSrc.indexOf("label: 'EMF assessment'");
-  const manageIndex = navSrc.indexOf('Manage');
-  return analysisIndex > -1 && emfIndex > -1 && manageIndex > -1 && analysisIndex < emfIndex && emfIndex < manageIndex;
+  const analysisIndex=sidebarOwnerSrc.indexOf('<div class="nav-section">Analysis tools</div>');
+  const emfIndex=sidebarOwnerSrc.indexOf('<ConditionalSidebarItem view={view.emf}/>');
+  const manageIndex=sidebarOwnerSrc.indexOf('<div class="nav-section">Manage</div>');
+  return analysisIndex>=0&&analysisIndex<emfIndex&&emfIndex<manageIndex&&hasCurrentEMFSidebarEntry(currentSidebarHTML,0);
 })());
+assert('45f2. Current public Sidebar renders the saved assessment badge without hiding the empty-data entry',hasCurrentEMFSidebarEntry(currentEMFSidebarHTML(2),2));
+assert('45f3. Current Sidebar acceptance rejects a foreign action or changed label',[
+ currentSidebarHTML.replace('data-nav-action="open-emf-assessment"','data-nav-action="navigate"'),
+ currentSidebarHTML.replace('>EMF assessment</span>','>Foreign assessment</span>'),
+].every(changed=>changed!==currentSidebarHTML&&!hasCurrentEMFSidebarEntry(changed,0)));
 assert('45g. EMF sidebar entry is available before assessment data exists',
   navSrc.includes('emfAssessmentCount > 0 ? emfAssessmentCount : null') &&
   !navSrc.includes("label: 'EMF',"));
@@ -170,8 +178,15 @@ assert('45j. Authored EMF launcher has scoped Tailwind styles',
   contextEditorCss.includes('[data-context-emf-launcher]') &&
   emfLauncherSrc.includes('ctx-emf-launcher-action gb:context-emf:') &&
   emfLauncherSrc.includes('has-data gb:context-emf:border-accent'));
+const currentInsightHTML=currentInsightEMFActionsHTML();
 assert('45k. Insight lens exposes EMF assessment action',
-  lensPagesSrc.includes('EMF assessment') && lensPagesSrc.includes("lensPageActionAttrs('open-emf-assessment')"));
+  lensPagesSrc.includes("projectLensActions('insight')")&&lensPagesSrc.includes("kind: 'insight', header, actions, grid")&&
+  read('js/components/LensDataPage.svelte').includes('<LensActionButtons view={view.actions}/>')&&hasCurrentInsightEMFAction(currentInsightHTML));
+assert('45k2. Current Insight acceptance rejects missing, disabled or renamed assessment controls',[
+ currentInsightHTML.replace('data-lens-page-action="open-emf-assessment"','data-lens-page-action="foreign"'),
+ currentInsightHTML.replace('>EMF assessment</button>',' disabled>EMF assessment</button>'),
+ currentInsightHTML.replace('>EMF assessment</button>','>Foreign assessment</button>'),
+].every(changed=>changed!==currentInsightHTML&&!hasCurrentInsightEMFAction(changed)));
 assert('45l. EMF PII review streams current PDF text',
   emfSrc.includes('streamFn: (onChunk, signal, onThinking) => sanitizeWithOllamaStreaming(pdfText, onChunk, signal, onThinking)'));
 assert('45m. EMF PII review provides regex fallback text',
@@ -418,7 +433,12 @@ assert('94al. regionLabel(null/empty) → worldwide',
 localStorage.setItem('labcharts-show-product-recs', 'true');
 const discMeterHtml = recsMod.renderEMFMeterRecs(emfCat);
 assert('94am. Disclosure footer renders region indicator', /Showing for /.test(discMeterHtml));
-assert('94an. Disclosure footer renders change link', /class="rec-region-edit"/.test(discMeterHtml));
+assert('94an. Disclosure footer renders change link',hasCurrentEMFRegionLink(discMeterHtml));
+assert('94an2. Current disclosure link acceptance rejects class-prefix lookalikes, foreign actions and targets',[
+ discMeterHtml.replace('rec-region-edit','rec-region-editor'),
+ discMeterHtml.replace('data-rec-action="edit-region"','data-rec-action="foreign"'),
+ discMeterHtml.replace('href="#modal-overlay"','href="https://example.invalid/foreign"'),
+].every(changed=>changed!==discMeterHtml&&!hasCurrentEMFRegionLink(changed)));
 assert('94ao. Change link delegates location editor action', /data-rec-action="edit-region"/.test(discMeterHtml));
 
 // Vendor-name rendering in EMF row (was hardcoded to "Safe Living Technologies")

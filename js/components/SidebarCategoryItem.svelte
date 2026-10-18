@@ -1,0 +1,4 @@
+<script lang="ts">import type {SidebarCategoryView} from '../sidebar-presentation.js';let {view}:{view:SidebarCategoryView}=$props();</script><svelte:options preserveWhitespace={true}/><div class="nav-item" data-category={view.category} data-markers={view.markerNames} data-group={view.group} tabindex="0" role="button" data-nav-action={view.action.name} data-nav-route={view.action.route}>
+      <span class="nav-item-dot" aria-hidden="true"></span>
+      <span class="nav-item-label">{view.label}</span>
+      {#if view.badge.kind==='flagged'}<span class="nav-item-count flag-count">{view.badge.text}</span>{:else}<span class="nav-item-count count">{view.badge.text}</span>{/if}</div>

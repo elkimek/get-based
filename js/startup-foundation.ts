@@ -1,7 +1,7 @@
 // startup-foundation.js - blocking foundation work before profile startup
 
 import { initEncryption, initBroadcastChannel, initFolderBackup } from './crypto.js';
-import { initMeteoConfigCache } from './sun-uvdata.js';
+import { initMeteoConfigCache } from './sun-uvdata-config.js';
 
 export async function initializeStartupFoundation() {
   // Initialize encryption (shows passphrase modal if enabled, blocks until unlocked).

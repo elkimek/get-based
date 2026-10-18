@@ -402,8 +402,9 @@ assert('provider-panels uses extracted Routstr balance refresh',
     && ppSrc.includes('refreshRoutstrPrivateControls()')
     && ppSrc.includes('refreshRoutstrBalance()')
     && !ppSrc.includes('_rsBalanceHtml'));
-assert('Routstr shell uses shared wallet actions with scoped callbacks', routstrShellSrc.includes('ROUTSTR_WALLET_ACTIONS') && routstrShellSrc.includes('actions.wallet(action)'));
-assert('Routstr shell uses shared node actions with scoped callbacks', routstrShellSrc.includes('ROUTSTR_NODE_ACTIONS') && routstrShellSrc.includes('actions.node(action.id, shellState.node)'));
+const routstrActionsSrc = read('js/components/RoutstrActions.svelte');
+assert('Routstr shell uses shared wallet actions with scoped callbacks', routstrShellSrc.includes('<RoutstrActions') && routstrActionsSrc.includes('ROUTSTR_WALLET_ACTIONS') && routstrActionsSrc.includes('actions.wallet(option.id)') && routstrActionsSrc.includes('invoke(action.id)'));
+assert('Routstr shell uses shared node actions with scoped callbacks', routstrShellSrc.includes('<RoutstrActions') && routstrActionsSrc.includes('ROUTSTR_NODE_ACTIONS') && routstrActionsSrc.includes('actions.node(option.id, actionState.node)') && routstrActionsSrc.includes('actionState.connected'));
 assert('Mint edit UI', walletPanelSrc.includes('showRoutstrMintEdit'));
 assert('Node picker UI', walletPanelSrc.includes('showRoutstrNodePicker'));
 assert('Deposit amount picker', walletNodeComponentSrc.includes('routstr-deposit-amount') && walletPanelSrc.includes('nodes.deposit(amount)'));

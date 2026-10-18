@@ -1,0 +1,427 @@
+{
+  "existingQualifiedInverseChain": [
+    [
+      "category-presentation-style-inverse",
+      "restoreCategoryPresentationStyleBodies"
+    ],
+    [
+      "correlation-workspace-chrome-style-inverse",
+      "restoreCorrelationWorkspaceChromeStyleBodies"
+    ],
+    [
+      "correlation-workspace-controls-style-inverse",
+      "restoreCorrelationWorkspaceControlStyleBodies"
+    ],
+    [
+      "therapy-comparison-style-inverse",
+      "restoreTherapyComparisonStyleBodies"
+    ],
+    [
+      "correlations-selection-style-inverse",
+      "restoreCorrelationsSelectionStyleBodies"
+    ]
+  ],
+  "compareBodies": [
+    {
+      "utility": "chart-layers-wrapper",
+      "selector": ".chart-layers-wrapper",
+      "condition": null,
+      "start": 16605,
+      "end": 16628,
+      "before": "\n  position: relative;\n",
+      "after": "\n  position: relative;\n"
+    },
+    {
+      "utility": "chart-layers-trigger",
+      "selector": ".chart-layers-trigger",
+      "condition": null,
+      "start": 16653,
+      "end": 16677,
+      "before": "\n  white-space: nowrap;\n",
+      "after": "\n  white-space: nowrap;\n"
+    },
+    {
+      "utility": "chart-layers-dropdown",
+      "selector": ".chart-layers-dropdown",
+      "condition": null,
+      "start": 16703,
+      "end": 16962,
+      "before": "\n  display: none;\n  position: absolute;\n  top: calc(100% + 4px);\n  right: 0;\n  background: var(--bg-card);\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  box-shadow: var(--shadow);\n  z-index: 50;\n  min-width: 160px;\n  padding: 6px 0;\n",
+      "after": "\n  display: none;\n  position: absolute;\n  top: calc(100% + 4px);\n  right: 0;\n  background: var(--bg-card);\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  box-shadow: var(--shadow);\n  z-index: 50;\n  min-width: 160px;\n  padding: 6px 0;\n"
+    },
+    {
+      "utility": "chart-layers-open",
+      "selector": ".chart-layers-dropdown.open",
+      "condition": null,
+      "start": 16993,
+      "end": 17012,
+      "before": "\n  display: block;\n",
+      "after": "\n  display: block;\n"
+    },
+    {
+      "utility": "chart-layers-row",
+      "selector": ".chart-layers-row",
+      "condition": null,
+      "start": 17033,
+      "end": 17200,
+      "before": "\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  padding: 6px 14px;\n  font-size: 13px;\n  color: var(--text-secondary);\n  cursor: pointer;\n  white-space: nowrap;\n",
+      "after": "\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  padding: 6px 14px;\n  font-size: 13px;\n  color: var(--text-secondary);\n  cursor: pointer;\n  white-space: nowrap;\n"
+    },
+    {
+      "utility": "chart-layers-hover",
+      "selector": ".chart-layers-row:hover",
+      "condition": null,
+      "start": 17227,
+      "end": 17259,
+      "before": "\n  background: var(--bg-hover);\n",
+      "after": "\n  background: var(--bg-hover);\n"
+    },
+    {
+      "utility": "chart-layers-checkbox",
+      "selector": ".chart-layers-row input[type=\"checkbox\"]",
+      "condition": null,
+      "start": 17303,
+      "end": 17354,
+      "before": "\n  accent-color: var(--accent);\n  cursor: pointer;\n",
+      "after": "\n  accent-color: var(--accent);\n  cursor: pointer;\n"
+    },
+    {
+      "utility": "chart-layers-coarse",
+      "selector": ".chart-layers-row",
+      "condition": "(pointer: coarse)",
+      "start": 28037,
+      "end": 28058,
+      "before": "\n  min-height: 44px;\n",
+      "after": "\n    min-height: 44px;\n  "
+    },
+    {
+      "utility": "compare-category-label",
+      "selector": ".compare-category-label",
+      "condition": null,
+      "start": 1354,
+      "end": 1414,
+      "before": "\n  display: inline-flex;\n  align-items: center;\n  gap: 8px;\n",
+      "after": "\n  display: inline-flex;\n  align-items: center;\n  gap: 8px;\n"
+    },
+    {
+      "utility": "compare-category-glyph",
+      "selector": ".compare-category-label .category-glyph",
+      "condition": null,
+      "start": 1457,
+      "end": 1507,
+      "before": "\n  width: 22px;\n  height: 22px;\n  font-size: 9px;\n",
+      "after": "\n  width: 22px;\n  height: 22px;\n  font-size: 9px;\n"
+    },
+    {
+      "utility": "compare-controls",
+      "selector": ".compare-controls",
+      "condition": null,
+      "start": 21126,
+      "end": 21336,
+      "before": "\n  background: var(--bg-card);\n  border-radius: var(--radius);\n  border: 1px solid var(--border);\n  padding: 20px;\n  margin-bottom: 20px;\n  display: flex;\n  align-items: center;\n  gap: 12px;\n  flex-wrap: wrap;\n",
+      "after": "\n  background: var(--bg-card); border-radius: var(--radius);\n  border: 1px solid var(--border); padding: 20px; margin-bottom: 20px;\n  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;\n"
+    },
+    {
+      "utility": "compare-control-label",
+      "selector": ".compare-controls label",
+      "condition": null,
+      "start": 21363,
+      "end": 21435,
+      "before": "\n  font-size: 13px;\n  color: var(--text-secondary);\n  font-weight: 500;\n",
+      "after": " font-size: 13px; color: var(--text-secondary); font-weight: 500; "
+    },
+    {
+      "utility": "compare-date-field",
+      "selector": ".compare-date-field",
+      "condition": null,
+      "start": 21458,
+      "end": 21534,
+      "before": "\n  display: inline-flex;\n  align-items: center;\n  gap: 8px;\n  min-width: 0;\n",
+      "after": "\n  display: inline-flex;\n  align-items: center;\n  gap: 8px;\n  min-width: 0;\n"
+    },
+    {
+      "utility": "compare-date-select",
+      "selector": ".compare-controls select",
+      "condition": null,
+      "start": 21562,
+      "end": 21786,
+      "before": "\n  padding: 8px 12px;\n  border-radius: 6px;\n  border: 1px solid var(--border);\n  background: var(--bg-primary);\n  color: var(--text-primary);\n  font-size: 13px;\n  font-family: inherit;\n  cursor: pointer;\n  min-width: 160px;\n",
+      "after": "\n  padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border);\n  background: var(--bg-primary); color: var(--text-primary); font-size: 13px;\n  font-family: inherit; cursor: pointer; min-width: 160px;\n"
+    },
+    {
+      "utility": "compare-date-focus",
+      "selector": ".compare-controls select:focus",
+      "condition": null,
+      "start": 21820,
+      "end": 21852,
+      "before": "\n  border-color: var(--accent);\n",
+      "after": " border-color: var(--accent); "
+    },
+    {
+      "utility": "compare-date-option",
+      "selector": ".compare-controls select option",
+      "condition": null,
+      "start": 21887,
+      "end": 21931,
+      "before": "\n  background: var(--select-popup-surface);\n",
+      "after": " background: var(--select-popup-surface); "
+    },
+    {
+      "utility": "compare-swap",
+      "selector": ".compare-swap-btn",
+      "condition": null,
+      "start": 21952,
+      "end": 22177,
+      "before": "\n  padding: 8px 12px;\n  border-radius: 6px;\n  border: 1px solid var(--border);\n  background: transparent;\n  color: var(--text-secondary);\n  font-size: 16px;\n  cursor: pointer;\n  transition: all 0.15s;\n  font-family: inherit;\n",
+      "after": "\n  padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border);\n  background: transparent; color: var(--text-secondary); font-size: 16px;\n  cursor: pointer; transition: all 0.15s; font-family: inherit;\n"
+    },
+    {
+      "utility": "compare-swap-hover",
+      "selector": ".compare-swap-btn:hover",
+      "condition": null,
+      "start": 22204,
+      "end": 22260,
+      "before": "\n  border-color: var(--accent);\n  color: var(--accent);\n",
+      "after": " border-color: var(--accent); color: var(--accent); "
+    },
+    {
+      "utility": "compare-table-wrapper",
+      "selector": ".compare-table-wrapper",
+      "condition": null,
+      "start": 22580,
+      "end": 22640,
+      "before": "\n  overflow-x: clip;\n  overflow-y: visible;\n  min-width: 0;\n",
+      "after": "\n  /* overflow: clip does not establish a scroll container, so sticky th\n     descendants reference the outer (html) scroll context: the page. This\n     avoids the double-scrollbar of a wrapper-bound scroll. The horizontal\n     overflow fallback lives in the narrow-viewport media query below. */\n  overflow-x: clip;\n  overflow-y: visible;\n  min-width: 0;\n"
+    },
+    {
+      "utility": "compare-table",
+      "selector": ".compare-table",
+      "condition": null,
+      "start": 22658,
+      "end": 22722,
+      "before": "\n  width: 100%;\n  border-collapse: collapse;\n  font-size: 13px;\n",
+      "after": " width: 100%; border-collapse: collapse; font-size: 13px; "
+    },
+    {
+      "utility": "compare-table-heading",
+      "selector": ".compare-table th",
+      "condition": null,
+      "start": 22853,
+      "end": 23187,
+      "before": "\n  background: var(--bg-secondary);\n  padding: 10px 14px;\n  text-align: left;\n  font-weight: 600;\n  font-size: 11px;\n  text-transform: uppercase;\n  letter-spacing: 0.5px;\n  color: var(--text-muted);\n  border-bottom: 1px solid var(--border);\n  white-space: nowrap;\n  position: sticky;\n  top: var(--app-sticky-top, 65px);\n  z-index: 2;\n",
+      "after": "\n  background: var(--bg-secondary); padding: 10px 14px; text-align: left;\n  font-weight: 600; font-size: 11px; text-transform: uppercase;\n  letter-spacing: 0.5px; color: var(--text-muted);\n  border-bottom: 1px solid var(--border); white-space: nowrap;\n  /* Stick to the page scroll context, offset by the sticky page header\n     so it does not slide behind it. */\n  position: sticky; top: var(--app-sticky-top, 65px); z-index: 2;\n"
+    },
+    {
+      "utility": "compare-table-cell",
+      "selector": ".compare-table td",
+      "condition": null,
+      "start": 23208,
+      "end": 23311,
+      "before": "\n  padding: 10px 14px;\n  border-bottom: 1px solid var(--border);\n  font-variant-numeric: tabular-nums;\n",
+      "after": "\n  padding: 10px 14px; border-bottom: 1px solid var(--border);\n  font-variant-numeric: tabular-nums;\n"
+    },
+    {
+      "utility": "compare-table-category",
+      "selector": ".compare-table .cat-row td",
+      "condition": null,
+      "start": 23341,
+      "end": 23519,
+      "before": "\n  background: var(--bg-secondary);\n  font-weight: 600;\n  font-size: 12px;\n  text-transform: uppercase;\n  letter-spacing: 0.5px;\n  color: var(--text-muted);\n  padding: 8px 14px;\n",
+      "after": "\n  background: var(--bg-secondary); font-weight: 600; font-size: 12px;\n  text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted);\n  padding: 8px 14px;\n"
+    },
+    {
+      "utility": "compare-ranges-cell",
+      "selector": ".compare-ranges-cell",
+      "condition": null,
+      "start": 23543,
+      "end": 23616,
+      "before": "\n  color: var(--text-secondary);\n  font-size: 11px;\n  line-height: 1.35;\n",
+      "after": "\n  color: var(--text-secondary);\n  font-size: 11px;\n  line-height: 1.35;\n"
+    },
+    {
+      "utility": "compare-range-groups",
+      "selector": ".compare-range-stack,\n.compare-range-date-group",
+      "condition": null,
+      "start": 23667,
+      "end": 23697,
+      "before": "\n  display: grid;\n  gap: 4px;\n",
+      "after": "\n  display: grid;\n  gap: 4px;\n"
+    },
+    {
+      "utility": "compare-range-dated-stack",
+      "selector": ".compare-range-stack-dated",
+      "condition": null,
+      "start": 23727,
+      "end": 23740,
+      "before": "\n  gap: 8px;\n",
+      "after": " gap: 8px; "
+    },
+    {
+      "utility": "compare-range-divider",
+      "selector": ".compare-range-date-group + .compare-range-date-group",
+      "condition": null,
+      "start": 23797,
+      "end": 23858,
+      "before": "\n  border-top: 1px dashed var(--border);\n  padding-top: 7px;\n",
+      "after": "\n  border-top: 1px dashed var(--border);\n  padding-top: 7px;\n"
+    },
+    {
+      "utility": "compare-range-line",
+      "selector": ".compare-range-line",
+      "condition": null,
+      "start": 23881,
+      "end": 23959,
+      "before": "\n  display: flex;\n  align-items: baseline;\n  flex-wrap: wrap;\n  gap: 3px 5px;\n",
+      "after": "\n  display: flex;\n  align-items: baseline;\n  flex-wrap: wrap;\n  gap: 3px 5px;\n"
+    },
+    {
+      "utility": "compare-range-label",
+      "selector": ".compare-range-label,\n.compare-range-date",
+      "condition": null,
+      "start": 24004,
+      "end": 24127,
+      "before": "\n  color: var(--text-muted);\n  font-size: 10px;\n  font-weight: 600;\n  letter-spacing: 0.02em;\n  text-transform: uppercase;\n",
+      "after": "\n  color: var(--text-muted);\n  font-size: 10px;\n  font-weight: 600;\n  letter-spacing: 0.02em;\n  text-transform: uppercase;\n"
+    },
+    {
+      "utility": "compare-range-used-bounds",
+      "selector": ".compare-range-line-used .compare-range-bounds",
+      "condition": null,
+      "start": 24177,
+      "end": 24228,
+      "before": "\n  color: var(--text-primary);\n  font-weight: 600;\n",
+      "after": "\n  color: var(--text-primary);\n  font-weight: 600;\n"
+    },
+    {
+      "utility": "compare-range-used-badge",
+      "selector": ".compare-range-used",
+      "condition": null,
+      "start": 24251,
+      "end": 24485,
+      "before": "\n  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border));\n  border-radius: 999px;\n  color: var(--accent);\n  font-size: 9px;\n  font-weight: 700;\n  letter-spacing: 0.04em;\n  padding: 0 4px;\n  text-transform: uppercase;\n",
+      "after": "\n  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border));\n  border-radius: 999px;\n  color: var(--accent);\n  font-size: 9px;\n  font-weight: 700;\n  letter-spacing: 0.04em;\n  padding: 0 4px;\n  text-transform: uppercase;\n"
+    },
+    {
+      "utility": "compare-improved",
+      "selector": ".compare-improved",
+      "condition": null,
+      "start": 24506,
+      "end": 24530,
+      "before": "\n  color: var(--green);\n",
+      "after": " color: var(--green); "
+    },
+    {
+      "utility": "compare-improved-glyph",
+      "selector": ".compare-improved::before",
+      "condition": null,
+      "start": 24559,
+      "end": 24581,
+      "before": "\n  content: \"\\2713 \";\n",
+      "after": " content: \"\\2713 \"; "
+    },
+    {
+      "utility": "compare-worsened",
+      "selector": ".compare-worsened",
+      "condition": null,
+      "start": 24602,
+      "end": 24624,
+      "before": "\n  color: var(--red);\n",
+      "after": " color: var(--red); "
+    },
+    {
+      "utility": "compare-worsened-glyph",
+      "selector": ".compare-worsened::before",
+      "condition": null,
+      "start": 24653,
+      "end": 24675,
+      "before": "\n  content: \"\\26A0 \";\n",
+      "after": " content: \"\\26A0 \"; "
+    },
+    {
+      "utility": "compare-neutral",
+      "selector": ".compare-neutral",
+      "condition": null,
+      "start": 24695,
+      "end": 24724,
+      "before": "\n  color: var(--text-muted);\n",
+      "after": " color: var(--text-muted); "
+    },
+    {
+      "utility": "compare-controls-mobile",
+      "selector": ".compare-controls",
+      "condition": "(max-width: 768px)",
+      "start": 24776,
+      "end": 24862,
+      "before": "\n  display: grid;\n  grid-template-columns: 1fr auto;\n  align-items: end;\n  gap: 12px;\n",
+      "after": "\n    display: grid;\n    grid-template-columns: 1fr auto;\n    align-items: end;\n    gap: 12px;\n  "
+    },
+    {
+      "utility": "compare-date-field-mobile",
+      "selector": ".compare-date-field",
+      "condition": "(max-width: 768px)",
+      "start": 24887,
+      "end": 24917,
+      "before": "\n  display: grid;\n  gap: 6px;\n",
+      "after": "\n    display: grid;\n    gap: 6px;\n  "
+    },
+    {
+      "utility": "compare-date-first-mobile",
+      "selector": ".compare-date-field:first-child",
+      "condition": "(max-width: 768px)",
+      "start": 24954,
+      "end": 24978,
+      "before": "\n  grid-column: 1 / -1;\n",
+      "after": "\n    grid-column: 1 / -1;\n  "
+    },
+    {
+      "utility": "compare-date-select-mobile",
+      "selector": ".compare-date-field select",
+      "condition": "(max-width: 768px)",
+      "start": 25010,
+      "end": 25026,
+      "before": "\n  width: 100%;\n",
+      "after": "\n    width: 100%;\n  "
+    },
+    {
+      "utility": "compare-swap-mobile",
+      "selector": ".compare-swap-btn",
+      "condition": "(max-width: 768px)",
+      "start": 25049,
+      "end": 25095,
+      "before": "\n  width: 48px;\n  height: 42px;\n  padding: 0;\n",
+      "after": "\n    width: 48px;\n    height: 42px;\n    padding: 0;\n  "
+    },
+    {
+      "utility": "compare-swap-coarse",
+      "selector": ".compare-swap-btn",
+      "condition": "(pointer: coarse)",
+      "start": 27993,
+      "end": 28014,
+      "before": "\n  min-height: 44px;\n",
+      "after": " min-height: 44px; "
+    }
+  ],
+  "commentMoves": [
+    {
+      "text": "overflow: clip does not establish a scroll container, so sticky th\n     descendants reference the outer (html) scroll context: the page. This\n     avoids the double-scrollbar of a wrapper-bound scroll. The horizontal\n     overflow fallback lives in the narrow-viewport media query below.",
+      "start": 22262,
+      "end": 22556,
+      "before": "/* overflow: clip does not establish a scroll container, so sticky th\n     descendants reference the outer (html) scroll context: the page. This\n     avoids the double-scrollbar of a wrapper-bound scroll. The horizontal\n     overflow fallback lives in the narrow-viewport media query below. */\n",
+      "after": ""
+    },
+    {
+      "text": "Stick to the page scroll context, offset by the sticky page header\n     so it does not slide behind it.",
+      "start": 22724,
+      "end": 22834,
+      "before": "/* Stick to the page scroll context, offset by the sticky page header\n     so it does not slide behind it. */\n",
+      "after": ""
+    }
+  ],
+  "prefix": {
+    "before": "/* Chart Layers utilities only; native selectors and category cascade stay in place. */\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n/* Category routes: headers, marker cards, tables, heatmaps, and compare views */\n",
+    "after": "/* Chart Layers utilities only; native selectors and category cascade stay in place. */\n\n\n\n\n\n\n\n\n\n\n\n/* Category routes: headers, marker cards, tables, heatmaps, and compare views */\n"
+  },
+  "sourceOwnedMetadataWhitespaceOnly": true,
+  "fullOriginalCategoryByteInverseExact": true,
+  "originalSHA256": "97508f8c0f3dac277f7af0628e7b08d69f527cf0baafe885d2ded5639e2ad890"
+}

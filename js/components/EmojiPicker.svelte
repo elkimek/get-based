@@ -1,0 +1,5 @@
+<script lang="ts">
+  import type { EmojiPickerView } from '../emoji-picker-presentation.js';
+  // The inactive branch uses a literal expression to retain the native empty class attribute.
+  let { view }: { view: EmojiPickerView } = $props();
+</script><svelte:options preserveWhitespace={true} /><div class="emoji-picker-search"><input type="text" placeholder="Search emoji..." value={view.searchValue}></div><div class="emoji-picker-cats">{#if view.showReset}<button data-cat="__reset" title="Reset to default">×</button>{/if}{#each view.categories as category}{#if category.active}<button data-cat={category.id} title={category.label} class="active">{category.icon}</button>{:else}<button data-cat={category.id} title={category.label} class={''}>{category.icon}</button>{/if}{/each}</div><div class="emoji-picker-grid">{#each view.groups as group}<div class="emoji-picker-label">{group.label}</div>{#each group.emojis as emoji}<span data-emoji={emoji}>{emoji}</span>{/each}{/each}</div>

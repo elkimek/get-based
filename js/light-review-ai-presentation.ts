@@ -3,28 +3,32 @@ import type { VerdictControlView } from './light-verdict-control.js';
 export type ReviewAIKind = 'today' | 'dashboard' | 'weekly' | 'burden';
 export type ReviewAIVariant = AIVerdictStatus | 'stale' | 'cached' | 'heuristic' | 'unavailable';
 export interface ReviewAIView extends VerdictControlView {
-  kind: ReviewAIKind;
-  variant: ReviewAIVariant;
-  dot: 'green' | 'yellow' | 'red' | 'gray';
-  prefix: string;
-  tip: string;
-  detail: string;
-  message: string;
-  buttonLabel: string;
-  helper: string;
-  heuristic: string;
-  /** Existing deterministic summary renderer; never model or imported HTML. */
-  fallbackHTML: string;
-  trends: string[];
+  readonly kind: ReviewAIKind;
+  readonly variant: ReviewAIVariant;
+  readonly dot: 'green' | 'yellow' | 'red' | 'gray';
+  readonly prefix: string;
+  readonly tip: string;
+  readonly detail: string;
+  readonly message: string;
+  readonly buttonLabel: string;
+  readonly helper: string;
+  readonly heuristic: string;
+  /** Genuine internal summary, or explicit existing exported caller-owned HTML compatibility. */
+  readonly fallback: Readonly<WeeklyFallbackView> | Readonly<WeeklyPublicFallbackView> | null;
+  readonly trends: readonly string[];
 }
 export interface WeeklyFallbackView {
-  kind: 'weekly-fallback';
-  headline: string;
-  comparison: string;
-  nextStep: string;
-  empty: boolean;
+  readonly kind: 'weekly-fallback';
+  readonly headline: string;
+  readonly comparison: string;
+  readonly nextStep: string;
+  readonly empty: boolean;
 }
-export interface DashboardLightFallbackView { kind: 'dashboard-fallback' }
+declare const publicFallbackOwnership:unique symbol;
+/** Existing exported API accepts trusted caller-owned HTML. Ownership is not sanitization. */
+export type LightPublicFallbackHTML=string & {readonly [publicFallbackOwnership]:true};
+export interface WeeklyPublicFallbackView {readonly kind:'weekly-public-fallback';readonly html:LightPublicFallbackHTML}
+export interface DashboardLightFallbackView { readonly kind: 'dashboard-fallback' }
 export type ReviewPresentation = ReviewAIView | WeeklyFallbackView | DashboardLightFallbackView;
 type SavedAnalysis = Partial<Record<'dot' | 'tip' | 'detail' | 'errorMessage', unknown>>;
 const actions = { today: 'refresh-day', dashboard: 'refresh-day', weekly: 'refresh-channel-mix', burden: 'refresh-burden' } as const;
@@ -37,7 +41,7 @@ export function projectReviewAI(input: {
   analysis: SavedAnalysis | null | undefined;
   actionOwner: string;
   heuristic?: unknown;
-  fallbackHTML?: unknown;
+  fallback?: Readonly<WeeklyFallbackView> | Readonly<{kind:'public-html';value:unknown}> | null;
   trends?: string[];
 }): ReviewAIView {
   const { kind, status, variant, analysis } = input;
@@ -56,7 +60,7 @@ export function projectReviewAI(input: {
     dot, prefix: dot === 'green' ? '✓' : dot === 'yellow' ? '⚠' : dot === 'red' ? '▲' : '·',
     tip: String(analysis?.tip || ''), detail: String(analysis?.detail || ''), message, buttonLabel,
     helper: variant === 'stale' ? 'Your logs changed since this review was generated.' : 'Compares the past 7 days with the 7 before them.',
-    heuristic: String(input.heuristic || ''), fallbackHTML: String(input.fallbackHTML || ''),
+    heuristic: String(input.heuristic || ''), fallback: input.fallback?.kind === 'public-html' ? {kind:'weekly-public-fallback',html:String(input.fallback.value || '') as LightPublicFallbackHTML} : input.fallback || null,
     trends: status === 'ok' && dot === 'green' ? [] : (input.trends || []).slice(0, 2),
   };
 }

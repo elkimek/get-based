@@ -1,0 +1,91 @@
+{
+  "owner": {
+    "id": "ts-state-ui",
+    "input": "css/ts-state-ui.inline.tailwind.css",
+    "output": "js/ts-state-ui-inline-style-map.generated.js",
+    "exportName": "tsStateStyles",
+    "declarationCount": 8,
+    "recipes": [
+      [
+        "successColor",
+        "ts-state-success-color",
+        "color"
+      ],
+      [
+        "mutedColor",
+        "ts-state-muted-color",
+        "color"
+      ],
+      [
+        "cautionColor",
+        "ts-state-caution-color",
+        "color"
+      ],
+      [
+        "fadeOpacity",
+        "ts-state-fade-opacity",
+        "opacity"
+      ],
+      [
+        "bannerTransition",
+        "ts-state-banner-transition",
+        "transition"
+      ],
+      [
+        "bannerTransform",
+        "ts-state-banner-transform",
+        "transform"
+      ],
+      [
+        "toastTransition",
+        "ts-state-toast-transition",
+        "transition"
+      ],
+      [
+        "toastTransform",
+        "ts-state-toast-transform",
+        "transform"
+      ]
+    ]
+  },
+  "values": {
+    "successColor": "var(--green)",
+    "mutedColor": "var(--text-muted)",
+    "cautionColor": "var(--yellow)",
+    "fadeOpacity": "0",
+    "bannerTransition": "opacity 0.3s, transform 0.3s",
+    "bannerTransform": "translateY(-10px)",
+    "toastTransition": "all 0.3s",
+    "toastTransform": "translateX(100%)"
+  },
+  "counts": [
+    {
+      "file": "js/client-list-form.ts",
+      "count": 6
+    },
+    {
+      "file": "js/profile.ts",
+      "count": 1
+    },
+    {
+      "file": "js/light-tool-lux-meter.ts",
+      "count": 1
+    },
+    {
+      "file": "js/onboarding-view.ts",
+      "count": 6
+    },
+    {
+      "file": "js/utils.ts",
+      "count": 3
+    },
+    {
+      "file": "js/chat-onboarding.ts",
+      "count": 2
+    },
+    {
+      "file": "js/chat-profile-onboarding.ts",
+      "count": 1
+    }
+  ]
+}

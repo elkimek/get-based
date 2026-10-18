@@ -17,6 +17,9 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 import './_node-shim.js';
 import {renderHTML as renderLensContent} from '../js/components/LensPageContent.svelte.html.js';
 import {projectLensActions} from '../js/lens-content-presentation.js';
+import {renderDashboardGenomeWidgetView,renderDashboardGenomeRows} from '../js/dashboard-genome-rows-presentation.js';
+import {JSDOM} from 'jsdom';
+import {createDefaultProfileData} from '../js/profile.js';
 import type { DnaProfileData, GeneticsData } from '../js/dna-runtime.js';
 interface DnaCloneSnpRead {genotype?: unknown;normalizedGenotype?: unknown;source?: {type?: unknown;label?: unknown}}
 interface DnaCloneGeneticsRead {source?: unknown;importDate?: unknown;coverage?: unknown;effects?: unknown;catalogVersion?: unknown;snps?: Record<string, DnaCloneSnpRead>;mtdna?: unknown}
@@ -454,27 +457,42 @@ assert('pdf-import.js checks isDNAFile in drop', pdfSrc.includes('isDNAFile'));
 
 const viewsSrc = await fetchWithRetry('js/views.js');
 const dashboardRenderersSrc = await fetchWithRetry('js/dashboard-widget-renderers.js');
+const dashboardGenomeLoadingSrc = await fetchWithRetry('js/components/DashboardGenomeLoading.svelte');
+const dashboardGenomeWidgetSrc = await fetchWithRetry('js/components/DashboardGenomeWidget.svelte');
+const dashboardGenomeMarkupSrc = await fetchWithRetry('js/components/DashboardGenomeRows.svelte');
 const lensPagesSrc = await fetchWithRetry('js/lens-pages.js');
 assert('dashboard widget renderers import SNP category labels', dashboardRenderersSrc.includes('getSnpCategoryLabel'));
 assert('dashboard genome keeps mtDNA interpretation behind the lazy health-data facade',
   dashboardRenderersSrc.includes('detectMtDNAMismatch') && !dashboardRenderersSrc.includes("from './dna-mtdna.js'"));
-assert('dashboard genome widget waits for SNP catalog before rows', dashboardRenderersSrc.includes('Loading SNP interpretations'));
+assert('dashboard genome widget waits for SNP catalog before rows',
+  dashboardRenderersSrc.includes('if (needsSnps || needsEvidence) {') &&
+  dashboardRenderersSrc.includes("return { kind: 'loading', count: `${snpCount}`, plural: snpCount === 1 ? '' : 's' };") &&
+  dashboardRenderersSrc.indexOf("return { kind: 'loading'") < dashboardRenderersSrc.indexOf('const findings =') &&
+  dashboardGenomeWidgetSrc.includes("{#if view.kind === 'loading'}<DashboardGenomeLoading count={view.count} plural={view.plural}/>{:else}<DashboardGenomeRows {view}/>{/if}") &&
+  dashboardGenomeLoadingSrc.includes('Loading SNP interpretations') &&
+  renderDashboardGenomeWidgetView({kind:'loading',count:'2',plural:'s'}).includes('2 imported SNPs') &&
+  !renderDashboardGenomeWidgetView({kind:'loading',count:'2',plural:'s'}).includes('db-snp-row'));
 assert('dashboard genome widget refreshes itself after catalog load', dashboardRenderersSrc.includes('refreshDashboardGenomeWidgetWhenDataReady') && dashboardRenderersSrc.includes('body.innerHTML = renderDashboardGenomeWidget()'));
 assert('dashboard genome widget no longer gates refresh on currentView', !dashboardRenderersSrc.includes("state.currentView === 'dashboard' && window.navigate"));
 assert('dashboard genome rows include category label', dashboardRenderersSrc.includes('categoryLabel'));
 assert('dashboard genome shows risk, protective, and informational traits up front', dashboardRenderersSrc.includes('DASHBOARD_VISIBLE_SNP_TONES') && dashboardRenderersSrc.includes("['risk', 'protective', 'trait']"));
 assert('dashboard genome keeps evidence and relevance in quiet disclosure metadata',
   dashboardRenderersSrc.includes('function dashboardSnpAssessmentText(profile)') &&
-  dashboardRenderersSrc.includes('Evidence &amp; interpretation <small>${escapeHTML(dashboardSnpAssessmentText(profile))}</small>') &&
-  !dashboardRenderersSrc.includes('db-snp-axes'));
+  dashboardRenderersSrc.includes('const assessment = genomeLiteralText(dashboardSnpAssessmentText(profile))') &&
+  dashboardRenderersSrc.includes('return { rsid, assessment, interpretation, references: sources, askRsid, issueHref }') &&
+  dashboardGenomeMarkupSrc.includes('Evidence &amp; interpretation <small>{row.evidence.assessment}</small>') &&
+  !dashboardRenderersSrc.includes('db-snp-axes') && !dashboardGenomeMarkupSrc.includes('db-snp-axes'));
 assert('dashboard genome groups priority SNPs by category', dashboardRenderersSrc.includes('groupDashboardGenomeFindings') && dashboardRenderersSrc.includes('db-genome-category'));
-assert('dashboard genome collapses low-priority SNP calls', dashboardRenderersSrc.includes('db-genome-secondary') && dashboardRenderersSrc.includes('Other imported SNPs'));
-assert('dashboard genome collapsed SNPs reuse category groups', dashboardRenderersSrc.includes('secondaryGroups.map(group => renderDashboardGenomeGroup'));
+assert('dashboard genome collapses low-priority SNP calls', dashboardGenomeMarkupSrc.includes('db-genome-secondary') && dashboardGenomeMarkupSrc.includes('Other imported SNPs'));
+assert('dashboard genome collapsed SNPs reuse category groups', dashboardRenderersSrc.includes('secondaryGroups.map(group => projectDashboardGenomeGroup(group, { secondary: true }))') && dashboardGenomeMarkupSrc.includes('{#each items as group}'));
 assert('Genome lens avoids duplicated full genetics surfaces',
   lensPagesSrc.includes('Genetic Findings & Traits') &&
-  lensPagesSrc.includes('renderGenomeImportDetailsWidget') &&
+  lensPagesSrc.includes('projectGenomeImportDetails(state.importedData?.genetics)') &&
   lensPagesSrc.includes("id: 'genome-import', title: 'Import Details'") &&
-  lensPagesSrc.includes("renderLensPageWidgets('genome'") &&
+  lensPagesSrc.includes("getLensContentGrid('genome', widgets)") &&
+  lensPagesSrc.includes("content: { kind: 'genome', view: projectDashboardGenomeWidget() }") &&
+  lensPagesSrc.includes("content: { kind: 'genome-import', view: importDetails }") &&
+  lensPagesSrc.includes("renderLensDataPage({ view: { kind: 'genome', header, actions, grid } })") &&
   !viewsSrc.includes('Imported Genome Data'));
 
 const genomeActionsHTML = renderLensContent({kind: 'actions', view: projectLensActions('genome')});
@@ -482,7 +500,7 @@ assert('Genome lens exposes raw, report, and manual SNP import actions with scop
   ['import-dna', 'import-snp-report', 'add-manual-snp'].every(action => genomeActionsHTML.includes(`data-lens-page-action="${action}"`)) &&
   genomeActionsHTML.includes('Add SNP manually') &&
   lensPagesSrc.includes("className: 'genome-lens-header'"));
-const lensShellSrc = await fetchWithRetry('js/lens-page-shell.js');
+const lensShellSrc = await fetchWithRetry('js/lens-page-shell-core.js');
 assert('Genome lens action delegate opens report and manual SNP flows',
   lensShellSrc.includes("action === 'import-snp-report'") &&
   lensShellSrc.includes("callLensPageRuntime('importSnpReport')") &&
@@ -516,6 +534,8 @@ assert('Genome lens header keeps affiliate link on its own row',
 
 const dnaSrc = await fetchWithRetry('js/dna.js');
 const dnaUiSrc = await fetchWithRetry('js/dna-ui.js');
+const dnaManualSrc = await fetchWithRetry('js/components/ManualSnpDialog.svelte');
+const dnaManualFacadeSrc = await fetchWithRetry('js/dna-manual-presentation.js');
 const dnaSurfaceSrc = `${dnaSrc}\n${dnaUiSrc}`;
 const dnaRuntimeSrc = await fetchWithRetry('js/dna-runtime.js');
 const dnaMtDnaSrc = await fetchWithRetry('js/dna-mtdna.js');
@@ -537,23 +557,32 @@ assert('dna-mtdna delegates browser runtime hooks to dna-runtime',
     dnaMtDnaSrc.includes('getDnaProfileLatitudeBand') &&
     dnaMtDnaSrc.includes('refreshDnaShell') &&
     !/\bwindow(?:\.|\s*\[)/.test(dnaMtDnaSrc));
-assert('genetics section collapses non-priority SNP calls', dnaUiSrc.includes('genetics-other-snps') && dnaUiSrc.includes('Other imported SNPs'));
+const geneticsSectionMarkupSrc = await fetchWithRetry('js/components/GeneticsSection.svelte');
+assert('genetics section collapses non-priority SNP calls', geneticsSectionMarkupSrc.includes('genetics-other-snps') && geneticsSectionMarkupSrc.includes('Other imported SNPs'));
 assert('genetics actions expose manual SNP and report import escape hatches',
-  dnaUiSrc.includes("dnaActionAttrs('add-manual-snp')") &&
-  dnaUiSrc.includes("dnaActionAttrs('import-snp-report')") &&
+  dnaUiSrc.includes("captureGeneticsAction('add-manual-snp')") &&
+  dnaUiSrc.includes("captureGeneticsAction('import-snp-report')") &&
+  geneticsSectionMarkupSrc.includes('data-dna-action={view.actions[0]?.action}>Add SNP') &&
+  geneticsSectionMarkupSrc.includes('data-dna-action={view.actions[1]?.action}>Import report') &&
   dnaSrc.includes("accept = '.pdf,.txt,.csv,.text'") &&
-  dnaUiSrc.includes('manual-snp-bulk') &&
-  dnaUiSrc.includes('Save SNPs') &&
-  dnaUiSrc.includes('Same path, no duplicate modes'));
+  dnaManualSrc.includes('manual-snp-bulk') &&
+  dnaManualSrc.includes('Save SNPs') &&
+  dnaManualSrc.includes('Same path, no duplicate modes'));
+assert('manual SNP presentation is synchronously owned by the authored dialog',
+  dnaUiSrc.includes("from './dna-manual-presentation.js'") &&
+  dnaUiSrc.includes('const html = renderManualSnpDialog()') &&
+  dnaManualFacadeSrc.includes("from './components/ManualSnpDialog.svelte.html.js'") &&
+  dnaManualSrc.includes('data-dna-action="close-preview"') &&
+  dnaManualSrc.includes('data-dna-action="save-manual-snp"'));
 assert('manual SNP UI uses one paste surface instead of duplicate single/bulk mechanisms',
-  dnaUiSrc.includes('<textarea id="manual-snp-bulk"') &&
-  !dnaUiSrc.includes('id="manual-snp-rsid"') &&
-  !dnaUiSrc.includes('id="manual-snp-genotype"') &&
-  !dnaUiSrc.includes('Single SNP'));
+  dnaManualSrc.includes('<textarea id="manual-snp-bulk"') &&
+  !dnaManualSrc.includes('id="manual-snp-rsid"') &&
+  !dnaManualSrc.includes('id="manual-snp-genotype"') &&
+  !dnaManualSrc.includes('Single SNP'));
 assert('manual SNP modal uses genetics-styled controls instead of generic form-input fields',
-  dnaUiSrc.includes('dna-manual-input') &&
-  dnaUiSrc.includes('dna-manual-textarea') &&
-  !dnaUiSrc.includes('id="manual-snp-rsid" class="form-input"'));
+  dnaManualSrc.includes('dna-manual-input') &&
+  dnaManualSrc.includes('dna-manual-textarea') &&
+  !dnaManualSrc.includes('id="manual-snp-rsid" class="form-input"'));
 assert('manual SNP CSS gives inputs app-native surfaces and focus rings',
   stylesSrc.includes('.dna-manual-input') &&
   stylesSrc.includes('background: var(--bg-primary)') &&
@@ -566,13 +595,18 @@ assert('manual/report SNP imports stage changes in a draft and restore memory on
   dnaSrc.includes('state.importedData = originalData'));
 assert('manual/report SNP imports merge through upsert instead of replacing genetics',
   dnaSrc.includes('result.mergeSnps') && dnaSrc.includes('upsertGeneticsSnp(draftData'));
+const dnaPreviewProjectorSrc = read('js/dna-preview-presentation.ts');
+const dnaPreviewComponentSrc = read('js/components/DnaImportPreview.svelte');
 assert('DNA import preview separates association direction and evidence axes',
-  dnaUiSrc.includes('Protective associations') &&
-  dnaUiSrc.includes('Risk associations') &&
-  dnaUiSrc.includes('Informational traits') &&
-  dnaUiSrc.includes('renderPreviewAssessment') &&
-  dnaUiSrc.includes('Evidence · ${escapeHTML(profile.evidenceShortLabel)}') &&
-  dnaUiSrc.includes('Relevance · ${escapeHTML(profile.relevanceShortLabel)}'));
+  dnaUiSrc.includes('renderDnaImportPreview({') &&
+  dnaUiSrc.includes('groups: [risk, protective, informational, none]') &&
+  dnaPreviewProjectorSrc.includes('Protective associations') &&
+  dnaPreviewProjectorSrc.includes('Risk associations') &&
+  dnaPreviewProjectorSrc.includes('Informational traits') &&
+  dnaPreviewProjectorSrc.includes('text(profile.evidenceShortLabel)') &&
+  dnaPreviewProjectorSrc.includes('text(profile.relevanceShortLabel)') &&
+  dnaPreviewComponentSrc.includes('Evidence · {row.evidenceLabel}') &&
+  dnaPreviewComponentSrc.includes('Relevance · {row.relevanceLabel}'));
 assert('DNA preview modal uses shared overlay lifecycle helpers and backdrop nudge',
   dnaUiSrc.includes("from './modal-lifecycle.js'") &&
     dnaUiSrc.includes('nudgeDnaModal') &&
@@ -597,11 +631,48 @@ assert('DNA import save failure resets running flag but keeps preview retryable'
 assert('mtDNA save paths wait for persistence',
   dnaMtDnaSrc.includes('await saveImportedDataForProfile(origin.profileId, draft, { forceProfileScope: true, ...(baseline ? { baseData: baseline } : {}) })') &&
   /export async function deleteMtDNAData\(\)[\s\S]{0,180}await saveImportedData\(\)/.test(dnaMtDnaSrc));
+// The controller captures literals once; the actual Svelte owner encodes text
+// and href attributes. Exercise that public route with synthetic hostile input.
+const hostileText = '<img src=x onerror="alert(1)"> & "literal"';
+const hostileReference = 'https://pubmed.ncbi.nlm.nih.gov/1/?q=" onmouseover="alert(1)&literal=<tag>';
+const dnaUiModule = await import('../js/dna-ui.js');
+const savedDnaUIData = state.importedData;
+const previousDnaUIDeps = dnaUiModule.configureDnaUi({getSnpTable:()=>({rs1801133:{
+  gene:hostileText,variant:hostileText,category:'methylation',references:['javascript:alert(1)',hostileReference],
+  genotypes:{AA:{effect:'significant',note:hostileText}},
+}})});
+let hostileGeneticsHTML:string;
+try {
+  state.importedData = {...createDefaultProfileData(),genetics:{snps:{rs1801133:{genotype:'AA',gene:hostileText,variant:hostileText}},source:'Synthetic reference test'}};
+  hostileGeneticsHTML = dnaUiModule.renderGeneticsSection();
+} finally {
+  state.importedData = savedDnaUIData;
+  dnaUiModule.configureDnaUi(previousDnaUIDeps);
+}
+const hostileGeneticsDOM = JSDOM.fragment(hostileGeneticsHTML);
+const hostilePrimaryLink = hostileGeneticsDOM.querySelector('a[title="Primary study (PubMed)"]');
+const hostileGenomeDOM = JSDOM.fragment(renderDashboardGenomeRows({kind:'populated',meta:null,legend:false,apoe:null,mtdna:null,noPriority:false,secondary:null,contributionHref:null,groups:[{
+  classes:'db-genome-category',label:'Synthetic',count:'1',impact:'context',rows:[{
+    classes:'db-snp-row',gene:hostileText,subline:hostileText,impact:'risk',genotype:'AA',note:hostileText,
+    evidence:{rsid:'rs1801133',assessment:hostileText,interpretation:{scope:hostileText,context:hostileText},references:[{href:hostileReference,label:hostileText}],askRsid:'rs1801133',issueHref:'https://example.invalid/correction'},
+  }],
+}]}));
+const hostileGenomeLink = hostileGenomeDOM.querySelector('a.db-snp-evidence-source');
+const noInjectedMarkup = (root:DocumentFragment) => !root.querySelector('img,script,[onerror],[onmouseover]');
 assert('DNA reference links use attribute escaping instead of quote-only replacement',
-  dnaUiSrc.includes('escapeAttr(primaryRef)') &&
+  dnaUiSrc.includes('const primaryHref = primaryRef ? captureGeneticsText(primaryRef) : null') &&
+  geneticsSectionMarkupSrc.includes('href={f.links.primaryHref}') &&
+  hostilePrimaryLink?.getAttribute('href') === hostileReference &&
+  hostileGenomeLink?.getAttribute('href') === hostileReference &&
+  hostileGenomeDOM.querySelector('.db-snp-evidence summary small')?.textContent === hostileText &&
+  hostileGenomeLink?.textContent === hostileText &&
+  hostileGeneticsDOM.querySelector('.genetics-finding-note')?.textContent?.includes(hostileText) &&
+  hostileGeneticsHTML.includes('data-dna-action="add-manual-snp"') &&
+  hostileGeneticsHTML.includes('data-dna-action="import-snp-report"') &&
+  noInjectedMarkup(hostileGeneticsDOM) && noInjectedMarkup(hostileGenomeDOM) &&
   !dnaSurfaceSrc.includes("f.references[0].replace(/\\\"/g, '&quot;')"));
 
-const labCtxSrc = await fetchWithRetry('js/lab-context.js');
+const labCtxSrc = await fetchWithRetry('js/lab-context-assembly.js');
 assert('lab-context.js uses the DNA module bridge for genetics context',
   labCtxSrc.includes("getDnaModuleFunction('buildGeneticsContext')"));
 

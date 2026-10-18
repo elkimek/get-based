@@ -1,0 +1,800 @@
+{
+  "sourceOnly": true,
+  "originalCanonicalOwners": [
+    {
+      "path": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/LightEnvironmentAI.svelte",
+      "bytes": 3769,
+      "sha256": "3fbd771f969fc073d249dea1c7bb460430cde0330c71358493a173eeff54e263"
+    },
+    {
+      "path": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/LightEnvironmentAI.svelte.html.js",
+      "bytes": 27542,
+      "sha256": "17a552bb1b6bdf0eb88733ab12c3f3b73166dfb32228fa15c68125f6637b5d7e"
+    },
+    {
+      "path": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/light-environment-ai-classes.ts",
+      "bytes": 3473,
+      "sha256": "c5e8eba9e585c1d491ea3ff2da225d6b101660b70ef1cae5f9ef96f7f4783d2b"
+    },
+    {
+      "path": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/light-environment-ai-classes.js",
+      "bytes": 3431,
+      "sha256": "c64b36f5bbde313b34b18d7152fdbe752e8552d64ef47597ed7a6a68806042ad"
+    },
+    {
+      "path": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/light-session-ai-classes.ts",
+      "bytes": 5367,
+      "sha256": "36574885575534fba76190336e6781efc7e172bf10609b0b69654ab81a3cbf9a"
+    },
+    {
+      "path": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/light-session-ai-classes.js",
+      "bytes": 5325,
+      "sha256": "872b8acf41994e75b552ba2cca82ebfda769622b72bbfca79c66f889b26585c2"
+    },
+    {
+      "path": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/LightVerdictButton.svelte",
+      "bytes": 1261,
+      "sha256": "bedcdf80d2d8b613be614d39bc24083104f7023b6f75b6a581dc0d0b487c7d59"
+    },
+    {
+      "path": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/LightVerdictDot.svelte",
+      "bytes": 303,
+      "sha256": "7d4cc9655a1888ac981ac974c0c6921aa2d9d3a2332eac183af1f3f9c2f34793"
+    },
+    {
+      "path": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/LightBurdenAI.svelte",
+      "bytes": 1502,
+      "sha256": "fc0a4afe3a22428a84d137f53181d67fc09e001c62b3e5538a7905b23678e66e"
+    },
+    {
+      "path": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/LightReviewAI.svelte.html.js",
+      "bytes": 33766,
+      "sha256": "3f9e0e6880923dad66ba1abcef2ce54a4d841aec72652e36db0e9c0c9d0d3bc9"
+    },
+    {
+      "path": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/light-review-ai-classes.ts",
+      "bytes": 12715,
+      "sha256": "16050a782d1eccf6764d5047bc7bb14e14c22e7039cddb5cff7436b5f1f38d2a"
+    },
+    {
+      "path": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/light-review-ai-classes.js",
+      "bytes": 12673,
+      "sha256": "3221d4cb774a8f5147df0486b82e4de1d9d564e79e95ace75842aad329532291"
+    },
+    {
+      "path": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/LightOnboardingAI.svelte",
+      "bytes": 2111,
+      "sha256": "b36d185ac0b175ddd74906ad872a1e0e65fd6d51765af2bab83a5ef170d7111b"
+    },
+    {
+      "path": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/LightOnboardingAI.svelte.html.js",
+      "bytes": 25336,
+      "sha256": "7c9054fe29f6cec3fb31a01ee658bb7b9c919fb013da6fc17932d94c073dfd8c"
+    },
+    {
+      "path": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/light-onboarding-ai-classes.ts",
+      "bytes": 4831,
+      "sha256": "b491a294a593b7dc325fbe0a137aceaa0b03abb849727d5955e8714377432190"
+    },
+    {
+      "path": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/light-onboarding-ai-classes.js",
+      "bytes": 4780,
+      "sha256": "4bc49ed62c97e77bc213bc0937bf76b566bdf405dce674dfaa6305b82b475420"
+    },
+    {
+      "path": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/LightEnvironmentTodayToggle.svelte",
+      "bytes": 877,
+      "sha256": "686498ba1e26fc5903227f792bccbe78013a9da8843b0c29e3c8896520c51705"
+    },
+    {
+      "path": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/LightEnvironmentTodayToggle.svelte.html.js",
+      "bytes": 24051,
+      "sha256": "ccbff348a98d3bb056f645c6692b6ea28324608da019556fa6ff6aacbac55433"
+    }
+  ],
+  "dependencies": [
+    {
+      "path": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/LightEnvironmentAI.svelte",
+      "bytes": 3769,
+      "sha256": "3fbd771f969fc073d249dea1c7bb460430cde0330c71358493a173eeff54e263"
+    },
+    {
+      "path": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/LightEnvironmentAI.svelte.html.js",
+      "bytes": 27542,
+      "sha256": "17a552bb1b6bdf0eb88733ab12c3f3b73166dfb32228fa15c68125f6637b5d7e"
+    },
+    {
+      "path": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/light-environment-ai-classes.ts",
+      "bytes": 3473,
+      "sha256": "c5e8eba9e585c1d491ea3ff2da225d6b101660b70ef1cae5f9ef96f7f4783d2b"
+    },
+    {
+      "path": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/light-environment-ai-classes.js",
+      "bytes": 3431,
+      "sha256": "c64b36f5bbde313b34b18d7152fdbe752e8552d64ef47597ed7a6a68806042ad"
+    },
+    {
+      "path": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/light-session-ai-classes.ts",
+      "bytes": 5367,
+      "sha256": "36574885575534fba76190336e6781efc7e172bf10609b0b69654ab81a3cbf9a"
+    },
+    {
+      "path": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/light-session-ai-classes.js",
+      "bytes": 5325,
+      "sha256": "872b8acf41994e75b552ba2cca82ebfda769622b72bbfca79c66f889b26585c2"
+    },
+    {
+      "path": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/LightVerdictButton.svelte",
+      "bytes": 1261,
+      "sha256": "bedcdf80d2d8b613be614d39bc24083104f7023b6f75b6a581dc0d0b487c7d59"
+    },
+    {
+      "path": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/LightVerdictDot.svelte",
+      "bytes": 303,
+      "sha256": "7d4cc9655a1888ac981ac974c0c6921aa2d9d3a2332eac183af1f3f9c2f34793"
+    },
+    {
+      "path": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/LightBurdenAI.svelte",
+      "bytes": 1502,
+      "sha256": "fc0a4afe3a22428a84d137f53181d67fc09e001c62b3e5538a7905b23678e66e"
+    },
+    {
+      "path": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/LightReviewAI.svelte.html.js",
+      "bytes": 33766,
+      "sha256": "3f9e0e6880923dad66ba1abcef2ce54a4d841aec72652e36db0e9c0c9d0d3bc9"
+    },
+    {
+      "path": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/light-review-ai-classes.ts",
+      "bytes": 12715,
+      "sha256": "16050a782d1eccf6764d5047bc7bb14e14c22e7039cddb5cff7436b5f1f38d2a"
+    },
+    {
+      "path": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/light-review-ai-classes.js",
+      "bytes": 12673,
+      "sha256": "3221d4cb774a8f5147df0486b82e4de1d9d564e79e95ace75842aad329532291"
+    },
+    {
+      "path": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/LightOnboardingAI.svelte",
+      "bytes": 2111,
+      "sha256": "b36d185ac0b175ddd74906ad872a1e0e65fd6d51765af2bab83a5ef170d7111b"
+    },
+    {
+      "path": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/LightOnboardingAI.svelte.html.js",
+      "bytes": 25336,
+      "sha256": "7c9054fe29f6cec3fb31a01ee658bb7b9c919fb013da6fc17932d94c073dfd8c"
+    },
+    {
+      "path": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/light-onboarding-ai-classes.ts",
+      "bytes": 4831,
+      "sha256": "b491a294a593b7dc325fbe0a137aceaa0b03abb849727d5955e8714377432190"
+    },
+    {
+      "path": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/light-onboarding-ai-classes.js",
+      "bytes": 4780,
+      "sha256": "4bc49ed62c97e77bc213bc0937bf76b566bdf405dce674dfaa6305b82b475420"
+    },
+    {
+      "path": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/LightEnvironmentTodayToggle.svelte",
+      "bytes": 877,
+      "sha256": "686498ba1e26fc5903227f792bccbe78013a9da8843b0c29e3c8896520c51705"
+    },
+    {
+      "path": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/LightEnvironmentTodayToggle.svelte.html.js",
+      "bytes": 24051,
+      "sha256": "ccbff348a98d3bb056f645c6692b6ea28324608da019556fa6ff6aacbac55433"
+    }
+  ],
+  "rows": [
+    {
+      "kind": "measurement",
+      "view": {
+        "kind": "measurement",
+        "status": "analyzing",
+        "dot": "green",
+        "prefix": "✓",
+        "tip": "",
+        "detail": "",
+        "message": "Trusted reading verdict",
+        "buttonLabel": "",
+        "action": "refresh-measurement",
+        "targetId": "",
+        "actionOwner": "native-child-fixture",
+        "mode": "inline"
+      },
+      "html": "<!--[--><!--[1--><div data-light-environment-ai=\"\" data-ai-state=\"analyzing\" class=\"light-env-reading-ai gb:environment-ai:flex gb:environment-ai:items-center gb:environment-ai:gap-[6px] gb:environment-ai:basis-full gb:environment-ai:min-w-0 gb:environment-ai:w-full gb:environment-ai:[margin:4px_0_8px_22px] gb:environment-ai:text-[11.5px] gb:environment-ai:text-muted\"><span class=\"sun-session-ai-dot gb:session-ai:w-[8px] gb:session-ai:h-[8px] gb:session-ai:[border-radius:50%] gb:session-ai:shrink-0 gb:session-ai:inline-block gb:session-ai:[transition:background_0.3s,box-shadow_0.3s] sun-session-ai-dot-shimmer gb:session-ai:[background:linear-gradient(90deg,var(--text-muted)_25%,var(--border)_50%,var(--text-muted)_75%)_0%_0%/200%_100%] gb:session-ai:[animation:shimmer_1.5s_infinite] gb:session-ai:motion-reduce:[animation:none]! gb:session-ai:motion-reduce:[transition:none]! gb:session-ai:motion-reduce:[transform:none]! \" aria-hidden=\"true\"></span><!----> <!--[0--><span class=\"sun-session-ai-tip gb:session-ai:flex-1 gb:session-ai:min-w-0 gb:session-ai:[color:var(--session-ai-ink,var(--text-muted))] gb:session-ai:whitespace-nowrap gb:session-ai:overflow-hidden gb:session-ai:text-ellipsis gb:session-ai:[[data-theme='neuromancer']_&amp;]:[color:var(--session-ai-ink,var(--text-secondary))] gb:session-ai:[[data-theme='cyberterm']_&amp;]:[color:var(--session-ai-ink,var(--text-secondary))]  gb:environment-ai:[&amp;.sun-session-ai-tip]:whitespace-normal gb:environment-ai:[overflow-wrap:anywhere]\"><!--[-1-->Trusted reading verdict<!--]--></span><!--]--> <!--[-1--><!--]--></div><!--]--><!--]-->"
+    },
+    {
+      "kind": "room",
+      "view": {
+        "kind": "room",
+        "status": "analyzing",
+        "dot": "green",
+        "prefix": "✓",
+        "tip": "",
+        "detail": "",
+        "message": "Trusted room verdict",
+        "buttonLabel": "",
+        "action": "refresh-room",
+        "targetId": "",
+        "actionOwner": "native-child-fixture",
+        "mode": "detail"
+      },
+      "html": "<!--[--><!--[2--><div data-light-environment-ai=\"\" data-ai-state=\"analyzing\" class=\"light-env-room-ai gb:environment-ai:grid gb:environment-ai:grid-cols-[auto_auto_minmax(0,1fr)_auto] gb:environment-ai:items-center gb:environment-ai:gap-[8px] gb:environment-ai:[margin:-2px_0_0_28px] gb:environment-ai:[padding:7px_0_0] gb:environment-ai:[border-top:1px_dashed_var(--environment-ai-border,color-mix(in_srgb,var(--border)_82%,transparent))] gb:environment-ai:text-[12px] gb:environment-ai:leading-[1.35] gb:environment-ai:[@media(max-width:600px)]:ml-0 light-env-room-ai-loading \"><span class=\"sun-session-ai-dot gb:session-ai:w-[8px] gb:session-ai:h-[8px] gb:session-ai:[border-radius:50%] gb:session-ai:shrink-0 gb:session-ai:inline-block gb:session-ai:[transition:background_0.3s,box-shadow_0.3s] sun-session-ai-dot-shimmer gb:session-ai:[background:linear-gradient(90deg,var(--text-muted)_25%,var(--border)_50%,var(--text-muted)_75%)_0%_0%/200%_100%] gb:session-ai:[animation:shimmer_1.5s_infinite] gb:session-ai:motion-reduce:[animation:none]! gb:session-ai:motion-reduce:[transition:none]! gb:session-ai:motion-reduce:[transform:none]! \" aria-hidden=\"true\"></span><!----> <span class=\"light-env-room-ai-label gb:environment-ai:text-muted gb:environment-ai:font-mono gb:environment-ai:text-[10px] gb:environment-ai:font-extrabold gb:environment-ai:tracking-[0] gb:environment-ai:uppercase gb:environment-ai:whitespace-nowrap gb:environment-ai:[[data-theme='neuromancer']_&amp;]:text-secondary gb:environment-ai:[[data-theme='cyberterm']_&amp;]:text-secondary\">AI read</span> <span class=\"light-env-room-ai-tip gb:environment-ai:min-w-0 gb:environment-ai:text-secondary gb:environment-ai:[overflow-wrap:anywhere]\"><!--[-1-->Trusted room verdict<!--]--></span> <!--[-1--><!--]--></div><!--]--><!--]-->"
+    },
+    {
+      "kind": "screen",
+      "view": {
+        "kind": "screen",
+        "status": "analyzing",
+        "dot": "green",
+        "prefix": "✓",
+        "tip": "",
+        "detail": "",
+        "message": "Trusted AI renderer",
+        "buttonLabel": "",
+        "action": "refresh-screen",
+        "targetId": "",
+        "actionOwner": "native-child-fixture",
+        "mode": "detail"
+      },
+      "html": "<!--[--><!--[-1--><div data-light-environment-ai=\"\" data-ai-state=\"analyzing\" class=\"light-env-screen-ai gb:environment-ai:mt-[14px] gb:environment-ai:pt-[12px] gb:environment-ai:[border-top:1px_solid_var(--border)]\"><div class=\"light-env-screen-ai-head gb:environment-ai:text-[11px] gb:environment-ai:font-semibold gb:environment-ai:uppercase gb:environment-ai:tracking-[0.05em] gb:environment-ai:text-muted gb:environment-ai:mb-[8px] gb:environment-ai:[[data-theme='neuromancer']_&amp;]:text-secondary gb:environment-ai:[[data-theme='cyberterm']_&amp;]:text-secondary\">⚡ AI verdict</div> <div class=\"sun-detail-ai gb:session-ai:mb-[14px] gb:session-ai:[padding:12px_14px] gb:session-ai:rounded-[8px] gb:session-ai:[background:var(--bg-elev-1,rgba(255,255,255,0.03))] gb:session-ai:[border-left:3px_solid_var(--session-ai-border,var(--text-muted))] gb:session-ai:[overflow-wrap:anywhere] sun-detail-ai-loading  gb:session-ai:flex gb:session-ai:items-center gb:session-ai:gap-[10px] gb:session-ai:text-[13px] gb:session-ai:text-muted gb:session-ai:[[data-theme='neuromancer']_&amp;]:text-secondary gb:session-ai:[[data-theme='cyberterm']_&amp;]:text-secondary  gb:environment-ai:[&amp;.sun-detail-ai]:mb-0 gb:environment-ai:[&amp;.sun-detail-ai]:[overflow-wrap:normal]\"><!--[-1--><span class=\"sun-session-ai-dot gb:session-ai:w-[8px] gb:session-ai:h-[8px] gb:session-ai:[border-radius:50%] gb:session-ai:shrink-0 gb:session-ai:inline-block gb:session-ai:[transition:background_0.3s,box-shadow_0.3s] sun-session-ai-dot-shimmer gb:session-ai:[background:linear-gradient(90deg,var(--text-muted)_25%,var(--border)_50%,var(--text-muted)_75%)_0%_0%/200%_100%] gb:session-ai:[animation:shimmer_1.5s_infinite] gb:session-ai:motion-reduce:[animation:none]! gb:session-ai:motion-reduce:[transition:none]! gb:session-ai:motion-reduce:[transform:none]! \" aria-hidden=\"true\"></span><!----> <span>Trusted AI renderer</span> <!--[-1--><!--]--><!--]--></div></div><!--]--><!--]-->"
+    },
+    {
+      "kind": "audit",
+      "view": {
+        "kind": "audit",
+        "status": "analyzing",
+        "dot": "green",
+        "prefix": "✓",
+        "tip": "",
+        "detail": "",
+        "message": "Trusted audit verdict",
+        "buttonLabel": "",
+        "action": "refresh-audit",
+        "targetId": "",
+        "actionOwner": "native-child-fixture",
+        "mode": "detail"
+      },
+      "html": "<!--[--><!--[-1--><div data-light-environment-ai=\"\" data-ai-state=\"analyzing\" class=\"light-audit-ai gb:environment-ai:[margin:12px_0_14px_0]\"><div class=\"light-audit-ai-head gb:environment-ai:text-[11px] gb:environment-ai:font-semibold gb:environment-ai:uppercase gb:environment-ai:tracking-[0.05em] gb:environment-ai:text-muted gb:environment-ai:mb-[8px] gb:environment-ai:[[data-theme='neuromancer']_&amp;]:text-secondary gb:environment-ai:[[data-theme='cyberterm']_&amp;]:text-secondary\">⚡ AI verdict</div> <div class=\"sun-detail-ai gb:session-ai:mb-[14px] gb:session-ai:[padding:12px_14px] gb:session-ai:rounded-[8px] gb:session-ai:[background:var(--bg-elev-1,rgba(255,255,255,0.03))] gb:session-ai:[border-left:3px_solid_var(--session-ai-border,var(--text-muted))] gb:session-ai:[overflow-wrap:anywhere] sun-detail-ai-loading  gb:session-ai:flex gb:session-ai:items-center gb:session-ai:gap-[10px] gb:session-ai:text-[13px] gb:session-ai:text-muted gb:session-ai:[[data-theme='neuromancer']_&amp;]:text-secondary gb:session-ai:[[data-theme='cyberterm']_&amp;]:text-secondary  gb:environment-ai:[&amp;.sun-detail-ai]:mb-0 gb:environment-ai:[&amp;.sun-detail-ai]:[overflow-wrap:normal]\"><!--[-1--><span class=\"sun-session-ai-dot gb:session-ai:w-[8px] gb:session-ai:h-[8px] gb:session-ai:[border-radius:50%] gb:session-ai:shrink-0 gb:session-ai:inline-block gb:session-ai:[transition:background_0.3s,box-shadow_0.3s] sun-session-ai-dot-shimmer gb:session-ai:[background:linear-gradient(90deg,var(--text-muted)_25%,var(--border)_50%,var(--text-muted)_75%)_0%_0%/200%_100%] gb:session-ai:[animation:shimmer_1.5s_infinite] gb:session-ai:motion-reduce:[animation:none]! gb:session-ai:motion-reduce:[transition:none]! gb:session-ai:motion-reduce:[transform:none]! \" aria-hidden=\"true\"></span><!----> <span>Trusted audit verdict</span> <!--[-1--><!--]--><!--]--></div></div><!--]--><!--]-->"
+    },
+    {
+      "kind": "audit-dot",
+      "view": {
+        "kind": "audit-dot",
+        "status": "ok",
+        "dot": "green",
+        "prefix": "✓",
+        "tip": "Trusted audit dot",
+        "detail": "",
+        "message": "",
+        "buttonLabel": "",
+        "action": "refresh-audit-dot",
+        "targetId": "",
+        "actionOwner": "native-child-fixture",
+        "mode": "detail"
+      },
+      "html": "<!--[--><!--[0--><span data-light-environment-ai=\"\" class=\"sun-session-ai-dot gb:session-ai:w-[8px] gb:session-ai:h-[8px] gb:session-ai:[border-radius:50%] gb:session-ai:shrink-0 gb:session-ai:inline-block gb:session-ai:[transition:background_0.3s,box-shadow_0.3s] sun-session-ai-dot-green gb:session-ai:[background:var(--green)] gb:session-ai:[box-shadow:0_0_6px_rgba(52,211,153,0.5)] light-audit-ai-dot gb:environment-ai:[&amp;.light-audit-ai-dot]:w-[9px] gb:environment-ai:[&amp;.light-audit-ai-dot]:h-[9px] gb:environment-ai:mr-[4px] gb:environment-ai:align-middle gb:environment-ai:[@media(max-width:375px)]:hidden\" title=\"AI verdict: Trusted audit dot\" aria-hidden=\"true\"></span><!--]--><!--]-->"
+    },
+    {
+      "kind": "burden",
+      "view": {
+        "kind": "burden",
+        "variant": "heuristic",
+        "status": "idle",
+        "mode": "detail",
+        "targetId": "",
+        "action": "refresh-burden",
+        "actionOwner": "native-child-fixture",
+        "dot": "gray",
+        "prefix": "·",
+        "tip": "",
+        "detail": "",
+        "message": "",
+        "buttonLabel": "",
+        "helper": "",
+        "heuristic": "Trusted burden verdict",
+        "fallbackHTML": "",
+        "trends": []
+      },
+      "html": "<!--[--><!--[2--><!--[0--><p data-light-review-ai=\"\" class=\"light-env-summary-interp gb:review-ai:m-0 gb:review-ai:text-[13px] gb:review-ai:leading-[1.5] gb:review-ai:text-secondary\">Trusted burden verdict</p><!--]--><!--]--><!--]-->"
+    },
+    {
+      "kind": "onboarding",
+      "view": {
+        "actionOwner": "native-child-fixture",
+        "status": "analyzing",
+        "dot": "gray",
+        "prefix": "",
+        "tip": "",
+        "detail": "",
+        "actions": [],
+        "message": "Existing analysis"
+      },
+      "html": "<!--[--><div class=\"light-setup-ai-block gb:onboarding-ai:mt-[14px] gb:onboarding-ai:p-0 gb:onboarding-ai:rounded-none gb:onboarding-ai:bg-transparent gb:onboarding-ai:[border:0] gb:onboarding-ai:[overflow-wrap:anywhere]\" data-light-onboarding-ai=\"\" data-ai-state=\"analyzing\"><div class=\"light-setup-ai-head gb:onboarding-ai:flex gb:onboarding-ai:items-center gb:onboarding-ai:gap-[8px] gb:onboarding-ai:text-[11px] gb:onboarding-ai:font-semibold gb:onboarding-ai:uppercase gb:onboarding-ai:tracking-[0.05em] gb:onboarding-ai:text-muted gb:onboarding-ai:mb-[8px] gb:onboarding-ai:[[data-theme='neuromancer']_&amp;]:text-secondary gb:onboarding-ai:[[data-theme='cyberterm']_&amp;]:text-secondary\"><!--[-1-->Your light context<!--]--></div> <!--[-1--><div class=\"sun-detail-ai gb:onboarding-ai:mb-[14px] gb:onboarding-ai:[padding:12px_14px] gb:onboarding-ai:rounded-[8px] gb:onboarding-ai:[background:var(--bg-elev-1,rgba(255,255,255,0.03))] gb:onboarding-ai:[border-left:3px_solid_var(--text-muted)] sun-detail-ai-loading  gb:onboarding-ai:flex gb:onboarding-ai:items-center gb:onboarding-ai:gap-[10px] gb:onboarding-ai:text-[13px] gb:onboarding-ai:text-muted gb:onboarding-ai:[[data-theme='neuromancer']_&amp;]:text-secondary gb:onboarding-ai:[[data-theme='cyberterm']_&amp;]:text-secondary\"><span class=\"sun-session-ai-dot gb:onboarding-ai:w-[8px] gb:onboarding-ai:h-[8px] gb:onboarding-ai:[border-radius:50%] gb:onboarding-ai:shrink-0 gb:onboarding-ai:inline-block gb:onboarding-ai:[transition:background_0.3s,box-shadow_0.3s] sun-session-ai-dot-shimmer gb:onboarding-ai:[background:linear-gradient(90deg,var(--text-muted)_25%,var(--border)_50%,var(--text-muted)_75%)_0%_0%/200%_100%] gb:onboarding-ai:[animation:shimmer_1.5s_infinite] gb:onboarding-ai:motion-reduce:[animation:none]! gb:onboarding-ai:motion-reduce:[transition:none]! gb:onboarding-ai:motion-reduce:[transform:none]!\" aria-hidden=\"true\"></span> <span>Existing analysis</span> <!--[-1--><!--]--></div><!--]--></div><!--]-->"
+    }
+  ],
+  "screens": [
+    {
+      "name": "0/false/false",
+      "view": {
+        "kind": "screen",
+        "id": "screen-0",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"screen-0\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    },
+    {
+      "name": "0/false/true",
+      "view": {
+        "kind": "screen",
+        "id": "screen-0",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"screen-0\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    },
+    {
+      "name": "0/true/false",
+      "view": {
+        "kind": "screen",
+        "id": "screen-0",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"screen-0\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    },
+    {
+      "name": "0/true/true",
+      "view": {
+        "kind": "screen",
+        "id": "screen-0",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"screen-0\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    },
+    {
+      "name": "1/false/false",
+      "view": {
+        "kind": "screen",
+        "id": "screen-1",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"screen-1\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    },
+    {
+      "name": "1/false/true",
+      "view": {
+        "kind": "screen",
+        "id": "screen-1",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"screen-1\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    },
+    {
+      "name": "1/true/false",
+      "view": {
+        "kind": "screen",
+        "id": "screen-1",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"screen-1\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    },
+    {
+      "name": "1/true/true",
+      "view": {
+        "kind": "screen",
+        "id": "screen-1",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"screen-1\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    },
+    {
+      "name": "2/false/false",
+      "view": {
+        "kind": "screen",
+        "id": "screen-2",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"screen-2\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    },
+    {
+      "name": "2/false/true",
+      "view": {
+        "kind": "screen",
+        "id": "screen-2",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"screen-2\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    },
+    {
+      "name": "2/true/false",
+      "view": {
+        "kind": "screen",
+        "id": "screen-2",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"screen-2\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    },
+    {
+      "name": "2/true/true",
+      "view": {
+        "kind": "screen",
+        "id": "screen-2",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"screen-2\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    },
+    {
+      "name": "3/false/false",
+      "view": {
+        "kind": "screen",
+        "id": "screen-3",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"screen-3\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    },
+    {
+      "name": "3/false/true",
+      "view": {
+        "kind": "screen",
+        "id": "screen-3",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"screen-3\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    },
+    {
+      "name": "3/true/false",
+      "view": {
+        "kind": "screen",
+        "id": "screen-3",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"screen-3\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    },
+    {
+      "name": "3/true/true",
+      "view": {
+        "kind": "screen",
+        "id": "screen-3",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"screen-3\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    },
+    {
+      "name": "4/false/false",
+      "view": {
+        "kind": "screen",
+        "id": "screen-4",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"screen-4\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    },
+    {
+      "name": "4/false/true",
+      "view": {
+        "kind": "screen",
+        "id": "screen-4",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"screen-4\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    },
+    {
+      "name": "4/true/false",
+      "view": {
+        "kind": "screen",
+        "id": "screen-4",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"screen-4\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    },
+    {
+      "name": "4/true/true",
+      "view": {
+        "kind": "screen",
+        "id": "screen-4",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"screen-4\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    },
+    {
+      "name": "5/false/false",
+      "view": {
+        "kind": "screen",
+        "id": "screen-5",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"screen-5\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    },
+    {
+      "name": "5/false/true",
+      "view": {
+        "kind": "screen",
+        "id": "screen-5",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"screen-5\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    },
+    {
+      "name": "5/true/false",
+      "view": {
+        "kind": "screen",
+        "id": "screen-5",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"screen-5\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    },
+    {
+      "name": "5/true/true",
+      "view": {
+        "kind": "screen",
+        "id": "screen-5",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"screen-5\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    },
+    {
+      "name": "6/false/false",
+      "view": {
+        "kind": "screen",
+        "id": "literal-\"<&",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"literal-&quot;&lt;&amp;\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    },
+    {
+      "name": "6/false/true",
+      "view": {
+        "kind": "screen",
+        "id": "literal-\"<&",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"literal-&quot;&lt;&amp;\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    },
+    {
+      "name": "6/true/false",
+      "view": {
+        "kind": "screen",
+        "id": "literal-\"<&",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"literal-&quot;&lt;&amp;\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    },
+    {
+      "name": "6/true/true",
+      "view": {
+        "kind": "screen",
+        "id": "literal-\"<&",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"literal-&quot;&lt;&amp;\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    },
+    {
+      "name": "7/false/false",
+      "view": {
+        "kind": "screen",
+        "id": "0",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"0\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    },
+    {
+      "name": "7/false/true",
+      "view": {
+        "kind": "screen",
+        "id": "0",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"0\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    },
+    {
+      "name": "7/true/false",
+      "view": {
+        "kind": "screen",
+        "id": "0",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"0\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    },
+    {
+      "name": "7/true/true",
+      "view": {
+        "kind": "screen",
+        "id": "0",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"0\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    },
+    {
+      "name": "8/false/false",
+      "view": {
+        "kind": "screen",
+        "id": "skipped",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"skipped\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    },
+    {
+      "name": "8/false/true",
+      "view": {
+        "kind": "screen",
+        "id": "skipped",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"skipped\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    },
+    {
+      "name": "8/true/false",
+      "view": {
+        "kind": "screen",
+        "id": "skipped",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"skipped\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    },
+    {
+      "name": "8/true/true",
+      "view": {
+        "kind": "screen",
+        "id": "skipped",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"skipped\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    },
+    {
+      "name": "no-callbacks",
+      "view": {
+        "kind": "screen",
+        "id": "empty",
+        "active": true,
+        "compact": true,
+        "icon": "✓",
+        "label": "In use today",
+        "tip": "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
+      },
+      "html": "<!--[--><button type=\"button\" data-light-environment-today=\"\" class=\"light-env-today-toggle gb:environment-editor:relative gb:environment-editor:z-20 gb:environment-editor:inline-flex gb:environment-editor:items-center gb:environment-editor:[padding:var(--screen-today-padding,3px_10px)] gb:environment-editor:[border-radius:12px] gb:environment-editor:[font-size:var(--screen-today-font,11px)] gb:environment-editor:[font-weight:500] gb:environment-editor:[font-family:inherit] gb:environment-editor:cursor-pointer gb:environment-editor:[border:1px_solid_var(--border)] gb:environment-editor:[background:var(--screen-today-bg,var(--bg-card))] gb:environment-editor:[color:var(--screen-today-ink,var(--text-secondary))] gb:environment-editor:whitespace-nowrap gb:environment-editor:[transition:all_.15s] gb:environment-editor:[&amp;:hover]:[border-color:var(--accent)] gb:environment-editor:[&amp;:hover]:[color:var(--text-primary)] gb:environment-editor:focus-visible:outline-2! gb:environment-editor:focus-visible:outline-offset-2 gb:environment-editor:focus-visible:[outline-color:var(--accent)] gb:environment-editor:device-coarse:min-w-11 gb:environment-editor:device-coarse:min-h-11 light-env-today-on gb:environment-editor:[--screen-today-bg:color-mix(in_srgb,var(--green)_8%,transparent)] gb:environment-editor:[border-color:var(--green)] gb:environment-editor:[--screen-today-ink:var(--text-primary)] light-env-today-compact gb:environment-editor:[width:26px] gb:environment-editor:[height:26px] gb:environment-editor:[--screen-today-padding:0] gb:environment-editor:justify-center gb:environment-editor:[--screen-today-font:13px] gb:environment-editor:[line-height:1]\" data-light-env-action=\"set-today-active\" data-light-env-kind=\"screen\" data-light-env-id=\"empty\" data-light-env-active=\"false\" title=\"Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow.\" aria-label=\"In use today — click to flip\" aria-pressed=\"true\"><!--[0--><span aria-hidden=\"true\">✓</span><span class=\"gb:sr-only\">In use today</span><!--]--></button><!--]-->"
+    }
+  ],
+  "scope": "Source-qualified immutable original native SSR owner renders for typed test callbacks. All old fixture packets remain byte-exact. No browser/application corpus recapture."
+}

@@ -2,6 +2,7 @@ import { createRetryingStylesheetLoader } from './retrying-module-loader.js';
 // emf-runtime.js - module-only lazy access to the EMF assessment feature.
 
 import { showNotification } from './utils.js';
+import { closeEMFInterpretation as closeLoadedEMFInterpretation } from './emf-interpretation-runtime.js';
 
 export interface EMFEditorOptions {
   returnLabel?: string;
@@ -117,6 +118,7 @@ export async function openEMFAssessmentEditor(options: EMFEditorOptions = {}) {
 }
 
 export async function closeEMFInterpretation() {
-  const mod = await loadEMFModule();
-  return mod.closeEMFInterpretation();
+  // Keep the Promise API while aborting an existing owner in this same turn.
+  if (emfModule) return emfModule.closeEMFInterpretation();
+  return closeLoadedEMFInterpretation();
 }

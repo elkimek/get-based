@@ -1,3 +1,4 @@
+import {waitForAsyncCondition} from '../helpers/awaited-condition.js';
 import type {Page} from '@playwright/test';
 import type {LightRoom,LightScreen} from '../../js/light-env-model.js';
 import { createExpectAll } from '../helpers/browser-outcomes.js';
@@ -12,10 +13,10 @@ function seedCompletedTour() {
 const expectAll = createExpectAll(expect, 'collect');
 
 async function waitForInitialView(page:Page) {
-  await page.waitForFunction(async () => {
+  await waitForAsyncCondition(() => page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     return typeof state.currentView === 'string' && state.currentView.length > 0;
-  });
+  }), 0);
 }
 
 test('light environment browser coverage handles summary modal prompt and source helpers', async ({ page }) => {

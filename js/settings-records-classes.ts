@@ -10,7 +10,7 @@ export const RECORD_ACTIONS = 'ie-actions gb:records:flex gb:records:items-cente
 export const RECORD_HEADING = 'gb:records:text-[11px] gb:records:text-secondary gb:records:uppercase gb:records:tracking-[0.5px] gb:records:mb-1';
 const EDIT_BUTTON = [
   'gb:records:bg-transparent gb:records:border-0 gb:records:text-secondary gb:records:cursor-pointer',
-  'gb:records:text-[12px] gb:records:px-2.5 gb:records:py-1 gb:records:rounded-[4px] gb:records:font-body',
+  'gb:records:text-[12px] gb:records:px-2.5 gb:records:py-1 gb:records:rounded-[4px] gb:records:[font-family:inherit]',
   'gb:records:leading-[normal] gb:records:transition-colors gb:records:motion-reduce:transition-none',
   'gb:records:focus-visible:outline-2 gb:records:focus-visible:outline-offset-2 gb:records:focus-visible:outline-accent',
 ].join(' ');
@@ -18,7 +18,7 @@ export const RECORD_EDIT = `ie-edit ${EDIT_BUTTON} gb:records:hover:text-ink gb:
 export const RECORD_REMOVE = `ie-remove ${EDIT_BUTTON} gb:records:hover:text-danger gb:records:hover:bg-[var(--red-bg)]`;
 const BUTTON = [
   'gb:records:inline-flex gb:records:items-center gb:records:justify-center gb:records:gap-1.5',
-  'gb:records:px-[18px] gb:records:py-2 gb:records:rounded-control gb:records:border gb:records:font-body',
+  'gb:records:px-[18px] gb:records:py-2 gb:records:rounded-control gb:records:border gb:records:[font-family:inherit]',
   'gb:records:font-semibold gb:records:leading-[normal] gb:records:cursor-pointer',
   'gb:records:transition-colors gb:records:motion-reduce:transition-none',
   'gb:records:focus-visible:outline-2 gb:records:focus-visible:outline-offset-2 gb:records:focus-visible:outline-accent',

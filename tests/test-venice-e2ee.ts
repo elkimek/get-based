@@ -429,7 +429,23 @@ assert('Venice model dropdown uses delegated change handler',
 const chatSrc = read('js/chat.js');
 const chatSendSrc = read('js/chat-send.js');
 assert('chat send uses isVeniceE2EEActive', chatSendSrc.includes('isVeniceE2EEActive'));
-assert('chat send imports E2EE attestation helpers', chatSendSrc.includes("from './chat-attestation.js'"));
+const chatSendRuntime = await import('../js/chat-send-runtime.js');
+const attestationKeys = ['_ppqAttestation', '_routstrAttestation', '_veniceAttestation'] as const;
+const attestationWindow = window as Window & Partial<Record<typeof attestationKeys[number], unknown>>;
+const previousAttestations = attestationKeys.map(key => ({key, own: Object.hasOwn(attestationWindow, key), value: attestationWindow[key]}));
+const receiptProbes = [{provider:'ppq', receipt:{probe:'ppq'}}, {provider:'routstr', receipt:{probe:'routstr'}}, {provider:'venice', receipt:{probe:'venice'}}];
+try {
+  attestationKeys.forEach((key, index) => { attestationWindow[key] = receiptProbes[index]!.receipt; });
+  assert('chat send resolves each E2EE provider receipt through its runtime adapter',
+    chatSendSrc.includes("from './chat-send-runtime.js'") &&
+    chatSendSrc.includes('getChatSendProviderAttestation(_msgProvider)') &&
+    receiptProbes.every(({provider, receipt}) => chatSendRuntime.getChatSendProviderAttestation(provider) === receipt));
+} finally {
+  for (const previous of previousAttestations) {
+    if (previous.own) attestationWindow[previous.key] = previous.value;
+    else delete attestationWindow[previous.key];
+  }
+}
 assert('chat attestation shows lock emoji for E2EE', read('js/components/ChatAttestationBadge.svelte').includes('🔒'));
 const limitedVenice = {
   verificationLevel: 'binding',

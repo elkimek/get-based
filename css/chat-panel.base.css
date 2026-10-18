@@ -1,0 +1,64 @@
+@import "tailwindcss" prefix(gb) source(none) reference;
+@utility chat-closed-layout-fab {
+  position: fixed; bottom: 24px; right: 24px; z-index: 240;
+  width: 56px; height: 56px; border-radius: 50%; border: none;
+  background: var(--accent-gradient); color: white;
+  cursor: pointer; box-shadow: var(--shadow-lg);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+@utility chat-closed-layout-fab-hover { transform: scale(1.08); box-shadow: 0 4px 20px rgba(79, 140, 255, 0.4); }
+@utility chat-closed-layout-fab-focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@utility chat-closed-layout-fab-svg { width: 26px; height: 26px; fill: none; stroke: white; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+@utility chat-closed-layout-fab-hidden { display: none; }
+@utility chat-closed-layout-fab-2 { width: 48px; height: 48px; bottom: 16px; right: 16px; }
+@utility chat-closed-layout-fab-svg-2 { width: 22px; height: 22px; }
+@utility chat-closed-layout-fab-badge {
+  position: absolute; top: -2px; right: -2px;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--red); border: 2px solid var(--bg-card);
+  pointer-events: none;
+}
+@utility chat-closed-layout-fab-nudge { animation: fabNudge 3s ease-in-out 2s 2; }
+@utility chat-closed-layout-backdrop {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.4); z-index: 250; display: none;
+  overflow: hidden;
+  /* Visual dimming only — pointer-events disabled so the dashboard
+     stays interactive while chat is open. Closing the chat is via
+     X button, Escape, or the fullscreen-mode toggle. */
+  pointer-events: none;
+}
+@utility chat-closed-layout-panel {
+  position: fixed; top: 0; right: 0; bottom: 0; width: min(var(--chat-panel-width, 600px), 100vw);
+  background: var(--bg-secondary); border-left: 1px solid var(--border);
+  z-index: 260; display: flex; flex-direction: row;
+  transform: translateX(100%); transition: transform 0.3s ease, width 0.25s ease;
+  box-shadow: -4px 0 24px rgba(0,0,0,0.4); will-change: transform;
+}
+@utility chat-closed-layout-rail-back { display: none; }
+
+/* Cold-visible Chat launcher and closed panel shell. */
+
+.chat-fab { @apply gb:chat-closed-layout-fab; }
+.chat-fab:hover { @apply gb:chat-closed-layout-fab-hover; }
+.chat-fab:focus-visible { @apply gb:chat-closed-layout-fab-focus-visible; }
+.chat-fab svg { @apply gb:chat-closed-layout-fab-svg; }
+.chat-fab.hidden { @apply gb:chat-closed-layout-fab-hidden; }
+@media (max-width: 480px) {
+  .chat-fab { @apply gb:chat-closed-layout-fab-2; }
+  .chat-fab svg { @apply gb:chat-closed-layout-fab-svg-2; }
+}
+.chat-fab-badge { @apply gb:chat-closed-layout-fab-badge; }
+.chat-fab-nudge { @apply gb:chat-closed-layout-fab-nudge; }
+@keyframes fabNudge {
+  0%, 100% { transform: scale(1); }
+  15% { transform: scale(1.12); }
+  30% { transform: scale(1); }
+  45% { transform: scale(1.08); }
+  60% { transform: scale(1); }
+}
+
+.chat-backdrop { @apply gb:chat-closed-layout-backdrop; }
+.chat-panel { @apply gb:chat-closed-layout-panel; }
+.chat-rail-back { @apply gb:chat-closed-layout-rail-back; }

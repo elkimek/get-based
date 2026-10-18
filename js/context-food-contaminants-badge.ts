@@ -4,8 +4,13 @@ import { state } from './state.js';
 import { scanDietForContaminants } from './food-contaminants.js';
 import { foodContaminantFlaggedCount } from './context-food-contaminants-model.js';
 import { doesNutritionContextOverrideTypicalMeals } from './context-card-summaries.js';
-export function renderDietContaminantsBadge(): string {
-  if (doesNutritionContextOverrideTypicalMeals()) return '';
+export function projectDietContaminantsBadge(): number | null {
+  if (doesNutritionContextOverrideTypicalMeals()) return null;
   const count = foodContaminantFlaggedCount(scanDietForContaminants(state.importedData.diet));
-  return count ? renderHTML({ count }) : '';
+  return count ? count : null;
+}
+
+export function renderDietContaminantsBadge(): string {
+  const count = projectDietContaminantsBadge();
+  return count === null ? '' : renderHTML({count});
 }

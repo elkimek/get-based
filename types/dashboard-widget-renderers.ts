@@ -1,5 +1,12 @@
 import type {MobileInsight} from './mobile-dashboard.js';
-export interface WidgetRendererDependencies {
+export interface DashboardLightProjectorPorts {
+ getLightTodayHeroView?:()=>Readonly<import('../js/light-review-ai-presentation.js').ReviewAIView>|null;
+ getLightConditionsWidgetView?:(options:{variant:string;slotId:string})=>import('../js/light-conditions-presentation.js').ConditionsPresentationProps|null;
+ getLightLiveSessionView?:(options:{includeEmptyState:boolean})=>import('../js/light-page-presentation.js').LightPageBodyProps|null;
+ getLightSessionLogActionsView?:()=>import('../js/light-page-presentation.js').LightPageBodyProps|null;
+ getDashboardLightChannelsWidgetView?:(totalSessions:number)=>import('../js/light-page-presentation.js').LightPageBodyProps|null;
+}
+export interface WidgetRendererDependencies extends DashboardLightProjectorPorts {
  markerHasData(marker:unknown):unknown;
  renderDashboardLightChannelsWidget(totalSessions:number):unknown;renderLightConditionsWidgetBody(options:{variant:string;slotId:string}):unknown;
  renderLightLiveSession?:((options:{includeEmptyState:boolean})=>unknown)|undefined;renderLightSessionLogActions():unknown;

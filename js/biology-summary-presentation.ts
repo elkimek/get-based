@@ -1,6 +1,6 @@
 import type {BiologyRenderScore} from './biology-score-render.js';
 import type {BiologyAIState} from './biology-ai-presentation.js';
-import type {LensDashboardToggleView} from './lens-page-shell.js';
+import type {LensDashboardToggleView} from './lens-page-shell-core.js';
 import type {BiologyCoherenceView} from './biology-overview-presentation.js';
 import type {BiologyScoreDetailView} from './biology-card-presentation.js';
 import type {BiologyNextCheck, BiologyCoverageView} from './biology-planning-presentation.js';

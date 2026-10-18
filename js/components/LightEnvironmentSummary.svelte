@@ -1,4 +1,5 @@
 <script lang="ts">
+  import LightBurdenAI from './LightBurdenAI.svelte';
   import type { EnvironmentSummaryView } from '../light-environment-summary-presentation.js';
   import { environmentSummaryClasses as c } from '../light-environment-summary-classes.js';
   let { view }: { view: EnvironmentSummaryView } = $props();
@@ -33,9 +34,8 @@
       <span class={c('light-env-summary-tier')}>{view.label}</span>
       {#if view.parts.length}<span class={c('light-env-summary-parts')}>{view.parts.join(' · ')}</span>{/if}
     </div>
-    {#if view.trustedBurdenHTML !== null}
-      <!-- Existing configured burden renderer owns trusted markup, never saved metadata. -->
-      {@html view.trustedBurdenHTML}
+    {#if view.burden !== null}
+      <LightBurdenAI view={view.burden}/>
     {:else}
       <p class={c('light-env-summary-interp')}>{view.interp}</p>
     {/if}

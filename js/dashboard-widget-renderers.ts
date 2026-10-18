@@ -1,9 +1,16 @@
+import type {createDashboardQuickMarkerCore} from './dashboard-quick-marker-core.js';
+import type {DashboardLightWidgetView} from './dashboard-light-widget-presentation.js';
+import { renderDashboardLoadingState } from './dashboard-loading-state-presentation.js';
+import {renderDashboardBiometricPresentation} from './dashboard-biometric-presentation.js';
+import {projectDashboardBiometricTile} from './dashboard-biometric-projection.js';
+import type {DashboardBiometricSyncView,DashboardBiometricsOverviewView,DashboardBiometricsSnapshot} from '../types/dashboard-biometric-views.js';
+import {renderDashboardGenomeWidgetView, type DashboardGenomeWidgetView, type DashboardGenomeView, type GenomeEvidenceView, type GenomeRowView, type GenomeGroupView} from './dashboard-genome-rows-presentation.js';
 // dashboard-widget-renderers.js - dashboard widget body renderers
 
 import { renderHTML as renderLightReview } from './components/LightReviewAI.svelte.html.js';
+import {projectDashboardMtdnaPanel} from './dashboard-mtdna-panel-presentation.js';
 import { state } from './state.js';
 import { DEFAULT_METRIC_ORDER, canonicalMetric, metricsForSources } from './wearable-adapters.js';
-import { dashboardWidgetActionAttrs } from './dashboard-widget-controls.js';
 import {
   getDashboardDeviceSessions,
   getDashboardHaplogroupTableCache,
@@ -15,25 +22,30 @@ import { createDashboardLabWidgetRenderers } from './dashboard-lab-widget-render
 import { createDashboardRecommendationWidget } from './dashboard-recommendation-widget.js';
 import { detectMtDNAMismatch, ensureHaplogroupTable, ensureSNPTable, findGenotypeInfo, getSnpCategoryLabel, loadDnaModule } from './health-data-loader.js';
 import { getDnaModuleFunction } from './dna-runtime-bridge.js';
-import { escapeAttr, escapeHTML, safeMarkerId } from './utils.js';
-import { renderBiologyScoresWidget, renderDashboardBiologyScoreWidget, renderDashboardBiologicalCoherenceWidget } from './biology-scores.js';
+import { safeMarkerId } from './utils.js';
+import { renderBiologyScoresWidget, renderDashboardBiologyScoreWidget, renderDashboardBiologicalCoherenceWidget } from './biology-score-dashboard.js';
 import { wearableDisplayUnit } from './wearables-formatters.js';
 
-import type {WidgetRendererDependencies, BiometricTile, GenomeStored, GenomeProfile, GenomeEvidence, GenomeFinding, GenomeGroup, GenomeGenetics, GenomeHaplogroupTable, MtdnaReader, MtdnaStudyReader, WearableConnectionReader} from '../types/dashboard-widget-renderers.js';
+import type {WidgetRendererDependencies, BiometricTile, GenomeStored, GenomeProfile, GenomeEvidence, GenomeFinding, GenomeGroup, GenomeGenetics, GenomeHaplogroupTable, MtdnaReader, WearableConnectionReader} from '../types/dashboard-widget-renderers.js';
+import {prepareDashboardInsights, projectDashboardInsights} from './dashboard-insights-projection.js';
+
+/** Same scalar coercion as the original escaper; Svelte now owns escaping. */
+const genomeLiteralText = (value: unknown): string => value == null ? '' : String(value);
 
 const DASHBOARD_BIOMETRIC_STALE_MS = 12 * 60 * 60 * 1000;
 
-function dashboardMarkerDetailAttrs(id: unknown) {
-  return dashboardWidgetActionAttrs('open-marker-detail', { id });
-}
-
-export function createDashboardWidgetRenderers(deps: unknown) {
+export function createDashboardWidgetRenderers(deps: unknown, quickMarkers: ReturnType<typeof createDashboardQuickMarkerCore> | undefined = undefined) {
   let _dashboardGenomeDataLoadPromise: Promise<void> | null = null;
   let _dashboardGenomeEvidence: GenomeEvidence | null = null;
   let _lightSunModulesLoadPromise: unknown = null;
 
   const {
     markerHasData,
+    getLightTodayHeroView,
+    getLightConditionsWidgetView,
+    getLightLiveSessionView,
+    getLightSessionLogActionsView,
+    getDashboardLightChannelsWidgetView,
     renderDashboardLightChannelsWidget: renderDashboardLightChannelsWidgetBody,
     renderLightConditionsWidgetBody,
     renderLightLiveSession = () => '',
@@ -51,16 +63,19 @@ export function createDashboardWidgetRenderers(deps: unknown) {
     showRecommendations,
   } = deps as WidgetRendererDependencies;
 
-  function renderLightSunLoadingState() {
+  function projectLightSunLoadingState():DashboardLightWidgetView {
     if (!_lightSunModulesLoadPromise) {
       _lightSunModulesLoadPromise = loadLightSunUI()
         .then(() => rerenderDashboardFromWidgetChange())
         .catch(err => console.error('Failed to load Light & Sun dashboard modules', err))
         .finally(() => { _lightSunModulesLoadPromise = null; });
     }
-    return `<div class="dashboard-widget-empty" aria-busy="true" aria-live="polite">
-      Loading Light &amp; Sun…
-    </div>`;
+    return {kind:'loading'};
+  }
+
+  function renderLightSunLoadingState() {
+    projectLightSunLoadingState();
+    return renderDashboardLoadingState({kind:'light-sun-loading'});
   }
 
   function lightSunModulesReady() {
@@ -70,18 +85,27 @@ export function createDashboardWidgetRenderers(deps: unknown) {
   const labRenderers = createDashboardLabWidgetRenderers({
     markerHasData,
     rerenderDashboardFromWidgetChange,
-  });
+  }, quickMarkers);
   const {
     buildDashboardWidgetContext,
     getDashboardMarkerById,
     renderDashboardBioAgeWidget,
+    projectDashboardBioAgeWidget,
     renderDashboardQuickMarkersWidget,
+    projectDashboardQuickMarkersWidget,
+    projectDashboardNotesWidget,
+    projectDashboardSingleMarkerWidget,
+    projectDashboardSpotlightWidget,
     renderDashboardSingleMarkerWidget,
     renderDashboardSpotlightWidget,
     renderLabsPriorityBanner,
+    projectLabsPriorityBanner,
     renderDashboardCorrelationWidget,
+    projectDashboardCorrelationWidget,
     renderDashboardKeyTrendsWidget,
+    projectDashboardKeyTrendsWidget,
     renderDashboardAlertsWidget,
+    projectDashboardAlertsWidget,
     renderDashboardNotesWidget,
     isDashboardQuickMarkerPinned,
     toggleDashboardQuickMarkerPin,
@@ -100,8 +124,35 @@ export function createDashboardWidgetRenderers(deps: unknown) {
     renderRecommendationList,
     renderRecommendationsEmpty,
     renderDashboardRecommendationsWidget,
+    projectDashboardRecommendationsWidget,
     setRecommendationState,
   } = recommendationWidget;
+
+  // Ordinary first-party dashboard composition receives genuine feature views.
+  // Existing render methods remain separately callable for legacy HTML injection.
+  function projectDashboardLightTodayWidget():DashboardLightWidgetView {
+    if (!lightSunModulesReady()) return projectLightSunLoadingState();
+    return {kind:'today',view:getLightTodayHeroView?.() || null};
+  }
+  function projectDashboardLightConditionsWidget():DashboardLightWidgetView {
+    if (!lightSunModulesReady()) return projectLightSunLoadingState();
+    return {kind:'conditions',view:getLightConditionsWidgetView?.({variant:'full',slotId:'cond-now-dashboard-widget'}) || null};
+  }
+  function projectDashboardLightSessionLogWidget():DashboardLightWidgetView {
+    if (!lightSunModulesReady()) return projectLightSunLoadingState();
+    return {kind:'page',view:getLightSessionLogActionsView?.() || null};
+  }
+  function projectDashboardLightLiveSessionWidget():DashboardLightWidgetView {
+    if (!lightSunModulesReady()) return projectLightSunLoadingState();
+    return {kind:'page',view:getLightLiveSessionView?.({includeEmptyState:true}) || null};
+  }
+  function projectDashboardLightChannelsWidget():DashboardLightWidgetView {
+    if (!lightSunModulesReady()) return projectLightSunLoadingState();
+    const sessions=getDashboardLightSessions();
+    const deviceSessionsAll=getDashboardDeviceSessions();
+    const totalSessions=sessions.length+deviceSessionsAll.length;
+    return {kind:'page',view:getDashboardLightChannelsWidgetView?.(totalSessions) || null};
+  }
 
   function renderDashboardLightTodayWidget() {
     if (!lightSunModulesReady()) return renderLightSunLoadingState();
@@ -133,18 +184,17 @@ export function createDashboardWidgetRenderers(deps: unknown) {
     return renderDashboardLightChannelsWidgetBody(totalSessions);
   }
 
-  function renderDashboardInsightsListWidget(ctx: unknown) {
+  function prepareDashboardInsightsListWidget(ctx: unknown) {
     const markers = getMobileDashboardMarkers(ctx);
     const insights = getMobileDashboardInsights(ctx, markers);
-    if (!insights.length) return '';
-    return `<div class="db-insights-list">${insights.map(insight => {
-      const open = insight.id && safeMarkerId(insight.id) ? ` ${dashboardMarkerDetailAttrs(insight.id)}` : '';
-      return `<button type="button" class="db-insight db-insight-${escapeAttr(insight.tone)}"${open}>
-        <span class="db-insight-tag">${escapeHTML(insight.eyebrow)}</span>
-        <strong>${escapeHTML(insight.title)}</strong>
-        <span>${escapeHTML(insight.body)}</span>
-      </button>`;
-    }).join('')}</div>`;
+    return prepareDashboardInsights(insights);
+  }
+  function projectDashboardInsightsListWidget(ctx: unknown) {
+    const markers = getMobileDashboardMarkers(ctx);
+    return projectDashboardInsights(getMobileDashboardInsights(ctx, markers));
+  }
+  function renderDashboardInsightsListWidget(ctx: unknown) {
+    return prepareDashboardInsightsListWidget(ctx).body;
   }
 
   function isDashboardManualBiometricMetric(metricId: unknown) {
@@ -223,12 +273,11 @@ export function createDashboardWidgetRenderers(deps: unknown) {
     return { showSync: staleCount > 0, staleCount, lastSyncAt };
   }
 
-  function renderDashboardBiometricSyncStatus() {
+  function projectDashboardBiometricSyncStatus():DashboardBiometricSyncView|null {
     const syncState = getDashboardBiometricSyncState();
-    if (!syncState.lastSyncAt && !syncState.showSync) return '';
+    if (!syncState.lastSyncAt && !syncState.showSync) return null;
     const label = syncState.lastSyncAt ? `Updated ${formatDashboardRelativeTime(syncState.lastSyncAt)}` : 'Not synced yet';
-    return `<span class="db-biometric-sync-status${syncState.showSync ? ' is-stale' : ''}">${escapeHTML(label)}</span>
-      ${syncState.showSync ? `<button type="button" class="dashboard-action-btn db-biometric-sync-btn" ${dashboardWidgetActionAttrs('sync-biometric-now')}>Sync stale data</button>` : ''}`;
+    return {stale:syncState.showSync,label};
   }
 
   function getDashboardBiometricTile(metricId: unknown, { allowEmptyManual = false }: {allowEmptyManual?:unknown} = {}): BiometricTile | null {
@@ -261,46 +310,24 @@ export function createDashboardWidgetRenderers(deps: unknown) {
     };
   }
 
-  function renderDashboardBiometricTile(tile: BiometricTile & {label:string;value:string;unit:string}) {
-    const remove = `<button type="button" class="db-biometric-remove" ${dashboardWidgetActionAttrs('remove-biometric-metric', { id: tile.id })} aria-label="Remove ${escapeAttr(tile.label)} from Biometrics Overview" title="Remove metric">&times;</button>`;
-    if (tile.empty) {
-      return `<div class="db-biometric-tile-wrap">
-        <div class="wearable-card wearable-card-empty db-biometric-manual-empty" data-empty-metric="${escapeAttr(tile.id)}" ${dashboardWidgetActionAttrs('open-biometric-manual-log', { id: tile.id })} role="button" tabindex="0" aria-label="Log ${escapeAttr(tile.label.toLowerCase())} manually">
-          <div class="wearable-card-top"><span class="wearable-metric-name">${escapeHTML(tile.label)}</span></div>
-          <div class="wearable-value-row wearable-value-row-empty"><span class="wearable-value wearable-value-dash">-</span></div>
-          <div class="wearable-card-bottom"><div class="wearable-empty-cta">+ Log</div></div>
-        </div>
-        ${remove}
-      </div>`;
-    }
-    return `<div class="db-biometric-tile-wrap">
-      <button type="button" class="db-wearable-tile db-biometric-widget" ${dashboardWidgetActionAttrs('open-biometric-detail', { id: tile.id })} aria-label="${escapeAttr(tile.label + ': ' + tile.value + ' ' + tile.unit)}">
-        <span class="db-wearable-label">${escapeHTML(tile.label)}</span>
-        <strong>${escapeHTML(tile.value)}</strong>
-        <span class="db-wearable-foot"><small>${escapeHTML(tile.unit || '')}</small><em>${escapeHTML(tile.change || 'latest')}</em></span>
-      </button>
-      ${remove}
-    </div>`;
-  }
-
-  function renderDashboardWearableTilesWidget() {
+  function projectDashboardWearableTilesWidget():DashboardBiometricsOverviewView {
     const selected = getDashboardBiometricSelection();
     const tiles = selected
       .map(metricId => getDashboardBiometricTile(metricId, { allowEmptyManual: true }))
-      .filter(Boolean) as Array<BiometricTile & {label:string;value:string;unit:string}>;
-    const syncStatus = renderDashboardBiometricSyncStatus();
-    const toolbar = `<div class="db-biometric-overview-bar">
-      <span>${escapeHTML(String(tiles.length))} metric${tiles.length === 1 ? '' : 's'} selected</span>
-      <div class="db-biometric-overview-actions">
-        ${syncStatus}
-        <button type="button" class="dashboard-action-btn" ${dashboardWidgetActionAttrs('open-biometric-picker')}>Add metrics</button>
-      </div>
-    </div>`;
-    if (!tiles.length) {
-      return `${toolbar}<div class="dashboard-widget-empty">No biometrics selected.</div>`;
-    }
-    return `${toolbar}<div class="db-wearable-grid db-biometric-overview-grid">${tiles.map(renderDashboardBiometricTile).join('')}</div>`;
+      .filter(Boolean) as BiometricTile[];
+    const sync = projectDashboardBiometricSyncStatus();
+    const count=String(tiles.length),pluralSuffix=tiles.length===1?'':'s';
+    const rows=!tiles.length?[]:tiles.map(projectDashboardBiometricTile);
+    const view:DashboardBiometricsOverviewView={kind:'wearables',count,pluralSuffix,sync,rows};
+    return view;
   }
+
+  function prepareDashboardWearableTilesWidget(): DashboardBiometricsSnapshot {
+    const view = projectDashboardWearableTilesWidget();
+    return {body: renderDashboardBiometricPresentation(view), view};
+  }
+
+  function renderDashboardWearableTilesWidget():string {return prepareDashboardWearableTilesWidget().body;}
 
   function getDashboardGenomeEvidence() {
     const helpers = {
@@ -343,110 +370,50 @@ export function createDashboardWidgetRenderers(deps: unknown) {
     return `${evidence} · ${profile.relevanceShortLabel}`;
   }
 
-  function renderDashboardSnpEvidence(f: GenomeFinding) {
+  function projectDashboardSnpEvidence(f: GenomeFinding):GenomeEvidenceView|null {
     const evidence = _dashboardGenomeEvidence;
-    if (!evidence) return '';
+    if (!evidence) return null;
     const references = Array.isArray(f.references)
       ? (f.references as unknown[]).filter(reference => /^https?:\/\//i.test(String(reference || '')))
       : [];
     const issueUrl = evidence.snpEvidenceIssueUrl(f.rsid, f.catalogEntry || {});
     const profile = f.evidenceProfile || evidence.resolveSnpEvidenceProfile(f.catalogEntry || {}, f);
-    return `<details class="db-snp-evidence" data-snp-evidence="${escapeAttr(f.rsid)}">
-      <summary>Evidence &amp; interpretation <small>${escapeHTML(dashboardSnpAssessmentText(profile))}</small></summary>
-      <div class="db-snp-evidence-body">
-        ${profile.scope || profile.context ? `<div class="db-snp-interpretation">
-          ${profile.scope ? `<p><strong>What it supports.</strong> ${escapeHTML(profile.scope)}</p>` : ''}
-          ${profile.context ? `<p><strong>Use in context.</strong> ${escapeHTML(profile.context)}</p>` : ''}
-        </div>` : ''}
-        <div class="db-snp-evidence-footer">
-          ${references.length
-            ? `<span class="db-snp-evidence-source-label">Sources:</span>${references.map(reference => `<a href="${escapeAttr(String(reference))}" target="_blank" rel="noopener" class="db-snp-evidence-source">${escapeHTML(evidence.dnaStudyReferenceLabel(String(reference)).replace(/^PubMed(?: Central)? · /, ''))}</a>`).join('<span aria-hidden="true">·</span>')}`
-            : '<span>No catalog source linked yet</span>'}
-          <span aria-hidden="true">·</span>
-          <button type="button" class="db-snp-text-action db-snp-ai-action" ${dashboardWidgetActionAttrs('ask-genome-snp', { rsid: f.rsid })}>Ask AI</button>
-          <span aria-hidden="true">·</span>
-          <a href="${escapeAttr(issueUrl)}" target="_blank" rel="noopener" class="db-snp-text-action db-snp-correction-action">Suggest correction</a>
-        </div>
-      </div>
-    </details>`;
+    const rsid=genomeLiteralText(f.rsid);
+    const assessment=genomeLiteralText(dashboardSnpAssessmentText(profile));
+    let interpretation:GenomeEvidenceView['interpretation']=null;
+    if(profile.scope||profile.context)interpretation={
+      scope:profile.scope?genomeLiteralText(profile.scope):null,
+      context:profile.context?genomeLiteralText(profile.context):null,
+    };
+    const sources=references.map(reference=>({href:genomeLiteralText(String(reference)),
+      label:genomeLiteralText(evidence.dnaStudyReferenceLabel(String(reference)).replace(/^PubMed(?: Central)? · /,''))}));
+    const actionRsid=f.rsid;
+    const askRsid=actionRsid === undefined || actionRsid === null || actionRsid === '' ? null : String(actionRsid);
+    const issueHref=genomeLiteralText(issueUrl);
+    return {rsid,assessment,interpretation,references:sources,askRsid,issueHref};
   }
 
-  function renderDashboardGenomeRow(f: GenomeFinding, { showCategoryLabel = true }: {showCategoryLabel?:unknown} = {}) {
-    const subline = [
-      f.variant || f.rsid,
-      showCategoryLabel ? f.categoryLabel : '',
-    ].filter(Boolean).join(' · ');
-    return `<div class="db-snp-row db-snp-${escapeAttr(f.impactTone || 'pending')}">
-      <span class="db-snp-main">
-        <strong>${escapeHTML(f.gene || f.rsid)}</strong>
-        <small>${escapeHTML(subline)}</small>
-      </span>
-      <span class="db-snp-impact">${escapeHTML(f.impactLabel || 'pending')}</span>
-      <span class="db-snp-geno">${escapeHTML(f.genotype || '—')}</span>
-      ${f.note ? `<span class="db-snp-note">${escapeHTML(f.note)}</span>` : ''}
-      ${renderDashboardSnpEvidence(f)}
-    </div>`;
+  function projectDashboardGenomeRow(f: GenomeFinding, { showCategoryLabel = true }: {showCategoryLabel?:unknown} = {}):GenomeRowView {
+    const subline = [f.variant || f.rsid,showCategoryLabel ? f.categoryLabel : ''].filter(Boolean).join(' · ');
+    const classes=`db-snp-row db-snp-${genomeLiteralText(f.impactTone || 'pending')}`;
+    const gene=genomeLiteralText(f.gene || f.rsid);
+    const text=genomeLiteralText(subline);
+    const impact=genomeLiteralText(f.impactLabel || 'pending');
+    const genotype=genomeLiteralText(f.genotype || '—');
+    const note=f.note?genomeLiteralText(f.note):null;
+    const evidence=projectDashboardSnpEvidence(f);
+    return {classes,gene,subline:text,impact,genotype,note,evidence};
   }
 
-  function renderDashboardMtdnaEvidenceStudy(study: MtdnaStudyReader | null | undefined) {
-    const pmid = String(study?.pmid || '').replace(/\D/g, '');
-    const direction = String(study?.direction || 'context').toLowerCase();
-    return `<article class="db-mtdna-study db-mtdna-study-${escapeAttr(direction)}">
-      <div class="db-mtdna-study-head">
-        <span>${escapeHTML(study?.studyLabel || 'Study')}</span>
-        <em>${escapeHTML(study?.direction || 'context')}</em>
-      </div>
-      <strong>${escapeHTML(study?.title || 'Mitochondrial evidence')}</strong>
-      ${study?.scopeLabel ? `<small>${escapeHTML(study.scopeLabel)}</small>` : ''}
-      ${study?.summary ? `<p>${escapeHTML(study.summary)}</p>` : ''}
-      ${study?.model ? `<dl><dt>Model</dt><dd>${escapeHTML(study.model)}</dd></dl>` : ''}
-      ${study?.limitations ? `<dl><dt>Limits</dt><dd>${escapeHTML(study.limitations)}</dd></dl>` : ''}
-      ${pmid ? `<a href="https://pubmed.ncbi.nlm.nih.gov/${escapeAttr(pmid)}/" target="_blank" rel="noopener">PubMed · PMID ${escapeHTML(pmid)}</a>` : ''}
-    </article>`;
+  function projectGenomeMtdnaPanel(mtdna: MtdnaReader, haplogroupTable: GenomeHaplogroupTable | null | undefined, genetics: GenomeGenetics) {
+    return projectDashboardMtdnaPanel(mtdna, haplogroupTable,
+      () => (detectMtDNAMismatch as (genetics:unknown)=>ReturnType<typeof detectMtDNAMismatch>)(genetics), _dashboardGenomeEvidence);
   }
 
-  function renderDashboardMtdnaPanel(mtdna: MtdnaReader, haplogroupTable: GenomeHaplogroupTable | null | undefined, genetics: GenomeGenetics) {
+  function projectDashboardGenomeContribution():string|null {
     const evidence = _dashboardGenomeEvidence;
-    const mismatch = (detectMtDNAMismatch as (genetics:unknown)=>ReturnType<typeof detectMtDNAMismatch>)(genetics);
-    const studies = Array.isArray(haplogroupTable?._meta?.references) ? haplogroupTable._meta.references : [];
-    const facts = [
-      mtdna.origin ? `<span><small>Origin</small><strong>${escapeHTML(mtdna.origin)}</strong></span>` : '',
-      mtdna.source ? `<span><small>Source</small><strong>${escapeHTML(mtdna.source)}</strong></span>` : '',
-      Number.isFinite(Number(mtdna.matchedMutations)) && Number.isFinite(Number(mtdna.totalDiagnostic))
-        ? `<span><small>Marker match</small><strong>${Number(mtdna.matchedMutations)} / ${Number(mtdna.totalDiagnostic)}</strong></span>`
-        : '',
-    ].filter(Boolean);
-    const couplingDetails = [mtdna.details, mtdna.coupling?.description, mtdna.coupling?.implications]
-      .filter(Boolean)
-      .map(detail => `<p>${escapeHTML(detail)}</p>`)
-      .join('');
-    return `<section class="db-mtdna-panel" data-mtdna-haplogroup="${escapeAttr(mtdna.haplogroup || '')}">
-      <div class="db-mtdna-head">
-        <span><small>Maternal lineage</small><strong>mtDNA ${escapeHTML(mtdna.haplogroup || 'Unresolved')}</strong></span>
-        <em>${escapeHTML(mtdna.coupling?.shortLabel || 'Wallace lens')}</em>
-      </div>
-      ${mtdna.coupling ? `<div class="db-mtdna-coupling"><strong>${escapeHTML(mtdna.coupling.label || 'Coupling context')}</strong><span>${escapeHTML(mtdna.coupling.climate || '')}</span></div>` : ''}
-      ${facts.length ? `<div class="db-mtdna-facts">${facts.join('')}</div>` : ''}
-      ${couplingDetails ? `<div class="db-mtdna-copy">${couplingDetails}</div>` : ''}
-      ${mismatch?.message ? `<div class="db-mtdna-environment${mismatch.mismatch ? ' is-mismatch' : ' is-match'}">${escapeHTML(mismatch.message)}</div>` : ''}
-      ${studies.length ? `<details class="db-mtdna-evidence" data-mtdna-evidence>
-        <summary>Wallace framework &amp; evidence <span>${studies.length} sources</span></summary>
-        <div class="db-mtdna-evidence-body">
-          ${haplogroupTable?._meta?.caveat ? `<p class="db-mtdna-caveat">${escapeHTML(haplogroupTable._meta.caveat)}</p>` : ''}
-          <div class="db-mtdna-study-grid">${studies.map(renderDashboardMtdnaEvidenceStudy).join('')}</div>
-          ${evidence ? `<a href="${escapeAttr(evidence.mtdnaEvidenceIssueUrl())}" target="_blank" rel="noopener" class="db-genome-contribute-link">Suggest an mtDNA study or correction</a>` : ''}
-        </div>
-      </details>` : ''}
-    </section>`;
-  }
-
-  function renderDashboardGenomeContribution() {
-    const evidence = _dashboardGenomeEvidence;
-    if (!evidence) return '';
-    return `<div class="db-genome-contribute">
-      <span><strong>Improve the public catalog</strong> Suggest a well-supported SNP or correct an annotation. The link does not include your genotype or imported data.</span>
-      <a href="${escapeAttr(evidence.newSnpSuggestionIssueUrl())}" target="_blank" rel="noopener" class="db-genome-contribute-link">Suggest a SNP</a>
-    </div>`;
+    if (!evidence) return null;
+    return genomeLiteralText(evidence.newSnpSuggestionIssueUrl());
   }
 
   function groupDashboardGenomeFindings(findings: GenomeFinding[]) {
@@ -479,16 +446,14 @@ export function createDashboardWidgetRenderers(deps: unknown) {
       .sort((a, b) => ((a.rank as number) - (b.rank as number)) || String(a.categoryLabel).localeCompare(String(b.categoryLabel)));
   }
 
-  function renderDashboardGenomeGroup(group: GenomeGroup, { secondary = false }: {secondary?:unknown} = {}) {
+  function projectDashboardGenomeGroup(group: GenomeGroup, { secondary = false }: {secondary?:unknown} = {}):GenomeGroupView {
     const count = group.findings.length;
-    return `<div class="db-genome-category db-genome-category-${escapeAttr(group.tone || 'pending')}${secondary ? ' db-genome-category-secondary' : ''}">
-      <div class="db-genome-category-head">
-        <strong>${escapeHTML(group.categoryLabel || 'Other')}</strong>
-        <span>${count} finding${count === 1 ? '' : 's'}</span>
-        <em>${escapeHTML(group.impactLabel || 'pending')}</em>
-      </div>
-      <div class="db-genome-category-rows">${group.findings.map(f => renderDashboardGenomeRow(f, { showCategoryLabel: false })).join('')}</div>
-    </div>`;
+    const classes=`db-genome-category db-genome-category-${genomeLiteralText(group.tone || 'pending')}${secondary ? ' db-genome-category-secondary' : ''}`;
+    const label=genomeLiteralText(group.categoryLabel || 'Other');
+    const countLabel=`${count} finding${count === 1 ? '' : 's'}`;
+    const impact=genomeLiteralText(group.impactLabel || 'pending');
+    const rows=group.findings.map(f=>projectDashboardGenomeRow(f,{showCategoryLabel:false}));
+    return {classes,label,count:countLabel,impact,rows};
   }
 
   function refreshDashboardGenomeWidgetWhenDataReady({ needsSnps = false, needsMtdna = false, needsEvidence = false }: {needsSnps?:unknown;needsMtdna?:unknown;needsEvidence?:unknown} = {}) {
@@ -507,7 +472,7 @@ export function createDashboardWidgetRenderers(deps: unknown) {
       .catch(() => { _dashboardGenomeDataLoadPromise = null; });
   }
 
-  function renderDashboardGenomeWidget() {
+  function projectDashboardGenomeWidget(): DashboardGenomeWidgetView {
     const genetics = state.importedData?.genetics as GenomeGenetics | null | undefined;
     const snps = genetics?.snps || {};
     const apoe = genetics?.apoe;
@@ -521,13 +486,7 @@ export function createDashboardWidgetRenderers(deps: unknown) {
     if (needsMtdna) refreshDashboardGenomeWidgetWhenDataReady({ needsSnps, needsMtdna, needsEvidence });
     if (needsSnps || needsEvidence) {
       refreshDashboardGenomeWidgetWhenDataReady({ needsSnps, needsMtdna, needsEvidence });
-      return `<div class="db-genome-list">
-        <div class="db-genome-summary">${snpCount} imported SNP${snpCount === 1 ? '' : 's'}</div>
-        <div class="db-genome-empty db-genome-loading" aria-live="polite">
-          <strong>Loading SNP interpretations</strong>
-          <span>Matching your variants to the SNP catalog so effect, category, and notes render correctly.</span>
-        </div>
-      </div>`;
+      return {kind: 'loading', count: `${snpCount}`, plural: snpCount === 1 ? '' : 's'};
     }
     const apoeProfile = _dashboardGenomeEvidence!.resolveSnpEvidenceProfile((snpTable)?.rs429358 || (snpTable)?.rs7412 || {});
     const findings: GenomeFinding[] = Object.entries(snps)
@@ -552,49 +511,32 @@ export function createDashboardWidgetRenderers(deps: unknown) {
       .filter(f => f.gene || f.variant || f.genotype)
       .sort((a, b) => ((a.impactRank as number) - (b.impactRank as number)) || String(a.gene || a.rsid).localeCompare(String(b.gene || b.rsid)) || String(a.variant || '').localeCompare(String(b.variant || '')));
     if (!findings.length && !apoe && !genetics?.mtdna) {
-      return `<div class="db-genome-list">
-        <div class="db-genome-empty">
-          <strong>No DNA data imported yet</strong>
-          <span>Import a raw DNA file above to see curated findings and traits alongside your labs and body signals.</span>
-        </div>
-        ${renderDashboardGenomeContribution()}
-      </div>`;
+      return {kind:'empty',contributionHref:projectDashboardGenomeContribution()};
     }
     const visibleFindings = findings.filter(f => DASHBOARD_VISIBLE_SNP_TONES.has(f.impactTone));
     const secondaryFindings = findings.filter(f => !DASHBOARD_VISIBLE_SNP_TONES.has(f.impactTone));
     const groups = groupDashboardGenomeFindings(visibleFindings);
     const secondaryGroups = groupDashboardGenomeFindings(secondaryFindings);
-    const rows = groups.map(group => renderDashboardGenomeGroup(group)).join('');
-    const secondaryRows = secondaryFindings.length ? `<details class="db-genome-secondary">
-      <summary>Other imported SNPs (${secondaryFindings.length})</summary>
-      <div class="db-genome-secondary-list">${secondaryGroups.map(group => renderDashboardGenomeGroup(group, { secondary: true })).join('')}</div>
-    </details>` : '';
-    const noVisibleRows = snpCount && !visibleFindings.length ? `<div class="db-genome-empty db-genome-no-priority">
-      <strong>No priority or informational trait calls</strong>
-      <span>Normal, neutral, and unclassified imported calls are collapsed below.</span>
-    </div>` : '';
-    const legend = visibleFindings.length ? `<div class="db-genome-legend" aria-label="Genome interpretation legend">
-      <span class="db-genome-legend-item db-genome-legend-risk"><span>🔴</span> risk association</span>
-      <span class="db-genome-legend-item db-genome-legend-protective"><span>🟢</span> protective association</span>
-      <span class="db-genome-legend-item db-genome-legend-trait"><span>🔵</span> trait</span>
-      <span class="db-genome-legend-item db-genome-legend-informational"><span>⚪</span> neutral</span>
-      <span class="db-genome-legend-help">Direction, evidence, and relevance are separate. Strong evidence is not a diagnosis or a proven intervention.</span>
-    </div>` : '';
+    const rows = groups.map(group => projectDashboardGenomeGroup(group));
+    const secondary:Extract<DashboardGenomeView,{kind:'populated'}>['secondary'] = secondaryFindings.length
+      ? {count:`${secondaryFindings.length}`,groups:secondaryGroups.map(group=>projectDashboardGenomeGroup(group,{secondary:true}))}:null;
+    const noPriority=!!(snpCount && !visibleFindings.length);
+    const legend=!!visibleFindings.length;
     const meta = [
       snpCount ? `${snpCount} imported SNP${snpCount === 1 ? '' : 's'}` : '',
       genetics?.source || '',
       genetics?.importDate || '',
     ].filter(Boolean).join(' · ');
-    return `<div class="db-genome-list">
-      ${meta ? `<div class="db-genome-summary">${escapeHTML(meta)}</div>` : ''}
-      ${legend}
-      ${apoe ? `<div class="db-snp-row db-snp-row-apoe"><span class="db-snp-main"><strong>APOE</strong><small>Haplotype · ${escapeHTML(dashboardSnpAssessmentText(apoeProfile))}</small></span><span class="db-snp-impact">context</span><span class="db-snp-geno">${escapeHTML(apoe)}</span></div>` : ''}
-      ${genetics?.mtdna ? renderDashboardMtdnaPanel(genetics.mtdna, haplogroupTable, genetics) : ''}
-      ${noVisibleRows}
-      ${rows}
-      ${secondaryRows}
-      ${renderDashboardGenomeContribution()}
-    </div>`;
+    const summary=meta?genomeLiteralText(meta):null;
+    const apoeView=apoe?{assessment:genomeLiteralText(dashboardSnpAssessmentText(apoeProfile)),value:genomeLiteralText(apoe)}:null;
+    const mtdna=genetics?.mtdna?projectGenomeMtdnaPanel(genetics.mtdna,haplogroupTable,genetics):null;
+    const contributionHref=projectDashboardGenomeContribution();
+    return {kind:'populated',meta:summary,legend,apoe:apoeView,
+      mtdna,noPriority,groups:rows,secondary,contributionHref};
+  }
+
+  function renderDashboardGenomeWidget(): string {
+    return renderDashboardGenomeWidgetView(projectDashboardGenomeWidget());
   }
 
   return {
@@ -608,28 +550,48 @@ export function createDashboardWidgetRenderers(deps: unknown) {
     renderDashboardRecommendationsWidget,
     getDashboardMarkerById,
     renderDashboardBioAgeWidget,
+    projectDashboardBioAgeWidget,
     renderBiologyScoresWidget,
     renderDashboardBiologyScoreWidget,
     renderDashboardBiologicalCoherenceWidget,
     renderDashboardQuickMarkersWidget,
+    projectDashboardQuickMarkersWidget,
+    projectDashboardNotesWidget,
+    projectDashboardSingleMarkerWidget,
+    projectDashboardSpotlightWidget,
     renderDashboardSingleMarkerWidget,
     renderDashboardSpotlightWidget,
     renderLabsPriorityBanner,
     renderDashboardInsightsListWidget,
+    prepareDashboardInsightsListWidget,
     getDashboardBiometricSelection,
     saveDashboardBiometricSelection,
     getDashboardBiometricMetricOrder,
     getDashboardBiometricTile,
     renderDashboardWearableTilesWidget,
+    prepareDashboardWearableTilesWidget,
     renderDashboardGenomeWidget,
+    projectDashboardGenomeWidget,
     renderDashboardCorrelationWidget,
+    projectDashboardCorrelationWidget,
+    projectDashboardLightTodayWidget,
+    projectDashboardLightConditionsWidget,
+    projectDashboardLightLiveSessionWidget,
+    projectDashboardLightSessionLogWidget,
+    projectDashboardLightChannelsWidget,
     renderDashboardLightTodayWidget,
     renderDashboardLightConditionsWidget,
     renderDashboardLightLiveSessionWidget,
     renderDashboardLightSessionLogWidget,
     renderDashboardLightChannelsWidget,
     renderDashboardKeyTrendsWidget,
+    projectDashboardKeyTrendsWidget,
+    projectLabsPriorityBanner,
+    projectDashboardWearableTilesWidget,
+    projectDashboardInsightsListWidget,
+    projectDashboardRecommendationsWidget,
     renderDashboardAlertsWidget,
+    projectDashboardAlertsWidget,
     renderDashboardNotesWidget,
     setRecommendationState,
     isDashboardQuickMarkerPinned,

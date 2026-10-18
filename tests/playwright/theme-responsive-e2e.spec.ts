@@ -1,3 +1,4 @@
+import {waitForAsyncCondition} from '../helpers/awaited-condition.js';
 type ThemeProfileFixture={id:string;name?:unknown;sex?:unknown;dob?:unknown;location?:unknown;tags?:unknown};
 import type {Browser,Page,TestInfo} from '@playwright/test';
 type ThemeName=typeof THEMES[number];
@@ -50,11 +51,7 @@ function delay(ms:number) {
 }
 
 async function waitForApp(page:Page) {
-  await page.waitForFunction(
-    async () => !!(await import('/js/state.js')).state,
-    null,
-    { timeout: 15000 }
-  );
+  await waitForAsyncCondition(() => page.evaluate(async () => !!(await import('/js/state.js')).state, null), 15000);
 }
 
 async function seedDemoData(page:Page) {
@@ -959,7 +956,10 @@ async function checkMobileInteractions(page:Page, theme:ThemeName, viewportName:
   });
 
   for (const tab of ['labs', 'body', 'light', 'insight']) {
-    await page.evaluate(async () => (await import('/js/views.js')).navigate('dashboard'));
+    // Return through the real Home control. An async import wrapper can lose its
+    // CDP promise after the synchronous Dashboard render has already completed.
+    await page.click('.m-tab[data-tab="dashboard"]');
+    await page.waitForFunction(() => !!document.querySelector('.m-tab.active[data-tab="dashboard"]') && !!document.querySelector('.m-shell'));
     await delay(180);
     if (tab === 'light') await seedMobileLightSessions(page);
     await page.click(`.m-tab[data-tab="${tab}"]`);

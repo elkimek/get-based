@@ -1,5 +1,7 @@
+import {projectChartLayers,renderChartLayersPresentation} from './chart-layers-presentation.js';
 import {renderHTML as renderLabRange} from './components/LabDateRange.svelte.html.js';
 import {projectLabDateRange} from './lab-date-range-presentation.js';
+import {renderHeaderDateSummary, renderHeaderRangeButtons} from './header-date-range.js';
 import type { ProfileData as ImportedDataRecord } from '../types/app-state.js';
 import type { ActiveData } from './data-view-types.js';
 import { configureValidRuntimeCallbacks } from './runtime-callbacks.js';
@@ -162,6 +164,10 @@ export function installDataActionDelegates(root: Document | Element | null = typ
 
 installDataActionDelegates();
 
+export function projectDateRangeFilter({ showScope = false } = {}) {
+  return projectLabDateRange(state.dateRangeFilter,showScope);
+}
+
 export function renderDateRangeFilter({ showScope = false } = {}) {
   return renderLabRange({view:projectLabDateRange(state.dateRangeFilter,showScope)});
 }
@@ -172,36 +178,29 @@ export function setDateRange(range: string) {
   navigateDataView(state.currentView || 'dashboard');
 }
 
-export function renderChartLayersDropdown() {
+export function projectChartLayersDropdown() {
   const hasNotes = (state.importedData.notes || []).length > 0;
   const hasSupps = (state.importedData.supplements || []).length > 0;
   const hasRecordedDrawPhase = state.importedData.entries?.some(entry => entry.context?.cyclePhase);
   const hasCycle = state.profileSex === 'female'
     && (state.importedData.menstrualCycle?.periods?.length > 0 || hasRecordedDrawPhase);
-  if (!hasNotes && !hasSupps && !hasCycle) return '';
-  return `<div class="chart-layers-wrapper">
-    <button class="view-btn chart-layers-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="chart-layers-dropdown" ${dataActionAttrs('toggle-chart-layers')}>Layers \u25BE</button>
-    <div class="chart-layers-dropdown" id="chart-layers-dropdown" role="menu">
-      ${hasNotes ? `<label class="chart-layers-row" ${dataActionAttrs('chart-layers-row')}>
-        <input type="checkbox" ${state.noteOverlayMode === 'on' ? 'checked' : ''} ${dataChangeAttrs('set-note-overlay')}>
-        <span>\uD83D\uDCDD Notes</span>
-      </label>` : ''}
-      ${hasSupps ? `<label class="chart-layers-row" ${dataActionAttrs('chart-layers-row')}>
-        <input type="checkbox" ${state.suppOverlayMode === 'on' ? 'checked' : ''} ${dataChangeAttrs('set-supp-overlay')}>
-        <span>\uD83D\uDC8A Supplements</span>
-      </label>` : ''}
-      ${hasCycle ? `<label class="chart-layers-row" ${dataActionAttrs('chart-layers-row')}>
-        <input type="checkbox" ${state.phaseOverlayMode === 'on' ? 'checked' : ''} ${dataChangeAttrs('set-phase-overlay')}>
-        <span>\uD83D\uDD34 Cycle phase at blood draw</span>
-      </label>` : ''}
-    </div>
-  </div>`;
+  if (!hasNotes && !hasSupps && !hasCycle) return null;
+  return projectChartLayers({hasNotes,hasSupps,hasCycle},
+    ()=>state.noteOverlayMode, ()=>state.suppOverlayMode, ()=>state.phaseOverlayMode);
+}
+
+export function renderChartLayersDropdown() {
+ const view=projectChartLayersDropdown();
+ return view?renderChartLayersPresentation({hasNotes:!!view.notes,hasSupps:!!view.supplements,hasCycle:!!view.cycle},
+   ()=>view.notes?.checked?'on':'off',()=>view.supplements?.checked?'on':'off',()=>view.cycle?.checked?'on':'off'):'';
 }
 
 function _getActiveNavCategory() {
   const activeNav = (document.querySelector('.nav-item.active') as HTMLElement | null);
   return activeNav?.dataset.category || 'dashboard';
 }
+
+let chartLayersDismiss: (() => void) | null = null;
 
 export function toggleChartLayersDropdown(e: Event) {
   // Direct callers still rely on this; delegated clicks add
@@ -211,32 +210,35 @@ export function toggleChartLayersDropdown(e: Event) {
   if (!dd) return;
   const trigger = ((dd.parentElement?.querySelector('.chart-layers-trigger') || null) as HTMLButtonElement | null);
   const isOpen = dd.classList.contains('open');
+  chartLayersDismiss?.();
   dd.classList.toggle('open', !isOpen);
   if (trigger) trigger.setAttribute('aria-expanded', String(!isOpen));
-  if (!isOpen) {
-    const close = (ev: Event | null) => {
-      // Allow keyboard close (Escape) without requiring an event target
-      if (!ev || !ev.target || !(ev.target as Element).closest || !(ev.target as Element).closest('.chart-layers-wrapper')) {
-        dd.classList.remove('open');
-        if (trigger) trigger.setAttribute('aria-expanded', 'false');
-        document.removeEventListener('click', close);
-        document.removeEventListener('keydown', closeOnEsc);
-      }
-    };
-    const closeOnEsc = (ev: KeyboardEvent) => {
-      if (ev.key === 'Escape') {
-        dd.classList.remove('open');
-        if (trigger) trigger.setAttribute('aria-expanded', 'false');
-        if (trigger) trigger.focus();
-        document.removeEventListener('click', close);
-        document.removeEventListener('keydown', closeOnEsc);
-      }
-    };
-    setTimeout(() => {
-      document.addEventListener('click', close);
-      document.addEventListener('keydown', closeOnEsc);
-    }, 0);
-  }
+  if (isOpen) return;
+  const ownerDocument = dd.ownerDocument;
+  const isCurrent = () => dd.isConnected && ownerDocument.getElementById('chart-layers-dropdown') === dd;
+  const close = (restoreFocus: boolean) => {
+    const current = isCurrent();
+    dd.classList.remove('open');
+    if (trigger) trigger.setAttribute('aria-expanded', 'false');
+    ownerDocument.removeEventListener('click', closeOnOutside);
+    ownerDocument.removeEventListener('keydown', closeOnEsc);
+    if (chartLayersDismiss === cleanup) chartLayersDismiss = null;
+    if (restoreFocus && current && trigger?.isConnected) trigger.focus();
+  };
+  const closeOnOutside = (ev: Event) => {
+    if (!isCurrent()) { cleanup(); return; }
+    if (!ev.target || !(ev.target as Element).closest || !(ev.target as Element).closest('.chart-layers-wrapper')) cleanup();
+  };
+  const closeOnEsc = (ev: KeyboardEvent) => {
+    if (!isCurrent()) { cleanup(); return; }
+    if (ev.key === 'Escape') close(true);
+  };
+  const cleanup = () => close(false);
+  chartLayersDismiss = cleanup;
+  // The opening event is contained above, and rows retain their existing
+  // delegated stopImmediatePropagation; listeners are ready before the next input.
+  ownerDocument.addEventListener('click', closeOnOutside);
+  ownerDocument.addEventListener('keydown', closeOnEsc);
 }
 
 function setOverlayMode(
@@ -328,7 +330,7 @@ export function updateHeaderDates(data?: ActiveData | null) {
     if (data.dateLabels.length > 0) {
       const labels = data.dateLabels;
       const dateText = labels.length === 1 ? labels[0]! : `${labels[0]} – ${labels[labels.length - 1]}`;
-      el.innerHTML = `<span class="label">Dates:</span> ${dateText}`;
+      el.innerHTML = renderHeaderDateSummary(dateText);
       el.style.display = '';
     } else {
       el.style.display = 'none';
@@ -343,9 +345,7 @@ export function updateHeaderRangeToggle() {
   const buttons = (Array.from(el.querySelectorAll('.range-toggle-btn')) as HTMLButtonElement[]);
   const canPatch = buttons.length === modes.length && modes.every(m => buttons.some(btn => btn.dataset.range === m));
   if (!canPatch) {
-    el.innerHTML = modes.map(m =>
-      `<button class="range-toggle-btn${state.rangeMode === m ? ' active' : ''}" type="button" data-range="${m}" aria-pressed="${state.rangeMode === m ? 'true' : 'false'}" ${dataActionAttrs('switch-range-mode', { range: m })}>${m.charAt(0).toUpperCase() + m.slice(1)}</button>`
-    ).join('');
+    el.innerHTML = renderHeaderRangeButtons(modes, () => state.rangeMode);
     return;
   }
   for (const btn of buttons) {

@@ -641,12 +641,18 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange: _getEffectiveR
   const dashboardRenderersSrc = read('js/dashboard-widget-renderers.js');
   const dashboardLabRenderersSrc = read('js/dashboard-lab-widget-renderers.js');
   const lensPagesSrc = read('js/lens-pages.js');
+  const viewsRuntimeSrc = read('js/views-runtime.js');
+  const markersViewSrc = read('js/components/DashboardLabMarkers.svelte');
+  const keyTrendsViewSrc = read('js/components/DashboardKeyTrends.svelte');
+  const pickerViewSrc = read('js/dashboard-picker-presentation.js');
+  const syncStatusViewSrc = read('js/components/DashboardBiometricSyncStatus.svelte');
   const routerSrc = read('js/views-router.js');
+  const {CORE_ROUTES, isKnownRoute} = await import('../js/views-router.js');
   assert('Marker Spotlight uses explicit priority scoring', dashboardLabRenderersSrc.includes('function scoreDashboardSpotlightHit') && dashboardLabRenderersSrc.includes('priorityScore'));
   assert('Marker Spotlight scores range distance', dashboardLabRenderersSrc.includes('getDashboardSpotlightRangeSignal') && dashboardLabRenderersSrc.includes('rangeSignal.outside'));
   assert('Marker Spotlight scores trend alert severity', dashboardLabRenderersSrc.includes('DASHBOARD_SPOTLIGHT_ALERT_SCORE') && dashboardLabRenderersSrc.includes('sudden_high: 90'));
   assert('Marker Spotlight no longer picks first trend alert directly', !dashboardLabRenderersSrc.includes('const firstAlert = ctx.trendAlerts?.[0]'));
-  assert('Marker Spotlight renders priority reason', dashboardLabRenderersSrc.includes('db-spotlight-priority') && dashboardLabRenderersSrc.includes('priorityReason'));
+  assert('Marker Spotlight renders priority reason', markersViewSrc.includes('class="db-spotlight-priority">{view.priority}') && dashboardLabRenderersSrc.includes('priorityReason') && dashboardLabRenderersSrc.includes('projectDashboardSpotlight(hit, rangeText, priorityText)'));
   assert('Dashboard priority labels are user-facing, not numeric',
     dashboardLabRenderersSrc.includes('function getDashboardPriorityLabel') &&
     dashboardLabRenderersSrc.includes("'Needs attention'") &&
@@ -661,7 +667,7 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange: _getEffectiveR
     dashboardLabRenderersSrc.includes('const spotlightId = getDashboardSpotlight(ctx)?.id') &&
     dashboardLabRenderersSrc.includes('hit.id !== spotlightId'));
   assert('Quick Markers support per-profile pins and goal matches',
-    dashboardLabRenderersSrc.includes('dashboardQuickMarkerPinsKey') &&
+    read('js/dashboard-quick-marker-core.js').includes('dashboardQuickMarkerPinsKey') && dashboardLabRenderersSrc.includes('createDashboardQuickMarkerCore') &&
     dashboardRenderersSrc.includes('toggleDashboardQuickMarkerPin') &&
     dashboardLabRenderersSrc.includes('DASHBOARD_QUICK_MARKER_GOAL_RULES'));
   assert('Dashboard supports user-added single marker widgets',
@@ -688,10 +694,10 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange: _getEffectiveR
     !viewsSrc.includes("title: 'All Biomarkers'") &&
     !viewsSrc.includes('renderDashboardMarkerListWidget') &&
     !dashboardCssSrc.includes('.db-marker-row'));
-  const keyTrendsWidgetBlock = (dashboardLabRenderersSrc.match(/function renderDashboardKeyTrendsWidget\(ctx\) \{([\s\S]*?)\n\}/) || [null, ''])[1];
+  const keyTrendsWidgetBlock = (dashboardLabRenderersSrc.match(/function renderDashboardKeyTrendsWidget\(ctx\) \{([\s\S]*?)\n  \}/) || [null, ''])[1];
   assert('Dashboard Key Trends uses compact rows instead of duplicate chart cards',
-    dashboardLabRenderersSrc.includes('function renderDashboardKeyTrendRow') &&
-    keyTrendsWidgetBlock.includes('db-key-trend-list') &&
+    dashboardLabRenderersSrc.includes('function projectDashboardKeyTrendRow') &&
+    keyTrendsWidgetBlock.includes('renderDashboardKeyTrends(projectDashboardKeyTrendsWidget(ctx))') && keyTrendsViewSrc.includes('class="db-key-trend-list"') &&
     !keyTrendsWidgetBlock.includes('renderChartCard') &&
     !keyTrendsWidgetBlock.includes('renderChartLayersDropdown') &&
     dashboardCssSrc.includes('.db-key-trend-row'));
@@ -701,13 +707,13 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange: _getEffectiveR
     dashboardRenderersSrc.includes('renderLabsPriorityBanner') &&
     dashboardLabRenderersSrc.includes('function renderLabsPriorityBanner') &&
     dashboardCssSrc.includes('.labs-priority-banner'));
-  const labsWidgetsBlock = (lensPagesSrc.match(/renderLensPageWidgets\('labs', \[([\s\S]*?)\]\);/) || [null, ''])[1];
+  const labsWidgetsBlock = (lensPagesSrc.match(/getLensContentGrid\('labs', \[([\s\S]*?)\]\);/) || [null, ''])[1];
   assert('Labs page demotes standalone alerts and full spotlight sections',
     labsWidgetsBlock.includes("id: 'quick-markers'") &&
     labsWidgetsBlock.includes("id: 'key-trends'") &&
     !labsWidgetsBlock.includes("id: 'alerts'") &&
     !labsWidgetsBlock.includes("id: 'spotlight'") &&
-    lensPagesSrc.includes('renderLabsPriorityBanner(ctx)'));
+    lensPagesSrc.includes('projectLabsPriorityBanner(ctx)') && lensPagesSrc.includes("kind: 'labs', header, range, priority, grid"));
   const dashboardDefaultOrderBlock = (dashboardWidgetsSrc.match(/const DASHBOARD_WIDGET_DEFAULT_IDS = \[([\s\S]*?)\];/) || [null, ''])[1];
   const dashboardWidgetsBlock = (dashboardWidgetsSrc.match(/const dashboardWidgets = \[([\s\S]*?)\];/) || [null, ''])[1];
   const dashboardDefaultOrder = [...dashboardDefaultOrderBlock.matchAll(/'([^']+)'/g)].map(match => match[1]);
@@ -764,7 +770,7 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange: _getEffectiveR
     dashboardControlsSrc.includes('addDashboardBiometricMetric') &&
     dashboardControlsSrc.includes('removeDashboardBiometricMetric') &&
     dashboardWidgetsSrc.includes("'wearables',") &&
-    dashboardControlsSrc.includes('Add to Biometrics Overview') &&
+    pickerViewSrc.includes('Add to Biometrics Overview') && dashboardControlsSrc.includes('projectDashboardPickerPresentation') &&
     !viewsSrc.includes("`biometric_${") &&
     !dashboardControlsSrc.includes("`biometric_${") &&
     !dashboardRenderersSrc.includes("`biometric_${"));
@@ -779,19 +785,22 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange: _getEffectiveR
   assert('Dashboard biometric sync button only appears for stale data',
     dashboardRenderersSrc.includes('getDashboardBiometricSyncState') &&
     dashboardRenderersSrc.includes('DASHBOARD_BIOMETRIC_STALE_MS') &&
-    dashboardRenderersSrc.includes("syncState.showSync ? `<button"));
+    dashboardRenderersSrc.includes('stale: syncState.showSync') && syncStatusViewSrc.includes('{#if view.stale}') && syncStatusViewSrc.includes('data-dashboard-widget-action="sync-biometric-now"'));
   assert('Cycle widget is gated to female profiles',
     dashboardWidgetsSrc.includes("id: 'cycle'") &&
     dashboardWidgetsSrc.includes("isAvailable: () => state.profileSex === 'female'"));
   assert('AI Lens is not a dashboard widget',
     !dashboardWidgetsSrc.includes("id: 'lens', title: 'AI Lens'"));
   assert('Recommendations are a first-class route and dashboard widget',
-    viewsSrc.includes('showRecommendations') &&
-    routerSrc.includes('routeCategory === "recommendations"') &&
+    viewsSrc.includes('showRecommendations') && viewsRuntimeSrc.includes('export function showRecommendations') &&
+    CORE_ROUTES.has('recommendations') && isKnownRoute('recommendations')
+      && /else if \(routeCategory === "recommendations"\)\s+routeResult = routeHandlers\.recommendations\?\.\(routeData\);/.test(routerSrc) && viewsRuntimeSrc.includes('recommendations: showRecommendationsRoute') &&
     dashboardWidgetsSrc.includes("id: 'recommendations'") &&
     lensPagesSrc.includes('showRecommendations') &&
     dashboardRenderersSrc.includes('renderDashboardRecommendationsWidget') &&
-    dashboardControlsSrc.includes('DASHBOARD_WIDGET_SOURCE_ORDER'));
+    dashboardWidgetsSrc.includes('export const DASHBOARD_WIDGET_SOURCE_ORDER')
+      && pickerViewSrc.includes("import { DASHBOARD_WIDGET_SOURCE_ORDER } from './dashboard-widgets.js';")
+      && pickerViewSrc.includes('...DASHBOARD_WIDGET_SOURCE_ORDER,'));
 
   // =======================================
   // Summary

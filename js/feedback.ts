@@ -1,6 +1,8 @@
 // feedback.js — Bug report / feedback modal (opens GitHub issue)
 
 import { showNotification } from './utils.js';
+import { renderFeedbackForm } from './feedback-rendering.js';
+import { feedbackClasses } from './feedback-classes.js';
 import { getTheme } from './theme.js';
 import { getAIProvider } from './api.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
@@ -56,7 +58,10 @@ function handleFeedbackEvent(event: Event) {
 export function installFeedbackActionDelegates(root: EventTarget | null = typeof document !== 'undefined' ? document : null) {
   if (!root || appWindow.__feedbackActionDelegatesBound) return;
   appWindow.__feedbackActionDelegatesBound = true;
-  for (const event of ['click', 'submit', 'change', 'input']) root.addEventListener(event, handleFeedbackEvent);
+  // Capture validated submits before SvelteKit's bubbling form navigation handler.
+  for (const event of ['click', 'submit', 'change', 'input']) {
+    root.addEventListener(event, handleFeedbackEvent, event === 'submit');
+  }
   appWindow.addEventListener('labcharts-profile-switched', () => {
     closeFeedbackModal();
     document.getElementById('feedback-modal')?.replaceChildren();
@@ -72,10 +77,8 @@ export function openFeedbackModal() {
   // Keep a draft when dismissed or when a new tab is blocked. It lives only in
   // this page until a profile switch, never in profile storage, backups, or sync.
   if (!modal.querySelector('.feedback-form')) {
-    const template = document.getElementById('feedback-form-template') as HTMLTemplateElement | null;
-    if (!template) return;
-    modal.className = 'modal gb-form-modal feedback-redesign-modal';
-    modal.replaceChildren(template.content.cloneNode(true));
+    modal.className = feedbackClasses('modal gb-form-modal feedback-redesign-modal', 'panel');
+    modal.replaceChildren(renderFeedbackForm());
     updatePlaceholders();
   }
   openModalOverlay(overlay, { initialFocus: '#feedback-title', focusDelay: 50 });

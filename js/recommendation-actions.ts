@@ -1,3 +1,4 @@
+import {initRecommendationDetailDelegates} from './recommendation-action-delegates.js';
 import { renderHTML as renderTipsDetailHTML } from './components/TipsDetail.svelte.html.js';
 import { tipsText } from './tips-presentation.js';
 export interface RecommendationActionCandidate {
@@ -19,30 +20,9 @@ interface RecommendationActionsDeps<Data, Context, Catalog> {
 
 import { openModalOverlay } from './modal-lifecycle.js';
 import {
-  closeRecommendationsModal,
   openRecommendationsChatPanel,
   getRecommendationsDetailSectionView,
 } from './recommendations-runtime.js';
-
-let recommendationDetailDelegatesInstalled = false;
-
-
-function handleRecommendationDetailClick(event: MouseEvent) {
-  const target = event.target instanceof Element ? event.target : null;
-  if (!target) return;
-  const actionEl = target.closest('[data-recommendation-detail-action]') as HTMLElement | null;
-  if (!actionEl || !actionEl.closest('#detail-modal')) return;
-  if (actionEl.dataset.recommendationDetailAction === 'close') {
-    event.preventDefault();
-    closeRecommendationsModal();
-  }
-}
-
-function initRecommendationDetailDelegates() {
-  if (recommendationDetailDelegatesInstalled) return;
-  document.addEventListener('click', handleRecommendationDetailClick);
-  recommendationDetailDelegatesInstalled = true;
-}
 
 function setDetailModalShell(...classes: string[]) {
   const modal = document.getElementById('detail-modal');

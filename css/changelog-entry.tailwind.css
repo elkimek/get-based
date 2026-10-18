@@ -1,0 +1,88 @@
+/* Changelog-owned recipes only, appended to the existing shared-modal bundle. */
+@theme prefix(gb) {}
+@import "tailwindcss/utilities.css" prefix(gb) source(none);
+@source "../js/changelog-classes.ts";
+@source "../js/components/ChangelogPresentation.svelte";
+
+@custom-variant changelog-panel (:where(&):where(#changelog-modal):is(.changelog-modal.gb-history-modal));
+@custom-variant changelog-entry (:where(&):where(#changelog-modal *):is(.changelog-entry));
+@custom-variant changelog-entry-next (:where(&):where(#changelog-modal *):is(.changelog-entry + .changelog-entry));
+@custom-variant changelog-header (:where(&):where(#changelog-modal *):is(.changelog-header));
+@custom-variant changelog-version (:where(&):where(#changelog-modal *):is(.changelog-version));
+@custom-variant changelog-date (:where(&):where(#changelog-modal *):is(.changelog-date));
+@custom-variant changelog-items (:where(&):where(#changelog-modal *):is(.changelog-items));
+@custom-variant changelog-item (:where(&):where(#changelog-modal *):is(.changelog-item));
+@custom-variant changelog-item-marker (:where(&):where(#changelog-modal *):is(.changelog-item)::before);
+@custom-variant changelog-item-link (:where(&):where(#changelog-modal *):is(.changelog-item) a);
+@custom-variant changelog-item-link-hover (:where(&):where(#changelog-modal *):is(.changelog-item) a:hover);
+
+@utility changelog-panel-block {
+  max-width: 680px;
+}
+
+@utility changelog-entry-block {
+  margin-bottom: 20px;
+}
+
+@utility changelog-entry-next-block {
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+@utility changelog-header-block {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+@utility changelog-version-block {
+  display: inline-block;
+  background: var(--accent-gradient);
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 14px;
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+@utility changelog-date-block {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+@utility changelog-items-block {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 4px;
+}
+
+@utility changelog-item-block {
+  position: relative;
+  padding: 3px 0 3px 16px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+@utility changelog-item-marker-block {
+  content: '\2013';
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+@utility changelog-item-link-block {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+@utility changelog-item-link-hover-block {
+  text-decoration-thickness: 2px;
+}
+

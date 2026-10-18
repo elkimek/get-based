@@ -15,6 +15,8 @@ type DiffOperation =
   | { type: 'delete'; original: string };
 
 import { escapeHTML, showNotification } from './utils.js';
+import {renderPIIPanel, renderPIIOriginalPanel, renderPIIDiffViewer, renderPIIReviewModal} from './pii-review-presentation.js';
+import type {PIIWordView, PIILineView, PIIDiffView} from './pii-review-presentation.js';
 import {
   isDataProtectionStylesheetLoaded,
   loadDataProtectionStylesheetForAction,
@@ -24,19 +26,19 @@ import {
 } from './modal-lifecycle.js';
 
 
-function wordDiff(originalLine: string, replacementLine: string) {
+function wordDiff(originalLine: string, replacementLine: string): {left: PIIWordView[]; right: PIIWordView[]} {
   const tokenize = (value: string) => value.match(/\S+|\s+/g) || [];
   const originalTokens = tokenize(originalLine);
   const replacementTokens = tokenize(replacementLine);
   const originalLength = originalTokens.length;
   const replacementLength = replacementTokens.length;
   if (originalLength === 0 && replacementLength === 0) {
-    return { left: '&nbsp;', right: '&nbsp;' };
+    return { left: [{kind: 'blank', text: '\u00a0'}], right: [{kind: 'blank', text: '\u00a0'}] };
   }
   if (originalLength > 200 || replacementLength > 200) {
     return {
-      left: `<span class="pii-word-removed">${escapeHTML(originalLine)}</span>`,
-      right: `<span class="pii-word-added">${escapeHTML(replacementLine)}</span>`,
+      left: [{kind: 'removed', text: originalLine}],
+      right: [{kind: 'added', text: replacementLine}],
     };
   }
 
@@ -78,41 +80,54 @@ function wordDiff(originalLine: string, replacementLine: string) {
   }
   operations.reverse();
 
-  let left = '';
-  let right = '';
+  const left: PIIWordView[] = [];
+  const right: PIIWordView[] = [];
   for (const operation of operations) {
     if (operation.type === 'equal') {
-      left += escapeHTML(operation.original);
-      right += escapeHTML(operation.replacement);
+      left.push({kind: 'equal', text: operation.original});
+      right.push({kind: 'equal', text: operation.replacement});
     } else if (operation.type === 'delete') {
-      left += `<span class="pii-word-removed">${escapeHTML(operation.original)}</span>`;
+      left.push({kind: 'removed', text: operation.original});
     } else {
-      right += `<span class="pii-word-added">${escapeHTML(operation.replacement)}</span>`;
+      right.push({kind: 'added', text: operation.replacement});
     }
   }
-  return { left: left || '&nbsp;', right: right || '&nbsp;' };
+  return { left: left.length ? left : [{kind: 'blank', text: '\u00a0'}], right: right.length ? right : [{kind: 'blank', text: '\u00a0'}] };
 }
 
-export function buildPIIDiffHTML(originalText: string, obfuscatedText: string) {
+export function projectPIIDiff(originalText: string, obfuscatedText: string): PIIDiffView {
   const trimBlankLines = (value: string) => value.replace(/^\n+/, '').replace(/\n+$/, '');
   const originalLines = trimBlankLines(originalText).split('\n');
   const obfuscatedLines = trimBlankLines(obfuscatedText).split('\n');
   const maxLines = Math.max(originalLines.length, obfuscatedLines.length);
-  let leftHtml = '';
-  let rightHtml = '';
+  const leftLines: PIILineView[] = [];
+  const rightLines: PIILineView[] = [];
   for (let index = 0; index < maxLines; index++) {
     const originalLine = originalLines[index] || '';
     const obfuscatedLine = obfuscatedLines[index] || '';
     if (originalLine === obfuscatedLine) {
-      leftHtml += `<div>${escapeHTML(originalLine) || '&nbsp;'}</div>`;
-      rightHtml += `<div>${escapeHTML(obfuscatedLine) || '&nbsp;'}</div>`;
+      leftLines.push({kind: 'equal', words: [{kind: originalLine ? 'equal' : 'blank', text: originalLine || '\u00a0'}]});
+      rightLines.push({kind: 'equal', words: [{kind: obfuscatedLine ? 'equal' : 'blank', text: obfuscatedLine || '\u00a0'}]});
     } else {
       const { left, right } = wordDiff(originalLine, obfuscatedLine);
-      leftHtml += `<div class="pii-diff-highlight-removed">${left}</div>`;
-      rightHtml += `<div class="pii-diff-highlight-added">${right}</div>`;
+      leftLines.push({kind: 'removed', words: left});
+      rightLines.push({kind: 'added', words: right});
     }
   }
-  return { leftHtml, rightHtml };
+  return {left: {lines: leftLines}, right: {lines: rightLines}};
+}
+
+/** Public legacy HTML export. The live review/viewer consume projectPIIDiff data directly. */
+export function buildPIIDiffHTML(originalText: string, obfuscatedText: string) {
+  const view = projectPIIDiff(originalText, obfuscatedText);
+  const serialize = (lines: readonly PIILineView[]) => lines.map(line => {
+    const words = line.words.map(word => {
+      const text = word.kind === 'blank' ? '&nbsp;' : escapeHTML(word.text);
+      return word.kind === 'equal' || word.kind === 'blank' ? text : '<span class="pii-word-' + word.kind + '">' + text + '</span>';
+    }).join('');
+    return '<div' + (line.kind === 'equal' ? '' : ' class="pii-diff-highlight-' + line.kind + '"') + '>' + words + '</div>';
+  }).join('');
+  return {leftHtml: serialize(view.left.lines), rightHtml: serialize(view.right.lines)};
 }
 
 function openPIIOverlay(overlay: HTMLElement, options: ModalOverlayOptions = {}) {
@@ -140,19 +155,8 @@ export function showPIIDiffViewer(originalText: string, obfuscatedText: string):
   }
   const overlay = document.createElement('div');
   overlay.className = 'pii-warning-overlay';
-  const { leftHtml, rightHtml } = buildPIIDiffHTML(originalText, obfuscatedText);
-  overlay.innerHTML = `
-    <div class="pii-diff-modal" role="dialog" aria-modal="true" aria-label="Privacy Diff">
-      <button type="button" class="modal-close" aria-label="Close privacy diff">&times;</button>
-      <h3>&#128269; Privacy Diff — Before / After</h3>
-      <div class="pii-diff-viewer">
-        <div class="pii-diff-left"><div class="pii-diff-header">Original</div>${leftHtml}</div>
-        <div class="pii-diff-right"><div class="pii-diff-header">Obfuscated</div>${rightHtml}</div>
-      </div>
-      <div class="pii-review-actions pii-review-actions-simple">
-        <button type="button" class="import-btn import-btn-secondary" data-pii-diff-close>Close</button>
-      </div>
-    </div>`;
+  const {left, right} = projectPIIDiff(originalText, obfuscatedText);
+  overlay.innerHTML = renderPIIDiffViewer(left, right);
   const close = () => closePIIOverlay(overlay);
   overlay.querySelector('.modal-close')?.addEventListener('click', close);
   overlay.querySelector('[data-pii-diff-close]')?.addEventListener('click', close);
@@ -193,43 +197,9 @@ export function reviewPIIBeforeSend(
     const isStreaming = typeof streamFn === 'function';
     const overlay = document.createElement('div');
     overlay.className = 'pii-warning-overlay';
-    const { leftHtml } = buildPIIDiffHTML(originalText, obfuscatedText || originalText);
-    const initialText = obfuscatedText ? escapeHTML(obfuscatedText) : '';
-    overlay.innerHTML = `
-      <div class="pii-diff-modal pii-review-modal" role="dialog" aria-modal="true" aria-label="PII Review">
-        <div class="gb-modal-head pii-review-head">
-          <div>
-            <div class="gb-modal-kicker">Privacy review</div>
-            <div class="gb-modal-title">Review &amp; Edit</div>
-          </div>
-        </div>
-        <p class="pii-review-intro">Personal information has been replaced with fake data before the analysis model sees the report. Review the text that will be sent and edit anything that still looks identifying.</p>
-        <div class="pii-search-bar">
-          <input type="text" class="pii-search-input" id="pii-search-input" placeholder="Search for your name, address, phone\u2026" autocomplete="off">
-          <span class="pii-search-count" id="pii-search-count"></span>
-        </div>
-        <details class="pii-mobile-original">
-          <summary>Original report (comparison only)</summary>
-          <div class="pii-mobile-original-body">${leftHtml}</div>
-        </details>
-        <div class="pii-diff-viewer pii-review-viewer">
-          <div class="pii-diff-left"><div class="pii-diff-header">Original report (comparison only)</div>${leftHtml}</div>
-          <div class="pii-diff-right">
-            <div class="pii-diff-header">Sent to analysis AI <button class="pii-edit-btn" id="pii-edit-btn" type="button">&#9998; Edit</button></div>
-            ${isStreaming ? '<details class="pii-thinking-section" id="pii-thinking-section" hidden><summary>Thinking\u2026</summary><pre class="pii-thinking-content" id="pii-thinking-content"></pre></details>' : ''}
-            <textarea class="pii-edit-textarea" id="pii-edit-textarea" spellcheck="false"${isStreaming ? ' readonly' : ''}>${initialText}</textarea>
-            ${isStreaming ? '<div class="pii-stream-status pii-stream-waiting" id="pii-stream-status">Waiting for model response\u2026</div>' : ''}
-          </div>
-        </div>
-        <div class="pii-review-actions">
-          <button type="button" class="import-btn import-btn-secondary" id="pii-review-regex" title="Run regex-based obfuscation instead">Use regex instead</button>
-          ${isStreaming ? '<button type="button" class="import-btn import-btn-secondary" id="pii-stream-stop">Stop</button>' : ''}
-          ${isStreaming ? '<button type="button" class="import-btn import-btn-secondary" id="pii-stream-retry" hidden>Retry</button>' : ''}
-          <span class="pii-action-spacer"></span>
-          <button type="button" class="import-btn import-btn-secondary" id="pii-review-cancel">Cancel Import</button>
-          <button type="button" class="import-btn import-btn-primary" id="pii-review-send"${isStreaming ? ' disabled' : ''}>Send to AI</button>
-        </div>
-      </div>`;
+    const {left} = projectPIIDiff(originalText, obfuscatedText || originalText);
+    const initialText = obfuscatedText || '';
+    overlay.innerHTML = renderPIIReviewModal(left, initialText, isStreaming);
     wirePIIOverlayNudge(overlay);
     openPIIOverlay(overlay);
 
@@ -308,14 +278,14 @@ export function reviewPIIBeforeSend(
     }
 
     function showDiffPreview(currentObfuscatedText: string) {
-      const { leftHtml: nextLeftHtml, rightHtml } = buildPIIDiffHTML(
+      const {left, right} = projectPIIDiff(
         originalText,
         currentObfuscatedText,
       );
       if (leftPanel) {
-        leftPanel.innerHTML = `<div class="pii-diff-header">Original report (comparison only)</div>${nextLeftHtml}`;
+        leftPanel.innerHTML = renderPIIOriginalPanel(left);
       }
-      if (mobileOriginal) mobileOriginal.innerHTML = nextLeftHtml;
+      if (mobileOriginal) mobileOriginal.innerHTML = renderPIIPanel(left);
       textarea.style.display = 'none';
       let diffView = overlay.querySelector<HTMLElement>('.pii-diff-preview');
       if (!diffView) {
@@ -325,7 +295,7 @@ export function reviewPIIBeforeSend(
         diffView.className = 'pii-diff-preview';
         textareaParent.insertBefore(diffView, textarea);
       }
-      diffView.innerHTML = rightHtml;
+      diffView.innerHTML = renderPIIPanel(right);
       diffView.style.display = '';
     }
 

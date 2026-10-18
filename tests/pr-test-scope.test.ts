@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
-import { createTestPlan, fileReferences, testCommands, validationCommands } from '../scripts/pr-test-scope.mjs';
+import { createTestPlan, fileReferences, testCommands, validationCommands, kitMatrixArguments } from '../scripts/pr-test-scope.mjs';
 
 const fixture = (extra?: Record<string, string>) => new Map(Object.entries({
   'js/leaf.js': 'export const value = 1;',
@@ -55,7 +55,7 @@ describe('affected PR test planning', () => {
   it('allows documentation-only diffs without launching empty test commands', () => {
     const plan = createTestPlan(fixture(), ['README.md', 'AGENTS.md']);
     expect(plan.uncovered).toEqual([]);
-    for (const suite of ['unit', 'browser', 'firefox', 'pwa']) expect(testCommands(plan, suite)).toEqual([]);
+    for (const suite of ['unit', 'browser', 'firefox', 'pwa', 'kit']) expect(testCommands(plan, suite)).toEqual([]);
   });
 
   it('scopes catalog changes to provider and model UI contracts rather than the app-startup barrel', () => {
@@ -79,7 +79,7 @@ describe('affected PR test planning', () => {
     expect(plan.legacy).toHaveLength(2);
     expect(plan.browser).toHaveLength(2);
     expect(plan.firefox).toHaveLength(1);
-    expect(testCommands(plan, 'browser')[0]).toContain('--workers=2');
+    expect(testCommands(plan, 'browser')[0]).not.toContain('--workers=2');
     expect(JSON.stringify(testCommands(plan, 'unit'))).not.toContain('coverage');
   });
 
@@ -114,12 +114,18 @@ describe('affected PR test planning', () => {
       .toEqual(['js/consumer.js', 'js/leaf.js']);
   });
 
-  it('preserves explicit full release verification and coverage while PRs use an explicit plan', () => {
+  it('preserves explicit full release verification and the complete combined coverage gate while PRs use an explicit plan', () => {
     const workflow = fs.readFileSync(new URL('../.github/workflows/test.yml', import.meta.url), 'utf8');
     const release = fs.readFileSync(new URL('../.github/workflows/release-evidence.yml', import.meta.url), 'utf8');
     expect(workflow).toContain("github.event_name != 'pull_request' || inputs.full_suite == true");
-    expect(workflow).toMatch(/name: Run test suite with coverage ratchet\n\s+if: env.CI_SCOPE_FULL == 'true'\n\s+run: COVERAGE=1 SKIP_TYPECHECK=1 \.\/run-tests.sh/);
-    expect(workflow).toMatch(/name: Run affected unit tests\n\s+if: env.CI_SCOPE_FULL != 'true'/);
+    expect(workflow).toMatch(/name: Full unit coverage and unchanged critical behavior floors\n\s+if: needs.prepare.outputs.full == 'true'/);
+    expect(workflow).toContain('node node_modules/vitest/vitest.mjs run --coverage');
+    expect(workflow).toContain('node node_modules/vitest/vitest.mjs run --config vitest.critical.config.js');
+    expect(workflow).toContain('INCLUDE_VITEST_COVERAGE: \'1\'');
+    expect(workflow).toContain('REQUIRE_PLAYWRIGHT_COVERAGE_SHARDS: \'1\'');
+    expect(workflow).toContain('run: node scripts/playwright-coverage.mjs');
+    expect(workflow).toContain('ci-results.mjs coverage-verify');
+    expect(workflow).toMatch(/name: Affected unit tests and mandatory changed-source checks\n\s+if: needs.prepare.outputs.full != 'true'/);
     expect(release).toMatch(/uses: \.\/\.github\/workflows\/test.yml\n\s+with:\n\s+full_suite: true/);
   });
 });
@@ -138,7 +144,9 @@ describe('native tooling and mandatory PR validation', () => {
     for (const changed of [native!, runtime]) {
       const plan = createTestPlan(new Map([[native!, '']]), [changed]);
       expect(plan.checks).toEqual([check]);
-      expect(validationCommands(plan)).toEqual([['npm', 'run', check]]);
+      expect(validationCommands(plan)).toEqual([check === 'marker-schema:check'
+        ? ['node', 'scripts/build-marker-schema.mjs', '--check']
+        : ['npm', 'run', check]]);
       expect(plan.uncovered).toEqual([]);
       expect(testCommands(plan, 'unit')).toEqual([]);
     }
@@ -202,9 +210,154 @@ describe('native tooling and mandatory PR validation', () => {
     expect(pkg.scripts['vendor:check']).toBe('node scripts/build-browser-vendors.mjs --check');
     expect(pkg.scripts['vendor:evolu8:check']).toBe('node scripts/build-evolu8-vendor.mjs --check');
     expect(pkg.scripts['marker-schema:check']).toBe('node scripts/build-marker-schema.mjs --check');
+    expect(pkg.scripts['premarker-schema:check']).toBe('npm run typescript:build');
+    expect(validationCommands({checks: ['marker-schema:check']})).toEqual([['node', 'scripts/build-marker-schema.mjs', '--check']]);
     const source = fs.readFileSync('scripts/pr-test-scope.mts', 'utf8');
     expect(source.indexOf("process.env.GITHUB_ACTIONS !== 'true'")).toBeLessThan(source.indexOf('for (const command of validationCommands(plan))'));
     expect(source).toContain('spawnSync(command[0]!, command.slice(1)');
     expect(source.indexOf('for (const command of validationCommands(plan))')).toBeLessThan(source.indexOf('for (const command of testCommands(plan'));
+  });
+});
+
+
+describe('shipping transfer-budget PR scope', () => {
+  const shipping = () => fixture({
+    'scripts/sveltekit-performance-budget.mts': "import './benchmark-static.mjs'; read('scripts/sveltekit-performance-budget.json');",
+    'scripts/benchmark-static.mts': "import './benchmark-static-fixtures.mjs'; read('vercel.json');",
+    'scripts/benchmark-static-fixtures.mts': 'export const fixture = 1;',
+    'scripts/sveltekit-performance-budget.json': '{}',
+    'scripts/build-sveltekit.mts': "import '../tooling/svelte/build-static.mjs'; read('scripts/sveltekit-resource-budget.json');",
+    'scripts/sveltekit-resource-budget.json': '{}',
+    'tooling/svelte/build-static.mts': "import './config-helper.mjs'; import '../../scripts/kit-build-helper.mjs';",
+    'scripts/kit-build-helper.mts': 'export const shared = 1;',
+    'tooling/svelte/config-helper.mts': 'export const config = 1;',
+    'js/kit/routes/app/+page.svelte': '<main>Shipping route</main>',
+    'vercel.json': '{}',
+    'tests/sveltekit-performance-budget.test.ts': "import '../scripts/sveltekit-performance-budget.mjs';",
+    'tests/production-build.test.ts': "import '../scripts/build-sveltekit.mjs';",
+  });
+
+  it.each([
+    'scripts/sveltekit-performance-budget.json',
+    'scripts/sveltekit-performance-budget.mts',
+    'scripts/sveltekit-performance-budget.mjs',
+    'scripts/benchmark-static.mts',
+    'scripts/benchmark-static-fixtures.mts',
+    'scripts/build-sveltekit.mts',
+    'scripts/build-sveltekit.mjs',
+    'scripts/sveltekit-resource-budget.json',
+    'tooling/svelte/build-static.mts',
+    'tooling/svelte/config-helper.mts',
+    'scripts/kit-build-helper.mts',
+    'js/kit/routes/app/+page.svelte',
+    'vercel.json',
+    'css/settings.base.css',
+    '.github/workflows/test.yml',
+    '.github/workflows/display-pilot.yml',
+  ])('requires the real shipping transfer gate for %s', changed => {
+    expect(createTestPlan(shipping(), [changed]).performance).toBe(true);
+  });
+
+  it('keeps existing browser/PWA selection and runners unchanged while adding the gate', () => {
+    const browser = createTestPlan(shipping(), ['js/leaf.js']);
+    expect(browser.performance).toBe(true);
+    expect(browser.browser).toEqual(['tests/playwright/consumer.spec.js']);
+    expect(browser.pwa).toEqual([]);
+    expect(testCommands(browser, 'browser')).toEqual([
+      ['playwright', 'test', 'tests/playwright/consumer.spec.js'],
+    ]);
+    expect(() => testCommands(browser, 'performance')).toThrow('Unknown test suite: performance');
+    const pwa = createTestPlan(shipping(), ['service-worker-runtime.js']);
+    expect(pwa.performance).toBe(true);
+    expect(pwa.pwa).toEqual(['tests/pwa/lifecycle.spec.js']);
+    expect(pwa.browser).toEqual([]);
+    expect(testCommands(pwa, 'pwa')).toEqual([
+      ['playwright', 'test', 'tests/pwa/lifecycle.spec.js', '--config=playwright.pwa.config.js'],
+    ]);
+  });
+
+  it.each(['README.md', 'AGENTS.md', 'tests/unrelated.test.js', 'tests/firefox/smoke.spec.js'])('does not acquire Chromium solely for %s', changed => {
+    const plan = createTestPlan(shipping(), [changed]);
+    expect(plan.performance).toBe(false);
+    expect(plan.browser).toEqual([]);
+    expect(plan.pwa).toEqual([]);
+  });
+
+  it('builds once after catalog resolution and conditionally enforces the committed policy on that same immutable artifact', () => {
+    const workflow = fs.readFileSync('.github/workflows/test.yml', 'utf8');
+    const catalog = workflow.indexOf('name: Resolve catalog before compiling and freezing build inputs');
+    const build = workflow.indexOf('run: node scripts/build-sveltekit.mjs --output dist');
+    const units = workflow.indexOf('name: Affected unit tests and mandatory changed-source checks');
+    expect(catalog).toBeGreaterThan(-1);
+    expect(build).toBeGreaterThan(catalog);
+    expect(units).toBeGreaterThan(build);
+    expect(workflow.match(/run: node scripts\/build-sveltekit.mjs --output dist/g)).toHaveLength(1);
+    expect(workflow).toContain('GETBASED_KIT_ARTIFACT: ${{ github.workspace }}/dist');
+    expect(workflow).toContain('run: node node_modules/vitest/vitest.mjs run tests/production-build.test.ts');
+    expect(workflow).toContain("if: needs.prepare.outputs.performance == 'true'");
+    expect(workflow).toContain('run: node scripts/sveltekit-performance-budget.mjs --artifact "$GETBASED_KIT_ARTIFACT" --output .local-notes/ci/performance');
+    expect(workflow).toContain('name: shipping-inputs');
+    expect(workflow.match(/ci-artifact.mjs verify --artifact dist --transport \.local-notes\/ci\/transport --github-env/g)).toHaveLength(5);
+    expect(workflow).toContain('run: node scripts/ci-plan.mjs --run-kit "$LANE" --output "$CI_TEST_PLAN"');
+    expect(workflow).toContain('ci-results.mjs kit --collection .local-notes/ci/kit-collection.json');
+    expect(workflow).not.toContain('performance:check -- --record');
+    expect(workflow).not.toContain('sveltekit-performance-budget.mjs --record');
+  });
+});
+
+
+describe('shipping SvelteKit suite routing', () => {
+  const sources = () => fixture({
+    'js/kit/routes/app/+page.svelte': '<main>App</main>',
+    'scripts/kit-acceptance-reporter.mts': '',
+    'tests/pwa/sveltekit.spec.ts': "import '/js/consumer.js';",
+    'tests/pwa/sveltekit-compare.spec.ts': '',
+    'tests/pwa/kit-server.ts': "import '/js/consumer.js';",
+    'tests/pwa/sveltekit-helper.spec.ts': "import './kit-server.js';",
+  });
+  it('routes directly affected Kit specs only through their genuine projects', () => {
+    const plan = createTestPlan(sources(), ['tests/pwa/sveltekit-compare.spec.ts']);
+    expect(plan.kit).toContain('tests/pwa/sveltekit-compare.spec.ts');
+    expect(plan.pwa).toEqual([]);
+    expect(plan.kit.every(file => file.includes('sveltekit'))).toBe(true);
+    expect(testCommands(plan, 'kit')).toEqual([['playwright', 'test', ...plan.kit, '--config=playwright.sveltekit.config.js']]);
+    expect(testCommands(plan, 'pwa')).toEqual([]);
+  });
+  it.each(['package-lock.json', 'service-worker-runtime.js', 'playwright.config.js', 'playwright.pwa.config.js', 'index.html'])('preserves broad native and Kit lifecycle coverage for %s', file => {
+    const plan = createTestPlan(sources(), [file]);
+    expect(plan.pwa).toEqual(['tests/pwa/lifecycle.spec.js']);
+    expect(plan.kit).toHaveLength(3);
+    expect(plan.performance).toBe(true);
+  });
+  it.each(['js/kit/routes/app/+page.svelte', 'playwright.sveltekit.config.js', 'scripts/kit-acceptance-reporter.mts', 'css/settings.base.css', 'scripts/build-sveltekit.mjs'])('selects all Kit acceptance for its shipping boundary %s', file => {
+    const plan = createTestPlan(sources(), [file]);
+    expect(plan.kit).toHaveLength(3);
+    expect(plan.pwa).toEqual([]);
+  });
+  it('follows ordinary and deleted runtime dependencies into both direct and helper Kit consumers', () => {
+    for (const deleted of [false, true]) {
+      const files = sources(); if (deleted) files.delete('js/leaf.js');
+      const plan = createTestPlan(files, ['js/leaf.js']);
+      expect(plan.kit).toEqual(['tests/pwa/sveltekit-helper.spec.ts', 'tests/pwa/sveltekit.spec.ts']);
+      expect(plan.uncovered).toEqual([]);
+    }
+  });
+  it('leaves documentation-only changes free of all browser acquisition', () => {
+    const plan = createTestPlan(sources(), ['README.md']);
+    expect(plan.kit).toEqual([]); expect(plan.pwa).toEqual([]); expect(plan.performance).toBe(false);
+  });
+});
+
+
+describe('Kit matrix arguments', () => {
+  it('supports exact projects and bounded positive shard pairs without changing file selection', () => {
+    expect(kitMatrixArguments({GETBASED_KIT_PROJECT: 'kit-mobile-webkit', GETBASED_KIT_SHARD: '2/2'})).toEqual(['--project=kit-mobile-webkit', '--shard=2/2']);
+    expect(kitMatrixArguments({})).toEqual([]);
+    const plan = createTestPlan(fixture({'tests/pwa/sveltekit.spec.ts': ''}), ['tests/pwa/sveltekit.spec.ts']);
+    expect(testCommands(plan, 'kit', file => file, {GETBASED_KIT_PROJECT: 'kit-chromium', GETBASED_KIT_SHARD: '1/2'})).toEqual([['playwright', 'test', 'tests/pwa/sveltekit.spec.ts', '--config=playwright.sveltekit.config.js', '--project=kit-chromium', '--shard=1/2']]);
+  });
+  it('rejects unknown projects and malformed, inverted, unbounded or injected shards', () => {
+    for (const value of ['pwa-chromium', 'kit-chromium --headed', '']) expect(() => kitMatrixArguments({GETBASED_KIT_PROJECT: value})).toThrow();
+    for (const value of ['0/2', '3/2', '1/0', '1/65', '01/2', '1.5/2', '1/2 --headed', '', '9007199254740992/9007199254740992']) expect(() => kitMatrixArguments({GETBASED_KIT_SHARD: value})).toThrow();
   });
 });

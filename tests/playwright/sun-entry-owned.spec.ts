@@ -19,8 +19,8 @@ test('authored Sun entry forms retain actual body picker, warning tiers, themes 
       document.getElementById('sun-entry-acceptance')?.remove();
       const host = document.createElement('div'); host.id = 'sun-entry-acceptance'; host.className = 'modal-overlay show';
       host.style.cssText = 'position:fixed;inset:0;z-index:10000;overflow:auto;background:var(--bg-primary);padding:16px;box-sizing:border-box;display:block';
-      const silhouetteHTML = body.renderBodySilhouette(new Set(['breast-chest']));
-      host.innerHTML = mode === 'coverage' ? renderHTML({ kind: 'coverage', silhouetteHTML }) : renderHTML({ kind: 'start', silhouetteHTML, view: model.projectStartSunSessionForm({ lastUsed: { bodyExposure: { glassBetween: true } }, eyeModes: sun.EYE_MODES.map(item => ({ ...item, pickerLabel: item.key === 'direct' ? 'Ambient <light> & literal' : item.pickerLabel })), lensTints: sun.LENS_TINTS, postureOptions: sun.POSTURE_OPTIONS, surfaceOptions: sun.SURFACE_OPTIONS }) });
+      const silhouetteView = body.projectBodySilhouette(new Set(['breast-chest']));
+      host.innerHTML = mode === 'coverage' ? renderHTML({ kind: 'coverage', silhouetteView }) : renderHTML({ kind: 'start', silhouetteView, view: model.projectStartSunSessionForm({ lastUsed: { bodyExposure: { glassBetween: true } }, eyeModes: sun.EYE_MODES.map(item => ({ ...item, pickerLabel: item.key === 'direct' ? 'Ambient <light> & literal' : item.pickerLabel })), lensTints: sun.LENS_TINTS, postureOptions: sun.POSTURE_OPTIONS, surfaceOptions: sun.SURFACE_OPTIONS }) });
       const details = host.querySelector('details'); if (details) details.open = true;
       const hint = host.querySelector('#sun-start-hint');
       if (hint) { hint.classList.add('sun-silhouette-hint-error'); hint.textContent = 'Tap at least one region before starting — what part of you is uncovered?'; }

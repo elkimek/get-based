@@ -1,3 +1,5 @@
+import {componentStaticStyles} from './component-inline-style-map.generated.js';
+import {renderSidebarPresentation,sidebarText,sidebarAction,type SidebarView,type SidebarCategoryView,type ConditionalSidebarView,type SidebarIcon,type SidebarGroup as SidebarGroupView,type SidebarBadge,type SidebarActionName} from './sidebar-presentation.js';
 // nav.js — Sidebar, compact profile button
 
 import { state } from './state.js';
@@ -8,15 +10,15 @@ export interface NavActionDependencies {
   openClientList: () => unknown;
   openKnowledgeBase: typeof openKnowledgeBaseModal;
 }
-interface NavItem { withData: number; flagged: number; html: string }
+interface NavItem { withData: number; flagged: number; view: SidebarCategoryView }
 interface NavGroup { items: NavItem[]; totalFlagged: number }
 interface ConditionalNavItem {
-  key: string; icon: string; label: string; route?: string;
-  action?: string; badge?: string | number | null;
+  key: string; icon: SidebarIcon; label: string; route?: string;
+  action?: SidebarActionName; badge?: string | number | null;
 }
 
 import { getLabCategoryEntriesInSidebarOrder } from './category-order.js';
-import { escapeHTML, escapeAttr, hashString } from './utils.js';
+import { escapeAttr, hashString } from './utils.js';
 import { getActiveData, filterDatesByRange } from './data.js';
 import { countFlagged } from './marker-analysis.js';
 import { getProfiles } from './profile.js';
@@ -29,29 +31,10 @@ import {
   openReportBuilderFromNavRuntime,
 } from './nav-runtime.js';
 import { openKnowledgeBaseModal } from './lens.js';
+import { projectProfileButton } from './profile-button-presentation.js';
+import { renderProfileButtonView } from './profile-button-rendering.js';
 
-function _iconSvg(name: string) {
-  const attrs = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
-  const icons: Record<string, string> = {
-    search: `<svg ${attrs}><circle cx="11" cy="11" r="8"></circle><path d="M21 21l-4.35-4.35"></path></svg>`,
-    dashboard: `<svg ${attrs}><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>`,
-    labs: `<svg ${attrs}><path d="M12 2.7s5 6.3 5 11.3a5 5 0 0 1-10 0c0-5 5-11.3 5-11.3z"></path></svg>`,
-    biologyScores: `<svg ${attrs}><path d="M4 17l4-7 4 4 4-8 4 11"></path><path d="M4 20h16"></path><circle cx="8" cy="10" r="1.5"></circle><circle cx="12" cy="14" r="1.5"></circle><circle cx="16" cy="6" r="1.5"></circle></svg>`,
-    genome: `<svg ${attrs}><path d="M4 4c4 3 12 3 16 0"></path><path d="M4 8c4 3 12 3 16 0"></path><path d="M4 12c4 3 12 3 16 0"></path><path d="M4 16c4 3 12 3 16 0"></path><path d="M4 20c4 3 12 3 16 0"></path></svg>`,
-    body: `<svg ${attrs}><circle cx="12" cy="12" r="6"></circle><path d="M12 9v3l1.5 1.5"></path><path d="M16 4l-2 2"></path><path d="M8 4l2 2"></path><path d="M16 20l-2-2"></path><path d="M8 20l2-2"></path></svg>`,
-    light: `<svg ${attrs}><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="M4.93 4.93l1.41 1.41"></path><path d="M17.66 17.66l1.41 1.41"></path><path d="M4.93 19.07l1.41-1.41"></path><path d="M17.66 6.34l1.41-1.41"></path></svg>`,
-    insight: `<svg ${attrs}><path d="M9.5 3a3.5 3.5 0 0 0-3 5.3"></path><path d="M14.5 3a3.5 3.5 0 0 1 3 5.3"></path><path d="M6.5 8.3A4 4 0 0 0 4 12c0 1.7.7 3.2 1.8 4.3"></path><path d="M17.5 8.3A4 4 0 0 1 20 12c0 1.7-.7 3.2-1.8 4.3"></path><path d="M9 21a2 2 0 0 1-2-2v-2"></path><path d="M15 21a2 2 0 0 0 2-2v-2"></path><path d="M12 6v15"></path></svg>`,
-    compare: `<svg ${attrs}><path d="M17 3l4 4-4 4"></path><path d="M3 7h18"></path><path d="M7 21l-4-4 4-4"></path><path d="M21 17H3"></path></svg>`,
-    correlations: `<svg ${attrs}><path d="M3 17c3.5-8 7-8 10.5 0s7 8 10.5 0"></path></svg>`,
-    recommendations: `<svg ${attrs}><path d="M12 2v4"></path><path d="M12 18v4"></path><path d="M4.93 4.93l2.83 2.83"></path><path d="M16.24 16.24l2.83 2.83"></path><path d="M2 12h4"></path><path d="M18 12h4"></path><path d="M4.93 19.07l2.83-2.83"></path><path d="M16.24 7.76l2.83-2.83"></path></svg>`,
-    context: `<svg ${attrs}><path d="M4 6h16"></path><path d="M4 12h16"></path><path d="M4 18h16"></path><circle cx="8" cy="6" r="2"></circle><circle cx="16" cy="12" r="2"></circle><circle cx="10" cy="18" r="2"></circle></svg>`,
-    knowledge: `<svg ${attrs}><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z"></path></svg>`,
-    report: `<svg ${attrs}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>`,
-    plus: `<svg ${attrs}><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>`,
-    emf: `<svg ${attrs}><path d="M5 12.5a7 7 0 0 1 14 0"></path><path d="M8 12.5a4 4 0 0 1 8 0"></path><path d="M12 12.5v.01"></path><path d="M12 17v4"></path></svg>`,
-  };
-  return icons[name] || escapeHTML(String(name || ''));
-}
+function _sidebarIcon(name:SidebarIcon):SidebarIcon { return name; }
 
 let navDelegatesInstalled = false;
 const navActionDeps: NavActionDependencies = {
@@ -106,6 +89,7 @@ function handleNavActionClick(event: Event) {
   if (action === 'navigate') {
     navigateFromNavRuntime(actionEl.dataset.navRoute || actionEl.dataset.category || 'dashboard');
   } else if (action === 'open-emf-assessment') {
+    if (document.getElementById('sidebar-nav')?.classList.contains('mobile-open')) closeMobileSidebar();
     openEMFAssessmentFromNavRuntime();
   } else if (action === 'open-light-assessment') {
     navActionDeps.openLightEnvironmentAssessment();
@@ -121,6 +105,7 @@ function handleNavActionClick(event: Event) {
     if (document.getElementById('sidebar-nav')?.classList.contains('mobile-open')) closeMobileSidebar();
     openContextFromNavRuntime();
   } else if (action === 'open-custom-marker') {
+    if (document.getElementById('sidebar-nav')?.classList.contains('mobile-open')) closeMobileSidebar();
     openCreateMarkerFromNavRuntime();
   } else if (action === 'toggle-group') {
     toggleNavGroup(actionEl.dataset.navGroup || '');
@@ -149,13 +134,14 @@ export function installNavActionDelegates() {
 }
 
 // Render a compact sidebar entry for modules whose visibility depends on data.
-function _renderConditionalNavItem({ key, icon, label, route = 'dashboard', action = 'navigate', badge }: ConditionalNavItem) {
-  const badgeHtml = badge ? `<span class="nav-item-count nav-count">${escapeHTML(String(badge))}</span>` : '<span class="nav-item-dot"></span>';
+function _projectConditionalNavItem({ key, icon, label, route = 'dashboard', action = 'navigate', badge }: ConditionalNavItem):ConditionalSidebarView {
+  const badgeView:SidebarBadge = badge ? {kind:'count',text:sidebarText(String(badge))} : {kind:'dot'};
   const actionAttrs = action === 'navigate' ? _navNavigateAttrs(route) : _navActionAttrs(action);
-  return `<div class="nav-item" data-category="${escapeAttr(key)}" tabindex="0" role="button" ${actionAttrs}>
-    <span class="nav-item-icon" aria-hidden="true">${_iconSvg(icon)}</span>
-    <span class="nav-item-label">${escapeHTML(label)}</span>
-    ${badgeHtml}</div>`;
+  const category = sidebarText(key);
+  const actionView = sidebarAction(actionAttrs,action,action==='navigate'?route:undefined);
+  const iconView = _sidebarIcon(icon);
+  const labelText = sidebarText(label);
+  return {category,action:actionView,icon:iconView,label:labelText,badge:badgeView};
 }
 
 export function openRecommendationsFromSidebar() {
@@ -179,19 +165,19 @@ function _buildNavItem(key: string, cat: ActiveCategory): NavItem | null {
   const withData = markers.filter(m => m.values && m.values.some(v => v !== null)).length;
   if (withData === 0) return null;
   const flagged = countFlagged(markers);
-  const flagHtml = flagged > 0
-    ? `<span class="nav-item-count flag-count">${flagged}</span>`
-    : `<span class="nav-item-count count">${withData}</span>`;
+  const badge:SidebarCategoryView['badge'] = flagged > 0 ? {kind:'flagged',text:`${flagged}`} : {kind:'count',text:`${withData}`};
   const markerNames = markers.map(m => m.name).join('|');
-  // Strip redundant group prefix from label when shown under a group header
+  // Preserve native group-prefix reads and label coercion before the next category.
   let label = cat.label;
   if (cat.group && label.startsWith(cat.group + ': ')) {
     label = label.slice(cat.group.length + 2);
   }
-  return { withData, flagged, html: `<div class="nav-item" data-category="${escapeAttr(key)}" data-markers="${escapeAttr(markerNames)}" data-group="${escapeAttr(cat.group || '')}" tabindex="0" role="button" ${_navNavigateAttrs(key)}>
-      <span class="nav-item-dot" aria-hidden="true"></span>
-      <span class="nav-item-label">${escapeHTML(label)}</span>
-      ${flagHtml}</div>` };
+  const category = sidebarText(key);
+  const markerNamesText = sidebarText(markerNames);
+  const group = sidebarText(cat.group || '');
+  const action = sidebarAction(_navNavigateAttrs(key),'navigate',key);
+  const labelText = sidebarText(label);
+  return {withData,flagged,view:{category,markerNames:markerNamesText,group,action,label:labelText,badge}};
 }
 
 export function buildSidebar(data?: unknown) {
@@ -209,24 +195,12 @@ export function buildSidebar(data?: unknown) {
     }
     return markerCount;
   })();
-  let html = `<div class="sidebar-search-wrap">
-    <span class="sidebar-search-icon" aria-hidden="true">${_iconSvg('search')}</span>
-    <input type="text" class="sidebar-search" id="sidebar-search" placeholder="Search markers..." data-nav-input-action="filter-sidebar">
-  </div>`;
-  html += `<div class="nav-section">Home</div>`;
-  html += `<div class="nav-item active is-active" data-category="dashboard" tabindex="0" role="button" ${_navNavigateAttrs('dashboard')}>
-    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('dashboard')}</span>
-    <span class="nav-item-label">Dashboard</span>
-    <span class="nav-item-count">${counts}</span></div>`;
-  html += `<div class="nav-section">Lenses</div>`;
-  html += `<div class="nav-item" data-category="labs" tabindex="0" role="button" ${_navNavigateAttrs('labs')}>
-    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('labs')}</span>
-    <span class="nav-item-label">Labs</span>
-    <span class="nav-item-count">${counts}</span></div>`;
-  html += `<div class="nav-item" data-category="biology-scores" tabindex="0" role="button" ${_navNavigateAttrs('biology-scores')}>
-    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('biologyScores')}</span>
-    <span class="nav-item-label">Biology Scores</span>
-    <span class="nav-item-dot"></span></div>`;
+  const searchIcon = _sidebarIcon('search');
+  const dashboard = {action:sidebarAction(_navNavigateAttrs('dashboard'),'navigate','dashboard'),icon:_sidebarIcon('dashboard')};
+  const dashboardCount = `${counts}`;
+  const labs = {action:sidebarAction(_navNavigateAttrs('labs'),'navigate','labs'),icon:_sidebarIcon('labs')};
+  const labsCount = `${counts}`;
+  const biology = {action:sidebarAction(_navNavigateAttrs('biology-scores'),'navigate','biology-scores'),icon:_sidebarIcon('biologyScores')};
 
   // Lens entries route to dedicated views; compact summary widgets remain
   // available on the dashboard.
@@ -238,17 +212,13 @@ export function buildSidebar(data?: unknown) {
     if (genetics.snps && Object.keys(genetics.snps).length > 0) gParts.push(Object.keys(genetics.snps).length);
     if (genetics.mtdna) gParts.push(genetics.mtdna.haplogroup);
   }
-  html += `<div class="nav-item" data-category="genome" tabindex="0" role="button" ${_navNavigateAttrs('genome')}>
-    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('genome')}</span>
-    <span class="nav-item-label">Genome</span>
-    ${gParts.length ? `<span class="nav-item-count">${escapeHTML(gParts.join(' '))}</span>` : '<span class="nav-item-dot"></span>'}</div>`;
+  const genome = {action:sidebarAction(_navNavigateAttrs('genome'),'navigate','genome'),icon:_sidebarIcon('genome')};
+  const genomeBadge:SidebarBadge = gParts.length ? {kind:'count',text:sidebarText(gParts.join(' '))} : {kind:'dot'};
 
   const wearableConn = state.importedData?.wearableConnections || {};
   const wearableCount = Object.keys(wearableConn).length;
-  html += `<div class="nav-item" data-category="body" tabindex="0" role="button" ${_navNavigateAttrs('body')}>
-    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('body')}</span>
-    <span class="nav-item-label">Body</span>
-    ${wearableCount ? `<span class="nav-item-count">${wearableCount}</span>` : '<span class="nav-item-dot"></span>'}</div>`;
+  const body = {action:sidebarAction(_navNavigateAttrs('body'),'navigate','body'),icon:_sidebarIcon('body')};
+  const bodyBadge:SidebarBadge = wearableCount ? {kind:'count',text:`${wearableCount}`} : {kind:'dot'};
 
   // \u2600 Light & Sun \u2014 always visible (flagship module). New users
   // need a discoverable entry point even before logging anything; once
@@ -256,7 +226,7 @@ export function buildSidebar(data?: unknown) {
   const sunSessions = state.importedData?.sunSessions || [];
   const weekStart = Date.now() - 7 * 86400 * 1000;
   const weekCount = sunSessions.filter(s => (s.endedAt || s.startedAt || 0) >= weekStart).length;
-  html += _renderConditionalNavItem({
+  const light = _projectConditionalNavItem({
     key: 'light',
     icon: 'light',
     label: 'Light',
@@ -264,21 +234,13 @@ export function buildSidebar(data?: unknown) {
     badge: weekCount > 0 ? (weekCount > 9 ? '9+' : weekCount) : null,
   });
 
-  html += `<div class="nav-item" data-category="insight" tabindex="0" role="button" ${_navNavigateAttrs('insight')}>
-    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('insight')}</span>
-    <span class="nav-item-label">Insight</span>
-    <span class="nav-item-dot"></span></div>`;
-  html += `<div class="nav-item" data-category="recommendations" tabindex="0" role="button" ${_navNavigateAttrs('recommendations')}>
-    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('recommendations')}</span><span class="nav-item-label">Tips</span><span class="nav-item-dot"></span></div>`;
-
-  html += `<div class="nav-section">Analysis tools</div>`;
-  html += `<div class="nav-item" data-category="compare" tabindex="0" role="button" ${_navNavigateAttrs('compare')}>
-    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('compare')}</span><span class="nav-item-label">Compare dates</span><span class="nav-item-dot"></span></div>`;
-  html += `<div class="nav-item" data-category="correlations" tabindex="0" role="button" ${_navNavigateAttrs('correlations')}>
-    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('correlations')}</span><span class="nav-item-label">Correlations</span><span class="nav-item-dot"></span></div>`;
+  const insight = {action:sidebarAction(_navNavigateAttrs('insight'),'navigate','insight'),icon:_sidebarIcon('insight')};
+  const recommendations = {action:sidebarAction(_navNavigateAttrs('recommendations'),'navigate','recommendations'),icon:_sidebarIcon('recommendations')};
+  const compare = {action:sidebarAction(_navNavigateAttrs('compare'),'navigate','compare'),icon:_sidebarIcon('compare')};
+  const correlations = {action:sidebarAction(_navNavigateAttrs('correlations'),'navigate','correlations'),icon:_sidebarIcon('correlations')};
   const emfAssessments = state.importedData?.emfAssessment?.assessments;
   const emfAssessmentCount = Array.isArray(emfAssessments) ? emfAssessments.length : 0;
-  html += _renderConditionalNavItem({
+  const emf = _projectConditionalNavItem({
     key: 'emf',
     icon: 'emf',
     label: 'EMF assessment',
@@ -287,7 +249,7 @@ export function buildSidebar(data?: unknown) {
   });
   const lightRoomCount = Array.isArray(state.importedData?.lightEnvironment?.rooms) ? state.importedData.lightEnvironment.rooms.length : 0;
   const lightAuditCount = Array.isArray(state.importedData?.lightAudits) ? state.importedData.lightAudits.length : 0;
-  html += _renderConditionalNavItem({
+  const lightAssessment = _projectConditionalNavItem({
     key: 'light-env-assessment',
     icon: 'light',
     label: 'Light assessment',
@@ -295,15 +257,10 @@ export function buildSidebar(data?: unknown) {
     badge: lightRoomCount > 0 && lightAuditCount > 0 ? lightAuditCount : null,
   });
 
-  html += `<div class="nav-section">Manage</div>`;
-  html += `<div class="nav-item" data-category="reports" tabindex="0" role="button" ${_navActionAttrs('open-report-builder')}>
-    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('report')}</span><span class="nav-item-label">Reports</span><span class="nav-item-dot"></span></div>`;
-  html += `<div class="nav-item" data-category="context" tabindex="0" role="button" ${_navActionAttrs('open-context')}>
-    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('context')}</span><span class="nav-item-label">Context</span><span class="nav-item-dot"></span></div>`;
-  html += `<div class="nav-item" data-category="knowledge-base" tabindex="0" role="button" ${_navActionAttrs('open-knowledge-base')}>
-    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('knowledge')}</span><span class="nav-item-label">Knowledge Base</span><span class="nav-item-dot"></span></div>`;
-  html += `<div class="nav-item" data-category="custom-markers" tabindex="0" role="button" ${_navActionAttrs('open-custom-marker')}>
-    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('plus')}</span><span class="nav-item-label">Custom markers</span><span class="nav-item-dot"></span></div>`;
+  const reports = {action:sidebarAction(_navActionAttrs('open-report-builder'),'open-report-builder'),icon:_sidebarIcon('report')};
+  const context = {action:sidebarAction(_navActionAttrs('open-context'),'open-context'),icon:_sidebarIcon('context')};
+  const knowledge = {action:sidebarAction(_navActionAttrs('open-knowledge-base'),'open-knowledge-base'),icon:_sidebarIcon('knowledge')};
+  const custom = {action:sidebarAction(_navActionAttrs('open-custom-marker'),'open-custom-marker'),icon:_sidebarIcon('plus')};
 
   // Separate categories into blood work (no group) and specialty groups
   const bloodWork: NavItem[] = [];
@@ -323,28 +280,25 @@ export function buildSidebar(data?: unknown) {
   // Lab category shortcuts stay in the sidebar because they are the fastest
   // way to jump into a biomarker table, but the Labs lens itself is the
   // all-biomarker entry point.
-  html += `<div class="nav-section sidebar-title">Lab categories <button class="sidebar-add-marker" ${_navActionAttrs('open-custom-marker')} title="Create custom biomarker">+</button></div>`;
-  for (const item of bloodWork) html += item.html;
-
-  // Render specialty groups
+  const labAction = sidebarAction(_navActionAttrs('open-custom-marker'),'open-custom-marker');
+  const categories = bloodWork.map(item => item.view);
+  const groups:SidebarGroupView[] = [];
   for (const [groupName, group] of Object.entries(specialtyGroups)) {
     const collapsed = _getGroupCollapsed(groupName);
-    const flagHtml = group.totalFlagged > 0
-      ? `<span class="flag-count">${group.totalFlagged}</span>`
-      : '';
-    // Disclosure is its own button so group headers stay accessible while the
-    // sidebar remains navigation-only. AI inclusion now lives in Context.
-    html += `<div class="sidebar-group-header${collapsed ? ' collapsed' : ''}" data-group-name="${escapeAttr(groupName)}" ${_navActionAttrs('toggle-group', { group: groupName })}>
-      <button class="sidebar-group-toggle" ${_navActionAttrs('toggle-group', { group: groupName })} aria-expanded="${!collapsed}" aria-label="${escapeAttr(groupName)} group">
-        <span class="sidebar-group-label">${escapeHTML(groupName)}</span>
-        ${flagHtml}
-      </button>
-      <span class="sidebar-group-arrow" aria-hidden="true">\u25B8</span>
-    </div>`;
-    html += `<div class="sidebar-group-items" data-group-items="${escapeAttr(groupName)}"${collapsed ? ' style="display:none"' : ''}>`;
-    for (const item of group.items) html += item.html;
-    html += `</div>`;
+    const flagged = group.totalFlagged > 0 ? `${group.totalFlagged}` : null;
+    const className = 'sidebar-group-header' + `${collapsed ? ' collapsed' : ''}`;
+    const name = sidebarText(groupName);
+    const headerAction = sidebarAction(_navActionAttrs('toggle-group', { group: groupName }),'toggle-group',undefined,groupName);
+    const toggleAction = sidebarAction(_navActionAttrs('toggle-group', { group: groupName }),'toggle-group',undefined,groupName);
+    const expanded:SidebarGroupView['expanded'] = collapsed ? 'false' : 'true';
+    const accessibleName = sidebarText(groupName) + ' group';
+    const label = sidebarText(groupName);
+    const itemsName = sidebarText(groupName);
+    const collapsedStyle = collapsed ? componentStaticStyles.hidden : undefined;
+    groups.push({className,name,headerAction,toggleAction,expanded,accessibleName,label,flagged,itemsName,collapsedStyle,items:group.items.map(item => item.view)});
   }
+  const view:SidebarView = {searchIcon,dashboard,dashboardCount,labs,labsCount,biology,genome,genomeBadge,body,bodyBadge,light,insight,recommendations,compare,correlations,emf,lightAssessment,reports,context,knowledge,custom,labAction,categories,groups};
+  const html = renderSidebarPresentation(view);
 
   nav.innerHTML = html;
   syncSidebarActive(state.currentView || 'dashboard');
@@ -435,14 +389,7 @@ export function renderProfileButton() {
   const profiles = getProfiles();
   const active = profiles.find(p => p.id === state.currentProfile) || profiles[0];
   if (!active) return;
-  const dot = active.avatar
-    ? `<img class="profile-compact-dot profile-compact-img" src="${escapeAttr(active.avatar)}" alt="">`
-    : `<span class="profile-compact-dot" style="background:${getAvatarColor(active.id)}">${escapeHTML((active.name || '?')[0]!.toUpperCase())}</span>`;
-  container.innerHTML = `<button class="profile-compact-btn" ${_navActionAttrs('open-client-list')} title="Manage clients">
-    ${dot}
-    <span class="profile-compact-name">${escapeHTML(active.name)}</span>
-    <span class="profile-compact-arrow">\u25BC</span>
-  </button>`;
+  container.innerHTML = renderProfileButtonView(projectProfileButton(active, getAvatarColor));
 }
 
 // Keep renderProfileDropdown as alias for backward compat (tests, other modules)

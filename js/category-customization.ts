@@ -1,7 +1,8 @@
 // category-customization.js — category/marker labels and category icon picker
 
 import { state } from './state.js';
-import { escapeHTML, showNotification } from './utils.js';
+import { showNotification } from './utils.js';
+import { renderEmojiPicker } from './emoji-picker-presentation.js';
 import { getActiveData, saveImportedData } from './data.js';
 import { showDetailModal } from './marker-detail-modal.js';
 import { getMarkerStorageDotKey } from './marker-placement.js';
@@ -118,28 +119,7 @@ export function showEmojiPicker(anchorEl: Element, callback: (emoji: string | nu
   let searchTerm = '';
 
   function render() {
-    let html = `<div class="emoji-picker-search"><input type="text" placeholder="Search emoji..." value="${escapeHTML(searchTerm)}"></div>`;
-    html += `<div class="emoji-picker-cats">`;
-    if (opts.showReset) {
-      html += `<button data-cat="__reset" title="Reset to default" style="font-size:12px;font-family:inherit">\u00d7</button>`;
-    }
-    for (const cat of EMOJI_CATEGORIES) {
-      html += `<button data-cat="${cat.id}" title="${cat.label}" class="${activeCat === cat.id ? 'active' : ''}">${cat.icon}</button>`;
-    }
-    html += `</div><div class="emoji-picker-grid">`;
-
-    const items: string[] = [];
-    for (const cat of EMOJI_CATEGORIES) {
-      if (activeCat && activeCat !== cat.id) continue;
-      if (searchTerm && !cat.label.toLowerCase().includes(searchTerm.toLowerCase())) continue;
-      items.push(`<div class="emoji-picker-label">${cat.label}</div>`);
-      for (const e of cat.emojis) {
-        items.push(`<span data-emoji="${e}">${e}</span>`);
-      }
-    }
-    if (items.length === 0) items.push(`<div class="emoji-picker-label">No results</div>`);
-    html += items.join('') + `</div>`;
-    picker.innerHTML = html;
+    picker.innerHTML = renderEmojiPicker(searchTerm, activeCat, EMOJI_CATEGORIES, () => opts.showReset);
 
     // Bind events
     const input = (picker.querySelector('input') as HTMLInputElement | null);

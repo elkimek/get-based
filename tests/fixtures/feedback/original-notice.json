@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "originalModalBaseSHA256": "13020bd824d68cfef699da0a06503ae8d131fd73efcf338fa671ba8badf03413",
+  "originalNoticeBody": "  margin: 0;\n  padding: 10px 12px;\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  background: color-mix(in srgb, var(--bg-card) 76%, transparent);\n  color: var(--text-muted);\n  font-size: 11.5px;\n  line-height: 1.5;",
+  "compilerInputSHA256": "6e468f8afc8c7f9de1e726e3bd525edc370c20b1dbfdfff75b51528e32e494af",
+  "selector": ":where(.gb\\:feedback-notice\\:feedback-notice-block):where(#feedback-modal, #feedback-modal *):is(.feedback-notice)",
+  "loweredBlock": ":where(.gb\\:feedback-notice\\:feedback-notice-block):where(#feedback-modal, #feedback-modal *):is(.feedback-notice) {\n  margin: 0;\n  padding: 10px 12px;\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  background: var(--bg-card);\n  @supports (color: color-mix(in lab, red, red)) {\n    background: color-mix(in srgb, var(--bg-card) 76%, transparent);\n  }\n  color: var(--text-muted);\n  font-size: 11.5px;\n  line-height: 1.5;\n}"
+}

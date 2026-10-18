@@ -1,0 +1,1 @@
+<script lang="ts">import type {CorrelationReadout} from '../correlation-workspace-chrome-presentation.js';let {rows}:{rows:readonly CorrelationReadout[]}=$props();</script><svelte:options preserveWhitespace={true}/>{#each rows as row}<div><strong>{row.name}</strong><span>{row.value}</span></div>{/each}

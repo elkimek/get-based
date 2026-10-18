@@ -1,3 +1,4 @@
+import {tsStaticStyles} from './ts-static-ui-inline-style-map.generated.js';
 import LiveMessage, { mount, unmount, flushSync } from './components/ChatLiveMessage.svelte.native.js';
 import StreamingText, { mount as mountText, unmount as unmountText, flushSync as flushText } from './components/ChatStreamingText.svelte.native.js';
 import { projectChatTranscriptMessage } from './chat-transcript-presentation.js';
@@ -37,7 +38,7 @@ export interface ChatLiveMessageHandle {
 /** A service-owned host contains one authored message view, independent of history repainting. */
 export function createChatLiveMessage(container: HTMLElement, identity: ChatAvatarDetails, current: () => boolean, label: string | null = null): ChatLiveMessageHandle {
   const host = document.createElement('div');
-  host.style.display = 'contents';
+  host.style.display = tsStaticStyles.liveMessageHost;
   const initial = projectChatTranscriptMessage({
     role: 'assistant', content: '',
     personalityName: identity.personalityName || '',

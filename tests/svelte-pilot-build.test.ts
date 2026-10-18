@@ -7,6 +7,7 @@ import { buildSvelte } from '../scripts/build-svelte.mjs';
 import { parseModuleSpecifiers } from '../scripts/architecture-map.mjs';
 import { createTestPlan } from '../scripts/pr-test-scope.mjs';
 import { productionSources, productionFunctionIndex, partitionComponentFunctions, matchSourceFunction } from '../scripts/coverage-source.mjs';
+import { assertDisplayCoverageCalls, displayCoverageOwnerSHA256, expectedDisplayCoverageRoles, qualifyDisplayCoverageRoles } from './helpers/display-settings-coverage-contract.js';
 
 let directory: string;
 beforeAll(async () => {
@@ -119,11 +120,15 @@ it('reads both authored component scripts without treating markup or type import
 it('merges real unit coverage in native coordinates without counting bundled framework functions', async () => {
   const reports = path.join(directory, 'unit-coverage');
   execFileSync(process.execPath, ['node_modules/vitest/vitest.mjs', 'run',
-    'tests/unit-profile-active-data.test.ts', '--coverage', `--coverage.reportsDirectory=${reports}`], {
+    // This format witness inspects this self-contained native component's
+    // owned and bundled framework functions. Release coverage stays global.
+    'tests/unit-profile-active-data.test.ts', '--coverage',
+    '--coverage.include=js/components/DisplaySettings.svelte.native.js', `--coverage.reportsDirectory=${reports}`], {
     encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 20_000,
   });
   const file = 'js/components/DisplaySettings.svelte.native.js';
   const coverage = JSON.parse(await fs.readFile(path.join(reports, 'coverage-final.json'), 'utf8'));
+  expect(Object.keys(coverage)).toEqual([path.resolve(file)]);
   expect(coverage[path.resolve('js/components/DisplaySettings.svelte')]).toBeUndefined();
   const collected = coverage[path.resolve(file)];
   expect(collected).toBeDefined();
@@ -136,8 +141,8 @@ it('merges real unit coverage in native coordinates without counting bundled fra
     const end = offsets[span.end.line - 1]! + (span.end.column || 0);
     return end > start ? { start, end } : null;
   };
-  const owned = new Set();
-  const called = new Set();
+  const owned = new Set<number>();
+  const called = new Set<number>();
   for (const [id, fn] of Object.entries(collected.fnMap) as Array<[string, { loc: Parameters<typeof range>[0]; decl: Parameters<typeof range>[0] }]>) {
     const span = range(fn.loc) || range(fn.decl)!;
     const match = matchSourceFunction(index.owned, span.start, span.end, 'istanbul');
@@ -149,6 +154,31 @@ it('merges real unit coverage in native coordinates without counting bundled fra
     }
   }
   expect(owned.size).toBe(index.owned.length);
-  expect(called.size).toBe(3);
+  const payload = JSON.parse(await fs.readFile(`${file}.map`, 'utf8')) as import('node:module').SourceMapPayload;
+  const authored = Object.fromEntries(await Promise.all(Object.keys(displayCoverageOwnerSHA256).map(async name =>
+    [name, await fs.readFile(path.join('js/components', name), 'utf8')],
+  )));
+  const roles = qualifyDisplayCoverageRoles(source, payload, index.owned, authored);
+  assertDisplayCoverageCalls(roles, called);
+  expect(called.size).toBe(Object.values(expectedDisplayCoverageRoles).filter(Boolean).length);
+
+  // The old numeric cardinality alone would accept this equally sized wrong
+  // set. A missed reactive getter and an unexpectedly called refresh must fail.
+  const wrongCalls = new Set(called);
+  wrongCalls.delete(roles.find(role => role.role === 'display:product-recs')!.start);
+  wrongCalls.add(roles.find(role => role.role === 'display:refresh')!.start);
+  expect(wrongCalls.size).toBe(called.size);
+  expect(() => assertDisplayCoverageCalls(roles, wrongCalls)).toThrow();
+
+  // A child event handler is owned even when this fixture does not call it.
+  // Neither hiding that function nor changing complete map ownership is valid.
+  const change = roles.find(role => role.role === 'toggle:change')!;
+  expect(() => qualifyDisplayCoverageRoles(source, payload,
+    index.owned.filter(fn => fn.start !== change.start), authored)).toThrow();
+  const corruptMap = structuredClone(payload);
+  if (!corruptMap.sourcesContent) throw new Error('Component source content is required');
+  const toggle = corruptMap.sources.indexOf('SettingsToggle.svelte');
+  corruptMap.sourcesContent[toggle] = `${corruptMap.sourcesContent[toggle]}\n`;
+  expect(() => qualifyDisplayCoverageRoles(source, corruptMap, index.owned, authored)).toThrow();
   expect(called.size).toBeLessThan(owned.size); // Unit fixture does not call refresh.
 }, 30_000);

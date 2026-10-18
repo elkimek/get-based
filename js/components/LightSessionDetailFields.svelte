@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { SessionDetailField } from '../light-session-detail-presentation.js';
-  let { fields, kind }: { fields: SessionDetailField[]; kind: 'summary' | 'setup' | 'inputs' } = $props();
+  let { fields, kind }: { fields: readonly SessionDetailField[]; kind: 'summary' | 'setup' | 'inputs' } = $props();
   const grid = {
     summary: 'sun-detail-grid gb:light-detail:grid-cols-[repeat(auto-fit,minmax(min(110px,100%),1fr))] gb:light-detail:gap-2.5 gb:light-detail:mb-4',
     setup: 'sun-detail-setup-grid gb:light-detail:grid-cols-[repeat(auto-fit,minmax(min(150px,100%),1fr))] gb:light-detail:gap-2',

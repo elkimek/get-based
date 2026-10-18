@@ -6,6 +6,7 @@ import { closeModalOverlay } from './modal-lifecycle.js';
 import { createNutritionEntrySession } from './nutrition-entry-session.js';
 import { entryResultMessage } from './nutrition-entry-model.js';
 import { showNotification } from './utils.js';
+import { ensureNutritionStylesheet } from './nutrition-render.js';
 import type { NutritionEntryView } from './nutrition-entry-model.js';
 interface Dependencies { refreshWidget(): unknown; closeEditor(): unknown; }
 interface View {
@@ -25,6 +26,27 @@ export function captureNutritionEntryOpen() {
   return { modal, overlay, current: () => ticket === request && state.currentProfile === profile && state.importedData === data
     && routeRevision() === route && modal.firstElementChild === content && overlay.classList.contains('show') === shown
     && document.getElementById('detail-modal') === modal && document.getElementById('modal-overlay') === overlay };
+}
+/** Preserve capture-before-await and the shared first-use stylesheet failure. */
+export async function prepareNutritionEntryOpen(isCurrent: () => boolean = () => true) {
+  const pending = captureNutritionEntryOpen();
+  if (!pending) return null;
+  const stylesheet = await ensureNutritionStylesheet();
+  if (!pending.current() || !isCurrent()) return null;
+  if (stylesheet?.type === 'error') {
+    showNotification('Nutrition styles could not be loaded. Try again.', 'error');
+    return null;
+  }
+  return pending;
+}
+/** A mounted editor awaiting draft restoration must not focus a retired owner. */
+export function captureNutritionEditorRestore(modal: HTMLElement, overlay: HTMLElement) {
+  const ticket = request, profile = state.currentProfile, data = state.importedData, route = routeRevision();
+  const main = document.getElementById('main-content'), content = modal.firstElementChild, shown = overlay.classList.contains('show');
+  return () => ticket === request && !!content?.isConnected && modal.firstElementChild === content
+    && state.currentProfile === profile && state.importedData === data && routeRevision() === route
+    && document.getElementById('main-content') === main && document.getElementById('detail-modal') === modal
+    && document.getElementById('modal-overlay') === overlay && overlay.classList.contains('show') === shown;
 }
 function current(owned: View): boolean {
   return view === owned && owned.root.isConnected && owned.overlay.classList.contains('show') && owned.session.current()

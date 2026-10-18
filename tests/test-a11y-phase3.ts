@@ -10,6 +10,7 @@
 
 import { deviceSetupClasses } from '../js/light-device-setup-classes.js';
 import { setupClasses } from '../js/light-setup-classes.js';
+import { lightSetupUtilityRecipes } from '../scripts/style-recipes/light-setup.mjs';
 import { projectChannelPill, projectChannelDetail } from '../js/light-channel-presentation.js';
 import { renderHTML as renderChannelPills } from '../js/components/LightChannelPills.svelte.html.js';
 import { renderHTML as renderChannelDetail } from '../js/components/LightChannelDetail.svelte.html.js';
@@ -17,6 +18,10 @@ import { renderImportProgress } from '../js/import-progress-rendering.js';
 import { projectCycleOverviewPresentation } from '../js/cycle-overview-presentation.js';
 import { renderHTML as renderCycleOverview } from '../js/components/CycleOverviewPresentation.svelte.html.js';
 import { JSDOM } from 'jsdom';
+import {projectMarkerDetailAction} from '../js/marker-detail-projection.js';
+import { renderMarkerDetailRange } from '../js/marker-detail-results-presentation.js';
+import { renderSupplementRow } from '../js/supplement-dashboard-presentation.js';
+import { renderAnalyticsConsentBody } from '../js/analytics-consent-rendering.js';
 import { readAuthoredRepositorySource } from './helpers/repository-source.js';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -47,27 +52,38 @@ console.log('=== Phase 3 A11y Tests ===\n');
   const categoryPageViewSrc = read('/js/category-page-view.js');
   const lightChannelViewSrc = read('/js/light-channel-view.js');
   const categoryViewRenderersSrc = read('/js/category-view-renderers.js');
-  const focusCardSrc = read('/js/focus-card.js');
+  const focusCardSrc = read('/js/components/FocusCard.svelte');
+  const chartCardMarkup = read('/js/components/CategoryChartCard.svelte');
+  const heatmapMarkup = read('/js/components/CategoryHeatmapRows.svelte');
+  const fattyMarkup = read('/js/components/CategoryFattyAcids.svelte');
+  const alertsMarkup = read('/js/components/DashboardAlerts.svelte');
+  const notesMarkup = read('/js/components/DashboardLabNotes.svelte');
   const onboardingViewSrc = read('/js/onboarding-view.js');
-  const markerDetailSrc = read('/js/marker-detail-modal-impl.js');
   const dashboardLabRenderersSrc = read('/js/dashboard-lab-widget-renderers.js');
   assert('chart-card body has role and tabindex without nesting the Tips control',
-    categoryViewRenderersSrc.includes('class="chart-card-main" role="button" tabindex="0"')
-      && categoryViewRenderersSrc.includes('class="chart-card-tips-host"'));
+    chartCardMarkup.includes('class="chart-card-main" role="button" tabindex="0"') && categoryViewRenderersSrc.includes('renderCategoryChartCard(projectCategoryChartCard(')
+      && chartCardMarkup.includes('class="chart-card-tips-host"') && chartCardMarkup.indexOf('chart-card-tips-host') < chartCardMarkup.indexOf('chart-card-main'));
   assert('trend-alert-card has role and tabindex',
-    dashboardLabRenderersSrc.includes('class="trend-alert-card ${cls}" role="button" tabindex="0"'));
+    alertsMarkup.includes('class={`trend-alert-card ${alert.tone}`} role="button" tabindex="0"') && alertsMarkup.includes('data-dashboard-widget-id={alert.id ?? undefined}') && dashboardLabRenderersSrc.includes('renderDashboardLabSummary(projectDashboardAlertsWidget(ctx))'));
   assert('alert-card (critical) has role and tabindex',
-    dashboardLabRenderersSrc.includes('class="alert-card ${cls}" role="button" tabindex="0"'));
+    alertsMarkup.includes('class={`alert-card ${flag.tone}`} role="button" tabindex="0"') && alertsMarkup.includes('data-dashboard-widget-route={flag.route ?? undefined}'));
   assert('note-card has role and tabindex',
-    dashboardLabRenderersSrc.includes('class="note-card" role="button" tabindex="0"'));
+    notesMarkup.includes('class="note-card" role="button" tabindex="0"') && notesMarkup.includes('data-dashboard-widget-index={note.index}'));
   assert('heatmap header td has role+tabindex',
-    categoryViewRenderersSrc.includes('<tr><td role="button" tabindex="0"'));
+    heatmapMarkup.includes('<tr><td role="button" tabindex="0"') && heatmapMarkup.includes('data-marker-detail-id={row.id}'));
   assert('heatmap cell td has role+tabindex',
-    categoryViewRenderersSrc.match(/heatmap-\$\{s\}" role="button" tabindex="0"/));
+    heatmapMarkup.includes('class="heatmap-{cell.status}" role="button" tabindex="0"') && heatmapMarkup.includes('aria-label={cell.label}'));
   assert('fa-card has role+tabindex',
-    categoryViewRenderersSrc.includes('class="fa-card" role="button" tabindex="0"'));
+    fattyMarkup.includes('class="fa-card" role="button" tabindex="0"') && fattyMarkup.includes('data-marker-detail-id={card.id}'));
+  const rangeEdit = JSDOM.fragment(renderMarkerDetailRange({kind: 'edit-control',
+    optimalClass: '', label: 'Reference', currentRange: '1–2',
+    actions: projectMarkerDetailAction('edit-ref-range',{id:'controlled',type:'ref'}), lowerLabel: 'reference', badge: null,
+  })).querySelector('.ref-editable');
   assert('range edit control is a native button',
-    markerDetailSrc.includes('type="button" class="ref-editable'));
+    rangeEdit?.tagName === 'BUTTON' && rangeEdit.getAttribute('type') === 'button'
+      && rangeEdit.getAttribute('aria-label') === 'Edit Reference range, currently 1–2'
+      && rangeEdit.getAttribute('data-marker-detail-action') === 'edit-ref-range'
+      && readAuthoredRepositorySource('js/marker-detail-modal-impl.js').includes('return ({ kind: "edit-control"'));
   assert('focus-card refresh has aria-label and delegated action',
     focusCardSrc.includes('class="focus-card-refresh"') &&
     focusCardSrc.includes('aria-label="Regenerate insight"') &&
@@ -96,15 +112,20 @@ console.log('=== Phase 3 A11y Tests ===\n');
       && /switch \(actionEl\.dataset\.cycleAction \|\| ''\) \{/.test(cycleSrc)
       && /case 'open-editor':\s*openMenstrualCycleEditor\(\);\s*break;/.test(cycleSrc)
       && cycleSrc.includes("document.addEventListener('click', handleCycleClick);")
-      && cycleSrc.includes('return renderCycleOverviewPresentation({view: projectCycleOverviewPresentation(input)});')
+      && cycleSrc.includes('return renderCycleOverviewPresentation({view: projectMenstrualCycleSection(data, opts)});') && cycleSrc.includes('function projectMenstrualCycleSection')
       && !cycleSrc.includes('CYCLE_KEY_ACTIVATE_EDITOR'));
 
-  const suppSrc = read('/js/supplement-dashboard.js');
-  assert('supp-bar-row has role+tabindex',
-    suppSrc.includes('class="supp-bar-row" role="button" tabindex="0"'));
+  const suppSrc = readAuthoredRepositorySource('js/supplement-dashboard.js');
+  const suppRow = JSDOM.fragment(renderSupplementRow(3, 'Zinc · 10 mg', 'Zinc', [])).querySelector('.supp-bar-row');
+  assert('supp-bar-row has role+tabindex and retained native delegated action',
+    suppRow?.getAttribute('role') === 'button' && suppRow.getAttribute('tabindex') === '0'
+      && suppRow.getAttribute('aria-label') === 'Edit Zinc · 10 mg'
+      && suppRow.getAttribute('data-supp-action') === 'open-editor'
+      && suppRow.getAttribute('data-supp-index') === '3'
+      && suppSrc.includes('rows.push(supplementRow(index, fullLabel, shortName, bars));'));
 
   // ─── 3. Modal close aria-labels ───
-  for (const f of ['/js/views.js', '/js/feedback.js', '/js/changelog-impl.js', '/js/emf-editor.js', '/js/settings.js']) {
+  for (const f of ['/js/views.js', '/js/emf-editor.js', '/js/settings.js']) {
     const src = read(f);
     const closeButtons = src.match(/<button\b[^>]*class="[^"]*\bmodal-close\b[^"]*"[^>]*>/g) || [];
     const labelled = closeButtons.filter(button => /\baria-label="[^"]+"/.test(button)).length;
@@ -112,8 +133,37 @@ console.log('=== Phase 3 A11y Tests ===\n');
       closeButtons.length === labelled,
       `${labelled}/${closeButtons.length} labelled`);
   }
-  const feedbackSrc = read('/js/feedback.js');
+  // Feedback markup has an authored Svelte owner; a controller-only regex can pass 0/0.
+  const feedbackPresentationSrc = read('/js/components/FeedbackPresentation.svelte');
+  const feedbackCloseButtons = feedbackPresentationSrc.match(/<button\b[^>]*class="modal-close"[^>]*>/g) || [];
+  assert('Feedback authored close button has native type, label and delegated action',
+    feedbackCloseButtons.length === 1
+      && /\btype="button"/.test(feedbackCloseButtons[0]!)
+      && /\baria-label="Close"/.test(feedbackCloseButtons[0]!)
+      && /\bdata-feedback-action="close"/.test(feedbackCloseButtons[0]!));
+  const feedbackRenderingSrc = readAuthoredRepositorySource('js/feedback-rendering.js');
+  const feedbackSrc = readAuthoredRepositorySource('js/feedback.js');
+  assert('Feedback facade clones native template content and controller consumes the clone',
+    feedbackRenderingSrc.includes("from './components/FeedbackPresentation.svelte.html.js'")
+      && /const template = document\.createElement\('template'\);\s*template\.innerHTML = renderHTML\(\);\s*return template\.content\.cloneNode\(true\);/.test(feedbackRenderingSrc)
+      && feedbackSrc.includes("from './feedback-rendering.js'")
+      && feedbackSrc.includes('modal.replaceChildren(renderFeedbackForm());')
+      && !feedbackSrc.includes('modal.innerHTML = renderFeedbackForm()'));
   const changelogSrc = read('/js/changelog-impl.js');
+  const changelogPresentationSrc = read('/js/components/ChangelogPresentation.svelte');
+  const changelogCloseButtons = changelogPresentationSrc.match(/<button\b[^>]*class="modal-close"[^>]*>/g) || [];
+  assert('Changelog authored close button has native type, label and delegated action',
+    changelogCloseButtons.length === 1
+      && /\btype="button"/.test(changelogCloseButtons[0]!)
+      && /\baria-label="Close"/.test(changelogCloseButtons[0]!)
+      && /\bdata-changelog-action="close"/.test(changelogCloseButtons[0]!));
+  const changelogRenderingSrc = readAuthoredRepositorySource('js/changelog-rendering.js');
+  const changelogControllerSrc = readAuthoredRepositorySource('js/changelog-impl.js');
+  assert('Changelog controller parses its actual authored presentation synchronously',
+    changelogControllerSrc.includes("from './changelog-rendering.js'")
+      && changelogControllerSrc.includes('modal.innerHTML = renderChangelog(projectChangelogView(entries, renderChangelogItem));')
+      && changelogRenderingSrc.includes("from './components/ChangelogPresentation.svelte.html.js'")
+      && changelogRenderingSrc.includes('return renderHTML({ view });'));
   assert('feedback modal uses shared overlay lifecycle helpers',
     feedbackSrc.includes("from './modal-lifecycle.js'")
       && feedbackSrc.includes('openModalOverlay(')
@@ -124,9 +174,12 @@ console.log('=== Phase 3 A11y Tests ===\n');
       && changelogSrc.includes('closeModalOverlay('));
 
   // ─── 4. Hosted-product copy avoids personal-maintainer framing ───
-  const utilsSrc = read('/js/utils.js');
+  const utilsSrc = readAuthoredRepositorySource('js/utils.js');
+  const analyticsConsent = JSDOM.fragment(renderAnalyticsConsentBody()).textContent || '';
   assert('utils.js analytics consent uses product-level wording',
-    !utilsSrc.includes('help me improve getbased') && utilsSrc.includes('help improve getbased'));
+    !utilsSrc.includes('help me improve getbased') && !analyticsConsent.includes('help me improve getbased')
+      && analyticsConsent.includes('help improve getbased')
+      && utilsSrc.includes('banner.innerHTML = renderAnalyticsConsentBody();'));
   const settingsSrc = `${read('/js/settings.js')}\n${read('/js/settings-privacy.js')}\n${read('/js/components/PrivacySettings.svelte')}`;
   assert('settings.js privacy copy identifies Umami without personal framing',
     !settingsSrc.includes('I track cookieless') && settingsSrc.includes('Umami analytics service'));
@@ -151,14 +204,16 @@ console.log('=== Phase 3 A11y Tests ===\n');
   assert('all 7 settings tabs have runtime aria-selected', ariaSelMatches === 7 && settingsShellSrc.includes('aria-selected={activeTab === tab.id}')
     && settingsShellSrc.includes("tabindex={activeTab === tab.id ? 0 : -1}"), `found ${ariaSelMatches}`);
   assert('view-toggle (Charts/Table/Heatmap) is a tablist',
-    categoryPageViewSrc.includes('class="view-toggle" role="tablist"'));
+    read('/js/components/CategoryPageChrome.svelte').includes('class="view-toggle" role="tablist"') && categoryPageViewSrc.includes('renderCategoryPagePresentation'));
 
   // ─── 6. Chart layers dropdown ARIA ───
   const dataSrc = read('/js/data-view-controls.js');
+  const chartLayersSrc = read('/js/components/ChartLayersDropdown.svelte');
   assert('chart-layers-trigger has aria-haspopup + aria-controls',
-    /<button class="view-btn chart-layers-trigger"[\s\S]{0,220}aria-haspopup="true"[\s\S]{0,220}aria-expanded="false"[\s\S]{0,220}aria-controls="chart-layers-dropdown"/.test(dataSrc));
+    /<button class="view-btn chart-layers-trigger"[\s\S]{0,220}aria-haspopup="true"[\s\S]{0,220}aria-expanded="false"[\s\S]{0,220}aria-controls="chart-layers-dropdown"/.test(chartLayersSrc));
   assert('chart-layers-dropdown has role=menu',
-    dataSrc.includes('class="chart-layers-dropdown" id="chart-layers-dropdown" role="menu"'));
+    chartLayersSrc.includes('class="chart-layers-dropdown" id="chart-layers-dropdown" role="menu"'));
+  assert('authored chart layers are wired into the public renderer', dataSrc.includes("from './chart-layers-presentation.js'") && dataSrc.includes('const view = projectChartLayersDropdown()') && dataSrc.includes('renderChartLayersPresentation({ hasNotes: !!view.notes, hasSupps: !!view.supplements, hasCycle: !!view.cycle }') && dataSrc.includes("view.notes?.checked ? 'on' : 'off'") && dataSrc.includes("view.supplements?.checked ? 'on' : 'off'") && dataSrc.includes("view.cycle?.checked ? 'on' : 'off'"));
   assert('toggle handler updates aria-expanded',
     dataSrc.includes("trigger.setAttribute('aria-expanded', String(!isOpen))"));
   assert('toggle handler closes on Escape',
@@ -231,9 +286,10 @@ console.log('=== Phase 3 A11y Tests ===\n');
     /html\s*\{[^}]*background:\s*var\(--bg-primary\)[^}]*color-scheme:\s*dark/.test(cssSrc) &&
     /\[data-theme="light"\]\s*\{[^}]*color-scheme:\s*light/.test(cssSrc));
   assert('footer carries current company, founder, and documentation details',
-    indexSrc.includes('&copy; 2026 getbased s.r.o.')
-      && indexSrc.includes('Founded and built with &#10084;&#65039; by')
-      && indexSrc.includes('href="https://docs.getbased.health"'));
+    read('/js/components/AppFooter.svelte').includes('&copy; 2026 getbased s.r.o.')
+      && read('/js/components/AppFooter.svelte').includes('Founded and built with &#10084;&#65039; by')
+      && read('/js/components/AppFooter.svelte').includes('href="https://docs.getbased.health"')
+      && JSDOM.fragment(indexSrc).querySelector('.app-footer-legal')?.textContent?.includes('© 2026 getbased s.r.o.'));
   assert('desktop footer clears the fixed sidebar and returns to full width below the sidebar breakpoint',
     /\.app-footer \{[^}]*margin-left: 260px/.test(cssSrc)
       && /@media \(max-width: 1024px\)[\s\S]*?\.app-footer \{ margin-left: 0; \}/.test(cssSrc));
@@ -327,13 +383,15 @@ console.log('=== Phase 3 A11y Tests ===\n');
   const ownedChatTitleUsesDisplayFont = ownedChatTitle.includes('gb:header:theme-neuro:[font-family:var(--font-neuromancer-display)]')
     && ownedChatTitle.includes('gb:header:theme-neuro:[font-size-adjust:0.62]');
   const ownedLightTitle = new Map([
-    ['.light-setup-title',setupClasses('light-setup-title')],
-    ['.light-setup-focus-head h3',setupClasses('light-setup-focus-head')],
-    ['.light-setup-ott h4',setupClasses('light-setup-ott')],
+    ['.light-setup-title',lightSetupUtilityRecipes['light-setup-title']],
+    ['.light-setup-focus-head h3',lightSetupUtilityRecipes['light-setup-focus-head']],
+    ['.light-setup-ott h4',lightSetupUtilityRecipes['light-setup-ott']],
   ]);
   assert('neuromancer VT323 stays scoped to display accents',
     !!neuromancerDisplayToken &&
     !!neuromancerDisplayRule &&
+    ['light-setup-title', 'light-setup-focus-head', 'light-setup-ott'].every(hook =>
+      setupClasses(hook) === `${hook} gb-ls-${hook}`) &&
     neuromancerDisplaySelectors.every(selector => selector === '.chat-header-title'
       ? ownedChatTitleUsesDisplayFont : ownedLightTitle.has(selector)
         ? ownedLightTitle.get(selector)!.includes("[[data-theme='neuromancer']_")

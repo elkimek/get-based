@@ -276,9 +276,14 @@ assert('callOpenAICompatibleAPI has signal param', apiOpenAICompatibleSrc.includ
 console.log('25. Auto message rendering');
 assert('renderChatMessages stays module-only', !('renderChatMessages' in window));
 const renderSrc2 = chatRender.renderChatMessages.toString();
-assert('renderChatMessages checks msg.auto', renderSrc2.includes('msg.auto'));
-assert('renderChatMessages applies chat-msg-auto class', renderSrc2.includes('chat-msg-auto'));
-assert('renderChatMessages checks msg.stopped', renderSrc2.includes('msg.stopped'));
+const transcriptSrc = read('js/chat-transcript-presentation.js');
+const messageComponentSrc = read('js/components/ChatMessage.svelte');
+const { projectChatTranscriptMessage } = await import('../js/chat-transcript-presentation.js');
+const autoStopped = projectChatTranscriptMessage({ role: 'assistant', content: 'fixture auto', auto: true, stopped: true }, -1);
+const manualRunning = projectChatTranscriptMessage({ role: 'assistant', content: 'fixture manual', auto: false, stopped: false }, -1);
+assert('renderChatMessages checks msg.auto', renderSrc2.includes('projectChatTranscript') && transcriptSrc.includes('auto: !!message.auto') && autoStopped.auto === true && manualRunning.auto === false);
+assert('renderChatMessages applies chat-msg-auto class', messageComponentSrc.includes('class:chat-msg-auto={view.auto}'));
+assert('renderChatMessages checks msg.stopped', transcriptSrc.includes('stopped: !!message.stopped') && messageComponentSrc.includes('{#if view.stopped}') && autoStopped.stopped === true && manualRunning.stopped === false);
 
 // ── 26. startDiscussion source ──
 console.log('26. startDiscussion source');

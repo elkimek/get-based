@@ -46,7 +46,9 @@ function semantic(html: string) {
   });
   return [...host.children].map(tree);
 }
-beforeEach(() => { vi.useFakeTimers(); state.currentProfile = 'review-fixture'; state.importedData = createDefaultProfileData(); });
+// The original packet omits a capture clock. Select a fixed instant inside its source-defined 7/14-day eligibility intervals; all original five summaries remain unchanged.
+const originalSummaryClock=Math.max(...original.summaryCases.flatMap(c=>[...c.sunSessions,...c.deviceSessions].map(s=>s.endedAt)))+86400000;
+beforeEach(() => { vi.useFakeTimers();vi.setSystemTime(originalSummaryClock); state.currentProfile = 'review-fixture'; state.importedData = createDefaultProfileData(); });
 afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); });
 function install(sample: Case) {
   fixture.provider = sample.provider; fixture.status = sample.status;

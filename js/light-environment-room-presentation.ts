@@ -1,3 +1,4 @@
+import type{EnvironmentAIView}from'./light-environment-ai-presentation.js';
 import type { LightAuditBlockView } from './light-audit-presentation.js';
 // Pure room presentation. Domain reads, callbacks and mutations belong to the adapter.
 import type { EnvironmentRoomOperations, EnvironmentScreenReader, EnvironmentMeasurementOperations, EnvironmentSeverity } from '../types/light-env-view.js';
@@ -8,32 +9,32 @@ import { roomUsesEveningAfterSunset } from './light-env-evening.js';
 export const environmentText = (value: unknown) => value == null ? '' : String(value);
 export const environmentActionValue = (value: unknown) => value == null || value === '' || value === false ? undefined : String(value);
 export interface EnvironmentPickerView {
-  label: string; action: string; id: string | undefined;
-  choices: { key: string; label: string; selected: boolean }[];
-  help: string;
-  reveal: null | { kind: 'source'; open: boolean; options: ScreenOptionView[] } | { kind: 'hours'; value: string };
+  readonly label: string; readonly action: string; readonly id: string | undefined;
+  readonly choices: readonly { readonly key: string; readonly label: string; readonly selected: boolean }[];
+  readonly help: string;
+  readonly reveal: null | { readonly kind: 'source'; readonly open: boolean; readonly options: readonly ScreenOptionView[] } | { readonly kind: 'hours'; readonly value: string };
 }
 export interface EnvironmentQuickPicksView {
-  screen: boolean; label: string; roomId: string | undefined;
-  choices: { label: string; name?: string; device?: string }[];
+  readonly screen: boolean; readonly label: string; readonly roomId: string | undefined;
+  readonly choices: readonly { readonly label: string; readonly name?: string; readonly device?: string }[];
 }
 export interface EnvironmentRoomView {
-  id: string; actionId: string | undefined; name: string; nameInput: string;
-  expanded: boolean; active: boolean; severity: string; status: string; statusTitle: string;
-  disclosureLabel: string; signals: string[]; today: EnvironmentTodayView;
-  body: null | {
-    pickers: EnvironmentPickerView[];
-    tools: { key: string; label: string; title: string }[];
-    readings: { icon: string; value: string; time: string; trustedAIHTML: string }[];
-    trustedRoomHTML: string; screenHeading: string; screenEmpty: string;
-    screens: EnvironmentScreenView[]; quickPicks: EnvironmentQuickPicksView;
+  readonly id: string; readonly actionId: string | undefined; readonly name: string; readonly nameInput: string;
+  readonly expanded: boolean; readonly active: boolean; readonly severity: string; readonly status: string; readonly statusTitle: string;
+  readonly disclosureLabel: string; readonly signals: readonly string[]; readonly today: EnvironmentTodayView;
+  readonly body: null | {
+    readonly pickers: readonly EnvironmentPickerView[];
+    readonly tools: readonly { readonly key: string; readonly label: string; readonly title: string }[];
+    readonly readings: readonly { readonly icon: string; readonly value: string; readonly time: string; readonly ai: Readonly<EnvironmentAIView> | null }[];
+    readonly ai: Readonly<EnvironmentAIView> | null; readonly screenHeading: string; readonly screenEmpty: string;
+    readonly screens: readonly EnvironmentScreenView[]; readonly quickPicks: EnvironmentQuickPicksView;
   };
 }
 export interface EnvironmentSectionView {
-  embedded: boolean; load: Extract<EnvironmentSummaryView,{kind:'load'}>;
-  rooms: EnvironmentRoomView[]; roomQuickPicks: EnvironmentQuickPicksView;
-  portable: EnvironmentScreenView[]; portableQuickPicks: EnvironmentQuickPicksView;
-  empty: boolean; audits: LightAuditBlockView | null;
+  readonly embedded: boolean; readonly load: Extract<EnvironmentSummaryView,{readonly kind:'load'}>;
+  readonly rooms: readonly EnvironmentRoomView[]; readonly roomQuickPicks: EnvironmentQuickPicksView;
+  readonly portable: readonly EnvironmentScreenView[]; readonly portableQuickPicks: EnvironmentQuickPicksView;
+  readonly empty: boolean; readonly audits: LightAuditBlockView | null;
 }
 export function projectRoomPickers(room: EnvironmentRoomOperations): EnvironmentPickerView[] {
   const id=environmentActionValue(room.id),source=activeSourceArchetype(room.primarySource);

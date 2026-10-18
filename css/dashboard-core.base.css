@@ -1,0 +1,102 @@
+@import "tailwindcss" prefix(gb) source(none) reference;
+@utility dashboard-greeting-01 {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+@utility dashboard-greeting-02 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 32px;
+  line-height: 1.08;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--text-primary);
+}
+@utility dashboard-greeting-03 {
+  margin-bottom: 5px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+@utility dashboard-greeting-04 {
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+@utility dashboard-native-core-category-header-001 { margin-bottom: 24px; }
+@utility dashboard-native-core-dashboard-widget-picker-actions-dashboard-organize-footer-002 {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+@utility dashboard-native-core-dashboard-sticky-actions-003 {
+  position: fixed;
+  top: 70px;
+  right: 32px;
+  z-index: 80;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  width: max-content;
+  max-width: min(460px, calc(100vw - 40px));
+  margin: 0;
+  padding: 0;
+  pointer-events: none;
+}
+@utility dashboard-native-core-dashboard-sticky-actions-dashboard-action-btn-004 {
+  pointer-events: auto;
+  background: color-mix(in srgb, var(--bg-secondary) 88%, transparent);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(12px);
+}
+@utility dashboard-native-core-dashboard-sticky-actions-dashboard-action-btn-primary-005 {
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--on-accent);
+}
+@utility dashboard-native-core-dashboard-action-btn-006 {
+  padding: 8px 12px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--bg-secondary);
+  color: var(--text-primary); font: inherit; font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: background 0.15s, border-color 0.15s, transform 0.05s;
+}
+@utility dashboard-native-core-dashboard-action-btn-hover-007 { background: var(--bg-hover); border-color: var(--accent); }
+@utility dashboard-native-core-dashboard-action-btn-active-008 { transform: translateY(1px); }
+@utility dashboard-native-core-dashboard-action-btn-focus-visible-009 { outline: 2px solid var(--accent); outline-offset: 2px; }
+@utility dashboard-native-core-dashboard-action-btn-primary-010 {
+  background: var(--accent); border-color: transparent; color: var(--on-accent);
+}
+@utility dashboard-native-core-html-not-data-theme-dashboard-action-btn-primary-011 {
+  /* White hover text fails against the blue accent during background
+     interpolation, so this button snaps directly to the dark hover surface. */
+  transition: border-color 0.15s, transform 0.05s;
+}
+@utility dashboard-native-core-html-not-data-theme-dashboard-action-btn-primary-hover-012 {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* Dashboard greeting, sticky actions, and shared dashboard action buttons. */
+
+.dashboard-greeting { @apply gb:dashboard-greeting-01; }
+.category-header { @apply gb:dashboard-native-core-category-header-001; }
+.dashboard-greeting h1 { @apply gb:dashboard-greeting-02; }
+.dashboard-greeting-kicker { @apply gb:dashboard-greeting-03; }
+.dashboard-greeting-sub { @apply gb:dashboard-greeting-04; }
+.dashboard-widget-picker-actions, .dashboard-organize-footer { @apply gb:dashboard-native-core-dashboard-widget-picker-actions-dashboard-organize-footer-002; }
+.dashboard-sticky-actions { @apply gb:dashboard-native-core-dashboard-sticky-actions-003; }
+.dashboard-sticky-actions .dashboard-action-btn { @apply gb:dashboard-native-core-dashboard-sticky-actions-dashboard-action-btn-004; }
+.dashboard-sticky-actions .dashboard-action-btn-primary { @apply gb:dashboard-native-core-dashboard-sticky-actions-dashboard-action-btn-primary-005; }
+.dashboard-action-btn { @apply gb:dashboard-native-core-dashboard-action-btn-006; }
+.dashboard-action-btn:hover { @apply gb:dashboard-native-core-dashboard-action-btn-hover-007; }
+.dashboard-action-btn:active { @apply gb:dashboard-native-core-dashboard-action-btn-active-008; }
+.dashboard-action-btn:focus-visible { @apply gb:dashboard-native-core-dashboard-action-btn-focus-visible-009; }
+.dashboard-action-btn-primary { @apply gb:dashboard-native-core-dashboard-action-btn-primary-010; }
+html:not([data-theme]) .dashboard-action-btn-primary { @apply gb:dashboard-native-core-html-not-data-theme-dashboard-action-btn-primary-011; }
+html:not([data-theme]) .dashboard-action-btn-primary:hover { @apply gb:dashboard-native-core-html-not-data-theme-dashboard-action-btn-primary-hover-012; }

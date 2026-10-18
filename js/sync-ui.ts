@@ -1,7 +1,9 @@
+import {tsStaticStyles} from './ts-static-ui-inline-style-map.generated.js';
+import { renderSyncIndicatorView, renderSyncPopoverView, type SyncPushView, type SyncEventView, type SyncQuotaView } from './sync-status-rendering.js';
 import type { RuntimeDependencyUpdates } from './runtime-callbacks.js';
 // sync-ui.js - header sync badge, popover, and activity-log copy helpers.
 
-import { showNotification, isDebugMode, escapeAttr, escapeHTML } from './utils.js';
+import { showNotification, isDebugMode, escapeAttr } from './utils.js';
 import { getSyncRelay } from './sync-environment.js';
 import { getRelayQuotaEstimate } from './sync-relay-health.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
@@ -128,7 +130,7 @@ export function renderSyncIndicator() {
   if (!currentSyncEnabled()) { slot.innerHTML = ''; return; }
   const ds = getSyncDisplayState();
   const titles: Partial<Record<ReturnType<typeof getSyncDisplayState>, string>> = { synced: 'Synced', syncing: 'Syncing\u2026', offline: 'Offline \u2014 changes saved locally', error: 'Sync error', disabled: '' };
-  slot.innerHTML = `<button class="sync-indicator" id="sync-indicator-btn" ${syncUiActionAttrs('toggle-detail')} title="${titles[ds]}" aria-label="Sync status"><span class="sync-dot sync-dot-${ds}"></span></button>`;
+  slot.innerHTML = renderSyncIndicatorView({ state: ds, title: titles[ds] });
 }
 
 export function updateSyncIndicator() {
@@ -140,6 +142,8 @@ export function updateSyncIndicator() {
   const button = dot.parentElement;
   if (button) button.title = titles[ds] || '';
 }
+
+const syncText = (value: unknown): string => value == null ? '' : String(value);
 
 export function toggleSyncDetail() {
   let pop = document.getElementById('sync-popover');
@@ -158,13 +162,13 @@ export function toggleSyncDetail() {
   const pendingMs = (s.push === 'pending' && s.pushStartedAt) ? (Date.now() - s.pushStartedAt) : 0;
   const isPushStuckError = s.push === 'error' && s.lastError?.type === 'PushStuck';
   const stuckPush = pendingMs > 15_000 || isPushStuckError;
-  const pushLabel = s.push === 'confirmed' ? `Confirmed ${_timeAgo(s.pushConfirmedAt)}`
-    : isPushStuckError ? `<span style="color:var(--red)">Stuck \u2014 relay didn't ack</span>`
-    : pendingMs > 15_000 ? `<span style="color:var(--red)">Stuck for ${Math.round(pendingMs/1000)}s \u2014 relay unreachable?</span>`
-    : s.push === 'pending' ? 'Pending\u2026'
-    : s.push === 'error' ? '<span style="color:var(--red)">Failed</span>' : '\u2014';
+  const pushLabel: SyncPushView = s.push === 'confirmed' ? { danger: false, text: `Confirmed ${_timeAgo(s.pushConfirmedAt)}` }
+    : isPushStuckError ? { danger: true, text: "Stuck \u2014 relay didn't ack" }
+    : pendingMs > 15_000 ? { danger: true, text: `Stuck for ${Math.round(pendingMs/1000)}s \u2014 relay unreachable?` }
+    : s.push === 'pending' ? { danger: false, text: 'Pending\u2026' }
+    : s.push === 'error' ? { danger: true, text: 'Failed' } : { danger: false, text: '\u2014' };
   const pullLabel = s.pullReceivedAt ? `Checked ${_timeAgo(s.pullReceivedAt)}` : '\u2014';
-  const errorLine = s.lastError ? `<div style="font-size:11px;color:var(--text-muted);margin-top:6px">${escapeHTML(s.lastError.type)} ${_timeAgo(s.lastError.at)}</div>` : '';
+  const errorLine = s.lastError ? { type: syncText(s.lastError.type), age: _timeAgo(s.lastError.at) } : null;
 
   pop = document.createElement('div');
   pop.id = 'sync-popover';
@@ -174,50 +178,41 @@ export function toggleSyncDetail() {
   const debugMode = isDebugMode();
   const events = debugMode ? getRecentSyncEvents().slice(-6).reverse() : [];
   const eventColor: Record<string, string> = { push: 'var(--accent)', pull: 'var(--green)', skip: 'var(--text-muted)', rebroadcast: 'var(--orange)' };
-  const eventsHtml = events.length ? `
-    <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--text-muted);max-height:160px;overflow-y:auto">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-        <span style="font-weight:600;color:var(--text-secondary);flex:1">Recent activity</span>
-        <button class="ctx-btn-option" style="font-size:10px;padding:2px 8px" ${syncUiActionAttrs('copy-events')} title="Copy events to clipboard">Copy</button>
-      </div>
-      ${events.map(e => `<div style="margin-bottom:3px"><span style="color:${eventColor[e.kind] || 'var(--text-muted)'};font-weight:600">${e.kind}</span> · ${_timeAgo(e.at)} · <span style="font-family:monospace;font-size:10px">${escapeHTML(e.text)}</span></div>`).join('')}
-    </div>` : '';
+  const eventViews: SyncEventView[] = events.length ? events.map(e => ({
+    // Preserve native property-key coercion before capturing the literal kind.
+    color: `${eventColor[e.kind] || 'var(--text-muted)'}`,
+    kind: `${e.kind}`,
+    age: _timeAgo(e.at),
+    text: syncText(e.text),
+  })) : [];
   // Relay storage usage. Successful pushes update a local estimate
   // immediately; the debounced /self/owner-storage probe replaces it with
   // authoritative bytes and the relay's configured owner quota.
   const q = getRelayQuotaEstimate();
-  let quotaLine = '';
+  let quotaLine: SyncQuotaView | null = null;
   if (q && q.bytes > 0) {
     const mb = (q.bytes / (1024 * 1024)).toFixed(1);
     const capMb = (q.cap / (1024 * 1024)).toFixed(0);
     const color = q.level === 'red' ? 'var(--red)' : q.level === 'amber' ? 'var(--orange)' : 'var(--text-muted)';
     const dot = q.level === 'red' ? 'var(--red)' : q.level === 'amber' ? 'var(--orange)' : 'var(--green)';
-    quotaLine = `<div style="display:flex;align-items:center;gap:6px;margin-top:4px"><span style="width:6px;height:6px;border-radius:50%;background:${dot};display:inline-block"></span><span style="color:${color}">Storage: ${mb} / ${capMb} MB · ${q.pct}%</span></div>`;
+    quotaLine = { dot, color, text: `Storage: ${mb} / ${capMb} MB · ${q.pct}%` };
   }
-  pop.innerHTML = `
-    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span style="width:8px;height:8px;border-radius:50%;background:${relayDot};display:inline-block"></span><span style="font-size:13px">${relayLabel}</span></div>
-    ${debugMode ? `<div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-bottom:8px;word-break:break-all">${escapeHTML(relayUrl)}</div>` : ''}
-    <div style="font-size:12px;color:var(--text-muted);line-height:1.8">
-      <div>Push: ${pushLabel}</div>
-      <div>Pull: ${pullLabel}</div>
-      ${quotaLine}
-    </div>
-    ${debugMode ? errorLine : ''}
-    ${eventsHtml}
-    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
-      <button class="ctx-btn-option" style="font-size:12px" ${syncUiActionAttrs('sync-now')}>Sync now</button>
-      ${stuckPush ? `<button class="ctx-btn-option" style="font-size:12px;color:var(--red);border-color:var(--red)" ${syncUiActionAttrs('reload')} title="Reloads the page to re-init the sync worker.">Reload</button>` : ''}
-      <button class="ctx-btn-option" style="font-size:12px" ${syncUiActionAttrs('open-settings')}>Settings</button>
-      <button class="ctx-btn-option" style="font-size:12px" ${syncUiActionAttrs('show-diagnose')}>Sync status</button>
-      ${isDebugMode() ? `
-        <button class="ctx-btn-option" style="font-size:12px${stuckPush ? ';color:var(--orange);border-color:var(--orange)' : ''}" ${syncUiActionAttrs('force-resend')} title="Bypasses the in-flight guard. Use when Sync now isn't reaching the relay (typically because a prior push got stuck and the worker still thinks it's running).">Force resend</button>
-        <button class="ctx-btn-option" style="font-size:12px" ${syncUiActionAttrs('clean-storage')} title="Trim changeHistory to its 200-entry cap and clear cached AI model lists. Use when localStorage is full and pushes throw QuotaExceededError silently.">Clean storage</button>
-        <button class="ctx-btn-option" style="font-size:12px" ${syncUiActionAttrs('test-relay')}>Test relay</button>
-      ` : ''}
-    </div>`;
+  pop.innerHTML = renderSyncPopoverView({
+    relayDot,
+    relayLabel,
+    relay: debugMode ? syncText(relayUrl) : null,
+    push: pushLabel,
+    pullLabel,
+    quota: quotaLine,
+    error: debugMode ? errorLine : null,
+    events: eventViews,
+    stuckPush,
+    // This is the original second debug read, after relay escaping and quota.
+    debugControls: isDebugMode(),
+  });
   const parent = btn.parentElement;
   if (!parent) return;
-  parent.style.position = 'relative';
+  parent.style.position = tsStaticStyles.syncPopoverAnchor;
   parent.appendChild(pop);
   // Close on outside click.
   const close = (e: MouseEvent) => { if (!pop!.contains(e.target as Node | null) && e.target !== btn && !btn.contains(e.target as Node | null)) { pop!.remove(); document.removeEventListener('click', close); } };
@@ -266,7 +261,7 @@ export async function copySyncEvents(btn?: HTMLElement | null) {
   }
   const ta = document.createElement('textarea');
   ta.value = blob;
-  ta.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:80vw;max-width:600px;height:60vh;z-index:10000;background:var(--bg-card,#222);color:var(--text-primary,#fff);border:1px solid var(--border,#444);padding:12px;font:12px monospace;border-radius:8px';
+  ta.style.cssText = tsStaticStyles.syncEventsFallback;
   document.body.appendChild(ta);
   ta.select();
   showNotification('Auto-copy blocked — select the text above and copy manually.', 'warning');

@@ -1,4 +1,5 @@
 <script lang="ts">
+ import {componentStaticStyles} from '../component-inline-style-map.generated.js';
   import type { SunDataSourceView } from '../sun-data-source-presentation.js';
   import { sunDataSourceClasses as c } from '../sun-data-source-classes.js';
   import SunModeOption from './SunModeOption.svelte';
@@ -12,7 +13,7 @@
       <SunModeOption view={view.options[1]} />
       <SunModeOption view={view.options[2]} />
     </div>
-    <div id="meteo-selfhost-fields" class={c.selfhost} style={view.showSelfhost ? '' : 'display:none'}>
+    <div id="meteo-selfhost-fields" class={c.selfhost} style={view.showSelfhost ? '' : componentStaticStyles.hidden}>
       <!-- svelte-ignore a11y_label_has_associated_control (Preserve the sealed original native label contract.) --><label class={c.credentialLabel}>Server URL</label>
       <input type="text" class={'api-key-input ' + c.credentialInput} id="meteo-selfhost-url" value={view.url} placeholder="https://meteo.example.com" data-sun-source-action="save-meteo-selfhost">
       <!-- svelte-ignore a11y_label_has_associated_control (Preserve the sealed original native label contract.) --><label class={c.bearerLabel}>Bearer token (optional)</label>

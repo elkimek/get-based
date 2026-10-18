@@ -6,6 +6,7 @@ const webkitExecutable = process.env.PLAYWRIGHT_WEBKIT_EXECUTABLE;
 export default defineConfig({
   ...baseConfig,
   testDir: './tests/pwa',
+  testIgnore: '**/sveltekit*.spec.{js,ts}',
   outputDir: process.env.PLAYWRIGHT_PWA_OUTPUT_DIR || '/tmp/getbased-pwa-results',
   fullyParallel: false,
   workers: 1,

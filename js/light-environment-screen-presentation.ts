@@ -1,17 +1,18 @@
+import type{EnvironmentAIView}from'./light-environment-ai-presentation.js';
 // Display-only projection. Grading, today overrides and mutations remain domain-owned.
 export type ScreenCardReader = { [Key in keyof import('./light-env-model.js').LightScreen]?: unknown };
 export interface EnvironmentTodayView {
-  kind: string | undefined; id: string | undefined; active: boolean; compact: boolean;
-  icon: string; label: string; tip: string;
+  readonly kind: string | undefined; readonly id: string | undefined; readonly active: boolean; readonly compact: boolean;
+  readonly icon: string; readonly label: string; readonly tip: string;
 }
-export interface ScreenOptionView { value: string; label: string; selected: boolean }
+export interface ScreenOptionView { readonly value: string; readonly label: string; readonly selected: boolean }
 export interface EnvironmentScreenView {
-  id: string; actionId: string | undefined; expanded: boolean; active: boolean;
-  severity: 'green' | 'yellow' | 'orange' | 'red' | 'incomplete';
-  status: string; statusTitle: string; icon: string; deviceLabel: string;
-  summary: string; disclosureLabel: string; devices: ScreenOptionView[]; rooms: ScreenOptionView[];
-  hours: string | null; evening: string | null; blueReduced: boolean;
-  today: EnvironmentTodayView | null; trustedTodayHTML: string; trustedAIHTML: string;
+  readonly id: string; readonly actionId: string | undefined; readonly expanded: boolean; readonly active: boolean;
+  readonly severity: 'green' | 'yellow' | 'orange' | 'red' | 'incomplete';
+  readonly status: string; readonly statusTitle: string; readonly icon: string; readonly deviceLabel: string;
+  readonly summary: string; readonly disclosureLabel: string; readonly devices: readonly ScreenOptionView[]; readonly rooms: readonly ScreenOptionView[];
+  readonly hours: string | null; readonly evening: string | null; readonly blueReduced: boolean;
+  readonly today: EnvironmentTodayView | null; readonly alternateToday: Readonly<EnvironmentTodayView> | null; readonly ai: Readonly<EnvironmentAIView> | null;
 }
 const text = (value: unknown) => value == null ? '' : String(value);
 // Match the established delegated attribute omission contract, including numeric zero.
@@ -53,7 +54,7 @@ export function projectEnvironmentScreen(input: {
   screen: ScreenCardReader; expanded: boolean; active: boolean;
   status: { color: unknown; label: unknown; reason: unknown };
   devices: readonly { key: string; label: string }[]; rooms: unknown;
-  today?: EnvironmentTodayView | null; trustedTodayHTML: string; trustedAIHTML: string;
+  today?: EnvironmentTodayView | null; alternateToday: Readonly<EnvironmentTodayView> | null; ai: Readonly<EnvironmentAIView> | null;
 }): EnvironmentScreenView {
   const { screen: s, status, expanded } = input;
   const parts: string[] = [];
@@ -74,6 +75,6 @@ export function projectEnvironmentScreen(input: {
       ...rooms.map(r => ({ value: text(r.id), label: text(r.name || 'Room'), selected: s.roomId === r.id }))] : [],
     hours: activeScreenHoursBucket(s.hoursPerDay), evening: activeScreenEveningBucket(s.eveningUseAfterSunset),
     blueReduced: !!s.blueBlockerEnabled, today: input.today || null,
-    trustedTodayHTML: input.trustedTodayHTML, trustedAIHTML: expanded ? input.trustedAIHTML : '',
+    alternateToday: input.alternateToday, ai: expanded ? input.ai : null,
   };
 }

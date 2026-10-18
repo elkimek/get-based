@@ -8,7 +8,7 @@ import { getReportPreset, normalizeReportOptions, buildPreparedReportPayload } f
 import { openReportBuilder, closeReportBuilder } from '../js/export-report-builder.js';
 type BuilderOptionsFixture = Omit<ReturnType<typeof normalizeReportOptions>, 'aiSummary'> & {aiSummary?: {text: string} | null};
 type PreviewWindowFixture = {document: Document;closed: boolean;close: Mock<() => void>};
-const { generate, preview, available, openPreview } = vi.hoisted(() => ({ generate: vi.fn<(options: BuilderOptionsFixture, lifecycle: {payload: ReturnType<typeof buildPreparedReportPayload>}) => Promise<unknown>>(), preview: vi.fn<(options: BuilderOptionsFixture, window: PreviewWindowFixture | null, payload: ReturnType<typeof buildPreparedReportPayload>) => unknown>(), available: vi.fn<() => boolean>(), openPreview: vi.fn<() => PreviewWindowFixture | null>() }));
+const { generate, preview, available, openPreview } = vi.hoisted(() => ({ generate: vi.fn<(options: BuilderOptionsFixture, lifecycle: {payload: ReturnType<typeof buildPreparedReportPayload>; signal?: AbortSignal}) => Promise<unknown>>(), preview: vi.fn<(options: BuilderOptionsFixture, window: PreviewWindowFixture | null, payload: ReturnType<typeof buildPreparedReportPayload>) => unknown>(), available: vi.fn<() => boolean>(), openPreview: vi.fn<() => PreviewWindowFixture | null>() }));
 vi.mock('../js/ai-feature-routing.js', async load => ({ ...await load<Record<string, unknown>>(), hasAssistantFeatureProvider: available }));
 vi.mock('../js/export-report-html.js', () => ({ exportPDFReport: preview, openReportPreviewWindow: openPreview }));
 vi.mock('../js/export-report.js', async importOriginal => ({ ...await importOriginal<Record<string, unknown>>(), generateReportAISummary: generate }));
@@ -210,6 +210,7 @@ describe('report builder selection', () => {
     expect(document.querySelector<HTMLElement>('.report-generation-progress')).not.toBeNull();
     document.querySelector<HTMLButtonElement>('[data-report-action="close"]')!.click();
     expect(openPreview.mock.results[0]!.value.close).toHaveBeenCalledOnce();
+    expect(generate.mock.calls[0]![1].signal!.aborted).toBe(true);
     expect(document.querySelector<HTMLElement>('.report-generation-progress')).toBeNull();
     finish!({ text: 'Cancelled overview' });
     await vi.waitFor(() => expect(preview).not.toHaveBeenCalled());
@@ -242,14 +243,18 @@ describe('report builder selection', () => {
     expect(generate).not.toHaveBeenCalled();
     expect(preview.mock.calls[0]![0].aiSummary).toBeUndefined();
   });
-  it.each(['failure', 'empty'])('offers an explicit fallback after %s and preserves the report selection', async mode => {
-    if (mode === 'failure') generate.mockRejectedValue(new Error('Service unavailable'));
+  it.each(['failure', 'empty', 'timeout'])('offers an explicit fallback after %s and preserves the report selection', async mode => {
+    if (mode === 'timeout') generate.mockRejectedValue(new DOMException('Venice report generation timed out after 120 seconds.', 'TimeoutError'));
+    else if (mode === 'failure') generate.mockRejectedValue(new Error('Service unavailable'));
     else generate.mockResolvedValue(null);
     document.querySelector<HTMLTextAreaElement>('#report-purpose')!.value = 'Keep my questions';
     document.querySelector<HTMLButtonElement>('[data-report-action="export"]')!.click();
     await vi.waitFor(() => expect(document.querySelector<HTMLButtonElement>('[data-report-action="preview-without-ai"]')!.hidden).toBe(false));
     expect(preview).not.toHaveBeenCalled();
     expect(openPreview.mock.results[0]!.value.close).toHaveBeenCalledOnce();
+    expect(document.querySelector<HTMLElement>('.report-generation-progress')).toBeNull();
+    expect(document.querySelector<HTMLButtonElement>('[data-report-action="export"]')!.disabled).toBe(false);
+    expect(document.querySelector<HTMLButtonElement>('[data-report-action="generate-ai-summary"]')!.disabled).toBe(false);
     document.querySelector<HTMLButtonElement>('[data-report-action="preview-without-ai"]')!.click();
     await vi.waitFor(() => expect(preview).toHaveBeenCalledOnce());
     expect(preview.mock.calls[0]![0].purpose).toBe('Keep my questions');

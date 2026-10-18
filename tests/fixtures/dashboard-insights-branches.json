@@ -1,0 +1,40 @@
+[
+  {
+    "owner": "renderDashboardInsightsListWidget",
+    "kind": "list",
+    "slots": [
+      {
+        "coordinate": "gb-dashboard-insights-list-items-h-t-m-l-end",
+        "port": "itemsHTML"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"db-insights-list\">gb-dashboard-insights-list-items-h-t-m-l-end</div>"
+  },
+  {
+    "owner": "renderDashboardInsightsListWidget",
+    "kind": "card",
+    "slots": [
+      {
+        "coordinate": "gb-dashboard-insights-card-tone-class-end",
+        "port": "toneClass"
+      },
+      {
+        "coordinate": "gb-dashboard-insights-card-optional-detail-attributes-end",
+        "port": "optionalDetailAttributes"
+      },
+      {
+        "coordinate": "gb-dashboard-insights-card-eyebrow-end",
+        "port": "eyebrow"
+      },
+      {
+        "coordinate": "gb-dashboard-insights-card-title-end",
+        "port": "title"
+      },
+      {
+        "coordinate": "gb-dashboard-insights-card-body-end",
+        "port": "body"
+      }
+    ],
+    "nativeSkeleton": "<button type=\"button\" class=\"db-insight db-insight-gb-dashboard-insights-card-tone-class-end\"gb-dashboard-insights-card-optional-detail-attributes-end>\n        <span class=\"db-insight-tag\">gb-dashboard-insights-card-eyebrow-end</span>\n        <strong>gb-dashboard-insights-card-title-end</strong>\n        <span>gb-dashboard-insights-card-body-end</span>\n      </button>"
+  }
+]

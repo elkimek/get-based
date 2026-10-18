@@ -1,5 +1,5 @@
 import type {BiologyRenderScore} from './biology-score-render.js';
-import type {LensDashboardToggleView} from './lens-page-shell.js';
+import type {LensDashboardToggleView} from './lens-page-shell-core.js';
 import type {BiologyAIState, BiologyAISummaryView, BiologyAIAnswerView} from './biology-ai-presentation.js';
 import type {BiologyMarkerSection, BiologyMethodologyView} from './biology-reading-presentation.js';
 import {TONE_LABELS, resolveScoreTone, coreScoreDrivers} from './biology-score-engine.js';

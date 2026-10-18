@@ -451,7 +451,7 @@ const {
     const uvSrc = fs.readFileSync(new URL('../js/sun-uvdata.js', import.meta.url), 'utf-8');
     const apiProxySrc = fs.readFileSync(new URL('../api/proxy.js', import.meta.url), 'utf-8');
     const camsRelaySrc = fs.readFileSync(new URL('../api/cams-relay.js', import.meta.url), 'utf-8');
-    const lightPageViewSrc = fs.readFileSync(new URL('../js/light-page-view.js', import.meta.url), 'utf-8');
+    const lightPageViewSrc = fs.readFileSync(new URL('../js/components/LightMethods.svelte', import.meta.url), 'utf-8');
     assert('Hosted CAMS proxy pins the private getbased route',
       /DEFAULT_UVDATA_UPSTREAM\s*=\s*'https:\/\/uvdata\.getbased\.health'/.test(camsRelaySrc)
         && /\$\{upstream\}\/v1\/uv/.test(camsRelaySrc));

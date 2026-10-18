@@ -382,10 +382,7 @@ test('device session dialog covers validation unit mode start and save paths', a
         sunDefaults: {},
       };
       const validateModeCoupling = (_device: unknown, mode: unknown) => ({ ok: mode !== 'blocked' });
-      const renderBodySilhouette = (selected:Parameters<typeof import("../../js/sun-body-silhouette.js").renderBodySilhouette>[0]) => `
-        <button type="button" class="body-region-test" data-region="legs-front" aria-pressed="${selected.has('legs-front')}">Legs front</button>
-        <button type="button" class="body-region-test" data-region="arms-front" aria-pressed="${selected.has('arms-front')}">Arms front</button>
-      `;
+      const projectBodySilhouette = (await import('/js/sun-body-silhouette.js')).projectBodySilhouette;
       const bindBodySilhouette = (slot:Parameters<typeof import("../../js/sun-body-silhouette.js").bindBodySilhouette>[0], selected:Parameters<typeof import("../../js/sun-body-silhouette.js").bindBodySilhouette>[1], callback:Parameters<typeof import("../../js/sun-body-silhouette.js").bindBodySilhouette>[2]) => {
         slot.querySelectorAll<HTMLElement>('[data-region]').forEach(btn => {
           btn.addEventListener('click', () => {
@@ -415,7 +412,7 @@ test('device session dialog covers validation unit mode start and save paths', a
         },
         ensureActiveDeviceTicker: () => calls.push(['ticker']),
         validateModeCoupling,
-        renderBodySilhouette,
+        projectBodySilhouette,
         bindBodySilhouette,
         navigate: (route: unknown) => calls.push(['navigate', route]),
         openLightSetup: () => calls.push(['open-light-setup']),
@@ -437,7 +434,7 @@ test('device session dialog covers validation unit mode start and save paths', a
         && (overlay.querySelector<HTMLElement>('#dev-session-mode') as unknown as {value: string})?.value === 'red'
         && modeButtons.length === 3
         && !overlay.textContent.includes('Blocked')
-        && !!overlay.querySelector<HTMLElement>('.body-region-test')
+        && !!overlay.querySelector<HTMLElement>('[data-region]')
         && (overlay.querySelector<HTMLElement>('#dev-session-eyes') as unknown as {checked: boolean})?.checked === false
         && overlay.querySelector<HTMLElement>('#dev-session-area-hint')?.textContent.includes('Legs');
 

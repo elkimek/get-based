@@ -113,7 +113,7 @@ assert('Light environment modal shell actions are wired through startup hooks',
     envShellHooksSrc.includes('loadLightSunUI,') &&
     !envShellHooksSrc.includes("from './light-tools.js'") &&
     envShellHooksSrc.includes("import { closeModalOverlay } from './modal-lifecycle.js';") &&
-    envShellHooksSrc.includes("import { navigate } from './views.js';") &&
+    envShellHooksSrc.includes("import { navigate } from './views-runtime.js';") &&
     envShellHooksSrc.includes('configureLightEnvironmentLoaderDeps({ navigate });') &&
     envShellHooksSrc.includes('.then(module => module.openLightEnvironmentAssessment())') &&
     envShellHooksSrc.includes('loadLightSunUI()') &&
@@ -122,9 +122,9 @@ assert('Light environment modal shell actions are wired through startup hooks',
     !envSrc.includes('globalThis.navigate') &&
     appUiShellSrc.includes("import './light-env-shell-hooks.js';"));
 assert('light-env screen renderer takes AI renderer from options instead of global lookup',
-  screenSrc.includes('opts.renderScreenAIBlock') &&
-    (screenSrc.includes('(opts.renderScreenAIBlock as ScreenAIRenderer)(screen)') || screenSrc.includes('opts.renderScreenAIBlock(screen)')) &&
-    !screenSrc.includes('globalThis.renderScreenAIBlock'));
+  screenSrc.includes('opts.getScreenAIView') &&
+    (screenSrc.includes('(opts.getScreenAIView as ScreenAIReader)(screen)') || screenSrc.includes('opts.getScreenAIView(screen)')) &&
+    !screenSrc.includes('globalThis.renderScreenAIBlock') && !screenSrc.includes('globalThis.getScreenAIView'));
 assert('light-env form delegates separate live input from change-only controls',
   actionSrc.includes("'update-room-hours', 'update-room-name'") &&
     actionSrc.includes("'update-screen-blue-blocker'") &&

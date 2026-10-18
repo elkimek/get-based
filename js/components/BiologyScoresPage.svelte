@@ -11,7 +11,7 @@
   let {view}: {view: BiologyPageView} = $props();
 </script>
 <div data-biology-page-view class="biology-scores-page">
-  <LensPageHeader view={{title:'Biology Scores',subtitle:'Body-system patterns from your labs, with marker-level explanations.',className:'biology-scores-lens-header',actionsHTML:null}}>
+  <LensPageHeader view={{title:'Biology Scores',subtitle:'Body-system patterns from your labs, with marker-level explanations.',className:'biology-scores-lens-header',actions:null}}>
     {#snippet actions()}<div class="biology-score-header-actions"><button type="button" class="dashboard-action-btn dashboard-action-btn-primary" data-biology-score-action="interpret-lens">Discuss scores in chat</button>{' '}<LabDateRange view={view.range}/></div>{/snippet}
   </LensPageHeader>
   <p class={c('biology-scores-note')}>Higher scores mean closer agreement with your selected ranges, including Risk and Load scores. AI interpretations are optional; scores are for learning, not diagnosis.</p>

@@ -11,6 +11,7 @@ import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 // Run: node tests/test-correctness-phase2.js  (or via npm test)
 
 import { readRepositorySource } from './helpers/repository-source.js';
+import { createHash } from 'node:crypto';
 const read = (rel: string) => readRepositorySource(rel, 'utf-8');
 
 let passed = 0, failed = 0;
@@ -42,6 +43,7 @@ assert('sync-lifecycle.js clears save and pull timers on disable',
 // ─── 2. Lab-context fingerprint includes wearableSummary ───
 console.log('\n2. Lab-context cache fingerprint');
 const lcSrc = read('js/lab-context.js');
+const lcAssemblySrc = read('js/lab-context-assembly.js');
 const lcSettingsSrc = read('js/lab-context-settings.js');
 assert('lab-context fingerprint covers wearableSummary',
   lcSettingsSrc.includes("'wearableSummary'") && lcSettingsSrc.match(/cardPart\s*=.*wearableSummary/s),
@@ -62,6 +64,8 @@ const indexSrc = read('index.html');
 const startupUiSrc = read('js/startup-ui.js').replace(/\}\s+else \{(\s*setTimeout\(showAnalyticsConsent, 800\);)/, '} else {$1');
 const legalConsentBootstrapSrc = read('js/legal-consent-bootstrap.js');
 const legalConsentSrc = read('js/legal-consent.js');
+const legalVersionOwnerSrc = read('js/legal-first-launch-view.js');
+const legalBootFixtureSrc = read('tests/fixtures/legal-first-launch-boot.html');
 const changelogSrc = read('js/changelog.js');
 const tourSrc = read('js/tour.js');
 const appShellCss = read('css/app-shell.css');
@@ -69,11 +73,17 @@ const playwrightFixtureSrc = read('tests/playwright/coverage-fixture.js');
 const viewsSrc = read('js/views.js');
 const appShellHooksSrc = read('js/app-shell-hooks.js');
 const dashboardCompositionSrc = read('js/dashboard-view-composition.js');
+const dashboardShellSrc = read('js/dashboard-view-shell.js');
+const dashboardPageSrc = read('js/dashboard-page-view.js');
+const mobileDashboardSrc = read('js/mobile-dashboard.js');
+const labContextRuntimeSrc = read('js/lab-context-runtime.js');
 const importLoaderSrc = read('js/import-loader.js');
 const importFileInputSrc = read('js/import-file-input.js');
 const importDropZoneSrc = read('js/import-drop-zone.js');
 const importDropZoneRuntimeSrc = read('js/import-drop-zone-runtime.js');
 const commitHashSrc = read('js/commit-hash.js');
+const commitLinkPresentationSrc = read('js/footer-commit-link-presentation.ts');
+const commitLinkComponentSrc = read('js/components/FooterCommitLink.svelte');
 const pwaAppShellAssets = [
   '/app',
   '/js/legal-consent-bootstrap.js',
@@ -322,8 +332,14 @@ assert('legal gate is prerendered and interactive before the main module',
 assert('prerendered and module legal versions remain synchronized',
   indexSrc.includes('data-terms-version="2026-08-22"')
   && indexSrc.includes('data-privacy-version="2026-08-22"')
-  && /const TERMS_VERSION = '2026-08-22';/.test(legalConsentSrc)
-  && /const PRIVACY_VERSION = '2026-08-22';/.test(legalConsentSrc));
+  && /export const TERMS_VERSION = '2026-08-22';/.test(legalVersionOwnerSrc)
+  && /export const PRIVACY_VERSION = '2026-08-22';/.test(legalVersionOwnerSrc)
+  && legalConsentSrc.includes("import { TERMS_VERSION, PRIVACY_VERSION } from './legal-first-launch-view.js'")
+  && legalConsentSrc.includes("export { TERMS_VERSION, PRIVACY_VERSION } from './legal-first-launch-view.js'")
+  && !/const (?:TERMS_VERSION|PRIVACY_VERSION)\s*=/.test(legalConsentSrc)
+  && createHash('sha256').update(legalBootFixtureSrc).digest('hex') === '03bc0bc0c5b870863f592c93a25ae08d3e8b1f5c7760d0b7d18a158f351d6093'
+  && legalBootFixtureSrc.includes('data-terms-version="2026-08-22"')
+  && legalBootFixtureSrc.includes('data-privacy-version="2026-08-22"'));
 assert('independent deployments never fall back to getbased legal links',
   indexSrc.includes('<meta name="getbased-operator-name" content="">')
   && indexSrc.includes('href="/terms" data-legal-kind="terms"')
@@ -355,34 +371,60 @@ assert('legal gate z-index selector beats generic modal overlay',
   && /\.modal-overlay\.legal-consent-overlay\s*\{[\s\S]{0,180}-webkit-backdrop-filter:\s*blur\(8px\);[\s\S]{0,60}backdrop-filter:\s*blur\(8px\);/.test(appShellCss));
 assert('Playwright feature tests seed the current legal acceptance version',
   /TEST_LEGAL_ACCEPTANCE\s*=\s*\{[\s\S]{0,120}termsVersion:\s*'2026-08-22',[\s\S]{0,80}privacyVersion:\s*'2026-08-22'/.test(playwrightFixtureSrc)
-  && /const TERMS_VERSION = '2026-08-22';/.test(legalConsentSrc)
-  && /const PRIVACY_VERSION = '2026-08-22';/.test(legalConsentSrc)
+  && /export const TERMS_VERSION = '2026-08-22';/.test(legalVersionOwnerSrc)
+  && /export const PRIVACY_VERSION = '2026-08-22';/.test(legalVersionOwnerSrc)
+  && legalConsentSrc.includes("import { TERMS_VERSION, PRIVACY_VERSION } from './legal-first-launch-view.js'")
   && /await seedCurrentLegalAcceptance\(page\);/.test(playwrightFixtureSrc));
 assert('footer commit hash loader lives in its own module and remains wired',
   /export function loadCommitHash\(\)/.test(commitHashSrc)
   && /_cachedCommitHash/.test(commitHashSrc)
   && /app-commit-hash/.test(commitHashSrc)
-  && /import \{ escapeHTML \} from '\.\/utils\.js'/.test(commitHashSrc)
   && /fetch\('\/api\/commit'\)/.test(commitHashSrc)
   && !/api\.github\.com/.test(commitHashSrc)
-  && /escapeHTML\(full\)/.test(commitHashSrc)
-  && /escapeHTML\(short\)/.test(commitHashSrc)
+  && commitHashSrc.includes("from './footer-commit-link-presentation.js'")
+  && /renderFooterCommitLink\(full, short, el\.ownerDocument\)/.test(commitHashSrc)
+  && commitLinkPresentationSrc.includes("from './components/FooterCommitLink.svelte.html.js'")
+  && commitLinkPresentationSrc.includes('const href = COMMIT_URL + full;')
+  && commitLinkPresentationSrc.includes("const text = String(short ?? '');")
+  && commitLinkPresentationSrc.includes('commitLinkHTML({full: href.slice(COMMIT_URL.length), short: text})')
+  && commitLinkPresentationSrc.includes('ownerDocument.createElement')
+  && commitLinkPresentationSrc.includes('anchor.isEqualNode(expectedAnchor)')
+  && commitLinkPresentationSrc.includes('attributes(anchor) !== attributes(expectedAnchor)')
+  && commitLinkPresentationSrc.includes('visible.length !== 1 || visible[0] !== anchor')
+  && commitLinkPresentationSrc.includes("throw new Error('Unexpected footer commit anchor DOM')")
+  && commitLinkPresentationSrc.includes('return anchor.outerHTML;')
+  && !commitLinkPresentationSrc.includes("const open = '<!--[-->', close = '<!--]-->'")
+  && commitLinkComponentSrc.includes("href={'https://github.com/elkimek/get-based/commit/' + full}")
+  && commitLinkComponentSrc.includes('target="_blank" rel="noopener">{short}</a>')
+  && !commitLinkComponentSrc.includes('{@html')
   && !/_cachedCommitRef|escapeHTML\(ref\)|app-commit-hash[\s\S]{0,360}<span/.test(commitHashSrc)
-  && dashboardCompositionSrc.includes("from './commit-hash.js'"));
-assert('app shell injects dashboard composition into the views facade',
+  && dashboardCompositionSrc.includes("from './commit-hash.js'")
+  && dashboardShellSrc.includes("from './commit-hash.js'")
+  && /configureMobileDashboardView\(\{[\s\S]*?loadCommitHash,/.test(dashboardShellSrc)
+  && dashboardPageSrc.includes("from './commit-hash.js'")
+  && dashboardPageSrc.includes('loadCommitHash();')
+  && mobileDashboardSrc.includes('mobileDashboardDeps.loadCommitHash();'));
+assert('app shell prepares production composition while the public injected facade stays synchronous',
   !viewsSrc.includes("from './dashboard-view-composition.js'") &&
   viewsSrc.includes('export function configureDashboardViewFactory') &&
-  appShellHooksSrc.includes("from './dashboard-view-composition.js'") &&
-  appShellHooksSrc.includes('configureDashboardViewFactory(createDashboardViewComposition)') &&
+  !appShellHooksSrc.includes("from './dashboard-view-composition.js'") &&
+  appShellHooksSrc.includes("from './views-runtime.js'") &&
+  appShellHooksSrc.includes('configureProductionDashboard()') &&
   dashboardCompositionSrc.includes('export function createDashboardViewComposition') &&
   dashboardCompositionSrc.includes('createDashboardWidgetRenderers') &&
   dashboardCompositionSrc.includes('createDashboardWidgetControls'));
 assert('app shell injects Biology Score AI context into lab context',
   !lcSrc.includes("from './biology-score-ai-context.js'") &&
-  lcSrc.includes('labContextDeps.buildBiologyScoresAIContext?.(data, { limit: 7, ignoreContextToggles })') &&
+  !lcAssemblySrc.includes("from './biology-score-ai-context.js'") &&
+  lcAssemblySrc.includes('labContextDeps.buildBiologyScoresAIContext?.(data, { limit: 7, ignoreContextToggles })') &&
   appShellHooksSrc.includes("from './biology-score-ai-context.js'") &&
-  appShellHooksSrc.includes("from './lab-context.js'") &&
-  appShellHooksSrc.includes('configureLabContext({ buildBiologyScoresAIContext })'));
+  appShellHooksSrc.includes("import { configureLabContext } from './lab-context-runtime.js'") &&
+  !appShellHooksSrc.includes("from './lab-context.js'") &&
+  appShellHooksSrc.includes('configureLabContext({ buildBiologyScoresAIContext })') &&
+  lcAssemblySrc.includes("import { labContextDeps } from './lab-context-runtime.js'") &&
+  lcSrc.includes("export { configureLabContext } from './lab-context-runtime.js'") &&
+  labContextRuntimeSrc.includes('export function configureLabContext(deps = {})') &&
+  labContextRuntimeSrc.includes('return configureRuntimeCallbacks(labContextDeps, deps)'));
 
 // ─── 5. Polar OAuth callback returns true + clears connection ───
 console.log('\n5. Polar OAuth callback');

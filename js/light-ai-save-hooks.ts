@@ -13,28 +13,28 @@ import {
 import { configureSunDefaults } from './sun-defaults.js';
 import { hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { addRoom, configureLightEnv, getRooms, refreshLightEnvironmentAssessment, suggestRoomSourceFromSpectrum } from './light-env.js';
-import { maybeAnalyzeAuditAfterSave, renderAuditAIBlock, renderAuditAIDot } from './light-audit-ai-analysis.js';
+import { maybeAnalyzeAuditAfterSave, getAuditAIView, getAuditDotView } from './light-audit-ai-analysis.js';
 import { openChatPanel } from './chat-loader.js';
-import { maybeAnalyzeMeasurementAfterSave, renderMeasurementAIInline } from './light-tools-ai-analysis.js';
-import { renderRoomAIBlock } from './light-env-ai-analysis.js';
-import { renderScreenAIBlock } from './light-screen-ai-analysis.js';
+import { maybeAnalyzeMeasurementAfterSave, getMeasurementAIView } from './light-tools-ai-analysis.js';
+import { getRoomAIView } from './light-env-ai-analysis.js';
+import { getScreenAIView } from './light-screen-ai-analysis.js';
 import { getSunCoords } from './sun.js';
 import { getSessions, hydrateSession, logCompletedSession } from './sun-sessions-store.js';
-import { maybeAnalyzeOnboardingAfterSave, renderOnboardingAIBlock } from './sun-onboarding-ai.js';
+import { maybeAnalyzeOnboardingAfterSave, getOnboardingAIView } from './sun-onboarding-ai.js';
 import { solarZenithAngle } from './sun-uvdata.js';
 
 configureLightEnv({
   getMeasurementsForRoom,
-  renderMeasurementAIInline,
-  renderRoomAIBlock,
-  renderScreenAIBlock,
+  getMeasurementAIView,
+  getRoomAIView,
+  getScreenAIView,
   openSpectrumClassifier,
   openLuxMeter,
   openFlickerDetector,
   openCCTMeter,
   openDarknessMeter,
 });
-configureLightEnvAudits({ hasAIProvider: hasAssistantFeatureProvider, maybeAnalyzeAuditAfterSave, renderAuditAIBlock, renderAuditAIDot, openChatPanel });
+configureLightEnvAudits({ hasAIProvider: hasAssistantFeatureProvider, maybeAnalyzeAuditAfterSave, getAuditAIView, getAuditDotView, openChatPanel });
 configureLightTools({
   maybeAnalyzeMeasurementAfterSave,
   suggestRoomSourceFromSpectrum,
@@ -47,4 +47,4 @@ configureLightTools({
   getRooms,
   addRoom,
 });
-configureSunDefaults({ maybeAnalyzeOnboardingAfterSave, renderOnboardingAIBlock });
+configureSunDefaults({ maybeAnalyzeOnboardingAfterSave, getOnboardingAIView });

@@ -7,6 +7,9 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 import './_node-shim.js';
 
 import fs from 'node:fs';
+import { ownedRule, escapedClass } from './helpers/legacy-light-chat-contracts.js';
+import { importReviewClasses } from '../js/import-review-classes.js';
+import { RECORD_META } from '../js/settings-records-classes.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -29,6 +32,8 @@ const normalizationSrc = read('js/pdf-import-marker-normalization.js');
 const persistenceSrc = read('js/pdf-import-persistence.js');
 const settingsDataSrc = read('js/settings-data.js').replace(/if \(ok\)\s+refreshDataEntriesSection\(\);/g, 'if (ok) refreshDataEntriesSection();');
 const settingsSrc = read('js/settings.js');
+const settingsRecordsMarkup = read('js/components/DataEntriesSettings.svelte');
+const settingsRecordsView = read('js/settings-records-view.js');
 const reviewSrc = read('js/pdf-import-review.js');
 const reviewRuntimeSrc = read('js/pdf-import-review-runtime.js');
 const progressSrc = read('js/pdf-import-progress.js');
@@ -113,22 +118,46 @@ const importCssSrc = read('css/import.css');
     /renameImportedEntryDateFromSettings[\s\S]{0,260}const ok = await renameImportedEntryDate\(date\)[\s\S]{0,80}if \(ok\) refreshDataEntriesSection\(\)/.test(settingsDataSrc));
   assert('Settings Data Review & Edit lazy-loads the complete import UI before opening snapshot review',
     /loadImportUI\(\)[\s\S]{0,160}closeSettingsModal\(\)[\s\S]{0,120}openImportReviewFromSnapshot\(actionEl\.dataset\.snapId/.test(settingsSrc)
-      && /data-settings-action=\"review-import\"/.test(settingsDataSrc));
+      && /data-settings-action=\"review-import\"/.test(settingsRecordsMarkup)
+      && settingsRecordsMarkup.includes('data-snap-id={report.id}')
+      && settingsDataSrc.includes('refreshDataEntriesView'));
   assert('Settings Data import rows use wrapping metadata layout classes',
-    settingsDataSrc.includes('imported-entry-snapshot')
-      && settingsDataSrc.includes('class=\"ie-mainline\"')
-      && settingsDataSrc.includes('class=\"ie-meta\"')
-      && settingsDataSrc.includes('class=\"ie-file\"')
-      && settingsDataSrc.includes('Imported time'));
+    settingsRecordsMarkup.includes('imported-entry-snapshot')
+      && settingsRecordsMarkup.includes('class="ie-mainline ')
+      && settingsRecordsMarkup.includes('class={RECORD_META}')
+      && settingsRecordsMarkup.includes('class="ie-file ')
+      && settingsRecordsMarkup.includes('Imported time')
+      && RECORD_META.split(' ').includes('ie-meta')
+      && RECORD_META.split(' ').includes('gb:records:max-[641px]:flex-wrap'));
+  const { state: recordsState } = await import('../js/state.js');
+  const { getDataEntriesSnapshot } = await import('../js/settings-records-view.js');
+  const previousRecordsData = recordsState.importedData;
+  let mixedOtherCount: string | undefined, derivedOtherCount: string | undefined, mismatchedSourceCount: string | undefined;
+  try {
+    const snapshotSources = {
+      'biochemistry.glucose': { snapshotId: 'synthetic-report' },
+      'diabetes.insulin': { snapshotId: 'synthetic-report' },
+    };
+    recordsState.importedData = { ...previousRecordsData, importSnapshots: [], manualValues: { 'custom.manual:2026-01-01': true }, entries: [{
+      date: '2026-01-01', markers: { 'biochemistry.glucose': 5, 'custom.manual': 2, 'custom.legacy': 3 },
+      markerSources: { 'biochemistry.glucose': snapshotSources['biochemistry.glucose'] },
+    }] };
+    mixedOtherCount = getDataEntriesSnapshot().manual[0]?.count;
+    recordsState.importedData = { ...recordsState.importedData, entries: [{
+      date: '2026-01-01', markers: { 'biochemistry.glucose': 5, 'diabetes.insulin': 6, 'diabetes.homaIR': 1.3 }, markerSources: snapshotSources,
+    }] };
+    derivedOtherCount = getDataEntriesSnapshot().manual[0]?.count;
+    recordsState.importedData.entries[0]!.markerSources!['diabetes.insulin'] = { snapshotId: 'different-report' };
+    mismatchedSourceCount = getDataEntriesSnapshot().manual[0]?.count;
+  } finally { recordsState.importedData = previousRecordsData; }
   assert('Settings Data Other data counts only markers not owned by import snapshots',
-    settingsDataSrc.includes('const legacyKeys = entryMarkerKeys.filter')
-      && settingsDataSrc.includes('const manualNonSnapshotKeys = manualKeys.filter')
-      && settingsDataSrc.includes('const otherKeys = legacyKeys.length ? legacyKeys : manualNonSnapshotKeys')
-      && settingsDataSrc.includes('legacyEntries.push({ entry, otherKeys, manualKeys, hasSnapshotMarkers })')
-      && /const cnt = otherKeys\.length/.test(settingsDataSrc));
+    settingsRecordsView.includes('const otherKeys = keys.filter')
+      && settingsRecordsView.includes('!entry.markerSources?.[key]?.snapshotId')
+      && settingsRecordsView.includes('count: markerCount(otherKeys.length)')
+      && mixedOtherCount === '2 markers');
   assert('Settings Data treats snapshot-derived HOMA-IR as snapshot-owned even for existing rows without marker source',
-    settingsDataSrc.includes('isSnapshotDerivedHOMAIR')
-      && settingsDataSrc.includes('isSnapshotDerivedHOMAIR(entry, k)')
+    settingsRecordsView.includes('isSnapshotDerivedHOMAIR(entry, key)')
+      && derivedOtherCount === undefined && mismatchedSourceCount === '1 marker'
       && /import \{ deleteLabEntryMarker, isSnapshotDerivedHOMAIR \} from ['"]\.\/lab-entry\.js['"]/.test(persistenceSrc)
       && /glucoseSource\.snapshotId === insulinSource\?\.snapshotId/.test(labEntrySrc)
       && persistenceSrc.includes('isSnapshotDerivedHOMAIR(entry, k)'));
@@ -196,8 +225,15 @@ const importCssSrc = read('css/import.css');
   assert('Re-review modal uses update wording instead of import wording',
     /parseResult\._reReviewSnapshotId[\s\S]{0,140}Update Import/.test(reviewSrc)
       && /result\._reReviewSnapshotId[\s\S]{0,140}Update Import/.test(reviewSrc));
+  const footerTokens = importReviewClasses('import-review-actions').split(/\s+/);
+  const stickyToken = 'gb:review-ui:review-phone:[position:sticky]', bottomToken = 'gb:review-ui:review-phone:[bottom:0]';
   assert('Import review mobile footer actions are sticky',
-    /\.import-review-actions \{[\s\S]{0,160}position:\s*sticky[\s\S]{0,80}bottom:\s*0/.test(importCssSrc));
+    read('js/components/ImportReviewPresentation.svelte').includes("class={classes('import-review-actions')}")
+      && footerTokens.includes(stickyToken) && footerTokens.includes(bottomToken)
+      && ownedRule(importCssSrc, escapedClass(stickyToken) + ':where([data-import-review-view],[data-import-review-view] *)',
+        { position: 'sticky' }, '(max-width:768px)')
+      && ownedRule(importCssSrc, escapedClass(bottomToken) + ':where([data-import-review-view],[data-import-review-view] *)',
+        { bottom: '0' }, '(max-width:768px)'));
   assert('Review snapshot opener tolerates corrupt snapshot rows without marker arrays',
     /openImportReviewFromSnapshot[\s\S]{0,320}Array\.isArray\(snapshot\.markers\)[\s\S]{0,120}no saved marker review data/.test(confirmBlock));
 

@@ -1,6 +1,10 @@
 import { expect, test } from '@playwright/test';
 import { routeHtml } from '../helpers/browser-static-routes.js';
 import type { VeniceSettingsSnapshot } from '../../js/venice-settings-contract.js';
+// The 44px target contract applies to coarse pointer input. Desktop density
+// is checked against the original UI in sveltekit-settings-density.spec.ts.
+test.use({ hasTouch: true });
+
 test('owned Venice Settings preserve private fields, encryption disclosure and accessible theme layouts', async ({ page, context }) => {
   test.setTimeout(150_000);
   await context.addInitScript({ path: 'node_modules/axe-core/axe.min.js' });

@@ -7,7 +7,9 @@ import { isNutritionComparisonRunning } from './nutrition-comparison-ui.js';
 import {
   ALL_REVIEW_FIELDS, MEAL_TYPES, formatNumber, hasFiniteNumber, renderFuelOverlapCard,
 } from './nutrition-render.js';
-import { renderHTML as renderPresentation } from './components/NutritionPresentation.svelte.html.js';
+import { renderHTML as renderAnalysisProgressHTML } from './components/NutritionAnalysisProgress.svelte.html.js';
+import { renderHTML as renderEditorFeedback } from './components/NutritionEditorFeedback.svelte.html.js';
+import { renderHTML as renderEditableIngredients } from './components/NutritionEditableIngredients.svelte.html.js';
 import { projectEditableIngredients, projectReviewEvidence, projectReviewChecks } from './nutrition-editor-review-model.js';
 import type { ReviewResultReader } from './nutrition-editor-review-model.js';
 
@@ -96,7 +98,7 @@ function renderAnalysisProgress(id: number, state = 'running') {
   const slowHint = state === 'running' && elapsedSeconds >= 15 ? ' · The provider is still working.' : '';
   area.hidden = false;
   area.className = `nutrition-analysis-progress is-${state}`;
-  area.innerHTML = renderPresentation({ kind: 'analysis-progress', view: {
+  area.innerHTML = renderAnalysisProgressHTML({ view: {
     label, state, percent, cancel: state === 'running', accessibleLabel: 'Meal photo analysis progress',
     detail: state === 'running' ? `Step ${Math.max(1, phase)} of 4 · ${analysisElapsed(startedAt)}${slowHint}` : state === 'success' ? 'Complete' : 'Stopped',
   } });
@@ -256,7 +258,7 @@ export function updateCorrectionState() {
     if (portionDirty) reasons.push('An ingredient amount changed without linked nutrient data.');
     if (contextDirty) reasons.push('Known details changed.');
     if (nameDirty) reasons.push(`Meal name changed from “${String(reviewDeps.getLastAnalyzedMealName() ?? '')}”.`);
-    copy.innerHTML = renderPresentation({ kind: 'editor-feedback', view: { kind: 'correction', dirty, reasons: reasons.join(' ') } });
+    copy.innerHTML = renderEditorFeedback({ view: { kind: 'correction', dirty, reasons: reasons.join(' ') } });
   }
   if (recalculate) recalculate.textContent = 'Recalculate estimate';
   if (recalculate) recalculate.disabled = running || !dirty || !name;
@@ -342,7 +344,7 @@ function setInputValue(id: string, value: unknown) {
 export function renderEditableComponents(components: unknown) {
   const area = document.getElementById('nutrition-components');
   if (!area) return;
-  area.innerHTML = renderPresentation({ kind: 'editable-ingredients', rows: projectEditableIngredients(components) });
+  area.innerHTML = renderEditableIngredients({ rows: projectEditableIngredients(components) });
 }
 
 function setNutrientSource(input: HTMLInputElement, key: string, label = '', title = '') {
@@ -412,7 +414,7 @@ export function renderReviewEvidence(result: unknown) {
   const area = document.getElementById('nutrition-review-evidence');
   if (!area) return;
   area.hidden = false;
-  area.innerHTML = renderPresentation({ kind: 'editor-feedback', view: projectReviewEvidence(result as ReviewResultReader | null | undefined, nutritionUsageSummary((result as ReviewResultReader | null | undefined)?.source)) });
+  area.innerHTML = renderEditorFeedback({ view: projectReviewEvidence(result as ReviewResultReader | null | undefined, nutritionUsageSummary((result as ReviewResultReader | null | undefined)?.source)) });
 }
 
 function renderReviewChecks(result: unknown) {
@@ -420,7 +422,7 @@ function renderReviewChecks(result: unknown) {
   if (!area) return;
   const view = projectReviewChecks(result as ReviewResultReader | null | undefined);
   area.hidden = !view.assumptions.length && !view.warnings.length;
-  area.innerHTML = area.hidden ? '' : renderPresentation({ kind: 'editor-feedback', view });
+  area.innerHTML = area.hidden ? '' : renderEditorFeedback({ view });
 }
 
 export function applyAnalysis(result: unknown, { quiet = false } = {}) {

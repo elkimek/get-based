@@ -1,8 +1,11 @@
+@import "tailwindcss" prefix(gb) source(none) reference;
+@utility feature-native-import-batch-counter-001 {
+  color: var(--accent); font-size: 13px; font-weight: 600; margin-bottom: 8px;
+}
+
 /* Import/upload flow: progress layout is owned by import-progress.tailwind.css.
    Keep this native custom animation byte-exact; Tailwind minification may rewrite its units.
    The unrelated batch-counter retains its original owner. */
 
 @keyframes progressSpin { to { transform: rotate(360deg); } }
-.batch-counter {
-  color: var(--accent); font-size: 13px; font-weight: 600; margin-bottom: 8px;
-}
+.batch-counter { @apply gb:feature-native-import-batch-counter-001; }

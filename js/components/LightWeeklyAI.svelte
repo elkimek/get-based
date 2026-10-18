@@ -1,4 +1,5 @@
 <script lang="ts">
+  import LightWeeklyFallback from './LightWeeklyFallback.svelte';
   import type { ReviewAIView } from '../light-review-ai-presentation.js';
   import { reviewAIClasses as classes } from '../light-review-ai-classes.js';
   import LightVerdictDot from './LightVerdictDot.svelte';
@@ -17,7 +18,7 @@
   {:else if view.variant === 'analyzing'}
     <div class={classes('light-weekly-ai-loading')}><LightVerdictDot dot="shimmer" /><span>{view.message}</span></div>
   {:else}
-    {@html view.fallbackHTML}
+    {#if view.fallback}{#if view.fallback.kind === 'weekly-fallback'}<LightWeeklyFallback view={view.fallback}/>{:else}{@html view.fallback.html}{/if}{/if}
     {#if view.variant === 'unavailable'}
       <div class={classes('light-weekly-ai-unavailable')} role="status"><strong class={classes('unavailable-heading')}>AI review needs a little history.</strong><span>Complete at least one sun or device session; the review will become available here.</span></div>
     {:else if view.variant === 'error'}

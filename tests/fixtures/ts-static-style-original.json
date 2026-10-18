@@ -1,0 +1,69 @@
+{
+  "owner": {
+    "id": "ts-static-ui",
+    "input": "css/ts-static-ui.inline.tailwind.css",
+    "output": "js/ts-static-ui-inline-style-map.generated.js",
+    "exportName": "tsStaticStyles",
+    "declarationCount": 28,
+    "recipes": [
+      [
+        "editorInput",
+        "ts-static-editor-input"
+      ],
+      [
+        "commitLinkColor",
+        "ts-static-commit-link-color",
+        "color"
+      ],
+      [
+        "commitLinkDecoration",
+        "ts-static-commit-link-decoration",
+        "text-decoration"
+      ],
+      [
+        "commitSuffixColor",
+        "ts-static-commit-suffix-color",
+        "color"
+      ],
+      [
+        "commitSuffixOpacity",
+        "ts-static-commit-suffix-opacity",
+        "opacity"
+      ],
+      [
+        "syncEventsFallback",
+        "ts-static-sync-events-fallback"
+      ],
+      [
+        "syncPopoverAnchor",
+        "ts-static-sync-popover-anchor",
+        "position"
+      ],
+      [
+        "liveMessageHost",
+        "ts-static-live-message-host",
+        "display"
+      ],
+      [
+        "messageActionsHost",
+        "ts-static-message-actions-host"
+      ],
+      [
+        "speechHost",
+        "ts-static-speech-host"
+      ]
+    ]
+  },
+  "values": {
+    "editorInput": "width:100%;max-width:140px;text-align:center;font-size:inherit;box-sizing:border-box;padding:2px 4px",
+    "commitLinkColor": "var(--text-muted)",
+    "commitLinkDecoration": "none",
+    "commitSuffixColor": "var(--text-muted)",
+    "commitSuffixOpacity": "0.7",
+    "syncEventsFallback": "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:80vw;max-width:600px;height:60vh;z-index:10000;background:var(--bg-card,#222);color:var(--text-primary,#fff);border:1px solid var(--border,#444);padding:12px;font:12px monospace;border-radius:8px",
+    "syncPopoverAnchor": "relative",
+    "liveMessageHost": "contents",
+    "messageActionsHost": "display:contents",
+    "speechHost": "display:contents"
+  }
+}

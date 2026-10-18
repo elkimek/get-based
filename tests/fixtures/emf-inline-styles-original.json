@@ -1,0 +1,205 @@
+{
+  "authority": "Exact existing EMF component inline-style lexemes frozen before Tailwind authoring; independent native DOM fixtures remain unchanged.",
+  "ordinaryOccurrences": 27,
+  "uniqueRecipeDeclarations": 22,
+  "recipeCount": 11,
+  "components": [
+    {
+      "component": "js/components/EMFAssessmentDetail.svelte",
+      "sourceSha256": "6d4059bfe32ac42f39ff50e74526c4b98b15fd1278814ad7bc7012a64a632ba4",
+      "replacements": [
+        {
+          "before": "style=\"margin-top:12px\"",
+          "after": "style={emfStaticStyles.sectionSpacing}",
+          "key": "sectionSpacing",
+          "occurrences": 1
+        },
+        {
+          "before": "style=\"flex:1\"",
+          "after": "style={emfStaticStyles.rowFill}",
+          "key": "rowFill",
+          "occurrences": 2
+        },
+        {
+          "before": "style=\"color:var(--red);border-color:var(--red)\"",
+          "after": "style={emfStaticStyles.deleteAction}",
+          "key": "deleteAction",
+          "occurrences": 1
+        }
+      ]
+    },
+    {
+      "component": "js/components/EMFComparison.svelte",
+      "sourceSha256": "519cbf457b60d82ec6e7a09fee3e0a5e72a1cfb34c3e0154a6b16a10a5454b75",
+      "replacements": [
+        {
+          "before": "style=\"margin-top:12px\"",
+          "after": "style={emfStaticStyles.sectionSpacing}",
+          "key": "sectionSpacing",
+          "occurrences": 1
+        },
+        {
+          "before": "style=\"color:var(--text-muted)\"",
+          "after": "style={emfStaticStyles.mutedValue}",
+          "key": "mutedValue",
+          "occurrences": 2
+        },
+        {
+          "before": "style=\"color:{cell.arrowColor};font-weight:600\"",
+          "after": "style=\"color:{cell.arrowColor};{emfStaticStyles.valueEmphasis}\"",
+          "key": "valueEmphasis",
+          "occurrences": 1
+        }
+      ]
+    },
+    {
+      "component": "js/components/EMFEditor.svelte",
+      "sourceSha256": "c688e13c837a03c9ec7803091af8d8cb962afdef8fc7db7b66a28aeae3e6b3a9",
+      "replacements": [
+        {
+          "before": "style=\"display:none\"",
+          "after": "style={emfStaticStyles.filePickerHidden}",
+          "key": "filePickerHidden",
+          "occurrences": 1
+        }
+      ]
+    },
+    {
+      "component": "js/components/EMFImportPreview.svelte",
+      "sourceSha256": "fc7cd0b2a85bfda6e7f6015dd49157a6247c9b4fd827075af73b1c4b26a4a14e",
+      "replacements": [
+        {
+          "before": "style=\"font-weight:600\"",
+          "after": "style={emfStaticStyles.valueEmphasis}",
+          "key": "valueEmphasis",
+          "occurrences": 1
+        },
+        {
+          "before": "style=\"color:var(--text-muted);font-size:12px\"",
+          "after": "style={emfStaticStyles.roomLocation}",
+          "key": "roomLocation",
+          "occurrences": 1
+        },
+        {
+          "before": "style=\"font-size:12px;color:var(--text-muted);margin-top:4px\"",
+          "after": "style={emfStaticStyles.roomSources}",
+          "key": "roomSources",
+          "occurrences": 1
+        },
+        {
+          "before": "style=\"font-size:12px;color:var(--text-muted)\"",
+          "after": "style={emfStaticStyles.roomMitigations}",
+          "key": "roomMitigations",
+          "occurrences": 1
+        },
+        {
+          "before": "style=\"font-size:11px;color:var(--{measurement.severity.color})\"",
+          "after": "style=\"{emfStaticStyles.severityLabelFont}color:var(--{measurement.severity.color})\"",
+          "key": "severityLabelFont",
+          "occurrences": 1
+        }
+      ]
+    },
+    {
+      "component": "js/components/EMFRoomContent.svelte",
+      "sourceSha256": "d64fd40d6c062c6cf35be2e0deaf63d0efb9c476861bdb113bbf211c9d17de2a",
+      "replacements": [
+        {
+          "before": "style=\"display:none\"",
+          "after": "style={emfStaticStyles.filePickerHidden}",
+          "key": "filePickerHidden",
+          "occurrences": 1
+        },
+        {
+          "before": "style=\"display:block;width:100%;height:100%;padding:0;border:0;background:none;cursor:pointer\"",
+          "after": "style={emfStaticStyles.photoButton}",
+          "key": "photoButton",
+          "occurrences": 1
+        }
+      ]
+    }
+  ],
+  "recipes": [
+    {
+      "key": "sectionSpacing",
+      "utility": "emf-inline-section-spacing",
+      "body": "margin-top:12px",
+      "declarations": 1
+    },
+    {
+      "key": "rowFill",
+      "utility": "emf-inline-row-fill",
+      "body": "flex:1",
+      "declarations": 1
+    },
+    {
+      "key": "deleteAction",
+      "utility": "emf-inline-delete-action",
+      "body": "color:var(--red);border-color:var(--red)",
+      "declarations": 2
+    },
+    {
+      "key": "valueEmphasis",
+      "utility": "emf-inline-value-emphasis",
+      "body": "font-weight:600",
+      "declarations": 1
+    },
+    {
+      "key": "mutedValue",
+      "utility": "emf-inline-muted-value",
+      "body": "color:var(--text-muted)",
+      "declarations": 1
+    },
+    {
+      "key": "filePickerHidden",
+      "utility": "emf-inline-file-picker-hidden",
+      "body": "display:none",
+      "declarations": 1
+    },
+    {
+      "key": "roomLocation",
+      "utility": "emf-inline-room-location",
+      "body": "color:var(--text-muted);font-size:12px",
+      "declarations": 2
+    },
+    {
+      "key": "severityLabelFont",
+      "utility": "emf-inline-severity-label-font",
+      "body": "font-size:11px;",
+      "declarations": 1
+    },
+    {
+      "key": "roomSources",
+      "utility": "emf-inline-room-sources",
+      "body": "font-size:12px;color:var(--text-muted);margin-top:4px",
+      "declarations": 3
+    },
+    {
+      "key": "roomMitigations",
+      "utility": "emf-inline-room-mitigations",
+      "body": "font-size:12px;color:var(--text-muted)",
+      "declarations": 2
+    },
+    {
+      "key": "photoButton",
+      "utility": "emf-inline-photo-button",
+      "body": "display:block;width:100%;height:100%;padding:0;border:0;background:none;cursor:pointer",
+      "declarations": 7
+    }
+  ],
+  "lifecyclePorts": [
+    {
+      "component": "EMFEditor",
+      "selector": "#emf-pdf-input",
+      "initialStyle": "display:none",
+      "purpose": "Hidden programmatic PDF file picker; actual trigger-pdf-import delegate calls this existing node click. No display mutation introduced."
+    },
+    {
+      "component": "EMFRoomContent",
+      "selector": "input[data-emf-change-action=\"photos\"]",
+      "initialStyle": "display:none",
+      "purpose": "Native label activates existing hidden photo picker. Multiple/accept/action attributes and physical inline state unchanged."
+    }
+  ],
+  "dynamicStyles": "All data-driven severity/dot/color values remain in their original order and lexical positions; only complete static fragments use the typed map."
+}

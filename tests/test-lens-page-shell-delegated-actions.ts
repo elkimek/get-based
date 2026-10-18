@@ -4,7 +4,7 @@ import { sourceFunctionHasStatement } from './helpers/native-source-contracts.js
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Static lens page shell delegated-action source guards.
 
-const shellSrc = readRepositorySource('js/lens-page-shell.js', 'utf8');
+const shellSrc = readRepositorySource('js/lens-page-shell-core.js', 'utf8');
 const lensPagesSrc = readRepositorySource('js/lens-pages.js', 'utf8');
 const viewsSrc = readRepositorySource('js/views.js', 'utf8');
 
@@ -39,7 +39,7 @@ assert('lens-page-shell scopes delegated clicks to lens surfaces',
 });
 
 assert('views.js passes typed chrome and grid into lens page handlers',
-  viewsSrc.includes("from './lens-page-shell.js'") && viewsSrc.includes('getLensContentGrid,') && viewsSrc.includes('getLensWidgetChrome,'));
+  viewsSrc.includes("from './lens-page-shell-core.js'") && viewsSrc.includes('getLensContentGrid,') && viewsSrc.includes('getLensWidgetChrome,'));
 assert('recommendations page dashboard toggle uses lens delegated action',
   lensPagesSrc.includes("projectLensActions('tips', {recommendationsVisible})") &&
     readRepositorySource('js/components/LensActionButtons.svelte', 'utf8').includes('data-lens-page-action={button.action}') &&

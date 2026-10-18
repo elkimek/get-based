@@ -1,496 +1,376 @@
-# Static SvelteKit build and acceptance
+# Static SvelteKit distribution and acceptance
 
-The static bridge supports incremental Svelte UI migration without a rendering
-backend. It uses SvelteKit 3, Svelte 5 and `adapter-static`; Display settings
-and the Settings shell use scoped Tailwind 4. Application compilation and diagnostics use
-TypeScript 7. Supporting Kit/checker peers use TypeScript 6 in `tooling/svelte`.
+getbased ships a static SvelteKit 3/Svelte 5 application using `adapter-static`
+and Tailwind 4. The core app needs no rendering backend. Application compilation
+and diagnostics use TypeScript 7; supporting Kit/checker peers use TypeScript 6
+in `tooling/svelte`. Optional integrations retain their own service requirements.
 
-## Build locally
+## Build and host
 
 ```bash
+npm run production:build
+npm run production:check
 npm run sveltekit:build
 npm run test:sveltekit
 ```
 
-The build writes the complete public artifact to ignored
-`.local-notes/sveltekit-build`. `test:sveltekit` builds it first and runs focused
-scenarios in Chromium, Firefox, desktop WebKit and mobile WebKit.
-All launches are explicitly headless and disconnected from desktop display,
-compositor, session-bus and activation credentials. WebKit's headless Linux port
-is WPE; a custom executable must not substitute the GTK windowed binary.
+`production:build` writes the complete public distribution to ignored `dist/`.
+`production:check` validates a disposable artifact. `sveltekit:build` retains the
+local acceptance artifact at `.local-notes/sveltekit-build`; `test:sveltekit`
+builds that artifact first and runs its configured browser cases. The npm
+pre-hooks compile authored sources. Local building does not publish the app.
 
-The artifact runs on a static file host. Retain the existing `/app` rewrite to
-`/index.html`, MIME types and CSP. It contains public app assets and one worker;
-server/API implementations and development sources are not copied. Existing
-optional provider/companion integrations retain their existing requirements.
-The native `production:build` command and deployment configuration remain separate
-while this bridge is evaluated; building locally does not publish it.
+Serve the artifact with the `/app` rewrite to `/index.html`, existing MIME types
+and deployed CSP. `/`, `/index.html`, `/app` and `/app/` remain document aliases;
+manifest `id`, `start_url` and `scope` remain `/app`. Vercel uses the same static
+output, with separately owned API functions. Do not copy server implementations,
+credentials or the development checkout into the public artifact. See
+[optional integrations](optional-integrations.md) for service deployment boundaries.
 
-## Preserved contracts
+## Bootstrap, runtime and source ownership
 
-- Native shell services initialize once; Kit owns its route DOM and Svelte shares
-  the same runtime with the component adapters.
-- Synchronous compatibility HTML builds resolve Svelte's server lifecycle
-  exports, including destruction callbacks during rendering. Client components
-  keep browser lifecycle exports; both outputs are reproducible and covered.
-- Chat's initial shell and composer are authored once as shared Svelte
-  components. Kit owns them in its `/app` route; the native document contains
-  their deterministic build-generated snapshot, hydrated without replacing
-  controls or live transcript hosts. The shared composer owns its model/reasoning
-  picker as well, using the same provider and CLI services in both builds.
-  `svelte:check` verifies that snapshot.
-- Settings CSS, worker entry points, computed vendor URLs and delegated preference
-  mutations keep their contracts.
-- Manifest `id`, `start_url` and `scope` remain `/app`; `/`, `/index.html` and
-  `/app/` remain document aliases.
-- The existing root service worker owns offline precaching and atomic updates.
-  Kit neither registers a second worker nor polls for independent updates.
-- First feature use and cold launch work offline. Failed updates retain the
-  active app. Later defers activation and explicit Reload preserves stored data.
-- Old tabs can load their previous content-hashed modules after a new worker
-  activates. Live clients report their document build, and unused version caches
-  retire after old documents leave or reload; unknown pre-protocol clients keep
-  their assets until they leave. Cleanup only considers versions present at
-  activation, preserving caches prepared by a waiting worker. After a worker
-  restart, old caches stay safe until the next activation census. Mutable assets
-  and API traffic never use the
-  old immutable-asset fallback.
-- Kit's bootstrap runs as an external classic script under the existing CSP.
+Kit prerenders and hydrates shared authored components, using one Svelte runtime.
+Native-compatible entrypoints render deterministic snapshots from the same owners
+and hydrate matching nodes once. Preserve input identity, live transcript/summary
+hosts, drafts, selection and focus; do not mount over an already owned subtree.
+Native shell services initialize once, after the appropriate route mount.
+Synchronous compatibility serializers resolve Svelte's server lifecycle exports;
+client components use browser lifecycle exports. Both outputs must remain reproducible.
 
-The focused browser scenarios live in [sveltekit.spec.ts](../tests/pwa/sveltekit.spec.ts).
-The shell scenario verifies all core Settings sections, responsive orientation,
-keyboard selection, retained preference actions and WCAG checks for the shell.
-The [protection scenario](../tests/pwa/sveltekit-protection.spec.ts) covers
-Security and Backup keyboard actions, themes, exported backups and encrypted
-offline cold launch. [Native dialog checks](../tests/playwright/passphrase-dialog.spec.ts)
-cover all six dialog modes, theme contrast, responsive containment, short
-viewports and erasure failure recovery. Mocked erasure checks do not replace
-real IndexedDB deletion verification or installed-PWA acceptance.
-Build, desktop-isolation and [client cache retention](../tests/service-worker-client-cache.test.ts)
-contracts have separate unit tests. These checks do
-not constitute complete application regression, hardware/provider acceptance,
-or a fresh combined function-coverage measurement. Owned Kit component emissions
-remain in the existing coverage inventory; no source or compiler safety is waived.
+Kit runs in embedded mode, with navigation delegated inside `#kit-root`.
+Outside forms/links retain their native document handlers and cancellation order;
+inside navigation keeps Kit's browser history. The Vite graph consumes canonical
+`.svelte` components and `.ts` route modules, excluding emitted route siblings.
+Native stylesheet, worker, computed vendor and production facade URLs in the
+verified bootstrap/worker closure remain stable. Emitted development modules outside
+that closure are not a published standalone module API in the static distribution;
+feature implementations remain available through their generated bundles.
 
-## Size measurements
+The static assembler externalizes Kit's classic bootstrap to satisfy the CSP
+without enabling inline executable scripts. The Terms/Privacy gate is prerendered
+before the main app; development and static Kit load its checked legal bootstrap
+as a standalone classic script. The separate native compatibility production
+builder inlines that checked legal source. Both retain `legal-consent-accepted`
+ordering for analytics, changelog, backups and deep links. A build must not silently
+relax CSP or replace consent/update ownership with Kit defaults.
 
-`build-metrics.json` records JavaScript output, precache resources and decoded
-bytes, input build identity, and deltas against the historical cache limits.
-Browser reports attach the actual cold startup JavaScript requests and decoded
-bytes separately. Output totals and startup requests measure different things.
+Raw compatibility bootstraps and Knowledge Base/voice workers retain their
+transitive emitted ESM dependencies. The
+[raw asset collector](../scripts/raw-module-assets.mts) discovers that closure from
+runtime syntax; [static asset policy](../scripts/static-build-assets.mts) verifies
+it against the declared worker shell. Missing emissions or undeclared dependencies
+fail the build. Do not keep a worker entry while dropping its independently loaded
+children. Optional provider/attestation vendors must remain behind their feature
+boundary rather than becoming startup dependencies.
 
-Focused readiness reports measure host monotonic elapsed time from navigation
-through app-ready, service-worker readiness and controller confirmation. Browser
-`performance.now()` under Playwright's fixed clock is shared across pages and
-includes prior workflow time; older reports using that value are not per-launch
-durations. The [clock-offset regression](../tests/pwa/sveltekit-readiness-clock.spec.ts)
-keeps a synthetic hour of browser-clock age out of the readiness measurement.
-These local automation timings include observer overhead and are not broad
-performance acceptance.
+Startup reads encrypted Sun configuration through
+[`sun-uvdata-config.ts`](../js/sun-uvdata-config.ts), after encryption is ready,
+without importing the atmosphere client to initialize its cache. The existing
+Sun facade retains its public exports. Settings provider choices use the
+lightweight [registered-owner bridge](../js/settings-runtime-bridge.ts); Chat
+onboarding opens Settings before forwarding a choice to its current owner.
+Keep these configuration ports separate from their deferred UI implementations.
 
-Historical size/cache ceilings are measurements during local Kit evaluation.
-The native build still enforces its committed budgets; its limits and the
-quality/coverage floors are unchanged. Evaluate cold loads and offline cache
-cost before setting budgets for the consolidated build or promoting it.
+The initial navigation result is awaited before `data-app-ready`, including a
+persisted Biology route whose page module and shared CSS are still cold. A route
+that contains a load failure with a retry alert can complete readiness; a rejected
+navigation cannot. The
+[Biology loader](../js/biology-page-loader.ts) owns caching and fixed-URL retry;
+route callers guard profile, navigation revision, request and content-root identity.
+Dashboard calculations and projection remain eager, without loading the Biology
+page/AI controller. [Shared review contracts](../js/biology-score-context-contract.ts)
+remain available to Sync without importing provider/view lifecycle code.
 
-The shared Chat personality picker and editor retain custom instructions through
-cached first use, offline cold launch and encryption unlock. Their focused
-[static scenario](../tests/pwa/sveltekit-chat-personality.spec.ts) uses real saved
-personas and the assembled artifact, then edits those instructions while the
-origin is unavailable. Native [persona workflows](../tests/playwright/custom-personality-dom.spec.ts)
-cover hosted-use assent, generation and encrypted cross-device application.
-These focused checks do not replace the final whole-application release matrix.
+[EMF configuration and loaded close](../js/emf-interpretation-runtime.ts) remain
+available without importing interpretation UI. Close aborts the loaded request
+synchronously; late streams/completions require their original profile/data and
+actual overlay/body owner. Dashboard picker projection and rendering remain
+synchronous.
 
-The shared `ChatHeader.svelte` consumes the existing shell layout and a typed
-presentation port in both entries. Its controls and context chip retain runtime
-selectors and workflow contracts without native presentation writers. The
-[header cold-launch scenario](../tests/pwa/sveltekit-chat-header.spec.ts) verifies
-stored perspectives/summaries, persisted attestation receipts and their stated
-limits, web-search preference, fullscreen restoration and menu focus using the assembled artifact after its origin becomes unavailable.
-Attestation badges share authored Svelte markup with transcript HTML callers;
-verification remains in provider services and display retains its stated limits.
+Cycle previews await both Cycle and Import stylesheet loaders before rendering.
+The general Import stylesheet does not duplicate the dedicated Cycle rules;
+retain that readiness boundary for cold, retry and offline first use.
 
-The shared attachment controls, previews, drop feedback and lightbox use Svelte
-and scoped Tailwind in both entries. The
-[attachment cold-launch scenario](../tests/pwa/sveltekit-chat-attachments.spec.ts)
-checks retained history thumbnails and fresh local image selection with the
-assembled artifact while its origin is unavailable. Queued originals remain
-in memory and disappear on reload; attachment selection does not rewrite the
-stored transcript. The [native attachment scenarios](../tests/playwright/chat-attachments-owned.spec.ts)
-exercise overlapping reads, draft retirement, original bytes, keyboard removal,
-capability-aware paste, six themes and narrow layouts. Reviewed health-file
-imports and OS portal-drop snapshot timing retain their existing contracts.
+Tailwind relationship markers use the prefix alone (`gb:peer`, `gb:group`);
+component scope belongs on consuming utilities. Verify rendered track/thumb,
+color and keyboard focus as well as a switch's checked value. Other typed view,
+private-field, async save and style ownership rules live in
+[presentation ownership](presentation-ownership.md) and
+[ARCHITECTURE.md](../ARCHITECTURE.md).
 
-Chat microphone/status and per-message speech controls share authored Svelte
-components across the native and static Kit entries. The
-[voice cold-launch scenario](../tests/pwa/sveltekit-chat-voice.spec.ts) checks
-stored reply hydration, Listen/Stop and draft dictation with the assembled
-artifact after the application origin becomes unavailable. Its deterministic
-microphone and compatible-server responses test UI orchestration and cached
-application code; they do not establish real microphone permissions, recognition
-accuracy, model performance or remote-provider availability. The
-[native voice scenarios](../tests/playwright/chat-voice-owned.spec.ts) cover
-late permission/transcription replies, origin retirement, speech cancellation,
-background playback, narrow layouts, themes and reduced motion.
+## Offline assets and atomic updates
 
-Discussion selection and continuation controls share `ChatDiscussion.svelte`
-across native and static entries. The [static discussion scenario](../tests/pwa/sveltekit-chat-discussion.spec.ts)
-checks restored pending participants, participant locking, a resumed response,
-explicit ending and retained transcript/ended state through cold launches while
-the application origin is unavailable. Its synthetic local-provider response
-verifies orchestration and cached application assets; it does not establish
-model accuracy or actual provider availability. The [native discussion scenarios](../tests/playwright/chat-discussion-owned.spec.ts)
-check additional-perspective and subsequent sequential requests, stale controls,
-literal imported names, keyboard focus, six themes and narrow layouts.
-Live and restored discussion replies share `ChatLiveMessage.svelte`,
-`ChatMessage.svelte` and `ChatPersonaLabel.svelte`. The
-[reply lifetime scenarios](../tests/playwright/chat-discussion-live-owned.spec.ts)
-check live-node reconnection, retirement on profile/history/thread replacement,
-newer-request controller isolation, sequential background participant prompts,
-origin-only persistence and public element facades. Both normal and background
-saves use the same transactional encrypted history writer; these checks do not
-establish remote transport availability or OS-installed PWA acceptance.
+The existing root service worker is the sole offline/update owner. Kit must not
+register another worker or poll an independent version. App-shell declarations
+include deferred feature modules/styles and required static artwork, so cached
+clients can use a feature for the first time and start cold while offline.
+Remote model downloads and live provider data have separate connectivity needs;
+large model assets are not included in ordinary shell precaching.
 
-Provider onboarding and its shared progress strip use the same authored Svelte
-components in native and static entries. The
-[offline provider scenario](../tests/pwa/sveltekit-chat-onboarding-provider.spec.ts)
-checks first-use setup after a cached cold launch, literal profile names,
-keyboard branch navigation, actual Settings handoff, connected progress and
-unchanged profile records while the origin is unavailable. The
-[native ownership scenarios](../tests/playwright/chat-onboarding-provider-owned.spec.ts)
-also check OAuth callback dispatch, manual-key/Bitcoin/CLI entry, edition
-extension slots/actions, stale controls and delayed settings replies, six themes
-and three widths. Callback checks do not establish successful remote OAuth,
-paid provider availability, Companion installation or OS-installed acceptance.
+Font faces with identical payloads share a source URL while retaining their
+family, weight, style and Unicode-range descriptors. Historical font alias files
+remain public for existing documents. The [font asset selector](../scripts/font-assets.mts)
+keeps every stylesheet-referenced font and unique font payload in the production
+precache; it omits only unreferenced aliases with bytes identical to a referenced
+payload. This does not remove those aliases from the static artifact. The
+production worker receives a build-verified `FONT_ALIASES` map, so exact historical
+font URLs also resolve offline to byte-identical payloads in the current build's
+cache.
 
-Stored citations and image previews use the same authored Svelte components in
-native transcript HTML and the static Kit artifact. The
-[message-content cold-launch scenario](../tests/pwa/sveltekit-chat-message-content.spec.ts)
-checks literal stored excerpts, keyboard disclosure, a delayed pre-response view
-and a completed fresh response after the application origin becomes unavailable.
-The [stored-image scenario](../tests/pwa/sveltekit-chat-attachments.spec.ts) checks
-safe persisted thumbnails, keyboard-capable lightbox actions and fresh original
-file processing after cold launch. Restored history must be visible before
-processing files so tests do not submit into a conversation being replaced.
-The response transport is a deterministic local-provider fixture; these checks
-establish cached presentation and orchestration, not real-provider availability
-or installed-PWA acceptance.
+Updates install into a separate cache. Failure retains the active app; Later
+defers activation, while explicit Reload preserves stored data. Before early
+activation, the waiting worker asks every live document to identify its build
+directly and checks the live-client census again. An unidentified document leaves
+the update waiting; close all app tabs/windows and reopen to finish that update.
+Releases that only report to their current controller need this one-time close and
+reopen. They cannot display the newer deferred-update notice, so an old Reload
+button can leave the update pending rather than switching its code and styles.
 
-Message actions, context disclosure, proposed-change review and inline editing
-share Svelte views across native and static entries. The
-[offline action scenario](../tests/pwa/sveltekit-chat-message-actions.spec.ts)
-checks stored context and copy, application of a reviewed proposal, cancelled
-editing with a separate composer draft, and a revised response retained through
-two cold launches while the application origin is unavailable. It uses the
-existing services and a synthetic local-provider response; it does not establish
-live-provider availability or installed-PWA acceptance. The
-[headless action and editor scenarios](../tests/playwright/chat-message-actions-owned.spec.ts)
-check literal text, stale clipboard replies, keyboard/focus behavior, mobile
-menus, coarse controls and six themes at desktop and narrow widths.
+Identified old tabs keep their matching modules and stable application CSS after
+activation. A successful cached app navigation records the new document's build
+before its startup styles load. Fingerprinted production workers do not cache
+unproven network documents as owned application shells. Missing owned documents
+at the app aliases return an uncached error rather than borrowing new deployment
+HTML with old cached version metadata. A restarted worker requests ownership again;
+unresolved or missing stylesheet ownership returns an uncached error instead of
+mixing styles from another build. The exact stylesheet retry URL retains the same
+ownership boundary. Retire unused version caches only after their documents leave
+or reload. Cleanup considers versions present at activation, preserving a waiting
+worker's prepared cache. A restarted worker retains old caches until the next
+activation census. Other mutable assets and API traffic never use the old
+immutable-asset fallback.
 
-Profile onboarding uses the same authored `ChatProfileSetup.svelte` in native
-and static entries. The [offline profile scenario](../tests/pwa/sveltekit-chat-onboarding-profile.spec.ts)
-opens the form for the first time after the origin is unavailable, saves all
-basic and optional fields, closes the page and verifies the restored form after
-a cached cold launch. A backup exported through Settings verifies the weight
-stored in the IndexedDB-backed profile blob and its correctly normalized manual
-wearable row. Startup maintenance may advance `lastUpdated`; every other profile
-field remains identical, and that timestamp cannot move backward. It also checks page errors and the
-deployed Content Security Policy; no source-module imports substitute for the
-static bundle or real form actions.
+Keep offline workflow tests on the assembled artifact and real navigation/actions.
+Do not substitute imports from pruned development-module URLs for a missing shipped
+dependency. Source-binding checks must identify the actual authored component or
+public facade in the artifact graph. Preserve canonical IndexedDB/encrypted-cache
+and backup comparisons, unrelated/unknown profile fields, origin-scoped writes and
+native focus/keyboard controls across offline first use and closed-client launches.
 
-Optional onboarding uses `ChatOptionalSetup.svelte` in both native and static
-entries. The [offline add-ons scenario](../tests/pwa/sveltekit-chat-onboarding-optional.spec.ts)
-opens the tasks for the first time after the origin is disabled, imports actual
-SNP and mtDNA files through their file choosers and confirmation dialogs, then
-cold-launches the cached application and verifies both genomes through a real
-backup export. The [native ownership scenarios](../tests/playwright/chat-onboarding-optional-owned.spec.ts)
-also cover disconnected/connected continuation, retired controls, profile changes
-during parsing and pending confirmation, and theme/layout/accessibility checks.
+## Build identity and size measurements
 
-The shared health-context catalog uses the same authored Svelte HTML and scoped
-Tailwind styles in dashboard, Insight and Chat. Its existing public string-render
-contract and service delegates remain available. Optional-onboarding acceptance
-opens all nine cards after an offline cold launch, expands an explanation and
-persists literal additional-context notes alongside imported DNA/mtDNA in the
-exported backup. The shared assessment/tips slots use independently hydrated authored boundaries,
-profile/data tickets and unique IDs. Simultaneous catalogs receive the same typed
-updates; removed or replaced profile views cannot receive new assessments or open
-late tips dialogs. Tips dialogs share typed `context-card-tips-presentation.ts`
-projection and authored `ContextCardTips.svelte` markup with escaped catalog/genetics
-text, safe study links and keyboard close/EMF controls. Their lazy stylesheet keeps
-its original URL and ordering. Card editors and nutrition views retain separate
-presentation and persistence owners. Notes edits
-retain their originating profile through debounced scoped persistence, expose
-confirmed commit status through the shared authored `ContextNotes.svelte` component.
-Independent notes boundaries hydrate in place, retain textarea focus, use unique
-label/hint relationships and dispose subscriptions on removal/profile changes.
-Failed drafts survive fresh profile reloads
-with an explicit retry. The storage queue checks the previously observed notes
-inside the locked read/merge/write. If saved notes have changed, the UI presents
-the saved text alongside the draft and offers an explicit choice; keeping saved
-notes does not write or discard unrelated edits.
+`build-metrics.json` records application identity, complete authored source input
+count, verification digest, revision, emitted JavaScript bytes, precache resources
+and deltas against historical cache limits. Application identity includes all
+authored TypeScript, Svelte, CSS, HTML and JSON inputs, an explicit build tag and
+copied public asset bytes, even in an ignored evaluation checkout. Unknown
+source/config inputs remain included.
 
-The authored Diet, Environment, Light/Circadian, Sleep, Exercise, Stress and
-Relationships editors use the same live Svelte form and typed model/session services in native and static builds. Their
-stable facade and lazy stylesheet URLs are retained in the worker graph. Focused
-[`sveltekit-context-forms.spec.ts`](../tests/pwa/sveltekit-context-forms.spec.ts)
-acceptance opens them from the real catalog after the origin becomes unavailable,
-saves profile/history data offline, and reopens them across two cold launches.
-Environment also cold-loads the real EMF editor/stylesheet offline, creates an
-assessment and returns to the authored form while preserving quick-exposure values.
-Light/Circadian preserves its stored skin type and opens the actual Light setup
-offline from the authored summary.
-Health Goals uses its authored live Svelte component and captured incremental
-session in both builds. Its stable facade, shared modal shell and lazy stylesheet
-remain in the worker graph. Focused
-[`sveltekit-context-goals.spec.ts`](../tests/pwa/sveltekit-context-goals.spec.ts)
-acceptance opens Goals for the first time while the origin is unavailable, edits
-and removes goals, explicitly restores a deleted goal, cancels clearing, and
-checks committed IndexedDB history and deletion markers through two offline cold
-launches. It uses the real catalog and stored profile without importing pruned
-source module URLs.
-Interpretive Lens shares the authored context form and captured storage session.
-[`sveltekit-context-lens.spec.ts`](../tests/pwa/sveltekit-context-lens.spec.ts)
-opens it through real Context navigation on offline first use, saves literal
-multiline text and history, checks cancellation and Back without saving draft
-text, and verifies two offline cold launches plus the empty-string Clear contract.
-The authored food-contaminant badge and dialog retain their stable facade and
-lazy stylesheet in the static worker graph.
-[`sveltekit-context-food.spec.ts`](../tests/pwa/sveltekit-context-food.spec.ts)
-opens the dialog through the real Insight badge on offline first use and two cold
-launches, preserves original signal/source groups and keyboard controls, and
-checks that the complete committed profile remains unchanged. Native headless
-checks separately exercise the actual Chat opening with a captured prompt port,
-without sending a model request, and reject retired profile/dialog handoffs.
-Both static and native production assembly retain the transitive emitted import
-graph of raw Knowledge Base and voice workers. Dependencies are discovered from
-runtime ESM syntax and checked against the declared worker shell; missing emitted
-modules or undeclared assets fail the build. This keeps independently loaded
-workers usable offline when their implementation is split into new modules.
-Tailwind's relationship markers use the prefix alone (`gb:peer` and `gb:group`);
-component scope belongs on the consuming utilities. Switch acceptance checks the
-rendered thumb, track color and keyboard focus alongside checked state. Context
-source controls and Chat web search exercise these visible states headlessly.
-The Context overview uses its authored Svelte component, typed projection and
-captured autosave session in both builds, with the same lazy stylesheet URL.
-[`sveltekit-context-hub.spec.ts`](../tests/pwa/sveltekit-context-hub.spec.ts)
-opens it through real navigation while the origin is unavailable, migrates legacy
-source choices, saves canonical flags and the nutrition window, follows Lens and
-Knowledge Base Back navigation, and verifies the complete committed profile
-through two offline cold launches. Headless native checks cover all six themes,
-small and wide layouts, keyboard controls, accessibility, real failed IndexedDB
-writes, peer conflicts and retired controls. Source settings retain their existing
-history contract and do not create personal-fact history events.
-The data-protection picker shares authored `DataProtectionPicker.svelte` markup,
-scoped Tailwind and one capability reader across native and static builds.
-[`sveltekit-data-protection-picker.spec.ts`](../tests/pwa/sveltekit-data-protection-picker.spec.ts)
-loads the owning Insight route, exercises the public delegated entry with the
-origin unavailable, follows real encryption and sync setup dialogs without
-committing setup, and retains the complete profile across two cold launches.
-Headless native checks cover all configured/capability combinations, existing
-callback configuration, six themes, keyboard focus, responsive resizing, failed
-stylesheet retry and retired controls. Folder selection dispatch is checked with
-a callback fixture; no operating-system folder picker is opened.
-Saved meal details share authored `NutritionMealDetail.svelte` and
-`NutritionMealResponse.svelte` components, scoped Tailwind and captured meal/profile
-sessions in native and static builds. The public detail renderer and delegated
-meal actions remain available. The session rejects stale reads and changed meals;
-accepted writes finish on their originating profile. Focused
-[`sveltekit-nutrition-meal-detail.spec.ts`](../tests/pwa/sveltekit-nutrition-meal-detail.spec.ts)
-acceptance opens the actual History detail offline, saves and clears optional
-check-ins through two cold launches, and verifies committed IndexedDB data while
-preserving unrelated profile content. Headless native checks cover all six themes,
-small and wide layouts, keyboard controls, accessibility, profile retirement and
-late stylesheet/encrypted-read handoffs. Check-ins retain their existing personal
-evidence and AI-summary exclusion contracts.
-Benchmark result cards and nutrient/difference tables share authored Svelte markup
-and a pure projection through the synchronous presentation entry. Scoring, costs,
-provider execution and encrypted device-local snapshots retain their domain and
-storage owners. [`sveltekit-nutrition-comparison.spec.ts`](../tests/pwa/sveltekit-nutrition-comparison.spec.ts)
-opens restored results through real Insight/History navigation on offline first
-use, verifies two cold launches, clears only local comparison metadata, and checks
-that the complete committed profile remains unchanged. Restored failures require
-a new photo to retry and remain explicit about unavailable request costs. Headless
-native checks cover keyboard tables, six themes, responsive result layouts and
-reduced motion alongside the existing retry/cancel/full-screen workflow.
-The benchmark workspace, searchable model picker, photo thumbnails, history
-banner and request progress markup also use the shared authored presentation
-entry. The static offline check asserts both workspace and picker ownership and
-restored zero reference values on each launch. Native
-[`nutrition-benchmark-owned.spec.ts`](../tests/playwright/nutrition-benchmark-owned.spec.ts)
-checks open reference groups and model cards across all six themes, keyboard and
-touch-sized controls, benchmark-only photo replacement/clearing, and preservation
-of the parked editor's draft and file input. Full-screen layout is an explicit
-scoped CSS contract across the shared modal and result children; ordinary workspace
-styles are Tailwind utilities. No rendering backend is introduced.
-This is scoped editor acceptance; final whole-application migration acceptance
-remains required.
+The verification digest binds revision and the complete authored source inventory.
+Revision alone does not invalidate application caches when all actual inputs are
+identical. Test inputs remain conservatively included in application identity:
+the bundler can consume them as inline assets without exposing a supported complete
+dependency inventory. Excluding tests safely requires that inventory first.
 
-The meal editor, entry-method navigation, model choices, photo previews, ingredient
-review, provenance, uncertainty and correction feedback share authored Svelte
-presentation between native adapters and the static application. Shared progress
-uses `NutritionAnalysisProgress.svelte`. Controllers retain input synchronization,
-analysis requests, calculations and canonical/encrypted persistence. Superseded
-native templates and editor CSS are removed; shared modal sizing and explicitly
-owned loading/presentation styles remain. Nutrition controls use a 45px minimum
-to keep the 44px target contract despite browser subpixel rounding.
-[`nutrition-editor-owned.spec.ts`](../tests/playwright/nutrition-editor-owned.spec.ts)
-covers themes, layout, accessibility, entry tabs and draft preservation.
-[`sveltekit-nutrition-editor.spec.ts`](../tests/pwa/sveltekit-nutrition-editor.spec.ts)
-checks offline first use, actual save/edit/reuse and closed-client cold launches,
-including zero/unknown nutrients, unrelated canonical profile fields and decrypted
-meal-cache equality. These local checks do not replace hosted or physical-device
-release acceptance.
+Verification metadata can change independently; it does not establish full artifact
+byte identity. Read it from the retained build artifact or an uncontrolled network
+request: a controlling worker can cache this metadata, so it is not a guaranteed
+fresh in-app verification receipt. Source discovery excludes dependency, build and
+journal trees and generated runtime siblings. Registered typed style-map outputs
+are generated from fingerprinted recipe inputs. Public asset bytes remain part of
+application identity.
 
-Chat empty-conversation presentation is authored by `ChatEmptyState.svelte` and a
-pure display projection. It shares persona and progress components, retains exact
-prompt and navigation payloads, and reserves context-card markup for the catalog
-owner. Existing controllers retain branch decisions and provider/profile actions.
-[`chat-empty-owned.spec.ts`](../tests/playwright/chat-empty-owned.spec.ts) covers
-all seven branches, supported themes, narrow layouts, keyboard and accessibility.
-[`sveltekit-chat-empty.spec.ts`](../tests/pwa/sveltekit-chat-empty.spec.ts) checks
-offline first use, actual context-note/history commits, skip/return and closed-client
-cold launches with unrelated profile parity. This scoped acceptance does not prove
-whole-app startup stability or physical installed-PWA acceptance.
+Output totals, cold startup requests and complete service-worker cache population
+are different measurements. Production SvelteKit builds enforce
+[`sveltekit-resource-budget.json`](../scripts/sveltekit-resource-budget.json)
+before replacing an existing output directory. The offline precache has a 22 MiB
+absolute decoded-body ceiling and a separate 5% growth ceiling against the recorded
+19,172,377-byte reference. The current effective ceiling is 20,130,995 bytes; neither
+limit advances automatically. More than 550 resources produces a warning. Counts
+remain visible without making the bundler's complete chunk count a release gate.
+Every precache URL must resolve to a regular file inside the artifact. Distinct
+cached document URLs count separately even when their bodies are identical.
+Generated precached JavaScript gzip/Brotli totals are informational sums of individual
+files; they do not describe startup transfer.
 
-Saved Chat summaries, dialog content and standalone print documents share authored
-Svelte presentation with the native runtime adapters. Controllers preserve AI
-execution, originating profile/thread guards, sync refresh, persistence and export
-contracts. Summary rows and dialog actions use scoped Tailwind; escaped Markdown
-keeps shared formatting. Print output owns a small inline stylesheet for immediate
-offline use. No rendering backend is required.
-[`chat-summary-owned.spec.ts`](../tests/playwright/chat-summary-owned.spec.ts)
-checks themes, widths, accessibility, keyboard and literal export content.
-[`sveltekit-chat-summary.spec.ts`](../tests/pwa/sveltekit-chat-summary.spec.ts)
-checks generation using a synthetic local model transport, actual canonical writes,
-download, deletion tombstones, unrelated profile equality, two offline closed-client
-launches and backup. Synthetic inference does not establish live-provider acceptance;
-these scoped checks do not establish whole-app startup or installed-PWA acceptance.
+These limits cover one complete build, not all Cache Storage at an origin. An open
+older document can still need its matching build's styles and modules. Updates retain
+that cache until its owners leave; size limits never authorize eviction of live data
+or an older live build. User-profile storage and optional downloaded models are outside
+the precache measurement.
 
-The Light page shell and compact Light Today/dashboard pills share authored Svelte
-presentation with existing synchronous runtime adapters. Scoped Tailwind is built
-into the original ordered `css/light-sun.css` URL; the remaining base CSS serves
-separately owned children. Calculations, session persistence, active tickers,
-widget preferences and async child ownership remain in their existing services.
-[`light-page-owned.spec.ts`](../tests/playwright/light-page-owned.spec.ts) checks
-authored surfaces across themes, widths, keyboard interaction and accessibility.
-[`sveltekit-light-page.spec.ts`](../tests/pwa/sveltekit-light-page.spec.ts) uses the
-actual route with AI paused and the artifact origin disabled, saves a past session through the
-existing dialog, checks canonical IndexedDB records and unrelated profile data,
-and verifies cached body-picker artwork decoding, two closed-client launches and backup. A session without coordinates
-retains its honest `needs-location` status; this check does not establish live
-atmosphere-provider, remaining Light child, installed-PWA or whole-app acceptance.
+After building, `npm run performance:check -- --artifact dist` enforces the separate
+SvelteKit startup and incremental first-use browser budgets. It uses synthetic empty
+and combined-data profiles, real Settings and Body controls, fresh browser contexts,
+blocked service workers, disabled HTTP cache and a Brotli-capable loopback server.
+AI is paused with the supported OpenRouter provider selected and no credentials.
+The server supplies only the deployment's public commit-metadata fixture from the
+frozen artifact's recorded revision; its response is counted like every other
+request. This controlled fixture adds no backend requirement to the application.
+Provider discovery and paid inference are outside these scenarios; any external
+request fails qualification.
+Both desktop and emulated mobile run three samples by default. HTTP response
+transfer bytes, encoded response bodies, decoded bodies and request counts have
+separate limits; every sample must pass. These are controlled local Brotli
+measurements, excluding TCP/TLS overhead; deployment compression is separate. CPU/network settings and timing medians are recorded, with
+timing diagnostic rather than a machine-dependent hard gate. Failed, pending,
+external or private-fixture requests, page/CSP errors and changed committed profile
+data fail qualification independently of the size limits. `--record` only measures;
+it explicitly does not establish a passing budget result.
 
-The past-Sun/device logging forms and completed history are authored Svelte
-through `LightSessionPresentation.svelte`, using the established synchronous
-controllers and ordered Light utilities. Existing body selection, device mode
-coupling, UV safety gates and canonical stores retain ownership. The
-[session acceptance](../tests/playwright/light-session-owned.spec.ts) checks native
-keyboard activation, radio focus, unit conversion and themes/layout/accessibility.
-The [static device workflow](../tests/pwa/sveltekit-light-sessions.spec.ts) saves a
-real canonical session with the origin disabled before first form use, checks
-mode-specific signals and exact unrelated-profile equality, opens the existing
-rich detail and verifies two closed-client launches and backup. AI is paused;
-this does not establish physical-device, live-provider or installed-PWA acceptance.
+The fixed transfer policy lives in
+[`sveltekit-performance-budget.json`](../scripts/sveltekit-performance-budget.json).
+The reference uses three samples for each of the four device/workflow combinations.
+All samples in each group had identical resource counts and byte totals. The
+ceilings allow approximately 19–28% byte growth from the largest observed sample;
+small request groups receive a few additional request slots. They are reviewed
+limits, not a rolling percentage that silently increases after each run.
 
-Sun/device session details share authored field grids, disclosures, safety
-notices and native channel buttons. The mode editor is also authored; existing
-controllers and stores own calculations, coupling and mutations. Static Light
-acceptance opens saved Sun details with the origin disabled and edits a real
-device session from NIR to red, checking recalculated doses, unrelated data,
-offline cold launches and exact backup equality. This extends local evidence;
-remaining session setup owners and installed-PWA acceptance stay separate.
+| Phase | HTTP transfer ceiling | Encoded body ceiling | Decoded body ceiling | Request ceiling |
+| --- | ---: | ---: | ---: | ---: |
+| Startup | 1,280 KiB | 1,152 KiB | 4,608 KiB | 220 |
+| Settings first use | 400 KiB | 360 KiB | 1,536 KiB | 64 |
+| Body first use | 64 KiB | 56 KiB | 288 KiB | 10 |
 
-Active Sun/device cards, live readouts and channel chips use authored Svelte and
-scoped Tailwind, while the existing timer services retain integration and alert
-ownership. The [active-session workflow](../tests/pwa/sveltekit-light-active.spec.ts)
-starts both real timers offline, pauses Sun exposure, closes the client with both
-sessions active, resumes/stops through native keyboard actions, and verifies
-precise paused-time accounting, device doses, unrelated profile equality, two
-saved-session cold launches and exact backup equality. External providers are
-blocked and AI is paused; this is static local acceptance, not live-weather or
-installed-PWA evidence.
+The recorded largest HTTP transfers were 1,077,321 bytes at startup, 331,955 bytes
+for Settings and 53,186 bytes for Body. Startup is measured before any first-use
+action; first-use numbers are incremental. Settings includes closing the genuine
+empty-profile chat panel before opening the real Settings control. These finite
+scenarios do not certify every feature's first use. A limit or reference change
+requires new qualified measurements and an explanation of the user-visible tradeoff;
+a larger current artifact alone is not a reason to raise a ceiling.
 
-The [Sun entry acceptance](../tests/pwa/sveltekit-sun-entry.spec.ts) exercises
-first offline use of authored live-start and coverage dialogs, native keyboard
-region selection and confirmation, unchanged glass/eye/posture/surface inputs,
-old/new timed body-exposure slices, exact unrelated-profile equality, closed-client
-cold launches and backup export. The authored body silhouette retains its existing asset
-and interaction services; preflight thresholds are checked separately through the
-stable formatter and native browser entry workflow.
+The previous native checks remain available as `performance:native:check` and
+`native:compatibility:check`, with their original budget files and behavior intact.
+They describe the retained native graph, not the default SvelteKit release budget.
+Compiler, correctness, coverage and security requirements remain unchanged.
 
-The [body-picker browser contract](../tests/playwright/sun-body-picker-owned.spec.ts)
-checks responsive geometry and caption styling in six themes, accessible SVG
-region controls, front/back independence, Enter/Space focus retention, actual
-image/canvas blob readiness, a visible focus contour after tint readiness, and
-overlay updates that do not steal external focus.
-The [SVG projection contracts](../tests/sun-body-picker-presentation.test.ts)
-cover literal metadata, source placement, namespaces, masks and the retained
-parametric fallback. Existing region-map/input browser assertions remain intact.
+For readiness spanning pages/cold launches, use host monotonic elapsed time from
+navigation through app-ready and, where applicable, worker/controller readiness.
+A fixed Playwright browser clock can carry prior workflow time, so its absolute
+`performance.now()` is not a per-launch duration. The
+[readiness clock regression](../tests/pwa/sveltekit-readiness-clock.spec.ts) protects
+that distinction. Diagnostic timings include observation overhead and do not
+establish a hardware-independent performance guarantee.
 
-The [channel detail acceptance](../tests/pwa/sveltekit-light-channel.spec.ts)
-opens all six source-aware channel drill-downs and their research disclosures
-for the first time offline, checks separate sunlight/device labels and charts,
-and retains the full canonical profile over two closed-client cold launches.
-It exercises the shipped static artifact and CSP through real navigation; the
-component contract separately verifies chart coordinates and delegated quick-log
-actions. The actual offline UI opens and cancels live Sun and device entry using
-a configured home location, with external weather/provider requests blocked. External research links are inspected without opening browser windows.
+## Static startup diagnostic
 
-The same channel acceptance enables the optional Dashboard Light Channels widget,
-checks all six authored pills and retained mini-chart bars, and opens the selected
-Light detail through the real cross-route shortcut before checking each channel.
-The Dashboard and Light row share typed Svelte SVG output; no raw mini-chart HTML
-slot remains. This is exercised offline after first install and on each cold launch.
+Build the desired artifact first, then run the focused Chromium diagnostic:
 
-The [room editor acceptance](../tests/pwa/sveltekit-light-environment-room.spec.ts)
-exercises native keyboard disclosure, room names, source archetypes and the full
-source selector, daylight, bucket and exact-hour inputs, evening timing, daily
-exclusion, nested screen creation and room quick picks. It performs the edits for
-the first time offline, checks the full committed profile including unknown saved
-fields, and reopens the assessment through two closed-client offline cold launches.
-The [room browser contract](../tests/playwright/light-environment-room-owned.spec.ts)
-compares independent frozen layouts across themes and breakpoints, audits visible
-advanced fields, and checks keyboard focus, touch targets, responsive dialog bounds
-and sync-scroll preservation. These focused checks do not establish whole-app,
-physical installed-PWA, live-provider or update-consent acceptance.
+```bash
+GETBASED_KIT_ARTIFACT="$PWD/dist" npx playwright test --config=playwright.sveltekit.config.js sveltekit-startup-performance.spec.ts --project=kit-chromium
+```
 
-The [saved-audit comparison contract](../tests/light-audit-compare.test.ts) checks
-independent frozen snapshots, historical screen ownership, renamed and duplicate
-room identities, measurement-method copy, camera proxy direction/deadband and exact
-AI handoff prompts. The [audit browser contract](../tests/playwright/light-audit-card-owned.spec.ts)
-compares card, block and comparison layouts across themes and breakpoints and
-checks native disclosure activation, independent AI actions, header-to-content tab
-order and collapsed content. The existing cached-environment PWA acceptance checks
-audit fields, readings, verdicts, renamed-room comparison and modal disclosure focus
-with exact full-profile equality over closed-client offline cold launches. These remain focused checks with the boundaries stated above.
+[The startup case](../tests/pwa/sveltekit-startup-performance.spec.ts) uses fresh
+desktop and Pixel 5 contexts, blocks service workers, disables browser cache with
+CDP and aborts cross-origin requests. It measures local uncompressed HTTP with no
+CPU/network throttling, one sample per mode. Its JSON attachment records app-ready,
+paint/LCP observations, long tasks, request timing, script/layout durations and the
+loaded source inventory through app-ready then network idle. It does not measure
+worker precaching, compressed deployment transfer, installed-PWA performance or
+real mobile hardware.
 
-The [Light Tools presentation contract](../tests/light-tools-presentation.test.ts)
-compares independent native launcher and solar-window snapshots, walkthrough
-fields, camera status copy and literal pause labels. The
-[tool browser contract](../tests/playwright/light-tools-owned.spec.ts) compares
-independent layouts, themes and breakpoints, including widget placement, native
-keyboard disclosure, focus and coarse controls. Existing tool and loader browser
-checks retain storage, camera teardown and lazy-load coverage. The
-[static tool acceptance](../tests/pwa/sveltekit-light-tools.spec.ts) opens the
-launcher, cancels a golden-hour form and exercises denied-camera retry/close over
-closed-client offline launches, with exact full-profile equality. Camera input is
-mocked; these checks do not establish physical sensor accuracy, audit-wide AA,
-installed-PWA, update-consent or whole-app acceptance.
+The assertions retain the lazy Settings stylesheet and optional attestation-vendor
+boundaries, then open real Settings and change units without document navigation.
+Source maps are read on the host after measurement so diagnostics do not inflate
+browser requests. Missing optimized maps fail except exact pinned generated helpers
+or AST-verified import/export-only forwarding barrels; raw compatibility scripts
+retain their explicit URL inventory even if compiler maps are not shipped.
+This diagnostic adds no timing/resource budget and does not waive an existing one.
 
-The [camera presentation contract](../tests/light-camera-presentation.test.ts)
-compares all six shells, shared guides, lock states and camera-result fragments
-against preserved native output. The
-[camera browser contract](../tests/playwright/light-camera-owned.spec.ts)
-compares complete element geometry, palette and typography across themes and
-breakpoints, with actual shown overlays, hidden/manual states, keyboard focus,
-native disclosure and coarse targets. Existing
-[camera workflow checks](../tests/playwright/light-tool-camera-modals-edge-browser-coverage.spec.ts)
-retain frame-based calibration, confidence, result, saving and cleanup assertions.
-The [static camera acceptance](../tests/pwa/sveltekit-light-camera.spec.ts)
-exercises denial fallbacks, manual source choices, per-tool guide dismissal and
-close actions over closed-client offline cold launches with exact full-profile
-equality. It shares a self-contained denied-camera seed with the adjacent tools
-acceptance. These checks use mocked camera input; they do not establish physical
-sensor accuracy, camera-wide AA, installed-PWA, update or whole-app acceptance.
+## Matched local benchmark
+
+After building and retaining two static artifacts, run:
+
+```bash
+npm run benchmark:local -- --baseline .local-notes/baseline-dist --candidate dist --cases empty,control,combined --pairs 3 --device mobile --output .local-notes/benchmarks
+```
+
+The [benchmark](../scripts/benchmark-static.mts) compiles through its npm pre-hook,
+then uses fresh headless Chromium contexts and alternating artifact order. It
+uses the same qualified startup/first-use phase boundaries and supported paused
+OpenRouter fixture as the single-artifact performance gate. Each server exposes
+its own artifact's recorded public revision metadata, counted as a normal request.
+Both artifacts are explicit inputs; the command does not rebuild them. Its private seed
+page commits synthetic data through the native APIs and closes before measurement.
+Meals use verified device-encrypted storage. This is not a universal claim that
+all profile fields are encrypted under every application configuration.
+
+The laboratory seed selects only the bundled demo's exact `entries`,
+`customMarkers` and `refOverrides`, preserving marker values, units, per-entry
+context and provenance. The control retains eight panels. Public profile defaults
+and migration normalize this declared seed before its durable commit. Unrelated
+Light sessions, devices, geographic/weather history, export metadata and cached AI
+are excluded; this is a laboratory/meal/wearable fixture, not a full demo import.
+
+Measured-page request events provide resource counts and private-module guards.
+At one post-timing boundary, the command freezes that ledger and passive CDP
+`Network.loadingFinished` encoded-byte receipts. Transfer bytes cover responses
+completed by that boundary; request completion states are retained. It does not
+await response-body metadata. Raw ResourceTiming entries are retained too, and can
+be empty under the fixed browser clock.
+
+Measurements use Brotli, 4x CPU slowdown, 100 ms latency, 10 Mbps download, disabled
+HTTP cache and blocked service workers. The command rejects measured pages that load seed modules or request external
+resources. Startup uses the host monotonic clock; first-use
+journeys use one browser clock. Whole Body journeys retain drawer/locator waiting,
+with actual click-to-content and animation-frame phases reported separately.
+
+`--pairs` accepts 1 through 5; `--device` is `mobile` or `desktop`. Fixture cases are
+`empty`, `control`, `lab40`, `lab120`, `meal1460`, `meal7300`, `wearable1`, `wearable3`
+and `combined`. Defaults are three pairs of empty/control/combined on mobile.
+Scale tiers are opt-in. The [fixture and parity owner](../scripts/benchmark-static-fixtures.mts)
+requires exact raw text and complete durable-profile equality. Empty/control/lab
+cases also require complete markup equality; other raw markup hashes are retained
+without normalization. These guards do not replace visual or complete device-store
+workflow acceptance.
+
+Each run owns a unique Git-ignored output directory and retains raw observations,
+medians, paired deltas, source/build identities and partial failure evidence.
+Both artifacts must have regular metadata, document and version files with a
+matching build identity and a valid recorded revision before the command acquires
+servers or a browser. The empty-profile Settings journey displays the revision,
+so exact UI parity requires both artifacts to record the same revision when
+`empty` is selected. Cross-revision comparisons can use Body-only cases such as
+`--cases control,combined`; use `performance:check` to enforce one artifact's limits.
+The command never replaces revision labels to make parity pass. Failure
+receipts preserve the original error and structured causes, including labeled
+cleanup errors. Every acquired resource gets a close attempt; completed results
+are published only after cleanup succeeds. The [failure contracts](../tests/benchmark-static-failures.test.ts)
+exercise invalid artifacts, interrupted ownership and cleanup failures.
+There is no timing gate, new resource allowance or field-performance claim. Run it
+with other browser/build workloads idle. Existing performance and release gates
+remain independently required.
+
+## Acceptance and limits
+
+Use [the testing policy](testing-policy.md) to select relevant cases and release
+gates. [The shared shell scenario](../tests/pwa/sveltekit.spec.ts),
+[protection/offline scenario](../tests/pwa/sveltekit-protection.spec.ts),
+[native passphrase lifecycle](../tests/playwright/passphrase-dialog.spec.ts) and
+[old-client cache tests](../tests/service-worker-client-cache.test.ts) are entry
+points; feature scenarios live under `tests/pwa/`, with native UI/ownership checks
+under `tests/playwright/`. Keep their substantive data, security, action and
+corruption assertions active rather than reporting only the presence of components.
+
+Browser launches are headless and remove desktop display/compositor/session-bus
+and activation credentials. Linux WebKit uses WPE; a custom executable must not
+substitute the GTK windowed binary. Use synthetic profiles and a local origin.
+Tests with synthetic inference, mocked camera/microphone input or clipboard/folder
+callbacks establish orchestration, not provider availability, sensor accuracy,
+permission behavior or OS picker operation. Mocked erasure is not a substitute for
+real IndexedDB deletion. Installed-PWA acceptance, physical devices, paid providers,
+complete regression and fresh combined coverage require their own evidence;
+scoped passing workflows do not imply those results.
+
+
+Wearables native parity is reproducible from a clean checkout. The maintained
+[compressed fixture](../tests/fixtures/wearable-native-parity/manifest.json)
+contains byte-exact synthetic receipts from all four supported browser projects,
+the original input manifest, and only the three original Chart callback-owner or
+binding chunk/source-map pairs required by the comparator. The fixture loader
+checks a source-pinned manifest hash, compressed and decompressed sizes, each
+original member hash, and safe unique relative paths before extracting a fresh
+worker-owned temporary directory. It does not download or rebuild historical
+application code. [Corruption controls](../tests/wearable-native-fixture.test.ts)
+cover changed bytes, traversal, duplicate members and decompression bounds.
+
+The Wearables PWA test prepares these inputs automatically when none of the three
+`GETBASED_WEARABLE_NATIVE_*` variables is set. Explicit historical input overrides
+remain supported only as a complete directory/manifest/manifest-SHA set and retain
+all original qualification checks. CI still supplies `GETBASED_EXPECTED_KIT_BUILD_ID`
+from its qualified shipping artifact. To prepare an explicit shared input directory
+for a job after compilation, run `node scripts/wearable-native-fixture.mjs` for JSON,
+or `node scripts/wearable-native-fixture.mjs --github-env` to append the three
+verified input variables to the current GitHub job environment. The extracted
+directory is temporary test input and must never be included in application output.

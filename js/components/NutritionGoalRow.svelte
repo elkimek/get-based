@@ -1,10 +1,10 @@
 <script lang="ts">
   import type { NutritionGoalView } from '../nutrition-presentation-model.js';
   import { nutritionToneColor } from '../nutrition-presentation-model.js';
-  import { button, copy, goalHead } from '../nutrition-view-classes.js';
+  import { inlineLog, copy, goalHead } from '../nutrition-view-classes.js';
   let { view }: { view: NutritionGoalView } = $props();
 </script>
-<div data-nutrition-view class="nutrition-goal-row gb:nutrition:grid gb:nutrition:gap-1.5 gb:nutrition:min-w-0"
+<div data-nutrition-view class="nutrition-goal-row gb:nutrition:grid gb:nutrition:gap-[5px] gb:nutrition:min-w-0"
   class:is-observation={view.observation} class:is-excellent={view.grade?.tone === 'excellent'}
   class:is-good={view.grade?.tone === 'good'} class:is-strained={view.grade?.tone === 'strained'} class:is-poor={view.grade?.tone === 'poor'}>
   <div class="nutrition-goal-row-head {goalHead}"><strong>{view.label}</strong><span class={copy}>{view.comparison}</span></div>
@@ -16,6 +16,6 @@
   {/if}
   <div class="nutrition-goal-row-foot gb:nutrition:flex gb:nutrition:flex-wrap gb:nutrition:items-center gb:nutrition:justify-between gb:nutrition:gap-2">
     <small class={copy}>{#if view.grade}<span class="nutrition-goal-grade is-{view.grade.tone} gb:nutrition:mr-1 gb:nutrition:font-bold gb:nutrition:text-ink">{view.grade.label}</span> · {/if}{view.note}</small>
-    {#if view.fluid}<button type="button" class="nutrition-inline-log {button}" data-nutrition-action="open-fluid-log">+ Log drink</button>{/if}
+    {#if view.fluid}<button type="button" class="nutrition-inline-log {inlineLog}" data-nutrition-action="open-fluid-log">+ Log drink</button>{/if}
   </div>
 </div>

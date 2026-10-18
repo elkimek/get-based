@@ -44,10 +44,10 @@ assert('Light page view avoids direct window globals',
   !/window\./.test(src));
 assert('Light page feature hook wires exposure dependencies without product recommendation coupling',
   /configureLightPageView\(\{/.test(hooksSrc)
-    && /renderLightTodayHero/.test(hooksSrc)
+    && /getLightTodayHeroView/.test(hooksSrc)
     && /renderDevicesSection/.test(hooksSrc)
     && /renderLightTools/.test(hooksSrc)
-    && /renderChannelMixVerdict/.test(hooksSrc)
+    && /getChannelMixVerdictView/.test(hooksSrc)
     && !/renderChannelDeficitDeviceRecs/.test(hooksSrc)
     && !/loadCatalog/.test(hooksSrc)
     && !/loadLightDevicePresets/.test(hooksSrc)
@@ -65,13 +65,13 @@ assert('Light Today AI renderers are wired without a window facade',
     && dashboardCompositionSrc.includes('renderLightTodayHero: renderLoadedLightTodayHero,')
     && !dashboardCompositionSrc.includes("from './light-today-ai.js'"));
 assert('Light page UI hook wires router and Sun settings leaf dependencies',
-  /import \{ navigate \} from '\.\/views\.js';/.test(uiHooksSrc)
+  /import \{ navigate \} from '\.\/views-runtime\.js';/.test(uiHooksSrc)
     && !/from '\.\/settings-privacy\.js'/.test(uiHooksSrc)
-    && /import \{ installSunDataSourceDelegates, renderSunDataSourceSettings \} from '\.\/settings-privacy\.js';/.test(hooksSrc)
+    && /import \{ installSunDataSourceDelegates, getSunDataSourceSettingsView \} from '\.\/settings-privacy\.js';/.test(hooksSrc)
     && (hooksSrc.match(/^installSunDataSourceDelegates\(\);$/gm) || []).length === 1
     && hooksSrc.indexOf('installSunDataSourceDelegates();') < hooksSrc.indexOf('configureLightPageView({')
     && !/from '\.\/settings\.js'/.test(uiHooksSrc)
-    && /configureLightPageView\(\{[\s\S]*renderSunDataSourceSettings[\s\S]*\}\);/.test(hooksSrc));
+    && /configureLightPageView\(\{[\s\S]*getSunDataSourceSettingsView[\s\S]*\}\);/.test(hooksSrc));
 assert('Light page hooks and router wiring load behind the feature boundary',
   lightSunModulesSrc.includes("import './light-page-view-hooks.js';")
     && lightSunModulesSrc.includes('configureLightPageView({ navigate });')

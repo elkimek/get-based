@@ -34,6 +34,11 @@ export function navigateBiologyScoresRoute(route: string = 'biology-scores') {
   biologyScoresRuntimeDeps.navigate?.(route || 'biology-scores');
 }
 
+/** Internal navigation completion port; the public void facade stays synchronous. */
+export function navigateBiologyScoresRouteAndWait(route: string = 'biology-scores') {
+  return biologyScoresRuntimeDeps.navigate?.(route || 'biology-scores');
+}
+
 export function canOpenBiologyScoresChatPanel() {
   return Boolean(biologyScoresRuntimeDeps.openChatPanel);
 }

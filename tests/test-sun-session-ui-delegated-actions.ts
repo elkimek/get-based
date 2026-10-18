@@ -75,10 +75,10 @@ assert('sun-session-ui direct module actions no longer route through window glob
     !uiSrc.includes('window.renderSessionAIDetail') &&
     !uiSrc.includes('window.navigate'));
 assert('sun-session-ui runtime render and navigate callbacks are startup-wired',
-  uiSrc.includes('renderSessionAIDetail: () =>') &&
+  uiSrc.includes('getSessionAIDetailView: () =>') &&
     uiSrc.includes('navigate: () =>') &&
     !uiSrc.includes('uiDeps.renderSessionAIInline(sess)') &&
-    uiSrc.includes('uiDeps.renderSessionAIDetail(sess)') &&
+    uiSrc.includes('uiDeps.getSessionAIDetailView(sess)') &&
     uiSrc.includes('function refreshLightView()') &&
     sunAiSrc.includes('registerAIActionHandler') &&
     !sunAiSrc.includes('Object.assign(window, {') &&
@@ -87,11 +87,11 @@ assert('sun-session-ui runtime render and navigate callbacks are startup-wired',
     !sunAiSrc.includes('window.maybeAnalyzeSessionAfterFinish') &&
     !sunAiSrc.includes('window.renderSessionAIInline') &&
     !sunAiSrc.includes('window.renderSessionAIDetail') &&
-    aiHookSrc.includes("import { renderSessionAIDetail } from './sun-ai-analysis.js';") &&
-    aiHookSrc.includes('configureSunSessionUI({ renderSessionAIDetail })') &&
+    aiHookSrc.includes("import { getSunSessionAIView } from './sun-ai-analysis.js';") &&
+    aiHookSrc.includes("configureSunSessionUI({ getSessionAIDetailView: (session) => getSunSessionAIView(session, 'detail') })") &&
     lightSunAiHooksSrc.includes("import { maybeAnalyzeSessionAfterFinish } from './sun-ai-analysis.js';") &&
     lightSunAiHooksSrc.includes('configureSunSessionsStore({ maybeAnalyzeSessionAfterFinish })') &&
-    uiHookSrc.includes("import { navigate } from './views.js';") &&
+    uiHookSrc.includes("import { navigate } from './views-runtime.js';") &&
     uiHookSrc.includes('configureSunSessionUI({ navigate })') &&
     appLightSunSrc.includes("import './sun-session-ai-render-hooks.js';") &&
     appLightSunSrc.includes('configureSunSessionUI({ navigate });') &&

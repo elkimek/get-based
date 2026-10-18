@@ -1,3 +1,4 @@
+import {waitForAsyncCondition} from '../helpers/awaited-condition.js';
 type SyncE2ERawMerge=(profileId:Parameters<typeof import('../../js/sync-pull-merge.js').mergePulledImportedData>[0], remote:unknown, opts:Parameters<typeof import('../../js/sync-pull-merge.js').mergePulledImportedData>[2])=>ReturnType<typeof import('../../js/sync-pull-merge.js').mergePulledImportedData>;
 type SyncE2ERawRefresh=(options:Omit<NonNullable<Parameters<typeof import('../../js/sync-pull-active-refresh.js').refreshActiveProfileAfterPull>[0]>, 'merged'> & {merged:unknown})=>ReturnType<typeof import('../../js/sync-pull-active-refresh.js').refreshActiveProfileAfterPull>;
 import type {Browser,BrowserContext,Page,TestInfo} from '@playwright/test';
@@ -127,16 +128,12 @@ async function makePage(browser:Browser,label:string,importedData:unknown,record
       } catch (_) {}
     });
     await page.goto(BASE_URL, { waitUntil: 'networkidle', timeout: 20000 });
-    await page.waitForFunction(
-      async () => {
+    await waitForAsyncCondition(() => page.evaluate(async () => {
         const { state } = await import('/js/state.js');
         return !!state
           && typeof (await import('/js/sun-session-ui.js')).openSunSessionDetail === 'function'
           && typeof (await import('/js/light-devices.js')).openDeviceSessionDetail === 'function';
-      },
-      null,
-      { timeout: 15000 }
-    );
+      }, null), 15000);
     const helperBust = `syncE2E=${Date.now()}_${Math.random().toString(36).slice(2)}`;
     await page.addScriptTag({
       type: 'module',
@@ -360,7 +357,7 @@ async function markerModalSnapshot(page:Page) {
 
 async function navigateLight(page:Page) {
   await page.evaluate(async () => (await import('/js/views.js')).navigate('light'));
-  await page.waitForFunction(async () => (await import('/js/state.js')).state.currentView === 'light', null, { timeout: 5000 });
+  await waitForAsyncCondition(() => page.evaluate(async () => (await import('/js/state.js')).state.currentView === 'light', null), 5000);
 }
 
 async function openSunSessionModal(page:Page) {

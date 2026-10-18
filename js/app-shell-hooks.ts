@@ -1,3 +1,4 @@
+import { hydrateNutritionSummary } from './nutrition-summary-runtime.js';
 // app-shell-hooks.js - wire app shell actions without window lookups.
 
 import { configureAppEventListeners } from './app-event-listeners.js';
@@ -6,7 +7,8 @@ import { startOpenRouterOAuth } from './api.js';
 import { configureApiRuntimeCallbacks } from './api-runtime.js';
 import { buildBiologyScoresAIContext } from './biology-score-ai-context.js';
 import { configureBiologyScoresRuntimeDeps } from './biology-scores-runtime.js';
-import { configureBiologyScoreContextAIDeps } from './biology-score-context-ai.js';
+import { configureBiologyScoreContextAIDeps } from './biology-score-context-runtime.js';
+import './biology-score-navigation.js';
 import { closeChangelog } from './changelog.js';
 import { configureCategoryCustomizationRuntimeDeps } from './category-customization-runtime.js';
 import { configureCategoryPageViewDeps } from './category-page-view.js';
@@ -49,7 +51,6 @@ import { configureContextCardLifestyleRuntimeDeps } from './context-card-lifesty
 import { configureDashboardPageRuntimeDeps } from './dashboard-page-view.js';
 import { configureDashboardRecommendationRuntimeDeps } from './dashboard-recommendation-widget.js';
 import { configureDashboardWidgetRuntimeDeps } from './dashboard-widget-runtime.js';
-import { createDashboardViewComposition } from './dashboard-view-composition.js';
 import { updateChatNudge } from './chat-nudge.js';
 import { configureChatRuntimeCallbacks } from './chat-runtime.js';
 import { closeClientList, configureClientListRuntime, openClientList, openProfileLocationEditor } from './client-list.js';
@@ -62,7 +63,7 @@ import {
   configureCryptoProfileDeps,
   encryptedSetCredentialItem,
 } from './crypto.js';
-import { parseAppleHealthCycleBlob, showCycleImportPreview } from './cycle-import-loader.js';
+import { parseAppleHealthCycleBlob, showCycleImportPreview } from './cycle-import-runtime.js';
 import { configureCycleRuntimeDeps } from './cycle-runtime.js';
 import {
   configureDataRuntimeDeps,
@@ -75,7 +76,7 @@ import {
 } from './data.js';
 import { configureDnaRuntimeDeps } from './dna-runtime.js';
 import { configureEMFRuntimeDeps } from './emf-runtime.js';
-import { closeEMFInterpretation, configureEMFInterpretationRuntimeDeps } from './emf-interpretation.js';
+import { closeEMFInterpretation, configureEMFInterpretationRuntimeDeps } from './emf-interpretation-runtime.js';
 import {
   clearAllData,
   closeReportBuilder,
@@ -90,8 +91,9 @@ import { closeFeedbackModal, openFeedbackModal } from './feedback.js';
 import { loadImportStylesheet } from './import-loader.js';
 import { configurePdfImportReviewRuntimeDeps } from './pdf-import-review-runtime.js';
 import { configureProfileStorageCleanupDeps } from './profile-storage-cleanup.js';
-import { configureLabContext, invalidateLabContextCache } from './lab-context.js';
-import { configureLensPageShell } from './lens-page-shell.js';
+import { configureLabContext } from './lab-context-runtime.js';
+import { invalidateLabContextCache } from './lab-context-settings.js';
+import { configureLensPageShell } from './lens-page-shell-core.js';
 import {
   detectWearableTrendSlots,
   loadContextCardsModule,
@@ -120,7 +122,9 @@ import { closeRestoreMnemonicDialog, closeSyncSetup } from './settings-sync-pane
 import {
   configureCompareCorrelationViews,
   clearDashboardWidgets,
-  configureDashboardViewFactory,
+  configureProductionDashboard,
+  completeProductionStartupNavigation,
+  drainProductionStartupNavigation,
   getInitialView,
   navigate,
   openChatProviderQuiz,
@@ -137,7 +141,7 @@ import {
   discussRecommendation,
   saveRecommendation,
   toggleDashboardOrganizeMode,
-} from './views.js';
+} from './views-runtime.js';
 import { configureViewsRouterRuntimeDeps } from './views-router-runtime.js';
 import { openProfileShareModal } from './profile-share-loader.js';
 import {
@@ -168,8 +172,8 @@ import {
   configureShellNavDeps,
   configureShellProfileShareDeps,
 } from './shell-actions.js';
-import { switchAIProviderBridge } from './settings-provider-bridge.js';
-import { configureStartupUIDeps } from './startup-ui.js';
+import { switchSettingsAIProvider as switchAIProviderBridge } from './settings-runtime-bridge.js';
+import { configureStartupUIDeps, configureStartupNavigationCompletion } from './startup-ui.js';
 import { configureStartupProfileDeps } from './startup-profile.js';
 import { configureStartupOAuthCallbackDeps } from './startup-oauth-callbacks.js';
 import { configureSyncPull } from './sync-pull.js';
@@ -196,7 +200,7 @@ configureApiRuntimeCallbacks({ showInsufficientBalanceDialog });
 configureApiProviderStorageRuntimeDeps({ encryptedSetItem: encryptedSetCredentialItem });
 configureStartupOAuthCallbackDeps({ showInsufficientBalanceDialog });
 configureStartupProfileDeps({
-  hydrateNutritionSummary: (profileId: Parameters<typeof import('./nutrition-context.js').hydrateNutritionSummary>[0]) => import('./nutrition-context.js').then(module => module.hydrateNutritionSummary(profileId)),
+  hydrateNutritionSummary: hydrateNutritionSummary,
 });
 if (typeof document !== 'undefined') {
   document.addEventListener('nutrition:open-ai-settings', () => openSettingsModal('ai'));
@@ -225,7 +229,7 @@ configureChatLoader({
   startOpenRouterOAuth,
   switchAIProvider: switchAIProviderBridge,
 });
-configureDashboardViewFactory(createDashboardViewComposition);
+configureProductionDashboard();
 (configureLabContext as (deps: { buildBiologyScoresAIContext: typeof buildBiologyScoresAIContext }) => ReturnType<typeof configureLabContext>)({ buildBiologyScoresAIContext });
 configureProfileDeps({ deleteProfileFromRelay, onProfileSaved, pushContextToGateway });
 configureProfileRuntimeDeps({
@@ -242,7 +246,7 @@ configureProfileRefreshDeps({
   buildSidebar,
   destroyAllCharts,
   getInitialView,
-  hydrateNutritionSummary: (profileId: Parameters<typeof import('./nutrition-context.js').hydrateNutritionSummary>[0]) => import('./nutrition-context.js').then(module => module.hydrateNutritionSummary(profileId)),
+  hydrateNutritionSummary: hydrateNutritionSummary,
   invalidateLabContextCache,
   migrateBiometricsToManual,
   navigate,
@@ -366,6 +370,10 @@ configureStartupUIDeps({
   navigate,
   openChatPanel,
   openSettingsModal,
+});
+configureStartupNavigationCompletion({
+  completeInitial: completeProductionStartupNavigation,
+  drain: drainProductionStartupNavigation,
 });
 configureOnboardingViewRuntimeDeps({ buildSidebar, createNewThread, navigate, openChatPanel, toggleChatPanel });
 configureTourRuntimeDeps({ openChatPanel });

@@ -1,0 +1,40 @@
+[
+  {
+    "id": "default",
+    "name": "Synthetic Marker profile",
+    "sex": "male",
+    "dob": "1987-11-22",
+    "createdAt": 1,
+    "lastUpdated": 1,
+    "tags": [],
+    "notes": "",
+    "status": "active",
+    "pinned": false,
+    "height": null,
+    "heightUnit": "cm",
+    "location": {
+      "country": "",
+      "zip": ""
+    }
+  },
+  {
+    "id": "inactive-synthetic",
+    "name": "Unrelated synthetic profile",
+    "sex": "female",
+    "dob": "1990-02-03",
+    "createdAt": 2,
+    "lastUpdated": 2,
+    "tags": [
+      "preserve"
+    ],
+    "notes": "Unrelated registry row",
+    "status": "active",
+    "pinned": true,
+    "height": 169,
+    "heightUnit": "cm",
+    "location": {
+      "country": "",
+      "zip": ""
+    }
+  }
+]

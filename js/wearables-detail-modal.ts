@@ -1,6 +1,6 @@
 
 import { getErrorMessage } from './caught-error.js';
-import { escapeHTML, showNotification } from './utils.js';
+import { showNotification } from './utils.js';
 import { actionAttributes } from './action-attributes.js';
 import { state } from './state.js';
 import {
@@ -39,6 +39,8 @@ import {
 import type { CanonicalWearableMetric } from './wearable-adapters.js';
 import type { StoredWearableRow } from './wearable-storage-types.js';
 import type { WearableMetricSummary } from './wearables-summary-model.js';
+import {renderWearableDetailView,type WearableManualEntriesView,type WearableManualEntryView,type WearableDetailStatView,type WearableDetailFeedbackView,type WearableDetailSourceView,type WearableDetailRangeView} from './wearable-detail-presentation.js';
+import {wearableEmptyText} from './wearable-strip-empty-presentation.js';
 
 interface WearableSeriesPoint { date: StoredWearableRow['date']; v: number }
 interface ManualDetailPoint extends Pick<StoredWearableRow, 'date'> {
@@ -235,6 +237,12 @@ export async function openWearableDetail(metricId: string, opts: WearableDetailO
 let _modalTrapHandler: ((e: KeyboardEvent) => void) | null = null;
 
 export function _uninstallWearableModalFocusTrap() {
+  // Closing the shared shell must also cancel history reads from range toggles.
+  _detailOp++;
+  removeWearableModalFocusTrap();
+}
+
+function removeWearableModalFocusTrap() {
   if (_modalTrapHandler) {
     document.removeEventListener('keydown', _modalTrapHandler!, true);
     _modalTrapHandler = null;
@@ -242,7 +250,7 @@ export function _uninstallWearableModalFocusTrap() {
 }
 
 function _installWearableModalFocusTrap(modal: HTMLElement) {
-  _uninstallWearableModalFocusTrap();
+  removeWearableModalFocusTrap();
   _modalTrapHandler = (e) => {
     if (e.key !== 'Tab') return;
     const overlay = document.getElementById('modal-overlay');
@@ -269,75 +277,31 @@ function _installWearableModalFocusTrap(modal: HTMLElement) {
   document.addEventListener('keydown', _modalTrapHandler, true);
 }
 
-function buildManualEntriesSection(metricId: string, manualEntries: readonly ManualDetailPoint[], primarySource: unknown) {
-  if (!MANUAL_METRICS.includes(metricId)) return '';
-  if (manualEntries.length === 0) {
-    if (primarySource && primarySource !== 'manual') {
-      return `<section class="wearable-manual-entries wearable-manual-entries-compact">
-        <button type="button" class="wearable-manual-add-btn" ${wearableActionAttrs('open-detail-manual-add', { metric: metricId })}>+ Add a manual reading</button>
-        <div id="wearable-manual-add-slot"></div>
-      </section>`;
-    }
-    return `<section class="wearable-manual-entries">
-      <div class="wearable-manual-entries-head">
-        <span class="wearable-manual-entries-title">Manual entries</span>
-        <button type="button" class="wearable-manual-add-btn" ${wearableActionAttrs('open-detail-manual-add', { metric: metricId })}>+ Add reading</button>
-      </div>
-      <div class="wearable-manual-entries-empty">No manual entries for this metric yet.</div>
-      <div id="wearable-manual-add-slot"></div>
-    </section>`;
-  }
-
-  const canon = canonicalMetric(metricId);
-  const canonicalUnit = canon?.unit || '';
-  const unit = wearableDisplayUnit(metricId, canonicalUnit, state.unitSystem);
-  const metricLabel = canon?.label || metricId;
-  const isBloodPressure = metricId === 'bp_systolic';
-  const formatEntryValue = (e: ManualDetailPoint) => {
-    if (isBloodPressure) {
-      const sys = isMetricValueMeaningful('bp_systolic', e.v)
-        ? formatWearableMetricValue(metricId, e.v as number | null | undefined, canonicalUnit, state.unitSystem)
-        : '—';
-      const dia = isMetricValueMeaningful('bp_diastolic', e.pairedV)
-        ? formatWearableMetricValue(metricId, e.pairedV as number | null | undefined, canonicalUnit, state.unitSystem)
-        : '—';
+function projectManualEntriesSection(metricId:string,manualEntries:readonly ManualDetailPoint[],primarySource:unknown):WearableManualEntriesView|null {
+  if(!MANUAL_METRICS.includes(metricId))return null;
+  if(manualEntries.length===0)return {kind:primarySource&&primarySource!=='manual'?'compact-empty':'empty',metric:metricId};
+  const canon=canonicalMetric(metricId),canonicalUnit=canon?.unit||'';
+  const unit=wearableDisplayUnit(metricId,canonicalUnit,state.unitSystem),metricLabel=canon?.label||metricId;
+  const isBloodPressure=metricId==='bp_systolic';
+  const formatEntryValue=(e:ManualDetailPoint)=>{
+    if(isBloodPressure){
+      const sys=isMetricValueMeaningful('bp_systolic',e.v)?formatWearableMetricValue(metricId,e.v as number|null|undefined,canonicalUnit,state.unitSystem):'—';
+      const dia=isMetricValueMeaningful('bp_diastolic',e.pairedV)?formatWearableMetricValue(metricId,e.pairedV as number|null|undefined,canonicalUnit,state.unitSystem):'—';
       return `${sys}/${dia}`;
     }
-    return formatWearableMetricValue(metricId, e.v as number | null | undefined, canonicalUnit, state.unitSystem);
+    return formatWearableMetricValue(metricId,e.v as number|null|undefined,canonicalUnit,state.unitSystem);
   };
-  const formatSpokenDate = (iso: string) => {
-    try {
-      const d = new Date(iso + 'T00:00:00');
-      return d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
-    } catch {
-      return iso;
-    }
-  };
-  const rows = manualEntries.map(e => {
-    const tagChips = Array.isArray(e.tags) && e.tags.length
-      ? `<span class="wearable-manual-entry-tags">${e.tags.map(t => `<span class="wearable-manual-entry-tag">${escapeHTML(t)}</span>`).join('')}</span>`
-      : '';
-    const noteRow = (typeof e.note === 'string' && e.note.trim())
-      ? `<div class="wearable-manual-entry-note">${escapeHTML(e.note)}</div>`
-      : '';
-    const valueRead = formatEntryValue(e);
-    const ariaText = `Delete ${isBloodPressure ? 'blood pressure' : metricLabel.toLowerCase()} reading from ${formatSpokenDate(e.date)}, ${valueRead}${unit ? ' ' + unit : ''}`;
-    return `<li class="wearable-manual-entry${noteRow ? ' has-note' : ''}" data-entry-date="${escapeHTML(e.date)}">
-      <span class="wearable-manual-entry-date">${escapeHTML(shortDate(e.date))}</span>
-      <span class="wearable-manual-entry-val">${valueRead}${unit ? ` <span class="wearable-manual-entry-unit">${escapeHTML(unit)}</span>` : ''}</span>
-      ${tagChips}
-      <button type="button" class="wearable-manual-entry-del" title="Delete this reading" aria-label="${escapeHTML(ariaText)}" ${wearableActionAttrs('delete-detail-manual-entry', { metric: metricId, date: e.date })}>×</button>
-      ${noteRow}
-    </li>`;
-  }).join('');
-  return `<section class="wearable-manual-entries">
-    <div class="wearable-manual-entries-head">
-      <span class="wearable-manual-entries-title">Manual entries <span class="wearable-manual-entries-count">${manualEntries.length}</span></span>
-      <button type="button" class="wearable-manual-add-btn" ${wearableActionAttrs('open-detail-manual-add', { metric: metricId })}>+ Add reading</button>
-    </div>
-    <div id="wearable-manual-add-slot"></div>
-    <ul class="wearable-manual-entries-list">${rows}</ul>
-  </section>`;
+  const formatSpokenDate=(iso:string)=>{try{return new Date(iso+'T00:00:00').toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'});}catch{return iso;}};
+  const rows:WearableManualEntryView[]=manualEntries.map(e=>{
+    const tags=Array.isArray(e.tags)&&e.tags.length?(e.tags as unknown[]).map(t=>wearableEmptyText(t)):null;
+    const note=(typeof e.note==='string'&&e.note.trim())?wearableEmptyText(e.note):null;
+    const valueRead=formatEntryValue(e);
+    const ariaText=`Delete ${isBloodPressure?'blood pressure':metricLabel.toLowerCase()} reading from ${formatSpokenDate(e.date)}, ${valueRead}${unit?' '+unit:''}`;
+    const date=wearableEmptyText(e.date),dateLabel=wearableEmptyText(shortDate(e.date));
+    const unitLabel=unit?wearableEmptyText(unit):null,deleteLabel=wearableEmptyText(ariaText),deleteDate=wearableEmptyText(e.date);
+    return {date,shortDate:dateLabel,value:valueRead,unit:unitLabel,tags,note,deleteLabel,deleteDate,metric:metricId};
+  });
+  return {kind:'list',metric:metricId,count:manualEntries.length,rows};
 }
 
 function buildWearableDetailHtml(canon: CanonicalWearableMetric, m: DetailMetricReader, series: readonly WearableSeriesPoint[], metricId: string, manualEntries: readonly ManualDetailPoint[] = [], opts: DetailHtmlOptions = {}) {
@@ -345,8 +309,8 @@ function buildWearableDetailHtml(canon: CanonicalWearableMetric, m: DetailMetric
   const sourceName = adapter?.displayName || m.primarySource;
   const canonicalUnit = canon.unit || '';
   const unit = wearableDisplayUnit(metricId, canonicalUnit, state.unitSystem);
-  const unitSpaced = unit ? ' ' + escapeHTML(unit) : '';
-  const subLabel = canon.sub ? ` <span style="opacity:0.6;font-size:0.7em;margin-left:6px;font-weight:normal">${escapeHTML(canon.sub)}</span>` : '';
+  const unitSpaced = unit ? ' ' + wearableEmptyText(unit) : '';
+  const subLabel=canon.sub?wearableEmptyText(canon.sub):null;
   const formatV = (v: unknown) => (formatWearableMetricValue as (metricId: string, value: unknown, canonicalUnit: string, unitSystem: string) => string)(metricId, v, canonicalUnit, state.unitSystem);
 
   const trendWord = m.trend30d === 'declining' ? 'declining'
@@ -482,72 +446,51 @@ function buildWearableDetailHtml(canon: CanonicalWearableMetric, m: DetailMetric
     ]);
   }
 
-  const statsCells = baseStats.map(([label, val, sub, tooltip]) => `
-    <div class="wearable-detail-stat"${tooltip ? ` title="${escapeHTML(tooltip)}"` : ''}>
-      <div class="wearable-detail-stat-label">${escapeHTML(label)}</div>
-      <div class="wearable-detail-stat-val">${val}</div>
-      ${sub ? `<div class="wearable-detail-stat-sub">${escapeHTML(sub)}</div>` : ''}
-    </div>`).join('');
+  const stats:WearableDetailStatView[]=baseStats.map(([label,val,sub,tooltip])=>({
+    tooltip:tooltip?wearableEmptyText(tooltip):null,label:wearableEmptyText(label),value:val||'',sub:sub?wearableEmptyText(sub):null,
+  }));
 
   const hasManualChartSamples = Number(opts.manualChartSampleCount || 0) > 0;
-  const emptyHint = opts.allZeroActivity
-    ? `<div class="wearable-detail-empty">Every day shows 0 — Oura suppresses the Activity composite score while Rest Mode is on. Check the <b>Steps</b> card for raw movement data, or disable Rest Mode in the Oura app.</div>`
-    : series.length === 0 && pairedSeries.length === 0 && !hasManualChartSamples
-      ? manualEntries.length > 0
-        ? `<div class="wearable-detail-empty">No chart samples for this metric in ${escapeHTML(rangeDef.emptyWindow)}. Manual readings are listed below${m.primarySource === 'manual' && rangeDef.days != null ? '; switch to All to chart older manual readings' : ''}.</div>`
-        : `<div class="wearable-detail-empty">No daily samples for this metric in ${escapeHTML(rangeDef.emptyWindow)}. Either your wearable doesn't share this metric, the feature is off on your device, or you didn't wear it. Try Sync now, or reconnect to refresh permissions.</div>`
-      : '';
+  const emptyHint:WearableDetailFeedbackView|null=opts.allZeroActivity?{kind:'zeroActivity'}
+    :series.length===0&&pairedSeries.length===0&&!hasManualChartSamples
+      ?manualEntries.length>0?{kind:'emptyChartWithManual',window:wearableEmptyText(rangeDef.emptyWindow),olderHint:m.primarySource==='manual'&&rangeDef.days!=null?'; switch to All to chart older manual readings':''}
+        :{kind:'emptyChart',window:wearableEmptyText(rangeDef.emptyWindow)}:null;
 
   const connectedSources = state.importedData?.wearableSummary?.sources || {};
   const showSwapButton = Object.keys(connectedSources).length > 1 && !!adapter;
-  const swapButton = showSwapButton
-    ? pairedMetric
-      ? (() => {
-          const pairedAdapter = adapterById(pairedMetric.primarySource);
-          const pairedSourceName = pairedAdapter?.displayName || pairedMetric.primarySource || 'Diastolic source';
-          return `<button type="button" class="wearable-source-badge wearable-source-badge-btn wearable-modal-source-swap" ${wearableActionAttrs('choose-source', { metric: 'bp_systolic' })} title="Switch systolic source">sys via ${escapeHTML(sourceName)} · swap</button>
-            <button type="button" class="wearable-source-badge wearable-source-badge-btn wearable-modal-source-swap" ${wearableActionAttrs('choose-source', { metric: 'bp_diastolic' })} title="Switch diastolic source">dia via ${escapeHTML(pairedSourceName)} · swap</button>`;
-        })()
-      : `<button type="button" class="wearable-source-badge wearable-source-badge-btn wearable-modal-source-swap" ${wearableActionAttrs('choose-source', { metric: metricId })} title="Switch source for this metric">via ${escapeHTML(adapter.displayName)} · swap</button>`
-    : '';
+  const swapButton:WearableDetailSourceView|null=showSwapButton
+    ?pairedMetric?(()=>{
+      const pairedAdapter=adapterById(pairedMetric.primarySource);
+      const pairedSourceName=pairedAdapter?.displayName||pairedMetric.primarySource||'Diastolic source';
+      return {kind:'paired',systolic:wearableEmptyText(sourceName),diastolic:wearableEmptyText(pairedSourceName)};
+    })():{kind:'single',metric:metricId,name:wearableEmptyText(adapter.displayName)}:null;
 
   const emfSleepHint = _buildEMFSleepHint(metricId, m);
-  const rangePills = WEARABLE_DETAIL_RANGES.map(r =>
-    `<button type="button" class="ctx-btn-option${r.key === rangeKey ? ' active' : ''}" aria-pressed="${r.key === rangeKey}" ${wearableActionAttrs('set-detail-range', { metric: metricId, range: r.key })}>${escapeHTML(r.label)}</button>`
-  ).join('');
-
-  return `<button class="modal-close" ${wearableActionAttrs('modal-close')}>&times;</button>
-    <h3>${escapeHTML(canon.label)}${subLabel}</h3>
-    <div class="modal-unit">
-      ${escapeHTML(sourceName)}${deltaStr ? ` · ${deltaStr} vs baseline` : ''} · ${escapeHTML(trendWord)} 30d
-      ${swapButton}
-    </div>
-    <div class="ctx-btn-group wearable-detail-range" role="group" aria-label="Chart range">${rangePills}</div>
-    <div class="modal-chart" style="height:260px"><canvas id="chart-modal"></canvas></div>
-    ${emptyHint}
-    <div class="wearable-detail-stats">${statsCells}</div>
-    ${buildManualEntriesSection(metricId, manualEntries, m.primarySource)}
-    ${emfSleepHint}`;
+  const ranges:WearableDetailRangeView[]=WEARABLE_DETAIL_RANGES.map(r=>({active:r.key===rangeKey,metric:metricId,range:r.key,label:wearableEmptyText(r.label)}));
+  const label=wearableEmptyText(canon.label),source=wearableEmptyText(sourceName),delta=deltaStr?` · ${deltaStr} vs baseline`:'',trend=wearableEmptyText(trendWord);
+  const manual=projectManualEntriesSection(metricId,manualEntries,m.primarySource);
+  return renderWearableDetailView({label,subLabel,sourceName:source,delta,trend,sourceSwap:swapButton,ranges,
+    emptyHint,stats,manualEntries:manual,emfHint:emfSleepHint});
 }
 
-function _buildEMFSleepHint(metricId: string, m: DetailMetricReader) {
+function _buildEMFSleepHint(metricId: string, m: DetailMetricReader):WearableDetailFeedbackView|null {
   const SLEEP_METRICS = new Set(['sleep_score', 'sleep_efficiency', 'hrv_rmssd']);
-  if (!SLEEP_METRICS.has(metricId)) return '';
+  if (!SLEEP_METRICS.has(metricId)) return null;
   const sources = state.importedData?.wearableSummary?.sources;
-  if (!sources || Object.keys(sources).length === 0) return '';
+  if (!sources || Object.keys(sources).length === 0) return null;
   const d7 = m?.rolling?.d7;
   const baseline = m?.baseline;
   const p25 = m?.baselineP25;
-  if (typeof d7 !== 'number' || typeof baseline !== 'number') return '';
+  if (typeof d7 !== 'number' || typeof baseline !== 'number') return null;
   const regressing = d7 < baseline && (typeof p25 !== 'number' || d7 < p25);
-  if (!regressing) return '';
+  if (!regressing) return null;
   const assessments = state.importedData?.emfAssessment?.assessments || [];
   if (assessments.length) {
     const latest = assessments.reduce((a: {date: string}, b: {date: string}) => (a.date > b.date ? a : b));
     const ageDays = (Date.now() - new Date(latest.date + 'T00:00:00').getTime()) / 86400000;
-    if (ageDays < 120) return '';
+    if (ageDays < 120) return null;
   }
-  return `<div class="wearable-detail-emf-hint"><span aria-hidden="true">💡</span> Sleep regressing? Sometimes it's the room. <a href="#" ${wearableActionAttrs('open-emf-assessment')} data-umami-event="emf-nudge-wearable-sleep">Check your EMF environment →</a></div>`;
+  return {kind:'emfHint'};
 }
 
 function renderWearableChart(canvas: HTMLCanvasElement, canon: CanonicalWearableMetric, m: DetailMetricReader, series: readonly WearableSeriesPoint[], manualSeries: readonly ManualDetailPoint[] = []) {

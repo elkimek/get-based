@@ -1,16 +1,17 @@
 import type { AIVerdictStatus } from './ai-verdict-engine.js';
 
 export interface SessionAIView {
-  mode: 'inline' | 'detail';
-  status: AIVerdictStatus;
-  action: 'refresh-sun-session' | 'refresh-device-session';
-  targetId: string;
-  actionOwner: string;
-  dot: 'green' | 'yellow' | 'red' | 'gray';
-  prefix: string;
-  tip: string;
-  detail: string;
-  message: string;
+  readonly mode: 'inline' | 'detail';
+  readonly status: AIVerdictStatus;
+  readonly action: 'refresh-sun-session' | 'refresh-device-session';
+  readonly targetId: string;
+  readonly targetIdPresent?: boolean;
+  readonly actionOwner: string;
+  readonly dot: 'green' | 'yellow' | 'red' | 'gray';
+  readonly prefix: string;
+  readonly tip: string;
+  readonly detail: string;
+  readonly message: string;
 }
 
 type SavedAnalysis = { dot?: unknown; tip?: unknown; detail?: unknown; errorMessage?: unknown };

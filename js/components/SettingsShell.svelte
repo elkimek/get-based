@@ -1,11 +1,19 @@
 <script lang="ts">
-  import { onMount, untrack } from 'svelte';
+  import { onDestroy, onMount, untrack } from 'svelte';
+  import SettingsPanels from './SettingsPanels.svelte';
+  import AppExtensionSlot from './AppExtensionSlot.svelte';
   import { SETTINGS_TABS, SETTINGS_TAB_CLASS } from '../settings-shell-contract.js';
   import type { SettingsShellProps } from '../settings-shell-contract.js';
-  let { initialTab, legacyPanels, extensionTabs, onNavigateTab }: SettingsShellProps = $props();
+  let { initialTab, panels, extensionTabs, onNavigateTab }: SettingsShellProps = $props();
   let activeTab = $state(untrack(() => initialTab));
   let orientation = $state<'vertical' | 'horizontal'>('vertical');
-  export function selectTab(id: string): void { activeTab = id; }
+  let keyboardRequest = 0;
+  let keyboardDestination: string | null = null;
+  export function selectTab(id: string): void {
+    if (id !== keyboardDestination) ++keyboardRequest;
+    activeTab = id;
+  }
+  onDestroy(() => { ++keyboardRequest; });
   onMount(() => {
     const media = matchMedia('(min-width: 721px)');
     const update = () => { orientation = media.matches ? 'vertical' : 'horizontal'; };
@@ -28,7 +36,17 @@
     if (!destination?.dataset.settingsTab) return;
     event.preventDefault();
     const id = destination.dataset.settingsTab;
-    void Promise.resolve(onNavigateTab(id)).then(result => { if (result !== false) destination?.focus(); });
+    keyboardDestination = id;
+    const request = ++keyboardRequest;
+    const sourceFocus = document.activeElement;
+    const selected = destination;
+    void Promise.resolve(onNavigateTab(id)).then(result => {
+      if (request !== keyboardRequest) return;
+      keyboardDestination = null;
+      if (result !== false && bar?.isConnected && target.isConnected && selected.isConnected
+        && target.closest('[role="tablist"]') === bar && selected.closest('[role="tablist"]') === bar
+        && (document.activeElement === sourceFocus || document.activeElement === selected)) selected.focus();
+    });
   }
 </script>
 
@@ -71,7 +89,7 @@
     gb:settings:max-[600px]:[scrollbar-width:none] gb:settings:max-[600px]:[&::-webkit-scrollbar]:hidden
   " role="tablist" aria-label="Settings sections" aria-orientation={orientation} tabindex="-1" onkeydown={navigateWithKeyboard}>
     {#each SETTINGS_TABS as tab (tab.id)}
-      {#if tab.id === 'privacy'}{@html extensionTabs}{/if}
+      {#if tab.id === 'privacy'}<AppExtensionSlot html={extensionTabs}/>{/if}
       <button type="button" role="tab" id="settings-nav-{tab.id}" aria-selected={activeTab === tab.id} aria-controls="settings-tab-{tab.id}" tabindex={activeTab === tab.id ? 0 : -1} class="{SETTINGS_TAB_CLASS}{activeTab === tab.id ? ' active' : ''}" data-tab={tab.id} data-settings-tab={tab.id} data-settings-shell-tab>
         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           {#if tab.id === 'display'}<circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
@@ -90,7 +108,6 @@
     gb:settings:overflow-y-auto gb:settings:overflow-x-hidden gb:settings:px-6 gb:settings:pt-[18px]
     gb:settings:pb-6 gb:settings:max-[720px]:flex-auto gb:settings:max-[720px]:px-4 gb:settings:max-[720px]:pb-4
   ">
-    <!-- Panels migrate individually; this trusted native boundary is removed as they move. -->
-    {@html legacyPanels}
+    <SettingsPanels {panels}/>
   </div>
 </div>

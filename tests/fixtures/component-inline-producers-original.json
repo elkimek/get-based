@@ -1,0 +1,48 @@
+[
+  {
+    "file": "js/category-view-renderers.ts",
+    "beforeSha256": "08e20051ed112c2879c138e42956f54f16da27cb1e6a74d50201a0e613336da0",
+    "afterSha256": "3d8621d317c23a33967618eb4e81027e5c273bf91d6b4b7999eb28ffa962aa60",
+    "edits": [
+      {
+        "start": 0,
+        "end": 0,
+        "before": "",
+        "after": "import {componentStaticStyles} from './component-inline-style-map.generated.js';\n",
+        "keys": []
+      },
+      {
+        "start": 19746,
+        "end": 19773,
+        "before": "'margin-top:8px;width:100%'",
+        "after": "componentStaticStyles.categoryCardRail",
+        "keys": [
+          "categoryCardRail"
+        ]
+      }
+    ]
+  },
+  {
+    "file": "js/nav.ts",
+    "beforeSha256": "1bbf380ea64bba7407aad73be028e053299ea3482ec3b30f694d91a2a8fb32ad",
+    "afterSha256": "167770956716c448fcb0dab602724658aefc46b58c0eba0738d3d995f3789011",
+    "edits": [
+      {
+        "start": 0,
+        "end": 0,
+        "before": "",
+        "after": "import {componentStaticStyles} from './component-inline-style-map.generated.js';\n",
+        "keys": []
+      },
+      {
+        "start": 14535,
+        "end": 14597,
+        "before": "const collapsedStyle = collapsed ? 'display:none' : undefined;",
+        "after": "const collapsedStyle = collapsed ? componentStaticStyles.hidden : undefined;",
+        "keys": [
+          "hidden"
+        ]
+      }
+    ]
+  }
+]

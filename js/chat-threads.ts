@@ -517,6 +517,14 @@ export function toggleThreadRail() {
   }
   localStorage.setItem(`labcharts-${state.currentProfile}-chatRailOpen`, isOpen ? 'true' : 'false');
   syncChatLayout();
+  // Explicit mobile opening covers the conversation header; focus its visible
+  // rail control. Restored rail preferences deliberately keep their focus owner.
+  if (isOpen && rail.isConnected && document.getElementById('chat-thread-rail') === rail) {
+    const mobile = typeof matchMedia === 'function'
+      ? matchMedia(MOBILE_THREAD_RAIL_QUERY).matches
+      : typeof innerWidth === 'number' && innerWidth <= 768;
+    if (mobile) rail.querySelector<HTMLButtonElement>('.chat-rail-back')?.focus();
+  }
 }
 
 export function restoreRailState() {

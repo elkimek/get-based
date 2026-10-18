@@ -137,11 +137,11 @@ describe('owned-vendor PR planning', () => {
 describe('fresh-checkout CI ownership gates', () => {
   it('requires migration completion unconditionally after installation and before scoped planning', () => {
     const workflow = fs.readFileSync('.github/workflows/test.yml', 'utf8');
-    const step = workflow.match(/      - name: Require complete authored TypeScript migration\n([\s\S]*?)(?=      - |$)/)?.[1];
-    expect(step).toContain('run: npm run migration:check');
+    const step = workflow.match(/      - name: Enforce compiler, architecture and supply-chain contracts\n([\s\S]*?)(?=      - |$)/)?.[1];
+    expect(step).toContain('          npm run migration:check\n');
     expect(step).not.toMatch(/\bif:/);
-    expect(workflow.indexOf('run: npm ci')).toBeLessThan(workflow.indexOf('run: npm run migration:check'));
-    expect(workflow.indexOf('run: npm run migration:check')).toBeLessThan(workflow.indexOf('- name: Select affected PR tests'));
+    expect(workflow.indexOf('run: npm ci')).toBeLessThan(workflow.indexOf('          npm run migration:check'));
+    expect(workflow.indexOf('          npm run migration:check')).toBeLessThan(workflow.indexOf('- name: Select full or affected execution and bounded browser matrices'));
   });
 
   it('excludes every inventoried external CodeQL bundle while scanning each owned runtime source', () => {

@@ -321,7 +321,7 @@ type FixtureMeasurementStream = Omit<NonNullable<Parameters<typeof lockCameraFor
       lightAiSaveHooksSrc.includes('configureLightTools,') &&
       lightAiSaveHooksSrc.includes('getMeasurementsForRoom,') &&
       lightAiSaveHooksSrc.includes("} from './light-tools.js';") &&
-      lightAiSaveHooksSrc.includes("import { maybeAnalyzeMeasurementAfterSave, renderMeasurementAIInline } from './light-tools-ai-analysis.js';") &&
+      lightAiSaveHooksSrc.includes("import { maybeAnalyzeMeasurementAfterSave, getMeasurementAIView } from './light-tools-ai-analysis.js';") &&
       lightAiSaveHooksSrc.includes('configureLightTools({') &&
       lightAiSaveHooksSrc.includes('maybeAnalyzeMeasurementAfterSave') &&
       appLightSunSrc.includes("import './light-ai-save-hooks.js';"));
@@ -345,7 +345,7 @@ type FixtureMeasurementStream = Omit<NonNullable<Parameters<typeof lockCameraFor
       lightAiSaveHooksSrc.includes('suggestRoomSourceFromSpectrum') &&
       lightAiSaveHooksSrc.includes('refreshLightEnvironmentAssessment') &&
       lightAiSaveHooksSrc.includes('solarZenithAngle') &&
-      lightToolsUiHooksSrc.includes("import { navigate } from './views.js';") &&
+      lightToolsUiHooksSrc.includes("import { navigate } from './views-runtime.js';") &&
       lightToolsUiHooksSrc.includes('configureLightTools({ navigate })') &&
       appLightSunSrc.includes('configureLightTools({ navigate });') &&
       !appUiShellSrc.includes("import './light-tools-ui-hooks.js';") &&

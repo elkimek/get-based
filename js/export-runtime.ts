@@ -4,6 +4,7 @@ import { createRetryingModuleLoader } from './retrying-module-loader.js';
 import { configureRuntimeCallbacks } from './runtime-callbacks.js';
 import { encryptedGetItem } from './crypto.js';
 import { state } from './state.js';
+import { renderRestoredThreadList, type RestoredThreadListRow } from './restored-thread-list-presentation.js';
 
 type CashuWalletModule = typeof import('./cashu-wallet.js');
 
@@ -67,16 +68,6 @@ function getRuntimeFunction(name: string) {
   return null;
 }
 
-function escapeRuntimeHTML(value: unknown) {
-  return String(value ?? '').replace(/[&<>"']/g, ch => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#039;',
-  })[ch]!);
-}
-
 function formatThreadDateFallback(value: unknown) {
   const date = new Date((value || Date.now()) as string | number);
   if (Number.isNaN(date.getTime())) return '';
@@ -128,31 +119,21 @@ function renderThreadListFallback() {
   const list = document.getElementById('chat-thread-list');
   if (!list) return;
   const threads = sortedChatThreads();
-  if (!threads.length) {
-    list.innerHTML = '<div style="padding:12px 10px;font-size:11px;color:var(--text-muted);text-align:center">No conversations yet</div>';
-    return;
-  }
-  list.innerHTML = threads.map(thread => {
-    const threadId = escapeRuntimeHTML(thread?.id || '');
-    const name = escapeRuntimeHTML(thread?.name || 'Conversation');
-    const isActive = thread?.id === state.currentThreadId;
-    const icon = escapeRuntimeHTML(thread?.personalityIcon || '');
-    const iconTitle = thread?.personalityName
-      ? ` title="${escapeRuntimeHTML(thread.personalityName)}"`
-      : '';
+  const rows: RestoredThreadListRow[] = threads.map(thread => {
+    // Capture text in the original order, before the date/count reads. Svelte
+    // owns escaping; source objects never cross into the component.
+    const id = String(thread?.id || '');
+    const name = String(thread?.name || 'Conversation');
+    const active = thread?.id === state.currentThreadId;
+    const icon = String(thread?.personalityIcon || '');
+    const iconTitle = thread?.personalityName ? String(thread.personalityName ?? '') : null;
     const updatedAt = formatThreadDateFallback(thread?.updatedAt);
     const messageCount = Math.max(0, Number(thread?.messageCount) || 0);
-    return `<div class="chat-thread-item${isActive ? ' active' : ''}" data-thread-id="${threadId}">
-      <button type="button" class="chat-thread-item-main" data-chat-thread-action="switch" aria-current="${isActive ? 'true' : 'false'}">
-        <span class="chat-thread-item-name">${name}</span>
-        <span class="chat-thread-item-meta">
-          <span${iconTitle}>${icon}</span>
-          <span>${escapeRuntimeHTML(updatedAt)}</span>
-          <span>${messageCount} msg${messageCount !== 1 ? 's' : ''}</span>
-        </span>
-      </button>
-    </div>`;
-  }).join('');
+    return { id, name, active, icon, iconTitle, updatedAt, messageCount };
+  });
+  // Array.map skips sparse entries; the original join emitted no row for them.
+  list.innerHTML = renderRestoredThreadList(rows.filter(() => true));
+
 }
 
 async function refreshChatThreadsRuntime() {

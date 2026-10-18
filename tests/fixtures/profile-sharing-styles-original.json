@@ -1,0 +1,1019 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "path": "css/modal-shared.base.css",
+    "bytes": 27247,
+    "sha256": "82032bc4a032816162a423f92e9d611070b90a02f15459c0de536fc9c9212826"
+  },
+  "foreignSha256": "b840ae8f3b76d7d3cdf93e8b0201b14efc717a5d2e6b610be1f8c8ae66ea7376",
+  "receivers": [
+    {
+      "utility": "profile-share-overlay",
+      "selector": "#profile-share-overlay.modal-overlay",
+      "condition": null,
+      "declarations": [
+        [
+          "z-index",
+          "650",
+          false
+        ]
+      ]
+    },
+    {
+      "utility": "profile-share-modal",
+      "selector": ".profile-share-modal",
+      "condition": null,
+      "declarations": [
+        [
+          "max-width",
+          "640px",
+          false
+        ]
+      ]
+    },
+    {
+      "utility": "profile-share-body",
+      "selector": ".profile-share-body",
+      "condition": null,
+      "declarations": [
+        [
+          "display",
+          "flex",
+          false
+        ],
+        [
+          "flex-direction",
+          "column",
+          false
+        ],
+        [
+          "gap",
+          "14px",
+          false
+        ]
+      ]
+    },
+    {
+      "utility": "profile-share-intro",
+      "selector": ".profile-share-intro",
+      "condition": null,
+      "declarations": [
+        [
+          "display",
+          "flex",
+          false
+        ],
+        [
+          "flex-direction",
+          "column",
+          false
+        ],
+        [
+          "gap",
+          "4px",
+          false
+        ],
+        [
+          "padding",
+          "12px",
+          false
+        ],
+        [
+          "border",
+          "1px solid var(--border)",
+          false
+        ],
+        [
+          "border-radius",
+          "var(--radius-sm)",
+          false
+        ],
+        [
+          "background",
+          "var(--bg-secondary)",
+          false
+        ]
+      ]
+    },
+    {
+      "utility": "profile-share-intro-title",
+      "selector": ".profile-share-intro-title",
+      "condition": null,
+      "declarations": [
+        [
+          "color",
+          "var(--text-primary)",
+          false
+        ],
+        [
+          "font-size",
+          "14px",
+          false
+        ],
+        [
+          "line-height",
+          "1.35",
+          false
+        ]
+      ]
+    },
+    {
+      "utility": "profile-share-intro-copy",
+      "selector": ".profile-share-intro-copy",
+      "condition": null,
+      "declarations": [
+        [
+          "color",
+          "var(--text-muted)",
+          false
+        ],
+        [
+          "font-size",
+          "12px",
+          false
+        ],
+        [
+          "line-height",
+          "1.45",
+          false
+        ]
+      ]
+    },
+    {
+      "utility": "profile-share-form",
+      "selector": ".profile-share-form",
+      "condition": null,
+      "declarations": [
+        [
+          "display",
+          "flex",
+          false
+        ],
+        [
+          "flex-direction",
+          "column",
+          false
+        ],
+        [
+          "gap",
+          "14px",
+          false
+        ]
+      ]
+    },
+    {
+      "utility": "profile-share-field",
+      "selector": ".profile-share-field",
+      "condition": null,
+      "declarations": [
+        [
+          "display",
+          "flex",
+          false
+        ],
+        [
+          "flex-direction",
+          "column",
+          false
+        ],
+        [
+          "gap",
+          "7px",
+          false
+        ],
+        [
+          "min-width",
+          "0",
+          false
+        ],
+        [
+          "color",
+          "var(--text-secondary)",
+          false
+        ],
+        [
+          "font-family",
+          "var(--font-mono)",
+          false
+        ],
+        [
+          "font-size",
+          "11px",
+          false
+        ],
+        [
+          "font-weight",
+          "700",
+          false
+        ],
+        [
+          "letter-spacing",
+          "0.08em",
+          false
+        ],
+        [
+          "text-transform",
+          "uppercase",
+          false
+        ]
+      ]
+    },
+    {
+      "utility": "profile-share-field-input",
+      "selector": ".profile-share-field .api-key-input",
+      "condition": null,
+      "declarations": [
+        [
+          "width",
+          "100%",
+          false
+        ],
+        [
+          "padding",
+          "9px 11px",
+          false
+        ],
+        [
+          "font-family",
+          "var(--font-mono)",
+          false
+        ],
+        [
+          "font-size",
+          "12px",
+          false
+        ],
+        [
+          "letter-spacing",
+          "0",
+          false
+        ],
+        [
+          "text-transform",
+          "none",
+          false
+        ]
+      ]
+    },
+    {
+      "utility": "profile-share-input-row",
+      "selector": ".profile-share-input-row",
+      "condition": null,
+      "declarations": [
+        [
+          "display",
+          "grid",
+          false
+        ],
+        [
+          "grid-template-columns",
+          "minmax(0, 1fr) 38px",
+          false
+        ],
+        [
+          "gap",
+          "8px",
+          false
+        ],
+        [
+          "align-items",
+          "center",
+          false
+        ],
+        [
+          "min-width",
+          "0",
+          false
+        ]
+      ]
+    },
+    {
+      "utility": "profile-share-icon-button",
+      "selector": ".profile-share-icon-btn",
+      "condition": null,
+      "declarations": [
+        [
+          "display",
+          "inline-flex",
+          false
+        ],
+        [
+          "align-items",
+          "center",
+          false
+        ],
+        [
+          "justify-content",
+          "center",
+          false
+        ],
+        [
+          "width",
+          "38px",
+          false
+        ],
+        [
+          "height",
+          "38px",
+          false
+        ],
+        [
+          "padding",
+          "0",
+          false
+        ],
+        [
+          "border",
+          "1px solid var(--border)",
+          false
+        ],
+        [
+          "border-radius",
+          "var(--radius-sm)",
+          false
+        ],
+        [
+          "background",
+          "var(--bg-card)",
+          false
+        ],
+        [
+          "color",
+          "var(--text-secondary)",
+          false
+        ],
+        [
+          "cursor",
+          "pointer",
+          false
+        ],
+        [
+          "transition",
+          "all 0.15s",
+          false
+        ]
+      ]
+    },
+    {
+      "utility": "profile-share-icon-button-hover",
+      "selector": ".profile-share-icon-btn:hover",
+      "condition": null,
+      "declarations": [
+        [
+          "border-color",
+          "var(--accent)",
+          false
+        ],
+        [
+          "background",
+          "var(--bg-hover)",
+          false
+        ],
+        [
+          "color",
+          "var(--text-primary)",
+          false
+        ]
+      ]
+    },
+    {
+      "utility": "profile-share-icon-button-disabled",
+      "selector": ".profile-share-icon-btn:disabled",
+      "condition": null,
+      "declarations": [
+        [
+          "cursor",
+          "progress",
+          false
+        ],
+        [
+          "opacity",
+          "0.65",
+          false
+        ]
+      ]
+    },
+    {
+      "utility": "profile-share-result-list",
+      "selector": ".profile-share-result-list",
+      "condition": null,
+      "declarations": [
+        [
+          "display",
+          "flex",
+          false
+        ],
+        [
+          "flex-direction",
+          "column",
+          false
+        ],
+        [
+          "gap",
+          "12px",
+          false
+        ]
+      ]
+    },
+    {
+      "utility": "profile-share-consent",
+      "selector": ".profile-share-consent",
+      "condition": null,
+      "declarations": [
+        [
+          "display",
+          "grid",
+          false
+        ],
+        [
+          "grid-template-columns",
+          "18px minmax(0, 1fr)",
+          false
+        ],
+        [
+          "gap",
+          "10px",
+          false
+        ],
+        [
+          "align-items",
+          "flex-start",
+          false
+        ],
+        [
+          "padding",
+          "11px 12px",
+          false
+        ],
+        [
+          "border",
+          "1px solid color-mix(in srgb, var(--yellow) 35%, var(--border))",
+          false
+        ],
+        [
+          "border-radius",
+          "var(--radius-sm)",
+          false
+        ],
+        [
+          "background",
+          "color-mix(in srgb, var(--yellow) 7%, var(--bg-card))",
+          false
+        ],
+        [
+          "color",
+          "var(--text-secondary)",
+          false
+        ],
+        [
+          "font-size",
+          "12px",
+          false
+        ],
+        [
+          "line-height",
+          "1.45",
+          false
+        ]
+      ]
+    },
+    {
+      "utility": "profile-share-consent-input",
+      "selector": ".profile-share-consent input",
+      "condition": null,
+      "declarations": [
+        [
+          "width",
+          "16px",
+          false
+        ],
+        [
+          "height",
+          "16px",
+          false
+        ],
+        [
+          "margin",
+          "2px 0 0",
+          false
+        ],
+        [
+          "accent-color",
+          "var(--accent)",
+          false
+        ]
+      ]
+    },
+    {
+      "utility": "profile-share-active",
+      "selector": ".profile-share-active",
+      "condition": null,
+      "declarations": [
+        [
+          "display",
+          "flex",
+          false
+        ],
+        [
+          "flex-direction",
+          "column",
+          false
+        ],
+        [
+          "gap",
+          "9px",
+          false
+        ],
+        [
+          "padding",
+          "11px 12px",
+          false
+        ],
+        [
+          "border",
+          "1px solid var(--border)",
+          false
+        ],
+        [
+          "border-radius",
+          "var(--radius-sm)",
+          false
+        ],
+        [
+          "background",
+          "color-mix(in srgb, var(--bg-secondary) 72%, transparent)",
+          false
+        ]
+      ]
+    },
+    {
+      "utility": "profile-share-active-head",
+      "selector": ".profile-share-active-head",
+      "condition": null,
+      "declarations": [
+        [
+          "display",
+          "flex",
+          false
+        ],
+        [
+          "align-items",
+          "baseline",
+          false
+        ],
+        [
+          "justify-content",
+          "space-between",
+          false
+        ],
+        [
+          "gap",
+          "10px",
+          false
+        ],
+        [
+          "color",
+          "var(--text-primary)",
+          false
+        ],
+        [
+          "font-size",
+          "12px",
+          false
+        ],
+        [
+          "font-weight",
+          "750",
+          false
+        ]
+      ]
+    },
+    {
+      "utility": "profile-share-active-head-small",
+      "selector": ".profile-share-active-head small",
+      "condition": null,
+      "declarations": [
+        [
+          "color",
+          "var(--text-muted)",
+          false
+        ],
+        [
+          "font-size",
+          "11px",
+          false
+        ],
+        [
+          "font-weight",
+          "500",
+          false
+        ]
+      ]
+    },
+    {
+      "utility": "profile-share-active-list",
+      "selector": ".profile-share-active-list",
+      "condition": null,
+      "declarations": [
+        [
+          "display",
+          "flex",
+          false
+        ],
+        [
+          "max-height",
+          "176px",
+          false
+        ],
+        [
+          "flex-direction",
+          "column",
+          false
+        ],
+        [
+          "gap",
+          "8px",
+          false
+        ],
+        [
+          "overflow-y",
+          "auto",
+          false
+        ],
+        [
+          "overscroll-behavior",
+          "contain",
+          false
+        ]
+      ]
+    },
+    {
+      "utility": "profile-share-active-row",
+      "selector": ".profile-share-active-row",
+      "condition": null,
+      "declarations": [
+        [
+          "display",
+          "grid",
+          false
+        ],
+        [
+          "grid-template-columns",
+          "minmax(0, 1fr) auto",
+          false
+        ],
+        [
+          "gap",
+          "10px",
+          false
+        ],
+        [
+          "align-items",
+          "center",
+          false
+        ],
+        [
+          "padding",
+          "9px",
+          false
+        ],
+        [
+          "border",
+          "1px solid var(--border)",
+          false
+        ],
+        [
+          "border-radius",
+          "var(--radius-sm)",
+          false
+        ],
+        [
+          "background",
+          "var(--bg-card)",
+          false
+        ]
+      ]
+    },
+    {
+      "utility": "profile-share-active-main",
+      "selector": ".profile-share-active-main",
+      "condition": null,
+      "declarations": [
+        [
+          "display",
+          "flex",
+          false
+        ],
+        [
+          "min-width",
+          "0",
+          false
+        ],
+        [
+          "flex-direction",
+          "column",
+          false
+        ],
+        [
+          "gap",
+          "2px",
+          false
+        ]
+      ]
+    },
+    {
+      "utility": "profile-share-active-title",
+      "selector": ".profile-share-active-title",
+      "condition": null,
+      "declarations": [
+        [
+          "color",
+          "var(--text-primary)",
+          false
+        ],
+        [
+          "font-size",
+          "12px",
+          false
+        ],
+        [
+          "font-weight",
+          "700",
+          false
+        ]
+      ]
+    },
+    {
+      "utility": "profile-share-active-meta-empty",
+      "selector": ".profile-share-active-meta,\n.profile-share-active-empty",
+      "condition": null,
+      "declarations": [
+        [
+          "color",
+          "var(--text-muted)",
+          false
+        ],
+        [
+          "font-size",
+          "12px",
+          false
+        ],
+        [
+          "line-height",
+          "1.4",
+          false
+        ]
+      ]
+    },
+    {
+      "utility": "profile-share-active-actions",
+      "selector": ".profile-share-active-actions",
+      "condition": null,
+      "declarations": [
+        [
+          "display",
+          "flex",
+          false
+        ],
+        [
+          "align-items",
+          "center",
+          false
+        ],
+        [
+          "gap",
+          "8px",
+          false
+        ]
+      ]
+    },
+    {
+      "utility": "profile-share-stop-button",
+      "selector": ".profile-share-stop-btn",
+      "condition": null,
+      "declarations": [
+        [
+          "min-height",
+          "38px",
+          false
+        ],
+        [
+          "padding",
+          "0 10px",
+          false
+        ],
+        [
+          "border",
+          "1px solid color-mix(in srgb, var(--red) 40%, var(--border))",
+          false
+        ],
+        [
+          "border-radius",
+          "var(--radius-sm)",
+          false
+        ],
+        [
+          "background",
+          "transparent",
+          false
+        ],
+        [
+          "color",
+          "var(--red)",
+          false
+        ],
+        [
+          "font",
+          "inherit",
+          false
+        ],
+        [
+          "font-size",
+          "12px",
+          false
+        ],
+        [
+          "font-weight",
+          "700",
+          false
+        ],
+        [
+          "cursor",
+          "pointer",
+          false
+        ]
+      ]
+    },
+    {
+      "utility": "profile-share-stop-button-hover",
+      "selector": ".profile-share-stop-btn:hover",
+      "condition": null,
+      "declarations": [
+        [
+          "background",
+          "color-mix(in srgb, var(--red) 10%, transparent)",
+          false
+        ]
+      ]
+    },
+    {
+      "utility": "profile-share-stop-button-disabled",
+      "selector": ".profile-share-stop-btn:disabled",
+      "condition": null,
+      "declarations": [
+        [
+          "cursor",
+          "progress",
+          false
+        ],
+        [
+          "opacity",
+          "0.7",
+          false
+        ]
+      ]
+    },
+    {
+      "utility": "profile-share-note",
+      "selector": ".profile-share-note",
+      "condition": null,
+      "declarations": [
+        [
+          "padding",
+          "10px 12px",
+          false
+        ],
+        [
+          "border",
+          "1px solid var(--border)",
+          false
+        ],
+        [
+          "border-radius",
+          "var(--radius-sm)",
+          false
+        ],
+        [
+          "background",
+          "color-mix(in srgb, var(--bg-card) 72%, transparent)",
+          false
+        ],
+        [
+          "color",
+          "var(--text-muted)",
+          false
+        ],
+        [
+          "font-size",
+          "12px",
+          false
+        ],
+        [
+          "line-height",
+          "1.45",
+          false
+        ]
+      ]
+    },
+    {
+      "utility": "profile-share-status",
+      "selector": ".profile-share-status",
+      "condition": null,
+      "declarations": [
+        [
+          "padding",
+          "9px 11px",
+          false
+        ],
+        [
+          "border",
+          "1px solid var(--border)",
+          false
+        ],
+        [
+          "border-radius",
+          "var(--radius-sm)",
+          false
+        ],
+        [
+          "background",
+          "var(--bg-card)",
+          false
+        ],
+        [
+          "color",
+          "var(--text-secondary)",
+          false
+        ],
+        [
+          "font-size",
+          "12px",
+          false
+        ],
+        [
+          "line-height",
+          "1.45",
+          false
+        ]
+      ]
+    },
+    {
+      "utility": "profile-share-status-error",
+      "selector": ".profile-share-status[data-status=\"error\"]",
+      "condition": null,
+      "declarations": [
+        [
+          "border-color",
+          "color-mix(in srgb, var(--red) 45%, var(--border))",
+          false
+        ],
+        [
+          "color",
+          "var(--red)",
+          false
+        ]
+      ]
+    },
+    {
+      "utility": "profile-share-input-row-phone",
+      "selector": ".profile-share-input-row",
+      "condition": "(max-width: 640px)",
+      "declarations": [
+        [
+          "grid-template-columns",
+          "minmax(0, 1fr) 38px",
+          false
+        ]
+      ]
+    },
+    {
+      "utility": "profile-share-active-row-phone",
+      "selector": ".profile-share-active-row",
+      "condition": "(max-width: 640px)",
+      "declarations": [
+        [
+          "grid-template-columns",
+          "1fr",
+          false
+        ],
+        [
+          "align-items",
+          "stretch",
+          false
+        ]
+      ]
+    },
+    {
+      "utility": "profile-share-active-actions-phone",
+      "selector": ".profile-share-active-actions",
+      "condition": "(max-width: 640px)",
+      "declarations": [
+        [
+          "justify-content",
+          "flex-end",
+          false
+        ]
+      ]
+    }
+  ]
+}

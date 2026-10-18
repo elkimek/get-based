@@ -73,9 +73,12 @@ test('authored setup preserves validation, keyboard choices, location drafts, li
   await modal.getByRole('tab', { name: '1 Your baseline', exact: true }).focus(); await page.keyboard.press('ArrowRight');
   await expect(modal.locator('[data-setup-tab="score"]')).toBeFocused(); await expect(modal.locator('[data-setup-tab="score"]')).toHaveAttribute('tabindex', '0');
   const utilities = await modal.locator('#ott-running-label').getAttribute('class');
+  expect(utilities?.split(/\s+/).filter(token => token.startsWith('gb-ls-'))).toEqual(['gb-ls-light-ott-badge']);
+  expect(utilities?.split(/\s+/).filter(token => token.startsWith('gb:'))).toEqual([]);
   for (const checkbox of await modal.locator('[data-ott]').all()) { await checkbox.locator('..').click(); await expect(checkbox).toBeChecked(); }
   await expect(modal.locator('#ott-running-aligned')).toHaveText('10/10'); await expect(modal.locator('#ott-running-label')).toHaveAttribute('data-tier', '4');
   expect((await modal.locator('#ott-running-label').getAttribute('class'))?.split(/\s+/).filter(token => token.startsWith('gb:'))).toEqual(utilities?.split(/\s+/).filter(token => token.startsWith('gb:')));
+  expect((await modal.locator('#ott-running-label').getAttribute('class'))?.split(/\s+/).filter(token => token.startsWith('gb-ls-'))).toEqual(utilities?.split(/\s+/).filter(token => token.startsWith('gb-ls-')));
   await expect(modal.locator('#ott-running-label')).toHaveCSS('font-size', '11px');
   await modal.getByRole('button', { name: 'Save setup', exact: true }).click(); await expect(modal).toHaveCount(0);
   const saved = await stored(page);

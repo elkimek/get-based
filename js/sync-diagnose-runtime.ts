@@ -12,7 +12,7 @@ export function configureSyncDiagnoseRuntimeDeps(deps: Partial<SyncDiagnoseRunti
 }
 
 export async function confirmSyncDiagnoseActionRuntime(message: string, opts: { fallback?: boolean } = {}) {
-  const confirm = syncDiagnoseRuntimeDeps.showConfirmDialog;
-  if (!confirm) return opts.fallback ?? true;
-  return !!await confirm(message);
+  const confirmAction = syncDiagnoseRuntimeDeps.showConfirmDialog;
+  if (!confirmAction) return opts.fallback ?? true;
+  return !!await confirmAction(message);
 }

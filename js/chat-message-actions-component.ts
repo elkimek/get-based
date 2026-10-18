@@ -1,3 +1,4 @@
+import {tsStaticStyles} from './ts-static-ui-inline-style-map.generated.js';
 import MessageActions, { hydrate, unmount, flushSync } from './components/ChatMessageActions.svelte.native.js';
 import { renderHTML } from './components/ChatMessageActions.svelte.html.js';
 import { state } from './state.js';
@@ -50,5 +51,5 @@ export function renderChatMessageActions(index: number, kind: 'user' | 'assistan
   const view = projectChatMessageActions(state.chatHistory, index);
   if (!view || view.kind !== kind) return '';
   queueMicrotask(ensureChatMessageActions);
-  return `<div data-chat-message-actions-host data-chat-message-ticket="${chatMessageActionTicket(index)}" style="display:contents">${renderHTML({ view })}</div>`;
+  return `<div data-chat-message-actions-host data-chat-message-ticket="${chatMessageActionTicket(index)}" style="${tsStaticStyles.messageActionsHost}">${renderHTML({ view })}</div>`;
 }

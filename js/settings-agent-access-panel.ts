@@ -111,12 +111,16 @@ export function hydrateMessengerSection(refresh = false): void {
   mountAgentAccessSection(host, getAgentAccessSnapshot(), refresh);
 }
 
-export function renderMessengerSection(): string {
+export function prepareMessengerSection(): void {
   migrateLocalAgentAccessToProfile();
   void persistMigratedAgentAccessIfNeeded();
   // Keep the string/URL contract for callers. The normal Settings hydrate is
   // synchronous; standalone callers receive the same component next microtask.
   queueMicrotask(() => hydrateMessengerSection());
+}
+
+export function renderMessengerSection(): string {
+  prepareMessengerSection();
   return '<div data-agent-access-root></div>';
 }
 

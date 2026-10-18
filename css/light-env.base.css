@@ -1,4 +1,7 @@
-/* Environment widget integration; authored presentation uses scoped Tailwind. */
-.light-page .dashboard-widget[data-widget-id="light-environment"] .dashboard-widget-body {
+@import "tailwindcss" prefix(gb) source(none) reference;
+@utility light-layout-environment-page-dashboard-widget-data-widget-id-light-environment {
   gap: 0;
 }
+
+/* Environment widget integration; authored presentation uses scoped Tailwind. */
+.light-page .dashboard-widget[data-widget-id="light-environment"] .dashboard-widget-body { @apply gb:light-layout-environment-page-dashboard-widget-data-widget-id-light-environment; }

@@ -1,13 +1,13 @@
+import {tsStaticStyles} from './ts-static-ui-inline-style-map.generated.js';
 // settings.js — Settings modal (profile, display, AI provider, privacy)
 import { isDebugMode, setDebugMode, setAnalyticsEnabled, showNotification, showConfirmDialog } from './utils.js';
 import { applyAccentOverride, setTimeFormat } from './theme.js';
 import { switchUnitSystem, toggleAltUnits, switchRangeMode } from './data.js';
 import { getAIProvider, hasAIProvider, setOllamaPIIModel } from './api.js';
-import { renderEncryptionSection, renderBackupSection, loadBackupSnapshots, hydrateProtectionSettings, disposeSettingsProtection } from './crypto.js';
-import { renderSyncSection, renderMessengerSection, hydrateSettingsSyncPanel, disposeMessengerSection } from './settings-sync-panel.js';
+import { prepareEncryptionSection, prepareBackupSection, loadBackupSnapshots, hydrateProtectionSettings, disposeSettingsProtection } from './crypto.js';
+import { prepareSettingsSyncHost, hydrateSettingsSyncPanel, disposeMessengerSection } from './settings-sync-panel.js';
 import { getAiSettingsView } from './ai-settings-component.js';
 import type { AiProviderId } from './ai-settings-contract.js';
-import { renderWearablesSettingsSection } from './wearables-settings-panel.js';
 import { disposeWearablesSettings } from './wearables-settings-component.js';
 import { setProductRecsEnabled } from './recommendations.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
@@ -29,7 +29,6 @@ import { closestSettingsTarget, getSettingsProxyToggle } from './settings-event-
 import { disposeVoiceSettingsPanel } from './settings-voice-component.js';
 import { mountPrivacySettingsPanel, disposePrivacySettingsPanel } from './settings-privacy-panel.js';
 import {
-  renderDisplaySettingsPanel,
   mountDisplaySettingsPanel,
   disposeDisplaySettingsPanel,
   updateDisplaySettingsPanel,
@@ -66,29 +65,30 @@ import {
   refreshDataEntriesSection,
   removeImportedEntryFromSettings,
   renameImportedEntryDateFromSettings,
-  renderAIUsageSection,
+  prepareAIUsageSection,
   refreshAIUsageSection,
   renderDataEntriesSection,
+  prepareDataEntriesSection,
   resetCurrentProfileUsage,
 } from './settings-data.js';
 import {
   openImportBenchmarksModal,
   disposeImportBenchmarksEntry,
   isImportBenchmarksEntryCurrent,
-  renderImportBenchmarksEntrySection,
+  prepareImportBenchmarksEntrySection,
 } from './settings-import-benchmark-controller.js';
 import {
   isWearablesStylesheetLoaded,
+  isWearablesModuleLoaded,
+  loadWearablesModule,
   loadWearablesStylesheetForAction,
 } from './wearables-runtime.js';
 import {
   hydrateVoiceSettingsPanel,
   installVoiceSettingsPanel,
-  renderVoiceSettingsPanel,
 } from './settings-voice-panel.js';
 import {
   buildNutritionAISettingsSnapshot,
-  renderNutritionAISettings,
   setNutritionAIRouteFromValue,
 } from './nutrition-ai-settings.js';
 import {
@@ -138,11 +138,28 @@ export {
   removeImportedEntryFromSettings,
   renameImportedEntryDateFromSettings,
   renderDataEntriesSection,
+  prepareDataEntriesSection,
   resetCurrentProfileUsage,
 };
 
 // SETTINGS MODAL
 let _activeSettingsTab: unknown = 'display';
+// A cold stylesheet belongs to the Settings action and mounted session that
+// requested it. Closing, reopening, or choosing another tab retires that action.
+let settingsActionRequest = 0;
+function capturePendingSettingsAction(request: number): () => boolean {
+  const modal = document.getElementById('settings-modal');
+  const overlay = document.getElementById('settings-modal-overlay');
+  const layout = modal?.querySelector('.settings-layout');
+  const shown = overlay?.classList.contains('show');
+  return () => request === settingsActionRequest
+    && modal === document.getElementById('settings-modal')
+    && overlay === document.getElementById('settings-modal-overlay')
+    && layout === modal?.querySelector('.settings-layout')
+    && (!modal || modal.isConnected) && (!overlay || overlay.isConnected)
+    && shown === overlay?.classList.contains('show');
+}
+
 
 function requestSettingsScrollFrame(callback: () => void) {
   const frame = requestSettingsFrame(callback);
@@ -411,6 +428,7 @@ async function selectAiProviderFromSettings(provider: AiProviderId, actionEl: HT
 }
 
 export function openSettingsModal(tab?: unknown): void | false | Promise<void | false> {
+  const request = ++settingsActionRequest;
   setSettingsProviderHadProvider(hasAIProvider());
   const overlay = document.getElementById('settings-modal-overlay');
   const modal = document.getElementById('settings-modal');
@@ -420,8 +438,9 @@ export function openSettingsModal(tab?: unknown): void | false | Promise<void | 
   // Older deep-links / tour steps / external links may still pass it.
   if (tab === 'integrations') tab = 'wearables';
   if (tab === 'wearables' && !isWearablesStylesheetLoaded()) {
-    return loadWearablesStylesheetForAction()
-      .then(loaded => loaded ? openSettingsModal(tab) : false);
+    const current = capturePendingSettingsAction(request);
+    return loadWearablesStylesheetForAction(current)
+      .then(loaded => loaded && current() ? openSettingsModal(tab) : false);
   }
   if (tab) _activeSettingsTab = tab;
 
@@ -441,80 +460,25 @@ export function openSettingsModal(tab?: unknown): void | false | Promise<void | 
   disposeVoiceSettingsPanel();
   disposePrivacySettingsPanel();
   disposeDisplaySettingsPanel();
-  const legacyPanels = `
-    ${renderDisplaySettingsPanel(_activeSettingsTab === 'display')}
-
-    <!-- AI Tab -->
-    <div class="settings-tab-panel${_activeSettingsTab === 'ai' ? ' active' : ''}" data-tab-panel="ai" id="settings-tab-ai" role="tabpanel" aria-label="AI">
-      ${extensionAI}
-      <div data-ai-settings-host></div>
-
-      ${renderNutritionAISettings()}
-
-      <div class="settings-group-title">Import Benchmarks</div>
-
-      <div class="settings-section" id="import-benchmarks-section">
-        ${renderImportBenchmarksEntrySection(openImportBenchmarksFromSettings)}
-      </div>
-
-      ${extensionPolicy.hideUsage ? '' : `<div class="settings-group-title">AI Usage</div>
-
-      <div class="settings-section" id="ai-usage-section">
-        ${renderAIUsageSection()}
-      </div>`}
-    </div>
-
-    ${renderVoiceSettingsPanel(_activeSettingsTab === 'voice')}
-
-    ${extensionPanels}
-
-    <!-- Privacy Tab -->
-    <div class="settings-tab-panel${_activeSettingsTab === 'privacy' ? ' active' : ''}" data-tab-panel="privacy" id="settings-tab-privacy" role="tabpanel" aria-label="Privacy">
-      ${renderPrivacySection()}
-    </div>
-
-    <!-- Data Tab -->
-    <div class="settings-tab-panel${_activeSettingsTab === 'data' ? ' active' : ''}" data-tab-panel="data" id="settings-tab-data" role="tabpanel" aria-label="Data">
-      <div class="settings-group-title">Security</div>
-
-      <div class="settings-section" id="encryption-section">
-        ${renderEncryptionSection()}
-      </div>
-
-      <div class="settings-group-title">Cross-Device Sync</div>
-
-      <div class="settings-section" id="sync-section">
-        ${renderSyncSection()}
-      </div>
-
-      <div class="settings-group-title">Backup &amp; Restore</div>
-
-      <div class="settings-section" id="backup-section">
-        ${renderBackupSection()}
-      </div>
-
-      <div class="settings-group-title">Imported Data</div>
-
-      <div class="settings-section" id="data-entries-section">
-        ${renderDataEntriesSection()}
-      </div>
-    </div>
-
-    <!-- Wearables Tab — incoming biometric data (Oura, WHOOP, Fitbit, etc.) -->
-    <div class="settings-tab-panel${_activeSettingsTab === 'wearables' ? ' active' : ''}" data-tab-panel="wearables" id="settings-tab-wearables" role="tabpanel" aria-label="Wearables">
-      <div class="settings-section" id="wearables-section">
-        ${renderWearablesSettingsSection()}
-      </div>
-    </div>
-
-    <!-- Agent Access Tab — outgoing read permission for AI agents (MCP / Hermes / OpenClaw) -->
-    <div class="settings-tab-panel${_activeSettingsTab === 'agent' ? ' active' : ''}" data-tab-panel="agent" id="settings-tab-agent" role="tabpanel" aria-label="Agent Access">
-      <div class="settings-section" id="messenger-section">
-        ${renderMessengerSection()}
-      </div>
-    </div>
-`;
-  mountSettingsShell(modal, { initialTab: String(_activeSettingsTab), legacyPanels, extensionTabs, onNavigateTab: switchSettingsTab });
+  const displayActive = _activeSettingsTab === 'display';
+  const aiActive = _activeSettingsTab === 'ai';
+  const benchmarkEntryEpoch = prepareImportBenchmarksEntrySection(openImportBenchmarksFromSettings);
+  const showUsage = !extensionPolicy.hideUsage;
+  if (showUsage) prepareAIUsageSection();
+  const voiceActive = _activeSettingsTab === 'voice';
+  const privacyActive = _activeSettingsTab === 'privacy';
+  const dataActive = _activeSettingsTab === 'data';
+  prepareEncryptionSection();
+  const syncReady = prepareSettingsSyncHost('sync');
+  prepareBackupSection();
+  prepareDataEntriesSection();
+  const wearablesActive = _activeSettingsTab === 'wearables';
+  const agentActive = _activeSettingsTab === 'agent';
+  const messengerReady = prepareSettingsSyncHost('messenger');
+  const panels = {displayActive, aiActive, voiceActive, privacyActive, dataActive,
+    wearablesActive, agentActive, benchmarkEntryEpoch, showUsage, syncReady, messengerReady,
+    extensionAI, extensionPanels};
+  mountSettingsShell(modal, { initialTab: String(_activeSettingsTab), panels, extensionTabs, onNavigateTab: switchSettingsTab });
   hydrateAiSettings(extensionPolicy.hideProviderSettings === true,selectAiProviderFromSettings);
   mountDisplaySettingsPanel();
   mountPrivacySettingsPanel();
@@ -529,9 +493,9 @@ export function openSettingsModal(tab?: unknown): void | false | Promise<void | 
   loadBackupSnapshots();
   loadSettingsCommitHash();
   hydrateSettingsSyncPanel();
-  // Always fire so wearables Manual-row reading counts populate on first paint
-  // (whether the user lands on the Integrations tab or switches into it).
-  document.dispatchEvent(new CustomEvent('settings:wearables-rendered'));
+  // Refresh an existing Wearables owner immediately; keep a cold implementation
+  // unloaded until the user actually selects its tab.
+  notifySettingsWearablesRendered();
   scrollActiveSettingsTabIntoView();
   notifyAppExtensionSettings('onOpen', {
     ...extensionContext,
@@ -574,15 +538,15 @@ function loadSettingsCommitHash() {
     link.href = `https://github.com/elkimek/get-based/commit/${fullSha}`;
     link.target = '_blank';
     link.rel = 'noopener';
-    link.style.color = 'var(--text-muted)';
-    link.style.textDecoration = 'none';
+    link.style.color = tsStaticStyles.commitLinkColor;
+    link.style.textDecoration = tsStaticStyles.commitLinkDecoration;
     link.textContent = short;
     e.replaceChildren(link);
     // Show branch suffix on previews so BETA testers can tell main from a feature branch.
     if (ref && ref !== 'main') {
       const suffix = document.createElement('span');
-      suffix.style.color = 'var(--text-muted)';
-      suffix.style.opacity = '0.7';
+      suffix.style.color = tsStaticStyles.commitSuffixColor;
+      suffix.style.opacity = tsStaticStyles.commitSuffixOpacity;
       suffix.textContent = ` (${String(ref)})`;
       e.appendChild(suffix);
     }
@@ -595,14 +559,32 @@ function loadSettingsCommitHash() {
     .catch(() => { const e = document.getElementById('settings-commit-hash'); if (e) e.textContent = ''; });
 }
 
+function notifySettingsWearablesRendered(): void {
+  const notify = () => document.dispatchEvent(new CustomEvent('settings:wearables-rendered'));
+  if (isWearablesModuleLoaded()) { notify(); return; }
+  // Display and other Settings visits keep the implementation cold. The first
+  // Wearables visit must install its listener before announcing the panel.
+  if (_activeSettingsTab !== 'wearables') return;
+  const modal = document.getElementById('settings-modal');
+  const layout = modal?.querySelector('.settings-layout');
+  const current = () => !!layout && modal === document.getElementById('settings-modal')
+    && modal?.querySelector('.settings-layout') === layout && _activeSettingsTab === 'wearables'
+    && document.getElementById('settings-modal-overlay')?.classList.contains('show');
+  void loadWearablesModule().then(() => { if (current()) notify(); }, () => {
+    if (current()) showNotification('Wearables could not be loaded. Try again.', 'error');
+  });
+}
+
 export function switchSettingsTab(tabId: unknown): void | false | Promise<void | false> {
+  const request = ++settingsActionRequest;
   // Legacy v1.27 tab id 'integrations' covered both wearables + agent access.
   // v1.30.0 split them. Land on Wearables for the back-compat redirect — most
   // pre-existing deep-links pointed at the wearable adapter rows.
   if (tabId === 'integrations') tabId = 'wearables';
   if (tabId === 'wearables' && !isWearablesStylesheetLoaded()) {
-    return loadWearablesStylesheetForAction()
-      .then(loaded => loaded ? switchSettingsTab(tabId) : false);
+    const current = capturePendingSettingsAction(request);
+    return loadWearablesStylesheetForAction(current)
+      .then(loaded => loaded && current() ? switchSettingsTab(tabId) : false);
   }
   _activeSettingsTab = tabId;
   const modal = document.getElementById('settings-modal');
@@ -634,7 +616,7 @@ export function switchSettingsTab(tabId: unknown): void | false | Promise<void |
   if (tabId === 'wearables') {
     // Notify the wearables module so it can populate the Manual-row reading
     // counts on first paint, not just on details-toggle.
-    document.dispatchEvent(new CustomEvent('settings:wearables-rendered'));
+    notifySettingsWearablesRendered();
   }
   notifyAppExtensionSettings('onTabChange', {
     activeTab: tabId,
@@ -650,6 +632,7 @@ export function updateSettingsUI() {
 }
 
 export function closeSettingsModal() {
+  ++settingsActionRequest;
   disposeImportBenchmarksEntry();
   disposeSettingsProviderPanels();
   disposeNutritionAISettings();
@@ -669,6 +652,7 @@ configureSettingsTweaksRuntime({
 });
 
 configureSettingsModuleBridge({
+  switchAIProvider: switchAIProviderBridge,
   openSettingsModal,
   closeSettingsModal,
   updatePrivacyStatusCard,

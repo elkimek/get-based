@@ -1,3 +1,4 @@
+import {waitForAsyncCondition} from '../helpers/awaited-condition.js';
 import type { Page } from '@playwright/test';
 
 interface BrowserMessage { kind: string; text: string; }
@@ -43,12 +44,10 @@ export async function runBrowserScript(page: Page, testPath: string, options: Br
   try {
     if (options.viewport) await page.setViewportSize(options.viewport);
     await page.goto('/app', { waitUntil: 'load' });
-    await page.waitForFunction(async () => {
+    await waitForAsyncCondition(() => page.evaluate(async () => {
       const { state } = await import('/js/state.js');
       return state && document.getElementById('main-content');
-    }, null, {
-      timeout: options.readyTimeout ?? 15_000,
-    });
+    }, null), options.readyTimeout ?? 15_000);
 
     const result = await page.evaluate(async ({ testPath, settleMs }) => {
       const failures: string[] = [];

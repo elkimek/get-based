@@ -1,0 +1,647 @@
+[
+  [
+    "category-chart-card",
+    ".chart-card",
+    null
+  ],
+  [
+    "category-chart-card-hover",
+    ".chart-card:hover",
+    null
+  ],
+  [
+    "category-chart-card-has-chart-card-main-focus-visible",
+    ".chart-card:has(> .chart-card-main:focus-visible)",
+    null
+  ],
+  [
+    "category-chart-card-main",
+    ".chart-card-main",
+    null
+  ],
+  [
+    "category-chart-card-header",
+    ".chart-card-header",
+    null
+  ],
+  [
+    "category-chart-card-title-block-group",
+    ".chart-card-title-block,\n.chart-card-header > div:first-child",
+    null
+  ],
+  [
+    "category-chart-card-header-div-first-child-chart-card-title",
+    ".chart-card-header > div:first-child .chart-card-title",
+    null
+  ],
+  [
+    "category-chart-card-title-text",
+    ".chart-card-title-text",
+    null
+  ],
+  [
+    "category-chart-card-tips-host",
+    ".chart-card-tips-host",
+    null
+  ],
+  [
+    "category-chart-card-tips-host-ctx-tips-badge",
+    ".chart-card-tips-host .ctx-tips-badge",
+    null
+  ],
+  [
+    "category-chart-card-header-div-last-child",
+    ".chart-card-header > div:last-child",
+    null
+  ],
+  [
+    "category-chart-card-state",
+    ".chart-card-state",
+    null
+  ],
+  [
+    "category-chart-card-title",
+    ".chart-card-title",
+    null
+  ],
+  [
+    "category-chart-card-status",
+    ".chart-card-status",
+    null
+  ],
+  [
+    "category-chart-card-status-status-normal-group",
+    ".chart-card-status.status-normal,\n.chart-card-status.status-high,\n.chart-card-status.status-low,\n.chart-card-status.status-missing",
+    null
+  ],
+  [
+    "category-chart-card-status-status-normal",
+    ".chart-card-status.status-normal",
+    null
+  ],
+  [
+    "category-chart-card-status-status-high",
+    ".chart-card-status.status-high",
+    null
+  ],
+  [
+    "category-chart-card-status-status-low",
+    ".chart-card-status.status-low",
+    null
+  ],
+  [
+    "category-chart-card-status-status-unrated",
+    ".chart-card-status.status-unrated",
+    null
+  ],
+  [
+    "category-chart-card-snapshot",
+    ".chart-card-snapshot",
+    null
+  ],
+  [
+    "category-chart-card-snapshot-label-group",
+    ".chart-card-snapshot-label,\n.chart-card-range-row > span",
+    null
+  ],
+  [
+    "category-chart-card-latest-measurement",
+    ".chart-card-latest-measurement",
+    null
+  ],
+  [
+    "category-chart-card-latest-value",
+    ".chart-card-latest-value",
+    null
+  ],
+  [
+    "category-chart-card-latest-unit",
+    ".chart-card-latest-unit",
+    null
+  ],
+  [
+    "category-chart-card-latest-value-val-normal",
+    ".chart-card-latest-value.val-normal",
+    null
+  ],
+  [
+    "category-chart-card-latest-value-val-high",
+    ".chart-card-latest-value.val-high",
+    null
+  ],
+  [
+    "category-chart-card-latest-value-val-low",
+    ".chart-card-latest-value.val-low",
+    null
+  ],
+  [
+    "category-chart-card-latest-value-val-unrated",
+    ".chart-card-latest-value.val-unrated",
+    null
+  ],
+  [
+    "category-chart-card-snapshot-meta",
+    ".chart-card-snapshot-meta",
+    null
+  ],
+  [
+    "category-chart-card-snapshot-side",
+    ".chart-card-snapshot-side",
+    null
+  ],
+  [
+    "category-chart-card-snapshot-stacked",
+    ".chart-card-snapshot-stacked",
+    null
+  ],
+  [
+    "category-chart-card-snapshot-stacked-chart-card-latest-measurement",
+    ".chart-card-snapshot-stacked .chart-card-latest-measurement",
+    null
+  ],
+  [
+    "category-chart-card-snapshot-stacked-chart-card-latest-unit-group",
+    ".chart-card-snapshot-stacked .chart-card-latest-unit,\n.chart-card-snapshot-stacked .chart-card-range-row > strong",
+    null
+  ],
+  [
+    "category-chart-card-snapshot-stacked-chart-card-snapshot-side",
+    ".chart-card-snapshot-stacked .chart-card-snapshot-side",
+    null
+  ],
+  [
+    "category-chart-card-range-row-chart-card-range-row",
+    ".chart-card-range-row + .chart-card-range-row",
+    null
+  ],
+  [
+    "category-chart-card-range-row-strong",
+    ".chart-card-range-row > strong",
+    null
+  ],
+  [
+    "category-chart-container",
+    ".chart-container",
+    null
+  ],
+  [
+    "category-chart-values",
+    ".chart-values",
+    null
+  ],
+  [
+    "category-chart-values-label",
+    ".chart-values-label",
+    null
+  ],
+  [
+    "category-chart-value-item",
+    ".chart-value-item",
+    null
+  ],
+  [
+    "category-chart-value-date",
+    ".chart-value-date",
+    null
+  ],
+  [
+    "category-chart-card-range-unit",
+    ".chart-card-range-unit",
+    null
+  ],
+  [
+    "category-chart-value-num",
+    ".chart-value-num",
+    null
+  ],
+  [
+    "category-chart-value-num-val-normal",
+    ".chart-value-num.val-normal",
+    null
+  ],
+  [
+    "category-chart-value-num-val-high",
+    ".chart-value-num.val-high",
+    null
+  ],
+  [
+    "category-chart-value-num-val-high-before",
+    ".chart-value-num.val-high::before",
+    null
+  ],
+  [
+    "category-chart-value-num-val-low",
+    ".chart-value-num.val-low",
+    null
+  ],
+  [
+    "category-chart-value-num-val-low-before",
+    ".chart-value-num.val-low::before",
+    null
+  ],
+  [
+    "category-chart-value-num-val-missing",
+    ".chart-value-num.val-missing",
+    null
+  ],
+  [
+    "category-chart-value-num-val-unrated",
+    ".chart-value-num.val-unrated",
+    null
+  ],
+  [
+    "category-chart-card-trend",
+    ".chart-card-trend",
+    null
+  ],
+  [
+    "category-gb-table-shell",
+    ".gb-table-shell",
+    null
+  ],
+  [
+    "category-gb-table-shell-data-table-group",
+    ".gb-table-shell .data-table,\n.gb-table-shell .compare-table,\n.gb-table-shell .heatmap-table",
+    null
+  ],
+  [
+    "category-gb-table-sticky-head",
+    ".gb-table-sticky-head",
+    null
+  ],
+  [
+    "category-gb-col-marker",
+    ".gb-col-marker",
+    null
+  ],
+  [
+    "category-gb-col-unit",
+    ".gb-col-unit",
+    null
+  ],
+  [
+    "category-gb-col-reference",
+    ".gb-col-reference",
+    null
+  ],
+  [
+    "category-gb-col-ranges",
+    ".gb-col-ranges",
+    null
+  ],
+  [
+    "category-gb-col-date",
+    ".gb-col-date",
+    null
+  ],
+  [
+    "category-gb-col-trend",
+    ".gb-col-trend",
+    null
+  ],
+  [
+    "category-gb-col-range",
+    ".gb-col-range",
+    null
+  ],
+  [
+    "category-gb-col-compare-date",
+    ".gb-col-compare-date",
+    null
+  ],
+  [
+    "category-gb-col-delta",
+    ".gb-col-delta",
+    null
+  ],
+  [
+    "category-data-table-group",
+    ".data-table,\n.heatmap-table",
+    null
+  ],
+  [
+    "category-data-table",
+    ".data-table",
+    null
+  ],
+  [
+    "category-heatmap-table",
+    ".heatmap-table",
+    null
+  ],
+  [
+    "category-data-table-thead-th",
+    ".data-table thead th",
+    null
+  ],
+  [
+    "category-heatmap-table-th",
+    ".heatmap-table th",
+    null
+  ],
+  [
+    "category-data-table-thead-th-first-child-group",
+    ".data-table thead th:first-child,\n.heatmap-table thead th:first-child",
+    null
+  ],
+  [
+    "category-data-table-tbody-tr",
+    ".data-table tbody tr",
+    null
+  ],
+  [
+    "category-data-table-tbody-tr-hover",
+    ".data-table tbody tr:hover",
+    null
+  ],
+  [
+    "category-data-table-td-group",
+    ".data-table td,\n.heatmap-table td",
+    null
+  ],
+  [
+    "category-data-table-td",
+    ".data-table td",
+    null
+  ],
+  [
+    "category-data-table-td-first-child-group",
+    ".data-table td:first-child,\n.heatmap-table td:first-child",
+    null
+  ],
+  [
+    "category-data-table-tbody-tr-hover-td-first-child",
+    ".data-table tbody tr:hover td:first-child",
+    null
+  ],
+  [
+    "category-data-table-marker-name",
+    ".data-table .marker-name",
+    null
+  ],
+  [
+    "category-data-table-unit-col",
+    ".data-table .unit-col",
+    null
+  ],
+  [
+    "category-data-table-ref-col",
+    ".data-table .ref-col",
+    null
+  ],
+  [
+    "category-data-table-value-cell",
+    ".data-table .value-cell",
+    null
+  ],
+  [
+    "category-data-table-value-cell-val-normal",
+    ".data-table .value-cell.val-normal",
+    null
+  ],
+  [
+    "category-data-table-value-cell-val-high",
+    ".data-table .value-cell.val-high",
+    null
+  ],
+  [
+    "category-data-table-value-cell-val-high-before",
+    ".data-table .value-cell.val-high::before",
+    null
+  ],
+  [
+    "category-data-table-value-cell-val-low",
+    ".data-table .value-cell.val-low",
+    null
+  ],
+  [
+    "category-data-table-value-cell-val-low-before",
+    ".data-table .value-cell.val-low::before",
+    null
+  ],
+  [
+    "category-data-table-value-cell-val-missing",
+    ".data-table .value-cell.val-missing",
+    null
+  ],
+  [
+    "category-range-bar",
+    ".range-bar",
+    null
+  ],
+  [
+    "category-range-bar-fill-group",
+    ".range-bar-fill,\n.range-bar-zone",
+    null
+  ],
+  [
+    "category-range-bar-marker",
+    ".range-bar-marker",
+    null
+  ],
+  [
+    "category-range-bar-marker-marker-normal",
+    ".range-bar-marker.marker-normal",
+    null
+  ],
+  [
+    "category-range-bar-marker-marker-high",
+    ".range-bar-marker.marker-high",
+    null
+  ],
+  [
+    "category-range-bar-marker-marker-low",
+    ".range-bar-marker.marker-low",
+    null
+  ],
+  [
+    "category-fa-bar-chart-container",
+    ".fa-bar-chart-container",
+    null
+  ],
+  [
+    "category-fa-bar-chart-container-max-width-480px",
+    ".fa-bar-chart-container",
+    "(max-width: 480px)"
+  ],
+  [
+    "category-fatty-acids-grid",
+    ".fatty-acids-grid",
+    null
+  ],
+  [
+    "category-fa-card",
+    ".fa-card",
+    null
+  ],
+  [
+    "category-fa-card-name",
+    ".fa-card-name",
+    null
+  ],
+  [
+    "category-fa-card-value",
+    ".fa-card-value",
+    null
+  ],
+  [
+    "category-fa-card-ref",
+    ".fa-card-ref",
+    null
+  ],
+  [
+    "category-heatmap-table-td",
+    ".heatmap-table td",
+    null
+  ],
+  [
+    "category-heatmap-table-td-first-child",
+    ".heatmap-table td:first-child",
+    null
+  ],
+  [
+    "category-heatmap-table-td-hover-not-first-child",
+    ".heatmap-table td:hover:not(:first-child)",
+    null
+  ],
+  [
+    "category-heatmap-normal",
+    ".heatmap-normal",
+    null
+  ],
+  [
+    "category-heatmap-high",
+    ".heatmap-high",
+    null
+  ],
+  [
+    "category-heatmap-high-before",
+    ".heatmap-high::before",
+    null
+  ],
+  [
+    "category-heatmap-low",
+    ".heatmap-low",
+    null
+  ],
+  [
+    "category-heatmap-low-before",
+    ".heatmap-low::before",
+    null
+  ],
+  [
+    "category-heatmap-missing",
+    ".heatmap-missing",
+    null
+  ],
+  [
+    "category-gb-table-shell-data-table-group-max-width-768px",
+    ".gb-table-shell .data-table,\n  .gb-table-shell .compare-table,\n  .gb-table-shell .heatmap-table",
+    "(max-width: 768px)"
+  ],
+  [
+    "category-gb-table-sticky-head-max-width-768px",
+    ".gb-table-sticky-head",
+    "(max-width: 768px)"
+  ],
+  [
+    "category-gb-table-sticky-head-scroll-max-width-768px",
+    ".gb-table-sticky-head-scroll",
+    "(max-width: 768px)"
+  ],
+  [
+    "category-gb-table-sticky-head-table-max-width-768px",
+    ".gb-table-sticky-head table",
+    "(max-width: 768px)"
+  ],
+  [
+    "category-gb-table-shell-data-gb-table-sticky-head-th-first-child-group-max-width-768px",
+    ".gb-table-shell-data .gb-table-sticky-head th:first-child,\n  .gb-table-shell-heatmap .gb-table-sticky-head th:first-child",
+    "(max-width: 768px)"
+  ],
+  [
+    "category-gb-table-shell-data-table-wrapper-thead-group-max-width-768px",
+    ".gb-table-shell .data-table-wrapper thead,\n  .gb-table-shell .compare-table-wrapper thead,\n  .gb-table-shell .heatmap-wrapper thead",
+    "(max-width: 768px)"
+  ],
+  [
+    "category-gb-table-shell-data-table-wrapper-thead-th-group-max-width-768px",
+    ".gb-table-shell .data-table-wrapper thead th,\n  .gb-table-shell .compare-table-wrapper thead th,\n  .gb-table-shell .heatmap-wrapper thead th,\n  .gb-table-shell .heatmap-wrapper thead th:first-child",
+    "(max-width: 768px)"
+  ],
+  [
+    "category-chart-card-max-width-480px",
+    ".chart-card",
+    "(max-width: 480px)"
+  ],
+  [
+    "category-chart-card-header-max-width-480px",
+    ".chart-card-header",
+    "(max-width: 480px)"
+  ],
+  [
+    "category-chart-card-title-max-width-480px",
+    ".chart-card-title",
+    "(max-width: 480px)"
+  ],
+  [
+    "category-chart-card-state-max-width-480px",
+    ".chart-card-state",
+    "(max-width: 480px)"
+  ],
+  [
+    "category-chart-card-snapshot-max-width-480px",
+    ".chart-card-snapshot",
+    "(max-width: 480px)"
+  ],
+  [
+    "category-chart-card-snapshot-side-max-width-480px",
+    ".chart-card-snapshot-side",
+    "(max-width: 480px)"
+  ],
+  [
+    "category-chart-card-snapshot-side-strong-max-width-480px",
+    ".chart-card-snapshot-side strong",
+    "(max-width: 480px)"
+  ],
+  [
+    "category-chart-card-latest-value-max-width-480px",
+    ".chart-card-latest-value",
+    "(max-width: 480px)"
+  ],
+  [
+    "category-chart-container-max-width-480px",
+    ".chart-container",
+    "(max-width: 480px)"
+  ],
+  [
+    "category-chart-values-max-width-480px",
+    ".chart-values",
+    "(max-width: 480px)"
+  ],
+  [
+    "category-chart-value-date-max-width-480px",
+    ".chart-value-date",
+    "(max-width: 480px)"
+  ],
+  [
+    "category-chart-value-num-max-width-480px",
+    ".chart-value-num",
+    "(max-width: 480px)"
+  ],
+  [
+    "category-chart-card-snapshot-max-width-360px",
+    ".chart-card-snapshot",
+    "(max-width: 360px)"
+  ],
+  [
+    "category-chart-card-snapshot-side-max-width-360px",
+    ".chart-card-snapshot-side",
+    "(max-width: 360px)"
+  ],
+  [
+    "category-chart-card-range-row-max-width-360px",
+    ".chart-card-range-row",
+    "(max-width: 360px)"
+  ]
+]

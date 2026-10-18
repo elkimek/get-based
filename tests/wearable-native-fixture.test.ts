@@ -1,0 +1,117 @@
+import {afterEach, expect, it} from 'vitest';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import {createHash} from 'node:crypto';
+import {gzipSync} from 'node:zlib';
+import {wearableChartExpectedQualifier, type NativeArtifact} from './helpers/wearable-pwa-chart-functions.js';
+import {materializeWearableNativeFixture, verifyWearableNativeArchive, wearableNativeFixtureManifestSHA256} from '../scripts/wearable-native-fixture.mjs';
+const sha = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
+const cleanups: Array<() => Promise<void>> = [];
+afterEach(async () => {for (const cleanup of cleanups.splice(0)) await cleanup();});
+function fixture(options: {file?: string; body?: Buffer; trailing?: Buffer; header?: unknown; duplicate?: boolean; payloadBytes?: number; memberSHA?: string} = {}) {
+  const body = options.body ?? Buffer.from('synthetic native receipt');
+  const member = {file: options.file ?? 'original/receipt.json', bytes: body.length, sha256: options.memberSHA ?? sha(body)};
+  const files = options.duplicate ? [member, member] : [member];
+  const header = Buffer.from(JSON.stringify(options.header ?? {version: 1, files}));
+  const prefix = Buffer.alloc(4); prefix.writeUInt32BE(header.length);
+  const payload = Buffer.concat([prefix, header, body, ...(options.duplicate ? [body] : []), ...(options.trailing ? [options.trailing] : [])]);
+  const archive = gzipSync(payload);
+  const manifest = Buffer.from(JSON.stringify({version: 1, archive: {file: 'receipts.bin.gz', bytes: archive.length, sha256: sha(archive), payloadBytes: options.payloadBytes ?? payload.length}, files}));
+  return {archive, manifest, pin: sha(manifest)};
+}
+it('verifies every exact original member before extraction', () => {
+  const sample = fixture();
+  expect(verifyWearableNativeArchive(sample.archive, sample.manifest, sample.pin)).toEqual([{file: 'original/receipt.json', bytes: Buffer.from('synthetic native receipt'), sha256: sha(Buffer.from('synthetic native receipt'))}]);
+});
+it.each(['../escape.json', 'original/../escape.json', '/absolute.json', 'C:/absolute.json', 'original\\escape.json', 'original//receipt.json', './receipt.json', 'original/\0receipt.json'])('rejects unsafe fixture member %j', file => {
+  const sample = fixture({file});
+  expect(() => verifyWearableNativeArchive(sample.archive, sample.manifest, sample.pin)).toThrow();
+});
+it('rejects a changed manifest even when it claims a matching archive', () => {
+  const sample = fixture();
+  expect(() => verifyWearableNativeArchive(sample.archive, Buffer.concat([sample.manifest, Buffer.from(' ')]), sample.pin)).toThrow('Pinned Wearables fixture manifest');
+});
+it('rejects changed compressed bytes', () => {
+  const sample = fixture(); const changed = Buffer.from(sample.archive); changed[changed.length - 1] = changed[changed.length - 1]! ^ 1;
+  expect(() => verifyWearableNativeArchive(changed, sample.manifest, sample.pin)).toThrow('Pinned compressed fixture bytes');
+});
+it('rejects a changed member under an otherwise requalified container', () => {
+  const sample = fixture({memberSHA: 'a'.repeat(64)});
+  expect(() => verifyWearableNativeArchive(sample.archive, sample.manifest, sample.pin)).toThrow('Exact original fixture member');
+});
+it('rejects duplicate paths', () => {
+  const sample = fixture({duplicate: true});
+  expect(() => verifyWearableNativeArchive(sample.archive, sample.manifest, sample.pin)).toThrow('Unique fixture member paths');
+});
+it('rejects a header that differs from the qualified inventory', () => {
+  const sample = fixture({header: {version: 1, files: []}});
+  expect(() => verifyWearableNativeArchive(sample.archive, sample.manifest, sample.pin)).toThrow('Exact container member inventory');
+});
+it('rejects undeclared trailing bytes', () => {
+  const sample = fixture({trailing: Buffer.from('unqualified')});
+  expect(() => verifyWearableNativeArchive(sample.archive, sample.manifest, sample.pin)).toThrow('No undeclared fixture bytes');
+});
+it('rejects an oversized decompressed declaration before inflation', () => {
+  const sample = fixture({payloadBytes: 25 * 1024 * 1024});
+  expect(() => verifyWearableNativeArchive(sample.archive, sample.manifest, sample.pin)).toThrow('Bounded decompressed fixture');
+});
+it('materializes the pinned portable inputs without historical local notes and preserves the original native manifest identities', async () => {
+  const fixture = await materializeWearableNativeFixture(); cleanups.push(fixture.cleanup);
+  const manifestBytes = await fs.readFile(fixture.manifestFile);
+  expect(sha(manifestBytes)).toBe('b32fbd595d3a08e323335c3d15a8c07cea729dcb02721e183ca55ff96d1e817e');
+  const manifest = JSON.parse(manifestBytes.toString('utf8')) as {cases: Array<{project: string; capture: {file: string; bytes: number; sha256: string}; warmBaseline: {file: string; bytes: number; sha256: string}}>};
+  expect(manifest.cases.map(value => value.project)).toEqual(['kit-chromium', 'kit-firefox', 'kit-webkit', 'kit-mobile-webkit']);
+  for (const value of manifest.cases) for (const member of [value.capture, value.warmBaseline]) {
+    const bytes = await fs.readFile(path.join(fixture.directory, member.file));
+    expect(bytes.byteLength).toBe(member.bytes); expect(sha(bytes)).toBe(member.sha256);
+  }
+  const chunks = path.join(fixture.directory, 'clone/.local-notes/original-kit-artifact/_app/immutable/chunks');
+  expect((await fs.readdir(chunks)).sort()).toEqual(['CtdYO843.js', 'CtdYO843.js.map', 'Pietaq_b.js', 'Pietaq_b.js.map', 'sx8fdhZF.js', 'sx8fdhZF.js.map']);
+  expect(wearableNativeFixtureManifestSHA256).toBe('17e5510d4b52a27d023a644dc130d6e59afa09394b79523791ddefda3249d49b');
+  await fixture.cleanup(); await expect(fs.stat(fixture.directory)).rejects.toThrow();
+});
+
+it('retains every original browser callback source and imported binding with only the three qualified chunk/map pairs', async () => {
+  const fixture = await materializeWearableNativeFixture(); cleanups.push(fixture.cleanup);
+  const originalDirectory = path.join(fixture.directory, 'clone/.local-notes/original-kit-artifact');
+  const sourceRoot = path.join(fixture.directory, 'source');
+  const sourceBodies = new Map<string, string>();
+  const chunks = path.join(originalDirectory, '_app/immutable/chunks');
+  for (const file of (await fs.readdir(chunks)).filter(file => file.endsWith('.map'))) {
+    const map = JSON.parse(await fs.readFile(path.join(chunks, file), 'utf8')) as {sources: string[]; sourcesContent: string[]};
+    for (let index = 0; index < map.sources.length; index++) {
+      const mapped = map.sources[index]!;
+      const marker = mapped.lastIndexOf('/js/');
+      if (marker < 0) continue;
+      const module = mapped.slice(marker + 1), body = map.sourcesContent[index]!;
+      expect(module.split('/')).not.toContain('..');
+      if (sourceBodies.has(module)) expect(sourceBodies.get(module)).toBe(body);
+      sourceBodies.set(module, body);
+    }
+  }
+  for (const [module, body] of sourceBodies) {
+    await fs.mkdir(path.dirname(path.join(sourceRoot, module)), {recursive: true});
+    await fs.writeFile(path.join(sourceRoot, module), body);
+  }
+  for (const file of ['chart.min.js', 'chartjs-adapter-native.js']) {
+    await fs.mkdir(path.join(originalDirectory, 'vendor'), {recursive: true});
+    await fs.copyFile(new URL('../vendor/' + file, import.meta.url), path.join(originalDirectory, 'vendor', file));
+  }
+  for (const project of ['kit-chromium', 'kit-firefox', 'kit-webkit', 'kit-mobile-webkit']) {
+    const capture = JSON.parse(await fs.readFile(path.join(fixture.directory, 'clone/.local-notes/original-browser-capture', project + '.json'), 'utf8')) as {artifact: NativeArtifact; rawStates: Record<string, {chart: unknown}>};
+    const originals = Object.values(capture.rawStates).map(value => value.chart);
+    const qualified = await wearableChartExpectedQualifier(fixture.directory, originalDirectory, sourceRoot, capture.artifact, originals);
+    expect(qualified.proofs.map(proof => [proof.sourceModule, proof.owner, proof.original.functionName])).toEqual([
+      ['js/wearables-detail-modal.js', 'renderWearableChart', 'borderDash'],
+      ['js/wearables-detail-modal.js', 'renderWearableChart', 'borderColor'],
+      ['js/wearables-detail-modal.js', 'renderWearableChart', 'N'],
+      ['js/wearables-detail-modal.js', 'renderWearableChart', 'label'],
+      ['js/wearables-detail-modal.js', 'renderWearableChart', ''],
+      ['js/wearables-bp-detail-chart.js', 'renderBloodPressureChart', 'title'],
+      ['js/wearables-bp-detail-chart.js', 'renderBloodPressureChart', 'label'],
+      ['js/charts.js', '(module)', 'E'],
+    ]);
+    expect(originals.map(value => qualified.qualify(value))).toEqual(originals);
+    expect(qualified.proofs.every(proof => proof.replacements.length === 0)).toBe(true);
+  }
+}, 30000);

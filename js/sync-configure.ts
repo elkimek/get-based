@@ -10,8 +10,9 @@ import { logSyncEvent, updateSyncStatus } from './sync-state.js';
 import { isSyncConfigured, isSyncEnabled } from './sync-settings-state.js';
 import { configureSyncDelta } from './sync-delta.js';
 import { configureSyncTombstones, deleteProfileFromRelay } from './sync-tombstones.js';
-import { configureSyncMessenger } from './sync-messenger.js';
-import { buildLabContext, buildWearableSeriesSection, getAgentWearableSeriesDays } from './lab-context.js';
+import { buildDefaultSyncMessengerContext, configureSyncMessenger, configureSyncMessengerContextPreparation } from './sync-messenger.js';
+import { buildWearableSeriesSection, getAgentWearableSeriesDays } from './lab-context-wearables.js';
+import { loadLabContextBuilder } from './lab-context-loader.js';
 import { checkRelayConnection, getSyncRelay } from './sync-environment.js';
 import {
   configureSyncIdentity, resetLocalSyncHistoryForRelayRebuild, restoreFromMnemonic,
@@ -121,11 +122,13 @@ export function configureSyncModules({ enableSync }: {
     getSyncRelay,
     getAppOwner: getSyncAppOwner,
     debug: dbg,
-    buildLabContext,
+    buildLabContext: buildDefaultSyncMessengerContext,
     buildWearableSeriesSection,
     getAgentWearableSeriesDays,
     getProfiles,
   });
+
+  configureSyncMessengerContextPreparation(loadLabContextBuilder);
 
   configureSyncIdentity({
     getAppOwner: getSyncAppOwner,

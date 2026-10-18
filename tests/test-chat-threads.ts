@@ -13,6 +13,7 @@
 // tests/playwright/chat-threads-dom.spec.js on the Playwright runner.
 
 import './_node-shim.js';
+import { ownedRule, escapedClass } from './helpers/legacy-light-chat-contracts.js';
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -433,7 +434,18 @@ assert('CSS has .chat-thread-rail.open', cssSrc.includes('.chat-thread-rail.open
 assert('owned thread rows have scoped Tailwind styling', navigationSrc.includes('chat-thread-item gb:thread-nav:relative') && cssSrc.includes('data-chat-thread-navigation-view'));
 assert('active thread rows retain accent treatment', navigationSrc.includes("thread.active ? 'active gb:thread-nav:border-accent"));
 assert('CSS has .chat-panel-conversation', cssSrc.includes('.chat-panel-conversation'));
-assert('CSS has .chat-rail-toggle', cssSrc.includes('.chat-rail-toggle'));
+const chatHeaderSrc = read('js/components/ChatHeader.svelte');
+const headerClassesSrc = read('js/chat-header-classes.js');
+const { HEADER_BUTTON } = await import('../js/chat-header-classes.js');
+assert('CSS has .chat-rail-toggle',
+  chatHeaderSrc.includes('chat-rail-toggle {HEADER_BUTTON}')
+    && chatHeaderSrc.includes('data-chat-action="toggle-thread-rail"')
+    && chatHeaderSrc.includes('aria-expanded={layout.railOpen}')
+    && headerClassesSrc.includes('export const HEADER_BUTTON')
+    && HEADER_BUTTON.split(/\s+/).includes('gb:header:size-[30px]')
+    && ownedRule(read('css/chat-panel-open.css'),
+      escapedClass('gb:header:size-[30px]') + ':is([data-chat-header-view],[data-chat-header-view] *)',
+      { width: '30px', height: '30px' }));
 assert('owned thread action menu retains its control contract', navigationSrc.includes('chat-thread-item-menu-popover') && navigationSrc.includes('THREAD_MENU'));
 assert('CSS has mobile rail overlay', cssSrc.includes('.chat-thread-rail.open') && cssSrc.includes('768px'));
 assert('chat thread list is a named keyboard-focusable region',

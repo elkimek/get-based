@@ -1,0 +1,86 @@
+[
+  {
+    "original": "",
+    "replacement": "",
+    "leftHtml": "<div>&nbsp;</div>",
+    "rightHtml": "<div>&nbsp;</div>"
+  },
+  {
+    "original": "\n <script>&\n",
+    "replacement": "\n <script>&\n",
+    "leftHtml": "<div> &lt;script&gt;&amp;</div>",
+    "rightHtml": "<div> &lt;script&gt;&amp;</div>"
+  },
+  {
+    "original": "A B",
+    "replacement": "A C",
+    "leftHtml": "<div class=\"pii-diff-highlight-removed\">A <span class=\"pii-word-removed\">B</span></div>",
+    "rightHtml": "<div class=\"pii-diff-highlight-added\">A <span class=\"pii-word-added\">C</span></div>"
+  },
+  {
+    "original": "A B A",
+    "replacement": "B A B",
+    "leftHtml": "<div class=\"pii-diff-highlight-removed\"><span class=\"pii-word-removed\">A</span><span class=\"pii-word-removed\"> </span>B A</div>",
+    "rightHtml": "<div class=\"pii-diff-highlight-added\">B A<span class=\"pii-word-added\"> </span><span class=\"pii-word-added\">B</span></div>"
+  },
+  {
+    "original": "same\n\nlast",
+    "replacement": "same\nchanged",
+    "leftHtml": "<div>same</div><div class=\"pii-diff-highlight-removed\">&nbsp;</div><div class=\"pii-diff-highlight-removed\"><span class=\"pii-word-removed\">last</span></div>",
+    "rightHtml": "<div>same</div><div class=\"pii-diff-highlight-added\"><span class=\"pii-word-added\">changed</span></div><div class=\"pii-diff-highlight-added\">&nbsp;</div>"
+  },
+  {
+    "original": "\tA  B\r\nend",
+    "replacement": " A\tC\r\nend",
+    "leftHtml": "<div class=\"pii-diff-highlight-removed\"><span class=\"pii-word-removed\">\t</span>A<span class=\"pii-word-removed\">  </span><span class=\"pii-word-removed\">B</span>\r</div><div>end</div>",
+    "rightHtml": "<div class=\"pii-diff-highlight-added\"><span class=\"pii-word-added\"> </span>A<span class=\"pii-word-added\">\t</span><span class=\"pii-word-added\">C</span>\r</div><div>end</div>"
+  },
+  {
+    "original": "</textarea><img src=x onerror=boom>&nbsp;<!--[0-->",
+    "replacement": "<button>literal &amp; </button>",
+    "leftHtml": "<div class=\"pii-diff-highlight-removed\"><span class=\"pii-word-removed\">&lt;/textarea&gt;&lt;img</span> <span class=\"pii-word-removed\">src=x</span> <span class=\"pii-word-removed\">onerror=boom&gt;&amp;nbsp;&lt;!--[0--&gt;</span></div>",
+    "rightHtml": "<div class=\"pii-diff-highlight-added\"><span class=\"pii-word-added\">&lt;button&gt;literal</span> <span class=\"pii-word-added\">&amp;amp;</span> <span class=\"pii-word-added\">&lt;/button&gt;</span></div>"
+  },
+  {
+    "original": "gone",
+    "replacement": "",
+    "leftHtml": "<div class=\"pii-diff-highlight-removed\"><span class=\"pii-word-removed\">gone</span></div>",
+    "rightHtml": "<div class=\"pii-diff-highlight-added\">&nbsp;</div>"
+  },
+  {
+    "original": "",
+    "replacement": "added",
+    "leftHtml": "<div class=\"pii-diff-highlight-removed\">&nbsp;</div>",
+    "rightHtml": "<div class=\"pii-diff-highlight-added\"><span class=\"pii-word-added\">added</span></div>"
+  },
+  {
+    "original": "w0 w1 w2 w3 w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w15 w16 w17 w18 w19 w20 w21 w22 w23 w24 w25 w26 w27 w28 w29 w30 w31 w32 w33 w34 w35 w36 w37 w38 w39 w40 w41 w42 w43 w44 w45 w46 w47 w48 w49 w50 w51 w52 w53 w54 w55 w56 w57 w58 w59 w60 w61 w62 w63 w64 w65 w66 w67 w68 w69 w70 w71 w72 w73 w74 w75 w76 w77 w78 w79 w80 w81 w82 w83 w84 w85 w86 w87 w88 w89 w90 w91 w92 w93 w94 w95 w96 w97 w98 w99",
+    "replacement": "changed",
+    "leftHtml": "<div class=\"pii-diff-highlight-removed\"><span class=\"pii-word-removed\">w0</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w1</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w2</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w3</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w4</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w5</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w6</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w7</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w8</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w9</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w10</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w11</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w12</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w13</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w14</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w15</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w16</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w17</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w18</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w19</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w20</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w21</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w22</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w23</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w24</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w25</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w26</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w27</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w28</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w29</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w30</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w31</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w32</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w33</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w34</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w35</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w36</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w37</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w38</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w39</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w40</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w41</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w42</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w43</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w44</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w45</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w46</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w47</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w48</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w49</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w50</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w51</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w52</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w53</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w54</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w55</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w56</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w57</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w58</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w59</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w60</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w61</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w62</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w63</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w64</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w65</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w66</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w67</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w68</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w69</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w70</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w71</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w72</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w73</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w74</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w75</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w76</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w77</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w78</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w79</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w80</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w81</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w82</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w83</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w84</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w85</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w86</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w87</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w88</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w89</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w90</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w91</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w92</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w93</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w94</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w95</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w96</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w97</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w98</span><span class=\"pii-word-removed\"> </span><span class=\"pii-word-removed\">w99</span></div>",
+    "rightHtml": "<div class=\"pii-diff-highlight-added\"><span class=\"pii-word-added\">changed</span></div>"
+  },
+  {
+    "original": "w0 w1 w2 w3 w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w15 w16 w17 w18 w19 w20 w21 w22 w23 w24 w25 w26 w27 w28 w29 w30 w31 w32 w33 w34 w35 w36 w37 w38 w39 w40 w41 w42 w43 w44 w45 w46 w47 w48 w49 w50 w51 w52 w53 w54 w55 w56 w57 w58 w59 w60 w61 w62 w63 w64 w65 w66 w67 w68 w69 w70 w71 w72 w73 w74 w75 w76 w77 w78 w79 w80 w81 w82 w83 w84 w85 w86 w87 w88 w89 w90 w91 w92 w93 w94 w95 w96 w97 w98 w99 w100",
+    "replacement": "changed",
+    "leftHtml": "<div class=\"pii-diff-highlight-removed\"><span class=\"pii-word-removed\">w0 w1 w2 w3 w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w15 w16 w17 w18 w19 w20 w21 w22 w23 w24 w25 w26 w27 w28 w29 w30 w31 w32 w33 w34 w35 w36 w37 w38 w39 w40 w41 w42 w43 w44 w45 w46 w47 w48 w49 w50 w51 w52 w53 w54 w55 w56 w57 w58 w59 w60 w61 w62 w63 w64 w65 w66 w67 w68 w69 w70 w71 w72 w73 w74 w75 w76 w77 w78 w79 w80 w81 w82 w83 w84 w85 w86 w87 w88 w89 w90 w91 w92 w93 w94 w95 w96 w97 w98 w99 w100</span></div>",
+    "rightHtml": "<div class=\"pii-diff-highlight-added\"><span class=\"pii-word-added\">changed</span></div>"
+  },
+  {
+    "original": "w0 w1 w2 w3 w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w15 w16 w17 w18 w19 w20 w21 w22 w23 w24 w25 w26 w27 w28 w29 w30 w31 w32 w33 w34 w35 w36 w37 w38 w39 w40 w41 w42 w43 w44 w45 w46 w47 w48 w49 w50 w51 w52 w53 w54 w55 w56 w57 w58 w59 w60 w61 w62 w63 w64 w65 w66 w67 w68 w69 w70 w71 w72 w73 w74 w75 w76 w77 w78 w79 w80 w81 w82 w83 w84 w85 w86 w87 w88 w89 w90 w91 w92 w93 w94 w95 w96 w97 w98 w99 ",
+    "replacement": "w0 w1 w2 w3 w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w15 w16 w17 w18 w19 w20 w21 w22 w23 w24 w25 w26 w27 w28 w29 w30 w31 w32 w33 w34 w35 w36 w37 w38 w39 w40 w41 w42 w43 w44 w45 w46 w47 w48 w49 w50 w51 w52 w53 w54 w55 w56 w57 w58 w59 w60 w61 w62 w63 w64 w65 w66 w67 w68 w69 w70 w71 w72 w73 w74 w75 w76 w77 w78 w79 w80 w81 w82 w83 w84 w85 w86 w87 w88 w89 w90 w91 w92 w93 w94 w95 w96 w97 w98 CHANGED ",
+    "leftHtml": "<div class=\"pii-diff-highlight-removed\">w0 w1 w2 w3 w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w15 w16 w17 w18 w19 w20 w21 w22 w23 w24 w25 w26 w27 w28 w29 w30 w31 w32 w33 w34 w35 w36 w37 w38 w39 w40 w41 w42 w43 w44 w45 w46 w47 w48 w49 w50 w51 w52 w53 w54 w55 w56 w57 w58 w59 w60 w61 w62 w63 w64 w65 w66 w67 w68 w69 w70 w71 w72 w73 w74 w75 w76 w77 w78 w79 w80 w81 w82 w83 w84 w85 w86 w87 w88 w89 w90 w91 w92 w93 w94 w95 w96 w97 w98 <span class=\"pii-word-removed\">w99</span> </div>",
+    "rightHtml": "<div class=\"pii-diff-highlight-added\">w0 w1 w2 w3 w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w15 w16 w17 w18 w19 w20 w21 w22 w23 w24 w25 w26 w27 w28 w29 w30 w31 w32 w33 w34 w35 w36 w37 w38 w39 w40 w41 w42 w43 w44 w45 w46 w47 w48 w49 w50 w51 w52 w53 w54 w55 w56 w57 w58 w59 w60 w61 w62 w63 w64 w65 w66 w67 w68 w69 w70 w71 w72 w73 w74 w75 w76 w77 w78 w79 w80 w81 w82 w83 w84 w85 w86 w87 w88 w89 w90 w91 w92 w93 w94 w95 w96 w97 w98 <span class=\"pii-word-added\">CHANGED</span> </div>"
+  },
+  {
+    "original": " ",
+    "replacement": " ",
+    "leftHtml": "<div> </div>",
+    "rightHtml": "<div> </div>"
+  },
+  {
+    "original": "\n\n\r\n\n",
+    "replacement": "\n\n\r\n\n",
+    "leftHtml": "<div>\r</div>",
+    "rightHtml": "<div>\r</div>"
+  }
+]

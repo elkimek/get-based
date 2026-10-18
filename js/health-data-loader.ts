@@ -105,11 +105,11 @@ const nutrition = createLazyModule(
 );
 
 async function loadNutritionFeature() {
-  return (await nutrition.load()).loadNutritionFeature();
+  return (await nutrition.load()).loadNutritionWidgetFeature();
 }
 
 function isNutritionFeatureReady() {
-  return !!nutrition.get()?.isNutritionFeatureReady?.();
+  return !!nutrition.get()?.isNutritionWidgetFeatureReady?.();
 }
 
 function renderNutritionWidgetRuntime() {
@@ -553,3 +553,20 @@ configureContextCardsRuntimeCallbacks({
   triggerDNAFilePicker: (...args: Parameters<ContextCardsModule['triggerDNAFilePicker']>) => loadContextCardsModule()
     .then(module => module.triggerDNAFilePicker(...args)),
 });
+
+// Genuine page composition reads typed snapshots from the same cached modules.
+export function projectNutritionWidget() {
+  return nutrition.get()?.projectNutritionWidget?.() || null;
+}
+export function projectFuelWidget() {
+  return nutrition.get()?.projectFuelWidget?.() || null;
+}
+export function projectSupplementsSection(...args: Parameters<SupplementsModule['projectSupplementsSection']>) {
+  return supplements.get()?.projectSupplementsSection?.(...args) || null;
+}
+export function projectMenstrualCycleSection(...args: Parameters<CycleModule['projectMenstrualCycleSection']>) {
+  return cycle.get()?.projectMenstrualCycleSection?.(...args) || null;
+}
+export function projectProfileContextCards(...args: Parameters<ContextCardsModule['projectProfileContextCards']>) {
+  return contextCards.get()?.projectProfileContextCards?.(...args) || null;
+}

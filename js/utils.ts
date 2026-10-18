@@ -1,3 +1,4 @@
+import {tsStateStyles} from './ts-state-ui-inline-style-map.generated.js';
 export interface DetachedModalSyncRefreshOptions {
   overlay?: HTMLElement; id?: string; opener?: (id?: string) => void; exists?: (id?: string) => boolean;
   bodySelector?: string; restoreSelector?: string;
@@ -17,6 +18,7 @@ export interface MarkerTrend { arrow: string; cls: string; label: string; }
 
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { renderUtilsConfirm, renderUtilsPrompt } from './utils-dialog-rendering.js';
+import { renderAnalyticsConsentBody } from './analytics-consent-rendering.js';
 import {
   addUtilsRuntimeListener,
   getUtilsElementStyleRuntime,
@@ -429,16 +431,7 @@ export function maybeShowAnalyticsConsent() {
   banner.className = 'analytics-consent-banner';
   banner.setAttribute('role', 'region');
   banner.setAttribute('aria-label', 'Analytics consent');
-  banner.innerHTML = `
-    <div class="analytics-consent-body">
-      <span aria-hidden="true">📊</span>
-      <span class="analytics-consent-copy analytics-consent-copy-long">Cookieless usage stats are <strong>on</strong> to help improve getbased. Health records, chat content, uploaded files, and provider credentials are not included.</span>
-      <span class="analytics-consent-copy analytics-consent-copy-short">Cookieless usage stats are <strong>on</strong>. No health data.</span>
-    </div>
-    <div class="analytics-consent-actions">
-      <button type="button" class="analytics-consent-btn analytics-consent-btn-primary" ${ANALYTICS_CONSENT_ACTION_ATTR}="dismiss">Got it</button>
-      <button type="button" class="analytics-consent-btn" ${ANALYTICS_CONSENT_ACTION_ATTR}="disable">Turn off</button>
-    </div>`;
+  banner.innerHTML = renderAnalyticsConsentBody();
   banner.addEventListener('click', handleAnalyticsConsentActionClick);
   document.body.appendChild(banner);
   document.body.classList.add('analytics-consent-visible');
@@ -474,7 +467,7 @@ export function showNotification(message: unknown, type?: string, duration?: num
   toast.appendChild(document.createTextNode(' ' + message));
   container.appendChild(toast);
   setTimeout(() => {
-    toast.style.opacity = "0"; toast.style.transform = "translateX(100%)"; toast.style.transition = "all 0.3s";
+    toast.style.opacity = tsStateStyles.fadeOpacity; toast.style.transform = tsStateStyles.toastTransform; toast.style.transition = tsStateStyles.toastTransition;
     setTimeout(() => toast.remove(), 300);
   }, duration || 3000);
 }
@@ -530,6 +523,8 @@ export function showConfirmDialog(message: string, options: ConfirmDialogOptions
         }
       }
     };
+    // Reused confirmation must follow a parent opened after its last use.
+    if (overlay !== document.body.lastElementChild) document.body.appendChild(overlay);
     openModalOverlay(overlay, { initialFocus: '#confirm-cancel', focusDelay: 0 });
     ok.onclick = () => close(true);
     cancel.onclick = () => close(false);

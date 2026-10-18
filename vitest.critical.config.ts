@@ -66,6 +66,8 @@ export default defineConfig({
       'tests/codex-app-server-client.test.js',
       'tests/acp-agent-client.test.js',
       'tests/service-worker-runtime.test.js',
+      'tests/service-worker-client-cache.test.js',
+      'tests/service-worker-retry-aliases.test.js',
       'tests/voice-player-failures.test.ts',
       'tests/voice-chat-runtime.test.js',
     ].map(file => sourcePath(file)),

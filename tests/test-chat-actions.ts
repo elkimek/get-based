@@ -410,8 +410,10 @@ const appUiShellModulesSrc = read('js/app-ui-shell-modules.js');
 const chatRenderSrc = read('js/chat-render.js');
 const chatSendSrc = read('js/chat-send.js').replace(/if \(!state\.currentThreadId\)\s+return;/g, 'if (!state.currentThreadId) return;');
 const labCtxSrc = read('js/lab-context.js');
+const labCtxAssemblySrc = read('js/lab-context-assembly.js');
 assert('lazy chat context summary owns the exact-context receipt',
   !labCtxSrc.includes('getContextSummary')
+    && !labCtxAssemblySrc.includes('getContextSummary')
     && !chatPromptContextSrc.includes('function getContextSummary')
     && chatContextSummarySrc.includes('function getContextSummary'),
   'found');
@@ -504,8 +506,11 @@ assert('chat-prompt-context.js exports tagged messages helper', chatPromptContex
 assert('chat sender retains the attestation rendering chain through the shared message projector',
   chatSendSrc.includes('completeChatLiveMessage(aiMsgEl, assistantMsg')
     && read('js/chat-live-message-component.ts').includes('component.complete(projectChatTranscriptMessage(message, -1))')
-    && read('js/chat-transcript-presentation.ts').includes("from './chat-attestation.js'")
-    && read('js/chat-transcript-presentation.ts').includes('message.e2ee ? e2eeLockFootnote(message.attestation)'), 'found');
+    && read('js/chat-transcript-presentation.ts').includes("import './chat-attestation.js'")
+    && read('js/chat-transcript-presentation.ts').includes('message.e2ee ? { badge: projectAttestationBadge(message.attestation) } : null')
+    && read('js/components/ChatMessage.svelte').includes('<ChatAttestationBadge view={view.usage.receipt.badge} footnote/>')
+    && !read('js/components/ChatMessage.svelte').includes('{@html view.usage.receipt}')
+    && read('js/components/ChatAttestationBadge.svelte').includes('view === undefined ? projectAttestationBadge(attestation) : view'), 'found');
 assert('chat-attestation.js exports E2EE lock footnote helper', chatAttestationSrc.includes('export function e2eeLockFootnote'), 'found');
 assert('chat.js imports personality helpers', chatSrc.includes("from './chat-personalities.js'"), 'found');
 assert('chat-personalities.js exports header model helper', chatPersonalitiesSrc.includes('updateChatHeaderModel, updateSummaryButton } from') && read('js/chat-header-presentation.ts').includes('export function updateChatHeaderModel'), 'found');
@@ -694,7 +699,9 @@ assert('chat-discussion.js typewriter callback degrades safely and forwards life
 assert('chat.js imports onboarding helpers', chatSrc.includes("from './chat-onboarding.js'"), 'found');
 assert('chat-onboarding.js owns onboarding handlers',
   chatOnboardingSrc.includes('export function startOnboardingLabImport') &&
-    chatOnboardingSrc.includes('export async function saveChatProfile') &&
+    chatOnboardingSrc.includes('export function saveChatProfile') &&
+    chatOnboardingSrc.includes('return profileOnboarding.saveProfile(advance, source)') &&
+    read('js/chat-profile-onboarding.ts').includes('controller.saveProfile(origin, origin.view.readDraft(), advance)') &&
     chatOnboardingSrc.includes('export function _renderProviderQuiz'),
   'found');
 assert('chat window bindings configure onboarding callbacks',

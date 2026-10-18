@@ -230,9 +230,11 @@ const panelRenderSrc = read('js/provider-panel-renderers.js');
 const providerModelControlsSrc = read('js/provider-model-controls.js');
 const customViewSrc = read('js/components/CustomSettings.svelte');
 const providerUiSrc = panelsSrc + panelRenderSrc + providerModelControlsSrc;
-assert('settings.js has data-provider="custom" button', settingsSrc.includes('data-provider="custom"'));
+const aiSettingsSrc = read('js/components/AiSettings.svelte');
+const providerChoicesSrc = read('js/ai-settings-presentation.js');
+assert('settings.js has data-provider="custom" button', /hydrateAiSettings\(extensionPolicy\.hideProviderSettings === true,\s*selectAiProviderFromSettings\)/.test(settingsSrc) && read('js/ai-settings-component.js').includes('AiSettings.svelte.native.js') && aiSettingsSrc.includes('data-provider={choice.id}') && providerChoicesSrc.includes("id: 'custom'"));
 assert('settings.js wires custom provider through delegated action',
-  /<button[^>]*data-provider="custom"[^>]*data-settings-action="switch-ai-provider"/.test(settingsSrc));
+  aiSettingsSrc.includes("data-settings-action={choice.id === 'cli' ? 'show-cli-agent-provider' : 'switch-ai-provider'}") && aiSettingsSrc.includes('actions.select(choice.id,event.currentTarget)'));
 assert('provider code imports getCustomApiUrl', providerUiSrc.includes('getCustomApiUrl'));
 assert('provider-panels uses durable connection publication', panelsSrc.includes('saveCustomApiConnection') && apiProviderStorageSrc.includes('function saveCustomApiConnection('));
 assert('provider code imports getCustomApiKey', providerUiSrc.includes('getCustomApiKey'));
@@ -257,7 +259,7 @@ assert('window exports handleRemoveCustomApi', panelsSrc.includes('handleRemoveC
 assert('window exports renderCustomApiModelDropdown', panelsSrc.includes('renderCustomApiModelDropdown,'));
 assert('window exports applyCustomApiManualModel', panelsSrc.includes('applyCustomApiManualModel,'));
 const customPanelIdx = panelRenderSrc.indexOf('function renderCustomProviderPanel');
-const localPanelIdx = panelRenderSrc.indexOf('// Local AI panel');
+const localPanelIdx = panelRenderSrc.indexOf('function renderLocalAIProviderPanel');
 assert('Custom API panel before Local AI panel', customPanelIdx >= 0 && localPanelIdx >= 0 && customPanelIdx < localPanelIdx, `custom@${customPanelIdx}, local@${localPanelIdx}`);
 
 // Sections 13, 14 (Settings modal DOM) live in

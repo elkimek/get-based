@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "reference": {
+    "buildId": "2ce34ac3a293aca6c224df2f35dd193740d6c4cfafe619d93bc553c86feb90d1",
+    "measuredAt": "2026-10-17",
+    "samplesPerScenario": 3,
+    "description": "Desktop and emulated mobile, empty-profile Settings and combined-data Body, fresh contexts, HTTP cache and service workers disabled, local Brotli, 4x CPU and 100ms latency, paused OpenRouter without credentials, public revision fixture from the artifact."
+  },
+  "maximums": {
+    "startup": {
+      "requests": 220,
+      "transferBytes": 1310720,
+      "encodedBodyBytes": 1179648,
+      "decodedBodyBytes": 4718592
+    },
+    "firstUse": {
+      "settings": {
+        "requests": 64,
+        "transferBytes": 409600,
+        "encodedBodyBytes": 368640,
+        "decodedBodyBytes": 1572864
+      },
+      "body": {
+        "requests": 10,
+        "transferBytes": 65536,
+        "encodedBodyBytes": 57344,
+        "decodedBodyBytes": 294912
+      }
+    }
+  }
+}

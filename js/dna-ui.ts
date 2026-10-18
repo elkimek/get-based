@@ -15,9 +15,10 @@ type PreviewFinding = StoredSnpCall & { rsid: string; presentation: ReturnType<t
 // dna-ui.js — Genetics dashboard rendering and autosomal DNA modal owner.
 
 import { state } from './state.js';
-import { escapeAttr, escapeHTML } from './utils.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
-import { dnaActionAttrs } from './dna-actions.js';
+import { renderGeneticsSectionView, captureGeneticsText, captureGeneticsAction, type GeneticsRowView, type GeneticsGroupView, type GeneticsMtdnaView, type GeneticsSectionView } from './genetics-section-presentation.js';
+import { renderDnaImportPreview } from './dna-preview-presentation.js';
+import { renderManualSnpDialog } from './dna-manual-presentation.js';
 import {
   clearPendingDnaImport, ensureDnaModalOverlay,
   loadGeneticsStylesheetForAction,
@@ -61,19 +62,10 @@ export function renderGeneticsSection() {
   const hasSnps = genetics && genetics.snps && Object.keys(genetics.snps!).length > 0;
   const hasMtdna = genetics && genetics.mtdna;
   if (!hasSnps && !hasMtdna) {
-    return `<div class="genetics-empty-stub" ${dnaActionAttrs('import-file')} role="button" tabindex="0" aria-label="Add DNA data">
-      <span class="genetics-empty-stub-icon" aria-hidden="true">&#129516;</span>
-      <span class="genetics-empty-stub-body">
-        <span class="genetics-empty-stub-title">Add your DNA data</span>
-        <span class="genetics-empty-stub-sub">Upload raw DNA, import a lab report PDF, or add one SNP manually. Files stay on this device.</span>
-        <span class="genetics-empty-actions">
-          <button type="button" class="genetics-action-link" ${dnaActionAttrs('import-file')}>Raw DNA file</button>
-          <button type="button" class="genetics-action-link" ${dnaActionAttrs('import-snp-report')}>Report PDF/text</button>
-          <button type="button" class="genetics-action-link" ${dnaActionAttrs('add-manual-snp')}>Add SNP manually</button>
-        </span>
-      </span>
-      <span class="genetics-empty-stub-arrow" aria-hidden="true">&rarr;</span>
-    </div>`;
+    return renderGeneticsSectionView({kind:'empty', actions:[
+      captureGeneticsAction('import-file'), captureGeneticsAction('import-file'),
+      captureGeneticsAction('import-snp-report'), captureGeneticsAction('add-manual-snp'),
+    ]});
   }
 
   const snpTable = dnaUiDeps.getSnpTable();
@@ -125,29 +117,27 @@ export function renderGeneticsSection() {
 
   const renderAssessment = (finding: SnpAnnotation & { evidenceProfile?: GeneticsFinding['evidenceProfile']; catalogEntry?: SnpCatalogEntry }) => {
     const profile = finding.evidenceProfile || resolveSnpEvidenceProfile(finding.catalogEntry, finding);
-    return `<span class="genetics-finding-axes">
-      <span class="genetics-axis genetics-axis-evidence genetics-axis-${escapeAttr(profile.evidenceLevel)}" title="${escapeAttr(profile.evidenceDescription)}">Evidence · ${escapeHTML(profile.evidenceShortLabel)}</span>
-      <span class="genetics-axis genetics-axis-relevance genetics-axis-${escapeAttr(profile.relevanceLevel)}" title="${escapeAttr(profile.relevanceDescription)}">Relevance · ${escapeHTML(profile.relevanceShortLabel)}</span>
-    </span>`;
+    return {
+      evidenceClass: `genetics-axis genetics-axis-evidence genetics-axis-${captureGeneticsText(profile.evidenceLevel)}`,
+      evidenceTitle: captureGeneticsText(profile.evidenceDescription), evidenceLabel: captureGeneticsText(profile.evidenceShortLabel),
+      relevanceClass: `genetics-axis genetics-axis-relevance genetics-axis-${captureGeneticsText(profile.relevanceLevel)}`,
+      relevanceTitle: captureGeneticsText(profile.relevanceDescription), relevanceLabel: captureGeneticsText(profile.relevanceShortLabel),
+    };
   };
   const catLabels = dnaUiDeps.getSnpCategoryLabels();
 
   const metaParts: string[] = [];
-  if (genetics.source) metaParts.push(escapeHTML(genetics.source));
+  if (genetics.source) metaParts.push(captureGeneticsText(genetics.source));
   if (hasSnps) metaParts.push(`${snpCount} SNPs`);
-  if (hasMtdna) metaParts.push(`mtDNA ${escapeHTML(genetics.mtdna!.haplogroup)}`);
+  if (hasMtdna) metaParts.push(`mtDNA ${captureGeneticsText(genetics.mtdna!.haplogroup)}`);
   if (totalFindings > 0) metaParts.push(`${totalFindings} findings`);
   const latestDate = [genetics.importDate, genetics.mtdna?.importDate].filter(Boolean).sort().pop();
   if (latestDate) metaParts.push(latestDate);
 
-  let html = `<div class="dashboard-section genetics-section" id="genetics-section">
-    <div class="section-header" role="button" tabindex="0" aria-label="Expand or collapse genetics section" ${dnaActionAttrs('toggle-genetics-collapse')} style="cursor:pointer">
-      <span>\uD83E\uDDEC Genetics</span>
-      <span class="section-meta">${metaParts.join(' \u00B7 ')}
-        <span class="genetics-collapse-arrow${collapsed ? ' collapsed' : ''}">\u25BE</span></span>
-    </div>`;
-
-  html += `<div class="genetics-body${collapsed ? ' hidden' : ''}">`;
+  const headerActions = captureGeneticsAction('toggle-genetics-collapse');
+  const meta = metaParts.join(' \u00B7 ');
+  const arrowClass = `genetics-collapse-arrow${collapsed ? ' collapsed' : ''}`;
+  const bodyClass = `genetics-body${collapsed ? ' hidden' : ''}`;
 
   const coverageFound = Number(genetics.coverage?.found);
   const coverageTotal = Number(genetics.coverage?.total);
@@ -176,145 +166,114 @@ export function renderGeneticsSection() {
     } : null,
   ].filter(card => card !== null);
 
-  html += '<div class="genetics-overview-grid">';
-  overviewCards.forEach(card => {
-    html += `<div class="genetics-overview-card">
-      <span class="genetics-overview-label">${escapeHTML(card.label)}</span>
-      <strong>${escapeHTML(card.value)}</strong>
-      <small>${escapeHTML(card.sub)}</small>
-    </div>`;
-  });
-  html += '</div>';
+  const cards = overviewCards.map(card => ({
+    label: captureGeneticsText(card.label), value: captureGeneticsText(card.value), sub: captureGeneticsText(card.sub),
+  }));
+  let mtdna: GeneticsMtdnaView | null = null;
 
   if (hasMtdna) {
     const mt = genetics.mtdna!;
     const mismatch = detectMtDNAMismatch(genetics);
-    html += `<div class="genetics-mtdna">
-      <div class="genetics-mtdna-hg"><span class="genetics-mtdna-label">mtDNA Haplogroup:</span> <strong>${escapeHTML(mt.haplogroup)}</strong></div>`;
-    if (mt.coupling) {
-      html += `<div class="genetics-mtdna-coupling">${escapeHTML(mt.coupling.label)} \u2014 ${escapeHTML(mt.coupling.climate)}</div>`;
-    }
-    const mtFacts = [
-      mt.origin ? `<span><small>Origin</small><strong>${escapeHTML(mt.origin)}</strong></span>` : '',
-      mt.source ? `<span><small>Source</small><strong>${escapeHTML(mt.source)}</strong></span>` : '',
+    const haplogroup = captureGeneticsText(mt.haplogroup);
+    let coupling: GeneticsMtdnaView['coupling'] = null;
+    if (mt.coupling) coupling = {label: captureGeneticsText(mt.coupling.label), climate: captureGeneticsText(mt.coupling.climate)};
+    const facts = [
+      mt.origin ? {label:'Origin',value:captureGeneticsText(mt.origin)} : null,
+      mt.source ? {label:'Source',value:captureGeneticsText(mt.source)} : null,
       Number.isFinite(Number(mt.matchedMutations)) && Number.isFinite(Number(mt.totalDiagnostic))
-        ? `<span><small>Marker match</small><strong>${Number(mt.matchedMutations)} / ${Number(mt.totalDiagnostic)}</strong></span>`
-        : '',
-    ].filter(Boolean);
-    if (mtFacts.length) html += `<div class="genetics-mtdna-facts">${mtFacts.join('')}</div>`;
-    if (mt.details) html += `<div class="genetics-mtdna-detail">${escapeHTML(mt.details)}</div>`;
-    if (mt.coupling?.description) html += `<div class="genetics-mtdna-detail">${escapeHTML(mt.coupling.description)}</div>`;
-    if (mt.coupling?.implications) html += `<div class="genetics-mtdna-detail">${escapeHTML(mt.coupling.implications)}</div>`;
-    if (mismatch && mismatch.mismatch) {
-      html += `<div class="genetics-mtdna-mismatch mismatch-${mismatch.severity}">${escapeHTML(mismatch.message)}</div>`;
-    } else if (mismatch && !mismatch.mismatch) {
-      html += `<div class="genetics-mtdna-match">${escapeHTML(mismatch.message)}</div>`;
-    }
-    html += `<div class="genetics-mtdna-refs">Wallace 2015 (<a href="https://pubmed.ncbi.nlm.nih.gov/26406369/" target="_blank" rel="noopener">PMID: 26406369</a>)
-      \u00B7 <a href="${escapeAttr(mtdnaEvidenceIssueUrl())}" target="_blank" rel="noopener">suggest study or correction</a>
-      \u00B7 <button type="button" ${dnaActionAttrs('delete-mtdna')}>remove</button></div>`;
-    html += `</div>`;
+        ? {label:'Marker match',value:`${Number(mt.matchedMutations)} / ${Number(mt.totalDiagnostic)}`} : null,
+    ].filter(fact => fact !== null);
+    const details: string[] = [];
+    if (mt.details) details.push(captureGeneticsText(mt.details));
+    if (mt.coupling?.description) details.push(captureGeneticsText(mt.coupling.description));
+    if (mt.coupling?.implications) details.push(captureGeneticsText(mt.coupling.implications));
+    let match: GeneticsMtdnaView['match'] = null;
+    if (mismatch && mismatch.mismatch) match = {classes:`genetics-mtdna-mismatch mismatch-${mismatch.severity}`,message:captureGeneticsText(mismatch.message)};
+    else if (mismatch && !mismatch.mismatch) match = {classes:'genetics-mtdna-match',message:captureGeneticsText(mismatch.message)};
+    const evidenceHref = captureGeneticsText(mtdnaEvidenceIssueUrl());
+    const removeActions = captureGeneticsAction('delete-mtdna');
+    mtdna = {haplogroup,coupling,facts,details,match,evidenceHref,removeActions};
   }
+  let apoeView: GeneticsSectionView['apoe'] = null;
 
   if (apoe) {
     const apoeProfile = resolveSnpEvidenceProfile(snpTable?.rs429358 || snpTable?.rs7412 || {});
-    html += `<div class="genetics-apoe">APOE: <strong>${escapeHTML(apoe)}</strong>${renderAssessment({ evidenceProfile: apoeProfile })}</div>`;
+    apoeView = {value:captureGeneticsText(apoe),axes:renderAssessment({ evidenceProfile: apoeProfile })};
   }
 
+  const groups: GeneticsGroupView[] = [];
+  let more: GeneticsSectionView['more'] = null;
   if (totalFindings > 0) {
     let shown = 0;
     const INITIAL_LIMIT = 8;
-    html += `<div class="genetics-findings">`;
-    html += `<div class="genetics-legend" title="Direction is separate from evidence strength and personal relevance" aria-label="Genetics interpretation legend">
-      <span class="genetics-legend-item genetics-legend-risk"><span class="genetics-legend-dot">🔴</span> risk association</span>
-      <span class="genetics-legend-item genetics-legend-protective"><span class="genetics-legend-dot">🟢</span> protective association</span>
-      <span class="genetics-legend-item genetics-legend-trait"><span class="genetics-legend-dot">🔵</span> trait</span>
-      <span class="genetics-legend-item genetics-legend-informational"><span class="genetics-legend-dot">⚪</span> neutral</span>
-      <span class="genetics-legend-help">Direction, evidence strength, and personal relevance are separate. Strong evidence is not the same as a diagnosis or a proven intervention.</span>
-    </div>`;
     for (const [cat, findings] of catOrder) {
       findings.sort((a, b) => a.rank - b.rank);
       const catLabel = catLabels[cat] || cat;
       const startHidden = shown >= INITIAL_LIMIT;
-      html += `<div class="genetics-cat-group${startHidden ? ' genetics-extra' : ''}">`;
-      html += `<div class="genetics-cat-label">${escapeHTML(catLabel)}</div>`;
+      const group = {classes:`genetics-cat-group${startHidden ? ' genetics-extra' : ''}`,label:captureGeneticsText(catLabel),rows:[] as GeneticsRowView[]};
       for (const finding of findings) {
         const isExtra = shown >= INITIAL_LIMIT;
         const impact = finding.presentation;
         const primaryRef = (finding.references || []).find(ref => /^https?:\/\//i.test(String(ref || '')));
-        const refLink = primaryRef
-          ? ` <a href="${escapeAttr(primaryRef)}" target="_blank" rel="noopener" class="detail-genetics-ref" title="Primary study (PubMed)">primary study</a>`
-          : '';
+        const primaryHref = primaryRef ? captureGeneticsText(primaryRef) : null;
         const snpediaId = `${finding.rsid.charAt(0).toUpperCase()}${finding.rsid.slice(1)}`;
-        const snpediaLink = ` <a href="https://www.snpedia.com/index.php/${escapeAttr(encodeURIComponent(snpediaId))}" target="_blank" rel="noopener" class="detail-genetics-ref" title="All studies (SNPedia)">more studies</a>`;
-        const correctionLink = ` <a href="${escapeAttr(snpEvidenceIssueUrl(finding.rsid, finding.catalogEntry))}" target="_blank" rel="noopener" class="detail-genetics-ref" title="Suggest a public catalog correction without sharing your genotype">suggest correction</a>`;
-        const askAiLink = ` <button type="button" class="detail-genetics-ref genetics-ai-link" ${dnaActionAttrs('ask-ai-snp', { rsid: finding.rsid })}>Ask AI</button>`;
+        const snpediaHref = 'https://www.snpedia.com/index.php/' + captureGeneticsText(encodeURIComponent(snpediaId));
+        const correctionHref = captureGeneticsText(snpEvidenceIssueUrl(finding.rsid, finding.catalogEntry));
+        const askActions = captureGeneticsAction('ask-ai-snp', { rsid: finding.rsid });
         const rowClasses = ['genetics-finding-row', `genetics-finding-${impact.tone}`];
         if (isExtra && !startHidden) rowClasses.push('genetics-extra');
-        html += `<div class="${rowClasses.join(' ')}">
-          <span class="genetics-finding-dot">${impact.icon}</span>
-          <span class="genetics-finding-main">
-            <span class="genetics-finding-gene">${escapeHTML(finding.gene || finding.rsid)} ${escapeHTML(finding.variant || '')}</span>
-            <span class="genetics-finding-rsid">${escapeHTML(finding.rsid)} · ${escapeHTML(catLabel)}</span>
-          </span>
-          <span class="genetics-finding-impact genetics-impact-${impact.tone}">${escapeHTML(impact.shortLabel)}</span>
-          <span class="genetics-finding-genotype">${escapeHTML(finding.genotype)}</span>
-          ${renderAssessment(finding)}
-          <span class="genetics-finding-note">${escapeHTML(finding.note || 'Observed in your imported genotype.')}${refLink}${snpediaLink}${askAiLink}${correctionLink}</span>
-        </div>`;
+        group.rows.push({
+          classes:rowClasses.join(' '), dot:`${impact.icon}`,
+          gene:captureGeneticsText(finding.gene || finding.rsid) + ' ' + captureGeneticsText(finding.variant || ''),
+          rsid:captureGeneticsText(finding.rsid) + ' · ' + captureGeneticsText(catLabel),
+          impactClass:`genetics-finding-impact genetics-impact-${impact.tone}`, impact:captureGeneticsText(impact.shortLabel),
+          genotype:captureGeneticsText(finding.genotype), axes:renderAssessment(finding),
+          note:captureGeneticsText(finding.note || 'Observed in your imported genotype.'),
+          links:{primaryHref,snpediaHref,askActions,correctionHref},
+        });
         shown++;
       }
-      html += `</div>`;
+      groups.push(group);
     }
     if (totalFindings > INITIAL_LIMIT) {
-      html += `<button class="genetics-show-all" ${dnaActionAttrs('toggle-genetics-expand')}>${totalFindings - INITIAL_LIMIT} more findings</button>`;
+      more = {actions:captureGeneticsAction('toggle-genetics-expand'),count:`${totalFindings - INITIAL_LIMIT}`};
     }
-    html += `</div>`;
   }
 
+  const otherGroups: GeneticsGroupView[] = [];
+  let otherCount = '';
   if (otherFindings > 0) {
-    html += `<details class="genetics-other-snps">
-      <summary>Other imported SNPs (${otherFindings})</summary>
-      <div class="genetics-other-snps-list">`;
+    // Preserve original count interpolation before secondary row reads.
+    const secondaryCount = `${otherFindings}`;
     for (const [cat, findings] of otherCatOrder) {
       findings.sort((a, b) => a.rank - b.rank);
       const catLabel = catLabels[cat] || cat;
-      html += `<div class="genetics-cat-group genetics-cat-group-secondary">
-        <div class="genetics-cat-label">${escapeHTML(catLabel)}</div>`;
+      const group = {classes:'genetics-cat-group genetics-cat-group-secondary',label:captureGeneticsText(catLabel),rows:[] as GeneticsRowView[]};
       for (const finding of findings) {
         const impact = finding.presentation;
-        html += `<div class="genetics-finding-row genetics-finding-${impact.tone}">
-          <span class="genetics-finding-dot">${impact.icon}</span>
-          <span class="genetics-finding-main">
-            <span class="genetics-finding-gene">${escapeHTML(finding.gene || finding.rsid)} ${escapeHTML(finding.variant || '')}</span>
-            <span class="genetics-finding-rsid">${escapeHTML(finding.rsid)} · ${escapeHTML(catLabel)}</span>
-          </span>
-          <span class="genetics-finding-impact genetics-impact-${impact.tone}">${escapeHTML(impact.shortLabel)}</span>
-          <span class="genetics-finding-genotype">${escapeHTML(finding.genotype)}</span>
-          ${renderAssessment(finding)}
-          <span class="genetics-finding-note">${escapeHTML(finding.note || 'Observed in your imported genotype.')}</span>
-        </div>`;
+        group.rows.push({
+          classes:`genetics-finding-row genetics-finding-${impact.tone}`, dot:`${impact.icon}`,
+          gene:captureGeneticsText(finding.gene || finding.rsid) + ' ' + captureGeneticsText(finding.variant || ''),
+          rsid:captureGeneticsText(finding.rsid) + ' · ' + captureGeneticsText(catLabel),
+          impactClass:`genetics-finding-impact genetics-impact-${impact.tone}`, impact:captureGeneticsText(impact.shortLabel),
+          genotype:captureGeneticsText(finding.genotype), axes:renderAssessment(finding),
+          note:captureGeneticsText(finding.note || 'Observed in your imported genotype.'),links:null,
+        });
       }
-      html += `</div>`;
+      otherGroups.push(group);
     }
-    html += `</div></details>`;
+    otherCount = secondaryCount;
   }
 
   const staleHint = dnaUiDeps.geneticsStalenessHint?.(genetics);
-  if (staleHint) {
-    html += `<div class="genetics-stale-hint">${escapeHTML(staleHint)}</div>`;
-  }
-
-  html += `<div class="genetics-actions">
-    <button type="button" class="genetics-action-link" ${dnaActionAttrs('add-manual-snp')}>Add SNP</button>
-    <button type="button" class="genetics-action-link" ${dnaActionAttrs('import-snp-report')}>Import report</button>
-    <button type="button" class="genetics-action-link" ${dnaActionAttrs('reimport-dna')}>Re-import raw DNA</button>
-    <button type="button" class="genetics-action-link genetics-action-delete" ${dnaActionAttrs('delete-dna')}>Delete</button>
-    <a class="genetics-action-link" href="${escapeAttr(newSnpSuggestionIssueUrl())}" target="_blank" rel="noopener">Suggest a catalog SNP</a>
-  </div>`;
-  html += `</div></div>`;
-
-  return html;
+  const stale = staleHint ? captureGeneticsText(staleHint) : null;
+  const actions: GeneticsSectionView['actions'] = [
+    captureGeneticsAction('add-manual-snp'), captureGeneticsAction('import-snp-report'),
+    captureGeneticsAction('reimport-dna'), captureGeneticsAction('delete-dna'),
+  ];
+  const issueHref = captureGeneticsText(newSnpSuggestionIssueUrl());
+  return renderGeneticsSectionView({kind:'populated',headerActions,meta,arrowClass,bodyClass,
+    cards,mtdna,apoe:apoeView,groups,more,otherGroups,otherCount,stale,actions,issueHref});
 }
 
 export function toggleGeneticsCollapse() {
@@ -397,31 +356,9 @@ export async function openManualSnpModal() {
   if (!await loadGeneticsStylesheetForAction()) return false;
   await dnaUiDeps.loadSnpTable?.();
   clearPendingDnaImport();
-  const html = `<div class="dna-preview-header dna-manual-header">
-      <div>
-        <div class="dna-preview-title">Add SNPs manually</div>
-        <div class="dna-preview-stats">Paste one SNP or a whole small report table. Same path, no duplicate modes.</div>
-      </div>
-    </div>
-    <div class="dna-preview-body dna-manual-snp-body">
-      <div class="dna-manual-card dna-manual-card-bulk">
-        <div class="dna-manual-section-head">
-          <span>SNP calls</span>
-          <small>One per line: rsID + genotype. Notes after that are optional.</small>
-        </div>
-        <textarea id="manual-snp-bulk" class="dna-manual-textarea" rows="7" spellcheck="false" placeholder="rs1801133 CC&#10;rs8175347 6/7&#10;rs429358 TT APOE report"></textarea>
-      </div>
-      <label class="dna-manual-field dna-manual-source">Source label
-        <input id="manual-snp-source" class="dna-manual-input" type="text" placeholder="Manual entry / lab report name" autocomplete="off">
-      </label>
-      <p class="dna-manual-help">Use a single line for one SNP, or paste a dozen lines. getbased validates each rsID, normalizes strand-aware genotypes, and merges accepted rows into existing genome data.</p>
-    </div>
-    <div class="dna-preview-actions">
-      <button type="button" class="import-btn import-btn-secondary" ${dnaActionAttrs('close-preview')}>Cancel</button>
-      <button type="button" class="import-btn import-btn-primary" ${dnaActionAttrs('save-manual-snp')}>Save SNPs</button>
-    </div>`;
+  const html = renderManualSnpDialog();
   const overlay = ensureDnaModalOverlay();
-  overlay.innerHTML = `<div class="modal dna-preview-modal dna-manual-modal" role="dialog" aria-label="Add SNPs manually">${html}</div>`;
+  overlay.innerHTML = html;
   openDnaModalOverlay(overlay, '#manual-snp-bulk');
   return true;
 }
@@ -456,66 +393,17 @@ export function showDNAImportPreview(result: PendingDnaImport) {
     else none.push(item);
   }
 
-  const renderPreviewAssessment = (match: PreviewFinding) => {
-    const profile = match.evidenceProfile;
-    return `<div class="dna-preview-assessment">
-      <span class="genetics-axis genetics-axis-evidence genetics-axis-${escapeAttr(profile.evidenceLevel)}">Evidence · ${escapeHTML(profile.evidenceShortLabel)}</span>
-      <span class="genetics-axis genetics-axis-relevance genetics-axis-${escapeAttr(profile.relevanceLevel)}">Relevance · ${escapeHTML(profile.relevanceShortLabel)}</span>
-    </div>`;
-  };
-
-  function renderGroup(items: PreviewFinding[], label: string) {
-    if (items.length === 0) return '';
-    return `<div class="dna-preview-group">
-      <div class="dna-preview-group-title">${label} (${items.length})</div>
-      ${items.map(match => `<div class="dna-preview-row">
-        <span class="dna-preview-icon">${match.presentation.icon}</span>
-        <span class="dna-preview-gene">${escapeHTML(match.gene)} <span class="dna-preview-variant">${escapeHTML(match.variant)}</span> <span class="dna-preview-category">${escapeHTML(dnaUiDeps.getSnpCategoryLabel(match.category))}</span></span>
-        <span class="dna-preview-genotype">${escapeHTML(match.genotype)}</span>
-      </div>
-      ${renderPreviewAssessment(match)}
-      <div class="dna-preview-note">${escapeHTML(match.note)}</div>`).join('')}
-    </div>`;
-  }
-
-  function renderCollapsedGroup(items: PreviewFinding[], label: string) {
-    if (items.length === 0) return '';
-    return `<div class="dna-preview-group">
-      <div class="dna-preview-group-title dna-preview-collapsible" role="button" tabindex="0" ${dnaActionAttrs('toggle-preview-group')}>
-        ${label} (${items.length}) <span class="dna-preview-expand-hint">show</span>
-      </div>
-      <div class="dna-preview-collapsed-items">
-        ${items.map(match => `<div class="dna-preview-row">
-          <span class="dna-preview-icon">${match.presentation.icon}</span>
-          <span class="dna-preview-gene">${escapeHTML(match.gene)} <span class="dna-preview-variant">${escapeHTML(match.variant)}</span> <span class="dna-preview-category">${escapeHTML(dnaUiDeps.getSnpCategoryLabel(match.category))}</span></span>
-          <span class="dna-preview-genotype">${escapeHTML(match.genotype)}</span>
-        </div>`).join('')}
-      </div>
-    </div>`;
-  }
-
-  const html = `
-    <div class="dna-preview-header">
-      <div class="dna-preview-title">DNA Import \u2014 ${escapeHTML(result.source)}</div>
-      <div class="dna-preview-stats">${escapeHTML(previewStats)}</div>
-      ${apoe ? `<div class="dna-preview-apoe">APOE Haplotype: <strong>${escapeHTML(apoe)}</strong></div>` : ''}
-    </div>
-    <div class="dna-preview-body">
-      ${renderGroup(risk, '\uD83D\uDD34 Risk associations')}
-      ${renderGroup(protective, '\uD83D\uDFE2 Protective associations')}
-      ${renderGroup(informational, '\uD83D\uDD35 Informational traits')}
-      ${renderCollapsedGroup(none, '\u26AA Reference, neutral, or ungraded calls')}
-    </div>
-    <div class="dna-preview-disclaimer">
-      Processed locally \u2014 your DNA file was never transmitted. Evidence strength and personal relevance are separate; neither label is a diagnosis.
-    </div>
-    <div class="dna-preview-actions">
-      <button class="import-btn import-btn-secondary" ${dnaActionAttrs('close-preview')}>Cancel</button>
-      <button class="import-btn import-btn-primary" ${dnaActionAttrs('confirm-import')}>Import ${result.coverage.found} SNPs</button>
-    </div>`;
+  const html = renderDnaImportPreview({
+    source: () => result.source,
+    stats: previewStats,
+    apoe,
+    groups: [risk, protective, informational, none],
+    categoryLabel: category => dnaUiDeps.getSnpCategoryLabel(category),
+    importCount: () => result.coverage.found,
+  });
 
   const overlay = ensureDnaModalOverlay();
-  overlay.innerHTML = `<div class="modal dna-preview-modal" role="dialog">${html}</div>`;
+  overlay.innerHTML = html;
   openDnaModalOverlay(overlay, '.import-btn-primary');
 }
 

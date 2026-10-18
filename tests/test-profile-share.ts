@@ -2,6 +2,8 @@
 // test-profile-share.js — encrypted single-profile share links
 
 import './_node-shim.js';
+import { readAuthoredRepositorySource } from './helpers/repository-source.js';
+import { parse } from 'svelte/compiler';
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -20,9 +22,15 @@ console.log('=== Profile Share Tests ===\n');
 
 const mod = await import('../js/profile-share.js');
 const profileShareSrc = read('js/profile-share.js').replace(/\n}\n(?=function clampExpiryDays\()/g, '\n}\n\n');
+const sharingComponents = ['ProfileShareActive', 'ProfileShareCreate', 'ProfileShareResult', 'ProfileShareLoad', 'ProfileShareShell'];
+const shareViews = sharingComponents.map(name => read(`js/components/${name}.svelte`));
+const shareViewSrc = shareViews.join('\n');
+const shareRenderingSrc = readAuthoredRepositorySource('js/profile-share-presentation.js');
 const exportSrc = read('js/export.js');
 const settingsSrc = read('js/settings.js').replace(/openProfileShareModal: \(\) => \{\s*\}/g, 'openProfileShareModal: () => {}');
 const settingsDataSrc = read('js/settings-data.js');
+const settingsRecordsSrc = readAuthoredRepositorySource('js/settings-records-component.js');
+const dataEntriesViewSrc = read('js/components/DataEntriesSettings.svelte');
 const profileShareLoaderSrc = read('js/profile-share-loader.js');
 const appFeatureSrc = read('js/app-feature-modules.js');
 const appShellHooksSrc = read('js/app-shell-hooks.js');
@@ -107,7 +115,10 @@ assert('Profile share module loads lazily with a cached retry path',
   !appShellHooksSrc.includes("from './profile-share.js'") &&
   appShellHooksSrc.includes("from './profile-share-loader.js'"));
 assert('Settings Data tab exposes Share Profile action',
-  settingsDataSrc.includes("data-settings-action=\"share-profile\"") &&
+  settingsDataSrc.includes('queueMicrotask(refreshDataEntriesView)') &&
+  settingsRecordsSrc.includes("from './components/DataEntriesSettings.svelte.native.js'") &&
+  settingsRecordsSrc.includes('mount(DataEntriesSettings, { target: host, props: { initial: snapshot } })') &&
+  dataEntriesViewSrc.includes('data-settings-action="share-profile">Share Profile</button>') &&
   settingsSrc.includes('settingsRuntime.openProfileShareModal()') &&
   settingsSrc.includes('openProfileShareModal: () => {}') &&
   appShellHooksSrc.includes('configureSettingsRuntime') &&
@@ -121,19 +132,72 @@ assert('Share modal has dedicated shared-modal styling',
   modalCss.includes('.profile-share-active') &&
   modalCss.includes('.profile-share-status[data-status="error"]'));
 assert('Share modal requires explicit encrypted upload consent',
-  profileShareSrc.includes('id="profile-share-consent" type="checkbox" required') &&
-  profileShareSrc.includes('The link finds a locked copy of the profile') &&
-  profileShareSrc.includes('The password is the only way to unlock it') &&
-  profileShareSrc.includes('temporary share copies are not backed up') &&
-  profileShareSrc.includes('Anyone with both the link and password can open it'));
+  shareViewSrc.includes('id="profile-share-consent" type="checkbox" required') &&
+  shareViewSrc.includes('The link finds a locked copy of the profile') &&
+  shareViewSrc.includes('The password is the only way to unlock it') &&
+  shareViewSrc.includes('temporary share copies are not backed up') &&
+  shareViewSrc.includes('Anyone with both the link and password can open it'));
 assert('Share modal lists and can stop links created on this device',
   profileShareSrc.includes('const SHARE_RECORDS_KEY') &&
   profileShareSrc.includes('function renderActiveShareList') &&
-  profileShareSrc.includes('Created on this device') &&
-  profileShareSrc.includes('data-profile-share-action="delete-link"') &&
+  shareViewSrc.includes('Created on this device') &&
+  shareViewSrc.includes('data-profile-share-action="delete-link"') &&
   profileShareSrc.includes('async function deleteProfileShareEnvelope') &&
   profileShareSrc.includes('manageToken') &&
   profileShareSrc.includes("method: 'DELETE'"));
+function authoredEventAttributes(value: unknown): string[] {
+  if (!value || typeof value !== 'object') return [];
+  if (Array.isArray(value)) return value.flatMap(authoredEventAttributes);
+  const node = value as Record<string, unknown>;
+  const own = ((node.type === 'Attribute' && typeof node.name === 'string' && /^on/i.test(node.name))
+    || node.type === 'EventHandler' || node.type === 'OnDirective') ? [String(node.name)] : [];
+  return own.concat(Object.values(node).flatMap(authoredEventAttributes));
+}
+assert('Sharing authored components contain no event-handler attributes',
+  shareViews.length === 5
+    && [...shareViews, read('js/components/ProfileShareBody.svelte')]
+      .every(source => authoredEventAttributes(parse(source, {modern: true})).length === 0));
+assert('Sharing event-attribute guard rejects handlers added to the typed body owner',
+  ['onclick={() => {}}', 'on:click={() => {}}'].every(attribute =>
+    authoredEventAttributes(parse(read('js/components/ProfileShareBody.svelte')
+      + `<button ${attribute}>Synthetic corruption</button>`, {modern: true})).length === 1));
+function ownedHtmlExpressions(value: unknown): string[] {
+  if (!value || typeof value !== 'object') return [];
+  if (Array.isArray(value)) return value.flatMap(ownedHtmlExpressions);
+  const node = value as Record<string, unknown>;
+  const own: string[] = [];
+  if (node.type === 'HtmlTag') {
+    const expression = node.expression as Record<string, unknown> | undefined;
+    const object = expression?.object as Record<string, unknown> | undefined;
+    const property = expression?.property as Record<string, unknown> | undefined;
+    own.push(expression?.type === 'MemberExpression' && expression.computed === false
+      && object?.type === 'Identifier' && object.name === 'view'
+      && property?.type === 'Identifier' && typeof property.name === 'string'
+      ? `view.${property.name}` : 'UNAUTHORIZED_HTML_EXPRESSION');
+  }
+  return own.concat(Object.values(node).flatMap(ownedHtmlExpressions));
+}
+const rawSlotOwners: Record<string, string[]> = {
+  ProfileShareActive: [], ProfileShareCreate: [], ProfileShareResult: [],
+  ProfileShareLoad: [], ProfileShareShell: [], ProfileShareBody: [],
+};
+const rawSlotsMatch = (name: string, source: string) =>
+  JSON.stringify(ownedHtmlExpressions(parse(source, {modern: true}))) === JSON.stringify(rawSlotOwners[name]);
+assert('Sharing raw slots accept only locally rendered branded fragments',
+  shareRenderingSrc.includes('export type ShareBodyView =')
+  && shareRenderingSrc.includes('readonly body: ShareBodyView')
+  && !shareRenderingSrc.includes('ProfileShareHTML')
+  && sharingComponents.length === 5
+  && sharingComponents.every((name, index) => rawSlotsMatch(name, shareViews[index]!))
+  && rawSlotsMatch('ProfileShareBody', read('js/components/ProfileShareBody.svelte'))
+  && read('js/components/ProfileShareShell.svelte').includes('<ProfileShareBody body={view.body} />')
+  && ['active', 'create', 'result', 'load'].every(kind => shareRenderingSrc.includes(`kind: '${kind}'`)));
+assert('Sharing raw-slot guard rejects an additional metadata HtmlTag',
+  !rawSlotsMatch('ProfileShareCreate', shareViews[1]! + '{@html view.password}'));
+assert('Sharing raw-slot guard rejects a duplicate allowed HtmlTag',
+  !rawSlotsMatch('ProfileShareCreate', shareViews[1]! + '{@html view.activeHtml}{@html view.activeHtml}'));
+assert('Sharing raw-slot guard rejects an unrelated raw expression',
+  !rawSlotsMatch('ProfileShareShell', shareViews[4]! + '{@html providerPayload}'));
 assert('Share profile has a top-level header action',
   read('index.html').includes('data-shell-action="share-profile"') &&
   read('js/shell-actions.js').includes("action === 'share-profile'") &&
@@ -147,13 +211,14 @@ assert('Mobile share path moves into client list menu',
   /@media \(max-width: 768px\), \(pointer: coarse\)[\s\S]*\.header-share-btn\s*\{[\s\S]*display:\s*none/.test(redesignCss));
 assert('Share modal can target a selected profile id',
   profileShareSrc.includes('openProfileShareModal(profileId = state.currentProfile)') &&
-  profileShareSrc.includes('data-profile-id="${escapeAttr(profileId || \'\')}"') &&
+  shareViewSrc.includes('data-profile-id="{view.profileId}"') &&
+  shareRenderingSrc.includes('profileId: text(profileId())') &&
   profileShareSrc.includes('createProfileShare({ profileId, password, expiresDays })'));
 assert('Share result uses icon copy buttons',
-  profileShareSrc.includes('const COPY_ICON') &&
-  profileShareSrc.includes('class="profile-share-icon-btn" data-profile-share-action="copy"') &&
-  profileShareSrc.includes('aria-label="Copy link"') &&
-  profileShareSrc.includes('aria-label="Copy password"'));
+  shareViewSrc.includes('<svg width="16" height="16"') &&
+  shareViewSrc.includes('class="profile-share-icon-btn" data-profile-share-action="copy"') &&
+  shareViewSrc.includes('aria-label="Copy link"') &&
+  shareViewSrc.includes('aria-label="Copy password"'));
 assert('Profile share helpers stay module-only',
   profileShareSrc.includes('export function openProfileShareModal') &&
   profileShareSrc.includes('export async function decryptProfileShareEnvelope') &&

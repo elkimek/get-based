@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { fetchWithRetry } from '../js/api-transport.js';
+import { fetchWithRetry, waitForAbort } from '../js/api-transport.js';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -99,5 +99,38 @@ it('gives the first read a longer stall window and reverts to the default afterw
     await vi.advanceTimersByTimeAsync(LOCAL_AI_FIRST_TOKEN_STALL_MS);
     await pendingRejection;
     expect(slowReader.cancel).toHaveBeenCalled();
+  });
+});
+
+
+describe('caller-owned SDK waits', () => {
+  it('settles on cancellation and observes a later SDK rejection', async () => {
+    const caller = new AbortController();
+    let fail!: (error: Error) => void;
+    const sdk = new Promise<string>((_resolve, reject) => { fail = reject; });
+    const reason = new DOMException('Closed report', 'AbortError');
+    const pending = waitForAbort(sdk, caller.signal);
+    caller.abort(reason);
+    await expect(pending).rejects.toBe(reason);
+    fail(new Error('Late SDK failure'));
+    await Promise.resolve();
+    await expect(pending).rejects.toBe(reason);
+  });
+  it('observes rejection even when the caller was already cancelled', async () => {
+    const caller = new AbortController();
+    caller.abort(new DOMException('Already closed', 'AbortError'));
+    await expect(waitForAbort(Promise.reject(new Error('SDK failure')), caller.signal)).rejects.toBe(caller.signal.reason);
+  });
+  it.each(['success', 'failure'])('removes its listener after SDK %s', async mode => {
+    const caller = new AbortController();
+    const remove = vi.spyOn(caller.signal, 'removeEventListener');
+    const error = new Error('SDK failure');
+    const pending = waitForAbort(mode === 'success' ? Promise.resolve('Complete') : Promise.reject(error), caller.signal);
+    if (mode === 'success') await expect(pending).resolves.toBe('Complete');
+    else await expect(pending).rejects.toBe(error);
+    expect(remove).toHaveBeenCalledWith('abort', expect.any(Function));
+    caller.abort();
+    if (mode === 'success') await expect(pending).resolves.toBe('Complete');
+    else await expect(pending).rejects.toBe(error);
   });
 });

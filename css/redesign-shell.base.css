@@ -1,0 +1,444 @@
+@import "tailwindcss" prefix(gb) source(none) reference;
+
+@utility analytics-button-touch {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 8px 12px;
+  }
+@utility sidebar-redesign-shell-sidebar-search-wrap {
+  margin: 0 0 18px;
+}
+@utility sidebar-redesign-shell-sidebar-search {
+  background: var(--bg-card);
+  border-color: var(--border);
+}
+@utility sidebar-redesign-shell-nav-section {
+  margin: 18px 8px 8px;
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+}
+@utility sidebar-redesign-shell-nav-item {
+  width: 100%;
+  min-height: 36px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+@utility sidebar-redesign-shell-nav-item-hover {
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+@utility sidebar-redesign-shell-nav-item-active-nav-item-is-active {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 0;
+  font-weight: 600;
+}
+@utility sidebar-redesign-shell-nav-item-count-nav-item-count-nav-item-nav-count {
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  border-radius: 999px;
+  color: var(--text-muted);
+}
+@utility sidebar-redesign-shell-sidebar-add-marker-hover {
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+@utility sidebar-redesign-shell-sidebar-search-icon-nav-item-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  line-height: 1;
+}
+@utility sidebar-redesign-shell-sidebar-search-icon-svg-nav-item-icon-svg {
+  display: block;
+  width: 15px;
+  height: 15px;
+  stroke: currentColor;
+}
+@utility sidebar-redesign-shell-nav-item-icon {
+  color: var(--text-muted);
+}
+@utility sidebar-redesign-shell-nav-item-hover-nav-item-icon {
+  color: var(--text-primary);
+}
+@utility sidebar-redesign-shell-nav-item-data-category-dashboard-nav-item-dot {
+  background: var(--accent);
+}
+@utility sidebar-redesign-shell-nav-item-count-nav-item-count-nav-item-flag-count-nav-item-nav-count {
+  flex: 0 0 auto;
+  max-width: 86px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@utility sidebar-redesign-shell-nav-item-dot {
+  flex: 0 0 8px;
+}
+@utility shared-redesign-header {
+  min-height: 64px;
+  padding: 0 24px;
+  background: color-mix(in srgb, var(--bg-primary) 92%, var(--bg-secondary));
+  border-bottom: 1px solid var(--border);
+  gap: 18px;
+}
+@utility shared-redesign-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 190px;
+}
+@utility shared-redesign-brand-mark-header-h1-brand-mark {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 20px;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: 0;
+  color: var(--accent);
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+@utility shared-redesign-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-muted);
+  background: var(--bg-card);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+@utility shared-redesign-header-mid {
+  flex: 1;
+  justify-content: center;
+  min-width: 0;
+  gap: 10px;
+}
+@utility shared-redesign-header-right {
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 190px;
+}
+@utility shared-redesign-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  white-space: nowrap;
+}
+@utility shared-redesign-chip-label-header-info-label {
+  color: var(--text-muted);
+}
+@utility shared-redesign-range-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+}
+@utility shared-redesign-range-toggle-btn {
+  border: 0;
+  border-radius: calc(var(--radius-sm) - 2px);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 11px;
+}
+@utility shared-redesign-range-toggle-btn-active {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: transparent;
+}
+@utility shared-redesign-header-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+}
+@utility shared-redesign-header-icon-btn-hover {
+  color: var(--text-primary);
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
+@utility shared-redesign-header-share-btn {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-card));
+}
+@utility shared-redesign-header-share-btn-hover {
+  color: var(--on-accent);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+@utility shared-redesign-donate-btn-donate-btn-hover {
+  width: auto;
+  height: 36px;
+  padding: 0 14px;
+  border: 0;
+  background: var(--donate-accent);
+  color: var(--on-donate-accent);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  gap: 4px;
+  white-space: nowrap;
+}
+@utility shared-redesign-donate-split-donate-split-hover {
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  min-width: 132px;
+  padding: 0;
+  overflow: hidden;
+  background: linear-gradient(100deg, #f7931a 0%, #f7931a 38%, #c98358 49%, #5aa2c9 61%, #29abe0 100%);
+  color: var(--on-donate-accent);
+}
+@utility shared-redesign-donate-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 0 8px;
+  color: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: filter 0.15s;
+}
+@utility shared-redesign-donate-option-hover-donate-option-focus-visible { filter: brightness(1.08); }
+@utility shared-redesign-donate-option-focus-visible { outline: 2px solid rgba(255,255,255,0.75); outline-offset: -3px; }
+@utility shared-redesign-sidebar {
+  top: 64px;
+  height: calc(100vh - 64px);
+  padding: 20px 16px;
+  background: var(--bg-primary);
+}
+@utility shared-redesign-main {
+  margin-left: 260px;
+  max-width: calc(100vw - 260px);
+}
+@utility shared-redesign-nav-item-active-nav-item-icon-nav-item-is-active-nav-item-icon {
+  color: var(--accent);
+}
+@utility shared-redesign-sidebar-add-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+@utility shared-redesign-sidebar-max-width-1024px {
+    top: 0;
+    height: 100vh;
+    padding: 18px 16px;
+  }
+@utility shared-redesign-main-max-width-1024px {
+    margin-left: 0;
+    max-width: 100%;
+  }
+@utility shared-redesign-header-max-width-768px {
+    min-height: 58px;
+    padding: 0 12px;
+  }
+@utility shared-redesign-brand-max-width-768px { min-width: auto; }
+@utility shared-redesign-header-data-group-feedback-btn-donate-btn-max-width-768px {
+    display: none !important;
+  }
+@utility shared-redesign-header-mid-max-width-768px {
+    flex: 0 1 auto;
+    margin-left: auto;
+    justify-content: flex-end;
+  }
+@utility shared-redesign-header-right-max-width-768px {
+    min-width: auto;
+    gap: 6px;
+  }
+@utility shared-redesign-brand-mark-header-h1-brand-mark-max-width-480px {
+    font-size: 17px;
+  }
+@utility shared-redesign-brand-mark-header-h1-brand-mark-max-width-340px {
+    display: none;
+  }
+@utility shared-redesign-nav-item-active-nav-item-icon-nav-item-is-active-nav-item-icon-2 {
+  color: var(--accent);
+}
+@utility shared-redesign-sidebar-add-marker-2 {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  float: none;
+}
+@utility shared-redesign-logo-link-max-width-768px-pointer-coarse {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+@utility shared-redesign-header-share-btn-max-width-768px-pointer-coarse {
+    display: none;
+  }
+@utility shared-redesign-dashboard-widget-tool-lens-widget-dashboard-toggle-max-width-768px-pointer-coarse {
+    min-width: 44px;
+    min-height: 44px;
+    height: auto;
+    padding: 0 12px;
+    line-height: 1.25;
+  }
+@utility shared-redesign-lens-widget-dashboard-toggle-max-width-768px-pointer-coarse {
+    padding-inline: 14px;
+  }
+
+
+/* Redesign chrome: header, sidebar, and Tweaks */
+.header { @apply gb:shared-redesign-header; }
+.brand { @apply gb:shared-redesign-brand; }
+.brand-mark,
+.header h1.brand-mark { @apply gb:shared-redesign-brand-mark-header-h1-brand-mark; }
+.pill { @apply gb:shared-redesign-pill; }
+.header-mid { @apply gb:shared-redesign-header-mid; }
+.header-right { @apply gb:shared-redesign-header-right; }
+.chip { @apply gb:shared-redesign-chip; }
+.chip .label,
+.header-info .label { @apply gb:shared-redesign-chip-label-header-info-label; }
+
+.range-toggle { @apply gb:shared-redesign-range-toggle; }
+.range-toggle-btn { @apply gb:shared-redesign-range-toggle-btn; }
+.range-toggle-btn.active { @apply gb:shared-redesign-range-toggle-btn-active; }
+.header-icon-btn { @apply gb:shared-redesign-header-icon-btn; }
+.header-icon-btn:hover { @apply gb:shared-redesign-header-icon-btn-hover; }
+.header-share-btn { @apply gb:shared-redesign-header-share-btn; }
+.header-share-btn:hover { @apply gb:shared-redesign-header-share-btn-hover; }
+.donate-btn,
+.donate-btn:hover { @apply gb:shared-redesign-donate-btn-donate-btn-hover; }
+.donate-split,
+.donate-split:hover { @apply gb:shared-redesign-donate-split-donate-split-hover; }
+.donate-option { @apply gb:shared-redesign-donate-option; }
+.donate-option:hover,
+.donate-option:focus-visible { @apply gb:shared-redesign-donate-option-hover-donate-option-focus-visible; }
+.donate-option:focus-visible { @apply gb:shared-redesign-donate-option-focus-visible; }
+.sidebar { @apply gb:shared-redesign-sidebar; }
+.main { @apply gb:shared-redesign-main; }
+.sidebar-search-wrap { @apply gb:sidebar-redesign-shell-sidebar-search-wrap; }
+.sidebar-search { @apply gb:sidebar-redesign-shell-sidebar-search; }
+.nav-section { @apply gb:sidebar-redesign-shell-nav-section; }
+.nav-item { @apply gb:sidebar-redesign-shell-nav-item; }
+.nav-item:hover { @apply gb:sidebar-redesign-shell-nav-item-hover; }
+.nav-item.active,
+.nav-item.is-active { @apply gb:sidebar-redesign-shell-nav-item-active-nav-item-is-active; }
+.nav-item.active .nav-item-icon,
+.nav-item.is-active .nav-item-icon { @apply gb:shared-redesign-nav-item-active-nav-item-icon-nav-item-is-active-nav-item-icon; }
+.nav-item-count,
+.nav-item .count,
+.nav-item .nav-count { @apply gb:sidebar-redesign-shell-nav-item-count-nav-item-count-nav-item-nav-count; }
+.sidebar-add-marker { @apply gb:shared-redesign-sidebar-add-marker; }
+.sidebar-add-marker:hover { @apply gb:sidebar-redesign-shell-sidebar-add-marker-hover; }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@media (max-width: 1024px) {
+  .sidebar { @apply gb:shared-redesign-sidebar-max-width-1024px; }
+  .main { @apply gb:shared-redesign-main-max-width-1024px; }
+}
+@media (max-width: 768px) {
+  .header { @apply gb:shared-redesign-header-max-width-768px; }
+  .brand { @apply gb:shared-redesign-brand-max-width-768px; }
+  .header-data-group,
+  .feedback-btn,
+  .donate-btn { @apply gb:shared-redesign-header-data-group-feedback-btn-donate-btn-max-width-768px; }
+  .header-mid { @apply gb:shared-redesign-header-mid-max-width-768px; }
+  .header-right { @apply gb:shared-redesign-header-right-max-width-768px; }
+  
+  
+  
+
+}
+@media (max-width: 480px) {
+  .brand-mark,
+  .header h1.brand-mark { @apply gb:shared-redesign-brand-mark-header-h1-brand-mark-max-width-480px; }
+  
+  
+}
+@media (max-width: 340px) {
+  .brand-mark,
+  .header h1.brand-mark { @apply gb:shared-redesign-brand-mark-header-h1-brand-mark-max-width-340px; }
+}
+
+/* Redesign catch-up: sidebar icon sizing and nav count typography glue. */
+.sidebar-search-icon,
+.nav-item-icon { @apply gb:sidebar-redesign-shell-sidebar-search-icon-nav-item-icon; }
+.sidebar-search-icon svg,
+.nav-item-icon svg { @apply gb:sidebar-redesign-shell-sidebar-search-icon-svg-nav-item-icon-svg; }
+.nav-item-icon { @apply gb:sidebar-redesign-shell-nav-item-icon; }
+.nav-item:hover .nav-item-icon { @apply gb:sidebar-redesign-shell-nav-item-hover-nav-item-icon; }
+.nav-item.active .nav-item-icon,
+.nav-item.is-active .nav-item-icon { @apply gb:shared-redesign-nav-item-active-nav-item-icon-nav-item-is-active-nav-item-icon-2; }
+.nav-item[data-category="dashboard"] .nav-item-dot { @apply gb:sidebar-redesign-shell-nav-item-data-category-dashboard-nav-item-dot; }
+.nav-item-count,
+.nav-item .count,
+.nav-item .flag-count,
+.nav-item .nav-count { @apply gb:sidebar-redesign-shell-nav-item-count-nav-item-count-nav-item-flag-count-nav-item-nav-count; }
+.nav-item-dot { @apply gb:sidebar-redesign-shell-nav-item-dot; }
+.sidebar-add-marker { @apply gb:shared-redesign-sidebar-add-marker-2; }
+
+@media (max-width: 768px), (pointer: coarse) {
+  .logo-link { @apply gb:shared-redesign-logo-link-max-width-768px-pointer-coarse; }
+  .header-share-btn { @apply gb:shared-redesign-header-share-btn-max-width-768px-pointer-coarse; }
+  .dashboard-widget-tool,
+  .lens-widget-dashboard-toggle { @apply gb:shared-redesign-dashboard-widget-tool-lens-widget-dashboard-toggle-max-width-768px-pointer-coarse; }
+  .lens-widget-dashboard-toggle { @apply gb:shared-redesign-lens-widget-dashboard-toggle-max-width-768px-pointer-coarse; }
+  .analytics-consent-btn { @apply gb:analytics-button-touch; }
+}

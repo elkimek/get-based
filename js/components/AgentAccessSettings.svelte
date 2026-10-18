@@ -86,7 +86,7 @@
       </div>
       <select id="agent-wearable-series-select" data-sync-action="set-agent-wearable-series-days" aria-label="Wearable series window pushed to agent"
         value={snapshot.seriesDays ? String(snapshot.seriesDays) : 'off'} disabled={snapshot.pending || !snapshot.ownerReady} aria-disabled={snapshot.pending || !snapshot.ownerReady}
-        class="gb:agent:min-w-[90px] gb:agent:px-2.5 gb:agent:py-1.5 gb:agent:border gb:agent:border-line gb:agent:rounded-control gb:agent:bg-select-surface gb:agent:text-ink gb:agent:font-body gb:agent:text-[12px] gb:agent:leading-[normal] gb:agent:focus-visible:outline-2 gb:agent:focus-visible:outline-offset-2 gb:agent:focus-visible:outline-accent">
+        class="gb:agent:min-w-[90px] gb:agent:px-2.5 gb:agent:py-1.5 gb:agent:border gb:agent:border-line gb:agent:rounded-control gb:agent:bg-select-surface gb:agent:text-ink gb:agent:[font-family:inherit] gb:agent:text-[12px] gb:agent:leading-[normal] gb:agent:focus-visible:outline-2 gb:agent:focus-visible:outline-offset-2 gb:agent:focus-visible:outline-accent">
         <option value="off">Off</option><option value="7">7 days</option><option value="30">30 days</option><option value="90">90 days</option>
       </select>
     </div>

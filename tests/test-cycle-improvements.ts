@@ -140,8 +140,8 @@ const { phaseBandPlugin } = await import('../js/charts.js');
     const src = read('js/data-view-controls.js');
     assert('Layers dropdown checks for cycle data', src.includes('hasCycle'));
     assert('Layers dropdown delegates setPhaseOverlay changes',
-      src.includes("dataChangeAttrs('set-phase-overlay')") && src.includes('setPhaseOverlay(mode)'));
-    assert('Layers dropdown explains phases are tied to blood draws', src.includes('Cycle phase at blood draw'));
+      read('js/components/ChartLayersDropdown.svelte').includes('data-lab-data-change="set-phase-overlay"') && src.includes('setPhaseOverlay(mode)'));
+    assert('Layers dropdown explains phases are tied to blood draws', read('js/components/ChartLayersDropdown.svelte').includes('Cycle phase at blood draw'));
   }
 
   // ── Section 10: loadProfile loads phaseOverlay ──
@@ -329,7 +329,7 @@ const { phaseBandPlugin } = await import('../js/charts.js');
     assert('category-page-view.js + marker-detail-modal.js pass phaseLabels to createLineChart', phasePassCount >= 4, `found ${phasePassCount} references`);
 
     // lab-context.js includes symptom + alert context (extracted from chat.js)
-    const labCtxSrc = read('js/lab-context.js');
+    const labCtxSrc = read('js/lab-context-assembly.js');
     assert('lab-context.js includes symptoms in periods', labCtxSrc.includes('p.symptoms'));
     assert('lab-context.js imports detectPerimenopausePattern', labCtxSrc.includes('detectPerimenopausePattern'));
     assert('lab-context.js imports detectCycleIronAlerts', labCtxSrc.includes('detectCycleIronAlerts'));

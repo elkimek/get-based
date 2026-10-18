@@ -54,6 +54,6 @@ export function closeWearableDetailModalRuntime() {
 }
 
 export async function confirmWearableDetailActionRuntime(message: string) {
-  const confirm = wearableDetailRuntimeDeps.showConfirmDialog;
-  return confirm ? !!await confirm(message) : false;
+  const confirmAction = wearableDetailRuntimeDeps.showConfirmDialog;
+  return confirmAction ? !!await confirmAction(message) : false;
 }

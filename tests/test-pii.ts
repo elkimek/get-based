@@ -191,7 +191,7 @@ try {
   assert('Thinking not added to accumulated output',
     piiSrc.includes('onThinking(') && !piiSrc.includes('accumulated += delta.reasoning_content'));
   assert('Thinking section in review modal HTML',
-    piiReviewSrc.includes('pii-thinking-section'));
+    read('js/components/PIIReviewModal.svelte').includes('pii-thinking-section'));
   assert('Thinking section collapses on completion',
     piiReviewSrc.includes("'Thinking (done)'"));
   assert('Privacy review backdrop click nudges instead of silently no-oping',

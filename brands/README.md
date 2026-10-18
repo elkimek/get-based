@@ -1,49 +1,40 @@
 # Vendor brand assets
 
-Single source of truth for wearable-vendor logos / marks / Connect-button assets. Used by the app (`js/brand-assets.js` registry) and the landing site.
+This directory contains the wearable marks and connection artwork used by
+getbased. The [brand manual](BRAND.md) defines the product name, wordmark,
+colors and writing conventions.
 
-The getbased name, wordmark, colors, and writing conventions are defined in the [brand manual](BRAND.md).
+## Registry and files
 
-## Per-vendor structure
+[`js/brand-assets.ts`](../js/brand-assets.ts) is the application registry. Each
+adapter selects its bundled monochrome fallback, optional themed icon and
+connection artwork, rendering mode and optional brand color. Asset filenames
+are explicit registry values; a vendor directory does not need every variant.
 
-```
-brands/<vendor>/
-  mark-mono.svg     # 18x18, currentColor — fallback used everywhere by default
-  mark.svg          # full-colour brand mark (Phase 2b — pending official kit)
-  sign-in-light.svg # official Sign-in-with button, dark backgrounds
-  sign-in-dark.svg  # official Sign-in-with button, light backgrounds
-  LICENSE.md        # status, source URL, vendor's brand-usage rules
-```
+Keep each vendor's source and usage information in its `LICENSE.md`. The
+current registry uses official artwork for Oura, Withings, Ultrahuman and WHOOP,
+and fallback marks for Fitbit, Google Health, Polar and Apple Health. Bundled
+artwork does not by itself authorize changing a fallback to an official mark;
+consult the corresponding usage record first.
 
-## Status (2026-04-23)
+## Rendering contract
 
-| Vendor | mark-mono | mark | sign-in | Status |
-|---|---|---|---|---|
-| Oura | ✅ placeholder | ❌ | ❌ | Pull from cloud.ouraring.com/v2 |
-| Withings | ✅ placeholder | ❌ | ❌ | Pull from developer.withings.com |
-| Ultrahuman | ✅ placeholder | ❌ | ❌ | Request from partner email |
-| WHOOP | ✅ placeholder | ❌ | ❌ | Pull from dev.whoop.com |
-| Fitbit | ✅ placeholder | ❌ | ❌ | Pull from dev.fitbit.com |
-| Polar | ✅ placeholder | ❌ | ❌ | Pull from polar.com/brand-resources |
-| Apple Health | ✅ generic file glyph | N/A by design | N/A by design | Locked — see LICENSE.md |
+- `iconLight` and `signInLight` are artwork for dark backgrounds; `iconDark` and
+  `signInDark` are artwork for light backgrounds. Preserve the artwork's native
+  proportions and registered colors.
+- `mono` supplies a monochrome mask when no themed icon is registered.
+- `mode: 'fallback'` uses the generic connection treatment; `branded` selects a
+  vendor-colored treatment; `official` enables registered connection artwork.
+- Adding a vendor starts with a bundled fallback and its usage record. Update
+  the registry only when the corresponding assets and permissions are available.
 
-## Render policy (`js/brand-assets.js`)
+Apple Health intentionally uses a generic file glyph; Google Health uses a
+neutral pulse/cross glyph. See their [Apple Health](apple-health/LICENSE.md) and
+[Google Health](google-health/LICENSE.md) usage records.
 
-The registry maps `adapterId → { mode, mono, full?, signInLight?, signInDark? }`. Render code picks:
+## Website synchronization
 
-- `mode: 'official'` + theme-matched `sign-in-*.svg` → drop in unmodified
-- `mode: 'official'` + `mark.svg` → render in our standard pill button frame, vendor brand colour
-- `mode: 'fallback'` (default) → render `mark-mono.svg` in the accent-gradient pill
-
-Adding a new vendor: append a registry entry with `mode: 'fallback'`, drop a `mark-mono.svg`, ship. Phase 2b for that vendor is just swapping in the official files and flipping `mode: 'official'`.
-
-## Sync to website repo
-
-```
-rsync -av --delete brands/ ../get-based-site/brands/
-```
-
-The landing site reads from the same directory layout — no per-asset re-export.
-
-## Apple Health is intentionally generic
-`brands/apple-health/LICENSE.md` explains why we never use Apple's heart icon. Don't "fix" this.
+The sibling landing site can use the same directory layout. Synchronize the
+reviewed assets and usage records together, then check its consumers against
+the registry. Application assets must remain bundled so installed offline
+sessions do not depend on vendor-hosted artwork.

@@ -1,0 +1,116 @@
+[
+  {
+    "destination": "tests/fixtures/archived-native-ui/dashboard-biometric-presentation.ts",
+    "original": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/dashboard-biometric-presentation.ts",
+    "originalSHA256": "5d16c5c2bb82f0aef599e1022c7e7fcd8a1bf085d531ab0c919663907c2d07cd",
+    "relativeImportsOnly": true
+  },
+  {
+    "destination": "tests/fixtures/archived-native-ui/components/DashboardBiometricSyncStatus.svelte.html.js",
+    "original": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/DashboardBiometricSyncStatus.svelte.html.js",
+    "sha256": "9462c0fc02ff9445137c44474d87856124d47de00cbb504455676ab88610caf3"
+  },
+  {
+    "destination": "tests/fixtures/archived-native-ui/components/DashboardBiometricSyncStatus.svelte.html.d.ts",
+    "original": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/DashboardBiometricSyncStatus.svelte.html.d.ts",
+    "sha256": "b66eb19d5a9b2aaea077ae3eeaca019efd62ecc4ac88887fde3fc6991081885e"
+  },
+  {
+    "destination": "tests/fixtures/archived-native-ui/components/DashboardBiometricTile.svelte.html.js",
+    "original": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/DashboardBiometricTile.svelte.html.js",
+    "sha256": "2d5f0a8f1ff4024263169d76d7f04040d8f61cd36a94ac82d2f47cbeb9fd24d3"
+  },
+  {
+    "destination": "tests/fixtures/archived-native-ui/components/DashboardBiometricTile.svelte.html.d.ts",
+    "original": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/DashboardBiometricTile.svelte.html.d.ts",
+    "sha256": "0b64c762ffa9123e0ed8eda8c13ff7376da42c9b3203ad48ccc9f7c920dcdde1"
+  },
+  {
+    "destination": "tests/fixtures/archived-native-ui/components/DashboardBiometricsOverview.svelte.html.js",
+    "original": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/DashboardBiometricsOverview.svelte.html.js",
+    "sha256": "667ba70ae9a7a059984c16d53c43d3104111a65f8ac37d619a2d426760f605d6"
+  },
+  {
+    "destination": "tests/fixtures/archived-native-ui/components/DashboardBiometricsOverview.svelte.html.d.ts",
+    "original": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/DashboardBiometricsOverview.svelte.html.d.ts",
+    "sha256": "d6fb46e82395ade4bc042dbf186882666a50e4da87970636e1d4e2dcda0d7dca"
+  },
+  {
+    "destination": "tests/fixtures/archived-native-ui/dashboard-insights-presentation.ts",
+    "original": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/dashboard-insights-presentation.ts",
+    "originalSHA256": "e5480d13aa8ddf9af183b89d45e4d4166ac511851f07098d7ee1d53d70c7bb7e",
+    "relativeImportsOnly": true
+  },
+  {
+    "destination": "tests/fixtures/archived-native-ui/components/DashboardInsights.svelte.html.js",
+    "original": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/DashboardInsights.svelte.html.js",
+    "sha256": "c1694a6738495d6f97d58e75fe2a268864858b71433e33ef8bc0c1f515ae84e4"
+  },
+  {
+    "destination": "tests/fixtures/archived-native-ui/components/DashboardInsights.svelte.html.d.ts",
+    "original": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/DashboardInsights.svelte.html.d.ts",
+    "sha256": "d134ae636796234f05e3c309bfdde3a6b7e28431adf2c811679703933ce30bfd"
+  },
+  {
+    "destination": "tests/fixtures/archived-native-ui/dashboard-lab-markers-presentation.ts",
+    "original": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/dashboard-lab-markers-presentation.ts",
+    "originalSHA256": "4cfe2b102d97821fdc75a515144d73ba491e4834304f42dd4915133b65da0b6f",
+    "relativeImportsOnly": true
+  },
+  {
+    "destination": "tests/fixtures/archived-native-ui/components/DashboardLabMarkers.svelte.html.js",
+    "original": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/DashboardLabMarkers.svelte.html.js",
+    "sha256": "a17a0cceec15f3d4150bbff5ac0fa15583c2875460e57a71233588061e5010db"
+  },
+  {
+    "destination": "tests/fixtures/archived-native-ui/components/DashboardLabMarkers.svelte.html.d.ts",
+    "original": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/DashboardLabMarkers.svelte.html.d.ts",
+    "sha256": "02548cc28435757c89780778819152ae3f99cf5ea60ae69e41e6e596aa3d64e8"
+  },
+  {
+    "destination": "tests/fixtures/archived-native-ui/supplement-dashboard-presentation.ts",
+    "original": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/supplement-dashboard-presentation.ts",
+    "originalSHA256": "b9e1783747aecbd70a7ee5e906f8ec44ab8562b1ee9b02a6ff47779eb8739ae8",
+    "relativeImportsOnly": true
+  },
+  {
+    "destination": "tests/fixtures/archived-native-ui/components/SupplementTimeline.svelte.html.js",
+    "original": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/SupplementTimeline.svelte.html.js",
+    "sha256": "e126dad16f101a9ff15bb4aad55afd88a091241b02f1f6404d09e77e201b57a7"
+  },
+  {
+    "destination": "tests/fixtures/archived-native-ui/components/SupplementTimeline.svelte.html.d.ts",
+    "original": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/SupplementTimeline.svelte.html.d.ts",
+    "sha256": "1846f9dbdecc298c06d24ba97f8dcda4222272ad487e8f019a81ed3ab623d095"
+  },
+  {
+    "destination": "tests/fixtures/archived-native-ui/components/SupplementTimelineRow.svelte.html.js",
+    "original": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/SupplementTimelineRow.svelte.html.js",
+    "sha256": "9e1f7de667faa0e1c1e6499b0ab2ca113a431705e140cd6b5bba6fd23eb4a042"
+  },
+  {
+    "destination": "tests/fixtures/archived-native-ui/components/SupplementTimelineRow.svelte.html.d.ts",
+    "original": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/SupplementTimelineRow.svelte.html.d.ts",
+    "sha256": "1846f9dbdecc298c06d24ba97f8dcda4222272ad487e8f019a81ed3ab623d095"
+  },
+  {
+    "destination": "tests/fixtures/archived-native-ui/components/SupplementTimelineBar.svelte.html.js",
+    "original": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/SupplementTimelineBar.svelte.html.js",
+    "sha256": "9ecf936f66299b0be10b50f9f605e841dad625f63bc6f4ca2acabb75db333747"
+  },
+  {
+    "destination": "tests/fixtures/archived-native-ui/components/SupplementTimelineBar.svelte.html.d.ts",
+    "original": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/SupplementTimelineBar.svelte.html.d.ts",
+    "sha256": "1846f9dbdecc298c06d24ba97f8dcda4222272ad487e8f019a81ed3ab623d095"
+  },
+  {
+    "destination": "tests/fixtures/archived-native-ui/components/SupplementMitoEvidence.svelte.html.js",
+    "original": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/SupplementMitoEvidence.svelte.html.js",
+    "sha256": "69ecdbe470f3b180c4e6b86702d26bc3d3ac947641c118ef6315b1e1817cb1f4"
+  },
+  {
+    "destination": "tests/fixtures/archived-native-ui/components/SupplementMitoEvidence.svelte.html.d.ts",
+    "original": "/home/elkim/.codex/worktrees/tailwind-display-pilot/get-based/js/components/SupplementMitoEvidence.svelte.html.d.ts",
+    "sha256": "1846f9dbdecc298c06d24ba97f8dcda4222272ad487e8f019a81ed3ab623d095"
+  }
+]

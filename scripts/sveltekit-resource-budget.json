@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "scenario": "Complete SvelteKit production offline precache for one build",
+  "maximumDecodedBytes": 23068672,
+  "maximumReferenceGrowthPercent": 5,
+  "resourceCountWarning": 550,
+  "reference": {
+    "version": "migration-candidate-7",
+    "buildId": "2ce34ac3a293aca6c224df2f35dd193740d6c4cfafe619d93bc553c86feb90d1",
+    "measuredAt": "2026-10-17",
+    "resources": 493,
+    "decodedBytes": 19172377
+  }
+}

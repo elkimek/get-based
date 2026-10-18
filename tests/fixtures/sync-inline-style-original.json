@@ -1,0 +1,1051 @@
+{
+  "migratedOccurrences": 219,
+  "owner": {
+    "id": "sync-inline",
+    "input": "css/sync-inline.tailwind.css",
+    "output": "js/sync-inline-style-map.generated.js",
+    "exportName": "syncInlineStyles",
+    "declarationCount": 181,
+    "recipes": [
+      [
+        "emptyTable",
+        "sync-inline-empty-table"
+      ],
+      [
+        "storageName",
+        "sync-inline-storage-name"
+      ],
+      [
+        "storageOverflowHint",
+        "sync-inline-storage-overflow-hint"
+      ],
+      [
+        "storageBytes",
+        "sync-inline-storage-bytes"
+      ],
+      [
+        "storageWarning",
+        "sync-inline-storage-warning"
+      ],
+      [
+        "storageType",
+        "sync-inline-storage-type"
+      ],
+      [
+        "storageValue",
+        "sync-inline-storage-value"
+      ],
+      [
+        "storagePercent",
+        "sync-inline-storage-percent"
+      ],
+      [
+        "successText",
+        "sync-inline-success-text"
+      ],
+      [
+        "warningText",
+        "sync-inline-warning-text"
+      ],
+      [
+        "diagnosticCard",
+        "sync-inline-diagnostic-card"
+      ],
+      [
+        "diagnosticCardHeader",
+        "sync-inline-diagnostic-card-header"
+      ],
+      [
+        "diagnosticCaption",
+        "sync-inline-diagnostic-caption"
+      ],
+      [
+        "diagnosticControl",
+        "sync-inline-diagnostic-control"
+      ],
+      [
+        "sectionTitle",
+        "sync-inline-section-title"
+      ],
+      [
+        "strongText",
+        "sync-inline-strong-text"
+      ],
+      [
+        "mutedText",
+        "sync-inline-muted-text"
+      ],
+      [
+        "mutedParagraph",
+        "sync-inline-muted-paragraph"
+      ],
+      [
+        "telemetryTable",
+        "sync-inline-telemetry-table"
+      ],
+      [
+        "telemetryTableHeader",
+        "sync-inline-telemetry-table-header"
+      ],
+      [
+        "telemetryCell",
+        "sync-inline-telemetry-cell"
+      ],
+      [
+        "telemetryNumber",
+        "sync-inline-telemetry-number"
+      ],
+      [
+        "telemetryName",
+        "sync-inline-telemetry-name"
+      ],
+      [
+        "telemetryValue",
+        "sync-inline-telemetry-value"
+      ],
+      [
+        "telemetryDescription",
+        "sync-inline-telemetry-description"
+      ],
+      [
+        "telemetryFootnote",
+        "sync-inline-telemetry-footnote"
+      ],
+      [
+        "technicalValue",
+        "sync-inline-technical-value"
+      ],
+      [
+        "spacingTop",
+        "sync-inline-spacing-top"
+      ],
+      [
+        "readyBadge",
+        "sync-inline-ready-badge"
+      ],
+      [
+        "cutoverCaption",
+        "sync-inline-cutover-caption"
+      ],
+      [
+        "cutoverActions",
+        "sync-inline-cutover-actions"
+      ],
+      [
+        "warningAction",
+        "sync-inline-warning-action"
+      ],
+      [
+        "successAction",
+        "sync-inline-success-action"
+      ],
+      [
+        "disabledAction",
+        "sync-inline-disabled-action"
+      ],
+      [
+        "cutoverHint",
+        "sync-inline-cutover-hint"
+      ],
+      [
+        "blockerPanel",
+        "sync-inline-blocker-panel"
+      ],
+      [
+        "blockerHeading",
+        "sync-inline-blocker-heading"
+      ],
+      [
+        "blockerTitle",
+        "sync-inline-blocker-title"
+      ],
+      [
+        "smallText",
+        "sync-inline-small-text"
+      ],
+      [
+        "blockerTable",
+        "sync-inline-blocker-table"
+      ],
+      [
+        "blockerName",
+        "sync-inline-blocker-name"
+      ],
+      [
+        "blockerShape",
+        "sync-inline-blocker-shape"
+      ],
+      [
+        "blockerCount",
+        "sync-inline-blocker-count"
+      ],
+      [
+        "blockerHint",
+        "sync-inline-blocker-hint"
+      ],
+      [
+        "relayHeader",
+        "sync-inline-relay-header"
+      ],
+      [
+        "relayDotGeometry",
+        "sync-inline-relay-dot-geometry"
+      ],
+      [
+        "inlineDot",
+        "sync-inline-inline-dot"
+      ],
+      [
+        "relayLabel",
+        "sync-inline-relay-label"
+      ],
+      [
+        "relayAddress",
+        "sync-inline-relay-address"
+      ],
+      [
+        "transferDetails",
+        "sync-inline-transfer-details"
+      ],
+      [
+        "dangerText",
+        "sync-inline-danger-text"
+      ],
+      [
+        "quotaRow",
+        "sync-inline-quota-row"
+      ],
+      [
+        "quotaDotGeometry",
+        "sync-inline-quota-dot-geometry"
+      ],
+      [
+        "recentError",
+        "sync-inline-recent-error"
+      ],
+      [
+        "eventsPanel",
+        "sync-inline-events-panel"
+      ],
+      [
+        "eventsHeading",
+        "sync-inline-events-heading"
+      ],
+      [
+        "eventsTitle",
+        "sync-inline-events-title"
+      ],
+      [
+        "copyEventsAction",
+        "sync-inline-copy-events-action"
+      ],
+      [
+        "eventRow",
+        "sync-inline-event-row"
+      ],
+      [
+        "eventText",
+        "sync-inline-event-text"
+      ],
+      [
+        "popoverActions",
+        "sync-inline-popover-actions"
+      ],
+      [
+        "popoverAction",
+        "sync-inline-popover-action"
+      ],
+      [
+        "reloadAction",
+        "sync-inline-reload-action"
+      ],
+      [
+        "forceResendWarning",
+        "sync-inline-force-resend-warning"
+      ]
+    ]
+  },
+  "recipes": [
+    {
+      "body": "padding:8px;color:var(--text-muted);text-align:center",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 80
+        }
+      ],
+      "key": "emptyTable",
+      "utility": "sync-inline-empty-table"
+    },
+    {
+      "body": "padding:4px 8px;font-family:monospace;font-size:11px",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 81
+        }
+      ],
+      "key": "storageName",
+      "utility": "sync-inline-storage-name"
+    },
+    {
+      "body": "color:var(--orange);font-size:10px",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 82
+        }
+      ],
+      "key": "storageOverflowHint",
+      "utility": "sync-inline-storage-overflow-hint"
+    },
+    {
+      "body": "padding:4px 8px;text-align:right;font-size:11px",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 84
+        },
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 90
+        }
+      ],
+      "key": "storageBytes",
+      "utility": "sync-inline-storage-bytes"
+    },
+    {
+      "body": "color:var(--orange);font-weight:600",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 85
+        }
+      ],
+      "key": "storageWarning",
+      "utility": "sync-inline-storage-warning"
+    },
+    {
+      "body": "padding:4px 8px;font-family:monospace;font-size:11px;color:var(--text-muted)",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 86
+        }
+      ],
+      "key": "storageType",
+      "utility": "sync-inline-storage-type"
+    },
+    {
+      "body": "padding:4px 8px;text-align:right",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 87
+        },
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 88
+        }
+      ],
+      "key": "storageValue",
+      "utility": "sync-inline-storage-value"
+    },
+    {
+      "body": "padding:4px 8px;text-align:right;color:var(--text-muted);font-size:11px",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 89
+        }
+      ],
+      "key": "storagePercent",
+      "utility": "sync-inline-storage-percent"
+    },
+    {
+      "body": "color:var(--green)",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 92
+        }
+      ],
+      "key": "successText",
+      "utility": "sync-inline-success-text"
+    },
+    {
+      "body": "color:var(--orange)",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 94
+        }
+      ],
+      "key": "warningText",
+      "utility": "sync-inline-warning-text"
+    },
+    {
+      "body": "margin-bottom:12px;padding:10px;border:1px solid var(--border);border-radius:6px",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 95
+        },
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 142
+        }
+      ],
+      "key": "diagnosticCard",
+      "utility": "sync-inline-diagnostic-card"
+    },
+    {
+      "body": "display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;gap:8px",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 97
+        },
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 144
+        }
+      ],
+      "key": "diagnosticCardHeader",
+      "utility": "sync-inline-diagnostic-card-header"
+    },
+    {
+      "body": "font-weight:normal;color:var(--text-muted);font-size:11px",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 99
+        }
+      ],
+      "key": "diagnosticCaption",
+      "utility": "sync-inline-diagnostic-caption"
+    },
+    {
+      "body": "font-size:11px;flex-shrink:0",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 103
+        }
+      ],
+      "key": "diagnosticControl",
+      "utility": "sync-inline-diagnostic-control"
+    },
+    {
+      "body": "margin-bottom:4px",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 108
+        },
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 135
+        }
+      ],
+      "key": "sectionTitle",
+      "utility": "sync-inline-section-title"
+    },
+    {
+      "body": "font-weight:600",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 110
+        },
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 152
+        },
+        {
+          "file": "js/components/SyncPopoverPresentation.svelte",
+          "line": 19
+        }
+      ],
+      "key": "strongText",
+      "utility": "sync-inline-strong-text"
+    },
+    {
+      "body": "color:var(--text-muted);font-size:11px",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 112
+        },
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 171
+        }
+      ],
+      "key": "mutedText",
+      "utility": "sync-inline-muted-text"
+    },
+    {
+      "body": "color:var(--text-muted);font-size:11px;margin-bottom:8px",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 115
+        }
+      ],
+      "key": "mutedParagraph",
+      "utility": "sync-inline-muted-paragraph"
+    },
+    {
+      "body": "width:100%;border-collapse:collapse;font-size:11px",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 117
+        }
+      ],
+      "key": "telemetryTable",
+      "utility": "sync-inline-telemetry-table"
+    },
+    {
+      "body": "border-bottom:1px solid var(--border);text-align:left",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 119
+        }
+      ],
+      "key": "telemetryTableHeader",
+      "utility": "sync-inline-telemetry-table-header"
+    },
+    {
+      "body": "padding:3px 6px",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 120
+        },
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 124
+        }
+      ],
+      "key": "telemetryCell",
+      "utility": "sync-inline-telemetry-cell"
+    },
+    {
+      "body": "padding:3px 6px;text-align:right",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 121
+        },
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 122
+        },
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 123
+        }
+      ],
+      "key": "telemetryNumber",
+      "utility": "sync-inline-telemetry-number"
+    },
+    {
+      "body": "padding:3px 6px;font-family:monospace;font-size:11px;color:var(--text-muted)",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 126
+        }
+      ],
+      "key": "telemetryName",
+      "utility": "sync-inline-telemetry-name"
+    },
+    {
+      "body": "padding:3px 6px;text-align:right;font-family:monospace;font-size:11px",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 127
+        },
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 128
+        },
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 129
+        }
+      ],
+      "key": "telemetryValue",
+      "utility": "sync-inline-telemetry-value"
+    },
+    {
+      "body": "padding:3px 6px;font-family:monospace;font-size:10px;color:var(--text-muted)",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 130
+        }
+      ],
+      "key": "telemetryDescription",
+      "utility": "sync-inline-telemetry-description"
+    },
+    {
+      "body": "margin-top:8px;font-size:11px;color:var(--text-muted)",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 133
+        }
+      ],
+      "key": "telemetryFootnote",
+      "utility": "sync-inline-telemetry-footnote"
+    },
+    {
+      "body": "font-family:monospace;font-size:11px",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 137
+        }
+      ],
+      "key": "technicalValue",
+      "utility": "sync-inline-technical-value"
+    },
+    {
+      "body": "margin-top:4px",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 139
+        }
+      ],
+      "key": "spacingTop",
+      "utility": "sync-inline-spacing-top"
+    },
+    {
+      "body": "color:var(--green);font-size:10px;font-weight:600;padding:2px 6px;border:1px solid var(--green);border-radius:3px;margin-left:6px",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 147
+        }
+      ],
+      "key": "readyBadge",
+      "utility": "sync-inline-ready-badge"
+    },
+    {
+      "body": "font-weight:normal;color:var(--text-muted);font-size:11px;margin-top:2px",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 148
+        }
+      ],
+      "key": "cutoverCaption",
+      "utility": "sync-inline-cutover-caption"
+    },
+    {
+      "body": "display:flex;align-items:center;gap:8px;flex-shrink:0",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 150
+        }
+      ],
+      "key": "cutoverActions",
+      "utility": "sync-inline-cutover-actions"
+    },
+    {
+      "body": "font-size:11px;color:var(--orange);border-color:var(--orange)",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 156
+        }
+      ],
+      "key": "warningAction",
+      "utility": "sync-inline-warning-action"
+    },
+    {
+      "body": "font-size:11px;color:var(--green);border-color:var(--green)",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 161
+        }
+      ],
+      "key": "successAction",
+      "utility": "sync-inline-success-action"
+    },
+    {
+      "body": "font-size:11px;opacity:0.5;cursor:not-allowed",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 166
+        }
+      ],
+      "key": "disabledAction",
+      "utility": "sync-inline-disabled-action"
+    },
+    {
+      "body": "color:var(--text-muted);font-size:11px;margin-top:4px",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 173
+        }
+      ],
+      "key": "cutoverHint",
+      "utility": "sync-inline-cutover-hint"
+    },
+    {
+      "body": "margin-top:6px;padding:8px;background:var(--surface);border-left:3px solid var(--orange);border-radius:4px",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 176
+        }
+      ],
+      "key": "blockerPanel",
+      "utility": "sync-inline-blocker-panel"
+    },
+    {
+      "body": "display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 178
+        }
+      ],
+      "key": "blockerHeading",
+      "utility": "sync-inline-blocker-heading"
+    },
+    {
+      "body": "color:var(--orange);font-weight:600;font-size:12px",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 180
+        }
+      ],
+      "key": "blockerTitle",
+      "utility": "sync-inline-blocker-title"
+    },
+    {
+      "body": "font-size:11px",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 184
+        }
+      ],
+      "key": "smallText",
+      "utility": "sync-inline-small-text"
+    },
+    {
+      "body": "width:100%;font-size:11px",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 189
+        }
+      ],
+      "key": "blockerTable",
+      "utility": "sync-inline-blocker-table"
+    },
+    {
+      "body": "font-family:monospace;padding:2px 6px",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 191
+        }
+      ],
+      "key": "blockerName",
+      "utility": "sync-inline-blocker-name"
+    },
+    {
+      "body": "padding:2px 6px;color:var(--text-muted)",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 192
+        }
+      ],
+      "key": "blockerShape",
+      "utility": "sync-inline-blocker-shape"
+    },
+    {
+      "body": "padding:2px 6px;text-align:right",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 193
+        }
+      ],
+      "key": "blockerCount",
+      "utility": "sync-inline-blocker-count"
+    },
+    {
+      "body": "color:var(--text-muted);font-size:10px;margin-top:4px",
+      "sites": [
+        {
+          "file": "js/components/SyncDiagnoseModal.svelte",
+          "line": 196
+        }
+      ],
+      "key": "blockerHint",
+      "utility": "sync-inline-blocker-hint"
+    },
+    {
+      "body": "display:flex;align-items:center;gap:6px;margin-bottom:6px",
+      "sites": [
+        {
+          "file": "js/components/SyncPopoverPresentation.svelte",
+          "line": 5
+        }
+      ],
+      "key": "relayHeader",
+      "utility": "sync-inline-relay-header"
+    },
+    {
+      "body": "width:8px;height:8px;border-radius:50%;",
+      "sites": [
+        {
+          "file": "js/components/SyncPopoverPresentation.svelte",
+          "line": 5
+        }
+      ],
+      "key": "relayDotGeometry",
+      "utility": "sync-inline-relay-dot-geometry"
+    },
+    {
+      "body": "display:inline-block",
+      "sites": [
+        {
+          "file": "js/components/SyncPopoverPresentation.svelte",
+          "line": 5
+        },
+        {
+          "file": "js/components/SyncPopoverPresentation.svelte",
+          "line": 10
+        }
+      ],
+      "key": "inlineDot",
+      "utility": "sync-inline-inline-dot"
+    },
+    {
+      "body": "font-size:13px",
+      "sites": [
+        {
+          "file": "js/components/SyncPopoverPresentation.svelte",
+          "line": 5
+        }
+      ],
+      "key": "relayLabel",
+      "utility": "sync-inline-relay-label"
+    },
+    {
+      "body": "font-size:10px;color:var(--text-muted);font-family:monospace;margin-bottom:8px;word-break:break-all",
+      "sites": [
+        {
+          "file": "js/components/SyncPopoverPresentation.svelte",
+          "line": 6
+        }
+      ],
+      "key": "relayAddress",
+      "utility": "sync-inline-relay-address"
+    },
+    {
+      "body": "font-size:12px;color:var(--text-muted);line-height:1.8",
+      "sites": [
+        {
+          "file": "js/components/SyncPopoverPresentation.svelte",
+          "line": 7
+        }
+      ],
+      "key": "transferDetails",
+      "utility": "sync-inline-transfer-details"
+    },
+    {
+      "body": "color:var(--red)",
+      "sites": [
+        {
+          "file": "js/components/SyncPopoverPresentation.svelte",
+          "line": 8
+        }
+      ],
+      "key": "dangerText",
+      "utility": "sync-inline-danger-text"
+    },
+    {
+      "body": "display:flex;align-items:center;gap:6px;margin-top:4px",
+      "sites": [
+        {
+          "file": "js/components/SyncPopoverPresentation.svelte",
+          "line": 10
+        }
+      ],
+      "key": "quotaRow",
+      "utility": "sync-inline-quota-row"
+    },
+    {
+      "body": "width:6px;height:6px;border-radius:50%;",
+      "sites": [
+        {
+          "file": "js/components/SyncPopoverPresentation.svelte",
+          "line": 10
+        }
+      ],
+      "key": "quotaDotGeometry",
+      "utility": "sync-inline-quota-dot-geometry"
+    },
+    {
+      "body": "font-size:11px;color:var(--text-muted);margin-top:6px",
+      "sites": [
+        {
+          "file": "js/components/SyncPopoverPresentation.svelte",
+          "line": 12
+        }
+      ],
+      "key": "recentError",
+      "utility": "sync-inline-recent-error"
+    },
+    {
+      "body": "margin-top:10px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--text-muted);max-height:160px;overflow-y:auto",
+      "sites": [
+        {
+          "file": "js/components/SyncPopoverPresentation.svelte",
+          "line": 14
+        }
+      ],
+      "key": "eventsPanel",
+      "utility": "sync-inline-events-panel"
+    },
+    {
+      "body": "display:flex;align-items:center;gap:8px;margin-bottom:4px",
+      "sites": [
+        {
+          "file": "js/components/SyncPopoverPresentation.svelte",
+          "line": 15
+        }
+      ],
+      "key": "eventsHeading",
+      "utility": "sync-inline-events-heading"
+    },
+    {
+      "body": "font-weight:600;color:var(--text-secondary);flex:1",
+      "sites": [
+        {
+          "file": "js/components/SyncPopoverPresentation.svelte",
+          "line": 16
+        }
+      ],
+      "key": "eventsTitle",
+      "utility": "sync-inline-events-title"
+    },
+    {
+      "body": "font-size:10px;padding:2px 8px",
+      "sites": [
+        {
+          "file": "js/components/SyncPopoverPresentation.svelte",
+          "line": 17
+        }
+      ],
+      "key": "copyEventsAction",
+      "utility": "sync-inline-copy-events-action"
+    },
+    {
+      "body": "margin-bottom:3px",
+      "sites": [
+        {
+          "file": "js/components/SyncPopoverPresentation.svelte",
+          "line": 19
+        }
+      ],
+      "key": "eventRow",
+      "utility": "sync-inline-event-row"
+    },
+    {
+      "body": "font-family:monospace;font-size:10px",
+      "sites": [
+        {
+          "file": "js/components/SyncPopoverPresentation.svelte",
+          "line": 19
+        }
+      ],
+      "key": "eventText",
+      "utility": "sync-inline-event-text"
+    },
+    {
+      "body": "margin-top:10px;display:flex;gap:8px;flex-wrap:wrap",
+      "sites": [
+        {
+          "file": "js/components/SyncPopoverPresentation.svelte",
+          "line": 21
+        }
+      ],
+      "key": "popoverActions",
+      "utility": "sync-inline-popover-actions"
+    },
+    {
+      "body": "font-size:12px",
+      "sites": [
+        {
+          "file": "js/components/SyncPopoverPresentation.svelte",
+          "line": 22
+        },
+        {
+          "file": "js/components/SyncPopoverPresentation.svelte",
+          "line": 24
+        },
+        {
+          "file": "js/components/SyncPopoverPresentation.svelte",
+          "line": 25
+        },
+        {
+          "file": "js/components/SyncPopoverPresentation.svelte",
+          "line": 27
+        },
+        {
+          "file": "js/components/SyncPopoverPresentation.svelte",
+          "line": 28
+        },
+        {
+          "file": "js/components/SyncPopoverPresentation.svelte",
+          "line": 29
+        }
+      ],
+      "key": "popoverAction",
+      "utility": "sync-inline-popover-action"
+    },
+    {
+      "body": "font-size:12px;color:var(--red);border-color:var(--red)",
+      "sites": [
+        {
+          "file": "js/components/SyncPopoverPresentation.svelte",
+          "line": 23
+        }
+      ],
+      "key": "reloadAction",
+      "utility": "sync-inline-reload-action"
+    },
+    {
+      "key": "forceResendWarning",
+      "utility": "sync-inline-force-resend-warning",
+      "body": "color:var(--orange);border-color:var(--orange)",
+      "sites": [
+        {
+          "file": "js/components/SyncPopoverPresentation.svelte",
+          "kind": "conditional-literal",
+          "predicate": "view.stuckPush"
+        }
+      ]
+    }
+  ]
+}

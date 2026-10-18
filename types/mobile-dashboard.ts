@@ -1,3 +1,6 @@
+import type {DashboardWidgetEntry,DashboardWidgetFrameView} from '../js/dashboard-widget-presentation.js';
+import type {DashboardActionBarView} from '../js/dashboard-action-bar-presentation.js';
+import type {ControlsPreferences} from './dashboard-widget-controls.js';
 import type { getStatus, getTrend } from '../js/utils.js';
 export interface MobileMarkerReader { values?:unknown; name?:unknown;unit?:unknown;singlePoint?:unknown;singleDateLabel?:unknown }
 export interface MobileDataReader { categories?:Record<string,{markers?:Record<string,MobileMarkerReader>|null;label?:unknown}>|null; dates?:{length?:unknown;[index:number]:unknown}|null;dateLabels?:{[index:number]:unknown}|null }
@@ -10,11 +13,11 @@ export interface MobileCanonReader {sub?:unknown;unit?:unknown}
 // Existing callback invocation operations, not guarantees on Object.assign snapshots.
 export interface MobileCallbacks {
  buildDashboardWidgetContext(data:unknown):unknown;
- getDashboardWidgetPrefs():unknown;
- getVisibleDashboardWidgetEntries(ctx:unknown,prefs:unknown):unknown[];
- renderDashboardControlButtons(options:{includeReset:unknown}):unknown;
+ getDashboardWidgetPrefs():ControlsPreferences;
+ getVisibleDashboardWidgetViews(ctx:unknown,prefs:ControlsPreferences):readonly DashboardWidgetEntry[];
+ projectDashboardControlButtons(options:{includeReset:unknown}):DashboardActionBarView|null;
  isDashboardOrganizeMode():unknown;
- renderDashboardWidget(entry:unknown,prefs:unknown,index:number,entries:unknown[]):unknown;
+ projectDashboardWidget(entry:DashboardWidgetEntry,prefs:ControlsPreferences,index:number,entries:readonly DashboardWidgetEntry[]):DashboardWidgetFrameView|null;
  setupDropZone():unknown; loadCommitHash():unknown; navigate(route:string):unknown;toggleMobileSidebar():unknown;loadContextCardTips():unknown;
  loadCatalog():{then(callback:(catalog:unknown)=>void):unknown};cacheCatalog(catalog:unknown):unknown;
 }

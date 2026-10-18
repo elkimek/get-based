@@ -1,0 +1,1462 @@
+@import "tailwindcss" prefix(gb) source(none) reference;
+@utility wearable-entry-01 { display: flex; flex-direction: column; gap: 6px; padding-top: 2px; }
+@utility wearable-entry-02 {
+  width: 100%; padding: 6px 8px; font-size: 15px; font-weight: 600;
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text-primary); box-sizing: border-box;
+}
+@utility wearable-entry-03 {
+  outline: none; border-color: var(--accent); background: var(--bg-primary);
+}
+@utility wearable-entry-04 { display: flex; align-items: center; gap: 4px; }
+@utility wearable-entry-05 { min-width: 0; flex: 1; text-align: center; }
+@utility wearable-entry-06 { color: var(--text-muted); font-weight: 600; }
+@utility wearable-entry-07 { font-size: 12px; padding: 4px 8px; }
+@utility wearable-entry-08 { display: flex; align-items: center; gap: 4px; }
+@utility wearable-entry-09 {
+  flex: 1; min-width: 0; padding: 4px 6px; font-size: 11px;
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text-muted);
+  color-scheme: dark;
+}
+@utility wearable-entry-10 { color-scheme: light; }
+@utility wearable-entry-11 {
+  padding: 4px 10px; font-size: 11px; font-weight: 600;
+  background: var(--accent); color: #fff; border: 0; border-radius: 6px;
+  cursor: pointer;
+}
+@utility wearable-entry-12 { filter: brightness(1.1); }
+@utility wearable-entry-13 {
+  padding: 4px 8px; font-size: 13px; background: transparent;
+  border: 0; color: var(--text-muted); cursor: pointer; line-height: 1;
+}
+@utility wearable-entry-14 { color: var(--text-primary); }
+@utility wearable-entry-15 { display: flex; flex-wrap: wrap; gap: 4px; padding: 2px 0; }
+@utility wearable-entry-16 {
+  font-size: 10px; padding: 3px 7px; line-height: 1.2;
+  background: transparent; color: var(--text-muted);
+  border: 1px solid var(--border); border-radius: 10px;
+  cursor: pointer; transition: all 0.12s ease;
+}
+@utility wearable-entry-17 { color: var(--text-primary); border-color: var(--text-muted); }
+@utility wearable-entry-18 {
+  background: var(--accent-faded, rgba(99,102,241,0.18));
+  color: var(--accent);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+@utility wearable-entry-19 {
+  width: 100%; min-height: 38px; padding: 6px 8px;
+  background: var(--bg-primary); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: 6px;
+  font-size: 12px; font-family: inherit; resize: vertical; box-sizing: border-box;
+}
+@utility wearable-entry-20 { border-color: var(--accent); outline: none; }
+@utility wearable-entry-21 { color: var(--text-muted); }
+@utility wearable-entry-22 {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 8px 10px; margin-bottom: 8px;
+  background: var(--bg-tertiary, rgba(128,128,128,0.06)); border-radius: 6px;
+}
+@utility wearable-entry-23 { max-width: 110px; }
+@utility wearable-entry-24 { max-width: 140px; }
+@utility wearable-entry-25 { gap: 2px; }
+@utility wearable-entry-26 {
+  background: var(--bg-elevated, var(--bg-primary));
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  padding: 6px;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+@utility wearable-entry-27 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  padding: 6px 10px 4px;
+}
+@utility wearable-entry-28 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 6px;
+  text-align: left;
+}
+@utility wearable-entry-29 {
+  background: var(--bg-secondary);
+}
+@utility wearable-entry-30 {
+  background: var(--bg-secondary);
+  color: var(--accent);
+}
+@utility wearable-entry-31 {
+  color: var(--accent);
+  font-weight: 600;
+}
+@utility wearable-entry-32 {
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  padding-top: 10px;
+  font-style: italic;
+  opacity: 0.85;
+}
+@utility wearable-entry-33 { min-height: 44px; padding: 10px 12px; }
+@utility wearable-strip-wearable-strip-stub {
+  border-style: dashed;
+}
+@utility wearable-strip-wearable-strip-stub-body {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+@utility wearable-strip-wearable-strip-stub-text {
+  flex: 1;
+  min-width: 200px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+@utility wearable-strip-wearable-strip-stub-text-strong {
+  color: var(--text-primary);
+}
+@utility wearable-strip-wearable-strip-stub-brands {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+@utility wearable-strip-wearable-strip-stub-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+@utility wearable-strip-wearable-strip-stub-cta {
+  background: var(--accent);
+  color: var(--on-accent);
+  border: none;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+@utility wearable-strip-wearable-strip-stub-cta-hover {
+  filter: brightness(1.08);
+}
+@utility wearable-strip-wearable-strip-stub-dismiss {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+@utility wearable-strip-wearable-strip-stub-dismiss-hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+@utility wearable-strip-wearable-strip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+@utility wearable-strip-wearable-strip-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+@utility wearable-strip-wearable-strip-icon {
+  font-size: 16px;
+  color: var(--accent);
+  letter-spacing: 0.04em;
+}
+@utility wearable-strip-wearable-source-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+}
+@utility wearable-strip-wearable-strip-demo-pill {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: var(--yellow-bg);
+  color: var(--yellow);
+  padding: 2px 7px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--yellow) 25%, transparent);
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+@utility wearable-strip-wearable-strip-demo-pill-hover {
+  filter: brightness(1.1);
+}
+@utility wearable-strip-wearable-strip-reorder-pill {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: var(--accent-fill);
+  color: var(--accent);
+  padding: 3px 9px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  white-space: nowrap;
+}
+@utility wearable-strip-wearable-card-grid-reorder {
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
+  border-radius: 14px;
+  padding: 8px;
+  margin: -8px;
+  outline: 1px dashed color-mix(in srgb, var(--accent) 25%, transparent);
+}
+@utility wearable-strip-wearable-strip-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+@utility wearable-strip-wearable-strip-sync {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1;
+}
+@utility wearable-strip-wearable-strip-sync-hover-not-disabled {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--bg-secondary);
+}
+@utility wearable-strip-wearable-strip-sync-disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+@utility wearable-strip-wearable-strip-sync-icon {
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+@utility wearable-strip-wearable-strip-sync-is-syncing-wearable-strip-sync-icon {
+  animation: wearable-spin 0.9s linear infinite;
+}
+@utility wearable-strip-wearable-collapse-arrow {
+  display: inline-block;
+  transition: transform 0.18s ease;
+  color: var(--text-muted);
+  font-size: 14px;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  line-height: 1;
+}
+@utility wearable-strip-wearable-collapse-arrow-focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+@utility wearable-strip-wearable-collapse-arrow-collapsed {
+  transform: rotate(-90deg);
+}
+@utility wearable-strip-wearable-card-grid-hidden {
+  display: none;
+}
+@utility wearable-strip-wearable-strip-reorder {
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.12s ease;
+}
+@utility wearable-strip-wearable-strip-reorder-hover {
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+}
+@utility wearable-strip-wearable-strip-reorder-active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+@utility wearable-strip-wearable-card-reorder-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+@utility wearable-strip-wearable-reorder-arrows {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  gap: 2px;
+  z-index: 2;
+}
+@utility wearable-strip-wearable-reorder-arrow {
+  padding: 2px 6px;
+  font-size: 11px;
+  line-height: 1;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+@utility wearable-strip-wearable-reorder-arrow-hover-not-disabled {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+@utility wearable-strip-wearable-reorder-arrow-disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+@utility wearable-strip-wearable-strip-footer {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+@utility wearable-strip-wearable-strip-footer-hidden {
+  display: none;
+}
+@utility wearable-strip-wearable-strip-footer-note {
+  display: inline-block;
+}
+@utility wearable-strip-wearable-strip-footer-note-wearable-strip-footer-note-before {
+  content: "·";
+  margin-right: 14px;
+  opacity: 0.5;
+}
+@utility wearable-strip-wearable-card-grid-max-width-900px {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@utility wearable-strip-wearable-card-grid-max-width-520px {
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+@utility wearable-strip-wearable-strip-max-width-520px {
+  padding: 12px 12px 10px;
+}
+@utility wearable-strip-wearable-strip-meta-max-width-520px {
+  font-size: 11px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+@utility wearable-strip-wearable-strip-sync-wearable-strip-reorder-pointer-coarse {
+  min-height: 44px;
+  padding: 8px 14px;
+}
+@utility wearable-strip-wearable-reorder-arrow-pointer-coarse {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+@utility wearable-detail-wearable-manual-entries {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+@utility wearable-detail-wearable-manual-entries-compact {
+  text-align: right;
+}
+@utility wearable-detail-wearable-manual-entries-compact-wearable-manual-add-btn {
+  font-size: 12px;
+  opacity: 0.85;
+}
+@utility wearable-detail-wearable-manual-entries-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+@utility wearable-detail-wearable-manual-entries-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+@utility wearable-detail-wearable-manual-entries-count {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--bg-tertiary, rgba(128,128,128,0.08));
+  border-radius: 8px;
+}
+@utility wearable-detail-wearable-manual-add-btn {
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  cursor: pointer;
+}
+@utility wearable-detail-wearable-manual-add-btn-hover {
+  background: var(--accent-faded, rgba(99,102,241,0.12));
+}
+@utility wearable-detail-wearable-manual-entries-empty {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 6px 0;
+}
+@utility wearable-detail-wearable-manual-entries-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+@utility wearable-detail-wearable-manual-entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--border);
+}
+@utility wearable-detail-wearable-manual-entry-last-child {
+  border-bottom: 0;
+}
+@utility wearable-detail-wearable-manual-entry-date {
+  color: var(--text-muted);
+  min-width: 84px;
+  font-variant-numeric: tabular-nums;
+}
+@utility wearable-detail-wearable-manual-entry-val {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+@utility wearable-detail-wearable-manual-entry-unit {
+  font-weight: 400;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+@utility wearable-detail-wearable-manual-entry-tags {
+  display: inline-flex;
+  gap: 3px;
+  flex-wrap: wrap;
+}
+@utility wearable-detail-wearable-manual-entry-tag {
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 8px;
+  background: var(--bg-tertiary, rgba(128,128,128,0.08));
+  color: var(--text-muted);
+  text-transform: lowercase;
+}
+@utility wearable-detail-wearable-manual-entry-del {
+  margin-left: auto;
+  padding: 2px 7px;
+  font-size: 13px;
+  line-height: 1;
+  background: transparent;
+  border: 0;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 4px;
+}
+@utility wearable-detail-wearable-manual-entry-del-hover {
+  color: var(--red, #ef4444);
+  background: var(--bg-tertiary, rgba(239,68,68,0.08));
+}
+@utility wearable-detail-wearable-manual-entry-has-note {
+  flex-wrap: wrap;
+}
+@utility wearable-detail-wearable-manual-entry-note {
+  flex-basis: 100%;
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-style: italic;
+  margin-top: 2px;
+  padding-left: 0;
+  line-height: 1.35;
+  word-break: break-word;
+}
+@utility wearable-detail-wearable-detail-range {
+  margin: 10px 0 4px;
+  justify-content: flex-start;
+}
+@utility wearable-detail-wearable-detail-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+@utility wearable-detail-wearable-detail-stat {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+@utility wearable-detail-wearable-detail-stat-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+@utility wearable-detail-wearable-detail-stat-val {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+@utility wearable-detail-wearable-detail-stat-sub {
+  font-size: 11px;
+  color: var(--text-secondary);
+  opacity: 0.75;
+}
+@utility wearable-detail-wearable-detail-empty {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: var(--bg-primary);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+@utility wearable-detail-wearable-detail-emf-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 14px;
+  padding: 8px 10px;
+  background: rgba(99, 102, 241, 0.05);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  line-height: 1.5;
+}
+@utility wearable-detail-wearable-detail-emf-hint-a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+@utility wearable-detail-wearable-detail-emf-hint-a-hover {
+  text-decoration: underline;
+}
+@utility wearable-detail-wearable-manual-entry-del-pointer-coarse {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+@utility wearable-structure-strip {
+  margin: 20px 0 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px 12px;
+  box-shadow: var(--shadow);
+}
+@utility wearable-structure-strip-max-width-600px {
+  margin-bottom: 80px;
+}
+@utility wearable-structure-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+@utility wearable-structure-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+  min-width: 0;
+}
+@utility wearable-structure-card-state-hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+@utility wearable-structure-card-state-focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@utility wearable-structure-card-empty {
+  border-style: dashed;
+  opacity: 0.82;
+}
+@utility wearable-structure-card-empty-state-hover {
+  opacity: 1;
+}
+@utility wearable-structure-value-row-empty {
+  justify-content: flex-start;
+}
+@utility wearable-structure-value-dash {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+@utility wearable-structure-empty-cta {
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+@utility wearable-structure-card-reorder-wrap-child-is-wearable-card {
+  cursor: default;
+  pointer-events: none;
+  opacity: 0.92;
+}
+@utility wearable-structure-card-reorder-wrap-child-is-wearable-card-state-hover {
+  border-color: var(--border);
+  transform: none;
+}
+@utility wearable-structure-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+@utility wearable-structure-metric-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@utility wearable-structure-metric-sub {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: none;
+  letter-spacing: 0;
+}
+@utility wearable-structure-delta {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 8px;
+  white-space: nowrap;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+}
+@utility wearable-structure-delta-is-delta-good {
+  background: var(--green-bg);
+  color: var(--green);
+}
+@utility wearable-structure-delta-is-delta-bad {
+  background: var(--red-bg);
+  color: var(--red);
+}
+@utility wearable-structure-delta-is-delta-flat {
+  background: var(--neutral-soft-bg);
+  color: var(--text-muted);
+}
+@utility wearable-structure-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  flex-wrap: wrap;
+  min-height: 24px;
+}
+@utility wearable-structure-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+@utility wearable-structure-unit {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+@utility wearable-structure-unit-tight {
+  margin-left: 0 !important;
+}
+@utility wearable-structure-value-row-is-wearable-unit-tight {
+  margin-left: -4px !important;
+}
+@utility wearable-structure-baseline {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  white-space: nowrap;
+}
+@utility wearable-structure-staleness {
+  flex-basis: 100%;
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-style: italic;
+  white-space: nowrap;
+  cursor: help;
+}
+@utility wearable-structure-mobile-staleness-baseline {
+  display: none;
+}
+@utility wearable-structure-sparkline {
+  width: 100%;
+  height: 32px;
+  display: block;
+  color: var(--text-muted);
+}
+@utility wearable-structure-sparkline-is-spark-baseline {
+  stroke: currentColor;
+  stroke-opacity: 0.25;
+  stroke-dasharray: 2 3;
+  stroke-width: 0.5;
+}
+@utility wearable-structure-sparkline-is-spark-line {
+  fill: none;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+@utility wearable-structure-sparkline-is-spark-last {
+  stroke: var(--bg-card);
+  stroke-width: 0.8;
+}
+@utility wearable-structure-sparkline-bad {
+  stroke: var(--red);
+  fill: var(--red);
+}
+@utility wearable-structure-sparkline-good {
+  stroke: var(--green);
+  fill: var(--green);
+}
+@utility wearable-structure-sparkline-neutral {
+  stroke: var(--accent);
+  fill: var(--accent);
+}
+@utility wearable-structure-card-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 18px;
+}
+@utility wearable-structure-trend-pill {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--neutral-soft-bg);
+  text-transform: none;
+  letter-spacing: 0;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+@utility wearable-structure-trend-bad {
+  color: var(--red);
+  background: var(--red-bg);
+}
+@utility wearable-structure-trend-good {
+  color: var(--green);
+  background: var(--green-bg);
+}
+@utility wearable-structure-trend-improving {
+  color: var(--green);
+  background: var(--green-bg);
+}
+@utility wearable-structure-trend-flat {
+  color: var(--text-muted);
+  background: var(--neutral-soft-bg);
+}
+@utility wearable-structure-source-badge {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--neutral-soft-bg);
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@utility wearable-structure-source-badge-max-width-600px {
+  font-size: 10px;
+  text-transform: none;
+  letter-spacing: 0.01em;
+}
+@utility wearable-structure-relay-consent-summary-child-div {
+  line-height: 1.45;
+}
+@utility wearable-structure-adapter-chip {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 8px;
+}
+@utility wearable-structure-adapter-chip-off {
+  background: var(--neutral-soft-bg);
+  color: var(--text-muted);
+}
+@utility wearable-structure-adapter-chip-ok {
+  background: var(--green-bg);
+  color: var(--green);
+}
+@utility wearable-structure-adapter-chip-bad {
+  background: var(--red-bg);
+  color: var(--red);
+}
+@utility wearable-structure-source-badge-btn {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+}
+@utility wearable-structure-source-badge-btn-state-hover {
+  text-decoration: underline;
+}
+@utility wearable-structure-adapter-chip-beta {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--purple) 18%, transparent), color-mix(in srgb, var(--accent) 18%, transparent));
+  color: var(--purple);
+  border: 1px solid color-mix(in srgb, var(--purple) 35%, transparent);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  margin-left: 4px;
+}
+@utility wearable-structure-adapter-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+@utility wearable-structure-adapter-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0;
+}
+@utility wearable-structure-adapter-hint-a {
+  color: var(--accent);
+  text-decoration: none;
+}
+@utility wearable-structure-adapter-hint-a-state-hover {
+  text-decoration: underline;
+}
+@utility wearable-structure-adapter-input {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-size: 13px;
+}
+@utility wearable-structure-adapter-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+@utility wearable-structure-adapter-identity {
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+@utility wearable-structure-adapter-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+@utility wearable-structure-adapter-note {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+  margin: 0;
+}
+@utility wearable-structure-vendor-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+@utility wearable-structure-adapter-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+@utility wearable-structure-adapter-card-is-is-connected-is-wearable-vendor-icon {
+  color: var(--accent);
+}
+@utility wearable-structure-adapter-card-is-is-connected {
+  border-color: color-mix(in srgb, var(--accent) 25%, transparent);
+}
+@utility wearable-structure-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1;
+  white-space: nowrap;
+}
+@utility wearable-structure-action-state-hover-state-not-state-disabled {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--bg-secondary);
+}
+@utility wearable-structure-action-state-disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+@utility wearable-structure-action-secondary {
+  font-weight: 400;
+  opacity: 0.8;
+}
+@utility wearable-structure-action-secondary-state-hover-state-not-state-disabled {
+  opacity: 1;
+}
+@utility wearable-structure-action-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-left: 4px;
+}
+@utility wearable-structure-action-icon {
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+@utility wearable-structure-action-is-is-syncing-is-wearable-action-icon {
+  animation: wearable-spin 0.9s linear infinite;
+}
+@utility wearable-structure-action-primary {
+  background: var(--accent-gradient);
+  border-color: transparent;
+  color: white;
+}
+@utility wearable-structure-action-primary-state-hover-state-not-state-disabled {
+  filter: brightness(1.08);
+  border-color: transparent;
+  color: white;
+  background: var(--accent-gradient);
+}
+@utility wearable-structure-action-danger {
+  color: var(--text-muted);
+}
+@utility wearable-structure-action-danger-state-hover-state-not-state-disabled {
+  border-color: var(--red);
+  color: var(--red);
+  background: var(--red-bg);
+}
+@utility wearable-structure-action-connect {
+  padding: 7px 18px;
+  font-size: 13px;
+}
+@utility wearable-structure-action-connect-is-wearable-vendor-icon {
+  color: rgba(255, 255, 255, 0.95);
+}
+@utility wearable-structure-action-branded {
+  background: var(--brand-color);
+  border-color: transparent;
+  color: white;
+}
+@utility wearable-structure-action-branded-state-hover-state-not-state-disabled {
+  background: var(--brand-color);
+  filter: brightness(1.1);
+  border-color: transparent;
+  color: white;
+}
+@utility wearable-structure-action-branded-state-focus-visible {
+  outline: 2px solid var(--brand-color);
+  outline-offset: 2px;
+}
+@utility wearable-structure-action-signin {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  line-height: 0;
+}
+@utility wearable-structure-action-signin-img {
+  height: 36px;
+  width: auto;
+  max-width: 220px;
+  display: block;
+}
+@utility wearable-structure-action-signin-state-focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+@utility wearable-structure-action-signin-branded {
+  background: var(--brand-color);
+  border-radius: 999px;
+  padding: 9px 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: filter 0.15s ease;
+}
+@utility wearable-structure-action-signin-branded-state-hover-state-not-state-disabled {
+  filter: brightness(1.1);
+}
+@utility wearable-structure-action-signin-branded-img {
+  height: 18px;
+  width: auto;
+  max-width: 160px;
+}
+@utility wearable-structure-action-signin-accent {
+  background: var(--accent-gradient);
+  border-radius: 999px;
+  padding: 9px 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: filter 0.15s ease;
+}
+@utility wearable-structure-action-signin-accent-state-hover-state-not-state-disabled {
+  filter: brightness(1.1);
+}
+@utility wearable-structure-action-signin-accent-img {
+  height: 18px;
+  width: auto;
+  max-width: 160px;
+}
+@utility wearable-structure-vendor-mark {
+  display: inline-block;
+  width: var(--mark-size, 18px);
+  height: var(--mark-size, 18px);
+  background-color: currentColor;
+  -webkit-mask: var(--mark-url) center / contain no-repeat;
+  mask: var(--mark-url) center / contain no-repeat;
+  flex-shrink: 0;
+}
+@utility wearable-structure-vendor-icon-img {
+  display: block;
+  flex-shrink: 0;
+  height: 18px;
+  width: auto;
+  max-width: 90px;
+  object-fit: contain;
+  object-position: left center;
+}
+@utility wearable-structure-action-link {
+  border: 0;
+  padding: 7px 10px;
+  color: var(--text-muted);
+  background: transparent;
+}
+@utility wearable-structure-action-link-state-hover-state-not-state-disabled {
+  color: var(--accent);
+  background: transparent;
+  border-color: transparent;
+}
+@utility wearable-structure-adapter-body-compact {
+  gap: 10px;
+}
+@utility wearable-structure-adapter-hint-warn {
+  color: var(--red);
+}
+@utility wearable-structure-adapter-hint-pending {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+@utility wearable-structure-adapter-help {
+  display: none;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+  margin-top: 4px;
+}
+@utility wearable-structure-adapter-card-is-show-help-is-wearable-adapter-help {
+  display: block;
+}
+@utility wearable-structure-source-badge-btn-pointer-coarse {
+  min-height: 32px;
+  padding: 4px 10px;
+}
+@utility wearable-structure-action-pointer-coarse {
+  min-height: 44px;
+  padding: 10px 16px;
+}
+@utility wearable-structure-coarse-manual-actions {
+  min-height: 44px;
+  padding: 8px 14px;
+}
+
+/* ─────────────────────────────────────────────────────────
+   Wearable strip (dashboard section between Supplements and Key Trends)
+   ───────────────────────────────────────────────────────── */
+.wearable-strip /* On mobile the chat + import FABs sit at the bottom-right and overlap the
+     last strip card. Reserve enough bottom margin so the FABs don't obscure
+     readings. (Desktop FAB is smaller and the strip isn't bottom-anchored.) */ { @apply gb:wearable-structure-strip; }
+.wearable-strip-stub { @apply gb:wearable-strip-wearable-strip-stub; }
+.wearable-strip-stub-body { @apply gb:wearable-strip-wearable-strip-stub-body; }
+.wearable-strip-stub-text { @apply gb:wearable-strip-wearable-strip-stub-text; }
+.wearable-strip-stub-text strong { @apply gb:wearable-strip-wearable-strip-stub-text-strong; }
+.wearable-strip-stub-brands { @apply gb:wearable-strip-wearable-strip-stub-brands; }
+.wearable-strip-stub-actions { @apply gb:wearable-strip-wearable-strip-stub-actions; }
+.wearable-strip-stub-cta { @apply gb:wearable-strip-wearable-strip-stub-cta; }
+.wearable-strip-stub-cta:hover { @apply gb:wearable-strip-wearable-strip-stub-cta-hover; }
+.wearable-strip-stub-dismiss { @apply gb:wearable-strip-wearable-strip-stub-dismiss; }
+.wearable-strip-stub-dismiss:hover { @apply gb:wearable-strip-wearable-strip-stub-dismiss-hover; }
+@media (max-width: 600px) {
+  .wearable-strip /* room for chat FAB + import FAB stacked */ { @apply gb:wearable-structure-strip-max-width-600px; }
+}
+.wearable-strip-header { @apply gb:wearable-strip-wearable-strip-header; }
+.wearable-strip-title { @apply gb:wearable-strip-wearable-strip-title; }
+.wearable-strip-icon { @apply gb:wearable-strip-wearable-strip-icon; }
+.wearable-source-label { @apply gb:wearable-strip-wearable-source-label; }
+.wearable-strip-demo-pill { @apply gb:wearable-strip-wearable-strip-demo-pill; }
+.wearable-strip-demo-pill:hover { @apply gb:wearable-strip-wearable-strip-demo-pill-hover; }
+/* Reorder-mode banner — visible cue that the strip is in arrange-mode so the
+   user knows the ◀ ▶ arrows are intentional, not accidental. */
+.wearable-strip-reorder-pill { @apply gb:wearable-strip-wearable-strip-reorder-pill; }
+/* Grid tint while reordering — a subtle accent so it's obviously different. */
+.wearable-card-grid-reorder { @apply gb:wearable-strip-wearable-card-grid-reorder; }
+.wearable-strip-meta { @apply gb:wearable-strip-wearable-strip-meta; }
+.wearable-strip-sync { @apply gb:wearable-strip-wearable-strip-sync; }
+.wearable-strip-sync:hover:not(:disabled) { @apply gb:wearable-strip-wearable-strip-sync-hover-not-disabled; }
+.wearable-strip-sync:disabled { @apply gb:wearable-strip-wearable-strip-sync-disabled; }
+.wearable-strip-sync-icon { @apply gb:wearable-strip-wearable-strip-sync-icon; }
+.wearable-strip-sync.is-syncing .wearable-strip-sync-icon { @apply gb:wearable-strip-wearable-strip-sync-is-syncing-wearable-strip-sync-icon; }
+@keyframes wearable-spin { to { transform: rotate(360deg); } }
+.wearable-collapse-arrow { @apply gb:wearable-strip-wearable-collapse-arrow; }
+.wearable-collapse-arrow:focus-visible { @apply gb:wearable-strip-wearable-collapse-arrow-focus-visible; }
+.wearable-collapse-arrow.collapsed { @apply gb:wearable-strip-wearable-collapse-arrow-collapsed; }
+
+.wearable-card-grid /* auto-fit so the grid stays even no matter how many cards the adapter
+     registry produces (4 for Oura basics, 8-9 with full scopes, more when
+     WHOOP/Apple Health join). Cards want ~220px min; the row refills across
+     the available width without leaving half-empty tail rows. */ { @apply gb:wearable-structure-card-grid; }
+.wearable-card-grid.hidden { @apply gb:wearable-strip-wearable-card-grid-hidden; }
+
+.wearable-card { @apply gb:wearable-structure-card; }
+.wearable-card:hover { @apply gb:wearable-structure-card-state-hover; }
+.wearable-card:focus-visible { @apply gb:wearable-structure-card-state-focus-visible; }
+
+/* Empty-state cards for manual-capable metrics with no data yet */
+.wearable-card-empty { @apply gb:wearable-structure-card-empty; }
+.wearable-card-empty:hover { @apply gb:wearable-structure-card-empty-state-hover; }
+.wearable-value-row-empty { @apply gb:wearable-structure-value-row-empty; }
+.wearable-value-dash { @apply gb:wearable-structure-value-dash; }
+.wearable-empty-cta { @apply gb:wearable-structure-empty-cta; }
+
+/* Inline manual-log form (opens in-place when empty card is clicked) */
+.wearable-log-form { @apply gb:wearable-entry-01; }
+.wearable-log-input { @apply gb:wearable-entry-02; }
+.wearable-log-input:focus { @apply gb:wearable-entry-03; }
+.wearable-log-bp-row { @apply gb:wearable-entry-04; }
+.wearable-log-bp { @apply gb:wearable-entry-05; }
+.wearable-log-sep { @apply gb:wearable-entry-06; }
+.wearable-log-pulse-optional { @apply gb:wearable-entry-07; }
+.wearable-log-row { @apply gb:wearable-entry-08; }
+.wearable-log-date { @apply gb:wearable-entry-09; }
+[data-theme="light"] .wearable-log-date { @apply gb:wearable-entry-10; }
+.wearable-log-save { @apply gb:wearable-entry-11; }
+.wearable-log-save:hover { @apply gb:wearable-entry-12; }
+.wearable-log-cancel { @apply gb:wearable-entry-13; }
+.wearable-log-cancel:hover { @apply gb:wearable-entry-14; }
+
+/* Optional context-tag chips on the inline log form (BP / RHR). Toggle-
+   selectable. Purely informational — a post-workout BP reading tells a
+   different story than a resting one, even when the numbers match. */
+.wearable-log-tags { @apply gb:wearable-entry-15; }
+.wearable-log-chip { @apply gb:wearable-entry-16; }
+.wearable-log-chip:hover { @apply gb:wearable-entry-17; }
+.wearable-log-chip.active { @apply gb:wearable-entry-18; }
+.wearable-log-note { @apply gb:wearable-entry-19; }
+.wearable-log-note:focus { @apply gb:wearable-entry-20; }
+.wearable-log-note::placeholder { @apply gb:wearable-entry-21; }
+
+/* Manual entries list in the detail modal — per-row delete + add form */
+.wearable-manual-entries { @apply gb:wearable-detail-wearable-manual-entries; }
+.wearable-manual-entries-compact { @apply gb:wearable-detail-wearable-manual-entries-compact; }
+.wearable-manual-entries-compact .wearable-manual-add-btn { @apply gb:wearable-detail-wearable-manual-entries-compact-wearable-manual-add-btn; }
+.wearable-manual-entries-head { @apply gb:wearable-detail-wearable-manual-entries-head; }
+.wearable-manual-entries-title { @apply gb:wearable-detail-wearable-manual-entries-title; }
+.wearable-manual-entries-count { @apply gb:wearable-detail-wearable-manual-entries-count; }
+.wearable-manual-add-btn { @apply gb:wearable-detail-wearable-manual-add-btn; }
+.wearable-manual-add-btn:hover { @apply gb:wearable-detail-wearable-manual-add-btn-hover; }
+.wearable-manual-entries-empty { @apply gb:wearable-detail-wearable-manual-entries-empty; }
+.wearable-manual-entries-list { @apply gb:wearable-detail-wearable-manual-entries-list; }
+.wearable-manual-entry { @apply gb:wearable-detail-wearable-manual-entry; }
+.wearable-manual-entry:last-child { @apply gb:wearable-detail-wearable-manual-entry-last-child; }
+.wearable-manual-entry-date { @apply gb:wearable-detail-wearable-manual-entry-date; }
+.wearable-manual-entry-val { @apply gb:wearable-detail-wearable-manual-entry-val; }
+.wearable-manual-entry-unit { @apply gb:wearable-detail-wearable-manual-entry-unit; }
+.wearable-manual-entry-tags { @apply gb:wearable-detail-wearable-manual-entry-tags; }
+.wearable-manual-entry-tag { @apply gb:wearable-detail-wearable-manual-entry-tag; }
+.wearable-manual-entry-del { @apply gb:wearable-detail-wearable-manual-entry-del; }
+.wearable-manual-entry-del:hover { @apply gb:wearable-detail-wearable-manual-entry-del-hover; }
+.wearable-manual-entry.has-note { @apply gb:wearable-detail-wearable-manual-entry-has-note; }
+.wearable-manual-entry-note { @apply gb:wearable-detail-wearable-manual-entry-note; }
+.wearable-manual-add-form { @apply gb:wearable-entry-22; }
+.wearable-manual-add-form .wearable-log-input { @apply gb:wearable-entry-23; }
+.wearable-manual-add-form .wearable-log-date { @apply gb:wearable-entry-24; }
+.wearable-manual-add-form-bp .wearable-log-bp-row { @apply gb:wearable-entry-25; }
+
+/* Reorder mode — tiny ⇄ button in the strip header toggles it; cards gain
+   ◀ ▶ arrows overlaid on their top-right. Works on mouse + touch without
+   drag-and-drop, so no vendored sortable library needed. */
+.wearable-strip-reorder { @apply gb:wearable-strip-wearable-strip-reorder; }
+.wearable-strip-reorder:hover { @apply gb:wearable-strip-wearable-strip-reorder-hover; }
+.wearable-strip-reorder.active { @apply gb:wearable-strip-wearable-strip-reorder-active; }
+.wearable-card-reorder-wrap { @apply gb:wearable-strip-wearable-card-reorder-wrap; }
+.wearable-card-reorder-wrap > .wearable-card /* suppress clicks/badges on underlying card while reordering */ { @apply gb:wearable-structure-card-reorder-wrap-child-is-wearable-card; }
+.wearable-card-reorder-wrap > .wearable-card:hover /* cancel hover-lift */ { @apply gb:wearable-structure-card-reorder-wrap-child-is-wearable-card-state-hover; }
+.wearable-reorder-arrows { @apply gb:wearable-strip-wearable-reorder-arrows; }
+.wearable-reorder-arrow { @apply gb:wearable-strip-wearable-reorder-arrow; }
+.wearable-reorder-arrow:hover:not(:disabled) { @apply gb:wearable-strip-wearable-reorder-arrow-hover-not-disabled; }
+.wearable-reorder-arrow:disabled { @apply gb:wearable-strip-wearable-reorder-arrow-disabled; }
+
+.wearable-card-top { @apply gb:wearable-structure-card-top; }
+.wearable-metric-name { @apply gb:wearable-structure-metric-name; }
+.wearable-metric-sub { @apply gb:wearable-structure-metric-sub; }
+.wearable-delta { @apply gb:wearable-structure-delta; }
+.wearable-delta.delta-good { @apply gb:wearable-structure-delta-is-delta-good; }
+.wearable-delta.delta-bad  { @apply gb:wearable-structure-delta-is-delta-bad; }
+.wearable-delta.delta-flat { @apply gb:wearable-structure-delta-is-delta-flat; }
+
+.wearable-value-row { @apply gb:wearable-structure-value-row; }
+.wearable-value { @apply gb:wearable-structure-value; }
+.wearable-unit { @apply gb:wearable-structure-unit; }
+/* Tight unit hugs the value with no separating space — used for "/5" and
+   similar prefix-slash units so "1/5" reads as one token, not "1 /5". */
+.wearable-unit-tight { @apply gb:wearable-structure-unit-tight; }
+.wearable-value-row .wearable-unit-tight /* Value-row default has flex gap; tight unit cancels it. */ { @apply gb:wearable-structure-value-row-is-wearable-unit-tight; }
+.wearable-baseline { @apply gb:wearable-structure-baseline; }
+.wearable-staleness { @apply gb:wearable-structure-staleness; }
+/* On narrow strip cards the baseline + staleness chip stack as two muted
+   grey lines below the value, which reads as a paragraph blob. Hide the
+   baseline annotation when the staleness hint is present and viewport is
+   tight; the staleness chip already implies "this isn't your most recent
+   typical reading" and the detail modal carries the precise baseline. */
+@media (max-width: 600px) {
+  .wearable-card .wearable-staleness ~ .wearable-baseline,
+  .wearable-card:has(.wearable-staleness) .wearable-baseline { @apply gb:wearable-structure-mobile-staleness-baseline; }
+}
+
+.wearable-sparkline { @apply gb:wearable-structure-sparkline; }
+.wearable-sparkline .spark-baseline { @apply gb:wearable-structure-sparkline-is-spark-baseline; }
+.wearable-sparkline .spark-line { @apply gb:wearable-structure-sparkline-is-spark-line; }
+.wearable-sparkline .spark-last { @apply gb:wearable-structure-sparkline-is-spark-last; }
+.wearable-sparkline.spark-bad .spark-line,
+.wearable-sparkline.spark-bad .spark-last { @apply gb:wearable-structure-sparkline-bad; }
+.wearable-sparkline.spark-good .spark-line,
+.wearable-sparkline.spark-good .spark-last { @apply gb:wearable-structure-sparkline-good; }
+.wearable-sparkline.spark-neutral .spark-line,
+.wearable-sparkline.spark-neutral .spark-last { @apply gb:wearable-structure-sparkline-neutral; }
+
+.wearable-card-bottom { @apply gb:wearable-structure-card-bottom; }
+.wearable-trend-pill { @apply gb:wearable-structure-trend-pill; }
+.wearable-trend-bad       { @apply gb:wearable-structure-trend-bad; }
+.wearable-trend-good      { @apply gb:wearable-structure-trend-good; }
+.wearable-trend-improving { @apply gb:wearable-structure-trend-improving; }
+.wearable-trend-flat      { @apply gb:wearable-structure-trend-flat; }
+.wearable-source-badge { @apply gb:wearable-structure-source-badge; }
+/* Badge keeps title-case at every width — earlier the all-caps desktop
+   variant read as shouty next to the lowercase metric labels. */
+@media (max-width: 600px) {
+  .wearable-source-badge { @apply gb:wearable-structure-source-badge-max-width-600px; }
+}
+
+.wearable-strip-footer { @apply gb:wearable-strip-wearable-strip-footer; }
+.wearable-strip-footer.hidden { @apply gb:wearable-strip-wearable-strip-footer-hidden; }
+.wearable-strip-footer-note { @apply gb:wearable-strip-wearable-strip-footer-note; }
+.wearable-strip-footer-note + .wearable-strip-footer-note::before { @apply gb:wearable-strip-wearable-strip-footer-note-wearable-strip-footer-note-before; }
+
+/* ── Wearable detail modal ── */
+.wearable-detail-range { @apply gb:wearable-detail-wearable-detail-range; }
+.wearable-detail-stats { @apply gb:wearable-detail-wearable-detail-stats; }
+.wearable-detail-stat { @apply gb:wearable-detail-wearable-detail-stat; }
+.wearable-detail-stat-label { @apply gb:wearable-detail-wearable-detail-stat-label; }
+.wearable-detail-stat-val { @apply gb:wearable-detail-wearable-detail-stat-val; }
+.wearable-detail-stat-sub { @apply gb:wearable-detail-wearable-detail-stat-sub; }
+.wearable-detail-empty { @apply gb:wearable-detail-wearable-detail-empty; }
+
+.wearable-relay-consent-summary > div { @apply gb:wearable-structure-relay-consent-summary-child-div; }
+
+/* Legacy chip styles — preserved for any external reuse but no longer
+   applied by the settings panel. Kept lean. */
+.wearable-adapter-chip { @apply gb:wearable-structure-adapter-chip; }
+.wearable-adapter-chip-off { @apply gb:wearable-structure-adapter-chip-off; }
+.wearable-adapter-chip-ok  { @apply gb:wearable-structure-adapter-chip-ok; }
+.wearable-adapter-chip-bad { @apply gb:wearable-structure-adapter-chip-bad; }
+/* ── Source badge + picker (multi-source override) ── */
+.wearable-source-badge-btn { @apply gb:wearable-structure-source-badge-btn; }
+.wearable-source-badge-btn:hover { @apply gb:wearable-structure-source-badge-btn-state-hover; }
+.wearable-source-picker { @apply gb:wearable-entry-26; }
+.wearable-source-picker-head { @apply gb:wearable-entry-27; }
+.wearable-source-picker-item { @apply gb:wearable-entry-28; }
+.wearable-source-picker-item:hover { @apply gb:wearable-entry-29; }
+.wearable-source-picker-item.selected { @apply gb:wearable-entry-30; }
+.wearable-source-picker-check { @apply gb:wearable-entry-31; }
+.wearable-source-picker-auto { @apply gb:wearable-entry-32; }
+
+.wearable-adapter-chip-beta { @apply gb:wearable-structure-adapter-chip-beta; }
+.wearable-adapter-body { @apply gb:wearable-structure-adapter-body; }
+.wearable-adapter-hint { @apply gb:wearable-structure-adapter-hint; }
+.wearable-adapter-hint a { @apply gb:wearable-structure-adapter-hint-a; }
+.wearable-adapter-hint a:hover { @apply gb:wearable-structure-adapter-hint-a-state-hover; }
+.wearable-adapter-input { @apply gb:wearable-structure-adapter-input; }
+.wearable-adapter-actions { @apply gb:wearable-structure-adapter-actions; }
+.wearable-adapter-identity { @apply gb:wearable-structure-adapter-identity; }
+.wearable-adapter-meta { @apply gb:wearable-structure-adapter-meta; }
+.wearable-adapter-note { @apply gb:wearable-structure-adapter-note; }
+
+/* ── Vendor form-factor icon (settings cards + Connect buttons) ── */
+.wearable-vendor-icon { @apply gb:wearable-structure-vendor-icon; }
+.wearable-adapter-name { @apply gb:wearable-structure-adapter-name; }
+.wearable-adapter-card.is-connected .wearable-vendor-icon { @apply gb:wearable-structure-adapter-card-is-is-connected-is-wearable-vendor-icon; }
+.wearable-adapter-card.is-connected { @apply gb:wearable-structure-adapter-card-is-is-connected; }
+
+/* ── Unified adapter action button (replaces ad-hoc ctx-btn-option overrides) ── */
+.wearable-action { @apply gb:wearable-structure-action; }
+.wearable-action:hover:not(:disabled) { @apply gb:wearable-structure-action-state-hover-state-not-state-disabled; }
+.wearable-action:disabled { @apply gb:wearable-structure-action-state-disabled; }
+.wearable-action-secondary /* "Re-sync 90 days" / disconnect-style actions — heavier than incremental
+     "Sync." Use a softer styling so a routine sync isn't visually identical
+     to a 90-day refetch that hits rate limits and takes 30s+. */ { @apply gb:wearable-structure-action-secondary; }
+.wearable-action-secondary:hover:not(:disabled) { @apply gb:wearable-structure-action-secondary-state-hover-state-not-state-disabled; }
+.wearable-action-hint { @apply gb:wearable-structure-action-hint; }
+.wearable-action-icon { @apply gb:wearable-structure-action-icon; }
+.wearable-action.is-syncing .wearable-action-icon { @apply gb:wearable-structure-action-is-is-syncing-is-wearable-action-icon; }
+.wearable-action-primary { @apply gb:wearable-structure-action-primary; }
+.wearable-action-primary:hover:not(:disabled) { @apply gb:wearable-structure-action-primary-state-hover-state-not-state-disabled; }
+.wearable-action-danger { @apply gb:wearable-structure-action-danger; }
+.wearable-action-danger:hover:not(:disabled) { @apply gb:wearable-structure-action-danger-state-hover-state-not-state-disabled; }
+.wearable-action-connect { @apply gb:wearable-structure-action-connect; }
+.wearable-action-connect .wearable-vendor-icon { @apply gb:wearable-structure-action-connect-is-wearable-vendor-icon; }
+/* Vendor-branded Connect button — uses --brand-color from inline style.
+   Phase 2b: official sign-in graphics (rendered via .wearable-action-signin)
+   take precedence over this; this variant is the middle tier between the
+   generic accent pill and a fully vendor-supplied button. */
+.wearable-action-branded /* Subtle brand-coloured ring on focus for accessibility. */ { @apply gb:wearable-structure-action-branded; }
+.wearable-action-branded:hover:not(:disabled) { @apply gb:wearable-structure-action-branded-state-hover-state-not-state-disabled; }
+.wearable-action-branded:focus-visible { @apply gb:wearable-structure-action-branded-state-focus-visible; }
+/* Official vendor Sign-in-with-X graphic — render unmodified. Browsers
+   handle the click target; we only constrain max width to keep layout
+   sane. */
+.wearable-action-signin { @apply gb:wearable-structure-action-signin; }
+.wearable-action-signin img { @apply gb:wearable-structure-action-signin-img; }
+.wearable-action-signin:focus-visible { @apply gb:wearable-structure-action-signin-state-focus-visible; }
+/* Wordmark on a brand-coloured pill — used when the official asset is just
+   the vendor wordmark (not a full badge). The pill provides the corporate
+   colour; the wordmark provides the identity. */
+.wearable-action-signin-branded { @apply gb:wearable-structure-action-signin-branded; }
+.wearable-action-signin-branded:hover:not(:disabled) { @apply gb:wearable-structure-action-signin-branded-state-hover-state-not-state-disabled; }
+.wearable-action-signin-branded img { @apply gb:wearable-structure-action-signin-branded-img; }
+/* Wordmark on accent pill — when the vendor's guideline is monochrome
+   (e.g. Oura) so we don't apply a brand colour. */
+.wearable-action-signin-accent { @apply gb:wearable-structure-action-signin-accent; }
+.wearable-action-signin-accent:hover:not(:disabled) { @apply gb:wearable-structure-action-signin-accent-state-hover-state-not-state-disabled; }
+.wearable-action-signin-accent img { @apply gb:wearable-structure-action-signin-accent-img; }
+/* Vendor mark — uses CSS mask so the SVG silhouette inherits currentColor
+   from its parent. --mark-url and --mark-size are set inline by
+   brandMarkMono(). Same mark file renders white inside a coloured button,
+   muted next to a card heading, accent-coloured on a connected card. */
+.wearable-vendor-mark { @apply gb:wearable-structure-vendor-mark; }
+/* Vendor logo IMG (full-colour brand asset on the left side of the row).
+   Fixed height so the row stays a consistent visual rhythm; width follows
+   the SVG's intrinsic aspect ratio. Capped at 90px wide so very long
+   wordmarks (Ultrahuman, Polar) don't push the vendor name off-screen. */
+.wearable-vendor-icon-img { @apply gb:wearable-structure-vendor-icon-img; }
+/* Ghost link-style action (e.g. "How?" disclosure) — no border, uses accent */
+.wearable-action-link { @apply gb:wearable-structure-action-link; }
+.wearable-action-link:hover:not(:disabled) { @apply gb:wearable-structure-action-link-state-hover-state-not-state-disabled; }
+/* Compact disconnected body — drops the padding/gap weight that made
+   Apple Health + 5 OAuth cards a vertical wall of repetition. */
+.wearable-adapter-body-compact { @apply gb:wearable-structure-adapter-body-compact; }
+.wearable-adapter-hint-warn { @apply gb:wearable-structure-adapter-hint-warn; }
+.wearable-adapter-hint-pending { @apply gb:wearable-structure-adapter-hint-pending; }
+/* Expandable "how does Apple Health file import work?" explainer.
+   Collapsed by default; expanded when card gets .show-help. */
+.wearable-adapter-help { @apply gb:wearable-structure-adapter-help; }
+.wearable-adapter-card.show-help .wearable-adapter-help { @apply gb:wearable-structure-adapter-card-is-show-help-is-wearable-adapter-help; }
+.wearable-detail-emf-hint { @apply gb:wearable-detail-wearable-detail-emf-hint; }
+.wearable-detail-emf-hint a { @apply gb:wearable-detail-wearable-detail-emf-hint-a; }
+.wearable-detail-emf-hint a:hover { @apply gb:wearable-detail-wearable-detail-emf-hint-a-hover; }
+
+/* Responsive: 2 cols → 1 col */
+@media (max-width: 900px) {
+  .wearable-card-grid { @apply gb:wearable-strip-wearable-card-grid-max-width-900px; }
+}
+@media (max-width: 520px) {
+  .wearable-card-grid { @apply gb:wearable-strip-wearable-card-grid-max-width-520px; }
+  .wearable-strip { @apply gb:wearable-strip-wearable-strip-max-width-520px; }
+  .wearable-strip-meta { @apply gb:wearable-strip-wearable-strip-meta-max-width-520px; }
+}
+@media (pointer: coarse) {
+  .wearable-strip-sync,
+  .wearable-strip-reorder { @apply gb:wearable-strip-wearable-strip-sync-wearable-strip-reorder-pointer-coarse; }
+  .wearable-reorder-arrow { @apply gb:wearable-strip-wearable-reorder-arrow-pointer-coarse; }
+  .wearable-source-picker-item { @apply gb:wearable-entry-33; }
+  .wearable-manual-entry-del { @apply gb:wearable-detail-wearable-manual-entry-del-pointer-coarse; }
+  .wearable-source-badge-btn { @apply gb:wearable-structure-source-badge-btn-pointer-coarse; }
+  .wearable-action { @apply gb:wearable-structure-action-pointer-coarse; }
+  .wearable-manual-add-btn,
+  .wearable-log-save,
+  .wearable-log-cancel { @apply gb:wearable-structure-coarse-manual-actions; }
+}

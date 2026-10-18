@@ -1,7 +1,9 @@
 <script lang="ts">
+  import LightSessionAI from './LightSessionAI.svelte';
+  import type{SessionAIView}from'../light-session-ai-presentation.js';
   import type { SessionDetailView, SessionDetailNotice } from '../light-session-detail-presentation.js';
   import LightSessionDetailFields from './LightSessionDetailFields.svelte';
-  let { view, aiHTML }: { view: SessionDetailView; aiHTML: string } = $props();
+  let { view, ai }: { view: SessionDetailView; ai: Readonly<SessionAIView> | null } = $props();
   const modal = [
     'modal sun-detail-modal gb:light-detail:w-full gb:light-detail:max-w-[540px] gb:light-detail:min-w-0 gb:light-detail:max-[480px]:p-4',
     'gb:light-detail:border-[color-mix(in_srgb,var(--session-accent)_24%,var(--border))]',
@@ -11,14 +13,14 @@
   const section = 'sun-detail-section gb:light-detail:my-3.5';
   const sectionLabel = 'sun-detail-section-label gb:light-detail:mb-1.5 gb:light-detail:text-[11px] gb:light-detail:text-secondary gb:light-detail:uppercase gb:light-detail:tracking-[0.04em]';
   const disclosure = 'sun-detail-disclosure gb:light-detail:my-3 gb:light-detail:min-w-0 gb:light-detail:border gb:light-detail:border-line gb:light-detail:rounded-control gb:light-detail:bg-secondary-surface gb:light-detail:overflow-hidden';
-  const summary = 'gb:light-detail:px-[13px] gb:light-detail:py-[11px] gb:light-detail:min-h-[45px] gb:light-detail:box-border gb:light-detail:text-[13px] gb:light-detail:font-semibold gb:light-detail:text-ink gb:light-detail:cursor-pointer gb:light-detail:list-inside gb:light-detail:focus-visible:outline-2 gb:light-detail:focus-visible:outline-accent gb:light-detail:in-open:border-b gb:light-detail:in-open:border-line';
+  const summary = 'gb:light-detail:px-[13px] gb:light-detail:py-[11px] gb:light-detail:[@media(pointer:coarse)]:min-h-11 gb:light-detail:max-[480px]:min-h-11 gb:light-detail:box-border gb:light-detail:text-[13px] gb:light-detail:font-semibold gb:light-detail:text-ink gb:light-detail:cursor-pointer gb:light-detail:list-inside gb:light-detail:focus-visible:outline-2 gb:light-detail:focus-visible:outline-accent gb:light-detail:in-open:border-b gb:light-detail:in-open:border-line';
   const inset = 'gb:light-detail:mx-3 gb:light-detail:my-2.5';
   const hint = 'gb:light-detail:text-xs gb:light-detail:text-secondary gb:light-detail:leading-normal gb:light-detail:wrap-anywhere';
-  const action = 'import-btn import-btn-secondary gb:light-detail:min-h-[45px] gb:light-detail:text-ink';
+  const action = 'import-btn import-btn-secondary gb:light-detail:[@media(pointer:coarse)]:min-h-11 gb:light-detail:max-[480px]:min-h-11 gb:light-detail:text-ink';
   const channel = [
     'sun-detail-channel-row sun-detail-channel-row-clickable gb:light-detail:grid gb:light-detail:w-full gb:light-detail:min-w-0',
     'gb:light-detail:grid-cols-[30px_minmax(0,1fr)_auto_auto_14px] gb:light-detail:items-center gb:light-detail:gap-x-2.5 gb:light-detail:gap-y-2',
-    'gb:light-detail:min-h-[45px] gb:light-detail:p-3 gb:light-detail:border gb:light-detail:border-line gb:light-detail:rounded-control',
+    'gb:light-detail:[@media(pointer:coarse)]:min-h-11 gb:light-detail:max-[480px]:min-h-11 gb:light-detail:p-3 gb:light-detail:border gb:light-detail:border-line gb:light-detail:rounded-control',
     'gb:light-detail:bg-surface gb:light-detail:text-ink gb:light-detail:font-body gb:light-detail:text-[13px] gb:light-detail:text-left',
     'gb:light-detail:cursor-pointer gb:light-detail:hover:border-accent gb:light-detail:focus-visible:outline-2 gb:light-detail:focus-visible:outline-accent',
     'gb:light-detail:max-[480px]:grid-cols-[24px_minmax(0,1fr)_auto]',
@@ -32,7 +34,7 @@
 <div class={`${modal} ${view.kind === 'sun' ? 'gb:light-detail:[--session-accent:var(--orange)]' : 'gb:light-detail:[--session-accent:var(--red)]'}`} data-light-detail-presentation data-session-kind={view.kind} role="dialog" aria-modal="true" aria-label={view.kind === 'sun' ? 'Sun session details' : 'Device session details'}>
   <div class={header}>
     <h3 class="gb:light-detail:wrap-anywhere gb:light-detail:max-[480px]:text-[15px] gb:light-detail:max-[480px]:leading-tight">{view.title}</h3>
-    <button type="button" class="modal-close gb:light-detail:min-h-[45px] gb:light-detail:min-w-[45px] gb:light-detail:text-secondary" data-sun-session-action={view.kind === 'sun' ? 'close-modal' : undefined} data-device-session-detail-close={view.kind === 'device' ? '' : undefined} aria-label="Close">×</button>
+    <button type="button" class="modal-close gb:light-detail:[@media(pointer:coarse)]:min-h-11 gb:light-detail:max-[480px]:min-h-11 gb:light-detail:[@media(pointer:coarse)]:min-w-11 gb:light-detail:max-[480px]:min-w-11 gb:light-detail:text-secondary" data-sun-session-action={view.kind === 'sun' ? 'close-modal' : undefined} data-device-session-detail-close={view.kind === 'device' ? '' : undefined} aria-label="Close">×</button>
   </div>
   <div class="modal-body gb:light-detail:min-w-0">
     <LightSessionDetailFields fields={view.summary} kind="summary"/>
@@ -47,8 +49,8 @@
       <div class={sectionLabel}>Exposure setup</div>
       <LightSessionDetailFields fields={view.setup} kind="setup"/>
     </div>
-    {#if aiHTML}
-      <div class={section}><div class={sectionLabel}>Session interpretation</div>{@html aiHTML}</div>
+    {#if ai}
+      <div class={section}><div class={sectionLabel}>Session interpretation</div><LightSessionAI view={ai}/></div>
     {/if}
     <details class={disclosure}>
       <summary class={summary}>Modeled light signals</summary>
@@ -76,7 +78,7 @@
       {#if view.location}
         <div class={`sun-detail-input-location ${inset} gb:light-detail:grid gb:light-detail:gap-1 ${hint}`}><span>{view.location.label}</span>{' '}<strong class="gb:light-detail:text-ink gb:light-detail:wrap-anywhere">{view.location.value}</strong></div>
       {/if}
-      {#if view.sourceUrl}<p class={inset}><a href={view.sourceUrl} target="_blank" rel="noopener noreferrer" class="gb:light-detail:text-link-ink gb:light-detail:min-h-[45px] gb:light-detail:inline-flex gb:light-detail:items-center">Open saved specification source ↗</a></p>{/if}
+      {#if view.sourceUrl}<p class={inset}><a href={view.sourceUrl} target="_blank" rel="noopener noreferrer" class="gb:light-detail:text-link-ink gb:light-detail:[@media(pointer:coarse)]:min-h-11 gb:light-detail:max-[480px]:min-h-11 gb:light-detail:inline-flex gb:light-detail:items-center">Open saved specification source ↗</a></p>{/if}
     </details>
     {#if view.notes}<div class={section}><div class={sectionLabel}>Notes</div><div class="sun-detail-section-value gb:light-detail:text-[13px] gb:light-detail:text-ink gb:light-detail:leading-normal gb:light-detail:wrap-anywhere">{view.notes}</div></div>{/if}
     <div class="modal-actions gb:light-detail:mt-[18px] gb:light-detail:flex gb:light-detail:flex-wrap gb:light-detail:gap-2">

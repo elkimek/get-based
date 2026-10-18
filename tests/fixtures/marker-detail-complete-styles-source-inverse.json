@@ -1,0 +1,625 @@
+{
+  "original": "before/css/marker-detail-modal.base.css",
+  "edits": [
+    {
+      "start": 14268,
+      "end": 14404,
+      "before": "\n  max-width: 920px;\n  background: var(--bg-secondary);\n  box-shadow: var(--shadow-lg);\n  box-sizing: border-box;\n  isolation: isolate;\n",
+      "after": " @apply gb:marker-detail-dialog; "
+    },
+    {
+      "start": 14430,
+      "end": 14457,
+      "before": "\n  box-sizing: border-box;\n",
+      "after": " @apply gb:marker-detail-children; "
+    },
+    {
+      "start": 14796,
+      "end": 14813,
+      "before": "\n  min-width: 0;\n",
+      "after": " @apply gb:marker-detail-head-content-group; "
+    },
+    {
+      "start": 15145,
+      "end": 15173,
+      "before": "\n  overflow-wrap: anywhere;\n",
+      "after": " @apply gb:marker-detail-h3-group; "
+    },
+    {
+      "start": 15210,
+      "end": 15538,
+      "before": "\n  top: 18px;\n  right: 20px;\n  z-index: 40;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  width: 34px;\n  height: 34px;\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  background: var(--bg-card);\n  color: var(--text-muted);\n  font-size: 22px;\n  line-height: 1;\n  padding: 0;\n",
+      "after": " @apply gb:marker-detail-modal-close; "
+    },
+    {
+      "start": 15557,
+      "end": 15835,
+      "before": "\n  position: sticky;\n  top: 0;\n  z-index: 20;\n  display: flex;\n  align-items: flex-start;\n  justify-content: space-between;\n  gap: 22px;\n  padding: 22px 28px 16px;\n  border-bottom: 1px solid var(--border);\n  background: var(--bg-secondary);\n  box-shadow: 0 1px 0 var(--border);\n",
+      "after": " @apply gb:marker-detail-head; "
+    },
+    {
+      "start": 15861,
+      "end": 16055,
+      "before": "\n  content: \"\";\n  position: absolute;\n  left: 0;\n  right: 0;\n  bottom: -16px;\n  height: 16px;\n  background: linear-gradient(to bottom, var(--bg-secondary), transparent);\n  pointer-events: none;\n",
+      "after": " @apply gb:marker-detail-head-fade; "
+    },
+    {
+      "start": 16102,
+      "end": 16257,
+      "before": "\n  font-family: var(--font-mono);\n  color: var(--text-muted);\n  font-size: 11px;\n  font-weight: 700;\n  letter-spacing: 0.1em;\n  text-transform: uppercase;\n",
+      "after": " @apply gb:marker-detail-kicker-group; "
+    },
+    {
+      "start": 16790,
+      "end": 16836,
+      "before": "\n  margin: 4px 48px 4px 0;\n  font-size: 23px;\n",
+      "after": " @apply gb:marker-detail-h3; "
+    },
+    {
+      "start": 16863,
+      "end": 16956,
+      "before": "\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  margin-right: 32px;\n  flex-shrink: 0;\n",
+      "after": " @apply gb:marker-detail-head-actions; "
+    },
+    {
+      "start": 16978,
+      "end": 17264,
+      "before": "\n  border: 1px solid var(--border);\n  border-radius: 999px;\n  padding: 5px 10px;\n  background: var(--bg-card);\n  color: var(--text-secondary);\n  font-family: var(--font-mono);\n  font-size: 11px;\n  font-weight: 700;\n  text-transform: uppercase;\n  white-space: nowrap;\n  cursor: pointer;\n",
+      "after": " @apply gb:marker-detail-pin-btn; "
+    },
+    {
+      "start": 17322,
+      "end": 17448,
+      "before": "\n  color: var(--accent);\n  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));\n  background: var(--bg-hover);\n",
+      "after": " @apply gb:marker-detail-pin-btn-hover-group; "
+    },
+    {
+      "start": 17484,
+      "end": 17544,
+      "before": "\n  outline: 2px solid var(--accent);\n  outline-offset: 2px;\n",
+      "after": " @apply gb:marker-detail-pin-btn-focus; "
+    },
+    {
+      "start": 17565,
+      "end": 17783,
+      "before": "\n  border: 1px solid var(--border);\n  border-radius: 999px;\n  padding: 5px 10px;\n  color: var(--text-secondary);\n  background: var(--bg-card);\n  font-family: var(--font-mono);\n  font-size: 11px;\n  white-space: nowrap;\n",
+      "after": " @apply gb:marker-detail-status; "
+    },
+    {
+      "start": 17811,
+      "end": 17900,
+      "before": " color: var(--green); border-color: color-mix(in srgb, var(--green) 45%, var(--border)); ",
+      "after": " @apply gb:marker-detail-status-normal; "
+    },
+    {
+      "start": 17926,
+      "end": 18011,
+      "before": " color: var(--red); border-color: color-mix(in srgb, var(--red) 45%, var(--border)); ",
+      "after": " @apply gb:marker-detail-status-high; "
+    },
+    {
+      "start": 18036,
+      "end": 18127,
+      "before": " color: var(--yellow); border-color: color-mix(in srgb, var(--yellow) 45%, var(--border)); ",
+      "after": " @apply gb:marker-detail-status-low; "
+    },
+    {
+      "start": 18156,
+      "end": 18183,
+      "before": " color: var(--text-muted); ",
+      "after": " @apply gb:marker-detail-status-unrated; "
+    },
+    {
+      "start": 18756,
+      "end": 18800,
+      "before": "\n  margin-left: 28px;\n  margin-right: 28px;\n",
+      "after": " @apply gb:marker-detail-marker-description-group; "
+    },
+    {
+      "start": 18843,
+      "end": 19023,
+      "before": "\n  margin-top: 14px;\n  padding: 12px 14px;\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  background: color-mix(in srgb, var(--bg-card) 74%, transparent);\n",
+      "after": " @apply gb:marker-detail-bio-age-breakdown; "
+    },
+    {
+      "start": 19071,
+      "end": 19248,
+      "before": "\n  margin-bottom: 4px;\n  color: var(--text-muted);\n  font-family: var(--font-mono);\n  font-size: 10px;\n  font-weight: 700;\n  letter-spacing: 0.1em;\n  text-transform: uppercase;\n",
+      "after": " @apply gb:marker-detail-bio-age-breakdown-head; "
+    },
+    {
+      "start": 19344,
+      "end": 19415,
+      "before": "\n  margin-bottom: 10px;\n  color: var(--text-muted);\n  font-size: 12px;\n",
+      "after": " @apply gb:marker-detail-bio-age-breakdown-sub-group; "
+    },
+    {
+      "start": 19466,
+      "end": 19491,
+      "before": "\n  color: var(--yellow);\n",
+      "after": " @apply gb:marker-detail-bio-age-breakdown-warning; "
+    },
+    {
+      "start": 19534,
+      "end": 19572,
+      "before": "\n  padding: 8px 0;\n  font-size: 14px;\n",
+      "after": " @apply gb:marker-detail-bio-age-component; "
+    },
+    {
+      "start": 19636,
+      "end": 19753,
+      "before": "\n  margin-top: 4px;\n  padding-top: 12px;\n  border-top: 1px solid color-mix(in srgb, var(--border) 62%, transparent);\n",
+      "after": " @apply gb:marker-detail-bio-age-component-bio-age-component; "
+    },
+    {
+      "start": 19803,
+      "end": 19826,
+      "before": "\n  margin-bottom: 6px;\n",
+      "after": " @apply gb:marker-detail-bio-age-component-header; "
+    },
+    {
+      "start": 19865,
+      "end": 19926,
+      "before": "\n  display: inline-block;\n  width: 18px;\n  font-weight: 700;\n",
+      "after": " @apply gb:marker-detail-bio-age-glyph; "
+    },
+    {
+      "start": 20112,
+      "end": 20136,
+      "before": "\n  color: var(--green);\n",
+      "after": " @apply gb:marker-detail-bio-age-component-ok-bio-age-glyph-group; "
+    },
+    {
+      "start": 20250,
+      "end": 20275,
+      "before": "\n  color: var(--yellow);\n",
+      "after": " @apply gb:marker-detail-bio-age-component-missing-bio-age-glyph-group; "
+    },
+    {
+      "start": 20314,
+      "end": 20383,
+      "before": "\n  margin-left: 4px;\n  color: var(--text-muted);\n  font-weight: 400;\n",
+      "after": " @apply gb:marker-detail-bio-age-delta; "
+    },
+    {
+      "start": 20427,
+      "end": 20560,
+      "before": "\n  display: flex;\n  flex-wrap: wrap;\n  gap: 4px 10px;\n  margin-top: 4px;\n  margin-left: 22px;\n  font-size: 12px;\n  line-height: 1.6;\n",
+      "after": " @apply gb:marker-detail-bio-age-input-grid; "
+    },
+    {
+      "start": 20599,
+      "end": 20623,
+      "before": "\n  white-space: nowrap;\n",
+      "after": " @apply gb:marker-detail-bio-age-input; "
+    },
+    {
+      "start": 20673,
+      "end": 20694,
+      "before": "\n  font-weight: 600;\n",
+      "after": " @apply gb:marker-detail-bio-age-input-is-missing; "
+    },
+    {
+      "start": 20770,
+      "end": 20817,
+      "before": "\n  width: calc(100% - 56px);\n  display: block;\n",
+      "after": " @apply gb:marker-detail-manual-entry-btn-group; "
+    },
+    {
+      "start": 21300,
+      "end": 21426,
+      "before": "\n  display: grid;\n  grid-template-columns: repeat(2, minmax(0, 1fr));\n  gap: 14px;\n  margin-top: 20px;\n  margin-bottom: 16px;\n",
+      "after": " @apply gb:marker-detail-summary; "
+    },
+    {
+      "start": 21461,
+      "end": 21584,
+      "before": "\n  padding: 12px 14px;\n  background: var(--bg-card);\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n",
+      "after": " @apply gb:marker-detail-summary-card; "
+    },
+    {
+      "start": 21625,
+      "end": 21780,
+      "before": "\n  font-family: var(--font-mono);\n  color: var(--text-muted);\n  font-size: 10px;\n  font-weight: 700;\n  letter-spacing: 0.1em;\n  text-transform: uppercase;\n",
+      "after": " @apply gb:marker-detail-summary-card-label; "
+    },
+    {
+      "start": 21821,
+      "end": 21964,
+      "before": "\n  margin-top: 6px;\n  color: var(--text-primary);\n  font-family: var(--font-display);\n  font-size: 28px;\n  font-weight: 700;\n  line-height: 1;\n",
+      "after": " @apply gb:marker-detail-summary-card-value; "
+    },
+    {
+      "start": 22010,
+      "end": 22078,
+      "before": "\n  color: var(--text-muted);\n  font-size: 13px;\n  font-weight: 500;\n",
+      "after": " @apply gb:marker-detail-summary-card-value-span; "
+    },
+    {
+      "start": 22125,
+      "end": 22178,
+      "before": "\n  font-family: var(--font-mono);\n  font-size: 16px;\n",
+      "after": " @apply gb:marker-detail-summary-card-value-range; "
+    },
+    {
+      "start": 22230,
+      "end": 22252,
+      "before": " color: var(--green); ",
+      "after": " @apply gb:marker-detail-summary-card-value-val-normal; "
+    },
+    {
+      "start": 22302,
+      "end": 22322,
+      "before": " color: var(--red); ",
+      "after": " @apply gb:marker-detail-summary-card-value-val-high; "
+    },
+    {
+      "start": 22371,
+      "end": 22394,
+      "before": " color: var(--yellow); ",
+      "after": " @apply gb:marker-detail-summary-card-value-val-low; "
+    },
+    {
+      "start": 22447,
+      "end": 22476,
+      "before": " color: var(--text-primary); ",
+      "after": " @apply gb:marker-detail-summary-card-value-val-unrated; "
+    },
+    {
+      "start": 22516,
+      "end": 22620,
+      "before": "\n  margin-top: 7px;\n  color: var(--text-secondary);\n  font-family: var(--font-mono);\n  font-size: 12px;\n",
+      "after": " @apply gb:marker-detail-summary-card-meta; "
+    },
+    {
+      "start": 24147,
+      "end": 24191,
+      "before": "\n  margin-top: 18px;\n  margin-bottom: 10px;\n",
+      "after": " @apply gb:marker-detail-section-label; "
+    },
+    {
+      "start": 24454,
+      "end": 24633,
+      "before": "\n    width: calc(100vw - 32px);\n    max-width: calc(100vw - 32px);\n    max-height: calc(100vh - 16px);\n    max-height: calc(100svh - 16px);\n    border-radius: var(--radius-sm);\n  ",
+      "after": " @apply gb:marker-detail-dialog-narrow-640; "
+    },
+    {
+      "start": 24672,
+      "end": 24763,
+      "before": "\n    top: 10px;\n    right: 10px;\n    width: 38px;\n    height: 38px;\n    font-size: 22px;\n  ",
+      "after": " @apply gb:marker-detail-modal-close-narrow-640; "
+    },
+    {
+      "start": 24914,
+      "end": 24980,
+      "before": "\n    margin: 4px 0;\n    font-size: 20px;\n    line-height: 1.15;\n  ",
+      "after": " @apply gb:marker-detail-h3-narrow-640; "
+    },
+    {
+      "start": 25030,
+      "end": 25118,
+      "before": "\n    width: 100%;\n    margin-right: 0;\n    flex-wrap: wrap;\n    align-items: stretch;\n  ",
+      "after": " @apply gb:marker-detail-head-actions-narrow-640; "
+    },
+    {
+      "start": 25205,
+      "end": 25310,
+      "before": "\n    display: inline-flex;\n    align-items: center;\n    justify-content: center;\n    min-height: 34px;\n  ",
+      "after": " @apply gb:marker-detail-pin-btn-group-narrow-640; "
+    },
+    {
+      "start": 25911,
+      "end": 25961,
+      "before": "\n    margin-left: 16px;\n    margin-right: 16px;\n  ",
+      "after": " @apply gb:marker-detail-marker-description-group-narrow-640; "
+    },
+    {
+      "start": 26041,
+      "end": 26074,
+      "before": "\n    width: calc(100% - 32px);\n  ",
+      "after": " @apply gb:marker-detail-manual-entry-btn-group-narrow-640; "
+    },
+    {
+      "start": 26227,
+      "end": 26252,
+      "before": "\n    margin-top: 14px;\n  ",
+      "after": " @apply gb:marker-detail-marker-description-narrow-640; "
+    },
+    {
+      "start": 26297,
+      "end": 26415,
+      "before": "\n    grid-template-columns: repeat(2, minmax(0, 1fr));\n    gap: 8px;\n    margin-top: 12px;\n    margin-bottom: 12px;\n  ",
+      "after": " @apply gb:marker-detail-summary-narrow-640; "
+    },
+    {
+      "start": 26452,
+      "end": 26474,
+      "before": "\n    padding: 12px;\n  ",
+      "after": " @apply gb:marker-detail-summary-card-narrow-640; "
+    },
+    {
+      "start": 26517,
+      "end": 26563,
+      "before": "\n    font-size: 22px;\n    line-height: 1.1;\n  ",
+      "after": " @apply gb:marker-detail-summary-card-value-narrow-640; "
+    },
+    {
+      "start": 26611,
+      "end": 26635,
+      "before": "\n    font-size: 12px;\n  ",
+      "after": " @apply gb:marker-detail-summary-card-value-span-narrow-640; "
+    },
+    {
+      "start": 26684,
+      "end": 26731,
+      "before": "\n    font-size: 13px;\n    line-height: 1.35;\n  ",
+      "after": " @apply gb:marker-detail-summary-card-value-range-narrow-640; "
+    },
+    {
+      "start": 26772,
+      "end": 26818,
+      "before": "\n    height: 44px;\n    margin-bottom: 18px;\n  ",
+      "after": " @apply gb:marker-detail-gb-range-band-narrow-640; "
+    },
+    {
+      "start": 26869,
+      "end": 26918,
+      "before": "\n    margin-top: 16px;\n    margin-bottom: 8px;\n  ",
+      "after": " @apply gb:marker-detail-section-label-narrow-640; "
+    },
+    {
+      "start": 26963,
+      "end": 27010,
+      "before": "\n    height: 180px;\n    margin-bottom: 16px;\n  ",
+      "after": " @apply gb:marker-detail-dialog-modal-chart-narrow-640; "
+    },
+    {
+      "start": 27791,
+      "end": 27838,
+      "before": "\n    gap: 10px;\n    align-items: flex-start;\n  ",
+      "after": " @apply gb:marker-detail-note-header-narrow-640; "
+    },
+    {
+      "start": 27885,
+      "end": 27909,
+      "before": "\n    flex-wrap: wrap;\n  ",
+      "after": " @apply gb:marker-detail-note-actions-narrow-640; "
+    },
+    {
+      "start": 27968,
+      "end": 27992,
+      "before": "\n    flex: 1 1 120px;\n  ",
+      "after": " @apply gb:marker-detail-note-actions-import-btn-narrow-640; "
+    },
+    {
+      "start": 28069,
+      "end": 28134,
+      "before": "\n    max-width: 100%;\n    margin-left: 0;\n    margin-top: 6px;\n  ",
+      "after": " @apply gb:marker-detail-manual-entry-form-me-field-select-me-unit-select-narrow-640; "
+    },
+    {
+      "start": 28206,
+      "end": 28258,
+      "before": "\n    padding-left: 14px;\n    padding-right: 52px;\n  ",
+      "after": " @apply gb:marker-detail-head-narrow-380; "
+    },
+    {
+      "start": 28859,
+      "end": 28909,
+      "before": "\n    margin-left: 14px;\n    margin-right: 14px;\n  ",
+      "after": " @apply gb:marker-detail-marker-description-group-narrow-380; "
+    },
+    {
+      "start": 28989,
+      "end": 29022,
+      "before": "\n    width: calc(100% - 28px);\n  ",
+      "after": " @apply gb:marker-detail-manual-entry-btn-group-narrow-380; "
+    },
+    {
+      "start": 29174,
+      "end": 29196,
+      "before": "\n    height: 190px;\n  ",
+      "after": " @apply gb:marker-detail-dialog-modal-chart-narrow-380; "
+    },
+    {
+      "start": 29399,
+      "end": 29416,
+      "before": " display: block; ",
+      "after": " @apply gb:marker-detail-marker-description-loaded; "
+    },
+    {
+      "start": 29468,
+      "end": 29698,
+      "before": "\n  display: block; height: 16px; width: 60%;\n  background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-hover) 50%, var(--bg-card) 75%);\n  background-size: 200% 100%; border-radius: 4px;\n  animation: shimmer 1.5s infinite;\n",
+      "after": " @apply gb:marker-detail-marker-description-loading; "
+    },
+    {
+      "start": 33731,
+      "end": 33811,
+      "before": " margin-left: 5px; color: var(--text-muted); font-size: 10px; font-weight: 500; ",
+      "after": " @apply gb:marker-detail-section-label-span; "
+    },
+    {
+      "start": 35000,
+      "end": 35117,
+      "before": "\n  margin: 22px 28px 28px;\n  padding-top: 16px;\n  border-top: 1px solid var(--border);\n  display: grid;\n  gap: 12px;\n",
+      "after": " @apply gb:marker-detail-actions; "
+    },
+    {
+      "start": 35163,
+      "end": 35246,
+      "before": "\n  display: grid;\n  grid-template-columns: repeat(2, minmax(0, 1fr));\n  gap: 10px;\n",
+      "after": " @apply gb:marker-detail-action-row; "
+    },
+    {
+      "start": 35360,
+      "end": 35479,
+      "before": "\n  width: 100%;\n  margin: 0;\n  min-height: 42px;\n  line-height: 1.2;\n  white-space: normal;\n  overflow-wrap: anywhere;\n",
+      "after": " @apply gb:marker-detail-actions-manual-entry-btn-group; "
+    },
+    {
+      "start": 35540,
+      "end": 35631,
+      "before": "\n  border-style: solid;\n  background: color-mix(in srgb, var(--bg-card) 68%, transparent);\n",
+      "after": " @apply gb:marker-detail-actions-manual-entry-btn; "
+    },
+    {
+      "start": 35686,
+      "end": 35842,
+      "before": "\n  border-color: color-mix(in srgb, var(--accent) 62%, var(--border));\n  background: color-mix(in srgb, var(--accent) 7%, transparent);\n  font-weight: 650;\n",
+      "after": " @apply gb:marker-detail-actions-ask-ai-btn; "
+    },
+    {
+      "start": 35966,
+      "end": 35980,
+      "before": "\n  margin: 0;\n",
+      "after": " @apply gb:marker-detail-actions-note-section-group; "
+    },
+    {
+      "start": 36048,
+      "end": 36066,
+      "before": "\n  display: none;\n",
+      "after": " @apply gb:marker-detail-actions-id-rec-modal-empty; "
+    },
+    {
+      "start": 36788,
+      "end": 36828,
+      "before": "\n    bottom: -12px;\n    height: 12px;\n  ",
+      "after": " @apply gb:marker-detail-head-fade-narrow-640; "
+    },
+    {
+      "start": 37409,
+      "end": 37463,
+      "before": "\n    margin: 18px 16px 24px;\n    padding-top: 14px;\n  ",
+      "after": " @apply gb:marker-detail-actions-narrow-640; "
+    },
+    {
+      "start": 37511,
+      "end": 37528,
+      "before": "\n    gap: 8px;\n  ",
+      "after": " @apply gb:marker-detail-action-row-narrow-640; "
+    },
+    {
+      "start": 37766,
+      "end": 37816,
+      "before": "\n    margin-left: 14px;\n    margin-right: 14px;\n  ",
+      "after": " @apply gb:marker-detail-actions-narrow-380; "
+    },
+    {
+      "start": 40276,
+      "end": 40408,
+      "before": " margin: 12px 0; padding: 10px 12px; background: var(--bg-hover); border-radius: var(--radius-sm); border: 1px solid var(--border); ",
+      "after": " @apply gb:marker-detail-note-section; "
+    },
+    {
+      "start": 40452,
+      "end": 40521,
+      "before": " display: flex; justify-content: space-between; align-items: center; ",
+      "after": " @apply gb:marker-detail-note-header; "
+    },
+    {
+      "start": 40564,
+      "end": 40630,
+      "before": " font-size: 12px; font-weight: 700; color: var(--text-secondary); ",
+      "after": " @apply gb:marker-detail-note-label; "
+    },
+    {
+      "start": 40676,
+      "end": 40799,
+      "before": " background: none; border: none; color: var(--accent); font-size: 11px; cursor: pointer; font-family: inherit; padding: 0; ",
+      "after": " @apply gb:marker-detail-note-edit-btn; "
+    },
+    {
+      "start": 40851,
+      "end": 40880,
+      "before": " text-decoration: underline; ",
+      "after": " @apply gb:marker-detail-note-edit-btn-hover; "
+    },
+    {
+      "start": 40922,
+      "end": 41026,
+      "before": " font-size: 13px; color: var(--text-primary); margin-top: 6px; line-height: 1.5; white-space: pre-line; ",
+      "after": " @apply gb:marker-detail-note-text; "
+    },
+    {
+      "start": 41070,
+      "end": 41088,
+      "before": " margin-top: 8px; ",
+      "after": " @apply gb:marker-detail-note-editor; "
+    },
+    {
+      "start": 41141,
+      "end": 41351,
+      "before": " width: 100%; background: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px; font-size: 13px; font-family: inherit; resize: vertical; ",
+      "after": " @apply gb:marker-detail-note-editor-textarea; "
+    },
+    {
+      "start": 41410,
+      "end": 41455,
+      "before": " outline: none; border-color: var(--accent); ",
+      "after": " @apply gb:marker-detail-note-editor-textarea-focus; "
+    },
+    {
+      "start": 41500,
+      "end": 41543,
+      "before": " display: flex; gap: 6px; margin-top: 6px; ",
+      "after": " @apply gb:marker-detail-note-actions; "
+    },
+    {
+      "start": 41607,
+      "end": 41803,
+      "before": "\n  color: var(--text-muted); font-size: 0.8rem; text-align: center;\n  margin-top: 12px; padding: 8px 12px; border-radius: 6px;\n  background: var(--bg-secondary); border: 1px dashed var(--border);\n",
+      "after": " @apply gb:marker-detail-calc-missing-inputs; "
+    },
+    {
+      "start": 42322,
+      "end": 42335,
+      "before": " padding: 0; ",
+      "after": " @apply gb:marker-detail-dialog-narrow-480; "
+    },
+    {
+      "start": 42397,
+      "end": 42441,
+      "before": " padding: 0; max-width: calc(100vw - 16px); ",
+      "after": " @apply gb:marker-detail-dialog-narrow-375; "
+    }
+  ],
+  "metadataInsertion": {
+    "position": 57,
+    "text": "@utility marker-detail-dialog {\n  max-width: 920px;\n  background: var(--bg-secondary);\n  box-shadow: var(--shadow-lg);\n  box-sizing: border-box;\n  isolation: isolate;\n}\n@utility marker-detail-children {\n  box-sizing: border-box;\n}\n@utility marker-detail-head-content-group {\n  min-width: 0;\n}\n@utility marker-detail-h3-group {\n  overflow-wrap: anywhere;\n}\n@utility marker-detail-modal-close {\n  top: 18px;\n  right: 20px;\n  z-index: 40;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  width: 34px;\n  height: 34px;\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  background: var(--bg-card);\n  color: var(--text-muted);\n  font-size: 22px;\n  line-height: 1;\n  padding: 0;\n}\n@utility marker-detail-head {\n  position: sticky;\n  top: 0;\n  z-index: 20;\n  display: flex;\n  align-items: flex-start;\n  justify-content: space-between;\n  gap: 22px;\n  padding: 22px 28px 16px;\n  border-bottom: 1px solid var(--border);\n  background: var(--bg-secondary);\n  box-shadow: 0 1px 0 var(--border);\n}\n@utility marker-detail-head-fade {\n  content: \"\";\n  position: absolute;\n  left: 0;\n  right: 0;\n  bottom: -16px;\n  height: 16px;\n  background: linear-gradient(to bottom, var(--bg-secondary), transparent);\n  pointer-events: none;\n}\n@utility marker-detail-kicker-group {\n  font-family: var(--font-mono);\n  color: var(--text-muted);\n  font-size: 11px;\n  font-weight: 700;\n  letter-spacing: 0.1em;\n  text-transform: uppercase;\n}\n@utility marker-detail-h3 {\n  margin: 4px 48px 4px 0;\n  font-size: 23px;\n}\n@utility marker-detail-head-actions {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  margin-right: 32px;\n  flex-shrink: 0;\n}\n@utility marker-detail-pin-btn {\n  border: 1px solid var(--border);\n  border-radius: 999px;\n  padding: 5px 10px;\n  background: var(--bg-card);\n  color: var(--text-secondary);\n  font-family: var(--font-mono);\n  font-size: 11px;\n  font-weight: 700;\n  text-transform: uppercase;\n  white-space: nowrap;\n  cursor: pointer;\n}\n@utility marker-detail-pin-btn-hover-group {\n  color: var(--accent);\n  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));\n  background: var(--bg-hover);\n}\n@utility marker-detail-pin-btn-focus {\n  outline: 2px solid var(--accent);\n  outline-offset: 2px;\n}\n@utility marker-detail-status {\n  border: 1px solid var(--border);\n  border-radius: 999px;\n  padding: 5px 10px;\n  color: var(--text-secondary);\n  background: var(--bg-card);\n  font-family: var(--font-mono);\n  font-size: 11px;\n  white-space: nowrap;\n}\n@utility marker-detail-status-normal { color: var(--green); border-color: color-mix(in srgb, var(--green) 45%, var(--border)); }\n@utility marker-detail-status-high { color: var(--red); border-color: color-mix(in srgb, var(--red) 45%, var(--border)); }\n@utility marker-detail-status-low { color: var(--yellow); border-color: color-mix(in srgb, var(--yellow) 45%, var(--border)); }\n@utility marker-detail-status-unrated { color: var(--text-muted); }\n@utility marker-detail-marker-description-group {\n  margin-left: 28px;\n  margin-right: 28px;\n}\n@utility marker-detail-bio-age-breakdown {\n  margin-top: 14px;\n  padding: 12px 14px;\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  background: color-mix(in srgb, var(--bg-card) 74%, transparent);\n}\n@utility marker-detail-bio-age-breakdown-head {\n  margin-bottom: 4px;\n  color: var(--text-muted);\n  font-family: var(--font-mono);\n  font-size: 10px;\n  font-weight: 700;\n  letter-spacing: 0.1em;\n  text-transform: uppercase;\n}\n@utility marker-detail-bio-age-breakdown-sub-group {\n  margin-bottom: 10px;\n  color: var(--text-muted);\n  font-size: 12px;\n}\n@utility marker-detail-bio-age-breakdown-warning {\n  color: var(--yellow);\n}\n@utility marker-detail-bio-age-component {\n  padding: 8px 0;\n  font-size: 14px;\n}\n@utility marker-detail-bio-age-component-bio-age-component {\n  margin-top: 4px;\n  padding-top: 12px;\n  border-top: 1px solid color-mix(in srgb, var(--border) 62%, transparent);\n}\n@utility marker-detail-bio-age-component-header {\n  margin-bottom: 6px;\n}\n@utility marker-detail-bio-age-glyph {\n  display: inline-block;\n  width: 18px;\n  font-weight: 700;\n}\n@utility marker-detail-bio-age-component-ok-bio-age-glyph-group {\n  color: var(--green);\n}\n@utility marker-detail-bio-age-component-missing-bio-age-glyph-group {\n  color: var(--yellow);\n}\n@utility marker-detail-bio-age-delta {\n  margin-left: 4px;\n  color: var(--text-muted);\n  font-weight: 400;\n}\n@utility marker-detail-bio-age-input-grid {\n  display: flex;\n  flex-wrap: wrap;\n  gap: 4px 10px;\n  margin-top: 4px;\n  margin-left: 22px;\n  font-size: 12px;\n  line-height: 1.6;\n}\n@utility marker-detail-bio-age-input {\n  white-space: nowrap;\n}\n@utility marker-detail-bio-age-input-is-missing {\n  font-weight: 600;\n}\n@utility marker-detail-manual-entry-btn-group {\n  width: calc(100% - 56px);\n  display: block;\n}\n@utility marker-detail-summary {\n  display: grid;\n  grid-template-columns: repeat(2, minmax(0, 1fr));\n  gap: 14px;\n  margin-top: 20px;\n  margin-bottom: 16px;\n}\n@utility marker-detail-summary-card {\n  padding: 12px 14px;\n  background: var(--bg-card);\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n}\n@utility marker-detail-summary-card-label {\n  font-family: var(--font-mono);\n  color: var(--text-muted);\n  font-size: 10px;\n  font-weight: 700;\n  letter-spacing: 0.1em;\n  text-transform: uppercase;\n}\n@utility marker-detail-summary-card-value {\n  margin-top: 6px;\n  color: var(--text-primary);\n  font-family: var(--font-display);\n  font-size: 28px;\n  font-weight: 700;\n  line-height: 1;\n}\n@utility marker-detail-summary-card-value-span {\n  color: var(--text-muted);\n  font-size: 13px;\n  font-weight: 500;\n}\n@utility marker-detail-summary-card-value-range {\n  font-family: var(--font-mono);\n  font-size: 16px;\n}\n@utility marker-detail-summary-card-value-val-normal { color: var(--green); }\n@utility marker-detail-summary-card-value-val-high { color: var(--red); }\n@utility marker-detail-summary-card-value-val-low { color: var(--yellow); }\n@utility marker-detail-summary-card-value-val-unrated { color: var(--text-primary); }\n@utility marker-detail-summary-card-meta {\n  margin-top: 7px;\n  color: var(--text-secondary);\n  font-family: var(--font-mono);\n  font-size: 12px;\n}\n@utility marker-detail-section-label {\n  margin-top: 18px;\n  margin-bottom: 10px;\n}\n@utility marker-detail-dialog-narrow-640 {\n    width: calc(100vw - 32px);\n    max-width: calc(100vw - 32px);\n    max-height: calc(100vh - 16px);\n    max-height: calc(100svh - 16px);\n    border-radius: var(--radius-sm);\n  }\n@utility marker-detail-modal-close-narrow-640 {\n    top: 10px;\n    right: 10px;\n    width: 38px;\n    height: 38px;\n    font-size: 22px;\n  }\n@utility marker-detail-h3-narrow-640 {\n    margin: 4px 0;\n    font-size: 20px;\n    line-height: 1.15;\n  }\n@utility marker-detail-head-actions-narrow-640 {\n    width: 100%;\n    margin-right: 0;\n    flex-wrap: wrap;\n    align-items: stretch;\n  }\n@utility marker-detail-pin-btn-group-narrow-640 {\n    display: inline-flex;\n    align-items: center;\n    justify-content: center;\n    min-height: 34px;\n  }\n@utility marker-detail-marker-description-group-narrow-640 {\n    margin-left: 16px;\n    margin-right: 16px;\n  }\n@utility marker-detail-manual-entry-btn-group-narrow-640 {\n    width: calc(100% - 32px);\n  }\n@utility marker-detail-marker-description-narrow-640 {\n    margin-top: 14px;\n  }\n@utility marker-detail-summary-narrow-640 {\n    grid-template-columns: repeat(2, minmax(0, 1fr));\n    gap: 8px;\n    margin-top: 12px;\n    margin-bottom: 12px;\n  }\n@utility marker-detail-summary-card-narrow-640 {\n    padding: 12px;\n  }\n@utility marker-detail-summary-card-value-narrow-640 {\n    font-size: 22px;\n    line-height: 1.1;\n  }\n@utility marker-detail-summary-card-value-span-narrow-640 {\n    font-size: 12px;\n  }\n@utility marker-detail-summary-card-value-range-narrow-640 {\n    font-size: 13px;\n    line-height: 1.35;\n  }\n@utility marker-detail-gb-range-band-narrow-640 {\n    height: 44px;\n    margin-bottom: 18px;\n  }\n@utility marker-detail-section-label-narrow-640 {\n    margin-top: 16px;\n    margin-bottom: 8px;\n  }\n@utility marker-detail-dialog-modal-chart-narrow-640 {\n    height: 180px;\n    margin-bottom: 16px;\n  }\n@utility marker-detail-note-header-narrow-640 {\n    gap: 10px;\n    align-items: flex-start;\n  }\n@utility marker-detail-note-actions-narrow-640 {\n    flex-wrap: wrap;\n  }\n@utility marker-detail-note-actions-import-btn-narrow-640 {\n    flex: 1 1 120px;\n  }\n@utility marker-detail-manual-entry-form-me-field-select-me-unit-select-narrow-640 {\n    max-width: 100%;\n    margin-left: 0;\n    margin-top: 6px;\n  }\n@utility marker-detail-head-narrow-380 {\n    padding-left: 14px;\n    padding-right: 52px;\n  }\n@utility marker-detail-marker-description-group-narrow-380 {\n    margin-left: 14px;\n    margin-right: 14px;\n  }\n@utility marker-detail-manual-entry-btn-group-narrow-380 {\n    width: calc(100% - 28px);\n  }\n@utility marker-detail-dialog-modal-chart-narrow-380 {\n    height: 190px;\n  }\n@utility marker-detail-marker-description-loaded { display: block; }\n@utility marker-detail-marker-description-loading {\n  display: block; height: 16px; width: 60%;\n  background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-hover) 50%, var(--bg-card) 75%);\n  background-size: 200% 100%; border-radius: 4px;\n  animation: shimmer 1.5s infinite;\n}\n@utility marker-detail-section-label-span { margin-left: 5px; color: var(--text-muted); font-size: 10px; font-weight: 500; }\n@utility marker-detail-actions {\n  margin: 22px 28px 28px;\n  padding-top: 16px;\n  border-top: 1px solid var(--border);\n  display: grid;\n  gap: 12px;\n}\n@utility marker-detail-action-row {\n  display: grid;\n  grid-template-columns: repeat(2, minmax(0, 1fr));\n  gap: 10px;\n}\n@utility marker-detail-actions-manual-entry-btn-group {\n  width: 100%;\n  margin: 0;\n  min-height: 42px;\n  line-height: 1.2;\n  white-space: normal;\n  overflow-wrap: anywhere;\n}\n@utility marker-detail-actions-manual-entry-btn {\n  border-style: solid;\n  background: color-mix(in srgb, var(--bg-card) 68%, transparent);\n}\n@utility marker-detail-actions-ask-ai-btn {\n  border-color: color-mix(in srgb, var(--accent) 62%, var(--border));\n  background: color-mix(in srgb, var(--accent) 7%, transparent);\n  font-weight: 650;\n}\n@utility marker-detail-actions-note-section-group {\n  margin: 0;\n}\n@utility marker-detail-actions-id-rec-modal-empty {\n  display: none;\n}\n@utility marker-detail-head-fade-narrow-640 {\n    bottom: -12px;\n    height: 12px;\n  }\n@utility marker-detail-actions-narrow-640 {\n    margin: 18px 16px 24px;\n    padding-top: 14px;\n  }\n@utility marker-detail-action-row-narrow-640 {\n    gap: 8px;\n  }\n@utility marker-detail-actions-narrow-380 {\n    margin-left: 14px;\n    margin-right: 14px;\n  }\n@utility marker-detail-note-section { margin: 12px 0; padding: 10px 12px; background: var(--bg-hover); border-radius: var(--radius-sm); border: 1px solid var(--border); }\n@utility marker-detail-note-header { display: flex; justify-content: space-between; align-items: center; }\n@utility marker-detail-note-label { font-size: 12px; font-weight: 700; color: var(--text-secondary); }\n@utility marker-detail-note-edit-btn { background: none; border: none; color: var(--accent); font-size: 11px; cursor: pointer; font-family: inherit; padding: 0; }\n@utility marker-detail-note-edit-btn-hover { text-decoration: underline; }\n@utility marker-detail-note-text { font-size: 13px; color: var(--text-primary); margin-top: 6px; line-height: 1.5; white-space: pre-line; }\n@utility marker-detail-note-editor { margin-top: 8px; }\n@utility marker-detail-note-editor-textarea { width: 100%; background: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px; font-size: 13px; font-family: inherit; resize: vertical; }\n@utility marker-detail-note-editor-textarea-focus { outline: none; border-color: var(--accent); }\n@utility marker-detail-note-actions { display: flex; gap: 6px; margin-top: 6px; }\n@utility marker-detail-calc-missing-inputs {\n  color: var(--text-muted); font-size: 0.8rem; text-align: center;\n  margin-top: 12px; padding: 8px 12px; border-radius: 6px;\n  background: var(--bg-secondary); border: 1px dashed var(--border);\n}\n@utility marker-detail-dialog-narrow-480 { padding: 0; }\n@utility marker-detail-dialog-narrow-375 { padding: 0; max-width: calc(100vw - 16px); }\n"
+  },
+  "rows": 97,
+  "declarations": 309,
+  "retainedRepeatedNativeReceivers": [
+    [
+      "marker-detail-marker-description",
+      ".marker-detail-modal .marker-description",
+      null
+    ],
+    [
+      "marker-detail-dialog-modal-chart",
+      ".modal.marker-detail-modal .modal-chart",
+      null
+    ],
+    [
+      "marker-detail-head-narrow-640",
+      ".marker-detail-modal .gb-detail-head",
+      "(max-width: 640px)"
+    ],
+    [
+      "marker-detail-marker-description-continued-2",
+      ".marker-detail-modal .marker-description",
+      null
+    ],
+    [
+      "marker-detail-dialog-modal-chart-continued-2",
+      ".modal.marker-detail-modal .modal-chart",
+      null
+    ],
+    [
+      "marker-detail-head-narrow-640-continued-2",
+      ".marker-detail-modal .gb-detail-head",
+      "(max-width: 640px)"
+    ]
+  ]
+}

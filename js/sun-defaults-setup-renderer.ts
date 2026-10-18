@@ -1,3 +1,4 @@
+import type{OnboardingAIView}from'./light-onboarding-ai-presentation.js';
 import type { SunSetupDefaults } from './sun-defaults-model.js';
 import type { LightSetupPresentationProps } from './light-setup-presentation.js';
 import { captureSunSetupIdentity } from './sun-defaults-session.js';
@@ -10,12 +11,12 @@ import { renderHTML } from './components/LightSetupPresentation.svelte.html.js';
 export interface SunSetupRendererDeps {
   getSunDefaults: () => SunSetupDefaults | null;
   isOnboardingComplete: () => unknown;
-  renderOnboardingAIBlock: () => string | null | undefined;
+  getOnboardingAIView: () => Readonly<OnboardingAIView> | null | undefined;
 }
 const rendererDeps: SunSetupRendererDeps = {
   getSunDefaults: () => null,
   isOnboardingComplete: () => false,
-  renderOnboardingAIBlock: () => '',
+  getOnboardingAIView: () => null,
 };
 export function configureSunDefaultsSetupRenderer(deps: Partial<SunSetupRendererDeps> = {}) {
   Object.assign(rendererDeps, deps);
@@ -30,21 +31,25 @@ export function lightSetupActionAttrs(action: string, data: Record<string, unkno
   return attrs.join(' ');
 }
 
-function render(surface: LightSetupPresentationProps['surface'], options: Pick<LightSetupPresentationProps, 'includeActions' | 'skinIndex'> = {}) {
+export function getSunSetupPresentation(surface: LightSetupPresentationProps['surface'], options: Pick<LightSetupPresentationProps, 'includeActions' | 'skinIndex'> = {}) {
   const complete = !!rendererDeps.isOnboardingComplete();
-  let aiHTML = '';
-  // The existing AI owner supplies the only trusted HTML slot, only in the saved card.
+  let ai: Readonly<OnboardingAIView> | null = null;
+  // Capture the genuine analysis child at its native optional saved-card position.
   if (surface === 'card' && complete) {
-    try { aiHTML = rendererDeps.renderOnboardingAIBlock() || ''; } catch { /* Optional analysis must not block setup. */ }
+    try { ai = rendererDeps.getOnboardingAIView() || null; } catch { /* Optional analysis must not block setup. */ }
   }
-  return renderHTML({ surface, ...options, view: projectLightSetup({
+  const view=projectLightSetup({
     defaults: rendererDeps.getSunDefaults(),
     savedFitzpatrick: (state.importedData?.sunDefaults as SunSetupDefaults | null | undefined)?.fitzpatrick,
     legacySkin: state.importedData?.lightCircadian?.skinType,
     complete, ownerTicket: captureSunSetupIdentity(),
-    coords: getSunSetupCoords(), profileLocation: getSunSetupProfileLocation(), aiHTML,
-  }) });
+    coords: getSunSetupCoords(), profileLocation: getSunSetupProfileLocation(), ai,
+  });
+  const captured=surface==='card'?{...view,deferredPrompt:view.complete?false:!!view.defaults.setupPromptDismissedAt}:view;
+  return{surface,...options,view:captured};
 }
+function render(surface:LightSetupPresentationProps['surface'],options:Pick<LightSetupPresentationProps,'includeActions'|'skinIndex'>={}){return renderHTML(getSunSetupPresentation(surface,options));}
+export function getSunSetupCardView(){return getSunSetupPresentation('card');}
 export function renderSetupCard() { return render('card'); }
 export function renderSetupActions() { return render('actions'); }
 export function renderSetupEditor({ includeActions = true } = {}) { return render('editor', { includeActions }); }

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onDestroy, untrack } from 'svelte';
   import type { OpenRouterModelState, OpenRouterSaveState, OpenRouterSettingsSnapshot, OpenRouterStatus } from '../openrouter-settings-contract.js';
+  import { CATALOG_MANUAL_INPUT } from '../provider-settings-classes.js';
   import { OR_PANEL, OR_COPY, OR_INPUT, OR_ACTIONS, OR_PRIMARY, OR_SECONDARY, OR_LINK, OR_NOTICE, OR_TONES } from '../openrouter-settings-classes.js';
 
   let { initial }: { initial: OpenRouterSettingsSnapshot } = $props();
@@ -74,7 +75,7 @@
       </select>
       <label class={OR_COPY + ' gb:cloud-provider:mt-2 gb:cloud-provider:block'} for="openrouter-custom-model">Custom model ID</label>
       <div class={OR_ACTIONS + ' gb:cloud-provider:flex-nowrap'}>
-        <input type="text" id="openrouter-custom-model" data-model-check={modelCheck} class={OR_INPUT + (modelCheck === 'error' ? ' gb:cloud-provider:border-danger' : modelCheck === 'success' ? ' gb:cloud-provider:border-success-ink' : '')} placeholder="Or enter model ID (e.g. arcee-ai/trinity-large-preview:free)" data-provider-panel-key="openrouter-custom-model" bind:value={manualModel}>
+        <input type="text" id="openrouter-custom-model" data-model-check={modelCheck} class={CATALOG_MANUAL_INPUT + (modelCheck === 'error' ? ' gb:cloud-provider:border-danger' : modelCheck === 'success' ? ' gb:cloud-provider:border-success-ink' : '')} placeholder="Or enter model ID (e.g. arcee-ai/trinity-large-preview:free)" data-provider-panel-key="openrouter-custom-model" bind:value={manualModel}>
         <span id="openrouter-model-health" title={modelMessage} role="status" aria-label={modelMessage || 'Model connection status'} class={modelCheck === 'error' ? OR_TONES.danger : modelCheck === 'success' ? OR_TONES.success : OR_TONES.secondary}>{modelCheck === 'pending' ? '⏳' : modelCheck === 'success' ? '✓' : modelCheck === 'error' ? '✗' : ''}</span>
       </div>
       <div class={OR_COPY}>Press Enter to apply — checks model connectivity</div>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import LightEnvironmentAI from './LightEnvironmentAI.svelte';
   import { SCREEN_HOURS_BUCKETS, type EnvironmentScreenView } from '../light-environment-screen-presentation.js';
   import { environmentScreenClasses as c } from '../light-environment-screen-classes.js';
   import LightEnvironmentTodayToggle from './LightEnvironmentTodayToggle.svelte';
@@ -15,7 +16,7 @@
     <span class={c('light-env-screen-card-name')}>{view.deviceLabel}</span>
     {#if !view.expanded}<span class={c('light-env-screen-card-summary')}>{view.summary}</span>{/if}
     <span class={c('light-env-room-disclosure-spacer')}></span>
-    {#if view.today}<LightEnvironmentTodayToggle view={view.today}/>{:else if view.trustedTodayHTML}<span class={c('screen-trusted-today')}>{@html view.trustedTodayHTML}</span>{/if}
+    {#if view.today}<LightEnvironmentTodayToggle view={view.today}/>{:else if view.alternateToday}<span class={c('screen-trusted-today')}><LightEnvironmentTodayToggle view={view.alternateToday}/></span>{/if}
     {#if view.expanded}<button type="button" class={c('light-env-overflow')} data-light-env-action="delete-screen-confirm" data-light-env-id={view.actionId} title="Delete screen" aria-label="Delete screen">⋯</button>{/if}
     <span class={c('light-env-room-disclosure-chevron')} aria-hidden="true">{view.expanded ? '▾' : '▸'}</span>
   </div>
@@ -52,7 +53,7 @@
           <span class={c(`screen-blue-slider${view.blueReduced ? ' screen-blue-on' : ''}`)} aria-hidden="true"></span>
         </label>
       </div>
-      {#if view.trustedAIHTML}{@html view.trustedAIHTML}{/if}
+      {#if view.ai}<LightEnvironmentAI view={view.ai}/>{/if}
     </div>
   {/if}
 </div>

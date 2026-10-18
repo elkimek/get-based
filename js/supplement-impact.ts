@@ -1,3 +1,4 @@
+import { renderSupplementImpactView, type SupplementImpactView } from './supplement-impact-presentation.js';
 import type { SupplementDomainRecord } from './supplement-medication-domain.js';
 export interface SupplementImpactReader extends SupplementDomainRecord { dosage?: unknown }
 
@@ -12,7 +13,7 @@ import { state } from './state.js';
 import { callAssistantFeatureAI, hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { getActiveData } from './data.js';
 import { profileStorageKey } from './profile.js';
-import { escapeHTML, hashString, isDebugMode } from './utils.js';
+import { hashString, isDebugMode } from './utils.js';
 import { getMarkerStorageDotKey } from './marker-placement.js';
 import {
   effectiveTimesPerDay,
@@ -145,10 +146,14 @@ let _analyzeTimer: ReturnType<typeof setTimeout> | null = null;
 let _batchPromise: Promise<void> | null = null;
 
 export function renderSupplementImpact(supplement: SupplementImpactReader, editIdx: number) {
+  return renderSupplementImpactView(projectSupplementImpact(supplement, editIdx));
+}
+
+export function projectSupplementImpact(supplement: SupplementImpactReader, editIdx: number): SupplementImpactView {
   const hasAI = hasAssistantFeatureProvider();
   const data = getActiveData();
   if (!data || !data.dates || data.dates.length < 2) {
-    return `<div class="supp-impact-section"><div class="supp-impact-header"><span class="ctx-health-dot ctx-health-dot-gray"></span><span>Impact Analysis</span></div><div class="supp-impact-hint">Needs at least 2 lab dates to compare</div></div>`;
+    return { kind: 'hint', hint: 'Needs at least 2 lab dates to compare' };
   }
   const impacts = computeAllImpacts(supplement, data);
   if (impacts.length === 0) {
@@ -157,7 +162,7 @@ export function renderSupplementImpact(supplement: SupplementImpactReader, editI
     const hint = !hasBefore ? 'No lab results from before this supplement was started'
       : !hasAfter ? 'No lab results since starting this supplement'
       : 'No significant marker changes detected yet';
-    return `<div class="supp-impact-section"><div class="supp-impact-header"><span class="ctx-health-dot ctx-health-dot-gray"></span><span>Impact Analysis</span></div><div class="supp-impact-hint">${hint}</div></div>`;
+    return { kind: 'hint', hint };
   }
 
   const fp = getSuppFingerprint(supplement, data);
@@ -168,20 +173,18 @@ export function renderSupplementImpact(supplement: SupplementImpactReader, editI
 
   const dotColor = cached ? `ctx-health-dot-${cached.dot}` : (hasAI ? 'ctx-health-dot-shimmer' : 'ctx-health-dot-gray');
   const summaryClass = cached ? `supp-impact-summary-visible supp-impact-summary-${cached.dot}` : '';
-  const summaryText = cached ? escapeHTML(cached.summary) : (hasAI ? '' : 'Set up an AI provider for impact insights');
+  const summaryText = cached ? String(cached.summary ?? '') : (hasAI ? '' : 'Set up an AI provider for impact insights');
 
-  const html = `<div class="supp-impact-section">
-    <div class="supp-impact-header">
-      <span class="ctx-health-dot ${dotColor}" id="supp-impact-dot-${editIdx}"></span>
-      <span>Impact Analysis</span>
-      ${cached && hasAI ? `<button class="supp-impact-refresh" data-supp-action="refresh-impact" data-supp-index="${editIdx}" title="Re-analyze with current data">refresh</button>` : ''}
-    </div>
-    <div class="supp-impact-summary ${summaryClass}" id="supp-impact-summary-${editIdx}">${summaryText}</div>
-  </div>`;
+  // Capture each original index interpolation independently before scheduling.
+  const dotId = `supp-impact-dot-${editIdx}`;
+  const refreshIndex = cached && hasAI ? `${editIdx}` : null;
+  const summaryId = `supp-impact-summary-${editIdx}`;
+  const view: SupplementImpactView = { kind: 'analysis', dotClass: dotColor,
+    dotId, refreshIndex, summaryClass, summaryId, summaryText };
 
   // Auto-fire only if fingerprint mismatch (edit) or missing entirely - scoped to this supp only.
   if (!cached && hasAI) scheduleAnalyze(supplement, editIdx, data);
-  return html;
+  return view;
 }
 
 function scheduleAnalyze(supplement: SupplementImpactReader, editIdx: number, data: ImpactData) {

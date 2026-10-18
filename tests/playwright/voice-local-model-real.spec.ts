@@ -127,6 +127,8 @@ test.describe('Voice real local models', () => {
       );
       const { state } = await import('/js/state.js');
       const { buildActionBar, configureChatMessageActionDeps } = await import('/js/chat-actions.js');
+      const { ensureChatMessageActions } = await import('/js/chat-message-actions-component.js');
+      const { hasChatMessageActionOwner } = await import('/js/chat-message-actions-view.js');
       const { readAssistantMessage } = await import('/js/voice-controller.js');
       configureChatMessageActionDeps({ toggleMessageSpeech: readAssistantMessage });
       (state as {chatHistory:unknown}).chatHistory = [{ role: 'assistant', content: 'Check my iron level.' }];
@@ -137,6 +139,14 @@ test.describe('Voice real local models', () => {
       host.style.cssText = 'position:fixed;z-index:2147483647;top:20px;right:20px;padding:12px;background:#111';
       host.innerHTML = buildActionBar(0);
       document.body.appendChild(host);
+      const originalButton = host.querySelector<HTMLButtonElement>('#chat-listen-btn-0');
+      ensureChatMessageActions();
+      const actionRoot = host.querySelector<HTMLElement>('[data-chat-message-actions-view]');
+      if (!originalButton || host.querySelector('#chat-listen-btn-0') !== originalButton
+        || originalButton.getAttribute('data-chat-speech-owned') !== ''
+        || !actionRoot || !hasChatMessageActionOwner(actionRoot)) {
+        throw new Error('Real voice fixture requires synchronous owned hydration retaining its original speech button');
+      }
       let sumSquares = 0;
       let peak = 0;
       const sampleView = new DataView(wav.buffer, wav.byteOffset, wav.byteLength);
@@ -167,14 +177,21 @@ test.describe('Voice real local models', () => {
     console.log(`[stage] Round trip complete: ${JSON.stringify(result)}`);
 
     console.log('[stage] Playing Kokoro through the real chat Web Audio path');
-    await page.locator('#settings-modal .modal-close').click({ timeout: 15_000 });
+    await page.locator('#settings-modal [data-settings-action="close"]').click({ timeout: 15_000 });
+    await expect(page.locator('#settings-modal-overlay')).not.toHaveClass(/\bshow\b/);
     await page.locator('#real-voice-action-host').evaluate(element => { (element as HTMLElement).hidden = false; });
     const listenButton = page.locator('#chat-listen-btn-0');
+    await expect(listenButton).toHaveAttribute('data-chat-speech-owned', '');
+    const retainedListenButton = await listenButton.elementHandle();
+    expect(retainedListenButton).not.toBeNull();
     await listenButton.click({ timeout: 15_000 });
     await expect(listenButton).toHaveAttribute('aria-label', 'Cancel speech preparation');
+    expect(await retainedListenButton!.evaluate(node => node === document.getElementById('chat-listen-btn-0'))).toBe(true);
     await acknowledgeAiTransparency(page);
     await expect(listenButton).toContainText('Stop', { timeout: 2 * 60_000 });
     await expect(listenButton).toContainText('Listen', { timeout: 30_000 });
+    expect(await retainedListenButton!.evaluate(node => node === document.getElementById('chat-listen-btn-0'))).toBe(true);
+    await retainedListenButton!.dispose();
     const playbackState = await page.evaluate(async () => {
       const { voicePlayer } = await import('/js/voice-player.js');
       return {
@@ -220,6 +237,8 @@ test.describe('Voice real local models', () => {
       const { browserLocalVoiceProvider } = await import('/js/voice-provider-browser-local.js');
       const { state } = await import('/js/state.js');
       const { buildActionBar, configureChatMessageActionDeps } = await import('/js/chat-actions.js');
+      const { ensureChatMessageActions } = await import('/js/chat-message-actions-component.js');
+      const { hasChatMessageActionOwner } = await import('/js/chat-message-actions-view.js');
       const { readAssistantMessage } = await import('/js/voice-controller.js');
       await (browserLocalVoiceProvider.installModel as (kind:Parameters<typeof browserLocalVoiceProvider.installModel>[0],model:Parameters<typeof browserLocalVoiceProvider.installModel>[1],signal?:Parameters<typeof browserLocalVoiceProvider.installModel>[2],backend?:Parameters<typeof browserLocalVoiceProvider.installModel>[3])=>ReturnType<typeof browserLocalVoiceProvider.installModel>)(
         'tts',
@@ -241,12 +260,24 @@ test.describe('Voice real local models', () => {
       host.style.cssText = 'position:fixed;z-index:2147483647;top:20px;right:20px;padding:12px;background:#111';
       host.innerHTML = buildActionBar(0);
       document.body.appendChild(host);
+      const originalButton = host.querySelector<HTMLButtonElement>('#chat-listen-btn-0');
+      ensureChatMessageActions();
+      const actionRoot = host.querySelector<HTMLElement>('[data-chat-message-actions-view]');
+      if (!originalButton || host.querySelector('#chat-listen-btn-0') !== originalButton
+        || originalButton.getAttribute('data-chat-speech-owned') !== ''
+        || !actionRoot || !hasChatMessageActionOwner(actionRoot)) {
+        throw new Error('Real voice fixture requires synchronous owned hydration retaining its original speech button');
+      }
     });
 
     const listenButton = page.locator('#chat-listen-btn-0');
+    await expect(listenButton).toHaveAttribute('data-chat-speech-owned', '');
+    const retainedListenButton = await listenButton.elementHandle();
+    expect(retainedListenButton).not.toBeNull();
     const startedAt = Date.now();
     await listenButton.click();
     await expect(listenButton).toContainText('Cancel');
+    expect(await retainedListenButton!.evaluate(node => node === document.getElementById('chat-listen-btn-0'))).toBe(true);
     await acknowledgeAiTransparency(page);
     await expect(listenButton).toContainText('Stop', { timeout: 20_000 });
     await expect.poll(
@@ -259,6 +290,8 @@ test.describe('Voice real local models', () => {
     const firstAudioDelayMs = Date.now() - startedAt;
     console.log(`[stage] Kokoro first PCM audio scheduled after ${firstAudioDelayMs}ms`);
     await expect(listenButton).toContainText('Listen', { timeout: 60_000 });
+    expect(await retainedListenButton!.evaluate(node => node === document.getElementById('chat-listen-btn-0'))).toBe(true);
+    await retainedListenButton!.dispose();
     const playbackState = await page.evaluate(async () => {
       const { voicePlayer } = await import('/js/voice-player.js');
       return {

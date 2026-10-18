@@ -1,0 +1,183 @@
+[
+  {
+    "owner": "renderNoResultsInRange",
+    "kind": "outside-range",
+    "slots": [
+      {
+        "coordinate": "gb-category-page-categorypagerangeemptystate-outside-range-category-glyph-end",
+        "port": "categoryGlyph"
+      },
+      {
+        "coordinate": "gb-category-page-categorypagerangeemptystate-outside-range-selected-range-label-end",
+        "port": "selectedRangeLabel"
+      },
+      {
+        "coordinate": "gb-category-page-categorypagerangeemptystate-outside-range-show-all-action-end",
+        "port": "showAllAction"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"empty-state\"><div class=\"empty-state-icon empty-state-icon-category\">gb-category-page-categorypagerangeemptystate-outside-range-category-glyph-end</div>\n    <h3>No results in gb-category-page-categorypagerangeemptystate-outside-range-selected-range-label-end</h3>\n    <p>This category has older results. Choose a longer range or show the complete history.</p>\n    <button type=\"button\" class=\"range-btn\" gb-category-page-categorypagerangeemptystate-outside-range-show-all-action-end>Show all results</button></div>"
+  },
+  {
+    "owner": "renderMarkerDataGapSections",
+    "kind": "section-open",
+    "slots": [
+      {
+        "coordinate": "gb-category-page-categorymarkerdatagaps-section-open-heading-end",
+        "port": "heading"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"chart-card-gap-section\"><p>gb-category-page-categorymarkerdatagaps-section-open-heading-end</p><div class=\"chart-card-gap-list\">"
+  },
+  {
+    "owner": "renderMarkerDataGapSections",
+    "kind": "marker-button",
+    "slots": [
+      {
+        "coordinate": "gb-category-page-categorymarkerdatagaps-marker-button-accessible-name-end",
+        "port": "accessibleName"
+      },
+      {
+        "coordinate": "gb-category-page-categorymarkerdatagaps-marker-button-detail-action-end",
+        "port": "detailAction"
+      },
+      {
+        "coordinate": "gb-category-page-categorymarkerdatagaps-marker-button-marker-name-end",
+        "port": "markerName"
+      },
+      {
+        "coordinate": "gb-category-page-categorymarkerdatagaps-marker-button-suffix-end",
+        "port": "suffix"
+      }
+    ],
+    "nativeSkeleton": "<button type=\"button\" class=\"chart-card chart-card-add\" aria-label=\"Open gb-category-page-categorymarkerdatagaps-marker-button-accessible-name-end details\" gb-category-page-categorymarkerdatagaps-marker-button-detail-action-end>\n        <span>gb-category-page-categorymarkerdatagaps-marker-button-marker-name-end</span><span>gb-category-page-categorymarkerdatagaps-marker-button-suffix-end</span></button>"
+  },
+  {
+    "owner": "renderMarkerDataGapSections",
+    "kind": "section-close",
+    "slots": [],
+    "nativeSkeleton": "</div></div>"
+  },
+  {
+    "owner": "showCategory",
+    "kind": "rename-action",
+    "slots": [
+      {
+        "coordinate": "gb-category-page-categorypagechrome-rename-action-rename-action-end",
+        "port": "renameAction"
+      }
+    ],
+    "nativeSkeleton": " <span class=\"ref-edited-badge\" role=\"button\" tabindex=\"0\" aria-label=\"Rename category\" title=\"Rename category\" gb-category-page-categorypagechrome-rename-action-rename-action-end style=\"cursor:pointer;font-size:12px\">rename</span>"
+  },
+  {
+    "owner": "showCategory",
+    "kind": "header",
+    "slots": [
+      {
+        "coordinate": "gb-category-page-categorypagechrome-header-category-glyph-end",
+        "port": "categoryGlyph"
+      },
+      {
+        "coordinate": "gb-category-page-categorypagechrome-header-category-label-end",
+        "port": "categoryLabel"
+      },
+      {
+        "coordinate": "gb-category-page-categorypagechrome-header-rename-button-end",
+        "port": "renameButton"
+      },
+      {
+        "coordinate": "gb-category-page-categorypagechrome-header-marker-count-label-end",
+        "port": "markerCountLabel"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"category-header\"><h2>gb-category-page-categorypagechrome-header-category-glyph-end<span class=\"category-title-text\">gb-category-page-categorypagechrome-header-category-label-end</span>gb-category-page-categorypagechrome-header-rename-button-end</h2>\n    <p>gb-category-page-categorypagechrome-header-marker-count-label-end</p></div>"
+  },
+  {
+    "owner": "showCategory",
+    "kind": "toolbar-open",
+    "slots": [],
+    "nativeSkeleton": "<div style=\"display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:20px\">"
+  },
+  {
+    "owner": "showCategory",
+    "kind": "view-tabs",
+    "slots": [
+      {
+        "coordinate": "gb-category-page-categorypagechrome-view-tabs-charts-action-end",
+        "port": "chartsAction"
+      },
+      {
+        "coordinate": "gb-category-page-categorypagechrome-view-tabs-table-action-end",
+        "port": "tableAction"
+      },
+      {
+        "coordinate": "gb-category-page-categorypagechrome-view-tabs-heatmap-action-end",
+        "port": "heatmapAction"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"view-toggle\" role=\"tablist\" aria-label=\"View mode\" style=\"margin-bottom:0\">\n    <button class=\"view-btn active\" role=\"tab\" aria-selected=\"true\" tabindex=\"0\" gb-category-page-categorypagechrome-view-tabs-charts-action-end>Charts</button>\n    <button class=\"view-btn\" role=\"tab\" aria-selected=\"false\" tabindex=\"-1\" gb-category-page-categorypagechrome-view-tabs-table-action-end>Table</button>\n    <button class=\"view-btn\" role=\"tab\" aria-selected=\"false\" tabindex=\"-1\" gb-category-page-categorypagechrome-view-tabs-heatmap-action-end>Heatmap</button></div>"
+  },
+  {
+    "owner": "showCategory",
+    "kind": "toolbar-close",
+    "slots": [],
+    "nativeSkeleton": "</div>"
+  },
+  {
+    "owner": "showCategory",
+    "kind": "view-open",
+    "slots": [],
+    "nativeSkeleton": "<div id=\"view-content\">"
+  },
+  {
+    "owner": "showCategory",
+    "kind": "no-data",
+    "slots": [
+      {
+        "coordinate": "gb-category-page-categorypagechrome-no-data-category-glyph-end",
+        "port": "categoryGlyph"
+      },
+      {
+        "coordinate": "gb-category-page-categorypagechrome-no-data-lowercase-category-label-end",
+        "port": "lowercaseCategoryLabel"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"empty-state\"><div class=\"empty-state-icon empty-state-icon-category\">gb-category-page-categorypagechrome-no-data-category-glyph-end</div>\n        <h3>No Data Available</h3><p>Import lab results containing gb-category-page-categorypagechrome-no-data-lowercase-category-label-end markers to see data here.</p></div>"
+  },
+  {
+    "owner": "showCategory",
+    "kind": "charts-open",
+    "slots": [],
+    "nativeSkeleton": "<div class=\"charts-grid\">"
+  },
+  {
+    "owner": "showCategory",
+    "kind": "charts-close",
+    "slots": [],
+    "nativeSkeleton": "</div>"
+  },
+  {
+    "owner": "showCategory",
+    "kind": "view-close",
+    "slots": [],
+    "nativeSkeleton": "</div>"
+  },
+  {
+    "owner": "switchView",
+    "kind": "no-data",
+    "slots": [],
+    "nativeSkeleton": "<div class=\"empty-state\"><h3>No Data Available</h3><p>Import lab results to see marker charts here.</p></div>"
+  },
+  {
+    "owner": "switchView",
+    "kind": "charts-open",
+    "slots": [],
+    "nativeSkeleton": "<div class=\"charts-grid\">"
+  },
+  {
+    "owner": "switchView",
+    "kind": "charts-close",
+    "slots": [],
+    "nativeSkeleton": "</div>"
+  }
+]

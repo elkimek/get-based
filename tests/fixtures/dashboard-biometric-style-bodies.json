@@ -1,0 +1,562 @@
+[
+  {
+    "selector": ".db-biometric-overview-bar",
+    "media": null,
+    "declarations": [
+      {
+        "property": "display",
+        "value": "flex",
+        "important": false
+      },
+      {
+        "property": "align-items",
+        "value": "center",
+        "important": false
+      },
+      {
+        "property": "justify-content",
+        "value": "space-between",
+        "important": false
+      },
+      {
+        "property": "gap",
+        "value": "10px",
+        "important": false
+      },
+      {
+        "property": "margin-bottom",
+        "value": "12px",
+        "important": false
+      },
+      {
+        "property": "color",
+        "value": "var(--text-muted)",
+        "important": false
+      },
+      {
+        "property": "font-family",
+        "value": "var(--font-mono)",
+        "important": false
+      },
+      {
+        "property": "font-size",
+        "value": "11px",
+        "important": false
+      }
+    ]
+  },
+  {
+    "selector": ".db-biometric-overview-actions",
+    "media": null,
+    "declarations": [
+      {
+        "property": "display",
+        "value": "inline-flex",
+        "important": false
+      },
+      {
+        "property": "align-items",
+        "value": "center",
+        "important": false
+      },
+      {
+        "property": "justify-content",
+        "value": "flex-end",
+        "important": false
+      },
+      {
+        "property": "gap",
+        "value": "8px",
+        "important": false
+      },
+      {
+        "property": "flex-wrap",
+        "value": "wrap",
+        "important": false
+      }
+    ]
+  },
+  {
+    "selector": ".db-biometric-sync-status",
+    "media": null,
+    "declarations": [
+      {
+        "property": "color",
+        "value": "var(--text-muted)",
+        "important": false
+      }
+    ]
+  },
+  {
+    "selector": ".db-biometric-sync-status.is-stale",
+    "media": null,
+    "declarations": [
+      {
+        "property": "color",
+        "value": "var(--yellow)",
+        "important": false
+      }
+    ]
+  },
+  {
+    "selector": ".db-biometric-sync-btn",
+    "media": null,
+    "declarations": [
+      {
+        "property": "min-height",
+        "value": "30px",
+        "important": false
+      },
+      {
+        "property": "padding",
+        "value": "0 10px",
+        "important": false
+      }
+    ]
+  },
+  {
+    "selector": ".db-biometric-tile-wrap",
+    "media": null,
+    "declarations": [
+      {
+        "property": "position",
+        "value": "relative",
+        "important": false
+      },
+      {
+        "property": "min-width",
+        "value": "0",
+        "important": false
+      }
+    ]
+  },
+  {
+    "selector": ".db-biometric-tile-wrap > .db-wearable-tile,\n.db-biometric-tile-wrap > .wearable-card",
+    "media": null,
+    "declarations": [
+      {
+        "property": "width",
+        "value": "100%",
+        "important": false
+      },
+      {
+        "property": "min-height",
+        "value": "104px",
+        "important": false
+      }
+    ]
+  },
+  {
+    "selector": ".wearable-card.db-biometric-manual-empty",
+    "media": null,
+    "declarations": [
+      {
+        "property": "background",
+        "value": "var(--bg-hover)",
+        "important": false
+      },
+      {
+        "property": "border",
+        "value": "1px solid var(--border)",
+        "important": false
+      },
+      {
+        "property": "border-radius",
+        "value": "8px",
+        "important": false
+      },
+      {
+        "property": "padding",
+        "value": "10px 12px 8px",
+        "important": false
+      },
+      {
+        "property": "display",
+        "value": "flex",
+        "important": false
+      },
+      {
+        "property": "flex-direction",
+        "value": "column",
+        "important": false
+      },
+      {
+        "property": "gap",
+        "value": "6px",
+        "important": false
+      },
+      {
+        "property": "min-width",
+        "value": "0",
+        "important": false
+      },
+      {
+        "property": "margin",
+        "value": "0",
+        "important": false
+      },
+      {
+        "property": "opacity",
+        "value": "1",
+        "important": false
+      },
+      {
+        "property": "box-shadow",
+        "value": "none",
+        "important": false
+      },
+      {
+        "property": "color",
+        "value": "var(--text-primary)",
+        "important": false
+      },
+      {
+        "property": "cursor",
+        "value": "pointer",
+        "important": false
+      },
+      {
+        "property": "transition",
+        "value": "border-color 0.15s ease, transform 0.15s ease",
+        "important": false
+      }
+    ]
+  },
+  {
+    "selector": ".wearable-card.db-biometric-manual-empty:hover",
+    "media": null,
+    "declarations": [
+      {
+        "property": "border-color",
+        "value": "var(--accent)",
+        "important": false
+      },
+      {
+        "property": "opacity",
+        "value": "1",
+        "important": false
+      },
+      {
+        "property": "transform",
+        "value": "translateY(-1px)",
+        "important": false
+      }
+    ]
+  },
+  {
+    "selector": ".wearable-card.db-biometric-manual-empty:focus-visible",
+    "media": null,
+    "declarations": [
+      {
+        "property": "outline",
+        "value": "2px solid var(--accent)",
+        "important": false
+      },
+      {
+        "property": "outline-offset",
+        "value": "2px",
+        "important": false
+      }
+    ]
+  },
+  {
+    "selector": ".db-biometric-manual-empty .wearable-card-top,\n.db-biometric-manual-empty .wearable-card-bottom",
+    "media": null,
+    "declarations": [
+      {
+        "property": "display",
+        "value": "flex",
+        "important": false
+      },
+      {
+        "property": "align-items",
+        "value": "center",
+        "important": false
+      },
+      {
+        "property": "justify-content",
+        "value": "space-between",
+        "important": false
+      },
+      {
+        "property": "gap",
+        "value": "8px",
+        "important": false
+      }
+    ]
+  },
+  {
+    "selector": ".db-biometric-manual-empty .wearable-card-bottom",
+    "media": null,
+    "declarations": [
+      {
+        "property": "min-height",
+        "value": "18px",
+        "important": false
+      }
+    ]
+  },
+  {
+    "selector": ".db-biometric-manual-empty .wearable-metric-name",
+    "media": null,
+    "declarations": [
+      {
+        "property": "min-width",
+        "value": "0",
+        "important": false
+      },
+      {
+        "property": "overflow",
+        "value": "hidden",
+        "important": false
+      },
+      {
+        "property": "color",
+        "value": "var(--text-secondary)",
+        "important": false
+      },
+      {
+        "property": "font-size",
+        "value": "12px",
+        "important": false
+      },
+      {
+        "property": "font-weight",
+        "value": "600",
+        "important": false
+      },
+      {
+        "property": "letter-spacing",
+        "value": "0.04em",
+        "important": false
+      },
+      {
+        "property": "text-overflow",
+        "value": "ellipsis",
+        "important": false
+      },
+      {
+        "property": "text-transform",
+        "value": "uppercase",
+        "important": false
+      },
+      {
+        "property": "white-space",
+        "value": "nowrap",
+        "important": false
+      }
+    ]
+  },
+  {
+    "selector": ".db-biometric-manual-empty .wearable-value-row",
+    "media": null,
+    "declarations": [
+      {
+        "property": "display",
+        "value": "flex",
+        "important": false
+      },
+      {
+        "property": "align-items",
+        "value": "baseline",
+        "important": false
+      },
+      {
+        "property": "justify-content",
+        "value": "flex-start",
+        "important": false
+      },
+      {
+        "property": "gap",
+        "value": "4px",
+        "important": false
+      },
+      {
+        "property": "min-height",
+        "value": "24px",
+        "important": false
+      }
+    ]
+  },
+  {
+    "selector": ".db-biometric-manual-empty .wearable-value",
+    "media": null,
+    "declarations": [
+      {
+        "property": "color",
+        "value": "var(--text-muted)",
+        "important": false
+      },
+      {
+        "property": "font-size",
+        "value": "22px",
+        "important": false
+      },
+      {
+        "property": "font-variant-numeric",
+        "value": "tabular-nums",
+        "important": false
+      },
+      {
+        "property": "font-weight",
+        "value": "400",
+        "important": false
+      },
+      {
+        "property": "line-height",
+        "value": "1",
+        "important": false
+      }
+    ]
+  },
+  {
+    "selector": ".db-biometric-manual-empty .wearable-empty-cta",
+    "media": null,
+    "declarations": [
+      {
+        "property": "color",
+        "value": "var(--accent)",
+        "important": false
+      },
+      {
+        "property": "font-size",
+        "value": "11px",
+        "important": false
+      },
+      {
+        "property": "font-weight",
+        "value": "600",
+        "important": false
+      },
+      {
+        "property": "letter-spacing",
+        "value": "0.02em",
+        "important": false
+      }
+    ]
+  },
+  {
+    "selector": ".db-biometric-remove",
+    "media": null,
+    "declarations": [
+      {
+        "property": "position",
+        "value": "absolute",
+        "important": false
+      },
+      {
+        "property": "top",
+        "value": "8px",
+        "important": false
+      },
+      {
+        "property": "right",
+        "value": "8px",
+        "important": false
+      },
+      {
+        "property": "width",
+        "value": "30px",
+        "important": false
+      },
+      {
+        "property": "height",
+        "value": "30px",
+        "important": false
+      },
+      {
+        "property": "border",
+        "value": "1px solid var(--border)",
+        "important": false
+      },
+      {
+        "property": "border-radius",
+        "value": "999px",
+        "important": false
+      },
+      {
+        "property": "background",
+        "value": "color-mix(in srgb, var(--bg-secondary) 92%, transparent)",
+        "important": false
+      },
+      {
+        "property": "color",
+        "value": "var(--text-muted)",
+        "important": false
+      },
+      {
+        "property": "font",
+        "value": "inherit",
+        "important": false
+      },
+      {
+        "property": "line-height",
+        "value": "1",
+        "important": false
+      },
+      {
+        "property": "cursor",
+        "value": "pointer",
+        "important": false
+      },
+      {
+        "property": "opacity",
+        "value": "0",
+        "important": false
+      },
+      {
+        "property": "transition",
+        "value": "opacity 0.15s, color 0.15s, border-color 0.15s",
+        "important": false
+      }
+    ]
+  },
+  {
+    "selector": ".db-biometric-tile-wrap:hover .db-biometric-remove,\n.db-biometric-remove:focus-visible",
+    "media": null,
+    "declarations": [
+      {
+        "property": "opacity",
+        "value": "1",
+        "important": false
+      }
+    ]
+  },
+  {
+    "selector": ".db-biometric-remove:hover",
+    "media": null,
+    "declarations": [
+      {
+        "property": "color",
+        "value": "var(--status-high)",
+        "important": false
+      },
+      {
+        "property": "border-color",
+        "value": "var(--status-high)",
+        "important": false
+      }
+    ]
+  },
+  {
+    "selector": ".db-biometric-remove",
+    "media": "(pointer: coarse)",
+    "declarations": [
+      {
+        "property": "width",
+        "value": "44px",
+        "important": false
+      },
+      {
+        "property": "height",
+        "value": "44px",
+        "important": false
+      },
+      {
+        "property": "opacity",
+        "value": "1",
+        "important": false
+      }
+    ]
+  }
+]

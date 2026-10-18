@@ -986,6 +986,7 @@ assert('Biology Score AI empty state avoids repeating CTA explainer copy on ever
 const biologyScoreSectionsSrc = readAuthoredRepositorySource('js/biology-score-sections.js', 'utf8');
 assert('Biology Score AI persistence binds the originating profile and checks the save result', biologyScoreSectionsSrc.includes('saveImportedDataForProfile(expectedProfile, snapshot') && biologyScoreSectionsSrc.includes('immediate: true, forceProfileScope: true') && biologyScoreSectionsSrc.includes('if (!saved) throw'));
 const biologyScoresSrc = await fs.promises.readFile(new URL('../js/biology-scores.js', import.meta.url), 'utf8');
+const biologyScoreComputeSrc = await fs.promises.readFile(new URL('../js/biology-score-compute.js', import.meta.url), 'utf8');
 const biologyScoresRuntimeSrc = await fs.promises.readFile(new URL('../js/biology-scores-runtime.js', import.meta.url), 'utf8');
 assert('Biology Scores delegates browser globals to runtime adapter',
   biologyScoresSrc.includes("from './biology-scores-runtime.js'") &&
@@ -1003,7 +1004,10 @@ assert('refreshing a stale Biology Score AI explanation removes the stale warnin
   biologyScoresSrc.slice(biologyScoresSrc.indexOf('async function runEmbeddedScoreAI'), biologyScoresSrc.indexOf('async function runEmbeddedScoreAI') + 900));
 assert('refreshing a Biology Score uses the combined assessment while retaining truthful date filtering',
   biologyScoresSrc.includes('computeBiologyScoreAssessments(rawData).find(item => item.id === scoreId)')
-  && biologyScoresSrc.includes('computeBiologyScores(filterDatesByRange(data, { fallbackToAll: false }), options)')
+  && biologyScoreComputeSrc.includes('computeBiologyScores(filterDatesByRange(data, { fallbackToAll: false }), options)')
+  && biologyScoresSrc.includes("import { computeBiologyScores, computeBiologyScoreView } from './biology-score-compute.js';")
+  && biologyScoresSrc.includes('const current = computeBiologyScoreView(data, { rangeMode: state.rangeMode, dateRangeFilter: state.dateRangeFilter }, options)')
+  && biologyScoresSrc.includes('for (const score of computeBiologyScoreView(data, { rangeMode, dateRangeFilter }, options))')
   && biologyScoresSrc.includes("for (const dateRangeFilter of ['all', '1y', '6m', '3m'])"),
   'Single-score refresh should cover all supported views without an all-history fallback.');
 state.importedData.biologyScoreAI = savedBiologyScoreAI;

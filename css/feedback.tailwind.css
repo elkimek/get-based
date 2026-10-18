@@ -1,0 +1,185 @@
+/* Only the17dedicated Feedback rules. Shared modal/input/import chrome stays native. */
+@source "../js/feedback-classes.ts";
+@source "../js/components/FeedbackPresentation.svelte";
+
+@custom-variant feedback-panel {
+  :where(&):where(#feedback-modal, #feedback-modal *):is(.feedback-redesign-modal) { @slot; }
+}
+
+@custom-variant feedback-head {
+  :where(&):where(#feedback-modal, #feedback-modal *):is(.feedback-modal-head) { @slot; }
+}
+
+@custom-variant feedback-body {
+  :where(&):where(#feedback-modal, #feedback-modal *):is(.feedback-form-body) { @slot; }
+}
+
+@custom-variant feedback-form {
+  :where(&):where(#feedback-modal, #feedback-modal *):is(.feedback-form) { @slot; }
+}
+
+@custom-variant feedback-field {
+  :where(&):where(#feedback-modal, #feedback-modal *):is(.feedback-field) { @slot; }
+}
+
+@custom-variant feedback-field-hidden {
+  :where(&):where(#feedback-modal, #feedback-modal *):is(.feedback-field[hidden]) { @slot; }
+}
+
+@custom-variant feedback-summary {
+  :where(&):where(#feedback-modal, #feedback-modal *):is(#feedback-result summary) { @slot; }
+}
+
+@custom-variant feedback-preview {
+  :where(&):where(#feedback-modal, #feedback-modal *):is(#feedback-result .feedback-textarea) { @slot; }
+}
+
+@custom-variant feedback-label {
+  :where(&):where(#feedback-modal, #feedback-modal *):is(.feedback-label) { @slot; }
+}
+
+@custom-variant feedback-textarea {
+  :where(&):where(#feedback-modal, #feedback-modal *):is(.feedback-textarea) { @slot; }
+}
+
+@custom-variant feedback-notice {
+  :where(&):where(#feedback-modal, #feedback-modal *):is(.feedback-notice) { @slot; }
+}
+
+@custom-variant feedback-actions {
+  :where(&):where(#feedback-modal, #feedback-modal *):is(.feedback-actions) { @slot; }
+}
+
+@custom-variant feedback-button {
+  :where(&):where(#feedback-modal, #feedback-modal *):is(.feedback-form .import-btn) { @slot; }
+}
+
+@custom-variant feedback-phone-panel {
+  @media (max-width: 720px) {
+    :where(&):where(#feedback-modal, #feedback-modal *):is(.feedback-redesign-modal) { @slot; }
+  }
+}
+
+@custom-variant feedback-phone-textarea {
+  @media (max-width: 720px) {
+    :where(&):where(#feedback-modal, #feedback-modal *):is(.feedback-textarea) { @slot; }
+  }
+}
+
+@custom-variant feedback-phone-actions {
+  @media (max-width: 720px) {
+    :where(&):where(#feedback-modal, #feedback-modal *):is(.feedback-actions) { @slot; }
+  }
+}
+
+@custom-variant feedback-phone-button {
+  @media (max-width: 720px) {
+    :where(&):where(#feedback-modal, #feedback-modal *):is(.feedback-form .import-btn) { @slot; }
+  }
+}
+
+@utility feedback-panel-block {
+  width: min(94vw, 560px);
+  max-width: 560px !important;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+@utility feedback-head-block {
+  flex-shrink: 0;
+}
+
+@utility feedback-body-block {
+  background: transparent;
+  overflow-y: auto;
+}
+
+@utility feedback-form-block {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+@utility feedback-field-block {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+
+@utility feedback-field-hidden-block {
+  display: none;
+}
+
+@utility feedback-summary-block {
+  cursor: pointer;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+@utility feedback-preview-block {
+  min-height: 130px;
+  margin: 6px 0;
+}
+
+@utility feedback-label-block {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+@utility feedback-textarea-block {
+  min-height: 160px;
+  max-height: min(34vh, 260px);
+  resize: vertical;
+  line-height: 1.5;
+}
+
+@utility feedback-notice-block {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-card) 76%, transparent);
+  color: var(--text-muted);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+@utility feedback-actions-block {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 2px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+@utility feedback-button-block {
+  min-height: 38px;
+}
+
+@utility feedback-phone-panel-block {
+  width: calc(100vw - 24px);
+  max-height: calc(100vh - 24px);
+  max-height: calc(100dvh - 24px);
+}
+
+@utility feedback-phone-textarea-block {
+  min-height: 180px;
+  max-height: 34vh;
+}
+
+@utility feedback-phone-actions-block {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@utility feedback-phone-button-block {
+  width: 100%;
+  min-height: 42px;
+}

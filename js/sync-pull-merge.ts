@@ -32,7 +32,7 @@ import { mergeImportedData, localHasRowsRemoteLacks, preserveFreshLocalLabEntrie
 import { parseSyncPayload } from './sync-payload.js';
 import { _mergeItemRowsIntoImported } from './sync-delta.js';
 import { isRestoreJoinPending } from './sync-identity.js';
-import { CONTEXT_REVIEW_RANGES } from './biology-score-context-ai.js';
+import { CONTEXT_REVIEW_RANGES } from './biology-score-context-contract.js';
 import { SYNC_PROFILE_FIELDS } from './sync-profile-fields.js';
 import { isDemoProfileRecord } from './profile-sync-policy.js';
 import { sanitizeNutritionProfileData } from './nutrition-sync-sanitize.js';

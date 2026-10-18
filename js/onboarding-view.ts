@@ -1,11 +1,13 @@
+import {tsStateStyles} from './ts-state-ui-inline-style-map.generated.js';
 // onboarding-view.js - Dashboard onboarding and AI connection reminders
 
 import { state } from './state.js';
+import { projectDashboardOnboardingBannerView, renderDashboardOnboardingHTML } from './dashboard-welcome-presentation.js';
 import { getActiveData, updateHeaderDates } from './data.js';
 import { profileStorageKey, setProfileSex, setProfileDob } from './profile.js';
 import { hasChatResponseBackend } from './chat-backend-selection.js';
 import { showNotification } from './utils.js';
-import { camelCaseActionAttributes } from './action-attributes.js';
+import type {DashboardOnboardingBannerView, DashboardOnboardingReminderView} from './dashboard-welcome-presentation.js';
 import {
   createOnboardingChatThreadRuntime,
   navigateOnboardingRuntime,
@@ -20,10 +22,6 @@ let _onboardingActionsInstalled = false;
 
 const ONBOARDING_ACTION_ATTR = 'data-onboarding-action';
 const ONBOARDING_ACTION_SELECTOR = `[${ONBOARDING_ACTION_ATTR}]`;
-
-function onboardingActionAttrs(action: unknown, attrs: Record<string, unknown> = {}) {
-  return camelCaseActionAttributes(ONBOARDING_ACTION_ATTR, "onboarding", action, attrs);
-}
 
 function closestOnboardingAction(target: unknown) {
   return /** @type {HTMLElement | null} */ (
@@ -69,47 +67,23 @@ export function configureOnboardingView(options: { navigate?: unknown } = {}) {
   _navigate = typeof options.navigate === 'function' ? options.navigate : null;
 }
 
-export function renderOnboardingBanner() {
+export function projectOnboardingBanner(): DashboardOnboardingBannerView | null {
   const onboarded = localStorage.getItem(profileStorageKey(state.currentProfile, 'onboarded'));
-  if (onboarded) return '';
+  if (onboarded) return null;
   if (state.profileSex && state.profileDob) {
     localStorage.setItem(profileStorageKey(state.currentProfile, 'onboarded'), 'profile-set');
-    return '';
+    return null;
   }
-  return `<div class="onboarding-banner" id="onboarding-banner">
-    <div class="onboarding-steps">
-      <span class="onboarding-step completed">\u2713</span>
-      <span class="onboarding-step-line"></span>
-      <span class="onboarding-step active">2</span>
-      <span class="onboarding-step-line"></span>
-      <span class="onboarding-step">3</span>
-    </div>
-    <div class="onboarding-step-labels">
-      <span class="onboarding-step-label">Import</span>
-      <span class="onboarding-step-label active">Profile</span>
-      <span class="onboarding-step-label">Ready</span>
-    </div>
-    <h3 class="onboarding-title">Set up your profile</h3>
-    <p class="onboarding-subtitle">Sex and date of birth pick the right reference ranges for your results.</p>
-    <div class="onboarding-form">
-      <div class="onboarding-field">
-        <label class="onboarding-label">Sex</label>
-        <div class="onboarding-sex-toggle">
-          <button type="button" class="onboarding-sex-btn${state.profileSex === 'male' ? ' active' : ''}" ${onboardingActionAttrs('set-sex', { sex: 'male' })}>Male</button>
-          <button type="button" class="onboarding-sex-btn${state.profileSex === 'female' ? ' active' : ''}" ${onboardingActionAttrs('set-sex', { sex: 'female' })}>Female</button>
-        </div>
-      </div>
-      <div class="onboarding-field">
-        <label class="onboarding-label">Date of Birth</label>
-        <input type="date" class="onboarding-dob-input" id="onboarding-dob" value="${state.profileDob || ''}" />
-      </div>
-      <div class="onboarding-actions">
-        <button type="button" class="onboarding-file-btn" ${onboardingActionAttrs('import-file')}>Import data file</button>
-        <button type="button" class="onboarding-save-btn" ${onboardingActionAttrs('save-profile')}>Save & Continue</button>
-        <button type="button" class="onboarding-skip-btn" ${onboardingActionAttrs('dismiss-profile')}>Skip for now</button>
-      </div>
-    </div>
-  </div>`;
+  return projectDashboardOnboardingBannerView({
+    male: () => state.profileSex === 'male' ? ' active' : '',
+    female: () => state.profileSex === 'female' ? ' active' : '',
+    dob: () => state.profileDob || '',
+  });
+}
+
+export function renderOnboardingBanner(): string {
+  const view = projectOnboardingBanner();
+  return view ? renderDashboardOnboardingHTML(view) : '';
 }
 
 export function openOnboardingImportFilePicker() {
@@ -154,30 +128,27 @@ export function dismissOnboarding() {
   localStorage.setItem(profileStorageKey(state.currentProfile, 'onboarded'), 'dismissed');
   const banner = document.getElementById('onboarding-banner');
   if (banner) {
-    banner.style.transition = 'opacity 0.3s, transform 0.3s';
-    banner.style.opacity = '0';
-    banner.style.transform = 'translateY(-10px)';
+    banner.style.transition = tsStateStyles.bannerTransition;
+    banner.style.opacity = tsStateStyles.fadeOpacity;
+    banner.style.transform = tsStateStyles.bannerTransform;
     setTimeout(() => banner.remove(), 300);
   }
   showNotification('You can set sex and DOB anytime in Settings.', 'info');
 }
 
-export function renderAIConnectionReminder() {
-  if (hasChatResponseBackend()) return '';
+export function projectAIConnectionReminder(): DashboardOnboardingReminderView | null {
+  if (hasChatResponseBackend()) return null;
   const skipKey = `labcharts-onboard-provider-skipped-${state.currentProfile}`;
   const skipped = localStorage.getItem(skipKey);
-  if (!skipped) return '';
+  if (!skipped) return null;
   const dismissKey = profileStorageKey(state.currentProfile, 'ai-reminder-dismissed');
-  if (localStorage.getItem(dismissKey)) return '';
-  return `<div class="ai-reminder-banner" id="ai-reminder-banner" role="region" aria-label="Connect AI to unlock lab analysis">
-    <span class="ai-reminder-icon" aria-hidden="true">&#129504;</span>
-    <span class="ai-reminder-body">
-      <strong>Connect AI to unlock lab analysis</strong>
-      <span>PDF import, trend insights, and chat all need an AI provider. About 30 seconds.</span>
-    </span>
-    <button type="button" class="ai-reminder-cta" ${onboardingActionAttrs('open-provider-quiz')}>Connect now</button>
-    <button type="button" class="ai-reminder-dismiss" ${onboardingActionAttrs('dismiss-ai-reminder')} aria-label="Dismiss">&times;</button>
-  </div>`;
+  if (localStorage.getItem(dismissKey)) return null;
+  return {mode: 'reminder'};
+}
+
+export function renderAIConnectionReminder(): string {
+  const view = projectAIConnectionReminder();
+  return view ? renderDashboardOnboardingHTML(view) : '';
 }
 
 export function dismissAIReminder() {
@@ -185,9 +156,9 @@ export function dismissAIReminder() {
   localStorage.setItem(dismissKey, '1');
   const banner = document.getElementById('ai-reminder-banner');
   if (banner) {
-    banner.style.transition = 'opacity 0.3s, transform 0.3s';
-    banner.style.opacity = '0';
-    banner.style.transform = 'translateY(-10px)';
+    banner.style.transition = tsStateStyles.bannerTransition;
+    banner.style.opacity = tsStateStyles.fadeOpacity;
+    banner.style.transform = tsStateStyles.bannerTransform;
     setTimeout(() => banner.remove(), 300);
   }
 }

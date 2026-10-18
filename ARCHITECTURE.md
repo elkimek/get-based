@@ -21,14 +21,14 @@ file covers code ownership and dependency rules that must change with the app.
   `getbased-docs` as well.
 - Never hand-edit `MODULE_MAP.md`. CI regenerates it and fails if it is stale.
 
-## TypeScript migration source contract
+## TypeScript source contract
 
 Canonical `.ts` and `.mts` modules compile with TypeScript 7 to ignored `.js`
 and `.mjs` siblings at existing runtime URLs. Run `npm run typescript:build`
 after source edits. `npm ci` runs it through `prepare`; the `dev-server`, `test`,
 `production:build` and `production:check` npm commands also compile first.
 Source inventories prefer the canonical TypeScript file. Project-owned assets in
-`vendor/components.json` participate in migration completion; external vendor
+`vendor/components.json` participate in source-completeness checks; external vendor
 bundles remain third-party inputs. The same ownership manifest includes executable
 project-owned vendor modules in coverage and affected-test planning. CodeQL excludes
 external bundles precisely so owned vendor sources remain scanned. Runtime coverage
@@ -41,1158 +41,272 @@ data, then release the snapshot and compiler process. Production and test
 semantic checks use separate strict projects for their actual browser, worker and
 Node environments. The default editor, app and server projects use the native
 NodeNext resolution, checked index access, exact optional-property types and
-erasable/verbatim module rules too. Every native project retains the
-previous compiler safety flags. The fixed migration baseline is retained in
-[`scripts/typescript-migration-baseline.json`](scripts/typescript-migration-baseline.json);
-the completed migration was merged in [PR #1660](https://github.com/elkimek/get-based/pull/1660).
+erasable/verbatim module rules too. All native projects retain their compiler safety flags. Source-completeness
+checks use the fixed inventory in
+[`scripts/typescript-migration-baseline.json`](scripts/typescript-migration-baseline.json).
+
+## Presentation and lifecycle contract
+
+Svelte components own first-party markup. Pure presentation modules project
+readonly data; feature controllers retain calculations, provider requests,
+storage, navigation and delegated actions. Projections preserve observable getter,
+coercion, default and fault order at public boundaries. Ordinary parents compose typed children,
+including the finite Dashboard and Lens widget unions. Do not coordinate children
+through serialized HTML, compiler markers, string slots or private frame parsers.
+
+Public synchronous HTML facades serialize those same owners at native insertion
+boundaries. Explicit legacy renderer injection APIs remain compatibility boundaries,
+not a path for untrusted data or ordinary application composition. Sanitized Markdown,
+fixed SVG/catalog content and self-contained printable documents have separately
+reviewed content boundaries. [The DOM sink audit](scripts/dom-sink-audit.mts) owns
+its exact current policy; new sinks require explicit review, not a count refresh.
+
+Shared components serve both the native-compatible entry and the static Kit route.
+Hydrate matching snapshots once, preserve retained controls and live child hosts,
+and dispose the old owner before replacing its DOM. Each native component uses
+lifecycle functions from its own emitted bundle; Kit shares one Svelte runtime.
+The synchronous browser serializer needs no rendering backend. Its build rejects
+static Node dependencies; Svelte's unused asynchronous renderer import must not
+become a browser dependency.
+
+Every async view action captures its profile/data, root and request identity before
+awaiting work. Recheck the relevant provider, credential, thread, selection or draft
+before dispatch, publication and persistence. Retired controls cannot start new work
+or update replacement views. Accepted domain writes can finish for their original
+owner after closure; they must not publish into a new owner's UI or adopt unrelated
+unsaved fields. Domain transactions, locks and explicit field baselines decide
+commit/rollback, not component mount lifetime.
+
+Keep credentials and private metadata in dedicated live-field/service ports,
+not general display snapshots or action attributes. Existing explicit Sync recovery
+and profile-share reveal/copy serializers retain their narrow sensitive display
+contracts; see [credential presentation boundaries](engineering/presentation-ownership.md#credentials-identities-and-payment-operations).
+Those owner views must not become diagnostic or analytics snapshots. Disposal
+scrubs retained fields. Preserve current
+input values, native reset defaults, selection, composition, focused-node identity,
+keyboard activation, focus traps and scroll locks during refreshes. Release listeners,
+subscriptions, timers, observers, pointer capture and object URLs with their owner.
+Delayed initial focus must yield to an explicit newer focus target or modal.
+
+See [presentation ownership](engineering/presentation-ownership.md) for feature
+entry points, sensitive workflows and lazy-loading boundaries. The generated map
+remains the complete module/import inventory.
+
+Optional features expose lightweight configuration and loaded-owner ports before
+loading their UI. The EMF interpretation port retains synchronous close/abort and
+focus cleanup; late streams and completions must match their request, profile,
+data and actual overlay/body owner. Closing a cold feature does not load it.
+
+Biology definitions and state-aware synchronous calculations live in
+[`biology-score-compute.ts`](js/biology-score-compute.ts); Dashboard projection and
+shared persisted review contracts do not import its page/AI controller. The public
+`biology-scores` facade reexports the same bindings. Biology navigation waits for
+its cached page module and shared styles, rejecting retired route/profile/root
+requests. Startup completes synchronous chrome setup, then waits for the current
+first-party navigation before declaring `data-app-ready`. A replacement route or
+Dashboard breakpoint supersedes a pending load; an abandoned import cannot block
+its ready replacement. Navigation started during later bootstrap is drained before
+readiness too. The public route return values and injected startup callbacks keep
+their original contracts. A contained route failure may finish with a usable retry
+alert; an unhandled current-route rejection prevents readiness.
+
+The production route runtime prepares one Dashboard composition and controls
+instance on first use. Empty Welcome and marker pin operations stay synchronous;
+populated Dashboard, Lens and Light routes await the resident composition before
+reading preferences or projecting content. Public `views.ts` keeps its original
+synchronous injected factory and re-exports the same route/action functions from
+`views-runtime.ts`. Prepared widget controls, including picker projection and
+rendering, keep their synchronous path. Each visible-widget render owns a fresh
+Biology projection scope. It may reuse a successful calculation only across adjacent
+Biology widgets with eligible inputs and unchanged owners; any other feature
+projection retires the scope before running. Standalone projections keep their
+per-call behavior. A segment captures one coherent score snapshot, including
+live Light rollups, rather than rereading those rollups for each adjacent score.
+No score result survives a render.
+Biology AI presentation may share the material fingerprint within one synchronous
+state read of a freshly computed score. Summary and answer reconciliation keep
+separate reads around DOM replacement and focus callbacks; public state and
+request-key functions retain their original per-call behavior.
+The [scope tests](tests/dashboard-biology-render-scope.test.ts) and
+[registry tests](tests/dashboard-render-projector.test.ts) cover this boundary.
+
+Dashboard and Lens nutrition summaries import the typed `NutritionDashboard`
+component directly. The lightweight `nutrition-widget-runtime` owns their shared
+projection, native serialization, refresh and editor-residency port. The full
+`NutritionPresentation` collection and editor controller load at an actual editor,
+history, target or drink action. Cold actions retain their request, source control,
+profile/data, route, focus and modal ownership through the complete opener; each
+opener also checks its own mounted owner after storage or draft restoration. Warm
+controls remain with the full controller's single resident delegate set.
+
+The eagerly registered `nutrition-summary-runtime` owns serialized sync hydration
+and awaits the lazy encrypted store before initial route readiness. Context and
+profile refresh share that same operation; loading summary state does not require
+the editor. Keep initialization, reconciliation, retries and accepted writes in
+their existing storage owners.
+
+The encrypted meal store delegates ordered row reads to `nutrition-store-reads`.
+It uses bounded reverse batch reads only when the browser supports them and the
+limit is a primitive positive integer within IndexedDB's count range; other limits
+and browsers retain the cursor path. A list for a nonempty primitive-string profile
+ID shares one fresh lazy device-key read for that invocation. Each selected envelope
+is still validated and decrypted, with no cross-call key cache.
+
+Imported-profile storage shares the exact WHOOP literal-token predicate with its
+optional transformer. Values outside that existing eligibility boundary retain
+their original bytes without loading the transformer; eligible values keep the
+same device protection, passphrase encryption, durable migration and error path.
 
 ## Styling source contract
 
-Shared confirmation and prompt markup is authored by
-`UtilsConfirmPresentation.svelte` and `UtilsPromptPresentation.svelte`.
-`utils-dialog-presentation.ts` preserves literal conversion order, and
-`utils-dialog-rendering.ts` exposes synchronous HTML to `utils.ts`. The public
-controllers retain promises, host reuse, focus, keyboard and backdrop actions,
-native form defaults and modal cleanup. `utils-dialog-classes.ts` and the private
-Tailwind fragment scope presentation to the existing confirmation and prompt
-hosts at `/css/modal-shared.css`. Generic confirmation, modal and theme rules
-remain shared with their other consumers.
-
-Import progress and its batch prefix are authored by
-`ImportProgressPresentation.svelte`; `DropZoneResetPresentation.svelte` authors
-the restored upload instructions. `import-progress-presentation.ts` projects
-labels and states from the shared import steps, while
-`import-progress-rendering.ts` exposes synchronous HTML to the existing public
-progress controller. The controller retains initial percentages, status updates,
-observers, native timers, scrolling, host lifetimes and header accessibility.
-`import-progress-classes.ts` and the private Tailwind fragment own the replaced
-layout declarations at the unchanged lazy `/css/import.css` URL. The native
-`progressSpin` keyframe, shared drop-zone/header rules and unrelated batch counter
-retain explicit custom and shared style ownership.
-
-PDF duplicate, model-mismatch and unsupported-lab markup is authored by
-`PdfPreflightPresentation.svelte`; `PdfImageModePresentation.svelte` authors
-scanned-PDF warning content. `pdf-preflight-presentation.ts` projects literal
-labels in their established conversion order, and `pdf-preflight-rendering.ts`
-exposes synchronous HTML to the existing PDF controllers. Classification,
-provider switching, privacy, file selection, parsing, promises, modal lifecycle
-and profile persistence retain their service owners. The scoped
-`pdf-preflight-classes.ts` catalog and eager PDF Tailwind fragment replace private
-inline declarations at the unchanged `/css/modal-shared.css` URL. Shared
-confirmation, prompt, modal and theme rules retain their existing owners.
-
-The scanned-PDF controller creates an accessible warning host when the shared
-host is absent. Its Escape owner remains active through Tab navigation; each
-terminal choice settles once and releases the key listener and modal ownership.
-A visible native confirmation retains its markup, owner and pending result when
-a PDF with no extracted text is selected; that import attempt cancels independently.
-The focused
-[public lifecycle regressions](tests/playwright/pdf-image-mode-lifecycle.spec.ts)
-exercise these boundaries with a physical synthetic PDF and the actual parser
-and dedicated worker, without submitting data to an AI provider.
-
-Standalone Add/Edit Note markup is authored by `NoteEditorPresentation.svelte`.
-`notes-presentation.ts` projects literal values and action indices;
-`notes-rendering.ts` exposes its synchronous HTML facade to the existing
-`notes.ts` controller. Native date and textarea controls retain their parsed
-values, reset defaults and editing ownership. Session guards, captured profile
-commits, sync tombstones, delegated actions and modal lifecycle remain controller
-and service responsibilities. `note-editor-classes.ts` and the existing eager
-context-catalog Tailwind entry own the former textarea and inline styles at the
-unchanged `/css/context-profile.css` URL. Supplement action-row rules and shared
-modal/theme primitives retain their existing owners. Delayed modal focus yields
-to a newer foreground dialog or focus moved outside the opening overlay.
-
-Knowledge Base panels, source status, document rows, library forms and background
-indexing progress are authored by the `KnowledgeBase*.svelte` components. Typed
-`knowledge-base-presentation.ts` and `knowledge-base-library-presentation.ts`
-project primitive views; their rendering modules expose synchronous HTML facades
-at the existing public Lens URLs. `lens-knowledge-base-ui.ts` and `lens-library.ts`
-retain service-read order, delegated controls, native file handling, serialized
-local API operations, configuration and modal ownership. Their domain modules,
-Worker protocol, parsers, model catalog and storage remain independent of styling.
-Split `knowledge-base-*-classes.ts` catalogs and the corresponding Tailwind entries
-own presentation. Eager modal rules, lazy Chat document actions and lazy Settings
-width overrides retain their established stylesheet load order. Shared Feedback
-field controls and generic modal/theme primitives retain their existing owners.
-The static service-worker asset manifest includes the new facade dependencies.
-
-Biology Scores reading priorities and lab planning are authored in
-`BiologyNextChecks.svelte` and `BiologyCoveragePlanner.svelte`, composed by
-`BiologyPlanningPresentation.svelte`. `biology-planning-presentation.ts` projects
-escaped text, delegate IDs and numeric progress from the existing shared planner;
-scoring, collection-context policy and chat prompt generation retain their domain
-owners. `biology-score-render.ts` preserves the public synchronous HTML facades.
-`biology-planning-classes.ts` and `css/biology-scores.tailwind.css` own their
-scoped utilities. The dashboard stylesheet is generated at its unchanged URL from
-`css/dashboard-widgets.base.css` and those utilities; remaining dashboard/score
-styles stay in the base until their owners migrate. Authored disclosures preserve
-native keyboard behavior and add visible focus and coarse-pointer target sizes.
-
-Biology marker results, interpretation notes, reading facts and methodology are
-owned by `BiologyReadingPresentation.svelte` and its typed child components.
-`biology-reading-presentation.ts` projects their primitive view data without
-changing score calculation or collection policy. `BiologyReadingTable.svelte`
-owns the shared labeled, keyboard-scrollable table; `BiologyReadingFacts.svelte`
-shares fact layout across score and coherence panels. `biology-reading-classes.ts`
-adds scoped reading utilities through `css/biology-scores.tailwind.css`. The
-remaining native widget cards and shared lens composition retain their
-existing owners until migrated. Public renderer facades and marker delegates stay
-stable; no raw HTML slots are introduced in these authored reading components.
-The standalone reading HTML entry supports isolated native regression tests;
-production composes its children through the card and overview entries.
-
-Biology questions, AI card summaries and full answers are authored by
-`BiologyAIPresentation.svelte` and its typed question/summary/answer components.
-`biology-ai-presentation.ts` projects snapshots supplied by the stable synchronous
-facades in `biology-score-sections.ts`; those facades retain request keys, cache
-selection, refresh reasons, profile guards and durable save/retry ownership.
-`biology-ai-classes.ts` owns scoped utilities in `css/biology-scores.tailwind.css`.
-The full answer has one intentional raw-content boundary through the existing
-`renderMarkdown` sanitizer, preserving saved rich text while escaping raw HTML
-and rejecting unsafe link protocols. It accepts Markdown text, never arbitrary
-presentation HTML. Shared dashboard action styling remains owned by the dashboard
-until its controls migrate.
-
-Biology score cards and full expanded panels are composed by
-`BiologyCardPresentation.svelte`, `BiologyScoreDetail.svelte` and
-`BiologyScoreMetric.svelte`. `biology-card-presentation.ts` projects primitive
-card data and directly composes the typed AI and reading views. Domain-owned AI
-snapshots come from `getBiologyAIState`; calculation, request and save behavior
-remain outside the components. `biology-card-classes.ts` owns their scoped
-Tailwind utilities, including the shared coherence metric. Public renderer URLs,
-score IDs, delegate attributes and disclosure state remain stable. Cards keep
-the existing `score-tools` insertion marker for the shared lens shell; only that
-component preserves source comments during compilation. No raw HTML slots are
-introduced. `LensDashboardToggle.svelte` renders the shared typed dashboard
-action supplied by `getLensDashboardToggleView`; the shell still owns preference
-reads, page ordering and delegated writes. Grid offsets and the remaining shared
-dashboard controls keep their existing stylesheet owner.
-
-Biological Coherence, its contributors and dashboard score/domain presentations
-are authored by `BiologyOverviewPresentation.svelte` and four typed children.
-`biology-overview-presentation.ts` projects source membership and AI separately
-from historical display snapshots, preserving finite-domain filtering, sorting,
-raw lens values and clamped dashboard bars. `biology-overview-classes.ts` owns
-scoped overview layout through the existing Biology Tailwind entry. Dashboard
-number typography and theme rules remain shared with Bio Age in
-`css/dashboard-data.css`; the overview does not duplicate them. Linked dashboard
-domains are native keyboard buttons; domains without an individual score remain
-inert. Public HTML facades, score IDs and delegated actions stay stable. The
-composition directly reuses typed metric, AI, reading and dashboard-toggle
-components without presentation HTML slots. Native overview templates and their
-superseded styles are removed; generic widget cards and shared lens composition
-remain to migrate.
-
-Biology profile and collection context is composed by
-`BiologyContextPresentation.svelte`, `BiologyContextBanner.svelte`,
-`BiologyContextReview.svelte`, `BiologyContextManualFields.svelte` and
-`BiologyContextSuggestion.svelte`. `biology-context-presentation.ts` projects
-literal review text, applicable flags and profile labels. The context AI service
-snapshots its current-review and flag state; it retains request, profile scoping,
-serialized writes, confirmed-save commits, retry and delegated-event ownership.
-`biology-context-view.ts` composes the complete disclosure for the lens page,
-while the public context-panel renderer keeps its existing import contract.
-Scoped Tailwind utilities replace native context section and review rules;
-shared dashboard buttons retain their existing owner. The profile banner is also
-reused by the typed compatibility lens with its original heading and spacing.
-Components receive typed data without raw HTML slots. Native disclosure,
-checkbox labels, action attributes and sex-specific field availability remain
-stable; keyboard controls have visible focus.
-
-The public Biology summary widget and compatibility lens are authored by
-`BiologySummaryPresentation.svelte`, the summary hero/card/status/input components
-and `BiologyCompatibilityLens.svelte`. `biology-summary-presentation.ts` projects
-score values, raw-score rails, confidence, truncation and compatibility ordering;
-`biology-summary-classes.ts` owns their scoped Tailwind utilities. The compatibility
-lens directly composes the existing typed overview, planning, coverage and score
-card components. All public synchronous facades remain in
-`biology-score-render.ts`, which no longer owns native HTML templates. Summary
-cards use an independent title navigation button and marker buttons; their shared
-key delegate respects the nearest action so marker activation cannot trigger
-ancestor navigation. Pointer clicks on the card still open its score. Calculations,
-AI requests and persistence retain their established owners. Shared lens page
-composition and the score-tools integration marker remain separate owners.
-
-Shared lens headers, ordinary widget frames, ordered grids and move/dashboard
-controls are authored by `LensShellPresentation.svelte` and its four children.
-`lens-shell-presentation.ts` projects literal text and the existing named
-renderer-owned `actionsHTML`/`bodyHTML` compatibility inputs. These inputs retain
-the public synchronous HTML contracts; they are not general untrusted-content
-slots. `lens-page-shell.ts` still owns profile-scoped section ordering, dashboard
-preference reads and delegated writes. Its public renderer URLs remain stable.
-`lens-shell-classes.ts` owns scoped Tailwind chrome utilities, with one size rule
-per widget and inclusive media queries matching the existing breakpoints. The
-zero-specificity owner selector preserves stronger ancestor and theme rules.
-Only the superseded lens-header inline-control CSS rule is removed; generic
-Dashboard and category styles retain other active owners. The compact Biology
-HTML API still uses the score-tools marker pending typed compatibility composition.
-
-The actual Biology Scores route is composed by `BiologyScoresPage.svelte` and
-`BiologyScoreGroup.svelte`. `biology-page-view.ts` snapshots independent planning
-and display inputs, current context, range and profile-scoped stored ordering;
-`biology-page-presentation.ts` projects them without writes. The page directly
-composes the typed context, overview, planning, coverage and score-detail children.
-Card controls use `LensWidgetTools.svelte` through typed props, without HTML marker
-insertion on the actual route. The public compact HTML compatibility API still
-retains its existing score-tools bridge. `biology-page-classes.ts` owns page
-spacing, counters and disclosures; container grids/queries and cqw expanded-panel
-alignment remain clearly owned custom layout in `dashboard-widgets.base.css`.
-`LabDateRange.svelte` and its pure projection/catalog own the shared date controls,
-including the public `renderDateRangeFilter` facade used by other data pages.
-The data controller retains sidebar refresh, navigation and date-change ownership.
-`LensPageHeader.svelte` supports typed action snippets while preserving its named
-HTML compatibility input for other lens owners. Native Biology page templates,
-date templates and their superseded ordinary style rules are removed.
-
-Literal Genome import metadata, Body connection cards and Genome/Body/Insight/Tips
-header actions are owned by `LensPageContent.svelte` and its typed children
-`GenomeImportDetails.svelte`, `BodySources.svelte` and `LensActionButtons.svelte`.
-`lens-content-presentation.ts` projects imported counts, lineage metadata, source
-priority and fixed action labels without writes; `lens-content-classes.ts` owns
-scoped Tailwind utilities. Values remain escaped text. The lens controller
-preserves the empty-string import facade when no Genome panel exists, so the
-shared widget shell does not show an extra empty widget. Existing shell delegates
-retain file import, report/manual SNP, deletion, connection and navigation ownership.
-The typed controls author the supported `data-lens-page-*` contract directly; they
-do not call the legacy injected attribute formatter. Public shell helpers remain
-available to unmigrated renderers. Custom formatter output is therefore outside
-the authored control contract.
-Only exclusive metadata/affiliate CSS is removed. Shared DNA overview grids,
-Dashboard buttons and source-picker rules retain other active owners. Remaining
-lens body renderer contracts retain their respective feature owners.
-
-Recommendation cards and lists are authored by `RecommendationPresentation.svelte`
-and `RecommendationCard.svelte`. `recommendation-presentation.ts` projects literal
-candidate fields and delegate identity; candidate scoring, catalog refresh,
-bookmark/hidden persistence and action handling remain in
-`dashboard-recommendation-widget.ts`. The synchronous card facade stays stable,
-and an injected typed list facade composes the four lens list bodies.
-`recommendation-cards-classes.ts` and `css/recommendation-cards.tailwind.css` own
-card utilities. The established recommendation stylesheet URL is generated from
-`css/recommendations.base.css`; detail/product and shared dashboard controls keep
-their own styles. These components accept typed data without raw HTML slots.
-
-Laboratory import review is authored by `ImportReviewPresentation.svelte` and its
-typed row, unit, mapping, action, status and popup components.
-`import-review-presentation.ts` projects literal presentation data.
-`pdf-import-review.ts` retains normalization, original marker indexing/grouping,
-reference-range comparison and conversion, pending/draft ownership, filtering,
-count updates, profile capture and delegated mutation. Public unit/mapping/exclude
-facades remain synchronous. `import-review-classes.ts` and
-`css/import-review.tailwind.css` compile through the existing import stylesheet;
-Cycle import uses its authored preview, picker and coverage components with separately scoped Tailwind utilities.
-The review and its body-level unit popup carry explicit utility ownership markers.
-
-Dashboard widget and biometric picker content is projected by
-`dashboard-picker-presentation.ts` and authored by `DashboardPickerPresentation.svelte`.
-The controls owner retains option calculations, filtering, preference writes,
-viewport insertion, action delegates and the shared modal lifecycle. Literal card
-copy and grouped source order remain explicit in the typed view. Scoped utilities
-compile into the existing `dashboard-widgets.css` URL. Body source cards retain
-independently authored utilities after shared native picker rules are retired.
-
-Import marker mapping is authored by `ImportMarkerMapPresentation.svelte`,
-`ImportMarkerMapCategories.svelte` and `ImportMarkerMapResults.svelte`, using literal
-views from `import-marker-map-presentation.ts`. The existing controller owns
-normalization, scoring, category counts and ordering, search precedence, the
-120-result limit, selection callbacks and nested modal focus/scroll ownership.
-The import review acquires its own scroll lock, so dismissing a nested picker
-keeps the parent dialog locked until the review closes.
-`import.base.css` retains other import styles; picker utilities compile into the
-stable lazy `import.css` URL. No additional import or rendering backend is required.
-
-Report setup is projected by `report-builder-presentation.ts` and authored by
-`ReportBuilderPresentation.svelte`, `ReportBuilderSetup.svelte`,
-`ReportBuilderSections.svelte` and `ReportBuilderAI.svelte`. Literal note text and
-context/category labels remain escaped; date sorting retains original note edit
-indexes. The existing builder owns selections, captured note/AI snapshots, provider
-and disclosure routing, synchronous preview reservation, progress and cancellation.
-Its public lazy URL and managed modal lifecycle remain stable. The sidebar Reports
-action closes an open mobile drawer before opening the builder, releasing the
-drawer backdrop and handing scroll ownership to the report dialog. Action labels update
-only when their text changes, preserving the pressed text node when textarea blur
-repeats an option update so WebKit can dispatch the first preview click. Report-specific
-utilities compile from `report-builder.tailwind.css` and its class catalog into the
-established `modal-shared.css` runtime URL; shared modal/import/theme rules stay in
-`modal-shared.base.css` and their existing owners. Superseded report styles and
-initial native templates are removed.
-
-`TourPresentation.svelte` authors escaped step copy, progress dots and typed action
-controls. The tour controller retains definitions, visible-target filtering,
-profile completion, demo/legal/modal gates, positioning and delayed chat ownership.
-Its root classes and content utilities compile from `tour.tailwind.css` into the
-existing `app-shell.css` URL, with shared shell styles in `app-shell.base.css`.
-Dynamic coordinates remain runtime-owned; ID/type utility variants preserve theme
-precedence, while phone and coarse-pointer layouts retain separate conditions.
-Superseded tour templates/styles are removed; native keyboard actions and visible
-focus remain available.
-
-Settings navigation/layout, Display, Privacy, Voice, Agent Access, imported records
-and AI usage use scoped Tailwind utilities
-alongside the remaining native feature styles. `css/settings.base.css` owns the
-legacy Settings rules;
-`css/ui-tokens.tailwind.css` owns shared semantic palette, typography and surface
-aliases. `css/settings-display.tailwind.css` owns source scanning and scoped
-Settings/Display/Privacy/Voice/Agent Access/records utilities. `scripts/build-styles.mts` combines them
-into ignored `css/settings.css`, retaining the lazy loader and offline asset URL.
-Do not edit the generated bundle. `npm run typescript:build` also builds styles,
-so existing prepare, development, test and production commands retain their
-source-to-runtime contract. `npm run styles:check` verifies reproducible output.
-
-The stylesheet omits Preflight, scans authored components and typed shell
-classes, and uses prefixed utilities scoped to the owning Settings surface.
-Display, Privacy, Voice and Agent Access remain additionally scoped to their panel IDs. Existing theme
-variables remain the authority for colors, fonts and radii. The unlayered scoped
-utilities follow legacy rules and use panel specificity rather than `!important`.
-
-The shared health-context catalog is authored in `ContextCardCatalog.svelte`.
-`context-card-catalog-presentation.ts` defines its typed view and projects demo
-consent copy without inference side effects. `context-cards.ts` preserves the
-synchronous HTML contract for dashboard, Insight and Chat consumers through the
-compiled Svelte HTML entry. Profile labels, summaries, explanations and notes use
-escaped text interpolation. The two raw HTML slots accept only fixed catalog SVG
-and escaped diet/nutrition renderer output; they are included in the DOM sink policy.
-Scoped utilities in `css/context-catalog.tailwind.css` and
-`context-card-catalog-classes.ts` replace static catalog and Chat overrides.
-`css/context-profile.base.css` retains native editors, chart tips, supplement-impact
-dots; the build combines both sources at the unchanged
-context stylesheet URL. The Tailwind source list includes the catalog, notes and
-assessment components explicitly.
-`context-card-status.ts` publishes typed, profile/data-scoped snapshots for indicator,
-reported summary, AI insight and tips slots. `ContextCardStatus.svelte` owns their
-markup, accessible text and Tailwind states; `context-card-status-view.ts` hydrates
-authored boundaries in every current catalog and disposes retired subscriptions.
-Every slot ID includes its catalog render ID. Assessment snapshots carry their
-reported-fact fingerprint and route identity; rebuilding after facts, notes or
-demographics change cannot revive a previous assessment. Health inference, normalization,
-fingerprints, cache and usage remain domain-owned; those services no longer query
-or mutate DOM. Existing public facade setters retain synchronous updates.
-Recommendation loading captures a presentation ticket and bridge identity before
-awaiting its catalog, rejects stale/disabled replies and exposes tips as keyboard
-buttons. Delayed tips stylesheet work checks its captured ticket, original control connection
-and enabled recommendation setting before opening.
-`context-card-tips-presentation.ts` projects card catalog sections, strand-aware
-DNA findings and evidence labels, safe study links and the existing latest-assessment
-EMF reminder rules. `ContextCardTips.svelte` owns escaped dialog markup and scoped
-Tailwind styles. Recommendations retain their public synchronous render contract
-through the compiled authored HTML entry; no native tips template remains.
-`css/context-editor.css` is generated from `context-editor.base.css` and
-`context-editor.tailwind.css` at the existing lazy URL. Its base retains unmigrated
-editors and supplement-import controls; tips no longer depend on native rules.
-Shared `link-ink` utilities use the theme’s readable accent-light text color;
-small helper text stays opaque and status text uses readable theme inks.
-Opening tips resets the reused detail modal layout and accessible name. Close and
-EMF controls use existing recommendation action services, with proper keyboard buttons.
-Insight schedules the same scoped tips loader as Dashboard after inserting its catalog.
-`LifestyleContextForm.svelte` owns the Diet, Environment, Light/Circadian, Sleep, Exercise, Stress, Relationships and Interpretive Lens
-forms, their drafts, disclosures, pressed states, notes and keyboard actions.
-`context-lifestyle-form-model.ts` projects the canonical options, wearable mismatch,
-sex-specific concerns, canonical Diet meal times and explicit stored field shapes.
-`ContextLightSetupMirror.svelte` renders read-only setup metadata from the typed form model.
-Stored skin type is retained separately from the Fitzpatrick display fallback; clearing
-circadian habits leaves Light setup intact. Its captured setup action keeps navigation
-and refuses a delayed open after a profile or form change. Latitude uses the existing
-profile resolver.
-Diet keeps unit-aware fluid labels separate from saved metric values, retains legacy
-estimates, and preserves typical meal examples while detailed nutrition has priority.
-`context-lifestyle-form-view.ts` mounts one live form, captures its profile/view and
-completion callback, and disposes retired controls and their modal styles/names when another tool takes over. Public
-lifestyle facade URLs remain stable; their delayed opens check profile, request order
-and originating view before dispatch.
-`ContextEMFLauncher.svelte` owns the Environment assessment launcher and its stable
-synchronous HTML adapter. `context-emf-launcher-model.ts` derives assessment counts,
-latest dates and severity without reading live state. Saved assessments hide quick
-exposure controls while their legacy values remain in the draft and stored profile.
-The lazy EMF runtime accepts a caller ownership guard before dispatching a loaded
-editor. Failed loads leave the Environment draft editable; retired opens and return
-callbacks cannot replace another form or profile. The EMF tool resets its shared
-modal name/layout, and delayed returns check the originating modal content.
-`context-lifestyle-form-session.ts` records history on an isolated draft and awaits
-profile-scoped storage before adoption or success. The storage transaction checks
-the observed context field inside its existing lock; concurrent edits cannot silently
-overwrite the saved context. Failed drafts stay editable, accepted writes finish on
-their originating profile, and unrelated unsaved fields remain live. Presentation
-callbacks cannot turn a committed write into a failed save. Scoped Tailwind owns
-these forms; their superseded native templates, meal styles and sleep mismatch
-rules are removed.
-`ContextHealthGoals.svelte` owns incremental goal editing, the original eight
-starters, priority sorting and keyboard actions. `health-goals-utils.ts` projects
-literal rows with their original storage indices; legacy object goals are displayed
-without rewriting storage and retain their metadata on the first accepted edit.
-`context-health-goals-view.ts` owns the live dialog, confirmation and retirement.
-Sync refreshes saved rows while preserving the draft input, priority and focus;
-retired row controls and confirmations cannot edit replacement goals or profiles.
-`context-form-dialog.ts` shares modal layout and accessible-name ownership with
-the lifestyle forms, preserving a replacement authored dialog during cleanup.
-`context-health-goals-session.ts` captures each mutation and its originating profile,
-records draft history and awaits the guarded profile transaction before adoption.
-The transaction checks the observed goal array as well as scalar context fields.
-Failed writes retain editable input, and accepted writes finish on their original
-profile after closure. Delete/clear retain tombstones; explicit re-add records a
-restore. Array deletion/restore metadata preserves observed intent order when
-wall-clock timestamps tie or move backwards, so stale peer deletions cannot erase
-an explicitly restored goal.
-Interpretive Lens uses the shared form's labeled multiline text field and the
-existing trimmed-string/empty-string storage contract, including older profiles
-that omit the empty Lens property. Save and Clear use the
-same captured history/transaction session as other forms, retaining failed and
-conflicted drafts. Its accepted completion updates the chat header and existing
-navigation; Cancel and Back do not save a draft. Back captures the originating
-profile and modal before returning to the existing Context overview. The Context
-facade also rechecks that owner after its lazy module load, so a late reply cannot
-open over another profile, view or dialog. Opening Context from mobile navigation
-closes the sidebar before opening the overview, keeping Lens controls reachable.
-`ContextFoodContaminantsBadge.svelte` owns the synchronous authored catalog badge;
-`context-food-contaminants-badge.ts` shares its renderer across the cold facade and
-loaded editors, retaining detailed-nutrition precedence. `ContextFoodContaminants.svelte`
-owns the read-only dialog and source links. Its pure model preserves the original
-scanner output and group ordering while accepting only HTTP/HTTPS source URLs.
-`context-food-contaminants-view.ts` captures the profile, diet snapshot and modal,
-retires on replacement or sync, and rejects delayed opens over another dialog.
-The lifestyle runtime awaits Chat opening and its existing delay before handing
-off the original prompt, checking the captured profile, thread, history and caller
-ownership at each boundary. Retired controls cannot dispatch into another conversation.
-Scoped Tailwind owns both views; duplicate native badge/dialog templates and
-superseded contaminant styles are removed. The scanner and source data remain domain services.
-`ContextHub.svelte` owns the Context overview's grounding navigation, source
-controls, nutrition window and accessible autosave/retry status. Its pure
-`context-hub-model.ts` preserves the source ordering, descriptions, availability
-and summary metrics; `context-hub-data.ts` reads the existing domain services.
-`context-hub-view.ts` owns the captured profile and overlay, preserves focus during
-updates and retires stale controls after closure, replacement or profile changes.
-`context-hub-session.ts` commits normalized source settings and nutrition windows
-through the existing guarded profile transaction before publishing them. Legacy
-source choices migrate durably on open. The source registry resolves this tab's
-loaded profile before the shared selection, so another tab cannot redirect its
-preference reads or migration. Light and wearable settings retain their
-score-context mirrors. Failed writes keep the local intent for explicit retry;
-peer conflicts expose newer committed settings without overwriting them. Optional
-localStorage mirrors cannot silence a committed update. Accepted writes finish on
-the originating profile after the dialog closes; unrelated unsaved fields remain
-live. The public Context/Personalize AI aliases and source-control keys remain
-stable. Scoped Tailwind replaces the overview's native templates, DOM patchers and
-styles; the Knowledge Base and data-protection dialogs retain their own owners.
-`DataProtectionPicker.svelte` owns the setup cards and configured statuses with
-scoped Tailwind at the existing lazy context stylesheet URL.
-`data-protection-status.ts` supplies one capability reader to both the dashboard
-CTA and picker. `data-protection-picker-view.ts` captures the profile, navigation
-surface and setup actions, guards delayed opens, retires stale
-controls, and owns focus trapping, dismissal and scroll restoration. Configured
-cards close without starting setup; unsupported folder backup stays hidden.
-Encryption, sync and folder selection continue through their existing services.
-The native picker template and obsolete dashboard picker styles are removed.
-`ContextMedicalHistory.svelte` owns the Medical History draft, condition and family
-rows, procedures, flags and notes. `context-medical-history-model.ts` preserves
-stored metadata, relative ordering and condition suggestions. The shared
-`ContextConditionInput.svelte` supports keyboard and pointer suggestions with
-combobox semantics. `context-medical-history-view.ts` captures the modal and
-profile, guards cold opens and confirmations, and retains failed/conflicted drafts.
-The Medical History and lifestyle sessions share `context-field-session.ts`,
-which records isolated history and commits through the guarded profile transaction
-before publication. The diagnoses conflict check runs inside the same storage lock.
-Accepted writes finish on their original profile after closure; retired controls
-cannot submit new work. The stable Medical History facade and helper URLs remain;
-the native template, suggestion HTML sinks and superseded medical styles are removed.
-`ContextNutritionLink.svelte` owns the Diet and Light card links, escaped summary
-text, keyboard focus and scoped Tailwind. Their synchronous renderer preserves
-its trusted internal delegated-action attribute callback; the authored action slot
-is replaced at that boundary. Summary, timeframe and timing calculations remain
-unchanged. Native extension markup and CSS are removed.
-
-`NutritionHistory.svelte` owns the Meals timeline, range controls, Trends, coverage,
-timing and aggregate AI handoff. `nutrition-history-view.ts` mounts and retires the
-captured profile/data/modal owner; delayed stylesheet, storage and focus work cannot
-replace another surface. `route-lifecycle.ts` distinguishes real navigation from
-same-route DOM refreshes, so asynchronous Body rendering does not cancel a valid
-open. `nutrition-history.ts` retains range/view preferences and public navigation
-APIs. `nutrition-presentation-model.ts` projects display data
-without mutating stored meals or changing domain calculations. Shared authored meal
-rows, target rings, goal rows and fuel cards are used by History and the remaining
-nutrition renderers through one synchronous `NutritionPresentation.svelte` HTML
-entry. This preserves public render contracts without duplicate native templates.
-`css/nutrition.base.css` retains shared modal-host sizing, while
-`css/nutrition.tailwind.css` provides scoped authored utilities at the unchanged
-lazy `css/nutrition.css` URL. Failed stylesheet attempts can be retried. Meal deletion
-checks its originating profile/modal after confirmation before starting a write.
-`nutrition-store.ts` completes canonical and encrypted cache commits and summary
-updates independently of the optional browser storage-persistence permission;
-`nutrition-storage-permission.ts` shares a pending request across meal writes.
-`NutritionEntry.svelte` mounts the authored `NutritionTargets.svelte` and
-`NutritionFluidLog.svelte` forms. They own draft values, native constraints,
-keyboard submission and scoped Tailwind controls. `nutrition-entry-model.ts`
-projects the weight/nutrient registry and creates the existing reviewed drink
-record shape without retaining meal photos or unrelated profile fields.
-`nutrition-entry-session.ts` commits settings through the captured profile's
-atomic field guard and drinks through the encrypted meal queue. Failures retain
-the input; retired forms cannot start writes, while accepted writes finish on their
-originating profile. `nutrition-entry-view.ts` owns modal/route retirement and
-save navigation. Existing renderer/control exports delegate to this implementation.
-`NutritionMealDetail.svelte` and `NutritionMealResponse.svelte` own saved meal
-provenance, photos, reviewed portions, nutrient details and optional after-meal
-check-ins. `nutrition-meal-detail-model.ts` projects the existing display semantics;
-`nutrition-meal-detail-view.ts` retires modal/profile/route owners and guards delayed
-stylesheet, read and focus work. `nutrition-meal-detail-session.ts` rejects retired
-controls, failed profile reads and a meal changed since opening; accepted encrypted
-and canonical writes finish on their captured profile. Failed writes retain choices.
-The existing detail renderer and save/clear exports delegate to these authored
-components and owner. Superseded native detail/check-in templates and CSS are removed.
-`NutritionComparisonResults.svelte` and `NutritionComparisonTable.svelte` own
-benchmark result cards and shared accessible nutrient/difference tables.
-`nutrition-comparison-results-model.ts` projects existing domain ranking, costs,
-zero/unknown values, baseline status and original action indices. The stable
-`nutrition-comparison-results.ts` adapter renders authored HTML through the shared
-presentation entry; execution, cancellation and encrypted local comparison
-persistence remain with `nutrition-comparison-ui.ts` and the store. Scoped Tailwind
-owns normal result styling; the benchmark shell owns full-screen workspace
-integration. `NutritionBenchmark.svelte` owns the shell, optional known-value
-reference forms and stable controller slots. `NutritionComparisonPicker.svelte`
-authors the searchable model cards; `NutritionBenchmarkPhoto.svelte` and
-`NutritionBenchmarkStatus.svelte` author photo thumbnails, saved-history and
-request progress markup. `nutrition-benchmark-model.ts` projects catalog snapshots,
-registry reference fields and progress text without executing requests or writing
-storage. Refreshes use the same synchronous presentation entry and delegated
-controller events. `nutrition-benchmark-workspace.ts` retains object-URL cleanup
-and moves the actual editor nodes into a suspended fragment, preserving draft
-values and file handles across mode changes. Normal workspace styling uses scoped
-Tailwind; the explicit full-screen layout contract lives in
-`css/nutrition.tailwind.css` because it spans the shared modal and result children.
-`NutritionAnalysisProgress.svelte` owns shared editor and benchmark progress visuals.
-Shared modal initial-focus handoffs preserve focus moved after opening, including
-already-visible overlays reused by editor/benchmark mode changes.
-`NutritionDashboard.svelte` owns the intake and fuel widgets on Dashboard and
-Body, including seven-day coverage, selected nutrient rows and the starter/empty
-states. `nutrition-dashboard-model.ts` projects canonical registry order and
-local calendar days without changing summary calculations or stored profile data.
-The existing synchronous widget APIs render this authored component through the
-shared presentation entry; `nutrition-render.ts` owns publication into widget hosts.
-Shared ring and goal grids use Tailwind utilities; widget layout responds to its
-container width.
-`NutritionMealEditor.svelte` owns photo/label/manual entry, the nutrient registry
-form and review slots. `NutritionMealModelPicker.svelte` authors model choices;
-`NutritionMealPhoto.svelte` authors stored and selected previews.
-`NutritionEditableIngredients.svelte` and `NutritionEditorFeedback.svelte` own
-ingredient editing, historical provenance, corrections, evidence and uncertainty
-markup. Pure editor models project text and display choices; `nutrition-review-ui.ts`
-retains validation, analysis timers, component baselines and controller updates.
-`nutrition.ts` retains analysis requests, nutrient calculations and canonical/encrypted
-meal saves. Catalog refreshes retain photo/label purpose; older serving-unit aliases
-map to existing controls without rewriting stored source metadata. Photo preview
-grids constrain the outer track so percentage-sized thumbnails stay full width.
-Stable render/import APIs use the synchronous authored presentation entry.
-`NutritionEditorNavigation.svelte` authors tabs and the meal-history handoff directly;
-the compatibility enhancer adopts that same markup only for older hosts and preserves
-already-authored nodes. Suspension continues to retain actual inputs and file handles.
-Scoped Tailwind owns editor styling. Necessary loading animations and cross-modal
-benchmark presentation styles are explicitly owned in `css/nutrition.tailwind.css`;
-superseded native editor templates and styles are removed.
-`context-notes-session.ts` captures accepted text and originating profile/data,
-serializes debounced scoped writes and retains retry drafts through catalog rebuilds
-and fresh profile reload objects. Failed idle sessions retain draft text without
-retaining the full source profile. The per-profile storage queue checks the observed
-saved notes atomically before merging a draft, including explicit whole-profile
-restores. A conflict exposes the newer saved text; keeping it discards only the
-draft without a storage write, while saving the draft requires an explicit retry.
-Known persisted baselines isolate the notes/history mutation from unrelated unsaved
-fields. Missing baselines retain the storage API's explicit restore semantics.
-Successful writes publish status/history only after commit; failed reads block
-writes, failures expose a scoped retry, and retired controls cannot submit new edits.
-Accepted edits finish for their original profile after the view closes or changes.
-`ContextNotes.svelte` owns input, retry, saved-text review and live commit status.
-Each notes instance has unique label/hint IDs. An authored Svelte boundary lets
-`context-notes-view.ts` hydrate that child in existing synchronous catalog consumers
-without replacing its textarea or the surrounding AI/tips slots. Removal and profile
-changes unmount the component and dispose its subscription; opaque scope tickets
-reject retired controls. The public no-argument debounce helper selects a current
-notes owner and retains its contract. The former status/value DOM patcher and
-native notes action delegates are removed.
-Remaining card editor/action ownership and nutrition fragments are separate from
-these authored notes and status lifecycles.
-
-Display settings is the bounded Svelte 5 pilot. `js/settings-display-panel.ts`
-reads existing service state into typed snapshots and retains its native runtime
-URL; `js/components/DisplaySettings.svelte` owns only the panel contents. Existing
-settings delegates own all mutations and persistence. The adapter unmounts before
-the legacy shell replaces DOM, synchronously flushes mount/refresh for focus and
-receipt rendering, and does not recreate the component on individual actions.
-The Settings controller retains panel visibility, domain actions and modal
-lifecycle. `SettingsShell.svelte` owns its header, layout and reactive core tab
-navigation. `settings-shell.ts` owns component mount/disposal and synchronous
-selection updates. The shell provides keyboard navigation appropriate to its
-responsive tab orientation. Trusted extension slots retain their existing
-contract, and ordinary panel links are not navigation tabs. Legacy panel
-renderers remain an explicit incremental boundary until their components migrate.
-
-Sun data-source markup is authored by `SunDataSourcePresentation.svelte` and its
-internal `SunModeOption.svelte` child. `sun-data-source-presentation.ts` projects
-literal option and credential values; `sun-data-source-rendering.ts` provides
-synchronous HTML to the existing `settings-privacy.ts` controller. The controller
-retains configuration reads, hosted privacy boundaries, delegated controls,
-encrypted saves and successful-save visibility changes. The scoped
-`sun-data-source-classes.ts` catalog and private Light Tailwind fragment own the
-former static inline declarations at the existing `/css/light-sun.css` URL.
-Native radio attributes, credential defaults and controller-owned selfhost
-visibility remain stable. Shared privacy, input and toggle rules keep their
-established owners; the component adds no listeners or independent save state.
-
-Privacy uses the same component lifecycle through `settings-privacy-panel.ts`.
-`PrivacySettings.svelte` owns status, configuration, consent and analytics views;
-`SettingsToggle.svelte` supplies their shared control. `settings-privacy.ts` owns
-service snapshots and privacy/consent actions. A typed, cycle-free
-`settings-privacy-view.ts` boundary lets providers update presentation without
-loading Svelte through the Light/Sun service graph. Status checks and provider
-results are guarded against replacement, later requests and edited configuration.
-Consent refreshes retain unsaved form drafts. Provider services keep credential
-storage, endpoint validation and model eligibility; the public native-form
-adapter remains compatible for callers supplying their own provider controls.
-
-Voice uses `settings-voice-component.ts` for mount/disposal and synchronous view
-updates. `settings-voice-view.ts` supplies typed snapshots; `VoiceSettings.svelte`
-owns fields, connection forms, model feedback and responsive task cards.
-`settings-voice-contract.ts` and the cycle-free `settings-voice-view-runtime.ts`
-connect catalogue, hardware and model controllers to presentation. Requests are
-bound to the mounted view and connection/selection snapshot; remounted panels
-hydrate independently and stale replies cannot persist voice choices. Model
-operations remain in the controller across remounts, with feedback tied to the
-selected model/backend and readiness verified against cache state. Provider
-keys, catalogues and audio engines retain their domain-service ownership.
-
-Cross-device Sync settings use `settings-sync-view.ts` for non-secret service
-snapshots and `SyncSettings.svelte` for status, identity comparison, recovery-word
-controls, relay settings and pending deletion review. `settings-sync-component.ts`
-owns one mounted panel, synchronous updates, disposal and secret cleanup. The
-existing string-renderer contract returns its component host. Relay and public
-identity reads bind to the mounted owner and request sequence; relay replies also
-check the originating relay. Identity hashing checks the public owner again after
-its asynchronous digest. A resolving identity cannot copy the preceding code.
-Identity-change and sync-applied events refresh current service snapshots.
-Recovery words stay out of snapshots and are read from the service only for an
-explicit reveal or clipboard action. Refresh and disposal remask them. The
-controller retains Sync lifecycle, clipboard clearing and domain mutations;
-`SyncDialog.svelte` owns setup choices, generated-word acknowledgement, join and
-restore forms. Its single lifecycle adapter clears private fields/generated words
-on close/replacement, restores focus, contains keyboard navigation and releases
-scroll locks. `sync-dialog-controller.ts` captures typed services for operations;
-`settings-sync-restore-ui.ts` retains the public entrypoints and progress helpers.
-Snapshots carry status only. Exact word counts derive from live fields, and service
-submissions stay ephemeral. Pending joins/restores reject duplicate submission,
-replacement and dismissal; failures remain retryable. Cancellation during generation
-waits for the owned attempt before cleanup. Only a temporary identity created by
-that setup may be disabled, and its public owner ID must still match. A configured
-identity is retained on cancellation. Async join preflight checks the originating
-configured owner; retries may resolve that same owner after an initialization failure.
-Successful restore clears form values and locks the reload phase. Error presentation
-never copies exception text that could include recovery words. The identity service
-checks its captured Evolu runtime after awaited restore/import/seed steps; replaced
-runtimes cannot finalize flags, notices or reload. Restore failure logs retain only
-a generic status, with no exception or seed text.
-Scoped Tailwind utilities at the existing lazy Settings CSS URL own panel styles.
-
-Wearables Settings uses `WearablesSettings.svelte` and a single lifecycle adapter.
-`wearables-settings-view.ts` builds explicit provider/account/status/action snapshots;
-credential tokens never enter presentation. `wearables-settings-panel.ts` keeps the
-published string host, action attributes, consent/withdrawal and domain operations.
-Settings close/rebuild disposes the view. Same-profile refresh retains focused controls,
-disclosure choices and import feedback; replaced roots/profiles reject old view replies.
-Manual counts check both operation sequence and profile/view ownership. Pending row
-actions are scoped to their originating profile, and confirmation/OAuth replies cannot
-redirect work to a newly active profile. Apple Health captures its profile and data
-before parsing, persists connection metadata against a baseline for concurrent-write
-merging, and derives summaries or offers cycle review only on that same active owner.
-Queued Google Health disconnect checks the initiating profile after acquiring its lock;
-sync replies cannot derive or mark credentials on a replacement profile. Scoped
-Tailwind at the existing lazy Settings CSS URL owns provider rows and import controls;
-shared dashboard/vendor/consent styles retain their existing ownership.
-
-Meal-photo feature-model Settings uses `NutritionAISettings.svelte` with an owned
-lifecycle adapter. `nutrition-ai-settings.ts` retains routing, capability evidence,
-pricing and its public string-host contract, and supplies credential-free typed
-catalog snapshots. Settings mounts/disposes the view and refreshes it in place on
-provider, model, CLI and local catalog changes. The selector and disclosure keep
-their identity and focus through updates; detached/replaced views reject replies.
-Confirmed-image eligibility, automatic fallback and saved-unavailable routes retain
-the existing domain rules. Scoped Tailwind at the lazy Settings CSS URL owns styles.
-
-AI feature enablement and provider selection use `AiSettings.svelte`, typed
-credential-free snapshots and `ai-settings-component.ts`. The parent owns the
-provider buttons, loading/error feedback and pause control. Its stable
-`#ai-provider-panel` slot delegates descendants to provider or CLI adapters;
-parent updates preserve child fields, drafts and focus. The bridge disposes those
-children before closing the parent, checks root/epoch/loading-child identity
-around lazy loads and restores CLI selection when provider consent is declined.
-Pause uses a shared synchronous domain action with persisted-state feedback;
-owned toggles retain their accepted value when persistence fails. Existing
-extension action hooks receive the actual provider button before selection;
-delayed unhandled hooks cannot supersede a later selection or closed view.
-Scoped Tailwind owns the chooser, including container-aware narrow layouts.
-
-OpenRouter Settings uses `OpenRouterSettings.svelte`, a lifecycle adapter and explicit
-catalog/status snapshots. The published provider renderer returns its mount host.
-Private API-key fields pass through a separate live-field port, clear on disposal,
-and never enter display snapshots or serialized markup. Model and pricing refreshes
-retain focused controls and manual-model health. `openrouter-key-controller.ts`
-adapts the shared `provider-key-controller.ts` save lifecycle, which checks the originating view, provider and credential around validation, consent,
-persistence and catalog work; an accepted durable write may finish after close,
-while its presentation replies cannot alter a replacement view. Balance and manual
-model probes also check request order and their initiating credential. Settings'
-lazy provider bridge captures the actual mounted root and invalidates pending
-loads on close, rebuild or CLI replacement. Scoped Tailwind owns this provider's
-controls through shared `provider-settings-classes.ts`, scoped to each
-`data-cloud-provider-settings-view` root. Other provider panels retain their
-current ownership until migrated.
-
-Venice uses the same provider save lifecycle and shared controls with
-`VeniceSettings.svelte`, `venice-settings-component.ts` and typed nonsecret
-catalog/mode/status snapshots. Existing services retain model ranking, regular
-and encrypted selection slots, pricing, capability gates and attestation. Catalog
-reads reject a replaced initiating credential before writing any cached models,
-capabilities, prices or reconciled selection; balance reads also check view,
-provider, credential and request order. The component retains focused selectors,
-private key drafts and open attestation details through refreshes. A missing or
-malformed encrypted catalog preserves the user's encryption preference and shows
-an unavailable-catalog explanation rather than turning encryption off during
-presentation. Checked-environment copy follows the existing confirmed-model
-capability rule; it does not claim completed attestation for a missing catalog.
-Saved models absent from a catalog remain explicitly selected as unavailable.
-The full TDX/GPU independence, unverified measurements/response source and
-provider/proxy metadata disclosures remain visible for confirmed encrypted
-models. Transport and attestation verification stay in their domain modules.
-
-PPQ Settings follows the same ownership through `PpqSettings.svelte`, its
-lifecycle adapter and the published `provider-ppq-panels.ts` compatibility
-facade. OpenRouter, Venice and PPQ share checked catalog projection, model
-status types and scoped Tailwind controls. Key validation uses the shared save
-controller; account creation and payment polling use separate controllers with
-captured view, provider, key, credit ID and request identity. Accepted anonymous
-accounts persist even after close, while recovery details appear in private
-component state before persistence, catalog or activation work can fail. They never enter
-nonsecret snapshots or clipboard action attributes. Invoice text and addresses
-also remain in private view ports; only the wallet link and explicit disclosure
-expose the payment text needed by the user. Closing or replacing a view scrubs
-private fields and cancels invoice countdown, polling and delayed onboarding.
-Polling is single-flight; stale invoices, QR results, balance replies and paid
-receipts cannot update another account. Catalog hydration preserves focused
-credential drafts and existing balance elements, eliminating replacement-only
-balance requests. Funded-account removal retains its explicit confirmation and
-checks account ownership again after the decision. Existing private transport,
-API-listed entitlement, vision gates, gift-card link and persistence services
-remain domain-owned. Missing private catalogs retain enabled intent without
-presenting regular models as private or claiming confirmed private capability.
-
-Routstr wallet funding uses `WalletFunding.svelte` and private view ports for
-invoice identity, payment text and pasted tokens. Its captured controller owns
-creation, minimum amounts, duplicate clicks and token imports; QR completion
-cannot revive a paid, expired or replaced invoice. The stable wallet facade
-mounts the component in the existing wallet slot and guards seed prerequisites
-against a closed or replaced Settings view.
-
-`WalletMintPicker.svelte` owns saved balances, optional node mint hints and
-mint selection. Saved balances render before node discovery and remain usable
-offline. Selection captures the originating view and selected mint; the domain
-checks the expected mint under its existing wallet lock before preserving
-original-mint proofs and recovery journals. Accepted selection completes after
-the picker closes without replacing newer wallet or node recovery controls.
-
-`WalletExport.svelte` uses private token ports and the existing readonly codec.
-Its controller captures the mint for locked export and checks it again before
-copying. Closing scrubs private fields; clipboard clearing survives closure.
-Clipboard failure leaves an accessible manual-copy disclosure. Forced proof
-verification also checks the expected mint under the lock and reports failure
-without representing saved balances as successfully verified. Ordinary balance
-reads retain their offline fallback. `cashu-wallet-mint-requests.ts` owns the
-shared durable mint cooldown used by proof, funding and recovery requests.
-`WalletWithdraw.svelte` owns Lightning quotes, explicit fee approval, outgoing
-Cashu tokens and uncertain-operation recovery. Invoice, quote and token ports
-stay private; initiating mints are checked inside the wallet lock before transfer
-side effects. Closing scrubs fields without cancelling accepted domain writes.
-
-`WalletNode.svelte` owns discovered node cards, accepted-mint review, node deposits,
-explicit session reset and saved refund recovery. Its controller captures the
-originating view, node account and mint before preflight; the domain checks the
-captured session and mint again inside its wallet lock. Saved refunds retain their
-original record generation and account regardless of later sessions. Recovery
-ports keep tokens, credentials and generations out of display state and action
-attributes; scoped callbacks reject retained controls from a replaced component.
-Receipt persistence and token redemption remain in domain services. Accepted
-transactions finish after closure without replacing newer controls, and privately
-held uncommitted receipts remain available through saved recovery. Superseded
-native node/refund rendering and mint chooser CSS have been removed.
-
-Routstr model selection and its private-mode disclosure use
-`RoutstrModelSettings.svelte` with checked catalog projection and an owned
-lifecycle adapter. Refreshes preserve selector identity and focus. Presentation
-keeps unavailable saved models explicit; service catalog reconciliation retains
-ownership of default selection. Separate regular/private remembered choices,
-pricing, model ranking and transport capability rules remain in domain services.
-Malformed or wrong-mode cached rows cannot become private options. A missing
-private model preserves the selected private ID and explains the unavailable
-catalog without claiming verified capability. The full node metadata and
-web-search/image limits remain visible for known private models. Catalog reads
-reject replaced node, credential, request order or initiating Settings view
-before writing pricing, capabilities, catalogs or selection.
-
-`CliAgentModels.svelte` owns CLI model, reasoning, provider-catalog and execution
-pickers, including search and keyboard navigation. The presentation module
-projects domain catalogs into labels and selected IDs without connection tokens.
-Its lifecycle adapter refreshes controls in place, preserving search and focus,
-and rejects retained controls after Settings closes or the provider changes.
-CLI discovery and selection capture the originating owner and request order;
-late catalogs cannot replace newer choices or write into a reopened panel.
-Accepted persistence can finish after closure without updating the next view.
-`CliAgentSettings.svelte` owns CLI discovery rows, setup commands, agent toggles,
-login/testing/status, disclosure and companion management. A separate typed
-presentation projects direct, paused, outdated, linked and embedded management
-states without credentials. The lifecycle adapter retains model-slot identity
-across rescans and disposes both owners on close or provider switch. Embedded
-frame sizing accepts only its bound frame's source and loopback origin; URLs
-retain the discovered port and never include credentials.
-
-`cli-agent-settings-controller.ts` keeps a shared single-flight across remounts.
-It captures owner, choices, backend and private connection before actions and
-rechecks the displayed companion's private identity, discovery authority and
-lifecycle before management dispatch. Connection
-publication has an optional initiating-owner guard in the domain service; accepted
-encrypted writes and companion actions finish after close without publishing to a
-new view. An accepted pause returns a still-selected matching host to direct
-inference. Bootstrap commands remain pure in `cli-companion-commands.ts`; the
-published facade preserves runtime imports and helper names. The outer provider
-chooser retains its separate native owner pending migration.
-
-`LocalAiSettings.svelte` owns the Local AI connection fields, status, model
-selection, hardware advice, pull-command copy and VRAM override controls. Its
-private address/key ports retain drafts and focus during catalog/advisor updates
-and scrub on Settings close or provider switch. Checked presentation snapshots
-carry derived location, cloud pricing, model labels and hardware assessments;
-credentials and raw provider metadata stay outside those snapshots.
-
-`local-ai-settings-controller.ts` single-flights explicit connection tests across
-remounts. It captures the draft, stored configuration, selected model, provider,
-chat backend and view before preflight/discovery, same-machine VRAM release and
-endpoint/model activation. It checks ownership again before persistence; failed
-or denied checks preserve the saved connection and selection. Accepted encrypted
-configuration writes can finish after closure without updating a replacement view
-or returning it to Chat. Passive Settings discovery requests no activation and
-rejects stale owners/configurations. Hardware advice also checks request order,
-selected model and manual override after detection. Provider lifecycle services
-retain unload-before-switch semantics; full vision/reasoning/runtime metadata is
-preserved for Chat and Nutrition AI while the advisor uses a checked projection.
-The existing PII connection view and its independently stored key remain separate.
-Native Local AI/advisor markup and advisor CSS are removed; the shared legacy
-status-dot rules still support the public Privacy DOM adapter.
-
-`CustomSettings.svelte` owns OpenAI-compatible endpoint Settings: private URL/key
-fields, validation/removal status, model catalog and manual model selection. Its
-adapter preserves fields and focus during model refreshes, scopes retained
-controls to their originating owner and scrubs private fields on close or provider
-switch. Display snapshots contain only connection status and checked model labels.
-The injected controller captures candidate endpoint/key and stored connection
-before validation and endpoint-specific activation; delayed replies cannot write
-into replacement views/accounts. Accepted encrypted writes finish after closure,
-without initiating follow-up model requests or notifications for stale owners.
-
-Connection publication awaits encrypted credential persistence before publishing
-the endpoint and key cache. Writes serialize; failed endpoint publication restores
-the previous credential. Endpoint changes invalidate catalog/vision caches while
-retaining the user's selected model ID. Removal clears connection/model metadata
-only after credential removal succeeds. Custom catalog requests guard original
-stored endpoint/key, latest request and optional originating view before every
-cache/capability/selection write. Existing no-argument and explicit-endpoint API
-contracts remain; connection probes continue directly from the browser with only
-the fixed compatibility payload, and endpoint-specific consent remains required.
-
-`RoutstrSettings.svelte` owns the wallet/node shell, active actions, keyboard
-menu and separate recovery notices. Stable slots host the existing wallet and
-model components, so balance, seed, model or account refreshes retain focused
-controls and private drafts. Parent disposal scrubs its private ports and
-only its owned children before removing the shell. Credentials and recovery
-tokens never enter display snapshots or action attributes. `RoutstrActions.svelte`
-is the single authored wallet/node action and menu implementation. The shell
-mounts it directly; published synchronous HTML helpers use its generated
-`.svelte.html.js` serializer and hydrate the existing controls through
-`routstr-actions-component.ts`. Immediate programmatic clicks dispatch once
-before the observer turn, and active updates retain control identity. Detached,
-replaced or disposed owners cannot dispatch; retiring an obsolete ancestor does
-not dispose a newer child owner. Injected domain callbacks preserve the public
-runtime imports without introducing a reverse wallet-panel dependency.
-
-The HTML serializer reads Svelte's synchronous `render(...).body` entirely in
-the browser; it needs no rendering backend. Svelte retains an optional dynamic
-`node:async_hooks` import for its asynchronous renderer, which this entry never
-invokes. Browser acceptance exercises the actual synchronous bundle. The build
-rejects static Node imports and any additional Node dependency; static Kit treats
-both generated component artifacts as compiled JavaScript. Source inventories
-count the authored component once, while runtime coverage accounts for both
-artifacts and separates mapped framework functions using their source maps.
-
-`ProviderStatus.svelte` owns wallet, mint, seed and node status text. The shell
-uses it directly and `provider-status-component.ts` adapts legacy containers,
-preserving public IDs and status root identity across updates. Captured status
-ports reject removed/replaced roots, and passive mint labels avoid announcements.
-Existing request, provider, node, credential and mint guards remain in the domain
-controllers before presentation. Compatibility helpers no longer duplicate
-button markup or mutate menu visibility/status text themselves.
-
-Session-key and pasted-token connection use the shell's private credential and
-receipt ports, with `routstr-account-controller.ts` owning validation, activation,
-single-flight writes, receipt acknowledgement and clipboard feedback. Drafts and
-receipt keys never enter display snapshots or HTML attributes; closure scrubs
-retained input/textarea fields. Validation and activation recheck the originating view, provider/backend,
-selected node, credential and draft before accepting a write. Catalog replies
-require that the saved account and originating view still own publication. A successful
-conversion reveals its saved session before catalog work; catalog failure keeps
-that recovery receipt available. Public save/remove/acknowledge handlers forward
-to this owner instead of rebuilding the provider panel.
-
-The existing wallet lock and deposit journal remain the payment boundary.
-`createRoutstrAccount` captures the node and expected credential before its lazy
-import; optional captured arguments preserve existing callers. Pasted-token
-imports reject changed accounts before submission and use the existing
-journal-before-HTTP/validated-key commit. Manual save/remove pass the captured
-credential to encrypted session storage's compare-and-set guard. Accepted writes
-can finish after closure against their original node, while presentation,
-notification and catalog publication require the originating account and view.
-
-The renderer now emits only the Routstr host. Discovery belongs to the injected
-shell controller and rejects replies after view, provider, selected node or
-credential changes before persisting a default node. Header balance reads check
-request order, node, credential, provider/backend and originating view. Saved
-deposit/outgoing notices occupy separate sections rather than replacing an open
-wallet operation. Recovery rechecks the exact saved token before accepting a
-receive, single-flights across remounts and awaits domain journal reconciliation.
-Accepted domain work and scheduled clipboard clearing finish after closure;
-retained private DOM fields clear synchronously. The lazy Settings provider
-bridge retains its wallet module for disposal on close or provider switch.
-
-`WalletWithdraw.svelte` owns Lightning invoice/address inputs, fee review, token
-amounts, outgoing token disclosure and recovery. Its controller keeps destinations,
-quote identifiers and token text in private view ports, binds transactions to the
-initiating mint and prevents duplicate financial operations across remounts. Closing
-scrubs retained DOM fields while accepted domain operations and clipboard clearing
-finish. Quotes and maximum replies check the owner and unchanged draft before
-presentation. Expected-mint checks run inside domain wallet locks before quote,
-send or payment writes; Lightning-address invoice resolution carries that mint
-across its separately locked quote and payment steps. A paid receipt requires an
-explicit confirmed result. Copying or rendering never clears outgoing journals;
-reclamation clears them only through verified domain reconciliation.
-
-`WalletSeed.svelte` owns device setup, acknowledgement, masked/revealed recovery
-words and restoration. `wallet-seed-component.ts` synchronously mounts, updates
-and scrubs its private word/draft ports. Words stay absent from generic snapshots
-and clipboard/action attributes; masked words are absent from DOM text until an
-explicit reveal. `wallet-seed-controller.ts` captures the initiating owner for
-seed reads, generation, acknowledgement, restoration and copied feedback.
-Continuation requires the originating view's explicit acknowledgement. Duplicate
-generation/restore requests share or defer to the accepted operation. Closing the
-panel suppresses private presentation without cancelling locked domain restoration
-or clipboard clearing. The Cashu domain retains encrypted 12-word seed storage,
-proof journals and protection against replacing a funded seed; 24-word Data Sync
-recovery remains a separate workflow. Other wallet states retain their existing
-owners until their migration is verified.
-
-`cashu-funding-monitor.ts` owns wallet-wide reconciliation, cross-tab leadership,
-notifications, backoff and subscriptions independently of presentation. Closing
-the funding view scrubs its private fields without stopping accepted quote
-recovery. Domain quotes retain the mint returned by locked creation, and manual
-and automatic recovery retire matching cached invoices. A cold launch resumes
-from durable wallet records; no invoice or token enters shared UI snapshots or
-clipboard attributes. The existing Cashu SDK, proof journals, mint-specific
-balances, seed encryption and node-session services keep their ownership.
-
-Agent Access remains behind the lazy Sync facade. `settings-agent-access-panel.ts`
-owns credential generation, clipboard operations, persistence and domain actions;
-`settings-agent-access-contract.ts` supplies readiness/preferences without hidden
-credential values. `AgentAccessSettings.svelte` owns setup targets, masked/revealed
-credentials and controls. Its adapter mounts during Sync hydration, refreshes
-synchronously and disposes before shell replacement. Owner/profile refreshes
-remask credentials; disconnected views receive no updates. `SettingsToggle.svelte`
-provides the compact, keyboard-accessible switch without depending on Chat styles.
-The public string renderer returns a component host so existing runtime callers
-retain their contract while Svelte owns its contents.
-
-Agent Access saves use `settings-agent-access-mutation.ts` for per-profile action
-ownership. Credential write intent is isolated from live profile state until the
-scoped service save commits, so a concurrent notes save cannot include a provisional
-credential. An uncommitted legacy migration uses the persisted Agent Access field
-baseline; regeneration therefore saves a complete record even when its preceding
-migration write fails. Failure rolls back only changed credential/preference fields on the
-originating object and retains later edits; pending controls cannot copy provisional
-credentials or start an overlapping change. The service supplies an opaque signing
-scope that retains the originating profile, relay and copied owner key privately.
-Remote revocation uses that scope; context preparation checks it again after awaits.
-A relay error after a committed save cannot roll back the stored credentials.
-Legacy migration dirty state belongs to each profile object, and a late completion
-cannot clear another profile's migration or start its persistence. The existing
-one-shot localStorage source retains its original values until a successful
-profile save; a non-secret profile binding prevents another profile from consuming
-or deleting it. Failed writes and reloads can retry from that source. Newly generated
-credentials are never mirrored into plaintext. A durably loaded profile's credentials
-or revoke tombstone remain authoritative over a stale source.
-`agent-access-legacy-source.ts` owns the storage names and retirement without a
-Sync or UI dependency. Explicit profile deletion retires only that profile's bound
-source after its databases and canonical blobs have been removed; blocked deletion
-retains the source, and orphan discovery includes its non-secret profile binding.
-
-Imported-data entries and AI usage use `settings-records-view.ts` to derive typed
-presentation snapshots from existing provenance and usage services.
-`DataEntriesSettings.svelte` owns report/manual/legacy rows and their actions;
-`AIUsageSettings.svelte` owns profile/global usage summaries. The controller keeps
-review/delete/export/reset operations. A lifecycle adapter mounts during Settings
-hydration, refreshes without replacing focused controls, and disposes before shell
-replacement. Profile/sync refreshes read current snapshots. Derived HOMA-IR and
-imported edits remain under their report; mixed imported/manual dates stay locked.
-Usage labels select the active record from the canonical profile metadata array.
-Each native component uses its own emitted mount/unmount/flush helpers; the static
-Kit build shares one Svelte runtime across both components. Necessary public
-string-renderer adapters return component hosts without duplicating rendering.
-
-Import Benchmarks uses `import-benchmark-data.ts` for unchanged report identity,
-numeric normalization and comparison math. `import-benchmark-presentation.ts`
-projects saved runs into typed cards, metric rows and bounded difference lists;
-`ImportBenchmarks.svelte` owns the dialog, selection, disclosures and comparison.
-`ImportBenchmarkEntry.svelte` owns the Settings entry button and forwards the
-actual button to extension hooks. The Settings lifecycle disposes that entry
-before replacement or closure, including pending asynchronous extension replies.
-`import-benchmark-controller.ts` owns selection and confirmation lifetimes;
-`import-benchmark-run.ts` owns accepted background tests independently of a dialog.
-Closing a view unsubscribes its progress clock; accepted model tests still finish
-and persist through the existing reference-benchmark service. Reopened views see
-live progress while retaining their own comparison selection. A delayed deletion
-confirmation cannot authorize a replacement view; accepted storage writes may
-finish after closure. Locked answer keys cannot enter the deletion port.
-`settings-import-benchmark-controller.ts` retains the public modal entry points;
-`import-benchmark-facade.ts` retains public renderer/selection helpers using owned
-Svelte hosts. `settings-styles.ts` shares the existing lazy stylesheet retry and
-cascade contract across Settings and standalone benchmark entry points.
-
-AI import setup and OpenRouter empty-balance notices share
-[`AiActionDialog.svelte`](js/components/AiActionDialog.svelte) and typed display
-contracts. [`ai-action-dialog-component.ts`](js/ai-action-dialog-component.ts)
-owns each named overlay, captured action ports, delayed focus, backdrop handling
-and stylesheet retry. The existing public provider/import functions retain their
-synchronous controls, contextual copy and extension hooks. An action closes its
-originating view before invoking the existing OAuth, Settings, demo or credits
-service. Retired controls and stylesheet replies cannot act on another notice.
-The owner uses the shared modal lifecycle; `trapModalFocus` returns an optional
-idempotent disposer so retained overlays can release listeners and scroll locks
-without waiting for DOM removal. External removal or hiding also releases the
-owner. Tailwind utilities are scoped to these dialogs independently of Chat;
-Chat onboarding and other confirmation dialogs still own their shared styles.
-
-Security and Backup settings use `settings-protection-view.ts` to derive display
-snapshots without exposing backup payloads, keys or directory handles.
-`EncryptionSettings.svelte`, `BackupSettings.svelte` and
-`FolderBackupSettings.svelte` own status, controls and snapshot summaries.
-`crypto-ui.ts` and `backup.ts` retain encryption, file, restore and folder-permission
-operations through existing delegates. `backup-folder-presentation.ts` publishes
-display-only folder updates without a framework import; the standalone folder
-renderer loads `backup-folder-component.ts` on demand. `settings-protection-component.ts` owns
-mount/disposal and synchronous refresh; asynchronous snapshot reads can update
-only their originating mounted view. Encryption changes refresh both status and
-backup explanations. Snapshot and file-picker controls use native buttons.
-`PassphraseDialog.svelte` owns unlock, enable, change, erasure and reminder
-presentation through scoped utilities at the existing lazy data-protection CSS
-URL. `passphrase-component.ts` owns one mounted dialog, synchronous initial focus,
-keyboard containment, scroll lock, secret cleanup and trigger-focus restoration.
-`passphrase-controller.ts` captures typed encryption services for each operation;
-late replies cannot update or close a newer dialog. Presentation snapshots contain
-only non-secret status. Passwords remain in live controls and ephemeral service
-calls. Shared validation rules live in `passphrase-presentation.ts`.
-
-Pending operations reject duplicate submissions. Once encryption initialization
-succeeds, a failed storage migration locks the original credentials and cancellation;
-Retry completes migration with the initialized key. An incomplete erasure neither
-clears the encryption session nor reloads the app. Delayed reminders yield to an
-active protection dialog. Privacy review styles remain in
-`css/data-protection.base.css`; `scripts/build-styles.mts` combines that base with
-`css/data-protection.tailwind.css` into the ignored runtime stylesheet.
-
-Cycle import preview, picker and coverage presentation belongs to
-`CycleImportPreview.svelte`, `CycleImportPicker.svelte` and
-`CycleImportCoverage.svelte`. `cycle-import-presentation.ts` supplies typed views;
-existing import adapters, conflict planning, persistence and public action
-contracts retain their service ownership. The stable `css/cycle.css` URL is built
-from `cycle.base.css` and scoped import/editor/overview utilities. All ordinary
-Cycle component styles are authored in Tailwind; the base remains a compatibility
-entry with no component rules. `cycle-shared-classes.ts` owns icon controls,
-symptom pills, period notes and section chrome. The three area class catalogs
-compose it, and the standalone import picker imports it directly.
-`css/cycle-shared.tailwind.css` scopes these shared utilities to the existing
-editor, import and overview markers without adding DOM wrappers. It preserves
-inclusive phone sizing, adjacent section spacing, keyboard focus and destructive
-hover precedence.
-
-`CycleEditorPresentation.svelte` composes typed profile fields, full period history,
-period entry controls, fixed SVG icons and `CycleImportCoverage.svelte`.
-`cycle-editor-presentation.ts` prepares literal display facts and native option
-predicates; `cycle.ts` retains statistics, dates, delegates, form readers and all
-save/add/delete/clear behavior. The coverage preparation getter is shared with
-existing HTML facades and retains cold-loader label lookup semantics. Editor
-utilities own existing head/body/footer nodes; modal utilities require the
-`cycle-modal` class, which other dialog owners replace on shared-host reuse.
-The editor introduces no raw HTML slot or second component state owner.
-Its four display-only automatic fields use ordinary containers; editable fields
-retain real labels and their existing form readers.
-
-`CycleOverviewPresentation.svelte` composes the header, current profile, blood-draw
-phases, recent history and alerts through typed children. It reuses the authored
-import picker and fixed SVG icons. `cycle.ts` prepares summary text, dates, phase
-ordering, history caps and alert decisions at their existing controller boundary;
-`cycle-overview-presentation.ts` derives only display labels. Existing Body and
-compact dashboard callers retain their synchronous facade, root selectors and
-actions. Overview utilities attach to the existing `cycle-section` root and its
-children, preserving shared-control ownership and the stable lazy stylesheet URL.
-
-Tips sections, products, coupons, genetics, disclosure and detail states compose
-through the `Tips*.svelte` components and `tips-presentation.ts`.
-`recommendations.ts` exposes typed synchronous/asynchronous section getters
-alongside its existing public HTML facades. Catalog selection, SNP matching,
-region/affiliate resolution, clipboard actions and preferences stay in their
-existing services. `RecommendationPage.svelte` composes typed cards within
-`LensWidgetFrame.svelte`; the frame owns shared chrome and receives a typed
-snippet. `LensPageWidget.svelte` retains the existing HTML adapter for remaining
-feature callers. Chat composes typed sections with its heading and first-banner
-options, while transcript state and delegates retain their lifecycle ownership.
-Tips utilities are included in the stable `css/recommendations.css` URL.
-
-`scripts/build-svelte.mts` discovers authored components and compiles each into
-an ignored `.svelte.native.js` artifact, loaded through the existing lazy feature
-graph. These artifacts retain source maps for ownership and coverage. The native
-offline manifest includes the emitted modules;
-the production bundler folds it into existing lazy chunks. Component declarations
-and a checked tooling contract retain the typed adapter boundary. SvelteKit is
-not part of the native build. The static Kit build consumes authored components
-directly.
-
-TypeScript 7 remains the application compiler and Svelte diagnostics engine.
-The npm workspace `tooling/svelte` isolates TypeScript 6 required by Svelte's
-supporting checker tooling; `svelte-check --tsgo --fail-on-warnings` runs during
-normal builds. `npm run svelte:check` also verifies reproducible emitted output.
-Architecture and affected-test readers include both component script blocks;
-coverage inventories count each component once at its emitted URL. Component
-source maps separate positively mapped third-party Svelte functions from
-first-party compiled functions. Missing maps fail collection, and unmapped
-functions remain in the first-party denominator and range diagnostics.
-
-## Static SvelteKit bridge
-
-`scripts/build-sveltekit.mts` assembles an opt-in, self-contained static artifact
-with SvelteKit 3 and `adapter-static`. `tooling/svelte` isolates Kit's TypeScript 6
-peer alongside the existing checker; application sources still compile with
-TypeScript 7. The native production command remains independently available.
-
-`ChatShell.svelte` is the canonical initial Chat structure, with its composer in
-`ChatComposer.svelte`. The Kit `/app` page prerenders and hydrates that shared
-shell inside its route. For native runtime compatibility, `svelte:build` writes
-a bounded generated snapshot into `index.html`; `chat-shell-component.ts`
-hydrates it once before startup delegates without replacing controls. The Kit
-template removes that snapshot and places its route root in the same document
-position, so the two builds each have exactly one Chat shell. Other native
-shell areas remain outside the route during migration.
-`js/kit/routes/app/+layout.svelte` starts existing services after mount.
+Tailwind 4 utilities and semantic recipes are the authored presentation source.
+Components and typed class catalogs use scoped, prefixed utilities without global
+Preflight. Theme variables remain authoritative for typography, colors and radii;
+owner specificity and original cascade positions preserve shared/theme overrides.
+Use the owning compiler rather than adding global overrides or `!important`.
+
+[`scripts/build-styles.mts`](scripts/build-styles.mts) coordinates stylesheet owners.
+[`scripts/native-recipe-styles.mts`](scripts/native-recipe-styles.mts) validates
+ordered declarations, values and priorities before restoring them at their original
+selectors, media/container/supports ancestry and cascade positions. Preserve foreign
+styles, duplicate receiver order, comments and runtime URLs. Native CSS remains
+appropriate for tokens, keyframe/pseudo-element grammar, vendor integration and
+explicit self-contained print/report outputs; it must not become a second ordinary
+component styling source.
+
+LightSetup uses readable per-hook `gb-ls-<hook>` recipes, where `gb-ls` means
+getbased LightSetup. Its complete Tailwind declaration catalog is build-only in
+[`scripts/style-recipes/light-setup.mts`](scripts/style-recipes/light-setup.mts);
+the runtime helper retains semantic hooks and its existing input behavior. The
+LightSetup compiler replaces only qualified atomic selector tokens, preserving
+exact owner/state selectors, specificity, cascade and all non-selector bytes.
+A complete inverse and pinned native HTML/CSS contracts guard this single owner;
+do not broaden it into a global class registry or a second styling language.
+
+Static inline presentation is authored as named Tailwind recipes registered in
+[`scripts/inline-style-map-owners.mts`](scripts/inline-style-map-owners.mts).
+The TypeScript build validates these before compiling application sources and emits
+immutable typed maps. Components and necessary native property setters consume
+exact declaration bodies or validated singleton values, preserving inline cascade,
+setter order and unrelated styles. Measured geometry, placement and visibility
+state remain explicit controller ports; do not reintroduce fixed style strings.
+Registered map outputs are excluded from authored-source fingerprints while their
+recipe inputs remain included. Runtime map modules retain explicit worker assets.
+
+The root foundation and optional-theme recipes compile to `styles.css` and
+`themes-extra.css`. Startup-layout and shared-theme-mode recipes generate only
+the two owned inline style snapshots in `index.html`, validating their unique
+head/font/theme anchors and preserving all other document bytes. Keep their
+first-paint order and legal/AppShell boundaries intact.
+
+Run `npm run typescript:build` after authored changes. `styles:check` and
+`svelte:check` verify reproducible emissions. TypeScript 7 remains the app compiler
+and component diagnostics engine; `tooling/svelte` isolates the checker's supporting
+TypeScript 6 peer. Native component artifacts retain source maps and stable public
+URLs; static Kit compiles authored components directly. Architecture and test readers
+include both component script blocks. Coverage counts authored components once,
+separates positively mapped framework functions, fails on missing maps and retains
+unmapped functions in the first-party denominator and diagnostics.
+
+## Static SvelteKit distribution
+
+`scripts/build-sveltekit.mts` assembles the default self-contained static
+production distribution with SvelteKit 3 and `adapter-static`. `production:build`
+writes `dist/`; `production:check` validates a disposable distribution. Vercel
+publishes that same output. `tooling/svelte` isolates Kit's TypeScript 6 peer;
+application sources still compile with TypeScript 7. The native compatibility
+builder remains available for existing module, coverage and budget contracts.
+
+The Kit route prerenders and hydrates shared authored components. Native
+compatibility entrypoints use deterministic snapshots from those same owners,
+then hydrate their matching nodes before installing feature delegates. Route and
+native owners must not hydrate the same subtree twice or replace retained controls.
+Populated Dashboard routes load their selected Desktop or Mobile renderer and
+hydration owner together. Empty Welcome and mobile navigation remain synchronous.
+Cold navigation awaits that renderer; resident rendering keeps its synchronous
+path. A request ticket, profile/data identity, route revision, connected main
+container and viewport protect publication and delayed work. An owned loading or
+retry view never replaces persisted data.
+Dashboard Biology widgets import their three typed presentation leaves directly.
+The public overview and summary dispatchers retain their complete page renderers
+without making those unused page branches part of Dashboard startup.
+`ChatShell.svelte` and `ChatComposer.svelte` share the initial Chat structure and
+composer; `js/kit/routes/app/+layout.svelte` starts existing services after mount.
+
+Kit runs in embedded mode: navigation delegation attaches to `#kit-root`, the
+parent of its route body. Native forms and links outside that mount retain their
+document handlers and event cancellation order. Kit still manages navigation
+and browser history inside its route.
 The Vite graph compiles authored
 components directly and shares one Svelte runtime with Kit. Native CSS,
 worker and computed vendor URLs keep their original module-relative meaning.
 Kit discovers only canonical `.ts` route modules, excluding emitted siblings.
+
+Native compatibility and Kit client builds reuse five self-contained encrypted
+provider SDKs at their existing vendor URLs. The build qualifies their complete
+bytes, locked provenance and lack of additional module or worker dependencies,
+then verifies every copied SDK and its full app-shell cache entry. Those bytes
+remain included in cache-size measurements. Kit SSR and prerender retain their
+normal module resolution.
+The native optimized browser build selects production conditional exports, while
+standalone development and Kit SSR keep their own resolution settings.
+
+Shared Lens configuration, ordering, chrome and delegates live in
+`js/lens-page-shell-core.ts`. First-party typed pages import that core directly;
+the public `js/lens-page-shell.ts` facade retains synchronous compatibility
+rendering over the same state. An unused compatibility renderer does not make
+its full feature presentation part of startup.
+
+Sync Diagnose configuration and clipboard actions stay available without loading
+the modal presentation. First use loads its implementation with an explicit retry
+URL; pending opens retire when their route, profile, main container or modal owner
+changes. The sync engine keeps its existing lifecycle.
+
+Automatic context assessments and Agent Access acquire the shared lab-context
+builder only after their existing eligibility checks. Lightweight settings and
+configuration consumers import their owning leaves; the public builder remains
+synchronous. Its canonical and retry facades retain their own public function
+identities while delegating to one shared private assembly module. Caller option
+getters and date defaults are evaluated at the public boundary; cache and runtime
+callback ownership remain shared. Injected callbacks retain their synchronous path. Cold preparation
+rechecks profile, data, provider and callback ownership. Context assessments also
+recheck fingerprints and demo consent after context assembly; Agent Access checks
+its credentials and Sync scope again before encryption and transmission.
+
+Native retry chunks share a physical body only after two build passes prove
+identical code, exports and dependencies without module-relative URL inspection.
+Import rewrites happen before content hashing. The exact hashed native
+`?lazy-retry=1` transport keeps a separate ESM namespace; the worker serves it
+from the requesting build's cache only after validating an install-generated
+body proof. Missing or corrupt proof falls back to the original network request
+without caching a query copy. Network responses cannot supply trusted proof
+headers. Other query strings and qualified production raw module URLs retain
+their behavior. Development-only emitted modules outside the declared bootstrap
+and worker dependency closure are not a static-distribution module API.
+
+Stable feature and root theme stylesheets follow the requesting document's reported
+build cache. The waiting worker requires direct build replies from every live
+document before early activation and checks the client census again. An unknown
+legacy document leaves the update waiting until the old app windows close; it must
+never be assigned a build from cache capability or a response timeout. Pages reply
+to the requesting waiting worker as well as their current controller.
+
+Known cached app navigations record the resulting document's build before startup
+styles load. Unproven network navigation responses cannot be promoted into the
+owned version cache; missing owned app-alias documents fail closed in fingerprinted
+production rather than mixing a new document with old version metadata. After a
+worker restart, a bounded shared request recovers ownership.
+Only an exact successful stylesheet in that build's existing cache is eligible,
+including the exact lazy-retry request; unresolved ownership with retained builds
+or an unavailable owned stylesheet returns an uncached error instead of another
+build's CSS. Hashed modules, font/SQLite aliases and live requests retain their
+separate routing rules.
+
+The two Evolu vendor trees retain their public SQLite module and worker URLs.
+Builds qualify four complete, byte-identical payload pairs against pinned hashes
+and locked provenance before sharing their current-build cache entries. Fresh
+responses preserve each requested module or worker's URL base for relative WASM
+and proxy requests. Other Evolu assets and runtime identities stay distinct.
 
 The static assembler externalizes Kit's classic bootstrap to satisfy the existing
 CSP without permitting inline executable scripts. It copies only declared public
@@ -1206,9 +320,9 @@ No rendering server is part of the output. See [static Kit build and acceptance]
 ## Runtime topology
 
 getbased is a static browser application. Local development loads
-`js/main.js` and its native ES-module graph directly. Hosted deployments run
-the Rolldown production build, which collapses the static startup graph into a
-hashed entry bundle and preserves lazy feature chunks. Official Vercel
+`js/main.js` and its native ES-module graph directly. Hosted deployments serve
+the optimized static SvelteKit distribution, with hashed framework modules and
+lazy feature chunks. Official Vercel
 functions are limited to encrypted operations and public deployment metadata.
 An independently deployed Node compatibility relay owns the explicit
 plaintext-operation allowlist. AI and voice provider payloads use
@@ -1322,7 +436,7 @@ foundation, storage adapters, and pure utilities
   inversion seams. Keep them narrow; do not turn them into alternate global
   service locators.
 
-This fine-grained direction remains a migration target for coupling cleanup,
+This fine-grained direction guides further coupling cleanup,
 but the runtime graph no longer contains strongly connected components. Both
 cycle ceilings are fixed at zero, so the checker rejects any new cyclic
 dependency.
@@ -1409,13 +523,17 @@ ceilings in [`scripts/cold-load-budget.json`](scripts/cold-load-budget.json)
 cover same-origin application request count, compressed transfer bytes, and
 decoded bytes. Runtime `/api/*` calls and cross-origin services are excluded so
 the measurement tracks the shipped app graph rather than network availability.
+This guard targets the native-compatible development graph. Profile the static
+distribution separately with `sveltekit-startup-performance.spec.ts`, as described
+in [CONTRIBUTING.md](CONTRIBUTING.md); startup and complete worker precaching
+are distinct measurements.
 
 The mandatory Terms/Privacy gate is prerendered at the start of `index.html`.
 `legal-consent-bootstrap.js` validates current acceptance and makes a required
-gate interactive before the main application graph arrives. Development loads
-that bootstrap as a standalone classic script; the production build inlines
-the same checked source into the HTML to avoid an extra render-blocking network
-round trip. `legal-consent.js` retains the full application integration and
+gate interactive before the main application graph arrives. Development and
+the static Kit distribution load that bootstrap as a standalone classic script
+under the deployed CSP. The native compatibility production builder inlines the
+same checked source into its HTML. `legal-consent.js` retains application integration and
 fallback path after startup. Both paths dispatch the same
 `legal-consent-accepted` event so changelog, analytics, backup, and deep-link
 destinations remain ordered behind acceptance.
@@ -1423,905 +541,3 @@ destinations remain ordered behind acceptance.
 The browser check runs in the normal Chromium suite and therefore in CI. Lower
 the ceilings as route and feature lazy loading removes startup resources; do
 not raise them to absorb an unexplained regression.
-
-Light & Sun keeps only `light-sun-loader.js` and its small persisted-state
-checks in the startup graph. The complete context, analysis, route, dashboard,
-and shell-hook composition lives behind `app-light-sun-modules.js`. It loads
-when the Light route or an optional Light dashboard widget is opened, when a
-persisted active session needs its ticker, or alongside Chat when persisted
-Light data must be present in AI context. Device preset hydration and stale
-Sun-session maintenance import only the implementation needed by profiles that
-actually contain those records. Visual entry points use the UI loader, which
-waits for the module graph and all seven ordered Light stylesheets before
-rendering. An HTML anchor preserves the original cascade position.
-Marker-history controls and the context-card Ott badge keep their cross-feature
-styles in their eager owning bundles, while the deferred Light stylesheets and
-modules remain in the service-worker app shell for offline first use. The
-body-region picker illustration and alpha mask are also explicit app-shell
-assets, so native and static builds can open the session picker offline.
-
-The Light route shell, session-start actions, empty/loading prompts, UV safety,
-methods/source disclosures, compact Light Today strip and dashboard channel pills
-are authored in `LightPagePresentation.svelte` and its focused child components.
-`light-page-presentation.ts` and `light-today-presentation.ts` project display
-fields; `light-page-view.ts` retains orchestration and existing delegate/ticker
-contracts. Calculations and writes remain with the Light/Sun services. Literal
-profile and device fields use Svelte escaping. The synchronous HTML adapter
-preserves callers that compose shared dashboard and route widgets.
-
-`css/light-sun.css` is generated from `light-sun.base.css` and scoped
-`light-page.tailwind.css`, at the same lazy URL and cascade position. Superseded
-page-owned native templates and ordinary styles are removed. The remaining base
-sheet owns separately rendered children, including session/device/setup views.
-Leaving Dashboard cancels its pending guided-Chat reservation before the next
-route renders, so a stale welcome timer cannot squeeze or reopen over that route.
-Explicit HTML slots accept only named existing renderers: shared Lens chrome,
-the conditions renderer, channel SVG/details, source controls and Sun/device
-widgets. Conditions now has its own authored owner below; the remaining native
-child owners remain migration work; the authored page shell does not establish
-whole-Light migration or whole-app PWA acceptance.
-
-`LightConditionsPresentation.svelte` composes the current-conditions widget,
-slot, full/compact readings, source attribution, event rail and inspection dialog
-through five focused children. `light-conditions-presentation.ts` projects display
-fields without changing provider classifications, UV interpretation or calculations.
-The stable `light-conditions-renderer.ts` facade retains synchronous imports;
-`light-conditions-now.ts` retains provider injection, coordinate-keyed cache,
-refresh intervals, delegated actions and modal lifecycle. All literal provider,
-location, error and raw payload values use Svelte escaping; no raw HTML slot is
-needed inside this owner. The actual timeline and payload scroll regions are
-named keyboard focus targets. Coarse-pointer refresh/details controls have 44px
-minimum targets. Foreground tokens correct theme contrast separately from the
-unchanged severity-dot colors.
-
-`light-conditions-classes.ts` owns scoped Tailwind layout, typography, responsive
-container rules, severity states and theme surfaces. `css/light-conditions-now.css`
-is generated from `light-conditions-now.base.css` and
-`light-conditions-now.tailwind.css` at its existing ordered lazy URL. The small
-base owns foreground tokens, dashboard-body integration and the shared app-tooltip
-overlay/focus rules. Superseded conditions templates and ordinary native styles,
-including their global theme selectors, are removed. Other Light data widgets
-continue to own their existing provider, persistence and presentation contracts.
-
-`LightSetupPresentation.svelte` composes the setup prompt, saved summary, two-step
-editor, location status, action rows and modal. Its child components own escaped
-markup and explicit control semantics. `light-setup-presentation.ts` projects
-stored defaults, legacy skin fallback, option summaries and temporary-location
-copy without changing the domain catalogs or calculations. The stable
-`sun-defaults-setup-renderer.ts` facade retains synchronous HTML imports; only
-`LightOnboardingAI.svelte` supplies the named onboarding AI slot through its
-compiled HTML entry. `light-onboarding-ai-presentation.ts` projects loading,
-error, idle and saved-result states; the established `sun-onboarding-ai.ts`
-facade retains provider, prompt, engine and refresh ownership. Literal analysis
-text and action lists are escaped by Svelte, including cached providerless results.
-`sun-defaults-setup-ui.ts` owns delegated input, draft collection and modal/location
-lifecycle. `sun-defaults-session.ts` captures the initiating profile and data root,
-stages setup defaults and mirrored skin together, and commits them through the
-profile transaction with atomic guards on both observed stored fields. Failed,
-blocked or conflicting saves publish neither field and keep the dialog draft.
-Accepted writes finish on their captured profile; retired dialogs cannot close a
-new dialog, navigate or trigger analysis when the earlier write resolves. Rendered
-actions carry a profile/root identity ticket invalidated by profile switching.
-Location requests refresh only the dialog that initiated them. Tabs expose labelled panels and roving keyboard focus; native
-skin buttons keep explicit confirmation and the range has an accessible label.
-The shared modal lifecycle guards initial focus. Live tier changes preserve the
-utility classes on the existing badge rather than replacing its class list.
-`light-setup-classes.ts` owns source-scanned, scoped Tailwind classes, including
-responsive, selected and theme states. `css/light-setup.css` is generated at its
-unchanged lazy URL from `light-setup.base.css` and `light-setup.tailwind.css`.
-The small base retains host integration and the tier animation.
-`light-onboarding-ai-classes.ts` owns the onboarding AI utilities under a separate
-marker, including reduced motion, touch targets and theme contrast corrections.
-Shared native AI selectors explicitly exclude that marker until their remaining
-owners migrate. Setup-specific overrides have moved out of the global theme sheets.
-
-The shared `ai-verdict-engine.ts` captures a profile/root identity from
-`ai-verdict-owner.ts` for each request and auto-fire retry sequence. In-flight
-state is keyed by that identity plus the target ID, so singleton IDs cannot
-mark or suppress work in another profile. Context and fingerprint are captured
-before the concurrency wait. Delegated controls also carry their render-owner
-identity; retained controls cannot initiate work after profile/root/epoch replacement.
-The attribute helper and authored onboarding/session controls share that contract. Responses, error sidecars, retries and refreshes
-retire when their profile/root or profile-switch epoch changes. A current
-response resolves its target again before writing, so removed records are not
-revived and replacement objects receive the verdict. The existing stale-input
-fingerprint contract remains: later target edits invalidate the cached result.
-`ai-verdict-write.ts` stages successful verdicts, provider-error sidecars and
-orphan cleanup in private baseline snapshots and uses the captured profile's
-scoped storage transaction. No live field is assigned before storage succeeds;
-failed, blocked and thrown writes retain the previous live and persisted verdict.
-Unrelated unsaved edits remain live and are excluded from the verdict write.
-Every feature adapter resolves targets and reads/writes analyses from the supplied
-profile root, including singleton and daily-map containers. Session stores accept
-an explicit root while retaining their default current-profile import contracts
-and existing row normalization. No temporary global-state swap is used.
-An accepted write can finish on its captured profile after switching; replacement
-profiles receive no result or immediate push. Context notification and extra
-immediate sync run only for the still-current request owner. Deferred Sun/Light
-refreshes preserve an open mobile sidebar when rebuilding the same route; user
-navigation still closes it, including selecting the current route.
-
-`LightSessionAI.svelte` owns the shared Sun/device inline and rich-detail verdict
-states, with reusable dot/button components and a pure `light-session-ai-presentation.ts`
-projection. Existing adapters retain completeness/provider gates, engine calls,
-prompts and saved-data ownership. All literal result/error/target fields are
-Svelte-escaped; severity classes are restricted to known dots. Scoped Tailwind
-uses distinct foreground and severity-border variables, keyboard focus and coarse
-targets; it replaces the two duplicated native renderer implementations. The
-standalone native session row style and superseded shared verdict selectors are
-removed; session, environment and review verdicts use the authored shared primitives.
-
-`LightEnvironmentAI.svelte` owns measurement, room, screen and audit verdicts,
-including the cached audit header dot. Its pure environment projection supplies
-literal copy, normalized severity and action identity; the four stable adapters
-retain provider gates, fingerprints, prompts and persistence. Authored verdicts
-share the typed `VerdictControlView`, dot and button primitives. The existing
-`light-env.css` URL is generated from `light-env.base.css` and scoped Tailwind;
-superseded verdict templates and their native selectors are removed.
-
-`LightEnvironmentScreen.svelte` now owns portable and room-assigned screen
-cards and editors. Its pure `light-environment-screen-presentation.ts` projection
-supplies literal metadata, picker state and delegated action identity;
-`light-env-screen-ui.ts` keeps its synchronous public renderer and helper exports.
-The model owns grading, the store owns mutations and per-day overrides, and the
-editor owns expansion and refresh. The native disclosure button is a sibling of
-today/delete controls, avoiding nested interactive elements; the blue-reduction
-checkbox has an accessible label and a real focusable hit area.
-`LightEnvironmentTodayToggle.svelte` is shared by rooms and screens. Core screens
-compose its typed view; only existing public today-renderer callbacks and the
-configured screen AI renderer enter the two explicitly named trusted HTML slots.
-Persisted screen and room metadata always use escaped interpolation. Scoped
-Tailwind replaces screen-only selectors and today-toggle selectors; remaining
-shared room/audit rules exclude the authored screen boundary.
-`LightEnvironmentSummary.svelte` owns both the dashboard assessment summary and
-workspace burden banner through typed `EnvironmentSummaryView` contracts.
-`light-env.ts` supplies live model grading, mapped reading counts, daily active
-counts and audit recency; the component does not read or mutate domain state.
-The configured burden interpreter is the single explicit trusted HTML slot;
-labels, metrics and fallback copy use escaped interpolation. Scoped Tailwind at
-the existing `light-env.css` URL owns summary layout, severity rails, accessible
-ink, action styling and inclusive 700/420px metric breakpoints. Superseded native
-summary templates and selectors are removed.
-
-`LightEnvironmentPresentation.svelte` composes the assessment dialog and workspace
-through `LightEnvironmentSection.svelte`, `LightEnvironmentRoom.svelte`, and shared
-picker, quick-pick, screen, today and summary components. The pure
-`light-environment-room-presentation.ts` module projects labels, measurement
-formatting and editor choices. The `light-env.ts` facade retains public render
-URLs, domain reads, callback invocation, modal lifecycle and sync/scroll ownership;
-`light-env-editor.ts` and the store remain mutation owners. Room disclosure uses
-a native button beside today/delete controls, preserving keyboard activation
-without nested interactive elements. Saved fields use escaped interpolation;
-the only raw room slots are configured measurement and room verdict renderers.
-The section composes the saved-audit block through a typed view, without an interim
-HTML slot.
-Scoped Tailwind owns room/editor/section/modal styling at the unchanged lazy
-stylesheet URL. Superseded room, modal and audit templates/selectors are removed.
-The native environment stylesheet retains only its host widget integration rule.
-
-`LightAuditCard.svelte` and `LightAuditDetail.svelte` own saved-audit card and
-snapshot-detail markup through the `LightAuditCardView` presentation contract.
-`light-env-audits.ts` retains historical grading, snapshot screen ownership,
-sorting, history, comparison, editing and persistence. Its typed projection
-preserves callback order and invokes detail callbacks only for expanded cards.
-The two explicit trusted slots accept the configured audit AI dot and verdict;
-stored labels, dates and room names use escaped interpolation. A native card
-disclosure button sits beside the interactive AI dot, avoiding nested buttons.
-Scoped Tailwind replaces card/detail selectors at the established environment
-stylesheet URL. `LightAuditBlock.svelte` and `LightAuditCompare.svelte` own
-disclosure, history and comparison through typed views. A native disclosure button
-and sibling toolbar actions preserve visual and keyboard order; the outer shell
-owns scroll anchoring.
-Block toggles restore focus through the stable modal/host after a redraw, without
-overriding an explicit new focus target.
-Explicit block-open state persists across re-renders, including when a card is
-expanded. The legacy details toggle action remains supported by the delegate.
-Comparison projection preserves stable room IDs, legacy name fallback, historical
-screens, method labels,
-channel direction and the camera proxy deadband. The AI handoff serializer and
-storage actions retain their domain owner.
-
-`light-tools.ts` retains measurement persistence, walkthrough pause detection/room
-binding, solar-session writes and lazy camera-module loading. Its pure display
-projection and `LightToolPresentation.svelte` compose the launcher, golden-hour
-form, walkthrough, rows and status messages. The six camera controllers retain
-sensor selection, sampling, calibration, confidence, save payloads and teardown.
-`light-camera-presentation.ts` owns their display contracts and guide/lock text;
-`LightCameraPresentation.svelte` composes six named shells and typed result states.
-They share `LightToolFrame.svelte`, `LightAimingGuide.svelte` and
-`LightCameraLock.svelte`. The walkthrough also composes the guide directly, with
-no raw HTML slot. `light-tool-camera.ts` retains camera helpers, per-tool dismissal
-storage/delegates and stable guide/lock HTML compatibility facades. Those small
-facades use `LightCameraGuidePresentation.svelte`; importing shared helpers does
-not eagerly import the six camera controllers or their shell renderer.
-
-Native tool IDs, close delegates, fields, modal lifecycle and existing lazy URLs
-remain stable. Literal labels/results are Svelte escaped. Failed walkthrough
-capture explicitly offers Retry audit. Scoped Tailwind owns ordinary presentation
-at `css/light-tools.css`; generated output is ignored. The base stylesheet retains
-only widget placement and overlay scrolling. Superseded native launcher, form,
-walkthrough, camera result and guide templates/styles are removed.
-
-Room and screen render-time auto-analysis captures `ai-verdict-owner.ts` before
-queuing. Both the deduplication key and delayed callback belong to that owner;
-profile/root/epoch replacement retires queued work without suppressing the new
-owner's same-ID/fingerprint analysis. Request execution and saved results remain
-owned by the shared engine.
-
-`LightReviewAI.svelte` composes the Today hero, dashboard verdict, Weekly review
-and indoor-burden verdict through small authored child components. The dashboard
-providerless fallback shares the authored Today layout and its existing delegated
-navigation contract. The pure
-`light-review-ai-presentation.ts` projection owns literal copy, normalized severity
-and action metadata. Stable adapters retain data/provider gates, fingerprints,
-prompts, requests and persistence. `LightWeeklyFallback.svelte` renders the existing
-deterministic summary after `light-channel-view.ts` computes it; the Weekly
-fallback slot accepts only that existing deterministic renderer, never model HTML.
-Scoped Tailwind owns review layout and replaces native verdict and summary styles.
-Daily, Weekly and burden render-time requests capture owner identity before
-queuing; both deduplication and delayed execution retire across profile/root/epoch
-replacement. Today hero and dashboard share one current-owner daily attempt.
-
-`LightChannelDetail.svelte` owns each channel's expanded reading region, with
-`LightChannelChart.svelte` and `LightChannelResearch.svelte` for the seven-day
-source-separated SVG and research disclosure. `light-channel-presentation.ts`
-projects observed chart geometry, real-unit labels, source counts and explanatory
-copy without DOM or storage access. `light-channel-content.ts` owns maintained
-reading notes and citations. The stable `light-channel-view.ts` adapter gathers
-current domain-service values and retains pill toggles, focus, navigation and
-quick-log delegates. Scoped Tailwind replaces the detail's native styles; chart
-bars remain scaled to the user's own week and never imply biological completion.
-`LightChannelPills.svelte` owns the interactive row and its adjacent detail slot.
-`LightDashboardPills.svelte` and the row share `LightChannelSparkline.svelte`;
-mini charts use typed geometry rather than an HTML slot. Pure projections in
-`light-channel-presentation.ts` own the shared channel order, day counts and
-source-relative mini bars. `light-channel-pill-classes.ts` owns scoped Tailwind
-for compact strips and channel-card contexts, including empty/logged, hover,
-expanded, keyboard and responsive states. The stable `_channelSparkline` HTML
-export delegates to the same authored component for compatibility. Live refresh
-replaces the row and slot together, then restores the one expanded channel.
-`LightChannelSection.svelte` composes typed channel pills and `LightLocationHint.svelte`
-without raw child HTML. The dashboard uses the same section through an explicit
-lazy renderer port; its controller retains the loading gate and session count.
-`light-channel-section-classes.ts` and scoped Tailwind own container geometry;
-`css/light-channels.css` is an empty compatibility URL for existing lazy imports.
-
-`LightSessionPresentation.svelte` composes the past-Sun and device log forms,
-completed Sun/device rows and shared inline/full history. Its pure
-`light-session-presentation.ts` projections preserve option selection, source
-metadata, mode resolution and safety notices. Existing session controllers own
-field binding, precise body-region selection, validation, dose calculations,
-canonical writes and modal lifecycle. The only HTML slots accept the separately
-owned body-silhouette renderer and assembled authored rows. Literal metadata is
-escaped by Svelte. Active cards, rich details and the authored silhouette retain
-separate presentation owners.
-
-Completed history rows are native buttons. Document delegates open their
-existing details, and the history overlay closes after the generated click;
-Space keydown cannot retire the button before keyup. Device-mode radios use
-roving focus and arrow/Home/End keys, while distance units use pressed buttons.
-Entering a UV mode still requires fresh UV-goggle confirmation, with the same
-conservative duration default and save/start validation. Scoped Tailwind shares
-the ordered Light stylesheet; setup and illustration styles retain their
-separate child ownership.
-
-`LightSessionDetail.svelte` owns one rich Sun/device detail layout, shared
-field grids and native channel buttons. `light-session-detail-presentation.ts`
-projects literal field/channel metadata, calculation notices and device safety
-and light-metric copy. The existing Sun/device controllers retain duration,
-body-area weights, spectrum reconstruction, unit conversion, device snapshot
-fallback, mode coupling, edits, deletion and sync-refresh ownership. The sole
-HTML slot accepts the separately owned session-AI renderer; metadata uses Svelte
-escaping. Saved specification links still pass the device controller's HTTP URL
-validator. Device channel keydown ignores native buttons, allowing the browser's
-single generated click to own activation and modal dismissal.
-`DeviceSessionModeForm.svelte` retains the existing coupling-filtered options and
-save handler; the canonical device-session store recomputes doses. Native setup
-forms and authored body-silhouette rendering remain separate owners. Shared native
-section/disclosure rules remain for Conditions and device setup; exclusive detail
-layout rules are removed.
-
-`LightActiveSession.svelte` and `LightSessionControls.svelte` own active Sun and
-therapy-device cards. The Sun card exposes a native detail button separately
-from its controls; action attributes and the existing delegates retain ownership.
-`LightLiveReadouts.svelte` and `LightSessionChips.svelte` also render synchronous
-fragments for the existing 1Hz ticker. `light-active-session-presentation.ts`
-formats already calculated values and literal metadata; integration, paused-time
-accounting, IU conversion, safety alerts and stored session writes stay in the
-existing Sun/device services. Live patches preserve the readout container and
-control nodes, chip expansion and the focused chip/toggle across replacements.
-The authored chips show the original first three signals by default. Their
-expanded state uses the existing delegate and scoped Tailwind utilities. Active
-controls keep visible labels and minimum 45px targets at narrow widths. Obsolete
-active-card/readout/chip styles and native templates are removed; setup,
-illustration and session-AI styles retain their separate ownership.
-
-The Sun store persists the last `resumedAt` boundary. Cold-client recovery restores
-committed dose/SED/ocular totals from saved exposure slices, and starts fresh
-integration at that boundary rather than replaying the original session start.
-Paused reopening displays those saved totals without requesting weather. Legacy
-records with accumulated pause time and no resume boundary retain saved totals
-and start a new slice at recovery time; no unknown paused span is treated as
-exposure. Manual duration edits retire the resume boundary with the timed slices.
-Completed hydration continues to sum modeled slices; the stop clock separately
-excludes completed/current pauses. Integration formulas and safety thresholds
-remain in their existing services. The stopped session boundary is captured
-after committing its final synchronous exposure slice, keeping modeled dose
-intervals inside the saved session end.
-
-`SunStartSessionForm.svelte` owns the shared live-start and mid-session coverage
-shell. `light-session-presentation.ts` selects the same ordered options and
-last-completed-session defaults. The existing active-session and Sun controllers
-retain skin/location prerequisites, region binding, clear/empty validation,
-glass-to-eye-mode mapping, modal lifecycle and canonical save/coverage handlers.
-The silhouette HTML is an explicit slot from `sun-body-silhouette.ts`; its geometry,
-selection, overlays and asset ownership remain separate. Start controls and the
-glass label retain 45px hit areas; disclosure and region hints work with keyboard
-and assistive announcements. Superseded entry templates and exclusive native
-form/disclosure styles are removed.
-
-`SunPreflightBanner.svelte` renders literal warning metadata with scoped Tailwind.
-`sun-active-session-format.ts` retains preflight visibility/tier thresholds,
-base-MED minutes, medication uncertainty and assumption copy. Its stable public
-HTML function delegates the final markup to the authored renderer. Formatting,
-calculation callbacks and the consolidated start toast keep their existing
-contracts; no additional rendering backend or provider request is introduced.
-
-`SunBodyPicker.svelte` owns the two-view SVG, masks, stock images, parametric
-fallback, accessible region titles and pressed states. The pure
-`sun-body-picker-presentation.ts` projection formats source-cell placement and
-literal region metadata. `sun-body-silhouette.ts` retains its public synchronous
-HTML/binding contract and owns profile-sex resolution, unchanged region geometry,
-canvas pixel lookup/tinting, blob lifecycle and input handling. `SunBodyPickerFrame.svelte`
-shares the Tailwind frame across Start, Coverage, Past Session and Device forms;
-its sole HTML slot accepts only the authored picker renderer. No native SVG or
-frame template remains. Region-map and overlay completion preserve a currently
-focused region inside the picker, without stealing focus from another control.
-A dashed keyboard focus contour remains visible when the canvas tint is ready.
-`css/sun-body-picker.css` owns the SVG-specific state cascade and coarse-pointer
-hit halo using Tailwind utilities; geometry presentation, captions and frame
-layout use scoped component utilities in the unchanged Light stylesheet.
-The licensed stock figure and independent parametric escape hatch remain intact.
-
-Settings and Tweaks are loaded through `settings-loader.js` on their first
-shell, startup deep-link, or feature action. Theme-owned accent initialization
-stays in `theme.js`, while the lazy Light feature hook imports its Sun data-source
-renderer and installs the idempotent change delegate from `settings-privacy.js`.
-Settings retains the same installer for its own entry path. Cold Light controls
-therefore save without requiring the Settings modal to initialize first; neither
-path requires the full Settings modal
-during normal startup. The loader also fetches `css/settings.css` on first use
-and waits for both resources before opening the UI. An HTML anchor preserves
-the stylesheet's cascade position, while the shell-owned Settings button rule
-stays in `app-shell.css`. The deferred stylesheet remains in the service-worker
-app shell for offline first use.
-
-The four optional visual themes share a conditional presentation boundary in
-`theme.js`. Default dark and light startup skip `themes-extra.css`; a saved
-optional theme inserts the sheet from the head bootstrap before first paint,
-while later selections use the same single-flight loader. Failed action loads
-restore the core dark theme and retry with a fresh URL later. The sheet remains
-in the service-worker app shell for offline first use, and its HTML anchor
-preserves the original final cascade position after chat redesign styles.
-Cross-theme shell geometry and Sunset Mode rules remain in a final eager
-inline block after that anchor, preserving their original cascade while keeping
-the deferred sheet scoped to the four optional themes.
-
-Only the persistent Chat launcher, shared closed shell component, nudge state, base
-shell styles, and final redesign overrides remain eager. `chat-loader.js`
-single-flights the behavior composition on the first shell action, feature
-prompt, keyboard shortcut, or startup deep-link. `app-chat-hooks.js` then wires
-the loaded Chat graph to host callbacks injected by `app-shell-hooks.js`;
-attachment handlers and the rest of the Chat runtime are not initialized
-before that boundary. Failed module loads reset the single-flight state and
-retry with a fresh URL. The same first action makes `chat-panel.js` load the
-personality, messages, composer, onboarding, responsive, actions, and mobile
-presentation sheets before opening the panel. Failed links are removed and
-cache-busted for group retry, a shared HTML anchor preserves their original
-order before redesign overrides, and the service worker keeps the deferred
-modules and stylesheets precached for offline first use.
-
-Chat provider onboarding has one presentation owner,
-`js/components/ChatProviderSetup.svelte`, sharing `ChatProviderQuiz.svelte`,
-`ChatProviderChoice.svelte`, `ChatOnboardingProgress.svelte` and the transcript's
-persona label. `chat-onboarding-presentation.ts` projects displayed progress and
-backward destinations; connected users skip the provider step in the normal
-sequence without losing explicit provider revisits. `chat-provider-setup-component.ts`
-retains the mounted view during branch changes, restores keyboard focus and
-retires profile/thread/history/root owners and removed branch controls.
-`chat-onboarding.ts` keeps navigation, provider selection, OAuth and persistence;
-its delayed settings handoffs check their originating owner before opening and
-after awaiting Settings. Existing synchronous quiz/progress HTML helpers render
-the same authored components. Trusted edition extensions retain the
-`provider-quiz` HTML slot and delegated action contract; legacy quiz CSS is
-restricted to extension-owned markup. First-party setup uses scoped Tailwind.
-`ChatProfileSetup.svelte` owns the basics form and its drafts, focus, native
-optional disclosure and save status. `chat-profile-setup-component.ts` retains
-that view across repaint and retires it on profile/thread/history/data/root
-replacement. `chat-profile-onboarding.ts` adapts the public helpers and each
-configured module's callbacks to `chat-profile-onboarding-controller.ts`.
-The controller captures values before awaiting writes, serializes saves for the
-originating profile and uses explicit profile IDs and a merge baseline for the
-IndexedDB profile weight write, followed by the existing manual-measurement
-service and summary refresh. This preserves the legacy entry while upserting the
-canonical kilogram row even if the one-time legacy migration already ran. Both
-legacy migration and new measurements share `weightToKilograms`, including the
-form's `lbs` alias. An accepted in-flight write may finish for its original
-profile; retirement prevents later writes, publication and navigation. Failed
-writes keep the form editable, report failure and roll back only the failed
-weight array. Country-only latitude is a local projection without geocoder
-requests or a redundant write when the form mounts. Scoped Tailwind owns the
-form, including narrow-layout overflow prevention and 44px touch controls.
-Shared native input styles remain only for unmigrated cycle/supplement helpers;
-context cards and other empty states are separate owners.
-`context-card-health-dots.ts` owns context-insight request identity independently
-of card DOM lifetime. It captures the profile/data object, demographics, assistant
-route, card fingerprints and projected request context. Matching callers share
-one pending request; edits or explicit refreshes replace it. Profile switches,
-AI settings or companion-route changes and revoked demo consent retire pending
-ownership. Late
-success, parse failure or provider failure cannot overwrite a replacement view
-or cache, and cache fingerprints describe the assessed inputs. Usage remains
-attributed to the dispatched provider/model and originating profile even when
-presentation expires;
-subscription requests stay outside the direct-provider ledger. Shared card
-rendering and editor migration remain separate presentation work.
-`ChatEmptyState.svelte` owns paused, initial/partial/full context, saved/skipped
-handoff, lab-context nudge and general prompt presentation. `chat-empty-presentation.ts`
-projects literal copy and action payloads without storage access. The synchronous
-HTML entry preserves the established empty-state render/delegation contract;
-`chat-empty-state.ts` retains branch decisions, provider/profile routing and service
-calls. Context cards render into a reserved slot through their existing catalog
-owner, retaining notes sessions and delegated actions. Shared persona and progress
-components keep their own presentation contracts. Ordinary empty-state styles are
-scoped Tailwind; superseded empty, context-progress and action-layout CSS is removed.
-Shared extension/cycle/supplement styles remain scoped to their owners. Shell-owned
-import-button rules exclude the migrated empty-state controls; its solid primary
-action and secondary greeting text use theme tokens with verified contrast.
-
-`ChatSavedSummaries.svelte`, `ChatSummaryDialog.svelte` and `ChatSummaryPrint.svelte`
-own saved rows, the accessible summary dialog and standalone print document.
-`chat-summary-presentation.ts` projects literal display fields; their synchronous
-`ChatSummaryPresentation.svelte` HTML entry preserves delegated actions and runtime
-URLs. `chat-summaries.ts` retains generation, provider attribution, profile/thread
-ownership guards, persistence, sync refresh and export dispatch. Markdown passes
-only through the shared escaping renderer, including streaming and printing.
-Native buttons give saved rows browser keyboard behavior. Dialog focus is trapped,
-Escape closes through the controller, and reopening cancels stale removal timers.
-Scoped Tailwind owns rows, metadata and actions; shared Markdown formatting stays
-in the deferred Chat stylesheet. The standalone print document owns its small
-inline stylesheet so synchronous offline printing requires no extra asset request.
-Superseded native summary templates and ordinary layout/action CSS are removed.
-
-`ChatOptionalSetup.svelte` owns the add-on task catalog, summaries, DNA import
-confirmation and import/re-import controls. `chat-optional-onboarding-presentation.ts`
-projects cycle visibility, current versus historical therapies, saved SNP findings,
-mtDNA and wearable connection status. `chat-optional-setup-component.ts` retains
-focus across repaint and retires profile/thread/history/data/root owners and removed
-controls. Shared progress and persona components and scoped Tailwind own its layout;
-mobile controls, including Back, provide 44px targets.
-DNA and mtDNA services publish a typed `genetics-import-events.ts` notification
-after persistence instead of replacing the presentation DOM. Parsing and pending
-previews retain their originating profile/data. Confirmation writes a draft through
-explicit profile-scoped storage with the service's recorded baseline, preserving
-curated calls and concurrent profile changes. It publishes to the current owner
-only after a successful save; failed saves keep the preview retryable. A saved
-confirmation survives Chat's history remount only while its saved SNP fingerprint
-still matches. After publishing committed data, `notifyProfileDataContextChanged`
-retains the existing AI context-cache/gateway refresh without scheduling duplicate
-profile sync writes or targeting another profile. A successful
-write already in flight may finish for its original profile without changing a
-replacement profile or opening/closing its presentation.
-
-Conversation navigation has one presentation owner,
-`js/components/ChatThreadNavigation.svelte`. `chat-thread-list-view.ts` preserves
-the published renderer boundary and projects current profile, sort and thread
-metadata through `chat-thread-navigation-presentation.ts`. The component owns
-grouped/pinned/project rows, menus, desktop pointer dragging, search progress and
-results. `chat-thread-navigation-component.ts` provides synchronous typed view
-ports and rejects actions or replies from detached, replaced or retired profile
-owners. Reconfiguration updates the existing action port without replacing
-focused controls. Thread CRUD, encrypted persistence and project rollback remain
-in `chat-threads.ts` and `chat-thread-search.ts`; message search captures profile,
-query, input, thread inventory and view lifetime before reading stored content.
-Result content prefixes stay in bound callbacks, and animation-frame jumps check
-their accepted destination before touching the transcript.
-
-The shared Chat shell keeps stable transcript and summary hosts while those
-features retain their own services. Attachment presentation is Svelte-owned. Hydration
-does not rerender those live hosts on reopen. `ChatComposer.svelte` owns initial
-composer controls and input events; `chat-composer-input-port.ts` connects a
-current input to the draft service without installing native input listeners.
-`chat-composer.ts` owns per-conversation draft persistence and restore revisions,
-including originating input identity and profile/thread checks. Its published
-resize/value helpers keep their existing runtime contract. The input, toolbar,
-send and tool controls use scoped Tailwind classes and shared theme variables;
-attachments and voice presentation retain their separate services.
-`ChatDiscussion.svelte` owns participant selection and the active discussion bar,
-including usage disclosures, pause/resume/end controls, literal participant text,
-keyboard dismissal and focus restoration. `chat-discussion-view.ts` holds a
-composer-lifetime presentation port and selection model. Selection and delegated
-actions reject retired composer/profile/thread controls; `chat-discussion-picker.ts`
-and `chat-discussion-ui.ts` preserve public runtime entry points while publishing
-values rather than authoring markup. Existing shell/message action delegates
-remain the single discussion action dispatchers. Round execution, provider requests
-and thread persistence stay in the discussion services, outside the component.
-The round request builder captures persona instructions, tagged history, lab
-context and model/search/reasoning selections before asynchronous knowledge
-lookup. Direct requests pass the accepted model through every automatic
-continuation; CLI dispatch rejects a changed agent, target or model selection.
-Cancellation is checked after lookup and provider completion before returning a
-response or updating the CLI thread session.
-The composer owns discussion help associations and photo-action restrictions.
-`chat-composer-input-port.ts` also publishes backend-unavailable placeholders,
-so availability refreshes cannot overwrite the discussion prompt. Scoped Tailwind
-replaces the picker and continuation CSS; `chat-personality.css` retains its
-stable URL as an empty compatibility stylesheet.
-`ChatCitations.svelte` and `ChatStoredImages.svelte` own the shared citation and
-persisted-image markup. `chat-message-content-contract.ts` projects stored
-records and filters thumbnail URLs; `chat-message-content.ts` preserves existing
-synchronous string-return contracts through compiled Svelte HTML. These semantic
-details contain clicks at their authored component boundary; image buttons use
-the existing message action dispatcher. Image previews support native keyboard activation.
-`ChatThinkingStatus.svelte` owns rotating phrase and dot presentation;
-`chat-thinking-status.ts` retains the element-return and clock APIs, freezes a
-stopped visible view, and disposes removed or retired profile/thread owners.
-A stopped clock does not retain a removed Svelte root. Shared scoped Tailwind
-classes replace the corresponding native citation, image and thinking rules;
-the owned dot animation retains its keyframes and respects reduced motion.
-`ChatMessageActions.svelte` owns message action bars and context disclosure;
-`ChatAgentDraftCards.svelte` owns proposed-change review. Their typed projections
-keep literal labels and proposal status separate from domain mutation. Existing
-synchronous action-bar and proposal HTML exports use those same authored views.
-`chat-message-actions-component.ts` hydrates connected compatibility hosts once;
-opaque render tickets prevent old markup from being adopted into another
-profile, thread, history or message. `chat-message-actions-view.ts` owns copy
-feedback, disclosure state and control lifetimes, rejecting late clipboard
-completion and disposing removed views and reset timers. Retry, fork and proposal
-claims retain their existing service dispatchers. The nested speech control uses
-`chat-speech-view.ts`, sharing one owner and state port with standalone speech.
-`ChatMessageEditor.svelte` owns inline edit controls, focus, sizing, keyboard
-shortcuts and busy state. `chat-message-editor-component.ts` publishes a conditional editor slot to the
-authored message and retires removed or changed conversation owners. Its public
-compatibility path can still mount into a caller-owned message host.
-`chat-message-edit.ts` retains eligibility, transactional send/rollback and fork
-operations; composer edit state flows through `chat-message-editor-view.ts` to
-`ChatComposer.svelte`, preserving the separate unsent draft and making the row
-inert. Scoped Tailwind replaces native action, proposal, context and editor rules.
-`ChatTranscript.svelte` owns nonempty restored history, fork notices, history
-window controls and participant labels. `chat-transcript-presentation.ts` projects
-stored messages; only the established sanitized Markdown and trusted catalog
-section renderer supply HTML. `ChatMessage.svelte` composes the shared body,
-attachments, citations, actions, editor, usage and recommendation disclosure.
-Keyed messages preserve controls, open citations, editor drafts and selection
-through same-conversation refreshes. `chat-transcript-component.ts` unmounts
-removed or replaced roots and profile/thread/history owners.
-`ChatLiveMessage.svelte` uses the same message component for normal and discussion
-streaming and completion. `ChatPersonaLabel.svelte` owns shared participant labels.
-`chat-live-message-component.ts` provides synchronous typed text,
-completion and reconnect ports; scope checks reject retired generation replies.
-The public typewriter can still receive a caller-owned plain-text host, rendered
-by `ChatStreamingText.svelte` and disposed on retirement or before a compatibility
-caller replaces its contents. `chat-send.ts` keeps provider requests, gates,
-usage, attachments and persistence; `chat-render.ts` keeps range and scroll
-orchestration. Neither authors normal message body or footer markup.
-`ChatRecommendations.svelte` owns disclosure state, new badges and click
-containment. It captures the exact profile/thread/history/message before saving
-visibility changes. Finite attention runs for newly completed recommendations,
-never restored history, and releases its observer/frame/listener on retirement;
-reduced motion suppresses the pulse. Catalog card markup, optional context
-onboarding and empty-conversation views have separate presentation owners.
-Discussion rounds capture profile, thread record and history identity in
-`chat-discussion-origin.ts`. Background rounds may persist to their original
-conversation; profile/history replacement, deletion or a newer controller retires
-the old round. Repainting reconnects its existing authored live view. Request
-preparation takes the participant explicitly rather than changing the selected
-persona. `chat-discussion-round-state.ts` delegates all body persistence to
-`saveChatHistory`, sharing its serialized encrypted writes, exact-byte rollback
-and clear/write ordering. Background saves preserve the conversation's persona;
-late deletion cannot resurrect its stored body. Public round element helpers in
-`chat-discussion-round-view.ts` snapshot the same authored message and label with
-no indexed actions, retaining the element API without duplicating markup.
-Transcript geometry uses scoped Tailwind. Custom CSS retains the shared
-sanitized Markdown renderer classes and avatar pseudo-elements; legacy bubble
-rules are restricted to the remaining caller-owned hosts.
-`ChatVoiceButton.svelte` and `ChatVoiceStatus.svelte` own the microphone control
-and live status. `chat-voice-view.ts` publishes typed capture state and backend
-availability, retires composer actions, and cancels capture on owner disposal.
-The tiny `voice-loader.ts` retains first-use loading and checks the originating
-profile, thread, panel and input before dispatch. `voice-controller.ts` owns
-recording/transcription operations and spoken reply orchestration, independent
-of presentation. Every capture holds its originating input/profile/thread,
-disclosed provider/settings, abort signal and timers; obsolete permission,
-privacy and transcription replies cannot start capture or insert into another
-draft. Capture and playback cancellation remain separate, so closing Chat
-stops dictation while a spoken reply can finish. `voice-capture.ts` releases
-late microphone grants before starting a recorder and cleans up startup failures.
-`ChatSpeechButton.svelte` is the sole Listen/Stop/preparation/waiting view.
-`chat-speech-component.ts` supplies synchronous HTML to existing transcript
-callers, hydrates without replacing buttons, and disposes retired owners. Its
-typed state updates replace native icon, label and class writers. Transcript
-migration can consume the same component; audio engines, provider consent,
-progressive streams and local model services remain outside the component.
-The controls use scoped Tailwind, shared theme tokens and reduced-motion rules.
-`ChatModelPicker.svelte` owns the model menu, search, range preview, selection
-buttons and dismiss/focus behavior. `chat-model-picker-view.ts` binds only the
-current root and releases provider event subscriptions on disposal.
-`chat-model-control-state.ts` reads existing provider and CLI catalogs, ordering
-and reasoning capabilities; `chat-model-picker-presentation.ts` projects literal
-display metadata without exposing connection credentials.
-`chat-model-controls.ts` retains domain actions and captures profile, thread,
-backend, target, connection settings and view lifetime before asynchronous work.
-Late catalog replies cannot publish across those boundaries, and the latest model
-choice wins. Negotiated CLI connection settings are adopted only by the current
-request. The picker uses scoped Tailwind; browser-specific range track/thumb
-pseudo-elements remain a narrowly owned custom CSS exception.
-`ChatPersonalityPicker.svelte` owns builtin/custom options, literal labels,
-CRUD controls, dismissal and return focus. `chat-personality-picker-view.ts`
-binds the current root; actions capture the rendered profile, thread and version.
-`ChatPersonalityEditor.svelte` owns the editor structure and input events, with
-its modal adapter explicitly releasing focus traps, listeners, timers and scroll
-locks before returning focus. Editor-origin click paths cannot dismiss the
-picker reopened by cancellation. Scoped Tailwind replaces persona native CSS.
-`chat-personality-policy.ts` owns hosted-use consent; `chat-personality-models.ts`
-owns metadata/selection reads and encrypted save integration. The editor workflow
-in `chat-personality-editing.ts` guards profile/thread/editor identity and draft
-revisions across confirmation, streaming, generation and persistence. Accepted
-writes stay with their original profile; edits made during a save remain dirty.
-Storage serializes writes per profile and preserves newer optimistic catalogs
-across older replies. Sync notifications include the originating profile and
-load its durable data when it is inactive. `chat-personalities.ts` retains public
-compatibility exports, selection integration and the remaining header status.
-`ChatResizeHandle.svelte` owns splitter pointer capture, keyboard resizing and
-reset actions. `chat-layout.ts` reads and persists the existing independent
-panel/rail preferences; its typed view port publishes geometry to the shell.
-The shell renders CSS variables and current ARIA ranges without replacing
-conversation controls. Gesture cancellation follows pointer cancellation,
-capture loss, blur, owner disposal, Chat closure, fullscreen, rail closure and
-mobile resizing. Retired controls cannot change the current preferences.
-Splitter styling is scoped Tailwind; the shared body drag state only disables
-adjacent shell transitions and selects the resize cursor.
-
-The focusable window splitters and scrollable conversation region intentionally
-retain their keyboard semantics; narrowly documented Svelte accessibility
-annotations cover its static noninteractive-role classification, with browser
-keyboard and geometry assertions retained.
-
-`css/chat-panel-open.base.css` owns the remaining outer Chat shell, shared Markdown and
-transcript bridge styles. `css/chat-navigation.tailwind.css` scans only the
-navigation, composer, splitter and summary components and their shared typed classes, uses semantic theme tokens,
-and omits Preflight. `scripts/build-styles.mts` combines both into ignored
-`css/chat-panel-open.css`, preserving the deferred URL and cascade position.
-The outer Chat rail and transcript styles and dynamic Chat feature surfaces
-retain their separate presentation ownership; navigation does not own their lifecycle.
-
-Voice preserves this Chat boundary. `voice-loader.js` is a small first-use
-facade; microphone capture, playback, settings resolution, and provider
-selection load only when dictation, Listen, or enabled auto-read is used.
-Input and output retain independent provider values internally, while Settings
-links them behind one Voice service choice by default and reveals the separate
-values only in advanced mode. Provider metadata and capabilities live in the
-provider catalog; the provider-neutral Voice service resolves settings into
-adapter operations without exposing provider branches to Chat. Browser-local
-Whisper and Kokoro run in dedicated module workers and download model assets
-only after explicit installation. The local-server adapter calls an
-OpenAI-compatible endpoint directly. BYOK cloud adapters also call their fixed
-provider endpoints directly from the browser, sending the configured provider
-key while omitting browser ambient credentials. As a result, getbased and its
-Vercel deployment do not receive provider keys, microphone audio, or speech
-text. Custom OpenAI-compatible endpoints use the same browser-direct boundary;
-there is no hosted compatibility fallback, and endpoints that do not allow
-browser inference fail with a user-facing configuration explanation. The
-provider-neutral AI gate stores its first-activation transparency
-acknowledgement separately from destination approval while presenting both in
-one first-activation decision when a destination needs approval. User-triggered
-connection checks can run before activation and must contain no user content;
-custom APIs may receive a fixed synthetic compatibility probe. Same-device
-inference stops after the AI notice; private-network endpoints require an
-origin-scoped confirmation; remote inference requires provider/origin-scoped
-sensitive-data approval. The gate is checked before text, automatic insight,
-image, and voice requests. Unapproved automatic work fails without opening a
-surprise dialog, and remote approval can be withdrawn in Settings. Route classification
-uses the inference endpoint and cloud-model metadata, never the frontend host.
-Microphone blobs remain ephemeral; dictation only edits
-the composer, and chat panel/thread lifecycle callbacks stop tracks, synthesis,
-and playback. Portable Voice preferences and cloud keys follow the existing
-encrypted settings/sync path, but consent records remain browser-local.
-Provider selection, local model/hardware choices, a local voice server URL, and
-its optional key remain device-local. Full backups preserve preferences, but
-device-key-wrapped credentials are omitted unless passphrase protection makes
-them portable. One Voice settings schema owns these scopes so backup and sync
-allowlists cannot drift independently.
-The service worker precaches worker source but deliberately does not precache
-large remote model assets.
-
-`api.js` keeps synchronous provider selection, key state, and model metadata in
-the startup graph because dashboards and feature availability checks use them.
-Provider transports for Ollama, Venice, OpenRouter, Routstr, PPQ, and custom
-OpenAI-compatible endpoints load through cached, retryable dynamic adapters
-only when a provider operation is requested. This keeps provider behavior and
-the public API facade stable without paying for every transport on a cold
-dashboard load.
-
-Wearables presentation is loaded through the single-flight stylesheet boundary
-in `wearables-runtime.js` when a biometric detail, inline manual log, or the
-Wearables settings tab is opened. The dashboard's compact biometric tiles and
-empty manual-card shell retain their small shared rules in
-`css/dashboard-data.css`, so the default dashboard paints without
-`css/wearables.css`. The deferred sheet stays in the service-worker app shell
-for offline first use, and its HTML anchor preserves its original cascade
-position between Client List and Light & Sun.
-
-Cycle presentation is loaded through `cycle-runtime.js`. Female Dashboard and
-Body routes wait for it before rendering, and editor or import-review actions
-share the same single-flight boundary. Profiles that are not female do not pay
-for `css/cycle.css` on startup. Failed loads are removed and cache-busted for a
-later retry; the deferred sheet stays precached for offline use and its anchor
-keeps the original position between Mobile Dashboard and marker-detail styles.
-
-Profile Sharing is loaded through `profile-share-loader.js` when a shell,
-Settings, or client-list action opens it, or when startup/hash routing detects
-a shared-profile link. The loader owns only lazy loading and route detection;
-`profile-share.js` retains link validation, encryption, import, and UI
-responsibilities. `export.js` remains shell-owned without a Data I/O
-composition wrapper. Official app origins resolve profile-share requests to a
-separate getbased-operated service; self-hosted origins retain their same-origin
-`/api/share` contract. The shared runtime-neutral handler enforces the envelope,
-expiry, size, origin, management-token, and abuse boundaries for both. The
-operated service stores only opaque envelopes and minimal TTL/deletion/abuse
-metadata in an isolated SQLite database; the password and decrypted profile do
-not reach it. New operated-service ids use a non-overlapping `vps1_` namespace.
-The Vercel adapter redirects old-client writes, serves legacy Blob reads and
-deletions only within a configured window of at most 31 days, and then stops
-reading Blob entirely; record migration is not required. The initial SQLite
-store has no retained backup so recovery cannot resurrect stopped/expired
-links, and the UI discloses that temporary copies can be lost after a service
-failure.
-
-Genome and DNA behavior stays module-eager because dashboard summaries,
-recommendations, startup catalog hydration, and import routing share it.
-`dna-runtime.js` owns the narrower presentation boundary: `css/genetics.css`
-loads when the Genome route or a DNA preview/manual-entry surface first opens.
-Every styled entry waits for the stylesheet, concurrent calls share one
-request, failed links are removed and cache-busted for retry, and route/action
-failures remain contained with an explanatory status. An HTML anchor preserves
-the original cascade position, while dashboard genome tiles remain in the
-eager `dashboard-data.css` bundle. The service-worker app shell retains the
-deferred stylesheet for offline first use.
-
-Category, Compare, and Correlations behavior stays module-eager for route
-compatibility, but `category-page-runtime.js` loads `css/category-views.css`
-when one of those routes first opens. Each route waits for the stylesheet
-before rendering, concurrent route entries share one request, failed links are
-removed and cache-busted for retry, and an HTML anchor preserves the original
-cascade position. Dashboard greeting spacing, alert cards, and date-range
-controls remain in eager dashboard bundles because the returning-user dashboard
-renders them without entering a category-backed route. The service-worker app
-shell retains the deferred stylesheet for offline first use.
-
-Client List remains module-eager because shell, profile, and location actions
-use it, but `css/client-list.css` loads only when `openClientList()` is first
-called. Opening waits for the stylesheet, concurrent opens share one request,
-and a failed request is removed so the next open can retry. An HTML anchor
-preserves the stylesheet's cascade position, and the service-worker app shell
-retains it for offline first use.
-
-Import review presentation loads through `import-loader.js` on the first file
-input/drop interaction, pending-draft restoration, or direct cycle-import
-preview. The generic action buttons, header import status, and empty-Labs drop
-zone remain in `app-shell.css` because non-import features and startup routes
-use them. Concurrent stylesheet requests share one load, failures are removed
-for retry, an HTML anchor preserves cascade order, and the service-worker app
-shell retains `css/import.css` for offline first use.
-
-Marker detail, manual-entry, and custom-marker presentation remains
-module-eager because dashboard, category, Biology Score, and sync refresh paths
-share its behavior, but `css/marker-detail-modal.css` loads only when one of
-those modal surfaces first opens through its already-eager runtime adapter. The
-entry waits for the stylesheet so an unstyled modal is never shown, concurrent
-requests share one load, failed links are removed and cache-busted for retry,
-and an HTML anchor preserves the original cascade position before
-Recommendations. The service-worker app shell retains the stylesheet for
-offline first use.
-
-The EMF assessment module and `css/emf.css` load together through
-`emf-runtime.js` when an EMF editor entry point is first used. Cross-feature
-launchers keep their presentation in their eager owning bundles, so the
-deferred stylesheet contains only EMF editor and interpretation UI. Opening
-waits for both resources, concurrent stylesheet requests share one load, and a
-failed link is removed and cache-busted for retry. An HTML anchor preserves
-the original cascade position, and the service-worker app shell retains the
-stylesheet for offline first use.
-
-`ChatHeader.svelte` owns header controls, literal perspective/model labels,
-context states, summary eligibility, menu dismissal/focus and web-search input.
-The context chip occupies its own row so compact screens retain a readable label
-without reducing touch targets.
-`chat-header-contract.ts` projects title, summary and context values without DOM
-access; `chat-header-presentation.ts` reads existing domain services and publishes
-through `chat-header-view.ts`. The view accepts only its current component root
-and releases provider/receipt subscriptions when disposed. Fullscreen and rail
-accessibility follow the shell's existing layout state. Shell action injection
-routes component callbacks to existing workflows; document delegates skip the
-owned header. Public header refresh entry points retain their previous URLs.
-
-`ChatAttestationBadge.svelte` authors both live header badges and synchronous
-transcript compatibility HTML. `chat-attestation-presentation.ts` preserves
-receipt tiers and explicit verification limitations; it performs no verification.
-`ChatAttestationTooltip.svelte` owns shared hover, focus, Escape, positioning and
-receipt-removal behavior. Its adapter adopts one host per document and disposes
-removed hosts. Header and attestation styling uses scoped Tailwind utilities,
-existing theme variables and contrast-adjusted status colors. The model picker
-owns backend availability presentation; obsolete header selector/dot writers are
-removed. Transcript rendering and summary generation retain separate domain services;
-summary presentation has its own authored components.
-
-`ChatAttachmentPreview.svelte` and `ChatAttachmentMenu.svelte` own ephemeral
-image previews, removal, picker inputs and the composer tools disclosure.
-`ChatShell.svelte` owns conversation drop events and feedback; `ChatComposer.svelte`
-owns paste events. `chat-attachment-view.ts` connects the current component root
-to processing callbacks, subscribes to capability changes only during its
-lifetime, and projects literal names and supported image URLs. The shared
-lightbox component uses `chat-image-lightbox-component.ts` for modal focus,
-scroll locks and teardown, including external host removal.
-
-`chat-images.ts` retains image decoding, original bytes, thumbnail generation,
-health-file import routing and the public runtime API. OS drop handles are
-acquired synchronously before awaiting snapshots. `chat-attachment-drafts.ts`
-owns in-memory profile/thread queues and reservations: concurrent reads count
-against both limits, retired drafts cannot be revived, and submitted objects
-are consumed without losing later additions or valid in-flight reads. Reads
-also validate the originating component, conversation and model route before
-committing. Original images remain ephemeral; only existing history thumbnails
-are persisted. These services do not require a rendering backend.
-
-`LightDevicePresentation.svelte` composes the authored device library, ordered
-picker and channel-chip views. `light-device-library-presentation.ts` projects
-captured device/session records, specification copy, usage counts and picker
-order without writes or dose calculations. `light-devices.ts` retains async
-catalog/preset loading, stable HTML exports, modal lifecycle and session actions.
-`LightDeviceAffiliate.svelte` receives typed URL/label/event data through the
-existing lazy recommendation bridge. `recommendations-products.ts` continues to
-own consent, regional visibility, trusted-host resolution and UTM attribution;
-its public affiliate HTML export shares the authored component. There is no raw
-child-HTML composition in the library, chips, picker or affiliate component.
-
-`css/light-devices.css` is generated from `light-devices.base.css` and scoped
-`light-devices.tailwind.css` at the unchanged lazy URL. Tailwind owns library and
-picker states, type bands and inclusive 768/600/375px layouts. The base retains
-only the shared Lens widget-body gap. Link
-and metadata ink use readable shared semantic tokens; phone delete controls stay
-visible, and authored controls have visible keyboard focus and at least 44px
-targets for coarse pointers. Native library/picker/chip
-and affiliate templates and their superseded styles are removed.
-
-`LightDeviceSetup.svelte` composes preset selection and the custom-device form;
-`LightDeviceSpecFields.svelte` owns the common specification fields. Pure setup
-projections retain curated grouping, metadata priority, provider/vision gates and
-initial units. `light-device-setup-modal.ts` retains selection and save handlers,
-unit conversion, form readers, modal lifecycle, URL/photo extraction, prompt
-contracts and detached-overlay guards. The store continues to own validation,
-channel inference, snapshots and canonical writes. No extracted HTML slot or
-provider request is introduced by these components.
-
-`light-device-setup-classes.ts` owns setup states and scoped Tailwind utilities at
-the same generated `light-devices.css` URL. Preset selection remains visible on
-hover and focus; the single modal scroller and long-label wrapping are retained.
-Authored setup controls add visible focus and coarse 44px targets, readable label
-and unit ink, and an accessible URL input name. The native setup templates and
-superseded preset/custom/distance CSS are removed. Shared session controls retain
-their existing independent authored owner.
-
-`LightDeviceRecommendations.svelte` owns the public channel-device-options
-renderer, with typed scalar display projection in
-`light-device-recommendations-presentation.ts` and scoped Tailwind in
-`light-device-recommendations-classes.ts`. `recommendations-products.ts` retains
-channel/catalog joins, regional filtering, deduplication, the three-product cap
-before URL rejection, trusted-host checks, UTM attribution and toggle suppression.
-The current Light page does not insert these options automatically; the public
-HTML contract remains available through the recommendation module namespace.
-There is no raw HTML slot or new provider/backend. Superseded native markup and
-nine ordinary CSS rules are removed. Readable product ink, wrapping, focus and
-coarse targets improve accessibility. The opt-out is a native button using the
-existing privacy-settings delegate; it inherits font-size adjustment and letter
-spacing to preserve theme typography.

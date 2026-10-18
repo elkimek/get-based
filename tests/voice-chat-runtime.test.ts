@@ -26,6 +26,7 @@ import {
   configureChatMessageActionDeps,
 } from '../js/chat-actions.js';
 import { closeChatPanel, configureChatPanel } from '../js/chat-panel.js';
+import { ensureChatMessageActions } from '../js/chat-message-actions-component.js';
 import {
   installVoiceSettingsPanel,
   renderVoiceSettingsPanel,
@@ -1171,6 +1172,7 @@ describe('voice settings and chat controls', () => {
     state.currentThreadId = 'kokoro-loading-state-test';
     state.chatHistory = [{ role: 'assistant', content: 'Read this sentence.' }];
     document.body.innerHTML = buildActionBar(0);
+    ensureChatMessageActions();
     const audioContext = new ManualAudioContext();
     const previousAudioContext = voicePlayer.audioContext;
     (voicePlayer as unknown as {audioContext: FakeAudioContext | null}).audioContext = audioContext;
@@ -1180,7 +1182,9 @@ describe('voice settings and chat controls', () => {
       controller = await import('../js/voice-controller.js');
       const reading = controller.readAssistantMessage(0);
       let button = document.getElementById('chat-listen-btn-0') as HTMLButtonElement | null;
+      expect(button!.getAttribute('data-chat-speech-owned')).toBe('');
       await vi.waitFor(() => expect(worker.request?.type).toBe('synthesize'));
+      expect(document.getElementById('chat-listen-btn-0')).toBe(button);
       expect(button!.classList.contains('busy')).toBe(true);
       expect(button!.textContent).toContain('Preparing…');
       expect(button!.disabled).toBe(false);
@@ -1205,10 +1209,13 @@ describe('voice settings and chat controls', () => {
       expect(button!.textContent).toContain('Still generating…');
 
       document.body.innerHTML = buildActionBar(0);
+      ensureChatMessageActions();
       button = document.getElementById('chat-listen-btn-0') as HTMLButtonElement | null;
+      expect(button!.getAttribute('data-chat-speech-owned')).toBe('');
       expect(button!.textContent).toContain('Listen');
       expect(controller.isVoicePlaybackActive()).toBe(true);
       expect(controller.restoreVoicePlaybackUi()).toBe(true);
+      expect(document.getElementById('chat-listen-btn-0')).toBe(button);
       expect(button!.textContent).toContain('Still generating…');
       expect(button!.getAttribute('aria-label')).toBe('Cancel speech generation');
 

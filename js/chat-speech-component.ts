@@ -1,3 +1,4 @@
+import {tsStaticStyles} from './ts-static-ui-inline-style-map.generated.js';
 import SpeechButton, { hydrate, unmount, flushSync } from './components/ChatSpeechButton.svelte.native.js';
 import { renderHTML } from './components/ChatSpeechButton.svelte.html.js';
 import type { ChatSpeechMode } from './chat-voice-contract.js';
@@ -73,7 +74,7 @@ export function renderChatSpeechButton(index: number): string {
       sweep();
     });
   }
-  return `<span data-chat-speech-host data-chat-speech-index="${index}" style="display:contents">${renderHTML({ index })}</span>`;
+  return `<span data-chat-speech-host data-chat-speech-index="${index}" style="${tsStaticStyles.speechHost}">${renderHTML({ index })}</span>`;
 }
 export function publishChatSpeech(index: number, mode: ChatSpeechMode): boolean {
   if (publishOwnedChatSpeech(index, mode)) return true;

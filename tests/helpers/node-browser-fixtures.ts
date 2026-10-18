@@ -13,8 +13,9 @@ interface NodeWorkerFixture {
   terminate(): void;
 }
 
-function _stubEl() {
+function _stubEl(ownerDocument: object) {
   return {
+    ownerDocument,
     style: {}, dataset: {},
     classList: { add: () => {}, remove: () => {}, contains: () => false, toggle: () => {} },
     appendChild: () => {}, removeChild: () => {}, replaceChild: () => {},
@@ -72,19 +73,23 @@ export function installNodeNavigator() {
 
 export function installNodeDocument() {
   if (typeof globalThis.document === 'undefined') {
-    (globalThis as unknown as { document: { [field: string]: unknown } }).document = {
+    // This non-DOM fixture has no browsing context. Every created node still
+    // has a stable owning document, as native nodes do; real focus tests use DOM.
+    const owner: {defaultView: null; [field: string]: unknown} = {defaultView: null};
+    Object.assign(owner, {
       addEventListener: () => {}, removeEventListener: () => {},
-      createElement: () => _stubEl(),
-      createDocumentFragment: () => _stubEl(),
+      createElement: () => _stubEl(owner),
+      createDocumentFragment: () => _stubEl(owner),
       getElementById: () => null,
       querySelector: () => null,
       querySelectorAll: () => [],
-      body: _stubEl(),
-      head: _stubEl(),
-      documentElement: _stubEl(),
-      createTextNode: (t: unknown) => ({ textContent: t }),
+      body: _stubEl(owner),
+      head: _stubEl(owner),
+      documentElement: _stubEl(owner),
+      createTextNode: (t: unknown) => ({ textContent: t, ownerDocument: owner }),
       styleSheets: [],
-    };
+    });
+    (globalThis as unknown as { document: object }).document = owner;
   }
 }
 

@@ -5,7 +5,7 @@ import type { ScoreOptions } from './biology-score-types.js';
 type BiologyContextScore = ReturnType<typeof computeBiologyScores>[number];
 export interface BiologyAIContextOptions extends ScoreOptions { limit?: unknown; includeScoreSections?: unknown }
 
-import { computeBiologyScores } from './biology-scores.js';
+import { computeBiologyScores } from './biology-score-compute.js';
 import { TONE_LABELS, coreScoreDrivers } from './biology-score-engine.js';
 import { buildBiologyScoreCoveragePlannerModel, labelMarkers, markerDisplayLabel, effectiveMissingMarkers } from './biology-score-coverage-planner.js';
 

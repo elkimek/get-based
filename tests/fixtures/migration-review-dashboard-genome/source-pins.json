@@ -1,0 +1,26 @@
+{
+  "historical": {
+    "dashboard-widget-renderers.ts.txt": "de8ad177fa54fb9558a1587f5bf8a06a908a391fe9d4175e0bdb2d9cfb12ffe1",
+    "dashboard-genome-rows-presentation.ts.txt": "6ed2244455f594283720e11a252364eb41dd20a479c57722dfe689e2e8d1c20f",
+    "DashboardGenomeRows.svelte.txt": "95117d1ba02954246d6501fab521f66e93873a7d18bf720a9e3914fb42f3a574",
+    "DashboardGenomeRows.svelte.html.js.txt": "cbc6985aedb8190b513fd6a0488386040f8902ef5021c58de8b59f109054a118"
+  },
+  "original": {
+    "tests/fixtures/dashboard-genome-original-controller.js.txt": "876b79618b0ed26667def7a732e3bac5341de53310a78d98c692957d1a1b5c0d",
+    "tests/fixtures/dashboard-genome-original-controller.ts.txt": "b387b4c4fbe2adc317b285d88148a9d8f8b1c8bf61857a77a67cf61736292caa",
+    "tests/fixtures/dashboard-genome-loading-original.txt": "d59e58d525121aecb5a8002f8183b9837295fbbeedddd4abb220fbfd8a99ba51",
+    "tests/fixtures/dashboard-mtdna-panel-original.txt": "ccd16802d91d55936aa02b4907fb3ca4461a149768f224c4e109f8577149157c",
+    "tests/fixtures/dashboard-mtdna-study-original.txt": "33b7f64088e7d9e06f144603a58300432a0289dd704be7c0516d553301f1d4bc"
+  },
+  "current": {
+    "js/dashboard-widget-renderers.ts": "aedd9ca5dbe41d516bed001be3474434aac817b123bdb13ba8b98f10c884ef2e",
+    "js/dashboard-genome-rows-presentation.ts": "571d47a378fe038280a89a6b58979a7b88056dcfbef2ec1cc83f23dd5e9c563c",
+    "js/dashboard-mtdna-panel-presentation.ts": "844205bf4df8935da86acfef723244260eb8524f067cad16256db41fe0fe3345",
+    "js/components/DashboardGenomeWidget.svelte": "05ddbf17b090b76e5a58ec4602d21bd5e5656675f43fcd2acbbee7357f343aa9",
+    "js/components/DashboardGenomeRows.svelte": "50026cb19a5d19bdb4661383ed68a7e907b35b703ef6190a621db82443e76bd6",
+    "js/components/DashboardGenomeLoading.svelte": "0ad6611e877ddecb72f8b7ec4b9fc8aa590dec9fbfb702d1f1222c058f327712",
+    "js/components/DashboardMtdnaPanel.svelte": "bd263437d648b922244dabb0b9c2ccfd76fa0992ec6e54d6b35a512d88821b55",
+    "js/action-attributes.ts": "c6e33e4fc90c59fd27c7f4e4d32d9a4a38bf4e145aafe0d0d706ce9d86f55fba"
+  },
+  "historicalEvidenceFreezeSHA256": "f9db9d8c3725339d7a0ea28e54563f37ce9bfe598caa43bf33de8830e78a2a95"
+}

@@ -1,5 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {generatedInlineStyleMapOutputs} from './inline-style-map-owners.mjs';
+const generatedInlineStyleMaps = new Set(generatedInlineStyleMapOutputs.map(file => path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', file)));
 
 export const SOURCE_EXTENSIONS = new Set(['.js', '.mjs', '.cjs', '.ts', '.mts', '.cts', '.svelte']);
 const TYPESCRIPT_EXTENSION: Record<string, string> = { '.js': '.ts', '.mjs': '.mts', '.cjs': '.cts' };
@@ -27,7 +30,7 @@ export function runtimePath(file: string): string {
 }
 
 export function isSourceFile(file: string): boolean {
-  return SOURCE_EXTENSIONS.has(path.extname(file)) && !/\.d\.[cm]?ts$/.test(file);
+  return !generatedInlineStyleMaps.has(path.resolve(file)) && SOURCE_EXTENSIONS.has(path.extname(file)) && !/\.d\.[cm]?ts$/.test(file);
 }
 
 /** Generated JS siblings never count as additional source modules. */

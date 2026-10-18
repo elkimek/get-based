@@ -3,7 +3,7 @@ import type { LiveDosesOperations } from '../types/sun-active-session.js';
 
 const literal = (value: unknown): string => value == null ? '' : String(value);
 export interface SessionChannelChip {
-  key: string; icon: string; label: string; value: string; title: string; ariaLabel: string;
+  readonly key: string; readonly icon: string; readonly label: string; readonly value: string; readonly title: string; readonly ariaLabel: string;
 }
 export function sessionChannelChip(key: string, meta: { icon?: unknown; label?: unknown; what?: unknown } | undefined, value: string): SessionChannelChip {
   const label = literal(meta?.label || key.replace('_', ' '));
@@ -12,9 +12,9 @@ export function sessionChannelChip(key: string, meta: { icon?: unknown; label?: 
     ariaLabel: `${label}${value ? `, this session ${value}` : ', sunlight signal logged'}. Open channel details.` };
 }
 export interface LiveSessionReadout {
-  kind: 'vitamin-d' | 'burn' | 'retinal' | 'heat';
-  tone: 'normal' | 'warning' | 'danger';
-  title: string; values: string[]; idle?: boolean;
+  readonly kind: 'vitamin-d' | 'burn' | 'retinal' | 'heat';
+  readonly tone: 'normal' | 'warning' | 'danger';
+  readonly title: string; readonly values: readonly string[]; readonly idle?: boolean;
 }
 function burnBand(med: number): { label: string; tone: LiveSessionReadout['tone'] } {
   if (med >= 1) return { label: 'over threshold', tone: 'danger' };
@@ -75,9 +75,10 @@ export function liveSessionReadouts(live: LiveDosesOperations | null, vitaminD: 
   return readouts;
 }
 export interface ActiveSessionView {
-  kind: 'sun' | 'device'; id: string; date: string; elapsed: string; ariaLabel: string;
-  body: string; eyes: string; directEye: boolean; suffix: string; paused: boolean; rotated: boolean; forgotHours: number | null;
-  readouts: LiveSessionReadout[]; chips: SessionChannelChip[] | null;
+  readonly deviceIds?:Readonly<{readonly root:string|undefined;readonly elapsed:string|undefined;readonly stop:string|undefined}>;
+  readonly kind: 'sun' | 'device'; readonly id: string; readonly date: string; readonly elapsed: string; readonly ariaLabel: string;
+  readonly body: string; readonly eyes: string; readonly directEye: boolean; readonly suffix: string; readonly paused: boolean; readonly rotated: boolean; readonly forgotHours: number | null;
+  readonly readouts: readonly LiveSessionReadout[]; readonly chips: readonly SessionChannelChip[] | null;
 }
 export function activeSunSessionView(session: SessionReader, date: string, elapsed: unknown, body: unknown, eyes: unknown, chips: SessionChannelChip[] | null, now: number): ActiveSessionView {
   return { kind: 'sun', id: literal(session.id), date, elapsed: literal(elapsed), ariaLabel: `Open ${date} session details`,

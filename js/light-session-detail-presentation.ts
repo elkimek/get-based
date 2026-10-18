@@ -3,23 +3,23 @@ import type { DeviceSessionRecord } from './light-devices-store.js';
 const text = (value: unknown): string => value == null ? '' : String(value);
 
 export interface SessionDetailField {
-  label: string;
-  value: string;
-  title: string;
-  wide: boolean;
+  readonly label: string;
+  readonly value: string;
+  readonly title: string;
+  readonly wide: boolean;
 }
 export function detailField(label: string, value: unknown, title = '', wide = false): SessionDetailField {
   return { label, value: text(value), title, wide };
 }
 
 export interface SessionDetailChannel {
-  key: string;
-  label: string;
-  icon: string;
-  value: string;
-  source: string;
-  hasSignal: boolean;
-  ariaLabel: string;
+  readonly key: string;
+  readonly label: string;
+  readonly icon: string;
+  readonly value: string;
+  readonly source: string;
+  readonly hasSignal: boolean;
+  readonly ariaLabel: string;
 }
 export function detailChannel(key: string, meta: { label?: unknown; icon?: unknown }, dose: unknown, unit: unknown, kind: 'sun' | 'device'): SessionDetailChannel {
   const hasSignal = Number.isFinite(dose) && Number(dose) > 0;
@@ -30,7 +30,7 @@ export function detailChannel(key: string, meta: { label?: unknown; icon?: unkno
     ariaLabel: `${label} — ${value}, ${source}. Open channel details.` };
 }
 
-export interface SessionDetailNotice { title: string; text: string; danger?: boolean; }
+export interface SessionDetailNotice { readonly title: string; readonly text: string; readonly danger?: boolean; }
 export function deviceDetailNotices(session: DeviceSessionRecord): SessionDetailNotice[] {
   const notices: SessionDetailNotice[] = [];
   const safety = session.safety;
@@ -72,24 +72,24 @@ export function sessionCalculationNotice(status: unknown) {
 }
 
 export interface SessionDetailView {
-  kind: 'sun' | 'device';
-  id: string;
-  title: string;
-  summary: SessionDetailField[];
-  setup: SessionDetailField[];
-  notices: SessionDetailNotice[];
-  calculation: ReturnType<typeof sessionCalculationNotice>;
-  channels: SessionDetailChannel[];
-  channelsEmpty: string;
-  signalsDescription: string;
-  lightMetric: SessionDetailNotice | null;
-  inputTitle: string;
-  inputDescription: string;
-  inputs: SessionDetailField[];
-  inputsEmpty: string;
-  location: SessionDetailField | null;
-  sourceUrl: string;
-  notes: string;
-  canEditDuration: boolean;
-  canEditMode: boolean;
+  readonly kind: 'sun' | 'device';
+  readonly id: string;
+  readonly title: string;
+  readonly summary: readonly SessionDetailField[];
+  readonly setup: readonly SessionDetailField[];
+  readonly notices: readonly SessionDetailNotice[];
+  readonly calculation: ReturnType<typeof sessionCalculationNotice>;
+  readonly channels: readonly SessionDetailChannel[];
+  readonly channelsEmpty: string;
+  readonly signalsDescription: string;
+  readonly lightMetric: SessionDetailNotice | null;
+  readonly inputTitle: string;
+  readonly inputDescription: string;
+  readonly inputs: readonly SessionDetailField[];
+  readonly inputsEmpty: string;
+  readonly location: SessionDetailField | null;
+  readonly sourceUrl: string;
+  readonly notes: string;
+  readonly canEditDuration: boolean;
+  readonly canEditMode: boolean;
 }

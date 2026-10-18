@@ -1,0 +1,1007 @@
+{
+  "propertyOccurrences": 76,
+  "styles": [
+    {
+      "key": "dialogMaximumWidth",
+      "value": "max-width:600px",
+      "declarations": 1,
+      "utility": "component-inline-dialog-maximum-width"
+    },
+    {
+      "key": "hidden",
+      "value": "display:none",
+      "declarations": 1,
+      "utility": "component-inline-hidden"
+    },
+    {
+      "key": "pointer",
+      "value": "cursor:pointer",
+      "declarations": 1,
+      "utility": "component-inline-pointer"
+    },
+    {
+      "key": "cellCursor",
+      "value": "cursor:cell",
+      "declarations": 1,
+      "utility": "component-inline-cell-cursor"
+    },
+    {
+      "key": "categoryEmpty",
+      "value": "padding:32px;text-align:center;color:var(--text-muted)",
+      "declarations": 3,
+      "utility": "component-inline-category-empty"
+    },
+    {
+      "key": "fattyAcidsCard",
+      "value": "background:var(--bg-card);border-radius:var(--radius);padding:20px;margin-bottom:20px;border:1px solid var(--border)",
+      "declarations": 5,
+      "utility": "component-inline-fatty-acids-card"
+    },
+    {
+      "key": "fattyAcidsHeading",
+      "value": "margin-bottom:16px;font-size:16px",
+      "declarations": 2,
+      "utility": "component-inline-fatty-acids-heading"
+    },
+    {
+      "key": "renameControl",
+      "value": "cursor:pointer;font-size:12px",
+      "declarations": 2,
+      "utility": "component-inline-rename-control"
+    },
+    {
+      "key": "categoryControls",
+      "value": "display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:20px",
+      "declarations": 5,
+      "utility": "component-inline-category-controls"
+    },
+    {
+      "key": "noBottomMargin",
+      "value": "margin-bottom:0",
+      "declarations": 1,
+      "utility": "component-inline-no-bottom-margin"
+    },
+    {
+      "key": "rangeLowStart",
+      "value": "left:0%;",
+      "declarations": 1,
+      "utility": "component-inline-range-low-start"
+    },
+    {
+      "key": "optimalRange",
+      "value": "color:var(--green)",
+      "declarations": 1,
+      "utility": "component-inline-optimal-range"
+    },
+    {
+      "key": "optimalRangeSmall",
+      "value": "color:var(--green);font-size:11px",
+      "declarations": 2,
+      "utility": "component-inline-optimal-range-small"
+    },
+    {
+      "key": "contents",
+      "value": "display:contents",
+      "declarations": 1,
+      "utility": "component-inline-contents"
+    },
+    {
+      "key": "mutedUnit",
+      "value": "color:var(--text-muted);font-size:12px",
+      "declarations": 2,
+      "utility": "component-inline-muted-unit"
+    },
+    {
+      "key": "emphasis",
+      "value": "font-weight:600",
+      "declarations": 1,
+      "utility": "component-inline-emphasis"
+    },
+    {
+      "key": "muted",
+      "value": "color:var(--text-muted)",
+      "declarations": 1,
+      "utility": "component-inline-muted"
+    },
+    {
+      "key": "optionalLabel",
+      "value": "color:var(--text-muted);font-weight:400",
+      "declarations": 2,
+      "utility": "component-inline-optional-label"
+    },
+    {
+      "key": "markerDeletePosition",
+      "value": "text-align:center;margin-top:8px",
+      "declarations": 2,
+      "utility": "component-inline-marker-delete-position"
+    },
+    {
+      "key": "markerDeleteLabel",
+      "value": "color:var(--text-muted);font-size:0.8rem",
+      "declarations": 2,
+      "utility": "component-inline-marker-delete-label"
+    },
+    {
+      "key": "danger",
+      "value": "color:var(--red)",
+      "declarations": 1,
+      "utility": "component-inline-danger"
+    },
+    {
+      "key": "supplementDelete",
+      "value": "color:var(--danger,#ef4444);border-color:var(--danger,#ef4444)",
+      "declarations": 2,
+      "utility": "component-inline-supplement-delete"
+    },
+    {
+      "key": "wearableSubLabel",
+      "value": "opacity:0.6;font-size:0.7em;margin-left:6px;font-weight:normal",
+      "declarations": 4,
+      "utility": "component-inline-wearable-sub-label"
+    },
+    {
+      "key": "wearableChart",
+      "value": "height:260px",
+      "declarations": 1,
+      "utility": "component-inline-wearable-chart"
+    }
+  ],
+  "components": [
+    {
+      "file": "js/components/AppShell.svelte",
+      "beforeSha256": "8c6c7bdf580030f4aa2829e2259eeffde9df438ea4c1b7a44cf6063c709886bc",
+      "afterSha256": "980df8c1ac04199acaad8c5e3f02f88adc320da334f08b18df78c959a2cb3198",
+      "edits": [
+        {
+          "start": 62,
+          "end": 62,
+          "before": "",
+          "after": "\n import {componentStaticStyles} from '../component-inline-style-map.generated.js';",
+          "keys": []
+        },
+        {
+          "start": 1892,
+          "end": 1915,
+          "before": "style=\"max-width:600px\"",
+          "after": "style={componentStaticStyles.dialogMaximumWidth}",
+          "keys": [
+            "dialogMaximumWidth"
+          ]
+        },
+        {
+          "start": 2331,
+          "end": 2351,
+          "before": "style=\"display:none\"",
+          "after": "style={componentStaticStyles.hidden}",
+          "keys": [
+            "hidden"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "js/components/CategoryDataRows.svelte",
+      "beforeSha256": "462f0d01a967ab3bdfb88fd217844396cbb977fd487c91520d066e2d1fc068b2",
+      "afterSha256": "373cad0d7c06682a07400d74f61f87eb8e3592e2d6e8ec02ebbd9ed0fde71c0b",
+      "edits": [
+        {
+          "start": 18,
+          "end": 18,
+          "before": "",
+          "after": "\n import {componentStaticStyles} from '../component-inline-style-map.generated.js';",
+          "keys": []
+        },
+        {
+          "start": 449,
+          "end": 490,
+          "before": "style={row.id?'cursor:pointer':undefined}",
+          "after": "style={row.id?componentStaticStyles.pointer:undefined}",
+          "keys": [
+            "pointer"
+          ]
+        },
+        {
+          "start": 878,
+          "end": 926,
+          "before": "style={cell.emptyAction?'cursor:cell':undefined}",
+          "after": "style={cell.emptyAction?componentStaticStyles.cellCursor:undefined}",
+          "keys": [
+            "cellCursor"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "js/components/CategoryDataTable.svelte",
+      "beforeSha256": "dd69dfdfc8f8556e5c22c28652e55ebb6f4fc4cd0c48a8eb7a551ab919cc4bb5",
+      "afterSha256": "d4f4261e7490afc54df3f77f0e73de0b58396897868e68fd558198bb651daa17",
+      "edits": [
+        {
+          "start": 18,
+          "end": 18,
+          "before": "",
+          "after": "\n import {componentStaticStyles} from '../component-inline-style-map.generated.js';",
+          "keys": []
+        },
+        {
+          "start": 323,
+          "end": 385,
+          "before": "style=\"padding:32px;text-align:center;color:var(--text-muted)\"",
+          "after": "style={componentStaticStyles.categoryEmpty}",
+          "keys": [
+            "categoryEmpty"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "js/components/CategoryFattyAcids.svelte",
+      "beforeSha256": "b8de9f19b6081b03f8d327ac5e59a4c84a1ab1ef73fa647a45e0b872dc08a7e1",
+      "afterSha256": "544158abc872c6d269302188476b08c32798f211d8bab005f9fb573f48b21c58",
+      "edits": [
+        {
+          "start": 18,
+          "end": 18,
+          "before": "",
+          "after": "\n import {componentStaticStyles} from '../component-inline-style-map.generated.js';",
+          "keys": []
+        },
+        {
+          "start": 317,
+          "end": 441,
+          "before": "style=\"background:var(--bg-card);border-radius:var(--radius);padding:20px;margin-bottom:20px;border:1px solid var(--border)\"",
+          "after": "style={componentStaticStyles.fattyAcidsCard}",
+          "keys": [
+            "fattyAcidsCard"
+          ]
+        },
+        {
+          "start": 451,
+          "end": 492,
+          "before": "style=\"margin-bottom:16px;font-size:16px\"",
+          "after": "style={componentStaticStyles.fattyAcidsHeading}",
+          "keys": [
+            "fattyAcidsHeading"
+          ]
+        },
+        {
+          "start": 821,
+          "end": 843,
+          "before": "style=\"cursor:pointer\"",
+          "after": "style={componentStaticStyles.pointer}",
+          "keys": [
+            "pointer"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "js/components/CategoryHeatmap.svelte",
+      "beforeSha256": "ab44ad1b6757394a8eb9e90bb806afe9b697d64023907b68a8426a995f8d743a",
+      "afterSha256": "0471ae10d4ea58df895db458bcf041bd5cf52e5b8487e03145f37c203af39fbb",
+      "edits": [
+        {
+          "start": 18,
+          "end": 18,
+          "before": "",
+          "after": "\n import {componentStaticStyles} from '../component-inline-style-map.generated.js';",
+          "keys": []
+        },
+        {
+          "start": 316,
+          "end": 378,
+          "before": "style=\"padding:32px;text-align:center;color:var(--text-muted)\"",
+          "after": "style={componentStaticStyles.categoryEmpty}",
+          "keys": [
+            "categoryEmpty"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "js/components/CategoryHeatmapRows.svelte",
+      "beforeSha256": "70709e7c4f80fb4365a083301301a4d3103b07fd470de74db56f7c2c7bbac92d",
+      "afterSha256": "c82fd65bd23ede9151f9d039e96565d2c1619e7aac6f154bb68e49d2517e01d8",
+      "edits": [
+        {
+          "start": 18,
+          "end": 18,
+          "before": "",
+          "after": "\n import {componentStaticStyles} from '../component-inline-style-map.generated.js';",
+          "keys": []
+        },
+        {
+          "start": 287,
+          "end": 309,
+          "before": "style=\"cursor:pointer\"",
+          "after": "style={componentStaticStyles.pointer}",
+          "keys": [
+            "pointer"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "js/components/CategoryPageChrome.svelte",
+      "beforeSha256": "d2f64a3a2d719961c18bdffb365aeb0840bc27306e3126376a02bd02c9cbecb0",
+      "afterSha256": "a16213eaf243eddc21646d1e376621702ce21ef61cbce362c22115f06ae82e1d",
+      "edits": [
+        {
+          "start": 18,
+          "end": 18,
+          "before": "",
+          "after": "\n import {componentStaticStyles} from '../component-inline-style-map.generated.js';",
+          "keys": []
+        },
+        {
+          "start": 734,
+          "end": 771,
+          "before": "style=\"cursor:pointer;font-size:12px\"",
+          "after": "style={componentStaticStyles.renameControl}",
+          "keys": [
+            "renameControl"
+          ]
+        },
+        {
+          "start": 830,
+          "end": 912,
+          "before": "style=\"display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:20px\"",
+          "after": "style={componentStaticStyles.categoryControls}",
+          "keys": [
+            "categoryControls"
+          ]
+        },
+        {
+          "start": 976,
+          "end": 999,
+          "before": "style=\"margin-bottom:0\"",
+          "after": "style={componentStaticStyles.noBottomMargin}",
+          "keys": [
+            "noBottomMargin"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "js/components/CategoryRangeRail.svelte",
+      "beforeSha256": "b29cf2e05562117c09ee3ad972abe889180fd9d56b56a7457dd48cd34886b9b1",
+      "afterSha256": "dac0e34059b68115943ef562bb7e430d352bb1edfda43799fd9c2bad5864e960",
+      "edits": [
+        {
+          "start": 18,
+          "end": 18,
+          "before": "",
+          "after": "\n import {componentStaticStyles} from '../component-inline-style-map.generated.js';",
+          "keys": []
+        },
+        {
+          "start": 316,
+          "end": 354,
+          "before": "style=\"left:0%;width:{view.lowWidth}%\"",
+          "after": "style=\"{componentStaticStyles.rangeLowStart}width:{view.lowWidth}%\"",
+          "keys": [
+            "rangeLowStart"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "js/components/CategoryRangeText.svelte",
+      "beforeSha256": "ca221312be467129841911e39ea8eb0c21c15af7b32d92efc55543583fb9e93d",
+      "afterSha256": "2b6f5f5a70026058bdfce597072727a260b505b827572998768bff28a9c673a0",
+      "edits": [
+        {
+          "start": 18,
+          "end": 18,
+          "before": "",
+          "after": "\n import {componentStaticStyles} from '../component-inline-style-map.generated.js';",
+          "keys": []
+        },
+        {
+          "start": 331,
+          "end": 357,
+          "before": "style=\"color:var(--green)\"",
+          "after": "style={componentStaticStyles.optimalRange}",
+          "keys": [
+            "optimalRange"
+          ]
+        },
+        {
+          "start": 481,
+          "end": 522,
+          "before": "style=\"color:var(--green);font-size:11px\"",
+          "after": "style={componentStaticStyles.optimalRangeSmall}",
+          "keys": [
+            "optimalRangeSmall"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "js/components/ChatShell.svelte",
+      "beforeSha256": "f6964d437424dc577fbe8bf035dd9ff72d4569c2039ce0b5653a6956a4f2f282",
+      "afterSha256": "eacd3b9f8bedb5e3efdd5ebc387fcfe488b2acb2d615cb63384b2b2def6963ce",
+      "edits": [
+        {
+          "start": 18,
+          "end": 18,
+          "before": "",
+          "after": "\n import {componentStaticStyles} from '../component-inline-style-map.generated.js';",
+          "keys": []
+        },
+        {
+          "start": 1562,
+          "end": 1586,
+          "before": "style=\"display:contents\"",
+          "after": "style={componentStaticStyles.contents}",
+          "keys": [
+            "contents"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "js/components/ClientListFormPresentation.svelte",
+      "beforeSha256": "ae01851154875c80d0394d1a5d2660ac2338805dc6a68231d736001b993d0379",
+      "afterSha256": "656b5308f45ff51e2b4f8a51cc20ee2f9eb8988ae4b804fffc59a1a26c55e19f",
+      "edits": [
+        {
+          "start": 18,
+          "end": 18,
+          "before": "",
+          "after": "\n import {componentStaticStyles} from '../component-inline-style-map.generated.js';",
+          "keys": []
+        },
+        {
+          "start": 1969,
+          "end": 1989,
+          "before": "style=\"display:none\"",
+          "after": "style={componentStaticStyles.hidden}",
+          "keys": [
+            "hidden"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "js/components/ClientListOverview.svelte",
+      "beforeSha256": "b9b3dfadf1e82a7177c7b3eabd20832706b7b7483ff6be56a6d726f8bce03e0b",
+      "afterSha256": "47938e047efd64de5cc04fbb8e8350d0fd805b3da9f41578fc10d8514ac95dbb",
+      "edits": [
+        {
+          "start": 18,
+          "end": 18,
+          "before": "",
+          "after": "\n import {componentStaticStyles} from '../component-inline-style-map.generated.js';",
+          "keys": []
+        },
+        {
+          "start": 651,
+          "end": 671,
+          "before": "style=\"display:none\"",
+          "after": "style={componentStaticStyles.hidden}",
+          "keys": [
+            "hidden"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "js/components/CompareDatesTableRows.svelte",
+      "beforeSha256": "b03bee5012cd985666e1d82a50f6703db172e6c3e9e833985a584dc1ec9d428f",
+      "afterSha256": "8c9b3663c45d704ed53eef3d6c12c0fc58237e332e99912ded837d04b4aef770",
+      "edits": [
+        {
+          "start": 18,
+          "end": 18,
+          "before": "",
+          "after": "\n import {componentStaticStyles} from '../component-inline-style-map.generated.js';",
+          "keys": []
+        },
+        {
+          "start": 598,
+          "end": 644,
+          "before": "style=\"color:var(--text-muted);font-size:12px\"",
+          "after": "style={componentStaticStyles.mutedUnit}",
+          "keys": [
+            "mutedUnit"
+          ]
+        },
+        {
+          "start": 781,
+          "end": 804,
+          "before": "style=\"font-weight:600\"",
+          "after": "style={componentStaticStyles.emphasis}",
+          "keys": [
+            "emphasis"
+          ]
+        },
+        {
+          "start": 873,
+          "end": 896,
+          "before": "style=\"font-weight:600\"",
+          "after": "style={componentStaticStyles.emphasis}",
+          "keys": [
+            "emphasis"
+          ]
+        },
+        {
+          "start": 946,
+          "end": 969,
+          "before": "style=\"font-weight:600\"",
+          "after": "style={componentStaticStyles.emphasis}",
+          "keys": [
+            "emphasis"
+          ]
+        },
+        {
+          "start": 1013,
+          "end": 1036,
+          "before": "style=\"font-weight:600\"",
+          "after": "style={componentStaticStyles.emphasis}",
+          "keys": [
+            "emphasis"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "js/components/CorrelationsSelectionPage.svelte",
+      "beforeSha256": "17c0693015a7a07f059c701de686e95fd4b86ae18c215a53b6006dcc98b7b499",
+      "afterSha256": "ef4b78e66f510b3d1f587420125a8e019fae7b5357fb711629f8c961b9f41f8c",
+      "edits": [
+        {
+          "start": 18,
+          "end": 18,
+          "before": "",
+          "after": "\n import {componentStaticStyles} from '../component-inline-style-map.generated.js';",
+          "keys": []
+        },
+        {
+          "start": 1821,
+          "end": 1841,
+          "before": "style=\"display:none\"",
+          "after": "style={componentStaticStyles.hidden}",
+          "keys": [
+            "hidden"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "js/components/CustomMarkerForm.svelte",
+      "beforeSha256": "fb2966074fb1687e5924fd9728be92b49fa7a05ead19aad1d6d73a9c7e0f089c",
+      "afterSha256": "52adc10836815a41a7a717cf58d88a833d25e5ce364523502c9d97b93c331774",
+      "edits": [
+        {
+          "start": 18,
+          "end": 18,
+          "before": "",
+          "after": "\n import {componentStaticStyles} from '../component-inline-style-map.generated.js';",
+          "keys": []
+        },
+        {
+          "start": 1041,
+          "end": 1061,
+          "before": "style=\"display:none\"",
+          "after": "style={componentStaticStyles.hidden}",
+          "keys": [
+            "hidden"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "js/components/FocusCardBody.svelte",
+      "beforeSha256": "4f5005cace5de8a6941186ad63571ec021ee19d765d209493cefc919f6818a3f",
+      "afterSha256": "862cbd50841446bc6a6be5b43b2e89dc93e5d138beefb0f3b729dd8e26f5c9ec",
+      "edits": [
+        {
+          "start": 18,
+          "end": 18,
+          "before": "",
+          "after": "\n import {componentStaticStyles} from '../component-inline-style-map.generated.js';",
+          "keys": []
+        },
+        {
+          "start": 754,
+          "end": 785,
+          "before": "style=\"color:var(--text-muted)\"",
+          "after": "style={componentStaticStyles.muted}",
+          "keys": [
+            "muted"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "js/components/GeneticsSection.svelte",
+      "beforeSha256": "93191d520f2b297521798f6198980582322aca34d76e76a396f57ce9830350b2",
+      "afterSha256": "3ff89fb482fc985a31339679178c5e9d314cbba3411fcb6977f6f82ae9103462",
+      "edits": [
+        {
+          "start": 18,
+          "end": 18,
+          "before": "",
+          "after": "\n import {componentStaticStyles} from '../component-inline-style-map.generated.js';",
+          "keys": []
+        },
+        {
+          "start": 3026,
+          "end": 3048,
+          "before": "style=\"cursor:pointer\"",
+          "after": "style={componentStaticStyles.pointer}",
+          "keys": [
+            "pointer"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "js/components/ManualMarkerEntry.svelte",
+      "beforeSha256": "9736143e7076c5eff4644e383afc0c2ca3708eb8fae717738d0af12f0104f9b0",
+      "afterSha256": "82369ceb595ad0a0bcd4bb865ffe7ac3dea4f69ff5fd49f4418670fa25edd76b",
+      "edits": [
+        {
+          "start": 18,
+          "end": 18,
+          "before": "",
+          "after": "\n import {componentStaticStyles} from '../component-inline-style-map.generated.js';",
+          "keys": []
+        },
+        {
+          "start": 2224,
+          "end": 2271,
+          "before": "style=\"color:var(--text-muted);font-weight:400\"",
+          "after": "style={componentStaticStyles.optionalLabel}",
+          "keys": [
+            "optionalLabel"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "js/components/ManualMarkerEntryUnits.svelte",
+      "beforeSha256": "adea689f93ad125095b11de11d74421ad2d26d17f2a06633d8187dcbfb45b59a",
+      "afterSha256": "76203f003050fcaa33d74cd4760af94df2377ca3d2509284652de983b9db4884",
+      "edits": [
+        {
+          "start": 18,
+          "end": 18,
+          "before": "",
+          "after": "\n import {componentStaticStyles} from '../component-inline-style-map.generated.js';",
+          "keys": []
+        },
+        {
+          "start": 441,
+          "end": 488,
+          "before": "style=\"color:var(--text-muted);font-weight:400\"",
+          "after": "style={componentStaticStyles.optionalLabel}",
+          "keys": [
+            "optionalLabel"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "js/components/MarkerDetailChrome.svelte",
+      "beforeSha256": "0fb857859b53a04cd34e230a0f961c56b55f7e3b83f8668bd1e62c97f9100fa4",
+      "afterSha256": "0ad7cec22999a5a79dbdba05c6b690d0b2759693091281c9c19d96634273176d",
+      "edits": [
+        {
+          "start": 61,
+          "end": 61,
+          "before": "",
+          "after": "\n import {componentStaticStyles} from '../component-inline-style-map.generated.js';",
+          "keys": []
+        },
+        {
+          "start": 784,
+          "end": 806,
+          "before": "style=\"cursor:pointer\"",
+          "after": "style={componentStaticStyles.pointer}",
+          "keys": [
+            "pointer"
+          ]
+        },
+        {
+          "start": 1042,
+          "end": 1079,
+          "before": "style=\"cursor:pointer;font-size:12px\"",
+          "after": "style={componentStaticStyles.renameControl}",
+          "keys": [
+            "renameControl"
+          ]
+        },
+        {
+          "start": 1443,
+          "end": 1480,
+          "before": "style=\"cursor:pointer;font-size:12px\"",
+          "after": "style={componentStaticStyles.renameControl}",
+          "keys": [
+            "renameControl"
+          ]
+        },
+        {
+          "start": 1554,
+          "end": 1580,
+          "before": "style=\"color:var(--green)\"",
+          "after": "style={componentStaticStyles.optimalRange}",
+          "keys": [
+            "optimalRange"
+          ]
+        },
+        {
+          "start": 1801,
+          "end": 1827,
+          "before": "style=\"color:var(--green)\"",
+          "after": "style={componentStaticStyles.optimalRange}",
+          "keys": [
+            "optimalRange"
+          ]
+        },
+        {
+          "start": 4883,
+          "end": 4923,
+          "before": "style=\"text-align:center;margin-top:8px\"",
+          "after": "style={componentStaticStyles.markerDeletePosition}",
+          "keys": [
+            "markerDeletePosition"
+          ]
+        },
+        {
+          "start": 5050,
+          "end": 5098,
+          "before": "style=\"color:var(--text-muted);font-size:0.8rem\"",
+          "after": "style={componentStaticStyles.markerDeleteLabel}",
+          "keys": [
+            "markerDeleteLabel"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "js/components/MarkerDetailHistory.svelte",
+      "beforeSha256": "eabfbda6662b75fd7c2a1f5aefd49b1d6b53e7976b57567b323d817b881b77e4",
+      "afterSha256": "c87f375aaedd9d1e04b8e6f0fa039598b33df86cce73f9f22a1a30a5e8704a6f",
+      "edits": [
+        {
+          "start": 61,
+          "end": 61,
+          "before": "",
+          "after": "\n import {componentStaticStyles} from '../component-inline-style-map.generated.js';",
+          "keys": []
+        },
+        {
+          "start": 3628,
+          "end": 3682,
+          "before": "style={node.editAttributes?'cursor:pointer':undefined}",
+          "after": "style={node.editAttributes?componentStaticStyles.pointer:undefined}",
+          "keys": [
+            "pointer"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "js/components/MarkerDetailNotes.svelte",
+      "beforeSha256": "932f8619775dfdd9f4e6f8255b309489c52b7450840730a96018d6922b8675fa",
+      "afterSha256": "064a23a98dd74e075fd08e8c69c26baae528f7ac6e547d47f4e16f89094cbfe3",
+      "edits": [
+        {
+          "start": 61,
+          "end": 61,
+          "before": "",
+          "after": "\n import {componentStaticStyles} from '../component-inline-style-map.generated.js';",
+          "keys": []
+        },
+        {
+          "start": 671,
+          "end": 691,
+          "before": "style=\"display:none\"",
+          "after": "style={componentStaticStyles.hidden}",
+          "keys": [
+            "hidden"
+          ]
+        },
+        {
+          "start": 1595,
+          "end": 1619,
+          "before": "style=\"color:var(--red)\"",
+          "after": "style={componentStaticStyles.danger}",
+          "keys": [
+            "danger"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "js/components/MarkerDetailRange.svelte",
+      "beforeSha256": "d2cd9829128799fa7ac327d174631da3b0b2baa9759c14d90dac6fff35174aa5",
+      "afterSha256": "b3c2e6b827b2a84874f5b874275a99da8f1c1f0a1227a4d1abe5971598ede43a",
+      "edits": [
+        {
+          "start": 61,
+          "end": 61,
+          "before": "",
+          "after": "\n import {componentStaticStyles} from '../component-inline-style-map.generated.js';",
+          "keys": []
+        },
+        {
+          "start": 870,
+          "end": 905,
+          "before": "style=\"left:0%;width:{node.width}%\"",
+          "after": "style=\"{componentStaticStyles.rangeLowStart}width:{node.width}%\"",
+          "keys": [
+            "rangeLowStart"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "js/components/RoutstrSettings.svelte",
+      "beforeSha256": "1986be2a1f3e056db609ce1206938f29814d2d562fed2a432fbc41e68e177932",
+      "afterSha256": "48dc38ae3459ef7ef888f766bd7cf3bb4a36c75de0264addae1e57de960874de",
+      "edits": [
+        {
+          "start": 18,
+          "end": 18,
+          "before": "",
+          "after": "\n import {componentStaticStyles} from '../component-inline-style-map.generated.js';",
+          "keys": []
+        },
+        {
+          "start": 5335,
+          "end": 5355,
+          "before": "style=\"display:none\"",
+          "after": "style={componentStaticStyles.hidden}",
+          "keys": [
+            "hidden"
+          ]
+        },
+        {
+          "start": 5402,
+          "end": 5422,
+          "before": "style=\"display:none\"",
+          "after": "style={componentStaticStyles.hidden}",
+          "keys": [
+            "hidden"
+          ]
+        },
+        {
+          "start": 9061,
+          "end": 9081,
+          "before": "style=\"display:none\"",
+          "after": "style={componentStaticStyles.hidden}",
+          "keys": [
+            "hidden"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "js/components/SunDataSourcePresentation.svelte",
+      "beforeSha256": "4d821515f9e4cf2435e56198c8483f527082b802d2478c4396db47c2e7132628",
+      "afterSha256": "71f55d372e11cb2ee5c16369cd122ca981fb7b27123680e7a652c84546fd004f",
+      "edits": [
+        {
+          "start": 18,
+          "end": 18,
+          "before": "",
+          "after": "\n import {componentStaticStyles} from '../component-inline-style-map.generated.js';",
+          "keys": []
+        },
+        {
+          "start": 977,
+          "end": 1024,
+          "before": "style={view.showSelfhost ? '' : 'display:none'}",
+          "after": "style={view.showSelfhost ? '' : componentStaticStyles.hidden}",
+          "keys": [
+            "hidden"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "js/components/SupplementForm.svelte",
+      "beforeSha256": "d00e2d6cce1792fdf759303012d9e5927dcc9986af0bb6a18881724792c5e8cf",
+      "afterSha256": "9813753081fae44c3b318ac31f0317f51f1974e8a10097002e7d302a96f9ea97",
+      "edits": [
+        {
+          "start": 18,
+          "end": 18,
+          "before": "",
+          "after": "\n import {componentStaticStyles} from '../component-inline-style-map.generated.js';",
+          "keys": []
+        },
+        {
+          "start": 2513,
+          "end": 2583,
+          "before": "style=\"color:var(--danger,#ef4444);border-color:var(--danger,#ef4444)\"",
+          "after": "style={componentStaticStyles.supplementDelete}",
+          "keys": [
+            "supplementDelete"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "js/components/SupplementPeriodRow.svelte",
+      "beforeSha256": "5e23a063bcfad53ac4540d48f6a0db2f784f54efcc535617d98fabbff91e4d1c",
+      "afterSha256": "32d62d4201b6246c51bad85130ac7cc865e9d9850530c710abc32d7df3e85b74",
+      "edits": [
+        {
+          "start": 18,
+          "end": 18,
+          "before": "",
+          "after": "\n import {componentStaticStyles} from '../component-inline-style-map.generated.js';",
+          "keys": []
+        },
+        {
+          "start": 1374,
+          "end": 1433,
+          "before": "style={props.view.removeStyle ? \"display:none\" : undefined}",
+          "after": "style={props.view.removeStyle ? componentStaticStyles.hidden : undefined}",
+          "keys": [
+            "hidden"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "js/components/WearableDetailChrome.svelte",
+      "beforeSha256": "eea6f95dfe236973abc65ca189f5b54e8ce1d8f5a5f77a87d73e8b9323275895",
+      "afterSha256": "f5471929dd9f898e4685095c528d418969b22cb21c62203c18a8a20dee78c6b7",
+      "edits": [
+        {
+          "start": 18,
+          "end": 18,
+          "before": "",
+          "after": "\n import {componentStaticStyles} from '../component-inline-style-map.generated.js';",
+          "keys": []
+        },
+        {
+          "start": 536,
+          "end": 606,
+          "before": "style=\"opacity:0.6;font-size:0.7em;margin-left:6px;font-weight:normal\"",
+          "after": "style={componentStaticStyles.wearableSubLabel}",
+          "keys": [
+            "wearableSubLabel"
+          ]
+        },
+        {
+          "start": 2013,
+          "end": 2033,
+          "before": "style=\"height:260px\"",
+          "after": "style={componentStaticStyles.wearableChart}",
+          "keys": [
+            "wearableChart"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "js/components/WearableStripHeader.svelte",
+      "beforeSha256": "4df5961e619ca0ee44c0fc8780800d7646cc76d8bae69eaa94deef4e466709ac",
+      "afterSha256": "9c18091e336fbf800e1c5d8151cb5127df3aae3710e60adb604173a137986427",
+      "edits": [
+        {
+          "start": 18,
+          "end": 18,
+          "before": "",
+          "after": "\n import {componentStaticStyles} from '../component-inline-style-map.generated.js';",
+          "keys": []
+        },
+        {
+          "start": 280,
+          "end": 302,
+          "before": "style=\"cursor:pointer\"",
+          "after": "style={componentStaticStyles.pointer}",
+          "keys": [
+            "pointer"
+          ]
+        }
+      ]
+    }
+  ]
+}

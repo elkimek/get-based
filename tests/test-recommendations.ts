@@ -37,6 +37,10 @@ const _realFetch = globalThis.fetch;
   const mainSrc = await fetchWithRetry('js/main.js');
   const chatSendSrc = await fetchWithRetry('js/chat-send.js');
   const viewsSrc = await fetchWithRetry('js/views.js');
+  const viewsRuntimeSrc = await fetchWithRetry('js/views-runtime.js');
+  const chartCardSrc = read('js/components/CategoryChartCard.svelte');
+  const sidebarPagesSrc = read('js/components/SidebarNavigation.svelte');
+  const recommendationDelegatesSrc = read('js/recommendation-action-delegates.js');
   const recommendationActionsSrc = await fetchWithRetry('js/recommendation-actions.js');
   const categoryPageViewSrc = await fetchWithRetry('js/category-page-view.js');
   const categoryViewRenderersSrc = await fetchWithRetry('js/category-view-renderers.js');
@@ -242,8 +246,8 @@ const _realFetch = globalThis.fetch;
       && !/\bwindow(\.|\s*\[)/.test(transcriptPresentation));
   assert('chat-send.js detects recSlots for live rendering', chatSendSrc.includes('_recSlots'));
   assert('Authored Chat recommendations retain the disclosure wrapper', recommendationsView.includes('rec-chat-wrapper') && recommendationsView.includes('<details'));
-  assert('category-view-renderers.js has chart-rec placeholder in header', categoryViewRenderersSrc.includes('chart-rec-'));
-  assert('category-view-renderers.js keeps chart title text separate from tips host', categoryViewRenderersSrc.includes('chart-card-title-text') && categoryViewRenderersSrc.includes('chart-card-tips-host'));
+  assert('category-view-renderers.js has chart-rec placeholder in header', chartCardSrc.includes('id="chart-rec-{view.id}"') && categoryViewRenderersSrc.includes('renderCategoryChartCard(projectCategoryChartCard('));
+  assert('category-view-renderers.js keeps chart title text separate from tips host', chartCardSrc.includes('class="chart-card-title-text"') && chartCardSrc.includes('class="chart-card-tips-host"'));
   assert('category-page-view.js imports chart card recommendation module', categoryPageViewSrc.includes("from './chart-card-recs.js'"));
   assert('category-page-view.js delegates catalog globals through runtime adapter',
     categoryPageViewSrc.includes("from './category-page-runtime.js'")
@@ -263,19 +267,19 @@ const _realFetch = globalThis.fetch;
     'detectSupplementSlots', 'loadCatalog',
   ].every(name => !(name in window)));
   assert('nav.js exposes recommendations sidebar helper', navSrc.includes('openRecommendationsFromSidebar'));
-  const recNavMarkup = navSrc.match(/data-category="recommendations"[\s\S]{0,500}/)?.[0] || '';
+  const recNavMarkup = sidebarPagesSrc.match(/data-category="recommendations"[\s\S]{0,500}/)?.[0] || '';
   assert('Tips sidebar routes to dedicated page',
-    recNavMarkup.includes("_navNavigateAttrs('recommendations')") &&
+    navSrc.includes("sidebarAction(_navNavigateAttrs('recommendations'), 'navigate', 'recommendations')") && recNavMarkup.includes('view.recommendations.action.name') && recNavMarkup.includes('view.recommendations.action.route') &&
     navSrc.includes("return _navActionAttrs('navigate', { route })") &&
     recNavMarkup.includes('nav-item-label">Tips'));
   assert('Recommendations sidebar item does not open Settings', !recNavMarkup.includes('openSettingsModal'));
-  assert('views.js exposes dedicated Recommendations page', viewsSrc.includes('export function showRecommendations') && viewsSrc.includes('openRecommendationDetail'));
+  assert('views.js exposes dedicated Recommendations page', viewsSrc.includes('showRecommendations,') && viewsSrc.includes('openRecommendationDetail,') && viewsRuntimeSrc.includes('export function showRecommendations') && viewsRuntimeSrc.includes('export function openRecommendationDetail'));
   assert('views.js delegates recommendation actions to recommendation-actions.js',
     viewsSrc.includes("from './recommendation-actions.js'") &&
     recommendationActionsSrc.includes('export function createRecommendationActions'));
   assert('recommendation-actions.js delegates browser globals through recommendations runtime',
     recommendationActionsSrc.includes("from './recommendations-runtime.js'")
-      && recommendationActionsSrc.includes('closeRecommendationsModal')
+      && recommendationActionsSrc.includes('initRecommendationDetailDelegates') && recommendationDelegatesSrc.includes("from './recommendations-runtime.js'") && recommendationDelegatesSrc.includes('closeRecommendationsModal()') && !/\bwindow(\.|\s*\[)/.test(recommendationDelegatesSrc)
       && recommendationActionsSrc.includes('openRecommendationsChatPanel')
       && recommendationActionsSrc.includes('getRecommendationsDetailSectionView')
       && !/\bwindow(\.|\s*\[)/.test(recommendationActionsSrc));

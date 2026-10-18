@@ -156,4 +156,8 @@ export function buildTypeScript(rootDir = root): void {
   }
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === script) buildTypeScript();
+if (process.argv[1] && path.resolve(process.argv[1]) === script) {
+  // Tailwind-generated inline values and their exact key types exist before TS/Svelte parsing.
+  execFileSync(process.execPath, [path.join(root, 'scripts/build-inline-style-maps.mts')], {cwd: root, stdio: 'inherit'});
+  buildTypeScript();
+}

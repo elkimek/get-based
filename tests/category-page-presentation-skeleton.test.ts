@@ -1,0 +1,8 @@
+// @vitest-environment jsdom
+import {readFileSync} from 'node:fs';
+import {expect,it} from 'vitest';
+import {categoryNativeDOM,categoryRawDOM} from './helpers/category-genuine-native-dom.js';
+const owners=['CategoryPageChrome','CategoryPageViewBody','CategoryPageRangeEmptyState','CategoryMarkerDataGaps','CategoryGlyph'];
+it.each(owners)('%s has a genuine finite presentation contract',name=>{const source=readFileSync('js/components/'+name+'.svelte','utf8');expect(source).toContain('$props()');expect(source).not.toContain('@html');expect(source).not.toMatch(/gb-category-page-|compiler-anchor|NativePort|coordinate/);});
+it('compares every literal text and ordered attribute while ignoring only Svelte branch markers',()=>{expect(categoryRawDOM('<p title="x"><!--[0-->A<!--]-->B</p>')).toEqual(categoryRawDOM('<p title="x">AB</p>'));expect(categoryRawDOM('<p title="x"> A</p>')).not.toEqual(categoryRawDOM('<p title="x">A</p>'));expect(categoryRawDOM('<p title="x" class="a">A</p>')).not.toEqual(categoryRawDOM('<p class="a" title="x">A</p>'));expect(()=>categoryRawDOM('<p><!--foreign--></p>')).toThrow('Unqualified Category HTML comment');expect(()=>categoryNativeDOM({type:8,text:':'})).toThrow();});
+it('page parent composes genuine feature children without raw output slots',()=>{const page=readFileSync('js/components/CategoryPageChrome.svelte','utf8'),body=readFileSync('js/components/CategoryPageViewBody.svelte','utf8');for(const name of ['CategoryPageViewBody','LabDateRange','ChartLayersDropdown','CategoryGlyph'])expect(page).toContain('<'+name);for(const name of ['CategoryChartCard','CategoryDataTable','CategoryHeatmap','CategoryFattyAcids','CategoryMarkerDataGaps'])expect(body).toContain('<'+name);});

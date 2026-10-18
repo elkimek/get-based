@@ -1,23 +1,12 @@
 
-import { escapeAttr, escapeHTML } from './utils.js';
+import {renderWearableTagChips, renderWearableNoteField} from './wearables-entry-presentation.js';
 
 const WEARABLE_LOG_ACTION_ATTR = 'data-wearable-log-action';
 const wearableManualFormDelegateRoots = new WeakSet<EventTarget>();
 
-// Chip row for optional context tags. Tags are informational; sensors cannot
-// infer whether a manual BP/RHR reading was resting, post-workout, etc.
-const TAG_CHIPS: Readonly<Record<PropertyKey, unknown>> = {
-  bp_systolic: ['resting', 'morning-fasted', 'post-workout', 'stress'],
-  rhr: ['resting', 'morning-fasted', 'post-workout'],
-};
-
+// Shared presentation uses the same authored manual component as both form owners.
 export function _renderTagChips(metricId: unknown) {
-  // The original map reader also encounters inherited non-array properties.
-  const tags = TAG_CHIPS[metricId as PropertyKey] as readonly unknown[] | undefined;
-  if (!tags) return '';
-  return `<div class="wearable-log-tags" role="group" aria-label="Optional context">
-    ${tags.map(t => `<button type="button" class="wearable-log-chip" ${WEARABLE_LOG_ACTION_ATTR}="toggle-chip" data-tag="${escapeAttr(t)}">${escapeHTML(t)}</button>`).join('')}
-  </div>`;
+  return renderWearableTagChips(metricId);
 }
 
 export function toggleManualLogChip(btn: Pick<Element, 'classList'>, event?: Pick<Event, 'stopPropagation'> | null) {
@@ -64,5 +53,5 @@ export function inputValueById(id: string) {
 // Shared note-textarea snippet for both manual-log forms. The `idSuffix`
 // disambiguates dashboard-card (`wl-...-note`) vs detail-modal (`wlad-note`).
 export function _renderNoteField(idSuffix: unknown = 'wl-note') {
-  return `<textarea class="wearable-log-note" id="${escapeHTML(idSuffix)}" rows="2" placeholder="Optional note — e.g. retook because cuff felt loose, different arm, different lab, just after coffee..." aria-label="Optional note"></textarea>`;
+  return renderWearableNoteField(idSuffix);
 }

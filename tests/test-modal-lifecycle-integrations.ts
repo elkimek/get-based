@@ -85,8 +85,12 @@ const sunDefaultsSetupUiSrc = fs.readFileSync(path.join(root, 'js/sun-defaults-s
 const sunSessionActionsSrc = fs.readFileSync(path.join(root, 'js/sun-session-actions.js'), 'utf8');
 const sunSessionUiSrc = fs.readFileSync(path.join(root, 'js/sun-session-ui.js'), 'utf8');
 const syncDiagnoseIdentitySrc = fs.readFileSync(path.join(root, 'js/sync-diagnose-identity-actions.js'), 'utf8');
-const syncDiagnoseRenderSrc = fs.readFileSync(path.join(root, 'js/sync-diagnose-render.js'), 'utf8');
-const syncDiagnoseUiSrc = fs.readFileSync(path.join(root, 'js/sync-diagnose-ui.js'), 'utf8');
+// Diagnose close-control markup belongs to its authored Svelte owner.
+const syncDiagnoseRenderSrc = [
+  fs.readFileSync(path.join(root, 'js/sync-diagnose-render.js'), 'utf8'),
+  fs.readFileSync(path.join(root, 'js/components/SyncDiagnoseModal.svelte'), 'utf8'),
+].join('\n');
+const syncDiagnoseUiSrc = fs.readFileSync(path.join(root, 'js/sync-diagnose-ui-impl.js'), 'utf8');
 const utilsSrc = fs.readFileSync(path.join(root, 'js/utils.js'), 'utf8');
 const knowledgeBaseModalSrc = lensKnowledgeBaseUiSrc.slice(
   lensKnowledgeBaseUiSrc.indexOf('function openKnowledgeBaseModal'),
@@ -379,8 +383,8 @@ assert('light sessions view runtime dependencies are startup-wired',
     lightDevicesSrc.includes('export async function deleteDeviceSessionWithConfirm') &&
     lightSessionsViewHooksSrc.includes("import { getSessions } from './sun.js';") &&
     lightSessionsViewHooksSrc.includes("import { configureLightDevices, openDeviceSessionDetail } from './light-devices.js';") &&
-    lightSessionsViewHooksSrc.includes("import { renderDeviceSessionAIDetail } from './light-device-ai-analysis.js';") &&
-    lightSessionsViewHooksSrc.includes('configureLightDevices({ renderDeviceSessionAIDetail });') &&
+    lightSessionsViewHooksSrc.includes("import { getDeviceSessionAIView } from './light-device-ai-analysis.js';") &&
+    lightSessionsViewHooksSrc.includes("configureLightDevices({ getDeviceSessionAIDetailView: (session) => getDeviceSessionAIView(session, 'detail') });") &&
     lightSessionsViewHooksSrc.includes('configureLightSessionsView({') &&
     appLightSunModulesSrc.includes("import './light-sessions-view-hooks.js';") &&
     serviceWorkerSrc.includes("'/js/light-sessions-view-hooks.js'"));

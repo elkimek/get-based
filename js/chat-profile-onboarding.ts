@@ -1,3 +1,4 @@
+import {tsStateStyles} from './ts-state-ui-inline-style-map.generated.js';
 import { state } from './state.js';
 import { LATITUDE_BANDS } from './constants.js';
 import { saveImportedDataForProfile } from './data.js';
@@ -52,7 +53,7 @@ export function createChatProfileOnboarding(callbacks: {
         weight: input('chat-onboard-weight')?.value || '', weightUnit: input('chat-onboard-weight-unit')?.value || 'kg', country: input('chat-onboard-country')?.value || '' }),
       setPending() {}, setError() {},
       setSex(sex) { document.querySelectorAll('.chat-onboard-form .welcome-sex-btn').forEach((button, index) => button.classList.toggle('active', sex === (index === 0 ? 'male' : 'female'))); },
-      setLatitude(text) { const label = document.getElementById('chat-onboard-lat'); if (label) { label.textContent = text; label.style.color = 'var(--green)'; } },
+      setLatitude(text) { const label = document.getElementById('chat-onboard-lat'); if (label) { label.textContent = text; label.style.color = tsStateStyles.successColor; } },
       setContinueEnabled(enabled) { const button = document.getElementById('chat-onboard-next') as HTMLButtonElement | null; if (button) button.disabled = !enabled; },
       setHeight(value, placeholder) { const field = input('chat-onboard-height') as HTMLInputElement | null; if (field) { field.value = value; field.placeholder = placeholder; } },
     };

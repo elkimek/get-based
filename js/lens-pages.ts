@@ -1,44 +1,46 @@
 // lens-pages.js — dedicated lens page renderers extracted from views.js
 
 import { state } from './state.js';
-import {renderHTML as renderLensContent} from './components/LensPageContent.svelte.html.js';
+import {renderHTML as renderLensDataPage} from './components/LensDataPage.svelte.html.js';
+import type {LensDataWidgetContent} from './lens-data-page-presentation.js';
 import {renderHTML as renderRecommendationPage} from './components/RecommendationPage.svelte.html.js';
 import {projectLensHeader} from './lens-shell-presentation.js';
 import {projectRecommendationList, type RecommendationCardView} from './recommendation-presentation.js';
 import type {RecommendationPageContent} from './recommendation-page-presentation.js';
-import type {LensContentWidget} from './lens-page-shell.js';
+import type {LensContentWidget} from './lens-page-shell-core.js';
 import {projectGenomeImportDetails, projectBodySources, projectLensActions} from './lens-content-presentation.js';
-import { getActiveData, filterDatesByRange, renderDateRangeFilter } from './data.js';
+import { getActiveData, filterDatesByRange, projectDateRangeFilter } from './data.js';
 import {
   ensureSNPTable,
   loadContextHealthDots,
   loadContextCardTips,
-  renderMenstrualCycleSection,
-  renderProfileContextCards,
-  renderSupplementsSection,
-  renderFuelWidget,
-  renderNutritionWidget,
+  projectMenstrualCycleSection,
+  projectProfileContextCards,
+  projectSupplementsSection,
+  projectFuelWidget,
+  projectNutritionWidget,
 } from './health-data-loader.js';
-import {scheduleBiologyScoreAIReconcile} from './biology-scores.js';
-import {renderBiologyPage} from './biology-page-view.js';
+import { getLoadedBiologyPage, loadBiologyPage } from './biology-page-loader.js';
+import { routeRevision } from './route-lifecycle.js';
 import { getRecommendationsSnpTable, isRecommendationsProductRecsEnabled } from './recommendations-runtime.js';
 
 // Configured values are opaque. These private views describe only the unchecked
 // calls and property operations used below; they do not validate callback output.
-type Shell = typeof import('./lens-page-shell.js');
-type LensWidgetInput = Omit<import('./lens-page-shell.js').LensPageWidget, 'opts'> & { opts?: import('./lens-page-shell.js').LensWidgetOptions & {source?: unknown} };
+type Shell = typeof import('./lens-page-shell-core.js');
+type DashboardProjectors = ReturnType<typeof import('./dashboard-widget-renderers.js').createDashboardWidgetRenderers>;
+type LabContext = import('../types/dashboard-lab-widget-renderers.js').LabContext;
 type CandidateOperations = { source?: unknown; saved?: unknown; dismissed?: unknown };
 type LensDependencyOperations = {
   setupDropZone: () => unknown;
   buildDashboardWidgetContext: (data: unknown) => unknown;
-  renderLabsPriorityBanner: (ctx: unknown) => unknown;
-  renderDashboardQuickMarkersWidget: (ctx: unknown) => unknown;
-  renderDashboardKeyTrendsWidget: (ctx: unknown) => unknown;
-  renderDashboardGenomeWidget: () => unknown;
-  renderDashboardWearableTilesWidget: () => unknown;
-  renderDashboardInsightsListWidget: (ctx: unknown) => unknown;
-  renderDashboardRecommendationsWidget: (ctx: unknown) => unknown;
-  renderFocusCard: () => unknown;
+  projectLabsPriorityBanner: DashboardProjectors['projectLabsPriorityBanner'];
+  projectDashboardQuickMarkersWidget: DashboardProjectors['projectDashboardQuickMarkersWidget'];
+  projectDashboardKeyTrendsWidget: DashboardProjectors['projectDashboardKeyTrendsWidget'];
+  projectDashboardGenomeWidget: DashboardProjectors['projectDashboardGenomeWidget'];
+  projectDashboardWearableTilesWidget: DashboardProjectors['projectDashboardWearableTilesWidget'];
+  projectDashboardInsightsListWidget: DashboardProjectors['projectDashboardInsightsListWidget'];
+  projectDashboardRecommendationsWidget: DashboardProjectors['projectDashboardRecommendationsWidget'];
+  projectFocusCard: typeof import('./focus-card.js').projectFocusCard;
   loadFocusCard: () => unknown;
   getDashboardWidgetPrefs: () => {hidden: {includes(id: string): unknown}};
   getCachedRecommendationsCatalog: () => unknown;
@@ -46,8 +48,6 @@ type LensDependencyOperations = {
   getGlobalRecommendationCandidates: (ctx: unknown, catalog: unknown, options?: {includeDismissed: boolean}) => CandidateOperations[];
   getLensContentGrid: Shell['getLensContentGrid'];
   getLensWidgetChrome: Shell['getLensWidgetChrome'];
-  renderLensHeader: (...args: Parameters<Shell['renderLensHeader']>) => unknown;
-  renderLensPageWidgets: (route: string, widgets: Array<LensWidgetInput | null | undefined | false>, options?: {group: string}) => unknown;
 };
 type LabMarkerOperations = { values?: {some(predicate: (value: unknown) => boolean): boolean} | null };
 type LabDataOperations = { dates?: {length?: unknown}; categories?: Record<string, {singleDate?: unknown; markers?: Record<string, LabMarkerOperations>}> };
@@ -65,27 +65,18 @@ function hasAnyLabData(data: unknown) {
   );
 }
 
-function renderGenomeImportDetailsWidget() {
-  const view = projectGenomeImportDetails(state.importedData?.genetics);
-  return view ? renderLensContent({kind: 'genome-import', view}) : '';
-}
-
-function renderBodySourcesWidget() {
-  return renderLensContent({kind: 'body-sources', view: projectBodySources(state.importedData?.wearableConnections, state.importedData?.wearableSummary)});
-}
-
 export function createLensPageHandlers(deps: unknown) {
   const {
     setupDropZone,
     buildDashboardWidgetContext,
-    renderLabsPriorityBanner,
-    renderDashboardQuickMarkersWidget,
-    renderDashboardKeyTrendsWidget,
-    renderDashboardGenomeWidget,
-    renderDashboardWearableTilesWidget,
-    renderDashboardInsightsListWidget,
-    renderDashboardRecommendationsWidget,
-    renderFocusCard,
+    projectLabsPriorityBanner,
+    projectDashboardQuickMarkersWidget,
+    projectDashboardKeyTrendsWidget,
+    projectDashboardGenomeWidget,
+    projectDashboardWearableTilesWidget,
+    projectDashboardInsightsListWidget,
+    projectDashboardRecommendationsWidget,
+    projectFocusCard,
     loadFocusCard,
     getDashboardWidgetPrefs,
     getCachedRecommendationsCatalog,
@@ -93,8 +84,6 @@ export function createLensPageHandlers(deps: unknown) {
     getGlobalRecommendationCandidates,
     getLensContentGrid,
     getLensWidgetChrome,
-    renderLensHeader,
-    renderLensPageWidgets,
   } = deps as LensDependencyOperations;
 
   function showLabs(preData: unknown) {
@@ -102,73 +91,86 @@ export function createLensPageHandlers(deps: unknown) {
     const main = document.getElementById("main-content");
     if (!main) return;
     document.body.classList.remove('mobile-dashboard-active');
-    const actions = renderDateRangeFilter();
-    let html = renderLensHeader('Labs', '', actions) as string;
-
+    const range = projectDateRangeFilter();
+    const header = projectLensHeader('Labs', '');
     if (!hasAnyLabData(rawData)) {
-      html += `<div class="drop-zone" id="drop-zone">
-        <div class="drop-zone-icon">\uD83D\uDCC4</div>
-        <div class="drop-zone-text">Drop a lab PDF, image, JSON export, or click to browse</div>
-        <div class="drop-zone-hint">Your lab markers become searchable categories, charts, and dashboard summaries.</div>
-      </div>`;
-      main.innerHTML = html;
+      main.innerHTML = renderLensDataPage({view: {kind: 'labs-empty', header, range}});
       setupDropZone();
       return;
     }
-
-    const ctx = buildDashboardWidgetContext(rawData);
-    html += renderLabsPriorityBanner(ctx);
-    html += renderLensPageWidgets('labs', [
-      { id: 'quick-markers', title: 'Quick Markers', description: 'Pinned and priority-ranked marker tiles', body: renderDashboardQuickMarkersWidget(ctx), size: 'full', opts: { source: 'Labs' } },
-      { id: 'key-trends', title: 'Key Trends', description: 'Auto-selected markers from your current range', body: renderDashboardKeyTrendsWidget(ctx), size: 'full', opts: { source: 'Labs' } },
+    const ctx = buildDashboardWidgetContext(rawData) as LabContext;
+    const priority = projectLabsPriorityBanner(ctx);
+    const grid = getLensContentGrid<LensDataWidgetContent>('labs', [
+      {id: 'quick-markers', title: 'Quick Markers', description: 'Pinned and priority-ranked marker tiles', content: {kind: 'quick-markers', view: projectDashboardQuickMarkersWidget(ctx)}, size: 'full', opts: {source: 'Labs'}},
+      {id: 'key-trends', title: 'Key Trends', description: 'Auto-selected markers from your current range', content: {kind: 'key-trends', view: projectDashboardKeyTrendsWidget(ctx)}, size: 'full', opts: {source: 'Labs'}},
     ]);
-    main.innerHTML = html;
+    main.innerHTML = renderLensDataPage({view: {kind: 'labs', header, range, priority, grid}});
     setupDropZone();
   }
 
+  let biologyPageRequest = 0;
   function showBiologyScores(preData: unknown) {
-    const rawData = preData || getActiveData();
-    const main = document.getElementById("main-content");
+    const request = ++biologyPageRequest;
+    const profileId = state.currentProfile;
+    const importedData = state.importedData;
+    const revision = routeRevision();
+    const main = document.getElementById('main-content');
     if (!main) return;
-    document.body.classList.remove('mobile-dashboard-active');
-    const ctx = buildDashboardWidgetContext(rawData);
-    // Preserve the captured collection range for the context review snapshot.
-    const scoreData = (filterDatesByRange as RawFilter)(rawData, { fallbackToAll: false }) as Parameters<typeof renderBiologyPage>[1];
-    main.innerHTML = renderBiologyPage(ctx,scoreData);
-    setupDropZone();
-    scheduleBiologyScoreAIReconcile();
+    const render = ({ renderBiologyPage, scheduleBiologyScoreAIReconcile }: NonNullable<ReturnType<typeof getLoadedBiologyPage>>) => {
+      const rawData = preData || getActiveData();
+      document.body.classList.remove('mobile-dashboard-active');
+      const ctx = buildDashboardWidgetContext(rawData);
+      // Preserve the captured collection range for the context review snapshot.
+      const scoreData = (filterDatesByRange as RawFilter)(rawData, { fallbackToAll: false }) as Parameters<typeof renderBiologyPage>[1];
+      main.innerHTML = renderBiologyPage(ctx,scoreData);
+      setupDropZone();
+      scheduleBiologyScoreAIReconcile();
+    };
+    const loaded = getLoadedBiologyPage();
+    // The hot path retains the original synchronous facade and delegated controls.
+    if (loaded) return render(loaded);
+    return loadBiologyPage().then(module => {
+      if (request !== biologyPageRequest || state.currentProfile !== profileId
+        || state.importedData !== importedData || state.currentView !== 'biology-scores' || routeRevision() !== revision
+        || document.getElementById('main-content') !== main || !main.isConnected) return false;
+      render(module);
+      return true;
+    });
   }
 
   function showGenomeLens() {
     const main = document.getElementById("main-content");
     if (!main) return;
     document.body.classList.remove('mobile-dashboard-active');
-    const importDetails = renderGenomeImportDetailsWidget();
+    const importDetails = projectGenomeImportDetails(state.importedData?.genetics);
     const genetics = state.importedData?.genetics || {};
     const hasSnps = Object.keys(genetics.snps || {}).length > 0;
-    const genomeActions = renderLensContent({kind: 'actions', view: projectLensActions('genome', {hasSnps})});
-    let html = renderLensHeader('Genome', 'DNA findings and traits linked to your labs.', genomeActions, { className: 'genome-lens-header' }) as string;
-    html += renderLensPageWidgets('genome', [
-      { id: 'genome', title: 'Genetic Findings & Traits', description: 'Curated SNP context, evidence, and lab-linked modifiers', body: renderDashboardGenomeWidget(), size: 'full', opts: { source: 'Genome' } },
-      importDetails ? { id: 'genome-import', title: 'Import Details', description: 'Source, counts, mtDNA, and file management', body: importDetails, size: 'full', opts: { source: 'Genome', dashboardId: '' } } : null,
-    ]);
-    main.innerHTML = html;
+    const actions = projectLensActions('genome', {hasSnps});
+    const header = projectLensHeader('Genome', 'DNA findings and traits linked to your labs.', '', {className: 'genome-lens-header'});
+    const widgets: LensContentWidget<LensDataWidgetContent>[] = [
+      {id: 'genome', title: 'Genetic Findings & Traits', description: 'Curated SNP context, evidence, and lab-linked modifiers', content: {kind: 'genome', view: projectDashboardGenomeWidget()}, size: 'full', opts: {source: 'Genome'}},
+    ];
+    if (importDetails) widgets.push({id: 'genome-import', title: 'Import Details', description: 'Source, counts, mtDNA, and file management', content: {kind: 'genome-import', view: importDetails}, size: 'full', opts: {source: 'Genome', dashboardId: ''}});
+    const grid = getLensContentGrid('genome', widgets);
+    main.innerHTML = renderLensDataPage({view: {kind: 'genome', header, actions, grid}});
   }
 
   function showBodyLens() {
     const main = document.getElementById("main-content");
     if (!main) return;
     document.body.classList.remove('mobile-dashboard-active');
-    let html = renderLensHeader('Body', '', renderLensContent({kind: 'actions', view: projectLensActions('body')})) as string;
-    html += renderLensPageWidgets('body', [
-      { id: 'wearables', title: 'Biometrics Overview', description: 'User-selected body signal tiles', body: renderDashboardWearableTilesWidget(), size: 'full', opts: { source: 'Body' } },
-      { id: 'body-sources', title: 'Connected Sources', description: 'Wearable and manual sources feeding body context', body: renderBodySourcesWidget(), size: 'full', opts: { source: 'Body', dashboardId: '' } },
-      { id: 'nutrition', title: 'Meals & Nutrition', description: 'Optional photo-assisted meal log with rolling nutrition context', body: renderNutritionWidget(), size: 'full', opts: { source: 'Body', dashboardId: 'nutrition' } },
-      { id: 'nutrition-fuel-mix', title: 'Fuel Mix Context', description: 'Seven-day carbohydrate and fat mix', body: renderFuelWidget(), size: 'full', opts: { source: 'Body', dashboardId: 'nutrition-fuel-mix' } },
-      { id: 'supplements', title: 'Supplements & Meds', description: 'Tracked supplements and medications that feed lab and AI context', body: renderSupplementsSection(), size: 'full', opts: { source: 'Body' } },
-      state.profileSex === 'female' ? { id: 'cycle', title: 'Cycle', description: 'Menstrual cycle context for hormone, iron, and inflammation interpretation', body: renderMenstrualCycleSection(getActiveData()), size: 'full', opts: { source: 'Body' } } : null,
-    ]);
-    main.innerHTML = html;
+    const header = projectLensHeader('Body', '');
+    const actions = projectLensActions('body');
+    const widgets: LensContentWidget<LensDataWidgetContent>[] = [
+      {id: 'wearables', title: 'Biometrics Overview', description: 'User-selected body signal tiles', content: {kind: 'wearables', view: projectDashboardWearableTilesWidget()}, size: 'full', opts: {source: 'Body'}},
+      {id: 'body-sources', title: 'Connected Sources', description: 'Wearable and manual sources feeding body context', content: {kind: 'body-sources', view: projectBodySources(state.importedData?.wearableConnections, state.importedData?.wearableSummary)}, size: 'full', opts: {source: 'Body', dashboardId: ''}},
+      {id: 'nutrition', title: 'Meals & Nutrition', description: 'Optional photo-assisted meal log with rolling nutrition context', content: {kind: 'nutrition', view: projectNutritionWidget()}, size: 'full', opts: {source: 'Body', dashboardId: 'nutrition'}},
+      {id: 'nutrition-fuel-mix', title: 'Fuel Mix Context', description: 'Seven-day carbohydrate and fat mix', content: {kind: 'fuel', view: projectFuelWidget()}, size: 'full', opts: {source: 'Body', dashboardId: 'nutrition-fuel-mix'}},
+      {id: 'supplements', title: 'Supplements & Meds', description: 'Tracked supplements and medications that feed lab and AI context', content: {kind: 'supplements', view: projectSupplementsSection()}, size: 'full', opts: {source: 'Body'}},
+    ];
+    if (state.profileSex === 'female') widgets.push({id: 'cycle', title: 'Cycle', description: 'Menstrual cycle context for hormone, iron, and inflammation interpretation', content: {kind: 'cycle', view: projectMenstrualCycleSection(getActiveData())}, size: 'full', opts: {source: 'Body'}});
+    const grid = getLensContentGrid('body', widgets);
+    main.innerHTML = renderLensDataPage({view: {kind: 'body', header, actions, grid}});
   }
 
   function showInsightLens(preData: unknown) {
@@ -177,14 +179,15 @@ export function createLensPageHandlers(deps: unknown) {
     if (!main) return;
     document.body.classList.remove('mobile-dashboard-active');
     const ctx = buildDashboardWidgetContext(rawData);
-    let html = renderLensHeader('Insight', '', renderLensContent({kind: 'actions', view: projectLensActions('insight')})) as string;
-    html += renderLensPageWidgets('insight', [
-      { id: 'focus', title: 'Current Focus', description: 'One synthesized read on the latest data', body: renderFocusCard(), size: 'full', opts: { source: 'Insight' } },
-      { id: 'recommendations', title: 'Tips to Explore', description: 'General-information ideas connected to your data', body: renderDashboardRecommendationsWidget(ctx), size: 'half', opts: { source: 'Insight' } },
-      { id: 'insights', title: 'AI Insights', description: 'Top trend and range reads', body: renderDashboardInsightsListWidget(ctx), size: 'half', opts: { source: 'Insight' } },
-      { id: 'profile-context', title: 'Profile Context', description: 'Goals, history, lifestyle, and context cards', body: renderProfileContextCards({ embedded: true }), size: 'full', opts: { source: 'Insight' } },
+    const header = projectLensHeader('Insight', '');
+    const actions = projectLensActions('insight');
+    const grid = getLensContentGrid<LensDataWidgetContent>('insight', [
+      {id: 'focus', title: 'Current Focus', description: 'One synthesized read on the latest data', content: {kind: 'focus', view: projectFocusCard()}, size: 'full', opts: {source: 'Insight'}},
+      {id: 'recommendations', title: 'Tips to Explore', description: 'General-information ideas connected to your data', content: {kind: 'recommendations', view: projectDashboardRecommendationsWidget(ctx)}, size: 'half', opts: {source: 'Insight'}},
+      {id: 'insights', title: 'AI Insights', description: 'Top trend and range reads', content: {kind: 'insights', view: projectDashboardInsightsListWidget(ctx)}, size: 'half', opts: {source: 'Insight'}},
+      {id: 'profile-context', title: 'Profile Context', description: 'Goals, history, lifestyle, and context cards', content: {kind: 'profile-context', view: projectProfileContextCards({embedded: true})}, size: 'full', opts: {source: 'Insight'}},
     ]);
-    main.innerHTML = html;
+    main.innerHTML = renderLensDataPage({view: {kind: 'insight', header, actions, grid}});
     loadFocusCard();
     loadContextHealthDots();
     void loadContextCardTips();

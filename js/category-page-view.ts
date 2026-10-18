@@ -1,31 +1,31 @@
+import {categoryLiteral} from './category-presentation.js';
+import type {CategoryPageBodyView,CategoryGapSectionView} from './category-page-presentation.js';
+import { renderCategoryPagePresentation,renderCategoryPageBody } from './category-page-presentation.js';
 import type { CategoryPageData, CategoryPageCategory, CategoryPageMarker, CategoryPageEntries, CategoryPageDelegateRoot } from '../types/category-page-view.js';
 import { configureValidRuntimeCallbacks } from './runtime-callbacks.js';
 // category-page-view.js — category route orchestration and view-mode switching
 
 import { state } from './state.js';
-import { escapeAttr, escapeHTML, getStatus, safeMarkerId } from './utils.js';
-import { camelCaseActionAttributes } from './action-attributes.js';
+import { escapeHTML, getStatus, safeMarkerId } from './utils.js';
 import {
   getActiveData,
   filterDatesByRange,
   destroyAllCharts,
-  dataActionAttrs,
-  renderDateRangeFilter,
-  renderChartLayersDropdown,
+  projectDateRangeFilter,
+  projectChartLayersDropdown,
 } from './data.js';
 import { getEffectiveRangeForDate, getLatestValueIndex } from './marker-analysis.js';
 import { createLineChart } from './health-data-loader.js';
 import { loadChartCardRecs } from './chart-card-recs.js';
-import { renderCategoryGlyph } from './category-glyphs.js';
+import { getCategoryGlyphCode } from './category-glyphs.js';
 import { getCategoryPageCatalogSlots, primeCategoryPageCatalogCache } from './category-page-runtime.js';
 import {
-  renderChartCard,
-  renderTableView,
-  renderHeatmapView,
-  renderFattyAcidsView,
+  projectCategoryChartCard,
+  projectCategoryTable,
+  projectCategoryHeatmap,
+  projectCategoryFattyAcids,
   renderFattyAcidsCharts,
 } from './category-view-renderers.js';
-import { markerDetailActionAttrs } from './marker-detail-actions.js';
 
 const categoryPageActionDelegateRoots = new WeakSet<CategoryPageDelegateRoot>();
 
@@ -41,10 +41,6 @@ export function configureCategoryPageViewDeps(deps:unknown = {}) {
 
 const CATEGORY_PAGE_ACTION_ATTR = 'data-category-page-action';
 const CATEGORY_PAGE_ACTION_SELECTOR = `[${CATEGORY_PAGE_ACTION_ATTR}]`;
-
-function categoryPageActionAttrs(action:unknown, attrs:Record<string,unknown> = {}) {
-  return camelCaseActionAttributes(CATEGORY_PAGE_ACTION_ATTR, "category-page", action, attrs);
-}
 
 function closestCategoryPageAction(target:{closest?:unknown}|null|undefined) {
   return (
@@ -99,36 +95,23 @@ function selectedRangeLabel() {
     : 'all time';
 }
 
-function renderNoResultsInRange(cat:CategoryPageCategory, categoryKey:string) {
-  return `<div class="empty-state"><div class="empty-state-icon empty-state-icon-category">${renderCategoryGlyph(categoryKey, cat.label, { large: true })}</div>
-    <h3>No results in ${escapeHTML(selectedRangeLabel())}</h3>
-    <p>This category has older results. Choose a longer range or show the complete history.</p>
-    <button type="button" class="range-btn" ${dataActionAttrs('set-date-range', { range: 'all' })}>Show all results</button></div>`;
+function projectNoResultsInRange(cat:CategoryPageCategory,categoryKey:string):CategoryPageBodyView {
+ return {kind:'outside-range',view:{glyph:{code:`${getCategoryGlyphCode(categoryKey,cat.label)}`,large:true},label:categoryLiteral(selectedRangeLabel())}};
 }
-
-function renderMarkerDataGapSections(allEntries:CategoryPageEntries, rawCat:CategoryPageCategory|null|undefined, categoryKey:string) {
-  const withoutVisibleData = allEntries.filter(([, marker]) => !markerHasData(marker));
-  if (!withoutVisibleData.length) return '';
-  const outsideRange: CategoryPageEntries = [];
-  const neverRecorded: CategoryPageEntries = [];
-  for (const entry of withoutVisibleData) {
-    const [key] = entry;
-    if (state.dateRangeFilter !== 'all' && markerHasData(rawCat?.markers?.[key])) outsideRange.push(entry);
-    else neverRecorded.push(entry);
-  }
-  const renderSection = (entries:CategoryPageEntries, heading:unknown, suffix:unknown) => {
-    if (!entries.length) return '';
-    let html = `<div class="chart-card-gap-section"><p>${escapeHTML(heading)}</p><div class="chart-card-gap-list">`;
-    for (const [key, marker] of entries) {
-      if (!safeMarkerId(key)) continue;
-      const id = categoryKey + '_' + key;
-      html += `<button type="button" class="chart-card chart-card-add" aria-label="Open ${escapeAttr(marker.name)} details" ${markerDetailActionAttrs('show-detail-modal', { id })}>
-        <span>${escapeHTML(marker.name)}</span><span>${escapeHTML(suffix)}</span></button>`;
-    }
-    return html + `</div></div>`;
-  };
-  return renderSection(outsideRange, `Results outside ${selectedRangeLabel()}`, 'view history')
-    + renderSection(neverRecorded, 'No data yet', '+ add value');
+function projectMarkerDataGapSections(allEntries:CategoryPageEntries,rawCat:CategoryPageCategory|null|undefined,categoryKey:string):readonly CategoryGapSectionView[]{
+ const withoutVisibleData=allEntries.filter(([,marker])=>!markerHasData(marker));
+ if(!withoutVisibleData.length)return [];
+ const outsideRange:CategoryPageEntries=[],neverRecorded:CategoryPageEntries=[];
+ for(const entry of withoutVisibleData){const [key]=entry;if(state.dateRangeFilter!=='all'&&markerHasData(rawCat?.markers?.[key]))outsideRange.push(entry);else neverRecorded.push(entry);}
+ const sections:CategoryGapSectionView[]=[];
+ const section=(entries:CategoryPageEntries,heading:string,suffix:string)=>{
+  if(!entries.length)return;
+  const markers=[];
+  for(const [key,marker]of entries){if(!safeMarkerId(key))continue;const id=categoryKey+'_'+key;
+   const accessibleName=categoryLiteral(marker.name),name=categoryLiteral(marker.name);markers.push({id,accessibleName,name,suffix});}
+  sections.push({heading,markers});
+ };
+ section(outsideRange,`Results outside ${selectedRangeLabel()}`,'view history');section(neverRecorded,'No data yet','+ add value');return sections;
 }
 
 function sortCategoryChartEntries(entries:CategoryPageEntries, categoryKey:string) {
@@ -177,41 +160,22 @@ export function showCategory(categoryKey:string, preData?:unknown) {
   const countLabel = state.dateRangeFilter !== 'all'
     ? `${withData.length} of ${allEntries.length} biomarkers with results in ${selectedRangeLabel()}`
     : withData.length < allEntries.length ? `${withData.length} of ${allEntries.length} biomarkers with data` : `${allEntries.length} biomarkers tracked`;
-  const renameBtn = ` <span class="ref-edited-badge" role="button" tabindex="0" aria-label="Rename category" title="Rename category" ${categoryPageActionAttrs('rename-category', { category: categoryKey })} style="cursor:pointer;font-size:12px">rename</span>`;
-  let html = `<div class="category-header"><h2>${renderCategoryGlyph(categoryKey, cat.label)}<span class="category-title-text">${escapeHTML(cat.label)}</span>${renameBtn}</h2>
-    <p>${countLabel}</p></div>`;
-
-  html += `<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:20px">`;
-  html += `<div class="view-toggle" role="tablist" aria-label="View mode" style="margin-bottom:0">
-    <button class="view-btn active" role="tab" aria-selected="true" tabindex="0" ${categoryPageActionAttrs('switch-view', { category: categoryKey, view: 'charts' })}>Charts</button>
-    <button class="view-btn" role="tab" aria-selected="false" tabindex="-1" ${categoryPageActionAttrs('switch-view', { category: categoryKey, view: 'table' })}>Table</button>
-    <button class="view-btn" role="tab" aria-selected="false" tabindex="-1" ${categoryPageActionAttrs('switch-view', { category: categoryKey, view: 'heatmap' })}>Heatmap</button></div>`;
-  html += renderDateRangeFilter();
-  html += renderChartLayersDropdown();
-  html += `</div>`;
-
-  html += `<div id="view-content">`;
-  if (withData.length === 0) {
-    html += state.dateRangeFilter !== 'all' && rawWithData > 0
-      ? renderNoResultsInRange(cat, categoryKey)
-      : `<div class="empty-state"><div class="empty-state-icon empty-state-icon-category">${renderCategoryGlyph(categoryKey, cat.label, { large: true })}</div>
-        <h3>No Data Available</h3><p>Import lab results containing ${escapeHTML(cat.label.toLowerCase())} markers to see data here.</p></div>`;
-  } else if (cat.singleDate) {
-    html += renderFattyAcidsView(cat, categoryKey);
-  } else {
-    sortCategoryChartEntries(withData, categoryKey);
-    html += `<div class="charts-grid">`;
-    for (const [key, marker] of withData) {
-      // Skip legacy customMarkers with unsafe keys — they can't be safely
-      // embedded in inline-onclick handlers.
-      if (!safeMarkerId(key)) continue;
-      html += renderChartCard(categoryKey + "_" + key, marker, data.dateLabels, data.dates);
-    }
-    html += `</div>`;
-    html += renderMarkerDataGapSections(allEntries, rawCat, categoryKey);
+  const glyph={code:`${getCategoryGlyphCode(categoryKey,cat.label)}`,large:false};
+  const label=categoryLiteral(cat.label);
+  const range=projectDateRangeFilter();
+  const layers=projectChartLayersDropdown();
+  let body:CategoryPageBodyView;
+  if(withData.length===0){
+    body=state.dateRangeFilter!=='all'&&rawWithData>0?projectNoResultsInRange(cat,categoryKey):{
+      kind:'empty-category',glyph:{code:`${getCategoryGlyphCode(categoryKey,cat.label)}`,large:true},lowercaseLabel:categoryLiteral(cat.label.toLowerCase())};
+  }else if(cat.singleDate)body={kind:'fatty',view:projectCategoryFattyAcids(cat,categoryKey)};
+  else {
+    sortCategoryChartEntries(withData,categoryKey);
+    const cards=[];
+    for(const [key,marker]of withData){if(!safeMarkerId(key))continue;const card=projectCategoryChartCard(categoryKey+'_'+key,marker,data.dateLabels,data.dates);if(card)cards.push(card);}
+    body={kind:'charts',cards,gaps:projectMarkerDataGapSections(allEntries,rawCat,categoryKey)};
   }
-  html += `</div>`;
-  main.innerHTML = html;
+  main.innerHTML=renderCategoryPagePresentation({key:categoryKey,glyph,label,countLabel,range,layers,body});
 
   const savedView = state.categoryView;
   if (savedView === 'table' || savedView === 'heatmap') {
@@ -242,7 +206,7 @@ export function switchView(view:string, categoryKey:string, btn:Element) {
   const container = document.getElementById("view-content");
   if (!container) return;
   state.categoryView = view;
-  document.querySelectorAll(".view-btn").forEach(b => {
+  document.querySelectorAll('.view-toggle .view-btn[role="tab"]').forEach(b => {
     b.classList.remove("active");
     b.setAttribute('aria-selected', 'false');
     b.setAttribute('tabindex', '-1');
@@ -265,16 +229,16 @@ export function switchView(view:string, categoryKey:string, btn:Element) {
   const categoryHasVisibleData = Object.values(cat.markers || {}).some(markerHasData);
   const categoryHasHistoricalData = Object.values(rawCat?.markers || {}).some(markerHasData);
   if (state.dateRangeFilter !== 'all' && !categoryHasVisibleData && categoryHasHistoricalData) {
-    container.innerHTML = renderNoResultsInRange(cat, categoryKey);
+    container.innerHTML = renderCategoryPageBody(projectNoResultsInRange(cat, categoryKey));
     return;
   }
   if (view === "table") {
-    container.innerHTML = renderTableView(cat, safeLabels, categoryKey, data.dates);
+    container.innerHTML = renderCategoryPageBody({kind:'table',view:projectCategoryTable(cat, safeLabels, categoryKey, data.dates)});
   } else if (view === "heatmap") {
-    container.innerHTML = renderHeatmapView(cat, safeLabels, categoryKey);
+    container.innerHTML = renderCategoryPageBody({kind:'heatmap',view:projectCategoryHeatmap(cat, safeLabels, categoryKey)});
   } else {
     if (cat.singleDate) {
-      container.innerHTML = renderFattyAcidsView(cat, categoryKey);
+      container.innerHTML = renderCategoryPageBody({kind:'fatty',view:projectCategoryFattyAcids(cat, categoryKey)});
       renderFattyAcidsCharts(cat);
     } else {
       // Per-key safety check skips legacy customMarkers with unsafe keys so
@@ -282,19 +246,15 @@ export function switchView(view:string, categoryKey:string, btn:Element) {
       const withData = Object.entries(cat.markers).filter(([key, m]) => markerHasData(m) && safeMarkerId(key)) as Array<[string, CategoryPageMarker & {values:unknown[]}]>;
       if (withData.length === 0) {
         container.innerHTML = state.dateRangeFilter !== 'all' && categoryHasHistoricalData
-          ? renderNoResultsInRange(cat, categoryKey)
-          : `<div class="empty-state"><h3>No Data Available</h3><p>Import lab results to see marker charts here.</p></div>`;
+          ? renderCategoryPageBody(projectNoResultsInRange(cat, categoryKey))
+          : renderCategoryPageBody({kind:'empty-charts'});
         return;
       }
       sortCategoryChartEntries(withData, categoryKey);
-      let html = `<div class="charts-grid">`;
-      for (const [key, marker] of withData) {
-        html += renderChartCard(categoryKey + "_" + key, marker, data.dateLabels, data.dates);
-      }
-      html += `</div>`;
-      const allEntries = Object.entries(cat.markers).filter(([, marker]) => !marker.hidden);
-      html += renderMarkerDataGapSections(allEntries, rawCat, categoryKey);
-      container.innerHTML = html;
+      const cards=[];
+      for(const [key,marker]of withData){const card=projectCategoryChartCard(categoryKey+'_'+key,marker,data.dateLabels,data.dates);if(card)cards.push(card);}
+      const allEntries=Object.entries(cat.markers).filter(([,marker])=>!marker.hidden);
+      container.innerHTML=renderCategoryPageBody({kind:'charts',cards,gaps:projectMarkerDataGapSections(allEntries,rawCat,categoryKey)});
       for (const [key, marker] of withData) {
         (createLineChart as (id:string,marker:unknown,labels:unknown,dates:unknown,phases:unknown,context:unknown)=>ReturnType<typeof createLineChart>)(categoryKey + "_" + key, marker, data.dateLabels, data.dates, data.phaseLabels, {
           displayLabels: data.phaseDisplayLabels,

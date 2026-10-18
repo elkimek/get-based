@@ -6,7 +6,7 @@ export interface AppleHealthZipEntry { async(type: 'blob'): Promise<Blob> }
 export interface AppleHealthZipReader {
   loadAsync(file: Blob, options: { onUpdate: (event: { percent: number }) => void }): Promise<{ files: Record<string, AppleHealthZipEntry> }>;
 }
-type CycleImportLoader = typeof import('./cycle-import-loader.js');
+type CycleImportLoader = typeof import('./cycle-import-runtime.js');
 interface AppleHealthRuntimeDeps {
   parseCycleBlob: CycleImportLoader['parseAppleHealthCycleBlob'] | null;
   showCyclePreview: CycleImportLoader['showCycleImportPreview'] | null;

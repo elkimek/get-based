@@ -104,3 +104,40 @@ it.each(['close','fullscreen','rail'] as const)('retires a live drag at the %s s
   expect(document.body.classList.contains('chat-layout-resizing')).toBe(false);
   expect(localStorage.getItem(boundary==='rail'?'labcharts-chat-rail-width':'labcharts-chat-panel-with-rail-width')).toBeNull();
 });
+
+it('keeps the closed rail inert and restores the same live controls on desktop and mobile',()=>{
+ const rail=element('chat-thread-rail'),search=element('chat-thread-search');
+ expect(rail.hasAttribute('inert')).toBe(true);
+ for(const width of [1400,390]){
+  vi.stubGlobal('innerWidth',width);rail.classList.add('open');syncChatLayout();
+  expect(rail.inert).toBe(false);expect(element('chat-thread-search')).toBe(search);
+  rail.classList.remove('open');syncChatLayout();expect(rail.inert).toBe(true);
+ }
+});
+it('returns focus from a closing rail to its live header toggle without taking over panel close',()=>{
+ const rail=element('chat-thread-rail'),toggle=document.querySelector<HTMLButtonElement>('.chat-rail-toggle')!,close=rail.querySelector<HTMLButtonElement>('.chat-rail-back')!;
+ rail.classList.add('open');syncChatLayout();close.focus();expect(document.activeElement).toBe(close);
+ rail.classList.remove('open');syncChatLayout();expect(rail.inert).toBe(true);expect(document.activeElement).toBe(toggle);
+ rail.classList.add('open');syncChatLayout();close.focus();element('chat-panel').classList.remove('open');syncChatLayout();
+ expect(rail.inert).toBe(true);expect(document.activeElement).not.toBe(toggle);
+});
+it('does not steal external focus or let a retired rail update the current owner',async()=>{
+ const oldRail=element('chat-thread-rail');oldRail.classList.add('open');syncChatLayout();
+ const outside=document.createElement('button');document.body.append(outside);outside.focus();oldRail.classList.remove('open');syncChatLayout();expect(document.activeElement).toBe(outside);
+ mountShell();await Promise.resolve();const current=element('chat-thread-rail');expect(current).not.toBe(oldRail);
+ oldRail.classList.add('open');syncChatLayout();expect(current.inert).toBe(true);
+});
+
+it('focuses the visible mobile rail only for explicit opening and preserves restored preference focus',async()=>{
+ const {toggleThreadRail,restoreRailState}=await import('../js/chat-threads.js');
+ const {state}=await import('../js/state.js');
+ const rail=element('chat-thread-rail'),toggle=document.querySelector<HTMLButtonElement>('.chat-rail-toggle')!,close=rail.querySelector<HTMLButtonElement>('.chat-rail-back')!,input=element('chat-input');
+ for(const width of [1400,390]){
+  vi.stubGlobal('innerWidth',width);vi.stubGlobal('matchMedia',vi.fn((query:string)=>({matches:query.includes('max-width')?width<=768:width>=769})));
+  rail.classList.remove('open');syncChatLayout();toggle.focus();toggleThreadRail();
+  expect(rail.inert).toBe(false);expect(document.activeElement).toBe(width<=768?close:toggle);
+  toggleThreadRail();expect(rail.inert).toBe(true);expect(document.activeElement).toBe(toggle);
+  localStorage.setItem(`labcharts-${state.currentProfile}-chatRailOpen`,'true');input.focus();restoreRailState();
+  expect(rail.inert).toBe(false);expect(document.activeElement).toBe(input);
+ }
+});

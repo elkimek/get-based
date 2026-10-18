@@ -1,0 +1,3411 @@
+{
+  "devicePersistence": {
+    "rawProtectedPayload": "{\"version\":1,\"connection\":{\"connectedAt\":1786017600000,\"lastSyncAt\":1786103400000,\"accessToken\":\"synthetic-only-not-a-real-credential\",\"expiresAt\":1893456000000},\"summary\":{\"source\":{\"connectedSince\":1786017600000,\"lastSyncAt\":1786103400000,\"coverageDays\":7},\"metrics\":{\"rhr\":{\"primarySource\":\"whoop\",\"latest\":58,\"latestDate\":\"2026-08-07\",\"baseline\":60,\"baselineP25\":57,\"baselineP75\":62,\"rolling\":{\"d7\":58,\"d30\":60,\"d90\":60},\"trend30d\":\"improving\",\"weekly\":[60,59,58]}}}}",
+    "manualMigration": {
+      "k": "biometrics-migrated-v1",
+      "v": {
+        "at": 1786104000000,
+        "counts": {}
+      },
+      "updatedAt": 1786104000000
+    },
+    "stored": {
+      "entries": [
+        {
+          "date": "2024-05-10",
+          "sourceFile": "synthetic-biometric-profile.pdf",
+          "markers": {
+            "biochemistry.glucose": 5,
+            "iron.ferritin": 65
+          }
+        }
+      ],
+      "notes": [
+        {
+          "date": "2023-12-01",
+          "text": "Keep unrelated Biometrics note <&>"
+        }
+      ],
+      "supplements": [],
+      "healthGoals": [],
+      "diagnoses": null,
+      "diet": null,
+      "exercise": null,
+      "sleepRest": null,
+      "lightCircadian": null,
+      "stress": null,
+      "loveLife": null,
+      "environment": null,
+      "interpretiveLens": "",
+      "contextNotes": "Keep unrelated Biometrics context",
+      "menstrualCycle": null,
+      "emfAssessment": null,
+      "genetics": null,
+      "customMarkers": {},
+      "markerPlacements": {},
+      "markerNotes": {
+        "iron.ferritin": "Keep unrelated marker note"
+      },
+      "markerValueNotes": {},
+      "biologyScoreAI": {},
+      "contextSourceSettings": {},
+      "nutritionContextDays": 30,
+      "nutritionTargets": null,
+      "nutritionMeals": [],
+      "changeHistory": [],
+      "importSnapshots": [],
+      "biometrics": null,
+      "manualValues": {},
+      "manualMetricTombstones": {},
+      "sunSessions": [],
+      "deviceSessions": [],
+      "lightDevices": [],
+      "lightEnvironment": {
+        "rooms": [],
+        "screens": []
+      },
+      "lightMeasurements": [],
+      "lightAudits": [],
+      "sunCorrelations": null,
+      "lifelightProfile": null,
+      "sunDefaults": {},
+      "wearableConnections": {},
+      "wearableSummary": {
+        "summaryUpdatedAt": "2026-08-07T11:50:00Z",
+        "sources": {},
+        "metrics": {}
+      },
+      "importBenchmarks": [],
+      "lightDailyVerdicts": {},
+      "_deviceProtectedWearableProfile": "v1"
+    },
+    "rawStored": "{\"entries\":[{\"date\":\"2024-05-10\",\"sourceFile\":\"synthetic-biometric-profile.pdf\",\"markers\":{\"biochemistry.glucose\":5,\"iron.ferritin\":65}}],\"notes\":[{\"date\":\"2023-12-01\",\"text\":\"Keep unrelated Biometrics note <&>\"}],\"supplements\":[],\"healthGoals\":[],\"diagnoses\":null,\"diet\":null,\"exercise\":null,\"sleepRest\":null,\"lightCircadian\":null,\"stress\":null,\"loveLife\":null,\"environment\":null,\"interpretiveLens\":\"\",\"contextNotes\":\"Keep unrelated Biometrics context\",\"menstrualCycle\":null,\"emfAssessment\":null,\"genetics\":null,\"customMarkers\":{},\"markerPlacements\":{},\"markerNotes\":{\"iron.ferritin\":\"Keep unrelated marker note\"},\"markerValueNotes\":{},\"biologyScoreAI\":{},\"contextSourceSettings\":{},\"nutritionContextDays\":30,\"nutritionTargets\":null,\"nutritionMeals\":[],\"changeHistory\":[],\"importSnapshots\":[],\"biometrics\":null,\"manualValues\":{},\"manualMetricTombstones\":{},\"sunSessions\":[],\"deviceSessions\":[],\"lightDevices\":[],\"lightEnvironment\":{\"rooms\":[],\"screens\":[]},\"lightMeasurements\":[],\"lightAudits\":[],\"sunCorrelations\":null,\"lifelightProfile\":null,\"sunDefaults\":{},\"wearableConnections\":{},\"wearableSummary\":{\"summaryUpdatedAt\":\"2026-08-07T11:50:00Z\",\"sources\":{},\"metrics\":{}},\"importBenchmarks\":[],\"lightDailyVerdicts\":{},\"_deviceProtectedWearableProfile\":\"v1\"}",
+    "protectedPayload": {
+      "version": 1,
+      "connection": {
+        "connectedAt": 1786017600000,
+        "lastSyncAt": 1786103400000,
+        "accessToken": "synthetic-only-not-a-real-credential",
+        "expiresAt": 1893456000000
+      },
+      "summary": {
+        "source": {
+          "connectedSince": 1786017600000,
+          "lastSyncAt": 1786103400000,
+          "coverageDays": 7
+        },
+        "metrics": {
+          "rhr": {
+            "primarySource": "whoop",
+            "latest": 58,
+            "latestDate": "2026-08-07",
+            "baseline": 60,
+            "baselineP25": 57,
+            "baselineP75": 62,
+            "rolling": {
+              "d7": 58,
+              "d30": 60,
+              "d90": 60
+            },
+            "trend30d": "improving",
+            "weekly": [
+              60,
+              59,
+              58
+            ]
+          }
+        }
+      }
+    },
+    "schema": [
+      {
+        "name": "daily-metrics",
+        "keyPath": [
+          "source",
+          "date"
+        ],
+        "autoIncrement": false,
+        "indexes": [
+          {
+            "name": "by_date",
+            "keyPath": "date",
+            "unique": false,
+            "multiEntry": false
+          },
+          {
+            "name": "by_source",
+            "keyPath": "source",
+            "unique": false,
+            "multiEntry": false
+          }
+        ]
+      },
+      {
+        "name": "meta",
+        "keyPath": "k",
+        "autoIncrement": false,
+        "indexes": []
+      }
+    ],
+    "keyDescriptor": {
+      "type": "secret",
+      "extractable": false,
+      "algorithm": {
+        "name": "AES-GCM",
+        "length": 256
+      },
+      "usages": [
+        "encrypt",
+        "decrypt"
+      ]
+    }
+  },
+  "widgetPreferences": {
+    "initial": null,
+    "saved": "{\"order\":[\"biology-score-biologicalCoherence\",\"focus\",\"spotlight\",\"quick-markers\",\"key-trends\",\"recommendations\",\"profile-context\",\"wearables\",\"nutrition\",\"bio-age\",\"biology-score-metabolicFlexibility\",\"biology-score-thyroidCoherence\",\"biology-score-cardiovascularLipoprotein\",\"biology-score-redoxStress\",\"biology-score-lipidMembrane\",\"biology-score-bloodFlowViscosity\",\"biology-score-ironHandling\",\"biology-score-oneCarbonCoherence\",\"biology-score-fluidFiltrationCoherence\",\"biology-score-liverBileSignal\",\"biology-score-boneMineralSignal\",\"biology-score-immuneCellBalance\",\"biology-score-anabolicRecoverySignal\",\"biology-score-cellularEnergyCoherence\",\"biology-score-stressResilience\",\"biology-score-hormoneAxis\",\"biology-score-gutImmuneSignal\",\"biology-score-nerveMuscleSignal\",\"nutrition-fuel-mix\",\"insights\",\"genome\",\"alerts\",\"correlation\",\"light-today\",\"light-conditions-now\",\"light-live-session\",\"light-session-log\",\"light-channels\",\"supplements\",\"notes\"],\"hidden\":[\"biology-score-thyroidCoherence\",\"biology-score-cardiovascularLipoprotein\",\"biology-score-redoxStress\",\"biology-score-lipidMembrane\",\"biology-score-bloodFlowViscosity\",\"biology-score-ironHandling\",\"biology-score-oneCarbonCoherence\",\"biology-score-fluidFiltrationCoherence\",\"biology-score-liverBileSignal\",\"biology-score-boneMineralSignal\",\"biology-score-immuneCellBalance\",\"biology-score-anabolicRecoverySignal\",\"biology-score-cellularEnergyCoherence\",\"biology-score-stressResilience\",\"biology-score-hormoneAxis\",\"biology-score-gutImmuneSignal\",\"biology-score-nerveMuscleSignal\",\"nutrition-fuel-mix\",\"insights\",\"genome\",\"alerts\",\"correlation\",\"light-today\",\"light-conditions-now\",\"light-live-session\",\"light-session-log\",\"light-channels\",\"supplements\",\"notes\"]}"
+  },
+  "seed": {
+    "entries": [
+      {
+        "date": "2024-05-10",
+        "sourceFile": "synthetic-biometric-profile.pdf",
+        "markers": {
+          "biochemistry.glucose": 5,
+          "iron.ferritin": 65
+        }
+      }
+    ],
+    "notes": [
+      {
+        "date": "2023-12-01",
+        "text": "Keep unrelated Biometrics note <&>"
+      }
+    ],
+    "supplements": [],
+    "healthGoals": [],
+    "diagnoses": null,
+    "diet": null,
+    "exercise": null,
+    "sleepRest": null,
+    "lightCircadian": null,
+    "stress": null,
+    "loveLife": null,
+    "environment": null,
+    "interpretiveLens": "",
+    "contextNotes": "Keep unrelated Biometrics context",
+    "menstrualCycle": null,
+    "emfAssessment": null,
+    "genetics": null,
+    "customMarkers": {},
+    "markerPlacements": {},
+    "markerNotes": {
+      "iron.ferritin": "Keep unrelated marker note"
+    },
+    "markerValueNotes": {},
+    "biologyScoreAI": {},
+    "contextSourceSettings": {},
+    "nutritionContextDays": 30,
+    "nutritionTargets": null,
+    "nutritionMeals": [],
+    "changeHistory": [],
+    "importSnapshots": [],
+    "biometrics": null,
+    "manualValues": {},
+    "manualMetricTombstones": {},
+    "sunSessions": [],
+    "deviceSessions": [],
+    "lightDevices": [],
+    "lightEnvironment": {
+      "rooms": [],
+      "screens": []
+    },
+    "lightMeasurements": [],
+    "lightAudits": [],
+    "sunCorrelations": null,
+    "lifelightProfile": null,
+    "sunDefaults": {},
+    "wearableConnections": {
+      "whoop": {
+        "connectedAt": 1786017600000,
+        "lastSyncAt": 1786103400000,
+        "accessToken": "synthetic-only-not-a-real-credential",
+        "expiresAt": 1893456000000
+      }
+    },
+    "wearableSummary": {
+      "summaryUpdatedAt": "2026-08-07T11:50:00Z",
+      "sources": {
+        "whoop": {
+          "connectedSince": 1786017600000,
+          "lastSyncAt": 1786103400000,
+          "coverageDays": 7
+        }
+      },
+      "metrics": {
+        "rhr": {
+          "primarySource": "whoop",
+          "latest": 58,
+          "latestDate": "2026-08-07",
+          "baseline": 60,
+          "baselineP25": 57,
+          "baselineP75": 62,
+          "rolling": {
+            "d7": 58,
+            "d30": 60,
+            "d90": 60
+          },
+          "trend30d": "improving",
+          "weekly": [
+            60,
+            59,
+            58
+          ]
+        }
+      }
+    },
+    "importBenchmarks": [],
+    "lightDailyVerdicts": {}
+  },
+  "profileKeys": [
+    "entries",
+    "notes",
+    "supplements",
+    "healthGoals",
+    "diagnoses",
+    "diet",
+    "exercise",
+    "sleepRest",
+    "lightCircadian",
+    "stress",
+    "loveLife",
+    "environment",
+    "interpretiveLens",
+    "contextNotes",
+    "menstrualCycle",
+    "emfAssessment",
+    "genetics",
+    "customMarkers",
+    "markerPlacements",
+    "markerNotes",
+    "markerValueNotes",
+    "biologyScoreAI",
+    "contextSourceSettings",
+    "nutritionContextDays",
+    "nutritionTargets",
+    "nutritionMeals",
+    "changeHistory",
+    "importSnapshots",
+    "biometrics",
+    "manualValues",
+    "manualMetricTombstones",
+    "sunSessions",
+    "deviceSessions",
+    "lightDevices",
+    "lightEnvironment",
+    "lightMeasurements",
+    "lightAudits",
+    "sunCorrelations",
+    "lifelightProfile",
+    "sunDefaults",
+    "wearableConnections",
+    "wearableSummary",
+    "importBenchmarks",
+    "lightDailyVerdicts"
+  ],
+  "originalControllerSHA256": "de8ad177fa54fb9558a1587f5bf8a06a908a391fe9d4175e0bdb2d9cfb12ffe1",
+  "receipts": {
+    "fresh-pair": {
+      "children": [
+        {
+          "type": 1,
+          "name": "div",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [
+            [
+              "class",
+              "db-biometric-overview-bar"
+            ]
+          ],
+          "children": [
+            {
+              "type": 3,
+              "text": "\n      "
+            },
+            {
+              "type": 1,
+              "name": "span",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "2 metrics selected"
+                }
+              ]
+            },
+            {
+              "type": 3,
+              "text": "\n      "
+            },
+            {
+              "type": 1,
+              "name": "div",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "db-biometric-overview-actions"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n        "
+                },
+                {
+                  "type": 1,
+                  "name": "span",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "class",
+                      "db-biometric-sync-status"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "Updated 10m ago"
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n      \n        "
+                },
+                {
+                  "type": 1,
+                  "name": "button",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "type",
+                      "button"
+                    ],
+                    [
+                      "class",
+                      "dashboard-action-btn"
+                    ],
+                    [
+                      "data-dashboard-widget-action",
+                      "open-biometric-picker"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "Add metrics"
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n      "
+                }
+              ]
+            },
+            {
+              "type": 3,
+              "text": "\n    "
+            }
+          ]
+        },
+        {
+          "type": 1,
+          "name": "div",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [
+            [
+              "class",
+              "db-wearable-grid db-biometric-overview-grid"
+            ]
+          ],
+          "children": [
+            {
+              "type": 1,
+              "name": "div",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "db-biometric-tile-wrap"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n      "
+                },
+                {
+                  "type": 1,
+                  "name": "button",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "type",
+                      "button"
+                    ],
+                    [
+                      "class",
+                      "db-wearable-tile db-biometric-widget"
+                    ],
+                    [
+                      "data-dashboard-widget-action",
+                      "open-biometric-detail"
+                    ],
+                    [
+                      "data-dashboard-widget-id",
+                      "rhr"
+                    ],
+                    [
+                      "aria-label",
+                      "Resting HR: 58 bpm"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "\n        "
+                    },
+                    {
+                      "type": 1,
+                      "name": "span",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "class",
+                          "db-wearable-label"
+                        ]
+                      ],
+                      "children": [
+                        {
+                          "type": 3,
+                          "text": "Resting HR"
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n        "
+                    },
+                    {
+                      "type": 1,
+                      "name": "strong",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [],
+                      "children": [
+                        {
+                          "type": 3,
+                          "text": "58"
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n        "
+                    },
+                    {
+                      "type": 1,
+                      "name": "span",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "class",
+                          "db-wearable-foot"
+                        ]
+                      ],
+                      "children": [
+                        {
+                          "type": 1,
+                          "name": "small",
+                          "namespace": "http://www.w3.org/1999/xhtml",
+                          "attributes": [],
+                          "children": [
+                            {
+                              "type": 3,
+                              "text": "bpm"
+                            }
+                          ]
+                        },
+                        {
+                          "type": 1,
+                          "name": "em",
+                          "namespace": "http://www.w3.org/1999/xhtml",
+                          "attributes": [],
+                          "children": [
+                            {
+                              "type": 3,
+                              "text": "↓ 3%"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n      "
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n      "
+                },
+                {
+                  "type": 1,
+                  "name": "button",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "type",
+                      "button"
+                    ],
+                    [
+                      "class",
+                      "db-biometric-remove"
+                    ],
+                    [
+                      "data-dashboard-widget-action",
+                      "remove-biometric-metric"
+                    ],
+                    [
+                      "data-dashboard-widget-id",
+                      "rhr"
+                    ],
+                    [
+                      "aria-label",
+                      "Remove Resting HR from Biometrics Overview"
+                    ],
+                    [
+                      "title",
+                      "Remove metric"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "×"
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n    "
+                }
+              ]
+            },
+            {
+              "type": 1,
+              "name": "div",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "db-biometric-tile-wrap"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n        "
+                },
+                {
+                  "type": 1,
+                  "name": "div",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "class",
+                      "wearable-card wearable-card-empty db-biometric-manual-empty"
+                    ],
+                    [
+                      "data-empty-metric",
+                      "bp_systolic"
+                    ],
+                    [
+                      "data-dashboard-widget-action",
+                      "open-biometric-manual-log"
+                    ],
+                    [
+                      "data-dashboard-widget-id",
+                      "bp_systolic"
+                    ],
+                    [
+                      "role",
+                      "button"
+                    ],
+                    [
+                      "tabindex",
+                      "0"
+                    ],
+                    [
+                      "aria-label",
+                      "Log blood pressure manually"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "\n          "
+                    },
+                    {
+                      "type": 1,
+                      "name": "div",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "class",
+                          "wearable-card-top"
+                        ]
+                      ],
+                      "children": [
+                        {
+                          "type": 1,
+                          "name": "span",
+                          "namespace": "http://www.w3.org/1999/xhtml",
+                          "attributes": [
+                            [
+                              "class",
+                              "wearable-metric-name"
+                            ]
+                          ],
+                          "children": [
+                            {
+                              "type": 3,
+                              "text": "Blood pressure"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n          "
+                    },
+                    {
+                      "type": 1,
+                      "name": "div",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "class",
+                          "wearable-value-row wearable-value-row-empty"
+                        ]
+                      ],
+                      "children": [
+                        {
+                          "type": 1,
+                          "name": "span",
+                          "namespace": "http://www.w3.org/1999/xhtml",
+                          "attributes": [
+                            [
+                              "class",
+                              "wearable-value wearable-value-dash"
+                            ]
+                          ],
+                          "children": [
+                            {
+                              "type": 3,
+                              "text": "-"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n          "
+                    },
+                    {
+                      "type": 1,
+                      "name": "div",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "class",
+                          "wearable-card-bottom"
+                        ]
+                      ],
+                      "children": [
+                        {
+                          "type": 1,
+                          "name": "div",
+                          "namespace": "http://www.w3.org/1999/xhtml",
+                          "attributes": [
+                            [
+                              "class",
+                              "wearable-empty-cta"
+                            ]
+                          ],
+                          "children": [
+                            {
+                              "type": 3,
+                              "text": "+ Log"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n        "
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n        "
+                },
+                {
+                  "type": 1,
+                  "name": "button",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "type",
+                      "button"
+                    ],
+                    [
+                      "class",
+                      "db-biometric-remove"
+                    ],
+                    [
+                      "data-dashboard-widget-action",
+                      "remove-biometric-metric"
+                    ],
+                    [
+                      "data-dashboard-widget-id",
+                      "bp_systolic"
+                    ],
+                    [
+                      "aria-label",
+                      "Remove Blood pressure from Biometrics Overview"
+                    ],
+                    [
+                      "title",
+                      "Remove metric"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "×"
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n      "
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "tag": "button",
+          "attributes": [
+            [
+              "type",
+              "button"
+            ],
+            [
+              "class",
+              "dashboard-action-btn"
+            ],
+            [
+              "data-dashboard-widget-action",
+              "open-biometric-picker"
+            ]
+          ]
+        },
+        {
+          "tag": "button",
+          "attributes": [
+            [
+              "type",
+              "button"
+            ],
+            [
+              "class",
+              "db-wearable-tile db-biometric-widget"
+            ],
+            [
+              "data-dashboard-widget-action",
+              "open-biometric-detail"
+            ],
+            [
+              "data-dashboard-widget-id",
+              "rhr"
+            ],
+            [
+              "aria-label",
+              "Resting HR: 58 bpm"
+            ]
+          ]
+        },
+        {
+          "tag": "button",
+          "attributes": [
+            [
+              "type",
+              "button"
+            ],
+            [
+              "class",
+              "db-biometric-remove"
+            ],
+            [
+              "data-dashboard-widget-action",
+              "remove-biometric-metric"
+            ],
+            [
+              "data-dashboard-widget-id",
+              "rhr"
+            ],
+            [
+              "aria-label",
+              "Remove Resting HR from Biometrics Overview"
+            ],
+            [
+              "title",
+              "Remove metric"
+            ]
+          ]
+        },
+        {
+          "tag": "div",
+          "attributes": [
+            [
+              "class",
+              "wearable-card wearable-card-empty db-biometric-manual-empty"
+            ],
+            [
+              "data-empty-metric",
+              "bp_systolic"
+            ],
+            [
+              "data-dashboard-widget-action",
+              "open-biometric-manual-log"
+            ],
+            [
+              "data-dashboard-widget-id",
+              "bp_systolic"
+            ],
+            [
+              "role",
+              "button"
+            ],
+            [
+              "tabindex",
+              "0"
+            ],
+            [
+              "aria-label",
+              "Log blood pressure manually"
+            ]
+          ]
+        },
+        {
+          "tag": "button",
+          "attributes": [
+            [
+              "type",
+              "button"
+            ],
+            [
+              "class",
+              "db-biometric-remove"
+            ],
+            [
+              "data-dashboard-widget-action",
+              "remove-biometric-metric"
+            ],
+            [
+              "data-dashboard-widget-id",
+              "bp_systolic"
+            ],
+            [
+              "aria-label",
+              "Remove Blood pressure from Biometrics Overview"
+            ],
+            [
+              "title",
+              "Remove metric"
+            ]
+          ]
+        }
+      ],
+      "count": "2 metrics selected"
+    },
+    "stale-pair": {
+      "children": [
+        {
+          "type": 1,
+          "name": "div",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [
+            [
+              "class",
+              "db-biometric-overview-bar"
+            ]
+          ],
+          "children": [
+            {
+              "type": 3,
+              "text": "\n      "
+            },
+            {
+              "type": 1,
+              "name": "span",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "2 metrics selected"
+                }
+              ]
+            },
+            {
+              "type": 3,
+              "text": "\n      "
+            },
+            {
+              "type": 1,
+              "name": "div",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "db-biometric-overview-actions"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n        "
+                },
+                {
+                  "type": 1,
+                  "name": "span",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "class",
+                      "db-biometric-sync-status is-stale"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "Updated 13h ago"
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n      "
+                },
+                {
+                  "type": 1,
+                  "name": "button",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "type",
+                      "button"
+                    ],
+                    [
+                      "class",
+                      "dashboard-action-btn db-biometric-sync-btn"
+                    ],
+                    [
+                      "data-dashboard-widget-action",
+                      "sync-biometric-now"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "Sync stale data"
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n        "
+                },
+                {
+                  "type": 1,
+                  "name": "button",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "type",
+                      "button"
+                    ],
+                    [
+                      "class",
+                      "dashboard-action-btn"
+                    ],
+                    [
+                      "data-dashboard-widget-action",
+                      "open-biometric-picker"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "Add metrics"
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n      "
+                }
+              ]
+            },
+            {
+              "type": 3,
+              "text": "\n    "
+            }
+          ]
+        },
+        {
+          "type": 1,
+          "name": "div",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [
+            [
+              "class",
+              "db-wearable-grid db-biometric-overview-grid"
+            ]
+          ],
+          "children": [
+            {
+              "type": 1,
+              "name": "div",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "db-biometric-tile-wrap"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n      "
+                },
+                {
+                  "type": 1,
+                  "name": "button",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "type",
+                      "button"
+                    ],
+                    [
+                      "class",
+                      "db-wearable-tile db-biometric-widget"
+                    ],
+                    [
+                      "data-dashboard-widget-action",
+                      "open-biometric-detail"
+                    ],
+                    [
+                      "data-dashboard-widget-id",
+                      "rhr"
+                    ],
+                    [
+                      "aria-label",
+                      "Resting HR: 58 bpm"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "\n        "
+                    },
+                    {
+                      "type": 1,
+                      "name": "span",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "class",
+                          "db-wearable-label"
+                        ]
+                      ],
+                      "children": [
+                        {
+                          "type": 3,
+                          "text": "Resting HR"
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n        "
+                    },
+                    {
+                      "type": 1,
+                      "name": "strong",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [],
+                      "children": [
+                        {
+                          "type": 3,
+                          "text": "58"
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n        "
+                    },
+                    {
+                      "type": 1,
+                      "name": "span",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "class",
+                          "db-wearable-foot"
+                        ]
+                      ],
+                      "children": [
+                        {
+                          "type": 1,
+                          "name": "small",
+                          "namespace": "http://www.w3.org/1999/xhtml",
+                          "attributes": [],
+                          "children": [
+                            {
+                              "type": 3,
+                              "text": "bpm"
+                            }
+                          ]
+                        },
+                        {
+                          "type": 1,
+                          "name": "em",
+                          "namespace": "http://www.w3.org/1999/xhtml",
+                          "attributes": [],
+                          "children": [
+                            {
+                              "type": 3,
+                              "text": "↓ 3%"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n      "
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n      "
+                },
+                {
+                  "type": 1,
+                  "name": "button",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "type",
+                      "button"
+                    ],
+                    [
+                      "class",
+                      "db-biometric-remove"
+                    ],
+                    [
+                      "data-dashboard-widget-action",
+                      "remove-biometric-metric"
+                    ],
+                    [
+                      "data-dashboard-widget-id",
+                      "rhr"
+                    ],
+                    [
+                      "aria-label",
+                      "Remove Resting HR from Biometrics Overview"
+                    ],
+                    [
+                      "title",
+                      "Remove metric"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "×"
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n    "
+                }
+              ]
+            },
+            {
+              "type": 1,
+              "name": "div",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "db-biometric-tile-wrap"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n        "
+                },
+                {
+                  "type": 1,
+                  "name": "div",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "class",
+                      "wearable-card wearable-card-empty db-biometric-manual-empty"
+                    ],
+                    [
+                      "data-empty-metric",
+                      "bp_systolic"
+                    ],
+                    [
+                      "data-dashboard-widget-action",
+                      "open-biometric-manual-log"
+                    ],
+                    [
+                      "data-dashboard-widget-id",
+                      "bp_systolic"
+                    ],
+                    [
+                      "role",
+                      "button"
+                    ],
+                    [
+                      "tabindex",
+                      "0"
+                    ],
+                    [
+                      "aria-label",
+                      "Log blood pressure manually"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "\n          "
+                    },
+                    {
+                      "type": 1,
+                      "name": "div",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "class",
+                          "wearable-card-top"
+                        ]
+                      ],
+                      "children": [
+                        {
+                          "type": 1,
+                          "name": "span",
+                          "namespace": "http://www.w3.org/1999/xhtml",
+                          "attributes": [
+                            [
+                              "class",
+                              "wearable-metric-name"
+                            ]
+                          ],
+                          "children": [
+                            {
+                              "type": 3,
+                              "text": "Blood pressure"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n          "
+                    },
+                    {
+                      "type": 1,
+                      "name": "div",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "class",
+                          "wearable-value-row wearable-value-row-empty"
+                        ]
+                      ],
+                      "children": [
+                        {
+                          "type": 1,
+                          "name": "span",
+                          "namespace": "http://www.w3.org/1999/xhtml",
+                          "attributes": [
+                            [
+                              "class",
+                              "wearable-value wearable-value-dash"
+                            ]
+                          ],
+                          "children": [
+                            {
+                              "type": 3,
+                              "text": "-"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n          "
+                    },
+                    {
+                      "type": 1,
+                      "name": "div",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "class",
+                          "wearable-card-bottom"
+                        ]
+                      ],
+                      "children": [
+                        {
+                          "type": 1,
+                          "name": "div",
+                          "namespace": "http://www.w3.org/1999/xhtml",
+                          "attributes": [
+                            [
+                              "class",
+                              "wearable-empty-cta"
+                            ]
+                          ],
+                          "children": [
+                            {
+                              "type": 3,
+                              "text": "+ Log"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n        "
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n        "
+                },
+                {
+                  "type": 1,
+                  "name": "button",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "type",
+                      "button"
+                    ],
+                    [
+                      "class",
+                      "db-biometric-remove"
+                    ],
+                    [
+                      "data-dashboard-widget-action",
+                      "remove-biometric-metric"
+                    ],
+                    [
+                      "data-dashboard-widget-id",
+                      "bp_systolic"
+                    ],
+                    [
+                      "aria-label",
+                      "Remove Blood pressure from Biometrics Overview"
+                    ],
+                    [
+                      "title",
+                      "Remove metric"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "×"
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n      "
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "tag": "button",
+          "attributes": [
+            [
+              "type",
+              "button"
+            ],
+            [
+              "class",
+              "dashboard-action-btn db-biometric-sync-btn"
+            ],
+            [
+              "data-dashboard-widget-action",
+              "sync-biometric-now"
+            ]
+          ]
+        },
+        {
+          "tag": "button",
+          "attributes": [
+            [
+              "type",
+              "button"
+            ],
+            [
+              "class",
+              "dashboard-action-btn"
+            ],
+            [
+              "data-dashboard-widget-action",
+              "open-biometric-picker"
+            ]
+          ]
+        },
+        {
+          "tag": "button",
+          "attributes": [
+            [
+              "type",
+              "button"
+            ],
+            [
+              "class",
+              "db-wearable-tile db-biometric-widget"
+            ],
+            [
+              "data-dashboard-widget-action",
+              "open-biometric-detail"
+            ],
+            [
+              "data-dashboard-widget-id",
+              "rhr"
+            ],
+            [
+              "aria-label",
+              "Resting HR: 58 bpm"
+            ]
+          ]
+        },
+        {
+          "tag": "button",
+          "attributes": [
+            [
+              "type",
+              "button"
+            ],
+            [
+              "class",
+              "db-biometric-remove"
+            ],
+            [
+              "data-dashboard-widget-action",
+              "remove-biometric-metric"
+            ],
+            [
+              "data-dashboard-widget-id",
+              "rhr"
+            ],
+            [
+              "aria-label",
+              "Remove Resting HR from Biometrics Overview"
+            ],
+            [
+              "title",
+              "Remove metric"
+            ]
+          ]
+        },
+        {
+          "tag": "div",
+          "attributes": [
+            [
+              "class",
+              "wearable-card wearable-card-empty db-biometric-manual-empty"
+            ],
+            [
+              "data-empty-metric",
+              "bp_systolic"
+            ],
+            [
+              "data-dashboard-widget-action",
+              "open-biometric-manual-log"
+            ],
+            [
+              "data-dashboard-widget-id",
+              "bp_systolic"
+            ],
+            [
+              "role",
+              "button"
+            ],
+            [
+              "tabindex",
+              "0"
+            ],
+            [
+              "aria-label",
+              "Log blood pressure manually"
+            ]
+          ]
+        },
+        {
+          "tag": "button",
+          "attributes": [
+            [
+              "type",
+              "button"
+            ],
+            [
+              "class",
+              "db-biometric-remove"
+            ],
+            [
+              "data-dashboard-widget-action",
+              "remove-biometric-metric"
+            ],
+            [
+              "data-dashboard-widget-id",
+              "bp_systolic"
+            ],
+            [
+              "aria-label",
+              "Remove Blood pressure from Biometrics Overview"
+            ],
+            [
+              "title",
+              "Remove metric"
+            ]
+          ]
+        }
+      ],
+      "count": "2 metrics selected"
+    },
+    "stale-manual-only": {
+      "children": [
+        {
+          "type": 1,
+          "name": "div",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [
+            [
+              "class",
+              "db-biometric-overview-bar"
+            ]
+          ],
+          "children": [
+            {
+              "type": 3,
+              "text": "\n      "
+            },
+            {
+              "type": 1,
+              "name": "span",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "1 metric selected"
+                }
+              ]
+            },
+            {
+              "type": 3,
+              "text": "\n      "
+            },
+            {
+              "type": 1,
+              "name": "div",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "db-biometric-overview-actions"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n        "
+                },
+                {
+                  "type": 1,
+                  "name": "span",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "class",
+                      "db-biometric-sync-status is-stale"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "Updated 13h ago"
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n      "
+                },
+                {
+                  "type": 1,
+                  "name": "button",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "type",
+                      "button"
+                    ],
+                    [
+                      "class",
+                      "dashboard-action-btn db-biometric-sync-btn"
+                    ],
+                    [
+                      "data-dashboard-widget-action",
+                      "sync-biometric-now"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "Sync stale data"
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n        "
+                },
+                {
+                  "type": 1,
+                  "name": "button",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "type",
+                      "button"
+                    ],
+                    [
+                      "class",
+                      "dashboard-action-btn"
+                    ],
+                    [
+                      "data-dashboard-widget-action",
+                      "open-biometric-picker"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "Add metrics"
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n      "
+                }
+              ]
+            },
+            {
+              "type": 3,
+              "text": "\n    "
+            }
+          ]
+        },
+        {
+          "type": 1,
+          "name": "div",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [
+            [
+              "class",
+              "db-wearable-grid db-biometric-overview-grid"
+            ]
+          ],
+          "children": [
+            {
+              "type": 1,
+              "name": "div",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "db-biometric-tile-wrap"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n        "
+                },
+                {
+                  "type": 1,
+                  "name": "div",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "class",
+                      "wearable-card wearable-card-empty db-biometric-manual-empty"
+                    ],
+                    [
+                      "data-empty-metric",
+                      "bp_systolic"
+                    ],
+                    [
+                      "data-dashboard-widget-action",
+                      "open-biometric-manual-log"
+                    ],
+                    [
+                      "data-dashboard-widget-id",
+                      "bp_systolic"
+                    ],
+                    [
+                      "role",
+                      "button"
+                    ],
+                    [
+                      "tabindex",
+                      "0"
+                    ],
+                    [
+                      "aria-label",
+                      "Log blood pressure manually"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "\n          "
+                    },
+                    {
+                      "type": 1,
+                      "name": "div",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "class",
+                          "wearable-card-top"
+                        ]
+                      ],
+                      "children": [
+                        {
+                          "type": 1,
+                          "name": "span",
+                          "namespace": "http://www.w3.org/1999/xhtml",
+                          "attributes": [
+                            [
+                              "class",
+                              "wearable-metric-name"
+                            ]
+                          ],
+                          "children": [
+                            {
+                              "type": 3,
+                              "text": "Blood pressure"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n          "
+                    },
+                    {
+                      "type": 1,
+                      "name": "div",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "class",
+                          "wearable-value-row wearable-value-row-empty"
+                        ]
+                      ],
+                      "children": [
+                        {
+                          "type": 1,
+                          "name": "span",
+                          "namespace": "http://www.w3.org/1999/xhtml",
+                          "attributes": [
+                            [
+                              "class",
+                              "wearable-value wearable-value-dash"
+                            ]
+                          ],
+                          "children": [
+                            {
+                              "type": 3,
+                              "text": "-"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n          "
+                    },
+                    {
+                      "type": 1,
+                      "name": "div",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "class",
+                          "wearable-card-bottom"
+                        ]
+                      ],
+                      "children": [
+                        {
+                          "type": 1,
+                          "name": "div",
+                          "namespace": "http://www.w3.org/1999/xhtml",
+                          "attributes": [
+                            [
+                              "class",
+                              "wearable-empty-cta"
+                            ]
+                          ],
+                          "children": [
+                            {
+                              "type": 3,
+                              "text": "+ Log"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n        "
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n        "
+                },
+                {
+                  "type": 1,
+                  "name": "button",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "type",
+                      "button"
+                    ],
+                    [
+                      "class",
+                      "db-biometric-remove"
+                    ],
+                    [
+                      "data-dashboard-widget-action",
+                      "remove-biometric-metric"
+                    ],
+                    [
+                      "data-dashboard-widget-id",
+                      "bp_systolic"
+                    ],
+                    [
+                      "aria-label",
+                      "Remove Blood pressure from Biometrics Overview"
+                    ],
+                    [
+                      "title",
+                      "Remove metric"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "×"
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n      "
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "tag": "button",
+          "attributes": [
+            [
+              "type",
+              "button"
+            ],
+            [
+              "class",
+              "dashboard-action-btn db-biometric-sync-btn"
+            ],
+            [
+              "data-dashboard-widget-action",
+              "sync-biometric-now"
+            ]
+          ]
+        },
+        {
+          "tag": "button",
+          "attributes": [
+            [
+              "type",
+              "button"
+            ],
+            [
+              "class",
+              "dashboard-action-btn"
+            ],
+            [
+              "data-dashboard-widget-action",
+              "open-biometric-picker"
+            ]
+          ]
+        },
+        {
+          "tag": "div",
+          "attributes": [
+            [
+              "class",
+              "wearable-card wearable-card-empty db-biometric-manual-empty"
+            ],
+            [
+              "data-empty-metric",
+              "bp_systolic"
+            ],
+            [
+              "data-dashboard-widget-action",
+              "open-biometric-manual-log"
+            ],
+            [
+              "data-dashboard-widget-id",
+              "bp_systolic"
+            ],
+            [
+              "role",
+              "button"
+            ],
+            [
+              "tabindex",
+              "0"
+            ],
+            [
+              "aria-label",
+              "Log blood pressure manually"
+            ]
+          ]
+        },
+        {
+          "tag": "button",
+          "attributes": [
+            [
+              "type",
+              "button"
+            ],
+            [
+              "class",
+              "db-biometric-remove"
+            ],
+            [
+              "data-dashboard-widget-action",
+              "remove-biometric-metric"
+            ],
+            [
+              "data-dashboard-widget-id",
+              "bp_systolic"
+            ],
+            [
+              "aria-label",
+              "Remove Blood pressure from Biometrics Overview"
+            ],
+            [
+              "title",
+              "Remove metric"
+            ]
+          ]
+        }
+      ],
+      "count": "1 metric selected"
+    },
+    "stale-empty": {
+      "children": [
+        {
+          "type": 1,
+          "name": "div",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [
+            [
+              "class",
+              "db-biometric-overview-bar"
+            ]
+          ],
+          "children": [
+            {
+              "type": 3,
+              "text": "\n      "
+            },
+            {
+              "type": 1,
+              "name": "span",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "0 metrics selected"
+                }
+              ]
+            },
+            {
+              "type": 3,
+              "text": "\n      "
+            },
+            {
+              "type": 1,
+              "name": "div",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "db-biometric-overview-actions"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n        "
+                },
+                {
+                  "type": 1,
+                  "name": "span",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "class",
+                      "db-biometric-sync-status is-stale"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "Updated 13h ago"
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n      "
+                },
+                {
+                  "type": 1,
+                  "name": "button",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "type",
+                      "button"
+                    ],
+                    [
+                      "class",
+                      "dashboard-action-btn db-biometric-sync-btn"
+                    ],
+                    [
+                      "data-dashboard-widget-action",
+                      "sync-biometric-now"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "Sync stale data"
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n        "
+                },
+                {
+                  "type": 1,
+                  "name": "button",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "type",
+                      "button"
+                    ],
+                    [
+                      "class",
+                      "dashboard-action-btn"
+                    ],
+                    [
+                      "data-dashboard-widget-action",
+                      "open-biometric-picker"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "Add metrics"
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n      "
+                }
+              ]
+            },
+            {
+              "type": 3,
+              "text": "\n    "
+            }
+          ]
+        },
+        {
+          "type": 1,
+          "name": "div",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [
+            [
+              "class",
+              "dashboard-widget-empty"
+            ]
+          ],
+          "children": [
+            {
+              "type": 3,
+              "text": "No biometrics selected."
+            }
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "tag": "button",
+          "attributes": [
+            [
+              "type",
+              "button"
+            ],
+            [
+              "class",
+              "dashboard-action-btn db-biometric-sync-btn"
+            ],
+            [
+              "data-dashboard-widget-action",
+              "sync-biometric-now"
+            ]
+          ]
+        },
+        {
+          "tag": "button",
+          "attributes": [
+            [
+              "type",
+              "button"
+            ],
+            [
+              "class",
+              "dashboard-action-btn"
+            ],
+            [
+              "data-dashboard-widget-action",
+              "open-biometric-picker"
+            ]
+          ]
+        }
+      ],
+      "count": "0 metrics selected"
+    },
+    "stale-populated-only": {
+      "children": [
+        {
+          "type": 1,
+          "name": "div",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [
+            [
+              "class",
+              "db-biometric-overview-bar"
+            ]
+          ],
+          "children": [
+            {
+              "type": 3,
+              "text": "\n      "
+            },
+            {
+              "type": 1,
+              "name": "span",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "1 metric selected"
+                }
+              ]
+            },
+            {
+              "type": 3,
+              "text": "\n      "
+            },
+            {
+              "type": 1,
+              "name": "div",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "db-biometric-overview-actions"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n        "
+                },
+                {
+                  "type": 1,
+                  "name": "span",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "class",
+                      "db-biometric-sync-status is-stale"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "Updated 13h ago"
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n      "
+                },
+                {
+                  "type": 1,
+                  "name": "button",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "type",
+                      "button"
+                    ],
+                    [
+                      "class",
+                      "dashboard-action-btn db-biometric-sync-btn"
+                    ],
+                    [
+                      "data-dashboard-widget-action",
+                      "sync-biometric-now"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "Sync stale data"
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n        "
+                },
+                {
+                  "type": 1,
+                  "name": "button",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "type",
+                      "button"
+                    ],
+                    [
+                      "class",
+                      "dashboard-action-btn"
+                    ],
+                    [
+                      "data-dashboard-widget-action",
+                      "open-biometric-picker"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "Add metrics"
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n      "
+                }
+              ]
+            },
+            {
+              "type": 3,
+              "text": "\n    "
+            }
+          ]
+        },
+        {
+          "type": 1,
+          "name": "div",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [
+            [
+              "class",
+              "db-wearable-grid db-biometric-overview-grid"
+            ]
+          ],
+          "children": [
+            {
+              "type": 1,
+              "name": "div",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "db-biometric-tile-wrap"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n      "
+                },
+                {
+                  "type": 1,
+                  "name": "button",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "type",
+                      "button"
+                    ],
+                    [
+                      "class",
+                      "db-wearable-tile db-biometric-widget"
+                    ],
+                    [
+                      "data-dashboard-widget-action",
+                      "open-biometric-detail"
+                    ],
+                    [
+                      "data-dashboard-widget-id",
+                      "rhr"
+                    ],
+                    [
+                      "aria-label",
+                      "Resting HR: 58 bpm"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "\n        "
+                    },
+                    {
+                      "type": 1,
+                      "name": "span",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "class",
+                          "db-wearable-label"
+                        ]
+                      ],
+                      "children": [
+                        {
+                          "type": 3,
+                          "text": "Resting HR"
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n        "
+                    },
+                    {
+                      "type": 1,
+                      "name": "strong",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [],
+                      "children": [
+                        {
+                          "type": 3,
+                          "text": "58"
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n        "
+                    },
+                    {
+                      "type": 1,
+                      "name": "span",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "class",
+                          "db-wearable-foot"
+                        ]
+                      ],
+                      "children": [
+                        {
+                          "type": 1,
+                          "name": "small",
+                          "namespace": "http://www.w3.org/1999/xhtml",
+                          "attributes": [],
+                          "children": [
+                            {
+                              "type": 3,
+                              "text": "bpm"
+                            }
+                          ]
+                        },
+                        {
+                          "type": 1,
+                          "name": "em",
+                          "namespace": "http://www.w3.org/1999/xhtml",
+                          "attributes": [],
+                          "children": [
+                            {
+                              "type": 3,
+                              "text": "↓ 3%"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n      "
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n      "
+                },
+                {
+                  "type": 1,
+                  "name": "button",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "type",
+                      "button"
+                    ],
+                    [
+                      "class",
+                      "db-biometric-remove"
+                    ],
+                    [
+                      "data-dashboard-widget-action",
+                      "remove-biometric-metric"
+                    ],
+                    [
+                      "data-dashboard-widget-id",
+                      "rhr"
+                    ],
+                    [
+                      "aria-label",
+                      "Remove Resting HR from Biometrics Overview"
+                    ],
+                    [
+                      "title",
+                      "Remove metric"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "×"
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n    "
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "tag": "button",
+          "attributes": [
+            [
+              "type",
+              "button"
+            ],
+            [
+              "class",
+              "dashboard-action-btn db-biometric-sync-btn"
+            ],
+            [
+              "data-dashboard-widget-action",
+              "sync-biometric-now"
+            ]
+          ]
+        },
+        {
+          "tag": "button",
+          "attributes": [
+            [
+              "type",
+              "button"
+            ],
+            [
+              "class",
+              "dashboard-action-btn"
+            ],
+            [
+              "data-dashboard-widget-action",
+              "open-biometric-picker"
+            ]
+          ]
+        },
+        {
+          "tag": "button",
+          "attributes": [
+            [
+              "type",
+              "button"
+            ],
+            [
+              "class",
+              "db-wearable-tile db-biometric-widget"
+            ],
+            [
+              "data-dashboard-widget-action",
+              "open-biometric-detail"
+            ],
+            [
+              "data-dashboard-widget-id",
+              "rhr"
+            ],
+            [
+              "aria-label",
+              "Resting HR: 58 bpm"
+            ]
+          ]
+        },
+        {
+          "tag": "button",
+          "attributes": [
+            [
+              "type",
+              "button"
+            ],
+            [
+              "class",
+              "db-biometric-remove"
+            ],
+            [
+              "data-dashboard-widget-action",
+              "remove-biometric-metric"
+            ],
+            [
+              "data-dashboard-widget-id",
+              "rhr"
+            ],
+            [
+              "aria-label",
+              "Remove Resting HR from Biometrics Overview"
+            ],
+            [
+              "title",
+              "Remove metric"
+            ]
+          ]
+        }
+      ],
+      "count": "1 metric selected"
+    },
+    "stale-restored-pair": {
+      "children": [
+        {
+          "type": 1,
+          "name": "div",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [
+            [
+              "class",
+              "db-biometric-overview-bar"
+            ]
+          ],
+          "children": [
+            {
+              "type": 3,
+              "text": "\n      "
+            },
+            {
+              "type": 1,
+              "name": "span",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "2 metrics selected"
+                }
+              ]
+            },
+            {
+              "type": 3,
+              "text": "\n      "
+            },
+            {
+              "type": 1,
+              "name": "div",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "db-biometric-overview-actions"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n        "
+                },
+                {
+                  "type": 1,
+                  "name": "span",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "class",
+                      "db-biometric-sync-status is-stale"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "Updated 13h ago"
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n      "
+                },
+                {
+                  "type": 1,
+                  "name": "button",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "type",
+                      "button"
+                    ],
+                    [
+                      "class",
+                      "dashboard-action-btn db-biometric-sync-btn"
+                    ],
+                    [
+                      "data-dashboard-widget-action",
+                      "sync-biometric-now"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "Sync stale data"
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n        "
+                },
+                {
+                  "type": 1,
+                  "name": "button",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "type",
+                      "button"
+                    ],
+                    [
+                      "class",
+                      "dashboard-action-btn"
+                    ],
+                    [
+                      "data-dashboard-widget-action",
+                      "open-biometric-picker"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "Add metrics"
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n      "
+                }
+              ]
+            },
+            {
+              "type": 3,
+              "text": "\n    "
+            }
+          ]
+        },
+        {
+          "type": 1,
+          "name": "div",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [
+            [
+              "class",
+              "db-wearable-grid db-biometric-overview-grid"
+            ]
+          ],
+          "children": [
+            {
+              "type": 1,
+              "name": "div",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "db-biometric-tile-wrap"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n      "
+                },
+                {
+                  "type": 1,
+                  "name": "button",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "type",
+                      "button"
+                    ],
+                    [
+                      "class",
+                      "db-wearable-tile db-biometric-widget"
+                    ],
+                    [
+                      "data-dashboard-widget-action",
+                      "open-biometric-detail"
+                    ],
+                    [
+                      "data-dashboard-widget-id",
+                      "rhr"
+                    ],
+                    [
+                      "aria-label",
+                      "Resting HR: 58 bpm"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "\n        "
+                    },
+                    {
+                      "type": 1,
+                      "name": "span",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "class",
+                          "db-wearable-label"
+                        ]
+                      ],
+                      "children": [
+                        {
+                          "type": 3,
+                          "text": "Resting HR"
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n        "
+                    },
+                    {
+                      "type": 1,
+                      "name": "strong",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [],
+                      "children": [
+                        {
+                          "type": 3,
+                          "text": "58"
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n        "
+                    },
+                    {
+                      "type": 1,
+                      "name": "span",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "class",
+                          "db-wearable-foot"
+                        ]
+                      ],
+                      "children": [
+                        {
+                          "type": 1,
+                          "name": "small",
+                          "namespace": "http://www.w3.org/1999/xhtml",
+                          "attributes": [],
+                          "children": [
+                            {
+                              "type": 3,
+                              "text": "bpm"
+                            }
+                          ]
+                        },
+                        {
+                          "type": 1,
+                          "name": "em",
+                          "namespace": "http://www.w3.org/1999/xhtml",
+                          "attributes": [],
+                          "children": [
+                            {
+                              "type": 3,
+                              "text": "↓ 3%"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n      "
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n      "
+                },
+                {
+                  "type": 1,
+                  "name": "button",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "type",
+                      "button"
+                    ],
+                    [
+                      "class",
+                      "db-biometric-remove"
+                    ],
+                    [
+                      "data-dashboard-widget-action",
+                      "remove-biometric-metric"
+                    ],
+                    [
+                      "data-dashboard-widget-id",
+                      "rhr"
+                    ],
+                    [
+                      "aria-label",
+                      "Remove Resting HR from Biometrics Overview"
+                    ],
+                    [
+                      "title",
+                      "Remove metric"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "×"
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n    "
+                }
+              ]
+            },
+            {
+              "type": 1,
+              "name": "div",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "db-biometric-tile-wrap"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "\n        "
+                },
+                {
+                  "type": 1,
+                  "name": "div",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "class",
+                      "wearable-card wearable-card-empty db-biometric-manual-empty"
+                    ],
+                    [
+                      "data-empty-metric",
+                      "bp_systolic"
+                    ],
+                    [
+                      "data-dashboard-widget-action",
+                      "open-biometric-manual-log"
+                    ],
+                    [
+                      "data-dashboard-widget-id",
+                      "bp_systolic"
+                    ],
+                    [
+                      "role",
+                      "button"
+                    ],
+                    [
+                      "tabindex",
+                      "0"
+                    ],
+                    [
+                      "aria-label",
+                      "Log blood pressure manually"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "\n          "
+                    },
+                    {
+                      "type": 1,
+                      "name": "div",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "class",
+                          "wearable-card-top"
+                        ]
+                      ],
+                      "children": [
+                        {
+                          "type": 1,
+                          "name": "span",
+                          "namespace": "http://www.w3.org/1999/xhtml",
+                          "attributes": [
+                            [
+                              "class",
+                              "wearable-metric-name"
+                            ]
+                          ],
+                          "children": [
+                            {
+                              "type": 3,
+                              "text": "Blood pressure"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n          "
+                    },
+                    {
+                      "type": 1,
+                      "name": "div",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "class",
+                          "wearable-value-row wearable-value-row-empty"
+                        ]
+                      ],
+                      "children": [
+                        {
+                          "type": 1,
+                          "name": "span",
+                          "namespace": "http://www.w3.org/1999/xhtml",
+                          "attributes": [
+                            [
+                              "class",
+                              "wearable-value wearable-value-dash"
+                            ]
+                          ],
+                          "children": [
+                            {
+                              "type": 3,
+                              "text": "-"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n          "
+                    },
+                    {
+                      "type": 1,
+                      "name": "div",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "class",
+                          "wearable-card-bottom"
+                        ]
+                      ],
+                      "children": [
+                        {
+                          "type": 1,
+                          "name": "div",
+                          "namespace": "http://www.w3.org/1999/xhtml",
+                          "attributes": [
+                            [
+                              "class",
+                              "wearable-empty-cta"
+                            ]
+                          ],
+                          "children": [
+                            {
+                              "type": 3,
+                              "text": "+ Log"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n        "
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n        "
+                },
+                {
+                  "type": 1,
+                  "name": "button",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "type",
+                      "button"
+                    ],
+                    [
+                      "class",
+                      "db-biometric-remove"
+                    ],
+                    [
+                      "data-dashboard-widget-action",
+                      "remove-biometric-metric"
+                    ],
+                    [
+                      "data-dashboard-widget-id",
+                      "bp_systolic"
+                    ],
+                    [
+                      "aria-label",
+                      "Remove Blood pressure from Biometrics Overview"
+                    ],
+                    [
+                      "title",
+                      "Remove metric"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "×"
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n      "
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "tag": "button",
+          "attributes": [
+            [
+              "type",
+              "button"
+            ],
+            [
+              "class",
+              "dashboard-action-btn db-biometric-sync-btn"
+            ],
+            [
+              "data-dashboard-widget-action",
+              "sync-biometric-now"
+            ]
+          ]
+        },
+        {
+          "tag": "button",
+          "attributes": [
+            [
+              "type",
+              "button"
+            ],
+            [
+              "class",
+              "dashboard-action-btn"
+            ],
+            [
+              "data-dashboard-widget-action",
+              "open-biometric-picker"
+            ]
+          ]
+        },
+        {
+          "tag": "button",
+          "attributes": [
+            [
+              "type",
+              "button"
+            ],
+            [
+              "class",
+              "db-wearable-tile db-biometric-widget"
+            ],
+            [
+              "data-dashboard-widget-action",
+              "open-biometric-detail"
+            ],
+            [
+              "data-dashboard-widget-id",
+              "rhr"
+            ],
+            [
+              "aria-label",
+              "Resting HR: 58 bpm"
+            ]
+          ]
+        },
+        {
+          "tag": "button",
+          "attributes": [
+            [
+              "type",
+              "button"
+            ],
+            [
+              "class",
+              "db-biometric-remove"
+            ],
+            [
+              "data-dashboard-widget-action",
+              "remove-biometric-metric"
+            ],
+            [
+              "data-dashboard-widget-id",
+              "rhr"
+            ],
+            [
+              "aria-label",
+              "Remove Resting HR from Biometrics Overview"
+            ],
+            [
+              "title",
+              "Remove metric"
+            ]
+          ]
+        },
+        {
+          "tag": "div",
+          "attributes": [
+            [
+              "class",
+              "wearable-card wearable-card-empty db-biometric-manual-empty"
+            ],
+            [
+              "data-empty-metric",
+              "bp_systolic"
+            ],
+            [
+              "data-dashboard-widget-action",
+              "open-biometric-manual-log"
+            ],
+            [
+              "data-dashboard-widget-id",
+              "bp_systolic"
+            ],
+            [
+              "role",
+              "button"
+            ],
+            [
+              "tabindex",
+              "0"
+            ],
+            [
+              "aria-label",
+              "Log blood pressure manually"
+            ]
+          ]
+        },
+        {
+          "tag": "button",
+          "attributes": [
+            [
+              "type",
+              "button"
+            ],
+            [
+              "class",
+              "db-biometric-remove"
+            ],
+            [
+              "data-dashboard-widget-action",
+              "remove-biometric-metric"
+            ],
+            [
+              "data-dashboard-widget-id",
+              "bp_systolic"
+            ],
+            [
+              "aria-label",
+              "Remove Blood pressure from Biometrics Overview"
+            ],
+            [
+              "title",
+              "Remove metric"
+            ]
+          ]
+        }
+      ],
+      "count": "2 metrics selected"
+    }
+  },
+  "raw": {
+    "fresh-pair": "<div class=\"db-biometric-overview-bar\">\n      <span>2 metrics selected</span>\n      <div class=\"db-biometric-overview-actions\">\n        <span class=\"db-biometric-sync-status\">Updated 10m ago</span>\n      \n        <button type=\"button\" class=\"dashboard-action-btn\" data-dashboard-widget-action=\"open-biometric-picker\">Add metrics</button>\n      </div>\n    </div><div class=\"db-wearable-grid db-biometric-overview-grid\"><div class=\"db-biometric-tile-wrap\">\n      <button type=\"button\" class=\"db-wearable-tile db-biometric-widget\" data-dashboard-widget-action=\"open-biometric-detail\" data-dashboard-widget-id=\"rhr\" aria-label=\"Resting HR: 58 bpm\">\n        <span class=\"db-wearable-label\">Resting HR</span>\n        <strong>58</strong>\n        <span class=\"db-wearable-foot\"><small>bpm</small><em>↓ 3%</em></span>\n      </button>\n      <button type=\"button\" class=\"db-biometric-remove\" data-dashboard-widget-action=\"remove-biometric-metric\" data-dashboard-widget-id=\"rhr\" aria-label=\"Remove Resting HR from Biometrics Overview\" title=\"Remove metric\">&times;</button>\n    </div><div class=\"db-biometric-tile-wrap\">\n        <div class=\"wearable-card wearable-card-empty db-biometric-manual-empty\" data-empty-metric=\"bp_systolic\" data-dashboard-widget-action=\"open-biometric-manual-log\" data-dashboard-widget-id=\"bp_systolic\" role=\"button\" tabindex=\"0\" aria-label=\"Log blood pressure manually\">\n          <div class=\"wearable-card-top\"><span class=\"wearable-metric-name\">Blood pressure</span></div>\n          <div class=\"wearable-value-row wearable-value-row-empty\"><span class=\"wearable-value wearable-value-dash\">-</span></div>\n          <div class=\"wearable-card-bottom\"><div class=\"wearable-empty-cta\">+ Log</div></div>\n        </div>\n        <button type=\"button\" class=\"db-biometric-remove\" data-dashboard-widget-action=\"remove-biometric-metric\" data-dashboard-widget-id=\"bp_systolic\" aria-label=\"Remove Blood pressure from Biometrics Overview\" title=\"Remove metric\">&times;</button>\n      </div></div>",
+    "stale-pair": "<div class=\"db-biometric-overview-bar\">\n      <span>2 metrics selected</span>\n      <div class=\"db-biometric-overview-actions\">\n        <span class=\"db-biometric-sync-status is-stale\">Updated 13h ago</span>\n      <button type=\"button\" class=\"dashboard-action-btn db-biometric-sync-btn\" data-dashboard-widget-action=\"sync-biometric-now\">Sync stale data</button>\n        <button type=\"button\" class=\"dashboard-action-btn\" data-dashboard-widget-action=\"open-biometric-picker\">Add metrics</button>\n      </div>\n    </div><div class=\"db-wearable-grid db-biometric-overview-grid\"><div class=\"db-biometric-tile-wrap\">\n      <button type=\"button\" class=\"db-wearable-tile db-biometric-widget\" data-dashboard-widget-action=\"open-biometric-detail\" data-dashboard-widget-id=\"rhr\" aria-label=\"Resting HR: 58 bpm\">\n        <span class=\"db-wearable-label\">Resting HR</span>\n        <strong>58</strong>\n        <span class=\"db-wearable-foot\"><small>bpm</small><em>↓ 3%</em></span>\n      </button>\n      <button type=\"button\" class=\"db-biometric-remove\" data-dashboard-widget-action=\"remove-biometric-metric\" data-dashboard-widget-id=\"rhr\" aria-label=\"Remove Resting HR from Biometrics Overview\" title=\"Remove metric\">&times;</button>\n    </div><div class=\"db-biometric-tile-wrap\">\n        <div class=\"wearable-card wearable-card-empty db-biometric-manual-empty\" data-empty-metric=\"bp_systolic\" data-dashboard-widget-action=\"open-biometric-manual-log\" data-dashboard-widget-id=\"bp_systolic\" role=\"button\" tabindex=\"0\" aria-label=\"Log blood pressure manually\">\n          <div class=\"wearable-card-top\"><span class=\"wearable-metric-name\">Blood pressure</span></div>\n          <div class=\"wearable-value-row wearable-value-row-empty\"><span class=\"wearable-value wearable-value-dash\">-</span></div>\n          <div class=\"wearable-card-bottom\"><div class=\"wearable-empty-cta\">+ Log</div></div>\n        </div>\n        <button type=\"button\" class=\"db-biometric-remove\" data-dashboard-widget-action=\"remove-biometric-metric\" data-dashboard-widget-id=\"bp_systolic\" aria-label=\"Remove Blood pressure from Biometrics Overview\" title=\"Remove metric\">&times;</button>\n      </div></div>",
+    "stale-manual-only": "<div class=\"db-biometric-overview-bar\">\n      <span>1 metric selected</span>\n      <div class=\"db-biometric-overview-actions\">\n        <span class=\"db-biometric-sync-status is-stale\">Updated 13h ago</span>\n      <button type=\"button\" class=\"dashboard-action-btn db-biometric-sync-btn\" data-dashboard-widget-action=\"sync-biometric-now\">Sync stale data</button>\n        <button type=\"button\" class=\"dashboard-action-btn\" data-dashboard-widget-action=\"open-biometric-picker\">Add metrics</button>\n      </div>\n    </div><div class=\"db-wearable-grid db-biometric-overview-grid\"><div class=\"db-biometric-tile-wrap\">\n        <div class=\"wearable-card wearable-card-empty db-biometric-manual-empty\" data-empty-metric=\"bp_systolic\" data-dashboard-widget-action=\"open-biometric-manual-log\" data-dashboard-widget-id=\"bp_systolic\" role=\"button\" tabindex=\"0\" aria-label=\"Log blood pressure manually\">\n          <div class=\"wearable-card-top\"><span class=\"wearable-metric-name\">Blood pressure</span></div>\n          <div class=\"wearable-value-row wearable-value-row-empty\"><span class=\"wearable-value wearable-value-dash\">-</span></div>\n          <div class=\"wearable-card-bottom\"><div class=\"wearable-empty-cta\">+ Log</div></div>\n        </div>\n        <button type=\"button\" class=\"db-biometric-remove\" data-dashboard-widget-action=\"remove-biometric-metric\" data-dashboard-widget-id=\"bp_systolic\" aria-label=\"Remove Blood pressure from Biometrics Overview\" title=\"Remove metric\">&times;</button>\n      </div></div>",
+    "stale-empty": "<div class=\"db-biometric-overview-bar\">\n      <span>0 metrics selected</span>\n      <div class=\"db-biometric-overview-actions\">\n        <span class=\"db-biometric-sync-status is-stale\">Updated 13h ago</span>\n      <button type=\"button\" class=\"dashboard-action-btn db-biometric-sync-btn\" data-dashboard-widget-action=\"sync-biometric-now\">Sync stale data</button>\n        <button type=\"button\" class=\"dashboard-action-btn\" data-dashboard-widget-action=\"open-biometric-picker\">Add metrics</button>\n      </div>\n    </div><div class=\"dashboard-widget-empty\">No biometrics selected.</div>",
+    "stale-populated-only": "<div class=\"db-biometric-overview-bar\">\n      <span>1 metric selected</span>\n      <div class=\"db-biometric-overview-actions\">\n        <span class=\"db-biometric-sync-status is-stale\">Updated 13h ago</span>\n      <button type=\"button\" class=\"dashboard-action-btn db-biometric-sync-btn\" data-dashboard-widget-action=\"sync-biometric-now\">Sync stale data</button>\n        <button type=\"button\" class=\"dashboard-action-btn\" data-dashboard-widget-action=\"open-biometric-picker\">Add metrics</button>\n      </div>\n    </div><div class=\"db-wearable-grid db-biometric-overview-grid\"><div class=\"db-biometric-tile-wrap\">\n      <button type=\"button\" class=\"db-wearable-tile db-biometric-widget\" data-dashboard-widget-action=\"open-biometric-detail\" data-dashboard-widget-id=\"rhr\" aria-label=\"Resting HR: 58 bpm\">\n        <span class=\"db-wearable-label\">Resting HR</span>\n        <strong>58</strong>\n        <span class=\"db-wearable-foot\"><small>bpm</small><em>↓ 3%</em></span>\n      </button>\n      <button type=\"button\" class=\"db-biometric-remove\" data-dashboard-widget-action=\"remove-biometric-metric\" data-dashboard-widget-id=\"rhr\" aria-label=\"Remove Resting HR from Biometrics Overview\" title=\"Remove metric\">&times;</button>\n    </div></div>",
+    "stale-restored-pair": "<div class=\"db-biometric-overview-bar\">\n      <span>2 metrics selected</span>\n      <div class=\"db-biometric-overview-actions\">\n        <span class=\"db-biometric-sync-status is-stale\">Updated 13h ago</span>\n      <button type=\"button\" class=\"dashboard-action-btn db-biometric-sync-btn\" data-dashboard-widget-action=\"sync-biometric-now\">Sync stale data</button>\n        <button type=\"button\" class=\"dashboard-action-btn\" data-dashboard-widget-action=\"open-biometric-picker\">Add metrics</button>\n      </div>\n    </div><div class=\"db-wearable-grid db-biometric-overview-grid\"><div class=\"db-biometric-tile-wrap\">\n      <button type=\"button\" class=\"db-wearable-tile db-biometric-widget\" data-dashboard-widget-action=\"open-biometric-detail\" data-dashboard-widget-id=\"rhr\" aria-label=\"Resting HR: 58 bpm\">\n        <span class=\"db-wearable-label\">Resting HR</span>\n        <strong>58</strong>\n        <span class=\"db-wearable-foot\"><small>bpm</small><em>↓ 3%</em></span>\n      </button>\n      <button type=\"button\" class=\"db-biometric-remove\" data-dashboard-widget-action=\"remove-biometric-metric\" data-dashboard-widget-id=\"rhr\" aria-label=\"Remove Resting HR from Biometrics Overview\" title=\"Remove metric\">&times;</button>\n    </div><div class=\"db-biometric-tile-wrap\">\n        <div class=\"wearable-card wearable-card-empty db-biometric-manual-empty\" data-empty-metric=\"bp_systolic\" data-dashboard-widget-action=\"open-biometric-manual-log\" data-dashboard-widget-id=\"bp_systolic\" role=\"button\" tabindex=\"0\" aria-label=\"Log blood pressure manually\">\n          <div class=\"wearable-card-top\"><span class=\"wearable-metric-name\">Blood pressure</span></div>\n          <div class=\"wearable-value-row wearable-value-row-empty\"><span class=\"wearable-value wearable-value-dash\">-</span></div>\n          <div class=\"wearable-card-bottom\"><div class=\"wearable-empty-cta\">+ Log</div></div>\n        </div>\n        <button type=\"button\" class=\"db-biometric-remove\" data-dashboard-widget-action=\"remove-biometric-metric\" data-dashboard-widget-id=\"bp_systolic\" aria-label=\"Remove Blood pressure from Biometrics Overview\" title=\"Remove metric\">&times;</button>\n      </div></div>"
+  },
+  "selections": {
+    "fresh-pair": [
+      "rhr",
+      "bp_systolic"
+    ],
+    "stale-pair": [
+      "rhr",
+      "bp_systolic"
+    ],
+    "stale-manual-only": [
+      "bp_systolic"
+    ],
+    "stale-empty": [],
+    "stale-populated-only": [
+      "rhr"
+    ],
+    "stale-restored-pair": [
+      "rhr",
+      "bp_systolic"
+    ]
+  },
+  "times": {
+    "fresh-pair": "2026-08-07T12:00:00Z",
+    "stale-pair": "2026-08-08T01:00:00Z",
+    "stale-manual-only": "2026-08-08T01:00:00Z",
+    "stale-empty": "2026-08-08T01:00:00Z",
+    "stale-populated-only": "2026-08-08T01:00:00Z",
+    "stale-restored-pair": "2026-08-08T01:00:00Z"
+  }
+}

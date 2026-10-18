@@ -64,7 +64,16 @@ export function attestationTooltip(attestation: unknown) {
   return summary + '\n' + lines.join('\n');
 }
 
-export function projectAttestationBadge(attestation: unknown) {
+export interface AttestationBadgeView {
+  readonly color: '#ef4444' | '#22c55e' | '#a78bfa' | '#38bdf8' | '#f59e0b';
+  readonly mark: 'failed' | 'verified' | 'TEE + GPU' | 'TEE' | 'basic';
+  readonly tooltip: string;
+}
+export type AttestationBadgeProps = { readonly footnote?: boolean } & (
+  { readonly view: AttestationBadgeView | null; readonly attestation?: never }
+  | { readonly attestation: unknown; readonly view?: never }
+);
+export function projectAttestationBadge(attestation: unknown): AttestationBadgeView | null {
   if (!attestation) return null;
   const tinfoil = (attestation as AttestationDisplayReader).securityVerified != null;
   const failed = tinfoil

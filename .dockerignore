@@ -21,3 +21,6 @@
 !deploy/compat-proxy/Dockerfile
 !deploy/profile-share/
 !deploy/profile-share/Dockerfile
+!tooling/
+!tooling/svelte/
+!tooling/svelte/package.json

@@ -1,11 +1,26 @@
 import fs from 'node:fs';
+import {createHash} from 'node:crypto';
+import type {EnvironmentAIView} from '../../js/light-environment-ai-presentation.js';
+import type {EnvironmentTodayView} from '../../js/light-environment-screen-presentation.js';
 import { expect, test } from './coverage-fixture.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 import { scopedFrozenStyles, type FrozenStyleBlock } from '../helpers/frozen-style-scope.js';
 import type { ScreenCardReader } from '../../js/light-env-screen-ui.js';
 interface Sample {name:string;screen:ScreenCardReader;expanded:boolean;rooms:unknown;todayHTML?:string;aiHTML?:string;html:string}
+interface TypedSample extends Sample {todayView:Readonly<EnvironmentTodayView>;aiView:Readonly<EnvironmentAIView>}
 const original=JSON.parse(fs.readFileSync('tests/fixtures/light-environment-screen-original.json','utf8')) as {now:number;cases:Sample[];styleBlocks:FrozenStyleBlock[]};
-const examples=original.cases.filter(sample=>['0/true/true','1/true/true','2/true/true','3/true/true','4/true/true','5/false/true','6/false/true','8/true/true','0/false/true'].includes(sample.name));
+const childBytes=fs.readFileSync('tests/fixtures/light-genuine-child-native-before.json');
+expect(createHash('sha256').update(childBytes).digest('hex')).toBe('01ae5ade9a27cd1b2ad7f9ea3a5eae998766e87cb1a9b668749da25be6e1201d');
+const children=JSON.parse(new TextDecoder().decode(childBytes))as{rows:{kind:string;view:EnvironmentAIView;html:string}[];screens:{name:string;view:EnvironmentTodayView;html:string}[]};
+const nativeAI=children.rows.find(row=>row.kind==='screen');if(!nativeAI)throw new Error('Missing authenticated original screen AI child');
+const examples:TypedSample[]=original.cases.filter(sample=>['0/true/true','1/true/true','2/true/true','3/true/true','4/true/true','5/false/true','6/false/true','8/true/true','0/false/true'].includes(sample.name)).map(sample=>{
+ const nativeToday=children.screens.find(row=>row.name===sample.name);if(!nativeToday)throw new Error('Missing authenticated original screen Today input');
+ let html=sample.html;
+ if(html.includes('<div data-fixture-ai>Trusted AI renderer</div>'))html=html.replaceAll('<div data-fixture-ai>Trusted AI renderer</div>',nativeAI.html);
+ if(html.includes('<button type="button" data-fixture-today>Trusted today</button>'))html=html.replaceAll('<button type="button" data-fixture-today>Trusted today</button>','<span class="screen-trusted-today">'+nativeToday.html+'</span>');
+ expect(html).not.toContain('data-fixture-');
+ return {...sample,html,aiView:structuredClone(nativeAI.view),todayView:structuredClone(nativeToday.view)};
+});
 test('shared authored screen editor preserves independent layouts, accessible themes, focus and delegated keyboard controls',async({page},info)=>{
   test.setTimeout(120000);await installDiscussionFixture(page.context());await page.goto('/app');await expect(page.locator('html[data-app-ready]')).toBeAttached();await page.emulateMedia({reducedMotion:'reduce'});
   const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
@@ -23,7 +38,7 @@ test('shared authored screen editor preserves independent layouts, accessible th
       if(sample.screen.device==='__proto__')reference.querySelector('.light-env-screen-card-icon')!.textContent='📱';
       const current=document.createElement('section');current.dataset.current='';
       const screen={...sample.screen};if(screen.todayOverride)screen.todayOverride={date:new Date().toLocaleDateString('sv-SE'),active:false};
-      current.innerHTML=renderScreenCard(screen,{expanded:sample.expanded,rooms:sample.rooms,renderTodayToggle:()=>sample.todayHTML,renderScreenAIBlock:()=>sample.aiHTML});
+      current.innerHTML=renderScreenCard(screen,{expanded:sample.expanded,rooms:sample.rooms,getTodayView:()=>sample.todayView,getScreenAIView:()=>sample.aiView});
       pair.append(reference,current);host.append(pair);
     }
   },{examples,css:scopedFrozenStyles(original.styleBlocks)});
@@ -64,12 +79,12 @@ test('shared authored screen editor preserves independent layouts, accessible th
     const {renderScreenCard}=await import('/js/light-env-screen-ui.js');
     const {projectEnvironmentToday}=await import('/js/light-environment-screen-presentation.js');
     const {renderHTML}=await import('/js/components/LightEnvironmentTodayToggle.svelte.html.js');
-    // The comparison phase exercised arbitrary public callback HTML. Accessibility
-    // checks exercise the actual shared typed today owner in every screen state.
+    // Both phases exercise genuine typed children. The reference uses the exact
+    // original child renderer bytes from the authenticated native fixture.
     for(const sample of examples){
       const current=element.querySelector(`[data-pair="${sample.name}"] [data-current]`)!;
       const screen={...sample.screen};if(screen.todayOverride)screen.todayOverride={date:new Date().toLocaleDateString('sv-SE'),active:false};
-      current.innerHTML=renderScreenCard(screen,{expanded:sample.expanded,rooms:sample.rooms,todayToggle:true,renderScreenAIBlock:()=>sample.aiHTML});
+      current.innerHTML=renderScreenCard(screen,{expanded:sample.expanded,rooms:sample.rooms,todayToggle:true,getScreenAIView:()=>sample.aiView});
     }
     const typed=document.createElement('section');typed.dataset.typedControls='';
     typed.innerHTML=renderScreenCard({id:'typed',device:'phone',hoursPerDay:2,eveningUseAfterSunset:0},{expanded:true,todayToggle:true});

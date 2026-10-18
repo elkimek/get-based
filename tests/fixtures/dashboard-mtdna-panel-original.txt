@@ -1,0 +1,34 @@
+function renderDashboardMtdnaPanel(mtdna, haplogroupTable, genetics) {
+    const evidence = _dashboardGenomeEvidence;
+    const mismatch = detectMtDNAMismatch(genetics);
+    const studies = Array.isArray(haplogroupTable?._meta?.references) ? haplogroupTable._meta.references : [];
+    const facts = [
+      mtdna.origin ? `<span><small>Origin</small><strong>${escapeHTML(mtdna.origin)}</strong></span>` : '',
+      mtdna.source ? `<span><small>Source</small><strong>${escapeHTML(mtdna.source)}</strong></span>` : '',
+      Number.isFinite(Number(mtdna.matchedMutations)) && Number.isFinite(Number(mtdna.totalDiagnostic))
+        ? `<span><small>Marker match</small><strong>${Number(mtdna.matchedMutations)} / ${Number(mtdna.totalDiagnostic)}</strong></span>`
+        : '',
+    ].filter(Boolean);
+    const couplingDetails = [mtdna.details, mtdna.coupling?.description, mtdna.coupling?.implications]
+      .filter(Boolean)
+      .map(detail => `<p>${escapeHTML(detail)}</p>`)
+      .join('');
+    return `<section class="db-mtdna-panel" data-mtdna-haplogroup="${escapeAttr(mtdna.haplogroup || '')}">
+      <div class="db-mtdna-head">
+        <span><small>Maternal lineage</small><strong>mtDNA ${escapeHTML(mtdna.haplogroup || 'Unresolved')}</strong></span>
+        <em>${escapeHTML(mtdna.coupling?.shortLabel || 'Wallace lens')}</em>
+      </div>
+      ${mtdna.coupling ? `<div class="db-mtdna-coupling"><strong>${escapeHTML(mtdna.coupling.label || 'Coupling context')}</strong><span>${escapeHTML(mtdna.coupling.climate || '')}</span></div>` : ''}
+      ${facts.length ? `<div class="db-mtdna-facts">${facts.join('')}</div>` : ''}
+      ${couplingDetails ? `<div class="db-mtdna-copy">${couplingDetails}</div>` : ''}
+      ${mismatch?.message ? `<div class="db-mtdna-environment${mismatch.mismatch ? ' is-mismatch' : ' is-match'}">${escapeHTML(mismatch.message)}</div>` : ''}
+      ${studies.length ? `<details class="db-mtdna-evidence" data-mtdna-evidence>
+        <summary>Wallace framework &amp; evidence <span>${studies.length} sources</span></summary>
+        <div class="db-mtdna-evidence-body">
+          ${haplogroupTable?._meta?.caveat ? `<p class="db-mtdna-caveat">${escapeHTML(haplogroupTable._meta.caveat)}</p>` : ''}
+          <div class="db-mtdna-study-grid">${studies.map(renderDashboardMtdnaEvidenceStudy).join('')}</div>
+          ${evidence ? `<a href="${escapeAttr(evidence.mtdnaEvidenceIssueUrl())}" target="_blank" rel="noopener" class="db-genome-contribute-link">Suggest an mtDNA study or correction</a>` : ''}
+        </div>
+      </details>` : ''}
+    </section>`;
+  }

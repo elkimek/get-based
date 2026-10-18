@@ -1,9 +1,13 @@
+import {getLoadedDesktopDashboardRenderer, loadDesktopDashboardRenderer} from './dashboard-renderer-loader.js';
+import {beginDashboardRenderRequest, retireDashboardRenderRequests, showDashboardRendererLoading, showDashboardRendererFailure} from './dashboard-render-request.js';
+import {disposeDashboardPage} from './dashboard-page-owner.js';
+import type {DesktopDashboardPageView} from './desktop-dashboard-presentation.js';
 // dashboard-page-view.js — dashboard route shell and empty-state orchestration
 
 import { state } from './state.js';
-import { escapeHTML, formatDate } from './utils.js';
-import { camelCaseActionAttributes } from './action-attributes.js';
-import { getActiveData, renderDateRangeFilter } from './data.js';
+import { formatDate } from './utils.js';
+import { projectDashboardGreetingView, projectDashboardWelcomeView, renderDashboardWelcomeFragment } from './dashboard-welcome-presentation.js';
+import { getActiveData, projectDateRangeFilter } from './data.js';
 import { getProfiles, profileStorageKey } from './profile.js';
 import { loadContextHealthDots } from './health-data-loader.js';
 import { isAIPaused } from './api.js';
@@ -55,10 +59,6 @@ function dashboardPageRuntime() {
 
 function getDashboardPageRuntimeValue(name: string) {
   return dashboardPageRuntime()[name];
-}
-
-function dashboardWelcomeActionAttrs(action: unknown, attrs: Record<string, unknown> = {}) {
-  return camelCaseActionAttributes(DASHBOARD_WELCOME_ACTION_ATTR, "dashboard-welcome", action, attrs);
 }
 
 function closestDashboardWelcomeAction(target: unknown) {
@@ -125,12 +125,11 @@ export function createDashboardPageView(deps: unknown) {
     markerHasData,
     buildDashboardWidgetContext,
     getDashboardWidgetPrefs,
-    getVisibleDashboardWidgetEntries,
-    renderOnboardingBanner,
-    renderAIConnectionReminder,
-    renderDashboardStickyControls,
-    renderDashboardControlButtons,
-    renderDashboardWidget,
+    getVisibleDashboardWidgetViews,
+    projectOnboardingBanner,
+    projectAIConnectionReminder,
+    projectDashboardControlButtons,
+    projectDashboardWidget,
     isDashboardOrganizeMode,
     loadFocusCard,
     loadContextCardTips,
@@ -140,7 +139,7 @@ export function createDashboardPageView(deps: unknown) {
     startTour = defaultStartTour,
   } = deps as DashboardPageFactoryOperations;
 
-  function renderDashboardGreeting(ctx: DashboardPageContext, title: unknown, visibleCount: number) {
+  function projectDashboardGreeting(ctx: DashboardPageContext, title: unknown, visibleCount: number) {
     const counts = getMobileDashboardCounts(ctx.data);
     const panelCount = getDashboardPanelCount(ctx.data, markerHasData);
     const span = getDashboardMonthSpan(ctx.data);
@@ -150,41 +149,26 @@ export function createDashboardPageView(deps: unknown) {
       `${panelCount} panel${panelCount === 1 ? '' : 's'}${span ? ` across ${span}` : ''}`,
       `${visibleCount} widget${visibleCount === 1 ? '' : 's'} active`,
     ].filter(Boolean);
-    return `<div class="category-header dashboard-greeting">
-      <div>
-        <div class="dashboard-greeting-kicker">${escapeHTML(title)}</div>
-        <h1>Hey ${escapeHTML(getDashboardProfileName())}.</h1>
-        <div class="dashboard-greeting-sub">${parts.map(escapeHTML).join(' · ')}</div>
-      </div>
-    </div>`;
+    return projectDashboardGreetingView({ title: () => title, name: () => getDashboardProfileName(), parts: () => parts });
   }
 
-  function renderDashboardWidgets(ctx: DashboardPageContext, title: unknown) {
+  function projectDashboardPage(ctx: DashboardPageContext, title: unknown): DesktopDashboardPageView {
     const prefs = getDashboardWidgetPrefs();
-    const visibleEntries = getVisibleDashboardWidgetEntries(ctx, prefs) as unknown[];
-    let html = renderDashboardGreeting(ctx, title, visibleEntries.length);
-    if (ctx.data.dates.length > 0) html += renderDateRangeFilter({ showScope: true });
-    html += `<div class="drop-zone drop-zone-hidden" id="drop-zone"></div>`;
-    html += renderOnboardingBanner();
-    html += renderAIConnectionReminder();
-    html += renderDashboardStickyControls();
-    html += `<div class="dashboard-widgets${isDashboardOrganizeMode() ? ' is-organizing' : ''}">`;
-    visibleEntries.forEach((entry, index) => { html += renderDashboardWidget(entry, prefs, index, visibleEntries); });
-    if (visibleEntries.length === 0) {
-      html += `<div class="dashboard-widget dashboard-widget-full is-empty">
-        <div class="dashboard-widget-empty">No widgets are visible.</div>
-      </div>`;
-    }
-    html += `</div>`;
-    if (isDashboardOrganizeMode()) {
-      html += `<div class="dashboard-organize-footer">
-        ${renderDashboardControlButtons({ includeReset: true })}
-      </div>`;
-    }
-    return html;
+    const visibleEntries = getVisibleDashboardWidgetViews(ctx, prefs);
+    const greeting = projectDashboardGreeting(ctx, title, visibleEntries.length);
+    const dateRange = ctx.data.dates.length > 0 ? projectDateRangeFilter({showScope: true}) : null;
+    const onboarding = projectOnboardingBanner();
+    const reminder = projectAIConnectionReminder();
+    const stickyControls = projectDashboardControlButtons();
+    const organizing = !!isDashboardOrganizeMode();
+    const widgets = visibleEntries.map((entry, index) => projectDashboardWidget(entry, prefs, index, visibleEntries));
+    const empty = visibleEntries.length === 0 ? {mode: 'empty' as const} : null;
+    const footerControls = isDashboardOrganizeMode() ? projectDashboardControlButtons({includeReset: true}) : null;
+    return {greeting, dateRange, onboarding, reminder, stickyControls, organizing, widgets, empty, footerControls};
   }
 
   function showDashboard(data?: unknown) {
+    retireDashboardRenderRequests();
     const main = document.getElementById("main-content");
     if (!main) return;
     // Resume the live-session ticker if a session was started before this
@@ -213,10 +197,9 @@ export function createDashboardPageView(deps: unknown) {
     if (!hasData && getDashboardPageRuntimeValue('_demoLoadingProfileId') === state.currentProfile) {
       document.body.classList.add('empty-dashboard-active');
       main.setAttribute('aria-busy', 'true');
-      main.innerHTML = `<div class="welcome-hero" aria-busy="true" role="status" aria-live="polite">
-        <h2>Loading demo data…</h2>
-        <p class="welcome-hero-subtitle">Setting up the demo profile — this takes a few seconds the first time.</p>
-      </div>`;
+      const html = renderDashboardWelcomeFragment({ mode: 'loading' });
+      disposeDashboardPage();
+      main.innerHTML = html;
       return;
     }
 
@@ -226,49 +209,8 @@ export function createDashboardPageView(deps: unknown) {
       document.body.classList.remove('chat-autostart-reserved');
       const aiReady = hasChatResponseBackend();
       const aiPaused = isAIPaused();
-      const importReady = aiReady && !aiPaused;
-      const heroClass = importReady ? 'welcome-hero welcome-hero-ready' : 'welcome-hero welcome-hero-noai';
-      const aiConnectionReminder = renderAIConnectionReminder();
-      const primaryTitle = aiPaused ? 'Resume guided chat' : 'Start with guided chat';
-      const primaryCopy = aiPaused
-        ? 'Chat will walk you through re-enabling AI before you add files, connect sources, or explore optional tips.'
-        : (aiReady
-          ? 'Chat will ask for context only when it helps, then route you to labs, DNA, wearables, light, or first-test planning.'
-          : 'Chat starts with the basics, then guides AI setup only when it is needed for import or optional tips.');
-      const secondaryAction = aiPaused
-        ? `<button type="button" class="welcome-action-btn" ${dashboardWelcomeActionAttrs('open-ai-settings')}>Re-enable AI</button>
-           <button type="button" class="welcome-action-btn welcome-direct-import-btn" ${dashboardWelcomeActionAttrs('direct-import')}>Import file</button>`
-        : `<button type="button" class="welcome-action-btn welcome-direct-import-btn" ${dashboardWelcomeActionAttrs('direct-import')}>Import file</button>`;
-      const primaryPanel = `<div class="welcome-primary-panel welcome-chat-panel">
-          <span class="welcome-primary-kicker">Start here</span>
-          <strong>${escapeHTML(primaryTitle)}</strong>
-          <p>${escapeHTML(primaryCopy)}</p>
-          <div class="welcome-primary-actions">
-            <button type="button" class="welcome-action-btn welcome-action-primary" ${dashboardWelcomeActionAttrs('open-chat')}>Start guided chat</button>
-            ${secondaryAction}
-          </div>
-        </div>
-        <div class="drop-zone drop-zone-hidden" id="drop-zone"></div>`;
-      const html = `${aiConnectionReminder}<div class="${escapeHTML(heroClass)}">
-        <h2>Welcome to getbased</h2>
-        <p class="welcome-hero-subtitle">Health intelligence that's actually yours — five lenses on your biology, one private dashboard.</p>
-        ${primaryPanel}
-        <div class="welcome-demo-section">
-          <span class="welcome-section-label">Preview with demo data</span>
-          <div class="demo-cards">
-            <button type="button" class="demo-card" ${dashboardWelcomeActionAttrs('load-demo', { demo: 'female' })}>
-              <span class="demo-card-avatar">\uD83D\uDC69</span>
-              <span class="demo-card-name">Sarah, 34</span>
-              <span class="demo-card-desc">Iron + Oura: overtraining clues</span>
-            </button>
-            <button type="button" class="demo-card" ${dashboardWelcomeActionAttrs('load-demo', { demo: 'male' })}>
-              <span class="demo-card-avatar">\uD83D\uDC68</span>
-              <span class="demo-card-name">Alex, 38</span>
-              <span class="demo-card-desc">Metabolic + Withings body comp</span>
-            </button>
-          </div>
-        </div>
-      </div>`;
+      const aiConnectionReminder = projectAIConnectionReminder();
+      const html = renderDashboardWelcomeFragment(projectDashboardWelcomeView({ready: aiReady, paused: aiPaused, reminder: aiConnectionReminder}));
       const startupWelcome = main.querySelector('[data-prerendered-welcome]');
       const canHydrateStartupWelcome = startupWelcome
         && !aiReady
@@ -278,6 +220,7 @@ export function createDashboardPageView(deps: unknown) {
       // copy remains the page's early LCP candidate. Delegated actions are
       // live after startup without changing the rendered subtree.
       if (!canHydrateStartupWelcome) {
+        disposeDashboardPage();
         main.innerHTML = html;
       }
       setupDropZone();
@@ -312,41 +255,63 @@ export function createDashboardPageView(deps: unknown) {
     }
 
     if (isMobileDashboardViewport()) {
-      (renderMobileDashboard as (data: unknown, options: Parameters<typeof renderMobileDashboard>[1]) => ReturnType<typeof renderMobileDashboard>)(data, { resetScroll: !wasMobileDashboardActive });
+      return (renderMobileDashboard as (data: unknown, options: Parameters<typeof renderMobileDashboard>[1]) => ReturnType<typeof renderMobileDashboard>)(data, { resetScroll: !wasMobileDashboardActive });
+    }
+
+    const request = beginDashboardRenderRequest(main, isMobileDashboardViewport);
+    const render = ({renderDesktopDashboardPage, hydrateDesktopDashboardPage}: NonNullable<ReturnType<typeof getLoadedDesktopDashboardRenderer>>) => {
+      // ── Has data: full dashboard, rendered through modular widgets ──
+      const dashboardCtx = buildDashboardWidgetContext(data) as DashboardPageContext;
+      const dashboardTitle = 'Dashboard Overview';
+      const view = projectDashboardPage(dashboardCtx, dashboardTitle);
+      const html = renderDesktopDashboardPage(view);
+      if (!request.isCurrent()) return false;
+      disposeDashboardPage();
+      main.innerHTML = html;
+      hydrateDesktopDashboardPage(main, view);
+      if (!request.isCurrent()) return false;
+
+      setupDropZone();
+      if (!request.isCurrent()) return false;
+      void import('./dashboard-widget-packing.js')
+        .then(module => { if (request.isCurrent()) module.setupDashboardWidgetPacking(main); })
+        .catch(() => { /* Keep the standard grid if optional packing cannot load. */ });
+
+      // Non-blocking: hydrate cached focus text for LCP, but don't replace stale
+      // cached text with a fresh AI response during startup.
+      if (hasData) loadFocusCard({ refreshStale: false });
+      if (!request.isCurrent()) return false;
+      loadContextHealthDots();
+      loadContextCardTips();
+      if (!request.isCurrent()) return false;
+      loadCommitHash();
+      if (!request.isCurrent()) return false;
+      // Preload catalog so rec sections and sorting use it immediately
+      const catalogPromise = (getRecommendationModuleFunction('loadCatalog') as (() => unknown) | null | undefined)?.();
+      if (catalogPromise && typeof (catalogPromise as {then?: unknown}).then === 'function') {
+        (catalogPromise as {then(callback: typeof setRecommendationsCatalogCache): unknown}).then(catalog => request.isCurrent() ? setRecommendationsCatalogCache(catalog) : null);
+      }
+
+      // Auto-trigger guided tour on first populated dashboard visit as a fallback
+      // for users who imported before seeing the empty-state tour.
+      const _p = getProfiles().find(p => p.id === state.currentProfile);
+      const _hasProfile = _p?.name && _p.name !== 'Default' && state.profileSex;
+      if (_hasProfile && hasData && request.mayRunFocusEffects()) {
+        startTour(true);
+      }
       return;
-    }
-
-    // ── Has data: full dashboard, rendered through modular widgets ──
-    const dashboardCtx = buildDashboardWidgetContext(data) as DashboardPageContext;
-    const dashboardTitle = 'Dashboard Overview';
-    const html = renderDashboardWidgets(dashboardCtx, dashboardTitle);
-
-    main.innerHTML = html;
-
-    setupDropZone();
-    void import('./dashboard-widget-packing.js')
-      .then(module => module.setupDashboardWidgetPacking(main))
-      .catch(() => { /* Keep the standard grid if optional packing cannot load. */ });
-
-    // Non-blocking: hydrate cached focus text for LCP, but don't replace stale
-    // cached text with a fresh AI response during startup.
-    if (hasData) loadFocusCard({ refreshStale: false });
-    loadContextHealthDots();
-    loadContextCardTips();
-    loadCommitHash();
-    // Preload catalog so rec sections and sorting use it immediately
-    const catalogPromise = (getRecommendationModuleFunction('loadCatalog') as (() => unknown) | null | undefined)?.();
-    if (catalogPromise && typeof (catalogPromise as {then?: unknown}).then === 'function') {
-      (catalogPromise as {then(callback: typeof setRecommendationsCatalogCache): unknown}).then(setRecommendationsCatalogCache);
-    }
-
-    // Auto-trigger guided tour on first populated dashboard visit as a fallback
-    // for users who imported before seeing the empty-state tour.
-    const _p = getProfiles().find(p => p.id === state.currentProfile);
-    const _hasProfile = _p?.name && _p.name !== 'Default' && state.profileSex;
-    if (_hasProfile && hasData) {
-      startTour(true);
-    }
+    };
+    const loaded = getLoadedDesktopDashboardRenderer();
+    if (loaded) return render(loaded);
+    showDashboardRendererLoading(main);
+    return loadDesktopDashboardRenderer().then(renderer => {
+      if (!request.isCurrent()) return false;
+      return render(renderer);
+    }).catch(error => {
+      console.error('Failed to load Desktop Dashboard renderer', error);
+      if (request.isCurrent()) showDashboardRendererFailure(main, () => request.isCurrent() ? showDashboard(data) : false);
+      return false;
+    });
   }
 
   return {

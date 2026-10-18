@@ -1,3 +1,4 @@
+<svelte:options runes={true}/>
 <script lang="ts">
   import {tipsClasses as c} from '../tips-classes.js';
 </script>

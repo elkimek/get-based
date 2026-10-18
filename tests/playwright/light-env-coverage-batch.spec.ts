@@ -1,10 +1,11 @@
+import {waitForAsyncCondition} from '../helpers/awaited-condition.js';
 import { expect, test } from './coverage-fixture.js';
 
 async function waitForInitialView(page:import("@playwright/test").Page) {
-  await page.waitForFunction(async () => {
+  await waitForAsyncCondition(() => page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     return typeof state.currentView === 'string' && state.currentView.length > 0;
-  });
+  }), 0);
 }
 
 test('Light environment assessment drives delegated room and screen controls', async ({ page }) => {

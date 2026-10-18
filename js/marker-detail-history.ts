@@ -1,10 +1,11 @@
+import type {HistoryCollection,HistorySource,MarkerDetailHistoryView} from './marker-detail-view.js';
 import type { LabEntry, MarkerProvenance } from '../types/lab-data.js';
 
 // marker-detail-history.js — per-result collection context and provenance
 
-import { escapeHTML } from './utils.js';
+import {captureMarkerDetailText} from './marker-detail-projection.js';
 
-export function buildMarkerHistoryMetadata(entry: Pick<LabEntry, 'context' | 'sourceFile'> | null | undefined, source: MarkerProvenance | null | undefined, rawDate: unknown): { collectionContextHtml: string; sourceHtml: string } {
+export function buildMarkerHistoryMetadata(entry: Pick<LabEntry, 'context' | 'sourceFile'> | null | undefined, source: MarkerProvenance | null | undefined, rawDate: unknown): { collection: HistoryCollection|null; sources: readonly HistorySource[] } {
   const collectionContextParts: string[] = [];
   if (entry?.context?.sampleTime) collectionContextParts.push(`Collected ${entry.context.sampleTime}`);
   if (entry?.context?.fasting === true) collectionContextParts.push('fasting');
@@ -25,22 +26,22 @@ export function buildMarkerHistoryMetadata(entry: Pick<LabEntry, 'context' | 'so
   } else if (Number.isInteger(cycleDay) && cycleDay > 0) {
     collectionContextParts.push(`Cycle day ${cycleDay}`);
   }
-  const collectionContextHtml = collectionContextParts.length
-    ? `<div class="mv-collection-context">${escapeHTML(collectionContextParts.join(' · '))}</div>`
-    : '';
+  const collection = collectionContextParts.length
+    ? ({ kind: "collection-context", text: `${captureMarkerDetailText(collectionContextParts.join(' · '))}` } satisfies MarkerDetailHistoryView)
+    : null;
 
-  let sourceHtml = '';
+  const sources: HistorySource[] = [];
   if (rawDate) {
     const fileName = source ? source.file : (entry?.sourceFile || '');
     if (fileName) {
       const display = fileName.length > 30 ? fileName.slice(0, 27) + '...' : fileName;
-      sourceHtml = `<div class="mv-source" title="${escapeHTML(fileName)}">${escapeHTML(display)}</div>`;
-      if (source?.manuallyEdited) sourceHtml += '<div class="mv-source mv-source-manual">manually edited</div>';
+      sources.push({ kind: "source-file", title: `${captureMarkerDetailText(fileName)}`, text: `${captureMarkerDetailText(display)}` } satisfies MarkerDetailHistoryView);
+      if (source?.manuallyEdited) sources.push({ kind: "source-edited" } satisfies MarkerDetailHistoryView);
     } else if (source?.snapshotId) {
-      sourceHtml = `<div class="mv-source">Imported report${source.manuallyEdited ? ' · manually edited' : ''}</div>`;
+      sources.push({ kind: "source-report", manualLabel: `${source.manuallyEdited ? ' · manually edited' : ''}` } satisfies MarkerDetailHistoryView);
     } else if (source) {
-      sourceHtml = '<div class="mv-source mv-source-manual">manual entry</div>';
+      sources.push({ kind: "source-manual" } satisfies MarkerDetailHistoryView);
     }
   }
-  return { collectionContextHtml, sourceHtml };
+  return { collection, sources };
 }

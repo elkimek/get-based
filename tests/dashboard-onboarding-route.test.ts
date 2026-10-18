@@ -15,7 +15,7 @@ it('releases reserved Dashboard space and cancels delayed guided Chat when the u
     Object.assign(state, { currentView: 'dashboard', currentProfile: 'default', importedData: createDefaultProfileData(), chatHistory: [], nutritionSummary: null });
     localStorage.setItem('labcharts-default-emptyTour', 'completed');
     document.body.innerHTML = '<main id="main-content"></main>';
-    const { showDashboard } = createDashboardPageView({ setupDropZone: () => {}, renderAIConnectionReminder: () => '' });
+    const { showDashboard } = createDashboardPageView({ setupDropZone: () => {}, projectAIConnectionReminder: () => null });
     showDashboard({ dates: [], categories: {} });
     expect(document.body.classList.contains('chat-autostart-reserved')).toBe(true);
     vi.advanceTimersByTime(799);

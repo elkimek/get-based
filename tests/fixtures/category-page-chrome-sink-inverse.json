@@ -1,0 +1,181 @@
+{
+  "changedRuntimeURL": "js/category-page-view.js",
+  "beforeFingerprint": {
+    "count": 7,
+    "digest": "167b7d14ce737c859d1ef831a14c3d919d4df424aa2fb8f164034432165f97ee",
+    "kinds": {
+      "innerHTML": 7
+    }
+  },
+  "afterFingerprint": {
+    "count": 7,
+    "digest": "25293fa99b714ba21949796b8eaa0b3c2466033ab743595ce0c32edcb9473796",
+    "kinds": {
+      "innerHTML": 7
+    }
+  },
+  "exactUnchangedSinkCount": 7,
+  "exactChangedNativeAssignments": [
+    {
+      "before": {
+        "kind": "innerHTML",
+        "line": 284,
+        "source": "container.innerHTML = state.dateRangeFilter !== 'all' && categoryHasHistoricalData ? renderNoResultsInRange(cat, categoryKey) : `<div class=\"empty-state\"><h3>No Data Available</h3><p>Import lab results to see marker charts here.</p></div>`"
+      },
+      "after": {
+        "kind": "innerHTML",
+        "line": 301,
+        "source": "container.innerHTML = state.dateRangeFilter !== 'all' && categoryHasHistoricalData ? renderNoResultsInRange(cat, categoryKey) : renderCategoryPagePresentation(\"switchView\", \"no-data\", { })"
+      }
+    }
+  ],
+  "sourceBeforeSHA256": "fb7b455362cee884a5e037f3b297628152abd0f0ba90ef047b9765de852e014d",
+  "sourceAfterSHA256": "6f91d013a4ce83928d6299abcdce630d916724f4251e529b5c32e4bc92122bce",
+  "coordinateUnit": "JavaScript UTF-16 offsets",
+  "exactSourceEdits": [
+    {
+      "start": 4387,
+      "end": 4829,
+      "before": "`<div class=\"empty-state\"><div class=\"empty-state-icon empty-state-icon-category\">${renderCategoryGlyph(categoryKey, cat.label, { large: true })}</div>\n    <h3>No results in ${escapeHTML(selectedRangeLabel())}</h3>\n    <p>This category has older results. Choose a longer range or show the complete history.</p>\n    <button type=\"button\" class=\"range-btn\" ${dataActionAttrs('set-date-range', { range: 'all' })}>Show all results</button></div>`",
+      "after": "renderCategoryPagePresentation(\"renderNoResultsInRange\", \"outside-range\", {categoryGlyph: () => (renderCategoryGlyph(categoryKey, cat.label, { large: true })),\n    selectedRangeLabel: () => (escapeHTML(selectedRangeLabel())),\n    showAllAction: () => (dataActionAttrs('set-date-range', { range: 'all' }))\n  })",
+      "candidateStart": 4469,
+      "candidateEnd": 4778
+    },
+    {
+      "start": 5559,
+      "end": 5659,
+      "before": "`<div class=\"chart-card-gap-section\"><p>${escapeHTML(heading)}</p><div class=\"chart-card-gap-list\">`",
+      "after": "renderCategoryPagePresentation(\"renderMarkerDataGapSections\", \"section-open\", {heading: () => (escapeHTML(heading))\n  })",
+      "candidateStart": 5508,
+      "candidateEnd": 5628
+    },
+    {
+      "start": 5800,
+      "end": 6058,
+      "before": "`<button type=\"button\" class=\"chart-card chart-card-add\" aria-label=\"Open ${escapeAttr(marker.name)} details\" ${markerDetailActionAttrs('show-detail-modal', { id })}>\n        <span>${escapeHTML(marker.name)}</span><span>${escapeHTML(suffix)}</span></button>`",
+      "after": "renderCategoryPagePresentation(\"renderMarkerDataGapSections\", \"marker-button\", {accessibleName: () => (escapeAttr(marker.name)),\n    detailAction: () => (markerDetailActionAttrs('show-detail-modal', { id })),\n    markerName: () => (escapeHTML(marker.name)),\n    suffix: () => (escapeHTML(suffix))\n  })",
+      "candidateStart": 5769,
+      "candidateEnd": 6070
+    },
+    {
+      "start": 6084,
+      "end": 6098,
+      "before": "`</div></div>`",
+      "after": "renderCategoryPagePresentation(\"renderMarkerDataGapSections\", \"section-close\", {\n  })",
+      "candidateStart": 6096,
+      "candidateEnd": 6181
+    },
+    {
+      "start": 9809,
+      "end": 10047,
+      "before": "` <span class=\"ref-edited-badge\" role=\"button\" tabindex=\"0\" aria-label=\"Rename category\" title=\"Rename category\" ${categoryPageActionAttrs('rename-category', { category: categoryKey })} style=\"cursor:pointer;font-size:12px\">rename</span>`",
+      "after": "renderCategoryPagePresentation(\"showCategory\", \"rename-action\", {renameAction: () => (categoryPageActionAttrs('rename-category', { category: categoryKey }))\n  })",
+      "candidateStart": 9892,
+      "candidateEnd": 10053
+    },
+    {
+      "start": 10062,
+      "end": 10256,
+      "before": "`<div class=\"category-header\"><h2>${renderCategoryGlyph(categoryKey, cat.label)}<span class=\"category-title-text\">${escapeHTML(cat.label)}</span>${renameBtn}</h2>\n    <p>${countLabel}</p></div>`",
+      "after": "renderCategoryPagePresentation(\"showCategory\", \"header\", {categoryGlyph: () => (renderCategoryGlyph(categoryKey, cat.label)),\n    categoryLabel: () => (escapeHTML(cat.label)),\n    renameButton: () => (renameBtn),\n    markerCountLabel: () => (countLabel)\n  })",
+      "candidateStart": 10068,
+      "candidateEnd": 10326
+    },
+    {
+      "start": 10269,
+      "end": 10359,
+      "before": "`<div style=\"display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:20px\">`",
+      "after": "renderCategoryPagePresentation(\"showCategory\", \"toolbar-open\", {\n  })",
+      "candidateStart": 10339,
+      "candidateEnd": 10408
+    },
+    {
+      "start": 10371,
+      "end": 11002,
+      "before": "`<div class=\"view-toggle\" role=\"tablist\" aria-label=\"View mode\" style=\"margin-bottom:0\">\n    <button class=\"view-btn active\" role=\"tab\" aria-selected=\"true\" tabindex=\"0\" ${categoryPageActionAttrs('switch-view', { category: categoryKey, view: 'charts' })}>Charts</button>\n    <button class=\"view-btn\" role=\"tab\" aria-selected=\"false\" tabindex=\"-1\" ${categoryPageActionAttrs('switch-view', { category: categoryKey, view: 'table' })}>Table</button>\n    <button class=\"view-btn\" role=\"tab\" aria-selected=\"false\" tabindex=\"-1\" ${categoryPageActionAttrs('switch-view', { category: categoryKey, view: 'heatmap' })}>Heatmap</button></div>`",
+      "after": "renderCategoryPagePresentation(\"showCategory\", \"view-tabs\", {chartsAction: () => (categoryPageActionAttrs('switch-view', { category: categoryKey, view: 'charts' })),\n    tableAction: () => (categoryPageActionAttrs('switch-view', { category: categoryKey, view: 'table' })),\n    heatmapAction: () => (categoryPageActionAttrs('switch-view', { category: categoryKey, view: 'heatmap' }))\n  })",
+      "candidateStart": 10420,
+      "candidateEnd": 10807
+    },
+    {
+      "start": 11088,
+      "end": 11096,
+      "before": "`</div>`",
+      "after": "renderCategoryPagePresentation(\"showCategory\", \"toolbar-close\", {\n  })",
+      "candidateStart": 10893,
+      "candidateEnd": 10963
+    },
+    {
+      "start": 11109,
+      "end": 11134,
+      "before": "`<div id=\"view-content\">`",
+      "after": "renderCategoryPagePresentation(\"showCategory\", \"view-open\", {\n  })",
+      "candidateStart": 10976,
+      "candidateEnd": 11042
+    },
+    {
+      "start": 11287,
+      "end": 11581,
+      "before": "`<div class=\"empty-state\"><div class=\"empty-state-icon empty-state-icon-category\">${renderCategoryGlyph(categoryKey, cat.label, { large: true })}</div>\n        <h3>No Data Available</h3><p>Import lab results containing ${escapeHTML(cat.label.toLowerCase())} markers to see data here.</p></div>`",
+      "after": "renderCategoryPagePresentation(\"showCategory\", \"no-data\", {categoryGlyph: () => (renderCategoryGlyph(categoryKey, cat.label, { large: true })),\n    lowercaseCategoryLabel: () => (escapeHTML(cat.label.toLowerCase()))\n  })",
+      "candidateStart": 11195,
+      "candidateEnd": 11415
+    },
+    {
+      "start": 11742,
+      "end": 11769,
+      "before": "`<div class=\"charts-grid\">`",
+      "after": "renderCategoryPagePresentation(\"showCategory\", \"charts-open\", {\n  })",
+      "candidateStart": 11576,
+      "candidateEnd": 11644
+    },
+    {
+      "start": 12087,
+      "end": 12095,
+      "before": "`</div>`",
+      "after": "renderCategoryPagePresentation(\"showCategory\", \"charts-close\", {\n  })",
+      "candidateStart": 11962,
+      "candidateEnd": 12031
+    },
+    {
+      "start": 12185,
+      "end": 12193,
+      "before": "`</div>`",
+      "after": "renderCategoryPagePresentation(\"showCategory\", \"view-close\", {\n  })",
+      "candidateStart": 12121,
+      "candidateEnd": 12188
+    },
+    {
+      "start": 15952,
+      "end": 16063,
+      "before": "`<div class=\"empty-state\"><h3>No Data Available</h3><p>Import lab results to see marker charts here.</p></div>`",
+      "after": "renderCategoryPagePresentation(\"switchView\", \"no-data\", {\n  })",
+      "candidateStart": 15947,
+      "candidateEnd": 16009
+    },
+    {
+      "start": 16161,
+      "end": 16188,
+      "before": "`<div class=\"charts-grid\">`",
+      "after": "renderCategoryPagePresentation(\"switchView\", \"charts-open\", {\n  })",
+      "candidateStart": 16107,
+      "candidateEnd": 16173
+    },
+    {
+      "start": 16353,
+      "end": 16361,
+      "before": "`</div>`",
+      "after": "renderCategoryPagePresentation(\"switchView\", \"charts-close\", {\n  })",
+      "candidateStart": 16338,
+      "candidateEnd": 16405
+    },
+    {
+      "start": 0,
+      "end": 0,
+      "before": "",
+      "after": "import { renderCategoryPagePresentation } from './category-page-presentation.js';\n",
+      "candidateStart": 0,
+      "candidateEnd": 82
+    }
+  ]
+}

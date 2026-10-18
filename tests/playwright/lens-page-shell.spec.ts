@@ -1,3 +1,4 @@
+import {waitForAsyncCondition} from '../helpers/awaited-condition.js';
 import type { Page } from '@playwright/test';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
@@ -11,10 +12,10 @@ async function prepareApp(page: Page) {
     localStorage.setItem(`labcharts-${profileId}-tour`, 'completed');
   });
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(async () => {
+  await waitForAsyncCondition(() => page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     return !!state;
-  });
+  }), 0);
 }
 
 test('lens page shell default dashboard deps render fallback widgets', async ({ page }) => {
@@ -26,7 +27,7 @@ test('lens page shell default dashboard deps render fallback widgets', async ({ 
       'lab-marker',
       'Lab marker',
       'Default deps',
-      '<p>Body</p>'
+      {kind:'body-sources',view:{empty:true,sources:[]}}
     );
     (shell.configureLensPageShell as (deps: Omit<NonNullable<Parameters<typeof shell.configureLensPageShell>[0]>, 'openEMFAssessmentEditor'> & {openEMFAssessmentEditor?: () => unknown}) => ReturnType<typeof shell.configureLensPageShell>)({
       getAvailableDashboardFixedWidgetIds: () => ['lab-marker'],
@@ -35,14 +36,14 @@ test('lens page shell default dashboard deps render fallback widgets', async ({ 
       'lab-marker',
       'Lab marker',
       'Default prefs',
-      ''
+      null
     );
 
     return {
       defaultAvailableIdsHideDashboardToggle: !defaultHtml.includes('lens-widget-dashboard-toggle'),
       defaultWidgetRendersTitle: defaultHtml.includes('Lab marker'),
       defaultWidgetRendersDescription: defaultHtml.includes('Default deps'),
-      defaultWidgetRendersBody: defaultHtml.includes('<p>Body</p>'),
+      defaultWidgetRendersBody: defaultHtml.includes('Connect body data'),
       configuredIdsRenderDashboardToggle: defaultPrefsHtml.includes('lens-widget-dashboard-toggle'),
       defaultPrefsRenderVisibleDashboardAction: defaultPrefsHtml.includes('Remove from Dashboard'),
       emptyBodyUsesDefaultFallback: defaultPrefsHtml.includes('No data available yet.'),
@@ -191,41 +192,23 @@ test('lens page browser coverage renders genome details and marker-backed labs',
     const originalMainHTML = main?.innerHTML || '';
     const setupCalls: unknown[] = [];
 
-    const renderLensHeader = (title: unknown, description: unknown, actions = '') => `<header class="lens-page-header">
-      <h1>${title}</h1>
-      <p>${description}</p>
-      <div class="lens-page-actions">${actions}</div>
-    </header>`;
-    const renderLensPageWidgets = (route: unknown, widgets: {id?:unknown;title?:unknown;description?:unknown;body?:unknown}[]) => `<section class="lens-page-widgets" data-lens-route="${route}">
-      ${widgets.filter(Boolean).map(widget => `<article class="dashboard-widget" data-widget-id="${widget.id}">
-        <h2>${widget.title}</h2>
-        <p>${widget.description}</p>
-        <div class="dashboard-widget-body">${widget.body}</div>
-      </article>`).join('')}
-    </section>`;
-
+    const {createDashboardWidgetRenderers}=await import('/js/dashboard-widget-renderers.js');
+    const {getLensContentGrid,getLensWidgetChrome}=await import('/js/lens-page-shell.js');
+    const {projectDashboardMiniSparkline}=await import('/js/dashboard-owned-widget-projection.js');
+    const dna=await import('/js/dna.js');
+    const widgets=createDashboardWidgetRenderers({markerHasData:()=>false,rerenderDashboardFromWidgetChange:()=>{},showRecommendations:()=>{}});
     const handlers = createLensPageHandlers({
       setupDropZone: () => setupCalls.push('setup'),
-      buildDashboardWidgetContext: (data: unknown) => ({ data }),
-      renderLabsPriorityBanner: () => '<section data-testid="labs-priority">Priority labs</section>',
-      renderDashboardQuickMarkersWidget: () => '<div data-testid="quick-markers">Quick markers</div>',
-      renderDashboardKeyTrendsWidget: () => '<div data-testid="key-trends">Key trends</div>',
-      renderDashboardGenomeWidget: () => '<div data-testid="genome-widget">Genome widget</div>',
-      renderDashboardWearableTilesWidget: () => '',
-      renderDashboardInsightsListWidget: () => '',
-      renderDashboardRecommendationsWidget: () => '',
-      renderFocusCard: () => '',
-      loadFocusCard: () => {},
-      getDashboardWidgetPrefs: () => ({ hidden: [] }),
-      getCachedRecommendationsCatalog: () => null,
-      refreshRecommendationsWhenCatalogReady: () => {},
-      getGlobalRecommendationCandidates: () => [],
-      renderRecommendationCard: (candidate: {title?:unknown}|null|undefined) => `<div>${candidate?.title || ''}</div>`,
-      renderRecommendationsEmpty: () => '<div>Empty recommendations</div>',
-      lensPageActionAttrs: (action: unknown, values: {id?:unknown} = {}) => `data-lens-page-action="${action}" data-lens-page-id="${values.id || ''}"`,
-      renderLensHeader,
-      renderLensPageWidgets,
-      renderLensWidget: (id: string, title: unknown, description: unknown, body: unknown) => `<article data-widget-id="${id}"><h2>${title}</h2><p>${description}</p>${body}</article>`,
+      buildDashboardWidgetContext: (data: unknown) => ({data}),
+      projectLabsPriorityBanner: ():import('../../types/dashboard-lab-marker-views.js').DashboardPriorityView => ({
+        kind:'priority',id:'ldl',accessibleLabel:'Priority labs: 93 mg/dL',name:'Priority labs',value:'93',
+        statusClass:'normal',dotStatus:'normal',priority:'Fixture priority',unit:'mg/dL',sparkline:projectDashboardMiniSparkline([], 'normal'),
+      }),
+      projectDashboardQuickMarkersWidget: ():import('../../types/dashboard-owned-widgets.js').DashboardQuickMarkersView => ({kind:'quick-markers',rows:[]}),
+      projectDashboardKeyTrendsWidget: ():import('../../js/dashboard-key-trends-presentation.js').DashboardKeyTrendsView => ({rows:[]}),
+      projectDashboardGenomeWidget: () => {setupCalls.push('project-genome');return widgets.projectDashboardGenomeWidget();},
+      getLensContentGrid,
+      getLensWidgetChrome,
     });
 
     try {
@@ -250,8 +233,10 @@ test('lens page browser coverage renders genome details and marker-backed labs',
           },
         },
       };
+      await Promise.all([dna.ensureSNPTable(),dna.loadHaplogroupTable()]);
       handlers.showGenomeLens();
       const genomeText = main?.textContent || '';
+      const genomePanelRendered = !!main?.querySelector('.db-mtdna-panel');
       const genomeHtml = main?.innerHTML || '';
       const genomeCardCount = main?.querySelectorAll<HTMLElement>('.genetics-overview-card').length || 0;
 
@@ -284,7 +269,7 @@ test('lens page browser coverage renders genome details and marker-backed labs',
       const emptyLabsHtml = main?.innerHTML || '';
 
       return {
-        genomeLensRenders: genomeText.includes('DNA findings and traits linked to your labs') && genomeText.includes('Genome widget'),
+        genomeLensRenders: genomeText.includes('DNA findings and traits linked to your labs') && setupCalls.includes('project-genome') && genomePanelRendered,
         genomeImportDetailsRender: genomeCardCount >= 4
           && genomeHtml.includes('genome-import-details')
           && genomeHtml.includes('23andMe &lt;raw&gt;')
@@ -296,9 +281,9 @@ test('lens page browser coverage renders genome details and marker-backed labs',
           && genomeHtml.includes('data-lens-page-action="delete-dna"')
           && !genomeHtml.includes('onclick='),
         emptyGenomeOmitsImportDetails: !emptyGenomeHtml.includes('genome-import-details'),
-        markerBackedLabsSkipDropZone: markerBackedLabsHtml.includes('data-testid="labs-priority"')
+        markerBackedLabsSkipDropZone: markerBackedLabsHtml.includes('labs-priority-banner') && markerBackedLabsHtml.includes('Priority labs') && markerBackedLabsHtml.includes('data-dashboard-widget-id="ldl"')
           && !markerBackedLabsHtml.includes('id="drop-zone"'),
-        emptyLabsRenderDropZone: emptyLabsHtml.includes('id="drop-zone"') && setupCalls.length >= 2,
+        emptyLabsRenderDropZone: emptyLabsHtml.includes('id="drop-zone"') && setupCalls.filter(call => call === 'setup').length >= 2,
       };
     } finally {
       (state as {importedData:unknown}).importedData = originalData;

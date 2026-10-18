@@ -7,7 +7,8 @@ import { state } from './state.js';
 import { isAIPaused } from './api.js';
 import { callAssistantFeatureAI, getAssistantFeatureIdentity, hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { CONTEXT_CARD_KEYS } from './context-card-summaries.js';
-import { buildLabContext } from './lab-context.js';
+import { getLoadedLabContextBuilder, loadLabContextBuilder } from './lab-context-loader.js';
+import type { LabContextBuilder } from './lab-context-loader.js';
 import { isCloudModel } from './local-ai-provider-shared.js';
 import { getProfiles, profileStorageKey } from './profile.js';
 import { trackUsage } from './schema.js';
@@ -15,7 +16,7 @@ import { hashString, hasCardContent, showNotification } from './utils.js';
 
 
 interface ContextHealthDotDependencies {
-  buildLabContext: (...args: Parameters<typeof buildLabContext>) => unknown;
+  buildLabContext: (...args: Parameters<LabContextBuilder>) => unknown;
   isActiveDemoProfile: () => boolean;
 }
 export interface ContextFingerprintData {
@@ -66,8 +67,12 @@ const PROVIDER_LABELS: Record<string, unknown> = {
 };
 const demoLiveAIConsents = new Map<string, { provider: string; modelId: string; enabledAt: number }>();
 
+function buildDefaultLabContext(...args: Parameters<LabContextBuilder>) {
+  return getLoadedLabContextBuilder()?.(...args) ?? '';
+}
+
 const contextHealthDotDeps: ContextHealthDotDependencies = {
-  buildLabContext,
+  buildLabContext: buildDefaultLabContext,
   isActiveDemoProfile: () => {
     const active = getProfiles().find(profile => profile.id === state.currentProfile);
     return Array.isArray(active?.tags) && active.tags.includes('demo');
@@ -276,8 +281,8 @@ function applyGrayDots(keys: string[]) {
   for (const k of keys) applyDotColor(k, 'gray');
 }
 
-function buildContextForStaleKeys(keys: string[], staleKeys: string[]) {
-  let ctx = contextHealthDotDeps.buildLabContext();
+function buildContextForStaleKeys(keys: string[], staleKeys: string[], build = contextHealthDotDeps.buildLabContext) {
+  let ctx = build();
   if (typeof ctx !== 'string') return '';
   if (staleKeys.length >= keys.length) return ctx;
 
@@ -345,7 +350,9 @@ interface HealthRequest {
   dob: typeof state.profileDob;
   identity: ReturnType<typeof getAssistantFeatureIdentity>;
   fingerprints: Record<string, string | null>;
-  context?: { keys: string[]; text: string };
+  build: ContextHealthDotDependencies['buildLabContext'];
+  isActiveDemoProfile: ContextHealthDotDependencies['isActiveDemoProfile'];
+  context?: { keys: string[]; text: string; build: ContextHealthDotDependencies['buildLabContext'] };
 }
 interface HealthLoad { request: HealthRequest; pending?: Promise<void> }
 const contextHealthLoads = new Map<string, HealthLoad>();
@@ -357,23 +364,38 @@ function captureHealthRequest(): HealthRequest {
   return {
     profileId: state.currentProfile, data: state.importedData, sex: state.profileSex, dob: state.profileDob,
     identity: getAssistantFeatureIdentity(),
+    build: contextHealthDotDeps.buildLabContext,
+    isActiveDemoProfile: contextHealthDotDeps.isActiveDemoProfile,
     fingerprints: Object.fromEntries(CONTEXT_CARD_KEYS.map(key => [key, safeFingerprint(key)])),
   };
 }
 // A request belongs to its inputs and profile session, not to whichever card
 // happens to be in the DOM when the provider responds. Compare the projected
 // context too: source settings and wearable/nutrition inputs exceed card fields.
-function isHealthRequestCurrent(request: HealthRequest): boolean {
-  if (contextHealthLoads.get(request.profileId)?.request !== request
-    || state.currentProfile !== request.profileId || state.importedData !== request.data
-    || state.profileSex !== request.sex || state.profileDob !== request.dob
-    || JSON.stringify(getAssistantFeatureIdentity()) !== JSON.stringify(request.identity)
-    || !hasAssistantFeatureProvider()) return false;
+function healthRequestOwnerCurrent(request: HealthRequest): boolean {
+  return contextHealthLoads.get(request.profileId)?.request === request
+    && state.currentProfile === request.profileId && state.importedData === request.data
+    && state.profileSex === request.sex && state.profileDob === request.dob
+    && contextHealthDotDeps.buildLabContext === request.build
+    && contextHealthDotDeps.isActiveDemoProfile === request.isActiveDemoProfile
+    && JSON.stringify(getAssistantFeatureIdentity()) === JSON.stringify(request.identity)
+    && hasAssistantFeatureProvider();
+}
+function healthRequestInputsCurrent(request: HealthRequest): boolean {
+  if (!healthRequestOwnerCurrent(request)) return false;
   const mode = getDemoContextAIMode();
   if (mode.demo && !mode.live) return false;
   if (CONTEXT_CARD_KEYS.some(key => request.fingerprints[key] === null || safeFingerprint(key) !== request.fingerprints[key])) return false;
+  // Fingerprint getters can replace ownership or revoke live demo eligibility.
+  const currentMode = getDemoContextAIMode();
+  return (!currentMode.demo || currentMode.live) && healthRequestOwnerCurrent(request);
+}
+function isHealthRequestCurrent(request: HealthRequest): boolean {
+  if (!healthRequestInputsCurrent(request)) return false;
   try {
-    return !request.context || buildContextForStaleKeys(CONTEXT_CARD_KEYS, request.context.keys) === request.context.text;
+    const sameContext = !request.context
+      || buildContextForStaleKeys(CONTEXT_CARD_KEYS, request.context.keys, request.context.build) === request.context.text;
+    return sameContext && healthRequestOwnerCurrent(request);
   } catch { return false; }
 }
 
@@ -399,13 +421,31 @@ async function loadContextHealthDotsOnce(request: HealthRequest) {
     return;
   }
 
-  const ctx = buildContextForStaleKeys(keys, staleKeys);
+  let build = request.build;
+  if (build === buildDefaultLabContext) {
+    let loaded = getLoadedLabContextBuilder();
+    if (!loaded) {
+      try {
+        loaded = await loadLabContextBuilder();
+      } catch {
+        if (isHealthRequestCurrent(request)) applyGrayDots(staleKeys);
+        return;
+      }
+    }
+    if (!isHealthRequestCurrent(request)) return;
+    build = loaded;
+  }
+
+  const ctx = buildContextForStaleKeys(keys, staleKeys, build);
+  // Builders/getters can change facts or consent without replacing the data.
+  // Revalidate inputs before publishing a gray state or dispatching context.
+  if (!healthRequestInputsCurrent(request)) return;
   if (typeof ctx !== 'string' || !ctx) {
     applyGrayDots(staleKeys);
     return;
   }
   const prompt = buildHealthDotsPrompt(staleKeys);
-  request.context = { keys: staleKeys, text: ctx };
+  request.context = { keys: staleKeys, text: ctx, build };
 
   try {
     const result = await callAssistantFeatureAI({

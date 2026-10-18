@@ -1,0 +1,13 @@
+const text = (value) => value == null ? '' : String(value);
+/** Literal fields are text; named HTML fields come from existing owned renderers. */
+export function projectLensHeader(title, subtitle, actions = '', options = {}) {
+  return { title: text(title), subtitle: subtitle ? text(subtitle) : null,
+    className: options?.className ? String(options.className) : '', actionsHTML: actions ? String(actions) : null };
+}
+export function projectLensWidgetChrome(id, title, description, size, tools, compact = false) {
+  return { id, title: text(title), description: description ? String(description) : null, size, compact, tools };
+}
+export function projectLensWidget(id, title, description, body, size, tools, compact = false) {
+  return { ...projectLensWidgetChrome(id, title, description, size, tools, compact),
+    bodyHTML: compact ? String(body) : body ? String(body) : null };
+}

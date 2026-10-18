@@ -1,3 +1,4 @@
+import{nativeEnvironmentView,expectedGenuineLightChildren,genuineLightChildReceipts}from'./helpers/light-genuine-child-native-receipts.js';
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { expect, it, vi } from 'vitest';
@@ -29,7 +30,7 @@ function describe(html: string) {
         severity: [...card.querySelectorAll('.light-env-sev-dot')].map(node => ({classes: [...node.classList].filter(name => /^light-env-sev-/.test(name)), title: node.getAttribute('title'), text: clean(node.textContent)})),
       };
     }),
-    trusted: [...host.querySelectorAll('[data-fixture-audit-dot],[data-fixture-audit-ai]')].map(node => node.outerHTML),
+    trusted: genuineLightChildReceipts(host),
     history: clean(host.querySelector('[data-light-env-action="toggle-audit-history"]')?.textContent),
     hint: clean(host.querySelector('.light-audit-hint')?.textContent),
     comparison: describeAuditComparison(host),
@@ -47,8 +48,8 @@ async function setup(sample: Sample) {
       calls.push(`severity:${args[0]?.id}`); return computeRoomSeverityForRoom(...args);
     },
     refreshLightEnvironmentUI: () => {}, hasAIProvider: () => sample.provider,
-    renderAuditAIDot: (audit: {id: string}) => { calls.push(`dot:${audit.id}`); return sample.callbacks ? '<button type="button" data-fixture-audit-dot>Trusted audit dot</button>' : ''; },
-    renderAuditAIBlock: (audit: {id: string}) => { calls.push(`ai:${audit.id}`); return sample.callbacks ? '<div data-fixture-audit-ai>Trusted audit verdict</div>' : ''; },
+    getAuditDotView: (audit: {id: string}) => { calls.push(`dot:${audit.id}`); return sample.callbacks ? nativeEnvironmentView('audit-dot') : null; },
+    getAuditAIView: (audit: {id: string}) => { calls.push(`ai:${audit.id}`); return sample.callbacks ? nativeEnvironmentView('audit') : null; },
   });
   if (sample.all) api.toggleLightAuditHistory();
   if (sample.expanded !== null) api.toggleLightAudit(sample.expanded);
@@ -60,7 +61,7 @@ for (const sample of original.cases) it(`preserves frozen audit behavior: ${samp
   const {api, state, calls} = await setup(sample);
   const before = JSON.stringify(state.importedData);
   const html = api.renderLightAuditsBlock();
-  expect(describe(html)).toEqual(describe(sample.html));
+  expect(describe(html)).toEqual(describe(expectedGenuineLightChildren(sample.html)));
   expect(calls).toEqual(sample.calls);
   expect(JSON.stringify(state.importedData)).toBe(before);
   const host = document.createElement('div'); host.innerHTML = html;
@@ -75,7 +76,7 @@ for (const sample of original.cases) it(`preserves frozen audit behavior: ${samp
 it('keeps configured AI failures isolated and expanded detail lazy', async () => {
   const {api} = await setup(original.cases.find(sample => sample.name === 'collapsed')!);
   const detail = vi.fn(() => {throw new Error('AI unavailable');});
-  api.configureLightEnvAudits({renderAuditAIDot: () => {throw new Error('AI unavailable');}, renderAuditAIBlock: detail});
+  api.configureLightEnvAudits({getAuditDotView: () => {throw new Error('AI unavailable');}, getAuditAIView: detail});
   expect(() => api.renderLightAuditsBlock()).not.toThrow();
   expect(detail).not.toHaveBeenCalled();
   api.toggleLightAudit('a');

@@ -1,3 +1,4 @@
+<svelte:options runes={true}/>
 <script lang="ts">
   import { reviewAIClasses as classes } from '../light-review-ai-classes.js';
 </script>

@@ -1,3 +1,4 @@
+import { contextChildIsOwned } from './context-child-ownership.js';
 import Status, { hydrate, unmount, flushSync } from './components/ContextCardStatus.svelte.native.js';
 import { contextCardStatusTicket } from './context-card-status.js';
 import type { ContextCardStatusSlot } from './context-card-status.js';
@@ -16,7 +17,7 @@ export function ensureContextCardStatus(): void {
   if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') return;
   sweep();
   for (const root of document.querySelectorAll<HTMLElement>('[data-context-status-host]')) {
-    if (mounted.has(root) || retired.has(root) || !current(root)) continue;
+    if (mounted.has(root) || retired.has(root) || contextChildIsOwned(root) || !current(root)) continue;
     const slot = root.dataset.contextStatusSlot as ContextCardStatusSlot;
     if (!['indicator', 'summary', 'insight', 'tips'].includes(slot)) continue;
     const component = hydrate(Status, { target: root, recover: false, props: { slot, cardKey: root.dataset.contextStatusKey || '',

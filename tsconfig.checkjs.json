@@ -11,5 +11,12 @@
   ],
   "exclude": [
     "js/lens-local-worker.ts"
+  ],
+  "files": [
+    "js/component-inline-style-map.generated.js",
+    "js/emf-inline-style-map.generated.js",
+    "js/sync-inline-style-map.generated.js",
+    "js/ts-state-ui-inline-style-map.generated.js",
+    "js/ts-static-ui-inline-style-map.generated.js"
   ]
 }

@@ -132,8 +132,8 @@ installLightSetupDelegates(delegateDom.window.document);
     !globalsSrc.includes('maybeAnalyzeOnboardingAfterSave') &&
     !globalsSrc.includes('renderOnboardingAIBlock') &&
     aiSaveHooksSrc.includes("import { configureSunDefaults } from './sun-defaults.js';") &&
-    aiSaveHooksSrc.includes("import { maybeAnalyzeOnboardingAfterSave, renderOnboardingAIBlock } from './sun-onboarding-ai.js';") &&
-    aiSaveHooksSrc.includes('configureSunDefaults({ maybeAnalyzeOnboardingAfterSave, renderOnboardingAIBlock })') &&
+    aiSaveHooksSrc.includes("import { maybeAnalyzeOnboardingAfterSave, getOnboardingAIView } from './sun-onboarding-ai.js';") &&
+    aiSaveHooksSrc.includes('configureSunDefaults({ maybeAnalyzeOnboardingAfterSave, getOnboardingAIView })') &&
     appLightSunSrc.includes("import './light-ai-save-hooks.js';") &&
     swSrc.includes("'/js/light-ai-save-hooks.js'"));
 

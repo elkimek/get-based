@@ -7,7 +7,7 @@ import { liveSessionReadouts } from './light-active-session-presentation.js';
 import { state } from './state.js';
 import { showNotification } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
-import { BODY_REGIONS, renderBodySilhouette, bindBodySilhouette } from './sun-body-silhouette.js';
+import { BODY_REGIONS, projectBodySilhouette, renderBodySilhouette, bindBodySilhouette } from './sun-body-silhouette.js';
 import { sunSessionInputKey, sunSessionExposure } from './sun-session-model.js';
 import { renderChannelChips } from './sun-session-ui.js';
 import { setSunChannelChipsExpanded } from './sun-session-actions.js';
@@ -108,7 +108,7 @@ export async function openStartSunSessionDialog() {
   overlay.innerHTML = renderHTML({ kind: 'start', view: projectStartSunSessionForm({ lastUsed: last ?? null,
     eyeModes: activeDeps.eyeModes, lensTints: activeDeps.lensTints,
     postureOptions: activeDeps.postureOptions, surfaceOptions: activeDeps.surfaceOptions,
-  }), silhouetteHTML: renderBodySilhouette(lastRegions) });
+  }), silhouetteView: projectBodySilhouette(lastRegions) });
   const closeDialog = () => removeModalOverlay(overlay);
   overlay.querySelectorAll('[data-sun-start-close]').forEach(btn => {
     btn.addEventListener('click', closeDialog);

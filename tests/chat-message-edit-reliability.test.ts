@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 const m = vi.hoisted(() => ({ send: vi.fn(), render: vi.fn(), update: vi.fn(), notify: vi.fn(), streaming: vi.fn(), fork: vi.fn(), saveDraft: vi.fn(), clearDraft: vi.fn(), reset: vi.fn() }));
 vi.mock('../js/chat-composer.js', () => ({ clearChatDraft: m.clearDraft, resetChatComposer: m.reset, saveChatDraft: m.saveDraft }));
 vi.mock('../js/chat-runtime.js', () => ({ isChatRuntimeStreaming: m.streaming }));
@@ -15,6 +15,12 @@ beforeEach(() => {
   state.chatHistory = [{ role: 'user', content: 'First' }, { role: 'assistant', content: 'Reply' }, { role: 'user', content: 'Latest' }, { role: 'assistant', content: 'Last reply' }];
   document.body.innerHTML = '<div class="chat-input-area"><div class="chat-input-row"></div></div><div id="chat-msg-0"></div><div id="chat-msg-2"></div>';
   edit.configureChatMessageEditDeps({ renderChatMessages: m.render, sendChatMessage: m.send, updateChatInputState: m.update });
+});
+// Retire the fixture's deliberately retained final editor before jsdom globals
+// disappear; its MutationObserver must not initiate unmount after teardown.
+afterEach(async () => {
+  edit.cancelChatMessageEdit();
+  await Promise.resolve();
 });
 function begin(value = 'Revised') { expect(edit.beginChatMessageEdit(2)).toBe(true); (document.getElementById('chat-message-edit-input') as HTMLTextAreaElement).value = value; }
 it.each(['assistant', 'earlier', 'image', 'streaming', 'missing', 'threadless', 'hidden', 'joined'])('refuses an ineligible %s edit without entering edit mode', mode => {

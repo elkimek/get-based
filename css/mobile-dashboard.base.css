@@ -1,0 +1,342 @@
+/* Mobile dashboard: shared tokens, scoped Tailwind recipes, original responsive cascade. */
+@import "tailwindcss" prefix(gb) source(none) reference;
+@import "./mobile-dashboard.tailwind.css";
+
+/* Mobile dashboard app shell */
+.m-shell {
+  @apply gb:mobile-shell-hidden; }
+@media (max-width: 799px) {
+  html.mobile-dashboard-active,
+  html.mobile-tabs-active {
+    @apply gb:mobile-document-bounds;
+  }
+  html.mobile-dashboard-active body,
+  html.mobile-tabs-active body {
+    @apply gb:mobile-body-bounds;
+  }
+  body.mobile-dashboard-active .header {
+    @apply gb:mobile-header; }
+  body.mobile-tabs-active .layout,
+  body.mobile-dashboard-active .layout {
+    @apply gb:mobile-layout;
+  }
+  body.mobile-dashboard-active .sidebar {
+    @apply gb:mobile-sidebar;
+  }
+  body.mobile-dashboard-active .sidebar.mobile-open {
+    @apply gb:mobile-sidebar-open;
+  }
+  body.mobile-dashboard-active .main {
+    @apply gb:mobile-dashboard-main;
+  }
+  body.mobile-tabs-active .main {
+    @apply gb:mobile-tabs-main;
+  }
+  body.mobile-tabs-active,
+  body.mobile-dashboard-active {
+    @apply gb:mobile-body-scroll;
+  }
+  body.mobile-dashboard-active .app-footer {
+    @apply gb:mobile-footer-hidden; }
+  .m-shell {
+    @apply gb:mobile-shell;
+  }
+  .m-bg {
+    @apply gb:mobile-background;
+  }
+  .m-content {
+    @apply gb:mobile-content;
+  }
+  .m-tab {
+    @apply gb:mobile-tap-highlight;
+  }
+  .m-tab-icon svg {
+    @apply gb:mobile-tab-icon;
+  }
+  .m-greeting {
+    @apply gb:mobile-greeting;
+  }
+  .m-greeting h1 {
+    @apply gb:mobile-greeting-title;
+  }
+  .m-greeting-sub {
+    @apply gb:mobile-greeting-subtitle;
+  }
+  .m-stats {
+    @apply gb:mobile-stats;
+  }
+  .m-stat-card {
+    @apply gb:mobile-stat-card;
+  }
+  button.m-stat-card {
+    @apply gb:mobile-stat-button;
+  }
+  button.m-stat-card:hover {
+    @apply gb:mobile-stat-button-hover;
+  }
+  button.m-stat-card:active {
+    @apply gb:mobile-stat-button-active;
+  }
+  .m-stat-summary {
+    @apply gb:mobile-stat-summary;
+  }
+  .m-stat-summary .m-marker-dot {
+    @apply gb:mobile-stat-summary-dot;
+  }
+  .m-stat-card:focus-visible,
+  .m-insight:focus-visible,
+  .m-marker-row:focus-visible,
+  .m-tab:focus-visible {
+    @apply gb:mobile-focus-ring;
+  }
+  .m-stat-card strong {
+    @apply gb:mobile-stat-value;
+  }
+  .m-stat-card small {
+    @apply gb:mobile-stat-unit;
+  }
+  .m-stat-head {
+    @apply gb:mobile-stat-heading;
+  }
+  .m-stat-label {
+    @apply gb:mobile-stat-label;
+  }
+  .m-stat-meta {
+    @apply gb:mobile-stat-meta;
+  }
+  .m-stat-normal {
+    @apply gb:mobile-stat-normal; }
+  .m-stat-high,
+  .m-stat-low {
+    @apply gb:mobile-stat-abnormal; }
+  .m-section {
+    @apply gb:mobile-section;
+  }
+  .m-section-head {
+    @apply gb:mobile-section-heading;
+  }
+  .m-section-labels {
+    @apply gb:mobile-section-labels;
+  }
+  .m-section-title {
+    @apply gb:mobile-section-title;
+  }
+  .m-section-count {
+    @apply gb:mobile-section-count;
+  }
+  .m-section-head button {
+    @apply gb:mobile-section-action;
+  }
+  .m-insights {
+    @apply gb:mobile-insights;
+  }
+  .m-insight {
+    @apply gb:mobile-insight;
+  }
+  .m-insight strong {
+    @apply gb:mobile-insight-title; }
+  .m-insight span:not(.m-insight-eyebrow) {
+    @apply gb:mobile-insight-body;
+  }
+  .m-insight small {
+    @apply gb:mobile-insight-meta;
+  }
+  .m-insight-eyebrow {
+    @apply gb:mobile-insight-eyebrow;
+  }
+  .m-insight-danger {
+    @apply gb:mobile-insight-danger; }
+  .m-insight-warn {
+    @apply gb:mobile-insight-warning; }
+  .m-insight-good {
+    @apply gb:mobile-insight-good; }
+  .m-insight-info {
+    @apply gb:mobile-insight-info; }
+  .m-marker-list {
+    @apply gb:mobile-marker-list;
+  }
+  .m-marker-row {
+    @apply gb:mobile-marker-row;
+  }
+  .m-marker-dot {
+    @apply gb:mobile-marker-dot;
+  }
+  .m-marker-normal {
+    @apply gb:mobile-marker-normal; }
+  .m-marker-high,
+  .m-marker-low {
+    @apply gb:mobile-marker-abnormal; }
+  .m-marker-main {
+    @apply gb:mobile-marker-main; }
+  .m-marker-main strong,
+  .m-marker-main small {
+    @apply gb:mobile-marker-text;
+  }
+  .m-marker-main strong {
+    @apply gb:mobile-marker-name; }
+  .m-marker-main small {
+    @apply gb:mobile-marker-meta; }
+  .m-marker-value {
+    @apply gb:mobile-marker-value;
+  }
+  .m-marker-value strong {
+    @apply gb:mobile-marker-number; }
+  .m-marker-value small {
+    @apply gb:mobile-marker-unit; }
+  .m-spark {
+    @apply gb:mobile-spark;
+  }
+  .m-spark polyline {
+    @apply gb:mobile-spark-line;
+  }
+  .m-spark-high,
+  .m-spark-low {
+    @apply gb:mobile-spark-abnormal; }
+  .m-spark-normal {
+    @apply gb:mobile-spark-normal; }
+  .m-spark-empty {
+    @apply gb:mobile-spark-empty;
+  }
+  .m-empty {
+    @apply gb:mobile-empty;
+  }
+  .m-wear-strip {
+    @apply gb:mobile-wear-strip;
+  }
+  .m-wear-tile {
+    @apply gb:mobile-wear-tile;
+  }
+  .m-wear-label {
+    @apply gb:mobile-wear-label;
+  }
+  .m-wear-tile strong {
+    @apply gb:mobile-wear-value;
+  }
+  .m-wear-tile small {
+    @apply gb:mobile-wear-unit;
+  }
+  .m-wear-change {
+    @apply gb:mobile-wear-change;
+  }
+  .m-wear-empty {
+    @apply gb:mobile-wear-empty;
+  }
+  .m-wear-empty strong {
+    @apply gb:mobile-wear-empty-title; }
+  .m-wear-empty button {
+    @apply gb:mobile-wear-empty-action;
+  }
+  .m-embedded-strip > .light-today-strip,
+  .m-embedded-strip > .wearable-strip,
+  .m-embedded-strip > .wearable-strip-empty,
+  .m-embedded-strip > .genetics-section {
+    @apply gb:mobile-embedded-card;
+  }
+  .m-embedded-strip .light-today-head,
+  .m-embedded-strip .wearable-strip-head {
+    @apply gb:mobile-embedded-heading;
+  }
+  .m-embedded-strip .light-today-head {
+    @apply gb:mobile-embedded-light-heading;
+  }
+  .m-embedded-strip .light-today-sub,
+  .m-embedded-strip .light-today-link {
+    @apply gb:mobile-embedded-subtitle;
+  }
+  .m-embedded-strip .light-pills-row,
+  .m-embedded-strip .wearable-metrics {
+    @apply gb:mobile-embedded-metrics;
+  }
+  .m-embedded-strip .light-pill,
+  .m-embedded-strip .wearable-card {
+    @apply gb:mobile-embedded-metric;
+  }
+  .m-dashboard-widget-section {
+    @apply gb:mobile-widget-section;
+  }
+  .m-dashboard-widget-actions {
+    @apply gb:mobile-widget-actions;
+  }
+  .m-dashboard-widget-actions .dashboard-action-btn {
+    @apply gb:mobile-widget-action;
+  }
+  .m-dashboard-widgets {
+    @apply gb:mobile-widgets;
+  }
+  .m-dashboard-widgets .dashboard-widget,
+  .m-dashboard-widgets .dashboard-widget-half,
+  .m-dashboard-widgets .dashboard-widget-quarter,
+  .m-dashboard-widgets .dashboard-widget-third,
+  .m-dashboard-widgets .dashboard-widget-two-third {
+    @apply gb:mobile-widget-span;
+  }
+  .m-dashboard-widgets .dashboard-widget-description {
+    @apply gb:mobile-widget-description;
+  }
+  .m-tabbar {
+    @apply gb:mobile-tabbar;
+  }
+  .m-tab {
+    @apply gb:mobile-tab;
+  }
+  .m-tab-icon,
+  .m-tab span {
+    @apply gb:mobile-tab-symbol;
+  }
+  .m-tab small {
+    @apply gb:mobile-tab-label;
+  }
+  .m-tab.active {
+    @apply gb:mobile-tab-active;
+  }
+  .m-tab.active::before {
+    @apply gb:mobile-tab-active-indicator;
+  }
+  .m-tab.active .m-tab-icon {
+    @apply gb:mobile-tab-active-icon;
+  }
+  body.mobile-dashboard-active #chat-fab,
+  body.mobile-tabs-active #chat-fab {
+    @apply gb:mobile-chat-fab;
+  }
+  [data-theme="cyberterm"] .dashboard-greeting h1::before,
+  [data-theme="cyberterm"] .m-greeting h1::before {
+    @apply gb:mobile-cyber-greeting;
+  }
+  [data-theme="cyberterm"] .m-section-title::before {
+    @apply gb:mobile-cyber-title-before; }
+  [data-theme="cyberterm"] .m-section-title::after {
+    @apply gb:mobile-cyber-title-after; }
+  [data-theme="cyberterm"] .m-stat-card,
+  [data-theme="cyberterm"] .m-insight,
+  [data-theme="cyberterm"] .m-marker-row,
+  [data-theme="cyberterm"] .m-wear-tile,
+  [data-theme="cyberterm"] .m-tabbar {
+    @apply gb:mobile-cyber-square;
+  }
+  [data-theme="cyberterm"] .m-stat-card,
+  [data-theme="cyberterm"] .m-insight,
+  [data-theme="cyberterm"] .m-marker-row,
+  [data-theme="cyberterm"] .m-wear-tile {
+    @apply gb:mobile-cyber-card-shadow;
+  }
+  [data-theme="cyberterm"] .m-tabbar {
+    @apply gb:mobile-cyber-tabbar-shadow;
+  }
+  [data-theme="synth-sunrise"] .m-bg {
+    @apply gb:mobile-synth-background;
+  }
+  [data-theme="neuromancer"] .m-bg {
+    @apply gb:mobile-neuro-background;
+  }
+  [data-theme="neuromancer"] .m-tabbar {
+    @apply gb:mobile-neuro-tabbar-shadow;
+  }
+  [data-theme="glass"] .m-stat-card,
+  [data-theme="glass"] .m-insight,
+  [data-theme="glass"] .m-marker-row,
+  [data-theme="glass"] .m-wear-tile,
+  [data-theme="glass"] .m-tabbar {
+    @apply gb:mobile-glass-card;
+  }
+}

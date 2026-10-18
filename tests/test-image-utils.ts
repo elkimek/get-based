@@ -8,6 +8,7 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // CSS-rule checks) live in tests/playwright/image-utils-dom.spec.js.
 
 import './_node-shim.js';
+import { ownedRule, escapedClass } from './helpers/legacy-light-chat-contracts.js';
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -164,7 +165,9 @@ assert('chat-images keeps original image bytes instead of a legacy quality mode'
   chatImagesSrc.includes('isValidImageType')
     && chatImagesSrc.includes('imageFileToBase64')
     && !chatImagesSrc.includes('toggleHDMode'));
-assert('Image badge in renderChatMessages', chatRenderSrc.includes('chat-image-badge'));
+const chatMessageSrc = await fetchWithRetry('js/components/ChatMessage.svelte');
+const storedImagesSrc = await fetchWithRetry('js/components/ChatStoredImages.svelte');
+assert('Image badge in renderChatMessages', chatRenderSrc.includes('projectChatTranscript') && chatMessageSrc.includes('<ChatStoredImages view={view.images}') && storedImagesSrc.includes('chat-image-badge') && storedImagesSrc.includes('{view.count} image'));
 assert('buildVisionContent used in sendChatMessage', chatSendSrc.includes('buildVisionContent(imageBlocks'));
 
 const pdfSrc = await fetchWithRetry('js/pdf-import.js');
@@ -195,7 +198,8 @@ assert('.chat-context-menu-toggle style exists in CSS bundle', composerMenu.incl
 assert('.chat-attach-preview style exists in CSS bundle', attachmentClasses.includes('chat-attach-preview gb:attachment:') && cssSrc.includes('gb\\:attachment'));
 assert('.chat-attach-thumb style exists in CSS bundle', attachmentClasses.includes('chat-attach-thumb gb:attachment:') && cssSrc.includes('gb\\:attachment'));
 assert('.chat-attach-remove style exists in CSS bundle', attachmentClasses.includes('chat-attach-remove gb:attachment:') && cssSrc.includes('gb\\:attachment'));
-assert('.chat-image-badge style exists in CSS bundle', cssSrc.includes('.chat-image-badge'));
+const messageContentCss = await fetchWithRetry('css/chat-panel-open.css');
+assert('.chat-image-badge style exists in CSS bundle', storedImagesSrc.includes('chat-image-badge gb:message-content:text-[11px] gb:message-content:text-secondary gb:message-content:mb-1 gb:message-content:italic') && ownedRule(messageContentCss, escapedClass('gb:message-content:text-[11px]') + ':is([data-chat-message-content],[data-chat-message-content] *)', { 'font-size': '11px' }) && ownedRule(messageContentCss, escapedClass('gb:message-content:italic') + ':is([data-chat-message-content],[data-chat-message-content] *)', { 'font-style': 'italic' }));
 assert('.chat-drop-active style exists in CSS bundle', cssSrc.includes('.chat-drop-active'));
 
 // HTML structure source-string checks — Playwright file confirms the

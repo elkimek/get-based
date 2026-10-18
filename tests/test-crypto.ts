@@ -616,12 +616,49 @@ try {
   const src = await fetchWithRetry('js/settings.js');
   const runtimeSrc = await fetchWithRetry('js/settings-runtime.js');
   const runtimeBridgeSrc = await fetchWithRetry('js/settings-runtime-bridge.js');
-  assert('settings.js imports renderEncryptionSection', src.includes('renderEncryptionSection'));
-  assert('settings.js imports renderBackupSection', src.includes('renderBackupSection'));
-  assert('settings.js has Security group', src.includes('Security'));
-  assert('settings.js has Backup group', src.includes('Backup'));
-  assert('settings.js has encryption-section id', src.includes('encryption-section'));
-  assert('settings.js has backup-section id', src.includes('backup-section'));
+  const panelsSrc = await fetchWithRetry('js/components/SettingsPanels.svelte');
+  const shellSrc = await fetchWithRetry('js/settings-shell.js');
+  const shellViewSrc = await fetchWithRetry('js/components/SettingsShell.svelte');
+  const protectionSrc = await fetchWithRetry('js/settings-protection-component.js');
+  const dataPanel = panelsSrc.match(/<div[^>]*\bdata-tab-panel="data"[\s\S]*?(?=<!-- Wearables Tab)/)?.[0] || '';
+  const mountAt = src.indexOf('mountSettingsShell(modal,');
+  assert('settings prepares the encryption feature through its crypto boundary before mounting the shell',
+    /import\s*\{[^}]*prepareEncryptionSection[^}]*\}\s*from '\.\/crypto\.js'/.test(src) &&
+    src.indexOf('prepareEncryptionSection();') >= 0 && src.indexOf('prepareEncryptionSection();') < mountAt &&
+    cryptoStoreSrc.includes('prepareEncryptionSection') &&
+    /export function prepareEncryptionSection\(\)[\s\S]*?queueMicrotask\(hydrateProtectionSettings\)/.test(cryptoUiSrc));
+  assert('settings prepares the backup feature through its crypto boundary before mounting the shell',
+    /import\s*\{[^}]*prepareBackupSection[^}]*\}\s*from '\.\/crypto\.js'/.test(src) &&
+    src.indexOf('prepareBackupSection();') >= 0 && src.indexOf('prepareBackupSection();') < mountAt &&
+    cryptoStoreSrc.includes('prepareBackupSection') &&
+    /export function prepareBackupSection\(\)[\s\S]*?queueMicrotask\(hydrateProtectionSettings\)/.test(cryptoUiSrc));
+  assert('the mounted SettingsPanels Data tab owns the Security group',
+    dataPanel.includes('<div class="settings-group-title">Security</div>'));
+  assert('the mounted SettingsPanels Data tab owns the Backup and Restore group',
+    dataPanel.includes('<div class="settings-group-title">Backup &amp; Restore</div>'));
+  assert('the encryption section exposes the host consumed by the typed EncryptionSettings owner',
+    /id="encryption-section">\s*<div data-encryption-settings-root data-settings-protection-view="encryption"/.test(dataPanel) &&
+    protectionSrc.includes("from './components/EncryptionSettings.svelte.native.js'") &&
+    protectionSrc.includes("document.querySelector('[data-encryption-settings-root]')") &&
+    protectionSrc.includes('mount(EncryptionSettings, { target: host, props: { initial: snapshot } })') &&
+    cryptoUiSrc.includes('refreshEncryptionSettings({ enabled })'));
+  assert('the backup section exposes the host consumed by the typed BackupSettings owner',
+    /id="backup-section">\s*<div data-backup-settings-root data-settings-protection-view="backup"/.test(dataPanel) &&
+    protectionSrc.includes("from './components/BackupSettings.svelte.native.js'") &&
+    protectionSrc.includes("document.querySelector('[data-backup-settings-root]')") &&
+    protectionSrc.includes('mountBackup(BackupSettings, { target: host, props: { initial: snapshot } })') &&
+    cryptoUiSrc.includes('refreshBackupSettings(getBackupSettingsSnapshot('));
+  assert('the settings controller mounts the Svelte shell which composes the actual protection hosts',
+    src.includes("from './settings-shell.js'") && mountAt >= 0 &&
+    shellSrc.includes("from './components/SettingsShell.svelte.native.js'") &&
+    shellSrc.includes('mount(SettingsShell, { target, props })') &&
+    shellViewSrc.includes("import SettingsPanels from './SettingsPanels.svelte'") &&
+    shellViewSrc.includes('<SettingsPanels {panels}/>'));
+  assert('settings hydrates both typed protection features after shell mounting and disposes previous owners',
+    src.indexOf('disposeSettingsProtection();') >= 0 && src.indexOf('disposeSettingsProtection();') < mountAt &&
+    src.indexOf('hydrateProtectionSettings();') > mountAt &&
+    src.indexOf('loadBackupSnapshots();') > mountAt &&
+    protectionSrc.includes('void unmount(encryption)') && protectionSrc.includes('void unmountBackup(backup)'));
   assert('settings.js delegates browser runtime hooks to settings-runtime',
     src.includes("from './settings-runtime.js'") &&
     !/\bwindow(?:\.|\s*\[)/.test(src));

@@ -5,7 +5,7 @@ vi.mock('../js/state.js', () => ({ state: { currentProfile: 'a', importedData: {
 vi.mock('../js/utils.js', () => ({ escapeHTML: String, escapeAttr: String, showNotification: vi.fn() }));
 vi.mock('../js/sun-session-ui.js', () => ({ renderChannelChips: () => '' }));
 vi.mock('../js/sun-session-actions.js', () => ({ setSunChannelChipsExpanded: vi.fn() }));
-vi.mock('../js/sun-body-silhouette.js', () => ({ BODY_REGIONS: [], renderBodySilhouette: () => '', bindBodySilhouette: vi.fn() }));
+vi.mock('../js/sun-body-silhouette.js', () => ({ BODY_REGIONS: [], renderBodySilhouette: () => '', projectBodySilhouette: () => null, bindBodySilhouette: vi.fn() }));
 import { state } from '../js/state.js';
 import * as active from '../js/sun-active-session.js';
 const deferred = () => { let resolve: ((value?: unknown) => void) | undefined, reject: ((reason?: unknown) => void) | undefined; const promise = new Promise<unknown>((yes, no) => { resolve = yes as (value?: unknown) => void; reject = no; }); return { promise, resolve, reject }; };

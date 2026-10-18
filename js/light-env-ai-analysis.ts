@@ -1,3 +1,4 @@
+import{captureLightAIView}from'./light-ai-view-values.js';
 import type { ProfileData } from '../types/app-state.js';
 // light-env-ai-analysis.js — per-room AI verdict for the Light
 // Environment module. Synthesizes a room's measurements + occupancy +
@@ -219,9 +220,9 @@ registerAIActionHandler('refresh-room', refreshRoomAIAnalysis);
 // hero uses, prevents tight-loop refire on transient errors.
 const _autoFiredRoomKeys = new Set<string>();
 
-export function renderRoomAIBlock(r: AIRoom | null | undefined) {
-  if (!r) return '';
-  if (!hasAssistantFeatureProvider() && !(r.aiAnalysis?.status === 'ok' && r.aiAnalysis?.dot)) return '';
+export function getRoomAIView(r: AIRoom | null | undefined) {
+  if (!r) return null;
+  if (!hasAssistantFeatureProvider() && !(r.aiAnalysis?.status === 'ok' && r.aiAnalysis?.dot)) return null;
   const status = engine.getStatus(r);
   const a = r.aiAnalysis;
   const currentFingerprint = getRoomFingerprint(r);
@@ -246,7 +247,8 @@ export function renderRoomAIBlock(r: AIRoom | null | undefined) {
   // no way to retry while the auto-fire was queued/racing. Now stale-ok
   // falls through to the ok branch (with ↻); the auto-fire above
   // updates the verdict underneath when it resolves.
-  return renderHTML({ view: projectEnvironmentAI({ kind: 'room', status, analysis: a,
+  return captureLightAIView(projectEnvironmentAI({ kind: 'room', status, analysis: a,
     targetId: r.id, actionOwner: aiActionOwner(),
-  }) });
+  }));
 }
+export function renderRoomAIBlock(r: AIRoom | null | undefined){const view=getRoomAIView(r);return view?renderHTML({view}):'';}

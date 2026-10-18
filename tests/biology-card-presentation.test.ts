@@ -24,14 +24,14 @@ for(const sample of original.samples){
  it(`preserves complete frozen card composition: ${sample.name}`,()=>{
   const before=structuredClone(sample);const html=renderHTML({kind:'detail',view:projectBiologyScoreDetail(sample.score,sample.ai)});
   expect(structure(host(html))).toEqual(structure(host(decode(sample.withoutTools))));
-  expect(html.match(/<!--score-tools-->/g)).toHaveLength(1);expect(sample).toEqual(before);
+  expect(html).not.toContain('<!--score-tools-->');expect(sample).toEqual(before);
   expect(host(html).querySelector('script,img,[onerror],a[href^="javascript:"]')).toBeNull();
  });
  it(`preserves dashboard toggle state and the public widget insertion contract: ${sample.name}`,()=>{
   const actual=renderHTML({kind:'detail',view:projectBiologyScoreDetail(sample.score,sample.ai,toggle(sample))});
   const expected=decode(sample.withoutTools).replace('<!--score-tools-->','<!--score-tools-->'+decode(sample.dashboardToggleHTML));
   expect(structure(host(actual))).toEqual(structure(host(expected)));
-  const body=renderHTML({kind:'detail',view:projectBiologyScoreDetail(sample.score,sample.ai)});
+  const body={kind:'biology-score' as const,view:projectBiologyScoreDetail(sample.score,sample.ai)};
   const widget=renderLensWidget(`biology-score-detail-${sample.score.id}`,sample.score.title,'',body,'full',{compactScore:true,dashboardId:`biology-score-${sample.score.id}`,pageRoute:'biology-scores',pageIndex:1,pageCount:3});
   const expectedWidget=sample.widgetPrefix+decode(sample.withoutTools).replace('<!--score-tools-->',decode(sample.widgetToolsHTML))+sample.widgetSuffix;
   expect(structure(host(widget))).toEqual(structure(host(expectedWidget)));

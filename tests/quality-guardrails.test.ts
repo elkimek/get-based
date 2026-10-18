@@ -329,22 +329,36 @@ it('preserves the quality, architecture and compiler safety contracts', () => {
   assert('direct Playwright runs do not silently reuse an unrelated server',
     playwrightConfigSrc.includes("process.env.PLAYWRIGHT_REUSE_SERVER === '1'") &&
       playwrightConfigSrc.includes('reuseExistingServer,'));
-  assert('CI keeps dedicated typecheck steps and skips duplicate script typecheck',
-    testWorkflowSrc.includes('name: Run typecheck') &&
-      testWorkflowSrc.includes('run: npm run typecheck') &&
-      testWorkflowSrc.includes('name: Run server checkJs') &&
-      testWorkflowSrc.includes('run: npm run typecheck:server') &&
-      testWorkflowSrc.includes('name: Run service-worker checkJs') &&
-      testWorkflowSrc.includes('run: npm run typecheck:service-worker') &&
-      testWorkflowSrc.includes('name: Enforce strict-null debt ratchet') &&
-      testWorkflowSrc.includes('run: npm run typecheck:strict-null') &&
-      testWorkflowSrc.includes('SKIP_TYPECHECK=1 ./run-tests.sh'));
-  assert('CI enforces quality guardrails',
-    testWorkflowSrc.includes('name: Run quality guardrails') &&
-      testWorkflowSrc.includes('run: npm run quality'));
-  assert('CI verifies architecture map and boundaries',
-    testWorkflowSrc.includes('name: Verify architecture map and boundaries') &&
-      testWorkflowSrc.includes('run: npm run architecture:check'));
+  const ciPrepare = /^  prepare:\n([\s\S]*?)(?=^  unit:)/m.exec(testWorkflowSrc)?.[1] || '';
+  const ciGuardRun = /      - name: Enforce compiler, architecture and supply-chain contracts\n        run: \|\n((?:          [^\n]*\n)+)/.exec(ciPrepare)?.[1] || '';
+  const ciGuardCommands = ciGuardRun.trim().split('\n').map(line => line.trim());
+  const expectedCiGuardCommands = [
+    'npm run migration:check',
+    'npm run typecheck',
+    'npm run typecheck:migration',
+    'npm run typecheck:migration-tests',
+    'npm run typecheck:checkjs',
+    'npm run typecheck:server',
+    'npm run typecheck:service-worker',
+    'npm run typecheck:strict-null',
+    'npm run architecture:check',
+    'npm run quality',
+    'npm run vendor:check',
+    'npm run supply-chain:check',
+    'node tests/verify-modules.js',
+  ];
+  const ciPrepareRequired = testWorkflowSrc.includes('needs: [prepare, unit, native, kit, performance, coverage]')
+    && testWorkflowSrc.includes('node scripts/ci-results.mjs aggregate --needs');
+  assert('CI requires every compiler check before direct full-suite and coverage execution',
+    ciPrepareRequired && JSON.stringify(ciGuardCommands) === JSON.stringify(expectedCiGuardCommands) &&
+      !testWorkflowSrc.includes('./run-tests.sh') &&
+      testWorkflowSrc.includes('node node_modules/vitest/vitest.mjs run --coverage') &&
+      testWorkflowSrc.includes('node node_modules/vitest/vitest.mjs run --config vitest.critical.config.js') &&
+      testWorkflowSrc.includes('node scripts/playwright-coverage.mjs'));
+  assert('CI enforces quality guardrails in required unconditional preparation',
+    ciPrepareRequired && ciGuardCommands.includes('npm run quality'));
+  assert('CI verifies architecture map and boundaries in required unconditional preparation',
+    ciPrepareRequired && ciGuardCommands.includes('npm run architecture:check'));
   const highValueCheckJsModules = [
     'js/api.js',
     'js/api-custom.js',

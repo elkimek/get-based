@@ -6,6 +6,8 @@
 import './_node-shim.js';
 
 import fs from 'node:fs';
+import { JSDOM } from 'jsdom';
+import { renderHTML as renderMarkerHistory } from '../js/components/MarkerDetailHistory.svelte.html.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -395,7 +397,12 @@ const cssSource = read('styles.css') + '\n' + read('css/marker-detail-modal.css'
   assert('renderChartCard uses getEffectiveRangeForDate', categoryViewRenderersSource.includes('getEffectiveRangeForDate(marker, latestIdx)'));
   assert('renderChartCard per-value uses getEffectiveRangeForDate', categoryViewRenderersSource.includes('getEffectiveRangeForDate(marker, i)'));
   assert('showDetailModal uses getEffectiveRangeForDate', markerDetailSource.includes('getEffectiveRangeForDate(marker, i)'));
-  assert('showDetailModal shows phase label', markerDetailSource.includes('mv-phase'));
+  const phaseDOM = new JSDOM(renderMarkerHistory({ view: { kind: 'phase', phase: 'Follicular', minimum: '45', maximum: '854' } }));
+  assert('showDetailModal shows phase label',
+    markerDetailSource.includes('phase: `${phaseLabel}`')
+      && markerDetailSource.includes('phase: phaseInfo')
+      && phaseDOM.window.document.querySelector('.mv-phase')?.textContent === 'Follicular • 45–854');
+  phaseDOM.window.close();
   assert('renderTableView uses getEffectiveRangeForDate', categoryViewRenderersSource.includes('getEffectiveRangeForDate(marker, i)'));
   assert('renderHeatmapView uses getEffectiveRangeForDate', categoryViewRenderersSource.includes('getEffectiveRangeForDate(marker, i)'));
   assert('renderCompareTable uses getEffectiveRangeForDate', compareCorrelationsSource.includes('getEffectiveRangeForDate(marker, idx'));

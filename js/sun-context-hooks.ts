@@ -23,7 +23,8 @@ import {
 import { getEnvironment, isActiveToday } from './light-env-store.js';
 import { state } from './state.js';
 import { configureDataContextDependencies } from './data.js';
-import { configureLabContext, invalidateLabContextCache } from './lab-context.js';
+import { configureLabContext } from './lab-context-runtime.js';
+import { invalidateLabContextCache } from './lab-context-settings.js';
 import { isDebugMode } from './utils.js';
 import { buildSunContext, configureSunContext } from './sun-context.js';
 

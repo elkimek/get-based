@@ -1,11 +1,12 @@
+import {waitForAsyncCondition} from '../helpers/awaited-condition.js';
 import { expect, test } from './coverage-fixture.js';
 
 test('chat action bars, clipboard, and context toggles work in the live DOM', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(async () => {
+  await waitForAsyncCondition(() => page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     return !!state;
-  });
+  }), 0);
 
   const results = await page.evaluate(async () => {
     const api = await import('/js/api.js');
@@ -164,10 +165,10 @@ test('chat action bars, clipboard, and context toggles work in the live DOM', as
 
 test('chat action browser coverage handles copy and regenerate branches', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(async () => {
+  await waitForAsyncCondition(() => page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     return !!state;
-  });
+  }), 0);
 
   const results = await page.evaluate(async () => {
     const [chatActions, chatRuntime, chatThreads] = await Promise.all([

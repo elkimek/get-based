@@ -47,14 +47,14 @@ const setupDeps: SunSetupDependencies = {
   saveSunDefaults: async () => false,
   persistSunSetupValues: async () => null,
   maybeAnalyzeOnboardingAfterSave: () => {},
-  renderOnboardingAIBlock: () => '',
+  getOnboardingAIView: () => null,
 };
 
 function syncRendererDeps() {
   configureSunDefaultsSetupRenderer({
     getSunDefaults: setupDeps.getSunDefaults,
     isOnboardingComplete: setupDeps.isOnboardingComplete,
-    renderOnboardingAIBlock: setupDeps.renderOnboardingAIBlock,
+    getOnboardingAIView: setupDeps.getOnboardingAIView,
   });
 }
 

@@ -1,12 +1,21 @@
 // compare-correlations.js - Compare Dates and Correlations views
 
+import {renderCompareDatesPage,renderCompareDatesTable,projectCompareDateRow,projectCompareRangeLine,
+ renderCompareHead,renderCompareRow,renderCompareCategory,renderCompareRangeLine,renderCompareRangeSame,renderCompareRangeDated} from './compare-dates-presentation.js';
+import type {CompareRangeStackView,CompareDateCategoryView,CompareDateRowView} from './compare-dates-presentation.js';
+import {categoryLiteral} from './category-presentation.js';
+import {getCategoryGlyphCode} from './category-glyphs.js';
+import {renderCorrelationsPage,renderCorrelationsOptions,renderCorrelationsChips,projectCorrelationsPreset,
+ projectCorrelationMarkerOption,projectCorrelationTherapyOption,projectCorrelationMarkerChip,projectCorrelationTherapyChip,
+ renderCorrelationNoResults,renderCorrelationsStatus} from './correlations-selection-presentation.js';
+import type {CorrelationPresetView,CorrelationOptionView,CorrelationChipView} from './correlations-selection-presentation.js';
 import { state } from './state.js';
 import { saveCorrelationWorkspace } from './correlation-workspace-store.js';
 import { getSupplementRecordId } from './supplement-medication-domain.js';
 import { CORRELATION_PRESETS, CHIP_COLORS, MARKER_SCHEMA } from './schema.js';
-import { escapeHTML, escapeAttr, getStatus, formatValue } from './utils.js';
+import { escapeHTML, escapeAttr, getStatus } from './utils.js';
 import { getActiveData } from './data.js';
-import { formatRangeBounds, getEffectiveRangeForDate, resolveMarkerRangeContext } from './marker-analysis.js';
+import { getEffectiveRangeForDate, resolveMarkerRangeContext } from './marker-analysis.js';
 import { ensureChartJs } from './health-data-loader.js';
 import { hasChartRuntime } from './charts-runtime.js';
 import { prepareCorrelationSelection } from './therapy-correlations.js';
@@ -15,27 +24,13 @@ import { destroyTherapyCorrelationCharts, renderCorrelationWorkspace } from './t
 import type {CompareData, CompareMarker, CompareNumericMarker, CompareRange, CompareEvent, CompareDelegateRoot, CompareDependencies, CompareHTMLWriter, CompareDateState} from '../types/compare-correlations.js';
 const compareCorrelationDeps: CompareDependencies = {
   askAIAboutCorrelations: () => {},
-  renderTableColgroup: () => '',
-  renderScrollableTableShell: (_kind: unknown, _wrapperClass: unknown, _tableClass: unknown, _colgroup: unknown, headHtml: unknown, bodyHtml: unknown) => '<table>' + headHtml + bodyHtml + '</table>',
-  renderCategoryGlyph: (_categoryKey: unknown, label: unknown = '') => escapeHTML(label || ''),
+  renderTableColgroup:null,renderScrollableTableShell:null,renderCategoryGlyph:null,
 };
 
 export function configureCompareCorrelationViews(deps: unknown = {}) {
   const previous = { ...compareCorrelationDeps };
   Object.assign(compareCorrelationDeps, deps);
   return previous;
-}
-
-function renderTableColgroup(cols: Parameters<typeof import("./category-view-renderers.js").renderTableColgroup>[0]) {
-  return (compareCorrelationDeps.renderTableColgroup as (cols: Parameters<typeof import("./category-view-renderers.js").renderTableColgroup>[0]) => unknown)(cols);
-}
-
-function renderScrollableTableShell(...args: Parameters<typeof import("./category-view-renderers.js").renderScrollableTableShell>) {
-  return (compareCorrelationDeps.renderScrollableTableShell as (...args: Parameters<typeof import("./category-view-renderers.js").renderScrollableTableShell>) => unknown)(...args);
-}
-
-function renderCategoryGlyph(...args: Parameters<typeof import("./category-glyphs.js").renderCategoryGlyph>) {
-  return (compareCorrelationDeps.renderCategoryGlyph as (...args: Parameters<typeof import("./category-glyphs.js").renderCategoryGlyph>) => unknown)(...args);
 }
 
 function dataAttrName(name: unknown) {
@@ -53,18 +48,6 @@ function compareAttrs(actionAttr: string, action: unknown, attrs: unknown = {}) 
 
 export function compareActionAttrs(action: unknown, attrs: unknown = {}) {
   return compareAttrs('data-compare-action', action, attrs);
-}
-
-function compareChangeAttrs(action: unknown, attrs: unknown = {}) {
-  return compareAttrs('data-compare-change-action', action, attrs);
-}
-
-function compareInputAttrs(action: unknown, attrs: unknown = {}) {
-  return compareAttrs('data-compare-input-action', action, attrs);
-}
-
-function compareFocusAttrs(action: unknown, attrs: unknown = {}) {
-  return compareAttrs('data-compare-focus-action', action, attrs);
 }
 
 function closestCompareTarget(event: CompareEvent, selector: string) {
@@ -196,37 +179,27 @@ export function installCompareCorrelationDelegates(root: CompareDelegateRoot | n
   root.addEventListener('input', handleCompareInput);
   root.addEventListener('focusin', handleCompareFocus);
 }
+
 // Compare Dates
 
 export function showCompare(data?: CompareData | null) {
   const main = document.getElementById("main-content");
   if (!main) return;
   if (!data) data = getActiveData();
-  let html = `<div class="category-header"><h2>Compare Dates</h2>
-<p>Side-by-side comparison of biomarker values between two collection dates</p></div>`;
   if (data.dates.length < 2) {
-    html += `<div class="empty-state"><div class="empty-state-icon">\u2194</div>
-<h3>Not Enough Data</h3><p>Import at least 2 lab result dates to compare values side by side.</p></div>`;
-    main.innerHTML = html;
+    main.innerHTML = renderCompareDatesPage({kind:'empty'});
     return;
   }
   if (!state.compareDate1 || !data.dates.includes(state.compareDate1)) (state as CompareDateState).compareDate1 = data.dates[0];
   if (!state.compareDate2 || !data.dates.includes(state.compareDate2)) (state as CompareDateState).compareDate2 = data.dates[data.dates.length - 1];
   const fmtOpt = (d: unknown) => {
     const label = new Date((d as string) + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    return `<option value="${d}">${label}</option>`;
+    return {value:`${d}`,label};
   };
-  html += `<div class="compare-controls">
-<label class="compare-date-field" for="compare-select-1"><span>Date 1:</span>
-<select id="compare-select-1" ${compareChangeAttrs('set-date', { index: '1' })}>${data.dates.map(d => fmtOpt(d)).join('')}</select>
-</label>
-<button class="compare-swap-btn" ${compareActionAttrs('swap-dates')} title="Swap dates" aria-label="Swap dates">\u21C4</button>
-<label class="compare-date-field" for="compare-select-2"><span>Date 2:</span>
-<select id="compare-select-2" ${compareChangeAttrs('set-date', { index: '2' })}>${data.dates.map(d => fmtOpt(d)).join('')}</select>
-</label>
-</div>`;
-  html += `<div id="compare-results"></div>`;
-  main.innerHTML = html;
+  // Keep both independent date maps in their native order.
+  const first=data.dates.map(d=>fmtOpt(d));
+  const second=data.dates.map(d=>fmtOpt(d));
+  main.innerHTML=renderCompareDatesPage({kind:'dates',first,second});
   const select1 = (document.getElementById('compare-select-1') as HTMLSelectElement | null);
   const select2 = (document.getElementById('compare-select-2') as HTMLSelectElement | null);
   if (select1) select1.value = state.compareDate1 || '';
@@ -269,30 +242,18 @@ function compareRangeContextSignature(context: ReturnType<typeof resolveMarkerRa
   ]));
 }
 
-function renderCompareRangeLines(context: ReturnType<typeof resolveMarkerRangeContext>) {
+function projectCompareRangeLines(context: ReturnType<typeof resolveMarkerRangeContext>) {
   const showUsedBadge = context.displayedRanges.length > 1;
-  return context.displayedRanges.map(range => `
-<span class="compare-range-line${range.usedForStatus ? ' compare-range-line-used' : ''}">
-<span class="compare-range-label">${escapeHTML(range.label)}</span>
-<span class="compare-range-bounds">${escapeHTML(formatRangeBounds(range))}</span>
-${showUsedBadge && range.usedForStatus ? '<span class="compare-range-used">used</span>' : ''}
-</span>`).join('');
+  return context.displayedRanges.map(range => projectCompareRangeLine(range, showUsedBadge));
 }
 
-function renderCompareRangeCell(context1: ReturnType<typeof resolveMarkerRangeContext>, context2: ReturnType<typeof resolveMarkerRangeContext>, date1Label: unknown, date2Label: unknown) {
+function projectCompareRangeCell(context1: ReturnType<typeof resolveMarkerRangeContext>, context2: ReturnType<typeof resolveMarkerRangeContext>, date1Label: unknown, date2Label: unknown) {
   if (compareRangeContextSignature(context1) === compareRangeContextSignature(context2)) {
-    return `<div class="compare-range-stack">${renderCompareRangeLines(context1)}</div>`;
+    return {kind:'same',lines:projectCompareRangeLines(context1)} satisfies CompareRangeStackView;
   }
-  return `<div class="compare-range-stack compare-range-stack-dated">
-<div class="compare-range-date-group">
-<span class="compare-range-date">${escapeHTML(date1Label)}</span>
-${renderCompareRangeLines(context1)}
-</div>
-<div class="compare-range-date-group">
-<span class="compare-range-date">${escapeHTML(date2Label)}</span>
-${renderCompareRangeLines(context2)}
-</div>
-</div>`;
+  const firstLabel=categoryLiteral(date1Label),first=projectCompareRangeLines(context1);
+  const secondLabel=categoryLiteral(date2Label),second=projectCompareRangeLines(context2);
+  return {kind:'dated',firstLabel,first,secondLabel,second} satisfies CompareRangeStackView;
 }
 
 function normalizedDistanceOutsideRange(value: number | null | undefined, range: CompareRange | null | undefined) {
@@ -320,9 +281,73 @@ function compareDirectionClass(v1: number | null | undefined, range1: CompareRan
 }
 
 export function renderCompareTable(data: CompareData, idx1: number, idx2: number): unknown {
+  if (typeof compareCorrelationDeps.renderTableColgroup==='function'
+    || typeof compareCorrelationDeps.renderScrollableTableShell==='function'
+    || typeof compareCorrelationDeps.renderCategoryGlyph==='function') {
+    return renderLegacyCompareTable(data,idx1,idx2);
+  }
   const d1Label = data.dateLabels[idx1];
   const d2Label = data.dateLabels[idx2];
-  const colgroup = renderTableColgroup([
+  const firstLabel=categoryLiteral(d1Label),secondLabel=categoryLiteral(d2Label);
+  const categories:CompareDateCategoryView[]=[];
+  for (const [catKey, cat] of Object.entries(data.categories)) {
+    if (cat.singlePoint) continue;
+    const rows: CompareDateRowView[] = [];
+    for (const marker of Object.values(cat.markers) as CompareNumericMarker[]) {
+      const v1 = marker.values[idx1] as number | null;
+      const v2 = marker.values[idx2] as number | null;
+      if (v1 === null && v2 === null) continue;
+      const mr1 = (getEffectiveRangeForDate as (marker: CompareMarker, dateIndex: number) => ReturnType<typeof getEffectiveRangeForDate>)(marker, idx1);
+      const mr2 = (getEffectiveRangeForDate as (marker: CompareMarker, dateIndex: number) => ReturnType<typeof getEffectiveRangeForDate>)(marker, idx2);
+      const rangeContext1 = (resolveMarkerRangeContext as (marker: CompareMarker, dateIndex: number) => ReturnType<typeof resolveMarkerRangeContext>)(marker, idx1);
+      const rangeContext2 = (resolveMarkerRangeContext as (marker: CompareMarker, dateIndex: number) => ReturnType<typeof resolveMarkerRangeContext>)(marker, idx2);
+      const s1 = v1 !== null ? getStatus(v1, mr1.min, mr1.max) : 'missing';
+      const s2 = v2 !== null ? getStatus(v2, mr2.min, mr2.max) : 'missing';
+      let delta: number | null = null, pctChange: number | null = null, directionClass = 'compare-neutral';
+      if (v1 !== null && v2 !== null) {
+        delta = v2 - v1;
+        pctChange = v1 !== 0 ? (delta / v1) * 100 : null;
+        directionClass = compareDirectionClass(v1, mr1, v2, mr2);
+      }
+      const rangeCell = projectCompareRangeCell(rangeContext1, rangeContext2, d1Label, d2Label);
+      rows.push(projectCompareDateRow(marker, rangeCell, v1, v2, s1, s2, directionClass, delta, pctChange));
+    }
+    if (rows.length > 0) {
+      const glyph={code:getCategoryGlyphCode(catKey,cat.label),large:false},label=categoryLiteral(cat.label);
+      categories.push({glyph,label,rows});
+    }
+  }
+  return renderCompareDatesTable({firstLabel,secondLabel,categories});
+}
+
+/** Explicit legacy configuration boundary. The default first-party page and
+ * table use readonly views; only callers installing raw public HTML callbacks
+ * enter this compatibility serializer. Domain math is unchanged in this path. */
+function renderLegacyCompareColumns(columns:readonly string[]):unknown {
+ return typeof compareCorrelationDeps.renderTableColgroup==='function'?compareCorrelationDeps.renderTableColgroup(columns):'';
+}
+function renderLegacyCompareShell(kind:unknown,wrapper:unknown,table:unknown,columns:unknown,head:unknown,body:unknown,width:number):unknown {
+ return typeof compareCorrelationDeps.renderScrollableTableShell==='function'?compareCorrelationDeps.renderScrollableTableShell(kind,wrapper,table,columns,head,body,width):'<table>'+head+body+'</table>';
+}
+function renderLegacyCompareGlyph(key:string,label:unknown):unknown {
+ return typeof compareCorrelationDeps.renderCategoryGlyph==='function'?compareCorrelationDeps.renderCategoryGlyph(key,label):escapeHTML(label||'');
+}
+function renderLegacyCompareRangeLines(context: ReturnType<typeof resolveMarkerRangeContext>) {
+  const showUsedBadge = context.displayedRanges.length > 1;
+  return context.displayedRanges.map(range => renderCompareRangeLine(range, showUsedBadge)).join('');
+}
+
+function renderLegacyCompareRangeCell(context1: ReturnType<typeof resolveMarkerRangeContext>, context2: ReturnType<typeof resolveMarkerRangeContext>, date1Label: unknown, date2Label: unknown) {
+  if (compareRangeContextSignature(context1) === compareRangeContextSignature(context2)) {
+    return renderCompareRangeSame(renderLegacyCompareRangeLines(context1));
+  }
+  return renderCompareRangeDated(date1Label, () => renderLegacyCompareRangeLines(context1), date2Label, () => renderLegacyCompareRangeLines(context2));
+}
+
+function renderLegacyCompareTable(data: CompareData, idx1: number, idx2: number): unknown {
+  const d1Label = data.dateLabels[idx1];
+  const d2Label = data.dateLabels[idx2];
+  const colgroup = renderLegacyCompareColumns([
     'gb-col-marker',
     'gb-col-unit',
     'gb-col-ranges',
@@ -331,9 +356,7 @@ export function renderCompareTable(data: CompareData, idx1: number, idx2: number
     'gb-col-delta',
     'gb-col-delta',
   ]);
-  const headHtml = `<tr>
-<th>Biomarker</th><th>Unit</th><th>Ranges</th>
-<th>${escapeHTML(d1Label)}</th><th>${escapeHTML(d2Label)}</th><th>Delta</th><th>% Change</th></tr>`;
+  const headHtml = renderCompareHead(d1Label, d2Label);
   let bodyHtml = '';
   for (const [catKey, cat] of Object.entries(data.categories)) {
     if (cat.singlePoint) continue;
@@ -354,23 +377,15 @@ export function renderCompareTable(data: CompareData, idx1: number, idx2: number
         pctChange = v1 !== 0 ? (delta / v1) * 100 : null;
         directionClass = compareDirectionClass(v1, mr1, v2, mr2);
       }
-      const rangeCell = renderCompareRangeCell(rangeContext1, rangeContext2, d1Label, d2Label);
-      rows.push(`<tr>
-<td class="marker-name">${escapeHTML(marker.name)}</td>
-<td style="color:var(--text-muted);font-size:12px">${escapeHTML(marker.unit)}</td>
-<td class="compare-ranges-cell">${rangeCell}</td>
-<td class="value-cell val-${s1}" style="font-weight:600">${v1 !== null ? formatValue(v1) : '\u2014'}</td>
-<td class="value-cell val-${s2}" style="font-weight:600">${v2 !== null ? formatValue(v2) : '\u2014'}</td>
-<td class="${directionClass}" style="font-weight:600">${delta !== null ? (delta > 0 ? '+' : '') + formatValue(delta) : '\u2014'}</td>
-<td class="${directionClass}" style="font-weight:600">${pctChange !== null ? (pctChange > 0 ? '+' : '') + pctChange.toFixed(1) + '%' : '\u2014'}</td>
-</tr>`);
+      const rangeCell = renderLegacyCompareRangeCell(rangeContext1, rangeContext2, d1Label, d2Label);
+      rows.push(renderCompareRow(marker, rangeCell, v1, v2, s1, s2, directionClass, delta, pctChange));
     }
     if (rows.length > 0) {
-      bodyHtml += `<tr class="cat-row"><td colspan="7"><span class="compare-category-label">${renderCategoryGlyph(catKey, cat.label)}<span>${escapeHTML(cat.label)}</span></span></td></tr>`;
+      bodyHtml += renderCompareCategory(catKey, cat, renderLegacyCompareGlyph);
       bodyHtml += rows.join('');
     }
   }
-  return renderScrollableTableShell('compare', 'compare-table-wrapper', 'compare-table', colgroup, headHtml, bodyHtml, 908);
+  return renderLegacyCompareShell('compare', 'compare-table-wrapper', 'compare-table', colgroup, headHtml, bodyHtml, 908);
 }
 
 // Correlations
@@ -383,32 +398,14 @@ export function showCorrelations(data?: CompareData | null) {
   state.selectedCorrelationMarkers = state.selectedCorrelationMarkers.filter(key => { const [category, marker] = key.split('.') as [string, string]; return !!data.categories[category]?.markers[marker]; });
   state.selectedCorrelationSupplements = state.selectedCorrelationSupplements.filter(id => (state.importedData.supplements || []).some(record => getSupplementRecordId(record) === id));
   if (JSON.stringify([state.selectedCorrelationMarkers, state.selectedCorrelationSupplements]) !== before) void saveCorrelationWorkspace();
-  let html = `<div class="category-header"><h2>Correlations</h2>
-<p>Compare biomarker trends with recorded supplement and medication doses</p></div>`;
-  html += `<div class="correlation-controls">
-<h3>Select biomarkers, supplements &amp; medications (up to 8)</h3>
-<div class="corr-select-row">
-<div class="corr-dropdown">
-<input type="text" class="corr-search" id="corr-search" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="corr-options" aria-label="Search biomarkers, supplements and medications" placeholder="Search your data..."
-${compareInputAttrs('filter-options')} ${compareFocusAttrs('show-dropdown')}>
-<div class="corr-options" id="corr-options" role="listbox" aria-label="Available items" aria-multiselectable="true"></div>
-</div>
-</div>
-<div class="corr-chips" id="corr-chips"></div>
-<p class="corr-help" id="corr-selection-status" role="status"></p>
-<details class="corr-presets"><summary>Marker presets</summary><p class="corr-help">Explore related markers already in your data. Replaces markers; keeps treatments.</p><div class="corr-preset-grid">`;
+  const presets:CorrelationPresetView[]=[];
   for (let i = 0; i < CORRELATION_PRESETS.length; i++) {
     const preset = CORRELATION_PRESETS[i]!;
     const available = availablePresetMarkers(preset, data).length;
     const names = preset.markers.map(key => { const [cat, name] = key.split('.') as [string, string]; return MARKER_SCHEMA[cat]?.markers[name]?.name || name; }).join(', ');
-    html += `<button class="corr-preset-btn" aria-label="${escapeAttr(preset.label)}" ${compareActionAttrs('apply-preset', { index: i })}${available ? '' : ' disabled'}><strong>${escapeHTML(preset.label)}</strong><span>${escapeHTML(names)}</span><small>${available}/${preset.markers.length} available</small></button>`;
+    presets.push(projectCorrelationsPreset(preset,names,available,i));
   }
-  html += `</div></details><p class="corr-help" id="corr-selection-help">Choose two biomarkers, or a biomarker and a treatment.</p></div>`;
-  html += `<div class="corr-chart-container" id="corr-chart-container" style="display:none">
-<h3><span id="corr-chart-title">Explore selected data</span>
-<button class="corr-ask-ai-btn" ${compareActionAttrs('ask-ai-correlations')} title="Ask AI about these correlations">Ask AI</button>
-</h3>
-<div id="corr-therapy-results"></div></div>`;
+  const html=renderCorrelationsPage({kind:'page',presets});
   main.innerHTML = html;
   populateCorrelationOptions(data);
   renderCorrelationChips();
@@ -419,7 +416,7 @@ export function populateCorrelationOptions(data?: CompareData | null) {
   if (!data) data = getActiveData();
   const container = document.getElementById("corr-options");
   if (!container) return;
-  let html = '';
+  const options:CorrelationOptionView[]=[];
   for (const [catKey, cat] of Object.entries(data.categories)) {
     for (const [markerKey, marker] of Object.entries(cat.markers)) {
       if (marker.singlePoint) continue;
@@ -427,10 +424,7 @@ export function populateCorrelationOptions(data?: CompareData | null) {
       if (!count) continue;
       const fullKey = `${catKey}.${markerKey}`;
       const selected = state.selectedCorrelationMarkers.includes(fullKey);
-      html += `<div class="corr-option ${selected ? 'selected' : ''}"
-        data-key="${escapeAttr(fullKey)}" data-name="${escapeHTML(marker.name)}" data-cat="${escapeHTML(cat.label)}"
-        role="option" aria-selected="${selected}" tabindex="-1" ${compareActionAttrs('toggle-marker', { key: fullKey })}>
-${escapeHTML(marker.name)} <span class="opt-cat">${escapeHTML(cat.label)} · ${count} results</span></div>`;
+      options.push(projectCorrelationMarkerOption(selected,fullKey,marker,cat,count));
     }
   }
   for (const therapy of state.importedData.supplements || []) {
@@ -438,16 +432,16 @@ ${escapeHTML(marker.name)} <span class="opt-cat">${escapeHTML(cat.label)} · ${c
     if (!id) continue;
     const category = therapy.type === 'medication' ? 'Medication' : 'Supplement';
     const selected = state.selectedCorrelationSupplements.includes(id);
-    html += `<div class="corr-option ${selected ? 'selected' : ''}" data-key="${escapeAttr(id)}" data-name="${escapeAttr(therapy.name || '')}" data-cat="${category}" role="button" tabindex="0" ${compareActionAttrs('toggle-therapy', { key: id })}>${escapeHTML(therapy.name || 'Unnamed item')} <span class="opt-cat">${category} · ${escapeHTML(therapy.startDate || therapy.periods?.[0]?.start || 'undated')}</span></div>`;
+    options.push(projectCorrelationTherapyOption(selected,id,therapy,category));
   }
-  container.innerHTML = html;
+  container.innerHTML=renderCorrelationsOptions(options);
   container.querySelectorAll('.corr-option').forEach((el, i) => {
     el.id = `corr-option-${i}`;
     el.setAttribute('role', 'option');
     el.setAttribute('aria-selected', String(el.classList.contains('selected')));
     el.setAttribute('tabindex', '-1');
   });
-  container.insertAdjacentHTML('beforeend', '<div id="corr-no-results" role="presentation" hidden>No matching items with data.</div>');
+  container.insertAdjacentHTML('beforeend', renderCorrelationNoResults());
 }
 
 export function showCorrelationDropdown() {
@@ -512,21 +506,20 @@ export function renderCorrelationChips() {
   const container = document.getElementById("corr-chips");
   if (!container) return;
   const data = getActiveData();
-  let html = '';
+  const chips:CorrelationChipView[]=[];
   state.selectedCorrelationMarkers.forEach((key, i) => {
     const [catKey, markerKey] = key.split('.') as [string, string];
     const marker = data.categories[catKey]?.markers[markerKey];
     if (!marker) return;
     const color = CHIP_COLORS[i % CHIP_COLORS.length];
-    html += `<span class="corr-chip" style="background:${color}20;border-color:${color};color:${color}">
-${escapeHTML(marker.name)} <button type="button" class="chip-remove" aria-label="Remove ${escapeAttr(marker.name)}" ${compareActionAttrs('toggle-marker', { key })}>&times;</button></span>`;
+    chips.push(projectCorrelationMarkerChip(marker,color,key));
   });
   for (const id of state.selectedCorrelationSupplements) {
     const therapy = (state.importedData.supplements || []).find(s => getSupplementRecordId(s) === id);
     if (!therapy) continue;
-    html += `<span class="corr-chip">${escapeHTML(therapy.name)} <button type="button" class="chip-remove" aria-label="Remove ${escapeAttr(therapy.name)}" ${compareActionAttrs('toggle-therapy', { key: id })}>&times;</button></span>`;
+    chips.push(projectCorrelationTherapyChip(therapy,id));
   }
-  container.innerHTML = html;
+  container.innerHTML=renderCorrelationsChips(chips);
 }
 
 function canRenderCorrelation() {
@@ -563,12 +556,12 @@ export function renderCorrelationChart() {
   container.style.display = "block";
   const results = document.getElementById('corr-therapy-results');
   if (!hasChartRuntime()) {
-    if (results) results.innerHTML = '<p class="corr-help">Preparing comparison…</p>';
+    if (results) results.innerHTML = renderCorrelationsStatus('loading');
     const profile = state.currentProfile;
     ensureChartJs().then(() => {
       if (profile === state.currentProfile && document.getElementById('corr-therapy-results') === results) renderCorrelationChart();
     }).catch(() => {
-      if (document.getElementById('corr-therapy-results') === results && results) results.innerHTML = '<p class="corr-help">Comparison could not load. Reselect an item to retry.</p>';
+      if (document.getElementById('corr-therapy-results') === results && results) results.innerHTML = renderCorrelationsStatus('failure');
     });
     return;
   }

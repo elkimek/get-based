@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { sourceFunctionHasStatement } from './helpers/native-source-contracts.js';
+import { ownedRule, escapedClass } from './helpers/legacy-light-chat-contracts.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-family-history.js — Medical History card + family-history subsection.
 // Covers: COMMON_CONDITIONS coverage, the apostrophe-condition click fix
@@ -82,11 +82,17 @@ const ctxSrc = await fetch('js/context-cards.js').then(r => r.text());
 const ctxSummarySrc = await fetch('js/context-card-summaries.js').then(r => r.text());
 const ctxMedicalFacadeSrc = await fetch('js/context-card-medical-history-editor.js').then(r => r.text());
 const ctxMedicalSrc = await fetch('js/context-card-medical-history-editor-impl.js').then(r => r.text());
+const medicalViewSrc = read('js/context-medical-history-view.ts');
+const medicalComponentSrc = read('js/components/ContextMedicalHistory.svelte');
+const conditionInputSrc = read('js/components/ContextConditionInput.svelte');
+const medicalModel = await import('../js/context-medical-history-model.js');
+const { FAMILY_RELATIVES, familyHistoryValue, medicalHistoryDraft, medicalHistoryValue } = medicalModel;
+const familyInput = { relative: 'mother', condition: "Alzheimer's Disease", age: '52', note: 'fixture' };
 const ctxCardSrc = `${ctxSrc}\n${ctxSummarySrc}\n${ctxMedicalSrc}`;
 assert('Condition suggestions use delegated data values',
-  /data-medical-history-suggestion="condition" data-medical-history-value="\$\{escapeHTML\(m\)\}"/.test(ctxMedicalSrc));
+  medicalComponentSrc.includes('id="condition-input" listId="condition-suggestions"') && conditionInputSrc.includes('onclick={() => select(suggestion)}') && conditionInputSrc.includes('{suggestion}</button>') && medicalModel.conditionSuggestions("Alzheimer'", medicalHistoryDraft(null), '', false).includes("Alzheimer's Disease"));
 assert('Family condition suggestions use delegated data values',
-  /data-medical-history-suggestion="family-condition" data-medical-history-value="\$\{escapeHTML\(m\)\}"/.test(ctxMedicalSrc));
+  medicalComponentSrc.includes('id="fh-condition" listId="fh-condition-suggestions"') && medicalComponentSrc.includes('conditionSuggestions(family.condition, draft, sex, true)') && conditionInputSrc.includes('change(text); hide(); control.focus();'));
 assert('Medical history editor has no inline event attributes',
   !/\son[a-z]+\s*=/.test(ctxMedicalSrc));
 
@@ -95,17 +101,16 @@ assert('Medical history editor has no inline event attributes',
 // ═══════════════════════════════════════
 console.log('3. FAMILY_RELATIVES + addEntry guards');
 
-// FAMILY_RELATIVES isn't exported (private to the editor implementation), so we
-// assert its allowlist + the handler's guards via the source. The live
-// handler-mutation test lives in tests/playwright/family-history-dom.spec.js.
+// The authored model now owns the allowlist and validation. Exercise it directly;
+// the component and session contracts below retain UI and persistence ownership.
 assert('FAMILY_RELATIVES declared with 8 first-degree+grandparent keys',
-  /FAMILY_RELATIVES\s*=\s*\[[^\]]*'mother'[^\]]*'father'[^\]]*'sibling'[^\]]*'child'[^\]]*'maternal_grandmother'[^\]]*'maternal_grandfather'[^\]]*'paternal_grandmother'[^\]]*'paternal_grandfather'/s.test(ctxMedicalSrc));
+  JSON.stringify(FAMILY_RELATIVES.map(row => row.key)) === JSON.stringify(['mother', 'father', 'sibling', 'half_sibling', 'child', 'maternal_grandmother', 'maternal_grandfather', 'maternal_relative', 'paternal_grandmother', 'paternal_grandfather', 'paternal_relative']));
 assert('addFamilyHistoryEntry validates relative against FAMILY_RELATIVES',
-  sourceFunctionHasStatement(ctxMedicalSrc, 'addFamilyHistoryEntry', 'if (!FAMILY_RELATIVES.some(r => r.key === relative)) return;'));
+  familyHistoryValue({ ...familyInput, relative: 'unlisted' }) === null && FAMILY_RELATIVES.every(relative => familyHistoryValue({ ...familyInput, relative: relative.key })?.relative === relative.key));
 assert('addFamilyHistoryEntry clamps onsetAge to 0–120',
-  /Math\.max\(0,\s*Math\.min\(120,\s*parseInt\(ageRaw, 10\)\)\)/.test(ctxMedicalSrc));
+  familyHistoryValue({ ...familyInput, age: '-1' })?.onsetAge === 0 && familyHistoryValue({ ...familyInput, age: '121' })?.onsetAge === 120 && familyHistoryValue(familyInput)?.onsetAge === 52);
 assert('addFamilyHistoryEntry early-returns when relative or condition empty',
-  sourceFunctionHasStatement(ctxMedicalSrc, 'addFamilyHistoryEntry', 'if (!relative || !condition) return;'));
+  familyHistoryValue({ ...familyInput, relative: '' }) === null && familyHistoryValue({ ...familyInput, condition: '  ' }) === null);
 
 // ═══════════════════════════════════════
 // 4. saveDiagnoses null-guard with familyHistory-only
@@ -113,7 +118,7 @@ assert('addFamilyHistoryEntry early-returns when relative or condition empty',
 console.log('4. saveDiagnoses null-guard');
 
 assert('saveDiagnoses considers familyHistory.length before nulling diagnoses',
-  /const fhLen = diagnoses\.familyHistory\.length[\s\S]{0,300}fhLen === 0/.test(ctxMedicalSrc));
+  medicalHistoryValue(medicalHistoryDraft({ familyHistory: [{ relative: 'mother', condition: 'Hypertension' }] }))?.familyHistory?.length === 1 && medicalHistoryValue(medicalHistoryDraft(null)) === null && read('js/context-medical-history-session.ts').includes('draft.diagnoses = value === null ? null : medicalHistoryValue(value);'));
 
 // Profile migration backfills familyHistory on legacy diagnoses objects.
 const profSrc = await fetch('js/profile-data-migrations.js').then(r => r.text());
@@ -154,7 +159,7 @@ assert('Summary joins your-conditions + family with " — "',
 // ═══════════════════════════════════════
 console.log('6. AI context family history');
 
-const labCtxSrc = await fetch('js/lab-context.js').then(r => r.text());
+const labCtxSrc = await fetch('js/lab-context-assembly.js').then(r => r.text());
 const labCtxTimelineSrc = await fetch('js/lab-context-change-timeline.js').then(r => r.text());
 assert('Family history block emitted within [section:diagnoses]',
   /\[section:diagnoses\][\s\S]{0,1500}### Family history \(heritable\/environmental risk signal\)/.test(labCtxSrc));
@@ -180,15 +185,15 @@ console.log('8. Medical History rename');
 assert("Card label is 'Medical History'",
   /label:\s*'Medical History'/.test(ctxCardSrc));
 assert("Modal headline reads 'Medical History'",
-  /renderContextEditorModal\(\s*modal,\s*'Medical History'/.test(ctxMedicalSrc));
+  medicalViewSrc.includes("const TITLE = 'Medical History'") && medicalComponentSrc.includes('id="context-medical-title" class={editorTitle}>Medical History</h2>'));
 assert('Modal description explains that entries should matter for interpretation',
-  /Add only what matters for interpretation/.test(ctxMedicalSrc));
+  medicalComponentSrc.includes('Add only what matters for interpretation. Nothing changes until you save.'));
 assert('Card placeholder mentions family history',
   /'Add diagnoses or family history'/.test(ctxCardSrc));
 assert("saveDiagnoses toast says 'Medical history saved'",
-  ctxMedicalSrc.includes("saveContextAndRefresh('Medical history saved', 'diagnoses')"));
+  medicalViewSrc.includes("const message = `Medical history ${clear ? 'cleared' : 'saved'}`") && medicalViewSrc.includes('return save(view, false)') && medicalViewSrc.includes('owned.afterCommit(message)'));
 assert("clearDiagnoses toast says 'Medical history cleared'",
-  ctxMedicalSrc.includes("'Medical history cleared'"));
+  medicalViewSrc.includes("const message = `Medical history ${clear ? 'cleared' : 'saved'}`") && medicalViewSrc.includes('return save(view, true)'));
 assert('Tooltip mentions family history reframing risk',
   /heart attack at 52 reframes a borderline LDL/.test(ctxCardSrc));
 assert('AI context section header renamed to Medical History / Diagnoses',
@@ -201,50 +206,61 @@ assert("Field-label map uses 'Medical History'",
 // ═══════════════════════════════════════
 console.log('9. UI subsection');
 
-assert("Modal renders the collapsible family-history section",
-  /class="ctx-editor-section ctx-family-history"/.test(ctxMedicalSrc));
+assert('Modal renders the collapsible family-history section',
+  medicalComponentSrc.includes('<details id="ctx-family-section" bind:open={familyOpen} class={section}>') && medicalComponentSrc.includes('Family history{draft.familyHistory.length'));
 assert('Relative dropdown uses <optgroup> grouping',
-  /<optgroup label="Parents"/.test(ctxMedicalSrc) &&
-  /<optgroup label="Siblings & Children"/.test(ctxMedicalSrc) &&
-  /<optgroup label="Maternal grandparents"/.test(ctxMedicalSrc) &&
-  /<optgroup label="Paternal grandparents"/.test(ctxMedicalSrc));
+  JSON.stringify(medicalModel.FAMILY_GROUPS.map(group => group.label)) === JSON.stringify(['Parents', 'Siblings & Children', 'Maternal grandparents', 'Paternal grandparents']) && medicalComponentSrc.includes('<optgroup label={group.label}>') && medicalComponentSrc.includes('FAMILY_GROUPS as group'));
 assert('Add form is split into two rows for legibility',
-  (ctxMedicalSrc.match(/ctx-family-add-row/g) || []).length >= 2);
+  medicalComponentSrc.includes('grid-cols-[minmax(0,200px)_minmax(0,1fr)]') && medicalComponentSrc.includes('grid-cols-[130px_minmax(0,1fr)]') && medicalComponentSrc.indexOf('id="fh-condition"') < medicalComponentSrc.indexOf('id="fh-age"'));
 assert('Relative chip emoji mapping defined',
-  /RELATIVE_EMOJI\s*=\s*\{/.test(ctxMedicalSrc));
-assert("Closing-suggestions handler also clears fh-condition-suggestions",
-  /fh-condition-suggestions[\s\S]{0,260}fhContainer\.innerHTML\s*=\s*''/.test(ctxMedicalFacadeSrc));
+  medicalModel.RELATIVE_EMOJI.mother === '👩' && medicalModel.RELATIVE_EMOJI.father === '👨' && medicalModel.familyHistoryRows(medicalHistoryDraft({ familyHistory: [{ relative: 'mother', condition: 'Hypertension' }] }))[0]?.emoji === '👩');
+assert('Closing-suggestions handler also clears fh-condition-suggestions',
+  medicalViewSrc.includes('view.component.hideSuggestions(); flushSync();') && medicalComponentSrc.includes('conditionControl?.hide(); familyControl?.hide();') && conditionInputSrc.includes('const visible = $derived(expanded && suggestions.length > 0 && !disabled)') && conditionInputSrc.includes('hidden={!visible}') && conditionInputSrc.includes('export function hide(): void { expanded = false; active = -1; }'));
 assert('Condition rows expose delegated edit action',
-  ctxMedicalSrc.includes("medicalHistoryActionAttrs('edit-condition'"));
+  ctxMedicalFacadeSrc.includes("case 'edit-condition':") && ctxMedicalSrc.includes("medicalHistoryAction('editCondition', index)") && medicalComponentSrc.includes('aria-label="Edit condition"') && medicalComponentSrc.includes('editCondition(index);'));
 assert('Family rows expose delegated edit action',
-  ctxMedicalSrc.includes("medicalHistoryActionAttrs('edit-family-history'"));
+  ctxMedicalFacadeSrc.includes("case 'edit-family-history':") && ctxMedicalSrc.includes("medicalHistoryAction('editFamilyHistoryEntry', index)") && medicalComponentSrc.includes('aria-label="Edit family history entry"') && medicalComponentSrc.includes('editFamily(rowData.index);'));
 assert('Condition edit updates existing row instead of appending',
-  /diagnoses\.conditions\[editingConditionIndex\] = cond/.test(ctxMedicalSrc));
+  medicalComponentSrc.includes('draft.conditions[conditionIndex] = value; else draft.conditions.push(value)'));
 assert('Family history edit updates existing row instead of appending',
-  /diagnoses\.familyHistory\[editingFamilyHistoryIndex\] = entry/.test(ctxMedicalSrc));
+  medicalComponentSrc.includes('draft.familyHistory[familyIndex] = value; else draft.familyHistory.push(value)'));
 
 // ═══════════════════════════════════════
 // 10. CSS hooks
 // ═══════════════════════════════════════
 console.log('10. CSS hooks');
-const stylesSrc = [
-  await fetch('styles.css').then(r => r.text()),
-  await fetch('css/context-profile.css').then(r => r.text()),
-  await fetch('css/context-editor.css').then(r => r.text()),
-].join('\n');
-for (const cls of [
-  '.ctx-family-history', '.ctx-family-head', '.ctx-family-count',
-  '.ctx-family-list', '.ctx-family-item', '.ctx-family-main', '.ctx-family-relative',
-  '.ctx-family-condition', '.ctx-family-age', '.ctx-family-note',
-  '.ctx-family-actions', '.ctx-family-add', '.ctx-family-add-row',
-]) {
-  assert(`CSS defines ${cls}`, new RegExp(cls.replace('.', '\\.') + '\\s*\\{').test(stylesSrc));
+// Legacy assertion labels retain their original role; each row now pins the exact
+// authored successor and its current scoped generated declaration.
+const stylesSrc = read('css/context-editor.css');
+const familyStyleContracts = [
+  ['.ctx-family-history', '<details id="ctx-family-section"', 'overflow-clip', 'overflow', 'clip'],
+  ['.ctx-family-head', '<summary class={summary}>Family history', 'font-bold', 'font-weight', 'var(--gb-font-weight-bold)'],
+  ['.ctx-family-count', 'saved relative${draft.familyHistory.length', 'text-xs', 'font-size', 'var(--gb-text-xs)'],
+  ['.ctx-family-list', 'id="ctx-family-list"', 'list-none', 'list-style-type', 'none'],
+  ['.ctx-family-item', 'ctx-family-item ${row}', 'flex', 'display', 'flex'],
+  ['.ctx-family-main', 'gb:context-form:items-center gb:context-form:gap-2 gb:context-form:max-[600px]:flex-wrap', 'items-center', 'align-items', 'center'],
+  ['.ctx-family-relative', 'title={rowData.label}', 'basis-[32%]', 'flex-basis', '32%'],
+  ['.ctx-family-condition', 'ctx-family-condition gb:context-form:min-w-0', 'truncate', 'text-overflow', 'ellipsis'],
+  ['.ctx-family-age', 'age {rowData.entry.onsetAge}', 'shrink-0', 'flex-shrink', '0'],
+  ['.ctx-family-note', 'title={rowData.entry.note}', 'max-w-[28%]', 'max-width', '28%'],
+  ['.ctx-family-actions', 'aria-label="Edit family history entry"', 'shrink-0', 'flex-shrink', '0'],
+  ['.ctx-family-add', 'onclick={addFamily}', 'gap-2', 'gap', 'calc(var(--gb-spacing) * 2)'],
+  ['.ctx-family-add-row', 'grid-cols-[130px_minmax(0,1fr)]', 'grid', 'display', 'grid'],
+] as const;
+for (const [role, markup, utility, property, value] of familyStyleContracts) {
+  assert(`CSS defines ${role}`, medicalComponentSrc.includes(markup) && ownedRule(stylesSrc,
+    escapedClass('gb:context-form:' + utility) + ':is([data-context-form-modal],[data-context-form-modal] *)',
+    { [property]: value }));
 }
 assert('Family rows do not wrap by default on desktop',
-  /\.ctx-family-item\s*\{[\s\S]{0,220}flex-wrap:\s*nowrap/.test(stylesSrc));
+  medicalComponentSrc.includes('const row = \'gb:context-form:flex gb:context-form:items-center')
+    && !medicalComponentSrc.match(/const row = [^;]*gb:context-form:flex-wrap/)
+    && medicalComponentSrc.includes('gb:context-form:max-[600px]:flex-wrap'));
 assert('Long family row text gets ellipsis instead of forcing row height',
-  /\.ctx-family-condition\s*\{[\s\S]{0,180}text-overflow:\s*ellipsis/.test(stylesSrc) &&
-  /\.ctx-family-relative-label\s*\{[\s\S]{0,140}text-overflow:\s*ellipsis/.test(stylesSrc));
+  medicalComponentSrc.includes('ctx-family-condition gb:context-form:min-w-0 gb:context-form:flex-1 gb:context-form:truncate')
+    && medicalComponentSrc.includes('gb:context-form:basis-[32%] gb:context-form:truncate')
+    && ownedRule(stylesSrc, escapedClass('gb:context-form:truncate') + ':is([data-context-form-modal],[data-context-form-modal] *)',
+      { overflow: 'hidden', 'text-overflow': 'ellipsis', 'white-space': 'nowrap' }));
 
 console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
 process.exit(legacyAssertions.fail > 0 ? 1 : 0);

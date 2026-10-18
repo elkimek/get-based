@@ -9,9 +9,9 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1529 |
-| Internal import edges | 4970 |
-| Dynamic internal edges | 121 |
+| Modules | 1848 |
+| Internal import edges | 5592 |
+| Dynamic internal edges | 128 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
 | Largest cyclic component | 0 |
@@ -65,21 +65,21 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.ts`](js/utils.ts) | 253 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
-| [`js/state.ts`](js/state.ts) | 245 | [`js/chat-send.ts`](js/chat-send.ts) | 38 |
+| [`js/state.ts`](js/state.ts) | 257 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 78 |
+| [`js/utils.ts`](js/utils.ts) | 256 | [`js/chat-send.ts`](js/chat-send.ts) | 38 |
 | [`js/caught-error.ts`](js/caught-error.ts) | 93 | [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) | 36 |
-| [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts) | 84 | [`js/settings.ts`](js/settings.ts) | 35 |
-| [`js/data.ts`](js/data.ts) | 82 | [`js/provider-panels.ts`](js/provider-panels.ts) | 34 |
+| [`js/data.ts`](js/data.ts) | 87 | [`js/provider-panels.ts`](js/provider-panels.ts) | 34 |
+| [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts) | 84 | [`js/settings.ts`](js/settings.ts) | 34 |
 | [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts) | 65 | [`js/provider-wallet-panels.ts`](js/provider-wallet-panels.ts) | 30 |
-| [`js/api.ts`](js/api.ts) | 52 | [`js/pdf-import.ts`](js/pdf-import.ts) | 28 |
-| [`js/profile.ts`](js/profile.ts) | 51 | [`js/sync-configure.ts`](js/sync-configure.ts) | 28 |
+| [`js/api.ts`](js/api.ts) | 52 | [`js/sync-configure.ts`](js/sync-configure.ts) | 29 |
+| [`js/profile.ts`](js/profile.ts) | 51 | [`js/pdf-import.ts`](js/pdf-import.ts) | 28 |
 | [`js/schema.ts`](js/schema.ts) | 41 | [`js/wearables-connect.ts`](js/wearables-connect.ts) | 28 |
-| [`js/crypto.ts`](js/crypto.ts) | 40 | [`js/chat-empty-state.ts`](js/chat-empty-state.ts) | 25 |
-| [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts) | 36 | [`js/export.ts`](js/export.ts) | 25 |
-| [`js/data-merge.ts`](js/data-merge.ts) | 34 | [`js/context-cards.ts`](js/context-cards.ts) | 24 |
-| [`js/utils-runtime.ts`](js/utils-runtime.ts) | 27 | [`js/lab-context.ts`](js/lab-context.ts) | 24 |
-| [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts) | 25 | [`js/views.ts`](js/views.ts) | 22 |
-| [`js/chat-runtime.ts`](js/chat-runtime.ts) | 24 | [`js/nutrition.ts`](js/nutrition.ts) | 21 |
+| [`js/crypto.ts`](js/crypto.ts) | 40 | [`js/chat-empty-state.ts`](js/chat-empty-state.ts) | 26 |
+| [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts) | 39 | [`js/views-runtime.ts`](js/views-runtime.ts) | 26 |
+| [`js/data-merge.ts`](js/data-merge.ts) | 34 | [`js/export.ts`](js/export.ts) | 25 |
+| [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts) | 30 | [`js/context-cards.ts`](js/context-cards.ts) | 24 |
+| [`js/utils-runtime.ts`](js/utils-runtime.ts) | 27 | [`js/lab-context-assembly.ts`](js/lab-context-assembly.ts) | 23 |
+| [`js/chat-runtime.ts`](js/chat-runtime.ts) | 24 | [`js/dashboard-view-composition.ts`](js/dashboard-view-composition.ts) | 22 |
 
 ## Existing cyclic components
 
@@ -114,7 +114,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>+page.svelte</code> family — 1 module</summary>
 
-- [`js/kit/routes/app/+page.svelte`](js/kit/routes/app/+page.svelte) → [`js/components/ChatShell.svelte`](js/components/ChatShell.svelte)
+- [`js/kit/routes/app/+page.svelte`](js/kit/routes/app/+page.svelte) → [`js/components/AppShell.svelte`](js/components/AppShell.svelte)
 
 </details>
 
@@ -193,9 +193,16 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>analytics</code> family — 1 module</summary>
+<details><summary><code>analytics</code> family — 2 modules</summary>
 
 - [`js/analytics-bootstrap.ts`](js/analytics-bootstrap.ts) → no in-scope imports
+- [`js/analytics-consent-rendering.ts`](js/analytics-consent-rendering.ts) → [`js/components/AnalyticsConsentBody.svelte`](js/components/AnalyticsConsentBody.svelte)
+
+</details>
+
+<details><summary><code>AnalyticsConsentBody.svelte</code> family — 1 module</summary>
+
+- [`js/components/AnalyticsConsentBody.svelte`](js/components/AnalyticsConsentBody.svelte) → no in-scope imports
 
 </details>
 
@@ -218,19 +225,44 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>app</code> family — 11 modules</summary>
+<details><summary><code>app</code> family — 12 modules</summary>
 
 - [`js/app-ai-interaction-modules.ts`](js/app-ai-interaction-modules.ts) → [`js/app-chat-hooks.ts`](js/app-chat-hooks.ts), [`js/chat-images.ts`](js/chat-images.ts), [`js/chat-personalities.ts`](js/chat-personalities.ts), [`js/chat-summaries.ts`](js/chat-summaries.ts), [`js/chat-threads.ts`](js/chat-threads.ts), [`js/chat.ts`](js/chat.ts), [`js/voice-loader.ts`](js/voice-loader.ts)
 - [`js/app-chat-hooks.ts`](js/app-chat-hooks.ts) → [`js/api.ts`](js/api.ts), [`js/chat-actions.ts`](js/chat-actions.ts), [`js/chat-discussion.ts`](js/chat-discussion.ts), [`js/chat-empty-state.ts`](js/chat-empty-state.ts), [`js/chat-images.ts`](js/chat-images.ts), [`js/chat-message-edit.ts`](js/chat-message-edit.ts), [`js/chat-nudge.ts`](js/chat-nudge.ts), [`js/chat-onboarding-host-bindings.ts`](js/chat-onboarding-host-bindings.ts), [`js/chat-panel.ts`](js/chat-panel.ts), [`js/chat-personalities.ts`](js/chat-personalities.ts), [`js/chat-render.ts`](js/chat-render.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/chat-send.ts`](js/chat-send.ts), [`js/chat-summaries.ts`](js/chat-summaries.ts), [`js/chat-thread-search.ts`](js/chat-thread-search.ts), [`js/chat-threads.ts`](js/chat-threads.ts), [`js/voice-loader.ts`](js/voice-loader.ts)
-- [`js/app-event-listeners.ts`](js/app-event-listeners.ts) → [`js/data.ts`](js/data.ts), [`js/nav.ts`](js/nav.ts), [`js/state.ts`](js/state.ts), [`js/tour.ts`](js/tour.ts)
+- [`js/app-event-listeners.ts`](js/app-event-listeners.ts) → [`js/data.ts`](js/data.ts), [`js/modal-focusable.ts`](js/modal-focusable.ts), [`js/nav.ts`](js/nav.ts), [`js/state.ts`](js/state.ts), [`js/tour.ts`](js/tour.ts)
 - [`js/app-extension-bootstrap.ts`](js/app-extension-bootstrap.ts) → no in-scope imports
 - [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts) → no in-scope imports
 - [`js/app-feature-modules.ts`](js/app-feature-modules.ts) → [`js/app-foundation-modules.ts`](js/app-foundation-modules.ts), [`js/app-ui-shell-modules.ts`](js/app-ui-shell-modules.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/light-sun-loader.ts`](js/light-sun-loader.ts)
 - [`js/app-foundation-modules.ts`](js/app-foundation-modules.ts) → [`js/constants.ts`](js/constants.ts), [`js/legal-consent.ts`](js/legal-consent.ts), [`js/schema.ts`](js/schema.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/app-health-data-modules.ts`](js/app-health-data-modules.ts) → [`js/charts.ts`](js/charts.ts), [`js/context-cards.ts`](js/context-cards.ts), [`js/cycle.ts`](js/cycle.ts), [`js/dna.ts`](js/dna.ts), [`js/notes.ts`](js/notes.ts), [`js/recommendations.ts`](js/recommendations.ts), [`js/supplements.ts`](js/supplements.ts)
 - [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) → [`js/light-ai-save-hooks.ts`](js/light-ai-save-hooks.ts), [`js/light-audit-ai-analysis.ts`](js/light-audit-ai-analysis.ts), [`js/light-burden-ai-analysis.ts`](js/light-burden-ai-analysis.ts), [`js/light-channel-view-hooks.ts`](js/light-channel-view-hooks.ts), [`js/light-channel-view.ts`](js/light-channel-view.ts), [`js/light-channels-ai-analysis.ts`](js/light-channels-ai-analysis.ts), [`js/light-conditions-now-hooks.ts`](js/light-conditions-now-hooks.ts), [`js/light-conditions-now.ts`](js/light-conditions-now.ts), [`js/light-device-ai-analysis.ts`](js/light-device-ai-analysis.ts), [`js/light-devices-runtime.ts`](js/light-devices-runtime.ts), [`js/light-devices.ts`](js/light-devices.ts), [`js/light-env-ai-analysis.ts`](js/light-env-ai-analysis.ts), [`js/light-env.ts`](js/light-env.ts), [`js/light-page-view-hooks.ts`](js/light-page-view-hooks.ts), [`js/light-page-view.ts`](js/light-page-view.ts), [`js/light-screen-ai-analysis.ts`](js/light-screen-ai-analysis.ts), [`js/light-sessions-view-hooks.ts`](js/light-sessions-view-hooks.ts), [`js/light-sessions-view.ts`](js/light-sessions-view.ts), [`js/light-sun-ai-hooks.ts`](js/light-sun-ai-hooks.ts), [`js/light-today-ai.ts`](js/light-today-ai.ts), [`js/light-tools-ai-analysis.ts`](js/light-tools-ai-analysis.ts), [`js/light-tools.ts`](js/light-tools.ts), [`js/sun-active-session.ts`](js/sun-active-session.ts), [`js/sun-ai-analysis.ts`](js/sun-ai-analysis.ts), [`js/sun-context-hooks.ts`](js/sun-context-hooks.ts), [`js/sun-context.ts`](js/sun-context.ts), [`js/sun-correlations.ts`](js/sun-correlations.ts), [`js/sun-defaults-runtime.ts`](js/sun-defaults-runtime.ts), [`js/sun-defaults.ts`](js/sun-defaults.ts), [`js/sun-onboarding-ai.ts`](js/sun-onboarding-ai.ts), [`js/sun-runtime.ts`](js/sun-runtime.ts), [`js/sun-session-ai-render-hooks.ts`](js/sun-session-ai-render-hooks.ts), [`js/sun-session-ui.ts`](js/sun-session-ui.ts), [`js/sun-spectrum.ts`](js/sun-spectrum.ts), [`js/sun-uvdata.ts`](js/sun-uvdata.ts), [`js/sun.ts`](js/sun.ts)
-- [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) → [`js/api-provider-storage-runtime.ts`](js/api-provider-storage-runtime.ts), [`js/api-runtime.ts`](js/api-runtime.ts), [`js/api.ts`](js/api.ts), [`js/app-event-listeners.ts`](js/app-event-listeners.ts), [`js/biology-score-ai-context.ts`](js/biology-score-ai-context.ts), [`js/biology-score-context-ai.ts`](js/biology-score-context-ai.ts), [`js/biology-scores-runtime.ts`](js/biology-scores-runtime.ts), [`js/category-customization-runtime.ts`](js/category-customization-runtime.ts), [`js/category-page-view.ts`](js/category-page-view.ts), [`js/changelog.ts`](js/changelog.ts), [`js/chat-loader.ts`](js/chat-loader.ts), [`js/chat-nudge.ts`](js/chat-nudge.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/client-list-runtime.ts`](js/client-list-runtime.ts), [`js/client-list.ts`](js/client-list.ts), [`js/context-card-dashboard-ai-runtime.ts`](js/context-card-dashboard-ai-runtime.ts), [`js/context-card-lifestyle-runtime.ts`](js/context-card-lifestyle-runtime.ts), [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/crypto.ts`](js/crypto.ts), [`js/cycle-import-loader.ts`](js/cycle-import-loader.ts), [`js/cycle-runtime.ts`](js/cycle-runtime.ts), [`js/dashboard-page-view.ts`](js/dashboard-page-view.ts), [`js/dashboard-recommendation-widget.ts`](js/dashboard-recommendation-widget.ts), [`js/dashboard-view-composition.ts`](js/dashboard-view-composition.ts), [`js/dashboard-widget-runtime.ts`](js/dashboard-widget-runtime.ts), [`js/data.ts`](js/data.ts), [`js/dna-runtime.ts`](js/dna-runtime.ts), [`js/emf-interpretation.ts`](js/emf-interpretation.ts), [`js/emf-runtime.ts`](js/emf-runtime.ts), [`js/emf.ts`](js/emf.ts) *(dynamic)*, [`js/export-loader.ts`](js/export-loader.ts), [`js/export-runtime.ts`](js/export-runtime.ts), [`js/feedback.ts`](js/feedback.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/import-loader.ts`](js/import-loader.ts), [`js/lab-context.ts`](js/lab-context.ts), [`js/lens-page-shell.ts`](js/lens-page-shell.ts), [`js/light-sun-loader.ts`](js/light-sun-loader.ts), [`js/marker-detail-modal.ts`](js/marker-detail-modal.ts), [`js/marker-detail-runtime.ts`](js/marker-detail-runtime.ts), [`js/nav-runtime.ts`](js/nav-runtime.ts), [`js/nav.ts`](js/nav.ts), [`js/notes-runtime.ts`](js/notes-runtime.ts), [`js/nutrition-context.ts`](js/nutrition-context.ts) *(dynamic)*, [`js/nutrition-store.ts`](js/nutrition-store.ts) *(dynamic)*, [`js/onboarding-view-runtime.ts`](js/onboarding-view-runtime.ts), [`js/pdf-import-commit.ts`](js/pdf-import-commit.ts) *(dynamic)*, [`js/pdf-import-review-runtime.ts`](js/pdf-import-review-runtime.ts), [`js/pdf-import-review.ts`](js/pdf-import-review.ts) *(dynamic)*, [`js/profile-runtime.ts`](js/profile-runtime.ts), [`js/profile-share-loader.ts`](js/profile-share-loader.ts), [`js/profile-storage-cleanup.ts`](js/profile-storage-cleanup.ts), [`js/profile.ts`](js/profile.ts), [`js/provider-panels.ts`](js/provider-panels.ts) *(dynamic)*, [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/settings-loader.ts`](js/settings-loader.ts), [`js/settings-provider-bridge.ts`](js/settings-provider-bridge.ts), [`js/settings-sync-panel.ts`](js/settings-sync-panel.ts), [`js/shell-actions.ts`](js/shell-actions.ts), [`js/startup-oauth-callbacks.ts`](js/startup-oauth-callbacks.ts), [`js/startup-profile.ts`](js/startup-profile.ts), [`js/startup-ui.ts`](js/startup-ui.ts), [`js/supplements-runtime.ts`](js/supplements-runtime.ts), [`js/sync-pull-active-refresh-runtime.ts`](js/sync-pull-active-refresh-runtime.ts), [`js/sync-pull.ts`](js/sync-pull.ts), [`js/sync.ts`](js/sync.ts), [`js/tour-runtime.ts`](js/tour-runtime.ts), [`js/views-router-runtime.ts`](js/views-router-runtime.ts), [`js/views.ts`](js/views.ts), [`js/wearables-apple-health-runtime.ts`](js/wearables-apple-health-runtime.ts), [`js/wearables-connect-runtime.ts`](js/wearables-connect-runtime.ts), [`js/wearables-detail-runtime.ts`](js/wearables-detail-runtime.ts), [`js/wearables-manual.ts`](js/wearables-manual.ts), [`js/wearables-runtime.ts`](js/wearables-runtime.ts), [`js/wearables-settings-runtime.ts`](js/wearables-settings-runtime.ts), [`js/wearables-summary.ts`](js/wearables-summary.ts), [`js/wearables.ts`](js/wearables.ts) *(dynamic)*
-- [`js/app-ui-shell-modules.ts`](js/app-ui-shell-modules.ts) → [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts), [`js/feedback.ts`](js/feedback.ts), [`js/light-env-shell-hooks.ts`](js/light-env-shell-hooks.ts), [`js/touch-tooltip.ts`](js/touch-tooltip.ts), [`js/tour.ts`](js/tour.ts), [`js/views.ts`](js/views.ts)
+- [`js/app-shell-component.ts`](js/app-shell-component.ts) → [`js/components/AppShell.svelte`](js/components/AppShell.svelte)
+- [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) → [`js/api-provider-storage-runtime.ts`](js/api-provider-storage-runtime.ts), [`js/api-runtime.ts`](js/api-runtime.ts), [`js/api.ts`](js/api.ts), [`js/app-event-listeners.ts`](js/app-event-listeners.ts), [`js/biology-score-ai-context.ts`](js/biology-score-ai-context.ts), [`js/biology-score-context-runtime.ts`](js/biology-score-context-runtime.ts), [`js/biology-score-navigation.ts`](js/biology-score-navigation.ts), [`js/biology-scores-runtime.ts`](js/biology-scores-runtime.ts), [`js/category-customization-runtime.ts`](js/category-customization-runtime.ts), [`js/category-page-view.ts`](js/category-page-view.ts), [`js/changelog.ts`](js/changelog.ts), [`js/chat-loader.ts`](js/chat-loader.ts), [`js/chat-nudge.ts`](js/chat-nudge.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/client-list-runtime.ts`](js/client-list-runtime.ts), [`js/client-list.ts`](js/client-list.ts), [`js/context-card-dashboard-ai-runtime.ts`](js/context-card-dashboard-ai-runtime.ts), [`js/context-card-lifestyle-runtime.ts`](js/context-card-lifestyle-runtime.ts), [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/crypto.ts`](js/crypto.ts), [`js/cycle-import-runtime.ts`](js/cycle-import-runtime.ts), [`js/cycle-runtime.ts`](js/cycle-runtime.ts), [`js/dashboard-page-view.ts`](js/dashboard-page-view.ts), [`js/dashboard-recommendation-widget.ts`](js/dashboard-recommendation-widget.ts), [`js/dashboard-widget-runtime.ts`](js/dashboard-widget-runtime.ts), [`js/data.ts`](js/data.ts), [`js/dna-runtime.ts`](js/dna-runtime.ts), [`js/emf-interpretation-runtime.ts`](js/emf-interpretation-runtime.ts), [`js/emf-runtime.ts`](js/emf-runtime.ts), [`js/emf.ts`](js/emf.ts) *(dynamic)*, [`js/export-loader.ts`](js/export-loader.ts), [`js/export-runtime.ts`](js/export-runtime.ts), [`js/feedback.ts`](js/feedback.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/import-loader.ts`](js/import-loader.ts), [`js/lab-context-runtime.ts`](js/lab-context-runtime.ts), [`js/lab-context-settings.ts`](js/lab-context-settings.ts), [`js/lens-page-shell-core.ts`](js/lens-page-shell-core.ts), [`js/light-sun-loader.ts`](js/light-sun-loader.ts), [`js/marker-detail-modal.ts`](js/marker-detail-modal.ts), [`js/marker-detail-runtime.ts`](js/marker-detail-runtime.ts), [`js/nav-runtime.ts`](js/nav-runtime.ts), [`js/nav.ts`](js/nav.ts), [`js/notes-runtime.ts`](js/notes-runtime.ts), [`js/nutrition-store.ts`](js/nutrition-store.ts) *(dynamic)*, [`js/nutrition-summary-runtime.ts`](js/nutrition-summary-runtime.ts), [`js/onboarding-view-runtime.ts`](js/onboarding-view-runtime.ts), [`js/pdf-import-commit.ts`](js/pdf-import-commit.ts) *(dynamic)*, [`js/pdf-import-review-runtime.ts`](js/pdf-import-review-runtime.ts), [`js/pdf-import-review.ts`](js/pdf-import-review.ts) *(dynamic)*, [`js/profile-runtime.ts`](js/profile-runtime.ts), [`js/profile-share-loader.ts`](js/profile-share-loader.ts), [`js/profile-storage-cleanup.ts`](js/profile-storage-cleanup.ts), [`js/profile.ts`](js/profile.ts), [`js/provider-panels.ts`](js/provider-panels.ts) *(dynamic)*, [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/settings-loader.ts`](js/settings-loader.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/settings-sync-panel.ts`](js/settings-sync-panel.ts), [`js/shell-actions.ts`](js/shell-actions.ts), [`js/startup-oauth-callbacks.ts`](js/startup-oauth-callbacks.ts), [`js/startup-profile.ts`](js/startup-profile.ts), [`js/startup-ui.ts`](js/startup-ui.ts), [`js/supplements-runtime.ts`](js/supplements-runtime.ts), [`js/sync-pull-active-refresh-runtime.ts`](js/sync-pull-active-refresh-runtime.ts), [`js/sync-pull.ts`](js/sync-pull.ts), [`js/sync.ts`](js/sync.ts), [`js/tour-runtime.ts`](js/tour-runtime.ts), [`js/views-router-runtime.ts`](js/views-router-runtime.ts), [`js/views-runtime.ts`](js/views-runtime.ts), [`js/wearables-apple-health-runtime.ts`](js/wearables-apple-health-runtime.ts), [`js/wearables-connect-runtime.ts`](js/wearables-connect-runtime.ts), [`js/wearables-detail-runtime.ts`](js/wearables-detail-runtime.ts), [`js/wearables-manual.ts`](js/wearables-manual.ts), [`js/wearables-runtime.ts`](js/wearables-runtime.ts), [`js/wearables-settings-runtime.ts`](js/wearables-settings-runtime.ts), [`js/wearables-summary.ts`](js/wearables-summary.ts), [`js/wearables.ts`](js/wearables.ts) *(dynamic)*
+- [`js/app-ui-shell-modules.ts`](js/app-ui-shell-modules.ts) → [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts), [`js/feedback.ts`](js/feedback.ts), [`js/light-env-shell-hooks.ts`](js/light-env-shell-hooks.ts), [`js/touch-tooltip.ts`](js/touch-tooltip.ts), [`js/tour.ts`](js/tour.ts), [`js/views-runtime.ts`](js/views-runtime.ts)
+
+</details>
+
+<details><summary><code>AppExtensionSlot.svelte</code> family — 1 module</summary>
+
+- [`js/components/AppExtensionSlot.svelte`](js/components/AppExtensionSlot.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>AppFooter.svelte</code> family — 1 module</summary>
+
+- [`js/components/AppFooter.svelte`](js/components/AppFooter.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>AppHeader.svelte</code> family — 1 module</summary>
+
+- [`js/components/AppHeader.svelte`](js/components/AppHeader.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>AppShell.svelte</code> family — 1 module</summary>
+
+- [`js/components/AppShell.svelte`](js/components/AppShell.svelte) → [`js/components/AppFooter.svelte`](js/components/AppFooter.svelte), [`js/components/AppHeader.svelte`](js/components/AppHeader.svelte), [`js/components/ChatShell.svelte`](js/components/ChatShell.svelte), [`js/components/DashboardWelcome.svelte`](js/components/DashboardWelcome.svelte), [`js/dashboard-welcome-presentation.ts`](js/dashboard-welcome-presentation.ts)
 
 </details>
 
@@ -263,7 +295,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>biology</code> family — 44 modules</summary>
+<details><summary><code>biology</code> family — 51 modules</summary>
 
 - [`js/biology-ai-classes.ts`](js/biology-ai-classes.ts) → no in-scope imports
 - [`js/biology-ai-presentation.ts`](js/biology-ai-presentation.ts) → [`js/biology-score-engine.ts`](js/biology-score-engine.ts)
@@ -275,38 +307,45 @@ Native browser modules shipped with the static application.
 - [`js/biology-overview-classes.ts`](js/biology-overview-classes.ts) → no in-scope imports
 - [`js/biology-overview-presentation.ts`](js/biology-overview-presentation.ts) → [`js/biology-ai-presentation.ts`](js/biology-ai-presentation.ts), [`js/biology-card-presentation.ts`](js/biology-card-presentation.ts), [`js/biology-reading-presentation.ts`](js/biology-reading-presentation.ts), [`js/biology-score-engine.ts`](js/biology-score-engine.ts)
 - [`js/biology-page-classes.ts`](js/biology-page-classes.ts) → no in-scope imports
+- [`js/biology-page-loader.ts`](js/biology-page-loader.ts) → [`js/biology-page-view.ts`](js/biology-page-view.ts) *(dynamic)*, [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts)
 - [`js/biology-page-presentation.ts`](js/biology-page-presentation.ts) → [`js/biology-card-presentation.ts`](js/biology-card-presentation.ts), [`js/biology-overview-presentation.ts`](js/biology-overview-presentation.ts), [`js/biology-planning-presentation.ts`](js/biology-planning-presentation.ts), [`js/biology-score-render.ts`](js/biology-score-render.ts), [`js/lab-date-range-presentation.ts`](js/lab-date-range-presentation.ts)
-- [`js/biology-page-view.ts`](js/biology-page-view.ts) → [`js/biology-context-view.ts`](js/biology-context-view.ts), [`js/biology-page-presentation.ts`](js/biology-page-presentation.ts), [`js/biology-scores.ts`](js/biology-scores.ts), [`js/components/BiologyScoresPage.svelte`](js/components/BiologyScoresPage.svelte), [`js/lens-page-shell.ts`](js/lens-page-shell.ts), [`js/state.ts`](js/state.ts)
+- [`js/biology-page-view.ts`](js/biology-page-view.ts) → [`js/biology-context-view.ts`](js/biology-context-view.ts), [`js/biology-page-presentation.ts`](js/biology-page-presentation.ts), [`js/biology-scores.ts`](js/biology-scores.ts), [`js/components/BiologyScoresPage.svelte`](js/components/BiologyScoresPage.svelte), [`js/lens-page-shell-core.ts`](js/lens-page-shell-core.ts), [`js/state.ts`](js/state.ts)
 - [`js/biology-planning-classes.ts`](js/biology-planning-classes.ts) → no in-scope imports
 - [`js/biology-planning-presentation.ts`](js/biology-planning-presentation.ts) → [`js/biology-score-coverage-planner.ts`](js/biology-score-coverage-planner.ts)
 - [`js/biology-reading-classes.ts`](js/biology-reading-classes.ts) → no in-scope imports
 - [`js/biology-reading-presentation.ts`](js/biology-reading-presentation.ts) → [`js/biology-score-coverage-planner.ts`](js/biology-score-coverage-planner.ts), [`js/biology-score-engine.ts`](js/biology-score-engine.ts), [`js/biology-score-panel-policy.ts`](js/biology-score-panel-policy.ts)
-- [`js/biology-score-ai-context.ts`](js/biology-score-ai-context.ts) → [`js/biology-score-coverage-planner.ts`](js/biology-score-coverage-planner.ts), [`js/biology-score-engine.ts`](js/biology-score-engine.ts), [`js/biology-scores.ts`](js/biology-scores.ts)
+- [`js/biology-score-ai-context.ts`](js/biology-score-ai-context.ts) → [`js/biology-score-compute.ts`](js/biology-score-compute.ts), [`js/biology-score-coverage-planner.ts`](js/biology-score-coverage-planner.ts), [`js/biology-score-engine.ts`](js/biology-score-engine.ts)
 - [`js/biology-score-ai-protocol.ts`](js/biology-score-ai-protocol.ts) → no in-scope imports
 - [`js/biology-score-ai.ts`](js/biology-score-ai.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/api.ts`](js/api.ts), [`js/biology-score-ai-protocol.ts`](js/biology-score-ai-protocol.ts) *(dynamic)*, [`js/biology-score-coverage-planner.ts`](js/biology-score-coverage-planner.ts), [`js/biology-score-panel-policy.ts`](js/biology-score-panel-policy.ts), [`js/profile-load-safety.ts`](js/profile-load-safety.ts), [`js/profile.ts`](js/profile.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`shared/agent-host-protocol.ts`](shared/agent-host-protocol.ts)
 - [`js/biology-score-blood-flow.ts`](js/biology-score-blood-flow.ts) → [`js/biology-score-engine.ts`](js/biology-score-engine.ts)
 - [`js/biology-score-coherence.ts`](js/biology-score-coherence.ts) → [`js/biology-score-contract.ts`](js/biology-score-contract.ts), [`js/biology-score-engine.ts`](js/biology-score-engine.ts)
-- [`js/biology-score-context-ai.ts`](js/biology-score-context-ai.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/api.ts`](js/api.ts), [`js/biology-context-presentation.ts`](js/biology-context-presentation.ts), [`js/biology-score-ai-protocol.ts`](js/biology-score-ai-protocol.ts) *(dynamic)*, [`js/biology-score-ai.ts`](js/biology-score-ai.ts), [`js/biology-score-persistence.ts`](js/biology-score-persistence.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/components/BiologyContextPresentation.svelte`](js/components/BiologyContextPresentation.svelte), [`js/data.ts`](js/data.ts), [`js/health-goals-utils.ts`](js/health-goals-utils.ts), [`js/lab-context.ts`](js/lab-context.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/supplement-context.ts`](js/supplement-context.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/biology-score-compute.ts`](js/biology-score-compute.ts) → [`js/biology-score-coherence.ts`](js/biology-score-coherence.ts), [`js/biology-score-contract.ts`](js/biology-score-contract.ts), [`js/biology-score-copy.ts`](js/biology-score-copy.ts), [`js/biology-score-dates.ts`](js/biology-score-dates.ts), [`js/biology-score-engine.ts`](js/biology-score-engine.ts), [`js/biology-score-methodology.ts`](js/biology-score-methodology.ts), [`js/biology-score-tier1-definitions.ts`](js/biology-score-tier1-definitions.ts), [`js/biology-score-tier2-definitions.ts`](js/biology-score-tier2-definitions.ts), [`js/data.ts`](js/data.ts), [`js/profile-context.ts`](js/profile-context.ts), [`js/state.ts`](js/state.ts)
+- [`js/biology-score-context-ai.ts`](js/biology-score-context-ai.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/biology-context-presentation.ts`](js/biology-context-presentation.ts), [`js/biology-score-ai-protocol.ts`](js/biology-score-ai-protocol.ts) *(dynamic)*, [`js/biology-score-ai.ts`](js/biology-score-ai.ts), [`js/biology-score-context-contract.ts`](js/biology-score-context-contract.ts), [`js/biology-score-context-runtime.ts`](js/biology-score-context-runtime.ts), [`js/biology-score-persistence.ts`](js/biology-score-persistence.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/components/BiologyContextPresentation.svelte`](js/components/BiologyContextPresentation.svelte), [`js/data.ts`](js/data.ts), [`js/health-goals-utils.ts`](js/health-goals-utils.ts), [`js/lab-context-settings.ts`](js/lab-context-settings.ts), [`js/lab-context-wearables.ts`](js/lab-context-wearables.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/supplement-context.ts`](js/supplement-context.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/biology-score-context-contract.ts`](js/biology-score-context-contract.ts) → no in-scope imports
+- [`js/biology-score-context-runtime.ts`](js/biology-score-context-runtime.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/api.ts`](js/api.ts)
 - [`js/biology-score-contract.ts`](js/biology-score-contract.ts) → [`js/biology-score-mappings.ts`](js/biology-score-mappings.ts)
 - [`js/biology-score-copy.ts`](js/biology-score-copy.ts) → no in-scope imports
 - [`js/biology-score-coverage-planner.ts`](js/biology-score-coverage-planner.ts) → [`js/biology-score-engine.ts`](js/biology-score-engine.ts)
+- [`js/biology-score-dashboard.ts`](js/biology-score-dashboard.ts) → [`js/biology-overview-presentation.ts`](js/biology-overview-presentation.ts), [`js/biology-score-compute.ts`](js/biology-score-compute.ts), [`js/biology-score-data.ts`](js/biology-score-data.ts), [`js/biology-summary-presentation.ts`](js/biology-summary-presentation.ts), [`js/components/BiologyDashboardCoherence.svelte`](js/components/BiologyDashboardCoherence.svelte), [`js/components/BiologyDashboardScore.svelte`](js/components/BiologyDashboardScore.svelte), [`js/components/BiologySummaryWidget.svelte`](js/components/BiologySummaryWidget.svelte), [`js/state.ts`](js/state.ts)
+- [`js/biology-score-data.ts`](js/biology-score-data.ts) → [`js/data.ts`](js/data.ts)
 - [`js/biology-score-dates.ts`](js/biology-score-dates.ts) → no in-scope imports
 - [`js/biology-score-engine.ts`](js/biology-score-engine.ts) → [`js/biology-score-contract.ts`](js/biology-score-contract.ts), [`js/biology-score-dates.ts`](js/biology-score-dates.ts), [`js/biology-score-inputs.ts`](js/biology-score-inputs.ts), [`js/biology-score-panel-policy.ts`](js/biology-score-panel-policy.ts), [`js/biology-score-profile-modifiers.ts`](js/biology-score-profile-modifiers.ts), [`js/profile-context.ts`](js/profile-context.ts)
 - [`js/biology-score-inputs.ts`](js/biology-score-inputs.ts) → [`js/biology-score-dates.ts`](js/biology-score-dates.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/unit-profiles.ts`](js/unit-profiles.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/biology-score-iron.ts`](js/biology-score-iron.ts) → [`js/biology-score-engine.ts`](js/biology-score-engine.ts)
 - [`js/biology-score-mappings.ts`](js/biology-score-mappings.ts) → no in-scope imports
 - [`js/biology-score-methodology.ts`](js/biology-score-methodology.ts) → no in-scope imports
+- [`js/biology-score-navigation.ts`](js/biology-score-navigation.ts) → [`js/biology-score-compute.ts`](js/biology-score-compute.ts), [`js/biology-score-coverage-planner.ts`](js/biology-score-coverage-planner.ts), [`js/biology-scores-runtime.ts`](js/biology-scores-runtime.ts), [`js/chat-loader.ts`](js/chat-loader.ts), [`js/data.ts`](js/data.ts), [`js/route-lifecycle.ts`](js/route-lifecycle.ts), [`js/state.ts`](js/state.ts)
 - [`js/biology-score-panel-policy.ts`](js/biology-score-panel-policy.ts) → [`js/biology-score-contract.ts`](js/biology-score-contract.ts), [`js/biology-score-dates.ts`](js/biology-score-dates.ts), [`js/biology-score-inputs.ts`](js/biology-score-inputs.ts)
 - [`js/biology-score-persistence.ts`](js/biology-score-persistence.ts) → no in-scope imports
 - [`js/biology-score-profile-modifiers.ts`](js/biology-score-profile-modifiers.ts) → [`js/marker-context-ranges.ts`](js/marker-context-ranges.ts)
-- [`js/biology-score-render.ts`](js/biology-score-render.ts) → [`js/biology-card-presentation.ts`](js/biology-card-presentation.ts), [`js/biology-context-presentation.ts`](js/biology-context-presentation.ts), [`js/biology-overview-presentation.ts`](js/biology-overview-presentation.ts), [`js/biology-planning-presentation.ts`](js/biology-planning-presentation.ts), [`js/biology-score-sections.ts`](js/biology-score-sections.ts), [`js/biology-summary-presentation.ts`](js/biology-summary-presentation.ts), [`js/components/BiologyCardPresentation.svelte`](js/components/BiologyCardPresentation.svelte), [`js/components/BiologyOverviewPresentation.svelte`](js/components/BiologyOverviewPresentation.svelte), [`js/components/BiologyPlanningPresentation.svelte`](js/components/BiologyPlanningPresentation.svelte), [`js/components/BiologySummaryPresentation.svelte`](js/components/BiologySummaryPresentation.svelte), [`js/lens-page-shell.ts`](js/lens-page-shell.ts), [`js/profile-context.ts`](js/profile-context.ts)
+- [`js/biology-score-render.ts`](js/biology-score-render.ts) → [`js/biology-card-presentation.ts`](js/biology-card-presentation.ts), [`js/biology-context-presentation.ts`](js/biology-context-presentation.ts), [`js/biology-overview-presentation.ts`](js/biology-overview-presentation.ts), [`js/biology-planning-presentation.ts`](js/biology-planning-presentation.ts), [`js/biology-score-sections.ts`](js/biology-score-sections.ts), [`js/biology-summary-presentation.ts`](js/biology-summary-presentation.ts), [`js/components/BiologyCardPresentation.svelte`](js/components/BiologyCardPresentation.svelte), [`js/components/BiologyOverviewPresentation.svelte`](js/components/BiologyOverviewPresentation.svelte), [`js/components/BiologyPlanningPresentation.svelte`](js/components/BiologyPlanningPresentation.svelte), [`js/components/BiologySummaryPresentation.svelte`](js/components/BiologySummaryPresentation.svelte), [`js/lens-page-shell-core.ts`](js/lens-page-shell-core.ts), [`js/profile-context.ts`](js/profile-context.ts)
 - [`js/biology-score-sections.ts`](js/biology-score-sections.ts) → [`js/biology-ai-presentation.ts`](js/biology-ai-presentation.ts), [`js/biology-score-contract.ts`](js/biology-score-contract.ts), [`js/biology-score-inputs.ts`](js/biology-score-inputs.ts), [`js/biology-score-persistence.ts`](js/biology-score-persistence.ts), [`js/components/BiologyAIPresentation.svelte`](js/components/BiologyAIPresentation.svelte), [`js/crypto.ts`](js/crypto.ts), [`js/data.ts`](js/data.ts), [`js/demo-biology-insights.ts`](js/demo-biology-insights.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts)
 - [`js/biology-score-thyroid.ts`](js/biology-score-thyroid.ts) → [`js/biology-score-engine.ts`](js/biology-score-engine.ts)
 - [`js/biology-score-tier1-definitions.ts`](js/biology-score-tier1-definitions.ts) → no in-scope imports
 - [`js/biology-score-tier2-definitions.ts`](js/biology-score-tier2-definitions.ts) → no in-scope imports
 - [`js/biology-score-types.ts`](js/biology-score-types.ts) → no in-scope imports
 - [`js/biology-scores-runtime.ts`](js/biology-scores-runtime.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/data.ts`](js/data.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/biology-scores.ts`](js/biology-scores.ts) → [`js/biology-score-ai.ts`](js/biology-score-ai.ts), [`js/biology-score-coherence.ts`](js/biology-score-coherence.ts), [`js/biology-score-contract.ts`](js/biology-score-contract.ts), [`js/biology-score-copy.ts`](js/biology-score-copy.ts), [`js/biology-score-coverage-planner.ts`](js/biology-score-coverage-planner.ts), [`js/biology-score-dates.ts`](js/biology-score-dates.ts), [`js/biology-score-engine.ts`](js/biology-score-engine.ts), [`js/biology-score-methodology.ts`](js/biology-score-methodology.ts), [`js/biology-score-render.ts`](js/biology-score-render.ts), [`js/biology-score-sections.ts`](js/biology-score-sections.ts), [`js/biology-score-tier1-definitions.ts`](js/biology-score-tier1-definitions.ts), [`js/biology-score-tier2-definitions.ts`](js/biology-score-tier2-definitions.ts), [`js/biology-scores-runtime.ts`](js/biology-scores-runtime.ts), [`js/chat-loader.ts`](js/chat-loader.ts), [`js/data.ts`](js/data.ts), [`js/lens-page-shell.ts`](js/lens-page-shell.ts), [`js/profile-context.ts`](js/profile-context.ts), [`js/state.ts`](js/state.ts)
+- [`js/biology-scores.ts`](js/biology-scores.ts) → [`js/biology-score-ai.ts`](js/biology-score-ai.ts), [`js/biology-score-compute.ts`](js/biology-score-compute.ts), [`js/biology-score-dashboard.ts`](js/biology-score-dashboard.ts), [`js/biology-score-data.ts`](js/biology-score-data.ts), [`js/biology-score-navigation.ts`](js/biology-score-navigation.ts), [`js/biology-score-render.ts`](js/biology-score-render.ts), [`js/biology-score-sections.ts`](js/biology-score-sections.ts), [`js/biology-scores-runtime.ts`](js/biology-scores-runtime.ts), [`js/data.ts`](js/data.ts), [`js/lens-page-shell-core.ts`](js/lens-page-shell-core.ts), [`js/profile-context.ts`](js/profile-context.ts), [`js/state.ts`](js/state.ts)
 - [`js/biology-summary-classes.ts`](js/biology-summary-classes.ts) → no in-scope imports
 - [`js/biology-summary-presentation.ts`](js/biology-summary-presentation.ts) → [`js/biology-card-presentation.ts`](js/biology-card-presentation.ts), [`js/biology-overview-presentation.ts`](js/biology-overview-presentation.ts), [`js/biology-planning-presentation.ts`](js/biology-planning-presentation.ts), [`js/biology-reading-presentation.ts`](js/biology-reading-presentation.ts), [`js/biology-score-coverage-planner.ts`](js/biology-score-coverage-planner.ts), [`js/biology-score-engine.ts`](js/biology-score-engine.ts)
 
@@ -609,15 +648,113 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>category</code> family — 7 modules</summary>
+<details><summary><code>category</code> family — 9 modules</summary>
 
 - [`js/category-customization-runtime.ts`](js/category-customization-runtime.ts) → [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/category-customization.ts`](js/category-customization.ts) → [`js/category-customization-runtime.ts`](js/category-customization-runtime.ts), [`js/data.ts`](js/data.ts), [`js/marker-detail-modal.ts`](js/marker-detail-modal.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/category-customization.ts`](js/category-customization.ts) → [`js/category-customization-runtime.ts`](js/category-customization-runtime.ts), [`js/data.ts`](js/data.ts), [`js/emoji-picker-presentation.ts`](js/emoji-picker-presentation.ts), [`js/marker-detail-modal.ts`](js/marker-detail-modal.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/category-glyphs.ts`](js/category-glyphs.ts) → [`js/utils.ts`](js/utils.ts)
 - [`js/category-order.ts`](js/category-order.ts) → no in-scope imports
+- [`js/category-page-presentation.ts`](js/category-page-presentation.ts) → [`js/components/CategoryPageChrome.svelte`](js/components/CategoryPageChrome.svelte), [`js/components/CategoryPageViewBody.svelte`](js/components/CategoryPageViewBody.svelte)
 - [`js/category-page-runtime.ts`](js/category-page-runtime.ts) → [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts)
-- [`js/category-page-view.ts`](js/category-page-view.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/category-glyphs.ts`](js/category-glyphs.ts), [`js/category-page-runtime.ts`](js/category-page-runtime.ts), [`js/category-view-renderers.ts`](js/category-view-renderers.ts), [`js/chart-card-recs.ts`](js/chart-card-recs.ts), [`js/data.ts`](js/data.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/marker-detail-actions.ts`](js/marker-detail-actions.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/category-view-renderers.ts`](js/category-view-renderers.ts) → [`js/charts-runtime.ts`](js/charts-runtime.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/marker-detail-actions.ts`](js/marker-detail-actions.ts), [`js/state.ts`](js/state.ts), [`js/theme.ts`](js/theme.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/category-page-view.ts`](js/category-page-view.ts) → [`js/category-glyphs.ts`](js/category-glyphs.ts), [`js/category-page-presentation.ts`](js/category-page-presentation.ts), [`js/category-page-runtime.ts`](js/category-page-runtime.ts), [`js/category-presentation.ts`](js/category-presentation.ts), [`js/category-view-renderers.ts`](js/category-view-renderers.ts), [`js/chart-card-recs.ts`](js/chart-card-recs.ts), [`js/data.ts`](js/data.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/category-presentation.ts`](js/category-presentation.ts) → [`js/components/CategoryChartCard.svelte`](js/components/CategoryChartCard.svelte), [`js/components/CategoryDataTable.svelte`](js/components/CategoryDataTable.svelte), [`js/components/CategoryFattyAcids.svelte`](js/components/CategoryFattyAcids.svelte), [`js/components/CategoryHeatmap.svelte`](js/components/CategoryHeatmap.svelte), [`js/components/CategoryTableColgroup.svelte`](js/components/CategoryTableColgroup.svelte)
+- [`js/category-view-renderers.ts`](js/category-view-renderers.ts) → [`js/category-presentation.ts`](js/category-presentation.ts), [`js/charts-runtime.ts`](js/charts-runtime.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/state.ts`](js/state.ts), [`js/theme.ts`](js/theme.ts), [`js/utils.ts`](js/utils.ts)
+
+</details>
+
+<details><summary><code>CategoryChartCard.svelte</code> family — 1 module</summary>
+
+- [`js/components/CategoryChartCard.svelte`](js/components/CategoryChartCard.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>CategoryDataRows.svelte</code> family — 1 module</summary>
+
+- [`js/components/CategoryDataRows.svelte`](js/components/CategoryDataRows.svelte) → [`js/components/CategoryRangeRail.svelte`](js/components/CategoryRangeRail.svelte), [`js/components/CategoryRangeText.svelte`](js/components/CategoryRangeText.svelte)
+
+</details>
+
+<details><summary><code>CategoryDataTable.svelte</code> family — 1 module</summary>
+
+- [`js/components/CategoryDataTable.svelte`](js/components/CategoryDataTable.svelte) → [`js/components/CategoryScrollableTable.svelte`](js/components/CategoryScrollableTable.svelte)
+
+</details>
+
+<details><summary><code>CategoryFattyAcids.svelte</code> family — 1 module</summary>
+
+- [`js/components/CategoryFattyAcids.svelte`](js/components/CategoryFattyAcids.svelte) → [`js/components/CategoryRangeRail.svelte`](js/components/CategoryRangeRail.svelte), [`js/components/CategoryRangeText.svelte`](js/components/CategoryRangeText.svelte)
+
+</details>
+
+<details><summary><code>CategoryGlyph.svelte</code> family — 1 module</summary>
+
+- [`js/components/CategoryGlyph.svelte`](js/components/CategoryGlyph.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>CategoryHeatmap.svelte</code> family — 1 module</summary>
+
+- [`js/components/CategoryHeatmap.svelte`](js/components/CategoryHeatmap.svelte) → [`js/components/CategoryScrollableTable.svelte`](js/components/CategoryScrollableTable.svelte)
+
+</details>
+
+<details><summary><code>CategoryHeatmapRows.svelte</code> family — 1 module</summary>
+
+- [`js/components/CategoryHeatmapRows.svelte`](js/components/CategoryHeatmapRows.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>CategoryMarkerDataGaps.svelte</code> family — 1 module</summary>
+
+- [`js/components/CategoryMarkerDataGaps.svelte`](js/components/CategoryMarkerDataGaps.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>CategoryPageChrome.svelte</code> family — 1 module</summary>
+
+- [`js/components/CategoryPageChrome.svelte`](js/components/CategoryPageChrome.svelte) → [`js/components/CategoryGlyph.svelte`](js/components/CategoryGlyph.svelte), [`js/components/CategoryPageViewBody.svelte`](js/components/CategoryPageViewBody.svelte), [`js/components/ChartLayersDropdown.svelte`](js/components/ChartLayersDropdown.svelte), [`js/components/LabDateRange.svelte`](js/components/LabDateRange.svelte)
+
+</details>
+
+<details><summary><code>CategoryPageRangeEmptyState.svelte</code> family — 1 module</summary>
+
+- [`js/components/CategoryPageRangeEmptyState.svelte`](js/components/CategoryPageRangeEmptyState.svelte) → [`js/components/CategoryGlyph.svelte`](js/components/CategoryGlyph.svelte)
+
+</details>
+
+<details><summary><code>CategoryPageViewBody.svelte</code> family — 1 module</summary>
+
+- [`js/components/CategoryPageViewBody.svelte`](js/components/CategoryPageViewBody.svelte) → [`js/components/CategoryChartCard.svelte`](js/components/CategoryChartCard.svelte), [`js/components/CategoryDataTable.svelte`](js/components/CategoryDataTable.svelte), [`js/components/CategoryFattyAcids.svelte`](js/components/CategoryFattyAcids.svelte), [`js/components/CategoryGlyph.svelte`](js/components/CategoryGlyph.svelte), [`js/components/CategoryHeatmap.svelte`](js/components/CategoryHeatmap.svelte), [`js/components/CategoryMarkerDataGaps.svelte`](js/components/CategoryMarkerDataGaps.svelte), [`js/components/CategoryPageRangeEmptyState.svelte`](js/components/CategoryPageRangeEmptyState.svelte)
+
+</details>
+
+<details><summary><code>CategoryRangeRail.svelte</code> family — 1 module</summary>
+
+- [`js/components/CategoryRangeRail.svelte`](js/components/CategoryRangeRail.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>CategoryRangeText.svelte</code> family — 1 module</summary>
+
+- [`js/components/CategoryRangeText.svelte`](js/components/CategoryRangeText.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>CategoryScrollableTable.svelte</code> family — 1 module</summary>
+
+- [`js/components/CategoryScrollableTable.svelte`](js/components/CategoryScrollableTable.svelte) → [`js/components/CategoryDataRows.svelte`](js/components/CategoryDataRows.svelte), [`js/components/CategoryHeatmapRows.svelte`](js/components/CategoryHeatmapRows.svelte), [`js/components/CategoryTableColgroup.svelte`](js/components/CategoryTableColgroup.svelte), [`js/components/CategoryTableHeader.svelte`](js/components/CategoryTableHeader.svelte)
+
+</details>
+
+<details><summary><code>CategoryTableColgroup.svelte</code> family — 1 module</summary>
+
+- [`js/components/CategoryTableColgroup.svelte`](js/components/CategoryTableColgroup.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>CategoryTableHeader.svelte</code> family — 1 module</summary>
+
+- [`js/components/CategoryTableHeader.svelte`](js/components/CategoryTableHeader.svelte) → no in-scope imports
 
 </details>
 
@@ -627,18 +764,35 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>changelog</code> family — 4 modules</summary>
+<details><summary><code>changelog</code> family — 8 modules</summary>
 
+- [`js/changelog-classes.ts`](js/changelog-classes.ts) → no in-scope imports
 - [`js/changelog-current.ts`](js/changelog-current.ts) → no in-scope imports
-- [`js/changelog-impl.ts`](js/changelog-impl.ts) → [`js/changelog-current.ts`](js/changelog-current.ts), [`js/changelog-state.ts`](js/changelog-state.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/changelog-data.ts`](js/changelog-data.ts) → [`js/changelog-current.ts`](js/changelog-current.ts)
+- [`js/changelog-impl.ts`](js/changelog-impl.ts) → [`js/changelog-classes.ts`](js/changelog-classes.ts), [`js/changelog-data.ts`](js/changelog-data.ts), [`js/changelog-presentation.ts`](js/changelog-presentation.ts), [`js/changelog-rendering.ts`](js/changelog-rendering.ts), [`js/changelog-state.ts`](js/changelog-state.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/changelog-presentation.ts`](js/changelog-presentation.ts) → no in-scope imports
+- [`js/changelog-rendering.ts`](js/changelog-rendering.ts) → [`js/components/ChangelogPresentation.svelte`](js/components/ChangelogPresentation.svelte)
 - [`js/changelog-state.ts`](js/changelog-state.ts) → [`js/utils-runtime.ts`](js/utils-runtime.ts)
 - [`js/changelog.ts`](js/changelog.ts) → [`js/changelog-impl.ts`](js/changelog-impl.ts) *(dynamic)*, [`js/changelog-state.ts`](js/changelog-state.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
 
 </details>
 
-<details><summary><code>chart</code> family — 1 module</summary>
+<details><summary><code>ChangelogPresentation.svelte</code> family — 1 module</summary>
+
+- [`js/components/ChangelogPresentation.svelte`](js/components/ChangelogPresentation.svelte) → [`js/changelog-classes.ts`](js/changelog-classes.ts)
+
+</details>
+
+<details><summary><code>chart</code> family — 2 modules</summary>
 
 - [`js/chart-card-recs.ts`](js/chart-card-recs.ts) → [`js/marker-detail-modal.ts`](js/marker-detail-modal.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/chart-layers-presentation.ts`](js/chart-layers-presentation.ts) → [`js/components/ChartLayersDropdown.svelte`](js/components/ChartLayersDropdown.svelte)
+
+</details>
+
+<details><summary><code>ChartLayersDropdown.svelte</code> family — 1 module</summary>
+
+- [`js/components/ChartLayersDropdown.svelte`](js/components/ChartLayersDropdown.svelte) → no in-scope imports
 
 </details>
 
@@ -649,7 +803,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>chat</code> family — 126 modules</summary>
+<details><summary><code>chat</code> family — 127 modules</summary>
 
 - [`js/chat-actions.ts`](js/chat-actions.ts) → [`js/agent-draft-claims.ts`](js/agent-draft-claims.ts), [`js/agent-drafts.ts`](js/agent-drafts.ts), [`js/chat-history.ts`](js/chat-history.ts), [`js/chat-images.ts`](js/chat-images.ts), [`js/chat-message-action-attrs.ts`](js/chat-message-action-attrs.ts), [`js/chat-message-actions-component.ts`](js/chat-message-actions-component.ts), [`js/chat-message-actions-view.ts`](js/chat-message-actions-view.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/chat-speech-component.ts`](js/chat-speech-component.ts), [`js/cli-agent-brand-assets.ts`](js/cli-agent-brand-assets.ts), [`js/emf-runtime.ts`](js/emf-runtime.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/chat-attachment-classes.ts`](js/chat-attachment-classes.ts) → no in-scope imports
@@ -672,7 +826,7 @@ Native browser modules shipped with the static application.
 - [`js/chat-discussion-origin.ts`](js/chat-discussion-origin.ts) → [`js/state.ts`](js/state.ts)
 - [`js/chat-discussion-picker.ts`](js/chat-discussion-picker.ts) → [`js/chat-discussion-view.ts`](js/chat-discussion-view.ts), [`js/chat-layout-view.ts`](js/chat-layout-view.ts), [`js/chat-personalities.ts`](js/chat-personalities.ts), [`js/chat-personality-picker-view.ts`](js/chat-personality-picker-view.ts), [`js/constants.ts`](js/constants.ts), [`js/state.ts`](js/state.ts)
 - [`js/chat-discussion-round-prompts.ts`](js/chat-discussion-round-prompts.ts) → no in-scope imports
-- [`js/chat-discussion-round-request.ts`](js/chat-discussion-round-request.ts) → [`js/agent-chat-backend.ts`](js/agent-chat-backend.ts), [`js/agent-chat-context.ts`](js/agent-chat-context.ts), [`js/agent-model-catalog.ts`](js/agent-model-catalog.ts), [`js/agent-tool-runtime.ts`](js/agent-tool-runtime.ts), [`js/ai-execution-routing.ts`](js/ai-execution-routing.ts), [`js/api.ts`](js/api.ts), [`js/chat-context-summary.ts`](js/chat-context-summary.ts) *(dynamic)*, [`js/chat-continuation.ts`](js/chat-continuation.ts), [`js/chat-model-preferences.ts`](js/chat-model-preferences.ts), [`js/chat-panel.ts`](js/chat-panel.ts), [`js/chat-personalities.ts`](js/chat-personalities.ts), [`js/chat-prompt-context.ts`](js/chat-prompt-context.ts), [`js/chat-system-prompt.ts`](js/chat-system-prompt.ts), [`js/lab-context.ts`](js/lab-context.ts), [`js/lens.ts`](js/lens.ts), [`js/schema.ts`](js/schema.ts)
+- [`js/chat-discussion-round-request.ts`](js/chat-discussion-round-request.ts) → [`js/agent-chat-backend.ts`](js/agent-chat-backend.ts), [`js/agent-chat-context.ts`](js/agent-chat-context.ts), [`js/agent-model-catalog.ts`](js/agent-model-catalog.ts), [`js/agent-tool-runtime.ts`](js/agent-tool-runtime.ts), [`js/ai-execution-routing.ts`](js/ai-execution-routing.ts), [`js/api.ts`](js/api.ts), [`js/chat-context-summary.ts`](js/chat-context-summary.ts) *(dynamic)*, [`js/chat-continuation.ts`](js/chat-continuation.ts), [`js/chat-model-preferences.ts`](js/chat-model-preferences.ts), [`js/chat-panel.ts`](js/chat-panel.ts), [`js/chat-personalities.ts`](js/chat-personalities.ts), [`js/chat-prompt-context.ts`](js/chat-prompt-context.ts), [`js/chat-system-prompt.ts`](js/chat-system-prompt.ts), [`js/lab-context-output.ts`](js/lab-context-output.ts), [`js/lens.ts`](js/lens.ts), [`js/schema.ts`](js/schema.ts)
 - [`js/chat-discussion-round-runner.ts`](js/chat-discussion-round-runner.ts) → [`js/chat-continuation.ts`](js/chat-continuation.ts), [`js/chat-discussion-callbacks.ts`](js/chat-discussion-callbacks.ts), [`js/chat-discussion-origin.ts`](js/chat-discussion-origin.ts), [`js/chat-discussion-round-prompts.ts`](js/chat-discussion-round-prompts.ts), [`js/chat-discussion-round-request.ts`](js/chat-discussion-round-request.ts), [`js/chat-discussion-round-state.ts`](js/chat-discussion-round-state.ts), [`js/chat-discussion-round-view.ts`](js/chat-discussion-round-view.ts), [`js/chat-discussion-ui.ts`](js/chat-discussion-ui.ts), [`js/chat-live-message-component.ts`](js/chat-live-message-component.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/chat-scroll.ts`](js/chat-scroll.ts), [`js/chat-stream-status.ts`](js/chat-stream-status.ts), [`js/chat-thinking-status.ts`](js/chat-thinking-status.ts), [`js/state.ts`](js/state.ts)
 - [`js/chat-discussion-round-state.ts`](js/chat-discussion-round-state.ts) → [`js/chat-discussion-origin.ts`](js/chat-discussion-origin.ts), [`js/chat-history.ts`](js/chat-history.ts), [`js/chat-threads.ts`](js/chat-threads.ts), [`js/state.ts`](js/state.ts)
 - [`js/chat-discussion-round-view.ts`](js/chat-discussion-round-view.ts) → [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/chat-discussion-round-state.ts`](js/chat-discussion-round-state.ts), [`js/chat-live-message-component.ts`](js/chat-live-message-component.ts), [`js/chat-thinking-status.ts`](js/chat-thinking-status.ts), [`js/cli-agent-brand-assets.ts`](js/cli-agent-brand-assets.ts), [`js/state.ts`](js/state.ts)
@@ -682,8 +836,9 @@ Native browser modules shipped with the static application.
 - [`js/chat-discussion-view.ts`](js/chat-discussion-view.ts) → no in-scope imports
 - [`js/chat-discussion.ts`](js/chat-discussion.ts) → [`js/chat-discussion-callbacks.ts`](js/chat-discussion-callbacks.ts), [`js/chat-discussion-flow.ts`](js/chat-discussion-flow.ts), [`js/chat-discussion-state.ts`](js/chat-discussion-state.ts), [`js/chat-discussion-ui.ts`](js/chat-discussion-ui.ts)
 - [`js/chat-draft-storage.ts`](js/chat-draft-storage.ts) → [`js/crypto.ts`](js/crypto.ts)
+- [`js/chat-empty-catalog-component.ts`](js/chat-empty-catalog-component.ts) → [`js/components/ChatEmptyState.svelte`](js/components/ChatEmptyState.svelte), [`js/state.ts`](js/state.ts)
 - [`js/chat-empty-presentation.ts`](js/chat-empty-presentation.ts) → [`js/chat-onboarding-presentation.ts`](js/chat-onboarding-presentation.ts)
-- [`js/chat-empty-state.ts`](js/chat-empty-state.ts) → [`js/api.ts`](js/api.ts), [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/chat-backend-selection.ts`](js/chat-backend-selection.ts), [`js/chat-empty-presentation.ts`](js/chat-empty-presentation.ts), [`js/chat-onboarding-presentation.ts`](js/chat-onboarding-presentation.ts), [`js/chat-onboarding.ts`](js/chat-onboarding.ts), [`js/chat-optional-onboarding-presentation.ts`](js/chat-optional-onboarding-presentation.ts), [`js/chat-optional-setup-component.ts`](js/chat-optional-setup-component.ts), [`js/chat-personalities.ts`](js/chat-personalities.ts), [`js/chat-profile-onboarding.ts`](js/chat-profile-onboarding.ts), [`js/chat-profile-setup-component.ts`](js/chat-profile-setup-component.ts), [`js/chat-provider-setup-component.ts`](js/chat-provider-setup-component.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/components/ChatEmptyState.svelte`](js/components/ChatEmptyState.svelte), [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/context-cards.ts`](js/context-cards.ts), [`js/cycle.ts`](js/cycle.ts), [`js/data.ts`](js/data.ts), [`js/dna-runtime-bridge.ts`](js/dna-runtime-bridge.ts), [`js/profile.ts`](js/profile.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/state.ts`](js/state.ts), [`js/supplements.ts`](js/supplements.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/chat-empty-state.ts`](js/chat-empty-state.ts) → [`js/api.ts`](js/api.ts), [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/chat-backend-selection.ts`](js/chat-backend-selection.ts), [`js/chat-empty-catalog-component.ts`](js/chat-empty-catalog-component.ts), [`js/chat-empty-presentation.ts`](js/chat-empty-presentation.ts), [`js/chat-onboarding-presentation.ts`](js/chat-onboarding-presentation.ts), [`js/chat-onboarding.ts`](js/chat-onboarding.ts), [`js/chat-optional-onboarding-presentation.ts`](js/chat-optional-onboarding-presentation.ts), [`js/chat-optional-setup-component.ts`](js/chat-optional-setup-component.ts), [`js/chat-personalities.ts`](js/chat-personalities.ts), [`js/chat-profile-onboarding.ts`](js/chat-profile-onboarding.ts), [`js/chat-profile-setup-component.ts`](js/chat-profile-setup-component.ts), [`js/chat-provider-setup-component.ts`](js/chat-provider-setup-component.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/components/ChatEmptyState.svelte`](js/components/ChatEmptyState.svelte), [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/context-cards.ts`](js/context-cards.ts), [`js/cycle.ts`](js/cycle.ts), [`js/data.ts`](js/data.ts), [`js/dna-runtime-bridge.ts`](js/dna-runtime-bridge.ts), [`js/profile.ts`](js/profile.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/state.ts`](js/state.ts), [`js/supplements.ts`](js/supplements.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/chat-header-classes.ts`](js/chat-header-classes.ts) → no in-scope imports
 - [`js/chat-header-contract.ts`](js/chat-header-contract.ts) → no in-scope imports
 - [`js/chat-header-presentation.ts`](js/chat-header-presentation.ts) → [`js/api.ts`](js/api.ts), [`js/chat-backend-selection.ts`](js/chat-backend-selection.ts), [`js/chat-context-status.ts`](js/chat-context-status.ts), [`js/chat-header-contract.ts`](js/chat-header-contract.ts), [`js/chat-header-view.ts`](js/chat-header-view.ts), [`js/chat-personality-models.ts`](js/chat-personality-models.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/state.ts`](js/state.ts)
@@ -753,7 +908,7 @@ Native browser modules shipped with the static application.
 - [`js/chat-runtime.ts`](js/chat-runtime.ts) → [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts)
 - [`js/chat-scroll.ts`](js/chat-scroll.ts) → no in-scope imports
 - [`js/chat-send-runtime.ts`](js/chat-send-runtime.ts) → [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts)
-- [`js/chat-send.ts`](js/chat-send.ts) → [`js/agent-chat-backend.ts`](js/agent-chat-backend.ts), [`js/agent-chat-context.ts`](js/agent-chat-context.ts), [`js/agent-chat-settings.ts`](js/agent-chat-settings.ts), [`js/agent-model-catalog.ts`](js/agent-model-catalog.ts), [`js/agent-tool-runtime.ts`](js/agent-tool-runtime.ts), [`js/ai-execution-routing.ts`](js/ai-execution-routing.ts), [`js/api.ts`](js/api.ts), [`js/chat-backend-selection.ts`](js/chat-backend-selection.ts), [`js/chat-composer.ts`](js/chat-composer.ts), [`js/chat-context-summary.ts`](js/chat-context-summary.ts) *(dynamic)*, [`js/chat-continuation.ts`](js/chat-continuation.ts), [`js/chat-discussion.ts`](js/chat-discussion.ts), [`js/chat-history.ts`](js/chat-history.ts), [`js/chat-icons.ts`](js/chat-icons.ts), [`js/chat-images.ts`](js/chat-images.ts), [`js/chat-live-message-component.ts`](js/chat-live-message-component.ts), [`js/chat-message-avatars.ts`](js/chat-message-avatars.ts), [`js/chat-message-edit.ts`](js/chat-message-edit.ts), [`js/chat-model-preferences.ts`](js/chat-model-preferences.ts), [`js/chat-panel.ts`](js/chat-panel.ts), [`js/chat-personalities.ts`](js/chat-personalities.ts), [`js/chat-prompt-context.ts`](js/chat-prompt-context.ts), [`js/chat-recommendation-disclosure.ts`](js/chat-recommendation-disclosure.ts), [`js/chat-render.ts`](js/chat-render.ts), [`js/chat-scroll.ts`](js/chat-scroll.ts), [`js/chat-send-runtime.ts`](js/chat-send-runtime.ts), [`js/chat-stream-status.ts`](js/chat-stream-status.ts), [`js/chat-system-prompt.ts`](js/chat-system-prompt.ts), [`js/chat-thinking-status.ts`](js/chat-thinking-status.ts), [`js/chat-threads.ts`](js/chat-threads.ts), [`js/cloud-ai-consent.ts`](js/cloud-ai-consent.ts) *(dynamic)*, [`js/image-utils.ts`](js/image-utils.ts), [`js/lab-context.ts`](js/lab-context.ts), [`js/lens.ts`](js/lens.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts), [`js/voice-loader.ts`](js/voice-loader.ts)
+- [`js/chat-send.ts`](js/chat-send.ts) → [`js/agent-chat-backend.ts`](js/agent-chat-backend.ts), [`js/agent-chat-context.ts`](js/agent-chat-context.ts), [`js/agent-chat-settings.ts`](js/agent-chat-settings.ts), [`js/agent-model-catalog.ts`](js/agent-model-catalog.ts), [`js/agent-tool-runtime.ts`](js/agent-tool-runtime.ts), [`js/ai-execution-routing.ts`](js/ai-execution-routing.ts), [`js/api.ts`](js/api.ts), [`js/chat-backend-selection.ts`](js/chat-backend-selection.ts), [`js/chat-composer.ts`](js/chat-composer.ts), [`js/chat-context-summary.ts`](js/chat-context-summary.ts) *(dynamic)*, [`js/chat-continuation.ts`](js/chat-continuation.ts), [`js/chat-discussion.ts`](js/chat-discussion.ts), [`js/chat-history.ts`](js/chat-history.ts), [`js/chat-icons.ts`](js/chat-icons.ts), [`js/chat-images.ts`](js/chat-images.ts), [`js/chat-live-message-component.ts`](js/chat-live-message-component.ts), [`js/chat-message-avatars.ts`](js/chat-message-avatars.ts), [`js/chat-message-edit.ts`](js/chat-message-edit.ts), [`js/chat-model-preferences.ts`](js/chat-model-preferences.ts), [`js/chat-panel.ts`](js/chat-panel.ts), [`js/chat-personalities.ts`](js/chat-personalities.ts), [`js/chat-prompt-context.ts`](js/chat-prompt-context.ts), [`js/chat-recommendation-disclosure.ts`](js/chat-recommendation-disclosure.ts), [`js/chat-render.ts`](js/chat-render.ts), [`js/chat-scroll.ts`](js/chat-scroll.ts), [`js/chat-send-runtime.ts`](js/chat-send-runtime.ts), [`js/chat-stream-status.ts`](js/chat-stream-status.ts), [`js/chat-system-prompt.ts`](js/chat-system-prompt.ts), [`js/chat-thinking-status.ts`](js/chat-thinking-status.ts), [`js/chat-threads.ts`](js/chat-threads.ts), [`js/cloud-ai-consent.ts`](js/cloud-ai-consent.ts) *(dynamic)*, [`js/image-utils.ts`](js/image-utils.ts), [`js/lab-context-output.ts`](js/lab-context-output.ts), [`js/lens.ts`](js/lens.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts), [`js/voice-loader.ts`](js/voice-loader.ts)
 - [`js/chat-shell-component.ts`](js/chat-shell-component.ts) → [`js/components/ChatShell.svelte`](js/components/ChatShell.svelte)
 - [`js/chat-speech-component.ts`](js/chat-speech-component.ts) → [`js/chat-speech-view.ts`](js/chat-speech-view.ts), [`js/components/ChatSpeechButton.svelte`](js/components/ChatSpeechButton.svelte), [`js/state.ts`](js/state.ts)
 - [`js/chat-speech-view.ts`](js/chat-speech-view.ts) → [`js/state.ts`](js/state.ts)
@@ -772,7 +927,7 @@ Native browser modules shipped with the static application.
 - [`js/chat-threads.ts`](js/chat-threads.ts) → [`js/chat-composer.ts`](js/chat-composer.ts), [`js/chat-layout-view.ts`](js/chat-layout-view.ts), [`js/chat-layout.ts`](js/chat-layout.ts), [`js/chat-personality-picker-view.ts`](js/chat-personality-picker-view.ts), [`js/chat-storage-safety.ts`](js/chat-storage-safety.ts), [`js/chat-thread-list-view.ts`](js/chat-thread-list-view.ts), [`js/chat-thread-search.ts`](js/chat-thread-search.ts), [`js/crypto.ts`](js/crypto.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/state.ts`](js/state.ts), [`js/sync-payload-collectors.ts`](js/sync-payload-collectors.ts), [`js/sync.ts`](js/sync.ts), [`js/unique-id.ts`](js/unique-id.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/chat-transcript-classes.ts`](js/chat-transcript-classes.ts) → no in-scope imports
 - [`js/chat-transcript-component.ts`](js/chat-transcript-component.ts) → [`js/components/ChatTranscript.svelte`](js/components/ChatTranscript.svelte), [`js/state.ts`](js/state.ts)
-- [`js/chat-transcript-presentation.ts`](js/chat-transcript-presentation.ts) → [`js/api.ts`](js/api.ts), [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/chat-attestation.ts`](js/chat-attestation.ts), [`js/chat-message-actions-contract.ts`](js/chat-message-actions-contract.ts), [`js/chat-message-avatars.ts`](js/chat-message-avatars.ts), [`js/chat-message-content-contract.ts`](js/chat-message-content-contract.ts), [`js/chat-render-runtime.ts`](js/chat-render-runtime.ts), [`js/cli-agent-brand-assets.ts`](js/cli-agent-brand-assets.ts), [`js/markdown.ts`](js/markdown.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts)
+- [`js/chat-transcript-presentation.ts`](js/chat-transcript-presentation.ts) → [`js/api.ts`](js/api.ts), [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/chat-attestation-presentation.ts`](js/chat-attestation-presentation.ts), [`js/chat-attestation.ts`](js/chat-attestation.ts), [`js/chat-message-actions-contract.ts`](js/chat-message-actions-contract.ts), [`js/chat-message-avatars.ts`](js/chat-message-avatars.ts), [`js/chat-message-content-contract.ts`](js/chat-message-content-contract.ts), [`js/chat-render-runtime.ts`](js/chat-render-runtime.ts), [`js/cli-agent-brand-assets.ts`](js/cli-agent-brand-assets.ts), [`js/markdown.ts`](js/markdown.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts)
 - [`js/chat-voice-contract.ts`](js/chat-voice-contract.ts) → no in-scope imports
 - [`js/chat-voice-view.ts`](js/chat-voice-view.ts) → [`js/chat-voice-contract.ts`](js/chat-voice-contract.ts)
 - [`js/chat-window-bindings.ts`](js/chat-window-bindings.ts) → [`js/chat-discussion.ts`](js/chat-discussion.ts), [`js/chat-history.ts`](js/chat-history.ts), [`js/chat-images.ts`](js/chat-images.ts), [`js/chat-nudge.ts`](js/chat-nudge.ts), [`js/chat-onboarding.ts`](js/chat-onboarding.ts), [`js/chat-panel.ts`](js/chat-panel.ts), [`js/chat-personalities.ts`](js/chat-personalities.ts), [`js/chat-render.ts`](js/chat-render.ts), [`js/chat-send.ts`](js/chat-send.ts), [`js/chat-summaries.ts`](js/chat-summaries.ts), [`js/chat-threads.ts`](js/chat-threads.ts), [`js/voice-loader.ts`](js/voice-loader.ts)
@@ -830,7 +985,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>ChatEmptyState.svelte</code> family — 1 module</summary>
 
-- [`js/components/ChatEmptyState.svelte`](js/components/ChatEmptyState.svelte) → [`js/chat-onboarding-classes.ts`](js/chat-onboarding-classes.ts), [`js/components/ChatOnboardingProgress.svelte`](js/components/ChatOnboardingProgress.svelte), [`js/components/ChatPersonaLabel.svelte`](js/components/ChatPersonaLabel.svelte)
+- [`js/components/ChatEmptyState.svelte`](js/components/ChatEmptyState.svelte) → [`js/chat-onboarding-classes.ts`](js/chat-onboarding-classes.ts), [`js/components/ChatOnboardingProgress.svelte`](js/components/ChatOnboardingProgress.svelte), [`js/components/ChatPersonaLabel.svelte`](js/components/ChatPersonaLabel.svelte), [`js/components/ContextCardCatalog.svelte`](js/components/ContextCardCatalog.svelte)
 
 </details>
 
@@ -854,7 +1009,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>ChatMessage.svelte</code> family — 1 module</summary>
 
-- [`js/components/ChatMessage.svelte`](js/components/ChatMessage.svelte) → [`js/chat-message-editor-component.ts`](js/chat-message-editor-component.ts), [`js/chat-transcript-classes.ts`](js/chat-transcript-classes.ts), [`js/components/ChatCitations.svelte`](js/components/ChatCitations.svelte), [`js/components/ChatMessageActions.svelte`](js/components/ChatMessageActions.svelte), [`js/components/ChatMessageEditor.svelte`](js/components/ChatMessageEditor.svelte), [`js/components/ChatRecommendations.svelte`](js/components/ChatRecommendations.svelte), [`js/components/ChatStoredImages.svelte`](js/components/ChatStoredImages.svelte)
+- [`js/components/ChatMessage.svelte`](js/components/ChatMessage.svelte) → [`js/chat-message-editor-component.ts`](js/chat-message-editor-component.ts), [`js/chat-transcript-classes.ts`](js/chat-transcript-classes.ts), [`js/components/ChatAttestationBadge.svelte`](js/components/ChatAttestationBadge.svelte), [`js/components/ChatCitations.svelte`](js/components/ChatCitations.svelte), [`js/components/ChatMessageActions.svelte`](js/components/ChatMessageActions.svelte), [`js/components/ChatMessageEditor.svelte`](js/components/ChatMessageEditor.svelte), [`js/components/ChatRecommendations.svelte`](js/components/ChatRecommendations.svelte), [`js/components/ChatStoredImages.svelte`](js/components/ChatStoredImages.svelte)
 
 </details>
 
@@ -1059,18 +1214,51 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>client</code> family — 4 modules</summary>
+<details><summary><code>client</code> family — 7 modules</summary>
 
-- [`js/client-list-form.ts`](js/client-list-form.ts) → [`js/client-list-runtime.ts`](js/client-list-runtime.ts), [`js/constants.ts`](js/constants.ts), [`js/nav.ts`](js/nav.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/url-safety.ts`](js/url-safety.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/client-list-impl.ts`](js/client-list-impl.ts) → [`js/client-list-form.ts`](js/client-list-form.ts), [`js/client-list-runtime.ts`](js/client-list-runtime.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/nav.ts`](js/nav.ts), [`js/profile.ts`](js/profile.ts), [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/client-list-form-presentation.ts`](js/client-list-form-presentation.ts) → no in-scope imports
+- [`js/client-list-form-rendering.ts`](js/client-list-form-rendering.ts) → [`js/components/ClientListFormPresentation.svelte`](js/components/ClientListFormPresentation.svelte)
+- [`js/client-list-form.ts`](js/client-list-form.ts) → [`js/client-list-form-presentation.ts`](js/client-list-form-presentation.ts), [`js/client-list-form-rendering.ts`](js/client-list-form-rendering.ts), [`js/client-list-runtime.ts`](js/client-list-runtime.ts), [`js/constants.ts`](js/constants.ts), [`js/nav.ts`](js/nav.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/url-safety.ts`](js/url-safety.ts)
+- [`js/client-list-impl.ts`](js/client-list-impl.ts) → [`js/client-list-form.ts`](js/client-list-form.ts), [`js/client-list-presentation.ts`](js/client-list-presentation.ts), [`js/client-list-runtime.ts`](js/client-list-runtime.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/nav.ts`](js/nav.ts), [`js/profile.ts`](js/profile.ts), [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/state.ts`](js/state.ts)
+- [`js/client-list-presentation.ts`](js/client-list-presentation.ts) → [`js/components/ClientListMenuButton.svelte`](js/components/ClientListMenuButton.svelte), [`js/components/ClientListOverview.svelte`](js/components/ClientListOverview.svelte)
 - [`js/client-list-runtime.ts`](js/client-list-runtime.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/dna-runtime-bridge.ts`](js/dna-runtime-bridge.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/client-list.ts`](js/client-list.ts) → [`js/client-list-impl.ts`](js/client-list-impl.ts) *(dynamic)*, [`js/client-list-runtime.ts`](js/client-list-runtime.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts)
 
 </details>
 
+<details><summary><code>ClientListFormPresentation.svelte</code> family — 1 module</summary>
+
+- [`js/components/ClientListFormPresentation.svelte`](js/components/ClientListFormPresentation.svelte) → [`js/components/ClientListIcon.svelte`](js/components/ClientListIcon.svelte)
+
+</details>
+
+<details><summary><code>ClientListIcon.svelte</code> family — 1 module</summary>
+
+- [`js/components/ClientListIcon.svelte`](js/components/ClientListIcon.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>ClientListMenuButton.svelte</code> family — 1 module</summary>
+
+- [`js/components/ClientListMenuButton.svelte`](js/components/ClientListMenuButton.svelte) → [`js/components/ClientListIcon.svelte`](js/components/ClientListIcon.svelte)
+
+</details>
+
+<details><summary><code>ClientListOverview.svelte</code> family — 1 module</summary>
+
+- [`js/components/ClientListOverview.svelte`](js/components/ClientListOverview.svelte) → [`js/components/ClientListIcon.svelte`](js/components/ClientListIcon.svelte), [`js/components/ClientListRow.svelte`](js/components/ClientListRow.svelte)
+
+</details>
+
+<details><summary><code>ClientListRow.svelte</code> family — 1 module</summary>
+
+- [`js/components/ClientListRow.svelte`](js/components/ClientListRow.svelte) → [`js/components/ClientListIcon.svelte`](js/components/ClientListIcon.svelte)
+
+</details>
+
 <details><summary><code>cloud</code> family — 1 module</summary>
 
-- [`js/cloud-ai-consent.ts`](js/cloud-ai-consent.ts) → [`js/ai-provider-policy.ts`](js/ai-provider-policy.ts), [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/deployment-policy.ts`](js/deployment-policy.ts)
+- [`js/cloud-ai-consent.ts`](js/cloud-ai-consent.ts) → [`js/ai-provider-policy.ts`](js/ai-provider-policy.ts), [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/deployment-policy.ts`](js/deployment-policy.ts), [`js/legal-consent-presentation.ts`](js/legal-consent-presentation.ts), [`js/legal-consent-view.ts`](js/legal-consent-view.ts)
 
 </details>
 
@@ -1082,13 +1270,50 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>commit</code> family — 1 module</summary>
 
-- [`js/commit-hash.ts`](js/commit-hash.ts) → [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/commit-hash.ts`](js/commit-hash.ts) → [`js/footer-commit-link-presentation.ts`](js/footer-commit-link-presentation.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts)
 
 </details>
 
-<details><summary><code>compare</code> family — 1 module</summary>
+<details><summary><code>compare</code> family — 2 modules</summary>
 
-- [`js/compare-correlations.ts`](js/compare-correlations.ts) → [`js/charts-runtime.ts`](js/charts-runtime.ts), [`js/correlation-workspace-store.ts`](js/correlation-workspace-store.ts), [`js/data.ts`](js/data.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts), [`js/supplements.ts`](js/supplements.ts) *(dynamic)*, [`js/therapy-correlation-view.ts`](js/therapy-correlation-view.ts), [`js/therapy-correlations.ts`](js/therapy-correlations.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/compare-correlations.ts`](js/compare-correlations.ts) → [`js/category-glyphs.ts`](js/category-glyphs.ts), [`js/category-presentation.ts`](js/category-presentation.ts), [`js/charts-runtime.ts`](js/charts-runtime.ts), [`js/compare-dates-presentation.ts`](js/compare-dates-presentation.ts), [`js/correlation-workspace-store.ts`](js/correlation-workspace-store.ts), [`js/correlations-selection-presentation.ts`](js/correlations-selection-presentation.ts), [`js/data.ts`](js/data.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts), [`js/supplements.ts`](js/supplements.ts) *(dynamic)*, [`js/therapy-correlation-view.ts`](js/therapy-correlation-view.ts), [`js/therapy-correlations.ts`](js/therapy-correlations.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/compare-dates-presentation.ts`](js/compare-dates-presentation.ts) → [`js/category-presentation.ts`](js/category-presentation.ts), [`js/components/CompareDatesPage.svelte`](js/components/CompareDatesPage.svelte), [`js/components/CompareDatesTable.svelte`](js/components/CompareDatesTable.svelte), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/utils.ts`](js/utils.ts)
+
+</details>
+
+<details><summary><code>CompareDatesPage.svelte</code> family — 1 module</summary>
+
+- [`js/components/CompareDatesPage.svelte`](js/components/CompareDatesPage.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>CompareDatesTable.svelte</code> family — 1 module</summary>
+
+- [`js/components/CompareDatesTable.svelte`](js/components/CompareDatesTable.svelte) → [`js/components/CategoryTableColgroup.svelte`](js/components/CategoryTableColgroup.svelte), [`js/components/CompareDatesTableHeader.svelte`](js/components/CompareDatesTableHeader.svelte), [`js/components/CompareDatesTableRows.svelte`](js/components/CompareDatesTableRows.svelte)
+
+</details>
+
+<details><summary><code>CompareDatesTableHeader.svelte</code> family — 1 module</summary>
+
+- [`js/components/CompareDatesTableHeader.svelte`](js/components/CompareDatesTableHeader.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>CompareDatesTableRows.svelte</code> family — 1 module</summary>
+
+- [`js/components/CompareDatesTableRows.svelte`](js/components/CompareDatesTableRows.svelte) → [`js/components/CategoryGlyph.svelte`](js/components/CategoryGlyph.svelte), [`js/components/CompareRangeStack.svelte`](js/components/CompareRangeStack.svelte)
+
+</details>
+
+<details><summary><code>CompareRangeStack.svelte</code> family — 1 module</summary>
+
+- [`js/components/CompareRangeStack.svelte`](js/components/CompareRangeStack.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>ConditionalSidebarItem.svelte</code> family — 1 module</summary>
+
+- [`js/components/ConditionalSidebarItem.svelte`](js/components/ConditionalSidebarItem.svelte) → [`js/components/SidebarIcon.svelte`](js/components/SidebarIcon.svelte)
 
 </details>
 
@@ -1098,28 +1323,29 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>context</code> family — 42 modules</summary>
+<details><summary><code>context</code> family — 43 modules</summary>
 
 - [`js/context-card-catalog-classes.ts`](js/context-card-catalog-classes.ts) → no in-scope imports
 - [`js/context-card-catalog-presentation.ts`](js/context-card-catalog-presentation.ts) → no in-scope imports
 - [`js/context-card-dashboard-ai-actions.ts`](js/context-card-dashboard-ai-actions.ts) → [`js/utils.ts`](js/utils.ts)
 - [`js/context-card-dashboard-ai-impl.ts`](js/context-card-dashboard-ai-impl.ts) → [`js/backup.ts`](js/backup.ts), [`js/context-hub-view.ts`](js/context-hub-view.ts), [`js/crypto.ts`](js/crypto.ts), [`js/data-protection-picker-view.ts`](js/data-protection-picker-view.ts), [`js/dna-runtime-bridge.ts`](js/dna-runtime-bridge.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/settings-sync-panel.ts`](js/settings-sync-panel.ts)
 - [`js/context-card-dashboard-ai-runtime.ts`](js/context-card-dashboard-ai-runtime.ts) → no in-scope imports
-- [`js/context-card-dashboard-ai.ts`](js/context-card-dashboard-ai.ts) → [`js/backup.ts`](js/backup.ts), [`js/context-card-dashboard-ai-actions.ts`](js/context-card-dashboard-ai-actions.ts), [`js/context-card-dashboard-ai-impl.ts`](js/context-card-dashboard-ai-impl.ts) *(dynamic)*, [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/crypto.ts`](js/crypto.ts), [`js/data-protection-status.ts`](js/data-protection-status.ts), [`js/lens.ts`](js/lens.ts), [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/settings-sync-panel.ts`](js/settings-sync-panel.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/context-card-dashboard-ai.ts`](js/context-card-dashboard-ai.ts) → [`js/backup.ts`](js/backup.ts), [`js/context-card-dashboard-ai-actions.ts`](js/context-card-dashboard-ai-actions.ts), [`js/context-card-dashboard-ai-impl.ts`](js/context-card-dashboard-ai-impl.ts) *(dynamic)*, [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/crypto.ts`](js/crypto.ts), [`js/dashboard-ai-cta-presentation.ts`](js/dashboard-ai-cta-presentation.ts), [`js/data-protection-status.ts`](js/data-protection-status.ts), [`js/lens.ts`](js/lens.ts), [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/settings-sync-panel.ts`](js/settings-sync-panel.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/context-card-editor-ui.ts`](js/context-card-editor-ui.ts) → [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/context-card-health-dots.ts`](js/context-card-health-dots.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/api.ts`](js/api.ts), [`js/context-card-status.ts`](js/context-card-status.ts), [`js/context-card-summaries.ts`](js/context-card-summaries.ts), [`js/lab-context.ts`](js/lab-context.ts), [`js/local-ai-provider-shared.ts`](js/local-ai-provider-shared.ts), [`js/profile.ts`](js/profile.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/context-card-health-dots.ts`](js/context-card-health-dots.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/api.ts`](js/api.ts), [`js/context-card-status.ts`](js/context-card-status.ts), [`js/context-card-summaries.ts`](js/context-card-summaries.ts), [`js/lab-context-loader.ts`](js/lab-context-loader.ts), [`js/local-ai-provider-shared.ts`](js/local-ai-provider-shared.ts), [`js/profile.ts`](js/profile.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/context-card-lifestyle-editors-impl.ts`](js/context-card-lifestyle-editors-impl.ts) → [`js/context-card-lifestyle-runtime.ts`](js/context-card-lifestyle-runtime.ts), [`js/context-card-lifestyle-special-editors.ts`](js/context-card-lifestyle-special-editors.ts), [`js/context-food-contaminants-badge.ts`](js/context-food-contaminants-badge.ts), [`js/context-lifestyle-form-view.ts`](js/context-lifestyle-form-view.ts)
 - [`js/context-card-lifestyle-editors.ts`](js/context-card-lifestyle-editors.ts) → [`js/context-card-lifestyle-editors-impl.ts`](js/context-card-lifestyle-editors-impl.ts) *(dynamic)*, [`js/context-food-contaminants-badge.ts`](js/context-food-contaminants-badge.ts), [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/context-card-lifestyle-runtime.ts`](js/context-card-lifestyle-runtime.ts) → [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts)
 - [`js/context-card-lifestyle-special-editors.ts`](js/context-card-lifestyle-special-editors.ts) → [`js/context-food-contaminants-view.ts`](js/context-food-contaminants-view.ts), [`js/context-health-goals-view.ts`](js/context-health-goals-view.ts), [`js/context-lifestyle-form-view.ts`](js/context-lifestyle-form-view.ts)
 - [`js/context-card-medical-history-editor-impl.ts`](js/context-card-medical-history-editor-impl.ts) → [`js/context-medical-history-view.ts`](js/context-medical-history-view.ts)
 - [`js/context-card-medical-history-editor.ts`](js/context-card-medical-history-editor.ts) → [`js/context-card-editor-ui.ts`](js/context-card-editor-ui.ts), [`js/context-card-medical-history-editor-impl.ts`](js/context-card-medical-history-editor-impl.ts) *(dynamic)*, [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/context-card-status-view.ts`](js/context-card-status-view.ts) → [`js/components/ContextCardStatus.svelte`](js/components/ContextCardStatus.svelte), [`js/context-card-status.ts`](js/context-card-status.ts)
+- [`js/context-card-status-view.ts`](js/context-card-status-view.ts) → [`js/components/ContextCardStatus.svelte`](js/components/ContextCardStatus.svelte), [`js/context-card-status.ts`](js/context-card-status.ts), [`js/context-child-ownership.ts`](js/context-child-ownership.ts)
 - [`js/context-card-status.ts`](js/context-card-status.ts) → [`js/state.ts`](js/state.ts)
 - [`js/context-card-summaries.ts`](js/context-card-summaries.ts) → [`js/components/ContextEMFLauncher.svelte`](js/components/ContextEMFLauncher.svelte), [`js/context-emf-launcher-model.ts`](js/context-emf-launcher-model.ts), [`js/health-goals-utils.ts`](js/health-goals-utils.ts), [`js/lab-context-settings.ts`](js/lab-context-settings.ts), [`js/state.ts`](js/state.ts)
 - [`js/context-card-tips-presentation.ts`](js/context-card-tips-presentation.ts) → [`js/dna-evidence.ts`](js/dna-evidence.ts), [`js/dna-genotype.ts`](js/dna-genotype.ts)
 - [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts) → [`js/data-merge.ts`](js/data-merge.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts)
-- [`js/context-cards.ts`](js/context-cards.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/components/ContextCardCatalog.svelte`](js/components/ContextCardCatalog.svelte), [`js/context-card-catalog-presentation.ts`](js/context-card-catalog-presentation.ts), [`js/context-card-dashboard-ai.ts`](js/context-card-dashboard-ai.ts), [`js/context-card-editor-ui.ts`](js/context-card-editor-ui.ts), [`js/context-card-health-dots.ts`](js/context-card-health-dots.ts), [`js/context-card-lifestyle-editors.ts`](js/context-card-lifestyle-editors.ts), [`js/context-card-medical-history-editor.ts`](js/context-card-medical-history-editor.ts), [`js/context-card-status-view.ts`](js/context-card-status-view.ts), [`js/context-card-status.ts`](js/context-card-status.ts), [`js/context-card-summaries.ts`](js/context-card-summaries.ts), [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/context-notes-session.ts`](js/context-notes-session.ts), [`js/context-notes-view.ts`](js/context-notes-view.ts), [`js/data.ts`](js/data.ts), [`js/emf-runtime.ts`](js/emf-runtime.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/nutrition-context-card-extensions.ts`](js/nutrition-context-card-extensions.ts), [`js/nutrition-context.ts`](js/nutrition-context.ts) *(dynamic)*, [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/context-cards.ts`](js/context-cards.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/components/ContextCardCatalog.svelte`](js/components/ContextCardCatalog.svelte), [`js/context-card-catalog-presentation.ts`](js/context-card-catalog-presentation.ts), [`js/context-card-dashboard-ai.ts`](js/context-card-dashboard-ai.ts), [`js/context-card-editor-ui.ts`](js/context-card-editor-ui.ts), [`js/context-card-health-dots.ts`](js/context-card-health-dots.ts), [`js/context-card-lifestyle-editors.ts`](js/context-card-lifestyle-editors.ts), [`js/context-card-medical-history-editor.ts`](js/context-card-medical-history-editor.ts), [`js/context-card-status-view.ts`](js/context-card-status-view.ts), [`js/context-card-status.ts`](js/context-card-status.ts), [`js/context-card-summaries.ts`](js/context-card-summaries.ts), [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/context-food-contaminants-badge.ts`](js/context-food-contaminants-badge.ts), [`js/context-notes-session.ts`](js/context-notes-session.ts), [`js/context-notes-view.ts`](js/context-notes-view.ts), [`js/data.ts`](js/data.ts), [`js/emf-runtime.ts`](js/emf-runtime.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/nutrition-context-card-extensions.ts`](js/nutrition-context-card-extensions.ts), [`js/nutrition-context.ts`](js/nutrition-context.ts) *(dynamic)*, [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/context-child-ownership.ts`](js/context-child-ownership.ts) → no in-scope imports
 - [`js/context-emf-launcher-model.ts`](js/context-emf-launcher-model.ts) → [`js/schema.ts`](js/schema.ts)
 - [`js/context-field-session.ts`](js/context-field-session.ts) → [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/data.ts`](js/data.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile-load-safety.ts`](js/profile-load-safety.ts), [`js/state.ts`](js/state.ts)
 - [`js/context-food-contaminants-badge.ts`](js/context-food-contaminants-badge.ts) → [`js/components/ContextFoodContaminantsBadge.svelte`](js/components/ContextFoodContaminantsBadge.svelte), [`js/context-card-summaries.ts`](js/context-card-summaries.ts), [`js/context-food-contaminants-model.ts`](js/context-food-contaminants-model.ts), [`js/food-contaminants.ts`](js/food-contaminants.ts), [`js/state.ts`](js/state.ts)
@@ -1140,26 +1366,32 @@ Native browser modules shipped with the static application.
 - [`js/context-medical-history-session.ts`](js/context-medical-history-session.ts) → [`js/context-field-session.ts`](js/context-field-session.ts), [`js/context-medical-history-model.ts`](js/context-medical-history-model.ts)
 - [`js/context-medical-history-view.ts`](js/context-medical-history-view.ts) → [`js/components/ContextMedicalHistory.svelte`](js/components/ContextMedicalHistory.svelte), [`js/context-card-editor-ui.ts`](js/context-card-editor-ui.ts), [`js/context-form-dialog.ts`](js/context-form-dialog.ts), [`js/context-medical-history-model.ts`](js/context-medical-history-model.ts), [`js/context-medical-history-session.ts`](js/context-medical-history-session.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/context-notes-session.ts`](js/context-notes-session.ts) → [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/data.ts`](js/data.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile-load-safety.ts`](js/profile-load-safety.ts), [`js/state.ts`](js/state.ts)
-- [`js/context-notes-view.ts`](js/context-notes-view.ts) → [`js/components/ContextNotes.svelte`](js/components/ContextNotes.svelte), [`js/context-notes-session.ts`](js/context-notes-session.ts)
+- [`js/context-notes-view.ts`](js/context-notes-view.ts) → [`js/components/ContextNotes.svelte`](js/components/ContextNotes.svelte), [`js/context-child-ownership.ts`](js/context-child-ownership.ts), [`js/context-notes-session.ts`](js/context-notes-session.ts)
 - [`js/context-source-registry.ts`](js/context-source-registry.ts) → [`js/state.ts`](js/state.ts)
 
 </details>
 
 <details><summary><code>ContextCardCatalog.svelte</code> family — 1 module</summary>
 
-- [`js/components/ContextCardCatalog.svelte`](js/components/ContextCardCatalog.svelte) → [`js/components/ContextCardStatus.svelte`](js/components/ContextCardStatus.svelte), [`js/components/ContextNotes.svelte`](js/components/ContextNotes.svelte), [`js/context-card-catalog-classes.ts`](js/context-card-catalog-classes.ts)
+- [`js/components/ContextCardCatalog.svelte`](js/components/ContextCardCatalog.svelte) → [`js/components/ContextCardStatus.svelte`](js/components/ContextCardStatus.svelte), [`js/components/ContextCatalogIcon.svelte`](js/components/ContextCatalogIcon.svelte), [`js/components/ContextFoodContaminantsBadge.svelte`](js/components/ContextFoodContaminantsBadge.svelte), [`js/components/ContextNotes.svelte`](js/components/ContextNotes.svelte), [`js/components/ContextNutritionLink.svelte`](js/components/ContextNutritionLink.svelte), [`js/context-card-catalog-classes.ts`](js/context-card-catalog-classes.ts)
 
 </details>
 
 <details><summary><code>ContextCardStatus.svelte</code> family — 1 module</summary>
 
-- [`js/components/ContextCardStatus.svelte`](js/components/ContextCardStatus.svelte) → [`js/context-card-catalog-classes.ts`](js/context-card-catalog-classes.ts), [`js/context-card-status.ts`](js/context-card-status.ts)
+- [`js/components/ContextCardStatus.svelte`](js/components/ContextCardStatus.svelte) → [`js/context-card-catalog-classes.ts`](js/context-card-catalog-classes.ts), [`js/context-card-status.ts`](js/context-card-status.ts), [`js/context-child-ownership.ts`](js/context-child-ownership.ts)
 
 </details>
 
 <details><summary><code>ContextCardTips.svelte</code> family — 1 module</summary>
 
 - [`js/components/ContextCardTips.svelte`](js/components/ContextCardTips.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>ContextCatalogIcon.svelte</code> family — 1 module</summary>
+
+- [`js/components/ContextCatalogIcon.svelte`](js/components/ContextCatalogIcon.svelte) → no in-scope imports
 
 </details>
 
@@ -1189,7 +1421,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>ContextHealthGoals.svelte</code> family — 1 module</summary>
 
-- [`js/components/ContextHealthGoals.svelte`](js/components/ContextHealthGoals.svelte) → [`js/health-goals-utils.ts`](js/health-goals-utils.ts)
+- [`js/components/ContextHealthGoals.svelte`](js/components/ContextHealthGoals.svelte) → [`js/context-form-classes.ts`](js/context-form-classes.ts), [`js/health-goals-utils.ts`](js/health-goals-utils.ts)
 
 </details>
 
@@ -1213,7 +1445,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>ContextNotes.svelte</code> family — 1 module</summary>
 
-- [`js/components/ContextNotes.svelte`](js/components/ContextNotes.svelte) → [`js/context-card-catalog-classes.ts`](js/context-card-catalog-classes.ts), [`js/context-notes-session.ts`](js/context-notes-session.ts)
+- [`js/components/ContextNotes.svelte`](js/components/ContextNotes.svelte) → [`js/context-card-catalog-classes.ts`](js/context-card-catalog-classes.ts), [`js/context-child-ownership.ts`](js/context-child-ownership.ts), [`js/context-notes-session.ts`](js/context-notes-session.ts)
 
 </details>
 
@@ -1223,9 +1455,59 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>correlation</code> family — 1 module</summary>
+<details><summary><code>correlation</code> family — 3 modules</summary>
 
+- [`js/correlation-workspace-chrome-presentation.ts`](js/correlation-workspace-chrome-presentation.ts) → [`js/components/CorrelationWorkspaceChrome.svelte`](js/components/CorrelationWorkspaceChrome.svelte), [`js/components/CorrelationWorkspaceReadout.svelte`](js/components/CorrelationWorkspaceReadout.svelte), [`js/components/CorrelationWorkspaceUsageSegments.svelte`](js/components/CorrelationWorkspaceUsageSegments.svelte)
+- [`js/correlation-workspace-controls-presentation.ts`](js/correlation-workspace-controls-presentation.ts) → [`js/components/CorrelationWorkspaceControls.svelte`](js/components/CorrelationWorkspaceControls.svelte)
 - [`js/correlation-workspace-store.ts`](js/correlation-workspace-store.ts) → [`js/crypto.ts`](js/crypto.ts), [`js/profile-storage-key.ts`](js/profile-storage-key.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+
+</details>
+
+<details><summary><code>correlations</code> family — 1 module</summary>
+
+- [`js/correlations-selection-presentation.ts`](js/correlations-selection-presentation.ts) → [`js/category-presentation.ts`](js/category-presentation.ts), [`js/components/CorrelationsSelectionChips.svelte`](js/components/CorrelationsSelectionChips.svelte), [`js/components/CorrelationsSelectionOptions.svelte`](js/components/CorrelationsSelectionOptions.svelte), [`js/components/CorrelationsSelectionPage.svelte`](js/components/CorrelationsSelectionPage.svelte), [`js/utils.ts`](js/utils.ts)
+
+</details>
+
+<details><summary><code>CorrelationsSelectionChips.svelte</code> family — 1 module</summary>
+
+- [`js/components/CorrelationsSelectionChips.svelte`](js/components/CorrelationsSelectionChips.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>CorrelationsSelectionOptions.svelte</code> family — 1 module</summary>
+
+- [`js/components/CorrelationsSelectionOptions.svelte`](js/components/CorrelationsSelectionOptions.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>CorrelationsSelectionPage.svelte</code> family — 1 module</summary>
+
+- [`js/components/CorrelationsSelectionPage.svelte`](js/components/CorrelationsSelectionPage.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>CorrelationWorkspaceChrome.svelte</code> family — 1 module</summary>
+
+- [`js/components/CorrelationWorkspaceChrome.svelte`](js/components/CorrelationWorkspaceChrome.svelte) → [`js/components/CorrelationWorkspaceControls.svelte`](js/components/CorrelationWorkspaceControls.svelte)
+
+</details>
+
+<details><summary><code>CorrelationWorkspaceControls.svelte</code> family — 1 module</summary>
+
+- [`js/components/CorrelationWorkspaceControls.svelte`](js/components/CorrelationWorkspaceControls.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>CorrelationWorkspaceReadout.svelte</code> family — 1 module</summary>
+
+- [`js/components/CorrelationWorkspaceReadout.svelte`](js/components/CorrelationWorkspaceReadout.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>CorrelationWorkspaceUsageSegments.svelte</code> family — 1 module</summary>
+
+- [`js/components/CorrelationWorkspaceUsageSegments.svelte`](js/components/CorrelationWorkspaceUsageSegments.svelte) → no in-scope imports
 
 </details>
 
@@ -1233,17 +1515,30 @@ Native browser modules shipped with the static application.
 
 - [`js/crypto-key-cache.ts`](js/crypto-key-cache.ts) → no in-scope imports
 - [`js/crypto-ui.ts`](js/crypto-ui.ts) → [`js/backup.ts`](js/backup.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/passphrase-component.ts`](js/passphrase-component.ts), [`js/passphrase-controller.ts`](js/passphrase-controller.ts), [`js/settings-protection-component.ts`](js/settings-protection-component.ts), [`js/settings-protection-view.ts`](js/settings-protection-view.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/crypto.ts`](js/crypto.ts) → [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/backup.ts`](js/backup.ts), [`js/base64.ts`](js/base64.ts), [`js/blob-storage.ts`](js/blob-storage.ts), [`js/cashu-wallet-store.ts`](js/cashu-wallet-store.ts) *(dynamic)*, [`js/caught-error.ts`](js/caught-error.ts), [`js/crypto-key-cache.ts`](js/crypto-key-cache.ts), [`js/crypto-ui.ts`](js/crypto-ui.ts), [`js/cycle-store.ts`](js/cycle-store.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile-storage-key.ts`](js/profile-storage-key.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/wearables-credential-vault.ts`](js/wearables-credential-vault.ts) *(dynamic)*, [`js/wearables-store.ts`](js/wearables-store.ts), [`js/wearables-whoop-storage.ts`](js/wearables-whoop-storage.ts) *(dynamic)*
+- [`js/crypto.ts`](js/crypto.ts) → [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/backup.ts`](js/backup.ts), [`js/base64.ts`](js/base64.ts), [`js/blob-storage.ts`](js/blob-storage.ts), [`js/cashu-wallet-store.ts`](js/cashu-wallet-store.ts) *(dynamic)*, [`js/caught-error.ts`](js/caught-error.ts), [`js/crypto-key-cache.ts`](js/crypto-key-cache.ts), [`js/crypto-ui.ts`](js/crypto-ui.ts), [`js/cycle-store.ts`](js/cycle-store.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile-storage-key.ts`](js/profile-storage-key.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/wearables-credential-vault.ts`](js/wearables-credential-vault.ts) *(dynamic)*, [`js/wearables-store.ts`](js/wearables-store.ts), [`js/wearables-whoop-storage-contract.ts`](js/wearables-whoop-storage-contract.ts), [`js/wearables-whoop-storage.ts`](js/wearables-whoop-storage.ts) *(dynamic)*
 
 </details>
 
-<details><summary><code>custom</code> family — 5 modules</summary>
+<details><summary><code>custom</code> family — 6 modules</summary>
 
 - [`js/custom-marker-identity.ts`](js/custom-marker-identity.ts) → [`js/marker-schema.ts`](js/marker-schema.ts), [`js/unique-id.ts`](js/unique-id.ts)
+- [`js/custom-marker-presentation.ts`](js/custom-marker-presentation.ts) → [`js/components/CustomMarkerForm.svelte`](js/components/CustomMarkerForm.svelte), [`js/components/CustomMarkerOptions.svelte`](js/components/CustomMarkerOptions.svelte)
 - [`js/custom-settings-component.ts`](js/custom-settings-component.ts) → [`js/components/CustomSettings.svelte`](js/components/CustomSettings.svelte)
 - [`js/custom-settings-contract.ts`](js/custom-settings-contract.ts) → no in-scope imports
 - [`js/custom-settings-controller.ts`](js/custom-settings-controller.ts) → no in-scope imports
 - [`js/custom-settings-view.ts`](js/custom-settings-view.ts) → [`js/api.ts`](js/api.ts), [`js/provider-settings-models.ts`](js/provider-settings-models.ts)
+
+</details>
+
+<details><summary><code>CustomMarkerForm.svelte</code> family — 1 module</summary>
+
+- [`js/components/CustomMarkerForm.svelte`](js/components/CustomMarkerForm.svelte) → [`js/components/CustomMarkerOptions.svelte`](js/components/CustomMarkerOptions.svelte)
+
+</details>
+
+<details><summary><code>CustomMarkerOptions.svelte</code> family — 1 module</summary>
+
+- [`js/components/CustomMarkerOptions.svelte`](js/components/CustomMarkerOptions.svelte) → no in-scope imports
 
 </details>
 
@@ -1253,7 +1548,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>cycle</code> family — 18 modules</summary>
+<details><summary><code>cycle</code> family — 20 modules</summary>
 
 - [`js/cycle-draw-phases.ts`](js/cycle-draw-phases.ts) → no in-scope imports
 - [`js/cycle-editor-classes.ts`](js/cycle-editor-classes.ts) → [`js/cycle-shared-classes.ts`](js/cycle-shared-classes.ts)
@@ -1261,10 +1556,12 @@ Native browser modules shipped with the static application.
 - [`js/cycle-import-adapters.ts`](js/cycle-import-adapters.ts) → [`js/cycle-summary.ts`](js/cycle-summary.ts)
 - [`js/cycle-import-classes.ts`](js/cycle-import-classes.ts) → [`js/cycle-shared-classes.ts`](js/cycle-shared-classes.ts)
 - [`js/cycle-import-file.ts`](js/cycle-import-file.ts) → [`js/caught-error.ts`](js/caught-error.ts)
-- [`js/cycle-import-loader.ts`](js/cycle-import-loader.ts) → [`js/cycle-import-rendering.ts`](js/cycle-import-rendering.ts), [`js/cycle-import.ts`](js/cycle-import.ts) *(dynamic)*, [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/cycle-import-loader.ts`](js/cycle-import-loader.ts) → [`js/cycle-import-rendering.ts`](js/cycle-import-rendering.ts), [`js/cycle-import-runtime.ts`](js/cycle-import-runtime.ts)
 - [`js/cycle-import-mutations.ts`](js/cycle-import-mutations.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/cycle-runtime.ts`](js/cycle-runtime.ts), [`js/cycle-store.ts`](js/cycle-store.ts), [`js/cycle-summary.ts`](js/cycle-summary.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts)
 - [`js/cycle-import-presentation.ts`](js/cycle-import-presentation.ts) → no in-scope imports
-- [`js/cycle-import-rendering.ts`](js/cycle-import-rendering.ts) → [`js/components/CycleImportCoverage.svelte`](js/components/CycleImportCoverage.svelte), [`js/components/CycleImportPicker.svelte`](js/components/CycleImportPicker.svelte), [`js/cycle-import-presentation.ts`](js/cycle-import-presentation.ts), [`js/cycle-summary.ts`](js/cycle-summary.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/cycle-import-rendering.ts`](js/cycle-import-rendering.ts) → [`js/components/CycleImportCoverage.svelte`](js/components/CycleImportCoverage.svelte), [`js/components/CycleImportPicker.svelte`](js/components/CycleImportPicker.svelte), [`js/cycle-import-summary.ts`](js/cycle-import-summary.ts)
+- [`js/cycle-import-runtime.ts`](js/cycle-import-runtime.ts) → [`js/cycle-import-summary.ts`](js/cycle-import-summary.ts), [`js/cycle-import.ts`](js/cycle-import.ts) *(dynamic)*, [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/cycle-import-summary.ts`](js/cycle-import-summary.ts) → [`js/cycle-import-presentation.ts`](js/cycle-import-presentation.ts), [`js/cycle-summary.ts`](js/cycle-summary.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/cycle-import.ts`](js/cycle-import.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/components/CycleImportPreview.svelte`](js/components/CycleImportPreview.svelte), [`js/cycle-import-adapters.ts`](js/cycle-import-adapters.ts), [`js/cycle-import-classes.ts`](js/cycle-import-classes.ts), [`js/cycle-import-file.ts`](js/cycle-import-file.ts), [`js/cycle-import-mutations.ts`](js/cycle-import-mutations.ts), [`js/cycle-import-presentation.ts`](js/cycle-import-presentation.ts), [`js/cycle-import-rendering.ts`](js/cycle-import-rendering.ts), [`js/cycle-runtime.ts`](js/cycle-runtime.ts), [`js/cycle-summary.ts`](js/cycle-summary.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/tour.ts`](js/tour.ts), [`js/utils.ts`](js/utils.ts), [`js/wearables-apple-health.ts`](js/wearables-apple-health.ts) *(dynamic)*
 - [`js/cycle-overview-classes.ts`](js/cycle-overview-classes.ts) → [`js/cycle-shared-classes.ts`](js/cycle-shared-classes.ts)
 - [`js/cycle-overview-presentation.ts`](js/cycle-overview-presentation.ts) → no in-scope imports
@@ -1272,7 +1569,7 @@ Native browser modules shipped with the static application.
 - [`js/cycle-shared-classes.ts`](js/cycle-shared-classes.ts) → no in-scope imports
 - [`js/cycle-store.ts`](js/cycle-store.ts) → [`js/transaction-completion.ts`](js/transaction-completion.ts)
 - [`js/cycle-summary.ts`](js/cycle-summary.ts) → no in-scope imports
-- [`js/cycle.ts`](js/cycle.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/components/CycleEditorPresentation.svelte`](js/components/CycleEditorPresentation.svelte), [`js/components/CycleOverviewPresentation.svelte`](js/components/CycleOverviewPresentation.svelte), [`js/constants.ts`](js/constants.ts), [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/cycle-draw-phases.ts`](js/cycle-draw-phases.ts), [`js/cycle-editor-classes.ts`](js/cycle-editor-classes.ts), [`js/cycle-editor-presentation.ts`](js/cycle-editor-presentation.ts), [`js/cycle-import-loader.ts`](js/cycle-import-loader.ts), [`js/cycle-overview-presentation.ts`](js/cycle-overview-presentation.ts), [`js/cycle-runtime.ts`](js/cycle-runtime.ts), [`js/cycle-summary.ts`](js/cycle-summary.ts), [`js/data.ts`](js/data.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/tour.ts`](js/tour.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/cycle.ts`](js/cycle.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/components/CycleEditorPresentation.svelte`](js/components/CycleEditorPresentation.svelte), [`js/components/CycleOverviewPresentation.svelte`](js/components/CycleOverviewPresentation.svelte), [`js/constants.ts`](js/constants.ts), [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/cycle-draw-phases.ts`](js/cycle-draw-phases.ts), [`js/cycle-editor-classes.ts`](js/cycle-editor-classes.ts), [`js/cycle-editor-presentation.ts`](js/cycle-editor-presentation.ts), [`js/cycle-import-runtime.ts`](js/cycle-import-runtime.ts), [`js/cycle-overview-presentation.ts`](js/cycle-overview-presentation.ts), [`js/cycle-runtime.ts`](js/cycle-runtime.ts), [`js/cycle-summary.ts`](js/cycle-summary.ts), [`js/data.ts`](js/data.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/tour.ts`](js/tour.ts), [`js/utils.ts`](js/utils.ts)
 
 </details>
 
@@ -1372,26 +1669,246 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>dashboard</code> family — 12 modules</summary>
+<details><summary><code>dashboard</code> family — 40 modules</summary>
 
-- [`js/dashboard-lab-widget-renderers.ts`](js/dashboard-lab-widget-renderers.ts) → [`js/dashboard-widget-controls.ts`](js/dashboard-widget-controls.ts), [`js/dashboard-widget-runtime.ts`](js/dashboard-widget-runtime.ts), [`js/data.ts`](js/data.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/profile-context.ts`](js/profile-context.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/dashboard-page-view.ts`](js/dashboard-page-view.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/api.ts`](js/api.ts), [`js/chat-backend-selection.ts`](js/chat-backend-selection.ts), [`js/commit-hash.ts`](js/commit-hash.ts), [`js/dashboard-widget-packing.ts`](js/dashboard-widget-packing.ts) *(dynamic)*, [`js/data.ts`](js/data.ts), [`js/export-loader.ts`](js/export-loader.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/mobile-dashboard.ts`](js/mobile-dashboard.ts), [`js/profile.ts`](js/profile.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/state.ts`](js/state.ts), [`js/tour.ts`](js/tour.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/dashboard-action-bar-presentation.ts`](js/dashboard-action-bar-presentation.ts) → no in-scope imports
+- [`js/dashboard-action-bar-rendering.ts`](js/dashboard-action-bar-rendering.ts) → [`js/components/DashboardActionBar.svelte`](js/components/DashboardActionBar.svelte)
+- [`js/dashboard-ai-cta-presentation.ts`](js/dashboard-ai-cta-presentation.ts) → [`js/components/DashboardAICta.svelte`](js/components/DashboardAICta.svelte), [`js/components/DashboardAIRow.svelte`](js/components/DashboardAIRow.svelte)
+- [`js/dashboard-biometric-presentation.ts`](js/dashboard-biometric-presentation.ts) → [`js/components/DashboardBiometricsOverview.svelte`](js/components/DashboardBiometricsOverview.svelte)
+- [`js/dashboard-biometric-projection.ts`](js/dashboard-biometric-projection.ts) → no in-scope imports
+- [`js/dashboard-composition-loader.ts`](js/dashboard-composition-loader.ts) → [`js/dashboard-view-composition.ts`](js/dashboard-view-composition.ts) *(dynamic)*, [`js/lens-pages.ts`](js/lens-pages.ts) *(dynamic)*, [`js/recommendation-actions.ts`](js/recommendation-actions.ts) *(dynamic)*, [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts)
+- [`js/dashboard-genome-rows-presentation.ts`](js/dashboard-genome-rows-presentation.ts) → [`js/components/DashboardGenomeRows.svelte`](js/components/DashboardGenomeRows.svelte), [`js/components/DashboardGenomeWidget.svelte`](js/components/DashboardGenomeWidget.svelte)
+- [`js/dashboard-insights-presentation.ts`](js/dashboard-insights-presentation.ts) → [`js/components/DashboardInsightCard.svelte`](js/components/DashboardInsightCard.svelte), [`js/components/DashboardInsights.svelte`](js/components/DashboardInsights.svelte)
+- [`js/dashboard-insights-projection.ts`](js/dashboard-insights-projection.ts) → [`js/dashboard-insights-presentation.ts`](js/dashboard-insights-presentation.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/dashboard-key-trends-presentation.ts`](js/dashboard-key-trends-presentation.ts) → [`js/components/DashboardKeyTrends.svelte`](js/components/DashboardKeyTrends.svelte)
+- [`js/dashboard-lab-markers-presentation.ts`](js/dashboard-lab-markers-presentation.ts) → [`js/components/DashboardLabMarkers.svelte`](js/components/DashboardLabMarkers.svelte)
+- [`js/dashboard-lab-markers-projection.ts`](js/dashboard-lab-markers-projection.ts) → [`js/dashboard-owned-widget-projection.ts`](js/dashboard-owned-widget-projection.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/dashboard-lab-summary-presentation.ts`](js/dashboard-lab-summary-presentation.ts) → [`js/components/DashboardLabSummary.svelte`](js/components/DashboardLabSummary.svelte)
+- [`js/dashboard-lab-widget-renderers.ts`](js/dashboard-lab-widget-renderers.ts) → [`js/dashboard-key-trends-presentation.ts`](js/dashboard-key-trends-presentation.ts), [`js/dashboard-lab-markers-presentation.ts`](js/dashboard-lab-markers-presentation.ts), [`js/dashboard-lab-markers-projection.ts`](js/dashboard-lab-markers-projection.ts), [`js/dashboard-lab-summary-presentation.ts`](js/dashboard-lab-summary-presentation.ts), [`js/dashboard-owned-widget-html.ts`](js/dashboard-owned-widget-html.ts), [`js/dashboard-owned-widget-projection.ts`](js/dashboard-owned-widget-projection.ts), [`js/dashboard-quick-marker-core.ts`](js/dashboard-quick-marker-core.ts), [`js/data.ts`](js/data.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/profile-context.ts`](js/profile-context.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/dashboard-light-widget-presentation.ts`](js/dashboard-light-widget-presentation.ts) → [`js/components/DashboardLightWidgetBody.svelte`](js/components/DashboardLightWidgetBody.svelte)
+- [`js/dashboard-loading-state-presentation.ts`](js/dashboard-loading-state-presentation.ts) → [`js/components/DashboardLightSunLoading.svelte`](js/components/DashboardLightSunLoading.svelte)
+- [`js/dashboard-mtdna-panel-presentation.ts`](js/dashboard-mtdna-panel-presentation.ts) → [`js/components/DashboardGenomeLoading.svelte`](js/components/DashboardGenomeLoading.svelte), [`js/components/DashboardMtdnaPanel.svelte`](js/components/DashboardMtdnaPanel.svelte), [`js/dashboard-mtdna-study-presentation.ts`](js/dashboard-mtdna-study-presentation.ts)
+- [`js/dashboard-mtdna-study-presentation.ts`](js/dashboard-mtdna-study-presentation.ts) → [`js/components/DashboardMtdnaStudy.svelte`](js/components/DashboardMtdnaStudy.svelte)
+- [`js/dashboard-owned-widget-host.ts`](js/dashboard-owned-widget-host.ts) → [`js/components/DashboardBiometricsOverview.svelte`](js/components/DashboardBiometricsOverview.svelte), [`js/components/DashboardInsights.svelte`](js/components/DashboardInsights.svelte), [`js/components/DashboardLabMarkers.svelte`](js/components/DashboardLabMarkers.svelte), [`js/components/DashboardOwnedWidget.svelte`](js/components/DashboardOwnedWidget.svelte), [`js/state.ts`](js/state.ts)
+- [`js/dashboard-owned-widget-html.ts`](js/dashboard-owned-widget-html.ts) → [`js/components/DashboardOwnedWidget.svelte`](js/components/DashboardOwnedWidget.svelte), [`js/dashboard-biometric-presentation.ts`](js/dashboard-biometric-presentation.ts), [`js/dashboard-insights-presentation.ts`](js/dashboard-insights-presentation.ts), [`js/dashboard-lab-markers-presentation.ts`](js/dashboard-lab-markers-presentation.ts)
+- [`js/dashboard-owned-widget-projection.ts`](js/dashboard-owned-widget-projection.ts) → [`js/utils.ts`](js/utils.ts)
+- [`js/dashboard-page-hydration.ts`](js/dashboard-page-hydration.ts) → [`js/desktop-dashboard-hydration.ts`](js/desktop-dashboard-hydration.ts), [`js/mobile-dashboard-hydration.ts`](js/mobile-dashboard-hydration.ts)
+- [`js/dashboard-page-owner.ts`](js/dashboard-page-owner.ts) → [`js/state.ts`](js/state.ts)
+- [`js/dashboard-page-view.ts`](js/dashboard-page-view.ts) → [`js/api.ts`](js/api.ts), [`js/chat-backend-selection.ts`](js/chat-backend-selection.ts), [`js/commit-hash.ts`](js/commit-hash.ts), [`js/dashboard-page-owner.ts`](js/dashboard-page-owner.ts), [`js/dashboard-render-request.ts`](js/dashboard-render-request.ts), [`js/dashboard-renderer-loader.ts`](js/dashboard-renderer-loader.ts), [`js/dashboard-welcome-presentation.ts`](js/dashboard-welcome-presentation.ts), [`js/dashboard-widget-packing.ts`](js/dashboard-widget-packing.ts) *(dynamic)*, [`js/data.ts`](js/data.ts), [`js/export-loader.ts`](js/export-loader.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/mobile-dashboard.ts`](js/mobile-dashboard.ts), [`js/profile.ts`](js/profile.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/state.ts`](js/state.ts), [`js/tour.ts`](js/tour.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/dashboard-picker-classes.ts`](js/dashboard-picker-classes.ts) → no in-scope imports
 - [`js/dashboard-picker-presentation.ts`](js/dashboard-picker-presentation.ts) → [`js/dashboard-widgets.ts`](js/dashboard-widgets.ts)
-- [`js/dashboard-recommendation-widget.ts`](js/dashboard-recommendation-widget.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/biology-scores.ts`](js/biology-scores.ts), [`js/components/RecommendationPresentation.svelte`](js/components/RecommendationPresentation.svelte), [`js/data.ts`](js/data.ts), [`js/light-sun-loader.ts`](js/light-sun-loader.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/profile.ts`](js/profile.ts), [`js/recommendation-presentation.ts`](js/recommendation-presentation.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/dashboard-view-composition.ts`](js/dashboard-view-composition.ts) → [`js/chat-loader.ts`](js/chat-loader.ts), [`js/commit-hash.ts`](js/commit-hash.ts), [`js/dashboard-page-view.ts`](js/dashboard-page-view.ts), [`js/dashboard-widget-controls.ts`](js/dashboard-widget-controls.ts), [`js/dashboard-widget-renderers.ts`](js/dashboard-widget-renderers.ts), [`js/dashboard-widgets.ts`](js/dashboard-widgets.ts), [`js/data.ts`](js/data.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/import-drop-zone.ts`](js/import-drop-zone.ts), [`js/lens-page-shell.ts`](js/lens-page-shell.ts), [`js/light-sun-loader.ts`](js/light-sun-loader.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/marker-detail-modal.ts`](js/marker-detail-modal.ts), [`js/marker-detail-runtime.ts`](js/marker-detail-runtime.ts), [`js/mobile-dashboard.ts`](js/mobile-dashboard.ts), [`js/nav.ts`](js/nav.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/state.ts`](js/state.ts), [`js/views-router-runtime.ts`](js/views-router-runtime.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts)
-- [`js/dashboard-widget-controls.ts`](js/dashboard-widget-controls.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/components/DashboardPickerPresentation.svelte`](js/components/DashboardPickerPresentation.svelte), [`js/dashboard-picker-presentation.ts`](js/dashboard-picker-presentation.ts), [`js/dashboard-widget-copy.ts`](js/dashboard-widget-copy.ts), [`js/dashboard-widget-runtime.ts`](js/dashboard-widget-runtime.ts), [`js/dashboard-widgets.ts`](js/dashboard-widgets.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/dashboard-quick-marker-core.ts`](js/dashboard-quick-marker-core.ts) → [`js/dashboard-widget-runtime.ts`](js/dashboard-widget-runtime.ts), [`js/data.ts`](js/data.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/dashboard-recommendation-widget.ts`](js/dashboard-recommendation-widget.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/biology-score-compute.ts`](js/biology-score-compute.ts), [`js/components/RecommendationPresentation.svelte`](js/components/RecommendationPresentation.svelte), [`js/data.ts`](js/data.ts), [`js/light-sun-loader.ts`](js/light-sun-loader.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/profile.ts`](js/profile.ts), [`js/recommendation-presentation.ts`](js/recommendation-presentation.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/dashboard-render-request.ts`](js/dashboard-render-request.ts) → [`js/dashboard-page-owner.ts`](js/dashboard-page-owner.ts), [`js/route-lifecycle.ts`](js/route-lifecycle.ts), [`js/state.ts`](js/state.ts)
+- [`js/dashboard-renderer-loader.ts`](js/dashboard-renderer-loader.ts) → [`js/desktop-dashboard-renderer.ts`](js/desktop-dashboard-renderer.ts) *(dynamic)*, [`js/mobile-dashboard-renderer.ts`](js/mobile-dashboard-renderer.ts) *(dynamic)*, [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts)
+- [`js/dashboard-view-composition.ts`](js/dashboard-view-composition.ts) → [`js/biology-score-dashboard.ts`](js/biology-score-dashboard.ts), [`js/chat-loader.ts`](js/chat-loader.ts), [`js/commit-hash.ts`](js/commit-hash.ts), [`js/dashboard-page-view.ts`](js/dashboard-page-view.ts), [`js/dashboard-widget-controls.ts`](js/dashboard-widget-controls.ts), [`js/dashboard-widget-renderers.ts`](js/dashboard-widget-renderers.ts), [`js/dashboard-widgets.ts`](js/dashboard-widgets.ts), [`js/data.ts`](js/data.ts), [`js/focus-card.ts`](js/focus-card.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/import-drop-zone.ts`](js/import-drop-zone.ts), [`js/lens-page-shell-core.ts`](js/lens-page-shell-core.ts), [`js/light-sun-loader.ts`](js/light-sun-loader.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/marker-detail-modal.ts`](js/marker-detail-modal.ts), [`js/marker-detail-runtime.ts`](js/marker-detail-runtime.ts), [`js/mobile-dashboard.ts`](js/mobile-dashboard.ts), [`js/nav.ts`](js/nav.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/state.ts`](js/state.ts), [`js/views-router-runtime.ts`](js/views-router-runtime.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts)
+- [`js/dashboard-view-shell.ts`](js/dashboard-view-shell.ts) → [`js/chat-loader.ts`](js/chat-loader.ts), [`js/commit-hash.ts`](js/commit-hash.ts), [`js/dashboard-composition-loader.ts`](js/dashboard-composition-loader.ts), [`js/dashboard-page-view.ts`](js/dashboard-page-view.ts), [`js/dashboard-quick-marker-core.ts`](js/dashboard-quick-marker-core.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/import-drop-zone.ts`](js/import-drop-zone.ts), [`js/lens-page-shell-core.ts`](js/lens-page-shell-core.ts), [`js/light-sun-loader.ts`](js/light-sun-loader.ts), [`js/marker-detail-modal.ts`](js/marker-detail-modal.ts), [`js/marker-detail-runtime.ts`](js/marker-detail-runtime.ts), [`js/mobile-dashboard.ts`](js/mobile-dashboard.ts), [`js/nav.ts`](js/nav.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/state.ts`](js/state.ts), [`js/views-router-runtime.ts`](js/views-router-runtime.ts)
+- [`js/dashboard-welcome-presentation.ts`](js/dashboard-welcome-presentation.ts) → [`js/components/DashboardGreeting.svelte`](js/components/DashboardGreeting.svelte), [`js/components/DashboardOnboarding.svelte`](js/components/DashboardOnboarding.svelte), [`js/components/DashboardWelcome.svelte`](js/components/DashboardWelcome.svelte)
+- [`js/dashboard-widget-controls.ts`](js/dashboard-widget-controls.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/components/DashboardPickerPresentation.svelte`](js/components/DashboardPickerPresentation.svelte), [`js/dashboard-action-bar-presentation.ts`](js/dashboard-action-bar-presentation.ts), [`js/dashboard-action-bar-rendering.ts`](js/dashboard-action-bar-rendering.ts), [`js/dashboard-picker-presentation.ts`](js/dashboard-picker-presentation.ts), [`js/dashboard-widget-presentation.ts`](js/dashboard-widget-presentation.ts), [`js/dashboard-widget-runtime.ts`](js/dashboard-widget-runtime.ts), [`js/dashboard-widgets.ts`](js/dashboard-widgets.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/dashboard-widget-copy.ts`](js/dashboard-widget-copy.ts) → no in-scope imports
 - [`js/dashboard-widget-packing.ts`](js/dashboard-widget-packing.ts) → no in-scope imports
-- [`js/dashboard-widget-renderers.ts`](js/dashboard-widget-renderers.ts) → [`js/biology-scores.ts`](js/biology-scores.ts), [`js/components/LightReviewAI.svelte`](js/components/LightReviewAI.svelte), [`js/dashboard-lab-widget-renderers.ts`](js/dashboard-lab-widget-renderers.ts), [`js/dashboard-recommendation-widget.ts`](js/dashboard-recommendation-widget.ts), [`js/dashboard-widget-controls.ts`](js/dashboard-widget-controls.ts), [`js/dashboard-widget-runtime.ts`](js/dashboard-widget-runtime.ts), [`js/dashboard-widgets.ts`](js/dashboard-widgets.ts), [`js/dna-runtime-bridge.ts`](js/dna-runtime-bridge.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts), [`js/wearables-formatters.ts`](js/wearables-formatters.ts)
+- [`js/dashboard-widget-presentation.ts`](js/dashboard-widget-presentation.ts) → [`js/components/DashboardWidgetBody.svelte`](js/components/DashboardWidgetBody.svelte), [`js/components/DashboardWidgetFrame.svelte`](js/components/DashboardWidgetFrame.svelte), [`js/dashboard-widget-copy.ts`](js/dashboard-widget-copy.ts), [`js/lens-widget-content.ts`](js/lens-widget-content.ts)
+- [`js/dashboard-widget-renderers.ts`](js/dashboard-widget-renderers.ts) → [`js/biology-score-dashboard.ts`](js/biology-score-dashboard.ts), [`js/components/LightReviewAI.svelte`](js/components/LightReviewAI.svelte), [`js/dashboard-biometric-presentation.ts`](js/dashboard-biometric-presentation.ts), [`js/dashboard-biometric-projection.ts`](js/dashboard-biometric-projection.ts), [`js/dashboard-genome-rows-presentation.ts`](js/dashboard-genome-rows-presentation.ts), [`js/dashboard-insights-projection.ts`](js/dashboard-insights-projection.ts), [`js/dashboard-lab-widget-renderers.ts`](js/dashboard-lab-widget-renderers.ts), [`js/dashboard-loading-state-presentation.ts`](js/dashboard-loading-state-presentation.ts), [`js/dashboard-mtdna-panel-presentation.ts`](js/dashboard-mtdna-panel-presentation.ts), [`js/dashboard-recommendation-widget.ts`](js/dashboard-recommendation-widget.ts), [`js/dashboard-widget-runtime.ts`](js/dashboard-widget-runtime.ts), [`js/dashboard-widgets.ts`](js/dashboard-widgets.ts), [`js/dna-runtime-bridge.ts`](js/dna-runtime-bridge.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts), [`js/wearables-formatters.ts`](js/wearables-formatters.ts)
 - [`js/dashboard-widget-runtime.ts`](js/dashboard-widget-runtime.ts) → [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/dna-runtime-bridge.ts`](js/dna-runtime-bridge.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/state.ts`](js/state.ts), [`js/wearables-runtime.ts`](js/wearables-runtime.ts)
-- [`js/dashboard-widgets.ts`](js/dashboard-widgets.ts) → [`js/biology-scores.ts`](js/biology-scores.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/dashboard-widgets.ts`](js/dashboard-widgets.ts) → [`js/biology-score-compute.ts`](js/biology-score-compute.ts), [`js/dashboard-owned-widget-html.ts`](js/dashboard-owned-widget-html.ts), [`js/dashboard-widget-presentation.ts`](js/dashboard-widget-presentation.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+
+</details>
+
+<details><summary><code>DashboardActionBar.svelte</code> family — 1 module</summary>
+
+- [`js/components/DashboardActionBar.svelte`](js/components/DashboardActionBar.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>DashboardAICta.svelte</code> family — 1 module</summary>
+
+- [`js/components/DashboardAICta.svelte`](js/components/DashboardAICta.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>DashboardAIRow.svelte</code> family — 1 module</summary>
+
+- [`js/components/DashboardAIRow.svelte`](js/components/DashboardAIRow.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>DashboardAlerts.svelte</code> family — 1 module</summary>
+
+- [`js/components/DashboardAlerts.svelte`](js/components/DashboardAlerts.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>DashboardBioAge.svelte</code> family — 1 module</summary>
+
+- [`js/components/DashboardBioAge.svelte`](js/components/DashboardBioAge.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>DashboardBiometricsOverview.svelte</code> family — 1 module</summary>
+
+- [`js/components/DashboardBiometricsOverview.svelte`](js/components/DashboardBiometricsOverview.svelte) → [`js/components/DashboardBiometricSyncStatus.svelte`](js/components/DashboardBiometricSyncStatus.svelte), [`js/components/DashboardBiometricTile.svelte`](js/components/DashboardBiometricTile.svelte)
+
+</details>
+
+<details><summary><code>DashboardBiometricSyncStatus.svelte</code> family — 1 module</summary>
+
+- [`js/components/DashboardBiometricSyncStatus.svelte`](js/components/DashboardBiometricSyncStatus.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>DashboardBiometricTile.svelte</code> family — 1 module</summary>
+
+- [`js/components/DashboardBiometricTile.svelte`](js/components/DashboardBiometricTile.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>DashboardCorrelation.svelte</code> family — 1 module</summary>
+
+- [`js/components/DashboardCorrelation.svelte`](js/components/DashboardCorrelation.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>DashboardGenomeLoading.svelte</code> family — 1 module</summary>
+
+- [`js/components/DashboardGenomeLoading.svelte`](js/components/DashboardGenomeLoading.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>DashboardGenomeRows.svelte</code> family — 1 module</summary>
+
+- [`js/components/DashboardGenomeRows.svelte`](js/components/DashboardGenomeRows.svelte) → [`js/components/DashboardMtdnaPanel.svelte`](js/components/DashboardMtdnaPanel.svelte)
+
+</details>
+
+<details><summary><code>DashboardGenomeWidget.svelte</code> family — 1 module</summary>
+
+- [`js/components/DashboardGenomeWidget.svelte`](js/components/DashboardGenomeWidget.svelte) → [`js/components/DashboardGenomeLoading.svelte`](js/components/DashboardGenomeLoading.svelte), [`js/components/DashboardGenomeRows.svelte`](js/components/DashboardGenomeRows.svelte)
+
+</details>
+
+<details><summary><code>DashboardGreeting.svelte</code> family — 1 module</summary>
+
+- [`js/components/DashboardGreeting.svelte`](js/components/DashboardGreeting.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>DashboardInsightCard.svelte</code> family — 1 module</summary>
+
+- [`js/components/DashboardInsightCard.svelte`](js/components/DashboardInsightCard.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>DashboardInsights.svelte</code> family — 1 module</summary>
+
+- [`js/components/DashboardInsights.svelte`](js/components/DashboardInsights.svelte) → [`js/components/DashboardInsightCard.svelte`](js/components/DashboardInsightCard.svelte)
+
+</details>
+
+<details><summary><code>DashboardKeyTrends.svelte</code> family — 1 module</summary>
+
+- [`js/components/DashboardKeyTrends.svelte`](js/components/DashboardKeyTrends.svelte) → [`js/components/DashboardMiniSparkline.svelte`](js/components/DashboardMiniSparkline.svelte)
+
+</details>
+
+<details><summary><code>DashboardLabMarkers.svelte</code> family — 1 module</summary>
+
+- [`js/components/DashboardLabMarkers.svelte`](js/components/DashboardLabMarkers.svelte) → [`js/components/DashboardMiniSparkline.svelte`](js/components/DashboardMiniSparkline.svelte)
+
+</details>
+
+<details><summary><code>DashboardLabNotes.svelte</code> family — 1 module</summary>
+
+- [`js/components/DashboardLabNotes.svelte`](js/components/DashboardLabNotes.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>DashboardLabSummary.svelte</code> family — 1 module</summary>
+
+- [`js/components/DashboardLabSummary.svelte`](js/components/DashboardLabSummary.svelte) → [`js/components/DashboardAlerts.svelte`](js/components/DashboardAlerts.svelte), [`js/components/DashboardBioAge.svelte`](js/components/DashboardBioAge.svelte), [`js/components/DashboardCorrelation.svelte`](js/components/DashboardCorrelation.svelte)
+
+</details>
+
+<details><summary><code>DashboardLightSunLoading.svelte</code> family — 1 module</summary>
+
+- [`js/components/DashboardLightSunLoading.svelte`](js/components/DashboardLightSunLoading.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>DashboardLightWidgetBody.svelte</code> family — 1 module</summary>
+
+- [`js/components/DashboardLightWidgetBody.svelte`](js/components/DashboardLightWidgetBody.svelte) → [`js/components/DashboardLightSunLoading.svelte`](js/components/DashboardLightSunLoading.svelte), [`js/components/LightConditionsPresentation.svelte`](js/components/LightConditionsPresentation.svelte), [`js/components/LightPageBody.svelte`](js/components/LightPageBody.svelte), [`js/components/LightReviewAI.svelte`](js/components/LightReviewAI.svelte)
+
+</details>
+
+<details><summary><code>DashboardMiniSparkline.svelte</code> family — 1 module</summary>
+
+- [`js/components/DashboardMiniSparkline.svelte`](js/components/DashboardMiniSparkline.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>DashboardMtdnaPanel.svelte</code> family — 1 module</summary>
+
+- [`js/components/DashboardMtdnaPanel.svelte`](js/components/DashboardMtdnaPanel.svelte) → [`js/components/DashboardMtdnaStudy.svelte`](js/components/DashboardMtdnaStudy.svelte)
+
+</details>
+
+<details><summary><code>DashboardMtdnaStudy.svelte</code> family — 1 module</summary>
+
+- [`js/components/DashboardMtdnaStudy.svelte`](js/components/DashboardMtdnaStudy.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>DashboardOnboarding.svelte</code> family — 1 module</summary>
+
+- [`js/components/DashboardOnboarding.svelte`](js/components/DashboardOnboarding.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>DashboardOwnedWidget.svelte</code> family — 1 module</summary>
+
+- [`js/components/DashboardOwnedWidget.svelte`](js/components/DashboardOwnedWidget.svelte) → [`js/components/DashboardLabNotes.svelte`](js/components/DashboardLabNotes.svelte), [`js/components/DashboardQuickMarkers.svelte`](js/components/DashboardQuickMarkers.svelte)
 
 </details>
 
 <details><summary><code>DashboardPickerPresentation.svelte</code> family — 1 module</summary>
 
 - [`js/components/DashboardPickerPresentation.svelte`](js/components/DashboardPickerPresentation.svelte) → [`js/dashboard-picker-classes.ts`](js/dashboard-picker-classes.ts)
+
+</details>
+
+<details><summary><code>DashboardQuickMarkers.svelte</code> family — 1 module</summary>
+
+- [`js/components/DashboardQuickMarkers.svelte`](js/components/DashboardQuickMarkers.svelte) → [`js/components/DashboardMiniSparkline.svelte`](js/components/DashboardMiniSparkline.svelte)
+
+</details>
+
+<details><summary><code>DashboardWelcome.svelte</code> family — 1 module</summary>
+
+- [`js/components/DashboardWelcome.svelte`](js/components/DashboardWelcome.svelte) → [`js/components/DashboardOnboarding.svelte`](js/components/DashboardOnboarding.svelte), [`js/components/DashboardWelcomePrimary.svelte`](js/components/DashboardWelcomePrimary.svelte), [`js/components/DashboardWelcomeSecondary.svelte`](js/components/DashboardWelcomeSecondary.svelte)
+
+</details>
+
+<details><summary><code>DashboardWelcomePrimary.svelte</code> family — 1 module</summary>
+
+- [`js/components/DashboardWelcomePrimary.svelte`](js/components/DashboardWelcomePrimary.svelte) → [`js/components/DashboardWelcomeSecondary.svelte`](js/components/DashboardWelcomeSecondary.svelte)
+
+</details>
+
+<details><summary><code>DashboardWelcomeSecondary.svelte</code> family — 1 module</summary>
+
+- [`js/components/DashboardWelcomeSecondary.svelte`](js/components/DashboardWelcomeSecondary.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>DashboardWidgetBody.svelte</code> family — 1 module</summary>
+
+- [`js/components/DashboardWidgetBody.svelte`](js/components/DashboardWidgetBody.svelte) → [`js/components/BiologyDashboardCoherence.svelte`](js/components/BiologyDashboardCoherence.svelte), [`js/components/BiologyDashboardScore.svelte`](js/components/BiologyDashboardScore.svelte), [`js/components/DashboardLabMarkers.svelte`](js/components/DashboardLabMarkers.svelte), [`js/components/DashboardLabNotes.svelte`](js/components/DashboardLabNotes.svelte), [`js/components/DashboardLabSummary.svelte`](js/components/DashboardLabSummary.svelte), [`js/components/DashboardLightSunLoading.svelte`](js/components/DashboardLightSunLoading.svelte), [`js/components/DashboardLightWidgetBody.svelte`](js/components/DashboardLightWidgetBody.svelte), [`js/components/LensDataWidgetBody.svelte`](js/components/LensDataWidgetBody.svelte)
+
+</details>
+
+<details><summary><code>DashboardWidgetFrame.svelte</code> family — 1 module</summary>
+
+- [`js/components/DashboardWidgetFrame.svelte`](js/components/DashboardWidgetFrame.svelte) → [`js/components/DashboardWidgetBody.svelte`](js/components/DashboardWidgetBody.svelte)
 
 </details>
 
@@ -1406,7 +1923,7 @@ Native browser modules shipped with the static application.
 - [`js/data-protection-picker-model.ts`](js/data-protection-picker-model.ts) → no in-scope imports
 - [`js/data-protection-picker-view.ts`](js/data-protection-picker-view.ts) → [`js/components/DataProtectionPicker.svelte`](js/components/DataProtectionPicker.svelte), [`js/context-card-editor-ui.ts`](js/context-card-editor-ui.ts), [`js/data-protection-picker-model.ts`](js/data-protection-picker-model.ts), [`js/data-protection-status.ts`](js/data-protection-status.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/data-protection-status.ts`](js/data-protection-status.ts) → [`js/backup.ts`](js/backup.ts), [`js/crypto.ts`](js/crypto.ts), [`js/sync.ts`](js/sync.ts)
-- [`js/data-view-controls.ts`](js/data-view-controls.ts) → [`js/components/LabDateRange.svelte`](js/components/LabDateRange.svelte), [`js/lab-date-range-presentation.ts`](js/lab-date-range-presentation.ts), [`js/profile.ts`](js/profile.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/unit-profiles.ts`](js/unit-profiles.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/data-view-controls.ts`](js/data-view-controls.ts) → [`js/chart-layers-presentation.ts`](js/chart-layers-presentation.ts), [`js/components/LabDateRange.svelte`](js/components/LabDateRange.svelte), [`js/header-date-range.ts`](js/header-date-range.ts), [`js/lab-date-range-presentation.ts`](js/lab-date-range-presentation.ts), [`js/profile.ts`](js/profile.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/unit-profiles.ts`](js/unit-profiles.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/data-view-types.ts`](js/data-view-types.ts) → no in-scope imports
 - [`js/data-wipe.ts`](js/data-wipe.ts) → no in-scope imports
 - [`js/data.ts`](js/data.ts) → [`js/biology-score-persistence.ts`](js/biology-score-persistence.ts), [`js/crypto.ts`](js/crypto.ts), [`js/data-calculated-markers.ts`](js/data-calculated-markers.ts), [`js/data-core.ts`](js/data-core.ts), [`js/data-custom-markers.ts`](js/data-custom-markers.ts), [`js/data-view-controls.ts`](js/data-view-controls.ts), [`js/lab-date-range.ts`](js/lab-date-range.ts), [`js/lab-entry.ts`](js/lab-entry.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/marker-context-ranges.ts`](js/marker-context-ranges.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile-load-safety.ts`](js/profile-load-safety.ts), [`js/profile.ts`](js/profile.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/sync-save-hooks.ts`](js/sync-save-hooks.ts), [`js/sync.ts`](js/sync.ts), [`js/unit-profiles.ts`](js/unit-profiles.ts), [`js/utils.ts`](js/utils.ts)
@@ -1445,6 +1962,20 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>desktop</code> family — 3 modules</summary>
+
+- [`js/desktop-dashboard-hydration.ts`](js/desktop-dashboard-hydration.ts) → [`js/components/DesktopDashboardPage.svelte`](js/components/DesktopDashboardPage.svelte), [`js/dashboard-page-owner.ts`](js/dashboard-page-owner.ts)
+- [`js/desktop-dashboard-presentation.ts`](js/desktop-dashboard-presentation.ts) → [`js/components/DesktopDashboardPage.svelte`](js/components/DesktopDashboardPage.svelte)
+- [`js/desktop-dashboard-renderer.ts`](js/desktop-dashboard-renderer.ts) → [`js/desktop-dashboard-hydration.ts`](js/desktop-dashboard-hydration.ts), [`js/desktop-dashboard-presentation.ts`](js/desktop-dashboard-presentation.ts)
+
+</details>
+
+<details><summary><code>DesktopDashboardPage.svelte</code> family — 1 module</summary>
+
+- [`js/components/DesktopDashboardPage.svelte`](js/components/DesktopDashboardPage.svelte) → [`js/components/DashboardActionBar.svelte`](js/components/DashboardActionBar.svelte), [`js/components/DashboardGreeting.svelte`](js/components/DashboardGreeting.svelte), [`js/components/DashboardOnboarding.svelte`](js/components/DashboardOnboarding.svelte), [`js/components/DashboardWelcome.svelte`](js/components/DashboardWelcome.svelte), [`js/components/DashboardWidgetFrame.svelte`](js/components/DashboardWidgetFrame.svelte), [`js/components/LabDateRange.svelte`](js/components/LabDateRange.svelte)
+
+</details>
+
 <details><summary><code>DeviceSessionForm.svelte</code> family — 1 module</summary>
 
 - [`js/components/DeviceSessionForm.svelte`](js/components/DeviceSessionForm.svelte) → [`js/components/SunBodyPickerFrame.svelte`](js/components/SunBodyPickerFrame.svelte)
@@ -1471,22 +2002,30 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>DisplaySettings.svelte</code> family — 1 module</summary>
 
-- [`js/components/DisplaySettings.svelte`](js/components/DisplaySettings.svelte) → no in-scope imports
+- [`js/components/DisplaySettings.svelte`](js/components/DisplaySettings.svelte) → [`js/components/SettingsToggle.svelte`](js/components/SettingsToggle.svelte)
 
 </details>
 
-<details><summary><code>dna</code> family — 10 modules</summary>
+<details><summary><code>dna</code> family — 12 modules</summary>
 
 - [`js/dna-actions.ts`](js/dna-actions.ts) → [`js/action-attributes.ts`](js/action-attributes.ts)
 - [`js/dna-evidence.ts`](js/dna-evidence.ts) → [`js/dna-genotype.ts`](js/dna-genotype.ts)
 - [`js/dna-file-detection.ts`](js/dna-file-detection.ts) → no in-scope imports
 - [`js/dna-genotype.ts`](js/dna-genotype.ts) → no in-scope imports
-- [`js/dna-mtdna.ts`](js/dna-mtdna.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/constants.ts`](js/constants.ts), [`js/data.ts`](js/data.ts), [`js/dna-actions.ts`](js/dna-actions.ts), [`js/dna-runtime.ts`](js/dna-runtime.ts), [`js/genetics-import-events.ts`](js/genetics-import-events.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/dna-manual-presentation.ts`](js/dna-manual-presentation.ts) → [`js/components/ManualSnpDialog.svelte`](js/components/ManualSnpDialog.svelte)
+- [`js/dna-mtdna.ts`](js/dna-mtdna.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/constants.ts`](js/constants.ts), [`js/data.ts`](js/data.ts), [`js/dna-runtime.ts`](js/dna-runtime.ts), [`js/genetics-import-events.ts`](js/genetics-import-events.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/mtdna-preview-presentation.ts`](js/mtdna-preview-presentation.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/dna-parser.ts`](js/dna-parser.ts) → [`js/dna-file-detection.ts`](js/dna-file-detection.ts), [`js/dna-genotype.ts`](js/dna-genotype.ts)
+- [`js/dna-preview-presentation.ts`](js/dna-preview-presentation.ts) → [`js/components/DnaImportPreview.svelte`](js/components/DnaImportPreview.svelte), [`js/dna-actions.ts`](js/dna-actions.ts)
 - [`js/dna-runtime-bridge.ts`](js/dna-runtime-bridge.ts) → [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts)
 - [`js/dna-runtime.ts`](js/dna-runtime.ts) → [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/pdf-import-progress.ts`](js/pdf-import-progress.ts), [`js/profile.ts`](js/profile.ts), [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/dna-ui.ts`](js/dna-ui.ts) → [`js/dna-actions.ts`](js/dna-actions.ts), [`js/dna-evidence.ts`](js/dna-evidence.ts), [`js/dna-mtdna.ts`](js/dna-mtdna.ts), [`js/dna-runtime.ts`](js/dna-runtime.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/dna-ui.ts`](js/dna-ui.ts) → [`js/dna-evidence.ts`](js/dna-evidence.ts), [`js/dna-manual-presentation.ts`](js/dna-manual-presentation.ts), [`js/dna-mtdna.ts`](js/dna-mtdna.ts), [`js/dna-preview-presentation.ts`](js/dna-preview-presentation.ts), [`js/dna-runtime.ts`](js/dna-runtime.ts), [`js/genetics-section-presentation.ts`](js/genetics-section-presentation.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts)
 - [`js/dna.ts`](js/dna.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/data.ts`](js/data.ts), [`js/dna-actions.ts`](js/dna-actions.ts), [`js/dna-evidence.ts`](js/dna-evidence.ts), [`js/dna-genotype.ts`](js/dna-genotype.ts), [`js/dna-mtdna.ts`](js/dna-mtdna.ts), [`js/dna-parser.ts`](js/dna-parser.ts), [`js/dna-runtime-bridge.ts`](js/dna-runtime-bridge.ts), [`js/dna-runtime.ts`](js/dna-runtime.ts), [`js/dna-ui.ts`](js/dna-ui.ts), [`js/genetics-import-events.ts`](js/genetics-import-events.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/pdfjs-loader.ts`](js/pdfjs-loader.ts) *(dynamic)*, [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+
+</details>
+
+<details><summary><code>DnaImportPreview.svelte</code> family — 1 module</summary>
+
+- [`js/components/DnaImportPreview.svelte`](js/components/DnaImportPreview.svelte) → no in-scope imports
 
 </details>
 
@@ -1502,13 +2041,91 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>emf</code> family — 5 modules</summary>
+<details><summary><code>emf</code> family — 11 modules</summary>
 
-- [`js/emf-editor.ts`](js/emf-editor.ts) → [`js/constants.ts`](js/constants.ts), [`js/context-card-editor-ui.ts`](js/context-card-editor-ui.ts), [`js/data.ts`](js/data.ts), [`js/emf-model.ts`](js/emf-model.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/recommendations.ts`](js/recommendations.ts), [`js/schema.ts`](js/schema.ts), [`js/unique-id.ts`](js/unique-id.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/emf-interpretation.ts`](js/emf-interpretation.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/data.ts`](js/data.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/markdown.ts`](js/markdown.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/emf-comparison-presentation.ts`](js/emf-comparison-presentation.ts) → [`js/components/EMFComparison.svelte`](js/components/EMFComparison.svelte)
+- [`js/emf-editor-presentation.ts`](js/emf-editor-presentation.ts) → [`js/components/EMFEditor.svelte`](js/components/EMFEditor.svelte), [`js/components/EMFImportPreview.svelte`](js/components/EMFImportPreview.svelte)
+- [`js/emf-editor.ts`](js/emf-editor.ts) → [`js/constants.ts`](js/constants.ts), [`js/context-card-editor-ui.ts`](js/context-card-editor-ui.ts), [`js/data.ts`](js/data.ts), [`js/emf-comparison-presentation.ts`](js/emf-comparison-presentation.ts), [`js/emf-editor-presentation.ts`](js/emf-editor-presentation.ts), [`js/emf-meter-recommendations-component.ts`](js/emf-meter-recommendations-component.ts), [`js/emf-model.ts`](js/emf-model.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/recommendations-products.ts`](js/recommendations-products.ts), [`js/recommendations.ts`](js/recommendations.ts), [`js/schema.ts`](js/schema.ts), [`js/unique-id.ts`](js/unique-id.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/emf-interpretation-presentation.ts`](js/emf-interpretation-presentation.ts) → [`js/components/EMFInterpretationModal.svelte`](js/components/EMFInterpretationModal.svelte), [`js/components/EMFInterpretationStatus.svelte`](js/components/EMFInterpretationStatus.svelte)
+- [`js/emf-interpretation-runtime.ts`](js/emf-interpretation-runtime.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts)
+- [`js/emf-interpretation.ts`](js/emf-interpretation.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/data.ts`](js/data.ts), [`js/emf-interpretation-presentation.ts`](js/emf-interpretation-presentation.ts), [`js/emf-interpretation-runtime.ts`](js/emf-interpretation-runtime.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/markdown.ts`](js/markdown.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts)
+- [`js/emf-meter-recommendations-component.ts`](js/emf-meter-recommendations-component.ts) → [`js/components/EMFMeterRecommendations.svelte`](js/components/EMFMeterRecommendations.svelte)
 - [`js/emf-model.ts`](js/emf-model.ts) → [`js/state.ts`](js/state.ts)
-- [`js/emf-runtime.ts`](js/emf-runtime.ts) → [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/emf.ts`](js/emf.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/data.ts`](js/data.ts), [`js/emf-editor.ts`](js/emf-editor.ts), [`js/emf-interpretation.ts`](js/emf-interpretation.ts), [`js/emf-model.ts`](js/emf-model.ts), [`js/image-utils.ts`](js/image-utils.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/pdf-import.ts`](js/pdf-import.ts), [`js/pii.ts`](js/pii.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/unique-id.ts`](js/unique-id.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/emf-photo-presentation.ts`](js/emf-photo-presentation.ts) → [`js/components/EMFPhoto.svelte`](js/components/EMFPhoto.svelte)
+- [`js/emf-runtime.ts`](js/emf-runtime.ts) → [`js/emf-interpretation-runtime.ts`](js/emf-interpretation-runtime.ts), [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/emf.ts`](js/emf.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/data.ts`](js/data.ts), [`js/emf-editor.ts`](js/emf-editor.ts), [`js/emf-interpretation.ts`](js/emf-interpretation.ts), [`js/emf-model.ts`](js/emf-model.ts), [`js/emf-photo-presentation.ts`](js/emf-photo-presentation.ts), [`js/image-utils.ts`](js/image-utils.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/pdf-import.ts`](js/pdf-import.ts), [`js/pii.ts`](js/pii.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/unique-id.ts`](js/unique-id.ts), [`js/utils.ts`](js/utils.ts)
+
+</details>
+
+<details><summary><code>EMFAssessmentDetail.svelte</code> family — 1 module</summary>
+
+- [`js/components/EMFAssessmentDetail.svelte`](js/components/EMFAssessmentDetail.svelte) → [`js/components/EMFRoomContent.svelte`](js/components/EMFRoomContent.svelte)
+
+</details>
+
+<details><summary><code>EMFComparison.svelte</code> family — 1 module</summary>
+
+- [`js/components/EMFComparison.svelte`](js/components/EMFComparison.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>EMFEditor.svelte</code> family — 1 module</summary>
+
+- [`js/components/EMFEditor.svelte`](js/components/EMFEditor.svelte) → [`js/components/EMFAssessmentDetail.svelte`](js/components/EMFAssessmentDetail.svelte), [`js/components/EMFComparison.svelte`](js/components/EMFComparison.svelte)
+
+</details>
+
+<details><summary><code>EMFImportPreview.svelte</code> family — 1 module</summary>
+
+- [`js/components/EMFImportPreview.svelte`](js/components/EMFImportPreview.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>EMFInterpretationBody.svelte</code> family — 1 module</summary>
+
+- [`js/components/EMFInterpretationBody.svelte`](js/components/EMFInterpretationBody.svelte) → [`js/components/EMFInterpretationStatus.svelte`](js/components/EMFInterpretationStatus.svelte)
+
+</details>
+
+<details><summary><code>EMFInterpretationModal.svelte</code> family — 1 module</summary>
+
+- [`js/components/EMFInterpretationModal.svelte`](js/components/EMFInterpretationModal.svelte) → [`js/components/EMFInterpretationBody.svelte`](js/components/EMFInterpretationBody.svelte)
+
+</details>
+
+<details><summary><code>EMFInterpretationStatus.svelte</code> family — 1 module</summary>
+
+- [`js/components/EMFInterpretationStatus.svelte`](js/components/EMFInterpretationStatus.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>EMFMeterRecommendations.svelte</code> family — 1 module</summary>
+
+- [`js/components/EMFMeterRecommendations.svelte`](js/components/EMFMeterRecommendations.svelte) → [`js/components/TipsSection.svelte`](js/components/TipsSection.svelte)
+
+</details>
+
+<details><summary><code>EMFPhoto.svelte</code> family — 1 module</summary>
+
+- [`js/components/EMFPhoto.svelte`](js/components/EMFPhoto.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>EMFRoomContent.svelte</code> family — 1 module</summary>
+
+- [`js/components/EMFRoomContent.svelte`](js/components/EMFRoomContent.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>emoji</code> family — 1 module</summary>
+
+- [`js/emoji-picker-presentation.ts`](js/emoji-picker-presentation.ts) → [`js/components/EmojiPicker.svelte`](js/components/EmojiPicker.svelte)
+
+</details>
+
+<details><summary><code>EmojiPicker.svelte</code> family — 1 module</summary>
+
+- [`js/components/EmojiPicker.svelte`](js/components/EmojiPicker.svelte) → no in-scope imports
 
 </details>
 
@@ -1529,8 +2146,8 @@ Native browser modules shipped with the static application.
 - [`js/export-report-progress.ts`](js/export-report-progress.ts) → no in-scope imports
 - [`js/export-report-sections.ts`](js/export-report-sections.ts) → [`js/export-report-aggregates.ts`](js/export-report-aggregates.ts), [`js/light-tools-ai-analysis.ts`](js/light-tools-ai-analysis.ts) *(dynamic)*, [`js/nutrition-nutrient-registry.ts`](js/nutrition-nutrient-registry.ts), [`js/nutrition-store.ts`](js/nutrition-store.ts) *(dynamic)*, [`js/sun-spectrum.ts`](js/sun-spectrum.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts), [`js/wearables-formatters.ts`](js/wearables-formatters.ts), [`js/wearables-store.ts`](js/wearables-store.ts) *(dynamic)*
 - [`js/export-report-summary-html.ts`](js/export-report-summary-html.ts) → [`js/export-report-data.ts`](js/export-report-data.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/export-report.ts`](js/export-report.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/api.ts`](js/api.ts), [`js/cli-agent-brand-assets.ts`](js/cli-agent-brand-assets.ts), [`js/cloud-ai-consent.ts`](js/cloud-ai-consent.ts), [`js/cycle.ts`](js/cycle.ts), [`js/data.ts`](js/data.ts), [`js/dna-evidence.ts`](js/dna-evidence.ts), [`js/export-report-data.ts`](js/export-report-data.ts), [`js/export-report-sections.ts`](js/export-report-sections.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/profile.ts`](js/profile.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts), [`js/unit-profiles.ts`](js/unit-profiles.ts), [`js/utils.ts`](js/utils.ts), [`js/wearables-formatters.ts`](js/wearables-formatters.ts)
-- [`js/export-runtime.ts`](js/export-runtime.ts) → [`js/cashu-wallet.ts`](js/cashu-wallet.ts) *(dynamic)*, [`js/crypto.ts`](js/crypto.ts), [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts)
+- [`js/export-report.ts`](js/export-report.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/api.ts`](js/api.ts), [`js/cli-agent-brand-assets.ts`](js/cli-agent-brand-assets.ts), [`js/cloud-ai-consent.ts`](js/cloud-ai-consent.ts), [`js/cycle.ts`](js/cycle.ts), [`js/data.ts`](js/data.ts), [`js/dna-evidence.ts`](js/dna-evidence.ts), [`js/export-report-data.ts`](js/export-report-data.ts), [`js/export-report-sections.ts`](js/export-report-sections.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/profile.ts`](js/profile.ts), [`js/report-ai-request.ts`](js/report-ai-request.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts), [`js/unit-profiles.ts`](js/unit-profiles.ts), [`js/utils.ts`](js/utils.ts), [`js/wearables-formatters.ts`](js/wearables-formatters.ts)
+- [`js/export-runtime.ts`](js/export-runtime.ts) → [`js/cashu-wallet.ts`](js/cashu-wallet.ts) *(dynamic)*, [`js/crypto.ts`](js/crypto.ts), [`js/restored-thread-list-presentation.ts`](js/restored-thread-list-presentation.ts), [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts)
 - [`js/export.ts`](js/export.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/clear-all-profile-reset.ts`](js/clear-all-profile-reset.ts), [`js/context-cards.ts`](js/context-cards.ts) *(dynamic)*, [`js/crypto.ts`](js/crypto.ts), [`js/custom-marker-identity.ts`](js/custom-marker-identity.ts), [`js/data.ts`](js/data.ts), [`js/demo-biology-data.ts`](js/demo-biology-data.ts), [`js/demo-nutrition.ts`](js/demo-nutrition.ts), [`js/export-import.ts`](js/export-import.ts) *(dynamic)*, [`js/export-report-builder.ts`](js/export-report-builder.ts) *(dynamic)*, [`js/export-report-html.ts`](js/export-report-html.ts), [`js/export-report.ts`](js/export-report.ts), [`js/export-runtime.ts`](js/export-runtime.ts), [`js/lab-entry-mutations.ts`](js/lab-entry-mutations.ts), [`js/lab-entry.ts`](js/lab-entry.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/nostr-discovery.ts`](js/nostr-discovery.ts), [`js/nutrition-store.ts`](js/nutrition-store.ts) *(dynamic)*, [`js/profile-storage-cleanup.ts`](js/profile-storage-cleanup.ts), [`js/profile.ts`](js/profile.ts), [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/sync.ts`](js/sync.ts) *(dynamic)*, [`js/utils.ts`](js/utils.ts)
 
 </details>
@@ -1541,15 +2158,37 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>feedback</code> family — 1 module</summary>
+<details><summary><code>feedback</code> family — 3 modules</summary>
 
-- [`js/feedback.ts`](js/feedback.ts) → [`js/api.ts`](js/api.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/theme.ts`](js/theme.ts), [`js/unit-profiles.ts`](js/unit-profiles.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/feedback-classes.ts`](js/feedback-classes.ts) → no in-scope imports
+- [`js/feedback-rendering.ts`](js/feedback-rendering.ts) → [`js/components/FeedbackPresentation.svelte`](js/components/FeedbackPresentation.svelte)
+- [`js/feedback.ts`](js/feedback.ts) → [`js/api.ts`](js/api.ts), [`js/feedback-classes.ts`](js/feedback-classes.ts), [`js/feedback-rendering.ts`](js/feedback-rendering.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/theme.ts`](js/theme.ts), [`js/unit-profiles.ts`](js/unit-profiles.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
 
 </details>
 
-<details><summary><code>focus</code> family — 1 module</summary>
+<details><summary><code>FeedbackPresentation.svelte</code> family — 1 module</summary>
 
-- [`js/focus-card.ts`](js/focus-card.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/api.ts`](js/api.ts), [`js/data.ts`](js/data.ts), [`js/lab-context.ts`](js/lab-context.ts), [`js/lens.ts`](js/lens.ts), [`js/markdown.ts`](js/markdown.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/profile.ts`](js/profile.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/supplement-impact.ts`](js/supplement-impact.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/components/FeedbackPresentation.svelte`](js/components/FeedbackPresentation.svelte) → [`js/feedback-classes.ts`](js/feedback-classes.ts)
+
+</details>
+
+<details><summary><code>focus</code> family — 3 modules</summary>
+
+- [`js/focus-card-host.ts`](js/focus-card-host.ts) → [`js/components/FocusCardBody.svelte`](js/components/FocusCardBody.svelte)
+- [`js/focus-card-presentation.ts`](js/focus-card-presentation.ts) → [`js/components/FocusCard.svelte`](js/components/FocusCard.svelte), [`js/markdown.ts`](js/markdown.ts)
+- [`js/focus-card.ts`](js/focus-card.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/api.ts`](js/api.ts), [`js/data.ts`](js/data.ts), [`js/focus-card-host.ts`](js/focus-card-host.ts), [`js/focus-card-presentation.ts`](js/focus-card-presentation.ts), [`js/lab-context-output.ts`](js/lab-context-output.ts), [`js/lab-context-settings.ts`](js/lab-context-settings.ts), [`js/lens.ts`](js/lens.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/profile.ts`](js/profile.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/supplement-impact.ts`](js/supplement-impact.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts), [`js/utils.ts`](js/utils.ts)
+
+</details>
+
+<details><summary><code>FocusCard.svelte</code> family — 1 module</summary>
+
+- [`js/components/FocusCard.svelte`](js/components/FocusCard.svelte) → [`js/components/FocusCardBody.svelte`](js/components/FocusCardBody.svelte)
+
+</details>
+
+<details><summary><code>FocusCardBody.svelte</code> family — 1 module</summary>
+
+- [`js/components/FocusCardBody.svelte`](js/components/FocusCardBody.svelte) → no in-scope imports
 
 </details>
 
@@ -1565,9 +2204,28 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>genetics</code> family — 1 module</summary>
+<details><summary><code>footer</code> family — 1 module</summary>
+
+- [`js/footer-commit-link-presentation.ts`](js/footer-commit-link-presentation.ts) → [`js/components/FooterCommitLink.svelte`](js/components/FooterCommitLink.svelte)
+
+</details>
+
+<details><summary><code>FooterCommitLink.svelte</code> family — 1 module</summary>
+
+- [`js/components/FooterCommitLink.svelte`](js/components/FooterCommitLink.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>genetics</code> family — 2 modules</summary>
 
 - [`js/genetics-import-events.ts`](js/genetics-import-events.ts) → no in-scope imports
+- [`js/genetics-section-presentation.ts`](js/genetics-section-presentation.ts) → [`js/components/GeneticsSection.svelte`](js/components/GeneticsSection.svelte)
+
+</details>
+
+<details><summary><code>GeneticsSection.svelte</code> family — 1 module</summary>
+
+- [`js/components/GeneticsSection.svelte`](js/components/GeneticsSection.svelte) → no in-scope imports
 
 </details>
 
@@ -1580,6 +2238,24 @@ Native browser modules shipped with the static application.
 <details><summary><code>hardware</code> family — 1 module</summary>
 
 - [`js/hardware.ts`](js/hardware.ts) → no in-scope imports
+
+</details>
+
+<details><summary><code>header</code> family — 1 module</summary>
+
+- [`js/header-date-range.ts`](js/header-date-range.ts) → [`js/components/HeaderDateSummary.svelte`](js/components/HeaderDateSummary.svelte), [`js/components/HeaderRangeButtons.svelte`](js/components/HeaderRangeButtons.svelte)
+
+</details>
+
+<details><summary><code>HeaderDateSummary.svelte</code> family — 1 module</summary>
+
+- [`js/components/HeaderDateSummary.svelte`](js/components/HeaderDateSummary.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>HeaderRangeButtons.svelte</code> family — 1 module</summary>
+
+- [`js/components/HeaderRangeButtons.svelte`](js/components/HeaderRangeButtons.svelte) → no in-scope imports
 
 </details>
 
@@ -1829,16 +2505,18 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>lab</code> family — 15 modules</summary>
+<details><summary><code>lab</code> family — 17 modules</summary>
 
+- [`js/lab-context-assembly.ts`](js/lab-context-assembly.ts) → [`js/cycle-runtime.ts`](js/cycle-runtime.ts), [`js/cycle-summary.ts`](js/cycle-summary.ts), [`js/data.ts`](js/data.ts), [`js/dna-runtime-bridge.ts`](js/dna-runtime-bridge.ts), [`js/food-contaminants.ts`](js/food-contaminants.ts), [`js/lab-context-cache.ts`](js/lab-context-cache.ts), [`js/lab-context-change-timeline.ts`](js/lab-context-change-timeline.ts), [`js/lab-context-collection.ts`](js/lab-context-collection.ts), [`js/lab-context-runtime.ts`](js/lab-context-runtime.ts), [`js/lab-context-settings.ts`](js/lab-context-settings.ts), [`js/lab-context-wearables.ts`](js/lab-context-wearables.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/profile.ts`](js/profile.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/supplement-context.ts`](js/supplement-context.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts), [`js/supplement-warnings.ts`](js/supplement-warnings.ts), [`js/theme.ts`](js/theme.ts), [`js/unit-profiles.ts`](js/unit-profiles.ts), [`js/utils.ts`](js/utils.ts), [`js/wearables-formatters.ts`](js/wearables-formatters.ts)
 - [`js/lab-context-cache.ts`](js/lab-context-cache.ts) → [`js/lab-context-settings.ts`](js/lab-context-settings.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/lab-context-change-timeline.ts`](js/lab-context-change-timeline.ts) → [`js/context-source-registry.ts`](js/context-source-registry.ts), [`js/lab-context-output.ts`](js/lab-context-output.ts)
 - [`js/lab-context-collection.ts`](js/lab-context-collection.ts) → [`js/lab-entry.ts`](js/lab-entry.ts)
+- [`js/lab-context-loader.ts`](js/lab-context-loader.ts) → [`js/lab-context.ts`](js/lab-context.ts) *(dynamic)*, [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts)
 - [`js/lab-context-output.ts`](js/lab-context-output.ts) → no in-scope imports
 - [`js/lab-context-runtime.ts`](js/lab-context-runtime.ts) → [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts)
 - [`js/lab-context-settings.ts`](js/lab-context-settings.ts) → [`js/context-source-registry.ts`](js/context-source-registry.ts), [`js/lab-context-wearables.ts`](js/lab-context-wearables.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/lab-context-wearables.ts`](js/lab-context-wearables.ts) → [`js/context-source-registry.ts`](js/context-source-registry.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts), [`js/wearables-store.ts`](js/wearables-store.ts)
-- [`js/lab-context.ts`](js/lab-context.ts) → [`js/cycle-runtime.ts`](js/cycle-runtime.ts), [`js/cycle-summary.ts`](js/cycle-summary.ts), [`js/data.ts`](js/data.ts), [`js/dna-runtime-bridge.ts`](js/dna-runtime-bridge.ts), [`js/food-contaminants.ts`](js/food-contaminants.ts), [`js/lab-context-cache.ts`](js/lab-context-cache.ts), [`js/lab-context-change-timeline.ts`](js/lab-context-change-timeline.ts), [`js/lab-context-collection.ts`](js/lab-context-collection.ts), [`js/lab-context-output.ts`](js/lab-context-output.ts), [`js/lab-context-runtime.ts`](js/lab-context-runtime.ts), [`js/lab-context-settings.ts`](js/lab-context-settings.ts), [`js/lab-context-wearables.ts`](js/lab-context-wearables.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/profile.ts`](js/profile.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/supplement-context.ts`](js/supplement-context.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts), [`js/supplement-warnings.ts`](js/supplement-warnings.ts), [`js/theme.ts`](js/theme.ts), [`js/unit-profiles.ts`](js/unit-profiles.ts), [`js/utils.ts`](js/utils.ts), [`js/wearables-formatters.ts`](js/wearables-formatters.ts)
+- [`js/lab-context.ts`](js/lab-context.ts) → [`js/lab-context-assembly.ts`](js/lab-context-assembly.ts), [`js/lab-context-output.ts`](js/lab-context-output.ts), [`js/lab-context-runtime.ts`](js/lab-context-runtime.ts), [`js/lab-context-settings.ts`](js/lab-context-settings.ts), [`js/lab-context-wearables.ts`](js/lab-context-wearables.ts)
 - [`js/lab-date-range-classes.ts`](js/lab-date-range-classes.ts) → no in-scope imports
 - [`js/lab-date-range-presentation.ts`](js/lab-date-range-presentation.ts) → no in-scope imports
 - [`js/lab-date-range.ts`](js/lab-date-range.ts) → no in-scope imports
@@ -1855,19 +2533,48 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>legal</code> family — 2 modules</summary>
+<details><summary><code>LabsEmptyDropZone.svelte</code> family — 1 module</summary>
 
-- [`js/legal-consent-bootstrap.ts`](js/legal-consent-bootstrap.ts) → no in-scope imports
-- [`js/legal-consent.ts`](js/legal-consent.ts) → [`js/deployment-policy.ts`](js/deployment-policy.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/components/LabsEmptyDropZone.svelte`](js/components/LabsEmptyDropZone.svelte) → no in-scope imports
 
 </details>
 
-<details><summary><code>lens</code> family — 21 modules</summary>
+<details><summary><code>legal</code> family — 6 modules</summary>
+
+- [`js/legal-consent-bootstrap.ts`](js/legal-consent-bootstrap.ts) → no in-scope imports
+- [`js/legal-consent-presentation.ts`](js/legal-consent-presentation.ts) → [`js/components/LegalConsentModal.svelte`](js/components/LegalConsentModal.svelte)
+- [`js/legal-consent-view.ts`](js/legal-consent-view.ts) → no in-scope imports
+- [`js/legal-consent.ts`](js/legal-consent.ts) → [`js/deployment-policy.ts`](js/deployment-policy.ts), [`js/legal-first-launch-presentation.ts`](js/legal-first-launch-presentation.ts), [`js/legal-first-launch-view.ts`](js/legal-first-launch-view.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/legal-first-launch-presentation.ts`](js/legal-first-launch-presentation.ts) → [`js/components/LegalFirstLaunchBody.svelte`](js/components/LegalFirstLaunchBody.svelte), [`js/components/LegalFirstLaunchBoot.svelte`](js/components/LegalFirstLaunchBoot.svelte), [`js/legal-first-launch-view.ts`](js/legal-first-launch-view.ts)
+- [`js/legal-first-launch-view.ts`](js/legal-first-launch-view.ts) → no in-scope imports
+
+</details>
+
+<details><summary><code>LegalConsentModal.svelte</code> family — 1 module</summary>
+
+- [`js/components/LegalConsentModal.svelte`](js/components/LegalConsentModal.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>LegalFirstLaunchBody.svelte</code> family — 1 module</summary>
+
+- [`js/components/LegalFirstLaunchBody.svelte`](js/components/LegalFirstLaunchBody.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>LegalFirstLaunchBoot.svelte</code> family — 1 module</summary>
+
+- [`js/components/LegalFirstLaunchBoot.svelte`](js/components/LegalFirstLaunchBoot.svelte) → [`js/components/LegalFirstLaunchBody.svelte`](js/components/LegalFirstLaunchBody.svelte)
+
+</details>
+
+<details><summary><code>lens</code> family — 24 modules</summary>
 
 - [`js/lens-actions.ts`](js/lens-actions.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts)
 - [`js/lens-cache.ts`](js/lens-cache.ts) → [`js/utils.ts`](js/utils.ts)
 - [`js/lens-content-classes.ts`](js/lens-content-classes.ts) → no in-scope imports
 - [`js/lens-content-presentation.ts`](js/lens-content-presentation.ts) → no in-scope imports
+- [`js/lens-data-page-presentation.ts`](js/lens-data-page-presentation.ts) → [`js/lens-widget-content.ts`](js/lens-widget-content.ts)
 - [`js/lens-knowledge-base-ui.ts`](js/lens-knowledge-base-ui.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/knowledge-base-classes.ts`](js/knowledge-base-classes.ts), [`js/knowledge-base-presentation.ts`](js/knowledge-base-presentation.ts), [`js/knowledge-base-rendering.ts`](js/knowledge-base-rendering.ts), [`js/lens-actions.ts`](js/lens-actions.ts), [`js/lens-library.ts`](js/lens-library.ts), [`js/lens-local-parsers.ts`](js/lens-local-parsers.ts) *(dynamic)*, [`js/lens-local.ts`](js/lens-local.ts) *(dynamic)*, [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/lens-library.ts`](js/lens-library.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/knowledge-base-classes.ts`](js/knowledge-base-classes.ts), [`js/knowledge-base-library-presentation.ts`](js/knowledge-base-library-presentation.ts), [`js/knowledge-base-library-rendering.ts`](js/knowledge-base-library-rendering.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/lens-local-embedder-config.ts`](js/lens-local-embedder-config.ts) → no in-scope imports
@@ -1879,11 +2586,13 @@ Native browser modules shipped with the static application.
 - [`js/lens-local-utils.ts`](js/lens-local-utils.ts) → no in-scope imports
 - [`js/lens-local-worker.ts`](js/lens-local-worker.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/lens-local-embedder-config.ts`](js/lens-local-embedder-config.ts), [`js/lens-local-ingest.ts`](js/lens-local-ingest.ts), [`js/lens-local-library-registry.ts`](js/lens-local-library-registry.ts), [`js/lens-local-store.ts`](js/lens-local-store.ts), [`js/lens-local-utils.ts`](js/lens-local-utils.ts)
 - [`js/lens-local.ts`](js/lens-local.ts) → no in-scope imports
-- [`js/lens-page-shell.ts`](js/lens-page-shell.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/components/LensDashboardToggle.svelte`](js/components/LensDashboardToggle.svelte), [`js/components/LensShellPresentation.svelte`](js/components/LensShellPresentation.svelte), [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/dashboard-widget-copy.ts`](js/dashboard-widget-copy.ts), [`js/dna-runtime-bridge.ts`](js/dna-runtime-bridge.ts), [`js/emf-runtime.ts`](js/emf-runtime.ts), [`js/lens-shell-presentation.ts`](js/lens-shell-presentation.ts), [`js/profile.ts`](js/profile.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/state.ts`](js/state.ts)
-- [`js/lens-pages.ts`](js/lens-pages.ts) → [`js/biology-page-view.ts`](js/biology-page-view.ts), [`js/biology-scores.ts`](js/biology-scores.ts), [`js/components/LensPageContent.svelte`](js/components/LensPageContent.svelte), [`js/components/RecommendationPage.svelte`](js/components/RecommendationPage.svelte), [`js/data.ts`](js/data.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/lens-content-presentation.ts`](js/lens-content-presentation.ts), [`js/lens-shell-presentation.ts`](js/lens-shell-presentation.ts), [`js/recommendation-presentation.ts`](js/recommendation-presentation.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/state.ts`](js/state.ts)
+- [`js/lens-page-shell-core.ts`](js/lens-page-shell-core.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/dashboard-widget-copy.ts`](js/dashboard-widget-copy.ts), [`js/dna-runtime-bridge.ts`](js/dna-runtime-bridge.ts), [`js/emf-runtime.ts`](js/emf-runtime.ts), [`js/lens-shell-presentation.ts`](js/lens-shell-presentation.ts), [`js/profile.ts`](js/profile.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/state.ts`](js/state.ts)
+- [`js/lens-page-shell.ts`](js/lens-page-shell.ts) → [`js/components/LensDashboardToggle.svelte`](js/components/LensDashboardToggle.svelte), [`js/components/LensShellPresentation.svelte`](js/components/LensShellPresentation.svelte), [`js/lens-page-shell-core.ts`](js/lens-page-shell-core.ts), [`js/lens-shell-presentation.ts`](js/lens-shell-presentation.ts)
+- [`js/lens-pages.ts`](js/lens-pages.ts) → [`js/biology-page-loader.ts`](js/biology-page-loader.ts), [`js/components/LensDataPage.svelte`](js/components/LensDataPage.svelte), [`js/components/RecommendationPage.svelte`](js/components/RecommendationPage.svelte), [`js/data.ts`](js/data.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/lens-content-presentation.ts`](js/lens-content-presentation.ts), [`js/lens-shell-presentation.ts`](js/lens-shell-presentation.ts), [`js/recommendation-presentation.ts`](js/recommendation-presentation.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/route-lifecycle.ts`](js/route-lifecycle.ts), [`js/state.ts`](js/state.ts)
 - [`js/lens-shell-classes.ts`](js/lens-shell-classes.ts) → no in-scope imports
-- [`js/lens-shell-presentation.ts`](js/lens-shell-presentation.ts) → no in-scope imports
+- [`js/lens-shell-presentation.ts`](js/lens-shell-presentation.ts) → [`js/lens-widget-content.ts`](js/lens-widget-content.ts)
 - [`js/lens-url.ts`](js/lens-url.ts) → no in-scope imports
+- [`js/lens-widget-content.ts`](js/lens-widget-content.ts) → no in-scope imports
 - [`js/lens.ts`](js/lens.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/crypto.ts`](js/crypto.ts), [`js/lens-cache.ts`](js/lens-cache.ts), [`js/lens-knowledge-base-ui.ts`](js/lens-knowledge-base-ui.ts) *(dynamic)*, [`js/lens-local.ts`](js/lens-local.ts) *(dynamic)*, [`js/lens-url.ts`](js/lens-url.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 
 </details>
@@ -1897,6 +2606,18 @@ Native browser modules shipped with the static application.
 <details><summary><code>LensDashboardToggle.svelte</code> family — 1 module</summary>
 
 - [`js/components/LensDashboardToggle.svelte`](js/components/LensDashboardToggle.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>LensDataPage.svelte</code> family — 1 module</summary>
+
+- [`js/components/LensDataPage.svelte`](js/components/LensDataPage.svelte) → [`js/components/DashboardLabMarkers.svelte`](js/components/DashboardLabMarkers.svelte), [`js/components/LabDateRange.svelte`](js/components/LabDateRange.svelte), [`js/components/LabsEmptyDropZone.svelte`](js/components/LabsEmptyDropZone.svelte), [`js/components/LensActionButtons.svelte`](js/components/LensActionButtons.svelte), [`js/components/LensDataWidgetBody.svelte`](js/components/LensDataWidgetBody.svelte), [`js/components/LensPageHeader.svelte`](js/components/LensPageHeader.svelte), [`js/components/LensWidgetFrame.svelte`](js/components/LensWidgetFrame.svelte), [`js/lens-data-page-presentation.ts`](js/lens-data-page-presentation.ts), [`js/lens-shell-classes.ts`](js/lens-shell-classes.ts)
+
+</details>
+
+<details><summary><code>LensDataWidgetBody.svelte</code> family — 1 module</summary>
+
+- [`js/components/LensDataWidgetBody.svelte`](js/components/LensDataWidgetBody.svelte) → [`js/components/BodySources.svelte`](js/components/BodySources.svelte), [`js/components/ContextCardCatalog.svelte`](js/components/ContextCardCatalog.svelte), [`js/components/CycleOverviewPresentation.svelte`](js/components/CycleOverviewPresentation.svelte), [`js/components/DashboardBiometricsOverview.svelte`](js/components/DashboardBiometricsOverview.svelte), [`js/components/DashboardGenomeWidget.svelte`](js/components/DashboardGenomeWidget.svelte), [`js/components/DashboardInsights.svelte`](js/components/DashboardInsights.svelte), [`js/components/DashboardKeyTrends.svelte`](js/components/DashboardKeyTrends.svelte), [`js/components/DashboardQuickMarkers.svelte`](js/components/DashboardQuickMarkers.svelte), [`js/components/FocusCard.svelte`](js/components/FocusCard.svelte), [`js/components/GenomeImportDetails.svelte`](js/components/GenomeImportDetails.svelte), [`js/components/NutritionDashboard.svelte`](js/components/NutritionDashboard.svelte), [`js/components/RecommendationPresentation.svelte`](js/components/RecommendationPresentation.svelte), [`js/components/SupplementTimeline.svelte`](js/components/SupplementTimeline.svelte)
 
 </details>
 
@@ -1914,19 +2635,25 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>LensPageHeader.svelte</code> family — 1 module</summary>
 
-- [`js/components/LensPageHeader.svelte`](js/components/LensPageHeader.svelte) → [`js/lens-shell-classes.ts`](js/lens-shell-classes.ts)
+- [`js/components/LensPageHeader.svelte`](js/components/LensPageHeader.svelte) → [`js/components/LabDateRange.svelte`](js/components/LabDateRange.svelte), [`js/components/LensActionButtons.svelte`](js/components/LensActionButtons.svelte), [`js/lens-shell-classes.ts`](js/lens-shell-classes.ts)
 
 </details>
 
 <details><summary><code>LensPageWidget.svelte</code> family — 1 module</summary>
 
-- [`js/components/LensPageWidget.svelte`](js/components/LensPageWidget.svelte) → [`js/components/LensWidgetFrame.svelte`](js/components/LensWidgetFrame.svelte)
+- [`js/components/LensPageWidget.svelte`](js/components/LensPageWidget.svelte) → [`js/components/LensWidgetBody.svelte`](js/components/LensWidgetBody.svelte), [`js/components/LensWidgetFrame.svelte`](js/components/LensWidgetFrame.svelte), [`js/lens-widget-content.ts`](js/lens-widget-content.ts)
 
 </details>
 
 <details><summary><code>LensShellPresentation.svelte</code> family — 1 module</summary>
 
 - [`js/components/LensShellPresentation.svelte`](js/components/LensShellPresentation.svelte) → [`js/components/LensPageGrid.svelte`](js/components/LensPageGrid.svelte), [`js/components/LensPageHeader.svelte`](js/components/LensPageHeader.svelte), [`js/components/LensPageWidget.svelte`](js/components/LensPageWidget.svelte), [`js/components/LensWidgetTools.svelte`](js/components/LensWidgetTools.svelte)
+
+</details>
+
+<details><summary><code>LensWidgetBody.svelte</code> family — 1 module</summary>
+
+- [`js/components/LensWidgetBody.svelte`](js/components/LensWidgetBody.svelte) → [`js/components/BiologyScoreDetail.svelte`](js/components/BiologyScoreDetail.svelte), [`js/components/BodySources.svelte`](js/components/BodySources.svelte), [`js/components/ContextCardCatalog.svelte`](js/components/ContextCardCatalog.svelte), [`js/components/CycleOverviewPresentation.svelte`](js/components/CycleOverviewPresentation.svelte), [`js/components/DashboardBiometricsOverview.svelte`](js/components/DashboardBiometricsOverview.svelte), [`js/components/DashboardGenomeWidget.svelte`](js/components/DashboardGenomeWidget.svelte), [`js/components/DashboardInsights.svelte`](js/components/DashboardInsights.svelte), [`js/components/DashboardKeyTrends.svelte`](js/components/DashboardKeyTrends.svelte), [`js/components/DashboardQuickMarkers.svelte`](js/components/DashboardQuickMarkers.svelte), [`js/components/FocusCard.svelte`](js/components/FocusCard.svelte), [`js/components/GenomeImportDetails.svelte`](js/components/GenomeImportDetails.svelte), [`js/components/LightWidgetBody.svelte`](js/components/LightWidgetBody.svelte), [`js/components/NutritionDashboard.svelte`](js/components/NutritionDashboard.svelte), [`js/components/RecommendationPresentation.svelte`](js/components/RecommendationPresentation.svelte), [`js/components/SupplementTimeline.svelte`](js/components/SupplementTimeline.svelte)
 
 </details>
 
@@ -1948,14 +2675,15 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>light</code> family — 95 modules</summary>
+<details><summary><code>light</code> family — 96 modules</summary>
 
 - [`js/light-active-session-presentation.ts`](js/light-active-session-presentation.ts) → no in-scope imports
 - [`js/light-ai-save-hooks.ts`](js/light-ai-save-hooks.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/chat-loader.ts`](js/chat-loader.ts), [`js/light-audit-ai-analysis.ts`](js/light-audit-ai-analysis.ts), [`js/light-env-ai-analysis.ts`](js/light-env-ai-analysis.ts), [`js/light-env-audits.ts`](js/light-env-audits.ts), [`js/light-env.ts`](js/light-env.ts), [`js/light-screen-ai-analysis.ts`](js/light-screen-ai-analysis.ts), [`js/light-tools-ai-analysis.ts`](js/light-tools-ai-analysis.ts), [`js/light-tools.ts`](js/light-tools.ts), [`js/sun-defaults.ts`](js/sun-defaults.ts), [`js/sun-onboarding-ai.ts`](js/sun-onboarding-ai.ts), [`js/sun-sessions-store.ts`](js/sun-sessions-store.ts), [`js/sun-uvdata.ts`](js/sun-uvdata.ts), [`js/sun.ts`](js/sun.ts)
-- [`js/light-audit-ai-analysis.ts`](js/light-audit-ai-analysis.ts) → [`js/ai-action-delegates.ts`](js/ai-action-delegates.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/ai-verdict-engine.ts`](js/ai-verdict-engine.ts), [`js/components/LightEnvironmentAI.svelte`](js/components/LightEnvironmentAI.svelte), [`js/health-goals-utils.ts`](js/health-goals-utils.ts), [`js/light-env-evening.ts`](js/light-env-evening.ts), [`js/light-env-model.ts`](js/light-env-model.ts), [`js/light-environment-ai-presentation.ts`](js/light-environment-ai-presentation.ts), [`js/lighting-hardware-caveats.ts`](js/lighting-hardware-caveats.ts), [`js/state.ts`](js/state.ts)
+- [`js/light-ai-view-values.ts`](js/light-ai-view-values.ts) → no in-scope imports
+- [`js/light-audit-ai-analysis.ts`](js/light-audit-ai-analysis.ts) → [`js/ai-action-delegates.ts`](js/ai-action-delegates.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/ai-verdict-engine.ts`](js/ai-verdict-engine.ts), [`js/components/LightEnvironmentAI.svelte`](js/components/LightEnvironmentAI.svelte), [`js/health-goals-utils.ts`](js/health-goals-utils.ts), [`js/light-ai-view-values.ts`](js/light-ai-view-values.ts), [`js/light-env-evening.ts`](js/light-env-evening.ts), [`js/light-env-model.ts`](js/light-env-model.ts), [`js/light-environment-ai-presentation.ts`](js/light-environment-ai-presentation.ts), [`js/lighting-hardware-caveats.ts`](js/lighting-hardware-caveats.ts), [`js/state.ts`](js/state.ts)
 - [`js/light-audit-classes.ts`](js/light-audit-classes.ts) → no in-scope imports
 - [`js/light-audit-presentation.ts`](js/light-audit-presentation.ts) → no in-scope imports
-- [`js/light-burden-ai-analysis.ts`](js/light-burden-ai-analysis.ts) → [`js/ai-action-delegates.ts`](js/ai-action-delegates.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/ai-verdict-engine.ts`](js/ai-verdict-engine.ts), [`js/ai-verdict-owner.ts`](js/ai-verdict-owner.ts), [`js/components/LightReviewAI.svelte`](js/components/LightReviewAI.svelte), [`js/health-goals-utils.ts`](js/health-goals-utils.ts), [`js/light-env-evening.ts`](js/light-env-evening.ts), [`js/light-env.ts`](js/light-env.ts), [`js/light-review-ai-presentation.ts`](js/light-review-ai-presentation.ts), [`js/lighting-hardware-caveats.ts`](js/lighting-hardware-caveats.ts), [`js/state.ts`](js/state.ts)
+- [`js/light-burden-ai-analysis.ts`](js/light-burden-ai-analysis.ts) → [`js/ai-action-delegates.ts`](js/ai-action-delegates.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/ai-verdict-engine.ts`](js/ai-verdict-engine.ts), [`js/ai-verdict-owner.ts`](js/ai-verdict-owner.ts), [`js/components/LightReviewAI.svelte`](js/components/LightReviewAI.svelte), [`js/health-goals-utils.ts`](js/health-goals-utils.ts), [`js/light-ai-view-values.ts`](js/light-ai-view-values.ts), [`js/light-env-evening.ts`](js/light-env-evening.ts), [`js/light-env.ts`](js/light-env.ts), [`js/light-review-ai-presentation.ts`](js/light-review-ai-presentation.ts), [`js/lighting-hardware-caveats.ts`](js/lighting-hardware-caveats.ts), [`js/state.ts`](js/state.ts)
 - [`js/light-camera-classes.ts`](js/light-camera-classes.ts) → [`js/light-tools-classes.ts`](js/light-tools-classes.ts)
 - [`js/light-camera-presentation.ts`](js/light-camera-presentation.ts) → no in-scope imports
 - [`js/light-channel-classes.ts`](js/light-channel-classes.ts) → no in-scope imports
@@ -1964,23 +2692,23 @@ Native browser modules shipped with the static application.
 - [`js/light-channel-presentation.ts`](js/light-channel-presentation.ts) → [`js/light-channel-content.ts`](js/light-channel-content.ts)
 - [`js/light-channel-section-classes.ts`](js/light-channel-section-classes.ts) → no in-scope imports
 - [`js/light-channel-view-hooks.ts`](js/light-channel-view-hooks.ts) → [`js/light-channel-view.ts`](js/light-channel-view.ts), [`js/light-devices-store.ts`](js/light-devices-store.ts), [`js/light-devices.ts`](js/light-devices.ts), [`js/sun-spectrum.ts`](js/sun-spectrum.ts), [`js/sun.ts`](js/sun.ts)
-- [`js/light-channel-view-ui-hooks.ts`](js/light-channel-view-ui-hooks.ts) → [`js/light-channel-view.ts`](js/light-channel-view.ts), [`js/views.ts`](js/views.ts)
+- [`js/light-channel-view-ui-hooks.ts`](js/light-channel-view-ui-hooks.ts) → [`js/light-channel-view.ts`](js/light-channel-view.ts), [`js/views-runtime.ts`](js/views-runtime.ts)
 - [`js/light-channel-view.ts`](js/light-channel-view.ts) → [`js/components/LightChannelDetail.svelte`](js/components/LightChannelDetail.svelte), [`js/components/LightChannelPills.svelte`](js/components/LightChannelPills.svelte), [`js/components/LightChannelSparkline.svelte`](js/components/LightChannelSparkline.svelte), [`js/components/LightReviewAI.svelte`](js/components/LightReviewAI.svelte), [`js/light-channel-presentation.ts`](js/light-channel-presentation.ts), [`js/light-conditions-now.ts`](js/light-conditions-now.ts), [`js/state.ts`](js/state.ts)
-- [`js/light-channels-ai-analysis.ts`](js/light-channels-ai-analysis.ts) → [`js/ai-action-delegates.ts`](js/ai-action-delegates.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/ai-verdict-engine.ts`](js/ai-verdict-engine.ts), [`js/ai-verdict-owner.ts`](js/ai-verdict-owner.ts), [`js/components/LightReviewAI.svelte`](js/components/LightReviewAI.svelte), [`js/health-goals-utils.ts`](js/health-goals-utils.ts), [`js/light-devices-store.ts`](js/light-devices-store.ts), [`js/light-review-ai-presentation.ts`](js/light-review-ai-presentation.ts), [`js/state.ts`](js/state.ts), [`js/sun-sessions-store.ts`](js/sun-sessions-store.ts), [`js/sun.ts`](js/sun.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/light-channels-ai-analysis.ts`](js/light-channels-ai-analysis.ts) → [`js/ai-action-delegates.ts`](js/ai-action-delegates.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/ai-verdict-engine.ts`](js/ai-verdict-engine.ts), [`js/ai-verdict-owner.ts`](js/ai-verdict-owner.ts), [`js/components/LightReviewAI.svelte`](js/components/LightReviewAI.svelte), [`js/health-goals-utils.ts`](js/health-goals-utils.ts), [`js/light-ai-view-values.ts`](js/light-ai-view-values.ts), [`js/light-devices-store.ts`](js/light-devices-store.ts), [`js/light-review-ai-presentation.ts`](js/light-review-ai-presentation.ts), [`js/state.ts`](js/state.ts), [`js/sun-sessions-store.ts`](js/sun-sessions-store.ts), [`js/sun.ts`](js/sun.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/light-conditions-classes.ts`](js/light-conditions-classes.ts) → no in-scope imports
 - [`js/light-conditions-interpretation.ts`](js/light-conditions-interpretation.ts) → [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts)
 - [`js/light-conditions-now-hooks.ts`](js/light-conditions-now-hooks.ts) → [`js/light-conditions-now.ts`](js/light-conditions-now.ts), [`js/sun-uvdata.ts`](js/sun-uvdata.ts), [`js/sun.ts`](js/sun.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/light-conditions-now.ts`](js/light-conditions-now.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/components/LightConditionsPresentation.svelte`](js/components/LightConditionsPresentation.svelte), [`js/light-conditions-interpretation.ts`](js/light-conditions-interpretation.ts), [`js/light-conditions-presentation.ts`](js/light-conditions-presentation.ts), [`js/light-conditions-renderer.ts`](js/light-conditions-renderer.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts)
 - [`js/light-conditions-presentation.ts`](js/light-conditions-presentation.ts) → [`js/light-conditions-interpretation.ts`](js/light-conditions-interpretation.ts), [`js/sun-uvdata-atmosphere.ts`](js/sun-uvdata-atmosphere.ts)
 - [`js/light-conditions-renderer.ts`](js/light-conditions-renderer.ts) → [`js/components/LightConditionsPresentation.svelte`](js/components/LightConditionsPresentation.svelte), [`js/light-conditions-presentation.ts`](js/light-conditions-presentation.ts)
-- [`js/light-device-ai-analysis.ts`](js/light-device-ai-analysis.ts) → [`js/ai-action-delegates.ts`](js/ai-action-delegates.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/ai-verdict-engine.ts`](js/ai-verdict-engine.ts), [`js/components/LightSessionAI.svelte`](js/components/LightSessionAI.svelte), [`js/light-devices-store.ts`](js/light-devices-store.ts), [`js/light-session-ai-presentation.ts`](js/light-session-ai-presentation.ts), [`js/sun-defaults.ts`](js/sun-defaults.ts), [`js/sun.ts`](js/sun.ts)
+- [`js/light-device-ai-analysis.ts`](js/light-device-ai-analysis.ts) → [`js/ai-action-delegates.ts`](js/ai-action-delegates.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/ai-verdict-engine.ts`](js/ai-verdict-engine.ts), [`js/components/LightSessionAI.svelte`](js/components/LightSessionAI.svelte), [`js/light-ai-view-values.ts`](js/light-ai-view-values.ts), [`js/light-devices-store.ts`](js/light-devices-store.ts), [`js/light-session-ai-presentation.ts`](js/light-session-ai-presentation.ts), [`js/sun-defaults.ts`](js/sun-defaults.ts), [`js/sun.ts`](js/sun.ts)
 - [`js/light-device-library-classes.ts`](js/light-device-library-classes.ts) → no in-scope imports
 - [`js/light-device-library-presentation.ts`](js/light-device-library-presentation.ts) → [`js/light-device-view-formatters.ts`](js/light-device-view-formatters.ts)
 - [`js/light-device-modal-loader.ts`](js/light-device-modal-loader.ts) → [`js/light-device-session-modal.ts`](js/light-device-session-modal.ts) *(dynamic)*, [`js/light-device-setup-modal.ts`](js/light-device-setup-modal.ts) *(dynamic)*, [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/light-device-recommendations-classes.ts`](js/light-device-recommendations-classes.ts) → no in-scope imports
 - [`js/light-device-recommendations-presentation.ts`](js/light-device-recommendations-presentation.ts) → no in-scope imports
 - [`js/light-device-session-engine.ts`](js/light-device-session-engine.ts) → [`js/sun-body-silhouette.ts`](js/sun-body-silhouette.ts), [`js/sun-spectrum.ts`](js/sun-spectrum.ts)
-- [`js/light-device-session-modal.ts`](js/light-device-session-modal.ts) → [`js/components/LightSessionPresentation.svelte`](js/components/LightSessionPresentation.svelte), [`js/light-device-session-engine.ts`](js/light-device-session-engine.ts), [`js/light-session-presentation.ts`](js/light-session-presentation.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/sun-body-silhouette.ts`](js/sun-body-silhouette.ts), [`js/sun-spectrum.ts`](js/sun-spectrum.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/light-device-session-modal.ts`](js/light-device-session-modal.ts) → [`js/components/LightSessionPresentation.svelte`](js/components/LightSessionPresentation.svelte), [`js/components/SunBodyPicker.svelte`](js/components/SunBodyPicker.svelte), [`js/light-device-session-engine.ts`](js/light-device-session-engine.ts), [`js/light-session-presentation.ts`](js/light-session-presentation.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/sun-body-silhouette.ts`](js/sun-body-silhouette.ts), [`js/sun-spectrum.ts`](js/sun-spectrum.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/light-device-setup-classes.ts`](js/light-device-setup-classes.ts) → no in-scope imports
 - [`js/light-device-setup-modal.ts`](js/light-device-setup-modal.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/components/LightDeviceSetup.svelte`](js/components/LightDeviceSetup.svelte), [`js/image-utils.ts`](js/image-utils.ts), [`js/light-device-setup-presentation.ts`](js/light-device-setup-presentation.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/proxy-runtime.ts`](js/proxy-runtime.ts), [`js/state.ts`](js/state.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/light-device-setup-presentation.ts`](js/light-device-setup-presentation.ts) → no in-scope imports
@@ -1990,13 +2718,13 @@ Native browser modules shipped with the static application.
 - [`js/light-devices-store.ts`](js/light-devices-store.ts) → [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/light-device-session-engine.ts`](js/light-device-session-engine.ts), [`js/light-sun-analysis-runtime.ts`](js/light-sun-analysis-runtime.ts), [`js/state.ts`](js/state.ts), [`js/sun-body-silhouette.ts`](js/sun-body-silhouette.ts), [`js/unique-id.ts`](js/unique-id.ts)
 - [`js/light-devices.ts`](js/light-devices.ts) → [`js/components/LightDevicePresentation.svelte`](js/components/LightDevicePresentation.svelte), [`js/components/LightSessionPresentation.svelte`](js/components/LightSessionPresentation.svelte), [`js/light-device-library-presentation.ts`](js/light-device-library-presentation.ts), [`js/light-device-modal-loader.ts`](js/light-device-modal-loader.ts), [`js/light-device-session-engine.ts`](js/light-device-session-engine.ts), [`js/light-device-view-formatters.ts`](js/light-device-view-formatters.ts), [`js/light-devices-actions.ts`](js/light-devices-actions.ts), [`js/light-devices-runtime.ts`](js/light-devices-runtime.ts), [`js/light-devices-store.ts`](js/light-devices-store.ts), [`js/light-session-detail-presentation.ts`](js/light-session-detail-presentation.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/sun-body-silhouette.ts`](js/sun-body-silhouette.ts), [`js/sun-defaults.ts`](js/sun-defaults.ts), [`js/sun-spectrum.ts`](js/sun-spectrum.ts), [`js/sun.ts`](js/sun.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/light-env-actions.ts`](js/light-env-actions.ts) → [`js/utils.ts`](js/utils.ts)
-- [`js/light-env-ai-analysis.ts`](js/light-env-ai-analysis.ts) → [`js/ai-action-delegates.ts`](js/ai-action-delegates.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/ai-verdict-engine.ts`](js/ai-verdict-engine.ts), [`js/ai-verdict-owner.ts`](js/ai-verdict-owner.ts), [`js/components/LightEnvironmentAI.svelte`](js/components/LightEnvironmentAI.svelte), [`js/health-goals-utils.ts`](js/health-goals-utils.ts), [`js/light-env-evening.ts`](js/light-env-evening.ts), [`js/light-env-model.ts`](js/light-env-model.ts), [`js/light-environment-ai-presentation.ts`](js/light-environment-ai-presentation.ts), [`js/lighting-hardware-caveats.ts`](js/lighting-hardware-caveats.ts), [`js/state.ts`](js/state.ts)
+- [`js/light-env-ai-analysis.ts`](js/light-env-ai-analysis.ts) → [`js/ai-action-delegates.ts`](js/ai-action-delegates.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/ai-verdict-engine.ts`](js/ai-verdict-engine.ts), [`js/ai-verdict-owner.ts`](js/ai-verdict-owner.ts), [`js/components/LightEnvironmentAI.svelte`](js/components/LightEnvironmentAI.svelte), [`js/health-goals-utils.ts`](js/health-goals-utils.ts), [`js/light-ai-view-values.ts`](js/light-ai-view-values.ts), [`js/light-env-evening.ts`](js/light-env-evening.ts), [`js/light-env-model.ts`](js/light-env-model.ts), [`js/light-environment-ai-presentation.ts`](js/light-environment-ai-presentation.ts), [`js/lighting-hardware-caveats.ts`](js/lighting-hardware-caveats.ts), [`js/state.ts`](js/state.ts)
 - [`js/light-env-audits.ts`](js/light-env-audits.ts) → [`js/components/LightAuditBlock.svelte`](js/components/LightAuditBlock.svelte), [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/light-audit-presentation.ts`](js/light-audit-presentation.ts), [`js/state.ts`](js/state.ts), [`js/unique-id.ts`](js/unique-id.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/light-env-editor.ts`](js/light-env-editor.ts) → [`js/light-env-model.ts`](js/light-env-model.ts), [`js/light-env-screen-ui.ts`](js/light-env-screen-ui.ts), [`js/light-env-store.ts`](js/light-env-store.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/light-env-evening.ts`](js/light-env-evening.ts) → no in-scope imports
 - [`js/light-env-model.ts`](js/light-env-model.ts) → [`js/light-env-evening.ts`](js/light-env-evening.ts)
 - [`js/light-env-screen-ui.ts`](js/light-env-screen-ui.ts) → [`js/components/LightEnvironmentScreen.svelte`](js/components/LightEnvironmentScreen.svelte), [`js/light-env-model.ts`](js/light-env-model.ts), [`js/light-env-store.ts`](js/light-env-store.ts), [`js/light-environment-screen-presentation.ts`](js/light-environment-screen-presentation.ts)
-- [`js/light-env-shell-hooks.ts`](js/light-env-shell-hooks.ts) → [`js/app-event-listeners.ts`](js/app-event-listeners.ts), [`js/light-sun-loader.ts`](js/light-sun-loader.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/nav.ts`](js/nav.ts), [`js/views.ts`](js/views.ts)
+- [`js/light-env-shell-hooks.ts`](js/light-env-shell-hooks.ts) → [`js/app-event-listeners.ts`](js/app-event-listeners.ts), [`js/light-sun-loader.ts`](js/light-sun-loader.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/nav.ts`](js/nav.ts), [`js/views-runtime.ts`](js/views-runtime.ts)
 - [`js/light-env-store.ts`](js/light-env-store.ts) → [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/light-env-evening.ts`](js/light-env-evening.ts), [`js/light-env-model.ts`](js/light-env-model.ts), [`js/state.ts`](js/state.ts), [`js/unique-id.ts`](js/unique-id.ts)
 - [`js/light-env.ts`](js/light-env.ts) → [`js/components/LightEnvironmentPresentation.svelte`](js/components/LightEnvironmentPresentation.svelte), [`js/components/LightEnvironmentSummary.svelte`](js/components/LightEnvironmentSummary.svelte), [`js/light-env-actions.ts`](js/light-env-actions.ts), [`js/light-env-audits.ts`](js/light-env-audits.ts), [`js/light-env-editor.ts`](js/light-env-editor.ts), [`js/light-env-evening.ts`](js/light-env-evening.ts), [`js/light-env-model.ts`](js/light-env-model.ts), [`js/light-env-screen-ui.ts`](js/light-env-screen-ui.ts), [`js/light-env-store.ts`](js/light-env-store.ts), [`js/light-environment-room-classes.ts`](js/light-environment-room-classes.ts), [`js/light-environment-room-presentation.ts`](js/light-environment-room-presentation.ts), [`js/light-environment-screen-presentation.ts`](js/light-environment-screen-presentation.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/light-environment-ai-classes.ts`](js/light-environment-ai-classes.ts) → no in-scope imports
@@ -2011,11 +2739,11 @@ Native browser modules shipped with the static application.
 - [`js/light-onboarding-ai-presentation.ts`](js/light-onboarding-ai-presentation.ts) → no in-scope imports
 - [`js/light-page-presentation.ts`](js/light-page-presentation.ts) → no in-scope imports
 - [`js/light-page-view-hooks.ts`](js/light-page-view-hooks.ts) → [`js/light-channel-view.ts`](js/light-channel-view.ts), [`js/light-channels-ai-analysis.ts`](js/light-channels-ai-analysis.ts), [`js/light-devices-store.ts`](js/light-devices-store.ts), [`js/light-devices.ts`](js/light-devices.ts), [`js/light-env.ts`](js/light-env.ts), [`js/light-page-view.ts`](js/light-page-view.ts), [`js/light-today-ai.ts`](js/light-today-ai.ts), [`js/light-tools.ts`](js/light-tools.ts), [`js/settings-privacy.ts`](js/settings-privacy.ts), [`js/sun-active-session.ts`](js/sun-active-session.ts), [`js/sun-defaults.ts`](js/sun-defaults.ts), [`js/sun.ts`](js/sun.ts)
-- [`js/light-page-view-ui-hooks.ts`](js/light-page-view-ui-hooks.ts) → [`js/light-page-view.ts`](js/light-page-view.ts), [`js/views.ts`](js/views.ts)
-- [`js/light-page-view.ts`](js/light-page-view.ts) → [`js/components/LightPagePresentation.svelte`](js/components/LightPagePresentation.svelte), [`js/lens-page-shell.ts`](js/lens-page-shell.ts), [`js/light-channel-presentation.ts`](js/light-channel-presentation.ts), [`js/light-channel-view.ts`](js/light-channel-view.ts), [`js/light-conditions-now.ts`](js/light-conditions-now.ts), [`js/light-page-presentation.ts`](js/light-page-presentation.ts), [`js/light-sessions-view.ts`](js/light-sessions-view.ts), [`js/light-today-presentation.ts`](js/light-today-presentation.ts), [`js/state.ts`](js/state.ts)
+- [`js/light-page-view-ui-hooks.ts`](js/light-page-view-ui-hooks.ts) → [`js/light-page-view.ts`](js/light-page-view.ts), [`js/views-runtime.ts`](js/views-runtime.ts)
+- [`js/light-page-view.ts`](js/light-page-view.ts) → [`js/components/LightPagePresentation.svelte`](js/components/LightPagePresentation.svelte), [`js/lens-page-shell-core.ts`](js/lens-page-shell-core.ts), [`js/lens-shell-presentation.ts`](js/lens-shell-presentation.ts), [`js/light-channel-presentation.ts`](js/light-channel-presentation.ts), [`js/light-channel-view.ts`](js/light-channel-view.ts), [`js/light-conditions-now.ts`](js/light-conditions-now.ts), [`js/light-page-presentation.ts`](js/light-page-presentation.ts), [`js/light-sessions-view.ts`](js/light-sessions-view.ts), [`js/light-today-presentation.ts`](js/light-today-presentation.ts), [`js/state.ts`](js/state.ts)
 - [`js/light-review-ai-classes.ts`](js/light-review-ai-classes.ts) → no in-scope imports
 - [`js/light-review-ai-presentation.ts`](js/light-review-ai-presentation.ts) → no in-scope imports
-- [`js/light-screen-ai-analysis.ts`](js/light-screen-ai-analysis.ts) → [`js/ai-action-delegates.ts`](js/ai-action-delegates.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/ai-verdict-engine.ts`](js/ai-verdict-engine.ts), [`js/ai-verdict-owner.ts`](js/ai-verdict-owner.ts), [`js/components/LightEnvironmentAI.svelte`](js/components/LightEnvironmentAI.svelte), [`js/health-goals-utils.ts`](js/health-goals-utils.ts), [`js/light-environment-ai-presentation.ts`](js/light-environment-ai-presentation.ts), [`js/lighting-hardware-caveats.ts`](js/lighting-hardware-caveats.ts), [`js/state.ts`](js/state.ts)
+- [`js/light-screen-ai-analysis.ts`](js/light-screen-ai-analysis.ts) → [`js/ai-action-delegates.ts`](js/ai-action-delegates.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/ai-verdict-engine.ts`](js/ai-verdict-engine.ts), [`js/ai-verdict-owner.ts`](js/ai-verdict-owner.ts), [`js/components/LightEnvironmentAI.svelte`](js/components/LightEnvironmentAI.svelte), [`js/health-goals-utils.ts`](js/health-goals-utils.ts), [`js/light-ai-view-values.ts`](js/light-ai-view-values.ts), [`js/light-environment-ai-presentation.ts`](js/light-environment-ai-presentation.ts), [`js/lighting-hardware-caveats.ts`](js/lighting-hardware-caveats.ts), [`js/state.ts`](js/state.ts)
 - [`js/light-session-ai-classes.ts`](js/light-session-ai-classes.ts) → no in-scope imports
 - [`js/light-session-ai-presentation.ts`](js/light-session-ai-presentation.ts) → no in-scope imports
 - [`js/light-session-detail-presentation.ts`](js/light-session-detail-presentation.ts) → no in-scope imports
@@ -2027,7 +2755,7 @@ Native browser modules shipped with the static application.
 - [`js/light-sun-ai-hooks.ts`](js/light-sun-ai-hooks.ts) → [`js/light-device-ai-analysis.ts`](js/light-device-ai-analysis.ts), [`js/light-devices-store.ts`](js/light-devices-store.ts), [`js/sun-ai-analysis.ts`](js/sun-ai-analysis.ts), [`js/sun-sessions-store.ts`](js/sun-sessions-store.ts)
 - [`js/light-sun-analysis-runtime.ts`](js/light-sun-analysis-runtime.ts) → no in-scope imports
 - [`js/light-sun-loader.ts`](js/light-sun-loader.ts) → [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) *(dynamic)*, [`js/light-device-ai-analysis.ts`](js/light-device-ai-analysis.ts) *(dynamic)*, [`js/light-sun-analysis-runtime.ts`](js/light-sun-analysis-runtime.ts), [`js/state.ts`](js/state.ts), [`js/sun-ai-analysis.ts`](js/sun-ai-analysis.ts) *(dynamic)*
-- [`js/light-today-ai.ts`](js/light-today-ai.ts) → [`js/ai-action-delegates.ts`](js/ai-action-delegates.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/ai-verdict-engine.ts`](js/ai-verdict-engine.ts), [`js/ai-verdict-owner.ts`](js/ai-verdict-owner.ts), [`js/components/LightReviewAI.svelte`](js/components/LightReviewAI.svelte), [`js/health-goals-utils.ts`](js/health-goals-utils.ts), [`js/lab-vitamin-d-context.ts`](js/lab-vitamin-d-context.ts), [`js/light-devices-store.ts`](js/light-devices-store.ts), [`js/light-review-ai-presentation.ts`](js/light-review-ai-presentation.ts), [`js/lighting-hardware-caveats.ts`](js/lighting-hardware-caveats.ts), [`js/state.ts`](js/state.ts), [`js/sun-uvdata.ts`](js/sun-uvdata.ts), [`js/sun.ts`](js/sun.ts)
+- [`js/light-today-ai.ts`](js/light-today-ai.ts) → [`js/ai-action-delegates.ts`](js/ai-action-delegates.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/ai-verdict-engine.ts`](js/ai-verdict-engine.ts), [`js/ai-verdict-owner.ts`](js/ai-verdict-owner.ts), [`js/components/LightReviewAI.svelte`](js/components/LightReviewAI.svelte), [`js/health-goals-utils.ts`](js/health-goals-utils.ts), [`js/lab-vitamin-d-context.ts`](js/lab-vitamin-d-context.ts), [`js/light-ai-view-values.ts`](js/light-ai-view-values.ts), [`js/light-devices-store.ts`](js/light-devices-store.ts), [`js/light-review-ai-presentation.ts`](js/light-review-ai-presentation.ts), [`js/lighting-hardware-caveats.ts`](js/lighting-hardware-caveats.ts), [`js/state.ts`](js/state.ts), [`js/sun-uvdata.ts`](js/sun-uvdata.ts), [`js/sun.ts`](js/sun.ts)
 - [`js/light-today-presentation.ts`](js/light-today-presentation.ts) → no in-scope imports
 - [`js/light-tool-camera-modal-runtime.ts`](js/light-tool-camera-modal-runtime.ts) → no in-scope imports
 - [`js/light-tool-camera-modals.ts`](js/light-tool-camera-modals.ts) → [`js/light-tool-camera-modal-runtime.ts`](js/light-tool-camera-modal-runtime.ts), [`js/light-tool-cct-meter.ts`](js/light-tool-cct-meter.ts), [`js/light-tool-darkness-meter.ts`](js/light-tool-darkness-meter.ts), [`js/light-tool-flicker-detector.ts`](js/light-tool-flicker-detector.ts), [`js/light-tool-glass-transmission.ts`](js/light-tool-glass-transmission.ts), [`js/light-tool-lux-meter.ts`](js/light-tool-lux-meter.ts), [`js/light-tool-spectrum-classifier.ts`](js/light-tool-spectrum-classifier.ts)
@@ -2038,11 +2766,11 @@ Native browser modules shipped with the static application.
 - [`js/light-tool-glass-transmission.ts`](js/light-tool-glass-transmission.ts) → [`js/components/LightCameraPresentation.svelte`](js/components/LightCameraPresentation.svelte), [`js/light-tool-camera-modal-runtime.ts`](js/light-tool-camera-modal-runtime.ts), [`js/light-tool-camera.ts`](js/light-tool-camera.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/light-tool-lux-meter.ts`](js/light-tool-lux-meter.ts) → [`js/components/LightCameraPresentation.svelte`](js/components/LightCameraPresentation.svelte), [`js/light-tool-camera-modal-runtime.ts`](js/light-tool-camera-modal-runtime.ts), [`js/light-tool-camera.ts`](js/light-tool-camera.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/light-tool-spectrum-classifier.ts`](js/light-tool-spectrum-classifier.ts) → [`js/components/LightCameraPresentation.svelte`](js/components/LightCameraPresentation.svelte), [`js/light-tool-camera-modal-runtime.ts`](js/light-tool-camera-modal-runtime.ts), [`js/light-tool-camera.ts`](js/light-tool-camera.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/light-tools-ai-analysis.ts`](js/light-tools-ai-analysis.ts) → [`js/ai-action-delegates.ts`](js/ai-action-delegates.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/ai-verdict-engine.ts`](js/ai-verdict-engine.ts), [`js/components/LightEnvironmentAI.svelte`](js/components/LightEnvironmentAI.svelte), [`js/health-goals-utils.ts`](js/health-goals-utils.ts), [`js/light-environment-ai-presentation.ts`](js/light-environment-ai-presentation.ts), [`js/lighting-hardware-caveats.ts`](js/lighting-hardware-caveats.ts), [`js/state.ts`](js/state.ts)
+- [`js/light-tools-ai-analysis.ts`](js/light-tools-ai-analysis.ts) → [`js/ai-action-delegates.ts`](js/ai-action-delegates.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/ai-verdict-engine.ts`](js/ai-verdict-engine.ts), [`js/components/LightEnvironmentAI.svelte`](js/components/LightEnvironmentAI.svelte), [`js/health-goals-utils.ts`](js/health-goals-utils.ts), [`js/light-ai-view-values.ts`](js/light-ai-view-values.ts), [`js/light-environment-ai-presentation.ts`](js/light-environment-ai-presentation.ts), [`js/lighting-hardware-caveats.ts`](js/lighting-hardware-caveats.ts), [`js/state.ts`](js/state.ts)
 - [`js/light-tools-classes.ts`](js/light-tools-classes.ts) → no in-scope imports
 - [`js/light-tools-presentation.ts`](js/light-tools-presentation.ts) → [`js/light-tools-solar-time.ts`](js/light-tools-solar-time.ts)
 - [`js/light-tools-solar-time.ts`](js/light-tools-solar-time.ts) → no in-scope imports
-- [`js/light-tools-ui-hooks.ts`](js/light-tools-ui-hooks.ts) → [`js/light-tools.ts`](js/light-tools.ts), [`js/views.ts`](js/views.ts)
+- [`js/light-tools-ui-hooks.ts`](js/light-tools-ui-hooks.ts) → [`js/light-tools.ts`](js/light-tools.ts), [`js/views-runtime.ts`](js/views-runtime.ts)
 - [`js/light-tools.ts`](js/light-tools.ts) → [`js/components/LightToolPresentation.svelte`](js/components/LightToolPresentation.svelte), [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/light-tool-camera-modals.ts`](js/light-tool-camera-modals.ts) *(dynamic)*, [`js/light-tool-camera.ts`](js/light-tool-camera.ts), [`js/light-tools-presentation.ts`](js/light-tools-presentation.ts), [`js/light-tools-solar-time.ts`](js/light-tools-solar-time.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/unique-id.ts`](js/unique-id.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/light-verdict-control.ts`](js/light-verdict-control.ts) → no in-scope imports
 
@@ -2068,7 +2796,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>LightAuditCard.svelte</code> family — 1 module</summary>
 
-- [`js/components/LightAuditCard.svelte`](js/components/LightAuditCard.svelte) → [`js/components/LightAuditDetail.svelte`](js/components/LightAuditDetail.svelte), [`js/light-audit-classes.ts`](js/light-audit-classes.ts)
+- [`js/components/LightAuditCard.svelte`](js/components/LightAuditCard.svelte) → [`js/components/LightAuditDetail.svelte`](js/components/LightAuditDetail.svelte), [`js/components/LightEnvironmentAI.svelte`](js/components/LightEnvironmentAI.svelte), [`js/light-audit-classes.ts`](js/light-audit-classes.ts)
 
 </details>
 
@@ -2080,7 +2808,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>LightAuditDetail.svelte</code> family — 1 module</summary>
 
-- [`js/components/LightAuditDetail.svelte`](js/components/LightAuditDetail.svelte) → [`js/light-audit-classes.ts`](js/light-audit-classes.ts)
+- [`js/components/LightAuditDetail.svelte`](js/components/LightAuditDetail.svelte) → [`js/components/LightEnvironmentAI.svelte`](js/components/LightEnvironmentAI.svelte), [`js/light-audit-classes.ts`](js/light-audit-classes.ts)
 
 </details>
 
@@ -2332,13 +3060,13 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>LightEnvironmentRoom.svelte</code> family — 1 module</summary>
 
-- [`js/components/LightEnvironmentRoom.svelte`](js/components/LightEnvironmentRoom.svelte) → [`js/components/LightEnvironmentPicker.svelte`](js/components/LightEnvironmentPicker.svelte), [`js/components/LightEnvironmentQuickPicks.svelte`](js/components/LightEnvironmentQuickPicks.svelte), [`js/components/LightEnvironmentScreen.svelte`](js/components/LightEnvironmentScreen.svelte), [`js/components/LightEnvironmentTodayToggle.svelte`](js/components/LightEnvironmentTodayToggle.svelte), [`js/light-environment-room-classes.ts`](js/light-environment-room-classes.ts)
+- [`js/components/LightEnvironmentRoom.svelte`](js/components/LightEnvironmentRoom.svelte) → [`js/components/LightEnvironmentAI.svelte`](js/components/LightEnvironmentAI.svelte), [`js/components/LightEnvironmentPicker.svelte`](js/components/LightEnvironmentPicker.svelte), [`js/components/LightEnvironmentQuickPicks.svelte`](js/components/LightEnvironmentQuickPicks.svelte), [`js/components/LightEnvironmentScreen.svelte`](js/components/LightEnvironmentScreen.svelte), [`js/components/LightEnvironmentTodayToggle.svelte`](js/components/LightEnvironmentTodayToggle.svelte), [`js/light-environment-room-classes.ts`](js/light-environment-room-classes.ts)
 
 </details>
 
 <details><summary><code>LightEnvironmentScreen.svelte</code> family — 1 module</summary>
 
-- [`js/components/LightEnvironmentScreen.svelte`](js/components/LightEnvironmentScreen.svelte) → [`js/components/LightEnvironmentTodayToggle.svelte`](js/components/LightEnvironmentTodayToggle.svelte), [`js/light-environment-screen-classes.ts`](js/light-environment-screen-classes.ts), [`js/light-environment-screen-presentation.ts`](js/light-environment-screen-presentation.ts)
+- [`js/components/LightEnvironmentScreen.svelte`](js/components/LightEnvironmentScreen.svelte) → [`js/components/LightEnvironmentAI.svelte`](js/components/LightEnvironmentAI.svelte), [`js/components/LightEnvironmentTodayToggle.svelte`](js/components/LightEnvironmentTodayToggle.svelte), [`js/light-environment-screen-classes.ts`](js/light-environment-screen-classes.ts), [`js/light-environment-screen-presentation.ts`](js/light-environment-screen-presentation.ts)
 
 </details>
 
@@ -2350,7 +3078,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>LightEnvironmentSummary.svelte</code> family — 1 module</summary>
 
-- [`js/components/LightEnvironmentSummary.svelte`](js/components/LightEnvironmentSummary.svelte) → [`js/light-environment-summary-classes.ts`](js/light-environment-summary-classes.ts)
+- [`js/components/LightEnvironmentSummary.svelte`](js/components/LightEnvironmentSummary.svelte) → [`js/components/LightBurdenAI.svelte`](js/components/LightBurdenAI.svelte), [`js/light-environment-summary-classes.ts`](js/light-environment-summary-classes.ts)
 
 </details>
 
@@ -2386,7 +3114,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>LightMethods.svelte</code> family — 1 module</summary>
 
-- [`js/components/LightMethods.svelte`](js/components/LightMethods.svelte) → no in-scope imports
+- [`js/components/LightMethods.svelte`](js/components/LightMethods.svelte) → [`js/components/SunDataSourcePresentation.svelte`](js/components/SunDataSourcePresentation.svelte)
 
 </details>
 
@@ -2396,9 +3124,27 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>LightPageBody.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightPageBody.svelte`](js/components/LightPageBody.svelte) → [`js/components/LightActiveSession.svelte`](js/components/LightActiveSession.svelte), [`js/components/LightChannelSection.svelte`](js/components/LightChannelSection.svelte), [`js/components/LightDashboardPills.svelte`](js/components/LightDashboardPills.svelte), [`js/components/LightLocationHint.svelte`](js/components/LightLocationHint.svelte), [`js/components/LightMethods.svelte`](js/components/LightMethods.svelte), [`js/components/LightReviewAI.svelte`](js/components/LightReviewAI.svelte), [`js/components/LightSessionActions.svelte`](js/components/LightSessionActions.svelte), [`js/components/LightSessionRow.svelte`](js/components/LightSessionRow.svelte), [`js/components/LightTodayStrip.svelte`](js/components/LightTodayStrip.svelte), [`js/components/LightUVSafety.svelte`](js/components/LightUVSafety.svelte), [`js/components/LightWidgetPrompt.svelte`](js/components/LightWidgetPrompt.svelte)
+
+</details>
+
+<details><summary><code>LightPageHeader.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightPageHeader.svelte`](js/components/LightPageHeader.svelte) → [`js/lens-shell-classes.ts`](js/lens-shell-classes.ts)
+
+</details>
+
 <details><summary><code>LightPagePresentation.svelte</code> family — 1 module</summary>
 
-- [`js/components/LightPagePresentation.svelte`](js/components/LightPagePresentation.svelte) → [`js/components/LightChannelSection.svelte`](js/components/LightChannelSection.svelte), [`js/components/LightDashboardPills.svelte`](js/components/LightDashboardPills.svelte), [`js/components/LightLocationHint.svelte`](js/components/LightLocationHint.svelte), [`js/components/LightMethods.svelte`](js/components/LightMethods.svelte), [`js/components/LightSessionActions.svelte`](js/components/LightSessionActions.svelte), [`js/components/LightTodayStrip.svelte`](js/components/LightTodayStrip.svelte), [`js/components/LightUVSafety.svelte`](js/components/LightUVSafety.svelte), [`js/components/LightWidgetPrompt.svelte`](js/components/LightWidgetPrompt.svelte)
+- [`js/components/LightPagePresentation.svelte`](js/components/LightPagePresentation.svelte) → [`js/components/LightPageBody.svelte`](js/components/LightPageBody.svelte), [`js/components/LightPageHeader.svelte`](js/components/LightPageHeader.svelte), [`js/components/LightPageWidgets.svelte`](js/components/LightPageWidgets.svelte)
+
+</details>
+
+<details><summary><code>LightPageWidgets.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightPageWidgets.svelte`](js/components/LightPageWidgets.svelte) → [`js/components/LensWidgetFrame.svelte`](js/components/LensWidgetFrame.svelte), [`js/components/LightWidgetBody.svelte`](js/components/LightWidgetBody.svelte), [`js/lens-shell-classes.ts`](js/lens-shell-classes.ts)
 
 </details>
 
@@ -2440,7 +3186,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>LightSessionDetail.svelte</code> family — 1 module</summary>
 
-- [`js/components/LightSessionDetail.svelte`](js/components/LightSessionDetail.svelte) → [`js/components/LightSessionDetailFields.svelte`](js/components/LightSessionDetailFields.svelte)
+- [`js/components/LightSessionDetail.svelte`](js/components/LightSessionDetail.svelte) → [`js/components/LightSessionAI.svelte`](js/components/LightSessionAI.svelte), [`js/components/LightSessionDetailFields.svelte`](js/components/LightSessionDetailFields.svelte)
 
 </details>
 
@@ -2452,7 +3198,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>LightSessionHistory.svelte</code> family — 1 module</summary>
 
-- [`js/components/LightSessionHistory.svelte`](js/components/LightSessionHistory.svelte) → no in-scope imports
+- [`js/components/LightSessionHistory.svelte`](js/components/LightSessionHistory.svelte) → [`js/components/LightActiveSession.svelte`](js/components/LightActiveSession.svelte), [`js/components/LightSessionRow.svelte`](js/components/LightSessionRow.svelte)
 
 </details>
 
@@ -2518,7 +3264,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>LightSetupSummary.svelte</code> family — 1 module</summary>
 
-- [`js/components/LightSetupSummary.svelte`](js/components/LightSetupSummary.svelte) → [`js/light-setup-classes.ts`](js/light-setup-classes.ts)
+- [`js/components/LightSetupSummary.svelte`](js/components/LightSetupSummary.svelte) → [`js/components/LightOnboardingAI.svelte`](js/components/LightOnboardingAI.svelte), [`js/light-setup-classes.ts`](js/light-setup-classes.ts)
 
 </details>
 
@@ -2536,7 +3282,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>LightTodayStrip.svelte</code> family — 1 module</summary>
 
-- [`js/components/LightTodayStrip.svelte`](js/components/LightTodayStrip.svelte) → no in-scope imports
+- [`js/components/LightTodayStrip.svelte`](js/components/LightTodayStrip.svelte) → [`js/components/LightConditionsPresentation.svelte`](js/components/LightConditionsPresentation.svelte), [`js/components/LightDashboardPills.svelte`](js/components/LightDashboardPills.svelte), [`js/components/LightTodayAI.svelte`](js/components/LightTodayAI.svelte)
 
 </details>
 
@@ -2584,13 +3330,19 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>LightWeeklyAI.svelte</code> family — 1 module</summary>
 
-- [`js/components/LightWeeklyAI.svelte`](js/components/LightWeeklyAI.svelte) → [`js/components/LightVerdictButton.svelte`](js/components/LightVerdictButton.svelte), [`js/components/LightVerdictDot.svelte`](js/components/LightVerdictDot.svelte), [`js/light-review-ai-classes.ts`](js/light-review-ai-classes.ts)
+- [`js/components/LightWeeklyAI.svelte`](js/components/LightWeeklyAI.svelte) → [`js/components/LightVerdictButton.svelte`](js/components/LightVerdictButton.svelte), [`js/components/LightVerdictDot.svelte`](js/components/LightVerdictDot.svelte), [`js/components/LightWeeklyFallback.svelte`](js/components/LightWeeklyFallback.svelte), [`js/light-review-ai-classes.ts`](js/light-review-ai-classes.ts)
 
 </details>
 
 <details><summary><code>LightWeeklyFallback.svelte</code> family — 1 module</summary>
 
 - [`js/components/LightWeeklyFallback.svelte`](js/components/LightWeeklyFallback.svelte) → [`js/light-review-ai-classes.ts`](js/light-review-ai-classes.ts)
+
+</details>
+
+<details><summary><code>LightWidgetBody.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightWidgetBody.svelte`](js/components/LightWidgetBody.svelte) → [`js/components/LightConditionsPresentation.svelte`](js/components/LightConditionsPresentation.svelte), [`js/components/LightLocationHint.svelte`](js/components/LightLocationHint.svelte), [`js/components/LightPageBody.svelte`](js/components/LightPageBody.svelte), [`js/components/LightSessionHistory.svelte`](js/components/LightSessionHistory.svelte), [`js/components/LightSetupPresentation.svelte`](js/components/LightSetupPresentation.svelte), [`js/components/LightTodayAI.svelte`](js/components/LightTodayAI.svelte), [`js/components/LightUVSafety.svelte`](js/components/LightUVSafety.svelte)
 
 </details>
 
@@ -2636,7 +3388,31 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>main</code> family — 1 module</summary>
 
-- [`js/main.ts`](js/main.ts) → [`js/app-extension-bootstrap.ts`](js/app-extension-bootstrap.ts), [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts), [`js/chat-shell-component.ts`](js/chat-shell-component.ts), [`js/constants.ts`](js/constants.ts), [`js/feedback.ts`](js/feedback.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/legal-consent.ts`](js/legal-consent.ts), [`js/light-env-shell-hooks.ts`](js/light-env-shell-hooks.ts), [`js/light-sun-loader.ts`](js/light-sun-loader.ts), [`js/schema.ts`](js/schema.ts), [`js/shell-actions.ts`](js/shell-actions.ts), [`js/startup-orchestrator.ts`](js/startup-orchestrator.ts), [`js/touch-tooltip.ts`](js/touch-tooltip.ts), [`js/tour.ts`](js/tour.ts), [`js/utils.ts`](js/utils.ts), [`js/views.ts`](js/views.ts)
+- [`js/main.ts`](js/main.ts) → [`js/app-extension-bootstrap.ts`](js/app-extension-bootstrap.ts), [`js/app-shell-component.ts`](js/app-shell-component.ts), [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts), [`js/constants.ts`](js/constants.ts), [`js/feedback.ts`](js/feedback.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/legal-consent.ts`](js/legal-consent.ts), [`js/light-env-shell-hooks.ts`](js/light-env-shell-hooks.ts), [`js/light-sun-loader.ts`](js/light-sun-loader.ts), [`js/schema.ts`](js/schema.ts), [`js/shell-actions.ts`](js/shell-actions.ts), [`js/startup-orchestrator.ts`](js/startup-orchestrator.ts), [`js/touch-tooltip.ts`](js/touch-tooltip.ts), [`js/tour.ts`](js/tour.ts), [`js/utils.ts`](js/utils.ts), [`js/views-runtime.ts`](js/views-runtime.ts)
+
+</details>
+
+<details><summary><code>manual</code> family — 1 module</summary>
+
+- [`js/manual-marker-entry-presentation.ts`](js/manual-marker-entry-presentation.ts) → [`js/components/ManualMarkerEntry.svelte`](js/components/ManualMarkerEntry.svelte), [`js/components/ManualMarkerEntryUnits.svelte`](js/components/ManualMarkerEntryUnits.svelte)
+
+</details>
+
+<details><summary><code>ManualMarkerEntry.svelte</code> family — 1 module</summary>
+
+- [`js/components/ManualMarkerEntry.svelte`](js/components/ManualMarkerEntry.svelte) → [`js/components/ManualMarkerEntryUnits.svelte`](js/components/ManualMarkerEntryUnits.svelte)
+
+</details>
+
+<details><summary><code>ManualMarkerEntryUnits.svelte</code> family — 1 module</summary>
+
+- [`js/components/ManualMarkerEntryUnits.svelte`](js/components/ManualMarkerEntryUnits.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>ManualSnpDialog.svelte</code> family — 1 module</summary>
+
+- [`js/components/ManualSnpDialog.svelte`](js/components/ManualSnpDialog.svelte) → no in-scope imports
 
 </details>
 
@@ -2646,21 +3422,28 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>marker</code> family — 17 modules</summary>
+<details><summary><code>marker</code> family — 24 modules</summary>
 
 - [`js/marker-analysis.ts`](js/marker-analysis.ts) → [`js/marker-placement.ts`](js/marker-placement.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/marker-context-ranges.ts`](js/marker-context-ranges.ts) → no in-scope imports
 - [`js/marker-detail-actions.ts`](js/marker-detail-actions.ts) → [`js/utils.ts`](js/utils.ts)
+- [`js/marker-detail-complete-presentation.ts`](js/marker-detail-complete-presentation.ts) → [`js/components/MarkerDetailBioAge.svelte`](js/components/MarkerDetailBioAge.svelte), [`js/components/MarkerDetailChrome.svelte`](js/components/MarkerDetailChrome.svelte), [`js/components/MarkerDetailNotes.svelte`](js/components/MarkerDetailNotes.svelte)
 - [`js/marker-detail-content.ts`](js/marker-detail-content.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/api.ts`](js/api.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/schema.ts`](js/schema.ts)
-- [`js/marker-detail-custom-markers.ts`](js/marker-detail-custom-markers.ts) → [`js/custom-marker-identity.ts`](js/custom-marker-identity.ts), [`js/data.ts`](js/data.ts), [`js/lab-entry-mutations.ts`](js/lab-entry-mutations.ts), [`js/marker-detail-actions.ts`](js/marker-detail-actions.ts), [`js/marker-detail-runtime.ts`](js/marker-detail-runtime.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/marker-detail-editing.ts`](js/marker-detail-editing.ts) → [`js/data.ts`](js/data.ts), [`js/marker-detail-actions.ts`](js/marker-detail-actions.ts), [`js/marker-detail-runtime.ts`](js/marker-detail-runtime.ts), [`js/marker-detail-store.ts`](js/marker-detail-store.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/state.ts`](js/state.ts), [`js/unit-profiles.ts`](js/unit-profiles.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/marker-detail-history.ts`](js/marker-detail-history.ts) → [`js/utils.ts`](js/utils.ts)
-- [`js/marker-detail-manual-entry.ts`](js/marker-detail-manual-entry.ts) → [`js/data.ts`](js/data.ts), [`js/marker-detail-actions.ts`](js/marker-detail-actions.ts), [`js/marker-detail-editing.ts`](js/marker-detail-editing.ts), [`js/marker-detail-runtime.ts`](js/marker-detail-runtime.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/unit-profiles.ts`](js/unit-profiles.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/marker-detail-modal-impl.ts`](js/marker-detail-modal-impl.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/charts.ts`](js/charts.ts), [`js/context-cards.ts`](js/context-cards.ts), [`js/data.ts`](js/data.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/marker-detail-actions.ts`](js/marker-detail-actions.ts), [`js/marker-detail-content.ts`](js/marker-detail-content.ts), [`js/marker-detail-custom-markers.ts`](js/marker-detail-custom-markers.ts), [`js/marker-detail-editing.ts`](js/marker-detail-editing.ts), [`js/marker-detail-history.ts`](js/marker-detail-history.ts), [`js/marker-detail-manual-entry.ts`](js/marker-detail-manual-entry.ts), [`js/marker-detail-placement.ts`](js/marker-detail-placement.ts), [`js/marker-detail-runtime.ts`](js/marker-detail-runtime.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/marker-range-suggestions.ts`](js/marker-range-suggestions.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/modal-trigger-memory.ts`](js/modal-trigger-memory.ts), [`js/state.ts`](js/state.ts), [`js/unit-profiles.ts`](js/unit-profiles.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/marker-detail-custom-markers.ts`](js/marker-detail-custom-markers.ts) → [`js/custom-marker-identity.ts`](js/custom-marker-identity.ts), [`js/custom-marker-presentation.ts`](js/custom-marker-presentation.ts), [`js/data.ts`](js/data.ts), [`js/lab-entry-mutations.ts`](js/lab-entry-mutations.ts), [`js/marker-detail-runtime.ts`](js/marker-detail-runtime.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/marker-detail-editing.ts`](js/marker-detail-editing.ts) → [`js/data.ts`](js/data.ts), [`js/marker-detail-projection.ts`](js/marker-detail-projection.ts), [`js/marker-detail-results-presentation.ts`](js/marker-detail-results-presentation.ts), [`js/marker-detail-runtime.ts`](js/marker-detail-runtime.ts), [`js/marker-detail-store.ts`](js/marker-detail-store.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/state.ts`](js/state.ts), [`js/unit-profiles.ts`](js/unit-profiles.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/marker-detail-history.ts`](js/marker-detail-history.ts) → [`js/marker-detail-projection.ts`](js/marker-detail-projection.ts)
+- [`js/marker-detail-manual-entry.ts`](js/marker-detail-manual-entry.ts) → [`js/data.ts`](js/data.ts), [`js/manual-marker-entry-presentation.ts`](js/manual-marker-entry-presentation.ts), [`js/marker-detail-editing.ts`](js/marker-detail-editing.ts), [`js/marker-detail-runtime.ts`](js/marker-detail-runtime.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/unit-profiles.ts`](js/unit-profiles.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/marker-detail-modal-impl.ts`](js/marker-detail-modal-impl.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/charts.ts`](js/charts.ts), [`js/context-cards.ts`](js/context-cards.ts), [`js/data.ts`](js/data.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/marker-detail-actions.ts`](js/marker-detail-actions.ts), [`js/marker-detail-content.ts`](js/marker-detail-content.ts), [`js/marker-detail-custom-markers.ts`](js/marker-detail-custom-markers.ts), [`js/marker-detail-editing.ts`](js/marker-detail-editing.ts), [`js/marker-detail-history.ts`](js/marker-detail-history.ts), [`js/marker-detail-manual-entry.ts`](js/marker-detail-manual-entry.ts), [`js/marker-detail-modal-presentation.ts`](js/marker-detail-modal-presentation.ts), [`js/marker-detail-placement.ts`](js/marker-detail-placement.ts), [`js/marker-detail-projection.ts`](js/marker-detail-projection.ts), [`js/marker-detail-runtime.ts`](js/marker-detail-runtime.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/marker-range-suggestions.ts`](js/marker-range-suggestions.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/modal-trigger-memory.ts`](js/modal-trigger-memory.ts), [`js/state.ts`](js/state.ts), [`js/unit-profiles.ts`](js/unit-profiles.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/marker-detail-modal-presentation.ts`](js/marker-detail-modal-presentation.ts) → [`js/components/MarkerDetailModal.svelte`](js/components/MarkerDetailModal.svelte)
 - [`js/marker-detail-modal.ts`](js/marker-detail-modal.ts) → [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/marker-detail-actions.ts`](js/marker-detail-actions.ts), [`js/marker-detail-modal-impl.ts`](js/marker-detail-modal-impl.ts) *(dynamic)*, [`js/marker-detail-runtime.ts`](js/marker-detail-runtime.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/modal-trigger-memory.ts`](js/modal-trigger-memory.ts), [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/marker-detail-placement.ts`](js/marker-detail-placement.ts) → [`js/category-order.ts`](js/category-order.ts), [`js/data.ts`](js/data.ts), [`js/marker-detail-actions.ts`](js/marker-detail-actions.ts), [`js/marker-detail-runtime.ts`](js/marker-detail-runtime.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/marker-detail-placement.ts`](js/marker-detail-placement.ts) → [`js/category-order.ts`](js/category-order.ts), [`js/components/MarkerPlacementSummary.svelte`](js/components/MarkerPlacementSummary.svelte), [`js/data.ts`](js/data.ts), [`js/marker-detail-runtime.ts`](js/marker-detail-runtime.ts), [`js/marker-placement-presentation.ts`](js/marker-placement-presentation.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/marker-detail-projection.ts`](js/marker-detail-projection.ts) → [`js/marker-detail-actions.ts`](js/marker-detail-actions.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/marker-detail-results-presentation.ts`](js/marker-detail-results-presentation.ts) → [`js/components/MarkerDetailHistory.svelte`](js/components/MarkerDetailHistory.svelte), [`js/components/MarkerDetailRange.svelte`](js/components/MarkerDetailRange.svelte), [`js/components/MarkerReferenceEditor.svelte`](js/components/MarkerReferenceEditor.svelte)
 - [`js/marker-detail-runtime.ts`](js/marker-detail-runtime.ts) → [`js/dna-runtime-bridge.ts`](js/dna-runtime-bridge.ts), [`js/emf-runtime.ts`](js/emf-runtime.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/utils.ts`](js/utils.ts), [`js/wearables-runtime.ts`](js/wearables-runtime.ts)
 - [`js/marker-detail-store.ts`](js/marker-detail-store.ts) → [`js/data.ts`](js/data.ts), [`js/lab-entry-mutations.ts`](js/lab-entry-mutations.ts), [`js/lab-entry.ts`](js/lab-entry.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/state.ts`](js/state.ts)
+- [`js/marker-detail-view.ts`](js/marker-detail-view.ts) → no in-scope imports
+- [`js/marker-placement-presentation.ts`](js/marker-placement-presentation.ts) → [`js/components/MarkerPlacementForm.svelte`](js/components/MarkerPlacementForm.svelte), [`js/components/MarkerPlacementOptions.svelte`](js/components/MarkerPlacementOptions.svelte), [`js/components/MarkerPlacementSummary.svelte`](js/components/MarkerPlacementSummary.svelte), [`js/marker-detail-actions.ts`](js/marker-detail-actions.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/marker-placement-view.ts`](js/marker-placement-view.ts) → no in-scope imports
 - [`js/marker-placement.ts`](js/marker-placement.ts) → [`js/custom-marker-identity.ts`](js/custom-marker-identity.ts), [`js/marker-schema.ts`](js/marker-schema.ts)
 - [`js/marker-range-suggestions.ts`](js/marker-range-suggestions.ts) → [`js/schema.ts`](js/schema.ts), [`js/unit-profiles.ts`](js/unit-profiles.ts)
 - [`js/marker-schema.ts`](js/marker-schema.ts) → no in-scope imports
@@ -2668,16 +3451,111 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>mobile</code> family — 2 modules</summary>
+<details><summary><code>MarkerDetailBioAge.svelte</code> family — 1 module</summary>
 
-- [`js/mobile-dashboard-runtime.ts`](js/mobile-dashboard-runtime.ts) → no in-scope imports
-- [`js/mobile-dashboard.ts`](js/mobile-dashboard.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/data.ts`](js/data.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/mobile-dashboard-runtime.ts`](js/mobile-dashboard-runtime.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts), [`js/wearables-formatters.ts`](js/wearables-formatters.ts)
+- [`js/components/MarkerDetailBioAge.svelte`](js/components/MarkerDetailBioAge.svelte) → no in-scope imports
 
 </details>
 
-<details><summary><code>modal</code> family — 2 modules</summary>
+<details><summary><code>MarkerDetailChrome.svelte</code> family — 1 module</summary>
 
-- [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts) → [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts)
+- [`js/components/MarkerDetailChrome.svelte`](js/components/MarkerDetailChrome.svelte) → [`js/components/MarkerDetailHistory.svelte`](js/components/MarkerDetailHistory.svelte), [`js/components/MarkerDetailNotes.svelte`](js/components/MarkerDetailNotes.svelte), [`js/components/MarkerDetailRange.svelte`](js/components/MarkerDetailRange.svelte), [`js/components/MarkerPlacementSummary.svelte`](js/components/MarkerPlacementSummary.svelte)
+
+</details>
+
+<details><summary><code>MarkerDetailHistory.svelte</code> family — 1 module</summary>
+
+- [`js/components/MarkerDetailHistory.svelte`](js/components/MarkerDetailHistory.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>MarkerDetailModal.svelte</code> family — 1 module</summary>
+
+- [`js/components/MarkerDetailModal.svelte`](js/components/MarkerDetailModal.svelte) → [`js/components/MarkerDetailBioAge.svelte`](js/components/MarkerDetailBioAge.svelte), [`js/components/MarkerDetailChrome.svelte`](js/components/MarkerDetailChrome.svelte), [`js/components/MarkerDetailHistory.svelte`](js/components/MarkerDetailHistory.svelte)
+
+</details>
+
+<details><summary><code>MarkerDetailNotes.svelte</code> family — 1 module</summary>
+
+- [`js/components/MarkerDetailNotes.svelte`](js/components/MarkerDetailNotes.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>MarkerDetailRange.svelte</code> family — 1 module</summary>
+
+- [`js/components/MarkerDetailRange.svelte`](js/components/MarkerDetailRange.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>MarkerPairComparison.svelte</code> family — 1 module</summary>
+
+- [`js/components/MarkerPairComparison.svelte`](js/components/MarkerPairComparison.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>MarkerPlacementForm.svelte</code> family — 1 module</summary>
+
+- [`js/components/MarkerPlacementForm.svelte`](js/components/MarkerPlacementForm.svelte) → [`js/components/MarkerPlacementOptions.svelte`](js/components/MarkerPlacementOptions.svelte)
+
+</details>
+
+<details><summary><code>MarkerPlacementOptions.svelte</code> family — 1 module</summary>
+
+- [`js/components/MarkerPlacementOptions.svelte`](js/components/MarkerPlacementOptions.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>MarkerPlacementSummary.svelte</code> family — 1 module</summary>
+
+- [`js/components/MarkerPlacementSummary.svelte`](js/components/MarkerPlacementSummary.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>MarkerReferenceEditor.svelte</code> family — 1 module</summary>
+
+- [`js/components/MarkerReferenceEditor.svelte`](js/components/MarkerReferenceEditor.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>mobile</code> family — 6 modules</summary>
+
+- [`js/mobile-dashboard-hydration.ts`](js/mobile-dashboard-hydration.ts) → [`js/components/MobileDashboardPage.svelte`](js/components/MobileDashboardPage.svelte), [`js/dashboard-page-owner.ts`](js/dashboard-page-owner.ts)
+- [`js/mobile-dashboard-presentation.ts`](js/mobile-dashboard-presentation.ts) → [`js/components/MobileDashboardPage.svelte`](js/components/MobileDashboardPage.svelte)
+- [`js/mobile-dashboard-renderer.ts`](js/mobile-dashboard-renderer.ts) → [`js/mobile-dashboard-hydration.ts`](js/mobile-dashboard-hydration.ts), [`js/mobile-dashboard-presentation.ts`](js/mobile-dashboard-presentation.ts)
+- [`js/mobile-dashboard-runtime.ts`](js/mobile-dashboard-runtime.ts) → no in-scope imports
+- [`js/mobile-dashboard.ts`](js/mobile-dashboard.ts) → [`js/dashboard-page-owner.ts`](js/dashboard-page-owner.ts), [`js/dashboard-render-request.ts`](js/dashboard-render-request.ts), [`js/dashboard-renderer-loader.ts`](js/dashboard-renderer-loader.ts), [`js/data.ts`](js/data.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/mobile-dashboard-runtime.ts`](js/mobile-dashboard-runtime.ts), [`js/mobile-navigation-presentation.ts`](js/mobile-navigation-presentation.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts), [`js/wearables-formatters.ts`](js/wearables-formatters.ts)
+- [`js/mobile-navigation-presentation.ts`](js/mobile-navigation-presentation.ts) → [`js/components/MobileBottomNavigation.svelte`](js/components/MobileBottomNavigation.svelte)
+
+</details>
+
+<details><summary><code>MobileBottomNavigation.svelte</code> family — 1 module</summary>
+
+- [`js/components/MobileBottomNavigation.svelte`](js/components/MobileBottomNavigation.svelte) → [`js/components/MobileNavigationIcon.svelte`](js/components/MobileNavigationIcon.svelte)
+
+</details>
+
+<details><summary><code>MobileDashboardPage.svelte</code> family — 1 module</summary>
+
+- [`js/components/MobileDashboardPage.svelte`](js/components/MobileDashboardPage.svelte) → [`js/components/LabDateRange.svelte`](js/components/LabDateRange.svelte), [`js/components/MobileBottomNavigation.svelte`](js/components/MobileBottomNavigation.svelte), [`js/components/MobileDashboardWidgetStack.svelte`](js/components/MobileDashboardWidgetStack.svelte)
+
+</details>
+
+<details><summary><code>MobileDashboardWidgetStack.svelte</code> family — 1 module</summary>
+
+- [`js/components/MobileDashboardWidgetStack.svelte`](js/components/MobileDashboardWidgetStack.svelte) → [`js/components/DashboardActionBar.svelte`](js/components/DashboardActionBar.svelte), [`js/components/DashboardWidgetFrame.svelte`](js/components/DashboardWidgetFrame.svelte)
+
+</details>
+
+<details><summary><code>MobileNavigationIcon.svelte</code> family — 1 module</summary>
+
+- [`js/components/MobileNavigationIcon.svelte`](js/components/MobileNavigationIcon.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>modal</code> family — 3 modules</summary>
+
+- [`js/modal-focusable.ts`](js/modal-focusable.ts) → no in-scope imports
+- [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts) → [`js/modal-focusable.ts`](js/modal-focusable.ts), [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts)
 - [`js/modal-trigger-memory.ts`](js/modal-trigger-memory.ts) → no in-scope imports
 
 </details>
@@ -2688,10 +3566,28 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>mtdna</code> family — 1 module</summary>
+
+- [`js/mtdna-preview-presentation.ts`](js/mtdna-preview-presentation.ts) → [`js/components/MtDnaImportPreview.svelte`](js/components/MtDnaImportPreview.svelte), [`js/dna-actions.ts`](js/dna-actions.ts)
+
+</details>
+
+<details><summary><code>MtDnaImportPreview.svelte</code> family — 1 module</summary>
+
+- [`js/components/MtDnaImportPreview.svelte`](js/components/MtDnaImportPreview.svelte) → no in-scope imports
+
+</details>
+
 <details><summary><code>nav</code> family — 2 modules</summary>
 
 - [`js/nav-runtime.ts`](js/nav-runtime.ts) → [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/emf-runtime.ts`](js/emf-runtime.ts), [`js/export-loader.ts`](js/export-loader.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts)
-- [`js/nav.ts`](js/nav.ts) → [`js/category-order.ts`](js/category-order.ts), [`js/data.ts`](js/data.ts), [`js/lens.ts`](js/lens.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/nav-runtime.ts`](js/nav-runtime.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/nav.ts`](js/nav.ts) → [`js/category-order.ts`](js/category-order.ts), [`js/data.ts`](js/data.ts), [`js/lens.ts`](js/lens.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/nav-runtime.ts`](js/nav-runtime.ts), [`js/profile-button-presentation.ts`](js/profile-button-presentation.ts), [`js/profile-button-rendering.ts`](js/profile-button-rendering.ts), [`js/profile.ts`](js/profile.ts), [`js/sidebar-presentation.ts`](js/sidebar-presentation.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+
+</details>
+
+<details><summary><code>navigation</code> family — 1 module</summary>
+
+- [`js/navigation-completion.ts`](js/navigation-completion.ts) → no in-scope imports
 
 </details>
 
@@ -2734,7 +3630,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>nutrition</code> family — 43 modules</summary>
+<details><summary><code>nutrition</code> family — 47 modules</summary>
 
 - [`js/nutrition-ai-settings-classes.ts`](js/nutrition-ai-settings-classes.ts) → no in-scope imports
 - [`js/nutrition-ai-settings-component.ts`](js/nutrition-ai-settings-component.ts) → [`js/components/NutritionAISettings.svelte`](js/components/NutritionAISettings.svelte)
@@ -2742,21 +3638,22 @@ Native browser modules shipped with the static application.
 - [`js/nutrition-ai-settings.ts`](js/nutrition-ai-settings.ts) → [`js/ai-execution-routing.ts`](js/ai-execution-routing.ts), [`js/api.ts`](js/api.ts), [`js/crypto-key-cache.ts`](js/crypto-key-cache.ts), [`js/local-ai-discovery.ts`](js/local-ai-discovery.ts), [`js/provider-local-ai-runtime.ts`](js/provider-local-ai-runtime.ts), [`js/schema.ts`](js/schema.ts)
 - [`js/nutrition-analysis.ts`](js/nutrition-analysis.ts) → [`js/agent-feature-inference.ts`](js/agent-feature-inference.ts), [`js/api.ts`](js/api.ts), [`js/image-utils.ts`](js/image-utils.ts), [`js/nutrition-ai-settings.ts`](js/nutrition-ai-settings.ts), [`js/nutrition-food-data.ts`](js/nutrition-food-data.ts), [`js/nutrition-summary.ts`](js/nutrition-summary.ts), [`js/schema.ts`](js/schema.ts)
 - [`js/nutrition-benchmark-model.ts`](js/nutrition-benchmark-model.ts) → [`js/nutrition-comparison.ts`](js/nutrition-comparison.ts), [`js/nutrition-nutrient-registry.ts`](js/nutrition-nutrient-registry.ts)
-- [`js/nutrition-benchmark-workspace.ts`](js/nutrition-benchmark-workspace.ts) → [`js/components/NutritionPresentation.svelte`](js/components/NutritionPresentation.svelte), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/nutrition-analysis.ts`](js/nutrition-analysis.ts), [`js/nutrition-comparison-ui.ts`](js/nutrition-comparison-ui.ts), [`js/nutrition-editor-navigation.ts`](js/nutrition-editor-navigation.ts), [`js/nutrition-render.ts`](js/nutrition-render.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/nutrition-benchmark-workspace.ts`](js/nutrition-benchmark-workspace.ts) → [`js/components/NutritionBenchmarkPhoto.svelte`](js/components/NutritionBenchmarkPhoto.svelte), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/nutrition-analysis.ts`](js/nutrition-analysis.ts), [`js/nutrition-comparison-ui.ts`](js/nutrition-comparison-ui.ts), [`js/nutrition-editor-navigation.ts`](js/nutrition-editor-navigation.ts), [`js/nutrition-render.ts`](js/nutrition-render.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/nutrition-comparison-results-model.ts`](js/nutrition-comparison-results-model.ts) → [`js/nutrition-analysis.ts`](js/nutrition-analysis.ts), [`js/nutrition-comparison.ts`](js/nutrition-comparison.ts), [`js/nutrition-nutrient-registry.ts`](js/nutrition-nutrient-registry.ts), [`js/nutrition-presentation-model.ts`](js/nutrition-presentation-model.ts)
-- [`js/nutrition-comparison-results.ts`](js/nutrition-comparison-results.ts) → [`js/components/NutritionPresentation.svelte`](js/components/NutritionPresentation.svelte), [`js/nutrition-comparison-results-model.ts`](js/nutrition-comparison-results-model.ts)
-- [`js/nutrition-comparison-ui.ts`](js/nutrition-comparison-ui.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/components/NutritionPresentation.svelte`](js/components/NutritionPresentation.svelte), [`js/nutrition-ai-settings.ts`](js/nutrition-ai-settings.ts), [`js/nutrition-analysis.ts`](js/nutrition-analysis.ts), [`js/nutrition-benchmark-model.ts`](js/nutrition-benchmark-model.ts), [`js/nutrition-comparison-results.ts`](js/nutrition-comparison-results.ts), [`js/nutrition-comparison.ts`](js/nutrition-comparison.ts), [`js/nutrition-nutrient-registry.ts`](js/nutrition-nutrient-registry.ts), [`js/nutrition-render.ts`](js/nutrition-render.ts), [`js/nutrition-store.ts`](js/nutrition-store.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/nutrition-comparison-results.ts`](js/nutrition-comparison-results.ts) → [`js/components/NutritionComparisonResults.svelte`](js/components/NutritionComparisonResults.svelte), [`js/nutrition-comparison-results-model.ts`](js/nutrition-comparison-results-model.ts)
+- [`js/nutrition-comparison-ui.ts`](js/nutrition-comparison-ui.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/components/NutritionBenchmarkStatus.svelte`](js/components/NutritionBenchmarkStatus.svelte), [`js/nutrition-ai-settings.ts`](js/nutrition-ai-settings.ts), [`js/nutrition-analysis.ts`](js/nutrition-analysis.ts), [`js/nutrition-benchmark-model.ts`](js/nutrition-benchmark-model.ts), [`js/nutrition-comparison-results.ts`](js/nutrition-comparison-results.ts), [`js/nutrition-comparison.ts`](js/nutrition-comparison.ts), [`js/nutrition-nutrient-registry.ts`](js/nutrition-nutrient-registry.ts), [`js/nutrition-render.ts`](js/nutrition-render.ts), [`js/nutrition-store.ts`](js/nutrition-store.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/nutrition-comparison.ts`](js/nutrition-comparison.ts) → [`js/nutrition-nutrient-registry.ts`](js/nutrition-nutrient-registry.ts)
-- [`js/nutrition-context-card-extensions.ts`](js/nutrition-context-card-extensions.ts) → [`js/components/ContextNutritionLink.svelte`](js/components/ContextNutritionLink.svelte), [`js/context-card-summaries.ts`](js/context-card-summaries.ts), [`js/lab-context-settings.ts`](js/lab-context-settings.ts), [`js/state.ts`](js/state.ts)
-- [`js/nutrition-context.ts`](js/nutrition-context.ts) → [`js/context-card-summaries.ts`](js/context-card-summaries.ts), [`js/lab-context-settings.ts`](js/lab-context-settings.ts), [`js/nutrition-store.ts`](js/nutrition-store.ts) *(dynamic)*, [`js/nutrition.ts`](js/nutrition.ts) *(dynamic)*, [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/route-lifecycle.ts`](js/route-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/nutrition-context-card-extensions.ts`](js/nutrition-context-card-extensions.ts) → [`js/components/ContextNutritionLink.svelte`](js/components/ContextNutritionLink.svelte), [`js/context-card-summaries.ts`](js/context-card-summaries.ts), [`js/lab-context-settings.ts`](js/lab-context-settings.ts), [`js/nutrition-context-card-view.ts`](js/nutrition-context-card-view.ts), [`js/state.ts`](js/state.ts)
+- [`js/nutrition-context-card-view.ts`](js/nutrition-context-card-view.ts) → no in-scope imports
+- [`js/nutrition-context.ts`](js/nutrition-context.ts) → [`js/context-card-summaries.ts`](js/context-card-summaries.ts), [`js/lab-context-settings.ts`](js/lab-context-settings.ts), [`js/nutrition-summary-runtime.ts`](js/nutrition-summary-runtime.ts), [`js/nutrition-widget-runtime.ts`](js/nutrition-widget-runtime.ts), [`js/nutrition.ts`](js/nutrition.ts) *(dynamic)*, [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/route-lifecycle.ts`](js/route-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/nutrition-dashboard-model.ts`](js/nutrition-dashboard-model.ts) → [`js/nutrition-nutrient-registry.ts`](js/nutrition-nutrient-registry.ts), [`js/nutrition-presentation-model.ts`](js/nutrition-presentation-model.ts)
 - [`js/nutrition-editor-model.ts`](js/nutrition-editor-model.ts) → [`js/nutrition-nutrient-registry.ts`](js/nutrition-nutrient-registry.ts)
-- [`js/nutrition-editor-navigation.ts`](js/nutrition-editor-navigation.ts) → [`js/components/NutritionPresentation.svelte`](js/components/NutritionPresentation.svelte), [`js/nutrition-editor-model.ts`](js/nutrition-editor-model.ts)
+- [`js/nutrition-editor-navigation.ts`](js/nutrition-editor-navigation.ts) → [`js/components/NutritionEditorNavigation.svelte`](js/components/NutritionEditorNavigation.svelte), [`js/nutrition-editor-model.ts`](js/nutrition-editor-model.ts)
 - [`js/nutrition-editor-review-model.ts`](js/nutrition-editor-review-model.ts) → [`js/nutrition-presentation-model.ts`](js/nutrition-presentation-model.ts)
 - [`js/nutrition-entry-forms.ts`](js/nutrition-entry-forms.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/nutrition-editor-navigation.ts`](js/nutrition-editor-navigation.ts), [`js/nutrition-entry-view.ts`](js/nutrition-entry-view.ts), [`js/nutrition-meal-detail-model.ts`](js/nutrition-meal-detail-model.ts), [`js/nutrition-meal-detail-view.ts`](js/nutrition-meal-detail-view.ts), [`js/nutrition-render.ts`](js/nutrition-render.ts), [`js/nutrition-store.ts`](js/nutrition-store.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/nutrition-entry-model.ts`](js/nutrition-entry-model.ts) → [`js/nutrition-nutrient-registry.ts`](js/nutrition-nutrient-registry.ts), [`js/nutrition-presentation-model.ts`](js/nutrition-presentation-model.ts), [`js/nutrition-targets.ts`](js/nutrition-targets.ts)
 - [`js/nutrition-entry-session.ts`](js/nutrition-entry-session.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/data.ts`](js/data.ts), [`js/nutrition-entry-model.ts`](js/nutrition-entry-model.ts), [`js/nutrition-store.ts`](js/nutrition-store.ts), [`js/nutrition-targets.ts`](js/nutrition-targets.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile-load-safety.ts`](js/profile-load-safety.ts), [`js/state.ts`](js/state.ts)
-- [`js/nutrition-entry-view.ts`](js/nutrition-entry-view.ts) → [`js/components/NutritionEntry.svelte`](js/components/NutritionEntry.svelte), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/nutrition-entry-model.ts`](js/nutrition-entry-model.ts), [`js/nutrition-entry-session.ts`](js/nutrition-entry-session.ts), [`js/route-lifecycle.ts`](js/route-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/nutrition-entry-view.ts`](js/nutrition-entry-view.ts) → [`js/components/NutritionEntry.svelte`](js/components/NutritionEntry.svelte), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/nutrition-entry-model.ts`](js/nutrition-entry-model.ts), [`js/nutrition-entry-session.ts`](js/nutrition-entry-session.ts), [`js/nutrition-render.ts`](js/nutrition-render.ts), [`js/route-lifecycle.ts`](js/route-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/nutrition-food-data.ts`](js/nutrition-food-data.ts) → [`js/nutrition-summary.ts`](js/nutrition-summary.ts)
 - [`js/nutrition-fuel-mix.ts`](js/nutrition-fuel-mix.ts) → no in-scope imports
 - [`js/nutrition-history-view.ts`](js/nutrition-history-view.ts) → [`js/components/NutritionHistory.svelte`](js/components/NutritionHistory.svelte), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/route-lifecycle.ts`](js/route-lifecycle.ts), [`js/state.ts`](js/state.ts)
@@ -2768,17 +3665,20 @@ Native browser modules shipped with the static application.
 - [`js/nutrition-nutrient-registry.ts`](js/nutrition-nutrient-registry.ts) → no in-scope imports
 - [`js/nutrition-photo-provenance.ts`](js/nutrition-photo-provenance.ts) → no in-scope imports
 - [`js/nutrition-presentation-model.ts`](js/nutrition-presentation-model.ts) → [`js/nutrition-fuel-mix.ts`](js/nutrition-fuel-mix.ts), [`js/nutrition-summary.ts`](js/nutrition-summary.ts)
-- [`js/nutrition-render.ts`](js/nutrition-render.ts) → [`js/components/NutritionPresentation.svelte`](js/components/NutritionPresentation.svelte), [`js/lab-context-settings.ts`](js/lab-context-settings.ts), [`js/nutrition-ai-settings.ts`](js/nutrition-ai-settings.ts), [`js/nutrition-analysis.ts`](js/nutrition-analysis.ts), [`js/nutrition-benchmark-model.ts`](js/nutrition-benchmark-model.ts), [`js/nutrition-dashboard-model.ts`](js/nutrition-dashboard-model.ts), [`js/nutrition-editor-model.ts`](js/nutrition-editor-model.ts), [`js/nutrition-entry-model.ts`](js/nutrition-entry-model.ts), [`js/nutrition-fuel-mix.ts`](js/nutrition-fuel-mix.ts), [`js/nutrition-meal-detail-model.ts`](js/nutrition-meal-detail-model.ts), [`js/nutrition-presentation-model.ts`](js/nutrition-presentation-model.ts), [`js/nutrition-targets.ts`](js/nutrition-targets.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/nutrition-render.ts`](js/nutrition-render.ts) → [`js/components/NutritionBenchmark.svelte`](js/components/NutritionBenchmark.svelte), [`js/components/NutritionComparisonPicker.svelte`](js/components/NutritionComparisonPicker.svelte), [`js/components/NutritionFuelCard.svelte`](js/components/NutritionFuelCard.svelte), [`js/components/NutritionMealEditor.svelte`](js/components/NutritionMealEditor.svelte), [`js/components/NutritionMealModelPicker.svelte`](js/components/NutritionMealModelPicker.svelte), [`js/components/NutritionMealPhoto.svelte`](js/components/NutritionMealPhoto.svelte), [`js/components/NutritionPresentation.svelte`](js/components/NutritionPresentation.svelte), [`js/lab-context-settings.ts`](js/lab-context-settings.ts), [`js/nutrition-ai-settings.ts`](js/nutrition-ai-settings.ts), [`js/nutrition-analysis.ts`](js/nutrition-analysis.ts), [`js/nutrition-benchmark-model.ts`](js/nutrition-benchmark-model.ts), [`js/nutrition-dashboard-model.ts`](js/nutrition-dashboard-model.ts), [`js/nutrition-editor-model.ts`](js/nutrition-editor-model.ts), [`js/nutrition-entry-model.ts`](js/nutrition-entry-model.ts), [`js/nutrition-fuel-mix.ts`](js/nutrition-fuel-mix.ts), [`js/nutrition-meal-detail-model.ts`](js/nutrition-meal-detail-model.ts), [`js/nutrition-presentation-model.ts`](js/nutrition-presentation-model.ts), [`js/nutrition-targets.ts`](js/nutrition-targets.ts), [`js/nutrition-widget-runtime.ts`](js/nutrition-widget-runtime.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/nutrition-request-lifecycle.ts`](js/nutrition-request-lifecycle.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/nutrition-analysis.ts`](js/nutrition-analysis.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/nutrition-review-ui.ts`](js/nutrition-review-ui.ts) → [`js/components/NutritionPresentation.svelte`](js/components/NutritionPresentation.svelte), [`js/nutrition-analysis.ts`](js/nutrition-analysis.ts), [`js/nutrition-comparison-ui.ts`](js/nutrition-comparison-ui.ts), [`js/nutrition-editor-review-model.ts`](js/nutrition-editor-review-model.ts), [`js/nutrition-food-data.ts`](js/nutrition-food-data.ts), [`js/nutrition-fuel-mix.ts`](js/nutrition-fuel-mix.ts), [`js/nutrition-render.ts`](js/nutrition-render.ts)
+- [`js/nutrition-review-ui.ts`](js/nutrition-review-ui.ts) → [`js/components/NutritionAnalysisProgress.svelte`](js/components/NutritionAnalysisProgress.svelte), [`js/components/NutritionEditableIngredients.svelte`](js/components/NutritionEditableIngredients.svelte), [`js/components/NutritionEditorFeedback.svelte`](js/components/NutritionEditorFeedback.svelte), [`js/nutrition-analysis.ts`](js/nutrition-analysis.ts), [`js/nutrition-comparison-ui.ts`](js/nutrition-comparison-ui.ts), [`js/nutrition-editor-review-model.ts`](js/nutrition-editor-review-model.ts), [`js/nutrition-food-data.ts`](js/nutrition-food-data.ts), [`js/nutrition-fuel-mix.ts`](js/nutrition-fuel-mix.ts), [`js/nutrition-render.ts`](js/nutrition-render.ts)
 - [`js/nutrition-storage-permission.ts`](js/nutrition-storage-permission.ts) → no in-scope imports
-- [`js/nutrition-store.ts`](js/nutrition-store.ts) → [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts) *(dynamic)*, [`js/nutrition-storage-permission.ts`](js/nutrition-storage-permission.ts), [`js/nutrition-summary.ts`](js/nutrition-summary.ts), [`js/nutrition-sync-sanitize.ts`](js/nutrition-sync-sanitize.ts), [`js/state.ts`](js/state.ts), [`js/wearables-store.ts`](js/wearables-store.ts)
+- [`js/nutrition-store-reads.ts`](js/nutrition-store-reads.ts) → no in-scope imports
+- [`js/nutrition-store.ts`](js/nutrition-store.ts) → [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts) *(dynamic)*, [`js/nutrition-storage-permission.ts`](js/nutrition-storage-permission.ts), [`js/nutrition-store-reads.ts`](js/nutrition-store-reads.ts), [`js/nutrition-summary.ts`](js/nutrition-summary.ts), [`js/nutrition-sync-sanitize.ts`](js/nutrition-sync-sanitize.ts), [`js/state.ts`](js/state.ts), [`js/wearables-store.ts`](js/wearables-store.ts)
 - [`js/nutrition-summary-context.ts`](js/nutrition-summary-context.ts) → [`js/nutrition-nutrient-registry.ts`](js/nutrition-nutrient-registry.ts)
+- [`js/nutrition-summary-runtime.ts`](js/nutrition-summary-runtime.ts) → [`js/nutrition-store.ts`](js/nutrition-store.ts) *(dynamic)*, [`js/state.ts`](js/state.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts)
 - [`js/nutrition-summary.ts`](js/nutrition-summary.ts) → [`js/data-merge.ts`](js/data-merge.ts), [`js/nutrition-fuel-mix.ts`](js/nutrition-fuel-mix.ts), [`js/nutrition-nutrient-registry.ts`](js/nutrition-nutrient-registry.ts), [`js/nutrition-summary-context.ts`](js/nutrition-summary-context.ts)
 - [`js/nutrition-sync-sanitize.ts`](js/nutrition-sync-sanitize.ts) → [`js/nutrition-photo-provenance.ts`](js/nutrition-photo-provenance.ts)
 - [`js/nutrition-targets.ts`](js/nutrition-targets.ts) → [`js/nutrition-summary.ts`](js/nutrition-summary.ts), [`js/state.ts`](js/state.ts), [`js/wearables-formatters.ts`](js/wearables-formatters.ts)
 - [`js/nutrition-view-classes.ts`](js/nutrition-view-classes.ts) → no in-scope imports
-- [`js/nutrition.ts`](js/nutrition.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/components/NutritionPresentation.svelte`](js/components/NutritionPresentation.svelte), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/nutrition-ai-settings.ts`](js/nutrition-ai-settings.ts), [`js/nutrition-analysis.ts`](js/nutrition-analysis.ts), [`js/nutrition-benchmark-workspace.ts`](js/nutrition-benchmark-workspace.ts), [`js/nutrition-comparison-ui.ts`](js/nutrition-comparison-ui.ts), [`js/nutrition-editor-navigation.ts`](js/nutrition-editor-navigation.ts), [`js/nutrition-entry-forms.ts`](js/nutrition-entry-forms.ts), [`js/nutrition-entry-model.ts`](js/nutrition-entry-model.ts), [`js/nutrition-entry-view.ts`](js/nutrition-entry-view.ts), [`js/nutrition-food-data.ts`](js/nutrition-food-data.ts), [`js/nutrition-history.ts`](js/nutrition-history.ts), [`js/nutrition-modal-controller.ts`](js/nutrition-modal-controller.ts), [`js/nutrition-photo-provenance.ts`](js/nutrition-photo-provenance.ts), [`js/nutrition-render.ts`](js/nutrition-render.ts), [`js/nutrition-request-lifecycle.ts`](js/nutrition-request-lifecycle.ts), [`js/nutrition-review-ui.ts`](js/nutrition-review-ui.ts), [`js/nutrition-store.ts`](js/nutrition-store.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/nutrition-widget-runtime.ts`](js/nutrition-widget-runtime.ts) → [`js/components/NutritionDashboard.svelte`](js/components/NutritionDashboard.svelte), [`js/nutrition-dashboard-model.ts`](js/nutrition-dashboard-model.ts), [`js/nutrition-targets.ts`](js/nutrition-targets.ts), [`js/state.ts`](js/state.ts)
+- [`js/nutrition.ts`](js/nutrition.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/components/NutritionMealPhoto.svelte`](js/components/NutritionMealPhoto.svelte), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/nutrition-ai-settings.ts`](js/nutrition-ai-settings.ts), [`js/nutrition-analysis.ts`](js/nutrition-analysis.ts), [`js/nutrition-benchmark-workspace.ts`](js/nutrition-benchmark-workspace.ts), [`js/nutrition-comparison-ui.ts`](js/nutrition-comparison-ui.ts), [`js/nutrition-editor-navigation.ts`](js/nutrition-editor-navigation.ts), [`js/nutrition-entry-forms.ts`](js/nutrition-entry-forms.ts), [`js/nutrition-entry-model.ts`](js/nutrition-entry-model.ts), [`js/nutrition-entry-view.ts`](js/nutrition-entry-view.ts), [`js/nutrition-food-data.ts`](js/nutrition-food-data.ts), [`js/nutrition-history.ts`](js/nutrition-history.ts), [`js/nutrition-modal-controller.ts`](js/nutrition-modal-controller.ts), [`js/nutrition-photo-provenance.ts`](js/nutrition-photo-provenance.ts), [`js/nutrition-render.ts`](js/nutrition-render.ts), [`js/nutrition-request-lifecycle.ts`](js/nutrition-request-lifecycle.ts), [`js/nutrition-review-ui.ts`](js/nutrition-review-ui.ts), [`js/nutrition-store.ts`](js/nutrition-store.ts), [`js/nutrition-widget-runtime.ts`](js/nutrition-widget-runtime.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 
 </details>
 
@@ -2947,7 +3847,7 @@ Native browser modules shipped with the static application.
 <details><summary><code>onboarding</code> family — 2 modules</summary>
 
 - [`js/onboarding-view-runtime.ts`](js/onboarding-view-runtime.ts) → [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts)
-- [`js/onboarding-view.ts`](js/onboarding-view.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/chat-backend-selection.ts`](js/chat-backend-selection.ts), [`js/data.ts`](js/data.ts), [`js/onboarding-view-runtime.ts`](js/onboarding-view-runtime.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/onboarding-view.ts`](js/onboarding-view.ts) → [`js/chat-backend-selection.ts`](js/chat-backend-selection.ts), [`js/dashboard-welcome-presentation.ts`](js/dashboard-welcome-presentation.ts), [`js/data.ts`](js/data.ts), [`js/onboarding-view-runtime.ts`](js/onboarding-view-runtime.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 
 </details>
 
@@ -2963,7 +3863,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>OpenRouterSettings.svelte</code> family — 1 module</summary>
 
-- [`js/components/OpenRouterSettings.svelte`](js/components/OpenRouterSettings.svelte) → [`js/openrouter-settings-classes.ts`](js/openrouter-settings-classes.ts)
+- [`js/components/OpenRouterSettings.svelte`](js/components/OpenRouterSettings.svelte) → [`js/openrouter-settings-classes.ts`](js/openrouter-settings-classes.ts), [`js/provider-settings-classes.ts`](js/provider-settings-classes.ts)
 
 </details>
 
@@ -3026,10 +3926,29 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>pii</code> family — 2 modules</summary>
+<details><summary><code>pii</code> family — 3 modules</summary>
 
-- [`js/pii-review.ts`](js/pii-review.ts) → [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/pii-review-presentation.ts`](js/pii-review-presentation.ts) → [`js/components/PIIDiffFragment.svelte`](js/components/PIIDiffFragment.svelte), [`js/components/PIIDiffViewer.svelte`](js/components/PIIDiffViewer.svelte), [`js/components/PIIReviewModal.svelte`](js/components/PIIReviewModal.svelte)
+- [`js/pii-review.ts`](js/pii-review.ts) → [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/pii-review-presentation.ts`](js/pii-review-presentation.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/pii.ts`](js/pii.ts) → [`js/api-transport.ts`](js/api-transport.ts), [`js/api.ts`](js/api.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/local-ai-discovery.ts`](js/local-ai-discovery.ts), [`js/local-ai-provider-registry.ts`](js/local-ai-provider-registry.ts), [`js/pii-review.ts`](js/pii-review.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+
+</details>
+
+<details><summary><code>PIIDiffFragment.svelte</code> family — 1 module</summary>
+
+- [`js/components/PIIDiffFragment.svelte`](js/components/PIIDiffFragment.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>PIIDiffViewer.svelte</code> family — 1 module</summary>
+
+- [`js/components/PIIDiffViewer.svelte`](js/components/PIIDiffViewer.svelte) → [`js/components/PIIDiffFragment.svelte`](js/components/PIIDiffFragment.svelte)
+
+</details>
+
+<details><summary><code>PIIReviewModal.svelte</code> family — 1 module</summary>
+
+- [`js/components/PIIReviewModal.svelte`](js/components/PIIReviewModal.svelte) → [`js/components/PIIDiffFragment.svelte`](js/components/PIIDiffFragment.svelte)
 
 </details>
 
@@ -3069,8 +3988,10 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>profile</code> family — 16 modules</summary>
+<details><summary><code>profile</code> family — 19 modules</summary>
 
+- [`js/profile-button-presentation.ts`](js/profile-button-presentation.ts) → no in-scope imports
+- [`js/profile-button-rendering.ts`](js/profile-button-rendering.ts) → [`js/components/ProfileButtonPresentation.svelte`](js/components/ProfileButtonPresentation.svelte)
 - [`js/profile-context.ts`](js/profile-context.ts) → [`js/context-source-registry.ts`](js/context-source-registry.ts), [`js/health-goals-utils.ts`](js/health-goals-utils.ts), [`js/state.ts`](js/state.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts)
 - [`js/profile-data-migrations.ts`](js/profile-data-migrations.ts) → [`js/context-source-registry.ts`](js/context-source-registry.ts), [`js/custom-marker-identity.ts`](js/custom-marker-identity.ts), [`js/lab-entry.ts`](js/lab-entry.ts), [`js/light-env-evening.ts`](js/light-env-evening.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/profile-import-provenance.ts`](js/profile-import-provenance.ts), [`js/profile-marker-migrations.ts`](js/profile-marker-migrations.ts), [`js/schema.ts`](js/schema.ts), [`js/specialty-marker-catalog.ts`](js/specialty-marker-catalog.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts)
 - [`js/profile-data-writes.ts`](js/profile-data-writes.ts) → [`js/sync-delta-surface-config.ts`](js/sync-delta-surface-config.ts)
@@ -3082,11 +4003,54 @@ Native browser modules shipped with the static application.
 - [`js/profile-marker-migrations.ts`](js/profile-marker-migrations.ts) → [`js/lab-entry.ts`](js/lab-entry.ts), [`js/profile-fatty-acid-migrations.ts`](js/profile-fatty-acid-migrations.ts), [`js/profile-marker-alias-migrations.ts`](js/profile-marker-alias-migrations.ts), [`js/schema.ts`](js/schema.ts), [`js/specialty-marker-catalog.ts`](js/specialty-marker-catalog.ts)
 - [`js/profile-runtime.ts`](js/profile-runtime.ts) → [`js/chat-loader.ts`](js/chat-loader.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/wearables-connect.ts`](js/wearables-connect.ts) *(dynamic)*, [`js/wearables-manual.ts`](js/wearables-manual.ts)
 - [`js/profile-share-loader.ts`](js/profile-share-loader.ts) → [`js/profile-share.ts`](js/profile-share.ts) *(dynamic)*, [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/profile-share.ts`](js/profile-share.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/export.ts`](js/export.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/profile-share-presentation.ts`](js/profile-share-presentation.ts) → [`js/components/ProfileShareActive.svelte`](js/components/ProfileShareActive.svelte), [`js/components/ProfileShareCreate.svelte`](js/components/ProfileShareCreate.svelte), [`js/components/ProfileShareLoad.svelte`](js/components/ProfileShareLoad.svelte), [`js/components/ProfileShareResult.svelte`](js/components/ProfileShareResult.svelte), [`js/components/ProfileShareShell.svelte`](js/components/ProfileShareShell.svelte)
+- [`js/profile-share.ts`](js/profile-share.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/export.ts`](js/export.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/profile-share-presentation.ts`](js/profile-share-presentation.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/profile-storage-cleanup.ts`](js/profile-storage-cleanup.ts) → [`js/agent-access-legacy-source.ts`](js/agent-access-legacy-source.ts), [`js/blob-storage.ts`](js/blob-storage.ts), [`js/crypto.ts`](js/crypto.ts), [`js/cycle-store.ts`](js/cycle-store.ts), [`js/profile-storage-key.ts`](js/profile-storage-key.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/wearables-store.ts`](js/wearables-store.ts)
 - [`js/profile-storage-key.ts`](js/profile-storage-key.ts) → no in-scope imports
 - [`js/profile-sync-policy.ts`](js/profile-sync-policy.ts) → no in-scope imports
 - [`js/profile.ts`](js/profile.ts) → [`js/constants.ts`](js/constants.ts), [`js/correlation-workspace-store.ts`](js/correlation-workspace-store.ts), [`js/crypto.ts`](js/crypto.ts), [`js/profile-data-migrations.ts`](js/profile-data-migrations.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile-list-store.ts`](js/profile-list-store.ts), [`js/profile-load-safety.ts`](js/profile-load-safety.ts), [`js/profile-storage-cleanup.ts`](js/profile-storage-cleanup.ts), [`js/profile-storage-key.ts`](js/profile-storage-key.ts), [`js/profile-sync-policy.ts`](js/profile-sync-policy.ts), [`js/proxy-runtime.ts`](js/proxy-runtime.ts), [`js/state.ts`](js/state.ts), [`js/unique-id.ts`](js/unique-id.ts), [`js/unit-profiles.ts`](js/unit-profiles.ts), [`js/url-safety.ts`](js/url-safety.ts), [`js/utils.ts`](js/utils.ts)
+
+</details>
+
+<details><summary><code>ProfileButtonPresentation.svelte</code> family — 1 module</summary>
+
+- [`js/components/ProfileButtonPresentation.svelte`](js/components/ProfileButtonPresentation.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>ProfileShareActive.svelte</code> family — 1 module</summary>
+
+- [`js/components/ProfileShareActive.svelte`](js/components/ProfileShareActive.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>ProfileShareBody.svelte</code> family — 1 module</summary>
+
+- [`js/components/ProfileShareBody.svelte`](js/components/ProfileShareBody.svelte) → [`js/components/ProfileShareActive.svelte`](js/components/ProfileShareActive.svelte), [`js/components/ProfileShareCreate.svelte`](js/components/ProfileShareCreate.svelte), [`js/components/ProfileShareLoad.svelte`](js/components/ProfileShareLoad.svelte), [`js/components/ProfileShareResult.svelte`](js/components/ProfileShareResult.svelte)
+
+</details>
+
+<details><summary><code>ProfileShareCreate.svelte</code> family — 1 module</summary>
+
+- [`js/components/ProfileShareCreate.svelte`](js/components/ProfileShareCreate.svelte) → [`js/components/ProfileShareActive.svelte`](js/components/ProfileShareActive.svelte)
+
+</details>
+
+<details><summary><code>ProfileShareLoad.svelte</code> family — 1 module</summary>
+
+- [`js/components/ProfileShareLoad.svelte`](js/components/ProfileShareLoad.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>ProfileShareResult.svelte</code> family — 1 module</summary>
+
+- [`js/components/ProfileShareResult.svelte`](js/components/ProfileShareResult.svelte) → [`js/components/ProfileShareActive.svelte`](js/components/ProfileShareActive.svelte)
+
+</details>
+
+<details><summary><code>ProfileShareShell.svelte</code> family — 1 module</summary>
+
+- [`js/components/ProfileShareShell.svelte`](js/components/ProfileShareShell.svelte) → [`js/components/ProfileShareBody.svelte`](js/components/ProfileShareBody.svelte)
 
 </details>
 
@@ -3140,9 +4104,10 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>recommendation</code> family — 4 modules</summary>
+<details><summary><code>recommendation</code> family — 5 modules</summary>
 
-- [`js/recommendation-actions.ts`](js/recommendation-actions.ts) → [`js/components/TipsDetail.svelte`](js/components/TipsDetail.svelte), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/tips-presentation.ts`](js/tips-presentation.ts)
+- [`js/recommendation-action-delegates.ts`](js/recommendation-action-delegates.ts) → [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts)
+- [`js/recommendation-actions.ts`](js/recommendation-actions.ts) → [`js/components/TipsDetail.svelte`](js/components/TipsDetail.svelte), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/recommendation-action-delegates.ts`](js/recommendation-action-delegates.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/tips-presentation.ts`](js/tips-presentation.ts)
 - [`js/recommendation-cards-classes.ts`](js/recommendation-cards-classes.ts) → no in-scope imports
 - [`js/recommendation-page-presentation.ts`](js/recommendation-page-presentation.ts) → no in-scope imports
 - [`js/recommendation-presentation.ts`](js/recommendation-presentation.ts) → no in-scope imports
@@ -3176,8 +4141,9 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>report</code> family — 2 modules</summary>
+<details><summary><code>report</code> family — 3 modules</summary>
 
+- [`js/report-ai-request.ts`](js/report-ai-request.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/api-transport.ts`](js/api-transport.ts)
 - [`js/report-builder-classes.ts`](js/report-builder-classes.ts) → no in-scope imports
 - [`js/report-builder-presentation.ts`](js/report-builder-presentation.ts) → no in-scope imports
 
@@ -3204,6 +4170,18 @@ Native browser modules shipped with the static application.
 <details><summary><code>ReportBuilderSetup.svelte</code> family — 1 module</summary>
 
 - [`js/components/ReportBuilderSetup.svelte`](js/components/ReportBuilderSetup.svelte) → [`js/report-builder-classes.ts`](js/report-builder-classes.ts)
+
+</details>
+
+<details><summary><code>restored</code> family — 1 module</summary>
+
+- [`js/restored-thread-list-presentation.ts`](js/restored-thread-list-presentation.ts) → [`js/components/RestoredThreadList.svelte`](js/components/RestoredThreadList.svelte)
+
+</details>
+
+<details><summary><code>RestoredThreadList.svelte</code> family — 1 module</summary>
+
+- [`js/components/RestoredThreadList.svelte`](js/components/RestoredThreadList.svelte) → [`js/chat-thread-navigation-classes.ts`](js/chat-thread-navigation-classes.ts)
 
 </details>
 
@@ -3277,7 +4255,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>service</code> family — 1 module</summary>
 
-- [`js/service-worker-update.ts`](js/service-worker-update.ts) → no in-scope imports
+- [`js/service-worker-update.ts`](js/service-worker-update.ts) → [`js/version-update-rendering.ts`](js/version-update-rendering.ts)
 
 </details>
 
@@ -3321,7 +4299,7 @@ Native browser modules shipped with the static application.
 - [`js/settings-sync-panel.ts`](js/settings-sync-panel.ts) → [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/settings-sync-panel-impl.ts`](js/settings-sync-panel-impl.ts) *(dynamic)*, [`js/sync.ts`](js/sync.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/settings-sync-restore-ui.ts`](js/settings-sync-restore-ui.ts) → [`js/sync-dialog-component.ts`](js/sync-dialog-component.ts), [`js/sync-dialog-controller.ts`](js/sync-dialog-controller.ts), [`js/sync.ts`](js/sync.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/settings-sync-view.ts`](js/settings-sync-view.ts) → [`js/sync.ts`](js/sync.ts)
-- [`js/settings-tweaks.ts`](js/settings-tweaks.ts) → [`js/charts.ts`](js/charts.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/settings-event-target.ts`](js/settings-event-target.ts), [`js/settings-runtime.ts`](js/settings-runtime.ts), [`js/theme.ts`](js/theme.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/settings-tweaks.ts`](js/settings-tweaks.ts) → [`js/charts.ts`](js/charts.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/settings-event-target.ts`](js/settings-event-target.ts), [`js/settings-runtime.ts`](js/settings-runtime.ts), [`js/theme.ts`](js/theme.ts), [`js/tweaks-presentation.ts`](js/tweaks-presentation.ts), [`js/tweaks-rendering.ts`](js/tweaks-rendering.ts)
 - [`js/settings-voice-classes.ts`](js/settings-voice-classes.ts) → no in-scope imports
 - [`js/settings-voice-component.ts`](js/settings-voice-component.ts) → [`js/components/VoiceSettings.svelte`](js/components/VoiceSettings.svelte), [`js/settings-voice-view-runtime.ts`](js/settings-voice-view-runtime.ts), [`js/settings-voice-view.ts`](js/settings-voice-view.ts)
 - [`js/settings-voice-contract.ts`](js/settings-voice-contract.ts) → no in-scope imports
@@ -3330,13 +4308,19 @@ Native browser modules shipped with the static application.
 - [`js/settings-voice-panel.ts`](js/settings-voice-panel.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/cloud-ai-consent.ts`](js/cloud-ai-consent.ts) *(dynamic)*, [`js/settings-voice-component.ts`](js/settings-voice-component.ts), [`js/settings-voice-hardware.ts`](js/settings-voice-hardware.ts), [`js/settings-voice-model-controller.ts`](js/settings-voice-model-controller.ts), [`js/settings-voice-view-runtime.ts`](js/settings-voice-view-runtime.ts), [`js/settings-voice-view.ts`](js/settings-voice-view.ts), [`js/utils.ts`](js/utils.ts), [`js/voice-ai-provider.ts`](js/voice-ai-provider.ts), [`js/voice-catalog-storage.ts`](js/voice-catalog-storage.ts), [`js/voice-openrouter-catalog.ts`](js/voice-openrouter-catalog.ts), [`js/voice-player.ts`](js/voice-player.ts), [`js/voice-provider-registry.ts`](js/voice-provider-registry.ts), [`js/voice-settings-storage.ts`](js/voice-settings-storage.ts)
 - [`js/settings-voice-view-runtime.ts`](js/settings-voice-view-runtime.ts) → no in-scope imports
 - [`js/settings-voice-view.ts`](js/settings-voice-view.ts) → [`js/settings-voice-hardware.ts`](js/settings-voice-hardware.ts), [`js/settings-voice-model-controller.ts`](js/settings-voice-model-controller.ts), [`js/voice-ai-provider.ts`](js/voice-ai-provider.ts), [`js/voice-catalog-storage.ts`](js/voice-catalog-storage.ts), [`js/voice-model-catalog.ts`](js/voice-model-catalog.ts), [`js/voice-openrouter-catalog.ts`](js/voice-openrouter-catalog.ts), [`js/voice-provider-catalog.ts`](js/voice-provider-catalog.ts), [`js/voice-settings-storage.ts`](js/voice-settings-storage.ts)
-- [`js/settings.ts`](js/settings.ts) → [`js/ai-settings-component.ts`](js/ai-settings-component.ts), [`js/api.ts`](js/api.ts), [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/changelog.ts`](js/changelog.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/crypto.ts`](js/crypto.ts), [`js/data.ts`](js/data.ts), [`js/import-loader.ts`](js/import-loader.ts), [`js/local-ai-discovery.ts`](js/local-ai-discovery.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/nutrition-ai-settings-component.ts`](js/nutrition-ai-settings-component.ts), [`js/nutrition-ai-settings.ts`](js/nutrition-ai-settings.ts), [`js/profile.ts`](js/profile.ts), [`js/recommendations.ts`](js/recommendations.ts), [`js/settings-data.ts`](js/settings-data.ts), [`js/settings-display-panel.ts`](js/settings-display-panel.ts), [`js/settings-event-target.ts`](js/settings-event-target.ts), [`js/settings-import-benchmark-controller.ts`](js/settings-import-benchmark-controller.ts), [`js/settings-privacy-panel.ts`](js/settings-privacy-panel.ts), [`js/settings-privacy.ts`](js/settings-privacy.ts), [`js/settings-provider-bridge.ts`](js/settings-provider-bridge.ts), [`js/settings-records-component.ts`](js/settings-records-component.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/settings-runtime.ts`](js/settings-runtime.ts), [`js/settings-shell.ts`](js/settings-shell.ts), [`js/settings-sync-panel.ts`](js/settings-sync-panel.ts), [`js/settings-tweaks.ts`](js/settings-tweaks.ts), [`js/settings-voice-component.ts`](js/settings-voice-component.ts), [`js/settings-voice-panel.ts`](js/settings-voice-panel.ts), [`js/theme.ts`](js/theme.ts), [`js/tour.ts`](js/tour.ts), [`js/utils.ts`](js/utils.ts), [`js/wearables-runtime.ts`](js/wearables-runtime.ts), [`js/wearables-settings-component.ts`](js/wearables-settings-component.ts), [`js/wearables-settings-panel.ts`](js/wearables-settings-panel.ts)
+- [`js/settings.ts`](js/settings.ts) → [`js/ai-settings-component.ts`](js/ai-settings-component.ts), [`js/api.ts`](js/api.ts), [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/changelog.ts`](js/changelog.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/crypto.ts`](js/crypto.ts), [`js/data.ts`](js/data.ts), [`js/import-loader.ts`](js/import-loader.ts), [`js/local-ai-discovery.ts`](js/local-ai-discovery.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/nutrition-ai-settings-component.ts`](js/nutrition-ai-settings-component.ts), [`js/nutrition-ai-settings.ts`](js/nutrition-ai-settings.ts), [`js/profile.ts`](js/profile.ts), [`js/recommendations.ts`](js/recommendations.ts), [`js/settings-data.ts`](js/settings-data.ts), [`js/settings-display-panel.ts`](js/settings-display-panel.ts), [`js/settings-event-target.ts`](js/settings-event-target.ts), [`js/settings-import-benchmark-controller.ts`](js/settings-import-benchmark-controller.ts), [`js/settings-privacy-panel.ts`](js/settings-privacy-panel.ts), [`js/settings-privacy.ts`](js/settings-privacy.ts), [`js/settings-provider-bridge.ts`](js/settings-provider-bridge.ts), [`js/settings-records-component.ts`](js/settings-records-component.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/settings-runtime.ts`](js/settings-runtime.ts), [`js/settings-shell.ts`](js/settings-shell.ts), [`js/settings-sync-panel.ts`](js/settings-sync-panel.ts), [`js/settings-tweaks.ts`](js/settings-tweaks.ts), [`js/settings-voice-component.ts`](js/settings-voice-component.ts), [`js/settings-voice-panel.ts`](js/settings-voice-panel.ts), [`js/theme.ts`](js/theme.ts), [`js/tour.ts`](js/tour.ts), [`js/utils.ts`](js/utils.ts), [`js/wearables-runtime.ts`](js/wearables-runtime.ts), [`js/wearables-settings-component.ts`](js/wearables-settings-component.ts)
+
+</details>
+
+<details><summary><code>SettingsPanels.svelte</code> family — 1 module</summary>
+
+- [`js/components/SettingsPanels.svelte`](js/components/SettingsPanels.svelte) → [`js/components/AppExtensionSlot.svelte`](js/components/AppExtensionSlot.svelte)
 
 </details>
 
 <details><summary><code>SettingsShell.svelte</code> family — 1 module</summary>
 
-- [`js/components/SettingsShell.svelte`](js/components/SettingsShell.svelte) → [`js/settings-shell-contract.ts`](js/settings-shell-contract.ts)
+- [`js/components/SettingsShell.svelte`](js/components/SettingsShell.svelte) → [`js/components/AppExtensionSlot.svelte`](js/components/AppExtensionSlot.svelte), [`js/components/SettingsPanels.svelte`](js/components/SettingsPanels.svelte), [`js/settings-shell-contract.ts`](js/settings-shell-contract.ts)
 
 </details>
 
@@ -3349,6 +4333,30 @@ Native browser modules shipped with the static application.
 <details><summary><code>shell</code> family — 1 module</summary>
 
 - [`js/shell-actions.ts`](js/shell-actions.ts) → [`js/chat-attachment-view.ts`](js/chat-attachment-view.ts), [`js/chat-header-view.ts`](js/chat-header-view.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/chat-voice-view.ts`](js/chat-voice-view.ts), [`js/feedback.ts`](js/feedback.ts), [`js/pdf-import-progress.ts`](js/pdf-import-progress.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts)
+
+</details>
+
+<details><summary><code>sidebar</code> family — 1 module</summary>
+
+- [`js/sidebar-presentation.ts`](js/sidebar-presentation.ts) → [`js/components/SidebarNavigation.svelte`](js/components/SidebarNavigation.svelte), [`js/utils.ts`](js/utils.ts)
+
+</details>
+
+<details><summary><code>SidebarCategoryItem.svelte</code> family — 1 module</summary>
+
+- [`js/components/SidebarCategoryItem.svelte`](js/components/SidebarCategoryItem.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>SidebarIcon.svelte</code> family — 1 module</summary>
+
+- [`js/components/SidebarIcon.svelte`](js/components/SidebarIcon.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>SidebarNavigation.svelte</code> family — 1 module</summary>
+
+- [`js/components/SidebarNavigation.svelte`](js/components/SidebarNavigation.svelte) → [`js/components/ConditionalSidebarItem.svelte`](js/components/ConditionalSidebarItem.svelte), [`js/components/SidebarCategoryItem.svelte`](js/components/SidebarCategoryItem.svelte), [`js/components/SidebarIcon.svelte`](js/components/SidebarIcon.svelte)
 
 </details>
 
@@ -3366,7 +4374,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>startup</code> family — 7 modules</summary>
 
-- [`js/startup-foundation.ts`](js/startup-foundation.ts) → [`js/crypto.ts`](js/crypto.ts), [`js/sun-uvdata.ts`](js/sun-uvdata.ts)
+- [`js/startup-foundation.ts`](js/startup-foundation.ts) → [`js/crypto.ts`](js/crypto.ts), [`js/sun-uvdata-config.ts`](js/sun-uvdata-config.ts)
 - [`js/startup-maintenance-runtime.ts`](js/startup-maintenance-runtime.ts) → [`js/sun-sessions-store.ts`](js/sun-sessions-store.ts) *(dynamic)*
 - [`js/startup-maintenance.ts`](js/startup-maintenance.ts) → [`js/light-devices.ts`](js/light-devices.ts) *(dynamic)*, [`js/startup-maintenance-runtime.ts`](js/startup-maintenance-runtime.ts), [`js/state.ts`](js/state.ts), [`js/supplement-warnings.ts`](js/supplement-warnings.ts), [`js/wearables-connect-loader.ts`](js/wearables-connect-loader.ts), [`js/wearables-manual.ts`](js/wearables-manual.ts), [`js/wearables-summary.ts`](js/wearables-summary.ts)
 - [`js/startup-oauth-callbacks.ts`](js/startup-oauth-callbacks.ts) → [`js/api.ts`](js/api.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/cloud-ai-consent.ts`](js/cloud-ai-consent.ts) *(dynamic)*, [`js/utils.ts`](js/utils.ts), [`js/wearables-connect-loader.ts`](js/wearables-connect-loader.ts)
@@ -3386,16 +4394,16 @@ Native browser modules shipped with the static application.
 
 - [`js/sun-active-session-format.ts`](js/sun-active-session-format.ts) → [`js/components/LightSessionPresentation.svelte`](js/components/LightSessionPresentation.svelte)
 - [`js/sun-active-session.ts`](js/sun-active-session.ts) → [`js/components/LightSessionPresentation.svelte`](js/components/LightSessionPresentation.svelte), [`js/light-active-session-presentation.ts`](js/light-active-session-presentation.ts), [`js/light-session-presentation.ts`](js/light-session-presentation.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/sun-active-session-format.ts`](js/sun-active-session-format.ts), [`js/sun-body-silhouette.ts`](js/sun-body-silhouette.ts), [`js/sun-session-actions.ts`](js/sun-session-actions.ts), [`js/sun-session-model.ts`](js/sun-session-model.ts), [`js/sun-session-ui.ts`](js/sun-session-ui.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/sun-ai-analysis.ts`](js/sun-ai-analysis.ts) → [`js/ai-action-delegates.ts`](js/ai-action-delegates.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/ai-verdict-engine.ts`](js/ai-verdict-engine.ts), [`js/components/LightSessionAI.svelte`](js/components/LightSessionAI.svelte), [`js/light-session-ai-presentation.ts`](js/light-session-ai-presentation.ts), [`js/sun-defaults.ts`](js/sun-defaults.ts), [`js/sun-uvdata.ts`](js/sun-uvdata.ts), [`js/sun.ts`](js/sun.ts)
+- [`js/sun-ai-analysis.ts`](js/sun-ai-analysis.ts) → [`js/ai-action-delegates.ts`](js/ai-action-delegates.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/ai-verdict-engine.ts`](js/ai-verdict-engine.ts), [`js/components/LightSessionAI.svelte`](js/components/LightSessionAI.svelte), [`js/light-ai-view-values.ts`](js/light-ai-view-values.ts), [`js/light-session-ai-presentation.ts`](js/light-session-ai-presentation.ts), [`js/sun-defaults.ts`](js/sun-defaults.ts), [`js/sun-uvdata.ts`](js/sun-uvdata.ts), [`js/sun.ts`](js/sun.ts)
 - [`js/sun-body-picker-presentation.ts`](js/sun-body-picker-presentation.ts) → no in-scope imports
 - [`js/sun-body-silhouette-runtime.ts`](js/sun-body-silhouette-runtime.ts) → [`js/profile.ts`](js/profile.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts)
 - [`js/sun-body-silhouette.ts`](js/sun-body-silhouette.ts) → [`js/components/SunBodyPicker.svelte`](js/components/SunBodyPicker.svelte), [`js/silhouette-paths.ts`](js/silhouette-paths.ts), [`js/sun-body-picker-presentation.ts`](js/sun-body-picker-presentation.ts), [`js/sun-body-silhouette-runtime.ts`](js/sun-body-silhouette-runtime.ts)
 - [`js/sun-channel-metrics.ts`](js/sun-channel-metrics.ts) → [`js/state.ts`](js/state.ts), [`js/sun-active-session.ts`](js/sun-active-session.ts), [`js/sun-body-silhouette.ts`](js/sun-body-silhouette.ts), [`js/sun-sessions-store.ts`](js/sun-sessions-store.ts), [`js/sun-spectrum.ts`](js/sun-spectrum.ts), [`js/supplement-impact.ts`](js/supplement-impact.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts)
 - [`js/sun-context-environment.ts`](js/sun-context-environment.ts) → [`js/light-env-evening.ts`](js/light-env-evening.ts), [`js/light-env-model.ts`](js/light-env-model.ts), [`js/state.ts`](js/state.ts), [`js/sun-context-runtime.ts`](js/sun-context-runtime.ts)
-- [`js/sun-context-hooks.ts`](js/sun-context-hooks.ts) → [`js/data.ts`](js/data.ts), [`js/lab-context.ts`](js/lab-context.ts), [`js/light-devices-store.ts`](js/light-devices-store.ts), [`js/light-env-model.ts`](js/light-env-model.ts), [`js/light-env-store.ts`](js/light-env-store.ts), [`js/state.ts`](js/state.ts), [`js/sun-context.ts`](js/sun-context.ts), [`js/sun-spectrum.ts`](js/sun-spectrum.ts), [`js/sun-uvdata.ts`](js/sun-uvdata.ts), [`js/sun.ts`](js/sun.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/sun-context-hooks.ts`](js/sun-context-hooks.ts) → [`js/data.ts`](js/data.ts), [`js/lab-context-runtime.ts`](js/lab-context-runtime.ts), [`js/lab-context-settings.ts`](js/lab-context-settings.ts), [`js/light-devices-store.ts`](js/light-devices-store.ts), [`js/light-env-model.ts`](js/light-env-model.ts), [`js/light-env-store.ts`](js/light-env-store.ts), [`js/state.ts`](js/state.ts), [`js/sun-context.ts`](js/sun-context.ts), [`js/sun-spectrum.ts`](js/sun-spectrum.ts), [`js/sun-uvdata.ts`](js/sun-uvdata.ts), [`js/sun.ts`](js/sun.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/sun-context-runtime.ts`](js/sun-context-runtime.ts) → no in-scope imports
 - [`js/sun-context-session-tools.ts`](js/sun-context-session-tools.ts) → [`js/state.ts`](js/state.ts), [`js/sun-context-runtime.ts`](js/sun-context-runtime.ts)
-- [`js/sun-context.ts`](js/sun-context.ts) → [`js/lab-context.ts`](js/lab-context.ts), [`js/state.ts`](js/state.ts), [`js/sun-context-environment.ts`](js/sun-context-environment.ts), [`js/sun-context-runtime.ts`](js/sun-context-runtime.ts), [`js/sun-context-session-tools.ts`](js/sun-context-session-tools.ts), [`js/sun-correlations.ts`](js/sun-correlations.ts)
+- [`js/sun-context.ts`](js/sun-context.ts) → [`js/lab-context-settings.ts`](js/lab-context-settings.ts), [`js/state.ts`](js/state.ts), [`js/sun-context-environment.ts`](js/sun-context-environment.ts), [`js/sun-context-runtime.ts`](js/sun-context-runtime.ts), [`js/sun-context-session-tools.ts`](js/sun-context-session-tools.ts), [`js/sun-correlations.ts`](js/sun-correlations.ts)
 - [`js/sun-correlations.ts`](js/sun-correlations.ts) → [`js/state.ts`](js/state.ts), [`js/sun.ts`](js/sun.ts)
 - [`js/sun-data-source-classes.ts`](js/sun-data-source-classes.ts) → no in-scope imports
 - [`js/sun-data-source-presentation.ts`](js/sun-data-source-presentation.ts) → no in-scope imports
@@ -3405,7 +4413,7 @@ Native browser modules shipped with the static application.
 - [`js/sun-defaults-session.ts`](js/sun-defaults-session.ts) → [`js/constants.ts`](js/constants.ts), [`js/data.ts`](js/data.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile-load-safety.ts`](js/profile-load-safety.ts), [`js/state.ts`](js/state.ts), [`js/sun-defaults-model.ts`](js/sun-defaults-model.ts)
 - [`js/sun-defaults-setup-renderer.ts`](js/sun-defaults-setup-renderer.ts) → [`js/components/LightSetupPresentation.svelte`](js/components/LightSetupPresentation.svelte), [`js/light-setup-presentation.ts`](js/light-setup-presentation.ts), [`js/state.ts`](js/state.ts), [`js/sun-defaults-runtime.ts`](js/sun-defaults-runtime.ts), [`js/sun-defaults-session.ts`](js/sun-defaults-session.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/sun-defaults-setup-ui.ts`](js/sun-defaults-setup-ui.ts) → [`js/constants.ts`](js/constants.ts), [`js/light-setup-classes.ts`](js/light-setup-classes.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/sun-defaults-model.ts`](js/sun-defaults-model.ts), [`js/sun-defaults-runtime.ts`](js/sun-defaults-runtime.ts), [`js/sun-defaults-session.ts`](js/sun-defaults-session.ts), [`js/sun-defaults-setup-renderer.ts`](js/sun-defaults-setup-renderer.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/sun-defaults.ts`](js/sun-defaults.ts) → [`js/state.ts`](js/state.ts), [`js/sun-defaults-model.ts`](js/sun-defaults-model.ts), [`js/sun-defaults-session.ts`](js/sun-defaults-session.ts), [`js/sun-defaults-setup-ui.ts`](js/sun-defaults-setup-ui.ts)
+- [`js/sun-defaults.ts`](js/sun-defaults.ts) → [`js/state.ts`](js/state.ts), [`js/sun-defaults-model.ts`](js/sun-defaults-model.ts), [`js/sun-defaults-session.ts`](js/sun-defaults-session.ts), [`js/sun-defaults-setup-renderer.ts`](js/sun-defaults-setup-renderer.ts), [`js/sun-defaults-setup-ui.ts`](js/sun-defaults-setup-ui.ts)
 - [`js/sun-location.ts`](js/sun-location.ts) → [`js/constants.ts`](js/constants.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/sun-runtime.ts`](js/sun-runtime.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/sun-onboarding-ai.ts`](js/sun-onboarding-ai.ts) → [`js/ai-action-delegates.ts`](js/ai-action-delegates.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/ai-verdict-engine.ts`](js/ai-verdict-engine.ts), [`js/components/LightOnboardingAI.svelte`](js/components/LightOnboardingAI.svelte), [`js/health-goals-utils.ts`](js/health-goals-utils.ts), [`js/lab-vitamin-d-context.ts`](js/lab-vitamin-d-context.ts), [`js/light-onboarding-ai-presentation.ts`](js/light-onboarding-ai-presentation.ts), [`js/lighting-hardware-caveats.ts`](js/lighting-hardware-caveats.ts), [`js/state.ts`](js/state.ts), [`js/sun-defaults-runtime.ts`](js/sun-defaults-runtime.ts)
 - [`js/sun-runtime.ts`](js/sun-runtime.ts) → [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
@@ -3413,7 +4421,7 @@ Native browser modules shipped with the static application.
 - [`js/sun-session-ai-render-hooks.ts`](js/sun-session-ai-render-hooks.ts) → [`js/sun-ai-analysis.ts`](js/sun-ai-analysis.ts), [`js/sun-session-ui.ts`](js/sun-session-ui.ts)
 - [`js/sun-session-log-modal.ts`](js/sun-session-log-modal.ts) → [`js/components/LightSessionPresentation.svelte`](js/components/LightSessionPresentation.svelte), [`js/light-session-presentation.ts`](js/light-session-presentation.ts), [`js/sun-body-silhouette.ts`](js/sun-body-silhouette.ts)
 - [`js/sun-session-model.ts`](js/sun-session-model.ts) → no in-scope imports
-- [`js/sun-session-ui-hooks.ts`](js/sun-session-ui-hooks.ts) → [`js/sun-session-ui.ts`](js/sun-session-ui.ts), [`js/views.ts`](js/views.ts)
+- [`js/sun-session-ui-hooks.ts`](js/sun-session-ui-hooks.ts) → [`js/sun-session-ui.ts`](js/sun-session-ui.ts), [`js/views-runtime.ts`](js/views-runtime.ts)
 - [`js/sun-session-ui.ts`](js/sun-session-ui.ts) → [`js/components/LightSessionPresentation.svelte`](js/components/LightSessionPresentation.svelte), [`js/light-active-session-presentation.ts`](js/light-active-session-presentation.ts), [`js/light-session-detail-presentation.ts`](js/light-session-detail-presentation.ts), [`js/light-session-presentation.ts`](js/light-session-presentation.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/sun-body-silhouette.ts`](js/sun-body-silhouette.ts), [`js/sun-session-actions.ts`](js/sun-session-actions.ts), [`js/sun-session-log-modal.ts`](js/sun-session-log-modal.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/sun-sessions-store.ts`](js/sun-sessions-store.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/light-sun-analysis-runtime.ts`](js/light-sun-analysis-runtime.ts), [`js/state.ts`](js/state.ts), [`js/sun-body-silhouette.ts`](js/sun-body-silhouette.ts), [`js/sun-session-model.ts`](js/sun-session-model.ts), [`js/unique-id.ts`](js/unique-id.ts)
 - [`js/sun-spectrum-actions.ts`](js/sun-spectrum-actions.ts) → no in-scope imports
@@ -3435,7 +4443,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>SunBodyPickerFrame.svelte</code> family — 1 module</summary>
 
-- [`js/components/SunBodyPickerFrame.svelte`](js/components/SunBodyPickerFrame.svelte) → no in-scope imports
+- [`js/components/SunBodyPickerFrame.svelte`](js/components/SunBodyPickerFrame.svelte) → [`js/components/SunBodyPicker.svelte`](js/components/SunBodyPicker.svelte)
 
 </details>
 
@@ -3469,36 +4477,138 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>supplement</code> family — 10 modules</summary>
+<details><summary><code>supplement</code> family — 16 modules</summary>
 
 - [`js/supplement-action-delegates.ts`](js/supplement-action-delegates.ts) → no in-scope imports
 - [`js/supplement-context.ts`](js/supplement-context.ts) → [`js/supplement-impact.ts`](js/supplement-impact.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts), [`js/supplement-quality.ts`](js/supplement-quality.ts)
-- [`js/supplement-dashboard.ts`](js/supplement-dashboard.ts) → [`js/state.ts`](js/state.ts), [`js/supplement-action-delegates.ts`](js/supplement-action-delegates.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts), [`js/supplement-warnings.ts`](js/supplement-warnings.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/supplement-form-ui.ts`](js/supplement-form-ui.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/state.ts`](js/state.ts), [`js/supplement-action-delegates.ts`](js/supplement-action-delegates.ts), [`js/supplement-impact.ts`](js/supplement-impact.ts), [`js/supplement-import-draft.ts`](js/supplement-import-draft.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts), [`js/supplement-quality.ts`](js/supplement-quality.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/supplement-impact.ts`](js/supplement-impact.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/data.ts`](js/data.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/supplement-import-controller.ts`](js/supplement-import-controller.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/api.ts`](js/api.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/context-card-editor-ui.ts`](js/context-card-editor-ui.ts), [`js/image-utils.ts`](js/image-utils.ts), [`js/proxy-runtime.ts`](js/proxy-runtime.ts), [`js/supplement-action-delegates.ts`](js/supplement-action-delegates.ts), [`js/supplement-form-ui.ts`](js/supplement-form-ui.ts), [`js/supplement-import-draft.ts`](js/supplement-import-draft.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts), [`js/supplement-quality.ts`](js/supplement-quality.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/supplement-dashboard-presentation.ts`](js/supplement-dashboard-presentation.ts) → [`js/components/SupplementMitoEvidence.svelte`](js/components/SupplementMitoEvidence.svelte), [`js/components/SupplementTimeline.svelte`](js/components/SupplementTimeline.svelte), [`js/components/SupplementTimelineBar.svelte`](js/components/SupplementTimelineBar.svelte), [`js/components/SupplementTimelineRow.svelte`](js/components/SupplementTimelineRow.svelte), [`js/supplement-warnings.ts`](js/supplement-warnings.ts)
+- [`js/supplement-dashboard.ts`](js/supplement-dashboard.ts) → [`js/state.ts`](js/state.ts), [`js/supplement-dashboard-presentation.ts`](js/supplement-dashboard-presentation.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts), [`js/supplement-warnings.ts`](js/supplement-warnings.ts)
+- [`js/supplement-editor-presentation.ts`](js/supplement-editor-presentation.ts) → [`js/components/SupplementEditor.svelte`](js/components/SupplementEditor.svelte), [`js/components/SupplementExpanded.svelte`](js/components/SupplementExpanded.svelte)
+- [`js/supplement-form-presentation.ts`](js/supplement-form-presentation.ts) → [`js/components/SupplementForm.svelte`](js/components/SupplementForm.svelte), [`js/components/SupplementIngredientRow.svelte`](js/components/SupplementIngredientRow.svelte), [`js/components/SupplementPeriodRow.svelte`](js/components/SupplementPeriodRow.svelte), [`js/components/SupplementQualityRow.svelte`](js/components/SupplementQualityRow.svelte), [`js/supplement-action-delegates.ts`](js/supplement-action-delegates.ts)
+- [`js/supplement-form-ui.ts`](js/supplement-form-ui.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/state.ts`](js/state.ts), [`js/supplement-form-presentation.ts`](js/supplement-form-presentation.ts), [`js/supplement-impact.ts`](js/supplement-impact.ts), [`js/supplement-import-draft.ts`](js/supplement-import-draft.ts), [`js/supplement-import-review-view.ts`](js/supplement-import-review-view.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts), [`js/supplement-quality.ts`](js/supplement-quality.ts)
+- [`js/supplement-impact-presentation.ts`](js/supplement-impact-presentation.ts) → [`js/components/SupplementImpact.svelte`](js/components/SupplementImpact.svelte)
+- [`js/supplement-impact.ts`](js/supplement-impact.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/data.ts`](js/data.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/supplement-impact-presentation.ts`](js/supplement-impact-presentation.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/supplement-import-controller.ts`](js/supplement-import-controller.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/api.ts`](js/api.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/components/SupplementImportReview.svelte`](js/components/SupplementImportReview.svelte), [`js/context-card-editor-ui.ts`](js/context-card-editor-ui.ts), [`js/image-utils.ts`](js/image-utils.ts), [`js/proxy-runtime.ts`](js/proxy-runtime.ts), [`js/supplement-action-delegates.ts`](js/supplement-action-delegates.ts), [`js/supplement-form-ui.ts`](js/supplement-form-ui.ts), [`js/supplement-import-draft.ts`](js/supplement-import-draft.ts), [`js/supplement-import-progress-presentation.ts`](js/supplement-import-progress-presentation.ts), [`js/supplement-import-review-view.ts`](js/supplement-import-review-view.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts), [`js/supplement-quality.ts`](js/supplement-quality.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/supplement-import-draft.ts`](js/supplement-import-draft.ts) → [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts)
+- [`js/supplement-import-progress-presentation.ts`](js/supplement-import-progress-presentation.ts) → [`js/components/SupplementImportProgress.svelte`](js/components/SupplementImportProgress.svelte)
+- [`js/supplement-import-review-view.ts`](js/supplement-import-review-view.ts) → [`js/utils.ts`](js/utils.ts)
 - [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts) → [`js/unique-id.ts`](js/unique-id.ts)
 - [`js/supplement-quality.ts`](js/supplement-quality.ts) → no in-scope imports
 - [`js/supplement-warnings.ts`](js/supplement-warnings.ts) → no in-scope imports
 
 </details>
 
-<details><summary><code>supplements</code> family — 2 modules</summary>
+<details><summary><code>SupplementEditor.svelte</code> family — 1 module</summary>
 
-- [`js/supplements-runtime.ts`](js/supplements-runtime.ts) → [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts)
-- [`js/supplements.ts`](js/supplements.ts) → [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/supplement-action-delegates.ts`](js/supplement-action-delegates.ts), [`js/supplement-dashboard.ts`](js/supplement-dashboard.ts), [`js/supplement-form-ui.ts`](js/supplement-form-ui.ts), [`js/supplement-impact.ts`](js/supplement-impact.ts), [`js/supplement-import-controller.ts`](js/supplement-import-controller.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts), [`js/supplement-quality.ts`](js/supplement-quality.ts), [`js/supplements-runtime.ts`](js/supplements-runtime.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/components/SupplementEditor.svelte`](js/components/SupplementEditor.svelte) → [`js/components/SupplementEditorRow.svelte`](js/components/SupplementEditorRow.svelte), [`js/components/SupplementQualityOverview.svelte`](js/components/SupplementQualityOverview.svelte)
 
 </details>
 
-<details><summary><code>sync</code> family — 81 modules</summary>
+<details><summary><code>SupplementEditorRow.svelte</code> family — 1 module</summary>
+
+- [`js/components/SupplementEditorRow.svelte`](js/components/SupplementEditorRow.svelte) → [`js/components/SupplementExpanded.svelte`](js/components/SupplementExpanded.svelte)
+
+</details>
+
+<details><summary><code>SupplementExpanded.svelte</code> family — 1 module</summary>
+
+- [`js/components/SupplementExpanded.svelte`](js/components/SupplementExpanded.svelte) → [`js/components/SupplementForm.svelte`](js/components/SupplementForm.svelte), [`js/components/SupplementImpact.svelte`](js/components/SupplementImpact.svelte)
+
+</details>
+
+<details><summary><code>SupplementForm.svelte</code> family — 1 module</summary>
+
+- [`js/components/SupplementForm.svelte`](js/components/SupplementForm.svelte) → [`js/components/SupplementImportReview.svelte`](js/components/SupplementImportReview.svelte), [`js/components/SupplementIngredientRow.svelte`](js/components/SupplementIngredientRow.svelte), [`js/components/SupplementOption.svelte`](js/components/SupplementOption.svelte), [`js/components/SupplementPeriodRow.svelte`](js/components/SupplementPeriodRow.svelte), [`js/components/SupplementQualityRow.svelte`](js/components/SupplementQualityRow.svelte)
+
+</details>
+
+<details><summary><code>SupplementImpact.svelte</code> family — 1 module</summary>
+
+- [`js/components/SupplementImpact.svelte`](js/components/SupplementImpact.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>SupplementImportProgress.svelte</code> family — 1 module</summary>
+
+- [`js/components/SupplementImportProgress.svelte`](js/components/SupplementImportProgress.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>SupplementImportReview.svelte</code> family — 1 module</summary>
+
+- [`js/components/SupplementImportReview.svelte`](js/components/SupplementImportReview.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>SupplementIngredientRow.svelte</code> family — 1 module</summary>
+
+- [`js/components/SupplementIngredientRow.svelte`](js/components/SupplementIngredientRow.svelte) → [`js/components/SupplementOption.svelte`](js/components/SupplementOption.svelte)
+
+</details>
+
+<details><summary><code>SupplementMitoEvidence.svelte</code> family — 1 module</summary>
+
+- [`js/components/SupplementMitoEvidence.svelte`](js/components/SupplementMitoEvidence.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>SupplementOption.svelte</code> family — 1 module</summary>
+
+- [`js/components/SupplementOption.svelte`](js/components/SupplementOption.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>SupplementPeriodRow.svelte</code> family — 1 module</summary>
+
+- [`js/components/SupplementPeriodRow.svelte`](js/components/SupplementPeriodRow.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>SupplementQualityOverview.svelte</code> family — 1 module</summary>
+
+- [`js/components/SupplementQualityOverview.svelte`](js/components/SupplementQualityOverview.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>SupplementQualityRow.svelte</code> family — 1 module</summary>
+
+- [`js/components/SupplementQualityRow.svelte`](js/components/SupplementQualityRow.svelte) → [`js/components/SupplementOption.svelte`](js/components/SupplementOption.svelte)
+
+</details>
+
+<details><summary><code>supplements</code> family — 2 modules</summary>
+
+- [`js/supplements-runtime.ts`](js/supplements-runtime.ts) → [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts)
+- [`js/supplements.ts`](js/supplements.ts) → [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/supplement-action-delegates.ts`](js/supplement-action-delegates.ts), [`js/supplement-dashboard.ts`](js/supplement-dashboard.ts), [`js/supplement-editor-presentation.ts`](js/supplement-editor-presentation.ts), [`js/supplement-form-ui.ts`](js/supplement-form-ui.ts), [`js/supplement-impact.ts`](js/supplement-impact.ts), [`js/supplement-import-controller.ts`](js/supplement-import-controller.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts), [`js/supplement-quality.ts`](js/supplement-quality.ts), [`js/supplements-runtime.ts`](js/supplements-runtime.ts), [`js/utils.ts`](js/utils.ts)
+
+</details>
+
+<details><summary><code>SupplementTimeline.svelte</code> family — 1 module</summary>
+
+- [`js/components/SupplementTimeline.svelte`](js/components/SupplementTimeline.svelte) → [`js/components/SupplementMitoEvidence.svelte`](js/components/SupplementMitoEvidence.svelte), [`js/components/SupplementTimelineRow.svelte`](js/components/SupplementTimelineRow.svelte)
+
+</details>
+
+<details><summary><code>SupplementTimelineBar.svelte</code> family — 1 module</summary>
+
+- [`js/components/SupplementTimelineBar.svelte`](js/components/SupplementTimelineBar.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>SupplementTimelineRow.svelte</code> family — 1 module</summary>
+
+- [`js/components/SupplementTimelineRow.svelte`](js/components/SupplementTimelineRow.svelte) → [`js/components/SupplementTimelineBar.svelte`](js/components/SupplementTimelineBar.svelte)
+
+</details>
+
+<details><summary><code>sync</code> family — 87 modules</summary>
 
 - [`js/sync-actions.ts`](js/sync-actions.ts) → [`js/profile-sync-policy.ts`](js/profile-sync-policy.ts), [`js/state.ts`](js/state.ts), [`js/sync-cutover.ts`](js/sync-cutover.ts), [`js/sync-dirty-state.ts`](js/sync-dirty-state.ts), [`js/sync-messenger.ts`](js/sync-messenger.ts), [`js/sync-save-hooks.ts`](js/sync-save-hooks.ts), [`js/sync-state.ts`](js/sync-state.ts), [`js/sync-storage-cleanup.ts`](js/sync-storage-cleanup.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/sync-apply.ts`](js/sync-apply.ts) → [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/crypto.ts`](js/crypto.ts), [`js/routstr-session.ts`](js/routstr-session.ts), [`js/routstr-validation.ts`](js/routstr-validation.ts), [`js/sync-chat-apply.ts`](js/sync-chat-apply.ts), [`js/sync-payload-collectors.ts`](js/sync-payload-collectors.ts), [`js/sync-runtime.ts`](js/sync-runtime.ts), [`js/voice-settings-schema.ts`](js/voice-settings-schema.ts)
 - [`js/sync-backup-restore-state.ts`](js/sync-backup-restore-state.ts) → [`js/profile-sync-policy.ts`](js/profile-sync-policy.ts), [`js/sync-delta-snapshot.ts`](js/sync-delta-snapshot.ts), [`js/sync-dirty-state.ts`](js/sync-dirty-state.ts)
 - [`js/sync-chat-apply.ts`](js/sync-chat-apply.ts) → [`js/chat-personality-storage.ts`](js/chat-personality-storage.ts), [`js/crypto.ts`](js/crypto.ts), [`js/state.ts`](js/state.ts), [`js/sync-chat-merge.ts`](js/sync-chat-merge.ts) *(dynamic)*, [`js/sync-payload-collectors.ts`](js/sync-payload-collectors.ts), [`js/sync-state.ts`](js/sync-state.ts)
 - [`js/sync-chat-merge.ts`](js/sync-chat-merge.ts) → [`js/chat-personality-merge.ts`](js/chat-personality-merge.ts)
-- [`js/sync-configure.ts`](js/sync-configure.ts) → [`js/data.ts`](js/data.ts), [`js/lab-context.ts`](js/lab-context.ts), [`js/profile.ts`](js/profile.ts), [`js/sync-actions.ts`](js/sync-actions.ts), [`js/sync-cutover.ts`](js/sync-cutover.ts), [`js/sync-delta.ts`](js/sync-delta.ts), [`js/sync-diagnose-ui.ts`](js/sync-diagnose-ui.ts), [`js/sync-diagnostics-context.ts`](js/sync-diagnostics-context.ts), [`js/sync-environment.ts`](js/sync-environment.ts), [`js/sync-identity.ts`](js/sync-identity.ts), [`js/sync-init.ts`](js/sync-init.ts), [`js/sync-messenger.ts`](js/sync-messenger.ts), [`js/sync-payload.ts`](js/sync-payload.ts), [`js/sync-pull-rebroadcast.ts`](js/sync-pull-rebroadcast.ts), [`js/sync-pull.ts`](js/sync-pull.ts), [`js/sync-push.ts`](js/sync-push.ts), [`js/sync-reconcile.ts`](js/sync-reconcile.ts), [`js/sync-recovery.ts`](js/sync-recovery.ts), [`js/sync-relay-health.ts`](js/sync-relay-health.ts), [`js/sync-runtime.ts`](js/sync-runtime.ts), [`js/sync-save-hooks.ts`](js/sync-save-hooks.ts), [`js/sync-settings-state.ts`](js/sync-settings-state.ts), [`js/sync-state.ts`](js/sync-state.ts), [`js/sync-storage-cleanup.ts`](js/sync-storage-cleanup.ts), [`js/sync-subscriptions.ts`](js/sync-subscriptions.ts), [`js/sync-tombstones.ts`](js/sync-tombstones.ts), [`js/sync-ui.ts`](js/sync-ui.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/sync-configure.ts`](js/sync-configure.ts) → [`js/data.ts`](js/data.ts), [`js/lab-context-loader.ts`](js/lab-context-loader.ts), [`js/lab-context-wearables.ts`](js/lab-context-wearables.ts), [`js/profile.ts`](js/profile.ts), [`js/sync-actions.ts`](js/sync-actions.ts), [`js/sync-cutover.ts`](js/sync-cutover.ts), [`js/sync-delta.ts`](js/sync-delta.ts), [`js/sync-diagnose-ui.ts`](js/sync-diagnose-ui.ts), [`js/sync-diagnostics-context.ts`](js/sync-diagnostics-context.ts), [`js/sync-environment.ts`](js/sync-environment.ts), [`js/sync-identity.ts`](js/sync-identity.ts), [`js/sync-init.ts`](js/sync-init.ts), [`js/sync-messenger.ts`](js/sync-messenger.ts), [`js/sync-payload.ts`](js/sync-payload.ts), [`js/sync-pull-rebroadcast.ts`](js/sync-pull-rebroadcast.ts), [`js/sync-pull.ts`](js/sync-pull.ts), [`js/sync-push.ts`](js/sync-push.ts), [`js/sync-reconcile.ts`](js/sync-reconcile.ts), [`js/sync-recovery.ts`](js/sync-recovery.ts), [`js/sync-relay-health.ts`](js/sync-relay-health.ts), [`js/sync-runtime.ts`](js/sync-runtime.ts), [`js/sync-save-hooks.ts`](js/sync-save-hooks.ts), [`js/sync-settings-state.ts`](js/sync-settings-state.ts), [`js/sync-state.ts`](js/sync-state.ts), [`js/sync-storage-cleanup.ts`](js/sync-storage-cleanup.ts), [`js/sync-subscriptions.ts`](js/sync-subscriptions.ts), [`js/sync-tombstones.ts`](js/sync-tombstones.ts), [`js/sync-ui.ts`](js/sync-ui.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/sync-cutover.ts`](js/sync-cutover.ts) → [`js/sync-delta-snapshot.ts`](js/sync-delta-snapshot.ts), [`js/sync-delta-surfaces.ts`](js/sync-delta-surfaces.ts), [`js/sync-delta.ts`](js/sync-delta.ts), [`js/sync-payload.ts`](js/sync-payload.ts)
 - [`js/sync-delta-array-merge.ts`](js/sync-delta-array-merge.ts) → [`js/data-merge.ts`](js/data-merge.ts), [`js/sync-delta-id.ts`](js/sync-delta-id.ts), [`js/sync-delta-pull-snapshot.ts`](js/sync-delta-pull-snapshot.ts), [`js/sync-delta-row-codec.ts`](js/sync-delta-row-codec.ts), [`js/sync-delta-surface-config.ts`](js/sync-delta-surface-config.ts)
 - [`js/sync-delta-array-planner.ts`](js/sync-delta-array-planner.ts) → [`js/sync-delta-id.ts`](js/sync-delta-id.ts), [`js/sync-delta-planner-context.ts`](js/sync-delta-planner-context.ts), [`js/sync-delta-row-codec.ts`](js/sync-delta-row-codec.ts), [`js/sync-delta-snapshot.ts`](js/sync-delta-snapshot.ts), [`js/sync-delta-surface-config.ts`](js/sync-delta-surface-config.ts), [`js/sync-payload-codec.ts`](js/sync-payload-codec.ts)
@@ -3525,11 +4635,16 @@ Native browser modules shipped with the static application.
 - [`js/sync-diagnose-actions-context.ts`](js/sync-diagnose-actions-context.ts) → [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts)
 - [`js/sync-diagnose-actions.ts`](js/sync-diagnose-actions.ts) → [`js/sync-diagnose-actions-context.ts`](js/sync-diagnose-actions-context.ts), [`js/sync-diagnose-cutover-actions.ts`](js/sync-diagnose-cutover-actions.ts), [`js/sync-diagnose-identity-actions.ts`](js/sync-diagnose-identity-actions.ts), [`js/sync-diagnose-relay-actions.ts`](js/sync-diagnose-relay-actions.ts)
 - [`js/sync-diagnose-cutover-actions.ts`](js/sync-diagnose-cutover-actions.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/state.ts`](js/state.ts), [`js/sync-delta.ts`](js/sync-delta.ts), [`js/sync-diagnose-actions-context.ts`](js/sync-diagnose-actions-context.ts), [`js/sync-diagnose-runtime.ts`](js/sync-diagnose-runtime.ts), [`js/sync-state.ts`](js/sync-state.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/sync-diagnose-identity-actions.ts`](js/sync-diagnose-identity-actions.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/sync-diagnose-actions-context.ts`](js/sync-diagnose-actions-context.ts), [`js/sync-diagnose-runtime.ts`](js/sync-diagnose-runtime.ts), [`js/sync-identity.ts`](js/sync-identity.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/sync-diagnose-identity-actions.ts`](js/sync-diagnose-identity-actions.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/sync-diagnose-actions-context.ts`](js/sync-diagnose-actions-context.ts), [`js/sync-diagnose-identity-presentation.ts`](js/sync-diagnose-identity-presentation.ts), [`js/sync-diagnose-runtime.ts`](js/sync-diagnose-runtime.ts), [`js/sync-identity.ts`](js/sync-identity.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/sync-diagnose-identity-presentation.ts`](js/sync-diagnose-identity-presentation.ts) → [`js/components/SyncIdentityRotation.svelte`](js/components/SyncIdentityRotation.svelte)
+- [`js/sync-diagnose-open-owner.ts`](js/sync-diagnose-open-owner.ts) → [`js/route-lifecycle.ts`](js/route-lifecycle.ts), [`js/state.ts`](js/state.ts)
+- [`js/sync-diagnose-presentation.ts`](js/sync-diagnose-presentation.ts) → [`js/components/SyncDiagnoseModal.svelte`](js/components/SyncDiagnoseModal.svelte), [`js/sync-diagnose-identity-presentation.ts`](js/sync-diagnose-identity-presentation.ts), [`js/sync-diagnose-projector.ts`](js/sync-diagnose-projector.ts)
+- [`js/sync-diagnose-projector.ts`](js/sync-diagnose-projector.ts) → no in-scope imports
 - [`js/sync-diagnose-relay-actions.ts`](js/sync-diagnose-relay-actions.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/sync-actions.ts`](js/sync-actions.ts), [`js/sync-diagnose-actions-context.ts`](js/sync-diagnose-actions-context.ts), [`js/sync-diagnose-runtime.ts`](js/sync-diagnose-runtime.ts), [`js/sync-relay-health.ts`](js/sync-relay-health.ts), [`js/sync-runtime.ts`](js/sync-runtime.ts), [`js/sync-ui.ts`](js/sync-ui.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/sync-diagnose-render.ts`](js/sync-diagnose-render.ts) → [`js/utils.ts`](js/utils.ts)
+- [`js/sync-diagnose-render.ts`](js/sync-diagnose-render.ts) → [`js/sync-diagnose-presentation.ts`](js/sync-diagnose-presentation.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/sync-diagnose-runtime.ts`](js/sync-diagnose-runtime.ts) → [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/sync-diagnose-ui.ts`](js/sync-diagnose-ui.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/sync-diagnose-actions.ts`](js/sync-diagnose-actions.ts), [`js/sync-diagnose-render.ts`](js/sync-diagnose-render.ts), [`js/sync-diagnostics-snapshot.ts`](js/sync-diagnostics-snapshot.ts), [`js/sync-diagnostics-text.ts`](js/sync-diagnostics-text.ts), [`js/sync-relay-health.ts`](js/sync-relay-health.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/sync-diagnose-ui-impl.ts`](js/sync-diagnose-ui-impl.ts) → [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/sync-diagnose-actions.ts`](js/sync-diagnose-actions.ts), [`js/sync-diagnose-render.ts`](js/sync-diagnose-render.ts), [`js/sync-diagnostics-snapshot.ts`](js/sync-diagnostics-snapshot.ts), [`js/sync-diagnostics-text.ts`](js/sync-diagnostics-text.ts), [`js/sync-relay-health.ts`](js/sync-relay-health.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/sync-diagnose-ui.ts`](js/sync-diagnose-ui.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/sync-diagnose-actions.ts`](js/sync-diagnose-actions.ts), [`js/sync-diagnose-open-owner.ts`](js/sync-diagnose-open-owner.ts), [`js/sync-diagnose-ui-impl.ts`](js/sync-diagnose-ui-impl.ts) *(dynamic)*, [`js/utils.ts`](js/utils.ts)
 - [`js/sync-diagnostics-context.ts`](js/sync-diagnostics-context.ts) → [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts)
 - [`js/sync-diagnostics-snapshot.ts`](js/sync-diagnostics-snapshot.ts) → [`js/state.ts`](js/state.ts), [`js/sync-delta.ts`](js/sync-delta.ts), [`js/sync-diagnostics-context.ts`](js/sync-diagnostics-context.ts), [`js/sync-environment.ts`](js/sync-environment.ts), [`js/sync-payload-codec.ts`](js/sync-payload-codec.ts), [`js/sync-state.ts`](js/sync-state.ts)
 - [`js/sync-diagnostics-text.ts`](js/sync-diagnostics-text.ts) → no in-scope imports
@@ -3555,7 +4670,7 @@ Native browser modules shipped with the static application.
 - [`js/sync-pull-active-refresh-runtime.ts`](js/sync-pull-active-refresh-runtime.ts) → [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts)
 - [`js/sync-pull-active-refresh.ts`](js/sync-pull-active-refresh.ts) → [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/sync-pull-active-refresh-runtime.ts`](js/sync-pull-active-refresh-runtime.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/sync-pull-maintenance.ts`](js/sync-pull-maintenance.ts) → no in-scope imports
-- [`js/sync-pull-merge.ts`](js/sync-pull-merge.ts) → [`js/biology-score-context-ai.ts`](js/biology-score-context-ai.ts), [`js/biology-score-persistence.ts`](js/biology-score-persistence.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/clear-all-profile-reset.ts`](js/clear-all-profile-reset.ts) *(dynamic)*, [`js/crypto.ts`](js/crypto.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/nutrition-sync-sanitize.ts`](js/nutrition-sync-sanitize.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile-sync-policy.ts`](js/profile-sync-policy.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/sync-delta.ts`](js/sync-delta.ts), [`js/sync-identity.ts`](js/sync-identity.ts), [`js/sync-payload.ts`](js/sync-payload.ts), [`js/sync-profile-fields.ts`](js/sync-profile-fields.ts)
+- [`js/sync-pull-merge.ts`](js/sync-pull-merge.ts) → [`js/biology-score-context-contract.ts`](js/biology-score-context-contract.ts), [`js/biology-score-persistence.ts`](js/biology-score-persistence.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/clear-all-profile-reset.ts`](js/clear-all-profile-reset.ts) *(dynamic)*, [`js/crypto.ts`](js/crypto.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/nutrition-sync-sanitize.ts`](js/nutrition-sync-sanitize.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile-sync-policy.ts`](js/profile-sync-policy.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/sync-delta.ts`](js/sync-delta.ts), [`js/sync-identity.ts`](js/sync-identity.ts), [`js/sync-payload.ts`](js/sync-payload.ts), [`js/sync-profile-fields.ts`](js/sync-profile-fields.ts)
 - [`js/sync-pull-rebroadcast.ts`](js/sync-pull-rebroadcast.ts) → [`js/state.ts`](js/state.ts), [`js/sync-state.ts`](js/sync-state.ts)
 - [`js/sync-pull.ts`](js/sync-pull.ts) → [`js/nutrition-sync-sanitize.ts`](js/nutrition-sync-sanitize.ts), [`js/profile-sync-policy.ts`](js/profile-sync-policy.ts), [`js/routstr-session.ts`](js/routstr-session.ts), [`js/sync-apply.ts`](js/sync-apply.ts) *(dynamic)*, [`js/sync-backup-restore-state.ts`](js/sync-backup-restore-state.ts), [`js/sync-chat-apply.ts`](js/sync-chat-apply.ts), [`js/sync-identity.ts`](js/sync-identity.ts), [`js/sync-origin-state.ts`](js/sync-origin-state.ts), [`js/sync-payload.ts`](js/sync-payload.ts), [`js/sync-pull-active-refresh.ts`](js/sync-pull-active-refresh.ts), [`js/sync-pull-maintenance.ts`](js/sync-pull-maintenance.ts), [`js/sync-pull-merge.ts`](js/sync-pull-merge.ts), [`js/sync-pull-rebroadcast.ts`](js/sync-pull-rebroadcast.ts), [`js/sync-save-hooks.ts`](js/sync-save-hooks.ts), [`js/sync-state.ts`](js/sync-state.ts), [`js/sync-tombstones.ts`](js/sync-tombstones.ts)
 - [`js/sync-push-deltas.ts`](js/sync-push-deltas.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/sync-delta.ts`](js/sync-delta.ts)
@@ -3569,17 +4684,42 @@ Native browser modules shipped with the static application.
 - [`js/sync-schema.ts`](js/sync-schema.ts) → no in-scope imports
 - [`js/sync-settings-state.ts`](js/sync-settings-state.ts) → no in-scope imports
 - [`js/sync-state.ts`](js/sync-state.ts) → no in-scope imports
+- [`js/sync-status-rendering.ts`](js/sync-status-rendering.ts) → [`js/components/SyncIndicatorPresentation.svelte`](js/components/SyncIndicatorPresentation.svelte), [`js/components/SyncPopoverPresentation.svelte`](js/components/SyncPopoverPresentation.svelte)
 - [`js/sync-storage-cleanup.ts`](js/sync-storage-cleanup.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/sync-state.ts`](js/sync-state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/sync-subscriptions.ts`](js/sync-subscriptions.ts) → [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts)
 - [`js/sync-tombstones.ts`](js/sync-tombstones.ts) → [`js/clear-all-profile-reset.ts`](js/clear-all-profile-reset.ts) *(dynamic)*, [`js/crypto.ts`](js/crypto.ts), [`js/profile-storage-cleanup.ts`](js/profile-storage-cleanup.ts), [`js/profile-storage-key.ts`](js/profile-storage-key.ts), [`js/profile-sync-policy.ts`](js/profile-sync-policy.ts), [`js/state.ts`](js/state.ts), [`js/sync-dirty-state.ts`](js/sync-dirty-state.ts), [`js/sync-payload.ts`](js/sync-payload.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/sync-ui.ts`](js/sync-ui.ts) → [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/sync-environment.ts`](js/sync-environment.ts), [`js/sync-relay-health.ts`](js/sync-relay-health.ts), [`js/sync-state.ts`](js/sync-state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/sync-ui.ts`](js/sync-ui.ts) → [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/sync-environment.ts`](js/sync-environment.ts), [`js/sync-relay-health.ts`](js/sync-relay-health.ts), [`js/sync-state.ts`](js/sync-state.ts), [`js/sync-status-rendering.ts`](js/sync-status-rendering.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/sync.ts`](js/sync.ts) → [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/sync-actions.ts`](js/sync-actions.ts), [`js/sync-cutover.ts`](js/sync-cutover.ts), [`js/sync-diagnose-ui.ts`](js/sync-diagnose-ui.ts), [`js/sync-diagnostics-snapshot.ts`](js/sync-diagnostics-snapshot.ts), [`js/sync-environment.ts`](js/sync-environment.ts), [`js/sync-identity.ts`](js/sync-identity.ts), [`js/sync-init.ts`](js/sync-init.ts), [`js/sync-messenger.ts`](js/sync-messenger.ts), [`js/sync-relay-health.ts`](js/sync-relay-health.ts), [`js/sync-save-hooks.ts`](js/sync-save-hooks.ts), [`js/sync-settings-state.ts`](js/sync-settings-state.ts), [`js/sync-state.ts`](js/sync-state.ts), [`js/sync-storage-cleanup.ts`](js/sync-storage-cleanup.ts), [`js/sync-tombstones.ts`](js/sync-tombstones.ts), [`js/sync-ui.ts`](js/sync-ui.ts)
+
+</details>
+
+<details><summary><code>SyncDiagnoseModal.svelte</code> family — 1 module</summary>
+
+- [`js/components/SyncDiagnoseModal.svelte`](js/components/SyncDiagnoseModal.svelte) → no in-scope imports
 
 </details>
 
 <details><summary><code>SyncDialog.svelte</code> family — 1 module</summary>
 
 - [`js/components/SyncDialog.svelte`](js/components/SyncDialog.svelte) → [`js/sync-dialog-classes.ts`](js/sync-dialog-classes.ts)
+
+</details>
+
+<details><summary><code>SyncIdentityRotation.svelte</code> family — 1 module</summary>
+
+- [`js/components/SyncIdentityRotation.svelte`](js/components/SyncIdentityRotation.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>SyncIndicatorPresentation.svelte</code> family — 1 module</summary>
+
+- [`js/components/SyncIndicatorPresentation.svelte`](js/components/SyncIndicatorPresentation.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>SyncPopoverPresentation.svelte</code> family — 1 module</summary>
+
+- [`js/components/SyncPopoverPresentation.svelte`](js/components/SyncPopoverPresentation.svelte) → no in-scope imports
 
 </details>
 
@@ -3597,10 +4737,23 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>therapy</code> family — 2 modules</summary>
+<details><summary><code>therapy</code> family — 3 modules</summary>
 
-- [`js/therapy-correlation-view.ts`](js/therapy-correlation-view.ts) → [`js/charts-runtime.ts`](js/charts-runtime.ts), [`js/correlation-workspace-store.ts`](js/correlation-workspace-store.ts), [`js/state.ts`](js/state.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts), [`js/supplements.ts`](js/supplements.ts) *(dynamic)*, [`js/theme.ts`](js/theme.ts), [`js/therapy-correlations.ts`](js/therapy-correlations.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/therapy-comparison-presentation.ts`](js/therapy-comparison-presentation.ts) → [`js/category-presentation.ts`](js/category-presentation.ts), [`js/components/MarkerPairComparison.svelte`](js/components/MarkerPairComparison.svelte), [`js/components/TherapyComparisonResults.svelte`](js/components/TherapyComparisonResults.svelte), [`js/utils.ts`](js/utils.ts)
+- [`js/therapy-correlation-view.ts`](js/therapy-correlation-view.ts) → [`js/charts-runtime.ts`](js/charts-runtime.ts), [`js/correlation-workspace-chrome-presentation.ts`](js/correlation-workspace-chrome-presentation.ts), [`js/correlation-workspace-store.ts`](js/correlation-workspace-store.ts), [`js/state.ts`](js/state.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts), [`js/supplements.ts`](js/supplements.ts) *(dynamic)*, [`js/theme.ts`](js/theme.ts), [`js/therapy-comparison-presentation.ts`](js/therapy-comparison-presentation.ts), [`js/therapy-correlations.ts`](js/therapy-correlations.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/therapy-correlations.ts`](js/therapy-correlations.ts) → [`js/lab-date-range.ts`](js/lab-date-range.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts)
+
+</details>
+
+<details><summary><code>TherapyComparisonEntries.svelte</code> family — 1 module</summary>
+
+- [`js/components/TherapyComparisonEntries.svelte`](js/components/TherapyComparisonEntries.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>TherapyComparisonResults.svelte</code> family — 1 module</summary>
+
+- [`js/components/TherapyComparisonResults.svelte`](js/components/TherapyComparisonResults.svelte) → [`js/components/TherapyComparisonEntries.svelte`](js/components/TherapyComparisonEntries.svelte)
 
 </details>
 
@@ -3717,6 +4870,20 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>tweaks</code> family — 3 modules</summary>
+
+- [`js/tweaks-classes.ts`](js/tweaks-classes.ts) → no in-scope imports
+- [`js/tweaks-presentation.ts`](js/tweaks-presentation.ts) → no in-scope imports
+- [`js/tweaks-rendering.ts`](js/tweaks-rendering.ts) → [`js/components/TweaksPresentation.svelte`](js/components/TweaksPresentation.svelte)
+
+</details>
+
+<details><summary><code>TweaksPresentation.svelte</code> family — 1 module</summary>
+
+- [`js/components/TweaksPresentation.svelte`](js/components/TweaksPresentation.svelte) → [`js/tweaks-classes.ts`](js/tweaks-classes.ts)
+
+</details>
+
 <details><summary><code>types</code> family — 1 module</summary>
 
 - [`js/marker-schema/types.ts`](js/marker-schema/types.ts) → no in-scope imports
@@ -3753,7 +4920,7 @@ Native browser modules shipped with the static application.
 - [`js/utils-dialog-presentation.ts`](js/utils-dialog-presentation.ts) → no in-scope imports
 - [`js/utils-dialog-rendering.ts`](js/utils-dialog-rendering.ts) → [`js/components/UtilsConfirmPresentation.svelte`](js/components/UtilsConfirmPresentation.svelte), [`js/components/UtilsPromptPresentation.svelte`](js/components/UtilsPromptPresentation.svelte), [`js/utils-dialog-presentation.ts`](js/utils-dialog-presentation.ts)
 - [`js/utils-runtime.ts`](js/utils-runtime.ts) → no in-scope imports
-- [`js/utils.ts`](js/utils.ts) → [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils-dialog-rendering.ts`](js/utils-dialog-rendering.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts)
+- [`js/utils.ts`](js/utils.ts) → [`js/analytics-consent-rendering.ts`](js/analytics-consent-rendering.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils-dialog-rendering.ts`](js/utils-dialog-rendering.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts)
 
 </details>
 
@@ -3784,11 +4951,30 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>views</code> family — 3 modules</summary>
+<details><summary><code>version</code> family — 1 module</summary>
+
+- [`js/version-update-rendering.ts`](js/version-update-rendering.ts) → [`js/components/VersionUpdateBody.svelte`](js/components/VersionUpdateBody.svelte), [`js/components/VersionUpdateCopy.svelte`](js/components/VersionUpdateCopy.svelte)
+
+</details>
+
+<details><summary><code>VersionUpdateBody.svelte</code> family — 1 module</summary>
+
+- [`js/components/VersionUpdateBody.svelte`](js/components/VersionUpdateBody.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>VersionUpdateCopy.svelte</code> family — 1 module</summary>
+
+- [`js/components/VersionUpdateCopy.svelte`](js/components/VersionUpdateCopy.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>views</code> family — 4 modules</summary>
 
 - [`js/views-router-runtime.ts`](js/views-router-runtime.ts) → [`js/pdf-import-progress.ts`](js/pdf-import-progress.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts)
 - [`js/views-router.ts`](js/views-router.ts) → [`js/data.ts`](js/data.ts), [`js/profile.ts`](js/profile.ts), [`js/route-lifecycle.ts`](js/route-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts), [`js/views-router-runtime.ts`](js/views-router-runtime.ts)
-- [`js/views.ts`](js/views.ts) → [`js/category-customization.ts`](js/category-customization.ts), [`js/category-glyphs.ts`](js/category-glyphs.ts), [`js/category-page-runtime.ts`](js/category-page-runtime.ts), [`js/category-page-view.ts`](js/category-page-view.ts), [`js/category-view-renderers.ts`](js/category-view-renderers.ts), [`js/compare-correlations.ts`](js/compare-correlations.ts) *(dynamic)*, [`js/cycle-runtime.ts`](js/cycle-runtime.ts), [`js/data.ts`](js/data.ts), [`js/dna-runtime.ts`](js/dna-runtime.ts), [`js/focus-card.ts`](js/focus-card.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/import-drop-zone.ts`](js/import-drop-zone.ts), [`js/lens-page-shell.ts`](js/lens-page-shell.ts), [`js/lens-pages.ts`](js/lens-pages.ts), [`js/light-sun-loader.ts`](js/light-sun-loader.ts), [`js/marker-detail-modal.ts`](js/marker-detail-modal.ts), [`js/mobile-dashboard.ts`](js/mobile-dashboard.ts), [`js/nav.ts`](js/nav.ts), [`js/onboarding-view.ts`](js/onboarding-view.ts), [`js/recommendation-actions.ts`](js/recommendation-actions.ts), [`js/state.ts`](js/state.ts), [`js/views-router.ts`](js/views-router.ts)
+- [`js/views-runtime.ts`](js/views-runtime.ts) → [`js/biology-page-loader.ts`](js/biology-page-loader.ts), [`js/category-customization.ts`](js/category-customization.ts), [`js/category-page-runtime.ts`](js/category-page-runtime.ts), [`js/category-page-view.ts`](js/category-page-view.ts), [`js/category-view-renderers.ts`](js/category-view-renderers.ts), [`js/compare-correlations.ts`](js/compare-correlations.ts) *(dynamic)*, [`js/cycle-runtime.ts`](js/cycle-runtime.ts), [`js/dashboard-composition-loader.ts`](js/dashboard-composition-loader.ts), [`js/dashboard-view-shell.ts`](js/dashboard-view-shell.ts), [`js/data.ts`](js/data.ts), [`js/dna-runtime.ts`](js/dna-runtime.ts), [`js/focus-card.ts`](js/focus-card.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/import-drop-zone.ts`](js/import-drop-zone.ts), [`js/lens-page-shell-core.ts`](js/lens-page-shell-core.ts), [`js/light-sun-loader.ts`](js/light-sun-loader.ts), [`js/marker-detail-modal.ts`](js/marker-detail-modal.ts), [`js/mobile-dashboard.ts`](js/mobile-dashboard.ts), [`js/nav.ts`](js/nav.ts), [`js/navigation-completion.ts`](js/navigation-completion.ts), [`js/onboarding-view.ts`](js/onboarding-view.ts), [`js/recommendation-action-delegates.ts`](js/recommendation-action-delegates.ts), [`js/route-lifecycle.ts`](js/route-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts), [`js/views-router.ts`](js/views-router.ts)
+- [`js/views.ts`](js/views.ts) → [`js/data.ts`](js/data.ts), [`js/focus-card.ts`](js/focus-card.ts), [`js/import-drop-zone.ts`](js/import-drop-zone.ts), [`js/lens-page-shell-core.ts`](js/lens-page-shell-core.ts), [`js/lens-pages.ts`](js/lens-pages.ts), [`js/onboarding-view.ts`](js/onboarding-view.ts), [`js/recommendation-actions.ts`](js/recommendation-actions.ts), [`js/views-runtime.ts`](js/views-runtime.ts)
 
 </details>
 
@@ -3893,20 +5079,79 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>wearable</code> family — 8 modules</summary>
+<details><summary><code>wearable</code> family — 13 modules</summary>
 
 - [`js/wearable-adapters.ts`](js/wearable-adapters.ts) → [`js/url-safety.ts`](js/url-safety.ts)
 - [`js/wearable-daily-row.ts`](js/wearable-daily-row.ts) → no in-scope imports
 - [`js/wearable-data-types.ts`](js/wearable-data-types.ts) → no in-scope imports
+- [`js/wearable-detail-presentation.ts`](js/wearable-detail-presentation.ts) → [`js/components/WearableDetailChrome.svelte`](js/components/WearableDetailChrome.svelte)
 - [`js/wearable-oauth-state.ts`](js/wearable-oauth-state.ts) → no in-scope imports
 - [`js/wearable-oauth-tokens.ts`](js/wearable-oauth-tokens.ts) → no in-scope imports
 - [`js/wearable-oauth-types.ts`](js/wearable-oauth-types.ts) → no in-scope imports
 - [`js/wearable-persistence-types.ts`](js/wearable-persistence-types.ts) → no in-scope imports
 - [`js/wearable-storage-types.ts`](js/wearable-storage-types.ts) → no in-scope imports
+- [`js/wearable-strip-empty-presentation.ts`](js/wearable-strip-empty-presentation.ts) → [`js/components/WearableEmptyCard.svelte`](js/components/WearableEmptyCard.svelte), [`js/utils.ts`](js/utils.ts)
+- [`js/wearable-strip-presentation.ts`](js/wearable-strip-presentation.ts) → [`js/components/WearableStripBody.svelte`](js/components/WearableStripBody.svelte)
+- [`js/wearable-strip-sparkline-presentation.ts`](js/wearable-strip-sparkline-presentation.ts) → [`js/components/WearableSparkline.svelte`](js/components/WearableSparkline.svelte)
+- [`js/wearable-strip-stub-presentation.ts`](js/wearable-strip-stub-presentation.ts) → [`js/components/WearableStripStub.svelte`](js/components/WearableStripStub.svelte)
 
 </details>
 
-<details><summary><code>wearables</code> family — 47 modules</summary>
+<details><summary><code>WearableDetailChrome.svelte</code> family — 1 module</summary>
+
+- [`js/components/WearableDetailChrome.svelte`](js/components/WearableDetailChrome.svelte) → [`js/components/WearableDetailFeedback.svelte`](js/components/WearableDetailFeedback.svelte), [`js/components/WearableDetailStats.svelte`](js/components/WearableDetailStats.svelte), [`js/components/WearableManualEntries.svelte`](js/components/WearableManualEntries.svelte)
+
+</details>
+
+<details><summary><code>WearableDetailFeedback.svelte</code> family — 1 module</summary>
+
+- [`js/components/WearableDetailFeedback.svelte`](js/components/WearableDetailFeedback.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>WearableDetailStats.svelte</code> family — 1 module</summary>
+
+- [`js/components/WearableDetailStats.svelte`](js/components/WearableDetailStats.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>WearableEmptyCard.svelte</code> family — 1 module</summary>
+
+- [`js/components/WearableEmptyCard.svelte`](js/components/WearableEmptyCard.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>WearableManualEntries.svelte</code> family — 1 module</summary>
+
+- [`js/components/WearableManualEntries.svelte`](js/components/WearableManualEntries.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>WearableManualLog.svelte</code> family — 1 module</summary>
+
+- [`js/components/WearableManualLog.svelte`](js/components/WearableManualLog.svelte) → [`js/components/WearableManualNote.svelte`](js/components/WearableManualNote.svelte), [`js/components/WearableManualTags.svelte`](js/components/WearableManualTags.svelte)
+
+</details>
+
+<details><summary><code>WearableManualNote.svelte</code> family — 1 module</summary>
+
+- [`js/components/WearableManualNote.svelte`](js/components/WearableManualNote.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>WearableManualTags.svelte</code> family — 1 module</summary>
+
+- [`js/components/WearableManualTags.svelte`](js/components/WearableManualTags.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>WearableMetricCard.svelte</code> family — 1 module</summary>
+
+- [`js/components/WearableMetricCard.svelte`](js/components/WearableMetricCard.svelte) → [`js/components/WearableSparkline.svelte`](js/components/WearableSparkline.svelte)
+
+</details>
+
+<details><summary><code>wearables</code> family — 49 modules</summary>
 
 - [`js/wearables-apple-health-parser.ts`](js/wearables-apple-health-parser.ts) → [`js/wearable-adapters.ts`](js/wearable-adapters.ts)
 - [`js/wearables-apple-health-runtime.ts`](js/wearables-apple-health-runtime.ts) → [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts)
@@ -3918,16 +5163,17 @@ Native browser modules shipped with the static application.
 - [`js/wearables-connect.ts`](js/wearables-connect.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/data.ts`](js/data.ts), [`js/profile.ts`](js/profile.ts), [`js/proxy-runtime.ts`](js/proxy-runtime.ts), [`js/state.ts`](js/state.ts), [`js/url-safety.ts`](js/url-safety.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts), [`js/wearables-connect-runtime.ts`](js/wearables-connect-runtime.ts), [`js/wearables-connection-summaries.ts`](js/wearables-connection-summaries.ts), [`js/wearables-credential-vault.ts`](js/wearables-credential-vault.ts), [`js/wearables-disconnect-recovery.ts`](js/wearables-disconnect-recovery.ts), [`js/wearables-fitbit-auth.ts`](js/wearables-fitbit-auth.ts), [`js/wearables-fitbit.ts`](js/wearables-fitbit.ts), [`js/wearables-google-health-auth.ts`](js/wearables-google-health-auth.ts), [`js/wearables-google-health.ts`](js/wearables-google-health.ts), [`js/wearables-oura-auth.ts`](js/wearables-oura-auth.ts), [`js/wearables-oura.ts`](js/wearables-oura.ts), [`js/wearables-polar-auth.ts`](js/wearables-polar-auth.ts), [`js/wearables-polar.ts`](js/wearables-polar.ts), [`js/wearables-store.ts`](js/wearables-store.ts), [`js/wearables-summary.ts`](js/wearables-summary.ts), [`js/wearables-ultrahuman-auth.ts`](js/wearables-ultrahuman-auth.ts), [`js/wearables-ultrahuman.ts`](js/wearables-ultrahuman.ts), [`js/wearables-whoop-auth.ts`](js/wearables-whoop-auth.ts), [`js/wearables-whoop.ts`](js/wearables-whoop.ts), [`js/wearables-withings-auth.ts`](js/wearables-withings-auth.ts), [`js/wearables-withings.ts`](js/wearables-withings.ts)
 - [`js/wearables-connection-summaries.ts`](js/wearables-connection-summaries.ts) → no in-scope imports
 - [`js/wearables-credential-vault.ts`](js/wearables-credential-vault.ts) → [`js/base64.ts`](js/base64.ts), [`js/wearables-store.ts`](js/wearables-store.ts)
-- [`js/wearables-detail-modal.ts`](js/wearables-detail-modal.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/charts.ts`](js/charts.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/theme.ts`](js/theme.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts), [`js/wearables-bp-detail-chart.ts`](js/wearables-bp-detail-chart.ts), [`js/wearables-detail-runtime.ts`](js/wearables-detail-runtime.ts), [`js/wearables-formatters.ts`](js/wearables-formatters.ts), [`js/wearables-manual-detail.ts`](js/wearables-manual-detail.ts), [`js/wearables-manual.ts`](js/wearables-manual.ts), [`js/wearables-store.ts`](js/wearables-store.ts)
+- [`js/wearables-detail-modal.ts`](js/wearables-detail-modal.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/charts.ts`](js/charts.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/theme.ts`](js/theme.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts), [`js/wearable-detail-presentation.ts`](js/wearable-detail-presentation.ts), [`js/wearable-strip-empty-presentation.ts`](js/wearable-strip-empty-presentation.ts), [`js/wearables-bp-detail-chart.ts`](js/wearables-bp-detail-chart.ts), [`js/wearables-detail-runtime.ts`](js/wearables-detail-runtime.ts), [`js/wearables-formatters.ts`](js/wearables-formatters.ts), [`js/wearables-manual-detail.ts`](js/wearables-manual-detail.ts), [`js/wearables-manual.ts`](js/wearables-manual.ts), [`js/wearables-store.ts`](js/wearables-store.ts)
 - [`js/wearables-detail-runtime.ts`](js/wearables-detail-runtime.ts) → [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/wearables-disconnect-recovery.ts`](js/wearables-disconnect-recovery.ts) → [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/wearables-store.ts`](js/wearables-store.ts)
+- [`js/wearables-entry-presentation.ts`](js/wearables-entry-presentation.ts) → [`js/components/WearableManualLog.svelte`](js/components/WearableManualLog.svelte), [`js/components/WearableSourcePicker.svelte`](js/components/WearableSourcePicker.svelte)
 - [`js/wearables-fitbit-auth.ts`](js/wearables-fitbit-auth.ts) → [`js/proxy-runtime.ts`](js/proxy-runtime.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-oauth-state.ts`](js/wearable-oauth-state.ts), [`js/wearable-oauth-tokens.ts`](js/wearable-oauth-tokens.ts), [`js/wearables-auth-runtime.ts`](js/wearables-auth-runtime.ts)
 - [`js/wearables-fitbit.ts`](js/wearables-fitbit.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/proxy-runtime.ts`](js/proxy-runtime.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-daily-row.ts`](js/wearable-daily-row.ts)
 - [`js/wearables-formatters.ts`](js/wearables-formatters.ts) → [`js/wearable-adapters.ts`](js/wearable-adapters.ts)
 - [`js/wearables-google-health-auth.ts`](js/wearables-google-health-auth.ts) → [`js/proxy-runtime.ts`](js/proxy-runtime.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-oauth-state.ts`](js/wearable-oauth-state.ts), [`js/wearable-oauth-tokens.ts`](js/wearable-oauth-tokens.ts), [`js/wearables-auth-runtime.ts`](js/wearables-auth-runtime.ts)
 - [`js/wearables-google-health.ts`](js/wearables-google-health.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/proxy-runtime.ts`](js/proxy-runtime.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/wearables-manual-detail.ts`](js/wearables-manual-detail.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/profile.ts`](js/profile.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts), [`js/wearables-detail-runtime.ts`](js/wearables-detail-runtime.ts), [`js/wearables-formatters.ts`](js/wearables-formatters.ts), [`js/wearables-manual-form-ui.ts`](js/wearables-manual-form-ui.ts), [`js/wearables-manual.ts`](js/wearables-manual.ts)
-- [`js/wearables-manual-form-ui.ts`](js/wearables-manual-form-ui.ts) → [`js/utils.ts`](js/utils.ts)
+- [`js/wearables-manual-detail.ts`](js/wearables-manual-detail.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/profile.ts`](js/profile.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts), [`js/wearables-detail-runtime.ts`](js/wearables-detail-runtime.ts), [`js/wearables-entry-presentation.ts`](js/wearables-entry-presentation.ts), [`js/wearables-formatters.ts`](js/wearables-formatters.ts), [`js/wearables-manual-form-ui.ts`](js/wearables-manual-form-ui.ts), [`js/wearables-manual.ts`](js/wearables-manual.ts)
+- [`js/wearables-manual-form-ui.ts`](js/wearables-manual-form-ui.ts) → [`js/wearables-entry-presentation.ts`](js/wearables-entry-presentation.ts)
 - [`js/wearables-manual-lock.ts`](js/wearables-manual-lock.ts) → no in-scope imports
 - [`js/wearables-manual.ts`](js/wearables-manual.ts) → [`js/data.ts`](js/data.ts), [`js/state.ts`](js/state.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts), [`js/wearables-connect.ts`](js/wearables-connect.ts) *(dynamic)*, [`js/wearables-formatters.ts`](js/wearables-formatters.ts), [`js/wearables-manual-lock.ts`](js/wearables-manual-lock.ts), [`js/wearables-store.ts`](js/wearables-store.ts), [`js/wearables-summary.ts`](js/wearables-summary.ts)
 - [`js/wearables-oura-auth.ts`](js/wearables-oura-auth.ts) → [`js/proxy-runtime.ts`](js/proxy-runtime.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-oauth-state.ts`](js/wearable-oauth-state.ts), [`js/wearable-oauth-tokens.ts`](js/wearable-oauth-tokens.ts), [`js/wearables-auth-runtime.ts`](js/wearables-auth-runtime.ts)
@@ -3938,29 +5184,72 @@ Native browser modules shipped with the static application.
 - [`js/wearables-settings-classes.ts`](js/wearables-settings-classes.ts) → no in-scope imports
 - [`js/wearables-settings-component.ts`](js/wearables-settings-component.ts) → [`js/components/WearablesSettings.svelte`](js/components/WearablesSettings.svelte)
 - [`js/wearables-settings-contract.ts`](js/wearables-settings-contract.ts) → no in-scope imports
-- [`js/wearables-settings-groups.ts`](js/wearables-settings-groups.ts) → no in-scope imports
+- [`js/wearables-settings-groups.ts`](js/wearables-settings-groups.ts) → [`js/legal-consent-presentation.ts`](js/legal-consent-presentation.ts)
 - [`js/wearables-settings-panel.ts`](js/wearables-settings-panel.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/url-safety.ts`](js/url-safety.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts), [`js/wearables-apple-health.ts`](js/wearables-apple-health.ts) *(dynamic)*, [`js/wearables-connect.ts`](js/wearables-connect.ts), [`js/wearables-manual.ts`](js/wearables-manual.ts), [`js/wearables-settings-component.ts`](js/wearables-settings-component.ts), [`js/wearables-settings-groups.ts`](js/wearables-settings-groups.ts), [`js/wearables-settings-runtime.ts`](js/wearables-settings-runtime.ts), [`js/wearables-settings-view.ts`](js/wearables-settings-view.ts), [`js/wearables-store.ts`](js/wearables-store.ts), [`js/wearables-summary.ts`](js/wearables-summary.ts), [`js/wearables-whoop-storage.ts`](js/wearables-whoop-storage.ts) *(dynamic)*
 - [`js/wearables-settings-runtime.ts`](js/wearables-settings-runtime.ts) → [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/wearables-settings-view.ts`](js/wearables-settings-view.ts) → [`js/brand-assets.ts`](js/brand-assets.ts), [`js/url-safety.ts`](js/url-safety.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts), [`js/wearables-connect.ts`](js/wearables-connect.ts), [`js/wearables-settings-groups.ts`](js/wearables-settings-groups.ts)
 - [`js/wearables-store.ts`](js/wearables-store.ts) → [`js/transaction-completion.ts`](js/transaction-completion.ts), [`js/wearables-manual-lock.ts`](js/wearables-manual-lock.ts), [`js/wearables-whoop-storage.ts`](js/wearables-whoop-storage.ts) *(dynamic)*
-- [`js/wearables-strip-actions.ts`](js/wearables-strip-actions.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/data.ts`](js/data.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts), [`js/wearables-connect.ts`](js/wearables-connect.ts), [`js/wearables-detail-modal.ts`](js/wearables-detail-modal.ts), [`js/wearables-formatters.ts`](js/wearables-formatters.ts), [`js/wearables-manual-form-ui.ts`](js/wearables-manual-form-ui.ts), [`js/wearables-manual.ts`](js/wearables-manual.ts), [`js/wearables-runtime.ts`](js/wearables-runtime.ts), [`js/wearables-summary.ts`](js/wearables-summary.ts)
+- [`js/wearables-strip-actions.ts`](js/wearables-strip-actions.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/data.ts`](js/data.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts), [`js/wearables-connect.ts`](js/wearables-connect.ts), [`js/wearables-detail-modal.ts`](js/wearables-detail-modal.ts), [`js/wearables-entry-presentation.ts`](js/wearables-entry-presentation.ts), [`js/wearables-formatters.ts`](js/wearables-formatters.ts), [`js/wearables-manual-form-ui.ts`](js/wearables-manual-form-ui.ts), [`js/wearables-manual.ts`](js/wearables-manual.ts), [`js/wearables-runtime.ts`](js/wearables-runtime.ts), [`js/wearables-summary.ts`](js/wearables-summary.ts)
 - [`js/wearables-summary-model.ts`](js/wearables-summary-model.ts) → [`js/wearable-adapters.ts`](js/wearable-adapters.ts)
 - [`js/wearables-summary.ts`](js/wearables-summary.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/nutrition-store.ts`](js/nutrition-store.ts) *(dynamic)*, [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts), [`js/wearables-store.ts`](js/wearables-store.ts), [`js/wearables-summary-model.ts`](js/wearables-summary-model.ts)
 - [`js/wearables-ultrahuman-auth.ts`](js/wearables-ultrahuman-auth.ts) → [`js/proxy-runtime.ts`](js/proxy-runtime.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-oauth-state.ts`](js/wearable-oauth-state.ts), [`js/wearable-oauth-tokens.ts`](js/wearable-oauth-tokens.ts), [`js/wearables-auth-runtime.ts`](js/wearables-auth-runtime.ts)
 - [`js/wearables-ultrahuman.ts`](js/wearables-ultrahuman.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-daily-row.ts`](js/wearable-daily-row.ts)
 - [`js/wearables-whoop-auth.ts`](js/wearables-whoop-auth.ts) → [`js/proxy-runtime.ts`](js/proxy-runtime.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-oauth-state.ts`](js/wearable-oauth-state.ts), [`js/wearable-oauth-tokens.ts`](js/wearable-oauth-tokens.ts), [`js/wearables-auth-runtime.ts`](js/wearables-auth-runtime.ts)
-- [`js/wearables-whoop-storage.ts`](js/wearables-whoop-storage.ts) → no in-scope imports
+- [`js/wearables-whoop-storage-contract.ts`](js/wearables-whoop-storage-contract.ts) → no in-scope imports
+- [`js/wearables-whoop-storage.ts`](js/wearables-whoop-storage.ts) → [`js/wearables-whoop-storage-contract.ts`](js/wearables-whoop-storage-contract.ts)
 - [`js/wearables-whoop.ts`](js/wearables-whoop.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/proxy-runtime.ts`](js/proxy-runtime.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/wearables-withings-auth.ts`](js/wearables-withings-auth.ts) → [`js/proxy-runtime.ts`](js/proxy-runtime.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-oauth-state.ts`](js/wearable-oauth-state.ts), [`js/wearable-oauth-tokens.ts`](js/wearable-oauth-tokens.ts), [`js/wearables-auth-runtime.ts`](js/wearables-auth-runtime.ts), [`js/wearables-withings-errors.ts`](js/wearables-withings-errors.ts)
 - [`js/wearables-withings-errors.ts`](js/wearables-withings-errors.ts) → no in-scope imports
 - [`js/wearables-withings.ts`](js/wearables-withings.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/proxy-runtime.ts`](js/proxy-runtime.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-daily-row.ts`](js/wearable-daily-row.ts), [`js/wearables-oura.ts`](js/wearables-oura.ts), [`js/wearables-withings-errors.ts`](js/wearables-withings-errors.ts)
-- [`js/wearables.ts`](js/wearables.ts) → [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts), [`js/wearables-detail-modal.ts`](js/wearables-detail-modal.ts), [`js/wearables-formatters.ts`](js/wearables-formatters.ts), [`js/wearables-manual-form-ui.ts`](js/wearables-manual-form-ui.ts), [`js/wearables-runtime.ts`](js/wearables-runtime.ts), [`js/wearables-settings-panel.ts`](js/wearables-settings-panel.ts), [`js/wearables-strip-actions.ts`](js/wearables-strip-actions.ts)
+- [`js/wearables.ts`](js/wearables.ts) → [`js/state.ts`](js/state.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts), [`js/wearable-strip-empty-presentation.ts`](js/wearable-strip-empty-presentation.ts), [`js/wearable-strip-presentation.ts`](js/wearable-strip-presentation.ts), [`js/wearable-strip-stub-presentation.ts`](js/wearable-strip-stub-presentation.ts), [`js/wearables-detail-modal.ts`](js/wearables-detail-modal.ts), [`js/wearables-formatters.ts`](js/wearables-formatters.ts), [`js/wearables-manual-form-ui.ts`](js/wearables-manual-form-ui.ts), [`js/wearables-runtime.ts`](js/wearables-runtime.ts), [`js/wearables-settings-panel.ts`](js/wearables-settings-panel.ts), [`js/wearables-strip-actions.ts`](js/wearables-strip-actions.ts)
+
+</details>
+
+<details><summary><code>WearableSourceCheck.svelte</code> family — 1 module</summary>
+
+- [`js/components/WearableSourceCheck.svelte`](js/components/WearableSourceCheck.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>WearableSourcePicker.svelte</code> family — 1 module</summary>
+
+- [`js/components/WearableSourcePicker.svelte`](js/components/WearableSourcePicker.svelte) → [`js/components/WearableSourceCheck.svelte`](js/components/WearableSourceCheck.svelte), [`js/components/WearableSourceRow.svelte`](js/components/WearableSourceRow.svelte)
+
+</details>
+
+<details><summary><code>WearableSourceRow.svelte</code> family — 1 module</summary>
+
+- [`js/components/WearableSourceRow.svelte`](js/components/WearableSourceRow.svelte) → [`js/components/WearableSourceCheck.svelte`](js/components/WearableSourceCheck.svelte)
+
+</details>
+
+<details><summary><code>WearableSparkline.svelte</code> family — 1 module</summary>
+
+- [`js/components/WearableSparkline.svelte`](js/components/WearableSparkline.svelte) → no in-scope imports
 
 </details>
 
 <details><summary><code>WearablesSettings.svelte</code> family — 1 module</summary>
 
 - [`js/components/WearablesSettings.svelte`](js/components/WearablesSettings.svelte) → [`js/wearables-settings-classes.ts`](js/wearables-settings-classes.ts)
+
+</details>
+
+<details><summary><code>WearableStripBody.svelte</code> family — 1 module</summary>
+
+- [`js/components/WearableStripBody.svelte`](js/components/WearableStripBody.svelte) → [`js/components/WearableEmptyCard.svelte`](js/components/WearableEmptyCard.svelte), [`js/components/WearableMetricCard.svelte`](js/components/WearableMetricCard.svelte), [`js/components/WearableStripHeader.svelte`](js/components/WearableStripHeader.svelte)
+
+</details>
+
+<details><summary><code>WearableStripHeader.svelte</code> family — 1 module</summary>
+
+- [`js/components/WearableStripHeader.svelte`](js/components/WearableStripHeader.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>WearableStripStub.svelte</code> family — 1 module</summary>
+
+- [`js/components/WearableStripStub.svelte`](js/components/WearableStripStub.svelte) → no in-scope imports
 
 </details>
 

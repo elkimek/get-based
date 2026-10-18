@@ -1,3 +1,8 @@
+import {dashboardWidgetHasContent, type DashboardWidgetContent, type DashboardWidgetDefinition, type DashboardWidgetEntry} from './dashboard-widget-presentation.js';
+import type {ControlsPreferences} from '../types/dashboard-widget-controls.js';
+import {renderDashboardOwnedWidgetHTML} from './dashboard-owned-widget-html.js';
+import type {DashboardOwnedWidgetView} from '../types/dashboard-owned-widgets.js';
+import type {LabContext} from '../types/dashboard-lab-widget-renderers.js';
 // dashboard-widgets.js - dashboard widget registry and persistence helpers
 
 import { state } from './state.js';
@@ -10,9 +15,9 @@ import {
   renderProfileContextCards,
   renderSupplementsSection,
 } from './health-data-loader.js';
-import { getBiologyScoreWidgetDefinitions } from './biology-scores.js';
+import { getBiologyScoreWidgetDefinitions } from './biology-score-compute.js';
 
-import type {DashboardRendererOperations, DashboardWidgetContext, DashboardWidgetOptionsReader, DashboardWidgetOperationReader, DashboardPreferenceReader, DashboardVisibleOptionsReader, DashboardWidgetFilterOperations} from '../types/dashboard-widgets.js';
+import type {DashboardRendererOperations, DashboardWidgetContext, DashboardWidgetOptionsReader, DashboardWidgetOperationReader, DashboardPreferenceReader, DashboardVisibleOptionsReader, DashboardWidgetFilterOperations, DashboardWidgetProjector} from '../types/dashboard-widgets.js';
 
 const DASHBOARD_WIDGETS_VERSION = 13;
 
@@ -58,12 +63,12 @@ export function createDashboardWidgetRegistry(renderers: unknown, opts: unknown 
     ...biologyScoreWidgets,
     { id: 'focus', source: 'Insight', title: 'Current Focus', description: 'One synthesized read on the latest data', size: 'half', render: () => ((renderers as DashboardRendererOperations).renderFocusCard as () => unknown)() },
     { id: 'recommendations', source: 'Insight', title: 'Tips to Explore', description: 'General-information ideas connected to your data', size: 'half', render: (renderers as DashboardRendererOperations).renderDashboardRecommendationsWidget },
-    { id: 'spotlight', source: 'Labs', title: 'Current Priority', description: 'Highest-priority marker with the reason it was selected', size: 'half', render: (renderers as DashboardRendererOperations).renderDashboardSpotlightWidget },
-    { id: 'wearables', source: 'Body', title: 'Biometrics Overview', description: 'User-selected body signal tiles', size: 'full', render: (renderers as DashboardRendererOperations).renderDashboardWearableTilesWidget },
+    { id: 'spotlight', source: 'Labs', title: 'Current Priority', description: 'Highest-priority marker with the reason it was selected', size: 'half', render: (renderers as DashboardRendererOperations).renderDashboardSpotlightWidget, project: (ctx:LabContext)=>(renderers as DashboardRendererOperations).projectDashboardSpotlightWidget(ctx) },
+    { id: 'wearables', source: 'Body', title: 'Biometrics Overview', description: 'User-selected body signal tiles', size: 'full', render: (renderers as DashboardRendererOperations).renderDashboardWearableTilesWidget, snapshot: ()=>(renderers as DashboardRendererOperations).prepareDashboardWearableTilesWidget() },
     { id: 'nutrition', source: 'Body', title: 'Daily Nutrition', description: 'Seven-day intake coverage and nutrition guides', size: 'full', render: (renderers as DashboardRendererOperations).renderDashboardNutritionWidget },
     { id: 'nutrition-fuel-mix', source: 'Body', title: 'Fuel Mix Context', description: 'Seven-day carbohydrate and fat mix', render: (renderers as DashboardRendererOperations).renderFuelWidget },
-    { id: 'quick-markers', source: 'Labs', title: 'Quick Markers', description: 'Pinned and priority-ranked marker tiles', size: 'full', render: (renderers as DashboardRendererOperations).renderDashboardQuickMarkersWidget },
-    { id: 'insights', source: 'Insight', title: 'AI Insights', description: 'Top trend and range reads', size: 'half', render: (renderers as DashboardRendererOperations).renderDashboardInsightsListWidget },
+    { id: 'quick-markers', source: 'Labs', title: 'Quick Markers', description: 'Pinned and priority-ranked marker tiles', size: 'full', render: (renderers as DashboardRendererOperations).renderDashboardQuickMarkersWidget, project: (ctx:LabContext)=>(renderers as DashboardRendererOperations).projectDashboardQuickMarkersWidget(ctx) },
+    { id: 'insights', source: 'Insight', title: 'AI Insights', description: 'Top trend and range reads', size: 'half', render: (renderers as DashboardRendererOperations).renderDashboardInsightsListWidget, snapshot: (ctx:unknown)=>(renderers as DashboardRendererOperations).prepareDashboardInsightsListWidget(ctx) },
     { id: 'genome', source: 'Genome', title: 'Genetic Modifiers', description: 'Curated SNP context relevant to labs and goals', size: 'half', render: (renderers as DashboardRendererOperations).renderDashboardGenomeWidget },
     { id: 'alerts', source: 'Labs', title: 'Needs Attention', description: 'Sudden changes and critical out-of-range markers', size: 'half', render: (renderers as DashboardRendererOperations).renderDashboardAlertsWidget },
     { id: 'correlation', source: 'Tools', title: 'Correlations', description: 'Highest linked marker pairs', size: 'half', render: (renderers as DashboardRendererOperations).renderDashboardCorrelationWidget },
@@ -76,7 +81,7 @@ export function createDashboardWidgetRegistry(renderers: unknown, opts: unknown 
     { id: 'cycle', source: 'Body', title: 'Cycle', description: 'Menstrual cycle context', size: 'half', isAvailable: () => state.profileSex === 'female', render: (ctx: unknown) => ctx ? renderMenstrualCycleSection((ctx as DashboardWidgetContext).data, { variant: 'dashboard', showHeader: false }) : '' },
     { id: 'supplements', source: 'Body', title: 'Supplements & Meds', description: 'Supplements and medication timeline', render: () => renderSupplementsSection() },
     { id: 'key-trends', source: 'Labs', title: 'Key Trends', description: 'Auto-selected markers from your current range', render: (renderers as DashboardRendererOperations).renderDashboardKeyTrendsWidget },
-    { id: 'notes', source: 'Labs', title: 'Notes', description: 'Timeline notes linked to your data', render: (renderers as DashboardRendererOperations).renderDashboardNotesWidget },
+    { id: 'notes', source: 'Labs', title: 'Notes', description: 'Timeline notes linked to your data', render: (renderers as DashboardRendererOperations).renderDashboardNotesWidget, project: ()=>(renderers as DashboardRendererOperations).projectDashboardNotesWidget() },
   ];
 
   const isOrganizeMode = (opts as DashboardWidgetOptionsReader).isOrganizeMode || (() => false);
@@ -169,13 +174,42 @@ export function createDashboardWidgetRegistry(renderers: unknown, opts: unknown 
     return ((prefs as DashboardPreferenceReader).order as {map(callback:(id:unknown)=>unknown):{filter(callback:typeof Boolean):unknown}}).map(id => getDashboardWidgetDefinition(id, ctx)).filter(Boolean);
   }
 
+  /** First-party composition reads feature data once; rendering belongs to the shared Svelte frame. */
+  function getVisibleDashboardWidgetViews(ctx: unknown, prefs: ControlsPreferences = getDashboardWidgetPrefs(),
+    options: {includeEmpty?: boolean; excludeIds?: ReadonlySet<string>} = {}, projectForRender?: DashboardWidgetProjector): DashboardWidgetEntry[] {
+    const includeEmpty = options.includeEmpty ?? Boolean((isOrganizeMode as () => unknown)());
+    const excludeIds = options.excludeIds || new Set<string>();
+    const project = projectForRender || (opts as DashboardWidgetOptionsReader).projectWidgetBody;
+    if (!project) throw new Error('Missing Dashboard feature projector');
+    const ordered = getOrderedDashboardWidgets(prefs, ctx);
+    if (!Array.isArray(ordered)) throw new Error('Dashboard widget order must be an array');
+    const entries: DashboardWidgetEntry[] = [];
+    for (const definition of ordered) {
+      if (!definition || typeof definition !== 'object' || !('id' in definition)
+        || typeof definition.id !== 'string') throw new Error('Dashboard widget requires a string identity');
+      if ('description' in definition && definition.description !== undefined
+        && typeof definition.description !== 'string') throw new Error('Dashboard widget description must be text');
+      const def: DashboardWidgetDefinition = definition;
+      if (excludeIds.has(def.id) || prefs.hidden.includes(def.id)) continue;
+      const content: DashboardWidgetContent | null = project(def.id, ctx);
+      if (dashboardWidgetHasContent(content) || includeEmpty) entries.push({def, content});
+    }
+    return entries;
+  }
+
   function getVisibleDashboardWidgetEntries(ctx: unknown, prefs: unknown = getDashboardWidgetPrefs(), options: unknown = {}) {
     const includeEmpty = (options as DashboardVisibleOptionsReader).includeEmpty ?? (isOrganizeMode as () => unknown)();
     const excludeIds = (options as DashboardVisibleOptionsReader).excludeIds || new Set();
     return (getOrderedDashboardWidgets(prefs, ctx) as DashboardWidgetFilterOperations)
       .filter(def => !(excludeIds as {has(id:unknown):unknown}).has((def as DashboardWidgetOperationReader).id))
       .filter(def => !((prefs as DashboardPreferenceReader).hidden as {includes(id:unknown):unknown}).includes((def as DashboardWidgetOperationReader).id))
-      .map(def => ({ def, body: (def as {render(ctx:unknown):unknown}).render(ctx) || '' }))
+      .map(def => {
+        const snapshot=(def as {snapshot?: (ctx:unknown)=>{body:string;view:import('../types/dashboard-owned-widgets.js').DashboardOwnedWidgetView|null}}).snapshot;
+        if(snapshot){const {body,view}=snapshot(ctx);return view?{def,body,ownedView:view}:{def,body};}
+        const project=(def as {project?: (ctx:LabContext)=>DashboardOwnedWidgetView|null}).project;
+        if(project){const ownedView=project(ctx as LabContext);return ownedView?{def,body:renderDashboardOwnedWidgetHTML(ownedView),ownedView}:{def,body:''};}
+        return {def,body:(def as {render(ctx:unknown):unknown}).render(ctx)||''};
+      })
       .filter(entry => entry.body || includeEmpty);
   }
 
@@ -192,5 +226,6 @@ export function createDashboardWidgetRegistry(renderers: unknown, opts: unknown 
     getDashboardWidgetDefinition,
     getOrderedDashboardWidgets,
     getVisibleDashboardWidgetEntries,
+    getVisibleDashboardWidgetViews,
   };
 }

@@ -5,7 +5,7 @@ import { exitComparisonPresentation, mountNutritionComparison, rememberNutrition
 import { hasSuspendedNutritionEditor, restoreSuspendedNutritionEditor, suspendNutritionEditor } from './nutrition-editor-navigation.js';
 import { openModalOverlay } from './modal-lifecycle.js';
 import { ensureNutritionStylesheet, renderNutritionBenchmarkModal } from './nutrition-render.js';
-import { renderHTML } from './components/NutritionPresentation.svelte.html.js';
+import { renderHTML as renderBenchmarkPhoto } from './components/NutritionBenchmarkPhoto.svelte.html.js';
 import { showNotification } from './utils.js';
 
 import type { NutritionRequestLifecycleDependencies } from './nutrition-request-lifecycle.js';
@@ -78,7 +78,7 @@ function renderBenchmarkPhotoPreview() {
     .map(image => String(image?.thumbnailUrl || image?.dataUrl || ''))
     .filter(Boolean);
   const urls = [...benchmarkPreviewUrls, ...storedUrls].slice(0, 4);
-  preview.innerHTML = renderHTML({ kind: 'benchmark-photo', urls });
+  preview.innerHTML = renderBenchmarkPhoto({ urls });
   if (status) status.textContent = urls.length
     ? benchmarkSource.fromEditor
       ? `Using ${urls.length} view${urls.length === 1 ? '' : 's'} copied from Log meal. Replacing them here will not change the meal draft.`

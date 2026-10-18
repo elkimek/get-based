@@ -5,8 +5,8 @@
       "**": false
     }
   },
-  "buildCommand": "node scripts/fetch-catalog.mjs && node scripts/build-production.mjs",
-  "outputDirectory": ".",
+  "buildCommand": "node scripts/fetch-catalog.mjs && npm run production:build",
+  "outputDirectory": "dist",
   "functions": {
     "api/proxy.ts": {
       "maxDuration": 190,
@@ -19,6 +19,13 @@
       "headers": {
         "Cache-Control": "no-store",
         "Content-Type": "text/javascript; charset=utf-8"
+      },
+      "continue": true
+    },
+    {
+      "src": "^/_app/immutable/(.*)$",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable"
       },
       "continue": true
     },
@@ -43,14 +50,65 @@
       },
       "continue": true
     },
-    { "src": "^/guide/(.*)", "status": 301, "headers": { "Location": "/docs/guide/$1" } },
-    { "src": "^/docs/guide/getting-started(?:\\.html)?/?$", "status": 301, "headers": { "Location": "https://docs.getbased.health/quickstart" } },
-    { "src": "^/docs/guide/charts(?:\\.html)?/?$", "status": 301, "headers": { "Location": "https://docs.getbased.health/guides/biomarker-charts" } },
-    { "src": "^/docs/guide/folder-backup(?:\\.html)?/?$", "status": 301, "headers": { "Location": "https://docs.getbased.health/guides/backup" } },
-    { "src": "^/docs/guide/json-export-import(?:\\.html)?/?$", "status": 301, "headers": { "Location": "https://docs.getbased.health/guides/export-import" } },
-    { "src": "^/docs/guide/ai-providers(?:\\.html)?/?$", "status": 301, "headers": { "Location": "https://docs.getbased.health/ai-providers" } },
-    { "src": "^/docs/guide/([^.]+?)(?:\\.html)?/?$", "status": 301, "headers": { "Location": "https://docs.getbased.health/guides/$1" } },
-    { "src": "^/docs(?:/.*)?$", "status": 301, "headers": { "Location": "https://docs.getbased.health/" } },
-    { "src": "^/app/?$", "dest": "/index.html" }
+    {
+      "src": "^/guide/(.*)",
+      "status": 301,
+      "headers": {
+        "Location": "/docs/guide/$1"
+      }
+    },
+    {
+      "src": "^/docs/guide/getting-started(?:\\.html)?/?$",
+      "status": 301,
+      "headers": {
+        "Location": "https://docs.getbased.health/quickstart"
+      }
+    },
+    {
+      "src": "^/docs/guide/charts(?:\\.html)?/?$",
+      "status": 301,
+      "headers": {
+        "Location": "https://docs.getbased.health/guides/biomarker-charts"
+      }
+    },
+    {
+      "src": "^/docs/guide/folder-backup(?:\\.html)?/?$",
+      "status": 301,
+      "headers": {
+        "Location": "https://docs.getbased.health/guides/backup"
+      }
+    },
+    {
+      "src": "^/docs/guide/json-export-import(?:\\.html)?/?$",
+      "status": 301,
+      "headers": {
+        "Location": "https://docs.getbased.health/guides/export-import"
+      }
+    },
+    {
+      "src": "^/docs/guide/ai-providers(?:\\.html)?/?$",
+      "status": 301,
+      "headers": {
+        "Location": "https://docs.getbased.health/ai-providers"
+      }
+    },
+    {
+      "src": "^/docs/guide/([^.]+?)(?:\\.html)?/?$",
+      "status": 301,
+      "headers": {
+        "Location": "https://docs.getbased.health/guides/$1"
+      }
+    },
+    {
+      "src": "^/docs(?:/.*)?$",
+      "status": 301,
+      "headers": {
+        "Location": "https://docs.getbased.health/"
+      }
+    },
+    {
+      "src": "^/app/?$",
+      "dest": "/index.html"
+    }
   ]
 }

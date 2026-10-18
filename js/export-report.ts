@@ -2,7 +2,6 @@ import type { ActiveData, ActiveCategory } from './data-view-types.js';
 import type { ReportDataSnapshot, ReportSnpCatalog } from './export-report-data.js';
 import type { ProfileRecord } from './profile.js';
 import type { Biometrics } from '../types/profile-context-data.js';
-import type { callCodexFeature } from './agent-feature-inference.js';
 
 import type {
   ReportAISummary, ReportCoreOptions, NormalizedReportOptions, ReportTextContext,
@@ -25,7 +24,9 @@ import { getAllFlaggedMarkers } from './marker-analysis.js';
 import { getProfiles, getProfileHeight } from './profile.js';
 import { getBloodDrawPhases } from './cycle.js';
 import { isAIPaused } from './api.js';
-import { callAssistantFeatureAI, getAssistantFeatureIdentity, hasAssistantFeatureProvider } from './ai-feature-routing.js';
+import { requestReportAIOverview } from './report-ai-request.js';
+export { REPORT_VENICE_GENERATION_TIMEOUT_MS } from './report-ai-request.js';
+import { getAssistantFeatureIdentity, hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { trackUsage } from './schema.js';
 import {
   wearableDisplayUnit,
@@ -695,6 +696,7 @@ export function buildReportAgentContext(options: ReportCoreOptions = {}) {
 }
 
 export async function generateReportAISummary(options: ReportCoreOptions = {}, lifecycle: ReportLifecycle = {}) {
+  if (lifecycle.signal?.aborted) return null;
   if (Array.isArray(options.sections) && options.sections.length === 0) {
     showNotification('Choose at least one report section', 'error');
     return null;
@@ -718,14 +720,9 @@ export async function generateReportAISummary(options: ReportCoreOptions = {}, l
   await requireAIProcessingApproval(provider, { kind: 'report', modelId });
   if (lifecycle.isCurrent && !lifecycle.isCurrent()) return null;
   if (JSON.stringify(identity) !== JSON.stringify(getAssistantFeatureIdentity())) throw new Error('AI connection changed. Generate again with the selected connection.');
+  if (lifecycle.signal?.aborted) return null;
   lifecycle.onProgress?.('generating');
-  const result = await callAssistantFeatureAI({
-    system: REPORT_AI_SUMMARY_PROMPT,
-    messages: [{ role: 'user', content: formatReportDataForAgent(payload.reportData) }],
-    maxTokens: 900,
-    consentKind: 'report',
-    forceNonStream: true,
-  }) as Partial<Pick<Awaited<ReturnType<typeof callCodexFeature>>, 'text' | 'usage'>> | null | undefined;
+  const result = await requestReportAIOverview(provider, REPORT_AI_SUMMARY_PROMPT, formatReportDataForAgent(payload.reportData), lifecycle.signal);
 
   const text = cleanReportAISummaryText(result?.text || '');
   if (!text) throw new Error('AI returned an empty summary');

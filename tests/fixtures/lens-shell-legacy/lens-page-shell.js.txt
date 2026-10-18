@@ -1,0 +1,219 @@
+// lens-page-shell.ts — shared lens page chrome, ordering, and widget helpers
+import { renderHTML as renderShell } from './components/LensShellPresentation.svelte.html.js';
+import { projectLensHeader, projectLensWidget, projectLensWidgetChrome } from './lens-shell-presentation.js';
+import { renderHTML as renderDashboardToggle } from './components/LensDashboardToggle.svelte.html.js';
+import { state } from './state.js';
+import { getWidgetHeaderDescription } from './dashboard-widget-copy.js';
+import { actionAttributes } from './action-attributes.js';
+import { profileStorageKey } from './profile.js';
+import { openEMFAssessmentEditor } from './emf-runtime.js';
+import { triggerContextCardDNAFilePickerRuntime } from './context-cards-runtime.js';
+import { getDnaModuleFunction } from './dna-runtime-bridge.js';
+import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
+const LENS_PAGE_ORDER_VERSION = 1;
+let _shellDeps = {
+  addDashboardWidgetFromLens: (_id) => { },
+  getAvailableDashboardFixedWidgetIds: () => [],
+  getDashboardWidgetPrefs: () => ({ hidden: [] }),
+  navigate: (_route) => { },
+  openChatPanel: () => { },
+  openEMFAssessmentEditor,
+  openDashboardBiometricPicker: () => { },
+  removeDashboardWidgetFromLens: (_id) => { },
+};
+let lensPageShellDelegatesInstalled = false;
+function lensPageRuntime() {
+  return globalThis;
+}
+function callLensPageRuntime(name, ...args) {
+  const fn = name === 'navigate'
+    ? _shellDeps.navigate
+    : getSettingsModuleFunction(name)
+      || getDnaModuleFunction(name)
+      || lensPageRuntime()[name];
+  if (typeof fn === 'function')
+    fn(...args);
+}
+export function configureLensPageShell(deps = {}) {
+  const previous = { ..._shellDeps };
+  _shellDeps = { ..._shellDeps, ...deps };
+  installLensPageShellDelegates();
+  return previous;
+}
+export function lensPageActionAttrs(action, attrs = {}) {
+  return actionAttributes("lens-page", action, attrs);
+}
+function handleLensPageShellClick(event) {
+  const target = event.target instanceof Element ? event.target : null;
+  if (!target)
+    return;
+  const actionEl = target.closest('[data-lens-page-action]');
+  if (!actionEl)
+    return;
+  if (!actionEl.closest('.lens-page-header, .lens-page-widgets, #recommendations-page, .biology-coherence-hero'))
+    return;
+  // .biology-coherence-hero is included because the Biology Scores lens renders the coherence
+  // hero as a standalone top-section before the regular lens-page-widgets container, and its
+  // dashboard toggle must be handled by the lens page shell.
+  event.preventDefault();
+  const action = actionEl.dataset.lensPageAction || '';
+  const id = actionEl.dataset.lensPageId || '';
+  if (action === 'move-widget') {
+    moveLensPageWidget(actionEl.dataset.lensPageRoute || '', id, actionEl.dataset.lensPageDirection || 0);
+  }
+  else if (action === 'add-dashboard-widget') {
+    _shellDeps.addDashboardWidgetFromLens(id);
+  }
+  else if (action === 'remove-dashboard-widget') {
+    _shellDeps.removeDashboardWidgetFromLens(id);
+  }
+  else if (action === 'import-dna') {
+    triggerContextCardDNAFilePickerRuntime();
+  }
+  else if (action === 'import-snp-report') {
+    callLensPageRuntime('importSnpReport');
+  }
+  else if (action === 'add-manual-snp') {
+    callLensPageRuntime('openManualSnpModal');
+  }
+  else if (action === 'reimport-dna') {
+    if (getDnaModuleFunction('reimportDNA'))
+      callLensPageRuntime('reimportDNA');
+    else
+      triggerContextCardDNAFilePickerRuntime();
+  }
+  else if (action === 'delete-dna') {
+    callLensPageRuntime('confirmDeleteDNA');
+  }
+  else if (action === 'open-wearables-settings') {
+    callLensPageRuntime('openSettingsModal', 'wearables');
+  }
+  else if (action === 'open-biometric-picker') {
+    _shellDeps.openDashboardBiometricPicker();
+  }
+  else if (action === 'open-ai-chat') {
+    _shellDeps.openChatPanel();
+  }
+  else if (action === 'open-emf-assessment') {
+    void _shellDeps.openEMFAssessmentEditor();
+  }
+  else if (action === 'open-recommendations') {
+    callLensPageRuntime('navigate', 'recommendations');
+  }
+  else if (action === 'open-privacy-settings') {
+    callLensPageRuntime('openSettingsModal', 'privacy');
+  }
+}
+function installLensPageShellDelegates() {
+  if (lensPageShellDelegatesInstalled || typeof document === 'undefined')
+    return;
+  lensPageShellDelegatesInstalled = true;
+  document.addEventListener('click', handleLensPageShellClick);
+}
+export function renderLensHeader(title, subtitle, actions = '', options = {}) {
+  return renderShell({ kind: 'header', view: projectLensHeader(title, subtitle, actions, options) });
+}
+function lensPageOrderStorageKey(route) {
+  return profileStorageKey(state.currentProfile || 'default', `lensPageOrder-${route}-v${LENS_PAGE_ORDER_VERSION}`);
+}
+export function getLensPageWidgetOrder(route, defaultIds) {
+  try {
+    const raw = JSON.parse(localStorage.getItem(lensPageOrderStorageKey(route)) || '[]');
+    if (!Array.isArray(raw))
+      return defaultIds;
+    const known = new Set(defaultIds);
+    const ordered = raw.filter(id => known.has(id));
+    for (const id of defaultIds)
+      if (!ordered.includes(id))
+        ordered.push(id);
+    return ordered;
+  }
+  catch {
+    return defaultIds;
+  }
+}
+function orderLensPageWidgets(route, widgets) {
+  const ids = widgets.map(w => w.id);
+  const order = getLensPageWidgetOrder(route, ids);
+  const byId = new Map(widgets.map(w => [w.id, w]));
+  return order.map(id => byId.get(id)).filter(Boolean);
+}
+export function renderLensPageWidgets(route, widgets, options = {}) {
+  const orderKey = options.group ? `${route}-${options.group}` : route;
+  const ordered = orderLensPageWidgets(orderKey, widgets.filter(Boolean));
+  return renderShell({ kind: 'grid', view: { route, orderKey, widgets: ordered.map((widget, index) => lensWidgetView(widget.id, widget.title, widget.description, widget.body, widget.size || 'full', { ...(widget.opts || {}), pageRoute: route, pageIndex: index, pageCount: ordered.length })) } });
+}
+export function moveLensPageWidget(route, id, direction) {
+  route = String(route || state.currentView || '');
+  id = String(id || '');
+  const dir = Number(direction);
+  if (!route || !id || !Number.isFinite(dir) || dir === 0)
+    return;
+  const container = Array.from(document.querySelectorAll('.lens-page-widgets[data-lens-route]'))
+    .find(el => el.dataset.lensRoute === route && Array.from(el.querySelectorAll('[data-widget-id]')).some(widget => widget.getAttribute('data-widget-id') === id));
+  const ids = container
+    ? Array.from(container.querySelectorAll(':scope > [data-widget-id]')).map(el => el.dataset.widgetId).filter(Boolean)
+    : getLensPageWidgetOrder(route, []);
+  const index = ids.indexOf(id);
+  const target = index + (dir < 0 ? -1 : 1);
+  if (index < 0 || target < 0 || target >= ids.length)
+    return;
+  [ids[index], ids[target]] = [ids[target], ids[index]];
+  localStorage.setItem(lensPageOrderStorageKey(container?.dataset.lensOrderKey || route), JSON.stringify(ids));
+  if (state.currentView === route)
+    callLensPageRuntime('navigate', route);
+}
+export function getLensDashboardToggleView(dashboardId) {
+  const availableIds = _shellDeps.getAvailableDashboardFixedWidgetIds();
+  // Biology Score widgets are generated dynamically from score definitions. In
+  // isolated Node/source-inspection tests the dashboard registry is not always
+  // configured before the lens renderer runs, so keep the toggle renderable for
+  // these declared dynamic widget ids instead of silently dropping it.
+  const isDeclaredDynamicBiologyScoreWidget = typeof dashboardId === 'string' && dashboardId.startsWith('biology-score-');
+  if (!dashboardId || (!availableIds.includes(dashboardId) && !isDeclaredDynamicBiologyScoreWidget))
+    return null;
+  const prefs = _shellDeps.getDashboardWidgetPrefs();
+  const hidden = Array.isArray(prefs?.hidden) ? prefs.hidden : [];
+  const isVisible = !hidden.includes(dashboardId);
+  const label = isVisible ? 'Remove from Dashboard' : 'Add to Dashboard';
+  const action = isVisible ? 'remove-dashboard-widget' : 'add-dashboard-widget';
+  return { id: dashboardId, label, action };
+}
+export function renderLensDashboardToggle(dashboardId) {
+  const view = getLensDashboardToggleView(dashboardId);
+  return view ? renderDashboardToggle({ view }) : '';
+}
+function lensWidgetChromeFacts(id, description, opts) {
+  const headerDescription = getWidgetHeaderDescription(id, description);
+  const dashboardId = Object.prototype.hasOwnProperty.call(opts, 'dashboardId') ? opts.dashboardId : id;
+  const route = opts.pageRoute || '', index = opts.pageIndex || 0, count = opts.pageCount || 0;
+  const tools = { dashboard: getLensDashboardToggleView(dashboardId),
+    move: route && count >= 2 ? { route, id, index, count } : null };
+  return { headerDescription, tools };
+}
+export function getLensWidgetChrome(id, title, description, size = 'full', opts = {}) {
+  const { headerDescription, tools } = lensWidgetChromeFacts(id, description, opts);
+  return projectLensWidgetChrome(id, title, headerDescription, size, tools, !!opts.compactScore);
+}
+/** Typed feature bodies share the existing widget ordering, chrome and delegates. */
+export function getLensContentGrid(route, widgets, options = {}) {
+  const orderKey = options.group ? `${route}-${options.group}` : route;
+  const ordered = orderLensPageWidgets(orderKey, widgets);
+  return { route, orderKey, widgets: ordered.map((widget, index) => ({
+      view: getLensWidgetChrome(widget.id, widget.title, widget.description, widget.size || 'full', { ...(widget.opts || {}), pageRoute: route, pageIndex: index, pageCount: ordered.length }),
+      content: widget.content,
+    })) };
+}
+function lensWidgetView(id, title, description, body, size, opts) {
+  const { headerDescription, tools } = lensWidgetChromeFacts(id, description, opts);
+  // The compact HTML API is retained until the Biology page composes typed cards.
+  // Only the existing owned insertion marker accepts the typed tools fragment.
+  const renderedBody = opts.compactScore
+    ? body.replace('<!--score-tools-->', renderShell({ kind: 'tools', view: tools }))
+    : body;
+  return projectLensWidget(id, title, headerDescription, renderedBody, size, tools, !!opts.compactScore);
+}
+export function renderLensWidget(id, title, description, body, size = 'full', opts = {}) {
+  return renderShell({ kind: 'widget', view: lensWidgetView(id, title, description, body, size, opts) });
+}
+installLensPageShellDelegates();

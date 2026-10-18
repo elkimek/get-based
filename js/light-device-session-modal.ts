@@ -8,7 +8,7 @@ export interface DeviceSessionDialogDeps {
   startDeviceSession?: typeof import('./light-devices-store.js').startDeviceSession;
   ensureActiveDeviceTicker?: () => unknown;
   validateModeCoupling?: typeof validateModeCoupling | null;
-  renderBodySilhouette?: typeof renderBodySilhouette | null;
+  projectBodySilhouette?: ((selected: Set<string>) => BodyPickerView | null) | null;
   bindBodySilhouette?: typeof bindBodySilhouette | null;
   navigate?: ((route: string) => unknown) | null; openLightSetup?: (() => unknown) | null;
 }
@@ -16,12 +16,14 @@ export interface DeviceSessionDialogDeps {
 // light-device-session-modal.js — Log/start light therapy device sessions.
 
 import { renderHTML } from './components/LightSessionPresentation.svelte.html.js';
+import { renderHTML as renderBodyPickerHTML } from './components/SunBodyPicker.svelte.html.js';
+import type {BodyPickerView} from './sun-body-picker-presentation.js';
 import { projectDeviceSessionForm } from './light-session-presentation.js';
 
 import { state } from './state.js';
 import { escapeHTML, showNotification, showConfirmDialog } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
-import { BODY_REGIONS, bindBodySilhouette, renderBodySilhouette } from './sun-body-silhouette.js';
+import { BODY_REGIONS, bindBodySilhouette, projectBodySilhouette } from './sun-body-silhouette.js';
 import { validateModeCoupling } from './sun-spectrum.js';
 import { deviceEmitsUV } from './light-device-session-engine.js';
 
@@ -29,7 +31,7 @@ function _resolveSessionDialogDeps(deps: DeviceSessionDialogDeps = {}) {
   return {
     ...deps,
     validateModeCoupling: deps.validateModeCoupling || validateModeCoupling,
-    renderBodySilhouette: deps.renderBodySilhouette || renderBodySilhouette,
+    projectBodySilhouette: deps.projectBodySilhouette || projectBodySilhouette,
     bindBodySilhouette: deps.bindBodySilhouette || bindBodySilhouette,
     navigate: deps.navigate || null,
     openLightSetup: deps.openLightSetup || null,
@@ -105,7 +107,7 @@ export async function openDeviceSessionDialog(deviceId: string, deps: DeviceSess
     startDeviceSession,
     ensureActiveDeviceTicker,
     validateModeCoupling,
-    renderBodySilhouette,
+    projectBodySilhouette,
     bindBodySilhouette,
     navigate,
     openLightSetup,
@@ -163,7 +165,7 @@ export async function openDeviceSessionDialog(deviceId: string, deps: DeviceSess
   const closeDialog = () => removeModalOverlay(overlay);
   overlay.innerHTML = renderHTML({ kind: 'device',
     view: projectDeviceSessionForm({ device, validModes, defaultMode, defaultDuration, defaultDistanceCm, useUS: state.unitSystem === 'US', isUVDevice, isEyeLightDevice, defaultEyeControlChecked }),
-    silhouetteHTML: renderBodySilhouette ? renderBodySilhouette(new Set(defaultRegions)) : '',
+    silhouetteView: projectBodySilhouette ? projectBodySilhouette(new Set(defaultRegions)) : null,
   });
   _wireDeviceSessionModal(overlay, closeDialog);
   overlay.querySelectorAll('[data-device-session-close]').forEach(btn => {
@@ -271,8 +273,9 @@ export async function openDeviceSessionDialog(deviceId: string, deps: DeviceSess
 
   overlay.querySelector('#dev-session-clear')?.addEventListener('click', () => {
     selectedRegions.clear();
-    if (silhouetteSlot && renderBodySilhouette) {
-      silhouetteSlot.innerHTML = renderBodySilhouette(selectedRegions);
+    if (silhouetteSlot && projectBodySilhouette) {
+      const silhouetteView = projectBodySilhouette(selectedRegions);
+      silhouetteSlot.innerHTML = silhouetteView ? renderBodyPickerHTML({ view: silhouetteView }) : '';
     }
     updateAreaHint(selectedRegions);
   });

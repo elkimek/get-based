@@ -18,7 +18,7 @@ import {
   configureChatComposer, initChatComposer, resetChatComposer,
 } from './chat-composer.js';
 import { autoNameThread, createNewThread } from './chat-threads.js';
-import { injectLensChunks } from './lab-context.js';
+import { injectLensChunks } from './lab-context-output.js';
 import { hasLens, queryLensMulti } from './lens.js';
 import { createChatLiveMessage, completeChatLiveMessage, publishChatLiveText } from './chat-live-message-component.js';
 import type { ChatLiveMessageHandle } from './chat-live-message-component.js';

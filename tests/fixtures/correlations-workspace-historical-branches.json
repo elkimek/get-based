@@ -1,0 +1,1098 @@
+[
+  {
+    "owner": "chrome",
+    "kind": "workspace",
+    "slots": [
+      {
+        "coordinate": "gb-chrome-private-0-0-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-chrome-private-0-1-end",
+        "attribute": false
+      },
+      {
+        "coordinate": " data-chrome-private-0-2=\"\"",
+        "attribute": true
+      },
+      {
+        "coordinate": "gb-chrome-private-0-3-end",
+        "attribute": false
+      },
+      {
+        "coordinate": " data-chrome-private-0-4=\"\"",
+        "attribute": true
+      },
+      {
+        "coordinate": "gb-chrome-private-0-5-end",
+        "attribute": false
+      },
+      {
+        "coordinate": " data-chrome-private-0-6=\"\"",
+        "attribute": true
+      },
+      {
+        "coordinate": "gb-chrome-private-0-7-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-chrome-private-0-8-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-chrome-private-0-9-end",
+        "attribute": false
+      },
+      {
+        "coordinate": " data-chrome-private-0-10=\"\"",
+        "attribute": true
+      },
+      {
+        "coordinate": "gb-chrome-private-0-11-end",
+        "attribute": false
+      },
+      {
+        "coordinate": " data-chrome-private-0-12=\"\"",
+        "attribute": true
+      },
+      {
+        "coordinate": "gb-chrome-private-0-13-end",
+        "attribute": false
+      },
+      {
+        "coordinate": " data-chrome-private-0-14=\"\"",
+        "attribute": true
+      },
+      {
+        "coordinate": "gb-chrome-private-0-15-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-chrome-private-0-16-end",
+        "attribute": false
+      },
+      {
+        "coordinate": " data-chrome-private-0-17=\"\"",
+        "attribute": true
+      },
+      {
+        "coordinate": "gb-chrome-private-0-18-end",
+        "attribute": false
+      }
+    ],
+    "nativeSkeleton": "gb-chrome-private-0-0-endgb-chrome-private-0-1-end\n<div id=\"corr-workspace-plots\" data-chrome-private-0-2=\"\">gb-chrome-private-0-3-end</div>\n<div class=\"corr-inspector\" data-chrome-private-0-4=\"\"><div class=\"corr-date-heading\"><strong>Values on <time id=\"corr-inspect-label\">gb-chrome-private-0-5-end</time></strong><button type=\"button\" id=\"corr-unpin\" class=\"corr-review-dose\" data-chrome-private-0-6=\"\">Unpin date</button><details class=\"corr-jump\"><summary>Jump to date</summary><label class=\"sr-only\" for=\"corr-inspect\">Jump to date</label><input type=\"date\" id=\"corr-inspect\" value=\"gb-chrome-private-0-7-end\" min=\"gb-chrome-private-0-8-end\" max=\"gb-chrome-private-0-9-end\"></details></div><div id=\"corr-readout\" aria-live=\"polite\"></div></div>\n<details class=\"corr-method\" data-chrome-private-0-10=\"\"><summary>How to read this chart</summary><p>Hover to preview; click to pin a date. Lines join lab results; steps show dated doses. Gaps mean unknown; dose zero means a break or off-day. Relative scales run from each series\u2019 minimum (0) to maximum (100), not health thresholds; constant values sit at 50. Analysis uses raw values, including hidden series.</p></details>\n<details class=\"corr-analysis-disclosure\" data-analysis-tab=\"gb-chrome-private-0-11-end\" data-chrome-private-0-12=\"\"><summary>Statistics &amp; data</summary>\n<div class=\"corr-pair-analysis\">gb-chrome-private-0-13-end\n<div id=\"corr-analysis-panel\" data-chrome-private-0-14=\"\">\n<p class=\"corr-help\">gb-chrome-private-0-15-end</p>\ngb-chrome-private-0-16-end\n<div class=\"corr-dose-chart\" data-chrome-private-0-17=\"\"><canvas id=\"corr-scatter\" role=\"img\" aria-label=\"Paired observations; excluded rows are not plotted\"></canvas></div>\n<div id=\"corr-pair-detail\"></div>\n</div></div>\n</details>\ngb-chrome-private-0-18-end",
+    "production": {
+      "html": "<!--[--><!--[0-->gb-chrome-private-0-0-endgb-chrome-private-0-1-end\n<div id=\"corr-workspace-plots\" data-chrome-private-0-2=\"\">gb-chrome-private-0-3-end</div>\n<div class=\"corr-inspector\" data-chrome-private-0-4=\"\"><div class=\"corr-date-heading\"><strong>Values on <time id=\"corr-inspect-label\">gb-chrome-private-0-5-end</time></strong><button type=\"button\" id=\"corr-unpin\" class=\"corr-review-dose\" data-chrome-private-0-6=\"\">Unpin date</button><details class=\"corr-jump\"><summary>Jump to date</summary><label class=\"sr-only\" for=\"corr-inspect\">Jump to date</label><input type=\"date\" id=\"corr-inspect\" value=\"gb-chrome-private-0-7-end\" min=\"gb-chrome-private-0-8-end\" max=\"gb-chrome-private-0-9-end\"/></details></div><div id=\"corr-readout\" aria-live=\"polite\"></div></div>\n<details class=\"corr-method\" data-chrome-private-0-10=\"\"><summary>How to read this chart</summary><p>Hover to preview; click to pin a date. Lines join lab results; steps show dated doses. Gaps mean unknown; dose zero means a break or off-day. Relative scales run from each series\u2019 minimum (0) to maximum (100), not health thresholds; constant values sit at 50. Analysis uses raw values, including hidden series.</p></details>\n<details class=\"corr-analysis-disclosure\" data-analysis-tab=\"gb-chrome-private-0-11-end\" data-chrome-private-0-12=\"\"><summary>Statistics &amp; data</summary>\n<div class=\"corr-pair-analysis\">gb-chrome-private-0-13-end\n<div id=\"corr-analysis-panel\" data-chrome-private-0-14=\"\">\n<p class=\"corr-help\">gb-chrome-private-0-15-end</p>\ngb-chrome-private-0-16-end\n<div class=\"corr-dose-chart\" data-chrome-private-0-17=\"\"><canvas id=\"corr-scatter\" data-chrome-canvas-role=\"img\" aria-label=\"Paired observations; excluded rows are not plotted\"></canvas></div>\n<div id=\"corr-pair-detail\"></div>\n</div></div>\n</details>\ngb-chrome-private-0-18-end<!--]--><!--]-->",
+      "prefix": "<!--[--><!--[0-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": [
+        {
+          "start": 679,
+          "end": 680,
+          "before": "/",
+          "after": ""
+        },
+        {
+          "start": 1616,
+          "end": 1635,
+          "before": "data-chrome-canvas-",
+          "after": ""
+        }
+      ]
+    },
+    "development": {
+      "html": "<!--[--><!--[0-->gb-chrome-private-0-0-endgb-chrome-private-0-1-end\n<div id=\"corr-workspace-plots\" data-chrome-private-0-2=\"\">gb-chrome-private-0-3-end</div>\n<div class=\"corr-inspector\" data-chrome-private-0-4=\"\"><div class=\"corr-date-heading\"><strong>Values on <time id=\"corr-inspect-label\">gb-chrome-private-0-5-end</time></strong><button type=\"button\" id=\"corr-unpin\" class=\"corr-review-dose\" data-chrome-private-0-6=\"\">Unpin date</button><details class=\"corr-jump\"><summary>Jump to date</summary><label class=\"sr-only\" for=\"corr-inspect\">Jump to date</label><input type=\"date\" id=\"corr-inspect\" value=\"gb-chrome-private-0-7-end\" min=\"gb-chrome-private-0-8-end\" max=\"gb-chrome-private-0-9-end\"/></details></div><div id=\"corr-readout\" aria-live=\"polite\"></div></div>\n<details class=\"corr-method\" data-chrome-private-0-10=\"\"><summary>How to read this chart</summary><p>Hover to preview; click to pin a date. Lines join lab results; steps show dated doses. Gaps mean unknown; dose zero means a break or off-day. Relative scales run from each series\u2019 minimum (0) to maximum (100), not health thresholds; constant values sit at 50. Analysis uses raw values, including hidden series.</p></details>\n<details class=\"corr-analysis-disclosure\" data-analysis-tab=\"gb-chrome-private-0-11-end\" data-chrome-private-0-12=\"\"><summary>Statistics &amp; data</summary>\n<div class=\"corr-pair-analysis\">gb-chrome-private-0-13-end\n<div id=\"corr-analysis-panel\" data-chrome-private-0-14=\"\">\n<p class=\"corr-help\">gb-chrome-private-0-15-end</p>\ngb-chrome-private-0-16-end\n<div class=\"corr-dose-chart\" data-chrome-private-0-17=\"\"><canvas id=\"corr-scatter\" data-chrome-canvas-role=\"img\" aria-label=\"Paired observations; excluded rows are not plotted\"></canvas></div>\n<div id=\"corr-pair-detail\"></div>\n</div></div>\n</details>\ngb-chrome-private-0-18-end<!--]--><!--]-->",
+      "prefix": "<!--[--><!--[0-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": [
+        {
+          "start": 679,
+          "end": 680,
+          "before": "/",
+          "after": ""
+        },
+        {
+          "start": 1616,
+          "end": 1635,
+          "before": "data-chrome-canvas-",
+          "after": ""
+        }
+      ]
+    }
+  },
+  {
+    "owner": "chrome",
+    "kind": "current-dose",
+    "slots": [
+      {
+        "coordinate": "gb-chrome-private-1-0-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-chrome-private-1-1-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-chrome-private-1-2-end",
+        "attribute": false
+      }
+    ],
+    "nativeSkeleton": "<section class=\"corr-current-dose\"><div class=\"corr-current-heading\"><strong>gb-chrome-private-1-0-end</strong><button type=\"button\" class=\"corr-review-dose\" data-compare-action=\"review-therapy\" data-compare-key=\"gb-chrome-private-1-1-end\">Edit dose history</button></div>gb-chrome-private-1-2-end</section>",
+    "production": {
+      "html": "<!--[--><!--[1--><section class=\"corr-current-dose\"><div class=\"corr-current-heading\"><strong>gb-chrome-private-1-0-end</strong><button type=\"button\" class=\"corr-review-dose\" data-compare-action=\"review-therapy\" data-compare-key=\"gb-chrome-private-1-1-end\">Edit dose history</button></div>gb-chrome-private-1-2-end</section><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[1-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    },
+    "development": {
+      "html": "<!--[--><!--[1--><section class=\"corr-current-dose\"><div class=\"corr-current-heading\"><strong>gb-chrome-private-1-0-end</strong><button type=\"button\" class=\"corr-review-dose\" data-compare-action=\"review-therapy\" data-compare-key=\"gb-chrome-private-1-1-end\">Edit dose history</button></div>gb-chrome-private-1-2-end</section><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[1-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    }
+  },
+  {
+    "owner": "chrome",
+    "kind": "current-dose-list",
+    "slots": [
+      {
+        "coordinate": "gb-chrome-private-2-0-end",
+        "attribute": false
+      }
+    ],
+    "nativeSkeleton": "<ul>gb-chrome-private-2-0-end</ul>",
+    "production": {
+      "html": "<!--[--><!--[2--><ul>gb-chrome-private-2-0-end</ul><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[2-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    },
+    "development": {
+      "html": "<!--[--><!--[2--><ul>gb-chrome-private-2-0-end</ul><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[2-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    }
+  },
+  {
+    "owner": "chrome",
+    "kind": "current-dose-item",
+    "slots": [
+      {
+        "coordinate": "gb-chrome-private-3-0-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-chrome-private-3-1-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-chrome-private-3-2-end",
+        "attribute": false
+      }
+    ],
+    "nativeSkeleton": "<li><span>gb-chrome-private-3-0-end</span><span><strong>gb-chrome-private-3-1-end</strong><small>gb-chrome-private-3-2-end</small></span></li>",
+    "production": {
+      "html": "<!--[--><!--[3--><li><span>gb-chrome-private-3-0-end</span><span><strong>gb-chrome-private-3-1-end</strong><small>gb-chrome-private-3-2-end</small></span></li><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[3-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    },
+    "development": {
+      "html": "<!--[--><!--[3--><li><span>gb-chrome-private-3-0-end</span><span><strong>gb-chrome-private-3-1-end</strong><small>gb-chrome-private-3-2-end</small></span></li><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[3-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    }
+  },
+  {
+    "owner": "chrome",
+    "kind": "no-current-dose",
+    "slots": [],
+    "nativeSkeleton": "<p>No daily amount saved.</p>",
+    "production": {
+      "html": "<!--[--><!--[4--><p>No daily amount saved.</p><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[4-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    },
+    "development": {
+      "html": "<!--[--><!--[4--><p>No daily amount saved.</p><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[4-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    }
+  },
+  {
+    "owner": "chrome",
+    "kind": "dose-notice",
+    "slots": [
+      {
+        "coordinate": "gb-chrome-private-5-0-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-chrome-private-5-1-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-chrome-private-5-2-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-chrome-private-5-3-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-chrome-private-5-4-end",
+        "attribute": false
+      }
+    ],
+    "nativeSkeleton": "<div class=\"corr-dose-notice\"><span><strong>gb-chrome-private-5-0-end</strong> \u00b7 gb-chrome-private-5-1-end</span>gb-chrome-private-5-2-end<button type=\"button\" class=\"corr-review-dose\" data-compare-action=\"review-therapy\" data-compare-key=\"gb-chrome-private-5-3-end\">gb-chrome-private-5-4-end</button></div>",
+    "production": {
+      "html": "<!--[--><!--[5--><div class=\"corr-dose-notice\"><span><strong>gb-chrome-private-5-0-end</strong> \u00b7 gb-chrome-private-5-1-end</span>gb-chrome-private-5-2-end<button type=\"button\" class=\"corr-review-dose\" data-compare-action=\"review-therapy\" data-compare-key=\"gb-chrome-private-5-3-end\">gb-chrome-private-5-4-end</button></div><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[5-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    },
+    "development": {
+      "html": "<!--[--><!--[5--><div class=\"corr-dose-notice\"><span><strong>gb-chrome-private-5-0-end</strong> \u00b7 gb-chrome-private-5-1-end</span>gb-chrome-private-5-2-end<button type=\"button\" class=\"corr-review-dose\" data-compare-action=\"review-therapy\" data-compare-key=\"gb-chrome-private-5-3-end\">gb-chrome-private-5-4-end</button></div><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[5-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    }
+  },
+  {
+    "owner": "chrome",
+    "kind": "confirm-dose",
+    "slots": [
+      {
+        "coordinate": "gb-chrome-private-6-0-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-chrome-private-6-1-end",
+        "attribute": false
+      }
+    ],
+    "nativeSkeleton": "<details class=\"corr-confirm-dose\"><summary>Confirm dose dates</summary><p>Use gb-chrome-private-6-0-end for this period only if unchanged.</p>gb-chrome-private-6-1-end<p class=\"corr-confirm-status\" role=\"status\"></p></details>",
+    "production": {
+      "html": "<!--[--><!--[6--><details class=\"corr-confirm-dose\"><summary>Confirm dose dates</summary><p>Use gb-chrome-private-6-0-end for this period only if unchanged.</p>gb-chrome-private-6-1-end<p class=\"corr-confirm-status\" role=\"status\"></p></details><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[6-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    },
+    "development": {
+      "html": "<!--[--><!--[6--><details class=\"corr-confirm-dose\"><summary>Confirm dose dates</summary><p>Use gb-chrome-private-6-0-end for this period only if unchanged.</p>gb-chrome-private-6-1-end<p class=\"corr-confirm-status\" role=\"status\"></p></details><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[6-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    }
+  },
+  {
+    "owner": "chrome",
+    "kind": "confirm-period",
+    "slots": [
+      {
+        "coordinate": "gb-chrome-private-7-0-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-chrome-private-7-1-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-chrome-private-7-2-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-chrome-private-7-3-end",
+        "attribute": false
+      }
+    ],
+    "nativeSkeleton": "<div><span>gb-chrome-private-7-0-end \u2192 gb-chrome-private-7-1-end</span><button type=\"button\" class=\"corr-review-dose\" data-corr-confirm-dose=\"gb-chrome-private-7-2-end\" data-corr-period=\"gb-chrome-private-7-3-end\">Confirm &amp; save this period</button></div>",
+    "production": {
+      "html": "<!--[--><!--[7--><div><span>gb-chrome-private-7-0-end \u2192 gb-chrome-private-7-1-end</span><button type=\"button\" class=\"corr-review-dose\" data-corr-confirm-dose=\"gb-chrome-private-7-2-end\" data-corr-period=\"gb-chrome-private-7-3-end\">Confirm &amp; save this period</button></div><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[7-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    },
+    "development": {
+      "html": "<!--[--><!--[7--><div><span>gb-chrome-private-7-0-end \u2192 gb-chrome-private-7-1-end</span><button type=\"button\" class=\"corr-review-dose\" data-corr-confirm-dose=\"gb-chrome-private-7-2-end\" data-corr-period=\"gb-chrome-private-7-3-end\">Confirm &amp; save this period</button></div><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[7-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    }
+  },
+  {
+    "owner": "chrome",
+    "kind": "timeline-panel",
+    "slots": [
+      {
+        "coordinate": "gb-chrome-private-8-0-end",
+        "attribute": false
+      },
+      {
+        "coordinate": " data-chrome-private-8-1=\"\"",
+        "attribute": true
+      },
+      {
+        "coordinate": "gb-chrome-private-8-2-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-chrome-private-8-3-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-chrome-private-8-4-end",
+        "attribute": false
+      }
+    ],
+    "nativeSkeleton": "<section class=\"corr-timeline-panelgb-chrome-private-8-0-end\"><h4 data-chrome-private-8-1=\"\">gb-chrome-private-8-2-end</h4>gb-chrome-private-8-3-endgb-chrome-private-8-4-end</section>",
+    "production": {
+      "html": "<!--[--><!--[8--><section class=\"corr-timeline-panelgb-chrome-private-8-0-end\"><h4 data-chrome-private-8-1=\"\">gb-chrome-private-8-2-end</h4>gb-chrome-private-8-3-endgb-chrome-private-8-4-end</section><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[8-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    },
+    "development": {
+      "html": "<!--[--><!--[8--><section class=\"corr-timeline-panelgb-chrome-private-8-0-end\"><h4 data-chrome-private-8-1=\"\">gb-chrome-private-8-2-end</h4>gb-chrome-private-8-3-endgb-chrome-private-8-4-end</section><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[8-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    }
+  },
+  {
+    "owner": "chrome",
+    "kind": "plot-chart",
+    "slots": [
+      {
+        "coordinate": "gb-chrome-private-9-0-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-chrome-private-9-1-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-chrome-private-9-2-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-chrome-private-9-3-end",
+        "attribute": false
+      }
+    ],
+    "nativeSkeleton": "<p class=\"corr-scale-label\">gb-chrome-private-9-0-end</p><div class=\"corr-dose-chartgb-chrome-private-9-1-end\"><canvas id=\"corr-workspace-chart-gb-chrome-private-9-2-end\" role=\"img\" aria-label=\"gb-chrome-private-9-3-end over calendar time\"></canvas></div>",
+    "production": {
+      "html": "<!--[--><!--[9--><p class=\"corr-scale-label\">gb-chrome-private-9-0-end</p><div class=\"corr-dose-chartgb-chrome-private-9-1-end\"><canvas id=\"corr-workspace-chart-gb-chrome-private-9-2-end\" data-chrome-canvas-role=\"img\" aria-label=\"gb-chrome-private-9-3-end over calendar time\"></canvas></div><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[9-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": [
+        {
+          "start": 171,
+          "end": 190,
+          "before": "data-chrome-canvas-",
+          "after": ""
+        }
+      ]
+    },
+    "development": {
+      "html": "<!--[--><!--[9--><p class=\"corr-scale-label\">gb-chrome-private-9-0-end</p><div class=\"corr-dose-chartgb-chrome-private-9-1-end\"><canvas id=\"corr-workspace-chart-gb-chrome-private-9-2-end\" data-chrome-canvas-role=\"img\" aria-label=\"gb-chrome-private-9-3-end over calendar time\"></canvas></div><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[9-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": [
+        {
+          "start": 171,
+          "end": 190,
+          "before": "data-chrome-canvas-",
+          "after": ""
+        }
+      ]
+    }
+  },
+  {
+    "owner": "chrome",
+    "kind": "usage-timeline",
+    "slots": [
+      {
+        "coordinate": "gb-chrome-private-10-0-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-chrome-private-10-1-end",
+        "attribute": false
+      }
+    ],
+    "nativeSkeleton": "<div class=\"corr-use-timeline\" data-corr-track=\"gb-chrome-private-10-0-end\"><div class=\"corr-use-heading\">gb-chrome-private-10-1-end \u00b7 Recorded use <span>Not a dose scale</span></div><div class=\"corr-use-track\"></div></div>",
+    "production": {
+      "html": "<!--[--><!--[10--><div class=\"corr-use-timeline\" data-corr-track=\"gb-chrome-private-10-0-end\"><div class=\"corr-use-heading\">gb-chrome-private-10-1-end \u00b7 Recorded use <span>Not a dose scale</span></div><div class=\"corr-use-track\"></div></div><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[10-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    },
+    "development": {
+      "html": "<!--[--><!--[10--><div class=\"corr-use-timeline\" data-corr-track=\"gb-chrome-private-10-0-end\"><div class=\"corr-use-heading\">gb-chrome-private-10-1-end \u00b7 Recorded use <span>Not a dose scale</span></div><div class=\"corr-use-track\"></div></div><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[10-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    }
+  },
+  {
+    "owner": "chrome",
+    "kind": "no-series",
+    "slots": [],
+    "nativeSkeleton": "<p>Turn on a series above.</p>",
+    "production": {
+      "html": "<!--[--><!--[11--><p>Turn on a series above.</p><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[11-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    },
+    "development": {
+      "html": "<!--[--><!--[11--><p>Turn on a series above.</p><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[11-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    }
+  },
+  {
+    "owner": "chrome",
+    "kind": "pair-tabs",
+    "slots": [
+      {
+        "coordinate": "gb-chrome-private-12-0-end",
+        "attribute": false
+      }
+    ],
+    "nativeSkeleton": "<div class=\"corr-pair-tabs\" role=\"tablist\" aria-label=\"Comparison\">gb-chrome-private-12-0-end</div>",
+    "production": {
+      "html": "<!--[--><!--[12--><div class=\"corr-pair-tabs\" role=\"tablist\" aria-label=\"Comparison\">gb-chrome-private-12-0-end</div><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[12-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    },
+    "development": {
+      "html": "<!--[--><!--[12--><div class=\"corr-pair-tabs\" role=\"tablist\" aria-label=\"Comparison\">gb-chrome-private-12-0-end</div><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[12-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    }
+  },
+  {
+    "owner": "chrome",
+    "kind": "pair-tab",
+    "slots": [
+      {
+        "coordinate": "gb-chrome-private-13-0-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-chrome-private-13-1-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "aria-selected=\"false\"",
+        "attribute": false,
+        "valuePrefix": "aria-selected=\"",
+        "valueSuffix": "\""
+      },
+      {
+        "coordinate": "gb-chrome-private-13-3-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-chrome-private-13-4-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-chrome-private-13-5-end",
+        "attribute": false
+      }
+    ],
+    "nativeSkeleton": "<button type=\"button\" role=\"tab\" id=\"corr-pair-gb-chrome-private-13-0-end\" data-corr-pair=\"gb-chrome-private-13-1-end\" aria-selected=\"false\" aria-controls=\"corr-analysis-panel\" tabindex=\"gb-chrome-private-13-3-end\">gb-chrome-private-13-4-end \u00d7 gb-chrome-private-13-5-end</button>",
+    "production": {
+      "html": "<!--[--><!--[13--><button type=\"button\" role=\"tab\" id=\"corr-pair-gb-chrome-private-13-0-end\" data-corr-pair=\"gb-chrome-private-13-1-end\" aria-selected=\"false\" aria-controls=\"corr-analysis-panel\" data-chrome-pair-tabindex=\"gb-chrome-private-13-3-end\">gb-chrome-private-13-4-end \u00d7 gb-chrome-private-13-5-end</button><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[13-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": [
+        {
+          "start": 177,
+          "end": 194,
+          "before": "data-chrome-pair-",
+          "after": ""
+        }
+      ]
+    },
+    "development": {
+      "html": "<!--[--><!--[13--><button type=\"button\" role=\"tab\" id=\"corr-pair-gb-chrome-private-13-0-end\" data-corr-pair=\"gb-chrome-private-13-1-end\" aria-selected=\"false\" aria-controls=\"corr-analysis-panel\" data-chrome-pair-tabindex=\"gb-chrome-private-13-3-end\">gb-chrome-private-13-4-end \u00d7 gb-chrome-private-13-5-end</button><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[13-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": [
+        {
+          "start": 177,
+          "end": 194,
+          "before": "data-chrome-pair-",
+          "after": ""
+        }
+      ]
+    }
+  },
+  {
+    "owner": "chrome",
+    "kind": "scatter-unavailable",
+    "slots": [],
+    "nativeSkeleton": "<p role=\"status\">Scatter unavailable: dose units, bases or ingredients differ.</p>",
+    "production": {
+      "html": "<!--[--><!--[14--><p role=\"status\">Scatter unavailable: dose units, bases or ingredients differ.</p><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[14-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    },
+    "development": {
+      "html": "<!--[--><!--[14--><p role=\"status\">Scatter unavailable: dose units, bases or ingredients differ.</p><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[14-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    }
+  },
+  {
+    "owner": "chrome",
+    "kind": "history",
+    "slots": [
+      {
+        "coordinate": "gb-chrome-private-15-0-end",
+        "attribute": false
+      }
+    ],
+    "nativeSkeleton": "<details class=\"corr-history\"><summary>Current doses</summary><div class=\"corr-current-references\">gb-chrome-private-15-0-end</div></details>",
+    "production": {
+      "html": "<!--[--><!--[15--><details class=\"corr-history\"><summary>Current doses</summary><div class=\"corr-current-references\">gb-chrome-private-15-0-end</div></details><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[15-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    },
+    "development": {
+      "html": "<!--[--><!--[15--><details class=\"corr-history\"><summary>Current doses</summary><div class=\"corr-current-references\">gb-chrome-private-15-0-end</div></details><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[15-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    }
+  },
+  {
+    "owner": "chrome",
+    "kind": "readout",
+    "slots": [
+      {
+        "coordinate": "gb-chrome-private-16-0-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-chrome-private-16-1-end",
+        "attribute": false
+      }
+    ],
+    "nativeSkeleton": "<div><strong>gb-chrome-private-16-0-end</strong><span>gb-chrome-private-16-1-end</span></div>",
+    "production": {
+      "html": "<!--[--><!--[16--><div><strong>gb-chrome-private-16-0-end</strong><span>gb-chrome-private-16-1-end</span></div><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[16-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    },
+    "development": {
+      "html": "<!--[--><!--[16--><div><strong>gb-chrome-private-16-0-end</strong><span>gb-chrome-private-16-1-end</span></div><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[16-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    }
+  },
+  {
+    "owner": "chrome",
+    "kind": "usage-segment",
+    "slots": [
+      {
+        "coordinate": "gb-chrome-private-17-0-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-chrome-private-17-1-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-chrome-private-17-2-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-chrome-private-17-3-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-chrome-private-17-4-end",
+        "attribute": false
+      }
+    ],
+    "nativeSkeleton": "<span class=\"corr-use-segment corr-use-gb-chrome-private-17-0-end\" style=\"left:gb-chrome-private-17-1-end%;width:gb-chrome-private-17-2-end%\" role=\"img\" tabindex=\"0\" aria-label=\"gb-chrome-private-17-3-end\" title=\"gb-chrome-private-17-4-end\"></span>",
+    "production": {
+      "html": "<!--[--><!--[17--><span class=\"corr-use-segment corr-use-gb-chrome-private-17-0-end\" style=\"left:gb-chrome-private-17-1-end%;width:gb-chrome-private-17-2-end%\" role=\"img\" data-chrome-segment-tabindex=\"0\" aria-label=\"gb-chrome-private-17-3-end\" title=\"gb-chrome-private-17-4-end\"></span><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[17-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": [
+        {
+          "start": 153,
+          "end": 173,
+          "before": "data-chrome-segment-",
+          "after": ""
+        }
+      ]
+    },
+    "development": {
+      "html": "<!--[--><!--[17--><span class=\"corr-use-segment corr-use-gb-chrome-private-17-0-end\" style=\"left:gb-chrome-private-17-1-end%;width:gb-chrome-private-17-2-end%\" role=\"img\" data-chrome-segment-tabindex=\"0\" aria-label=\"gb-chrome-private-17-3-end\" title=\"gb-chrome-private-17-4-end\"></span><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[17-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": [
+        {
+          "start": 153,
+          "end": 173,
+          "before": "data-chrome-segment-",
+          "after": ""
+        }
+      ]
+    }
+  },
+  {
+    "owner": "controls",
+    "kind": "surface",
+    "slots": [
+      {
+        "coordinate": "gb-wc-private-0-0-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-wc-private-0-1-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-wc-private-0-2-end",
+        "attribute": false
+      },
+      {
+        "coordinate": " data-wc-private-0-3=\"\"",
+        "attribute": true
+      },
+      {
+        "coordinate": "gb-wc-private-0-4-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-wc-private-0-5-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-wc-private-0-6-end",
+        "attribute": false
+      },
+      {
+        "coordinate": " data-wc-private-0-7=\"\"",
+        "attribute": true
+      },
+      {
+        "coordinate": "gb-wc-private-0-8-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-wc-private-0-9-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-wc-private-0-10-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-wc-private-0-11-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-wc-private-0-12-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-wc-private-0-13-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-wc-private-0-14-end",
+        "attribute": false
+      },
+      {
+        "coordinate": " data-wc-private-0-15=\"\"",
+        "attribute": true
+      },
+      {
+        "coordinate": "gb-wc-private-0-16-end",
+        "attribute": false
+      }
+    ],
+    "nativeSkeleton": "<div class=\"corr-workspace-tools\">\ngb-wc-private-0-0-end\ngb-wc-private-0-1-end\n</div>\n<p class=\"corr-help\">gb-wc-private-0-2-end</p>\n<div class=\"corr-workspace-tools\" data-wc-private-0-3=\"\">\ngb-wc-private-0-4-end\ngb-wc-private-0-5-end\n</div>\ngb-wc-private-0-6-end\n<p id=\"corr-layout-status\" class=\"sr-only\" role=\"status\" data-wc-private-0-7=\"\">gb-wc-private-0-8-end \u00b7 gb-wc-private-0-9-end gb-wc-private-0-10-end. gb-wc-private-0-11-end</p>\ngb-wc-private-0-12-end\n<div class=\"corr-workspace-tabs\" aria-label=\"Analysis view\">gb-wc-private-0-13-end</div>\ngb-wc-private-0-14-end\n<div class=\"corr-series\" aria-label=\"Visible series\" data-wc-private-0-15=\"\">gb-wc-private-0-16-end</div>\n",
+    "production": {
+      "html": "<!--[--><!--[0--><div class=\"corr-workspace-tools\">\ngb-wc-private-0-0-end\ngb-wc-private-0-1-end\n</div>\n<p class=\"corr-help\">gb-wc-private-0-2-end</p>\n<div class=\"corr-workspace-tools\" data-wc-private-0-3=\"\">\ngb-wc-private-0-4-end\ngb-wc-private-0-5-end\n</div>\ngb-wc-private-0-6-end\n<p id=\"corr-layout-status\" class=\"sr-only\" role=\"status\" data-wc-private-0-7=\"\">gb-wc-private-0-8-end \u00b7 gb-wc-private-0-9-end gb-wc-private-0-10-end. gb-wc-private-0-11-end</p>\ngb-wc-private-0-12-end\n<div class=\"corr-workspace-tabs\" aria-label=\"Analysis view\">gb-wc-private-0-13-end</div>\ngb-wc-private-0-14-end\n<div class=\"corr-series\" aria-label=\"Visible series\" data-wc-private-0-15=\"\">gb-wc-private-0-16-end</div>\n<!--]--><!--]-->",
+      "prefix": "<!--[--><!--[0-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    },
+    "development": {
+      "html": "<!--[--><!--[0--><div class=\"corr-workspace-tools\">\ngb-wc-private-0-0-end\ngb-wc-private-0-1-end\n</div>\n<p class=\"corr-help\">gb-wc-private-0-2-end</p>\n<div class=\"corr-workspace-tools\" data-wc-private-0-3=\"\">\ngb-wc-private-0-4-end\ngb-wc-private-0-5-end\n</div>\ngb-wc-private-0-6-end\n<p id=\"corr-layout-status\" class=\"sr-only\" role=\"status\" data-wc-private-0-7=\"\">gb-wc-private-0-8-end \u00b7 gb-wc-private-0-9-end gb-wc-private-0-10-end. gb-wc-private-0-11-end</p>\ngb-wc-private-0-12-end\n<div class=\"corr-workspace-tabs\" aria-label=\"Analysis view\">gb-wc-private-0-13-end</div>\ngb-wc-private-0-14-end\n<div class=\"corr-series\" aria-label=\"Visible series\" data-wc-private-0-15=\"\">gb-wc-private-0-16-end</div>\n<!--]--><!--]-->",
+      "prefix": "<!--[--><!--[0-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    }
+  },
+  {
+    "owner": "controls",
+    "kind": "choice-group",
+    "slots": [
+      {
+        "coordinate": " data-wc-private-1-0=\"\"",
+        "attribute": true
+      },
+      {
+        "coordinate": "gb-wc-private-1-1-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-wc-private-1-2-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-wc-private-1-3-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-wc-private-1-4-end",
+        "attribute": false
+      }
+    ],
+    "nativeSkeleton": "<div class=\"corr-control\" data-wc-private-1-0=\"\"><span>gb-wc-private-1-1-end</span><div class=\"date-range-filter\" id=\"corr-gb-wc-private-1-2-end\" role=\"group\" aria-label=\"gb-wc-private-1-3-end\">gb-wc-private-1-4-end</div></div>",
+    "production": {
+      "html": "<!--[--><!--[1--><div class=\"corr-control\" data-wc-private-1-0=\"\"><span>gb-wc-private-1-1-end</span><div class=\"date-range-filter\" id=\"corr-gb-wc-private-1-2-end\" role=\"group\" aria-label=\"gb-wc-private-1-3-end\">gb-wc-private-1-4-end</div></div><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[1-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    },
+    "development": {
+      "html": "<!--[--><!--[1--><div class=\"corr-control\" data-wc-private-1-0=\"\"><span>gb-wc-private-1-1-end</span><div class=\"date-range-filter\" id=\"corr-gb-wc-private-1-2-end\" role=\"group\" aria-label=\"gb-wc-private-1-3-end\">gb-wc-private-1-4-end</div></div><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[1-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    }
+  },
+  {
+    "owner": "controls",
+    "kind": "choice-button",
+    "slots": [
+      {
+        "coordinate": "gb-wc-private-2-0-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-wc-private-2-1-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-wc-private-2-2-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-wc-private-2-3-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-wc-private-2-4-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "aria-pressed=\"false\"",
+        "attribute": false,
+        "valuePrefix": "aria-pressed=\"",
+        "valueSuffix": "\""
+      },
+      {
+        "coordinate": " data-wc-private-2-6=\"\"",
+        "attribute": true
+      },
+      {
+        "coordinate": "gb-wc-private-2-7-end",
+        "attribute": false
+      }
+    ],
+    "nativeSkeleton": "<button type=\"button\" class=\"range-btngb-wc-private-2-0-end\" id=\"corr-gb-wc-private-2-1-end-gb-wc-private-2-2-end\" data-corr-choice=\"gb-wc-private-2-3-end\" data-corr-value=\"gb-wc-private-2-4-end\" aria-pressed=\"false\" data-wc-private-2-6=\"\">gb-wc-private-2-7-end</button>",
+    "production": {
+      "html": "<!--[--><!--[2--><button type=\"button\" class=\"range-btngb-wc-private-2-0-end\" id=\"corr-gb-wc-private-2-1-end-gb-wc-private-2-2-end\" data-corr-choice=\"gb-wc-private-2-3-end\" data-corr-value=\"gb-wc-private-2-4-end\" aria-pressed=\"false\" data-wc-private-2-6=\"\">gb-wc-private-2-7-end</button><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[2-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    },
+    "development": {
+      "html": "<!--[--><!--[2--><button type=\"button\" class=\"range-btngb-wc-private-2-0-end\" id=\"corr-gb-wc-private-2-1-end-gb-wc-private-2-2-end\" data-corr-choice=\"gb-wc-private-2-3-end\" data-corr-value=\"gb-wc-private-2-4-end\" aria-pressed=\"false\" data-wc-private-2-6=\"\">gb-wc-private-2-7-end</button><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[2-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    }
+  },
+  {
+    "owner": "controls",
+    "kind": "custom-dates",
+    "slots": [
+      {
+        "coordinate": "gb-wc-private-3-0-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-wc-private-3-1-end",
+        "attribute": false
+      }
+    ],
+    "nativeSkeleton": "<div class=\"corr-custom-dates\"><label>From<input id=\"corr-start\" type=\"date\" data-corr-setting=\"start\" value=\"gb-wc-private-3-0-end\"></label><label>To<input id=\"corr-end\" type=\"date\" data-corr-setting=\"end\" value=\"gb-wc-private-3-1-end\"></label></div>",
+    "production": {
+      "html": "<!--[--><!--[3--><div class=\"corr-custom-dates\"><label>From<input id=\"corr-start\" type=\"date\" data-corr-setting=\"start\" value=\"gb-wc-private-3-0-end\"/></label><label>To<input id=\"corr-end\" type=\"date\" data-corr-setting=\"end\" value=\"gb-wc-private-3-1-end\"/></label></div><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[3-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": [
+        {
+          "start": 132,
+          "end": 133,
+          "before": "/",
+          "after": ""
+        },
+        {
+          "start": 237,
+          "end": 238,
+          "before": "/",
+          "after": ""
+        }
+      ]
+    },
+    "development": {
+      "html": "<!--[--><!--[3--><div class=\"corr-custom-dates\"><label>From<input id=\"corr-start\" type=\"date\" data-corr-setting=\"start\" value=\"gb-wc-private-3-0-end\"/></label><label>To<input id=\"corr-end\" type=\"date\" data-corr-setting=\"end\" value=\"gb-wc-private-3-1-end\"/></label></div><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[3-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": [
+        {
+          "start": 132,
+          "end": 133,
+          "before": "/",
+          "after": ""
+        },
+        {
+          "start": 237,
+          "end": 238,
+          "before": "/",
+          "after": ""
+        }
+      ]
+    }
+  },
+  {
+    "owner": "controls",
+    "kind": "tab-button",
+    "slots": [
+      {
+        "coordinate": "gb-wc-private-4-0-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-wc-private-4-1-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "aria-pressed=\"false\"",
+        "attribute": false,
+        "valuePrefix": "aria-pressed=\"",
+        "valueSuffix": "\""
+      },
+      {
+        "coordinate": "gb-wc-private-4-3-end",
+        "attribute": false
+      }
+    ],
+    "nativeSkeleton": "<button type=\"button\" id=\"corr-tab-gb-wc-private-4-0-end\" data-corr-tab=\"gb-wc-private-4-1-end\" aria-pressed=\"false\">gb-wc-private-4-3-end</button>",
+    "production": {
+      "html": "<!--[--><!--[4--><button type=\"button\" id=\"corr-tab-gb-wc-private-4-0-end\" data-corr-tab=\"gb-wc-private-4-1-end\" aria-pressed=\"false\">gb-wc-private-4-3-end</button><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[4-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    },
+    "development": {
+      "html": "<!--[--><!--[4--><button type=\"button\" id=\"corr-tab-gb-wc-private-4-0-end\" data-corr-tab=\"gb-wc-private-4-1-end\" aria-pressed=\"false\">gb-wc-private-4-3-end</button><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[4-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    }
+  },
+  {
+    "owner": "controls",
+    "kind": "ingredient-picker",
+    "slots": [
+      {
+        "coordinate": "gb-wc-private-5-0-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-wc-private-5-1-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-wc-private-5-2-end",
+        "attribute": false
+      }
+    ],
+    "nativeSkeleton": "<label class=\"corr-ingredient-picker\">Dose ingredient \u00b7 gb-wc-private-5-0-end<select data-corr-ingredient=\"gb-wc-private-5-1-end\">gb-wc-private-5-2-end</select></label>",
+    "production": {
+      "html": "<!--[--><!--[5--><label class=\"corr-ingredient-picker\">Dose ingredient \u00b7 gb-wc-private-5-0-end<select data-corr-ingredient=\"gb-wc-private-5-1-end\">gb-wc-private-5-2-end<!></select></label><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[5-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": [
+        {
+          "start": 152,
+          "end": 155,
+          "before": "!><",
+          "after": ""
+        }
+      ]
+    },
+    "development": {
+      "html": "<!--[--><!--[5--><label class=\"corr-ingredient-picker\">Dose ingredient \u00b7 gb-wc-private-5-0-end<select data-corr-ingredient=\"gb-wc-private-5-1-end\">gb-wc-private-5-2-end<!></select></label><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[5-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": [
+        {
+          "start": 152,
+          "end": 155,
+          "before": "!><",
+          "after": ""
+        }
+      ]
+    }
+  },
+  {
+    "owner": "controls",
+    "kind": "ingredient-option",
+    "slots": [
+      {
+        "coordinate": "gb-wc-private-6-0-end",
+        "attribute": false
+      },
+      {
+        "coordinate": " data-wc-private-6-1=\"\"",
+        "attribute": true
+      },
+      {
+        "coordinate": "gb-wc-private-6-2-end",
+        "attribute": false
+      }
+    ],
+    "nativeSkeleton": "<option value=\"gb-wc-private-6-0-end\" data-wc-private-6-1=\"\">gb-wc-private-6-2-end</option>",
+    "production": {
+      "html": "<!--[--><!--[6--><option value=\"gb-wc-private-6-0-end\" data-wc-private-6-1=\"\">gb-wc-private-6-2-end</option><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[6-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    },
+    "development": {
+      "html": "<!--[--><!--[6--><option value=\"gb-wc-private-6-0-end\" data-wc-private-6-1=\"\">gb-wc-private-6-2-end</option><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[6-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    }
+  },
+  {
+    "owner": "controls",
+    "kind": "series-button",
+    "slots": [
+      {
+        "coordinate": "gb-wc-private-7-0-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "aria-pressed=\"false\"",
+        "attribute": false,
+        "valuePrefix": "aria-pressed=\"",
+        "valueSuffix": "\""
+      },
+      {
+        "coordinate": "gb-wc-private-7-2-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-wc-private-7-3-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-wc-private-7-4-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-wc-private-7-5-end",
+        "attribute": false
+      },
+      {
+        "coordinate": "gb-wc-private-7-6-end",
+        "attribute": false
+      }
+    ],
+    "nativeSkeleton": "<button type=\"button\" data-corr-series=\"gb-wc-private-7-0-end\" aria-pressed=\"false\"><i style=\"border-color:gb-wc-private-7-2-end;border-top-style:gb-wc-private-7-3-end\"></i>gb-wc-private-7-4-endgb-wc-private-7-5-endgb-wc-private-7-6-end</button>",
+    "production": {
+      "html": "<!--[--><!--[7--><button type=\"button\" data-corr-series=\"gb-wc-private-7-0-end\" aria-pressed=\"false\"><i style=\"border-color:gb-wc-private-7-2-end;border-top-style:gb-wc-private-7-3-end\"></i>gb-wc-private-7-4-endgb-wc-private-7-5-endgb-wc-private-7-6-end</button><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[7-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    },
+    "development": {
+      "html": "<!--[--><!--[7--><button type=\"button\" data-corr-series=\"gb-wc-private-7-0-end\" aria-pressed=\"false\"><i style=\"border-color:gb-wc-private-7-2-end;border-top-style:gb-wc-private-7-3-end\"></i>gb-wc-private-7-4-endgb-wc-private-7-5-endgb-wc-private-7-6-end</button><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[7-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    }
+  },
+  {
+    "owner": "controls",
+    "kind": "range-error",
+    "slots": [
+      {
+        "coordinate": "gb-wc-private-8-0-end",
+        "attribute": false
+      }
+    ],
+    "nativeSkeleton": "<p role=\"alert\">gb-wc-private-8-0-end</p>",
+    "production": {
+      "html": "<!--[--><!--[8--><p role=\"alert\">gb-wc-private-8-0-end</p><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[8-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    },
+    "development": {
+      "html": "<!--[--><!--[8--><p role=\"alert\">gb-wc-private-8-0-end</p><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[8-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    }
+  },
+  {
+    "owner": "controls",
+    "kind": "no-lab-results",
+    "slots": [],
+    "nativeSkeleton": "<p class=\"corr-dose-notice\" role=\"status\">No lab results in this date range. Choose a wider range to include earlier measurements.</p>",
+    "production": {
+      "html": "<!--[--><!--[9--><p class=\"corr-dose-notice\" role=\"status\">No lab results in this date range. Choose a wider range to include earlier measurements.</p><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[9-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    },
+    "development": {
+      "html": "<!--[--><!--[9--><p class=\"corr-dose-notice\" role=\"status\">No lab results in this date range. Choose a wider range to include earlier measurements.</p><!--]--><!--]-->",
+      "prefix": "<!--[--><!--[9-->",
+      "suffix": "<!--]--><!--]-->",
+      "edits": []
+    }
+  }
+]

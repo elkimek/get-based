@@ -40,7 +40,7 @@ test('startup foundation initializes blocking services in order', async ({ page 
         window.__startupFoundationCalls.push('initFolderBackup');
       }
     `,
-    '**/js/sun-uvdata.js*': `
+    '**/js/sun-uvdata-config.js*': `
       export async function initMeteoConfigCache() {
         window.__startupFoundationCalls.push('initMeteoConfigCache');
       }

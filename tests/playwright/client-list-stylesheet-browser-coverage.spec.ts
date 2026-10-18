@@ -1,3 +1,4 @@
+import {waitForAsyncCondition} from '../helpers/awaited-condition.js';
 import { expect, test } from './coverage-fixture.js';
 
 async function prepareReturningApp(page: import('@playwright/test').Page) {
@@ -7,10 +8,10 @@ async function prepareReturningApp(page: import('@playwright/test').Page) {
     localStorage.setItem(`labcharts-${profileId}-tour`, 'completed');
   });
   await page.goto('/app', { waitUntil: 'networkidle' });
-  await page.waitForFunction(async () => {
+  await waitForAsyncCondition(() => page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     return typeof state.currentView === 'string' && !!document.getElementById('profile-selector');
-  });
+  }), 0);
 }
 
 test('returning-user startup defers Client List CSS until the real shell action opens it', async ({ page }) => {

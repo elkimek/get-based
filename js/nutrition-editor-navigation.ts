@@ -1,6 +1,6 @@
 // nutrition-editor-navigation.js — entry-method tabs and logger-to-history handoff.
 
-import { renderHTML as renderPresentation } from './components/NutritionPresentation.svelte.html.js';
+import { renderHTML as renderEditorNavigation } from './components/NutritionEditorNavigation.svelte.html.js';
 import { NUTRITION_PHOTO_PRIVACY } from './nutrition-editor-model.js';
 let suspendedEditor: { content: DocumentFragment; className: string; scrollTop: number; dismissProtected: boolean; hasDraft: boolean } | null = null;
 
@@ -86,7 +86,7 @@ export function enhanceNutritionEditorNavigation(modal: HTMLElement, { manualDef
     tabs.setAttribute('role', 'tablist');
     tabs.setAttribute('aria-label', 'Meal entry method');
     tabs.setAttribute('data-nutrition-tabs', '');
-    tabs.innerHTML = renderPresentation({ kind: 'editor-navigation', part: 'tabs' });
+    tabs.innerHTML = renderEditorNavigation({ part: 'tabs' });
     if (selectedKind) tabs.querySelectorAll('button').forEach(button => {
       const selected = button.getAttribute('data-nutrition-kind') === selectedKind;
       button.setAttribute('aria-selected', String(selected));
@@ -97,7 +97,7 @@ export function enhanceNutritionEditorNavigation(modal: HTMLElement, { manualDef
   if (privacy) privacy.textContent = NUTRITION_PHOTO_PRIVACY;
   const recent = modal.querySelector('.nutrition-recent');
   if (recent && !recent.querySelector('[data-nutrition-records]')) {
-    recent.innerHTML = renderPresentation({ kind: 'editor-navigation', part: 'records' });
+    recent.innerHTML = renderEditorNavigation({ part: 'records' });
   }
   if (manualDefault) setManualEntryMode({ focus: false });
 }

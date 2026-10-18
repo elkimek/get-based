@@ -1,0 +1,113 @@
+import {renderHTML as renderSummaryHTML} from './components/MarkerPlacementSummary.svelte.html.js';
+import {renderHTML as renderOptionsHTML} from './components/MarkerPlacementOptions.svelte.html.js';
+import {renderHTML as renderFormHTML} from './components/MarkerPlacementForm.svelte.html.js';
+import {escapeAttr,escapeHTML} from './utils.js';
+import {markerDetailActionAttrs} from './marker-detail-actions.js';
+import type {MarkerPlacementChoice} from './marker-detail-placement.js';
+
+declare const markerPlacementOwnedHTML:unique symbol;
+export type MarkerPlacementOwnedHTML=string&{readonly [markerPlacementOwnedHTML]:true};
+export interface PlacementOptionSkeletonGroup {label:string;rows:{value:string;label:string;selected:boolean}[]}
+export interface PlacementFormInput {marker:{name?:unknown};choices:MarkerPlacementChoice[];unavailableCount:number}
+interface Slot {coordinate:string;value:string}
+const OPTIONS='gb-placement-options';
+function coordinate(html:string,before:string,after:string):string{
+ const at=html.indexOf(before);
+ if(at<0||html.indexOf(before,at+before.length)!==-1)throw new Error('Unqualified marker placement coordinate');
+ return html.slice(0,at)+after+html.slice(at+before.length);
+}
+function root(html:string,prefix:string,suffix:string):string{
+ if(!html.startsWith('<!--[-->'+prefix)||!html.endsWith(suffix+'<!--]-->'))throw new Error('Unqualified marker placement SSR root');
+ return html.slice('<!--[-->'.length,-'<!--]-->'.length);
+}
+/** Validate every private coordinate before any escaped data or child is inserted.
+ * Inserted category names/options/actions are never rescanned. */
+function insert(html:string,slots:readonly Slot[]):string{
+ if(html.includes('<!--')||html.includes('<!>'))throw new Error('Unqualified marker placement compiler marker');
+ const edits=slots.map(({coordinate,value})=>{
+  const at=html.indexOf(coordinate);
+  if(at<0||html.indexOf(coordinate,at+coordinate.length)!==-1)throw new Error('Unqualified marker placement slot');
+  return {at,end:at+coordinate.length,value};
+ }).sort((a,b)=>a.at-b.at);
+ let out='',cursor=0;
+ for(const edit of edits){if(edit.at<cursor)throw new Error('Overlapping marker placement slots');out+=html.slice(cursor,edit.at)+edit.value;cursor=edit.end;}
+ return out+html.slice(cursor);
+}
+function action(prefix:string,suffix:string,name:string,value:string):Slot{
+ return {coordinate:prefix+'data-marker-placement-private-action="'+name+'"'+suffix,value:prefix+value+suffix};
+}
+export function renderPlacementSummary(id:string,currentLabel:unknown,nativeLabel:unknown,moved:boolean,markerName:()=>unknown):string{
+ // Only marker.name is deferred: the native public renderer reads it after the
+ // current-label coercion and before its first delegated action helper.
+ const slots:Slot[]=[{coordinate:'gb-placement-summary-current',value:escapeHTML(currentLabel)},
+  {coordinate:'gb-placement-summary-marker-name',value:escapeAttr(markerName()||'marker')},
+  action('<button type="button" class="gb-detail-category-change" aria-label="Change category for gb-placement-summary-marker-name" ','>','open',markerDetailActionAttrs('open-marker-placement', { id }))];
+ if(moved)slots.push({coordinate:'gb-placement-summary-native',value:escapeHTML(nativeLabel)},
+  action('<button type="button" class="gb-detail-category-restore" ','>','restore',markerDetailActionAttrs('restore-marker-placement', { id })));
+ let html=root(renderSummaryHTML({moved}),'<div class="gb-detail-category-row">','</div>');
+ if(moved){html=coordinate(html,'<!--[0--><span class="gb-detail-category-origin">','<span class="gb-detail-category-origin">');html=coordinate(html,'>Restore</button><!--]-->\n  </div>','>Restore</button>\n  </div>');}
+ else html=coordinate(html,'\n    <!--[-1--><!--]-->\n  </div>','\n    \n  </div>');
+ // The aria token lies inside the owned opening tag. Replace that complete tag
+ // atomically, so no overlapping slot or user text can duplicate its coordinate.
+ const aria=slots.splice(1,1)[0]!;
+ const open=slots[1]!;open.value=open.value.replace('gb-placement-summary-marker-name',()=>aria.value);
+ return insert(html,slots);
+}
+export function renderPlacementOptions(choices:MarkerPlacementChoice[]):MarkerPlacementOwnedHTML{
+ // Preserve the original two filter passes and per-option value→selected→label
+ // reads. Compiler props contain only private escaped-primitive placeholders.
+ const groups=[{label:'In this profile',options:choices.filter(choice=>choice.inProfile)},
+  {label:'Other compatible categories',options:choices.filter(choice=>!choice.inProfile)}].filter(group=>group.options.length>0);
+ let ordinal=0;const slots:Slot[]=[];
+ const skeletonGroups:PlacementOptionSkeletonGroup[]=groups.map(({label,options})=>{
+  const groupLabel=escapeAttr(label);
+  const rows=options.map(choice=>{
+   const value=escapeAttr(choice.categoryKey),selected=!!choice.selected,label=escapeHTML(choice.label);
+   const token='gb-placement-option-'+ordinal++;
+   slots.push({coordinate:'<option value="'+token+'-value"'+(selected?' selected=""':'')+'>',value:'<option value="'+value+'"'+(selected?' selected':'')+'>'},
+    {coordinate:token+'-label',value:label});
+   return {value:token+'-value',label:token+'-label',selected};
+  });return {label:groupLabel,rows};
+ });
+ let html=root(renderOptionsHTML({groups:skeletonGroups}),'<!--[-->','<!--]-->');
+ // Literal EachBlock boundaries have source-qualified optgroup/option adjacency.
+ if(!groups.length)html=coordinate(html,'<!--[--><!--]-->','');
+ else{
+  html=coordinate(html,'<!--[--><optgroup','<optgroup');
+  html=coordinate(html,'</optgroup><!--]-->','</optgroup>');
+  for(const group of skeletonGroups){
+   const first=group.rows[0]!,last=group.rows[group.rows.length-1]!;
+   html=coordinate(html,'\n      <!--[--><option value="'+first.value+'"','\n      <option value="'+first.value+'"');
+   html=coordinate(html,last.label+'</option><!--]-->\n    </optgroup>',last.label+'</option>\n    </optgroup>');
+  }
+ }
+ return insert(html,slots) as MarkerPlacementOwnedHTML;
+}
+export function renderPlacementForm(id:string,context:PlacementFormInput,currentLabel:unknown,nativeLabel:unknown,moved:boolean):string{
+ // This mirrors the old template chronology, including option filters between
+ // head actions and footer label/count/action reads. Domain context is untouched.
+ const slots:Slot[]=[action('<button type="button" class="context-back-btn" aria-label="Back to marker details" ','>','back',markerDetailActionAttrs('show-detail-modal', { id })),
+  {coordinate:'gb-placement-form-marker-name',value:escapeHTML(context.marker.name)},
+  action('<button type="button" class="modal-close" aria-label="Close" ','>','close',markerDetailActionAttrs('close-modal'))];
+ const options=renderPlacementOptions(context.choices);
+ slots.push({coordinate:'<!---->'+OPTIONS+'<!---->',value:options},
+  {coordinate:'gb-placement-form-current',value:escapeHTML(currentLabel)},
+  {coordinate:'gb-placement-form-native',value:escapeHTML(nativeLabel)},
+  {coordinate:'gb-placement-form-help',value:context.unavailableCount?`${context.unavailableCount} calculated, incompatible, or conflicting ${context.unavailableCount===1?'category is':'categories are'} hidden.`:''});
+ if(moved)slots.push(action('<button type="button" class="import-btn import-btn-secondary marker-placement-restore" ','>','restore',markerDetailActionAttrs('restore-marker-placement', { id })));
+ slots.push(action('<button type="button" class="import-btn import-btn-secondary" ','>','cancel',markerDetailActionAttrs('show-detail-modal', { id })),
+  action('<button type="button" class="import-btn import-btn-primary marker-placement-save" ','>','save',markerDetailActionAttrs('save-marker-placement', { id })));
+ let html=root(renderFormHTML({moved,options:OPTIONS as MarkerPlacementOwnedHTML}),'<div class="gb-modal-head">','</div>');
+ // Private @html sentinel only. Never strip comments from inserted options/data.
+ const production='<!---->'+OPTIONS+'<!---->',development='<!--'+checksum(OPTIONS)+'-->'+OPTIONS+'<!---->';
+ const envelopes=[production,development].filter(value=>html.includes(value));
+ if(envelopes.length!==1)throw new Error('Unqualified marker placement private options envelope');
+ html=coordinate(html,envelopes[0]!,OPTIONS);
+ slots[3]={coordinate:OPTIONS,value:options};
+ html=coordinate(html,'\n          <!></select>','\n          </select>');
+ if(moved){html=coordinate(html,'<!--[0--><button type="button" class="import-btn import-btn-secondary marker-placement-restore"','<button type="button" class="import-btn import-btn-secondary marker-placement-restore"');html=coordinate(html,'>Restore original</button><!--]-->','>Restore original</button>');}
+ else html=coordinate(html,'\n          <!--[-1--><!--]-->\n          <button','\n          \n          <button');
+ return insert(html,slots);
+}
+// Exact Svelte DEV html() checksum law, solely for the private options sentinel.
+function checksum(value:string):string{let hash=5381,index=value.length;while(index)hash=((hash<<5)-hash)^value.charCodeAt(--index);return(hash>>>0).toString(36);}

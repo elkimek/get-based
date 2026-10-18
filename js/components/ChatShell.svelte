@@ -1,4 +1,5 @@
 <script lang="ts">
+ import {componentStaticStyles} from '../component-inline-style-map.generated.js';
   import { dropChatAttachments } from '../chat-attachment-view.js';
   import { ATTACHMENT_DROP } from '../chat-attachment-classes.js';
   let dropActive = $state(false);
@@ -11,19 +12,24 @@
   import ChatResizeHandle from './ChatResizeHandle.svelte';
   import { INITIAL_CHAT_LAYOUT, ownChatLayout, requestChatLayoutSync, type ChatLayoutView } from '../chat-layout-view.js';
   let layout = $state<ChatLayoutView>({ ...INITIAL_CHAT_LAYOUT });
-  function registerLayout(root: HTMLElement) { return ownChatLayout(root, next => flushSync(() => { layout = next; })); }
+  function registerLayout(root: HTMLElement) { return ownChatLayout(root, next => {
+    const rail = root.querySelector('#chat-thread-rail');
+    const returnFocus = layout.open && layout.railOpen && !next.railOpen && next.open && rail?.contains(document.activeElement);
+    flushSync(() => { layout = next; });
+    if (returnFocus) root.querySelector<HTMLButtonElement>('.chat-rail-toggle')?.focus();
+  }); }
 </script>
 <!-- Stable service-owned hosts retain their children while the remaining Chat
      features migrate. This component owns the shell's initial structure. -->
 <svelte:window onresize={requestChatLayoutSync} />
-<div id="chat-shell" data-chat-layout-view style="display:contents" use:registerLayout>
+<div id="chat-shell" data-chat-layout-view style={componentStaticStyles.contents} use:registerLayout>
 <div class="chat-backdrop" id="chat-backdrop"></div>
   <button class="chat-fab" id="chat-fab" data-chat-action="toggle-panel" aria-label="Ask AI" title="Ask AI">
     <svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
   </button>
   <div class="chat-panel" id="chat-panel" role="complementary" aria-label="AI Lab Analyst" aria-hidden="true" inert style:--chat-panel-width={layout.desktop ? `${layout.panelWidth}px` : null}>
     <ChatResizeHandle kind="panel" {layout} />
-    <div class="chat-thread-rail" id="chat-thread-rail" style:--chat-rail-width={layout.desktop ? `${layout.railWidth}px` : null}>
+    <div class="chat-thread-rail" id="chat-thread-rail" inert={!layout.open || !layout.railOpen} style:--chat-rail-width={layout.desktop ? `${layout.railWidth}px` : null}>
       <div class="chat-thread-rail-header">
         <button class="chat-rail-back" data-chat-action="toggle-thread-rail" aria-label="Close conversations">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>

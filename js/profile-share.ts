@@ -5,7 +5,8 @@ import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { getProfiles } from './profile.js';
 import { buildClientExportObject, importDataJSON } from './export.js';
-import { escapeHTML, escapeAttr, showNotification } from './utils.js';
+import { showNotification } from './utils.js';
+import { renderActiveShare, projectActiveShare, projectCreateShare, renderResultShare, renderShareShell, type ShareBodyView } from './profile-share-presentation.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { addUtilsRuntimeListener } from './utils-runtime.js';
 
@@ -43,8 +44,6 @@ const SHARE_OVERLAY_ID = 'profile-share-overlay';
 const SHARE_RECORDS_KEY = 'getbased-profile-shares-v1';
 const TEXT_ENCODER = new TextEncoder();
 const TEXT_DECODER = new TextDecoder();
-const COPY_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
-const REFRESH_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 0 1-15.4 6.4L3 16"/><path d="M3 21v-5h5"/><path d="M3 12A9 9 0 0 1 18.4 5.6L21 8"/><path d="M21 3v5h-5"/></svg>';
 
 function getCrypto() {
   const c = globalThis.crypto;
@@ -447,28 +446,12 @@ function formatShareExpiry(expiresAt: string) {
 
 function renderActiveShareList(profileId: unknown = state.currentProfile) {
   const records = getProfileShareRecords(profileId);
-  const rows = records.length
-    ? records.map(record => `
-        <div class="profile-share-active-row" data-profile-share-record="${escapeAttr(record.id)}">
-          <div class="profile-share-active-main">
-            <span class="profile-share-active-title">Shared link</span>
-            <span class="profile-share-active-meta">Expires ${escapeHTML(formatShareExpiry(record.expiresAt))}</span>
-          </div>
-          <div class="profile-share-active-actions">
-            <button type="button" class="profile-share-icon-btn" data-profile-share-action="copy" data-copy-value="${escapeAttr(record.shareUrl)}" data-copy-label="Link copied" title="Copy link" aria-label="Copy active link">${COPY_ICON}</button>
-            <button type="button" class="profile-share-stop-btn" data-profile-share-action="delete-link" data-share-id="${escapeAttr(record.id)}">Stop sharing</button>
-          </div>
-        </div>`).join('')
-    : `<div class="profile-share-active-empty">No active links created on this device.</div>`;
-  return `
-    <section class="profile-share-active" data-profile-share-active-list data-profile-id="${escapeAttr(profileId || '')}">
-      <div class="profile-share-active-head">
-        <span>Active links</span>
-        <small>Created on this device</small>
-      </div>
-      <div class="profile-share-active-list">${rows}</div>
-    </section>
-  `;
+  return renderActiveShare(records, formatShareExpiry, () => profileId || '');
+}
+
+function projectActiveShareList(profileId: unknown = state.currentProfile) {
+  const records = getProfileShareRecords(profileId);
+  return projectActiveShare(records, formatShareExpiry, () => profileId || '');
 }
 
 function refreshActiveShareList(overlay: HTMLElement | null, profileId: unknown = state.currentProfile) {
@@ -477,115 +460,23 @@ function refreshActiveShareList(overlay: HTMLElement | null, profileId: unknown 
   container.outerHTML = renderActiveShareList(profileId);
 }
 
-function renderCreateShareBody(profileId: unknown = state.currentProfile) {
+function projectCreateShareBody(profileId: unknown = state.currentProfile) {
   const secret = generateProfileSharePassword();
-  return `
-    <div class="gb-form-body profile-share-body">
-      <div class="profile-share-intro">
-        <div class="profile-share-intro-title">Encrypted link for <b>${escapeHTML(profileNameForShare(profileId))}</b></div>
-        <div class="profile-share-intro-copy">The link finds a locked copy of the profile. The password is the only way to unlock it, and it is never added to the link or sent to us.</div>
-      </div>
-      <form class="profile-share-form" data-profile-share-form="create" data-profile-id="${escapeAttr(profileId || '')}">
-        <label class="profile-share-field">
-          <span>Password</span>
-          <div class="profile-share-input-row">
-            <input id="profile-share-password" class="api-key-input" type="text" value="${escapeAttr(secret)}" autocomplete="off" spellcheck="false">
-            <button type="button" class="profile-share-icon-btn" data-profile-share-action="regenerate" title="Generate new password" aria-label="Generate new password">${REFRESH_ICON}</button>
-          </div>
-        </label>
-        <label class="profile-share-field">
-          <span>Expires</span>
-          <select id="profile-share-expires" class="api-key-input">
-            <option value="7">7 days</option>
-            <option value="14">14 days</option>
-            <option value="30">30 days</option>
-          </select>
-        </label>
-        <label class="profile-share-consent">
-          <input id="profile-share-consent" type="checkbox" required>
-          <span>I agree to upload a password-locked copy of this profile for temporary sharing. Anyone with both the link and password can open it, so I will send the password separately.</span>
-        </label>
-        <div class="profile-share-note">If the password is lost, this shared copy cannot be recovered. On the official hosted app, temporary share copies are not backed up and may also be lost after a service failure; a self-hosted operator may use a different retention policy.</div>
-        <div id="profile-share-status" class="profile-share-status" hidden></div>
-        <div class="gb-form-actions">
-          <button type="button" class="import-btn import-btn-secondary" data-profile-share-action="close">Cancel</button>
-          <button type="submit" class="import-btn import-btn-primary" data-profile-share-action="create">Create Link</button>
-        </div>
-      </form>
-      ${renderActiveShareList(profileId)}
-    </div>
-  `;
+  return {kind: 'create' as const, view: projectCreateShare(() => profileNameForShare(profileId), () => profileId || '', secret, () => projectActiveShareList(profileId))};
 }
 
 function renderShareResultBody(result: ShareResultReader) {
-  return `
-    <div class="gb-form-body profile-share-body">
-      <div class="profile-share-intro">
-        <div class="profile-share-intro-title">Link ready for <b>${escapeHTML(result.profileName)}</b></div>
-        <div class="profile-share-intro-copy">Copy both values, but send them through separate channels.</div>
-      </div>
-      <div class="profile-share-result-list">
-        <label class="profile-share-field">
-          <span>Link</span>
-          <div class="profile-share-input-row">
-            <input id="profile-share-link" class="api-key-input" type="text" value="${escapeAttr(result.shareUrl)}" readonly>
-            <button type="button" class="profile-share-icon-btn" data-profile-share-action="copy" data-copy-target="profile-share-link" data-copy-label="Link copied" title="Copy link" aria-label="Copy link">${COPY_ICON}</button>
-          </div>
-        </label>
-        <label class="profile-share-field">
-          <span>Password</span>
-          <div class="profile-share-input-row">
-            <input id="profile-share-result-password" class="api-key-input" type="text" value="${escapeAttr(result.password)}" readonly>
-            <button type="button" class="profile-share-icon-btn" data-profile-share-action="copy" data-copy-target="profile-share-result-password" data-copy-label="Password copied" title="Copy password" aria-label="Copy password">${COPY_ICON}</button>
-          </div>
-        </label>
-      </div>
-      <div class="profile-share-note">Expires ${escapeHTML(new Date(result.expiresAt).toLocaleString())}. Recipients import this as a new profile.</div>
-      ${renderActiveShareList(result.profileId)}
-      <div id="profile-share-status" class="profile-share-status" hidden></div>
-      <div class="gb-form-actions">
-        <button type="button" class="import-btn import-btn-primary" data-profile-share-action="close">Done</button>
-      </div>
-    </div>
-  `;
+  return renderResultShare(result, value => new Date(value).toLocaleString(), () => projectActiveShareList(result.profileId));
 }
 
-function renderLoadShareBody(id: unknown) {
-  return `
-    <div class="gb-form-body profile-share-body">
-      <div class="modal-unit">Enter the password for this shared profile. It will import as a new profile in this browser.</div>
-      <form class="profile-share-form" data-profile-share-form="load" data-share-id="${escapeAttr(id)}">
-        <label class="profile-share-field">
-          <span>Password</span>
-          <input id="profile-share-load-password" class="api-key-input" type="password" autocomplete="current-password">
-        </label>
-        <div id="profile-share-status" class="profile-share-status" hidden></div>
-        <div class="gb-form-actions">
-          <button type="button" class="import-btn import-btn-secondary" data-profile-share-action="close">Cancel</button>
-          <button type="submit" class="import-btn import-btn-primary" data-profile-share-action="load">Load Profile</button>
-        </div>
-      </form>
-    </div>
-  `;
+function projectLoadShareBody(id: unknown): ShareBodyView {
+  return {kind: 'load', view: {id: id == null ? '' : String(id)}};
 }
 
-function renderProfileShareShell({ title, kicker = 'Share Profile', body }: { title: unknown; kicker?: unknown; body: unknown }) {
+function renderProfileShareShell({ title, kicker = 'Share Profile', body }: { title: unknown; kicker?: unknown; body: ShareBodyView }) {
   closeProfileShareModal();
   const template = document.createElement('template');
-  template.innerHTML = `
-    <div class="modal-overlay" id="${SHARE_OVERLAY_ID}">
-      <div class="modal gb-form-modal profile-share-modal" role="dialog" aria-modal="true" aria-label="${escapeAttr(title)}">
-        <div class="gb-modal-head">
-          <div>
-            <div class="gb-modal-kicker">${escapeHTML(kicker)}</div>
-            <div class="gb-modal-title">${escapeHTML(title)}</div>
-          </div>
-          <button type="button" class="modal-close" aria-label="Close" data-profile-share-action="close">&times;</button>
-        </div>
-        ${body}
-      </div>
-    </div>
-  `.trim();
+  template.innerHTML = renderShareShell(title, kicker, body);
   const overlay = template.content.firstElementChild;
   if (!(overlay instanceof HTMLElement)) return;
   openAppendedModalOverlay(overlay, closeProfileShareModal);
@@ -595,7 +486,7 @@ function renderProfileShareShell({ title, kicker = 'Share Profile', body }: { ti
 export function openProfileShareModal(profileId: unknown = state.currentProfile) {
   renderProfileShareShell({
     title: 'Share Profile',
-    body: renderCreateShareBody(profileId),
+    body: projectCreateShareBody(profileId),
   });
 }
 
@@ -609,7 +500,7 @@ export function openSharedProfileImportModal(id: unknown) {
   renderProfileShareShell({
     title: 'Load Shared Profile',
     kicker: 'Encrypted Link',
-    body: renderLoadShareBody(id),
+    body: projectLoadShareBody(id),
   });
 }
 

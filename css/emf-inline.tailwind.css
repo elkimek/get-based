@@ -1,0 +1,24 @@
+@import "tailwindcss" prefix(gb) source(none) reference;
+@utility emf-inline-section-spacing{margin-top:12px}
+@utility emf-inline-row-fill{flex:1}
+@utility emf-inline-delete-action{color:var(--red);border-color:var(--red)}
+@utility emf-inline-value-emphasis{font-weight:600}
+@utility emf-inline-muted-value{color:var(--text-muted)}
+@utility emf-inline-file-picker-hidden{display:none}
+@utility emf-inline-room-location{color:var(--text-muted);font-size:12px}
+@utility emf-inline-severity-label-font{font-size:11px;}
+@utility emf-inline-room-sources{font-size:12px;color:var(--text-muted);margin-top:4px}
+@utility emf-inline-room-mitigations{font-size:12px;color:var(--text-muted)}
+@utility emf-inline-photo-button{display:block;width:100%;height:100%;padding:0;border:0;background:none;cursor:pointer}
+
+.emf-inline-section-spacing{@apply gb:emf-inline-section-spacing;}
+.emf-inline-row-fill{@apply gb:emf-inline-row-fill;}
+.emf-inline-delete-action{@apply gb:emf-inline-delete-action;}
+.emf-inline-value-emphasis{@apply gb:emf-inline-value-emphasis;}
+.emf-inline-muted-value{@apply gb:emf-inline-muted-value;}
+.emf-inline-file-picker-hidden{@apply gb:emf-inline-file-picker-hidden;}
+.emf-inline-room-location{@apply gb:emf-inline-room-location;}
+.emf-inline-severity-label-font{@apply gb:emf-inline-severity-label-font;}
+.emf-inline-room-sources{@apply gb:emf-inline-room-sources;}
+.emf-inline-room-mitigations{@apply gb:emf-inline-room-mitigations;}
+.emf-inline-photo-button{@apply gb:emf-inline-photo-button;}

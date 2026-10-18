@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { expect, it } from 'vitest';
+import {projectBodySilhouette} from '../js/sun-body-silhouette.js';
 import { renderHTML } from '../js/components/LightSessionPresentation.svelte.html.js';
 import { projectStartSunSessionForm } from '../js/light-session-presentation.js';
 const options = {
@@ -25,11 +26,11 @@ it('keeps unknown imported choices unselected so the native select retains its e
   for (const items of [view.eyeModes, view.lensTints, view.postures, view.surfaces]) expect(items.every(item => !item.selected)).toBe(true);
 });
 it('renders the start selectors, named silhouette slot and accessible glass control with literal metadata', () => {
-  const host = document.createElement('div'); host.innerHTML = renderHTML({ kind: 'start', view: projectStartSunSessionForm(options), silhouetteHTML: '<span data-owned-silhouette>Body picker</span>' });
+  const host = document.createElement('div'); host.innerHTML = renderHTML({ kind: 'start', view: projectStartSunSessionForm(options), silhouetteView: projectBodySilhouette(new Set()) });
   expect(host.querySelector('[role="dialog"]')?.getAttribute('aria-label')).toBe('Start sun session');
   expect(host.querySelectorAll('[data-sun-start-close]')).toHaveLength(2);
   expect(host.querySelectorAll('[data-sun-coverage-close]')).toHaveLength(0);
-  expect(host.querySelector('#sun-start-silhouette-slot [data-owned-silhouette]')).toBeTruthy();
+  expect(host.querySelector('#sun-start-silhouette-slot [data-sun-body-picker]')).toBeTruthy();
   expect(host.querySelector('#sun-start-clear')).toBeTruthy(); expect(host.querySelector('#start-confirm')).toBeTruthy();
   expect(host.querySelector<HTMLSelectElement>('#start-eye-mode')?.value).toBe('direct');
   expect(host.querySelector('option')?.textContent).toBe('Standing');
@@ -38,11 +39,11 @@ it('renders the start selectors, named silhouette slot and accessible glass cont
   expect(host.querySelector('#sun-start-uvi-banner')?.hasAttribute('hidden')).toBe(true);
 });
 it('uses one shared shell with distinct coverage selectors, copy and action ownership', () => {
-  const host = document.createElement('div'); host.innerHTML = renderHTML({ kind: 'coverage', silhouetteHTML: '<span data-owned-silhouette>Body picker</span>' });
+  const host = document.createElement('div'); host.innerHTML = renderHTML({ kind: 'coverage', silhouetteView: projectBodySilhouette(new Set()) });
   expect(host.querySelector('[role="dialog"]')?.getAttribute('aria-label')).toBe('Change coverage');
   expect(host.querySelectorAll('[data-sun-coverage-close]')).toHaveLength(2);
   expect(host.querySelectorAll('[data-sun-start-close],#start-confirm,#sun-start-clear,details,select')).toHaveLength(0);
-  expect(host.querySelector('#sun-coverage-silhouette-slot [data-owned-silhouette]')).toBeTruthy();
+  expect(host.querySelector('#sun-coverage-silhouette-slot [data-sun-body-picker]')).toBeTruthy();
   expect(host.querySelector('#coverage-confirm')?.textContent).toBe('Apply coverage');
   expect(host.textContent).toContain('the change applies from this moment forward');
 });

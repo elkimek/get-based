@@ -359,8 +359,13 @@ const {
     emptyLoadHtml.includes('Generally aligned') &&
     !emptyLoadHtml.includes('Mixed signals') &&
     !emptyLoadHtml.includes('stale moderate verdict'));
+  const { projectReviewAI } = await import('../js/light-review-ai-presentation.js');
+  const { projectEnvironmentAI } = await import('../js/light-environment-ai-presentation.js');
   const restoredBurdenRenderer = configureLightEnv({
-    renderBurdenInterp: (b: { interp: unknown }) => `<p class="light-env-summary-interp injected-burden">${b.interp}</p>`,
+    getBurdenInterpretationView: (b: { interp: unknown }) => projectReviewAI({
+      kind: 'burden', status: 'idle', variant: 'heuristic', analysis: null,
+      actionOwner: 'fixture-burden', heuristic: `injected-burden ${String(b.interp)}`,
+    }),
   });
   const injectedLoadHtml = renderEnvironmentSection({ embedded: true });
   assert('Burden summary uses injected renderer instead of window lookup',
@@ -389,9 +394,9 @@ const {
   };
   const restoredRenderDeps = configureLightEnv({
     getMeasurementsForRoom: (roomId: unknown) => roomId === injectedRoom!.id ? [injectedMeasurement] : [],
-    renderMeasurementAIInline: (m: { id: unknown }) => `<div class="injected-measurement-ai">${m.id}</div>`,
-    renderRoomAIBlock: (r: { id: unknown }) => `<div class="injected-room-ai">${r.id}</div>`,
-    renderScreenAIBlock: (s: { id: unknown }) => `<div class="injected-screen-ai">${s.id}</div>`,
+    getMeasurementAIView: (m: { id: unknown }) => projectEnvironmentAI({ kind: 'measurement', status: 'ok', targetId: String(m.id), actionOwner: 'fixture-measurement', analysis: { tip: `injected-measurement-ai ${String(m.id)}`, detail: String(m.id) } }),
+    getRoomAIView: (r: { id: unknown }) => projectEnvironmentAI({ kind: 'room', status: 'ok', targetId: String(r.id), actionOwner: 'fixture-room', analysis: { tip: `injected-room-ai ${String(r.id)}`, detail: String(r.id) } }),
+    getScreenAIView: (screen: { id: unknown }) => projectEnvironmentAI({ kind: 'screen', status: 'ok', targetId: String(screen.id), actionOwner: 'fixture-screen', analysis: { tip: `injected-screen-ai ${String(screen.id)}`, detail: String(screen.id) } }),
   });
   const injectedRenderHtml = renderEnvironmentSection({ embedded: true });
   assert('Room measurement and AI renderers use injected Light environment deps',
@@ -710,20 +715,20 @@ const {
     aiSaveHooksSrc.includes("import { configureLightEnvAudits } from './light-env-audits.js';") &&
     aiSaveHooksSrc.includes("import { hasAssistantFeatureProvider } from './ai-feature-routing.js';") &&
     aiSaveHooksSrc.includes("import { openChatPanel } from './chat-loader.js';") &&
-    aiSaveHooksSrc.includes("import { maybeAnalyzeAuditAfterSave, renderAuditAIBlock, renderAuditAIDot } from './light-audit-ai-analysis.js';") &&
-    aiSaveHooksSrc.includes('configureLightEnvAudits({ hasAIProvider: hasAssistantFeatureProvider, maybeAnalyzeAuditAfterSave, renderAuditAIBlock, renderAuditAIDot, openChatPanel })') &&
+    aiSaveHooksSrc.includes("import { maybeAnalyzeAuditAfterSave, getAuditAIView, getAuditDotView } from './light-audit-ai-analysis.js';") &&
+    aiSaveHooksSrc.includes('configureLightEnvAudits({ hasAIProvider: hasAssistantFeatureProvider, maybeAnalyzeAuditAfterSave, getAuditAIView, getAuditDotView, openChatPanel })') &&
     appLightSunSrc.includes("import './light-ai-save-hooks.js';"));
   assert('Burden AI renderer routes through light-env configuration instead of window lookup',
     envSrc.includes('export function configureLightEnv') &&
-    envSrc.includes('renderBurdenInterp: null') &&
-    envSrc.includes('lightEnvDeps.renderBurdenInterp') &&
+    envSrc.includes('getBurdenInterpretationView: null') &&
+    envSrc.includes('lightEnvDeps.getBurdenInterpretationView') &&
     !envSrc.includes('globalThis.renderBurdenInterp') &&
     !burdenSrc.includes('Object.assign(window, {') &&
     !burdenSrc.includes('window.refreshBurdenAIAnalysis') &&
     !burdenSrc.includes('window.analyzeBurdenAI') &&
     !burdenSrc.includes('window.renderBurdenInterp') &&
     burdenSrc.includes("import { computeIndoorBurden, configureLightEnv, isActiveToday } from './light-env.js';") &&
-    burdenSrc.includes('configureLightEnv({ renderBurdenInterp });'));
+    burdenSrc.includes('configureLightEnv({ getBurdenInterpretationView });'));
   const reviewProjectionSrc = await fs.readFile(new URL('../js/light-review-ai-presentation.ts', import.meta.url), 'utf8');
   const weeklyComponentSrc = await fs.readFile(new URL('../js/components/LightWeeklyAI.svelte', import.meta.url), 'utf8');
   assert('Channel mix AI renderer routes through Light page wiring instead of window lookup',
@@ -739,26 +744,26 @@ const {
     !globalsSrc.includes('renderChannelMixVerdict'));
   assert('Room, measurement, and screen AI renderers route through Light environment configuration',
     envSrc.includes('getMeasurementsForRoom: null') &&
-    envSrc.includes('renderMeasurementAIInline: null') &&
-    envSrc.includes('renderRoomAIBlock: null') &&
-    envSrc.includes('renderScreenAIBlock: null') &&
+    envSrc.includes('getMeasurementAIView: null') &&
+    envSrc.includes('getRoomAIView: null') &&
+    envSrc.includes('getScreenAIView: null') &&
     envSrc.includes('lightEnvDeps.getMeasurementsForRoom') &&
-    envSrc.includes('lightEnvDeps.renderMeasurementAIInline') &&
-    envSrc.includes('lightEnvDeps.renderRoomAIBlock') &&
-    screenUiSrc.includes('opts.renderScreenAIBlock') &&
-    screenUiSrc.includes('opts.renderScreenAIBlock(screen)') &&
-    screenUiSrc.includes('trustedAIHTML') &&
+    envSrc.includes('lightEnvDeps.getMeasurementAIView') &&
+    envSrc.includes('lightEnvDeps.getRoomAIView') &&
+    screenUiSrc.includes('opts.getScreenAIView') &&
+    screenUiSrc.includes('opts.getScreenAIView(screen)') &&
+    screenUiSrc.includes('readScreenCardView') &&
     aiSaveHooksSrc.includes("import { addRoom, configureLightEnv, getRooms, refreshLightEnvironmentAssessment, suggestRoomSourceFromSpectrum } from './light-env.js';") &&
     aiSaveHooksSrc.includes('configureLightTools,') &&
     aiSaveHooksSrc.includes('getMeasurementsForRoom,') &&
     aiSaveHooksSrc.includes("} from './light-tools.js';") &&
-    aiSaveHooksSrc.includes("import { maybeAnalyzeMeasurementAfterSave, renderMeasurementAIInline } from './light-tools-ai-analysis.js';") &&
-    aiSaveHooksSrc.includes("import { renderRoomAIBlock } from './light-env-ai-analysis.js';") &&
-    aiSaveHooksSrc.includes("import { renderScreenAIBlock } from './light-screen-ai-analysis.js';") &&
+    aiSaveHooksSrc.includes("import { maybeAnalyzeMeasurementAfterSave, getMeasurementAIView } from './light-tools-ai-analysis.js';") &&
+    aiSaveHooksSrc.includes("import { getRoomAIView } from './light-env-ai-analysis.js';") &&
+    aiSaveHooksSrc.includes("import { getScreenAIView } from './light-screen-ai-analysis.js';") &&
     aiSaveHooksSrc.includes('configureLightEnv({') &&
-    aiSaveHooksSrc.includes('renderMeasurementAIInline,') &&
-    aiSaveHooksSrc.includes('renderRoomAIBlock,') &&
-    aiSaveHooksSrc.includes('renderScreenAIBlock,') &&
+    aiSaveHooksSrc.includes('getMeasurementAIView,') &&
+    aiSaveHooksSrc.includes('getRoomAIView,') &&
+    aiSaveHooksSrc.includes('getScreenAIView,') &&
     !measurementAiSrc.includes('Object.assign(window, {') &&
     !measurementAiSrc.includes('window.refreshMeasurementAIAnalysis') &&
     !measurementAiSrc.includes('window.analyzeMeasurementAI') &&
@@ -779,7 +784,7 @@ const {
     !envSrc.includes('globalThis.getMeasurementsForRoom') &&
     !envSrc.includes('globalThis.renderMeasurementAIInline') &&
     !envSrc.includes('globalThis.renderRoomAIBlock') &&
-    !screenUiSrc.includes('globalThis.renderScreenAIBlock'));
+    !screenUiSrc.includes('globalThis.renderScreenAIBlock') && !screenUiSrc.includes('globalThis.getScreenAIView'));
   assert('Light assessment modal shell actions route through startup wiring instead of window lookup',
     appUiShellSrc.includes("import './light-env-shell-hooks.js';") &&
     lightEnvShellHooksSrc.includes("import { configureAppEventListeners } from './app-event-listeners.js';") &&
@@ -788,7 +793,7 @@ const {
     lightEnvShellHooksSrc.includes('loadLightSunUI,') &&
     !lightEnvShellHooksSrc.includes("from './light-tools.js'") &&
     lightEnvShellHooksSrc.includes("import { closeModalOverlay } from './modal-lifecycle.js';") &&
-    lightEnvShellHooksSrc.includes("import { navigate } from './views.js';") &&
+    lightEnvShellHooksSrc.includes("import { navigate } from './views-runtime.js';") &&
     lightEnvShellHooksSrc.includes('configureLightEnvironmentLoaderDeps({ navigate });') &&
     lightEnvShellHooksSrc.includes('.then(module => module.openLightEnvironmentAssessment())') &&
     lightEnvShellHooksSrc.includes('loadLightSunUI()') &&

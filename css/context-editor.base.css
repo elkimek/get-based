@@ -1,19 +1,17 @@
-/* Context-card editors and tips modals, loaded on first open. */
-
-/* Context editor field groups */
-.ctx-field-group { margin-bottom: 16px; }
-.ctx-field-label {
+@import "tailwindcss" prefix(gb) source(none) reference;
+@utility context-editor-ctx-field-group-1 { margin-bottom: 16px; }
+@utility context-editor-ctx-field-label-2 {
   font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
   color: var(--text-muted); margin-bottom: 8px; display: block;
 }
-.ctx-editor-section {
+@utility context-editor-ctx-editor-section-3 {
   margin: 14px 0;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--bg-card) 70%, transparent);
   overflow: clip;
 }
-.ctx-editor-section > summary {
+@utility context-editor-ctx-editor-section-summary-4 {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -24,8 +22,8 @@
   cursor: pointer;
   list-style: none;
 }
-.ctx-editor-section > summary::-webkit-details-marker { display: none; }
-.ctx-editor-section > summary::after {
+@utility context-editor-ctx-editor-section-summary-webkit-details-marker-5 { display: none; }
+@utility context-editor-ctx-editor-section-summary-after-6 {
   content: '+';
   grid-column: 2;
   grid-row: 1 / span 2;
@@ -34,45 +32,43 @@
   font-weight: 400;
   line-height: 1;
 }
-.ctx-editor-section[open] > summary::after { content: '−'; }
-.ctx-editor-section > summary:hover { background: var(--bg-hover); }
-.ctx-editor-section > summary:focus-visible {
+@utility context-editor-ctx-editor-section-open-summary-after-7 { content: '−'; }
+@utility context-editor-ctx-editor-section-summary-hover-8 { background: var(--bg-hover); }
+@utility context-editor-ctx-editor-section-summary-focus-visible-9 {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
-.ctx-editor-section-title {
+@utility context-editor-ctx-editor-section-title-10 {
   font-size: 13px;
   font-weight: 700;
 }
-.ctx-editor-section-summary {
+@utility context-editor-ctx-editor-section-summary-11 {
   grid-column: 1;
   color: var(--text-secondary);
   font-size: 11px;
   line-height: 1.35;
 }
-.ctx-editor-section-body {
+@utility context-editor-ctx-editor-section-body-12 {
   padding: 14px 14px 0;
   border-top: 1px solid var(--border);
 }
-.ctx-editor-section-body > .ctx-field-group:last-child { margin-bottom: 14px; }
-/* Context editor note input */
-.ctx-note-input {
+@utility context-editor-ctx-editor-section-body-ctx-field-group-last-child-13 { margin-bottom: 14px; }
+@utility context-editor-ctx-note-input-14 {
   width: 100%; padding: 10px 14px; border-radius: var(--radius-sm);
   border: 1px solid var(--border); background: var(--bg-primary);
   color: var(--text-primary); font-size: 13px; font-family: inherit;
   transition: border-color 0.15s;
 }
-.ctx-note-input:focus { border-color: var(--accent); outline: none; }
-.ctx-note-input::placeholder { color: var(--text-muted); }
-.ctx-note-textarea {
+@utility context-editor-ctx-note-input-focus-15 { border-color: var(--accent); outline: none; }
+@utility context-editor-ctx-note-input-placeholder-16 { color: var(--text-muted); }
+@utility context-editor-ctx-note-textarea-17 {
   min-height: 64px;
   max-height: 180px;
   resize: vertical;
   line-height: 1.45;
   field-sizing: content;
 }
-
-.ctx-editor-modal {
+@utility context-editor-ctx-editor-modal-18 {
   width: min(94vw, 760px);
   max-width: 760px;
   max-height: min(90vh, 860px);
@@ -82,27 +78,26 @@
   background: var(--bg-secondary);
   box-shadow: var(--shadow-lg);
 }
-.ctx-editor-modal .ctx-editor-head {
+@utility context-editor-ctx-editor-modal-ctx-editor-head-19 {
   position: sticky;
   top: 0;
   z-index: 8;
 }
-.ctx-editor-modal .ctx-editor-body {
+@utility context-editor-ctx-editor-modal-ctx-editor-body-20 {
   padding: 22px 26px 0;
 }
-.ctx-editor-modal .modal-unit {
+@utility context-editor-ctx-editor-modal-modal-unit-21 {
   margin: 0 0 20px;
   color: var(--text-secondary);
   line-height: 1.5;
 }
-.ctx-editor-modal .note-editor {
+@utility context-editor-ctx-editor-modal-note-editor-22 {
   background: var(--bg-primary);
 }
-.ctx-editor-modal .ctx-btn-option,
-.ctx-editor-modal .ctx-tag {
+@utility context-editor-ctx-editor-modal-ctx-btn-option-ctx-editor-modal-ctx-tag-23 {
   border-radius: var(--radius-sm);
 }
-.ctx-editor-modal .ctx-editor-actions {
+@utility context-editor-ctx-editor-modal-ctx-editor-actions-24 {
   position: sticky;
   bottom: 0;
   z-index: 7;
@@ -112,87 +107,153 @@
   background: color-mix(in srgb, var(--bg-secondary) 96%, var(--bg-card));
   box-shadow: 0 -12px 24px rgba(0,0,0,0.18);
 }
-
-/* Context editor modal section divider */
-.ctx-editor-divider {
+@utility context-editor-ctx-editor-divider-25 {
   height: 1px; background: var(--border); margin: 16px 0;
 }
-
-@media (max-width: 720px) {
-  .modal-overlay.show:has(.ctx-editor-modal) {
+@utility context-editor-modal-overlayshow-has-ctx-editor-modal-26 {
     align-items: stretch;
     padding: 12px;
   }
-  .modal.ctx-editor-modal {
+@utility context-editor-modalctx-editor-modal-27 {
     width: 100%;
     max-width: none;
     height: calc(100dvh - 24px);
     max-height: none;
     padding: 0;
   }
-  .ctx-editor-modal .gb-modal-head {
+@utility context-editor-ctx-editor-modal-gb-modal-head-28 {
     padding: 16px 18px;
   }
-  .ctx-editor-modal .gb-modal-title {
+@utility context-editor-ctx-editor-modal-gb-modal-title-29 {
     font-size: 20px;
     line-height: 1.2;
   }
-  .ctx-editor-modal .ctx-editor-body {
+@utility context-editor-ctx-editor-modal-ctx-editor-body-30 {
     padding: 18px 18px 0;
     min-height: calc(100% - 79px);
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
   }
-  .ctx-editor-modal .ctx-editor-actions {
+@utility context-editor-ctx-editor-modal-ctx-editor-actions-31 {
     margin-top: auto;
     margin-left: -18px;
     margin-right: -18px;
     padding: 12px 18px calc(12px + env(safe-area-inset-bottom));
   }
-  .ctx-editor-modal .ctx-btn-option,
-  .ctx-editor-modal .ctx-tag,
-  .ctx-editor-modal .import-btn {
+@utility context-editor-ctx-editor-modal-ctx-btn-option-ctx-editor-modal-ctx-tag-ctx-editor--32 {
     min-height: 42px;
   }
-  .ctx-editor-modal .ctx-btn-option,
-  .ctx-editor-modal .ctx-tag {
+@utility context-editor-ctx-editor-modal-ctx-btn-option-ctx-editor-modal-ctx-tag-33 {
     white-space: normal;
     text-align: left;
   }
-  .ctx-editor-section > summary { min-height: 56px; }
-
-}
-
-/* Supplement imports share the lazy context editor stylesheet. */
-.supp-import-review {
+@utility context-editor-ctx-editor-section-summary-34 { min-height: 56px; }
+@utility context-editor-supp-import-review-35 {
   margin: 10px 0 14px; padding: 12px; border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
   border-radius: 8px; background: color-mix(in srgb, var(--accent) 5%, var(--bg-card));
   color: var(--text-secondary); font-size: 12px;
 }
-.supp-import-review-header { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
-.supp-import-review-header span { color: var(--text-muted); font-size: 10px; }
-.supp-import-review-facts { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
-.supp-import-review-facts span { padding: 2px 7px; border-radius: 999px; background: var(--bg-primary); border: 1px solid var(--border); }
-.supp-import-review-ingredients { display: grid; gap: 3px; }
-.supp-import-review-ingredients small { color: var(--text-muted); }
-.supp-import-review-applied { border-color: color-mix(in srgb, var(--green, #22c55e) 35%, var(--border)); background: color-mix(in srgb, var(--green, #22c55e) 5%, var(--bg-card)); }
-.supp-import-review-choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 4px; }
-.supp-import-choice { display: flex; gap: 7px; align-items: flex-start; min-width: 0; padding: 5px 7px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-primary); cursor: pointer; line-height: 1.35; }
-.supp-import-choice:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--border-color)); }
-.supp-import-choice input { flex: 0 0 auto; margin-top: 2px; accent-color: var(--accent); }
-.supp-import-choice > span { min-width: 0; }
-.supp-import-choice small { display: block; margin-top: 1px; color: var(--text-muted); font-size: 9px; }
-.supp-import-review-label { margin: 9px 0 4px; color: var(--text-muted); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
-.supp-import-review-label small { font-weight: 400; text-transform: none; letter-spacing: 0; }
-.supp-import-review-quality-label { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.supp-import-filter-btn { border: 1px solid var(--border-color); border-radius: 5px; padding: 3px 7px; background: var(--bg-primary); color: var(--text-secondary); font: inherit; font-size: 9px; text-transform: none; letter-spacing: 0; cursor: pointer; }
-.supp-import-filter-btn:hover { border-color: var(--accent); color: var(--accent); }
-.supp-import-review-quality { display: grid; gap: 4px; }
-.supp-import-review-directions { margin-top: 8px; line-height: 1.45; }
-.supp-import-review-issues { margin-top: 8px; color: var(--yellow); }
-.supp-import-review-actions { display: flex; gap: 7px; margin-top: 10px; }
+@utility context-editor-supp-import-review-header-36 { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+@utility context-editor-supp-import-review-header-span-37 { color: var(--text-muted); font-size: 10px; }
+@utility context-editor-supp-import-review-facts-38 { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+@utility context-editor-supp-import-review-facts-span-39 { padding: 2px 7px; border-radius: 999px; background: var(--bg-primary); border: 1px solid var(--border); }
+@utility context-editor-supp-import-review-ingredients-40 { display: grid; gap: 3px; }
+@utility context-editor-supp-import-review-ingredients-small-41 { color: var(--text-muted); }
+@utility context-editor-supp-import-review-applied-42 { border-color: color-mix(in srgb, var(--green, #22c55e) 35%, var(--border)); background: color-mix(in srgb, var(--green, #22c55e) 5%, var(--bg-card)); }
+@utility context-editor-supp-import-review-choices-43 { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 4px; }
+@utility context-editor-supp-import-choice-44 { display: flex; gap: 7px; align-items: flex-start; min-width: 0; padding: 5px 7px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-primary); cursor: pointer; line-height: 1.35; }
+@utility context-editor-supp-import-choice-hover-45 { border-color: color-mix(in srgb, var(--accent) 55%, var(--border-color)); }
+@utility context-editor-supp-import-choice-input-46 { flex: 0 0 auto; margin-top: 2px; accent-color: var(--accent); }
+@utility context-editor-supp-import-choice-span-47 { min-width: 0; }
+@utility context-editor-supp-import-choice-small-48 { display: block; margin-top: 1px; color: var(--text-muted); font-size: 9px; }
+@utility context-editor-supp-import-review-label-49 { margin: 9px 0 4px; color: var(--text-muted); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+@utility context-editor-supp-import-review-label-small-50 { font-weight: 400; text-transform: none; letter-spacing: 0; }
+@utility context-editor-supp-import-review-quality-label-51 { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+@utility context-editor-supp-import-filter-btn-52 { border: 1px solid var(--border-color); border-radius: 5px; padding: 3px 7px; background: var(--bg-primary); color: var(--text-secondary); font: inherit; font-size: 9px; text-transform: none; letter-spacing: 0; cursor: pointer; }
+@utility context-editor-supp-import-filter-btn-hover-53 { border-color: var(--accent); color: var(--accent); }
+@utility context-editor-supp-import-review-quality-54 { display: grid; gap: 4px; }
+@utility context-editor-supp-import-review-directions-55 { margin-top: 8px; line-height: 1.45; }
+@utility context-editor-supp-import-review-issues-56 { margin-top: 8px; color: var(--yellow); }
+@utility context-editor-supp-import-review-actions-57 { display: flex; gap: 7px; margin-top: 10px; }
+@utility context-editor-supp-import-review-header-58 { flex-direction: column; }
+@utility context-editor-supp-import-review-quality-label-59 { align-items: flex-start; flex-direction: column; }
+
+/* Context-card editors and tips modals, loaded on first open. */
+
+/* Context editor field groups */
+.ctx-field-group { @apply gb:context-editor-ctx-field-group-1; }
+.ctx-field-label { @apply gb:context-editor-ctx-field-label-2; }
+.ctx-editor-section { @apply gb:context-editor-ctx-editor-section-3; }
+.ctx-editor-section > summary { @apply gb:context-editor-ctx-editor-section-summary-4; }
+.ctx-editor-section > summary::-webkit-details-marker { @apply gb:context-editor-ctx-editor-section-summary-webkit-details-marker-5; }
+.ctx-editor-section > summary::after { @apply gb:context-editor-ctx-editor-section-summary-after-6; }
+.ctx-editor-section[open] > summary::after { @apply gb:context-editor-ctx-editor-section-open-summary-after-7; }
+.ctx-editor-section > summary:hover { @apply gb:context-editor-ctx-editor-section-summary-hover-8; }
+.ctx-editor-section > summary:focus-visible { @apply gb:context-editor-ctx-editor-section-summary-focus-visible-9; }
+.ctx-editor-section-title { @apply gb:context-editor-ctx-editor-section-title-10; }
+.ctx-editor-section-summary { @apply gb:context-editor-ctx-editor-section-summary-11; }
+.ctx-editor-section-body { @apply gb:context-editor-ctx-editor-section-body-12; }
+.ctx-editor-section-body > .ctx-field-group:last-child { @apply gb:context-editor-ctx-editor-section-body-ctx-field-group-last-child-13; }
+/* Context editor note input */
+.ctx-note-input { @apply gb:context-editor-ctx-note-input-14; }
+.ctx-note-input:focus { @apply gb:context-editor-ctx-note-input-focus-15; }
+.ctx-note-input::placeholder { @apply gb:context-editor-ctx-note-input-placeholder-16; }
+.ctx-note-textarea { @apply gb:context-editor-ctx-note-textarea-17; }
+
+.ctx-editor-modal { @apply gb:context-editor-ctx-editor-modal-18; }
+.ctx-editor-modal .ctx-editor-head { @apply gb:context-editor-ctx-editor-modal-ctx-editor-head-19; }
+.ctx-editor-modal .ctx-editor-body { @apply gb:context-editor-ctx-editor-modal-ctx-editor-body-20; }
+.ctx-editor-modal .modal-unit { @apply gb:context-editor-ctx-editor-modal-modal-unit-21; }
+.ctx-editor-modal .note-editor { @apply gb:context-editor-ctx-editor-modal-note-editor-22; }
+.ctx-editor-modal .ctx-btn-option,
+.ctx-editor-modal .ctx-tag { @apply gb:context-editor-ctx-editor-modal-ctx-btn-option-ctx-editor-modal-ctx-tag-23; }
+.ctx-editor-modal .ctx-editor-actions { @apply gb:context-editor-ctx-editor-modal-ctx-editor-actions-24; }
+
+/* Context editor modal section divider */
+.ctx-editor-divider { @apply gb:context-editor-ctx-editor-divider-25; }
+
+@media (max-width: 720px) {
+  .modal-overlay.show:has(.ctx-editor-modal) { @apply gb:context-editor-modal-overlayshow-has-ctx-editor-modal-26; }
+  .modal.ctx-editor-modal { @apply gb:context-editor-modalctx-editor-modal-27; }
+  .ctx-editor-modal .gb-modal-head { @apply gb:context-editor-ctx-editor-modal-gb-modal-head-28; }
+  .ctx-editor-modal .gb-modal-title { @apply gb:context-editor-ctx-editor-modal-gb-modal-title-29; }
+  .ctx-editor-modal .ctx-editor-body { @apply gb:context-editor-ctx-editor-modal-ctx-editor-body-30; }
+  .ctx-editor-modal .ctx-editor-actions { @apply gb:context-editor-ctx-editor-modal-ctx-editor-actions-31; }
+  .ctx-editor-modal .ctx-btn-option,
+  .ctx-editor-modal .ctx-tag,
+  .ctx-editor-modal .import-btn { @apply gb:context-editor-ctx-editor-modal-ctx-btn-option-ctx-editor-modal-ctx-tag-ctx-editor--32; }
+  .ctx-editor-modal .ctx-btn-option,
+  .ctx-editor-modal .ctx-tag { @apply gb:context-editor-ctx-editor-modal-ctx-btn-option-ctx-editor-modal-ctx-tag-33; }
+  .ctx-editor-section > summary { @apply gb:context-editor-ctx-editor-section-summary-34; }
+
+}
+
+/* Supplement imports share the lazy context editor stylesheet. */
+.supp-import-review { @apply gb:context-editor-supp-import-review-35; }
+.supp-import-review-header { @apply gb:context-editor-supp-import-review-header-36; }
+.supp-import-review-header span { @apply gb:context-editor-supp-import-review-header-span-37; }
+.supp-import-review-facts { @apply gb:context-editor-supp-import-review-facts-38; }
+.supp-import-review-facts span { @apply gb:context-editor-supp-import-review-facts-span-39; }
+.supp-import-review-ingredients { @apply gb:context-editor-supp-import-review-ingredients-40; }
+.supp-import-review-ingredients small { @apply gb:context-editor-supp-import-review-ingredients-small-41; }
+.supp-import-review-applied { @apply gb:context-editor-supp-import-review-applied-42; }
+.supp-import-review-choices { @apply gb:context-editor-supp-import-review-choices-43; }
+.supp-import-choice { @apply gb:context-editor-supp-import-choice-44; }
+.supp-import-choice:hover { @apply gb:context-editor-supp-import-choice-hover-45; }
+.supp-import-choice input { @apply gb:context-editor-supp-import-choice-input-46; }
+.supp-import-choice > span { @apply gb:context-editor-supp-import-choice-span-47; }
+.supp-import-choice small { @apply gb:context-editor-supp-import-choice-small-48; }
+.supp-import-review-label { @apply gb:context-editor-supp-import-review-label-49; }
+.supp-import-review-label small { @apply gb:context-editor-supp-import-review-label-small-50; }
+.supp-import-review-quality-label { @apply gb:context-editor-supp-import-review-quality-label-51; }
+.supp-import-filter-btn { @apply gb:context-editor-supp-import-filter-btn-52; }
+.supp-import-filter-btn:hover { @apply gb:context-editor-supp-import-filter-btn-hover-53; }
+.supp-import-review-quality { @apply gb:context-editor-supp-import-review-quality-54; }
+.supp-import-review-directions { @apply gb:context-editor-supp-import-review-directions-55; }
+.supp-import-review-issues { @apply gb:context-editor-supp-import-review-issues-56; }
+.supp-import-review-actions { @apply gb:context-editor-supp-import-review-actions-57; }
 @media (max-width: 600px) {
-  .supp-import-review-header { flex-direction: column; }
-  .supp-import-review-quality-label { align-items: flex-start; flex-direction: column; }
+  .supp-import-review-header { @apply gb:context-editor-supp-import-review-header-58; }
+  .supp-import-review-quality-label { @apply gb:context-editor-supp-import-review-quality-label-59; }
 }

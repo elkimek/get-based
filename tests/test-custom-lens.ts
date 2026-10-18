@@ -19,6 +19,7 @@ import './_node-shim.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { JSDOM } from 'jsdom';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
@@ -39,6 +40,29 @@ console.log('1. lens.js source inspection');
 const lensSrc = read('js/lens.js');
 const lensKnowledgeBaseUiSrc = read('js/lens-knowledge-base-ui.js');
 const lensLibrarySrc = read('js/lens-library.js');
+// Markup belongs to the public Svelte serializer, while this suite still
+// inspects controller-only contracts at their owning modules below.
+const { createLensKnowledgeBaseUi } = await import('../js/lens-knowledge-base-ui.js');
+const { renderKnowledgeBaseLibraryCreate } = await import('../js/knowledge-base-library-rendering.js');
+const displayConfig = {
+  backend: 'external-server', name: 'Synthetic <& source', url: 'https://synthetic.invalid/query',
+  enabled: true, topK: 5, testProbe: 'Synthetic connection probe', multiQuery: true,
+};
+const lastError = '<img src=x onerror="throw 1"> & synthetic retrieval error';
+let statusReads = 0;
+const displayUi = createLensKnowledgeBaseUi({
+  defaultTestProbe: 'Synthetic default probe', getLensConfig: () => displayConfig,
+  saveLensConfig: partial => Object.assign(displayConfig, partial), getLensKey: () => 'synthetic-key',
+  saveLensKey: async () => {}, removeLens: async () => {}, clearLensCache: () => {},
+  getLensStatus: () => { statusReads++; return {state: 'error', lastChunkCount: 0, lastError, sourceName: ''}; },
+  updateLensStatus: () => {}, hasLens: () => true, isValidLensUrl: () => true,
+  testLensConnection: async () => ({ok: true, chunkCount: 1}), recordLocalLensStats: () => {},
+});
+const panelHtml = displayUi.renderCustomLensSection();
+const panelDOM = new JSDOM(panelHtml);
+const panel = panelDOM.window.document;
+const libraryCreateHtml = renderKnowledgeBaseLibraryCreate({deviceLine: 'Synthetic device', models: []});
+
 assert('getLensConfig exists', lensSrc.includes('function getLensConfig()'));
 assert('saveLensConfig exists', lensSrc.includes('function saveLensConfig('));
 assert('getLensKey exists', lensSrc.includes('function getLensKey()'));
@@ -97,7 +121,7 @@ assert('Plain prompt fallback still exists for pre-worker-ready case',
 assert('Dialog renders radio group with name "lens-create-model"',
   lensLibrarySrc.includes('name="lens-create-model"'));
 assert('Dialog includes locked-at-creation warning',
-  /locked at creation/i.test(lensLibrarySrc),
+  /locked at creation/i.test(libraryCreateHtml),
   'users need to know switching model means re-indexing');
 
 // Worker-side invariants (things mock-mode round-trips can't exercise).
@@ -137,17 +161,17 @@ assert('CPU recommendation caps automatic model selection at balanced',
   'a fast MiniLM CPU benchmark must not silently auto-select BGE-base');
 
 assert('Setup block uses one-command curl | bash install',
-  lensKnowledgeBaseUiSrc.includes('curl -sSL https://getbased.health/install.sh | bash'));
+  panelHtml.includes('curl -sSL https://getbased.health/install.sh | bash'));
 assert('Setup block no longer instructs "lens serve" or "getbased-dashboard serve" manually',
-  !/lens serve\s*&nbsp;|getbased-dashboard serve\s*&nbsp;/.test(lensKnowledgeBaseUiSrc),
+  !/lens serve\s*&nbsp;|getbased-dashboard serve\s*&nbsp;/.test(panelHtml),
   'manual two-terminal flow was replaced by install.sh');
 assert('Setup block notes the Linux-only constraint',
-  /Linux only|Linux-only|\(Linux\)/.test(lensKnowledgeBaseUiSrc),
+  /Linux only|Linux-only|\(Linux\)/.test(panel.body.textContent || ''),
   'macOS/Windows users need to know services won\'t auto-start');
 assert('Setup block links to install.sh source for audit',
-  lensKnowledgeBaseUiSrc.includes('github.com/elkimek/get-based-site/blob/main/install.sh'));
+  panel.querySelector('a[href="https://github.com/elkimek/get-based-site/blob/main/install.sh"]') !== null);
 assert('Setup block documents the SHA256 verification path',
-  lensKnowledgeBaseUiSrc.includes('install.sh.sha256') && lensKnowledgeBaseUiSrc.includes('sha256sum -c'),
+  panelHtml.includes('install.sh.sha256') && panelHtml.includes('sha256sum -c'),
   'security-conscious users should have a pre-run verification option');
 assert('handleSaveLensConfig persists testProbe', lensKnowledgeBaseUiSrc.includes('saveLensConfig({ name, url, enabled, topK, testProbe, backend, multiQuery })'));
 assert('Connected toast distinguishes zero-result case',
@@ -345,6 +369,7 @@ assert('focus card calls hasLens', /if \(hasLens\(\)\) \{[\s\S]{0,800}await quer
 // ─── 11. Wiring: lab-context.js helper ───
 console.log('\n11. lab-context.js helper');
 const lcSrc = read('js/lab-context.js');
+const lcAssemblySrc = read('js/lab-context-assembly.js');
 const lcOutputSrc = read('js/lab-context-output.js');
 assert('exports injectLensChunks',
   lcSrc.includes('injectLensChunks') && lcOutputSrc.includes('export function injectLensChunks('));
@@ -353,6 +378,7 @@ assert('injectLensChunks caps prompt chunk length', lcOutputSrc.includes('LENS_P
 assert('injectLensChunks caps total prompt text', lcOutputSrc.includes('LENS_PROMPT_CHUNK_TOTAL_LIMIT'));
 assert('lab-context keeps injectLensChunks module-only',
   !lcSrc.includes('Object.assign(window, { injectLensChunks')
+    && !lcAssemblySrc.includes('Object.assign(window, { injectLensChunks')
     && !lcOutputSrc.includes('Object.assign(window, { injectLensChunks'));
 
 // ─── 12. Wiring: sync.js registration ───
@@ -454,15 +480,28 @@ assert('library rename clears cached citation envelopes',
 
 // ─── 23. BUG 5 regression: status chip reflects error state ───
 console.log('\n23. Chip shows error state');
-assert('renderCustomLensSection chip branches on status.state === "error"', /status\.state === 'error'[\s\S]{0,300}Error/.test(lensKnowledgeBaseUiSrc));
-const updateLensStatusChipSrc = lensKnowledgeBaseUiSrc.split('function _updateLensStatusChip')[1]?.split('function ')[0] || '';
-const renderLensStatusSrc = lensKnowledgeBaseUiSrc.split('function renderLensStatus')[1]?.split('export function ')[0] || '';
-assert('_updateLensStatusChip also renders the shared error status',
-  updateLensStatusChipSrc.includes('const status = getLensStatus()') &&
-  updateLensStatusChipSrc.includes('renderLensStatus(cfg, connected, isBrowser, usableSource, status)') &&
-  updateLensStatusChipSrc.includes('chip.innerHTML = statusChip + lastInfo') &&
-  /status\.state === 'error'[\s\S]{0,300}Error/.test(renderLensStatusSrc) &&
-  renderLensStatusSrc.includes('escapeHTML(status.lastError)'));
+assert('renderCustomLensSection chip renders the error state',
+  panel.querySelector('#lens-status-chip .kb-status-error')?.textContent === '⚠ Error · Synthetic <& source');
+const originalDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
+let updatedStatusIsSafe = false;
+try {
+  Object.defineProperty(globalThis, 'document', {configurable: true, writable: true, value: panel});
+  const input = panel.querySelector<HTMLInputElement>('#lens-name-input')!;
+  input.value = 'Unsaved synthetic display name';
+  panel.querySelector('#lens-status-chip')!.textContent = 'Old status';
+  statusReads = 0;
+  displayUi.handleToggleLens(false);
+  const chip = panel.querySelector('#lens-status-chip')!;
+  updatedStatusIsSafe = statusReads === 1 && displayConfig.enabled === false
+    && chip.querySelector('.kb-status-error')?.textContent === '⚠ Error · Synthetic <& source'
+    && chip.querySelector('.kb-status-detail')?.textContent === `Last error: ${lastError}`
+    && chip.querySelector('img,script,[onerror]') === null
+    && panel.querySelector('#lens-name-input') === input && input.value === 'Unsaved synthetic display name';
+} finally {
+  if (originalDocument) Object.defineProperty(globalThis, 'document', originalDocument);
+  else Reflect.deleteProperty(globalThis, 'document');
+}
+assert('_updateLensStatusChip renders shared escaped error status without replacing live inputs', updatedStatusIsSafe);
 
 // ─── 24. User cancellation stays distinct from a retrieval failure ───
 console.log('\n24. Knowledge Base cancellation');
@@ -509,11 +548,11 @@ cryptoStore.updateKeyCache('labcharts-lens-key', '');
 
 // ─── 26. Audit: a11y — labels have for= attributes ───
 console.log('\n26. Accessibility: label–input associations');
-assert('Display name label has for="lens-name-input"', lensKnowledgeBaseUiSrc.includes('for="lens-name-input"'));
-assert('Endpoint URL label has for="lens-url-input"', lensKnowledgeBaseUiSrc.includes('for="lens-url-input"'));
-assert('API key label has for="lens-key-input"', lensKnowledgeBaseUiSrc.includes('for="lens-key-input"'));
-assert('Passages per query label has for="lens-topk-input"', lensKnowledgeBaseUiSrc.includes('for="lens-topk-input"'));
-assert('Enable toggle label has for="lens-enabled-toggle"', lensKnowledgeBaseUiSrc.includes('for="lens-enabled-toggle"'));
+assert('Display name label has for="lens-name-input"', panel.querySelector('label[for="lens-name-input"]') !== null && panel.getElementById('lens-name-input')?.tagName === 'INPUT');
+assert('Endpoint URL label has for="lens-url-input"', panel.querySelector('label[for="lens-url-input"]') !== null && panel.getElementById('lens-url-input')?.tagName === 'INPUT');
+assert('API key label has for="lens-key-input"', panel.querySelector('label[for="lens-key-input"]') !== null && panel.getElementById('lens-key-input')?.tagName === 'INPUT');
+assert('Passages per query label has for="lens-topk-input"', panel.querySelector('label[for="lens-topk-input"]') !== null && panel.getElementById('lens-topk-input')?.tagName === 'INPUT');
+assert('Enable toggle label has for="lens-enabled-toggle"', panel.querySelector('label[for="lens-enabled-toggle"]') !== null && panel.getElementById('lens-enabled-toggle')?.tagName === 'INPUT');
 
 // ─── 27. Audit: UX copy uses "passages" not "chunks" in user-facing text ───
 console.log('\n27. UX copy: passages not chunks');
@@ -526,5 +565,6 @@ const readmeSrc = read('README.md');
 assert('README table has no || row-start patterns', !readmeSrc.includes('|| Lifestyle') && !readmeSrc.includes('|| Custom'));
 assert('README uses "knowledge source" not "RAG endpoint"', !readmeSrc.includes('RAG endpoint'));
 
+panelDOM.window.close();
 console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
 process.exit(legacyAssertions.fail > 0 ? 1 : 0);

@@ -1,9 +1,9 @@
 // marker-detail-manual-entry.js — Manual marker-value entry form owner
 
 import { state } from './state.js';
-import { escapeHTML, formatValue } from './utils.js';
+import { formatValue } from './utils.js';
+import { projectManualEntryUnits, renderManualMarkerEntry } from './manual-marker-entry-presentation.js';
 import { getActiveData } from './data.js';
-import { markerDetailActionAttrs } from './marker-detail-actions.js';
 import { saveManualEntry } from './marker-detail-editing.js';
 import { openModalOverlay } from './modal-lifecycle.js';
 import { openWithMarkerDetailStylesheet, setDetailModalShell } from './marker-detail-runtime.js';
@@ -58,7 +58,7 @@ function renderManualEntryForm(id: string, prefillDate?: unknown) {
     : existingContext.fasting === false ? 'not-fasting'
       : 'unknown';
   const refText = marker.refMin != null || marker.refMax != null
-    ? `Reference: ${marker.refMin != null ? marker.refMin : '–'} \u2013 ${marker.refMax != null ? marker.refMax : '–'} ${escapeHTML(marker.unit)}`
+    ? `Reference: ${marker.refMin != null ? marker.refMin : '–'} \u2013 ${marker.refMax != null ? marker.refMax : '–'} ${String(marker.unit ?? '')}`
     : '';
   let placeholderHint = 'e.g. 5.4';
   if (marker.refMin != null && marker.refMax != null) {
@@ -71,79 +71,50 @@ function renderManualEntryForm(id: string, prefillDate?: unknown) {
   if (!dotKey) return;
   const customCanonicalUnit = state.importedData?.customMarkers?.[dotKey]?.unit || null;
   const options = getMarkerInputUnits(dotKey, state.unitSystem, customCanonicalUnit);
-  const unitPickerHtml = options.length > 1
-    ? `<select id="me-unit" class="me-unit-select" aria-label="Input unit">
-         ${options.map((unit, index) => `<option value="${escapeHTML(unit)}"${index === 0 ? ' selected' : ''}>${escapeHTML(unit)}</option>`).join('')}
-       </select>`
-    : `<span style="color:var(--text-muted);font-weight:400">(${escapeHTML(marker.unit)})</span>`;
-
-  modal.innerHTML = `<div class="gb-modal-head">
-      <div>
-        <div class="gb-modal-kicker">${escapeHTML(data.categories[categoryKey]?.label || categoryKey)}</div>
-        <div class="gb-modal-title">Add Value Manually</div>
-      </div>
-      <button class="modal-close" aria-label="Back to marker details" ${markerDetailActionAttrs('show-detail-modal', { id })}>&times;</button>
-    </div>
-    <div class="gb-form-body">
-    <div class="modal-unit"><strong>${escapeHTML(marker.name)}</strong> \u00b7 ${escapeHTML(marker.unit)}${refText ? ' \u00b7 ' + refText : ''}</div>
-    <div class="manual-entry-form">
-      <div class="me-field">
-        <label for="me-date">Date</label>
-        <input type="date" id="me-date" value="${dateValue}" max="${today}">
-      </div>
-      <div class="me-field">
-        <label for="me-value">Value ${unitPickerHtml}</label>
-        <input type="number" id="me-value" step="any" placeholder="${escapeHTML(placeholderHint)}" autofocus>
-      </div>
-      <div class="me-context-grid">
-        <div class="me-field">
-          <label for="me-sample-time">Collection time <span class="me-optional">(optional)</span></label>
-          <input type="time" id="me-sample-time" value="${escapeHTML(sampleTimeValue)}">
-          <small>Use the blood draw/collection time, not the lab processing or report time.</small>
-        </div>
-        <div class="me-field">
-          <label for="me-fasting">Fasting status</label>
-          <select id="me-fasting">
-            <option value="unknown"${fastingValue === 'unknown' ? ' selected' : ''}>Unknown</option>
-            <option value="fasting"${fastingValue === 'fasting' ? ' selected' : ''}>Fasting</option>
-            <option value="not-fasting"${fastingValue === 'not-fasting' ? ' selected' : ''}>Not fasting</option>
-          </select>
-        </div>
-      </div>
-      <div class="me-field">
-        <label for="me-note">Note <span style="color:var(--text-muted);font-weight:400">(optional)</span></label>
-        <textarea id="me-note" rows="2" placeholder="Context for this value — e.g. fasted 14h, post-workout, different lab, retake of low value..."></textarea>
-      </div>
-      <div class="gb-form-actions">
-        <button class="import-btn import-btn-primary" ${markerDetailActionAttrs('save-manual-entry', { id })}>Save</button>
-        <button class="import-btn import-btn-secondary" ${markerDetailActionAttrs('save-and-add-manual-entry', { id })} title="Save this value, then enter another marker for the same date">Save &amp; Add Another</button>
-        <button class="import-btn import-btn-secondary" ${markerDetailActionAttrs('show-detail-modal', { id })}>Cancel</button>
-      </div>
-    </div>
-    </div>`;
+  const unitPicker = projectManualEntryUnits(options, () => marker.unit);
+  modal.innerHTML = renderManualMarkerEntry({
+    category: () => data.categories[categoryKey]?.label || categoryKey,
+    closeAction: () => ({action:'show-detail-modal',id}),
+    name: () => marker.name,
+    unit: () => marker.unit,
+    reference: refText ? ' \u00b7 ' + refText : '',
+    date: dateValue,
+    today,
+    unitPicker,
+    placeholder: placeholderHint,
+    sampleTime: sampleTimeValue,
+    fasting: fastingValue,
+    saveAction: () => ({action:'save-manual-entry',id}),
+    addAction: () => ({action:'save-and-add-manual-entry',id}),
+    cancelAction: () => ({action:'show-detail-modal',id}),
+  });
   openModalOverlay(overlay, { initialFocus: '#me-value', focusDelay: 50 });
-  setTimeout(() => {
-    const valueInput = document.getElementById('me-value') as HTMLInputElement | null;
-    if (!valueInput) return;
-    // Enter-to-save / Esc-to-cancel for keyboard users.
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        saveManualEntry(id);
-      } else if (event.key === 'Escape') {
-        event.preventDefault();
-        manualEntryRuntime.showDetailModal(id);
-      }
-    };
-    valueInput.addEventListener('keydown', onKey);
-    const dateInput = (document.getElementById('me-date') as HTMLInputElement | null);
-    dateInput?.addEventListener('keydown', onKey);
-    dateInput?.addEventListener('change', () => {
-      const context = state.importedData?.entries?.find(entry => entry?.date === dateInput.value)?.context || {};
-      const sampleTime = (document.getElementById('me-sample-time') as HTMLInputElement | null);
-      const fasting = (document.getElementById('me-fasting') as HTMLSelectElement | null);
-      if (sampleTime) sampleTime.value = typeof context.sampleTime === 'string' ? context.sampleTime : '';
-      if (fasting) fasting.value = context.fasting === true ? 'fasting' : context.fasting === false ? 'not-fasting' : 'unknown';
-    });
-  }, 50);
+  const valueInput = modal.querySelector('#me-value') as HTMLInputElement | null;
+  if (!valueInput) return;
+  // Autofocus can receive Enter immediately; bind before returning the form.
+  // Detached controls must not dispatch work into a replacement form.
+  const isCurrent = () => !!overlay?.classList.contains('show')
+    && modal.contains(valueInput) && document.getElementById('me-value') === valueInput;
+  // Enter-to-save / Esc-to-cancel for keyboard users.
+  const onKey = (event: KeyboardEvent) => {
+    if (!isCurrent()) return;
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      saveManualEntry(id);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      manualEntryRuntime.showDetailModal(id);
+    }
+  };
+  valueInput.addEventListener('keydown', onKey);
+  const dateInput = (modal.querySelector('#me-date') as HTMLInputElement | null);
+  dateInput?.addEventListener('keydown', onKey);
+  dateInput?.addEventListener('change', () => {
+    if (!isCurrent()) return;
+    const context = state.importedData?.entries?.find(entry => entry?.date === dateInput.value)?.context || {};
+    const sampleTime = (modal.querySelector('#me-sample-time') as HTMLInputElement | null);
+    const fasting = (modal.querySelector('#me-fasting') as HTMLSelectElement | null);
+    if (sampleTime) sampleTime.value = typeof context.sampleTime === 'string' ? context.sampleTime : '';
+    if (fasting) fasting.value = context.fasting === true ? 'fasting' : context.fasting === false ? 'not-fasting' : 'unknown';
+  });
 }

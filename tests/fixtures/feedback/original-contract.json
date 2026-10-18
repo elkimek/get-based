@@ -1,0 +1,298 @@
+{
+  "schemaVersion": 1,
+  "provenance": {
+    "originalBaselineSealSHA256": "3119033d375ade983b4e8bc050b3ff43f8f46db92cdacaf0eb3e392a6a075d5f",
+    "originalHTMLSHA256": "a86c670150725a0e66e15ea15b9eb60f8db1f06681cada243ec70a7aa5cf4b76",
+    "reviewedAnchorContractSHA256": "e49ce44f13a56493e1b870aa39c7b93e5a714c226b1d5302d7eac46cda4813f3"
+  },
+  "html": "\n    <div class=\"gb-modal-head feedback-modal-head\">\n      <div><div class=\"gb-modal-kicker\">GitHub issue</div><div class=\"gb-modal-title\">Send Feedback</div></div>\n      <button type=\"button\" class=\"modal-close\" aria-label=\"Close\" data-feedback-action=\"close\">&times;</button>\n    </div>\n    <div class=\"gb-form-body feedback-form-body\">\n      <form class=\"feedback-form\" data-feedback-action=\"submit\">\n        <div class=\"feedback-field\">\n          <label class=\"feedback-label\" for=\"feedback-type\">Type</label>\n          <select class=\"kb-field-control\" id=\"feedback-type\" data-feedback-action=\"placeholder\">\n            <option value=\"bug\">Bug Report</option>\n            <option value=\"feature\">Feature Request</option>\n            <option value=\"idea\">Idea / Suggestion</option>\n            <option value=\"other\">Other</option>\n          </select>\n        </div>\n        <div class=\"feedback-field\">\n          <label class=\"feedback-label\" for=\"feedback-title\">Title</label>\n          <input class=\"kb-field-control\" id=\"feedback-title\" maxlength=\"160\" required>\n        </div>\n        <div class=\"feedback-field\">\n          <label class=\"feedback-label\" for=\"feedback-desc\">Description</label>\n          <textarea class=\"kb-field-control feedback-textarea\" id=\"feedback-desc\" maxlength=\"10000\" required></textarea>\n        </div>\n        <p class=\"feedback-notice\">Public GitHub issue; account required. Keep health data and secrets out of text and screenshots. Includes app/browser settings, never automatic profile or lab attachments.</p>\n        <div id=\"feedback-result\" class=\"feedback-field\" hidden>\n          <p class=\"feedback-notice\" role=\"status\"><span id=\"feedback-status\"></span> <a target=\"_blank\" rel=\"noopener noreferrer\">Continue on GitHub ↗</a>. Submit there to send it.</p>\n          <details>\n            <summary>View or copy full report</summary>\n            <label class=\"feedback-label\" for=\"feedback-draft\">Report preview</label>\n            <textarea id=\"feedback-draft\" class=\"kb-field-control feedback-textarea\" readonly></textarea>\n            <button type=\"button\" class=\"import-btn import-btn-secondary\" data-feedback-action=\"copy\">Copy report</button>\n          </details>\n        </div>\n        <div class=\"feedback-actions\">\n          <button type=\"button\" class=\"import-btn import-btn-secondary\" data-feedback-action=\"close\">Close</button>\n          <button type=\"submit\" class=\"import-btn import-btn-primary\">Open GitHub draft</button>\n        </div>\n      </form>\n    </div>\n  ",
+  "comments": [
+    {
+      "path": [
+        0
+      ],
+      "value": "[",
+      "previous": null,
+      "next": {
+        "type": 8,
+        "text": ""
+      }
+    },
+    {
+      "path": [
+        1
+      ],
+      "value": "",
+      "previous": {
+        "type": 8,
+        "text": "["
+      },
+      "next": {
+        "type": 3,
+        "text": "\n    "
+      }
+    },
+    {
+      "path": [
+        7
+      ],
+      "value": "]",
+      "previous": {
+        "type": 3,
+        "text": "\n  "
+      },
+      "next": null
+    }
+  ],
+  "receivers": [
+    {
+      "elementIndex": 0,
+      "receiver": "head",
+      "nativeClass": "gb-modal-head feedback-modal-head",
+      "utilities": [
+        "gb:feedback-head:feedback-head-block"
+      ]
+    },
+    {
+      "elementIndex": 1,
+      "receiver": null,
+      "nativeClass": null,
+      "utilities": []
+    },
+    {
+      "elementIndex": 2,
+      "receiver": null,
+      "nativeClass": "gb-modal-kicker",
+      "utilities": []
+    },
+    {
+      "elementIndex": 3,
+      "receiver": null,
+      "nativeClass": "gb-modal-title",
+      "utilities": []
+    },
+    {
+      "elementIndex": 4,
+      "receiver": null,
+      "nativeClass": "modal-close",
+      "utilities": []
+    },
+    {
+      "elementIndex": 5,
+      "receiver": "body",
+      "nativeClass": "gb-form-body feedback-form-body",
+      "utilities": [
+        "gb:feedback-body:feedback-body-block"
+      ]
+    },
+    {
+      "elementIndex": 6,
+      "receiver": "form",
+      "nativeClass": "feedback-form",
+      "utilities": [
+        "gb:feedback-form:feedback-form-block"
+      ]
+    },
+    {
+      "elementIndex": 7,
+      "receiver": "field",
+      "nativeClass": "feedback-field",
+      "utilities": [
+        "gb:feedback-field:feedback-field-block",
+        "gb:feedback-field-hidden:feedback-field-hidden-block"
+      ]
+    },
+    {
+      "elementIndex": 8,
+      "receiver": "label",
+      "nativeClass": "feedback-label",
+      "utilities": [
+        "gb:feedback-label:feedback-label-block"
+      ]
+    },
+    {
+      "elementIndex": 9,
+      "receiver": null,
+      "nativeClass": "kb-field-control",
+      "utilities": []
+    },
+    {
+      "elementIndex": 10,
+      "receiver": null,
+      "nativeClass": null,
+      "utilities": []
+    },
+    {
+      "elementIndex": 11,
+      "receiver": null,
+      "nativeClass": null,
+      "utilities": []
+    },
+    {
+      "elementIndex": 12,
+      "receiver": null,
+      "nativeClass": null,
+      "utilities": []
+    },
+    {
+      "elementIndex": 13,
+      "receiver": null,
+      "nativeClass": null,
+      "utilities": []
+    },
+    {
+      "elementIndex": 14,
+      "receiver": "field",
+      "nativeClass": "feedback-field",
+      "utilities": [
+        "gb:feedback-field:feedback-field-block",
+        "gb:feedback-field-hidden:feedback-field-hidden-block"
+      ]
+    },
+    {
+      "elementIndex": 15,
+      "receiver": "label",
+      "nativeClass": "feedback-label",
+      "utilities": [
+        "gb:feedback-label:feedback-label-block"
+      ]
+    },
+    {
+      "elementIndex": 16,
+      "receiver": null,
+      "nativeClass": "kb-field-control",
+      "utilities": []
+    },
+    {
+      "elementIndex": 17,
+      "receiver": "field",
+      "nativeClass": "feedback-field",
+      "utilities": [
+        "gb:feedback-field:feedback-field-block",
+        "gb:feedback-field-hidden:feedback-field-hidden-block"
+      ]
+    },
+    {
+      "elementIndex": 18,
+      "receiver": "label",
+      "nativeClass": "feedback-label",
+      "utilities": [
+        "gb:feedback-label:feedback-label-block"
+      ]
+    },
+    {
+      "elementIndex": 19,
+      "receiver": "textarea",
+      "nativeClass": "kb-field-control feedback-textarea",
+      "utilities": [
+        "gb:feedback-textarea:feedback-textarea-block",
+        "gb:feedback-phone-textarea:feedback-phone-textarea-block"
+      ]
+    },
+    {
+      "elementIndex": 20,
+      "receiver": "notice",
+      "nativeClass": "feedback-notice",
+      "utilities": [
+        "gb:feedback-notice:feedback-notice-block"
+      ]
+    },
+    {
+      "elementIndex": 21,
+      "receiver": "field",
+      "nativeClass": "feedback-field",
+      "utilities": [
+        "gb:feedback-field:feedback-field-block",
+        "gb:feedback-field-hidden:feedback-field-hidden-block"
+      ]
+    },
+    {
+      "elementIndex": 22,
+      "receiver": "notice",
+      "nativeClass": "feedback-notice",
+      "utilities": [
+        "gb:feedback-notice:feedback-notice-block"
+      ]
+    },
+    {
+      "elementIndex": 23,
+      "receiver": null,
+      "nativeClass": null,
+      "utilities": []
+    },
+    {
+      "elementIndex": 24,
+      "receiver": null,
+      "nativeClass": null,
+      "utilities": []
+    },
+    {
+      "elementIndex": 25,
+      "receiver": null,
+      "nativeClass": null,
+      "utilities": []
+    },
+    {
+      "elementIndex": 26,
+      "receiver": "summary",
+      "nativeClass": null,
+      "utilities": [
+        "gb:feedback-summary:feedback-summary-block"
+      ]
+    },
+    {
+      "elementIndex": 27,
+      "receiver": "label",
+      "nativeClass": "feedback-label",
+      "utilities": [
+        "gb:feedback-label:feedback-label-block"
+      ]
+    },
+    {
+      "elementIndex": 28,
+      "receiver": "preview",
+      "nativeClass": "kb-field-control feedback-textarea",
+      "utilities": [
+        "gb:feedback-preview:feedback-preview-block",
+        "gb:feedback-textarea:feedback-textarea-block",
+        "gb:feedback-phone-textarea:feedback-phone-textarea-block"
+      ]
+    },
+    {
+      "elementIndex": 29,
+      "receiver": "button",
+      "nativeClass": "import-btn import-btn-secondary",
+      "utilities": [
+        "gb:feedback-button:feedback-button-block",
+        "gb:feedback-phone-button:feedback-phone-button-block"
+      ]
+    },
+    {
+      "elementIndex": 30,
+      "receiver": "actions",
+      "nativeClass": "feedback-actions",
+      "utilities": [
+        "gb:feedback-actions:feedback-actions-block",
+        "gb:feedback-phone-actions:feedback-phone-actions-block"
+      ]
+    },
+    {
+      "elementIndex": 31,
+      "receiver": "button",
+      "nativeClass": "import-btn import-btn-secondary",
+      "utilities": [
+        "gb:feedback-button:feedback-button-block",
+        "gb:feedback-phone-button:feedback-phone-button-block"
+      ]
+    },
+    {
+      "elementIndex": 32,
+      "receiver": "button",
+      "nativeClass": "import-btn import-btn-primary",
+      "utilities": [
+        "gb:feedback-button:feedback-button-block",
+        "gb:feedback-phone-button:feedback-phone-button-block"
+      ]
+    }
+  ]
+}

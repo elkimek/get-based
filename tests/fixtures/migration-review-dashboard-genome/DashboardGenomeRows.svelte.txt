@@ -1,0 +1,65 @@
+<script lang="ts">
+  import type {DashboardGenomeView,GenomeGroupView} from '../dashboard-genome-rows-presentation.js';
+  let {view}:{view:DashboardGenomeView}=$props();
+</script><svelte:options preserveWhitespace={true} />{#snippet contribution(href:string|null)}{#if href!==null}<div class="db-genome-contribute">
+      <span><strong>Improve the public catalog</strong> Suggest a well-supported SNP or correct an annotation. The link does not include your genotype or imported data.</span>
+      <a href={href} target="_blank" rel="noopener" class="db-genome-contribute-link">Suggest a SNP</a>
+    </div>{/if}{/snippet}{#snippet groups(items:GenomeGroupView[])}{#each items as group}<div class={group.classes}>
+      <div class="db-genome-category-head">
+        <strong>{group.label}</strong>
+        <span>{group.count}</span>
+        <em>{group.impact}</em>
+      </div>
+      <div class="db-genome-category-rows">{#each group.rows as row}<div class={row.classes}>
+      <span class="db-snp-main">
+        <strong>{row.gene}</strong>
+        <small>{row.subline}</small>
+      </span>
+      <span class="db-snp-impact">{row.impact}</span>
+      <span class="db-snp-geno">{row.genotype}</span>
+      {#if row.note!==null}<span class="db-snp-note">{row.note}</span>{/if}
+      {#if row.evidence}<details class="db-snp-evidence" data-snp-evidence={row.evidence.rsid}>
+      <summary>Evidence &amp; interpretation <small>{row.evidence.assessment}</small></summary>
+      <div class="db-snp-evidence-body">
+        {#if row.evidence.interpretation}<div class="db-snp-interpretation">
+          {#if row.evidence.interpretation.scope!==null}<p><strong>What it supports.</strong> {row.evidence.interpretation.scope}</p>{/if}
+          {#if row.evidence.interpretation.context!==null}<p><strong>Use in context.</strong> {row.evidence.interpretation.context}</p>{/if}
+        </div>{/if}
+        <div class="db-snp-evidence-footer">
+          {#if row.evidence.references.length}<span class="db-snp-evidence-source-label">Sources:</span>{#each row.evidence.references as reference,index}{#if index}<span aria-hidden="true">·</span>{/if}<a href={reference.href} target="_blank" rel="noopener" class="db-snp-evidence-source">{reference.label}</a>{/each}{:else}<span>No catalog source linked yet</span>{/if}
+          <span aria-hidden="true">·</span>
+          <button type="button" class="db-snp-text-action db-snp-ai-action" data-dashboard-genome-action={row.evidence.askActions}>Ask AI</button>
+          <span aria-hidden="true">·</span>
+          <a href={row.evidence.issueHref} target="_blank" rel="noopener" class="db-snp-text-action db-snp-correction-action">Suggest correction</a>
+        </div>
+      </div>
+    </details>{/if}
+    </div>{/each}</div>
+    </div>{/each}{/snippet}{#if view.kind==='empty'}<div class="db-genome-list">
+        <div class="db-genome-empty">
+          <strong>No DNA data imported yet</strong>
+          <span>Import a raw DNA file above to see curated findings and traits alongside your labs and body signals.</span>
+        </div>
+        {@render contribution(view.contributionHref)}
+      </div>{:else}<div class="db-genome-list">
+      {#if view.meta!==null}<div class="db-genome-summary">{view.meta}</div>{/if}
+      {#if view.legend}<div class="db-genome-legend" aria-label="Genome interpretation legend">
+      <span class="db-genome-legend-item db-genome-legend-risk"><span>🔴</span> risk association</span>
+      <span class="db-genome-legend-item db-genome-legend-protective"><span>🟢</span> protective association</span>
+      <span class="db-genome-legend-item db-genome-legend-trait"><span>🔵</span> trait</span>
+      <span class="db-genome-legend-item db-genome-legend-informational"><span>⚪</span> neutral</span>
+      <span class="db-genome-legend-help">Direction, evidence, and relevance are separate. Strong evidence is not a diagnosis or a proven intervention.</span>
+    </div>{/if}
+      {#if view.apoe}<div class="db-snp-row db-snp-row-apoe"><span class="db-snp-main"><strong>APOE</strong><small>Haplotype · {view.apoe.assessment}</small></span><span class="db-snp-impact">context</span><span class="db-snp-geno">{view.apoe.value}</span></div>{/if}
+      {view.mtdnaHTML}
+      {#if view.noPriority}<div class="db-genome-empty db-genome-no-priority">
+      <strong>No priority or informational trait calls</strong>
+      <span>Normal, neutral, and unclassified imported calls are collapsed below.</span>
+    </div>{/if}
+      {@render groups(view.groups)}
+      {#if view.secondary}<details class="db-genome-secondary">
+      <summary>Other imported SNPs ({view.secondary.count})</summary>
+      <div class="db-genome-secondary-list">{@render groups(view.secondary.groups)}</div>
+    </details>{/if}
+      {@render contribution(view.contributionHref)}
+    </div>{/if}

@@ -11,7 +11,7 @@
 </script>
 
 {#if surface === 'card'}
-  {#if view.complete}<LightSetupSummary {view} />{:else}<LightSetupPrompt deferred={!!view.defaults.setupPromptDismissedAt} ownerTicket={view.ownerTicket} />{/if}
+  {#if view.complete}<LightSetupSummary {view} />{:else}<LightSetupPrompt deferred={view.deferredPrompt ?? !!view.defaults.setupPromptDismissedAt} ownerTicket={view.ownerTicket} />{/if}
 {:else if surface === 'editor'}<LightSetupEditor {view} {includeActions} />
 {:else if surface === 'actions'}<LightSetupActions complete={view.complete} />
 {:else if surface === 'location'}<LightSetupLocation status={view.location} />

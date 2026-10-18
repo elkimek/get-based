@@ -1,3 +1,4 @@
+import {renderHTML as renderPlacementSummaryHTML} from './components/MarkerPlacementSummary.svelte.html.js';
 import { configureRuntimeFunctions } from './runtime-callbacks.js';
 import type { ActiveCategory } from './data-view-types.js';
 import type { PlacementViewMarker } from './marker-placement.js';
@@ -6,7 +7,7 @@ import type { NormalizedProfileData } from '../types/app-state.js';
 
 import { getActiveData, invalidateActiveDataCache, saveImportedDataForProfile } from './data.js';
 import { getLabCategoryEntriesInSidebarOrder } from './category-order.js';
-import { markerDetailActionAttrs } from './marker-detail-actions.js';
+import {projectPlacementSummary,renderPlacementForm} from './marker-placement-presentation.js';
 import {
   clearMarkerPlacement,
   getMarkerStorageDotKey,
@@ -20,7 +21,7 @@ import {
 } from './marker-detail-runtime.js';
 import { openModalOverlay } from './modal-lifecycle.js';
 import { state } from './state.js';
-import { escapeAttr, escapeHTML, safeMarkerId, showNotification } from './utils.js';
+import { safeMarkerId, showNotification } from './utils.js';
 
 interface PlacementCalls { showDetailModal(id: string): unknown }
 export type MarkerPlacementRuntimeSnapshot = { [Key in keyof PlacementCalls]: unknown };
@@ -111,6 +112,10 @@ export function getMarkerPlacementChoices(id: string) {
 }
 
 export function renderMarkerPlacementSummary(id: string, marker: PlacementSummaryMarker, categories: Record<string, PlacementSummaryCategory> | null | undefined) {
+  return renderPlacementSummaryHTML({view:projectMarkerPlacementSummary(id,marker,categories)});
+}
+
+export function projectMarkerPlacementSummary(id: string, marker: PlacementSummaryMarker, categories: Record<string, PlacementSummaryCategory> | null | undefined) {
   const storageDotKey = getMarkerStorageDotKey(marker, id);
   const nativeCategoryKey = marker.nativeCategoryKey
     || (storageDotKey ? storageDotKey.slice(0, storageDotKey.indexOf('.')) : '');
@@ -120,26 +125,9 @@ export function renderMarkerPlacementSummary(id: string, marker: PlacementSummar
   const currentLabel = currentCategory?.label || displayCategoryKey;
   const nativeLabel = nativeCategory?.label || nativeCategoryKey;
   const moved = !!nativeCategoryKey && nativeCategoryKey !== displayCategoryKey;
-  return `<div class="gb-detail-category-row">
-    <span class="gb-detail-kicker">${escapeHTML(currentLabel)}</span>
-    <button type="button" class="gb-detail-category-change" aria-label="Change category for ${escapeAttr(marker.name || 'marker')}" ${markerDetailActionAttrs('open-marker-placement', { id })}>Change category</button>
-    ${moved ? `<span class="gb-detail-category-origin">Originally ${escapeHTML(nativeLabel)}</span>
-      <button type="button" class="gb-detail-category-restore" ${markerDetailActionAttrs('restore-marker-placement', { id })}>Restore</button>` : ''}
-  </div>`;
+  return projectPlacementSummary(id,currentLabel,nativeLabel,moved,()=>marker.name);
 }
 
-function renderPlacementOptions(choices: MarkerPlacementChoice[]) {
-  const groups = [
-    { label: 'In this profile', options: choices.filter(choice => choice.inProfile) },
-    { label: 'Other compatible categories', options: choices.filter(choice => !choice.inProfile) },
-  ];
-  return groups
-    .filter(group => group.options.length > 0)
-    .map(({ label, options }) => `<optgroup label="${escapeAttr(label)}">
-      ${options.map(choice => `<option value="${escapeAttr(choice.categoryKey)}"${choice.selected ? ' selected' : ''}>${escapeHTML(choice.label)}</option>`).join('')}
-    </optgroup>`)
-    .join('');
-}
 
 export function openMarkerPlacementModal(id: string) {
   if (!safeMarkerId(id)) return false;
@@ -155,37 +143,7 @@ function renderMarkerPlacementModal(id: string) {
   const currentLabel = context.data.categories[context.displayCategoryKey]?.label || context.displayCategoryKey;
   const nativeLabel = context.data.categories[context.nativeCategoryKey]?.label || context.nativeCategoryKey;
   const moved = context.displayCategoryKey !== context.nativeCategoryKey;
-  modal.innerHTML = `<div class="gb-modal-head">
-      <button type="button" class="context-back-btn" aria-label="Back to marker details" ${markerDetailActionAttrs('show-detail-modal', { id })}>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg>
-      </button>
-      <div>
-        <div class="gb-modal-kicker">Category placement</div>
-        <div class="gb-modal-title">Move ${escapeHTML(context.marker.name)}</div>
-      </div>
-      <button type="button" class="modal-close" aria-label="Close" ${markerDetailActionAttrs('close-modal')}>&times;</button>
-    </div>
-    <div class="gb-form-body">
-      <div class="marker-placement-safety" role="note">
-        <strong>Only where this marker appears will change.</strong>
-        <span>Values, history, units, notes, reference ranges, backups, shares, imports, and sync stay linked to the same marker.</span>
-      </div>
-      <div class="manual-entry-form">
-        <div class="me-field">
-          <label for="marker-placement-category">Category</label>
-          <select id="marker-placement-category" aria-describedby="marker-placement-help">
-            ${renderPlacementOptions(context.choices)}
-          </select>
-          <div class="marker-placement-current">Current: <strong>${escapeHTML(currentLabel)}</strong> &middot; Original: <strong>${escapeHTML(nativeLabel)}</strong></div>
-          <div class="marker-placement-help" id="marker-placement-help">Choose an existing compatible category. ${context.unavailableCount ? `${context.unavailableCount} calculated, incompatible, or conflicting ${context.unavailableCount === 1 ? 'category is' : 'categories are'} hidden.` : ''}</div>
-        </div>
-        <div class="gb-form-actions">
-          ${moved ? `<button type="button" class="import-btn import-btn-secondary marker-placement-restore" ${markerDetailActionAttrs('restore-marker-placement', { id })}>Restore original</button>` : ''}
-          <button type="button" class="import-btn import-btn-secondary" ${markerDetailActionAttrs('show-detail-modal', { id })}>Cancel</button>
-          <button type="button" class="import-btn import-btn-primary marker-placement-save" ${markerDetailActionAttrs('save-marker-placement', { id })}>Move marker</button>
-        </div>
-      </div>
-    </div>`;
+  modal.innerHTML = renderPlacementForm(id,context,currentLabel,nativeLabel,moved);
   openModalOverlay(overlay, { initialFocus: '#marker-placement-category', focusDelay: 20 });
   return true;
 }

@@ -43,6 +43,41 @@ ${await fetchWithRetry('css/data-protection.css')}
 ${await fetchWithRetry('css/chat-mobile.css')}
 ${await fetchWithRetry('css/chat-redesign-open.css')}`;
 
+  // Probe the real emitted utilities at the owned 600px viewport. Semantic
+  // marker names need no standalone CSS selector when Tailwind owns the rules.
+  const settingsShellSource = await fetchWithRetry('js/components/SettingsShell.svelte');
+  const navigationSource = await fetchWithRetry('js/components/ChatThreadNavigation.svelte');
+  const { THREAD_SUMMARY } = await import('/js/chat-thread-navigation-classes.js');
+  const settingsClasses = settingsShellSource.match(/class="(\s*settings-tabs-bar[^"]*)"/)?.[1];
+  const menuClasses = navigationSource.match(/<details class="(chat-thread-item-menu[^"]*)"/)?.[1];
+  if (!settingsClasses || !menuClasses) throw new Error('Current Settings and conversation-menu owners must be present');
+  const responsiveFrame = document.createElement('iframe');
+  responsiveFrame.title = 'Isolated responsive style audit';
+  responsiveFrame.style.cssText = 'position:fixed;left:-10000px;top:0;width:600px;height:400px;border:0';
+  let responsiveOwners: {width:number;overflowX:string;direction:string;menuDisplay:string;menuVisibility:string;menuWidth:number;menuHeight:number;menuTabIndex:number};
+  try {
+    document.body.append(responsiveFrame);
+    const frameDocument = responsiveFrame.contentDocument!;
+    const frameWindow = responsiveFrame.contentWindow!;
+    await Promise.all(['styles.css', 'css/settings.css', 'css/chat-panel-open.css', 'css/chat-mobile.css', 'css/chat-redesign-open.css'].map(sheet => new Promise<void>((resolve, reject) => {
+      const link = frameDocument.createElement('link'); link.rel = 'stylesheet';
+      link.href = new URL('/' + sheet, location.href).href;
+      link.onload = () => resolve(); link.onerror = () => reject(new Error('Responsive audit stylesheet failed: ' + sheet));
+      frameDocument.head.append(link);
+    })));
+    const settings = frameDocument.createElement('div'); settings.id = 'settings-modal'; settings.className = 'modal settings-modal';
+    const tabs = frameDocument.createElement('div'); tabs.className = settingsClasses;
+    settings.append(tabs); frameDocument.body.append(settings);
+    const navigation = frameDocument.createElement('div'); navigation.setAttribute('data-chat-thread-navigation-view', '');
+    const menu = frameDocument.createElement('details'); menu.className = menuClasses;
+    const summary = frameDocument.createElement('summary'); summary.className = 'chat-thread-item-action ' + THREAD_SUMMARY;
+    summary.textContent = 'Conversation actions'; menu.append(summary); navigation.append(menu); frameDocument.body.append(navigation);
+    const tabsStyle = frameWindow.getComputedStyle(tabs), summaryStyle = frameWindow.getComputedStyle(summary);
+    const box = summary.getBoundingClientRect();
+    responsiveOwners = {width:frameWindow.innerWidth,overflowX:tabsStyle.overflowX,direction:tabsStyle.flexDirection,
+      menuDisplay:summaryStyle.display,menuVisibility:summaryStyle.visibility,menuWidth:box.width,menuHeight:box.height,menuTabIndex:summary.tabIndex};
+  } finally { responsiveFrame.remove(); }
+
   // ═══ Section 1: Header mobile layout ═══
   console.log('%c[1] Header Mobile Layout', 'font-weight:bold');
   const headerInfo = document.querySelector('.header-info');
@@ -57,6 +92,7 @@ ${await fetchWithRetry('css/chat-redesign-open.css')}`;
   const dashboardPageViewSrc = (await fetchWithRetry('js/dashboard-page-view.js'))
     .replace(/if \(!isDesktopChatOnboardingViewport \|\| getDashboardPageRuntimeValue\('innerWidth'\) <= 768\)\s+return/, "if (!isDesktopChatOnboardingViewport || getDashboardPageRuntimeValue('innerWidth') <= 768) return");
   const mobileDashboardSrc = await fetchWithRetry('js/mobile-dashboard.js');
+  const mobileDashboardPresentationSrc = await fetchWithRetry('js/components/MobileDashboardPage.svelte.html.js');
   const dashboardControlsSrc = await fetchWithRetry('js/dashboard-widget-controls.js');
   const routerSrc = await fetchWithRetry('js/views-router.js');
   const appShellHooksSrc = await fetchWithRetry('js/app-shell-hooks.js');
@@ -80,14 +116,14 @@ ${await fetchWithRetry('css/chat-redesign-open.css')}`;
     !css.includes('.m-icon-btn') &&
     !mobileDashboardSrc.includes('getMobileAvatar'));
   assert('mobile dashboard renders the same registered widget stack as desktop',
-    mobileDashboardSrc.includes('function renderMobileDashboardWidgetStack(ctx)') &&
-    mobileDashboardSrc.includes('getVisibleDashboardWidgetEntries(ctx, prefs') &&
-    mobileDashboardSrc.includes('m-dashboard-widget-actions') &&
-    mobileDashboardSrc.includes('renderDashboardControlButtons({ includeReset: mobileDashboardDeps.isDashboardOrganizeMode() })') &&
+    mobileDashboardSrc.includes('function projectMobileDashboardWidgetStack(ctx)') &&
+    mobileDashboardSrc.includes('getVisibleDashboardWidgetViews(ctx, prefs') &&
+    mobileDashboardPresentationSrc.includes('m-dashboard-widget-actions') &&
+    mobileDashboardSrc.includes('projectDashboardControlButtons({ includeReset: mobileDashboardDeps.isDashboardOrganizeMode() })') &&
     dashboardControlsSrc.includes('function renderDashboardControlButtons') &&
-    mobileDashboardSrc.includes('renderDashboardWidget(entry, prefs, index, visibleEntries)') &&
+    mobileDashboardSrc.includes('projectDashboardWidget(entry, prefs, index, visibleEntries)') &&
     dashboardControlsSrc.includes('function renderDashboardWidget(entry, prefs, index, visibleEntries)') &&
-    mobileDashboardSrc.includes('${mobileWidgetStack}') &&
+    mobileDashboardSrc.includes('stack: mobileWidgetStack') &&
     css.includes('.m-dashboard-widgets'));
   assert('mobile dashboard host callbacks are configured through deps',
     mobileDashboardSrc.includes('configureMobileDashboardView(deps = {})') &&
@@ -170,7 +206,8 @@ ${await fetchWithRetry('css/chat-redesign-open.css')}`;
 
   // ═══ Section 6: Settings tabs scrollable ═══
   console.log('%c[6] Settings Tabs', 'font-weight:bold');
-  assert('settings-tabs-bar overflow-x auto at 600px', css.includes('settings-tabs-bar') && css.includes('overflow-x: auto'));
+  assert('settings-tabs-bar overflow-x auto at 600px', responsiveOwners.width === 600
+    && responsiveOwners.overflowX === 'auto' && responsiveOwners.direction === 'row', JSON.stringify(responsiveOwners));
 
   // ═══ Section 7: Toast notifications mobile ═══
   console.log('%c[7] Toast Notifications', 'font-weight:bold');
@@ -189,7 +226,10 @@ ${await fetchWithRetry('css/chat-redesign-open.css')}`;
   console.log('%c[9] Touch Hover Fix', 'font-weight:bold');
   assert('hover:none media query exists', css.includes('hover: none'));
   assert('mv-delete visible on touch', css.includes('mv-delete') && css.includes('opacity: 0.7'));
-  assert('chat thread action menu remains available on touch', css.includes('chat-thread-item-menu'));
+  assert('chat thread action menu remains available on touch',
+    navigationSource.includes("<summary class={'chat-thread-item-action ' + THREAD_SUMMARY}")
+      && responsiveOwners.menuDisplay === 'flex' && responsiveOwners.menuVisibility === 'visible'
+      && responsiveOwners.menuWidth >= 44 && responsiveOwners.menuHeight >= 44 && responsiveOwners.menuTabIndex === 0, JSON.stringify(responsiveOwners));
   assert('lens-section-edit visible on touch', css.includes('lens-section-edit') && css.includes('opacity: 0.7'));
 
   // ═══ Section 10: Chat thread rail back button ═══

@@ -1,0 +1,4 @@
+<script lang="ts">
+ import type {MarkerPairComparisonView} from '../therapy-comparison-presentation.js';
+ let {view}:{view:MarkerPairComparisonView}=$props();
+</script><svelte:options preserveWhitespace/><p class="corr-stat">{view.status}</p><details open={view.open}><summary>Data &amp; limitations</summary><div class="corr-data-scroll" {...view.scroll}><table class="corr-data-table"><thead><tr><th>Lab date</th><th>{view.marker} ({view.unit})</th><th>{view.therapy} ({view.xUnit})</th><th>Status</th><th>Source</th></tr></thead><tbody>{#each view.rows as row}<tr><td>{row.date}</td><td>{row.value}</td><td>{row.exposure}</td><td>{row.status}</td><td>{row.source}</td></tr>{/each}</tbody></table></div><p class="corr-help">Pairs require same-date results, without interpolation. Correlation is not causation.</p></details>

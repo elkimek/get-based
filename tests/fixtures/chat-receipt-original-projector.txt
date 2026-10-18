@@ -1,0 +1,32 @@
+function projectChatTranscriptMessage(message, index, attention = false) {
+  const role = message.role === 'user' ? 'user' : 'assistant';
+  const provider = message.provider || (message.modelId?.includes('/') ? 'openrouter' : getAIProvider());
+  let usage = null;
+  if (role === 'assistant' && !shouldHideAppExtensionAIUsage(provider)) {
+    if (provider === 'codex-agent' || provider === 'personal-agent-gateway') {
+      usage = { text: `${message.modelDisplay || 'CLI agent'} · CLI subscription${message.webSearch ? ' · 🌐 web' : ''}`, receipt: '' };
+    }
+    else if (message.usage && (message.usage.inputTokens || message.usage.outputTokens)) {
+      const input = Math.max(0, Number(message.usage.inputTokens) || 0);
+      const output = Math.max(0, Number(message.usage.outputTokens) || 0);
+      const cost = calculateCost(provider, message.modelId || getActiveModelId(), input, output);
+      usage = {
+        text: `${message.modelDisplay || getActiveModelDisplay()} · ${formatCost(cost)} · ${(input + output).toLocaleString()} tokens${message.webSearch ? ' · 🌐 web' : ''}`,
+        receipt: message.e2ee ? e2eeLockFootnote(message.attestation) : '',
+      };
+    }
+  }
+  const sections = role === 'assistant' ? getChatRecommendationSectionViews(message.recSlots) : [];
+  return {
+    key: message, index, role, label: role === 'user' ? 'You' : message.personalityName || 'AI response',
+    body: message.error ? '' : renderMarkdown(message.content), error: message.error ? String(message.content || '') : null,
+    auto: !!message.auto, stopped: !!message.stopped, truncated: !!message.truncated,
+    avatar: projectChatMessageAvatar({ role, personalityName: message.personalityName, personalityIcon: message.personalityIcon, agentId: message.agentId }),
+    actions: projectChatMessageActions(state.chatHistory, index), images: projectChatStoredImages(message),
+    citations: role === 'assistant' ? projectChatCitations(message.lensSources, message.lensSourceName) : null,
+    usage, attribution: getAIOutputAttribution(message) === 'Written with Grok' ? 'Written with Grok' : null,
+    emfHint: role === 'assistant' && !!message.emfHint && isChatRenderProductRecsEnabled(),
+    recommendationAttention: attention,
+    recommendations: sections.length ? { sections, count: sections.length, open: !!message.recOpen, isNew: !!message.recNew } : null,
+  };
+}

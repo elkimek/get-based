@@ -7,6 +7,8 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 import './_node-shim.js';
 
 import fs from 'node:fs';
+import { JSDOM } from 'jsdom';
+import { hasSerializedEventAttribute } from './helpers/supplement-event-attribute-contract.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -140,26 +142,56 @@ const { computeSupplementImpact, computeAllImpacts, parseAmount, ingredientDaily
   console.log('%c 8. Source & UI Integration ', 'font-weight:bold;color:#f59e0b');
 
   const suppSrc = read('js/supplements.js');
-  const suppFormSrc = read('js/supplement-form-ui.js');
-  const suppDashboardSrc = read('js/supplement-dashboard.js');
-  const suppImportSrc = read('js/supplement-import-controller.js');
-  const supplementSurfaceSrc = `${suppSrc}\n${suppFormSrc}\n${suppDashboardSrc}\n${suppImportSrc}`;
+  const suppFormControllerSrc = read('js/supplement-form-ui.js');
+  const suppFormAuthoredOwners = ['SupplementIngredientRow', 'SupplementPeriodRow', 'SupplementQualityRow', 'SupplementForm']
+    .map(name => read(`js/components/${name}.svelte`)).join('\n');
+  const suppFormSrc = `${suppFormControllerSrc}\n${suppFormAuthoredOwners}`;
+  const supplementControllers = [
+    'supplements', 'supplement-form-ui', 'supplement-dashboard', 'supplement-import-controller',
+    'supplement-dashboard-presentation', 'supplement-impact', 'supplement-form-presentation',
+    'supplement-editor-presentation', 'supplement-impact-presentation',
+  ];
+  const supplementMarkupOwners = [
+    'SupplementIngredientRow', 'SupplementPeriodRow', 'SupplementQualityRow', 'SupplementForm',
+    'SupplementTimeline', 'SupplementTimelineRow', 'SupplementTimelineBar', 'SupplementMitoEvidence',
+    'SupplementEditor', 'SupplementEditorRow', 'SupplementExpanded', 'SupplementImpact',
+  ];
   const supplementsRuntimeSrc = read('js/supplements-runtime.js');
   const impactSrc = read('js/supplement-impact.js');
   const delegateSrc = read('js/supplement-action-delegates.js');
   assert('renderSupplementImpact exists', impactSrc.includes('function renderSupplementImpact'));
-  assert('Wired into openSupplementsEditor', suppSrc.includes('renderSupplementImpact(supplement,'));
+  const supplementExpandedSrc = read('js/components/SupplementExpanded.svelte');
+  const supplementFormMarkup = read('js/components/SupplementForm.svelte');
+  const { captureSupplementIndexedAction } = await import('../js/supplement-form-presentation.js');
+  const { renderSupplementImpactView } = await import('../js/supplement-impact-presentation.js');
+  const impactDOM = new JSDOM(renderSupplementImpactView({
+    kind: 'analysis', dotClass: 'loading', dotId: 'synthetic-dot', refreshIndex: '7',
+    summaryClass: 'synthetic-summary', summaryId: 'synthetic-summary', summaryText: '<synthetic impact>',
+  }));
+  const impactRefresh = impactDOM.window.document.querySelector('.supp-impact-refresh');
+  const impactRefreshDelegated = impactRefresh?.getAttribute('data-supp-action') === 'refresh-impact'
+    && impactRefresh.getAttribute('data-supp-index') === '7' && impactRefresh.textContent === 'refresh';
+  impactDOM.window.close();
+  assert('Wired into openSupplementsEditor',
+    suppSrc.includes('modal.innerHTML = renderSupplementEditor(projectSupplementsEditor(supplements, editIndex, isEdit));')
+      && suppSrc.includes('impact: projectSupplementImpact(supplement, index)')
+      && supplementExpandedSrc.includes('<SupplementImpact view={view.impact}/>'));
   assert('Detects overlapping supplements', impactSrc.includes('getOverlappingSupplements'));
   assert('computeAllImpacts on window', suppSrc.includes('computeAllImpacts'));
   assert('Supplement editor actions are delegated',
     suppSrc.includes("from './supplement-action-delegates.js'") &&
-      suppFormSrc.includes("suppActionAttrs('save'") &&
+      JSON.stringify(captureSupplementIndexedAction('save', 7)) === JSON.stringify({ name: 'save', index: '7' }) &&
+      suppFormControllerSrc.includes("saveAction: captureSupplementIndexedAction('save', editIdx)") &&
+      supplementFormMarkup.includes('data-supp-action={props.view.saveAction.name}') &&
+      supplementFormMarkup.includes('data-supp-index={props.view.saveAction.index}') &&
+      /case 'save':\s*actions\.save\(idx\);/.test(delegateSrc) &&
       delegateSrc.includes("document.addEventListener('click'") &&
       delegateSrc.includes('actions.triggerLabelPicker()'));
   assert('Supplement impact refresh uses delegated action',
-    impactSrc.includes('data-supp-action="refresh-impact"'));
+    impactRefreshDelegated && /case 'refresh-impact':\s*if \(idx >= 0\)\s*void actions\.refreshImpact\(idx\);/.test(delegateSrc));
   assert('Supplement surface has no inline event attributes',
-    !/\son[a-z]+\s*=/.test(supplementSurfaceSrc) && !/\son[a-z]+\s*=/.test(impactSrc));
+    supplementControllers.every(name => !hasSerializedEventAttribute(read(`js/${name}.js`), 'javascript'))
+      && supplementMarkupOwners.every(name => !hasSerializedEventAttribute(read(`js/components/${name}.svelte`), 'svelte')));
   assert('Supplements injects view callbacks without the view runtime bridge',
     supplementsRuntimeSrc.includes('export function configureSupplementsRuntimeDeps')
       && supplementsRuntimeSrc.includes('supplementsRuntimeDeps.closeModal?.()')
@@ -200,7 +232,7 @@ const { computeSupplementImpact, computeAllImpacts, parseAmount, ingredientDaily
     suppFormSrc.includes('<label for="supp-times">Servings/day</label>')
       && suppFormSrc.includes('<label for="supp-max-per-day">PRN max/day</label>'));
   assert('Saves supp.timesPerDay when provided', suppSrc.includes('entry.timesPerDay = timesPerDay'));
-  const labContextSrc = read('js/lab-context.js');
+  const labContextSrc = read('js/lab-context-assembly.js');
   const supplementContextSrc = read('js/supplement-context.js');
   assert('lab-context uses shared computed daily totals',
     labContextSrc.includes('buildSupplementAIContext')

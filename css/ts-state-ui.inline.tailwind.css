@@ -1,0 +1,19 @@
+@import "tailwindcss" prefix(gb) source(none) reference;
+
+@utility ts-state-success-color {color:var(--green)}
+@utility ts-state-muted-color {color:var(--text-muted)}
+@utility ts-state-caution-color {color:var(--yellow)}
+@utility ts-state-fade-opacity {opacity:0}
+@utility ts-state-banner-transition {transition:opacity 0.3s, transform 0.3s}
+@utility ts-state-banner-transform {transform:translateY(-10px)}
+@utility ts-state-toast-transition {transition:all 0.3s}
+@utility ts-state-toast-transform {transform:translateX(100%)}
+
+.ts-state-success-color { @apply gb:ts-state-success-color; }
+.ts-state-muted-color { @apply gb:ts-state-muted-color; }
+.ts-state-caution-color { @apply gb:ts-state-caution-color; }
+.ts-state-fade-opacity { @apply gb:ts-state-fade-opacity; }
+.ts-state-banner-transition { @apply gb:ts-state-banner-transition; }
+.ts-state-banner-transform { @apply gb:ts-state-banner-transform; }
+.ts-state-toast-transition { @apply gb:ts-state-toast-transition; }
+.ts-state-toast-transform { @apply gb:ts-state-toast-transform; }

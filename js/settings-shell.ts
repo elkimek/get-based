@@ -11,7 +11,7 @@ export function mountSettingsShell(target: HTMLElement, props: SettingsShellProp
   mounted = mount(SettingsShell, { target, props });
   flushSync();
   const coreTabs = new Set<string>(SETTINGS_TABS.map(tab => tab.id));
-  // Edition extensions provide trusted native slots until their owners adopt components.
+  // The configured edition adapter owns its existing trusted HTML tab contract.
   for (const button of target.querySelectorAll<HTMLElement>('.settings-tabs-bar [role="tab"][data-settings-tab]')) {
     if (!coreTabs.has(button.dataset.settingsTab || '')) {
       button.classList.add(...SETTINGS_TAB_CLASS.split(' '));

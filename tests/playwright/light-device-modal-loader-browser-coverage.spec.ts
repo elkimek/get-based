@@ -85,7 +85,7 @@ test('Light device form modals stay cold, load independently, and single-flight'
         startDeviceSession: async payload => calls.push(['start', payload!.deviceId]),
         ensureActiveDeviceTicker: () => calls.push(['ticker']),
         validateModeCoupling: () => ({ ok: true }),
-        renderBodySilhouette: () => '<button type="button" data-region="breast-chest">Chest</button>',
+        projectBodySilhouette: (await import('/js/sun-body-silhouette.js')).projectBodySilhouette,
         bindBodySilhouette() {},
         navigate: route => calls.push(['navigate', route]),
       },

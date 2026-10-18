@@ -1,4 +1,7 @@
 <script lang="ts">
+  import ContextCatalogIcon from './ContextCatalogIcon.svelte';
+  import ContextFoodContaminantsBadge from './ContextFoodContaminantsBadge.svelte';
+  import ContextNutritionLink from './ContextNutritionLink.svelte';
   import ContextCardStatus from './ContextCardStatus.svelte';
   import ContextNotes from './ContextNotes.svelte';
   import type { ContextCatalogView } from '../context-card-catalog-presentation.js';
@@ -29,7 +32,7 @@
       <article class="context-card {card.filled ? 'context-card-added' : 'context-card-empty gb:context-catalog:border-dashed'} {CONTEXT_CARD}" data-context-card-key={card.key}>
         <button type="button" class="context-card-open {CONTEXT_OPEN}" aria-label={`${card.filled ? 'Edit' : 'Add'} ${card.label}`} data-context-card-action="open-editor" data-context-card-editor={card.editor}></button>
         <div class="context-card-header gb:context-catalog:flex gb:context-catalog:items-center gb:context-catalog:gap-2 gb:context-catalog:mb-2 gb:context-catalog:shrink-0 gb:context-catalog:min-w-0">
-          <span class="context-card-icon gb:context-catalog:inline-flex gb:context-catalog:items-center gb:context-catalog:justify-center gb:context-catalog:flex-[0_0_18px] gb:context-catalog:size-[18px] gb:context-catalog:text-muted gb:context-catalog:transition-colors gb:context-catalog:duration-150 gb:context-catalog:[&_svg]:block gb:context-catalog:[&_svg]:size-[18px] gb:context-catalog:[&_svg]:stroke-current gb:context-catalog:[.context-card:hover_&]:text-accent gb:context-catalog:[.context-card:has(.context-card-open:focus-visible)_&]:text-accent" aria-hidden="true">{@html card.icon}</span>
+          <span class="context-card-icon gb:context-catalog:inline-flex gb:context-catalog:items-center gb:context-catalog:justify-center gb:context-catalog:flex-[0_0_18px] gb:context-catalog:size-[18px] gb:context-catalog:text-muted gb:context-catalog:transition-colors gb:context-catalog:duration-150 gb:context-catalog:[&_svg]:block gb:context-catalog:[&_svg]:size-[18px] gb:context-catalog:[&_svg]:stroke-current gb:context-catalog:[.context-card:hover_&]:text-accent gb:context-catalog:[.context-card:has(.context-card-open:focus-visible)_&]:text-accent" aria-hidden="true"><ContextCatalogIcon icon={card.icon}/></span>
           <span class="context-card-title gb:context-catalog:min-w-0 gb:context-catalog:flex-1 gb:context-catalog:inline-flex gb:context-catalog:items-center gb:context-catalog:gap-[7px]">
             <span class="context-card-label gb:context-catalog:min-w-0 gb:context-catalog:font-bold gb:context-catalog:text-ink gb:context-catalog:leading-[1.3] {card.key === 'loveLife' ? 'gb:context-catalog:text-[13px] gb:context-catalog:tracking-[-0.01em] gb:context-catalog:whitespace-nowrap' : 'gb:context-catalog:text-sm'}">{card.label}</span>
             <span data-context-status-host data-context-status-slot="indicator" data-context-status-key={card.key} data-context-status-label={card.label} data-context-status-render={view.renderId} data-context-status-ticket={view.statusTicket} class="gb:context-catalog:contents"><svelte:boundary><ContextCardStatus slot="indicator" cardKey={card.key} renderId={view.renderId} ticket={view.statusTicket || ''} localSummary={card.summary} cardLabel={card.label} /></svelte:boundary></span>
@@ -40,7 +43,7 @@
         {#if card.summary}<div data-context-status-host data-context-status-slot="summary" data-context-status-key={card.key} data-context-status-label={card.label} data-context-status-render={view.renderId} data-context-status-ticket={view.statusTicket} data-context-local-summary={card.summary} class="gb:context-catalog:contents"><svelte:boundary><ContextCardStatus slot="summary" cardKey={card.key} renderId={view.renderId} ticket={view.statusTicket || ''} localSummary={card.summary} cardLabel={card.label} /></svelte:boundary></div>
         {:else}<div class="context-card-placeholder gb:context-catalog:text-[13px] gb:context-catalog:text-secondary gb:context-catalog:leading-[1.5]">{card.placeholder}</div>{/if}
         <div class="context-card-explanation gb:context-catalog:relative gb:context-catalog:z-[2] gb:context-catalog:mt-2.5 gb:context-catalog:pt-2.5 gb:context-catalog:border-t gb:context-catalog:border-line gb:context-catalog:text-secondary gb:context-catalog:text-[12px] gb:context-catalog:leading-[1.5] gb:context-catalog:[&[hidden]]:hidden" id={explanationId} hidden>{card.tooltip}</div>
-        {@html card.extensions}
+        {#if card.contaminants !== null}<ContextFoodContaminantsBadge count={card.contaminants}/>{/if}{#if card.nutrition !== null}<ContextNutritionLink view={card.nutrition}/>{/if}
         <div data-context-status-host data-context-status-slot="insight" data-context-status-key={card.key} data-context-status-label={card.label} data-context-status-render={view.renderId} data-context-status-ticket={view.statusTicket} class="gb:context-catalog:contents"><svelte:boundary><ContextCardStatus slot="insight" cardKey={card.key} renderId={view.renderId} ticket={view.statusTicket || ''} localSummary={card.summary} cardLabel={card.label} /></svelte:boundary></div>
       </article>
     {/each}

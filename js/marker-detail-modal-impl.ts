@@ -1,15 +1,18 @@
+import {renderMarkerDetailModal} from './marker-detail-modal-presentation.js';
+import {captureMarkerDetailText,projectMarkerDetailAction} from './marker-detail-projection.js';
+import type {MarkerDetailRangeView,MarkerDetailHistoryView,MarkerDetailChromeView,MarkerDetailBioAgeView,MarkerDetailNotesView,RangeEditControl,AlternateRange,ChromeAlternateUnit,HistoryRow,HistoryPaging,HistoryTrend,BioAgeResult} from './marker-detail-view.js';
 import type { MarkerModalOptions, MarkerModalCalls, MarkerModalData, MarkerModalRange, MarkerModalPoint, BioInputStatus } from '../types/marker-detail-modal-impl.js';
 // marker-detail-modal-impl.js — Marker detail, manual entry, custom marker, and range modal flows
 
 import { state } from './state.js';
-import { bindDetailModalSyncRefresh, escapeHTML, escapeAttr, getStatus, formatValue, safeMarkerId } from './utils.js';
+import { bindDetailModalSyncRefresh, getStatus, formatValue, safeMarkerId } from './utils.js';
 import { getActiveData } from './data.js';
 import { getEffectiveRange, getEffectiveRangeForDate, getEffectiveRangeLabelForDate } from './marker-analysis.js';
 import { createLineChart, getMarkerDescription } from './charts.js';
 import { closeSuggestionsOnClickOutside } from './context-cards.js';
 import { hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { getMarkerStorageDotKey, resolveActiveMarkerPath } from './marker-placement.js';
-import { installMarkerDetailActionDelegates, markerDetailActionAttrs } from './marker-detail-actions.js';
+import { installMarkerDetailActionDelegates } from './marker-detail-actions.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { rememberModalTrigger, restoreModalTrigger } from './modal-trigger-memory.js';
 import { markerRangeSuggestionIssueUrl } from './marker-range-suggestions.js';
@@ -33,7 +36,7 @@ import {
   pickNewCatIcon,
   saveCustomMarker,
 } from './marker-detail-custom-markers.js';
-import { configureMarkerDetailPlacement, openMarkerPlacementModal, renderMarkerPlacementSummary, restoreMarkerPlacement, saveMarkerPlacement } from './marker-detail-placement.js';
+import { configureMarkerDetailPlacement, openMarkerPlacementModal, projectMarkerPlacementSummary, restoreMarkerPlacement, saveMarkerPlacement } from './marker-detail-placement.js';
 import {
   askAIAboutMarkerRuntime,
   buildMarkerDetailSidebarRuntime,
@@ -128,6 +131,7 @@ if (typeof document !== 'undefined') {
     closeModal,
     toggleDashboardQuickMarkerPin: (...args: Parameters<MarkerModalCalls['toggleDashboardQuickMarkerPin']>) => markerDetailDeps.toggleDashboardQuickMarkerPin(...args),
     editRefRange,
+    saveRefRange,
     revertRefRange,
     renameMarker: (...args: Parameters<MarkerModalCalls['renameMarker']>) => markerDetailDeps.renameMarker(...args),
     revertMarkerName: (...args: Parameters<MarkerModalCalls['revertMarkerName']>) => markerDetailDeps.revertMarkerName(...args),
@@ -291,10 +295,10 @@ function renderDetailModal(id: string, opts: MarkerModalOptions = {}) {
     const effMax = numericOrNull(latestRange.max);
     const optMin = numericOrNull(optimalRange.min);
     const optMax = numericOrNull(optimalRange.max);
-    if (effMin == null || effMax == null || latestValue == null || Number(effMax) === Number(effMin)) return '';
+    if (effMin == null || effMax == null || latestValue == null || Number(effMax) === Number(effMin)) return null;
     const baseMin = refMin ?? effMin;
     const baseMax = refMax ?? effMax;
-    if (baseMin == null || baseMax == null || Number(baseMax) === Number(baseMin)) return '';
+    if (baseMin == null || baseMax == null || Number(baseMax) === Number(baseMin)) return null;
     const useDatedBand = (hasLatestPhaseRange || !!latestContextRange) && effMin != null && effMax != null;
     const useOptimalBand = !useDatedBand && state.rangeMode !== 'reference' && optMin != null && optMax != null;
     const goodMin = useDatedBand ? Math.min(effMin, effMax) : useOptimalBand ? Math.min(optMin, optMax) : Math.min(baseMin, baseMax);
@@ -312,12 +316,12 @@ function renderDetailModal(id: string, opts: MarkerModalOptions = {}) {
       min = Math.min(min, value);
       max = Math.max(max, value);
     }
-    if (max === min) return '';
+    if (max === min) return null;
     let span = max - min;
     if (latestValue <= min) min -= span * 0.08;
     if (latestValue >= max) max += span * 0.08;
     span = max - min;
-    if (span <= 0) return '';
+    if (span <= 0) return null;
     const dot = clampPct(((latestValue - min) / span) * 100);
     const optStart = clampPct(((goodMin - min) / span) * 100);
     const optEnd = clampPct(((goodMax - min) / span) * 100);
@@ -326,19 +330,16 @@ function renderDetailModal(id: string, opts: MarkerModalOptions = {}) {
     const optWidth = optLeft != null && optRight != null ? Math.max(0, optRight - optLeft) : 0;
     const lowZoneWidth = optLeft != null ? Math.max(0, optLeft) : 0;
     const highZoneWidth = optRight != null ? Math.max(0, 100 - optRight) : 0;
-    return `<div class="gb-range-band" aria-label="Range position">
-      <div class="gb-range-band-track">
-        ${lowZoneWidth ? `<div class="gb-range-band-zone gb-range-band-zone-low" style="left:0%;width:${lowZoneWidth}%"></div>` : ''}
-        ${highZoneWidth ? `<div class="gb-range-band-zone gb-range-band-zone-high" style="left:${optRight}%;width:${highZoneWidth}%"></div>` : ''}
-        ${optWidth ? `<div class="gb-range-band-opt" style="left:${optLeft}%;width:${optWidth}%"></div>` : ''}
-      </div>
-      <div class="gb-range-band-dot gb-range-band-dot-${escapeAttr(latestStatus)}" style="left:${dot}%"></div>
-      <div class="gb-range-band-scale"><span>${escapeHTML(formatValue(min))}</span><span>${escapeHTML(formatValue(max))}</span></div>
-    </div>`;
+    return ({ kind: "band", lowZone: lowZoneWidth ? ({ kind: "low-zone", width: `${lowZoneWidth}` } satisfies MarkerDetailRangeView) : null,
+      highZone: highZoneWidth ? ({ kind: "high-zone", left: `${optRight}`, width: `${highZoneWidth}` } satisfies MarkerDetailRangeView) : null,
+      optimalZone: optWidth ? ({ kind: "optimal-zone", left: `${optLeft}`, width: `${optWidth}` } satisfies MarkerDetailRangeView) : null,
+      status: `${captureMarkerDetailText(latestStatus)}`, position: `${dot}`, minimum: `${captureMarkerDetailText(formatValue(min))}`,
+      maximum: `${captureMarkerDetailText(formatValue(max))}`,
+    } satisfies MarkerDetailRangeView);
   })();
   const dotKey = (getMarkerStorageDotKey as (marker:unknown,id:string)=>string|null)(marker, id);
   if (!dotKey) return false;
-  let rangeInfo = '';
+  let rangeInfo: RangeEditControl[] = [];
   const overrides = state.importedData?.refOverrides?.[dotKey] || {};
   const refEditable = (label: string, min: unknown, max: unknown, type: string) => {
     const isEdited = type === 'optimal' ? ('optimalMin' in overrides || 'optimalMax' in overrides) : ('refMin' in overrides || 'refMax' in overrides);
@@ -346,44 +347,49 @@ function renderDetailModal(id: string, opts: MarkerModalOptions = {}) {
     const badgeLabel = source === 'manual' ? 'edited' : 'lab';
     const hasLabStash = type === 'optimal' ? 'labOptimalMin' in overrides : 'labRefMin' in overrides;
     const badgeTitle = source === 'manual' ? (hasLabStash ? 'Manually edited — click to revert to lab range' : 'Manually edited — click to revert to default') : 'Custom range from your lab — click to revert to default';
-    const editedBadge = isEdited ? ` <span class="ref-edited-badge" role="button" tabindex="0" aria-label="${badgeTitle}" title="${badgeTitle}" ${markerDetailActionAttrs('revert-ref-range', { id, type })}>${badgeLabel} \u00d7</span>` : '';
+    const editedBadge = isEdited ? ({ kind: "edited-badge", label: `${badgeTitle}`, title: `${badgeTitle}`,
+      actions: projectMarkerDetailAction('revert-ref-range', { id, type }), text: `${badgeLabel}`,
+    } satisfies MarkerDetailRangeView) : null;
     const currentRange = `${min != null ? min : '–'} to ${max != null ? max : '–'}`;
-    return ` &middot; <button type="button" class="ref-editable${type === 'optimal' ? ' ref-editable-optimal' : ''}" aria-label="Edit ${label} range, currently ${escapeAttr(currentRange)}" ${markerDetailActionAttrs('edit-ref-range', { id, type })}>Edit ${label.toLowerCase()}</button>${editedBadge}`;
+    return ({ kind: "edit-control", optimalClass: `${type === 'optimal' ? ' ref-editable-optimal' : ''}`, label: `${label}`,
+      currentRange: `${captureMarkerDetailText(currentRange)}`, actions: projectMarkerDetailAction('edit-ref-range', { id, type }),
+      lowerLabel: `${label.toLowerCase()}`, badge: editedBadge,
+    } satisfies MarkerDetailRangeView);
   };
   const isCustom = !!state.importedData?.customMarkers?.[dotKey];
   const hasRef = hasReferenceRange || marker.refMin != null || marker.refMax != null;
   const hasOpt = hasOptimalRange;
   const referenceControlLabel = marker.rangePolicy === 'target' && !marker.referenceRangeSource ? 'Target' : 'Reference';
   if (state.rangeMode === 'both') {
-    if (hasRef) rangeInfo += refEditable(referenceControlLabel, referenceRange.min, referenceRange.max, 'ref');
-    else if (isCustom) rangeInfo += refEditable('Reference', '–', '–', 'ref');
-    if (hasOpt) rangeInfo += refEditable('Optimal', optimalRange.min, optimalRange.max, 'optimal');
-    else if (isCustom) rangeInfo += refEditable('Optimal', '–', '–', 'optimal');
+    if (hasRef) rangeInfo.push(refEditable(referenceControlLabel, referenceRange.min, referenceRange.max, 'ref'));
+    else if (isCustom) rangeInfo.push(refEditable('Reference', '–', '–', 'ref'));
+    if (hasOpt) rangeInfo.push(refEditable('Optimal', optimalRange.min, optimalRange.max, 'optimal'));
+    else if (isCustom) rangeInfo.push(refEditable('Optimal', '–', '–', 'optimal'));
   } else if (state.rangeMode === 'optimal') {
-    if (hasOpt) rangeInfo = refEditable('Optimal', optimalRange.min, optimalRange.max, 'optimal');
-    else if (isCustom) rangeInfo = refEditable('Optimal', '–', '–', 'optimal');
+    if (hasOpt) rangeInfo = [refEditable('Optimal', optimalRange.min, optimalRange.max, 'optimal')];
+    else if (isCustom) rangeInfo = [refEditable('Optimal', '–', '–', 'optimal')];
   } else if (hasRef) {
-    rangeInfo = refEditable(referenceControlLabel, referenceRange.min, referenceRange.max, 'ref');
+    rangeInfo = [refEditable(referenceControlLabel, referenceRange.min, referenceRange.max, 'ref')];
   } else if (isCustom) {
-    rangeInfo = refEditable('Reference', '–', '–', 'ref');
+    rangeInfo = [refEditable('Reference', '–', '–', 'ref')];
   }
-  const rangeCardControls = rangeInfo ? rangeInfo.replace(/^ &middot; /, '') : '';
+  const rangeCardControls = rangeInfo.map((control,index)=>({...control,leadingSeparator:index!==0}));
   const hasPersonalRange = ['refMin', 'refMax', 'optimalMin', 'optimalMax']
     .some(field => Object.prototype.hasOwnProperty.call(overrides, field));
   const rangeSuggestionUrl = isCustom || hasPersonalRange ? null : markerRangeSuggestionIssueUrl(dotKey, state.unitSystem);
   const rangeSuggestionLink = rangeSuggestionUrl
-    ? `<a class="marker-range-suggest" href="${escapeAttr(rangeSuggestionUrl)}" target="_blank" rel="noopener noreferrer" title="Open a public, pre-filled GitHub issue without including your health data">Suggest a better range <span aria-hidden="true">↗</span></a>`
-    : '';
+    ? ({ kind: "suggestion", href: `${captureMarkerDetailText(rangeSuggestionUrl)}` } satisfies MarkerDetailRangeView)
+    : null;
   const isRenamed = !!state.importedData?.markerLabels?.[dotKey];
   const renameLink = isRenamed
-    ? ` <span class="ref-edited-badge" role="button" tabindex="0" aria-label="Revert renamed marker to original" title="Renamed — click to revert to original" ${markerDetailActionAttrs('revert-marker-name', { id })} style="cursor:pointer">renamed ×</span> <span class="ref-edited-badge" role="button" tabindex="0" aria-label="Rename marker" title="Rename marker" ${markerDetailActionAttrs('rename-marker', { id })} style="cursor:pointer;font-size:12px">rename</span>`
-    : ` <span class="ref-edited-badge" role="button" tabindex="0" aria-label="Rename marker" title="Rename marker" ${markerDetailActionAttrs('rename-marker', { id })} style="cursor:pointer;font-size:12px">rename</span>`;
+    ? ({kind: "renamed", revertActions: projectMarkerDetailAction('revert-marker-name', { id }), renameActions: projectMarkerDetailAction('rename-marker', { id })} satisfies MarkerDetailChromeView)
+    : ({kind: "rename", actions: projectMarkerDetailAction('rename-marker', { id })} satisfies MarkerDetailChromeView);
   // Dual-unit summary: mirror values and ranges in the most useful alternate
   // unit for the active International, ANZ, or US profile.
   const probe = marker.refMax ?? marker.refMin ?? 1;
   const altProbe = (getAlternateUnitForProfile as (key:string,value:unknown,profile:unknown)=>ReturnType<typeof getAlternateUnitForProfile>)(dotKey, probe, state.unitSystem);
   const hasConv = !!altProbe;
-  let altUnitInfo = '';
+  let altUnitInfo: ChromeAlternateUnit|null = null;
   if (hasConv && state.showAltUnits) {
     if (altProbe) {
       const altUnit = altProbe.unit;
@@ -394,55 +400,41 @@ function renderDetailModal(id: string, opts: MarkerModalOptions = {}) {
         const dispB = b != null ? formatValue(b) : '–';
         return `${dispA} – ${dispB}`;
       };
-      let altRanges = '';
+      let altRanges: AlternateRange[] = [];
       if (state.rangeMode === 'both') {
-        if (hasRef) altRanges += ` &middot; Reference: ${altRange(marker.refMin, marker.refMax)}`;
-        if (hasOpt) altRanges += ` &middot; <span style="color:var(--green)">Optimal: ${altRange(optimalRange.min, optimalRange.max)}</span>`;
+        if (hasRef) altRanges.push({label:'Reference',range:altRange(marker.refMin, marker.refMax),optimal:false});
+        if (hasOpt) altRanges.push({label:'Optimal',range:altRange(optimalRange.min, optimalRange.max),optimal:true});
       } else if (state.rangeMode === 'optimal' && hasOpt) {
-        altRanges = ` &middot; Optimal: ${altRange(optimalRange.min, optimalRange.max)}`;
+        altRanges = [{label:'Optimal',range:altRange(optimalRange.min, optimalRange.max),optimal:false}];
       } else if (hasRef) {
-        altRanges = ` &middot; Reference: ${altRange(marker.refMin, marker.refMax)}`;
+        altRanges = [{label:'Reference',range:altRange(marker.refMin, marker.refMax),optimal:false}];
       }
-      altUnitInfo = `<div class="modal-unit modal-unit-alt" title="Same marker, alternate unit system">≈ ${escapeHTML(altUnit)}${altRanges}</div>`;
+      altUnitInfo = ({kind: "alternate-unit", unit: `${captureMarkerDetailText(altUnit)}`, ranges: altRanges} satisfies MarkerDetailChromeView);
     }
   }
   const quickMarkerPinned = markerDetailDeps.isDashboardQuickMarkerPinned(id);
   const quickMarkerPinText = quickMarkerPinned ? 'Pinned' : 'Pin';
   const quickMarkerPinTitle = quickMarkerPinned ? 'Remove from Quick Markers' : 'Pin to Quick Markers';
-  let html = `<div class="gb-detail-head">
-      <div>
-        ${renderMarkerPlacementSummary(id, marker, data.categories)}
-        <h3>${escapeHTML(marker.name)}${renameLink}</h3>
-        <div class="modal-unit">${escapeHTML(marker.unit)}</div>
-        ${altUnitInfo}
-      </div>
-      <div class="gb-detail-head-actions">
-        <button type="button" class="gb-detail-pin-btn${quickMarkerPinned ? ' is-pinned' : ''}" aria-pressed="${quickMarkerPinned ? 'true' : 'false'}" title="${escapeAttr(quickMarkerPinTitle)}" ${markerDetailActionAttrs('quick-pin', { id })}>${escapeHTML(quickMarkerPinText)}</button>
-        <span class="gb-detail-status gb-detail-status-${escapeAttr(latestStatus)}">${escapeHTML(statusText)}</span>
-      </div>
-      <button type="button" class="modal-close" aria-label="Close" ${markerDetailActionAttrs('close-modal')}>&times;</button>
-    </div>
-    <div class="marker-description" id="marker-desc"></div>
-    <div class="gb-detail-summary">
-      <div class="stat-card">
-        <div class="stat-card-label">Latest</div>
-        <div class="stat-card-value val-${escapeAttr(latestStatus)}">${escapeHTML(latestDisplay)}${latestUnit ? ` <span>${escapeHTML(latestUnit)}</span>` : ''}</div>
-        <div class="stat-card-meta">${escapeHTML(latestDateLabel)}${deltaFromPrev != null ? ` · ${deltaFromPrev >= 0 ? '+' : ''}${deltaFromPrev.toFixed(1)}% vs prev` : ''}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-card-label">Ranges</div>
-        <div class="stat-card-value stat-card-value-range">${escapeHTML(rangeMainDisplay)} <span>${escapeHTML(rangeMainLabel)}</span></div>
-        ${rangeSecondaryDisplay
-          ? `<div class="stat-card-meta">${escapeHTML(rangeSecondaryLabel)} ${escapeHTML(rangeSecondaryDisplay)}</div>`
-          : (hasLatestPhaseRange || latestContextRange) ? `<div class="stat-card-meta">Used for the latest status</div>` : ''}
-        ${(rangeCardControls || rangeSuggestionLink) ? `<div class="stat-card-range-controls">${rangeCardControls}${rangeSuggestionLink}</div>` : ''}
-      </div>
-    </div>
-    ${rangeBandHtml}
-    <div class="gb-detail-section-label">Trend</div>
-    <div class="modal-chart"><canvas id="chart-modal"></canvas></div>
-    <div class="gb-detail-section-label">History <span>All time</span></div>
-    <div class="modal-values-grid marker-history-list">`;
+  const header = ({
+  kind: "header", placement: projectMarkerPlacementSummary(id, marker, data.categories),
+  name: `${captureMarkerDetailText(marker.name)}`, rename: renameLink, unit: `${captureMarkerDetailText(marker.unit)}`,
+  alternate: altUnitInfo, pinClass: `${quickMarkerPinned ? ' is-pinned' : ''}`,
+  pinPressed: `${quickMarkerPinned ? 'true' : 'false'}`, pinTitle: `${captureMarkerDetailText(quickMarkerPinTitle)}`,
+  pinActions: projectMarkerDetailAction('quick-pin', { id }), pinText: `${captureMarkerDetailText(quickMarkerPinText)}`,
+  statusClass: `${captureMarkerDetailText(latestStatus)}`, status: `${captureMarkerDetailText(statusText)}`,
+  closeActions: projectMarkerDetailAction('close-modal'), latestStatus: `${captureMarkerDetailText(latestStatus)}`,
+  latest: `${captureMarkerDetailText(latestDisplay)}`,
+  latestUnit: latestUnit ? ({kind: "latest-unit", unit: `${captureMarkerDetailText(latestUnit)}`} satisfies MarkerDetailChromeView) : null,
+  latestDate: `${captureMarkerDetailText(latestDateLabel)}`,
+  latestDelta: `${deltaFromPrev != null ? ` · ${deltaFromPrev >= 0 ? '+' : ''}${deltaFromPrev.toFixed(1)}% vs prev` : ''}`,
+  range: `${captureMarkerDetailText(rangeMainDisplay)}`, rangeLabel: `${captureMarkerDetailText(rangeMainLabel)}`,
+  secondary: rangeSecondaryDisplay
+          ? ({kind: "secondary-range", label: `${captureMarkerDetailText(rangeSecondaryLabel)}`, range: `${captureMarkerDetailText(rangeSecondaryDisplay)}`} satisfies MarkerDetailChromeView)
+          : (hasLatestPhaseRange || latestContextRange) ? ({kind: "latest-range"} satisfies MarkerDetailChromeView) : null,
+  rangeControls: (rangeCardControls.length || rangeSuggestionLink) ? ({kind: "range-controls", controls: rangeCardControls, suggestion: rangeSuggestionLink} satisfies MarkerDetailChromeView) : null,
+  rangeBand: rangeBandHtml
+} satisfies MarkerDetailChromeView);
+  const historyRows: HistoryRow[] = [];
   for (const point of visibleHistoryPoints) {
     const { v, i } = point;
     const ri = (getEffectiveRangeForDate as (marker:unknown,index:number)=>MarkerModalRange)(marker, i);
@@ -450,41 +442,44 @@ function renderDetailModal(id: string, opts: MarkerModalOptions = {}) {
     const s = hasPointRange ? getStatus(v, ri.min, ri.max) : 'unrated';
     const sl = s==="normal"?"\u2713 In Range":s==="high"?"\u25B2 Above Range":s==="low"?"\u25BC Below Range":s === 'unrated' ? 'No range' : "Unknown";
     const phaseLabel = marker.phaseLabels && marker.phaseLabels[i];
-    const phaseInfo = phaseLabel ? `<div class="mv-phase">${phaseLabel} \u2022 ${formatValue(ri.min)}\u2013${formatValue(ri.max)}</div>` : '';
+    const phaseInfo = phaseLabel ? ({ kind: "phase", phase: `${phaseLabel}`, minimum: `${formatValue(ri.min)}`, maximum: `${formatValue(ri.max)}` } satisfies MarkerDetailHistoryView) : null;
     const rawDate = marker.singlePoint ? null : data.dates[i];
     const actionDate = rawDate == null ? 'null' : rawDate;
     const matchingNote = rawDate && state.importedData.notes ? state.importedData.notes.find(n => n.date === rawDate) : null;
-    const noteIcon = matchingNote ? `<button type="button" class="mv-note" ${markerDetailActionAttrs('toggle-history-note')}>Note</button><div class="mv-note-text">${escapeHTML(matchingNote.text)}</div>` : '';
+    const noteIcon = matchingNote ? ({ kind: "date-note", actions: projectMarkerDetailAction('toggle-history-note'), text: `${captureMarkerDetailText(matchingNote.text)}` } satisfies MarkerDetailHistoryView) : null;
     const mvKey = dotKey + ':' + (rawDate as string);
     const srcEntry = rawDate ? state.importedData.entries?.find(e => e.date === rawDate) : null;
     const src = srcEntry?.markerSources?.[dotKey];
-    const { collectionContextHtml, sourceHtml } = buildMarkerHistoryMetadata(srcEntry, src, rawDate);
+    const { collection: collectionContextHtml, sources: sourceHtml } = buildMarkerHistoryMetadata(srcEntry, src, rawDate);
     const manualVal = rawDate ? getManualValueForMarker(dotKey, rawDate) : undefined;
     const isManualSource = !!(src && src.file == null && !src.snapshotId);
     const isManual = isManualSource || (manualVal !== undefined && manualVal !== null);
     const canRevert = manualVal !== undefined && manualVal !== null && manualVal !== true;
     const manualBadge = canRevert
-      ? ` <span class="ref-edited-badge" role="button" tabindex="0" aria-label="Revert manual value to imported value" title="Manual — click to revert to imported value" ${markerDetailActionAttrs('revert-marker-value', { id, date: actionDate })}>manual \u00d7</span>`
-      : isManual ? ' <span class="ref-edited-badge" title="Manually entered">manual</span>' : '';
-    const deleteBtn = `<button class="mv-delete" ${markerDetailActionAttrs('delete-marker-value', { id, date: actionDate })} title="Remove this value">&times;</button>`;
-    const editAction = rawDate ? ` ${markerDetailActionAttrs('edit-marker-value', { id, date: actionDate, value: v })} role="button" tabindex="0" title="Click to edit" style="cursor:pointer"` : '';
+      ? ({ kind: "manual-revert", actions: projectMarkerDetailAction('revert-marker-value', { id, date: actionDate }) } satisfies MarkerDetailHistoryView)
+      : isManual ? ({ kind: "manual-badge" } satisfies MarkerDetailHistoryView) : null;
+    const deleteBtn = ({ kind: "delete-value", actions: projectMarkerDetailAction('delete-marker-value', { id, date: actionDate }) } satisfies MarkerDetailHistoryView);
+    const editAction = rawDate ? projectMarkerDetailAction('edit-marker-value', { id, date: actionDate, value: v }) : null;
     // Per-value note (markerValueNotes keyed `dotKey:date`).
     const valueNote = rawDate ? state.importedData.markerValueNotes?.[mvKey] : null;
     const valueNoteHtml = rawDate
       ? (valueNote
-          ? `<div class="mv-value-note has-note"><span class="mv-value-note-text" role="button" tabindex="0" title="Click to edit note" ${markerDetailActionAttrs('edit-value-note', { id, date: actionDate })}>${escapeHTML(valueNote)}</span> <button class="mv-value-note-delete" title="Remove note" ${markerDetailActionAttrs('delete-value-note', { id, date: actionDate })}>&times;</button></div>`
-          : `<div class="mv-value-note add-note" role="button" tabindex="0" title="Add a note for this value" ${markerDetailActionAttrs('edit-value-note', { id, date: actionDate })}>+ note</div>`)
-      : '';
+          ? ({ kind: "value-note", editActions: projectMarkerDetailAction('edit-value-note', { id, date: actionDate }),
+            text: `${captureMarkerDetailText(valueNote)}`, deleteActions: projectMarkerDetailAction('delete-value-note', { id, date: actionDate }),
+          } satisfies MarkerDetailHistoryView)
+          : ({ kind: "add-note", actions: projectMarkerDetailAction('edit-value-note', { id, date: actionDate }) } satisfies MarkerDetailHistoryView))
+      : null;
     const altVal = (hasConv && state.showAltUnits)
       ? getAlternateUnitForProfile(dotKey, v, state.unitSystem)
       : null;
-    const altLine = altVal ? `<div class="mv-alt" title="Same value, alternate unit">≈ ${formatValue(altVal.value)} ${escapeHTML(altVal.unit)}</div>` : '';
-    html += `<div class="modal-value-card marker-history-row status-${s}">${deleteBtn}
-      <div class="marker-history-date-row"><div class="mv-date">${dates[i]}${noteIcon}</div>${sourceHtml}</div>
-      <div class="marker-history-value-row"><div class="mv-value val-${s}"${editAction}>${formatValue(v)}${manualBadge}</div><div class="mv-status val-${s}">${sl}</div></div>
-      ${altLine}${phaseInfo}${collectionContextHtml}${valueNoteHtml}</div>`;
+    const altLine = altVal ? ({ kind: "alternate-value", value: `${formatValue(altVal.value)}`, unit: `${captureMarkerDetailText(altVal.unit)}` } satisfies MarkerDetailHistoryView) : null;
+    historyRows.push({ kind: "row", status: `${s}`, deleteButton: deleteBtn, date: `${dates[i]}`, dateNote: noteIcon, source: sourceHtml,
+      valueStatus: `${s}`, editAttributes: editAction, value: `${formatValue(v)}`, manualBadge: manualBadge, badgeStatus: `${s}`,
+      statusLabel: `${sl}`, alternate: altLine, phase: phaseInfo, collection: collectionContextHtml,
+      valueNote: valueNoteHtml,
+    } satisfies MarkerDetailHistoryView);
   }
-  html += `</div>`;
+  let paging: HistoryPaging|null = null;
   if (hiddenHistoryCount > 0) {
     const nextHistoryLimit = showAllHistory
       ? Math.min(modalPoints.length, expandedHistoryLimit + MARKER_HISTORY_EXPANDED_CAP)
@@ -495,17 +490,26 @@ function renderDetailModal(id: string, opts: MarkerModalOptions = {}) {
     const historyButtonLabel = showAllHistory
       ? `Show ${showCount} older ${showCount === 1 ? 'value' : 'values'}`
       : `View more history (${modalPoints.length} values)`;
-    html += `<button class="marker-history-show-more" ${markerDetailActionAttrs('show-detail-modal', { id, showAllHistory: true, historyLimit: nextHistoryLimit, scrollToHistory: true })}>${historyButtonLabel}</button>`;
+    paging = ({ kind: "more",
+      actions: projectMarkerDetailAction('show-detail-modal', { id, showAllHistory: true, historyLimit: nextHistoryLimit, scrollToHistory: true }),
+      label: `${historyButtonLabel}`,
+    } satisfies MarkerDetailHistoryView);
   } else if (showAllHistory && modalPoints.length > MARKER_HISTORY_DEFAULT_CAP) {
-    html += `<button class="marker-history-show-more" ${markerDetailActionAttrs('show-detail-modal', { id, scrollToHistory: true })}>Show last ${MARKER_HISTORY_DEFAULT_CAP} values</button>`;
+    paging = ({ kind: "last-values", actions: projectMarkerDetailAction('show-detail-modal', { id, scrollToHistory: true }),
+      count: `${MARKER_HISTORY_DEFAULT_CAP}`,
+    } satisfies MarkerDetailHistoryView);
   }
+  let trend: HistoryTrend|null = null;
   const nonNull = modalPoints;
   if (nonNull.length >= 2) {
     const f = nonNull[0]!, l = nonNull[nonNull.length-1]!;
     const ch = l.v - f.v, pct = ((ch/f.v)*100).toFixed(1);
     const dir = ch > 0 ? "increased" : ch < 0 ? "decreased" : "unchanged";
-    html += `<div class="modal-ref-info"><strong>Trend:</strong> ${dir} by ${Math.abs(ch).toFixed(2)} ${escapeHTML(marker.unit)} (${ch>0?"+":""}${pct}%) from ${dates[f.i]} to ${dates[l.i]}</div>`;
+    trend = ({ kind: "trend", direction: `${dir}`, change: `${Math.abs(ch).toFixed(2)}`, unit: `${captureMarkerDetailText(marker.unit)}`, sign: `${ch>0?"+":""}`,
+      percentage: `${pct}`, firstDate: `${dates[f.i]}`, lastDate: `${dates[l.i]}`,
+    } satisfies MarkerDetailHistoryView);
   }
+  let bio: BioAgeResult|null = null;
   const calcInputs: Record<string, import('./marker-detail-content.js').BioAgeInput[]> = {
     'calculatedRatios_phenoAge': BIO_AGE_PHENO_INPUTS,
     'calculatedRatios_bortzAge': BIO_AGE_BORTZ_INPUTS,
@@ -630,74 +634,65 @@ function renderDetailModal(id: string, opts: MarkerModalOptions = {}) {
         const title = s.kind === 'profile'
           ? (s.present ? 'Set in profile' : 'Required in profile')
           : (s.present ? 'In this panel' : 'Missing from this panel');
-        return `<span class="bio-age-input ${s.present ? 'is-present' : 'is-missing'}" title="${escapeAttr(title)}">${s.present ? '✓' : '⚠'} ${escapeHTML(s.label)}</span>`;
-      }).join('');
+        return ({
+  kind: "input", state: `${s.present ? 'is-present' : 'is-missing'}`, title: `${captureMarkerDetailText(title)}`,
+  glyph: `${s.present ? '✓' : '⚠'}`, label: `${captureMarkerDetailText(s.label)}`
+} satisfies MarkerDetailBioAgeView);
+      }).filter(()=>true);
       const componentRow = (name: unknown, value: number | null | undefined, status: BioInputStatus[]) => {
         const missing = status.filter(s => !s.present);
-        let header;
+        let componentHeader;
         if (value != null) {
-          const delta = usableAge != null ? ` <span class="bio-age-delta">(${value - usableAge > 0 ? '+' : ''}${(value - usableAge).toFixed(1)}y)</span>` : '';
-          header = `<span class="bio-age-glyph">✓</span> <strong>${escapeHTML(name)}:</strong> ${formatValue(value)}${delta}`;
+          const delta = usableAge != null ? ({kind: "delta", sign: `${value - usableAge > 0 ? '+' : ''}`, years: `${(value - usableAge).toFixed(1)}`} satisfies MarkerDetailBioAgeView) : null;
+          componentHeader = ({kind: "present-heading", name: `${captureMarkerDetailText(name)}`, value: `${formatValue(value)}`, delta: delta} satisfies MarkerDetailBioAgeView);
         } else {
           const noun = missing.length === 1 ? 'input' : 'inputs';
-          header = `<span class="bio-age-glyph">⚠</span> <strong>${escapeHTML(name)}:</strong> missing ${missing.length} of ${status.length} ${noun}`;
+          componentHeader = ({kind: "missing-heading", name: `${captureMarkerDetailText(name)}`, missing: `${missing.length}`, total: `${status.length}`, noun: `${noun}`} satisfies MarkerDetailBioAgeView);
         }
         const klass = value != null ? 'bio-age-component-ok' : 'bio-age-component-missing';
-        return `<div class="bio-age-component ${klass}">
-          <div class="bio-age-component-header">${header}</div>
-          <div class="bio-age-input-grid">${renderInputGrid(status)}</div>
-        </div>`;
+        return ({kind: "component", state: `${klass}`, heading: componentHeader, inputs: renderInputGrid(status)} satisfies MarkerDetailBioAgeView);
       };
       const dateNote = refDateLabel
-        ? `<div class="bio-age-breakdown-sub">Based on your panel from ${escapeHTML(refDateLabel)}</div>`
-        : '';
+        ? ({kind: "panel-date", date: `${captureMarkerDetailText(refDateLabel)}`} satisfies MarkerDetailBioAgeView)
+        : null;
       const breakdownIssues = profileIssue ? [...issues, profileIssue] : issues;
       const issueNote = breakdownIssues.length > 0
-        ? `<div class="bio-age-breakdown-warning">${breakdownIssues.map(escapeHTML).join('. ')}</div>`
-        : '';
-      html += `<div class="bio-age-breakdown">
-        <div class="bio-age-breakdown-head">Component breakdown</div>
-        ${dateNote}
-        ${issueNote}
-        ${componentRow('PhenoAge', pheno, phenoStatus)}
-        ${componentRow('Bortz Age', bortz, bortzStatus)}
-      </div>`;
+        ? ({kind: "warning", issues: `${breakdownIssues.map(captureMarkerDetailText).join('. ')}`} satisfies MarkerDetailBioAgeView)
+        : null;
+      bio = ({
+  kind: "breakdown", date: dateNote, warning: issueNote,
+  pheno: componentRow('PhenoAge', pheno, phenoStatus), bortz: componentRow('Bortz Age', bortz, bortzStatus)
+} satisfies MarkerDetailBioAgeView);
     } else if (issues.length > 0) {
-      html += `<div class="calc-missing-inputs">Not calculated — ${issues.join('. ')}</div>`;
+      bio = ({kind: "missing", issues: `${issues.join('. ')}`} satisfies MarkerDetailBioAgeView);
     }
   }
   // Collect inline SNPs for the unified rec section (genetics + actionable tips together)
   const _inlineSNPs = state.importedData.genetics?.snps ? getRelevantSNPsRuntime(dotKey) : [];
   const shouldRenderRecommendations = isProductRecsEnabledRuntime() && hasRecommendationSectionRendererRuntime();
-  html += `<div class="gb-detail-actions">
-    <div class="gb-detail-action-row">
-      <button class="manual-entry-btn" ${markerDetailActionAttrs('open-manual-entry', { id })}>+ Add Value Manually</button>
-      <button class="ask-ai-btn" ${markerDetailActionAttrs('ask-ai', { id })}>Ask AI</button>
-    </div>`;
+  const primaryActions = ({kind: "primary-actions", manualActions: projectMarkerDetailAction('open-manual-entry', { id }), askActions: projectMarkerDetailAction('ask-ai', { id })} satisfies MarkerDetailChromeView);
   // Marker note
   const markerNote = state.importedData.markerNotes?.[dotKey] || '';
-  html += `<div class="marker-note-section">
-    <div class="marker-note-header"><span class="marker-note-label">Note</span><button class="marker-note-edit-btn" ${markerDetailActionAttrs('toggle-marker-note-editor', { dotKey })}>${markerNote ? 'Edit' : '+ Add note'}</button></div>
-    ${markerNote ? `<div class="marker-note-text">${escapeHTML(markerNote)}</div>` : ''}
-    <div class="marker-note-editor" id="marker-note-editor" style="display:none">
-      <textarea id="marker-note-input" placeholder="Your notes about this marker (e.g. why it's high, what to watch for, what you've learned...)" rows="3">${escapeHTML(markerNote)}</textarea>
-      <div class="marker-note-actions">
-        <button class="import-btn import-btn-primary" ${markerDetailActionAttrs('save-marker-note', { dotKey, id })}>Save</button>
-        <button class="import-btn import-btn-secondary" ${markerDetailActionAttrs('toggle-marker-note-editor', { dotKey })}>Cancel</button>
-        ${markerNote ? `<button class="import-btn import-btn-secondary" style="color:var(--red)" ${markerDetailActionAttrs('delete-marker-note', { dotKey, id })}>Delete</button>` : ''}
-	      </div>
-	    </div>
-	  </div>`;
+  const noteEditor = ({
+    kind: "editor", editActions: projectMarkerDetailAction('toggle-marker-note-editor', { dotKey }),
+    editLabel: `${markerNote ? 'Edit' : '+ Add note'}`,
+    note: markerNote ? ({kind: "text", text: `${captureMarkerDetailText(markerNote)}`} satisfies MarkerDetailNotesView) : null,
+    text: `${captureMarkerDetailText(markerNote)}`, saveActions: projectMarkerDetailAction('save-marker-note', { dotKey, id }),
+    cancelActions: projectMarkerDetailAction('toggle-marker-note-editor', { dotKey }),
+    delete: markerNote ? ({kind: "delete", actions: projectMarkerDetailAction('delete-marker-note', { dotKey, id })} satisfies MarkerDetailNotesView) : null
+  } satisfies MarkerDetailNotesView);
+  let recommendationMount: Extract<MarkerDetailChromeView,{kind:'recommendations'}>|null = null;
   // Recommendation placeholder — shown for any marker with a catalog slot
   if (shouldRenderRecommendations) {
-    html += `<div id="rec-modal-${id}"></div>`;
+    recommendationMount = ({kind: "recommendations", id: `${id}`} satisfies MarkerDetailChromeView);
   }
-  html += `</div>`;
+  const actions = ({kind: 'actions', primary: primaryActions, notes: noteEditor, recommendations: recommendationMount} satisfies MarkerDetailChromeView);
+  let deleteMarker: Extract<MarkerDetailChromeView,{kind:'delete-marker'}>|null = null;
   // Show delete link for custom markers only
   if (state.importedData?.customMarkers?.[dotKey]) {
-    html += `<div style="text-align:center;margin-top:8px"><a href="#" style="color:var(--text-muted);font-size:0.8rem" ${markerDetailActionAttrs('delete-custom-marker', { id })}>Delete this marker</a></div>`;
+    deleteMarker = ({kind: "delete-marker", actions: projectMarkerDetailAction('delete-custom-marker', { id })} satisfies MarkerDetailChromeView);
   }
-  modal.innerHTML = html;
+  modal.innerHTML = renderMarkerDetailModal({header,rows:historyRows,paging,trend,bio,actions,deleteMarker});
   openModalOverlay(overlay);
   if (opts.scrollToHistory) {
     setTimeout(() => {

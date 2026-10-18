@@ -1,3 +1,4 @@
+import type{SessionAIView}from'../js/light-session-ai-presentation.js';
 import type { SunSessionRecord } from '../js/sun-sessions-store.js';
 import type { reconstructSpectrum } from '../js/sun-spectrum.js';
 // Public leaves are unvalidated stored values. Unchecked operations are localized
@@ -36,7 +37,7 @@ export interface SessionCalls extends Record<string, unknown> {
   flipSidesMidSession(id: unknown): unknown; changeCoverageMidSession(id: unknown): unknown;
   applySunscreenMidSession(id: unknown): unknown; setOzoneOverrideMidSession(): unknown;
   forgotStopPrompt(id: unknown): unknown; openChannelOnLightPage(channel: string): unknown;
-  renderSessionAIDetail(session: SessionReader): unknown; navigate(route: string, data?: unknown): unknown;
+  getSessionAIDetailView(session: SessionReader): Readonly<SessionAIView>|null; navigate(route: string, data?: unknown): unknown;
   openLightSetup(): unknown;
   solarZenithAngle: ((date: Date, lat: unknown, lon: unknown) => number) | null;
   reconstructSpectrum: typeof reconstructSpectrum | null;

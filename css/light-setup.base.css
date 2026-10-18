@@ -1,11 +1,8 @@
-/* Owned host integration and the shared setup tier animation. */
-
-.light-page .dashboard-widget[data-widget-id="light-setup"] .dashboard-widget-body {
+@import "tailwindcss" prefix(gb) source(none) reference;
+@utility light-layout-setup-page-dashboard-widget-data-widget-id-light-setup-dashbo {
   gap: 0;
 }
-
-.light-page .dashboard-widget[data-widget-id="light-setup"] .light-setup-card,
-.light-page .dashboard-widget[data-widget-id="light-setup"] .light-setup-summary {
+@utility light-layout-setup-page-dashboard-widget-data-widget-id-light-setup-light {
   margin: 0;
   padding: 0;
   border: 0;
@@ -13,6 +10,13 @@
   background: transparent;
   box-shadow: none;
 }
+
+/* Owned host integration and the shared setup tier animation. */
+
+.light-page .dashboard-widget[data-widget-id="light-setup"] .dashboard-widget-body { @apply gb:light-layout-setup-page-dashboard-widget-data-widget-id-light-setup-dashbo; }
+
+.light-page .dashboard-widget[data-widget-id="light-setup"] .light-setup-card,
+.light-page .dashboard-widget[data-widget-id="light-setup"] .light-setup-summary { @apply gb:light-layout-setup-page-dashboard-widget-data-widget-id-light-setup-light; }
 
 @keyframes light-ott-tier-flash {
   0%   { transform: scale(1); }

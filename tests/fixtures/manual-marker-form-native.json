@@ -1,0 +1,138 @@
+[
+  {
+    "name": "default",
+    "spec": {
+      "category": "Biochemistry",
+      "name": "Glucose",
+      "unit": "mmol/L",
+      "date": "2026-10-11",
+      "today": "2026-10-11",
+      "reference": " · Reference: 4 – 6 mmol/L",
+      "placeholder": "e.g. 5.00",
+      "sampleTime": "08:15",
+      "fasting": "fasting",
+      "options": [
+        "mmol/L",
+        "mg/dL"
+      ],
+      "id": "bio_glucose"
+    },
+    "html": "<div class=\"gb-modal-head\">\n      <div>\n        <div class=\"gb-modal-kicker\">Biochemistry</div>\n        <div class=\"gb-modal-title\">Add Value Manually</div>\n      </div>\n      <button class=\"modal-close\" aria-label=\"Back to marker details\" data-marker-detail-action=\"show-detail-modal\" data-marker-detail-id=\"bio_glucose\">×</button>\n    </div>\n    <div class=\"gb-form-body\">\n    <div class=\"modal-unit\"><strong>Glucose</strong> · mmol/L · Reference: 4 – 6 mmol/L</div>\n    <div class=\"manual-entry-form\">\n      <div class=\"me-field\">\n        <label for=\"me-date\">Date</label>\n        <input type=\"date\" id=\"me-date\" value=\"2026-10-11\" max=\"2026-10-11\"/>\n      </div>\n      <div class=\"me-field\">\n        <label for=\"me-value\">Value <!--[0--><select id=\"me-unit\" class=\"me-unit-select\" aria-label=\"Input unit\">\n         <!--[--><option value=\"mmol/L\" selected=\"\">mmol/L</option><option value=\"mg/dL\">mg/dL</option><!--]-->\n       </select><!--]--></label>\n        <input type=\"number\" id=\"me-value\" step=\"any\" placeholder=\"e.g. 5.00\" autofocus=\"\"/>\n      </div>\n      <div class=\"me-context-grid\">\n        <div class=\"me-field\">\n          <label for=\"me-sample-time\">Collection time <span class=\"me-optional\">(optional)</span></label>\n          <input type=\"time\" id=\"me-sample-time\" value=\"08:15\"/>\n          <small>Use the blood draw/collection time, not the lab processing or report time.</small>\n        </div>\n        <div class=\"me-field\">\n          <label for=\"me-fasting\">Fasting status</label>\n          <select id=\"me-fasting\">\n            <option value=\"unknown\">Unknown</option>\n            <option value=\"fasting\" selected=\"\">Fasting</option>\n            <option value=\"not-fasting\">Not fasting</option>\n          </select>\n        </div>\n      </div>\n      <div class=\"me-field\">\n        <label for=\"me-note\">Note <span style=\"color:var(--text-muted);font-weight:400\">(optional)</span></label>\n        <textarea id=\"me-note\" rows=\"2\" placeholder=\"Context for this value — e.g. fasted 14h, post-workout, different lab, retake of low value...\"></textarea>\n      </div>\n      <div class=\"gb-form-actions\">\n        <button class=\"import-btn import-btn-primary\" data-marker-detail-action=\"save-manual-entry\" data-marker-detail-id=\"bio_glucose\">Save</button>\n        <button class=\"import-btn import-btn-secondary\" data-marker-detail-action=\"save-and-add-manual-entry\" data-marker-detail-id=\"bio_glucose\" title=\"Save this value, then enter another marker for the same date\">Save &amp; Add Another</button>\n        <button class=\"import-btn import-btn-secondary\" data-marker-detail-action=\"show-detail-modal\" data-marker-detail-id=\"bio_glucose\">Cancel</button>\n      </div>\n    </div>\n    </div>"
+  },
+  {
+    "name": "unknown fasting",
+    "spec": {
+      "category": "Biochemistry",
+      "name": "Glucose",
+      "unit": "mmol/L",
+      "date": "2026-10-11",
+      "today": "2026-10-11",
+      "reference": " · Reference: 4 – 6 mmol/L",
+      "placeholder": "e.g. 5.00",
+      "sampleTime": "08:15",
+      "fasting": "unknown",
+      "options": [
+        "mmol/L",
+        "mg/dL"
+      ],
+      "id": "bio_glucose"
+    },
+    "html": "<div class=\"gb-modal-head\">\n      <div>\n        <div class=\"gb-modal-kicker\">Biochemistry</div>\n        <div class=\"gb-modal-title\">Add Value Manually</div>\n      </div>\n      <button class=\"modal-close\" aria-label=\"Back to marker details\" data-marker-detail-action=\"show-detail-modal\" data-marker-detail-id=\"bio_glucose\">×</button>\n    </div>\n    <div class=\"gb-form-body\">\n    <div class=\"modal-unit\"><strong>Glucose</strong> · mmol/L · Reference: 4 – 6 mmol/L</div>\n    <div class=\"manual-entry-form\">\n      <div class=\"me-field\">\n        <label for=\"me-date\">Date</label>\n        <input type=\"date\" id=\"me-date\" value=\"2026-10-11\" max=\"2026-10-11\"/>\n      </div>\n      <div class=\"me-field\">\n        <label for=\"me-value\">Value <!--[0--><select id=\"me-unit\" class=\"me-unit-select\" aria-label=\"Input unit\">\n         <!--[--><option value=\"mmol/L\" selected=\"\">mmol/L</option><option value=\"mg/dL\">mg/dL</option><!--]-->\n       </select><!--]--></label>\n        <input type=\"number\" id=\"me-value\" step=\"any\" placeholder=\"e.g. 5.00\" autofocus=\"\"/>\n      </div>\n      <div class=\"me-context-grid\">\n        <div class=\"me-field\">\n          <label for=\"me-sample-time\">Collection time <span class=\"me-optional\">(optional)</span></label>\n          <input type=\"time\" id=\"me-sample-time\" value=\"08:15\"/>\n          <small>Use the blood draw/collection time, not the lab processing or report time.</small>\n        </div>\n        <div class=\"me-field\">\n          <label for=\"me-fasting\">Fasting status</label>\n          <select id=\"me-fasting\">\n            <option value=\"unknown\" selected=\"\">Unknown</option>\n            <option value=\"fasting\">Fasting</option>\n            <option value=\"not-fasting\">Not fasting</option>\n          </select>\n        </div>\n      </div>\n      <div class=\"me-field\">\n        <label for=\"me-note\">Note <span style=\"color:var(--text-muted);font-weight:400\">(optional)</span></label>\n        <textarea id=\"me-note\" rows=\"2\" placeholder=\"Context for this value — e.g. fasted 14h, post-workout, different lab, retake of low value...\"></textarea>\n      </div>\n      <div class=\"gb-form-actions\">\n        <button class=\"import-btn import-btn-primary\" data-marker-detail-action=\"save-manual-entry\" data-marker-detail-id=\"bio_glucose\">Save</button>\n        <button class=\"import-btn import-btn-secondary\" data-marker-detail-action=\"save-and-add-manual-entry\" data-marker-detail-id=\"bio_glucose\" title=\"Save this value, then enter another marker for the same date\">Save &amp; Add Another</button>\n        <button class=\"import-btn import-btn-secondary\" data-marker-detail-action=\"show-detail-modal\" data-marker-detail-id=\"bio_glucose\">Cancel</button>\n      </div>\n    </div>\n    </div>"
+  },
+  {
+    "name": "not fasting",
+    "spec": {
+      "category": "Biochemistry",
+      "name": "Glucose",
+      "unit": "mmol/L",
+      "date": "2026-10-11",
+      "today": "2026-10-11",
+      "reference": " · Reference: 4 – 6 mmol/L",
+      "placeholder": "e.g. 5.00",
+      "sampleTime": "08:15",
+      "fasting": "not-fasting",
+      "options": [
+        "mmol/L",
+        "mg/dL"
+      ],
+      "id": "bio_glucose"
+    },
+    "html": "<div class=\"gb-modal-head\">\n      <div>\n        <div class=\"gb-modal-kicker\">Biochemistry</div>\n        <div class=\"gb-modal-title\">Add Value Manually</div>\n      </div>\n      <button class=\"modal-close\" aria-label=\"Back to marker details\" data-marker-detail-action=\"show-detail-modal\" data-marker-detail-id=\"bio_glucose\">×</button>\n    </div>\n    <div class=\"gb-form-body\">\n    <div class=\"modal-unit\"><strong>Glucose</strong> · mmol/L · Reference: 4 – 6 mmol/L</div>\n    <div class=\"manual-entry-form\">\n      <div class=\"me-field\">\n        <label for=\"me-date\">Date</label>\n        <input type=\"date\" id=\"me-date\" value=\"2026-10-11\" max=\"2026-10-11\"/>\n      </div>\n      <div class=\"me-field\">\n        <label for=\"me-value\">Value <!--[0--><select id=\"me-unit\" class=\"me-unit-select\" aria-label=\"Input unit\">\n         <!--[--><option value=\"mmol/L\" selected=\"\">mmol/L</option><option value=\"mg/dL\">mg/dL</option><!--]-->\n       </select><!--]--></label>\n        <input type=\"number\" id=\"me-value\" step=\"any\" placeholder=\"e.g. 5.00\" autofocus=\"\"/>\n      </div>\n      <div class=\"me-context-grid\">\n        <div class=\"me-field\">\n          <label for=\"me-sample-time\">Collection time <span class=\"me-optional\">(optional)</span></label>\n          <input type=\"time\" id=\"me-sample-time\" value=\"08:15\"/>\n          <small>Use the blood draw/collection time, not the lab processing or report time.</small>\n        </div>\n        <div class=\"me-field\">\n          <label for=\"me-fasting\">Fasting status</label>\n          <select id=\"me-fasting\">\n            <option value=\"unknown\">Unknown</option>\n            <option value=\"fasting\">Fasting</option>\n            <option value=\"not-fasting\" selected=\"\">Not fasting</option>\n          </select>\n        </div>\n      </div>\n      <div class=\"me-field\">\n        <label for=\"me-note\">Note <span style=\"color:var(--text-muted);font-weight:400\">(optional)</span></label>\n        <textarea id=\"me-note\" rows=\"2\" placeholder=\"Context for this value — e.g. fasted 14h, post-workout, different lab, retake of low value...\"></textarea>\n      </div>\n      <div class=\"gb-form-actions\">\n        <button class=\"import-btn import-btn-primary\" data-marker-detail-action=\"save-manual-entry\" data-marker-detail-id=\"bio_glucose\">Save</button>\n        <button class=\"import-btn import-btn-secondary\" data-marker-detail-action=\"save-and-add-manual-entry\" data-marker-detail-id=\"bio_glucose\" title=\"Save this value, then enter another marker for the same date\">Save &amp; Add Another</button>\n        <button class=\"import-btn import-btn-secondary\" data-marker-detail-action=\"show-detail-modal\" data-marker-detail-id=\"bio_glucose\">Cancel</button>\n      </div>\n    </div>\n    </div>"
+  },
+  {
+    "name": "one unit fallback",
+    "spec": {
+      "category": "Biochemistry",
+      "name": "Glucose",
+      "unit": "mmol/L",
+      "date": "2026-10-11",
+      "today": "2026-10-11",
+      "reference": " · Reference: 4 – 6 mmol/L",
+      "placeholder": "e.g. 5.00",
+      "sampleTime": "08:15",
+      "fasting": "unknown",
+      "options": [
+        "ignored"
+      ],
+      "id": "bio_glucose"
+    },
+    "html": "<div class=\"gb-modal-head\">\n      <div>\n        <div class=\"gb-modal-kicker\">Biochemistry</div>\n        <div class=\"gb-modal-title\">Add Value Manually</div>\n      </div>\n      <button class=\"modal-close\" aria-label=\"Back to marker details\" data-marker-detail-action=\"show-detail-modal\" data-marker-detail-id=\"bio_glucose\">×</button>\n    </div>\n    <div class=\"gb-form-body\">\n    <div class=\"modal-unit\"><strong>Glucose</strong> · mmol/L · Reference: 4 – 6 mmol/L</div>\n    <div class=\"manual-entry-form\">\n      <div class=\"me-field\">\n        <label for=\"me-date\">Date</label>\n        <input type=\"date\" id=\"me-date\" value=\"2026-10-11\" max=\"2026-10-11\"/>\n      </div>\n      <div class=\"me-field\">\n        <label for=\"me-value\">Value <!--[-1--><span style=\"color:var(--text-muted);font-weight:400\">(mmol/L)</span><!--]--></label>\n        <input type=\"number\" id=\"me-value\" step=\"any\" placeholder=\"e.g. 5.00\" autofocus=\"\"/>\n      </div>\n      <div class=\"me-context-grid\">\n        <div class=\"me-field\">\n          <label for=\"me-sample-time\">Collection time <span class=\"me-optional\">(optional)</span></label>\n          <input type=\"time\" id=\"me-sample-time\" value=\"08:15\"/>\n          <small>Use the blood draw/collection time, not the lab processing or report time.</small>\n        </div>\n        <div class=\"me-field\">\n          <label for=\"me-fasting\">Fasting status</label>\n          <select id=\"me-fasting\">\n            <option value=\"unknown\" selected=\"\">Unknown</option>\n            <option value=\"fasting\">Fasting</option>\n            <option value=\"not-fasting\">Not fasting</option>\n          </select>\n        </div>\n      </div>\n      <div class=\"me-field\">\n        <label for=\"me-note\">Note <span style=\"color:var(--text-muted);font-weight:400\">(optional)</span></label>\n        <textarea id=\"me-note\" rows=\"2\" placeholder=\"Context for this value — e.g. fasted 14h, post-workout, different lab, retake of low value...\"></textarea>\n      </div>\n      <div class=\"gb-form-actions\">\n        <button class=\"import-btn import-btn-primary\" data-marker-detail-action=\"save-manual-entry\" data-marker-detail-id=\"bio_glucose\">Save</button>\n        <button class=\"import-btn import-btn-secondary\" data-marker-detail-action=\"save-and-add-manual-entry\" data-marker-detail-id=\"bio_glucose\" title=\"Save this value, then enter another marker for the same date\">Save &amp; Add Another</button>\n        <button class=\"import-btn import-btn-secondary\" data-marker-detail-action=\"show-detail-modal\" data-marker-detail-id=\"bio_glucose\">Cancel</button>\n      </div>\n    </div>\n    </div>"
+  },
+  {
+    "name": "no unit fallback",
+    "spec": {
+      "category": "Biochemistry",
+      "name": "Glucose",
+      "unit": "mmol/L",
+      "date": "2026-10-11",
+      "today": "2026-10-11",
+      "reference": " · Reference: 4 – 6 mmol/L",
+      "placeholder": "e.g. 5.00",
+      "sampleTime": "08:15",
+      "fasting": "unknown",
+      "options": [],
+      "id": "bio_glucose"
+    },
+    "html": "<div class=\"gb-modal-head\">\n      <div>\n        <div class=\"gb-modal-kicker\">Biochemistry</div>\n        <div class=\"gb-modal-title\">Add Value Manually</div>\n      </div>\n      <button class=\"modal-close\" aria-label=\"Back to marker details\" data-marker-detail-action=\"show-detail-modal\" data-marker-detail-id=\"bio_glucose\">×</button>\n    </div>\n    <div class=\"gb-form-body\">\n    <div class=\"modal-unit\"><strong>Glucose</strong> · mmol/L · Reference: 4 – 6 mmol/L</div>\n    <div class=\"manual-entry-form\">\n      <div class=\"me-field\">\n        <label for=\"me-date\">Date</label>\n        <input type=\"date\" id=\"me-date\" value=\"2026-10-11\" max=\"2026-10-11\"/>\n      </div>\n      <div class=\"me-field\">\n        <label for=\"me-value\">Value <!--[-1--><span style=\"color:var(--text-muted);font-weight:400\">(mmol/L)</span><!--]--></label>\n        <input type=\"number\" id=\"me-value\" step=\"any\" placeholder=\"e.g. 5.00\" autofocus=\"\"/>\n      </div>\n      <div class=\"me-context-grid\">\n        <div class=\"me-field\">\n          <label for=\"me-sample-time\">Collection time <span class=\"me-optional\">(optional)</span></label>\n          <input type=\"time\" id=\"me-sample-time\" value=\"08:15\"/>\n          <small>Use the blood draw/collection time, not the lab processing or report time.</small>\n        </div>\n        <div class=\"me-field\">\n          <label for=\"me-fasting\">Fasting status</label>\n          <select id=\"me-fasting\">\n            <option value=\"unknown\" selected=\"\">Unknown</option>\n            <option value=\"fasting\">Fasting</option>\n            <option value=\"not-fasting\">Not fasting</option>\n          </select>\n        </div>\n      </div>\n      <div class=\"me-field\">\n        <label for=\"me-note\">Note <span style=\"color:var(--text-muted);font-weight:400\">(optional)</span></label>\n        <textarea id=\"me-note\" rows=\"2\" placeholder=\"Context for this value — e.g. fasted 14h, post-workout, different lab, retake of low value...\"></textarea>\n      </div>\n      <div class=\"gb-form-actions\">\n        <button class=\"import-btn import-btn-primary\" data-marker-detail-action=\"save-manual-entry\" data-marker-detail-id=\"bio_glucose\">Save</button>\n        <button class=\"import-btn import-btn-secondary\" data-marker-detail-action=\"save-and-add-manual-entry\" data-marker-detail-id=\"bio_glucose\" title=\"Save this value, then enter another marker for the same date\">Save &amp; Add Another</button>\n        <button class=\"import-btn import-btn-secondary\" data-marker-detail-action=\"show-detail-modal\" data-marker-detail-id=\"bio_glucose\">Cancel</button>\n      </div>\n    </div>\n    </div>"
+  },
+  {
+    "name": "literal controls and labels",
+    "spec": {
+      "category": "<script>literal</script>",
+      "name": "<img src=x> & \"",
+      "unit": "<&>\"",
+      "date": "2026-10-11",
+      "today": "2026-10-11",
+      "reference": " · Reference: 4 – 6 mmol/L",
+      "placeholder": "\"<>&",
+      "sampleTime": "08:15",
+      "fasting": "fasting",
+      "options": [
+        "<&>\"雪",
+        "second"
+      ],
+      "id": "bio_glucose"
+    },
+    "html": "<div class=\"gb-modal-head\">\n      <div>\n        <div class=\"gb-modal-kicker\">&lt;script>literal&lt;/script></div>\n        <div class=\"gb-modal-title\">Add Value Manually</div>\n      </div>\n      <button class=\"modal-close\" aria-label=\"Back to marker details\" data-marker-detail-action=\"show-detail-modal\" data-marker-detail-id=\"bio_glucose\">×</button>\n    </div>\n    <div class=\"gb-form-body\">\n    <div class=\"modal-unit\"><strong>&lt;img src=x> &amp; \"</strong> · &lt;&amp;>\" · Reference: 4 – 6 mmol/L</div>\n    <div class=\"manual-entry-form\">\n      <div class=\"me-field\">\n        <label for=\"me-date\">Date</label>\n        <input type=\"date\" id=\"me-date\" value=\"2026-10-11\" max=\"2026-10-11\"/>\n      </div>\n      <div class=\"me-field\">\n        <label for=\"me-value\">Value <!--[0--><select id=\"me-unit\" class=\"me-unit-select\" aria-label=\"Input unit\">\n         <!--[--><option value=\"&lt;&amp;>&quot;雪\" selected=\"\">&lt;&amp;>\"雪</option><option value=\"second\">second</option><!--]-->\n       </select><!--]--></label>\n        <input type=\"number\" id=\"me-value\" step=\"any\" placeholder=\"&quot;&lt;>&amp;\" autofocus=\"\"/>\n      </div>\n      <div class=\"me-context-grid\">\n        <div class=\"me-field\">\n          <label for=\"me-sample-time\">Collection time <span class=\"me-optional\">(optional)</span></label>\n          <input type=\"time\" id=\"me-sample-time\" value=\"08:15\"/>\n          <small>Use the blood draw/collection time, not the lab processing or report time.</small>\n        </div>\n        <div class=\"me-field\">\n          <label for=\"me-fasting\">Fasting status</label>\n          <select id=\"me-fasting\">\n            <option value=\"unknown\">Unknown</option>\n            <option value=\"fasting\" selected=\"\">Fasting</option>\n            <option value=\"not-fasting\">Not fasting</option>\n          </select>\n        </div>\n      </div>\n      <div class=\"me-field\">\n        <label for=\"me-note\">Note <span style=\"color:var(--text-muted);font-weight:400\">(optional)</span></label>\n        <textarea id=\"me-note\" rows=\"2\" placeholder=\"Context for this value — e.g. fasted 14h, post-workout, different lab, retake of low value...\"></textarea>\n      </div>\n      <div class=\"gb-form-actions\">\n        <button class=\"import-btn import-btn-primary\" data-marker-detail-action=\"save-manual-entry\" data-marker-detail-id=\"bio_glucose\">Save</button>\n        <button class=\"import-btn import-btn-secondary\" data-marker-detail-action=\"save-and-add-manual-entry\" data-marker-detail-id=\"bio_glucose\" title=\"Save this value, then enter another marker for the same date\">Save &amp; Add Another</button>\n        <button class=\"import-btn import-btn-secondary\" data-marker-detail-action=\"show-detail-modal\" data-marker-detail-id=\"bio_glucose\">Cancel</button>\n      </div>\n    </div>\n    </div>"
+  },
+  {
+    "name": "literal action IDs",
+    "spec": {
+      "category": "Biochemistry",
+      "name": "Glucose",
+      "unit": "mmol/L",
+      "date": "2026-10-11",
+      "today": "2026-10-11",
+      "reference": " · Reference: 4 – 6 mmol/L",
+      "placeholder": "e.g. 5.00",
+      "sampleTime": "08:15",
+      "fasting": "unknown",
+      "options": [
+        "mmol/L",
+        "mg/dL"
+      ],
+      "id": "bio_quoted\"<&>'"
+    },
+    "html": "<div class=\"gb-modal-head\">\n      <div>\n        <div class=\"gb-modal-kicker\">Biochemistry</div>\n        <div class=\"gb-modal-title\">Add Value Manually</div>\n      </div>\n      <button class=\"modal-close\" aria-label=\"Back to marker details\" data-marker-detail-action=\"show-detail-modal\" data-marker-detail-id=\"bio_quoted&quot;&lt;&amp;&gt;&#39;\">×</button>\n    </div>\n    <div class=\"gb-form-body\">\n    <div class=\"modal-unit\"><strong>Glucose</strong> · mmol/L · Reference: 4 – 6 mmol/L</div>\n    <div class=\"manual-entry-form\">\n      <div class=\"me-field\">\n        <label for=\"me-date\">Date</label>\n        <input type=\"date\" id=\"me-date\" value=\"2026-10-11\" max=\"2026-10-11\"/>\n      </div>\n      <div class=\"me-field\">\n        <label for=\"me-value\">Value <!--[0--><select id=\"me-unit\" class=\"me-unit-select\" aria-label=\"Input unit\">\n         <!--[--><option value=\"mmol/L\" selected=\"\">mmol/L</option><option value=\"mg/dL\">mg/dL</option><!--]-->\n       </select><!--]--></label>\n        <input type=\"number\" id=\"me-value\" step=\"any\" placeholder=\"e.g. 5.00\" autofocus=\"\"/>\n      </div>\n      <div class=\"me-context-grid\">\n        <div class=\"me-field\">\n          <label for=\"me-sample-time\">Collection time <span class=\"me-optional\">(optional)</span></label>\n          <input type=\"time\" id=\"me-sample-time\" value=\"08:15\"/>\n          <small>Use the blood draw/collection time, not the lab processing or report time.</small>\n        </div>\n        <div class=\"me-field\">\n          <label for=\"me-fasting\">Fasting status</label>\n          <select id=\"me-fasting\">\n            <option value=\"unknown\" selected=\"\">Unknown</option>\n            <option value=\"fasting\">Fasting</option>\n            <option value=\"not-fasting\">Not fasting</option>\n          </select>\n        </div>\n      </div>\n      <div class=\"me-field\">\n        <label for=\"me-note\">Note <span style=\"color:var(--text-muted);font-weight:400\">(optional)</span></label>\n        <textarea id=\"me-note\" rows=\"2\" placeholder=\"Context for this value — e.g. fasted 14h, post-workout, different lab, retake of low value...\"></textarea>\n      </div>\n      <div class=\"gb-form-actions\">\n        <button class=\"import-btn import-btn-primary\" data-marker-detail-action=\"save-manual-entry\" data-marker-detail-id=\"bio_quoted&quot;&lt;&amp;&gt;&#39;\">Save</button>\n        <button class=\"import-btn import-btn-secondary\" data-marker-detail-action=\"save-and-add-manual-entry\" data-marker-detail-id=\"bio_quoted&quot;&lt;&amp;&gt;&#39;\" title=\"Save this value, then enter another marker for the same date\">Save &amp; Add Another</button>\n        <button class=\"import-btn import-btn-secondary\" data-marker-detail-action=\"show-detail-modal\" data-marker-detail-id=\"bio_quoted&quot;&lt;&amp;&gt;&#39;\">Cancel</button>\n      </div>\n    </div>\n    </div>"
+  }
+]

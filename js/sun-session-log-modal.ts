@@ -1,11 +1,11 @@
-import { BODY_REGIONS, bindBodySilhouette, renderBodySilhouette } from './sun-body-silhouette.js';
+import { BODY_REGIONS, bindBodySilhouette, projectBodySilhouette } from './sun-body-silhouette.js';
 
 export type { PastSessionLogOptions } from './light-session-presentation.js';
 import { projectPastSessionForm, type PastSessionLogOptions } from './light-session-presentation.js';
 import { renderHTML } from './components/LightSessionPresentation.svelte.html.js';
 
 export function renderPastSessionLogModal(options: PastSessionLogOptions) {
-  return renderHTML({ kind: 'past', view: projectPastSessionForm(options), silhouetteHTML: renderBodySilhouette(options.lastRegions) });
+  return renderHTML({ kind: 'past', view: projectPastSessionForm(options), silhouetteView: projectBodySilhouette(options.lastRegions) });
 }
 
 export function bindPastSessionRegionPicker<Region = string>(overlay: Element, initialRegions: Iterable<Region> | null | undefined) {

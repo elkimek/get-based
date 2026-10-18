@@ -1,0 +1,42 @@
+[
+  [
+    "therapy-comparison-stat",
+    ".corr-stat",
+    null
+  ],
+  [
+    "therapy-comparison-scroll",
+    ".corr-data-scroll",
+    null
+  ],
+  [
+    "therapy-comparison-table",
+    ".corr-data-table",
+    null
+  ],
+  [
+    "therapy-comparison-cell",
+    ".corr-data-table th, .corr-data-table td",
+    null
+  ],
+  [
+    "therapy-comparison-heading",
+    ".corr-data-table th",
+    null
+  ],
+  [
+    "therapy-comparison-caption",
+    ".corr-data-table caption",
+    null
+  ],
+  [
+    "therapy-comparison-summary",
+    ".corr-therapy-card summary",
+    null
+  ],
+  [
+    "therapy-comparison-periods",
+    ".corr-period-list",
+    null
+  ]
+]

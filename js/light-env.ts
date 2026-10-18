@@ -81,10 +81,10 @@ export { nextDefaultRoomName, suggestRoomSourceFromSpectrum };
 const lightEnvDeps: EnvironmentCalls = {
   getMeasurementsForRoom: null,
   navigate: null,
-  renderBurdenInterp: null,
-  renderMeasurementAIInline: null,
-  renderRoomAIBlock: null,
-  renderScreenAIBlock: null,
+  getBurdenInterpretationView: null,
+  getMeasurementAIView: null,
+  getRoomAIView: null,
+  getScreenAIView: null,
   openSpectrumClassifier: null,
   openLuxMeter: null,
   openFlickerDetector: null,
@@ -146,11 +146,11 @@ function getMeasurementsFor(roomId: unknown) {
 function readEnvironmentLoadSummary(): EnvironmentSectionView['load'] {
   const burden = computeIndoorBurden();
   // Live model grading remains authoritative even while cached AI copy is stale.
-  const trustedBurdenHTML = typeof lightEnvDeps.renderBurdenInterp === 'function'
-    ? String(lightEnvDeps.renderBurdenInterp(burden)) : null;
+  const burdenView = typeof lightEnvDeps.getBurdenInterpretationView === 'function'
+    ? lightEnvDeps.getBurdenInterpretationView(burden) ?? null : null;
   return {
     kind: 'load', color: burden.color ?? '', label: burden.label ?? '', parts: burden.parts,
-    interp: burden.interp, trustedBurdenHTML,
+    interp: burden.interp, burden: burdenView,
   };
 }
 
@@ -311,7 +311,7 @@ function refreshLightEnvironmentUI(options: EnvironmentRefreshOptions = {}) {
 
 // Gather live state and configured renderer results once; authored children receive typed views.
 function readLightEnvScreen(screen: EnvironmentScreenReader, rooms: unknown) {
-  return readScreenCardView(screen, {expanded:isLightEnvScreenExpanded(screen.id),todayToggle:true,renderScreenAIBlock:lightEnvDeps.renderScreenAIBlock,rooms});
+  return readScreenCardView(screen, {expanded:isLightEnvScreenExpanded(screen.id),todayToggle:true,getScreenAIView:lightEnvDeps.getScreenAIView,rooms});
 }
 function readEnvironmentRoom(room:EnvironmentRoomOperations,expanded:boolean) {
   const measurements=getMeasurementsFor(room.id).sort((a,b)=>b.capturedAt-a.capturedAt);
@@ -321,16 +321,15 @@ function readEnvironmentRoom(room:EnvironmentRoomOperations,expanded:boolean) {
   if(!expanded)return view;
   const latest=new Map<string,EnvironmentMeasurementOperations>();
   for(const measurement of measurements)if(!latest.has(measurement.tool))latest.set(measurement.tool,measurement);
-  view.today=projectEnvironmentToday('room',room.id,(isActiveToday as (room:EnvironmentRoomOperations)=>boolean)(room));
+  const today=projectEnvironmentToday('room',room.id,(isActiveToday as (room:EnvironmentRoomOperations)=>boolean)(room));
   const pickers=projectRoomPickers(room),tools=roomMeasurementTools(room.name||'');
   const readings=[...latest].map(([tool,measurement])=>({icon:environmentReadingIcon(tool),value:environmentText(formatEnvironmentMeasureValue(measurement)),time:fmtMeasureTime(measurement.capturedAt),
-    trustedAIHTML:typeof lightEnvDeps.renderMeasurementAIInline==='function'?String(lightEnvDeps.renderMeasurementAIInline(measurement)):''}));
-  const trustedRoomHTML=typeof lightEnvDeps.renderRoomAIBlock==='function'?String(lightEnvDeps.renderRoomAIBlock(room)):'';
+    ai:typeof lightEnvDeps.getMeasurementAIView==='function'?lightEnvDeps.getMeasurementAIView(measurement):null}));
+  const roomAI=typeof lightEnvDeps.getRoomAIView==='function'?lightEnvDeps.getRoomAIView(room):null;
   const context=projectRoomScreenContext(room.name||''),screens=getScreensForRoom(room.id);
   const rooms=(getEnvironment()?.rooms||[]) as EnvironmentRoomOperations[];
-  view.body={pickers,tools,readings,trustedRoomHTML,screenHeading:context.screenHeading,screenEmpty:context.screenEmpty,
-    screens:screens.map(screen=>readLightEnvScreen(screen,rooms)),quickPicks:projectScreenQuickPicks(screens,room.id,context.preferred)};
-  return view;
+  return {...view,today,body:{pickers,tools,readings,ai:roomAI,screenHeading:context.screenHeading,screenEmpty:context.screenEmpty,
+    screens:screens.map(screen=>readLightEnvScreen(screen,rooms)),quickPicks:projectScreenQuickPicks(screens,room.id,context.preferred)}};
 }
 function readEnvironmentSection(options:{embedded?:unknown}={}):EnvironmentSectionView {
   const env=getEnvironment(),rooms=(env?.rooms||[]) as EnvironmentRoomOperations[],screens=(env?.screens||[]) as EnvironmentScreenReader[];

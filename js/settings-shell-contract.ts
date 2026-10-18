@@ -8,10 +8,26 @@ export const SETTINGS_TABS = [
   { id: 'wearables', label: 'Wearables' },
   { id: 'agent', label: 'Agent Access' },
 ] as const;
+import type {AppExtensionHTML} from './app-extension-runtime.js';
+export interface SettingsPanelsView {
+  readonly displayActive: boolean;
+  readonly aiActive: boolean;
+  readonly voiceActive: boolean;
+  readonly privacyActive: boolean;
+  readonly dataActive: boolean;
+  readonly wearablesActive: boolean;
+  readonly agentActive: boolean;
+  readonly benchmarkEntryEpoch: number;
+  readonly showUsage: boolean;
+  readonly syncReady: boolean;
+  readonly messengerReady: boolean;
+  readonly extensionAI: AppExtensionHTML;
+  readonly extensionPanels: AppExtensionHTML;
+}
 export interface SettingsShellProps {
   initialTab: string;
-  legacyPanels: string;
-  extensionTabs: string;
+  panels: SettingsPanelsView;
+  extensionTabs: AppExtensionHTML;
   onNavigateTab: (id: string) => unknown;
 }
 export const SETTINGS_MODAL_CLASS = [

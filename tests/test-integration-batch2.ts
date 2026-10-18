@@ -7,6 +7,8 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 import './_node-shim.js';
 
 import fs from 'node:fs';
+import { JSDOM } from 'jsdom';
+import { sourceFunctionHasStatement } from './helpers/native-source-contracts.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -231,7 +233,10 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
   if (saveRefreshMatch) {
     const body = saveRefreshMatch[1]!;
     assert('saveAndRefresh calls navigate for in-tab re-render (#123)',
-      /navigateContextCardView\s*\(/.test(body),
+      body.includes('refreshAfterContextCommit(msg);')
+        && sourceFunctionHasStatement(ctxSrc, 'saveAndRefresh', 'refreshAfterContextCommit(msg);')
+        && sourceFunctionHasStatement(ctxSrc, 'refreshAfterContextCommit',
+          "navigateContextCardView(activeNav?.dataset.category || 'dashboard');"),
       'without this, saved context card values stay hidden until reload');
   }
 
@@ -300,7 +305,18 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
   assert('Chart card handles both mode',
     categoryViewRenderersSrc.includes("state.rangeMode === 'both'") && categoryViewRenderersSrc.includes('marker.optimalMin') && categoryViewRenderersSrc.includes('marker.refMin'));
   // FA card should show both ranges
-  assert('FA card handles both mode', categoryViewRenderersSrc.includes('faRangeText'));
+  const { renderFattyAcidsView } = await import('../js/category-view-renderers.js');
+  const previousRangeMode = state.rangeMode;
+  let bothRangeText: string | null | undefined;
+  try {
+    state.rangeMode = 'both';
+    const rangeDOM = new JSDOM(renderFattyAcidsView({ markers: {
+      synthetic: { name: 'Synthetic FA', values: [4], unit: '%', refMin: 1, refMax: 8, optimalMin: 2, optimalMax: 6 },
+    } }, 'fattyAcids'));
+    bothRangeText = rangeDOM.window.document.querySelector('.fa-card-ref')?.textContent;
+    rangeDOM.window.close();
+  } finally { state.rangeMode = previousRangeMode; }
+  assert('FA card handles both mode', bothRangeText === 'Ref: 1 – 8 · Opt: 2 – 6');
 
   // ═══════════════════════════════════════
   // 14. Onboarding trim fix

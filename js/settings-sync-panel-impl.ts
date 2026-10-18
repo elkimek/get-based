@@ -53,6 +53,7 @@ import {
 } from './settings-agent-access-panel.js';
 
 export { renderMessengerSection, disposeAgentAccessSection };
+export { prepareMessengerSection } from './settings-agent-access-panel.js';
 
 const settingsSyncPanelDeps: Record<string, unknown> = {
   applyPendingTombstone,
@@ -239,9 +240,12 @@ function installSettingsSyncDelegates() {
   document.addEventListener('input', handleSettingsSyncInput);
 }
 
-export function renderSyncSection() {
+export function prepareSyncSection(): PendingTombstoneList {
   queueMicrotask(() => hydrateSyncSection());
-  return renderSyncSectionMarkup(settingsSyncPanelDeps.listPendingTombstones as PendingTombstoneList);
+  return settingsSyncPanelDeps.listPendingTombstones as PendingTombstoneList;
+}
+export function renderSyncSection() {
+  return renderSyncSectionMarkup(prepareSyncSection());
 }
 
 let _syncToggling = false;

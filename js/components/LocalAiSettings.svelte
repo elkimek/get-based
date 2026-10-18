@@ -22,7 +22,7 @@
   export function setConnection(connection: LocalAiConnection): void { url = connection.url; apiKey = connection.apiKey; }
   export function clearPrivateFields(): void { url = ''; apiKey = ''; overrideDraft = undefined; for (const field of [urlField, keyField, overrideField]) if (field) field.value = ''; }
   onDestroy(clearPrivateFields);
-  const part = 'gb:cloud-provider:p-3 gb:cloud-provider:border-t gb:cloud-provider:border-line';
+  const part = 'gb:cloud-provider:px-3 gb:cloud-provider:py-2.5 gb:cloud-provider:border-t gb:cloud-provider:border-line';
 </script>
 <form class={PROVIDER_PANEL} data-local-ai-settings-view data-cloud-provider-settings-view onsubmit={event => { event.preventDefault(); actions.test(); }}>
   <input type="text" name="ai-provider" value="local-ai" autocomplete="username" hidden>
@@ -49,34 +49,34 @@
   <div id="local-ai-advisor">
     {#if snapshot.advisor}
       {@const advisor = snapshot.advisor}
-      <div class="model-advisor gb:cloud-provider:rounded-control gb:cloud-provider:border gb:cloud-provider:border-line gb:cloud-provider:overflow-hidden">
-        <div class="model-advisor-hw {PROVIDER_COPY} gb:cloud-provider:flex gb:cloud-provider:flex-wrap gb:cloud-provider:gap-3 gb:cloud-provider:p-3 gb:cloud-provider:bg-secondary-surface">
+      <div class="model-advisor gb:cloud-provider:mt-3 gb:cloud-provider:rounded-control gb:cloud-provider:border gb:cloud-provider:border-line gb:cloud-provider:overflow-hidden">
+        <div class="model-advisor-hw {PROVIDER_COPY} gb:cloud-provider:flex gb:cloud-provider:flex-wrap gb:cloud-provider:gap-3 gb:cloud-provider:px-3 gb:cloud-provider:py-2.5 gb:cloud-provider:bg-secondary-surface">
           {#each advisor.chips as chip}<span class="model-advisor-hw-chip gb:cloud-provider:min-w-0 gb:cloud-provider:break-words">{chip}</span>{/each}
         </div>
         {#each advisor.rows as row (row.name)}
-          <div class="model-advisor-row {row.active ? 'active gb:cloud-provider:bg-secondary-surface' : ''} {part} {PROVIDER_COPY} gb:cloud-provider:grid gb:cloud-provider:grid-cols-[auto_minmax(0,1fr)] gb:cloud-provider:gap-x-2 gb:cloud-provider:gap-y-1">
-            <span class="model-advisor-badge {PROVIDER_TONES[row.tone]}" aria-hidden="true">{row.badge}</span>
+          <div class="model-advisor-row {row.active ? 'active gb:cloud-provider:bg-secondary-surface' : ''} gb:cloud-provider:px-3 gb:cloud-provider:py-[7px] gb:cloud-provider:border-t gb:cloud-provider:border-line {PROVIDER_COPY} gb:cloud-provider:grid gb:cloud-provider:grid-cols-[auto_minmax(0,1fr)_auto_auto_auto] gb:cloud-provider:items-center gb:cloud-provider:gap-2 gb:cloud-provider:max-[600px]:grid-cols-[auto_minmax(0,1fr)]">
+            <span class="model-advisor-badge gb:cloud-provider:text-[13px] gb:cloud-provider:leading-none {PROVIDER_TONES[row.tone]}" aria-hidden="true">{row.badge}</span>
             <span class="model-advisor-name gb:cloud-provider:font-medium gb:cloud-provider:break-words">{row.name}{#if row.active} <span>← active</span>{:else if row.best} <span>← best pick</span>{/if}</span>
-            <span class="model-advisor-size gb:cloud-provider:col-start-2 gb:cloud-provider:break-words">{[row.size, row.details].filter(Boolean).join(' · ')}</span>
-            <span class="model-advisor-fitness gb:cloud-provider:col-start-2 {PROVIDER_TONES[row.fitnessTone]}" title={row.fitnessNote}>{row.fitness}</span>
-            <span class="model-advisor-verdict gb:cloud-provider:col-start-2 {PROVIDER_TONES[row.tone]}">{row.verdict}</span>
+            <span class="model-advisor-size gb:cloud-provider:max-[600px]:col-start-2 gb:cloud-provider:break-words">{[row.size, row.details].filter(Boolean).join(' · ')}</span>
+            <span class="model-advisor-fitness gb:cloud-provider:text-[11px] gb:cloud-provider:max-[600px]:col-start-2 {PROVIDER_TONES[row.fitnessTone]}" title={row.fitnessNote}>{row.fitness}</span>
+            <span class="model-advisor-verdict gb:cloud-provider:text-[11px] gb:cloud-provider:max-[600px]:col-start-2 {PROVIDER_TONES[row.tone]}">{row.verdict}</span>
           </div>
         {/each}
         {#if advisor.suggestion}
           <div class="model-advisor-suggest {part} {PROVIDER_COPY}">
-            <div class="model-advisor-suggest-title gb:cloud-provider:font-semibold gb:cloud-provider:mb-2">Heuristic model suggestion</div>
+            <div class="model-advisor-suggest-title gb:cloud-provider:text-[11px] gb:cloud-provider:font-bold gb:cloud-provider:uppercase gb:cloud-provider:tracking-[0.06em] gb:cloud-provider:mb-2">Heuristic model suggestion</div>
             <div class="model-advisor-pull-row {PROVIDER_ACTIONS}">
               <code class="model-advisor-pull-cmd gb:cloud-provider:flex-1 gb:cloud-provider:min-w-0 gb:cloud-provider:break-all">{advisor.suggestion.command || advisor.suggestion.model}</code>
               {#if advisor.suggestion.command}<button type="button" class={PROVIDER_SECONDARY} data-local-ai-action="copy-pull" onclick={event => { event.stopPropagation(); actions.copy(advisor.suggestion!.command!); }}>Copy</button>{/if}
             </div>
-            <p class="model-advisor-pull-why">{advisor.suggestion.note} Validate quality with Import Benchmarks on your own reports; this suggestion is not benchmark-derived.</p>
+            <p class="model-advisor-pull-why gb:cloud-provider:text-[11px] gb:cloud-provider:text-secondary gb:cloud-provider:mb-2">{advisor.suggestion.note} Validate quality with Import Benchmarks on your own reports; this suggestion is not benchmark-derived.</p>
           </div>
         {/if}
-        <div class="model-advisor-override {part}">
-          <button type="button" class="model-advisor-override-toggle {PROVIDER_SECONDARY}" aria-expanded={overrideOpen} aria-controls="model-advisor-override-body" data-local-ai-action="toggle-override" onclick={event => { event.stopPropagation(); overrideOpen = !overrideOpen; }} onkeydown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); overrideOpen = !overrideOpen; } }}>▸ {advisor.overrideLabel}{advisor.override ? ` (${advisor.override} GB)` : ''}</button>
+        <div class="model-advisor-override gb:cloud-provider:px-3 gb:cloud-provider:py-2 gb:cloud-provider:border-t gb:cloud-provider:border-line">
+          <button type="button" class="model-advisor-override-toggle gb:cloud-provider:text-[11px] gb:cloud-provider:text-secondary gb:cloud-provider:[font-family:inherit] gb:cloud-provider:border-0 gb:cloud-provider:bg-transparent gb:cloud-provider:p-0 gb:cloud-provider:cursor-pointer gb:cloud-provider:[@media(pointer:coarse)]:min-h-11 gb:cloud-provider:focus-visible:outline-2 gb:cloud-provider:focus-visible:outline-accent" aria-expanded={overrideOpen} aria-controls="model-advisor-override-body" data-local-ai-action="toggle-override" onclick={event => { event.stopPropagation(); overrideOpen = !overrideOpen; }} onkeydown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); overrideOpen = !overrideOpen; } }}>▸ {advisor.overrideLabel}{advisor.override ? ` (${advisor.override} GB)` : ''}</button>
           <div id="model-advisor-override-body" class="model-advisor-override-body {PROVIDER_ACTIONS} gb:cloud-provider:mt-2" style:display={overrideOpen ? 'flex' : 'none'}>
             <label for="hw-vram-override-input" class={PROVIDER_COPY}>VRAM (GB)</label>
-            <input type="number" id="hw-vram-override-input" class={PROVIDER_INPUT + ' gb:cloud-provider:flex-1'} placeholder={advisor.overridePlaceholder} min="1" max="256" step="1" bind:this={overrideField} bind:value={overrideDraft}>
+            <input type="number" id="hw-vram-override-input" class="gb:cloud-provider:w-[72px] gb:cloud-provider:min-w-0 gb:cloud-provider:text-xs gb:cloud-provider:px-2 gb:cloud-provider:py-1 gb:cloud-provider:rounded gb:cloud-provider:border gb:cloud-provider:border-line gb:cloud-provider:bg-surface gb:cloud-provider:text-ink gb:cloud-provider:[font-family:inherit] gb:cloud-provider:[@media(pointer:coarse)]:min-h-11" placeholder={advisor.overridePlaceholder} min="1" max="256" step="1" bind:this={overrideField} bind:value={overrideDraft}>
             <button type="button" class={PROVIDER_SECONDARY} data-local-ai-action="apply-hardware-override" onclick={event => { event.stopPropagation(); actions.applyOverride(overrideField?.value || ''); }}>Apply</button>
             {#if advisor.override}<button type="button" class={PROVIDER_SECONDARY} data-local-ai-action="clear-hardware-override" onclick={event => { event.stopPropagation(); actions.clearOverride(); }}>Reset</button>{/if}
           </div>

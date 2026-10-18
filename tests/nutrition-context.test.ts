@@ -69,7 +69,7 @@ describe('nutrition AI context', () => {
     expect(context).not.toContain('average last logged meal 20:15');
     expect(context).not.toContain('data:image');
     expect(context).not.toContain('Lentil bowl');
-    const actionAttrs = (action:unknown, attrs:{surface?:unknown} = {}) => `data-action="${action}" data-surface="${attrs.surface || ''}"`;
+    const actionAttrs = (action:unknown, attrs:{surface?:unknown} = {}) => ({'data-action': String(action), 'data-surface': String(attrs.surface || '')});
     expect(renderNutritionDietExtension(actionAttrs)).toContain('Detailed meal log active');
     expect(renderNutritionDietExtension(actionAttrs)).toContain('Replaces Typical meals');
     expect(renderNutritionDietExtension(actionAttrs)).toContain('data-surface="meals"');
@@ -151,8 +151,8 @@ describe('nutrition AI context', () => {
     setNutritionContextEnabled(false);
     expect(buildNutritionContext()).toBe('');
     expect(buildNutritionContext(state, { ignoreContextToggles: true })).toContain('[section:nutrition]');
-    expect(renderNutritionDietExtension(() => 'data-action="open"')).toContain('AI source off');
-    expect(renderNutritionDietExtension(() => 'data-action="open"')).toContain('Typical meals active');
+    expect(renderNutritionDietExtension(() => ({'data-action': 'open'}))).toContain('AI source off');
+    expect(renderNutritionDietExtension(() => ({'data-action': 'open'}))).toContain('Typical meals active');
   });
 
   it('keeps Typical meals active when nutrition entries fall outside the selected automatic timeframe', () => {
@@ -167,7 +167,7 @@ describe('nutrition AI context', () => {
     };
 
     expect(doesNutritionContextOverrideTypicalMeals()).toBe(false);
-    expect(renderNutritionDietExtension(() => 'data-action="open"')).toContain('No entries in the 30-day AI timeframe');
+    expect(renderNutritionDietExtension(() => ({'data-action': 'open'}))).toContain('No entries in the 30-day AI timeframe');
     setNutritionContextDays(90);
     expect(doesNutritionContextOverrideTypicalMeals()).toBe(true);
   });

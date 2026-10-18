@@ -1,3 +1,4 @@
+import{captureLightAIView}from'./light-ai-view-values.js';
 import type { ProfileData } from '../types/app-state.js';
 // light-screen-ai-analysis.js — per-screen AI verdict for the Light
 // Environment screens (phone, tablet, laptop, monitor, TV, e-reader).
@@ -136,9 +137,9 @@ registerAIActionHandler('refresh-screen', refreshScreenAIAnalysis);
 // auto-fire path; prevents tight-loop refire on transient errors.
 const _autoFiredScreenKeys = new Set<string>();
 
-export function renderScreenAIBlock(s: AIScreen | null | undefined) {
-  if (!s) return '';
-  if (!hasAssistantFeatureProvider() && !(s.aiAnalysis?.status === 'ok' && s.aiAnalysis?.dot)) return '';
+export function getScreenAIView(s: AIScreen | null | undefined) {
+  if (!s) return null;
+  if (!hasAssistantFeatureProvider() && !(s.aiAnalysis?.status === 'ok' && s.aiAnalysis?.dot)) return null;
   const status = engine.getStatus(s);
   const a = s.aiAnalysis;
   const currentFingerprint = getScreenFingerprint(s);
@@ -159,7 +160,8 @@ export function renderScreenAIBlock(s: AIScreen | null | undefined) {
   // Shimmer ONLY while a request is genuinely in flight. Stale-ok falls
   // through to the ok branch so the ↻ button stays reachable; auto-fire
   // updates the verdict underneath.
-  return renderHTML({ view: projectEnvironmentAI({ kind: 'screen', status, analysis: a,
+  return captureLightAIView(projectEnvironmentAI({ kind: 'screen', status, analysis: a,
     targetId: s.id, actionOwner: aiActionOwner(),
-  }) });
+  }));
 }
+export function renderScreenAIBlock(s: AIScreen | null | undefined){const view=getScreenAIView(s);return view?renderHTML({view}):'';}

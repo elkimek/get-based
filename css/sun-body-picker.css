@@ -1,10 +1,14 @@
+@utility sun-body-region-transition {
+  transition: fill 0.22s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.22s, fill-opacity 0.22s;
+}
+
 /* SVG region state ordering is deliberate: a ready canvas tint replaces the
    selected fill, while coarse pointers retain the original invisible hit halo.
    These selectors belong only to SunBodyPicker. Ordinary SVG styling is authored
    in the component; this owned cascade uses the same Tailwind palette. */
 [data-sun-body-picker] .sun-silhouette-region {
   @apply gb:fill-transparent gb:stroke-transparent gb:stroke-[1.2] gb:cursor-pointer gb:[pointer-events:all];
-  transition: fill 0.22s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.22s, fill-opacity 0.22s;
+  @apply gb:sun-body-region-transition;
 }
 [data-sun-body-picker] .sun-silhouette-region:hover {
   @apply gb:fill-[var(--accent-light)] gb:[fill-opacity:0.30];

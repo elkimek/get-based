@@ -1,0 +1,330 @@
+@import "tailwindcss" prefix(gb) source(none) reference;
+@utility dashboard-ai-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  margin-top: 10px; padding: 9px 16px;
+  background: color-mix(in srgb, var(--purple) 8%, transparent);
+  border: 1px solid var(--purple); border-radius: 999px;
+  font-size: 13px; font-weight: 500; color: var(--purple);
+  cursor: pointer; font-family: inherit;
+  transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+}
+@utility dashboard-ai-pill-hover { background: color-mix(in srgb, var(--purple) 18%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--purple) 12%, transparent); }
+@utility dashboard-ai-pill-active { transform: translateY(1px); }
+@utility dashboard-ai-pill-focus { outline: 2px solid var(--purple); outline-offset: 2px; }
+@utility dashboard-ai-pill-icon { font-size: 15px; line-height: 1; }
+@utility dashboard-ai-pill-plus { font-weight: 600; opacity: 0.8; }
+
+/* Dashboard widget grid, picker, organize mode, and widget responsive rules. */
+
+.dashboard-widgets {
+  display: grid; grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 18px; align-items: start; grid-auto-flow: dense;
+}
+.dashboard-widgets.is-adaptive { align-items: stretch; grid-auto-flow: row; }
+.dashboard-widgets.is-adaptive > .dashboard-widget {
+  grid-column: span var(--widget-columns, 12);
+  grid-row: var(--widget-row, auto);
+}
+.dashboard-widgets.is-adaptive.is-measuring { align-items: start; }
+.dashboard-widgets.is-adaptive .db-spotlight .db-spark { height: 80px; }
+.dashboard-widget {
+  grid-column: span 12; min-width: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow);
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+.dashboard-widget:hover { border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); }
+.dashboard-widget-half { grid-column: span 6; }
+.dashboard-widget-quarter { grid-column: span 3; }
+.dashboard-widget-third { grid-column: span 4; }
+.dashboard-widget-two-third { grid-column: span 8; }
+.dashboard-widget-chrome {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 14px; min-width: 0;
+}
+.dashboard-widget-handle {
+  display: none; color: var(--text-muted); font-family: var(--font-mono);
+  font-size: 13px; line-height: 1; cursor: grab;
+}
+.dashboard-widget-heading { flex: 1; min-width: 0; }
+.dashboard-widget-source {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 800;
+  color: var(--accent); text-transform: uppercase; margin-bottom: 2px;
+}
+.dashboard-widget-title {
+  font-family: var(--font-display); font-size: 14px; font-weight: 700;
+  text-transform: uppercase; color: var(--text-primary); letter-spacing: 0;
+}
+.dashboard-widget-description {
+  margin-top: 2px; font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dashboard-widget-tools { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.dashboard-widget-tool {
+  min-width: 30px; height: 30px; padding: 0 9px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--bg-secondary);
+  color: var(--text-primary); font: inherit; font-size: 12px; cursor: pointer;
+}
+.dashboard-widget-tool:hover:not(:disabled) { border-color: var(--accent); background: var(--bg-hover); }
+.dashboard-widget-tool:disabled { opacity: 0.45; cursor: default; }
+.dashboard-widget-body { min-width: 0; }
+.dashboard-widget-body > .lens-section:first-child,
+.dashboard-widget-body > .focus-card:first-child,
+.dashboard-widget-body > .light-today-strip:first-child,
+.dashboard-widget-body > .wearable-strip:first-child,
+.dashboard-widget-body > .wearable-strip-empty:first-child,
+.dashboard-widget-body > .genetics-section:first-child {
+  margin-top: 0;
+}
+.dashboard-widget-body > .alerts-section,
+.dashboard-widget-body > .notes-section { margin-bottom: 0; }
+.dashboard-widget-body > .focus-card,
+.dashboard-widget-body > .light-today-strip,
+.dashboard-widget-body > .wearable-strip,
+.dashboard-widget-body > .wearable-strip-empty,
+.dashboard-widget-body > .genetics-section,
+.dashboard-widget-body > .lens-section {
+  box-shadow: none;
+}
+.dashboard-widget[data-widget-id="focus"] .focus-card {
+  align-items: flex-start;
+  margin: 0;
+}
+.dashboard-widget-inline-controls {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px;
+}
+.biology-score-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.biology-score-header-actions .dashboard-action-btn {
+  margin-right: 2px;
+}
+.dashboard-widget-empty {
+  padding: 12px 0; color: var(--text-muted); font-size: 13px; font-style: italic;
+}
+.dashboard-widgets.is-organizing .dashboard-widget {
+  padding: 12px; border: 1px dashed var(--border); border-radius: var(--radius);
+  background: color-mix(in srgb, var(--bg-card) 46%, transparent);
+}
+.dashboard-widgets.is-organizing { grid-auto-flow: row; }
+.dashboard-widgets.is-organizing .dashboard-widget:hover {
+  border-color: var(--accent); background: color-mix(in srgb, var(--accent) 5%, var(--bg-card));
+}
+.dashboard-widgets.is-organizing .dashboard-widget-handle { display: block; }
+.dashboard-organize-footer { margin-top: 18px; justify-content: flex-end; }
+.lens-widget-dashboard-toggle { width: auto; white-space: nowrap; }
+
+/* AI personalization CTA - inline pill that adapts to which feature is missing. */
+.dashboard-cta { @apply gb:dashboard-ai-pill; }
+.dashboard-cta:hover { @apply gb:dashboard-ai-pill-hover; }
+.dashboard-cta:active { @apply gb:dashboard-ai-pill-active; }
+.dashboard-cta:focus-visible { @apply gb:dashboard-ai-pill-focus; }
+.dashboard-cta-icon { @apply gb:dashboard-ai-pill-icon; }
+.dashboard-cta-plus { @apply gb:dashboard-ai-pill-plus; }
+
+@media (max-width: 1100px) {
+  .dashboard-widget-half,
+  .dashboard-widget-two-third { grid-column: span 12; }
+  .dashboard-widget-quarter,
+  .dashboard-widget-third { grid-column: span 6; }
+  .db-quick-marker-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .dashboard-widget,
+  .dashboard-widget-quarter,
+  .dashboard-widget-third { grid-column: span 12; }
+  .dashboard-greeting { flex-direction: column; align-items: stretch; }
+  .dashboard-widget-chrome { align-items: flex-start; }
+  .dashboard-widget-tools { width: 100%; justify-content: flex-start; flex-wrap: wrap; }
+  .dashboard-sticky-actions {
+    top: 54px;
+    right: 12px;
+    justify-content: flex-end;
+    max-width: calc(100vw - 24px);
+  }
+  .db-quick-marker-grid { grid-template-columns: 1fr; }
+}
+
+/* Biology Scores — native getbased composite score widget. */
+
+/* Biological Coherence — distinguished full-width dashboard hero widget. */
+
+.biology-score-confidence-note {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: calc(var(--radius) - 6px);
+  border: 1px solid color-mix(in srgb, var(--yellow, #f59e0b) 42%, var(--border));
+  background: color-mix(in srgb, var(--yellow, #f59e0b) 10%, var(--bg-secondary));
+  color: var(--text-primary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.biology-score-confidence-low {
+  border-color: color-mix(in srgb, var(--red, #ef4444) 42%, var(--border));
+  background: color-mix(in srgb, var(--red, #ef4444) 9%, var(--bg-secondary));
+}
+.biology-score-research-note {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  box-shadow: var(--shadow);
+}
+.biology-score-research-note p {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.45;
+  font-size: 13px;
+}
+.biology-score-input-help {
+  margin: 6px 0 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.biology-score-input-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.biology-score-input-table th,
+.biology-score-input-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  color: var(--text-primary);
+}
+.biology-score-input-table th {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+.biology-score-input-table tr:last-child td { border-bottom: 0; }
+@media (max-width: 700px) {
+  .biology-score-input-table,
+  .biology-score-input-table tbody,
+  .biology-score-input-table tr,
+  .biology-score-input-table td {
+    display: block;
+    width: 100%;
+  }
+  .biology-score-input-table thead {
+    display: none;
+  }
+  .biology-score-input-table tr {
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--bg-secondary) 72%, transparent);
+  }
+  .biology-score-input-table td {
+    display: grid;
+    grid-template-columns: minmax(76px, 32%) minmax(0, 1fr);
+    align-items: start;
+    gap: 10px;
+    padding: 5px 0;
+    border-bottom: 0;
+    overflow-wrap: anywhere;
+  }
+  .biology-score-input-table td::before {
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .biology-score-input-table td:nth-child(1)::before { content: 'Marker'; }
+  .biology-score-input-table td:nth-child(2)::before { content: 'Latest'; }
+  .biology-score-input-table td:nth-child(3)::before { content: 'Date'; }
+  .biology-score-input-table td:nth-child(4)::before { content: 'Fit'; }
+  .biology-score-input-table td:nth-child(5)::before { content: 'Impact'; }
+}
+.biology-score-flags {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px dashed color-mix(in srgb, var(--yellow, #f59e0b) 38%, var(--border));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--yellow, #f59e0b) 7%, transparent);
+}
+.biology-score-flags p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.biology-score-recency {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--text-muted);
+}
+.biology-score-recency-fresh {
+  color: var(--green, #22c55e);
+  border-color: color-mix(in srgb, var(--green, #22c55e) 35%, var(--border));
+}
+.biology-score-recency-stale,
+.biology-score-recency-mixed-dates {
+  color: var(--yellow, #f59e0b);
+  border-color: color-mix(in srgb, var(--yellow, #f59e0b) 45%, var(--border));
+  background: color-mix(in srgb, var(--yellow, #f59e0b) 7%, transparent);
+}
+
+/* Biology Scores: quiet overview, all detail available on demand. */
+.biology-score-flags { font-size: 13px; line-height: 1.6; }
+.biology-score-lens-row { grid-column: 1 / -1; min-width: 0; }
+
+/* Keep the score itself visible; disclosures hold the explanation, not the overview. */
+.biology-scores-page { max-width: 1400px; margin-inline: auto; container: biology-page / inline-size; }
+.biology-scores-page .lens-page-widgets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.biology-score-lens-row { grid-column: auto; }
+@media (max-width: 1200px) {
+  .biology-scores-page .lens-page-widgets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 650px) {
+  .biology-scores-page .lens-page-widgets { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Shared Biology page grids, counters and panel offsets. */
+.biology-scores-page .lens-page-widgets { container-type: inline-size; }
+.biology-score-lens-row { --biology-panel-offset: 0px; }
+.biology-score-lens-row:nth-child(3n + 2) { --biology-panel-offset: calc((100cqw + 16px) / -3); }
+.biology-score-lens-row:nth-child(3n) { --biology-panel-offset: calc((100cqw + 16px) / -3 * 2); }
+@media (max-width: 1200px) {
+  .biology-score-lens-row:nth-child(n) { --biology-panel-offset: 0px; }
+  .biology-score-lens-row:nth-child(2n) { --biology-panel-offset: calc((100cqw + 16px) / -2); }
+}
+@media (max-width: 650px) {
+  .biology-score-lens-row:nth-child(n) { --biology-panel-offset: 0px; }
+}
+
+/* Keep scored panels distinct from optional depth and inputs still to resolve. */
+
+/* Chat can narrow a desktop page without changing the viewport breakpoint. */
+@container biology-page (max-width: 900px) {
+  .biology-scores-page .lens-page-widgets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .biology-score-lens-row:nth-child(n) { --biology-panel-offset: 0px; }
+  .biology-score-lens-row:nth-child(2n) { --biology-panel-offset: calc((100cqw + 16px) / -2); }
+}
+@container biology-page (max-width: 650px) {
+  .biology-scores-page .lens-page-widgets,
+  .biology-planning-grid { grid-template-columns: minmax(0, 1fr); }
+  .biology-score-lens-row:nth-child(n) { --biology-panel-offset: 0px; }
+}

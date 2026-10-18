@@ -237,13 +237,19 @@ export function hydrateProtectionSettings(): void {
   refreshBackupSettings(getBackupSettingsSnapshot(enabled, localStorage.getItem('labcharts-last-autobackup'), getFolderBackupState()));
 }
 
-export function renderEncryptionSection(): string {
+export function prepareEncryptionSection(): void {
   queueMicrotask(hydrateProtectionSettings);
+}
+export function renderEncryptionSection(): string {
+  prepareEncryptionSection();
   return '<div data-encryption-settings-root data-settings-protection-view="encryption"></div>';
 }
 
-export function renderBackupSection(): string {
+export function prepareBackupSection(): void {
   queueMicrotask(hydrateProtectionSettings);
+}
+export function renderBackupSection(): string {
+  prepareBackupSection();
   return '<div data-backup-settings-root data-settings-protection-view="backup"></div>';
 }
 

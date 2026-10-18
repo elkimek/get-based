@@ -6,7 +6,7 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { build, RUNTIME_MODULE_ID } from 'rolldown';
+import { RUNTIME_MODULE_ID } from 'rolldown';
 import type { Plugin, OutputChunk } from 'rolldown';
 
 import {
@@ -16,12 +16,21 @@ import {
 } from './app-shell-budget.mjs';
 import { buildCompanionBundle } from './build-companion-bundle.mjs';
 import { inlineServiceWorkerAssets } from './service-worker-source.js';
-import { collectRawModuleAssets } from './raw-module-assets.mjs';
+import { handleBuildLog, productionRawModuleAssets, pruneSourceModuleAppShell } from './static-build-assets.mjs';
+export { handleBuildLog, productionRawModuleAssets, pruneSourceModuleAppShell } from './static-build-assets.mjs';
+import { createSvelteFacadePlugin } from './svelte-facade-plugin.mjs';
+import { createNativeVendorExternals } from './native-vendor-externals.mjs';
+import { applyNativeFontPrecache } from './native-precache-fonts.mjs';
+import { applySqliteAssetPrecache } from './sqlite-assets.mjs';
+import { buildNativeRetryChunks, type NativeRetryOptions } from './native-retry-chunks.mjs';
 
 export interface ProductionBuildSummary {
   entryFile: string; startupJavaScriptFiles: number; startupDecodedBytes: number;
   outputJavaScriptFiles: number; outputDecodedBytes: number; lazyJavaScriptFiles: number;
   appShellResources: number; appShellDecodedBytes: number;
+  removedRetryChunkFiles: number; removedRetryChunkBodyBytes: number;
+  retryAliasDeclarationBytes: number; installedRetryProofHeaderBytes: number;
+  serviceWorkerDecodedBytes: number;
 }
 // Lockfile and budget fields remain unvalidated JSON until the original checks.
 type LockReader = { packages?: Record<string, {version?: unknown; integrity?: unknown}> };
@@ -35,17 +44,6 @@ const INDEX_SCRIPT_START = '  <!-- PRODUCTION_MAIN_SCRIPT_START -->';
 const INDEX_SCRIPT_END = '  <!-- PRODUCTION_MAIN_SCRIPT_END -->';
 const SW_BUNDLES_START = '  // PRODUCTION_BUNDLE_ASSETS_START';
 const SW_BUNDLES_END = '  // PRODUCTION_BUNDLE_ASSETS_END';
-const PRODUCTION_RAW_MODULE_ROOTS = new Set([
-  '/js/theme-bootstrap.js',
-  '/js/extra-theme-bootstrap.js',
-  '/js/analytics-bootstrap.js',
-  '/js/legal-consent-bootstrap.js',
-  '/js/service-worker-update.js',
-  '/js/lens-local-worker.js',
-  '/js/voice-local-stt-worker.js',
-  '/js/voice-local-tts-worker.js',
-]);
-const FATAL_BUILD_WARNINGS = new Set(['INEFFECTIVE_DYNAMIC_IMPORT']);
 const LAZY_SYNC_CHUNK_MODULES = new Set([
   path.join(ROOT, 'js', 'routstr-balance-settlement.js'),
   path.join(ROOT, 'js', 'sync-apply.js'),
@@ -53,13 +51,6 @@ const LAZY_SYNC_CHUNK_MODULES = new Set([
   path.join(ROOT, 'js', 'sync-evolu8-candidate.js'),
   path.join(ROOT, 'js', 'wearables-credential-vault.js'),
 ]);
-
-export function handleBuildLog<Level, Log>(level: Level, log: Log, defaultHandler: (level: Level, log: Log) => unknown) {
-  if (FATAL_BUILD_WARNINGS.has((log as {code?: unknown} | null | undefined)?.code as string)) {
-    throw new Error(`Production build rejected ${(log as {code?: unknown}).code}: ${(log as {message?: unknown}).message}`);
-  }
-  defaultHandler(level, log);
-}
 
 function stripRetryQuery(id: string) {
   return id.endsWith(RETRY_QUERY) ? id.slice(0, -RETRY_QUERY.length) : id;
@@ -123,25 +114,6 @@ function replaceMarkedSection(source: string, startMarker: string, endMarker: st
   return `${before}\n${replacementLines.join('\n')}\n${after}`;
 }
 
-export async function productionRawModuleAssets() {
-  return collectRawModuleAssets(PRODUCTION_RAW_MODULE_ROOTS, url => fs.readFile(path.join(ROOT, url.slice(1)), 'utf8'));
-}
-
-export function pruneSourceModuleAppShell(source: string, rawAssets: ReadonlySet<string>) {
-  const start = source.indexOf('const APP_SHELL = [');
-  const end = source.indexOf('\n];', start);
-  if (start < 0 || end < start) throw new Error('Missing or invalid APP_SHELL array');
-  const declared = new Set([...source.slice(start, end).matchAll(/'(\/[^']+)'/g)].map(match => match[1]!));
-  for (const url of rawAssets) {
-    if (!declared.has(url)) throw new Error(`Raw module asset is missing from APP_SHELL: ${url}`);
-  }
-  const appShell = source.slice(start, end).replace(
-    /\s*'(\/js\/[^']+\.js)',/g,
-    (entry, url) => (rawAssets.has(url) ? entry : ''),
-  );
-  return `${source.slice(0, start)}${appShell}${source.slice(end)}`;
-}
-
 async function validateBundlerLock() {
   const lock: LockReader = JSON.parse(await fs.readFile(path.join(ROOT, 'package-lock.json'), 'utf8'));
   const bundler = lock.packages?.['node_modules/rolldown'];
@@ -187,38 +159,50 @@ export async function buildProduction({ outputRoot = ROOT }: {outputRoot?: strin
     || execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
   const buildId = createHash('sha256').update(`${commit}:${process.env.VERCEL_DEPLOYMENT_ID || ''}`).digest('hex');
   await validateBundlerLock();
+  const nativeVendors = await createNativeVendorExternals({root: ROOT});
   await buildCompanionBundle({ outputRoot });
 
   const outputDirectory = path.join(outputRoot, 'js');
   await fs.mkdir(outputDirectory, { recursive: true });
   await removeOldBundles(outputDirectory);
 
-  const initialModules = new Set<string>();
-  const result = await build({
-    input: MAIN_ENTRY,
-    platform: 'browser',
-    onLog: handleBuildLog,
-    plugins: [
-      retryImportPlugin(),
-      initialGraphPlugin(initialModules),
-    ],
-    output: {
-      dir: outputDirectory,
-      format: 'es',
-      minify: true,
-      sourcemap: false,
-      entryFileNames: 'bundle-main-[hash].js',
-      chunkFileNames: 'bundle-[name]-[hash].js',
-      assetFileNames: 'bundle-[name]-[hash][extname]',
-      manualChunks(id) {
-        if (LAZY_SYNC_CHUNK_MODULES.has(stripRetryQuery(id))) return 'sync-reconciliation';
-        // Native ESM loads this small protocol on demand. In production, keep
-        // it with its callers to avoid adding a separate network chunk.
-        if (stripRetryQuery(id) === path.join(ROOT, 'js', 'biology-score-ai-protocol.js')) return 'startup';
-        return initialModules.has(id) ? 'startup' : undefined;
+  const retryBuild = await buildNativeRetryChunks((): NativeRetryOptions => {
+    // Each proof pass gets independent graph and facade-plugin state.
+    const initialModules = new Set<string>();
+    return {
+      input: MAIN_ENTRY,
+      platform: 'browser',
+      // Select packages' production browser exports without changing dev/SSR builds.
+      resolve: {conditionNames: ['import', 'browser', 'default', 'production']},
+      onLog: handleBuildLog,
+      plugins: [
+        nativeVendors.plugin,
+        createSvelteFacadePlugin({root: ROOT, client: 'compile'}),
+        retryImportPlugin(),
+        initialGraphPlugin(initialModules),
+      ],
+      output: {
+        dir: outputDirectory,
+        format: 'es',
+        paths: nativeVendors.paths,
+        minify: true,
+        sourcemap: false,
+        entryFileNames: 'bundle-main-[hash].js',
+        // Component facade basenames include dots; constrain only the generated
+        // filename token while preserving the strict output namespace below.
+        chunkFileNames: chunk => `bundle-${chunk.name.replace(/[^A-Za-z0-9_-]/g, '-')}-[hash].js`,
+        assetFileNames: 'bundle-[name]-[hash][extname]',
+        manualChunks(id) {
+          if (LAZY_SYNC_CHUNK_MODULES.has(stripRetryQuery(id))) return 'sync-reconciliation';
+          // Native ESM loads this small protocol on demand. In production, keep
+          // it with its callers to avoid adding a separate network chunk.
+          if (stripRetryQuery(id) === path.join(ROOT, 'js', 'biology-score-ai-protocol.js')) return 'startup';
+          return initialModules.has(id) ? 'startup' : undefined;
+        },
       },
-    },
+    };
   });
+  const {result, canonicalBodyHashes} = retryBuild;
 
   const chunks = result.output.filter(item => item.type === 'chunk');
   const assets = result.output.filter(item => item.type === 'asset');
@@ -241,13 +225,18 @@ export async function buildProduction({ outputRoot = ROOT }: {outputRoot?: strin
     (total, chunk) => total + Buffer.byteLength(chunk.code),
     0,
   );
-  const summary: Omit<ProductionBuildSummary, 'appShellResources' | 'appShellDecodedBytes'> & Partial<Pick<ProductionBuildSummary, 'appShellResources' | 'appShellDecodedBytes'>> = {
+  const summary: Omit<ProductionBuildSummary, 'appShellResources' | 'appShellDecodedBytes' | 'serviceWorkerDecodedBytes'> & Partial<Pick<ProductionBuildSummary, 'appShellResources' | 'appShellDecodedBytes' | 'serviceWorkerDecodedBytes'>> = {
     entryFile: entryChunk.fileName,
     startupJavaScriptFiles: startupFiles.size,
     startupDecodedBytes,
     outputJavaScriptFiles: chunks.length,
     outputDecodedBytes,
     lazyJavaScriptFiles: chunks.length - startupFiles.size,
+    removedRetryChunkFiles: retryBuild.removedPhysicalFiles,
+    removedRetryChunkBodyBytes: retryBuild.removedPhysicalBodyBytes,
+    retryAliasDeclarationBytes: Buffer.byteLength(JSON.stringify(canonicalBodyHashes)),
+    installedRetryProofHeaderBytes: Object.entries(canonicalBodyHashes).reduce((total, [canonical, sha256]) =>
+      total + Buffer.byteLength('x-getbased-retry-proof: ' + JSON.stringify({v: 1, build: buildId, canonical, sha256}) + '\r\n'), 0),
   };
 
   const [indexSource, serviceWorkerSource, serviceWorkerRuntimeSource, serviceWorkerAssetsSource] = await Promise.all([
@@ -271,7 +260,7 @@ export async function buildProduction({ outputRoot = ROOT }: {outputRoot?: strin
   const bundleAssetLines = chunks
     .map(chunk => `  '/js/${chunk.fileName}',`)
     .sort();
-  const builtServiceWorker = replaceMarkedSection(
+  const nativeServiceWorker = replaceMarkedSection(
     pruneSourceModuleAppShell(inlineServiceWorkerAssets(serviceWorkerSource, serviceWorkerAssetsSource), await productionRawModuleAssets())
       .replace(/\s*'\/service-worker-assets\.js',/, '')
       .replace(/const BUILD_ID = '[^']*';/, `const BUILD_ID = '${buildId}';`),
@@ -279,6 +268,15 @@ export async function buildProduction({ outputRoot = ROOT }: {outputRoot?: strin
     SW_BUNDLES_END,
     bundleAssetLines,
   );
+  const retryAliasMarker = 'const RETRY_CHUNK_ALIASES = {};';
+  if (nativeServiceWorker.split(retryAliasMarker).length !== 2) {
+    throw new Error('Missing unique native worker retry-alias injection point');
+  }
+  const retryServiceWorker = nativeServiceWorker.replace(retryAliasMarker,
+    `const RETRY_CHUNK_ALIASES = ${JSON.stringify(canonicalBodyHashes)};`);
+  const builtServiceWorker = await applySqliteAssetPrecache(await applyNativeFontPrecache(retryServiceWorker, ROOT), {sourceRoot: ROOT});
+  summary.serviceWorkerDecodedBytes = Buffer.byteLength(builtServiceWorker);
+  nativeVendors.assertShell(builtServiceWorker);
   const versionSource = (await fs.readFile(path.join(ROOT, 'version.js'), 'utf8'))
     .replace(/\nself\.APP_BUILD_ID = '[^']*';\n?/g, '\n');
   await Promise.all([
@@ -327,6 +325,10 @@ async function runCli() {
       resources: summary.appShellResources,
       decodedBytes: summary.appShellDecodedBytes,
     })}`);
+    console.log(`Retry transport: ${summary.removedRetryChunkFiles} duplicate files removed; `
+      + `${formatBytes(summary.retryAliasDeclarationBytes)} worker declarations, `
+      + `${formatBytes(summary.installedRetryProofHeaderBytes)} serialized cache proof headers; `
+      + `${formatBytes(summary.serviceWorkerDecodedBytes)} worker script`);
     console.log(`Entry: js/${summary.entryFile}`);
   } finally {
     if (checkOnly) await fs.rm(outputRoot, { recursive: true, force: true });

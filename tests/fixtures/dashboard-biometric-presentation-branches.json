@@ -1,0 +1,158 @@
+[
+  {
+    "owner": "renderDashboardBiometricSyncStatus",
+    "kind": "status",
+    "slots": [
+      {
+        "coordinate": "gb-biometric-dashboardbiometricsyncstatus-status-stale-class-end",
+        "port": "staleClass"
+      },
+      {
+        "coordinate": "gb-biometric-dashboardbiometricsyncstatus-status-label-end",
+        "port": "label"
+      },
+      {
+        "coordinate": "gb-biometric-dashboardbiometricsyncstatus-status-sync-action-end",
+        "port": "syncAction"
+      }
+    ],
+    "nativeSkeleton": "<span class=\"db-biometric-sync-statusgb-biometric-dashboardbiometricsyncstatus-status-stale-class-end\">gb-biometric-dashboardbiometricsyncstatus-status-label-end</span>\n      gb-biometric-dashboardbiometricsyncstatus-status-sync-action-end"
+  },
+  {
+    "owner": "renderDashboardBiometricSyncStatus",
+    "kind": "sync-action",
+    "slots": [
+      {
+        "coordinate": "gb-biometric-dashboardbiometricsyncstatus-sync-action-action-attributes-end",
+        "port": "actionAttributes"
+      }
+    ],
+    "nativeSkeleton": "<button type=\"button\" class=\"dashboard-action-btn db-biometric-sync-btn\" gb-biometric-dashboardbiometricsyncstatus-sync-action-action-attributes-end>Sync stale data</button>"
+  },
+  {
+    "owner": "renderDashboardBiometricTile",
+    "kind": "remove",
+    "slots": [
+      {
+        "coordinate": "gb-biometric-dashboardbiometrictile-remove-action-attributes-end",
+        "port": "actionAttributes"
+      },
+      {
+        "coordinate": "gb-biometric-dashboardbiometrictile-remove-label-end",
+        "port": "label"
+      }
+    ],
+    "nativeSkeleton": "<button type=\"button\" class=\"db-biometric-remove\" gb-biometric-dashboardbiometrictile-remove-action-attributes-end aria-label=\"Remove gb-biometric-dashboardbiometrictile-remove-label-end from Biometrics Overview\" title=\"Remove metric\">&times;</button>"
+  },
+  {
+    "owner": "renderDashboardBiometricTile",
+    "kind": "manual-empty",
+    "slots": [
+      {
+        "coordinate": "gb-biometric-dashboardbiometrictile-manual-empty-metric-id-end",
+        "port": "metricId"
+      },
+      {
+        "coordinate": "gb-biometric-dashboardbiometrictile-manual-empty-action-attributes-end",
+        "port": "actionAttributes"
+      },
+      {
+        "coordinate": "gb-biometric-dashboardbiometrictile-manual-empty-accessible-label-end",
+        "port": "accessibleLabel"
+      },
+      {
+        "coordinate": "gb-biometric-dashboardbiometrictile-manual-empty-label-end",
+        "port": "label"
+      },
+      {
+        "coordinate": "gb-biometric-dashboardbiometrictile-manual-empty-remove-action-end",
+        "port": "removeAction"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"db-biometric-tile-wrap\">\n        <div class=\"wearable-card wearable-card-empty db-biometric-manual-empty\" data-empty-metric=\"gb-biometric-dashboardbiometrictile-manual-empty-metric-id-end\" gb-biometric-dashboardbiometrictile-manual-empty-action-attributes-end role=\"button\" tabindex=\"0\" aria-label=\"Log gb-biometric-dashboardbiometrictile-manual-empty-accessible-label-end manually\">\n          <div class=\"wearable-card-top\"><span class=\"wearable-metric-name\">gb-biometric-dashboardbiometrictile-manual-empty-label-end</span></div>\n          <div class=\"wearable-value-row wearable-value-row-empty\"><span class=\"wearable-value wearable-value-dash\">-</span></div>\n          <div class=\"wearable-card-bottom\"><div class=\"wearable-empty-cta\">+ Log</div></div>\n        </div>\n        gb-biometric-dashboardbiometrictile-manual-empty-remove-action-end\n      </div>"
+  },
+  {
+    "owner": "renderDashboardBiometricTile",
+    "kind": "populated",
+    "slots": [
+      {
+        "coordinate": "gb-biometric-dashboardbiometrictile-populated-action-attributes-end",
+        "port": "actionAttributes"
+      },
+      {
+        "coordinate": "gb-biometric-dashboardbiometrictile-populated-accessible-label-end",
+        "port": "accessibleLabel"
+      },
+      {
+        "coordinate": "gb-biometric-dashboardbiometrictile-populated-label-end",
+        "port": "label"
+      },
+      {
+        "coordinate": "gb-biometric-dashboardbiometrictile-populated-value-end",
+        "port": "value"
+      },
+      {
+        "coordinate": "gb-biometric-dashboardbiometrictile-populated-unit-end",
+        "port": "unit"
+      },
+      {
+        "coordinate": "gb-biometric-dashboardbiometrictile-populated-change-end",
+        "port": "change"
+      },
+      {
+        "coordinate": "gb-biometric-dashboardbiometrictile-populated-remove-action-end",
+        "port": "removeAction"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"db-biometric-tile-wrap\">\n      <button type=\"button\" class=\"db-wearable-tile db-biometric-widget\" gb-biometric-dashboardbiometrictile-populated-action-attributes-end aria-label=\"gb-biometric-dashboardbiometrictile-populated-accessible-label-end\">\n        <span class=\"db-wearable-label\">gb-biometric-dashboardbiometrictile-populated-label-end</span>\n        <strong>gb-biometric-dashboardbiometrictile-populated-value-end</strong>\n        <span class=\"db-wearable-foot\"><small>gb-biometric-dashboardbiometrictile-populated-unit-end</small><em>gb-biometric-dashboardbiometrictile-populated-change-end</em></span>\n      </button>\n      gb-biometric-dashboardbiometrictile-populated-remove-action-end\n    </div>"
+  },
+  {
+    "owner": "renderDashboardWearableTilesWidget",
+    "kind": "toolbar",
+    "slots": [
+      {
+        "coordinate": "gb-biometric-dashboardbiometricsoverview-toolbar-count-end",
+        "port": "count"
+      },
+      {
+        "coordinate": "gb-biometric-dashboardbiometricsoverview-toolbar-plural-suffix-end",
+        "port": "pluralSuffix"
+      },
+      {
+        "coordinate": "gb-biometric-dashboardbiometricsoverview-toolbar-sync-status-end",
+        "port": "syncStatus"
+      },
+      {
+        "coordinate": "gb-biometric-dashboardbiometricsoverview-toolbar-picker-action-attributes-end",
+        "port": "pickerActionAttributes"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"db-biometric-overview-bar\">\n      <span>gb-biometric-dashboardbiometricsoverview-toolbar-count-end metricgb-biometric-dashboardbiometricsoverview-toolbar-plural-suffix-end selected</span>\n      <div class=\"db-biometric-overview-actions\">\n        gb-biometric-dashboardbiometricsoverview-toolbar-sync-status-end\n        <button type=\"button\" class=\"dashboard-action-btn\" gb-biometric-dashboardbiometricsoverview-toolbar-picker-action-attributes-end>Add metrics</button>\n      </div>\n    </div>"
+  },
+  {
+    "owner": "renderDashboardWearableTilesWidget",
+    "kind": "empty",
+    "slots": [
+      {
+        "coordinate": "gb-biometric-dashboardbiometricsoverview-empty-toolbar-end",
+        "port": "toolbar"
+      }
+    ],
+    "nativeSkeleton": "gb-biometric-dashboardbiometricsoverview-empty-toolbar-end<div class=\"dashboard-widget-empty\">No biometrics selected.</div>"
+  },
+  {
+    "owner": "renderDashboardWearableTilesWidget",
+    "kind": "grid",
+    "slots": [
+      {
+        "coordinate": "gb-biometric-dashboardbiometricsoverview-grid-toolbar-end",
+        "port": "toolbar"
+      },
+      {
+        "coordinate": "gb-biometric-dashboardbiometricsoverview-grid-tiles-end",
+        "port": "tiles"
+      }
+    ],
+    "nativeSkeleton": "gb-biometric-dashboardbiometricsoverview-grid-toolbar-end<div class=\"db-wearable-grid db-biometric-overview-grid\">gb-biometric-dashboardbiometricsoverview-grid-tiles-end</div>"
+  }
+]

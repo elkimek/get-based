@@ -1,3 +1,4 @@
+import{captureLightAIView}from'./light-ai-view-values.js';
 import type { ProfileData } from '../types/app-state.js';
 // light-audit-ai-analysis.js — per-audit AI verdict for the Light
 // Audit feature (frozen snapshot of rooms + screens + measurements).
@@ -255,21 +256,23 @@ export const maybeAnalyzeAuditAfterSave = engine.maybeAfterFinish;
 // Block that lives at the top of the audit detail body. Click "Analyze
 // audit" once per snapshot — the verdict is then frozen with the audit
 // (via aiAnalysis.fingerprint) and won't re-fire on subsequent renders.
-export function renderAuditAIBlock(a: AILightAudit | null | undefined) {
-  if (!a) return '';
-  if (!hasAssistantFeatureProvider() && !(a.aiAnalysis?.status === 'ok' && a.aiAnalysis?.dot)) return '';
-  return renderHTML({ view: projectEnvironmentAI({ kind: 'audit', status: engine.getStatus(a), analysis: a.aiAnalysis,
+export function getAuditAIView(a: AILightAudit | null | undefined) {
+  if (!a) return null;
+  if (!hasAssistantFeatureProvider() && !(a.aiAnalysis?.status === 'ok' && a.aiAnalysis?.dot)) return null;
+  return captureLightAIView(projectEnvironmentAI({ kind: 'audit', status: engine.getStatus(a), analysis: a.aiAnalysis,
     targetId: a.id, actionOwner: aiActionOwner(),
-  }) });
+  }));
 }
+export function renderAuditAIBlock(a: AILightAudit | null | undefined){const view=getAuditAIView(a);return view?renderHTML({view}):'';}
 
 // Compact dot for the audit card header (collapsed view) — gives users
 // an at-a-glance read across multiple audits without expanding each.
-export function renderAuditAIDot(a: Pick<AILightAudit, 'aiAnalysis'> | null | undefined) {
+export function getAuditDotView(a: Pick<AILightAudit, 'aiAnalysis'> | null | undefined) {
   // Dot is purely a cached-verdict indicator — render whenever the
   // verdict is present, regardless of provider state.
-  if (!a?.aiAnalysis?.dot) return '';
-  return renderHTML({ view: projectEnvironmentAI({ kind: 'audit-dot', status: 'ok', analysis: a.aiAnalysis,
+  if (!a?.aiAnalysis?.dot) return null;
+  return captureLightAIView(projectEnvironmentAI({ kind: 'audit-dot', status: 'ok', analysis: a.aiAnalysis,
     targetId: '', actionOwner: '',
-  }) });
+  }));
 }
+export function renderAuditAIDot(a: Pick<AILightAudit, 'aiAnalysis'> | null | undefined){const view=getAuditDotView(a);return view?renderHTML({view}):'';}

@@ -10,13 +10,13 @@ import './light-sun-loader.js';
 import './feedback.js';
 import './tour.js';
 import './touch-tooltip.js';
-import './views.js';
+import './views-runtime.js';
 import './app-shell-hooks.js';
 import './light-env-shell-hooks.js';
 import { installShellActionDelegates } from './shell-actions.js';
 import { startApp } from './startup-orchestrator.js';
-import { ensureChatShell } from './chat-shell-component.js';
+import { ensureAppShell } from './app-shell-component.js';
 
-ensureChatShell();
+ensureAppShell();
 installShellActionDelegates();
 startApp();

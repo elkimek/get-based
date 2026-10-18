@@ -1,0 +1,97 @@
+/* Compact profile button only; existing eager stylesheet URL/chronology retained. */
+@theme prefix(gb) {}
+@import "tailwindcss/utilities.css" prefix(gb) source(none);
+@source "../js/components/ProfileButtonPresentation.svelte";
+
+@custom-variant profile-button-app-button {
+  :where(&):where(#profile-selector *):is(.profile-compact-btn) { @slot; }
+}
+@utility profile-button-app-button-block {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+
+@custom-variant profile-button-app-button-hover {
+  :where(&):where(#profile-selector *):is(.profile-compact-btn:hover) { @slot; }
+}
+@utility profile-button-app-button-hover-block {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+
+@custom-variant profile-button-app-dot {
+  :where(&):where(#profile-selector *):is(.profile-compact-dot) { @slot; }
+}
+@utility profile-button-app-dot-block {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+@custom-variant profile-button-app-name {
+  :where(&):where(#profile-selector *):is(.profile-compact-name) { @slot; }
+}
+@utility profile-button-app-name-block {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 120px;
+}
+
+@custom-variant profile-button-app-image {
+  :where(&):where(#profile-selector *):is(.profile-compact-img) { @slot; }
+}
+@utility profile-button-app-image-block {
+  object-fit: cover;
+}
+
+@custom-variant profile-button-app-arrow {
+  :where(&):where(#profile-selector *):is(.profile-compact-arrow) { @slot; }
+}
+@utility profile-button-app-arrow-block {
+  font-size: 9px;
+  color: var(--text-muted);
+}
+
+@custom-variant profile-button-app-hidden {
+  @media (max-width: 768px) { :where(&):where(#profile-selector *):is(.profile-compact-name, .profile-compact-arrow) { @slot; } }
+}
+@utility profile-button-app-hidden-block {
+  display: none;
+}
+
+@custom-variant profile-button-app-button-phone {
+  @media (max-width: 768px) { :where(&):where(#profile-selector *):is(.profile-compact-btn) { @slot; } }
+}
+@utility profile-button-app-button-phone-block {
+  padding: 4px;
+  border: none;
+  background: none;
+}
+
+@custom-variant profile-button-app-dot-phone {
+  @media (max-width: 768px) { :where(&):where(#profile-selector *):is(.profile-compact-dot) { @slot; } }
+}
+@utility profile-button-app-dot-phone-block {
+  width: 28px;
+  height: 28px;
+  font-size: 13px;
+}

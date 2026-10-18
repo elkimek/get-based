@@ -8,8 +8,8 @@ const metadata = { provider: 'openrouter', providerLabel: '<Provider>', modelId:
 function view(): ContextCatalogView {
   return { renderId: 'catalog-test', embedded: false, subtitle: '<optional context>', addedCount: 1, refresh: true, demo: null,
     notes: '</textarea><img src=x onerror=alert(1)>\n& literal', cards: [
-      { key: 'healthGoals', label: '<Goals>', tooltip: '<Why goals matter>', placeholder: 'Add a goal', editor: 'openHealthGoalsEditor', filled: true, summary: '<Reported goal>', icon: '<svg viewBox="0 0 24 24"></svg>', extensions: '' },
-      { key: 'diet', label: 'Diet & Digestion', tooltip: 'Why diet matters', placeholder: '<Describe diet>', editor: 'openDietEditor', filled: false, summary: '', icon: '<svg viewBox="0 0 24 24"></svg>', extensions: '<button data-context-card-action="open-nutrition">Meals &amp; Nutrition</button>' },
+      { key: 'healthGoals', label: '<Goals>', tooltip: '<Why goals matter>', placeholder: 'Add a goal', editor: 'openHealthGoalsEditor', filled: true, summary: '<Reported goal>', icon: 'healthGoals', contaminants: null, nutrition: null },
+      { key: 'diet', label: 'Diet & Digestion', tooltip: 'Why diet matters', placeholder: '<Describe diet>', editor: 'openDietEditor', filled: false, summary: '', icon: 'diet', contaminants: null, nutrition: {title: 'Meals & Nutrition', detail: '', surface: 'meals', attributes: {'data-context-card-action':'open-nutrition','data-context-card-surface':'meals'}} },
     ] };
 }
 function rendered(presentation = view()) { const host = document.createElement('div'); host.innerHTML = renderHTML({ view: presentation }); return host; }
@@ -26,7 +26,9 @@ describe('authored shared context catalog', () => {
     expect(host.querySelector('textarea')?.value).toBe(view().notes);
     expect(host.querySelectorAll('img, script, optional, Goals, Reported')).toHaveLength(0);
     expect(host.querySelectorAll('.context-card-icon svg')).toHaveLength(2);
-    expect(host.querySelector('[data-context-card-action="open-nutrition"]')?.textContent).toBe('Meals & Nutrition');
+    expect(host.querySelector('[data-context-card-action="open-nutrition"] .diet-nutrition-extension-title')?.textContent).toBe('Meals & Nutrition');
+    expect(host.querySelector('[data-context-card-action="open-nutrition"]')?.getAttribute('data-context-card-surface')).toBe('meals');
+    expect(host.querySelector('[data-context-card-action="open-nutrition"] [aria-hidden]')?.textContent).toBe('→');
     expect(host.querySelector('label')?.htmlFor).toBe(host.querySelector('textarea')?.id);
     expect(host.querySelector('textarea')?.getAttribute('aria-describedby')).toBe(host.querySelector('.ctx-notes-hint')?.id);
   });

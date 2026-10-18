@@ -1,9 +1,18 @@
+import type {NutritionContextLinkView} from './nutrition-context-card-view.js';
 import type { DemoContextAIMode } from './context-card-health-dots.js';
-// icon is fixed CONTEXT_ICONS SVG; extensions are escaped application-renderer output.
 // Profile labels, summaries, explanations and notes always use Svelte text interpolation.
+export type ContextCatalogIconName = 'healthGoals' | 'diagnoses' | 'diet' | 'exercise' | 'sleepRest' | 'lightCircadian' | 'stress' | 'loveLife' | 'environment';
 export interface ContextCatalogCard {
-  key: string; label: string; icon: string; editor: string; tooltip: string;
-  placeholder: string; summary: string; filled: boolean; extensions: string;
+  readonly key: string;
+  readonly label: string;
+  readonly icon: ContextCatalogIconName;
+  readonly editor: string;
+  readonly tooltip: string;
+  readonly placeholder: string;
+  readonly summary: string;
+  readonly filled: boolean;
+  readonly contaminants: number | null;
+  readonly nutrition: NutritionContextLinkView | null;
 }
 export interface ContextDemoBar {
   kind: 'local' | 'paid-live' | 'paid-off' | 'precomputed'; title: string; copy: string;

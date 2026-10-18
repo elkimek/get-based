@@ -4,12 +4,20 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Static sidebar nav delegated-action source guards.
 
 const appShellHooksSrc = readRepositorySource('js/app-shell-hooks.js', 'utf8');
-const navSrc = readRepositorySource('js/nav.js', 'utf8');
+const navSrc = [
+  readRepositorySource('js/nav.js', 'utf8'),
+  readRepositorySource('js/components/ConditionalSidebarItem.svelte', 'utf8'),
+  readRepositorySource('js/components/SidebarCategoryItem.svelte', 'utf8'),
+  readRepositorySource('js/components/SidebarNavigation.svelte', 'utf8'),
+  readRepositorySource('js/components/SidebarIcon.svelte', 'utf8'),
+].join('\n');
 const navRuntimeSrc = readRepositorySource('js/nav-runtime.js', 'utf8');
 
 const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
 
 console.log('=== Sidebar Nav Delegated Actions ===');
+assert('genuine complete Sidebar owners and native delegate surface are nonempty', navSrc.includes('function handleNavActionClick') && navSrc.includes('view.groups') && navSrc.includes('view.categories') && navSrc.includes('view.badge') && navSrc.includes('name === \'search\'') && !navSrc.includes('gb-sidebar-'));
+
 
 assert('nav.js renders no inline event attributes',
   !/\bon(?:click|change|input|search|keydown|keyup|submit)=/.test(navSrc));

@@ -1,0 +1,396 @@
+/* Tweaks eager ownership at its established eager redesign-shell URL; shared Glass/Sunset/toggle/title rules retain their owners. */
+@source "../js/tweaks-classes.ts";
+@source "../js/components/TweaksPresentation.svelte";
+
+@custom-variant tweaks-overlay {
+  :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.tweaks-overlay) { @slot; }
+}
+
+@custom-variant tweaks-overlay-show {
+  :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.tweaks-overlay.show) { @slot; }
+}
+
+@custom-variant tweaks-panel {
+  :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.tweaks-panel) { @slot; }
+}
+
+@custom-variant tweaks-head {
+  :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.tweaks-head) { @slot; }
+}
+
+@custom-variant tweaks-close {
+  :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.tweaks-head .modal-close) { @slot; }
+}
+
+@custom-variant tweaks-body {
+  :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.tweaks-body) { @slot; }
+}
+
+@custom-variant tweaks-section {
+  :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.tweaks-section) { @slot; }
+}
+
+@custom-variant tweaks-section-first {
+  :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.tweaks-section:first-child) { @slot; }
+}
+
+@custom-variant tweaks-section-last {
+  :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.tweaks-section:last-child) { @slot; }
+}
+
+@custom-variant tweaks-section-title {
+  :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.tweaks-section-title) { @slot; }
+}
+
+@custom-variant tweaks-theme-grid {
+  :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.tweaks-theme-grid) { @slot; }
+}
+
+@custom-variant tweaks-theme-button {
+  :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.tweaks-theme-btn) { @slot; }
+}
+
+@custom-variant tweaks-action-button {
+  :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.tweaks-action-grid button) { @slot; }
+}
+
+@custom-variant tweaks-theme-button-hover {
+  :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.tweaks-theme-btn:hover) { @slot; }
+}
+
+@custom-variant tweaks-action-button-hover {
+  :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.tweaks-action-grid button:hover) { @slot; }
+}
+
+@custom-variant tweaks-theme-button-active {
+  :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.tweaks-theme-btn.active) { @slot; }
+}
+
+@custom-variant tweaks-accent-button-active {
+  :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.tweaks-accent-btn.active) { @slot; }
+}
+
+@custom-variant tweaks-accent-row {
+  :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.tweaks-accent-row) { @slot; }
+}
+
+@custom-variant tweaks-option-row {
+  :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.tweaks-option-row) { @slot; }
+}
+
+@custom-variant tweaks-option-copy {
+  :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.tweaks-option-row .settings-copy) { @slot; }
+}
+
+@custom-variant tweaks-option-title {
+  :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.tweaks-option-row .settings-copy-title) { @slot; }
+}
+
+@custom-variant tweaks-option-description {
+  :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.tweaks-option-row .settings-copy-desc) { @slot; }
+}
+
+@custom-variant tweaks-option-hidden {
+  :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.tweaks-option-row[hidden]) { @slot; }
+}
+
+@custom-variant tweaks-option-following {
+  :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.tweaks-option-row + .tweaks-option-row) { @slot; }
+}
+
+@custom-variant tweaks-sunset-accent-row {
+  :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.tweaks-panel.sunset-active .tweaks-accent-row) { @slot; }
+}
+
+@custom-variant tweaks-accent-button {
+  :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.tweaks-accent-btn) { @slot; }
+}
+
+@custom-variant tweaks-accent-swatch {
+  :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.tweaks-accent-swatch) { @slot; }
+}
+
+@custom-variant tweaks-action-grid {
+  :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.tweaks-action-grid) { @slot; }
+}
+
+@custom-variant tweaks-phone-overlay-show {
+  @media (max-width: 768px) {
+    :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.tweaks-overlay.show) { @slot; }
+  }
+}
+
+@custom-variant tweaks-phone-overlay {
+  @media (max-width: 768px) {
+    :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.tweaks-overlay) { @slot; }
+  }
+}
+
+@custom-variant tweaks-phone-panel {
+  @media (max-width: 768px) {
+    :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.tweaks-panel) { @slot; }
+  }
+}
+
+@custom-variant tweaks-phone-body {
+  @media (max-width: 768px) {
+    :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.tweaks-body) { @slot; }
+  }
+}
+
+@custom-variant tweaks-narrow-action-grid {
+  @media (max-width: 480px) {
+    :where(&):where(#tweaks-panel-overlay, #tweaks-panel-overlay *):is(.tweaks-action-grid) { @slot; }
+  }
+}
+
+@utility tweaks-overlay-block {
+  position: fixed;
+  inset: 0;
+  z-index: 850;
+  display: none;
+  overflow: hidden;
+  background: rgba(0,0,0,0.22);
+}
+
+@utility tweaks-overlay-show-block {
+  display: block;
+}
+
+@utility tweaks-panel-block {
+  position: absolute;
+  top: 76px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  width: min(380px, calc(100vw - 24px));
+  max-height: calc(100vh - 92px);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+  box-shadow: var(--shadow-lg);
+}
+
+@utility tweaks-head-block {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-secondary) 92%, var(--bg-card));
+}
+
+@utility tweaks-close-block {
+  position: static;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  font-size: 22px;
+}
+
+@utility tweaks-body-block {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: calc(100vh - 172px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px 20px 20px;
+}
+
+@utility tweaks-section-block {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+@utility tweaks-section-first-block {
+  padding-top: 0;
+}
+
+@utility tweaks-section-last-block {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+@utility tweaks-section-title-block {
+  margin-bottom: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+@utility tweaks-theme-grid-block {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+@utility tweaks-theme-button-block {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+}
+
+@utility tweaks-action-button-block {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+}
+
+@utility tweaks-theme-button-hover-block {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
+
+@utility tweaks-action-button-hover-block {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
+
+@utility tweaks-theme-button-active-block {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent-fill);
+}
+
+@utility tweaks-accent-button-active-block {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent-fill);
+}
+
+@utility tweaks-accent-row-block {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+
+@utility tweaks-option-row-block {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+@utility tweaks-option-copy-block {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+@utility tweaks-option-title-block {
+  overflow-wrap: anywhere;
+}
+
+@utility tweaks-option-description-block {
+  overflow-wrap: anywhere;
+}
+
+@utility tweaks-option-hidden-block {
+  display: none;
+}
+
+@utility tweaks-option-following-block {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+@utility tweaks-sunset-accent-row-block {
+  opacity: 0.58;
+}
+
+@utility tweaks-accent-button-block {
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  cursor: pointer;
+  padding: 4px;
+}
+
+@utility tweaks-accent-swatch-block {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 5px;
+  background: var(--tweak-gradient, var(--tweak-accent));
+}
+
+@utility tweaks-action-grid-block {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+@utility tweaks-phone-overlay-show-block {
+  display: flex;
+}
+
+@utility tweaks-phone-overlay-block {
+  align-items: center;
+  justify-content: center;
+  padding: calc(12px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));
+  box-sizing: border-box;
+  background: rgba(0, 0, 0, 0.68);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+@utility tweaks-phone-panel-block {
+  position: relative;
+  top: auto;
+  right: auto;
+  left: auto;
+  width: min(100%, 380px);
+  min-width: 0;
+  max-width: 100%;
+  height: calc(100vh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  max-height: calc(100vh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  box-shadow: 0 12px 24px -20px rgba(0, 0, 0, 0.75);
+  @supports (height: 100dvh) {
+    height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    max-height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
+}
+
+@utility tweaks-phone-body-block {
+  max-height: none;
+}
+
+@utility tweaks-narrow-action-grid-block {
+  grid-template-columns: 1fr;
+}

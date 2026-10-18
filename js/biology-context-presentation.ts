@@ -1,4 +1,4 @@
-import type {BiologyContextReview} from './biology-score-context-ai.js';
+import type {BiologyContextReview} from './biology-score-context-contract.js';
 import type {getBiologyProfileContext} from './profile-context.js';
 
 export interface BiologyContextField {

@@ -363,4 +363,35 @@ describe('app event listener runtime', () => {
     expect(actions.navigate).toHaveBeenCalledWith('reports');
     expect(actions.updateChatNudge).toHaveBeenCalledOnce();
   });
+
+  it.each(['text', 'date'])('keeps a parent dialog open when its %s input handles Escape', type => {
+    const overlay = appendOverlay('modal-overlay', '<div class="modal" role="dialog"><input></div>');
+    const input = overlay.querySelector('input')!;
+    input.type = type;
+    const before = actions.closeModal.mock.calls.length;
+    const returnToParent = vi.fn((event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      // Native manual entry returns to the parent detail dialog. Browsers may
+      // run that parent render before the global bubbling key handler.
+      overlay.firstElementChild!.classList.add('marker-detail-modal');
+    });
+    input.addEventListener('keydown', returnToParent);
+    try {
+      const handled = new KeyboardEvent('keydown', {key: 'Escape', bubbles: true, cancelable: true});
+      input.dispatchEvent(handled);
+      expect(handled.defaultPrevented).toBe(true);
+      expect(returnToParent).toHaveBeenCalledOnce();
+      expect(actions.closeModal.mock.calls.length).toBe(before);
+      expect(overlay.classList.contains('show')).toBe(true);
+      expect(overlay.firstElementChild!.classList.contains('marker-detail-modal')).toBe(true);
+      input.removeEventListener('keydown', returnToParent);
+      const unhandled = new KeyboardEvent('keydown', {key: 'Escape', bubbles: true, cancelable: true});
+      input.dispatchEvent(unhandled);
+      expect(unhandled.defaultPrevented).toBe(false);
+      expect(actions.closeModal.mock.calls.length).toBe(before + 1);
+    } finally {
+      overlay.remove();
+    }
+  });
 });

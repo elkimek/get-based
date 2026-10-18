@@ -19,8 +19,11 @@ import {
   getBundledImportReferenceGoldBenchmark,
 } from './import-reference-benchmark.js';
 
-export function renderDataEntriesSection(): string {
+export function prepareDataEntriesSection(): void {
   queueMicrotask(refreshDataEntriesView);
+}
+export function renderDataEntriesSection(): string {
+  prepareDataEntriesSection();
   return '<div id="data-entries-content"></div>';
 }
 export function refreshDataEntriesSection(): void { refreshDataEntriesView(); }
@@ -63,8 +66,11 @@ export function getImportBenchmarkSnapshots(): unknown[] {
     .sort((a, b) => ((b.benchmarkAt || b.importedAt || 0) as number) - ((a.benchmarkAt || a.importedAt || 0) as number));
   return [getBundledImportReferenceGoldBenchmark(), ...stored];
 }
-export function renderAIUsageSection(): string {
+export function prepareAIUsageSection(): void {
   queueMicrotask(refreshAIUsageView);
+}
+export function renderAIUsageSection(): string {
+  prepareAIUsageSection();
   return '<div id="ai-usage-content"></div>';
 }
 export function refreshAIUsageSection(): void { refreshAIUsageView(); }

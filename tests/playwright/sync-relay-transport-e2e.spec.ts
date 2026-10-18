@@ -1,3 +1,4 @@
+import {waitForAsyncCondition} from '../helpers/awaited-condition.js';
 import type {DeltaItemRow} from "../../js/sync-delta-row-codec.js";
 import type { Browser } from '@playwright/test';
 import type { Page } from '@playwright/test';
@@ -60,10 +61,10 @@ async function createDevice(browser: Browser, label: string) {
   }
   page.setDefaultTimeout(20_000);
   await page.goto(APP_URL, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-  await page.waitForFunction(async () => {
+  await waitForAsyncCondition(() => page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     return state.currentProfile === 'default' && !!state.importedData;
-  });
+  }), 20_000);
   return { context, page, label, errors };
 }
 

@@ -1,8 +1,10 @@
+import {projectDashboardWidgetFrame, renderDashboardWidgetFrame, type DashboardWidgetEntry} from './dashboard-widget-presentation.js';
 // dashboard-widget-controls.js - dashboard widget controls, picker, and layout actions
 
 import { dashboardBiometricSelectionKey } from './dashboard-widgets.js';
-import { getWidgetHeaderDescription } from './dashboard-widget-copy.js';
-import { escapeAttr, escapeHTML, formatValue, getStatus, safeMarkerId, showNotification } from './utils.js';
+import {projectDashboardActionBar} from './dashboard-action-bar-presentation.js';
+import {renderDashboardActionBar} from './dashboard-action-bar-rendering.js';
+import { escapeAttr, formatValue, getStatus, safeMarkerId, showNotification } from './utils.js';
 import { actionAttributes } from './action-attributes.js';
 import {projectDashboardPickerPresentation} from './dashboard-picker-presentation.js';
 import {renderHTML as renderDashboardPickerPresentation} from './components/DashboardPickerPresentation.svelte.html.js';
@@ -21,7 +23,7 @@ import {
   triggerDashboardDnaPicker,
 } from './dashboard-widget-runtime.js';
 
-import type {ControlsDependencies, ControlsPreferences, ControlsWidget, ControlsMarkerOption, ControlsBiometricOption, ControlsEventReader} from '../types/dashboard-widget-controls.js';
+import type {ControlsDependencies, ControlsPreferences, ControlsMarkerOption, ControlsBiometricOption, ControlsEventReader} from '../types/dashboard-widget-controls.js';
 
 const DASHBOARD_WIDGET_KEYBOARD_ACTIONS = new Set([
   'open-biometric-manual-log',
@@ -76,44 +78,26 @@ export function createDashboardWidgetControls(deps: unknown) {
     return organizeMode;
   }
 
+  function projectDashboardControlButtons({includeReset = false}: {includeReset?: unknown} = {}) {
+    return projectDashboardActionBar(organizeMode, includeReset);
+  }
+
+  function projectDashboardWidget(entry: DashboardWidgetEntry, prefs: ControlsPreferences,
+    index: number, visibleEntries: readonly DashboardWidgetEntry[]) {
+    return projectDashboardWidgetFrame(entry, prefs, index, visibleEntries, organizeMode);
+  }
+
   function renderDashboardControlButtons({ includeReset = false }: {includeReset?:unknown} = {}) {
-    const organizeLabel = organizeMode ? 'Done' : 'Customize';
-    return `<button class="dashboard-action-btn" type="button" ${dashboardWidgetActionAttrs('toggle-organize')}>${organizeLabel}</button>
-      <button class="dashboard-action-btn dashboard-action-btn-primary" type="button" ${dashboardWidgetActionAttrs('open-picker')}>+ Add widget</button>
-      ${includeReset || organizeMode ? `<button type="button" class="dashboard-action-btn" ${dashboardWidgetActionAttrs('reset-widgets')}>Reset layout</button>` : ''}`;
+    return renderDashboardActionBar(projectDashboardControlButtons({includeReset}));
   }
 
   function renderDashboardStickyControls() {
-    return `<div class="dashboard-sticky-actions" aria-label="Floating dashboard widget controls">${renderDashboardControlButtons()}</div>`;
+    return renderDashboardActionBar(projectDashboardActionBar(organizeMode), true);
   }
 
-  function renderDashboardWidget(entry: {def:ControlsWidget;body:unknown}, prefs: ControlsPreferences, index: number, visibleEntries: {length:number}) {
-    const { def, body } = entry;
-    const description = (getWidgetHeaderDescription as (id:unknown,description:unknown)=>unknown)(def.id, def.description);
-    const isHidden = prefs.hidden.includes(def.id);
-    if (isHidden || (!body && !organizeMode)) return '';
-    const canMoveUp = index > 0;
-    const canMoveDown = index < visibleEntries.length - 1;
-    const removeLabel = def.customMarkerWidget ? 'Remove' : 'Hide';
-    const controls = organizeMode ? `<div class="dashboard-widget-tools">
-        <button type="button" class="dashboard-widget-tool" ${canMoveUp ? '' : 'disabled'} ${dashboardWidgetActionAttrs('move-widget', { id: def.id, direction: -1 })} aria-label="Move ${escapeHTML(def.title)} up">↑</button>
-        <button type="button" class="dashboard-widget-tool" ${canMoveDown ? '' : 'disabled'} ${dashboardWidgetActionAttrs('move-widget', { id: def.id, direction: 1 })} aria-label="Move ${escapeHTML(def.title)} down">↓</button>
-        <button type="button" class="dashboard-widget-tool" ${dashboardWidgetActionAttrs('hide-widget', { id: def.id })} aria-label="${removeLabel} ${escapeHTML(def.title)}">${removeLabel}</button>
-      </div>` : '';
-    return `<section class="dashboard-widget dashboard-widget-${def.size || 'full'}${organizeMode ? ' is-organizing' : ''}${body ? '' : ' is-empty'}"
-        data-widget-id="${escapeAttr(def.id)}"
-        ${organizeMode ? `draggable="true" ${dashboardWidgetDragAttrs(def.id)}` : ''}>
-      <div class="dashboard-widget-chrome">
-        <div class="dashboard-widget-handle" aria-hidden="true">⋮⋮</div>
-        <div class="dashboard-widget-heading">
-          ${organizeMode && def.source ? `<div class="dashboard-widget-source">${escapeHTML(def.source)}</div>` : ''}
-          <div class="dashboard-widget-title">${escapeHTML(def.title)}</div>
-          ${description ? `<div class="dashboard-widget-description">${escapeHTML(description)}</div>` : ''}
-        </div>
-        ${controls}
-      </div>
-      <div class="dashboard-widget-body">${body || '<div class="dashboard-widget-empty">No data available for this widget.</div>'}</div>
-    </section>`;
+  function renderDashboardWidget(entry: DashboardWidgetEntry, prefs: ControlsPreferences,
+    index: number, visibleEntries: {length: number}) {
+    return renderDashboardWidgetFrame(projectDashboardWidgetFrame(entry, prefs, index, visibleEntries, organizeMode));
   }
 
   function scrollDashboardWidgetIntoView(id: unknown) {
@@ -534,6 +518,8 @@ export function createDashboardWidgetControls(deps: unknown) {
   return {
     isOrganizeMode,
     renderDashboardControlButtons,
+    projectDashboardControlButtons,
+    projectDashboardWidget,
     renderDashboardStickyControls,
     renderDashboardWidget,
     toggleDashboardOrganizeMode,

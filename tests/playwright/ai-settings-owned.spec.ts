@@ -1,6 +1,9 @@
 import { expect, test } from './coverage-fixture.js';
 import { routeHtml } from '../helpers/browser-static-routes.js';
 
+test.describe('AI chooser touch targets', () => {
+  test.use({ hasTouch: true });
+
 test('AI chooser keeps accessible provider controls across themes and narrow layouts', async ({ page, context }) => {
   test.setTimeout(150_000);
   await context.addInitScript({ path: 'node_modules/axe-core/axe.min.js' });
@@ -49,6 +52,8 @@ test('AI chooser keeps accessible provider controls across themes and narrow lay
   await page.screenshot({ path: test.info().outputPath('ai-settings-mobile.png'), fullPage: true });
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.screenshot({ path: test.info().outputPath('ai-settings-desktop.png'), fullPage: true });
+});
+
 });
 
 test('Settings keeps extension interception, latest selection and pause persistence', async ({ page }) => {

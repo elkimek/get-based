@@ -1,0 +1,183 @@
+{
+  "coordinateUnit": "JavaScript UTF-16 offsets",
+  "fullNativeForwardInverseExact": true,
+  "excludedOwners": [
+    "all data/calculations/domain/factory/delegates/export contracts",
+    "existing manual-entry form component and detail manual runtime"
+  ],
+  "edits": [
+    {
+      "start": 11341,
+      "end": 11648,
+      "before": "`<section class=\"wearable-manual-entries wearable-manual-entries-compact\">\n        <button type=\"button\" class=\"wearable-manual-add-btn\" ${wearableActionAttrs('open-detail-manual-add', { metric: metricId })}>+ Add a manual reading</button>\n        <div id=\"wearable-manual-add-slot\"></div>\n      </section>`",
+      "after": "renderWearableDetailPresentation(\"WearableManualEntries\", \"compactEmpty\", {\n      addActionAttributes: () => (wearableActionAttrs('open-detail-manual-add', { metric: metricId }))\n    })",
+      "component": "WearableManualEntries",
+      "kind": "compactEmpty",
+      "candidateStart": 11427,
+      "candidateEnd": 11612
+    },
+    {
+      "start": 11667,
+      "end": 12159,
+      "before": "`<section class=\"wearable-manual-entries\">\n      <div class=\"wearable-manual-entries-head\">\n        <span class=\"wearable-manual-entries-title\">Manual entries</span>\n        <button type=\"button\" class=\"wearable-manual-add-btn\" ${wearableActionAttrs('open-detail-manual-add', { metric: metricId })}>+ Add reading</button>\n      </div>\n      <div class=\"wearable-manual-entries-empty\">No manual entries for this metric yet.</div>\n      <div id=\"wearable-manual-add-slot\"></div>\n    </section>`",
+      "after": "renderWearableDetailPresentation(\"WearableManualEntries\", \"empty\", {\n      addActionAttributes: () => (wearableActionAttrs('open-detail-manual-add', { metric: metricId }))\n    })",
+      "component": "WearableManualEntries",
+      "kind": "empty",
+      "candidateStart": 11631,
+      "candidateEnd": 11809
+    },
+    {
+      "start": 13414,
+      "end": 13558,
+      "before": "`<span class=\"wearable-manual-entry-tags\">${e.tags.map(t => `<span class=\"wearable-manual-entry-tag\">${escapeHTML(t)}</span>`).join('')}</span>`",
+      "after": "renderWearableDetailPresentation(\"WearableManualEntries\", \"tags\", {\n      tagItems: () => ((e.tags as unknown[]).map(t => renderWearableDetailPresentation(\"WearableManualEntries\", \"tag\", {\n      tag: () => (escapeHTML(t))\n    })).join(''))\n    })",
+      "component": "WearableManualEntries",
+      "kind": "tags",
+      "candidateStart": 13064,
+      "candidateEnd": 13310,
+      "typeOnlyNativeGuardRestoration": "Original Array.isArray guard applies to e.tags, but lazy callback loses TypeScript flow narrowing. This erased assertion retains native getter/map/coercion/throw operations exactly."
+    },
+    {
+      "start": 13645,
+      "end": 13714,
+      "before": "`<div class=\"wearable-manual-entry-note\">${escapeHTML(e.note)}</div>`",
+      "after": "renderWearableDetailPresentation(\"WearableManualEntries\", \"note\", {\n      note: () => (escapeHTML(e.note))\n    })",
+      "component": "WearableManualEntries",
+      "kind": "note",
+      "candidateStart": 13397,
+      "candidateEnd": 13510
+    },
+    {
+      "start": 13958,
+      "end": 14573,
+      "before": "`<li class=\"wearable-manual-entry${noteRow ? ' has-note' : ''}\" data-entry-date=\"${escapeHTML(e.date)}\">\n      <span class=\"wearable-manual-entry-date\">${escapeHTML(shortDate(e.date))}</span>\n      <span class=\"wearable-manual-entry-val\">${valueRead}${unit ? ` <span class=\"wearable-manual-entry-unit\">${escapeHTML(unit)}</span>` : ''}</span>\n      ${tagChips}\n      <button type=\"button\" class=\"wearable-manual-entry-del\" title=\"Delete this reading\" aria-label=\"${escapeHTML(ariaText)}\" ${wearableActionAttrs('delete-detail-manual-entry', { metric: metricId, date: e.date })}>\u00d7</button>\n      ${noteRow}\n    </li>`",
+      "after": "renderWearableDetailPresentation(\"WearableManualEntries\", \"row\", {\n      noteClass: () => (noteRow ? ' has-note' : ''),\n      dateAttribute: () => (escapeHTML(e.date)),\n      shortDate: () => (escapeHTML(shortDate(e.date))),\n      value: () => (valueRead),\n      optionalUnit: () => (unit ? renderWearableDetailPresentation(\"WearableManualEntries\", \"unit\", {\n      unit: () => (escapeHTML(unit))\n    }) : ''),\n      tags: () => (tagChips),\n      accessibleDeleteLabel: () => (escapeHTML(ariaText)),\n      deleteActionAttributes: () => (wearableActionAttrs('delete-detail-manual-entry', { metric: metricId, date: e.date })),\n      note: () => (noteRow)\n    })",
+      "component": "WearableManualEntries",
+      "kind": "row",
+      "candidateStart": 13754,
+      "candidateEnd": 14412
+    },
+    {
+      "start": 14599,
+      "end": 15118,
+      "before": "`<section class=\"wearable-manual-entries\">\n    <div class=\"wearable-manual-entries-head\">\n      <span class=\"wearable-manual-entries-title\">Manual entries <span class=\"wearable-manual-entries-count\">${manualEntries.length}</span></span>\n      <button type=\"button\" class=\"wearable-manual-add-btn\" ${wearableActionAttrs('open-detail-manual-add', { metric: metricId })}>+ Add reading</button>\n    </div>\n    <div id=\"wearable-manual-add-slot\"></div>\n    <ul class=\"wearable-manual-entries-list\">${rows}</ul>\n  </section>`",
+      "after": "renderWearableDetailPresentation(\"WearableManualEntries\", \"list\", {\n      entryCount: () => (manualEntries.length),\n      addActionAttributes: () => (wearableActionAttrs('open-detail-manual-add', { metric: metricId })),\n      rows: () => (rows)\n    })",
+      "component": "WearableManualEntries",
+      "kind": "list",
+      "candidateStart": 14438,
+      "candidateEnd": 14689
+    },
+    {
+      "start": 15671,
+      "end": 15782,
+      "before": "` <span style=\"opacity:0.6;font-size:0.7em;margin-left:6px;font-weight:normal\">${escapeHTML(canon.sub)}</span>`",
+      "after": "renderWearableDetailPresentation(\"WearableDetailChrome\", \"subLabel\", {\n      subLabel: () => (escapeHTML(canon.sub))\n    })",
+      "component": "WearableDetailChrome",
+      "kind": "subLabel",
+      "candidateStart": 15242,
+      "candidateEnd": 15365
+    },
+    {
+      "start": 23296,
+      "end": 23614,
+      "before": "`\n    <div class=\"wearable-detail-stat\"${tooltip ? ` title=\"${escapeHTML(tooltip)}\"` : ''}>\n      <div class=\"wearable-detail-stat-label\">${escapeHTML(label)}</div>\n      <div class=\"wearable-detail-stat-val\">${val}</div>\n      ${sub ? `<div class=\"wearable-detail-stat-sub\">${escapeHTML(sub)}</div>` : ''}\n    </div>`",
+      "after": "renderWearableDetailPresentation(\"WearableDetailStats\", \"stat\", {\n      optionalTooltipAttributes: () => (tooltip ? ` title=\"${escapeHTML(tooltip)}\"` : ''),\n      label: () => (escapeHTML(label)),\n      value: () => (val),\n      optionalSubLabel: () => (sub ? renderWearableDetailPresentation(\"WearableDetailStats\", \"subLabel\", {\n      subLabel: () => (escapeHTML(sub))\n    }) : '')\n    })",
+      "component": "WearableDetailStats",
+      "kind": "stat",
+      "candidateStart": 22879,
+      "candidateEnd": 23268
+    },
+    {
+      "start": 23752,
+      "end": 23971,
+      "before": "`<div class=\"wearable-detail-empty\">Every day shows 0 \u2014 Oura suppresses the Activity composite score while Rest Mode is on. Check the <b>Steps</b> card for raw movement data, or disable Rest Mode in the Oura app.</div>`",
+      "after": "renderWearableDetailPresentation(\"WearableDetailFeedback\", \"zeroActivity\", {\n      \n    })",
+      "component": "WearableDetailFeedback",
+      "kind": "zeroActivity",
+      "candidateStart": 23406,
+      "candidateEnd": 23496
+    },
+    {
+      "start": 24096,
+      "end": 24357,
+      "before": "`<div class=\"wearable-detail-empty\">No chart samples for this metric in ${escapeHTML(rangeDef.emptyWindow)}. Manual readings are listed below${m.primarySource === 'manual' && rangeDef.days != null ? '; switch to All to chart older manual readings' : ''}.</div>`",
+      "after": "renderWearableDetailPresentation(\"WearableDetailFeedback\", \"emptyChartWithManual\", {\n      emptyWindow: () => (escapeHTML(rangeDef.emptyWindow)),\n      olderManualHint: () => (m.primarySource === 'manual' && rangeDef.days != null ? '; switch to All to chart older manual readings' : '')\n    })",
+      "component": "WearableDetailFeedback",
+      "kind": "emptyChartWithManual",
+      "candidateStart": 23621,
+      "candidateEnd": 23914
+    },
+    {
+      "start": 24368,
+      "end": 24640,
+      "before": "`<div class=\"wearable-detail-empty\">No daily samples for this metric in ${escapeHTML(rangeDef.emptyWindow)}. Either your wearable doesn't share this metric, the feature is off on your device, or you didn't wear it. Try Sync now, or reconnect to refresh permissions.</div>`",
+      "after": "renderWearableDetailPresentation(\"WearableDetailFeedback\", \"emptyChart\", {\n      emptyWindow: () => (escapeHTML(rangeDef.emptyWindow))\n    })",
+      "component": "WearableDetailFeedback",
+      "kind": "emptyChart",
+      "candidateStart": 23925,
+      "candidateEnd": 24066
+    },
+    {
+      "start": 25090,
+      "end": 25617,
+      "before": "`<button type=\"button\" class=\"wearable-source-badge wearable-source-badge-btn wearable-modal-source-swap\" ${wearableActionAttrs('choose-source', { metric: 'bp_systolic' })} title=\"Switch systolic source\">sys via ${escapeHTML(sourceName)} \u00b7 swap</button>\n            <button type=\"button\" class=\"wearable-source-badge wearable-source-badge-btn wearable-modal-source-swap\" ${wearableActionAttrs('choose-source', { metric: 'bp_diastolic' })} title=\"Switch diastolic source\">dia via ${escapeHTML(pairedSourceName)} \u00b7 swap</button>`",
+      "after": "renderWearableDetailPresentation(\"WearableDetailChrome\", \"pairedSourceSwap\", {\n      systolicActionAttributes: () => (wearableActionAttrs('choose-source', { metric: 'bp_systolic' })),\n      systolicSource: () => (escapeHTML(sourceName)),\n      diastolicActionAttributes: () => (wearableActionAttrs('choose-source', { metric: 'bp_diastolic' })),\n      diastolicSource: () => (escapeHTML(pairedSourceName))\n    })",
+      "component": "WearableDetailChrome",
+      "kind": "pairedSourceSwap",
+      "candidateStart": 24516,
+      "candidateEnd": 24927
+    },
+    {
+      "start": 25640,
+      "end": 25901,
+      "before": "`<button type=\"button\" class=\"wearable-source-badge wearable-source-badge-btn wearable-modal-source-swap\" ${wearableActionAttrs('choose-source', { metric: metricId })} title=\"Switch source for this metric\">via ${escapeHTML(adapter.displayName)} \u00b7 swap</button>`",
+      "after": "renderWearableDetailPresentation(\"WearableDetailChrome\", \"sourceSwap\", {\n      sourceActionAttributes: () => (wearableActionAttrs('choose-source', { metric: metricId })),\n      sourceName: () => (escapeHTML(adapter.displayName))\n    })",
+      "component": "WearableDetailChrome",
+      "kind": "sourceSwap",
+      "candidateStart": 24950,
+      "candidateEnd": 25185
+    },
+    {
+      "start": 26026,
+      "end": 26258,
+      "before": "`<button type=\"button\" class=\"ctx-btn-option${r.key === rangeKey ? ' active' : ''}\" aria-pressed=\"${r.key === rangeKey}\" ${wearableActionAttrs('set-detail-range', { metric: metricId, range: r.key })}>${escapeHTML(r.label)}</button>`",
+      "after": "renderWearableDetailPresentation(\"WearableDetailChrome\", \"rangePill\", {\n      activeClass: () => (r.key === rangeKey ? ' active' : ''),\n      pressed: () => (r.key === rangeKey),\n      rangeActionAttributes: () => (wearableActionAttrs('set-detail-range', { metric: metricId, range: r.key })),\n      label: () => (escapeHTML(r.label))\n    })",
+      "component": "WearableDetailChrome",
+      "kind": "rangePill",
+      "candidateStart": 25310,
+      "candidateEnd": 25650
+    },
+    {
+      "start": 26283,
+      "end": 26961,
+      "before": "`<button class=\"modal-close\" ${wearableActionAttrs('modal-close')}>&times;</button>\n    <h3>${escapeHTML(canon.label)}${subLabel}</h3>\n    <div class=\"modal-unit\">\n      ${escapeHTML(sourceName)}${deltaStr ? ` \u00b7 ${deltaStr} vs baseline` : ''} \u00b7 ${escapeHTML(trendWord)} 30d\n      ${swapButton}\n    </div>\n    <div class=\"ctx-btn-group wearable-detail-range\" role=\"group\" aria-label=\"Chart range\">${rangePills}</div>\n    <div class=\"modal-chart\" style=\"height:260px\"><canvas id=\"chart-modal\"></canvas></div>\n    ${emptyHint}\n    <div class=\"wearable-detail-stats\">${statsCells}</div>\n    ${buildManualEntriesSection(metricId, manualEntries, m.primarySource)}\n    ${emfSleepHint}`",
+      "after": "renderWearableDetailPresentation(\"WearableDetailChrome\", \"modal\", {\n      closeActionAttributes: () => (wearableActionAttrs('modal-close')),\n      label: () => (escapeHTML(canon.label)),\n      subLabel: () => (subLabel),\n      sourceName: () => (escapeHTML(sourceName)),\n      optionalDelta: () => (deltaStr ? ` \u00b7 ${deltaStr} vs baseline` : ''),\n      trend: () => (escapeHTML(trendWord)),\n      sourceSwap: () => (swapButton),\n      rangePills: () => (rangePills),\n      emptyHint: () => (emptyHint),\n      stats: () => (statsCells),\n      manualEntries: () => (buildManualEntriesSection(metricId, manualEntries, m.primarySource)),\n      emfHint: () => (emfSleepHint)\n    })",
+      "component": "WearableDetailChrome",
+      "kind": "modal",
+      "candidateStart": 25675,
+      "candidateEnd": 26350
+    },
+    {
+      "start": 27918,
+      "end": 28176,
+      "before": "`<div class=\"wearable-detail-emf-hint\"><span aria-hidden=\"true\">\ud83d\udca1</span> Sleep regressing? Sometimes it's the room. <a href=\"#\" ${wearableActionAttrs('open-emf-assessment')} data-umami-event=\"emf-nudge-wearable-sleep\">Check your EMF environment \u2192</a></div>`",
+      "after": "renderWearableDetailPresentation(\"WearableDetailFeedback\", \"emfHint\", {\n      assessmentActionAttributes: () => (wearableActionAttrs('open-emf-assessment'))\n    })",
+      "component": "WearableDetailFeedback",
+      "kind": "emfHint",
+      "candidateStart": 27307,
+      "candidateEnd": 27470
+    },
+    {
+      "start": 1497,
+      "end": 1497,
+      "before": "",
+      "after": "\nimport { renderWearableDetailPresentation } from './wearable-detail-presentation.js';",
+      "component": null,
+      "kind": "import",
+      "candidateStart": 1497,
+      "candidateEnd": 1583
+    }
+  ],
+  "sourceBeforeSHA256": "65474562db0838d4267e1f57b6e6e0cde791c5545eb160554305363102f3fb16",
+  "sourceAfterSHA256": "72556fa2f977d116af3e0472953bad9619e556430ceb1caec08f79cb3b558359"
+}

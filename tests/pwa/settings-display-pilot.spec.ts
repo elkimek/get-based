@@ -31,7 +31,9 @@ test('Display Svelte component opens for the first time offline and retains pref
     await page.evaluate(async () => { await (await import('/js/settings-loader.js')).openSettingsModal('display'); });
     await expect(panel.locator('[data-unit="US"]')).toHaveAttribute('aria-pressed', 'true');
     await expect(panel.locator('[data-alt-units="on"]')).toHaveAttribute('aria-pressed', 'true');
-    await expect(panel.locator('[data-unit="US"]')).toHaveCSS('min-height', '44px');
+    await expect(panel.locator('[data-unit="US"]')).toHaveCSS('font-size', '12px');
+    await expect(panel.locator('[data-unit="US"]')).toHaveCSS('padding', '4px 12px');
+    await expect(panel.locator('[data-unit="US"]')).toHaveCSS('min-height', await page.evaluate(() => matchMedia('(pointer:coarse)').matches) ? '44px' : 'auto');
     expect(errors).toEqual([]);
   } finally { await server.close(); }
 });

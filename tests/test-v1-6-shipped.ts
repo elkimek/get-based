@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { ownedRule, escapedClass } from './helpers/legacy-light-chat-contracts.js';
 import { dataModuleSource } from './helpers/data-module-source.js';
 // test-v1-6-shipped.js — regression coverage for v1.6.7..v1.6.16
 //
@@ -389,7 +390,8 @@ const _origProfileSex = state ? state.profileSex : null;
   {
     const sessionsSrc = fetchSrc('js/light-sessions-view.js');
     const historyPresentationSrc = fetchSrc('js/components/LightSessionHistory.svelte');
-    const viewsSrc = fetchSrc('js/views.js');
+    const viewsSrc = fetchSrc('js/views-runtime.js');
+    const viewsFacadeSrc = fetchSrc('js/views.js');
     assert('light-sessions-view.js: SESSIONS_DEFAULT_CAP = 3',
       /SESSIONS_DEFAULT_CAP\s*=\s*3/.test(sessionsSrc));
     assert('light-sessions-view.js: _openAllSessionsModal exists',
@@ -397,11 +399,11 @@ const _origProfileSex = state ? state.profileSex : null;
     assert('light-sessions-view.js: _collectUnifiedSessionRows shared helper',
       /function _collectUnifiedSessionRows/.test(sessionsSrc));
     assert('light-sessions-view.js: _renderSessionRowsHTML shared row renderer',
-      /function _renderSessionRowsHTML/.test(sessionsSrc));
+      sessionsSrc.includes('function getSessionRowViews(rows)') && sessionsSrc.includes('rows: getSessionRowViews(visibleRows)') && sessionsSrc.includes('rows: getSessionRowViews(rows)') && historyPresentationSrc.includes('<LightSessionRow'));
     assert('light-sessions-view.js: "View all N sessions" button replaces inline expand',
       /View all \{total\} sessions/.test(historyPresentationSrc));
     assert('views.js opens the deferred light sessions view through the loader',
-      !viewsSrc.includes("from './light-sessions-view.js'")
+      viewsFacadeSrc.includes('_openAllSessionsModal,') && !viewsSrc.includes("from './light-sessions-view.js'")
         && viewsSrc.includes('const module = await loadLightSunUI();')
         && viewsSrc.includes('return module._openAllSessionsModal();'));
     assert('light sessions view: _toggleAllSessions and _showAllSessions removed',
@@ -428,16 +430,19 @@ const _origProfileSex = state ? state.profileSex : null;
   console.log('%c 14. v1.6.7 mobile CSS guards ', 'font-weight:bold;color:#0891b2');
   {
     const cssSrc = fetchCssSrc();
+    const { environmentAIClasses } = await import('../js/light-environment-ai-classes.js');
+    const readingClasses = environmentAIClasses('light-env-reading-ai').split(/\s+/);
+    const environmentAISrc = fetchSrc('js/components/LightEnvironmentAI.svelte');
     assert('styles.css: .light-env-reading-ai uses flex-basis 100%',
-      /\.light-env-reading-ai[\s\S]{0,300}flex-basis:\s*100%/.test(cssSrc));
+      readingClasses.includes('gb:environment-ai:basis-full') && environmentAISrc.includes("view.kind === 'measurement'") && environmentAISrc.includes('class={classes(`light-env-reading-ai${') && ownedRule(fetchSrc('css/light-env.css'), escapedClass('gb:environment-ai:basis-full') + ':is([data-light-environment-ai],[data-light-environment-ai] *)', { 'flex-basis': '100%' }));
     assert('styles.css: mobile .main padding-bottom clears FAB stack (1024 + 480 + 375)',
       (cssSrc.match(/padding-bottom:\s*calc\(120px\s*\+\s*env\(safe-area-inset-bottom\)\)/g) || []).length >= 3);
     assert('styles.css: silhouette tap stroke for coarse pointer (mobile)',
       /pointer:\s*coarse[\s\S]{0,500}\.sun-silhouette-region[\s\S]{0,300}stroke-width:\s*\d/.test(cssSrc));
     assert('styles.css: mobile silhouette hit stroke remains visually hidden',
-      /pointer:\s*coarse[\s\S]{0,500}\.sun-silhouette-region\s*\{[\s\S]{0,180}stroke:\s*transparent[\s\S]{0,180}stroke-opacity:\s*0/.test(cssSrc));
+      ownedRule(fetchSrc('css/light-sun.css'), '[data-sun-body-picker] .sun-silhouette-region', { stroke: '#0000', 'stroke-opacity': '0', 'stroke-width': '5px' }, '(pointer:coarse)'));
     assert('styles.css: stock overlay-ready hides geometric selection fallback',
-      /\.sun-silhouette-stock\[data-selection-overlay="ready"\]\s+\.sun-silhouette-region\.selected\s*\{[\s\S]{0,120}fill-opacity:\s*0[\s\S]{0,80}stroke-opacity:\s*0/.test(cssSrc));
+      ownedRule(fetchSrc('css/light-sun.css'), '[data-sun-body-picker].sun-silhouette-stock[data-selection-overlay=ready] .sun-silhouette-region.selected', { 'fill-opacity': '0', 'stroke-opacity': '0' }));
     assert('styles.css: modal-header reserves padding-right for close button',
       /\.modal-header\s*\{[\s\S]{0,200}padding-right:\s*40px/.test(cssSrc));
   }
@@ -493,23 +498,26 @@ const _origProfileSex = state ? state.profileSex : null;
   {
     const lightChannelViewSrc = fetchSrc('js/light-channel-view.js');
     const conditionsRendererSrc = fetchSrc('js/light-conditions-renderer.js');
+    const timelineSrc = fetchSrc('js/components/LightConditionsTimeline.svelte');
+    const conditionsProjectionSrc = fetchSrc('js/light-conditions-presentation.js');
+    const conditionClassesSrc = fetchSrc('js/light-conditions-classes.js');
+    const conditionsComponentSrc = fetchSrc('js/components/LightConditionsPresentation.svelte');
+    const { conditionsClasses } = await import('../js/light-conditions-classes.js');
     const cssSrc = fetchCssSrc();
     const tooltipSrc = fetchSrc('js/touch-tooltip.js');
     assert('light-conditions-renderer.js: "Today\'s sun timeline" replaces "TODAY\'S SUN ARC"',
-      /Today's sun timeline/.test(conditionsRendererSrc) && !/Today's sun arc/.test(conditionsRendererSrc));
+      conditionsRendererSrc.includes('LightConditionsPresentation.svelte.html.js') && timelineSrc.includes("Today's sun timeline") && !timelineSrc.includes("Today's sun arc"));
     assert('light-conditions-renderer.js: sun timeline renders as a rail with dots',
-      /conditions-now-events-rail/.test(conditionsRendererSrc) && /conditions-now-event-dot/.test(conditionsRendererSrc));
+      timelineSrc.includes("c('conditions-now-events-rail')") && timelineSrc.includes("c('conditions-now-event-dot')") && timelineSrc.includes('role="list"') && timelineSrc.includes('role="listitem"'));
     assert('styles.css: sun timeline rail scrolls instead of wrapping',
-      /\.conditions-now-events\s*\{[\s\S]{0,180}overflow-x:\s*auto/.test(cssSrc)
-      && /conditions-now-events-rail/.test(cssSrc));
+      conditionsClasses('conditions-now-events').split(/\s+/).includes('gb:conditions:overflow-x-auto') && timelineSrc.includes("c('conditions-now-events')") && conditionClassesSrc.includes('conditions-now-events-rail') && ownedRule(fetchSrc('css/light-conditions-now.css'), escapedClass('gb:conditions:overflow-x-auto') + ':is([data-light-conditions-presentation],[data-light-conditions-presentation] *)', { 'overflow-x': 'auto' }));
     assert('styles.css: Conditions Now widget chrome owns the visible title',
-      /\.dashboard-widget\[data-widget-id="light-conditions-now"\] \.light-conditions-now-title\s*\{[\s\S]{0,80}display:\s*none/.test(cssSrc));
+      conditionsClasses('light-conditions-now-title').split(/\s+/).includes("gb:conditions:[[data-widget-id='light-conditions-now']_&]:hidden") && conditionsComponentSrc.includes("<span class={c('light-conditions-now-title')}>Conditions now</span>") && ownedRule(fetchSrc('css/light-conditions-now.css'), '[data-widget-id=light-conditions-now] ' + escapedClass("gb:conditions:[[data-widget-id='light-conditions-now']_&]:hidden") + ':is([data-light-conditions-presentation],[data-light-conditions-presentation] *)', { display: 'none' }));
     assert('styles.css: Conditions Now grid responds to widget width',
       /container-name:\s*conditions-now/.test(cssSrc)
       && /@container conditions-now \(max-width:\s*300px\)/.test(cssSrc));
     assert('light-conditions-renderer.js: Conditions Now uses data tooltips instead of native timeline titles',
-      /data-conditions-tooltip/.test(conditionsRendererSrc)
-      && !/conditions-now-event[\s\S]{0,220}title=/.test(conditionsRendererSrc));
+      timelineSrc.includes('data-conditions-tooltip={event.tooltip}') && timelineSrc.includes('data-conditions-tooltip={v.timelineTip}') && !/\btitle=/.test(timelineSrc));
     assert('touch-tooltip.js: app-wide tooltip handles title and data tooltip attrs',
       /data-app-tooltip/.test(tooltipSrc)
       && /data-conditions-tooltip/.test(tooltipSrc)
@@ -523,12 +531,11 @@ const _origProfileSex = state ? state.profileSex : null;
       /\.app-tooltip\s*\{[\s\S]{0,160}position:\s*fixed/.test(cssSrc)
       && /\.app-tooltip\.is-visible/.test(cssSrc));
     assert('light-conditions-renderer.js: EAQI label includes its numeric EU index',
-      /EU index/.test(conditionsRendererSrc));
+      conditionsProjectionSrc.includes('EU index ${Math.round(aqAgg.index)}'));
     assert('light-conditions-renderer.js: cloud chip identifies current clear-sky UVI',
-      /clear-sky UVI/.test(conditionsRendererSrc));
+      conditionsProjectionSrc.includes('clear-sky UVI ${uviClear.toFixed(1)}'));
     assert('light-channel-view.js: zero-hit channel pill names missing logs without grading biology',
-      /return \{ txt: n \? `\$\{n\} day/.test(lightChannelViewSrc)
-      && /: 'Not logged', n, sun, device \}/.test(lightChannelViewSrc));
+      lightChannelViewSrc.includes("from './light-channel-presentation.js'") && /return \{ txt: n \? `\$\{n\} day/.test(fetchSrc('js/light-channel-presentation.js')) && /: 'Not logged', n, sun, device \}/.test(fetchSrc('js/light-channel-presentation.js')));
     const sunSrc = fetchSrc('js/sun.js');
     assert('sun.js: Eyes-mode option shortened ("never stare at sun")',
       /Eyes uncovered \(never stare at sun\)/.test(sunSrc));
@@ -540,7 +547,8 @@ const _origProfileSex = state ? state.profileSex : null;
     const startupUiSrc = fetchSrc('js/startup-ui.js');
     const profileSrc = fetchSrc('js/profile.js');
     const profileRuntimeSrc = fetchSrc('js/profile-runtime.js');
-    const viewsSrc = fetchSrc('js/views.js');
+    const viewsSrc = fetchSrc('js/views-runtime.js');
+    const viewsFacadeSrc = fetchSrc('js/views.js');
     const routerSrc = fetchSrc('js/views-router.js');
     const navSrc = fetchSrc('js/nav.js');
     assert('views-router.js: last route is stored per active profile',
@@ -553,7 +561,7 @@ const _origProfileSex = state ? state.profileSex : null;
       /const routeData\s*=/.test(routerSrc)
       && /const routeCategory\s*=\s*isKnownRoute\(requestedCategory,\s*routeData\)\s*\? requestedCategory : 'dashboard'/.test(routerSrc));
     assert('views.js: exposes router-backed getInitialView wrapper',
-      /export function getInitialView\(\)/.test(viewsSrc)
+      viewsFacadeSrc.includes('getInitialView,') && /export function getInitialView\(\)/.test(viewsSrc)
       && /return getRouterInitialView\(\)/.test(viewsSrc));
     assert('startup-ui.js: boot navigates to stored route instead of hard Dashboard',
       /startupUIDeps\.navigate\(startupUIDeps\.getInitialView\(\)\s*\|\|\s*'dashboard'\)/.test(startupUiSrc)
@@ -575,16 +583,27 @@ const _origProfileSex = state ? state.profileSex : null;
     fetchSrc('js/views.js');
     const categoryPageViewSrc = fetchSrc('js/category-page-view.js');
     const categoryViewRenderersSrc = fetchSrc('js/category-view-renderers.js');
+    const categoryCardSrc = fetchSrc('js/components/CategoryChartCard.svelte');
+    const categoryBodySrc = fetchSrc('js/components/CategoryPageViewBody.svelte');
+    const detailChromeSrc = fetchSrc('js/components/MarkerDetailChrome.svelte');
+    const detailModalSrc = fetchSrc('js/components/MarkerDetailModal.svelte');
+    const detailHistorySrc = fetchSrc('js/components/MarkerDetailHistory.svelte');
+    const detailRangeSrc = fetchSrc('js/components/MarkerDetailRange.svelte');
+    const detailNotesSrc = fetchSrc('js/components/MarkerDetailNotes.svelte');
+    const detailBioAgeSrc = fetchSrc('js/components/MarkerDetailBioAge.svelte');
     const chartCardRecsSrc = fetchSrc('js/chart-card-recs.js');
     const categoryGlyphsSrc = fetchSrc('js/category-glyphs.js');
     const compareCorrelationsSrc = fetchSrc('js/compare-correlations.js');
+    const compareCategoryRowsSrc = fetchSrc('js/components/CompareDatesTableRows.svelte');
+    const categoryGlyphComponentSrc = fetchSrc('js/components/CategoryGlyph.svelte');
+    const { getCategoryGlyphCode } = await import('../js/category-glyphs.js');
     const markerDetailSrc = fetchSrc('js/marker-detail-modal-impl.js').replace(/if \(latestValue >= max\)\s+max \+= span \* 0\.08;/g, 'if (latestValue >= max) max += span * 0.08;');
     const dataSrc = dataModuleSource(fetchSrc('js/data.js'), fetchSrc('js/data-core.js'));
     const dataViewControlsSrc = fetchSrc('js/data-view-controls.js');
     const cssSrc = fetchCssSrc();
     assert('category-view-renderers.js: marker cards render latest-value summary before chart',
-      /chart-card-snapshot/.test(categoryViewRenderersSrc)
-      && /chart-card-latest-value/.test(categoryViewRenderersSrc)
+      /chart-card-snapshot/.test(categoryCardSrc)
+      && /chart-card-latest-value/.test(categoryCardSrc) && categoryCardSrc.indexOf('chart-card-snapshot') < categoryCardSrc.indexOf('chart-container')
       && /visibleValueIndexes\.length > 4 \? visibleValueIndexes\.slice\(-4\)/.test(categoryViewRenderersSrc));
     assert('styles.css: category chart content uses full available width',
       /#view-content\s*\{[\s\S]{0,80}width:\s*100%/.test(cssSrc)
@@ -618,7 +637,7 @@ const _origProfileSex = state ? state.profileSex : null;
     assert('data.js: header range toggle patches existing buttons',
       /const canPatch\s*=/.test(dataViewControlsSrc)
       && /btn\.classList\.toggle\('active',\s*active\)/.test(dataViewControlsSrc)
-      && /data-range="\$\{m\}"/.test(dataViewControlsSrc));
+      && dataViewControlsSrc.includes('renderHeaderRangeButtons(modes, () => state.rangeMode)') && fetchSrc('js/components/HeaderRangeButtons.svelte').includes('data-range={button.mode}'));
     assert('data.js: active data cache avoids rebuilding marker data during modal browsing',
       /let _activeDataCache\s*=\s*null/.test(dataSrc)
       && /export function invalidateActiveDataCache\(\)/.test(dataSrc)
@@ -636,28 +655,27 @@ const _origProfileSex = state ? state.profileSex : null;
       && /getCategoryGlyphCode\(categoryKey,\s*label\)/.test(categoryGlyphsSrc)
       && /CATEGORY_GLYPH_CODES/.test(categoryGlyphsSrc)
       && categoryPageViewSrc.includes("from './category-glyphs.js'")
-      && /renderCategoryGlyph\(categoryKey,\s*cat\.label\)/.test(categoryPageViewSrc)
-      && /empty-state-icon-category/.test(categoryPageViewSrc)
-      && /compare-category-label/.test(compareCorrelationsSrc)
+      && /getCategoryGlyphCode\(categoryKey,\s*cat\.label\)/.test(categoryPageViewSrc) && categoryBodySrc.includes('<CategoryGlyph view={view.glyph}/>' )
+      && /empty-state-icon-category/.test(categoryBodySrc)
+      && /getCategoryGlyphCode\(catKey,\s*cat\.label\)/.test(compareCorrelationsSrc)
+      && compareCategoryRowsSrc.includes('class="compare-category-label"><CategoryGlyph view={category.glyph}/>')
+      && categoryGlyphComponentSrc.includes('{view.code}</span>')
+      && getCategoryGlyphCode('', '😀') === 'M'
       && !/Click to change icon/.test(categoryPageViewSrc));
     assert('styles.css: category glyph has redesigned non-emoji treatment',
       /\.category-glyph\s*\{[\s\S]{0,520}font-family:\s*var\(--font-mono\)/.test(cssSrc)
       && /\.compare-category-label\s*\{/.test(cssSrc));
     assert('marker-detail-modal.js: marker detail modal uses compact redesigned sections',
-      /stat-card-range-controls/.test(markerDetailSrc)
-      && /marker-history-list/.test(markerDetailSrc)
-      && /marker-history-row/.test(markerDetailSrc)
-      && /gb-detail-actions/.test(markerDetailSrc)
-      && !/&#128221;/.test(markerDetailSrc));
+      detailChromeSrc.includes('stat-card-range-controls') && detailModalSrc.includes('marker-history-list') && detailHistorySrc.includes('marker-history-row') && detailChromeSrc.includes('gb-detail-actions') && [detailChromeSrc, detailModalSrc, detailHistorySrc, detailRangeSrc, detailNotesSrc, detailBioAgeSrc].every(owner => !owner.includes('&#128221;')));
     assert('marker-detail-modal.js: marker modal history defaults to last three with delegated expansion',
       /MARKER_HISTORY_DEFAULT_CAP\s*=\s*3/.test(markerDetailSrc)
       && /MARKER_HISTORY_EXPANDED_CAP\s*=\s*40/.test(markerDetailSrc)
       && /modalPoints\.slice\(-MARKER_HISTORY_DEFAULT_CAP\)/.test(markerDetailSrc)
       && /modalPoints\.slice\(-expandedHistoryLimit\)/.test(markerDetailSrc)
-      && /markerDetailActionAttrs\('show-detail-modal', \{ id, showAllHistory: true, historyLimit: nextHistoryLimit, scrollToHistory: true \}\)/.test(markerDetailSrc)
+      && /projectMarkerDetailAction\('show-detail-modal', \{ id, showAllHistory: true, historyLimit: nextHistoryLimit, scrollToHistory: true \}\)/.test(markerDetailSrc)
       && /View more history \(\$\{modalPoints\.length\} values\)/.test(markerDetailSrc)
       && /Show \$\{showCount\} older/.test(markerDetailSrc)
-      && /Show last \$\{MARKER_HISTORY_DEFAULT_CAP\} values/.test(markerDetailSrc));
+      && detailHistorySrc.includes('Show last {node.count} values') && markerDetailSrc.includes('count: `${MARKER_HISTORY_DEFAULT_CAP}`'));
     assert('marker-detail-modal.js: marker range band uses reference scale instead of full-width optimal green',
       /const refMin\s*=\s*numericOrNull\(referenceRange\.min\)/.test(markerDetailSrc)
       && /const effMin\s*=\s*numericOrNull\(latestRange\.min\)/.test(markerDetailSrc)
@@ -673,8 +691,8 @@ const _origProfileSex = state ? state.profileSex : null;
       && /let rangeMainDisplay\s*=\s*'Not set'/.test(markerDetailSrc)
       && /state\.rangeMode === 'optimal'[\s\S]{0,400}else if \(hasReferenceRange\) \{\s*rangeMainDisplay = referenceDisplay/.test(markerDetailSrc));
     assert('marker-detail-modal.js/styles.css: marker range band colors non-optimal zones',
-      /gb-range-band-zone-low/.test(markerDetailSrc)
-      && /gb-range-band-zone-high/.test(markerDetailSrc)
+      /gb-range-band-zone-low/.test(detailRangeSrc)
+      && /gb-range-band-zone-high/.test(detailRangeSrc)
       && /const lowZoneWidth\s*=/.test(markerDetailSrc)
       && /const highZoneWidth\s*=/.test(markerDetailSrc)
       && /\.gb-range-band-zone-low\s*\{[\s\S]{0,120}var\(--yellow\)/.test(cssSrc)

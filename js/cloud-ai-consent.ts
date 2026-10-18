@@ -1,3 +1,5 @@
+import {renderLegalConsentModal} from './legal-consent-presentation.js';
+import {consentDOMText,consentDOMAttribute,type ConsentPolicyGroup,type ConsentPolicyLink} from './legal-consent-view.js';
 // cloud-ai-consent.js — AI transparency plus route-aware processing approval.
 
 import { getAIProcessingDestination } from './ai-provider-policy.js';
@@ -30,7 +32,7 @@ interface PromptOptions {
   statement: string;
   cancelLabel: string;
   approveLabel: string;
-  links?: ((container: Element) => void) | null;
+  links?: (() => readonly ConsentPolicyGroup[]) | null;
   onApprove: () => void;
 }
 
@@ -227,39 +229,27 @@ function purposeCopy(kind: string) {
   return 'generating AI responses and insights';
 }
 
-function addLink(container: Element, label: string, url: string) {
-  if (!url) return;
-  if (container.childNodes.length) container.append(' · ');
-  const link = document.createElement('a');
-  link.href = url;
-  link.target = '_blank';
-  link.rel = 'noopener';
-  link.textContent = label;
-  container.appendChild(link);
-}
-
-function appendPolicyLinks(container: Element, details: ConsentDetails) {
-  if (details.privacyUrl || details.termsUrl) {
-    const recipient = document.createElement('span');
-    recipient.append(`${details.label}: `);
-    addLink(recipient, 'Privacy', details.privacyUrl);
-    addLink(recipient, 'Terms', details.termsUrl);
-    container.appendChild(recipient);
-  }
-
-  const supplementary = getSupplementaryDeploymentPolicy();
-  const duplicatesRecipient = supplementary
-    && supplementary.privacyUrl === details.privacyUrl
-    && supplementary.termsUrl === details.termsUrl;
-  if (!supplementary || duplicatesRecipient) return;
-  const operator = document.createElement('span');
-  if (container.childNodes.length) operator.append(document.createElement('br'));
-  operator.append(details.provider === 'routstr'
-    ? `${supplementary.name || 'Deployment operator'} app policies (these do not govern the selected Routstr node): `
-    : `Supplementary ${supplementary.name || 'deployment operator'} policies: `);
-  addLink(operator, 'Privacy', supplementary.privacyUrl);
-  addLink(operator, 'Terms', supplementary.termsUrl);
-  container.appendChild(operator);
+/** Snapshot native link-setter reads in their original order. */
+function projectPolicyLinks(details:ConsentDetails):readonly ConsentPolicyGroup[]{
+ const groups:ConsentPolicyGroup[]=[];
+ const links=(privacy:()=>string,terms:()=>string):ConsentPolicyLink[]=>{
+  const rows:ConsentPolicyLink[]=[];
+  for(const [label,read] of [['Privacy',privacy],['Terms',terms]] as const){const url=read();if(url)rows.push({url:consentDOMAttribute(url,document),label});}
+  return rows;
+ };
+ if(details.privacyUrl||details.termsUrl){
+  const label=`${details.label}: `;
+  const rows=links(()=>details.privacyUrl,()=>details.termsUrl);
+  groups.push({leadingBreak:false,label,links:rows});
+ }
+ const supplementary=getSupplementaryDeploymentPolicy();
+ const duplicatesRecipient=supplementary&&supplementary.privacyUrl===details.privacyUrl&&supplementary.termsUrl===details.termsUrl;
+ if(!supplementary||duplicatesRecipient)return groups;
+ const label=details.provider==='routstr'
+  ?`${supplementary.name||'Deployment operator'} app policies (these do not govern the selected Routstr node): `
+  :`Supplementary ${supplementary.name||'deployment operator'} policies: `;
+ groups.push({leadingBreak:groups.length>0,label,links:links(()=>supplementary.privacyUrl,()=>supplementary.termsUrl)});
+ return groups;
 }
 
 function recipientPracticesPoint(details: AIProcessingDestination) {
@@ -288,54 +278,18 @@ function showPrompt({
   const overlay = document.createElement('div');
   overlay.id = id;
   overlay.className = 'modal-overlay legal-consent-overlay show';
-  overlay.innerHTML = `
-    <div class="legal-consent-modal" role="dialog" aria-modal="true">
-      <div class="legal-consent-kicker"></div>
-      <h2></h2>
-      <p class="legal-consent-copy"></p>
-      <ul class="legal-consent-points"></ul>
-      <label class="legal-consent-check">
-        <input type="checkbox">
-        <span class="ai-processing-statement"></span>
-      </label>
-      <p class="cloud-ai-consent-links"></p>
-      <div class="legal-consent-actions">
-        <button type="button" class="cloud-ai-consent-cancel" data-ai-processing-action="cancel"></button>
-        <button type="button" class="legal-consent-accept" data-ai-processing-action="approve" disabled></button>
-      </div>
-    </div>`;
-  const modal = overlay.querySelector('[role="dialog"]');
-  const titleId = `${id}-title`;
-  const descId = `${id}-desc`;
-  modal?.setAttribute('aria-labelledby', titleId);
-  modal?.setAttribute('aria-describedby', descId);
-  const kickerEl = overlay.querySelector('.legal-consent-kicker');
-  const titleEl = overlay.querySelector('h2');
-  const descEl = overlay.querySelector('.legal-consent-copy');
-  const pointsEl = overlay.querySelector('.legal-consent-points');
-  const statementEl = overlay.querySelector('.ai-processing-statement');
-  const linksEl = overlay.querySelector('.cloud-ai-consent-links');
-  if (kickerEl) kickerEl.textContent = kicker;
-  if (titleEl) { titleEl.id = titleId; titleEl.textContent = title; }
-  if (descEl) { descEl.id = descId; descEl.textContent = description; }
-  for (const point of points) {
-    const item = document.createElement('li');
-    item.textContent = point;
-    pointsEl?.appendChild(item);
-  }
-  if (statementEl) statementEl.textContent = statement;
-  if (linksEl && links) links(linksEl);
-  if (linksEl && !linksEl.childNodes.length) linksEl.remove();
-  const checkbox = (overlay.querySelector('input[type="checkbox"]') as HTMLInputElement | null);
-  if (checkbox) checkbox.id = id === 'cloud-ai-consent-overlay' ? 'cloud-ai-consent-checkbox' : `${id}-checkbox`;
-  const cancel = (overlay.querySelector('[data-ai-processing-action="cancel"]') as HTMLButtonElement | null);
-  const approve = (overlay.querySelector('[data-ai-processing-action="approve"]') as HTMLButtonElement | null);
-  if (id === 'cloud-ai-consent-overlay') {
-    cancel?.setAttribute('data-cloud-ai-consent-action', 'cancel');
-    approve?.setAttribute('data-cloud-ai-consent-action', 'approve');
-  }
-  if (cancel) cancel.textContent = cancelLabel;
-  if (approve) approve.textContent = approveLabel;
+  const titleId=`${id}-title`,descId=`${id}-desc`;
+  const kickerText=consentDOMText(kicker,document),titleText=consentDOMText(title,document),descriptionText=consentDOMText(description,document);
+  const pointTexts:string[]=[];for(const point of points)pointTexts.push(consentDOMText(point,document));
+  const statementText=consentDOMText(statement,document);
+  const policyGroups=links?links():[];
+  const checkboxId=id==='cloud-ai-consent-overlay'?'cloud-ai-consent-checkbox':`${id}-checkbox`;
+  const cancelText=consentDOMText(cancelLabel,document),approveText=consentDOMText(approveLabel,document);
+  overlay.innerHTML=renderLegalConsentModal({kind:'cloud',kicker:kickerText,title:titleText,description:descriptionText,
+    titleId,descriptionId:descId,checkboxId,points:pointTexts,statement:statementText,policyGroups,
+    cancelLabel:cancelText,approveLabel:approveText,remote:id==='cloud-ai-consent-overlay'});
+  const checkbox=overlay.querySelector<HTMLInputElement>('input[type="checkbox"]');
+  const approve=overlay.querySelector<HTMLButtonElement>('[data-ai-processing-action="approve"]');
 
   document.body.appendChild(overlay);
   document.body.classList.add('cloud-ai-consent-visible');
@@ -466,7 +420,7 @@ function requestCombinedDestinationActivation(details: ConsentDetails, kind: str
       : `I understand the AI disclosure and approve sending relevant sensitive data to ${details.label}, including for later automatic insights.`,
     cancelLabel: 'Not now',
     approveLabel: 'Allow & activate',
-    links: privateNetwork ? null : container => appendPolicyLinks(container, details),
+    links: privateNetwork ? null : () => projectPolicyLinks(details),
     onApprove: () => {
       storeAITransparencyAcknowledgement();
       if (privateNetwork) storeRouteConfirmation(details);
@@ -513,7 +467,7 @@ function requestRemoteSensitiveDataApproval(details: ConsentDetails, kind: strin
     statement: `I approve sending relevant sensitive data to ${details.label} for AI and voice processing, including later automatic insights.`,
     cancelLabel: activating ? 'Not now' : 'Keep data on this device',
     approveLabel: activating ? 'Allow & activate' : 'Approve & send',
-    links: container => appendPolicyLinks(container, details),
+    links: () => projectPolicyLinks(details),
     onApprove: () => storeRemoteApproval(details),
   });
 }

@@ -1,0 +1,24 @@
+{
+  "controllerSHA256": "e055a2f3b659489d3a7c683d56a1bd73ad7ddd126dcd7900c63c11276ea87284",
+  "originalFixtureSHA256": "8fa26b72748b761a66b0d50dee1c7b0940d55a7be92fd2c24ae6cb6d792ae882",
+  "historical": {
+    "MarkerPlacementForm": {
+      "ownerSHA256": "b7cb96649c4f8801889c281529efd2092d8d0ea0af1340581b6148a0618c871a",
+      "compiledSHA256": "9539097b559d2360595d42e1d168232a2b67bf5d9089b428db062f395a12bff5"
+    },
+    "MarkerPlacementOptions": {
+      "ownerSHA256": "9dabaa67bf7431ec3717f3902a003d01ce29b982c66db4cd16b6b496766ab0ec",
+      "compiledSHA256": "bff472ba56de5481ff00b626557eec480dee2d702651b58bd1beca1f1195c44b"
+    },
+    "MarkerPlacementSummary": {
+      "ownerSHA256": "ca11d87d9a4d665b18c10c8b272ba8cddd126b202e849c23570bc2797ec91871",
+      "compiledSHA256": "4d2d0e274d24ee320d3ab89b5b080d87c47626273e51ae1654028505cf034819"
+    }
+  },
+  "current": {
+    "js/marker-placement-presentation.ts": "999c863b2dd5afe5b4b30f6375fadac972ecf3b87887eb2f45d437fb875baa45",
+    "js/components/MarkerPlacementForm.svelte": "aa67d75a514249abb43b4f271232b348d92dd0e9ba8d8451e44ec61bf42502ec",
+    "js/components/MarkerPlacementOptions.svelte": "c37a263fdf480920a17d39bbb3d6a2782b68dbfbedf8c31f9f031e38da0b3d15",
+    "js/components/MarkerPlacementSummary.svelte": "70dd024e228c21858f6ecc70be333af4e18cac329755e205f86100493c64792b"
+  }
+}

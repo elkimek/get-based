@@ -1,0 +1,1330 @@
+{
+  "nativeTooltipSHA256": "413e86b6a010cd9d8353f5bd52627ec0633c012d905c20736f0d107723eb942b",
+  "originalFixtureSHA256": "0e665a93e8aac4019491b38646722747c3c2421cb08a9dd13702addec1a2b6c9",
+  "desktop": {
+    "raw": "<button type=\"button\" class=\"context-back-btn\" aria-label=\"Back to EMF assessments\" data-emf-action=\"close-preview\" aria-describedby=\"app-tooltip\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"m15 18-6-6 6-6\"></path></svg></button><button type=\"button\" class=\"modal-close\" aria-label=\"Back to EMF assessments\" data-emf-action=\"close-preview\">×</button>\n    <h3>EMF Report Preview</h3>\n    <div class=\"modal-unit\">Aug 5, 2026 — by Synthetic consultant &lt;&amp;&gt;</div><div class=\"emf-room-card\">\n      <div class=\"emf-room-header\"><strong>Bedroom</strong>\n        <span style=\"color:var(--text-muted);font-size:12px\">pillow area &lt;&amp;&gt;</span>\n      </div>\n      <div class=\"emf-measurements\"><div class=\"emf-measurement-row\">\n        <span class=\"emf-measurement-label\">AC Electric</span>\n        <span style=\"font-weight:600\">28</span>\n        <span class=\"emf-measurement-unit\">V/m</span>\n        <span class=\"emf-severity-dot\" style=\"background:var(--orange)\" title=\"Severe concern\"></span>\n        <span style=\"font-size:11px;color:var(--orange)\">Severe concern</span>\n      </div><div class=\"emf-measurement-row\">\n        <span class=\"emf-measurement-label\">AC Magnetic</span>\n        <span style=\"font-weight:600\">45</span>\n        <span class=\"emf-measurement-unit\">nT</span>\n        <span class=\"emf-severity-dot\" style=\"background:var(--yellow)\" title=\"Slight concern\"></span>\n        <span style=\"font-size:11px;color:var(--yellow)\">Slight concern</span>\n      </div></div><div style=\"font-size:12px;color:var(--text-muted);margin-top:4px\">Sources: Synthetic router &lt;&amp;&gt;</div><div style=\"font-size:12px;color:var(--text-muted)\">Mitigations: Synthetic demand switch &lt;&amp;&gt;</div></div><div class=\"ctx-editor-actions\">\n    <button type=\"button\" class=\"import-btn import-btn-primary\" id=\"emf-confirm-btn\">Confirm Import</button>\n    <button type=\"button\" class=\"import-btn import-btn-secondary\" data-emf-action=\"close-preview\">Cancel</button>\n  </div>",
+    "receipt": {
+      "children": [
+        {
+          "type": 1,
+          "name": "button",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [
+            [
+              "type",
+              "button"
+            ],
+            [
+              "class",
+              "context-back-btn"
+            ],
+            [
+              "aria-label",
+              "Back to EMF assessments"
+            ],
+            [
+              "data-emf-action",
+              "close-preview"
+            ],
+            [
+              "aria-describedby",
+              "app-tooltip"
+            ]
+          ],
+          "children": [
+            {
+              "type": 1,
+              "name": "svg",
+              "namespace": "http://www.w3.org/2000/svg",
+              "attributes": [
+                [
+                  "viewBox",
+                  "0 0 24 24"
+                ],
+                [
+                  "aria-hidden",
+                  "true"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 1,
+                  "name": "path",
+                  "namespace": "http://www.w3.org/2000/svg",
+                  "attributes": [
+                    [
+                      "d",
+                      "m15 18-6-6 6-6"
+                    ]
+                  ],
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": 1,
+          "name": "button",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [
+            [
+              "type",
+              "button"
+            ],
+            [
+              "class",
+              "modal-close"
+            ],
+            [
+              "aria-label",
+              "Back to EMF assessments"
+            ],
+            [
+              "data-emf-action",
+              "close-preview"
+            ]
+          ],
+          "children": [
+            {
+              "type": 3,
+              "text": "×"
+            }
+          ]
+        },
+        {
+          "type": 3,
+          "text": "\n    "
+        },
+        {
+          "type": 1,
+          "name": "h3",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": [
+            {
+              "type": 3,
+              "text": "EMF Report Preview"
+            }
+          ]
+        },
+        {
+          "type": 3,
+          "text": "\n    "
+        },
+        {
+          "type": 1,
+          "name": "div",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [
+            [
+              "class",
+              "modal-unit"
+            ]
+          ],
+          "children": [
+            {
+              "type": 3,
+              "text": "Aug 5, 2026 — by Synthetic consultant <&>"
+            }
+          ]
+        },
+        {
+          "type": 1,
+          "name": "div",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [
+            [
+              "class",
+              "emf-room-card"
+            ]
+          ],
+          "children": [
+            {
+              "type": 3,
+              "text": "\n      "
+            },
+            {
+              "type": 1,
+              "name": "div",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "emf-room-header"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 1,
+                  "name": "strong",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "Bedroom"
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n        "
+                },
+                {
+                  "type": 1,
+                  "name": "span",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "style",
+                      "color:var(--text-muted);font-size:12px"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "pillow area <&>"
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n      "
+                }
+              ]
+            },
+            {
+              "type": 3,
+              "text": "\n      "
+            },
+            {
+              "type": 1,
+              "name": "div",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "emf-measurements"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 1,
+                  "name": "div",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "class",
+                      "emf-measurement-row"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "\n        "
+                    },
+                    {
+                      "type": 1,
+                      "name": "span",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "class",
+                          "emf-measurement-label"
+                        ]
+                      ],
+                      "children": [
+                        {
+                          "type": 3,
+                          "text": "AC Electric"
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n        "
+                    },
+                    {
+                      "type": 1,
+                      "name": "span",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "style",
+                          "font-weight:600"
+                        ]
+                      ],
+                      "children": [
+                        {
+                          "type": 3,
+                          "text": "28"
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n        "
+                    },
+                    {
+                      "type": 1,
+                      "name": "span",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "class",
+                          "emf-measurement-unit"
+                        ]
+                      ],
+                      "children": [
+                        {
+                          "type": 3,
+                          "text": "V/m"
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n        "
+                    },
+                    {
+                      "type": 1,
+                      "name": "span",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "class",
+                          "emf-severity-dot"
+                        ],
+                        [
+                          "style",
+                          "background:var(--orange)"
+                        ],
+                        [
+                          "title",
+                          "Severe concern"
+                        ]
+                      ],
+                      "children": []
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n        "
+                    },
+                    {
+                      "type": 1,
+                      "name": "span",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "style",
+                          "font-size:11px;color:var(--orange)"
+                        ]
+                      ],
+                      "children": [
+                        {
+                          "type": 3,
+                          "text": "Severe concern"
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n      "
+                    }
+                  ]
+                },
+                {
+                  "type": 1,
+                  "name": "div",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "class",
+                      "emf-measurement-row"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "\n        "
+                    },
+                    {
+                      "type": 1,
+                      "name": "span",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "class",
+                          "emf-measurement-label"
+                        ]
+                      ],
+                      "children": [
+                        {
+                          "type": 3,
+                          "text": "AC Magnetic"
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n        "
+                    },
+                    {
+                      "type": 1,
+                      "name": "span",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "style",
+                          "font-weight:600"
+                        ]
+                      ],
+                      "children": [
+                        {
+                          "type": 3,
+                          "text": "45"
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n        "
+                    },
+                    {
+                      "type": 1,
+                      "name": "span",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "class",
+                          "emf-measurement-unit"
+                        ]
+                      ],
+                      "children": [
+                        {
+                          "type": 3,
+                          "text": "nT"
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n        "
+                    },
+                    {
+                      "type": 1,
+                      "name": "span",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "class",
+                          "emf-severity-dot"
+                        ],
+                        [
+                          "style",
+                          "background:var(--yellow)"
+                        ],
+                        [
+                          "title",
+                          "Slight concern"
+                        ]
+                      ],
+                      "children": []
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n        "
+                    },
+                    {
+                      "type": 1,
+                      "name": "span",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "style",
+                          "font-size:11px;color:var(--yellow)"
+                        ]
+                      ],
+                      "children": [
+                        {
+                          "type": 3,
+                          "text": "Slight concern"
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n      "
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": 1,
+              "name": "div",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "style",
+                  "font-size:12px;color:var(--text-muted);margin-top:4px"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "Sources: Synthetic router <&>"
+                }
+              ]
+            },
+            {
+              "type": 1,
+              "name": "div",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "style",
+                  "font-size:12px;color:var(--text-muted)"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "Mitigations: Synthetic demand switch <&>"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": 1,
+          "name": "div",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [
+            [
+              "class",
+              "ctx-editor-actions"
+            ]
+          ],
+          "children": [
+            {
+              "type": 3,
+              "text": "\n    "
+            },
+            {
+              "type": 1,
+              "name": "button",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "type",
+                  "button"
+                ],
+                [
+                  "class",
+                  "import-btn import-btn-primary"
+                ],
+                [
+                  "id",
+                  "emf-confirm-btn"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "Confirm Import"
+                }
+              ]
+            },
+            {
+              "type": 3,
+              "text": "\n    "
+            },
+            {
+              "type": 1,
+              "name": "button",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "type",
+                  "button"
+                ],
+                [
+                  "class",
+                  "import-btn import-btn-secondary"
+                ],
+                [
+                  "data-emf-action",
+                  "close-preview"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "Cancel"
+                }
+              ]
+            },
+            {
+              "type": 3,
+              "text": "\n  "
+            }
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "tag": "button",
+          "attributes": [
+            [
+              "type",
+              "button"
+            ],
+            [
+              "class",
+              "context-back-btn"
+            ],
+            [
+              "aria-label",
+              "Back to EMF assessments"
+            ],
+            [
+              "data-emf-action",
+              "close-preview"
+            ],
+            [
+              "aria-describedby",
+              "app-tooltip"
+            ]
+          ]
+        },
+        {
+          "tag": "button",
+          "attributes": [
+            [
+              "type",
+              "button"
+            ],
+            [
+              "class",
+              "modal-close"
+            ],
+            [
+              "aria-label",
+              "Back to EMF assessments"
+            ],
+            [
+              "data-emf-action",
+              "close-preview"
+            ]
+          ]
+        },
+        {
+          "tag": "button",
+          "attributes": [
+            [
+              "type",
+              "button"
+            ],
+            [
+              "class",
+              "import-btn import-btn-secondary"
+            ],
+            [
+              "data-emf-action",
+              "close-preview"
+            ]
+          ]
+        }
+      ],
+      "controls": []
+    },
+    "buttonAttributes": [
+      [
+        "type",
+        "button"
+      ],
+      [
+        "class",
+        "context-back-btn"
+      ],
+      [
+        "aria-label",
+        "Back to EMF assessments"
+      ],
+      [
+        "data-emf-action",
+        "close-preview"
+      ],
+      [
+        "aria-describedby",
+        "app-tooltip"
+      ]
+    ],
+    "tooltipText": "Back to EMF assessments"
+  },
+  "recentTouch": {
+    "raw": "<button type=\"button\" class=\"context-back-btn\" aria-label=\"Back to EMF assessments\" title=\"Back to EMF assessments\" data-emf-action=\"close-preview\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"m15 18-6-6 6-6\"></path></svg></button><button type=\"button\" class=\"modal-close\" aria-label=\"Back to EMF assessments\" data-emf-action=\"close-preview\">×</button>\n    <h3>EMF Report Preview</h3>\n    <div class=\"modal-unit\">Aug 5, 2026 — by Synthetic consultant &lt;&amp;&gt;</div><div class=\"emf-room-card\">\n      <div class=\"emf-room-header\"><strong>Bedroom</strong>\n        <span style=\"color:var(--text-muted);font-size:12px\">pillow area &lt;&amp;&gt;</span>\n      </div>\n      <div class=\"emf-measurements\"><div class=\"emf-measurement-row\">\n        <span class=\"emf-measurement-label\">AC Electric</span>\n        <span style=\"font-weight:600\">28</span>\n        <span class=\"emf-measurement-unit\">V/m</span>\n        <span class=\"emf-severity-dot\" style=\"background:var(--orange)\" title=\"Severe concern\"></span>\n        <span style=\"font-size:11px;color:var(--orange)\">Severe concern</span>\n      </div><div class=\"emf-measurement-row\">\n        <span class=\"emf-measurement-label\">AC Magnetic</span>\n        <span style=\"font-weight:600\">45</span>\n        <span class=\"emf-measurement-unit\">nT</span>\n        <span class=\"emf-severity-dot\" style=\"background:var(--yellow)\" title=\"Slight concern\"></span>\n        <span style=\"font-size:11px;color:var(--yellow)\">Slight concern</span>\n      </div></div><div style=\"font-size:12px;color:var(--text-muted);margin-top:4px\">Sources: Synthetic router &lt;&amp;&gt;</div><div style=\"font-size:12px;color:var(--text-muted)\">Mitigations: Synthetic demand switch &lt;&amp;&gt;</div></div><div class=\"ctx-editor-actions\">\n    <button type=\"button\" class=\"import-btn import-btn-primary\" id=\"emf-confirm-btn\">Confirm Import</button>\n    <button type=\"button\" class=\"import-btn import-btn-secondary\" data-emf-action=\"close-preview\">Cancel</button>\n  </div>",
+    "receipt": {
+      "children": [
+        {
+          "type": 1,
+          "name": "button",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [
+            [
+              "type",
+              "button"
+            ],
+            [
+              "class",
+              "context-back-btn"
+            ],
+            [
+              "aria-label",
+              "Back to EMF assessments"
+            ],
+            [
+              "title",
+              "Back to EMF assessments"
+            ],
+            [
+              "data-emf-action",
+              "close-preview"
+            ]
+          ],
+          "children": [
+            {
+              "type": 1,
+              "name": "svg",
+              "namespace": "http://www.w3.org/2000/svg",
+              "attributes": [
+                [
+                  "viewBox",
+                  "0 0 24 24"
+                ],
+                [
+                  "aria-hidden",
+                  "true"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 1,
+                  "name": "path",
+                  "namespace": "http://www.w3.org/2000/svg",
+                  "attributes": [
+                    [
+                      "d",
+                      "m15 18-6-6 6-6"
+                    ]
+                  ],
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": 1,
+          "name": "button",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [
+            [
+              "type",
+              "button"
+            ],
+            [
+              "class",
+              "modal-close"
+            ],
+            [
+              "aria-label",
+              "Back to EMF assessments"
+            ],
+            [
+              "data-emf-action",
+              "close-preview"
+            ]
+          ],
+          "children": [
+            {
+              "type": 3,
+              "text": "×"
+            }
+          ]
+        },
+        {
+          "type": 3,
+          "text": "\n    "
+        },
+        {
+          "type": 1,
+          "name": "h3",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [],
+          "children": [
+            {
+              "type": 3,
+              "text": "EMF Report Preview"
+            }
+          ]
+        },
+        {
+          "type": 3,
+          "text": "\n    "
+        },
+        {
+          "type": 1,
+          "name": "div",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [
+            [
+              "class",
+              "modal-unit"
+            ]
+          ],
+          "children": [
+            {
+              "type": 3,
+              "text": "Aug 5, 2026 — by Synthetic consultant <&>"
+            }
+          ]
+        },
+        {
+          "type": 1,
+          "name": "div",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [
+            [
+              "class",
+              "emf-room-card"
+            ]
+          ],
+          "children": [
+            {
+              "type": 3,
+              "text": "\n      "
+            },
+            {
+              "type": 1,
+              "name": "div",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "emf-room-header"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 1,
+                  "name": "strong",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "Bedroom"
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n        "
+                },
+                {
+                  "type": 1,
+                  "name": "span",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "style",
+                      "color:var(--text-muted);font-size:12px"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "pillow area <&>"
+                    }
+                  ]
+                },
+                {
+                  "type": 3,
+                  "text": "\n      "
+                }
+              ]
+            },
+            {
+              "type": 3,
+              "text": "\n      "
+            },
+            {
+              "type": 1,
+              "name": "div",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "class",
+                  "emf-measurements"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 1,
+                  "name": "div",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "class",
+                      "emf-measurement-row"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "\n        "
+                    },
+                    {
+                      "type": 1,
+                      "name": "span",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "class",
+                          "emf-measurement-label"
+                        ]
+                      ],
+                      "children": [
+                        {
+                          "type": 3,
+                          "text": "AC Electric"
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n        "
+                    },
+                    {
+                      "type": 1,
+                      "name": "span",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "style",
+                          "font-weight:600"
+                        ]
+                      ],
+                      "children": [
+                        {
+                          "type": 3,
+                          "text": "28"
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n        "
+                    },
+                    {
+                      "type": 1,
+                      "name": "span",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "class",
+                          "emf-measurement-unit"
+                        ]
+                      ],
+                      "children": [
+                        {
+                          "type": 3,
+                          "text": "V/m"
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n        "
+                    },
+                    {
+                      "type": 1,
+                      "name": "span",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "class",
+                          "emf-severity-dot"
+                        ],
+                        [
+                          "style",
+                          "background:var(--orange)"
+                        ],
+                        [
+                          "title",
+                          "Severe concern"
+                        ]
+                      ],
+                      "children": []
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n        "
+                    },
+                    {
+                      "type": 1,
+                      "name": "span",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "style",
+                          "font-size:11px;color:var(--orange)"
+                        ]
+                      ],
+                      "children": [
+                        {
+                          "type": 3,
+                          "text": "Severe concern"
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n      "
+                    }
+                  ]
+                },
+                {
+                  "type": 1,
+                  "name": "div",
+                  "namespace": "http://www.w3.org/1999/xhtml",
+                  "attributes": [
+                    [
+                      "class",
+                      "emf-measurement-row"
+                    ]
+                  ],
+                  "children": [
+                    {
+                      "type": 3,
+                      "text": "\n        "
+                    },
+                    {
+                      "type": 1,
+                      "name": "span",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "class",
+                          "emf-measurement-label"
+                        ]
+                      ],
+                      "children": [
+                        {
+                          "type": 3,
+                          "text": "AC Magnetic"
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n        "
+                    },
+                    {
+                      "type": 1,
+                      "name": "span",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "style",
+                          "font-weight:600"
+                        ]
+                      ],
+                      "children": [
+                        {
+                          "type": 3,
+                          "text": "45"
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n        "
+                    },
+                    {
+                      "type": 1,
+                      "name": "span",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "class",
+                          "emf-measurement-unit"
+                        ]
+                      ],
+                      "children": [
+                        {
+                          "type": 3,
+                          "text": "nT"
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n        "
+                    },
+                    {
+                      "type": 1,
+                      "name": "span",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "class",
+                          "emf-severity-dot"
+                        ],
+                        [
+                          "style",
+                          "background:var(--yellow)"
+                        ],
+                        [
+                          "title",
+                          "Slight concern"
+                        ]
+                      ],
+                      "children": []
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n        "
+                    },
+                    {
+                      "type": 1,
+                      "name": "span",
+                      "namespace": "http://www.w3.org/1999/xhtml",
+                      "attributes": [
+                        [
+                          "style",
+                          "font-size:11px;color:var(--yellow)"
+                        ]
+                      ],
+                      "children": [
+                        {
+                          "type": 3,
+                          "text": "Slight concern"
+                        }
+                      ]
+                    },
+                    {
+                      "type": 3,
+                      "text": "\n      "
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": 1,
+              "name": "div",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "style",
+                  "font-size:12px;color:var(--text-muted);margin-top:4px"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "Sources: Synthetic router <&>"
+                }
+              ]
+            },
+            {
+              "type": 1,
+              "name": "div",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "style",
+                  "font-size:12px;color:var(--text-muted)"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "Mitigations: Synthetic demand switch <&>"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": 1,
+          "name": "div",
+          "namespace": "http://www.w3.org/1999/xhtml",
+          "attributes": [
+            [
+              "class",
+              "ctx-editor-actions"
+            ]
+          ],
+          "children": [
+            {
+              "type": 3,
+              "text": "\n    "
+            },
+            {
+              "type": 1,
+              "name": "button",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "type",
+                  "button"
+                ],
+                [
+                  "class",
+                  "import-btn import-btn-primary"
+                ],
+                [
+                  "id",
+                  "emf-confirm-btn"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "Confirm Import"
+                }
+              ]
+            },
+            {
+              "type": 3,
+              "text": "\n    "
+            },
+            {
+              "type": 1,
+              "name": "button",
+              "namespace": "http://www.w3.org/1999/xhtml",
+              "attributes": [
+                [
+                  "type",
+                  "button"
+                ],
+                [
+                  "class",
+                  "import-btn import-btn-secondary"
+                ],
+                [
+                  "data-emf-action",
+                  "close-preview"
+                ]
+              ],
+              "children": [
+                {
+                  "type": 3,
+                  "text": "Cancel"
+                }
+              ]
+            },
+            {
+              "type": 3,
+              "text": "\n  "
+            }
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "tag": "button",
+          "attributes": [
+            [
+              "type",
+              "button"
+            ],
+            [
+              "class",
+              "context-back-btn"
+            ],
+            [
+              "aria-label",
+              "Back to EMF assessments"
+            ],
+            [
+              "title",
+              "Back to EMF assessments"
+            ],
+            [
+              "data-emf-action",
+              "close-preview"
+            ]
+          ]
+        },
+        {
+          "tag": "button",
+          "attributes": [
+            [
+              "type",
+              "button"
+            ],
+            [
+              "class",
+              "modal-close"
+            ],
+            [
+              "aria-label",
+              "Back to EMF assessments"
+            ],
+            [
+              "data-emf-action",
+              "close-preview"
+            ]
+          ]
+        },
+        {
+          "tag": "button",
+          "attributes": [
+            [
+              "type",
+              "button"
+            ],
+            [
+              "class",
+              "import-btn import-btn-secondary"
+            ],
+            [
+              "data-emf-action",
+              "close-preview"
+            ]
+          ]
+        }
+      ],
+      "controls": []
+    },
+    "buttonAttributes": [
+      [
+        "type",
+        "button"
+      ],
+      [
+        "class",
+        "context-back-btn"
+      ],
+      [
+        "aria-label",
+        "Back to EMF assessments"
+      ],
+      [
+        "title",
+        "Back to EMF assessments"
+      ],
+      [
+        "data-emf-action",
+        "close-preview"
+      ]
+    ],
+    "tooltipText": null
+  }
+}

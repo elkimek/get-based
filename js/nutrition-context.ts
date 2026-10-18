@@ -4,7 +4,9 @@ import { createRetryingStylesheetLoader, findStylesheet } from './retrying-modul
 
 import { state } from './state.js';
 import { showNotification } from './utils.js';
-import { addUtilsRuntimeListener } from './utils-runtime.js';
+import * as widgets from './nutrition-widget-runtime.js';
+export { hydrateNutritionSummary } from './nutrition-summary-runtime.js';
+export { registerNutritionEditorDelegates } from './nutrition-widget-runtime.js';
 import { getNutritionContextDays, isNutritionContextEnabled } from './lab-context-settings.js';
 
 export { isNutritionContextEnabled, setNutritionContextEnabled } from './lab-context-settings.js';
@@ -34,11 +36,6 @@ export function buildNutritionHistoryReceiptContext(queryText: unknown = '') {
   return `[section:nutritionHistory]\n## Meals & Nutrition — ${request.label} one-off history\nOne-off aggregate is in the editable user message; automatic nutrition summary is omitted. Individual meals, names, notes, ingredients, and photos are not included.\n[/section:nutritionHistory]\n\n`;
 }
 
-export async function hydrateNutritionSummary(...args: Parameters<typeof import('./nutrition-store.js').hydrateNutritionSummary>) {
-  const store = await import('./nutrition-store.js');
-  return store.hydrateNutritionSummary(...args);
-}
-
 const STYLESHEET_URL = new URL('../css/nutrition.css', import.meta.url).href;
 const stylesheetPromiseCache = createRetryingStylesheetLoader({
   existing: existingStylesheet,
@@ -60,17 +57,8 @@ const stylesheetPromiseCache = createRetryingStylesheetLoader({
 });
 let modulePromise: Promise<typeof import('./nutrition.js')> | null = null;
 let moduleValue: typeof import('./nutrition.js') | null = null;
-let syncHydrationPromise: Promise<unknown> = Promise.resolve();
-
-// Pull refresh replaces state.importedData in place. Reconcile its synced meal
-// rows into the encrypted local thumbnail cache before the widget is rendered.
-addUtilsRuntimeListener('labcharts-sync-applied', () => {
-  const profileId = state.currentProfile;
-  syncHydrationPromise = syncHydrationPromise
-    .catch(() => undefined)
-    .then(() => hydrateNutritionSummary(profileId))
-    .catch(error => console.warn('[nutrition] Synced meals could not be hydrated:', error));
-});
+let widgetsReady = false;
+let retryModule = false;
 
 function existingStylesheet() {
   return findStylesheet("link[data-nutrition-stylesheet]", "/css/nutrition.css");
@@ -86,12 +74,14 @@ export function loadNutritionStylesheet() {
 
 export function loadNutritionModule() {
   if (!modulePromise) {
-    modulePromise = import('./nutrition.js').then(module => {
+    const load = retryModule ? import('./nutrition.js?lazy-retry=1' as './nutrition.js') : import('./nutrition.js');
+    modulePromise = load.then(module => {
       moduleValue = module;
       return module;
     }).catch(error => {
       modulePromise = null;
       moduleValue = null;
+      retryModule = true;
       throw error;
     });
   }
@@ -100,6 +90,7 @@ export function loadNutritionModule() {
 
 export async function loadNutritionFeature() {
   const [module] = await Promise.all([loadNutritionModule(), loadNutritionStylesheet()]);
+  widgetsReady = true;
   return module;
 }
 
@@ -107,21 +98,138 @@ export function isNutritionFeatureReady() {
   return moduleValue !== null && isNutritionStylesheetLoaded();
 }
 
+/** Prepare synchronous summaries and controls without loading editing tools. */
+export async function loadNutritionWidgetFeature() {
+  await loadNutritionStylesheet();
+  widgetsReady = true;
+  return widgets;
+}
+export function isNutritionWidgetFeatureReady() {
+  return widgetsReady && isNutritionStylesheetLoaded();
+}
 export function renderNutritionWidget() {
-  return moduleValue?.renderNutritionWidget?.() || '';
+  return widgetsReady ? widgets.renderNutritionWidget() : '';
+}
+export function renderFuelWidget() {
+  return widgetsReady ? widgets.renderNutritionFuelWidget() : '';
+}
+export function projectNutritionWidget() {
+  return widgetsReady ? widgets.projectNutritionWidget() : null;
+}
+export function projectFuelWidget() {
+  return widgetsReady ? widgets.projectNutritionFuelWidget() : null;
 }
 
-export function renderFuelWidget() {
-  return moduleValue?.renderNutritionFuelWidget?.() || '';
+let coldActionRequest = 0;
+let pendingColdAction = false;
+
+interface ColdActionFeedback {
+  ticket: number; button: HTMLElement; busy: string | null;
+  status: HTMLElement | null; previousStatus: string; message: string; isCurrent: () => boolean;
+}
+let coldActionFeedback: ColdActionFeedback | null = null;
+
+function releaseColdActionFeedback(ticket?: number) {
+  const owned = coldActionFeedback;
+  if (!owned || (ticket !== undefined && owned.ticket !== ticket)) return;
+  coldActionFeedback = null;
+  if (owned.button.getAttribute('aria-busy') === 'true') {
+    if (owned.busy === null) owned.button.removeAttribute('aria-busy');
+    else owned.button.setAttribute('aria-busy', owned.busy);
+  }
+  if (owned.status?.textContent === owned.message) owned.status.textContent = owned.previousStatus;
+}
+
+function showColdActionFeedback(ticket: number, button: HTMLElement, root: HTMLElement, action: string, isCurrent: () => boolean) {
+  const status = root.querySelector<HTMLElement>('[data-nutrition-loading-status]');
+  if (!status) return;
+  const message = action === 'open-history' ? 'Opening meal history…'
+    : action === 'open-targets' ? 'Opening Nutrition setup…'
+    : action === 'open-fluid-log' ? 'Opening the drink logger…' : 'Opening the meal editor…';
+  coldActionFeedback = {ticket, button, busy: button.getAttribute('aria-busy'), status, previousStatus: status?.textContent || '', message, isCurrent};
+  button.setAttribute('aria-busy', 'true');
+  if (status) status.textContent = message;
+}
+
+function handleColdWidgetAction(event: Event) {
+  if (widgets.areNutritionEditorDelegatesRegistered()) return;
+  const target = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-nutrition-action]') : null;
+  const root = target?.closest<HTMLElement>('[data-nutrition-dashboard-view]');
+  if (!target || !root?.isConnected) return;
+  const action = target.getAttribute('data-nutrition-action');
+  if (!['open', 'open-history', 'open-targets', 'open-fluid-log'].includes(action || '')) return;
+  event.preventDefault(); event.stopPropagation();
+  releaseColdActionFeedback();
+  const ticket = ++coldActionRequest, profile = state.currentProfile, data = state.importedData;
+  const revision = routeRevision(), route = state.currentView, main = document.getElementById('main-content');
+  const modal = document.getElementById('detail-modal'), overlay = document.getElementById('modal-overlay');
+  const content = modal?.firstElementChild, shown = overlay?.classList.contains('show'), focus = document.activeElement;
+  const sourceCurrent = () => ticket === coldActionRequest && target.isConnected && root.isConnected && root.contains(target)
+    && target.getAttribute('data-nutrition-action') === action && (!main || main.contains(root))
+    && state.currentProfile === profile && state.importedData === data && routeRevision() === revision && state.currentView === route
+    && document.getElementById('main-content') === main && (document.activeElement === focus || !!modal?.contains(document.activeElement));
+  const current = () => sourceCurrent() && document.getElementById('detail-modal') === modal
+    && document.getElementById('modal-overlay') === overlay && modal?.firstElementChild === content
+    && overlay?.classList.contains('show') === shown && document.activeElement === focus;
+  pendingColdAction = true;
+  showColdActionFeedback(ticket, target, root, action!, current);
+  let dispatched = false;
+  void loadNutritionFeature().then(module => {
+    if (!current()) return;
+    dispatched = true;
+    if (action === 'open') return module.openNutritionEditor({}, sourceCurrent);
+    if (action === 'open-history') return module.openNutritionHistory(undefined, {}, sourceCurrent);
+    if (action === 'open-targets') return module.openNutritionTargets({}, sourceCurrent);
+    return module.openFluidLog(sourceCurrent);
+  }).catch(error => {
+    if (dispatched) {
+      if (!sourceCurrent() || document.getElementById('detail-modal') !== modal || document.getElementById('modal-overlay') !== overlay) return;
+    } else if (!current()) return;
+    console.error('Meals & Nutrition could not be loaded', error);
+    showNotification('Meals & Nutrition could not be loaded. Try again.', 'error');
+  }).finally(() => {
+    releaseColdActionFeedback(ticket);
+    if (ticket === coldActionRequest) pendingColdAction = false;
+  });
+}
+if (typeof document !== 'undefined') {
+  document.addEventListener('click', handleColdWidgetAction);
+  document.addEventListener('keydown', event => {
+    if (pendingColdAction && event.key === 'Escape') {
+      const owned = coldActionFeedback;
+      // Consume only this focused live control's cancellation. Retired requests
+      // and newer dialogs keep their own Escape/default keyboard behavior.
+      if (owned?.isCurrent() && owned.button === document.activeElement
+        && owned.button.getAttribute('aria-busy') === 'true') event.preventDefault();
+      ++coldActionRequest; pendingColdAction = false;
+      releaseColdActionFeedback();
+    }
+  });
 }
 
 export async function openNutritionModule(navigate: unknown = null) {
+  const profile = state.currentProfile, data = state.importedData, route = state.currentView;
+  const modal = document.getElementById('detail-modal'), overlay = document.getElementById('modal-overlay');
+  const content = modal?.firstElementChild, main = document.getElementById('main-content');
+  let revision = routeRevision();
+  const current = () => state.currentProfile === profile && state.importedData === data && routeRevision() === revision
+    && document.getElementById('detail-modal') === modal && document.getElementById('modal-overlay') === overlay
+    && modal?.firstElementChild === content;
   try {
     const module = await loadNutritionFeature();
-    if (typeof navigate === 'function') (navigate as (category: string) => unknown)('body');
-    setTimeout(() => { void module.openNutritionEditor?.(); }, 0);
+    if (!current() || state.currentView !== route || document.getElementById('main-content') !== main) return false;
+    if (typeof navigate === 'function') {
+      const navigation = (navigate as (category: string) => unknown)('body');
+      revision = routeRevision();
+      await navigation;
+      if (!current() || state.currentView !== 'body') return false;
+    }
+    if (!current()) return false;
+    const mountedMain = document.getElementById('main-content');
+    setTimeout(() => { if (current() && document.getElementById('main-content') === mountedMain) void module.openNutritionEditor(); }, 0);
     return true;
   } catch (error) {
+    if (!current()) return false;
     console.error('Meals & Nutrition could not be loaded', error);
     showNotification('Meals & Nutrition could not be loaded. Try again.', 'error');
     return false;

@@ -18,11 +18,11 @@ body.chat-open .analytics-consent-banner {
 }
 @media (min-width: 769px) {
   body.chat-open .analytics-consent-banner {
-    left: 18px;
-    right: auto;
-    transform: none;
-    max-width: min(640px, calc(100vw - 520px));
-  }
+  left: 18px;
+  right: auto;
+  transform: none;
+  max-width: min(640px, calc(100vw - 520px));
+}
 }
 .chat-panel-conversation {
   background: var(--bg-secondary);

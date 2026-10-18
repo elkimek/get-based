@@ -10,7 +10,7 @@ function summary(value: unknown) {
   (state as { importedData: unknown }).importedData = { contextSourceSettings: {}, nutritionContextDays: 7 };
 }
 function host(html: string) { const element = document.createElement('div'); element.innerHTML = html; return element; }
-const attributes = (action: string, options: { surface: string }) => `data-context-card-action="${action}" data-context-card-surface="${options.surface}"`;
+const attributes = (action: string, options: { surface: string }) => ({'data-context-card-action': action, 'data-context-card-surface': options.surface});
 describe('authored nutrition context links', () => {
   it('keeps summary text literal and retains food-only meal counts, singular copy and coverage', () => {
     summary({ totalMeals: 3, windows: { d7: { meals: 3, foodMeals: 1, loggedDays: '<img src=x onerror=alert(1)>' } } });
@@ -25,7 +25,7 @@ describe('authored nutrition context links', () => {
   });
   it.each([null, { windows: {} }, { windows: { d7: { meals: 0, timing: { mealsWithTiming: 1 } } } }, { windows: { d7: { meals: 1, timing: { mealsWithTiming: 0 } } } }, { windows: { d7: { meals: 1, timing: { mealsWithTiming: 1, sleepRelative: { averageLastMealToSleepMinutes: 'bad', averageWakeToFirstMealMinutes: null } } } } }])('omits timing links without meaningful logged timing (%j)', value => {
     summary(value); let calls = 0;
-    expect(renderNutritionCircadianExtension(() => { calls++; return ''; })).toBe(''); expect(calls).toBe(0);
+    expect(renderNutritionCircadianExtension(() => { calls++; return {}; })).toBe(''); expect(calls).toBe(0);
   });
   it('preserves zero and finite sleep-relative durations and literal clock text', () => {
     summary({ windows: { d7: { meals: 1, timing: { mealsWithTiming: 1, averageFirstMealLocalTime: '<svg onload=alert(1)>', sleepRelative: { averageLastMealToSleepMinutes: 0, averageWakeToFirstMealMinutes: '125' } } } } });
@@ -36,7 +36,7 @@ describe('authored nutrition context links', () => {
   });
   it('preserves caller-built action attributes including dollar replacement characters and escaped values', () => {
     summary(null);
-    const root = host(renderNutritionDietExtension(() => 'data-action="open" data-probe="$& &quot; &amp;"'));
+    const root = host(renderNutritionDietExtension(() => ({'data-action': 'open', 'data-probe': '$& " &'})));
     expect(root.querySelector('button')?.getAttribute('data-probe')).toBe('$& " &');
     expect(root.querySelector('button')?.getAttribute('data-action')).toBe('open');
     expect(root.querySelector('[data-nutrition-action-slot]')).toBeNull();
@@ -44,7 +44,7 @@ describe('authored nutrition context links', () => {
   });
   it('uses the same authored escaped structure in a client mount', async () => {
     const target = document.createElement('div'); document.body.append(target);
-    const instance = mount(Link, { target, props: { title: '<Title>', detail: '<img src=x> & literal' } }); flushSync();
+    const instance = mount(Link, { target, props: {view: {title: '<Title>', detail: '<img src=x> & literal', surface: 'meals', attributes: attributes('open-nutrition', {surface: 'meals'})}} }); flushSync();
     expect(target.querySelector('button')?.textContent).toContain('<Title>'); expect(target.textContent).toContain('<img src=x> & literal');
     expect(target.querySelectorAll('img, script')).toHaveLength(0);
     await unmount(instance); target.remove();

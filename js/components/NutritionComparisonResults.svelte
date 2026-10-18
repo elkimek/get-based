@@ -1,14 +1,14 @@
 <script lang="ts">
   import type { NutritionComparisonResultsView } from '../nutrition-comparison-results-model.js';
   import Table from './NutritionComparisonTable.svelte';
-  import { button, copy, summary } from '../nutrition-view-classes.js';
+  import { button, copy, summary , textAction } from '../nutrition-view-classes.js';
   let { view }: { view: NutritionComparisonResultsView } = $props();
   const actions = 'gb:nutrition:self-end gb:nutrition:mt-auto gb:nutrition:flex gb:nutrition:flex-wrap gb:nutrition:items-center gb:nutrition:justify-end gb:nutrition:gap-[9px]';
   const usage = 'gb:nutrition:min-h-[43px] gb:nutrition:box-border gb:nutrition:flex gb:nutrition:items-baseline gb:nutrition:justify-between gb:nutrition:gap-2.5 gb:nutrition:px-2.5 gb:nutrition:py-2 gb:nutrition:rounded-lg gb:nutrition:border gb:nutrition:border-[color-mix(in_srgb,var(--accent)_22%,var(--border))] gb:nutrition:tabular-nums gb:nutrition:max-[430px]:flex-col gb:nutrition:max-[430px]:items-start';
 </script>
 {#if view.cards.length}
   <div data-nutrition-view data-nutrition-comparison-view class="nutrition-comparison-reference-banner {view.manualReference ? 'is-manual' : !view.hasBaseline ? 'is-empty' : ''} gb:nutrition:col-span-full gb:nutrition:flex gb:nutrition:items-center gb:nutrition:justify-between gb:nutrition:gap-2.5 gb:nutrition:px-3 gb:nutrition:py-2.5 gb:nutrition:rounded-[9px] gb:nutrition:border gb:nutrition:border-[color-mix(in_srgb,var(--accent)_28%,var(--border))] gb:nutrition:text-secondary gb:nutrition:text-xs gb:nutrition:[&.is-manual]:border-[color-mix(in_srgb,var(--success,#4cad7a)_35%,var(--border))] gb:nutrition:[&.is-empty]:border-dashed gb:nutrition:max-[430px]:flex-col gb:nutrition:max-[430px]:items-stretch">
-    {#if view.hasBaseline}<span>Comparing against <strong class="gb:nutrition:text-ink">{view.baseline}</strong>. A model baseline is not ground truth.</span><button type="button" class="nutrition-text-btn {button}" data-nutrition-action="clear-comparison-reference">Use known values</button>
+    {#if view.hasBaseline}<span>Comparing against <strong class="gb:nutrition:text-ink">{view.baseline}</strong>. A model baseline is not ground truth.</span><button type="button" class="nutrition-text-btn {textAction}" data-nutrition-action="clear-comparison-reference">Use known values</button>
     {:else if view.manualReference}<span><strong class="gb:nutrition:text-ink">Known values active.</strong> Ranking depends on the values entered.</span>
     {:else}<span>Add known values above to rank results.</span>{/if}
   </div>
@@ -23,13 +23,13 @@
       </div>
       {#if run.status === 'running'}
         <div class="nutrition-comparison-skeleton gb:nutrition:h-[84px] gb:nutrition:rounded-lg gb:nutrition:bg-[linear-gradient(90deg,var(--bg-hover),color-mix(in_srgb,var(--accent)_8%,var(--bg-card)),var(--bg-hover))] gb:nutrition:bg-size-[200%_100%] gb:nutrition:animate-[nutrition-analysis-shimmer_1.25s_ease-in-out_infinite] gb:nutrition:motion-reduce:animate-none" aria-hidden="true"></div>
-        <div class="nutrition-comparison-card-actions {actions}"><button type="button" class="nutrition-text-btn nutrition-comparison-cancel-btn {button} gb:nutrition:ml-auto gb:nutrition:text-danger-ink" aria-label={`Cancel ${run.model} analysis`} data-nutrition-action="cancel-comparison-run" data-nutrition-index={run.index}>Cancel this model</button></div>
+        <div class="nutrition-comparison-card-actions {actions}"><button type="button" class="nutrition-text-btn nutrition-comparison-cancel-btn {textAction} gb:nutrition:ml-auto gb:nutrition:text-danger-ink" aria-label={`Cancel ${run.model} analysis`} data-nutrition-action="cancel-comparison-run" data-nutrition-index={run.index}>Cancel this model</button></div>
       {:else if !run.successful}
         {#if run.status !== 'cancelled'}<div class="nutrition-comparison-usage is-unavailable {usage} gb:nutrition:border-dashed"><strong class={copy}>Cost unknown</strong><span class="{copy} gb:nutrition:text-right gb:nutrition:max-[430px]:text-left">The provider returned no token count. This request may still be billable.</span></div>{/if}
         <p class={copy}>{run.error}</p>
         <div class="nutrition-comparison-card-actions {actions}">
-          {#if run.restored}<button type="button" class="nutrition-text-btn nutrition-comparison-remove-btn {button} gb:nutrition:mr-auto" aria-label={`Remove ${run.model} result`} data-nutrition-action="remove-comparison-run" data-nutrition-index={run.index}>Remove</button><span class="gb:nutrition:text-link-ink gb:nutrition:text-[11px] gb:nutrition:font-bold">Choose a photo and run a new comparison to retry.</span>
-          {:else}<button type="button" class="nutrition-text-btn nutrition-comparison-replace-btn {button} gb:nutrition:mr-auto gb:nutrition:text-danger-ink" data-nutrition-action="replace-comparison-run" data-nutrition-index={run.index}>Replace model</button><button type="button" class="import-btn import-btn-secondary {button}" data-nutrition-action="retry-comparison" data-nutrition-index={run.index}>Retry this model</button>{/if}
+          {#if run.restored}<button type="button" class="nutrition-text-btn nutrition-comparison-remove-btn {textAction} gb:nutrition:mr-auto" aria-label={`Remove ${run.model} result`} data-nutrition-action="remove-comparison-run" data-nutrition-index={run.index}>Remove</button><span class="gb:nutrition:text-link-ink gb:nutrition:text-[11px] gb:nutrition:font-bold">Choose a photo and run a new comparison to retry.</span>
+          {:else}<button type="button" class="nutrition-text-btn nutrition-comparison-replace-btn {textAction} gb:nutrition:mr-auto gb:nutrition:text-danger-ink" data-nutrition-action="replace-comparison-run" data-nutrition-index={run.index}>Replace model</button><button type="button" class="import-btn import-btn-secondary {button}" data-nutrition-action="retry-comparison" data-nutrition-index={run.index}>Retry this model</button>{/if}
         </div>
       {:else}
         <div class="nutrition-comparison-usage {run.usageKnown ? '' : 'is-unavailable'} {usage} {run.usageKnown ? 'gb:nutrition:bg-[color-mix(in_srgb,var(--accent)_5%,var(--bg-card))]' : 'gb:nutrition:border-dashed'}"><strong class={run.usageKnown ? 'gb:nutrition:text-ink gb:nutrition:text-sm' : copy}>{run.cost}</strong><span class="{copy} gb:nutrition:text-right gb:nutrition:max-[430px]:text-left">{run.usageKnown ? run.tokens : 'This provider did not return token counts; do not assume the request was free.'}</span></div>
@@ -47,8 +47,8 @@
         {#if run.checks.length}<details class="nutrition-comparison-checks gb:nutrition:text-[11px]"><summary class="{summary} gb:nutrition:text-secondary">Model checks and assumptions ({run.checks.length})</summary><ul class="gb:nutrition:mt-[7px] gb:nutrition:mb-0 gb:nutrition:pl-[18px] gb:nutrition:text-secondary gb:nutrition:leading-[1.45]">{#each run.checks as check}<li>{check}</li>{/each}</ul></details>{/if}
         {#if run.differences.length}<Table rows={run.differences} referenceHeading={view.referenceHeading}/>{/if}
         <div class="nutrition-comparison-card-actions {actions}">
-          <button type="button" class="nutrition-text-btn nutrition-comparison-remove-btn {button} gb:nutrition:mr-auto gb:nutrition:hover:text-danger-ink gb:nutrition:focus-visible:text-danger-ink" aria-label={`Remove ${run.model} result`} data-nutrition-action="remove-comparison-run" data-nutrition-index={run.index}>Remove</button>
-          {#if run.baseline}<span class="gb:nutrition:text-link-ink gb:nutrition:text-[11px] gb:nutrition:font-bold">Model baseline</span>{:else}<button type="button" class="nutrition-text-btn {button}" data-nutrition-action="set-comparison-reference" data-nutrition-index={run.index}>Use as baseline</button>{/if}
+          <button type="button" class="nutrition-text-btn nutrition-comparison-remove-btn {textAction} gb:nutrition:mr-auto gb:nutrition:hover:text-danger-ink gb:nutrition:focus-visible:text-danger-ink" aria-label={`Remove ${run.model} result`} data-nutrition-action="remove-comparison-run" data-nutrition-index={run.index}>Remove</button>
+          {#if run.baseline}<span class="gb:nutrition:text-link-ink gb:nutrition:text-[11px] gb:nutrition:font-bold">Model baseline</span>{:else}<button type="button" class="nutrition-text-btn {textAction}" data-nutrition-action="set-comparison-reference" data-nutrition-index={run.index}>Use as baseline</button>{/if}
           <button type="button" class="import-btn import-btn-secondary {button}" data-nutrition-action="use-comparison" data-nutrition-index={run.index}>Use this estimate</button>
         </div>
       {/if}

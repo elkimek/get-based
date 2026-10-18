@@ -36,7 +36,7 @@
   </div>
   <div id="routstr-private-controls" class="gb:cloud-provider:flex gb:cloud-provider:flex-col gb:cloud-provider:gap-2" style:display={snapshot.mode.available || snapshot.mode.enabled ? '' : 'none'}>
     <div class={PROVIDER_ACTIONS}>
-      <SettingsToggle id="routstr-private-toggle" label="Private TEE Mode" checked={snapshot.mode.enabled} providerChange="routstr-private-mode" touch />
+      <SettingsToggle id="routstr-private-toggle" label="Private TEE Mode" checked={snapshot.mode.enabled} providerChange="routstr-private-mode" touch="coarse" />
       <span class="gb:cloud-provider:text-sm">Private TEE Mode</span>
     </div>
     {#if snapshot.mode.enabled && !snapshot.mode.active}

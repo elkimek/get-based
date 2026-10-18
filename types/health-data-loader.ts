@@ -5,7 +5,7 @@ export type RecommendationsModule = typeof import('../js/recommendations.js');
 export type CycleModule = typeof import('../js/cycle.js');
 export type ContextCardsModule = typeof import('../js/context-cards.js');
 export type DnaModule = typeof import('../js/dna.js');
-export type NutritionModule = Awaited<ReturnType<typeof import('../js/nutrition-context.js').loadNutritionFeature>>;
+export type NutritionModule = Awaited<ReturnType<typeof import('../js/nutrition-context.js').loadNutritionWidgetFeature>>;
 export type HealthModule = ChartsModule | NotesModule | SupplementsModule | RecommendationsModule | CycleModule | ContextCardsModule | DnaModule | NutritionModule;
 export interface HealthRequirement { load: () => Promise<HealthModule>; ready: () => boolean }
 export interface DashboardHealthDataReader {

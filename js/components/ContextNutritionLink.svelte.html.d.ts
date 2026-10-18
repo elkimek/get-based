@@ -1,1 +1,2 @@
-export function renderHTML(props: { title: string; detail: string }): string;
+import type {NutritionContextLinkView} from '../nutrition-context-card-view.js';
+export function renderHTML(props: {view: NutritionContextLinkView}): string;

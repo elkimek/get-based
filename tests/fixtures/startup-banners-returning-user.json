@@ -1,0 +1,15 @@
+{
+  "personality": "default",
+  "threads": [
+    {
+      "id": "t_startup_banners_synthetic",
+      "name": "Synthetic returning conversation",
+      "createdAt": "2026-10-10T00:00:00.000Z",
+      "updatedAt": "2026-10-10T00:00:00.000Z",
+      "messageCount": 0,
+      "personality": "default",
+      "personalityName": "AI Lab Analyst",
+      "personalityIcon": "🔬"
+    }
+  ]
+}

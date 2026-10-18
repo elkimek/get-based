@@ -1,3 +1,4 @@
+import type{EnvironmentAIView}from'./light-environment-ai-presentation.js';
 // light-env-audits.js — saved Light Environment snapshots and compare UI.
 //
 // The live environment remains owned by light-env.js. This module receives
@@ -34,7 +35,7 @@ interface AuditReader extends Record<string, unknown> { id?: unknown; date?: unk
 interface EnvironmentReader { rooms?: AuditRoomReader[] | null; screens?: unknown }
 interface SeverityReader { tier: number; color?: unknown; label?: unknown; reason?: unknown }
 interface ArithmeticMeasurementReader extends Omit<AuditMeasurementReader, 'value' | 'extra'> { value: number; extra: { cameraBlueRatioProxy: number; melanopic: number } }
-type AuditDependencyName = 'getEnvironment' | 'computeRoomSeverity' | 'refreshLightEnvironmentUI' | 'hasAIProvider' | 'maybeAnalyzeAuditAfterSave' | 'renderAuditAIBlock' | 'renderAuditAIDot' | 'openChatPanel';
+type AuditDependencyName = 'getEnvironment' | 'computeRoomSeverity' | 'refreshLightEnvironmentUI' | 'hasAIProvider' | 'maybeAnalyzeAuditAfterSave' | 'getAuditAIView' | 'getAuditDotView' | 'openChatPanel';
 type AuditDependencies = Record<AuditDependencyName, unknown>;
 interface ComparisonChannel { tool: string; label: string; fmt: (value: unknown, measurement?: AuditMeasurementReader | null) => string; better: string }
 interface KeyedRoom { key: unknown; room: AuditRoomReader }
@@ -49,8 +50,8 @@ const auditDeps: AuditDependencies = {
   refreshLightEnvironmentUI: () => {},
   hasAIProvider: () => false,
   maybeAnalyzeAuditAfterSave: () => {},
-  renderAuditAIBlock: () => '',
-  renderAuditAIDot: () => '',
+  getAuditAIView: () => null,
+  getAuditDotView: () => null,
   openChatPanel: null,
 };
 
@@ -96,12 +97,12 @@ function maybeAnalyzeAuditAfterSave(audit: unknown) {
   try { (auditDeps.maybeAnalyzeAuditAfterSave as (audit: unknown) => unknown)(audit); } catch (_) {}
 }
 
-function renderAuditAIBlock(audit: unknown) {
-  try { return (auditDeps.renderAuditAIBlock as (audit: unknown) => unknown)(audit) || ''; } catch (_) { return ''; }
+function getAuditAIView(audit: unknown) {
+  try { return (auditDeps.getAuditAIView as (audit: unknown) => Readonly<EnvironmentAIView> | null)(audit) || null; } catch (_) { return null; }
 }
 
-function renderAuditAIDot(audit: unknown) {
-  try { return (auditDeps.renderAuditAIDot as (audit: unknown) => unknown)(audit) || ''; } catch (_) { return ''; }
+function getAuditDotView(audit: unknown) {
+  try { return (auditDeps.getAuditDotView as (audit: unknown) => Readonly<EnvironmentAIView> | null)(audit) || null; } catch (_) { return null; }
 }
 
 function hasAuditAIProvider() {
@@ -266,7 +267,7 @@ function readLightAuditCard(a: AuditReader, expanded: boolean): LightAuditCardVi
   const meta = `${roomsCount} room${roomsCount === 1 ? '' : 's'} · ${measurementsCount} measurement${measurementsCount === 1 ? '' : 's'}`;
   // Preserve callback order and laziness: dot follows rollup grading; detail
   // callbacks and historical room grading run only for the expanded card.
-  const trustedDotHTML = String(renderAuditAIDot(a));
+  const aiDot = getAuditDotView(a);
   return {
     id: String(a.id ?? ''),
     actionId: auditActionValue(a.id),
@@ -276,7 +277,7 @@ function readLightAuditCard(a: AuditReader, expanded: boolean): LightAuditCardVi
     label: String(a.label || ''),
     meta,
     severity: { color: String(severity.color), label: String(severity.label ?? '') },
-    trustedDotHTML,
+    aiDot,
     detail: expanded ? readLightAuditDetail(a) : null,
   };
 }
@@ -302,11 +303,11 @@ function _auditRoomChannels(audit: AuditReader, room: AuditRoomReader) {
 }
 
 function readLightAuditDetail(audit: AuditReader): LightAuditDetailView {
-  const trustedAIHTML = String(renderAuditAIBlock(audit));
+  const ai = getAuditAIView(audit);
   return {
     date: String(audit.date ?? ''),
     label: String(audit.label || ''),
-    trustedAIHTML,
+    ai,
     rooms: (audit.rooms || []).map(room => {
       const severity = computeAuditRoomSeverity(audit, room);
       return {

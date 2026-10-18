@@ -1,0 +1,109 @@
+{
+  "status": "frozen source-only exact node receiver tokens; utility emission/native acceptance pending",
+  "helper": "tweaksClasses(nativeNames, receiverKey): unchanged native prefix + exact literal receiver suffix",
+  "receiverTokens": {
+    "overlay": [
+      "gb:tweaks-overlay:tweaks-overlay-block",
+      "gb:tweaks-overlay-show:tweaks-overlay-show-block",
+      "gb:tweaks-phone-overlay-show:tweaks-phone-overlay-show-block",
+      "gb:tweaks-phone-overlay:tweaks-phone-overlay-block"
+    ],
+    "panel": [
+      "gb:tweaks-panel:tweaks-panel-block",
+      "gb:tweaks-phone-panel:tweaks-phone-panel-block"
+    ],
+    "head": [
+      "gb:tweaks-head:tweaks-head-block"
+    ],
+    "close": [
+      "gb:tweaks-close:tweaks-close-block"
+    ],
+    "body": [
+      "gb:tweaks-body:tweaks-body-block",
+      "gb:tweaks-phone-body:tweaks-phone-body-block"
+    ],
+    "section": [
+      "gb:tweaks-section:tweaks-section-block",
+      "gb:tweaks-section-first:tweaks-section-first-block",
+      "gb:tweaks-section-last:tweaks-section-last-block"
+    ],
+    "section-title": [
+      "gb:tweaks-section-title:tweaks-section-title-block"
+    ],
+    "theme-grid": [
+      "gb:tweaks-theme-grid:tweaks-theme-grid-block"
+    ],
+    "theme-button": [
+      "gb:tweaks-theme-button:tweaks-theme-button-block",
+      "gb:tweaks-theme-button-hover:tweaks-theme-button-hover-block",
+      "gb:tweaks-theme-button-active:tweaks-theme-button-active-block"
+    ],
+    "action-button": [
+      "gb:tweaks-action-button:tweaks-action-button-block",
+      "gb:tweaks-action-button-hover:tweaks-action-button-hover-block"
+    ],
+    "accent-button": [
+      "gb:tweaks-accent-button-active:tweaks-accent-button-active-block",
+      "gb:tweaks-accent-button:tweaks-accent-button-block"
+    ],
+    "accent-row": [
+      "gb:tweaks-accent-row:tweaks-accent-row-block",
+      "gb:tweaks-sunset-accent-row:tweaks-sunset-accent-row-block"
+    ],
+    "option-row": [
+      "gb:tweaks-option-row:tweaks-option-row-block",
+      "gb:tweaks-option-hidden:tweaks-option-hidden-block",
+      "gb:tweaks-option-following:tweaks-option-following-block"
+    ],
+    "option-copy": [
+      "gb:tweaks-option-copy:tweaks-option-copy-block"
+    ],
+    "option-title": [
+      "gb:tweaks-option-title:tweaks-option-title-block"
+    ],
+    "option-description": [
+      "gb:tweaks-option-description:tweaks-option-description-block"
+    ],
+    "accent-swatch": [
+      "gb:tweaks-accent-swatch:tweaks-accent-swatch-block"
+    ],
+    "action-grid": [
+      "gb:tweaks-action-grid:tweaks-action-grid-block",
+      "gb:tweaks-narrow-action-grid:tweaks-narrow-action-grid-block"
+    ],
+    "theme-swatch": [
+      "gb:tweaks-theme-swatch:tweaks-theme-swatch-block"
+    ],
+    "theme-swatch-dark": [
+      "gb:tweaks-theme-swatch:tweaks-theme-swatch-block",
+      "gb:tweaks-theme-swatch-dark:tweaks-theme-swatch-dark-block"
+    ],
+    "theme-swatch-light": [
+      "gb:tweaks-theme-swatch:tweaks-theme-swatch-block",
+      "gb:tweaks-theme-swatch-light:tweaks-theme-swatch-light-block"
+    ],
+    "theme-swatch-cyberterm": [
+      "gb:tweaks-theme-swatch:tweaks-theme-swatch-block",
+      "gb:tweaks-theme-swatch-cyberterm:tweaks-theme-swatch-cyberterm-block"
+    ],
+    "theme-swatch-glass": [
+      "gb:tweaks-theme-swatch:tweaks-theme-swatch-block",
+      "gb:tweaks-theme-swatch-glass:tweaks-theme-swatch-glass-block"
+    ],
+    "theme-swatch-synth-sunrise": [
+      "gb:tweaks-theme-swatch:tweaks-theme-swatch-block",
+      "gb:tweaks-theme-swatch-synth-sunrise:tweaks-theme-swatch-synth-sunrise-block"
+    ],
+    "theme-swatch-neuromancer": [
+      "gb:tweaks-theme-swatch:tweaks-theme-swatch-block",
+      "gb:tweaks-theme-swatch-neuromancer:tweaks-theme-swatch-neuromancer-block"
+    ]
+  },
+  "uniqueTokenCount": 40,
+  "notes": [
+    "theme-swatch-ID already includes shared theme-swatch token; use one specific ID key per theme span",
+    "unconditional state/media tokens activate solely through native selectors/conditions",
+    "Do not apply an active/hover token to a different receiver; action-button includes original button type-selector specificity",
+    "No header/title/settings-copy/toggle input tokens beyond specifically owned close/option-copy/title/description recipes"
+  ]
+}

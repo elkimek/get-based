@@ -1,0 +1,4 @@
+<script lang="ts">
+  import type {PIIDiffFragmentView, PIILineView, PIIWordView} from '../pii-review-presentation.js';
+  let {view}: {view: PIIDiffFragmentView} = $props();
+</script><svelte:options preserveWhitespace={true} />{#snippet word(value: PIIWordView)}{#if value.kind === 'equal' || value.kind === 'blank'}{value.text}{:else}<span class={'pii-word-' + value.kind}>{value.text}</span>{/if}{/snippet}{#snippet line(value: PIILineView)}<div class={value.kind === 'equal' ? undefined : 'pii-diff-highlight-' + value.kind}>{#each value.words as token}{@render word(token)}{/each}</div>{/snippet}{#if view.kind === 'word'}{@render word(view.word)}{:else if view.kind === 'line'}{@render line(view.line)}{:else}{#if view.header}<div class="pii-diff-header">Original report (comparison only)</div>{/if}{#each view.panel.lines as row}{@render line(row)}{/each}{/if}

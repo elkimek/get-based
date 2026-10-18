@@ -1,6 +1,6 @@
 // commit-hash.js - Footer app version and commit hash hydration
 
-import { escapeHTML } from './utils.js';
+import { renderFooterCommitLink } from './footer-commit-link-presentation.js';
 import { getAppVersionRuntime } from './utils-runtime.js';
 
 let _cachedCommitHash: string | null = null;
@@ -9,7 +9,7 @@ function renderCommitHash(el: Element, sha: unknown) {
   const full = String(sha || '').trim();
   if (!full) return;
   const short = full.slice(0, 7);
-  el.innerHTML = `<a href="https://github.com/elkimek/get-based/commit/${escapeHTML(full)}" target="_blank" rel="noopener">${escapeHTML(short)}</a>`;
+  el.innerHTML = renderFooterCommitLink(full, short, el.ownerDocument);
 }
 
 function cacheAndRenderCommitHash(el: Element, sha: unknown) {

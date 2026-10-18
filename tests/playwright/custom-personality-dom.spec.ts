@@ -1,3 +1,4 @@
+import {waitForAsyncCondition} from '../helpers/awaited-condition.js';
 import { routeHtml, routeJavaScript } from '../helpers/browser-static-routes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
@@ -329,10 +330,10 @@ test('hosted persona agreement requires explicit assent and records it per perso
   expect(beforeReload.legacyPersonaLock).toBeNull();
 
   await page.reload({ waitUntil: 'load' });
-  await page.waitForFunction(async () => {
+  await waitForAsyncCondition(() => page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     return state.currentProfile !== '';
-  });
+  }), 0);
   const afterReload = await page.evaluate(async () => {
     const [{ state }, chatPersonalities] = await Promise.all([
       import('/js/state.js'),
@@ -651,10 +652,10 @@ test('custom personality save path updates picker, header, and persisted state',
   ];
 
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(async () => {
+  await waitForAsyncCondition(() => page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     return !!state;
-  });
+  }), 0);
 
   const results = await page.evaluate(async () => {
     const [{ state }, chatPersonalities, chatRuntime] = await Promise.all([

@@ -4,7 +4,6 @@ import { expect, test } from './coverage-fixture.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 import { scopedFrozenStyles, type FrozenStyleBlock } from '../helpers/frozen-style-scope.js';
 import { projectReviewAI, type ReviewAIKind, type ReviewAIVariant, type ReviewPresentation } from '../../js/light-review-ai-presentation.js';
-import { renderHTML as renderReviewHTML } from '../../js/components/LightReviewAI.svelte.html.js';
 import type { AIVerdictStatus } from '../../js/ai-verdict-engine.js';
 interface OriginalCase {
   kind: ReviewAIKind; status: AIVerdictStatus; analysis: Record<string, unknown> | null;
@@ -24,7 +23,6 @@ function summaryView(html: string): Extract<ReviewPresentation, {kind: 'weekly-f
 const examples: Example[] = [];
 const seen = new Set<string>();
 const fallback = original.summaryCases[0]!;
-const authoredFallback = renderReviewHTML({view: summaryView(fallback.html)});
 for (const sample of original.cases) {
   if (!sample.html || sample.kind === 'weekly' && !sample.provider && !sample.html.includes('light-weekly-ai-review')) continue;
   const key = sample.kind + sample.html;
@@ -43,7 +41,7 @@ for (const sample of original.cases) {
   // and actual authored renderer instead of the semantic fixture's placeholder.
   const html = sample.kind === 'weekly' ? sample.html.replace(sample.fallbackHTML, fallback.html) : sample.html;
   examples.push({ kind: sample.kind, html,
-    view: projectReviewAI({ ...sample, fallbackHTML: authoredFallback, status, variant, actionOwner: 'unused-visual-owner' }) });
+    view: projectReviewAI({ ...sample, fallback: summaryView(fallback.html), status, variant, actionOwner: 'unused-visual-owner' }) });
 }
 for (const sample of original.summaryCases) {
   examples.push({ kind: 'weekly', html: sample.html, view: summaryView(sample.html) });

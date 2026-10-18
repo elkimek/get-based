@@ -1,3 +1,4 @@
+import type{SessionAIView}from'./light-session-ai-presentation.js';
 // light-devices.js — Light therapy device library + device session logging.
 //
 // Devices users own (Joovv, Sperti, Verilux SAD, dawn simulators, etc.) feed
@@ -31,7 +32,7 @@ import { bindDetachedModalSyncRefresh, showNotification, showConfirmDialog } fro
 import { state } from './state.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { CHANNEL_DISPLAY } from './sun.js';
-import { BODY_REGIONS, bindBodySilhouette, renderBodySilhouette } from './sun-body-silhouette.js';
+import { BODY_REGIONS, bindBodySilhouette, projectBodySilhouette } from './sun-body-silhouette.js';
 import { validateModeCoupling } from './sun-spectrum.js';
 import { deviceEmitsUV } from './light-device-session-engine.js';
 import { reopenSunSetup } from './sun-defaults.js';
@@ -75,8 +76,8 @@ import {
 } from './light-device-view-formatters.js';
 
 
-const lightDevicesDeps: { renderDeviceSessionAIDetail: unknown } = {
-  renderDeviceSessionAIDetail: () => '',
+const lightDevicesDeps: { getDeviceSessionAIDetailView: unknown } = {
+  getDeviceSessionAIDetailView: () => null,
 };
 
 export function configureLightDevices(deps: unknown = {}) {
@@ -129,7 +130,7 @@ configureLightDeviceModalLoader({
     startDeviceSession,
     ensureActiveDeviceTicker,
     validateModeCoupling,
-    renderBodySilhouette,
+    projectBodySilhouette,
     bindBodySilhouette,
     navigate: navigateLightDevicesRoute,
     openLightSetup: reopenSunSetup,
@@ -342,14 +343,14 @@ export function openDeviceSessionDetail(id?: string) {
       const unitText = formatChannelUnit(k, v, sess.durationMin || 0, sessionFitz, null, null, false, _sessBodyFrac);
       return detailChannel(k, meta, v, unitText, 'device');
     }) : [];
-  const aiDetailHtml = typeof lightDevicesDeps.renderDeviceSessionAIDetail === 'function'
-    ? (lightDevicesDeps.renderDeviceSessionAIDetail as (session: DeviceSessionRecord) => unknown)(sess)
+  const ai = typeof lightDevicesDeps.getDeviceSessionAIDetailView === 'function'
+    ? (lightDevicesDeps.getDeviceSessionAIDetailView as (session: DeviceSessionRecord) => Readonly<SessionAIView>|null)(sess)
     : '';
 
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   const closeDialog = () => removeModalOverlay(overlay);
-  overlay.innerHTML = renderHTML({ kind: 'detail', aiHTML: aiDetailHtml ? String(aiDetailHtml) : '', view: {
+  overlay.innerHTML = renderHTML({ kind: 'detail', ai: ai || null, view: {
     kind: 'device', id: sess.id, title: `Device session — ${stamp.date}`,
     summary: [detailField('When', stamp.time || '—', 'Local session start time'),
       detailField('Duration', dur, 'Total session duration. Edit via the action row below if the timer ran past the actual session.'),
@@ -433,9 +434,9 @@ function _formatElapsedMs(ms: number) {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-export function renderActiveDeviceSessionCard() {
+export function getActiveDeviceSessionCardView() {
   const sess = getActiveDeviceSession();
-  if (!sess) return '';
+  if (!sess) return null;
   const device = getDevices().find(d => d.id === sess.deviceId) || sess.deviceSnapshot || null;
   const devName = device ? `${device.brand} ${device.model}` : 'Device details unavailable';
   const labelByKey = Object.fromEntries((BODY_REGIONS || []).map(r => [r.key, r.label]));
@@ -458,12 +459,16 @@ export function renderActiveDeviceSessionCard() {
       ? (sess.eyesProtected ? 'eyes shielded' : 'eyes open to ambient light')
       : (sess.eyesProtected ? 'eye shielding logged' : 'eyes outside the beam');
   const elapsedText = _formatElapsedMs(Date.now() - sess.startedAt);
-  return renderHTML({ kind: 'active', view: {
+  const view:import('./light-active-session-presentation.js').ActiveSessionView={
     kind: 'device', id: sess.id, date: `Active · ${devName}`, elapsed: elapsedText, ariaLabel: 'Active device session',
     body: `${distLine}${distLine && areaLine ? ' · ' : ''}${areaLine}${areaLine ? ' · ' : ''}${eyesLine}`,
     eyes: '', directEye: false, suffix: '', paused: false, rotated: false, forgotHours: null, readouts: [], chips: null,
-  } });
+  };
+  const attribute=(value:unknown)=>value==null?undefined:String(value);
+  const deviceIds={root:attribute(view.id),elapsed:attribute(view.id),stop:attribute(view.id)};
+  return {kind:'active' as const,view:{...view,deviceIds}};
 }
+export function renderActiveDeviceSessionCard(){const props=getActiveDeviceSessionCardView();return props?renderHTML(props):'';}
 
 let _devActiveTicker: ReturnType<typeof setInterval> | null = null;
 function _tickActiveDeviceSession() {

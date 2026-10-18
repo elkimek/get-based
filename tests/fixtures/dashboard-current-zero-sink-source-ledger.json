@@ -1,0 +1,178 @@
+{
+  "canonicalScannedCount": 1677,
+  "canonicalInventorySHA256": "fdbda60d94487d6dd116eb64c8e03e16281f0106597983278f8b9bb19676c87e",
+  "canonicalPreviouslyAddedLabsOwners": [
+    "js/dashboard-lab-markers-presentation.ts",
+    "js/dashboard-lab-markers-presentation-compiler-anchors.ts",
+    "js/components/DashboardLabMarkers.svelte"
+  ],
+  "added": [
+    {
+      "destination": "js/components/CorrelationWorkspaceReadout.svelte",
+      "bytes": 303,
+      "sha256": "1ed1b6fd7de97358c1fd233cdbf75e30734f97b3942aace42dec9e9ada09a87a"
+    },
+    {
+      "destination": "js/components/CorrelationWorkspaceUsageSegments.svelte",
+      "bytes": 422,
+      "sha256": "30084df837cc058fbe6285915085ddd65cd68b71ed46a7e4814626dc57c7e9e9"
+    },
+    {
+      "destination": "js/components/DashboardInsightCard.svelte",
+      "bytes": 565,
+      "sha256": "66f23d022f1759253d85dea70d3afe0fe5a841e667236fa71b7cb4af1ca5f666"
+    },
+    {
+      "destination": "js/components/DashboardLabNotes.svelte",
+      "bytes": 1247,
+      "sha256": "f98ed63901d7f6f7a729a1a356b2d3014c0c960f0b0672833c9abbcc374f00d2"
+    },
+    {
+      "destination": "js/components/DashboardOwnedWidget.svelte",
+      "bytes": 549,
+      "sha256": "0f5aeab0deabe24362f118101b43709096633fc7791deedd64e32e7bbc4f6853"
+    },
+    {
+      "destination": "js/components/DashboardQuickMarkers.svelte",
+      "bytes": 1381,
+      "sha256": "c82389a117b821f76e49d2bd53c78ff7981d605e9ed4ea2bdc8cda3acf558c68"
+    },
+    {
+      "destination": "js/components/SidebarIcon.svelte",
+      "bytes": 3443,
+      "sha256": "bfb095c64e38e62404827bc296e9c426953b4e545a96c407801b5ad787a77fc3"
+    },
+    {
+      "destination": "js/dashboard-biometric-projection.ts",
+      "bytes": 1515,
+      "sha256": "ee066600d86481ba645ff89a43ff53f40f23d42679be4d4e5eb7a10e24d1e0f5"
+    },
+    {
+      "destination": "js/dashboard-insights-projection.ts",
+      "bytes": 1882,
+      "sha256": "0024c73c46e4b817735d9e3d3bc0f30fc50c4a20f2ff011c42bcb4b504e1de19"
+    },
+    {
+      "destination": "js/dashboard-lab-markers-projection.ts",
+      "bytes": 2580,
+      "sha256": "fe4259e090732e1a050fb14ad7dd2cb730989cf481d2c974123e918e3b8a2144"
+    },
+    {
+      "destination": "js/dashboard-owned-widget-host.ts",
+      "bytes": 4465,
+      "sha256": "4f4b624ad7fd09c98e97eb37da09c166fa805ddd7877409534a801e72592d63f"
+    },
+    {
+      "destination": "js/dashboard-owned-widget-html.ts",
+      "bytes": 960,
+      "sha256": "05d2b38763337ef670edb5b1acc5663227f7c48c7fa4b5d9718f20fe46cee265"
+    },
+    {
+      "destination": "js/dashboard-owned-widget-projection.ts",
+      "bytes": 2717,
+      "sha256": "289f84dee74393928539ffe88f08c538056934c00b20bb40896795773026ebba"
+    },
+    {
+      "destination": "js/wearable-strip-empty-presentation.ts",
+      "bytes": 1075,
+      "sha256": "8339acf6f29b7b4f5095f97ce4100555d841eb6996dd62e8c10ab1ec281bd9d8"
+    },
+    {
+      "destination": "js/wearable-strip-sparkline-presentation.ts",
+      "bytes": 673,
+      "sha256": "1a047499f93e5f4ed8e28900bd78fde1345381ea4b1bcb097b0a1894520887ef"
+    },
+    {
+      "destination": "js/wearable-strip-stub-presentation.ts",
+      "bytes": 875,
+      "sha256": "44a2f0907c5545415c719708ba3c9bf0bd3e80f615b8b2d90bdaa5d3804477ce"
+    }
+  ],
+  "retired": [
+    {
+      "destination": "js/correlation-workspace-chrome-compiler-anchors.ts",
+      "bytes": 29945,
+      "sha256": "6cb99d076ac230384bb40797a52047cccf222bf0ea4a61a57fd90a0289ed299c"
+    },
+    {
+      "destination": "js/correlation-workspace-controls-compiler-anchors.ts",
+      "bytes": 16947,
+      "sha256": "4a89c90a6124733e79543a5270ff83b198c77c68f40cb5de6f375283facb36db"
+    },
+    {
+      "destination": "js/dashboard-biometric-presentation-compiler-anchors.ts",
+      "bytes": 20290,
+      "sha256": "bfdc4814ca9a588e5bdd1f76439687089c6dd7f46b73fc3b0c17ce3c89749ac7"
+    },
+    {
+      "destination": "js/dashboard-insights-presentation-compiler-anchors.ts",
+      "bytes": 3916,
+      "sha256": "979bb70f5576a65ce6234ec0bf6aa1097abd855f298e83959b30cbff7cacb8e2"
+    },
+    {
+      "destination": "js/dashboard-lab-markers-presentation-compiler-anchors.ts",
+      "bytes": 17838,
+      "sha256": "3ab128e617ea979165d173e4abdc7fd07435f1efa9b84063972c375aa6a729f6"
+    },
+    {
+      "destination": "js/dashboard-loading-state-compiler-anchors.ts",
+      "bytes": 912,
+      "sha256": "550d01386551165c92b74590be69e366a24dec145118685e93efdf7778f7a1f7"
+    },
+    {
+      "destination": "js/emf-comparison-presentation-compiler-anchors.ts",
+      "bytes": 406,
+      "sha256": "9e199083c29cb2c6c9ab3b306761ee652d23496137cfb43a333ad91ea949c133"
+    },
+    {
+      "destination": "js/emf-comparison-table-compiler-anchors.ts",
+      "bytes": 10106,
+      "sha256": "76efa05ff7758b6ac2664f101222837ac90ac7b7d5eb1cabbb6645f31d0172bb"
+    },
+    {
+      "destination": "js/emf-comparison-values-compiler-anchors.ts",
+      "bytes": 11074,
+      "sha256": "22f13f201ff4fa7e3b6bb90e252d74d6cf55a86118e9a66faa7d890bc7b01efd"
+    },
+    {
+      "destination": "js/sidebar-category-compiler-anchors.ts",
+      "bytes": 5166,
+      "sha256": "4497fa012d1b8a16555f78a051832d4517ea27107dc4e3efafe0e93ecd10780c"
+    },
+    {
+      "destination": "js/sidebar-conditional-compiler-anchors.ts",
+      "bytes": 4460,
+      "sha256": "925a38d95a7a991cb2878e65be488f77cff1148bd086055b0a0519cec65ac03d"
+    },
+    {
+      "destination": "js/sidebar-presentation-compiler-anchors.ts",
+      "bytes": 546,
+      "sha256": "9cc507c7c01a6ba9e02eba0241eae84d1560fc71ff430667e640d46097d0b84c"
+    },
+    {
+      "destination": "js/sidebar-primary-compiler-anchors.ts",
+      "bytes": 23089,
+      "sha256": "a4b69e673aa6a60d9003e0ddb991751c1f167942d4f23c71916094f79b3a512a"
+    },
+    {
+      "destination": "js/sidebar-tools-compiler-anchors.ts",
+      "bytes": 25719,
+      "sha256": "246204bbaf2376bcff19aca45da2028b384448ba3b9b54f8ee6a599afbeef165"
+    },
+    {
+      "destination": "js/wearable-strip-wearable-empty-card-anchors.ts",
+      "bytes": 4993,
+      "sha256": "fb9b721341e8a2a60317b702bb77d82f5c7ae9ff7d071a332b3905b904eace4d"
+    },
+    {
+      "destination": "js/wearable-strip-wearable-sparkline-anchors.ts",
+      "bytes": 5753,
+      "sha256": "ef70c053d481f58cd1b5b15f6d5b97f17712a4e54eb24a0bc06d8d1812199996"
+    },
+    {
+      "destination": "js/wearable-strip-wearable-strip-stub-anchors.ts",
+      "bytes": 4613,
+      "sha256": "43606dec032f9d1be8939894d284e3dadd4d9390d9aa2e801280b87a9363cb8f"
+    }
+  ]
+}

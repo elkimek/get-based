@@ -10,12 +10,12 @@ import { projectContextDemoBar } from './context-card-catalog-presentation.js';
 
 import { state } from './state.js';
 import { showConfirmDialog, showNotification } from './utils.js';
-import { camelCaseActionAttributes } from './action-attributes.js';
 import { saveImportedData, getActiveData } from './data.js';
 import { hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { openModalOverlay } from './modal-lifecycle.js';
 import { openEMFAssessmentEditor } from './emf-runtime.js';
-import { renderNutritionCircadianExtension, renderNutritionDietExtension } from './nutrition-context-card-extensions.js';
+import { projectNutritionCircadianExtension, projectNutritionDietExtension } from './nutrition-context-card-extensions.js';
+import {projectDietContaminantsBadge} from './context-food-contaminants-badge.js';
 import { getRecommendationModuleFunction } from './recommendations-runtime.js';
 import {
   closeContextCardModalRuntime,
@@ -55,7 +55,6 @@ import {
 } from './context-card-medical-history-editor.js';
 import {
   configureLifestyleContextEditors,
-  renderDietContaminantsBadge,
   openDietEditor,
   openSleepRestEditor,
   openLightCircadianEditor,
@@ -114,8 +113,9 @@ export function configureContextCardRuntimeDeps(deps: unknown = {}) {
   return (configureRuntimeFunctions as (current: typeof contextCardRuntimeDeps, updates: unknown, fields: readonly (keyof typeof contextCardRuntimeDeps)[]) => typeof contextCardRuntimeDeps)(contextCardRuntimeDeps, deps, ["openEMFAssessmentEditor"]);
 }
 
-function contextCardActionAttrs(action: unknown, attrs: Record<string, unknown> = {}) {
-  return camelCaseActionAttributes(CONTEXT_CARD_ACTION_ATTR, "context-card", action, attrs);
+/** The nutrition child receives delegated data rather than prepared markup. */
+function contextNutritionActionAttributes(action: 'open-nutrition', options: {surface: 'meals' | 'timing'}) {
+  return {'data-context-card-action': String(action), 'data-context-card-surface': String(options.surface)};
 }
 
 function closestContextCardAction(target: ContextCardTarget | null | undefined) {
@@ -307,7 +307,7 @@ export {
 
 let contextCardRenderSequence = 0;
 
-export function renderProfileContextCards({ embedded = false }: { embedded?: unknown } = {}) {
+export function projectProfileContextCards({ embedded = false }: { embedded?: unknown } = {}) {
   contextCardRenderSequence += 1;
   const renderId = `ctx-${contextCardRenderSequence}`;
   const notes = contextNotesPresentation();
@@ -321,19 +321,24 @@ export function renderProfileContextCards({ embedded = false }: { embedded?: unk
   if (_ccMissingDemo) _ccSubtitle += ' Age and sex in Settings also shape interpretation.';
   const _demoAIMode = getDemoContextAIMode();
   const cards = cardDefs.map(({ summaryFn, ...card }) => ({ ...card, filled: isContextFilled(card.key), summary: summaryFn(),
-    extensions: card.key === 'diet' ? renderDietContaminantsBadge() + renderNutritionDietExtension(contextCardActionAttrs)
-      : card.key === 'lightCircadian' ? renderNutritionCircadianExtension(contextCardActionAttrs) : '',
+    contaminants: card.key === 'diet' ? projectDietContaminantsBadge() : null,
+    nutrition: card.key === 'diet' ? projectNutritionDietExtension(contextNutritionActionAttributes)
+      : card.key === 'lightCircadian' ? projectNutritionCircadianExtension(contextNutritionActionAttributes) : null,
   }));
   prepareContextHealthPresentation();
   const statusTicket = contextCardStatusTicket();
   queueMicrotask(() => { ensureContextNotes(); ensureContextCardStatus(); });
-  return renderContextCatalogHTML({ view: {
+  return {
     renderId, statusTicket, embedded: Boolean(embedded), subtitle: _ccSubtitle, cards, addedCount: cards.filter(card => card.filled).length,
     refresh: hasAssistantFeatureProvider() && (!_demoAIMode.demo || _demoAIMode.live),
     demo: projectContextDemoBar(_demoAIMode), notes: notes.notes, notesTicket: notes.ticket, notesStatus: notes.status, notesSaved: notes.saved,
-  } });
+  };
 }
 
+
+export function renderProfileContextCards(options: {embedded?: unknown} = {}) {
+  return renderContextCatalogHTML({view: projectProfileContextCards(options)});
+}
 
 // ── AI Health Status Dots ──
 

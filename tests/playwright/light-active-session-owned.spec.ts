@@ -16,8 +16,8 @@ test('authored active session layouts retain themes, safety readability, labels 
   await page.evaluate(async () => {
     const [{ renderHTML }, model] = await Promise.all([import('/js/components/LightSessionPresentation.svelte.html.js'), import('/js/light-active-session-presentation.js')]);
     const chips = ['vitamin_d','pomc','no_cv','violet_eye','circadian','nir_solar'].map(key => model.sessionChannelChip(key, { label: `Signal <${key}>`, icon: '☀' }, key === 'vitamin_d' ? '~1400 IU-eq' : ''));
-    const sun = model.activeSunSessionView({ id: 'layout-sun', startedAt: 1, paused: true, bodyExposure: { rotatedSides: true, glassBetween: true, sunscreenSPF: 12 }, eyeExposure: { mode: 'direct' } }, 'Wednesday, June 10, 2026', '39:00', 'Upper chest <literal> & arms', 'Eyes open', chips, 13 * 3600000);
-    sun.readouts = model.liveSessionReadouts({ doses: { vitamin_d: 2 }, sed: 4, medFraction: 1.1, retinalUV: 35, fitzpatrick: 'II', fitzpatrickAssumed: true, psmTier: 'severe', atm: { temperatureC: 34 } }, { iu: 1400, ratePerMin: 35 }, 39);
+    const initialSun = model.activeSunSessionView({ id: 'layout-sun', startedAt: 1, paused: true, bodyExposure: { rotatedSides: true, glassBetween: true, sunscreenSPF: 12 }, eyeExposure: { mode: 'direct' } }, 'Wednesday, June 10, 2026', '39:00', 'Upper chest <literal> & arms', 'Eyes open', chips, 13 * 3600000);
+    const sun = { ...initialSun, readouts: model.liveSessionReadouts({ doses: { vitamin_d: 2 }, sed: 4, medFraction: 1.1, retinalUV: 35, fitzpatrick: 'II', fitzpatrickAssumed: true, psmTier: 'severe', atm: { temperatureC: 34 } }, { iu: 1400, ratePerMin: 35 }, 39) };
     const device = { ...sun, kind: 'device' as const, id: 'layout-device', date: 'Active · <Brand> Panel & One', body: '25 cm · Upper chest · ~6% skin · eye shielding logged', chips: null, readouts: [], forgotHours: null };
     const host = document.createElement('div'); host.id = 'light-active-acceptance';
     host.style.cssText = 'position:fixed;inset:0;z-index:10000;overflow:auto;background:var(--bg-primary);padding:16px;box-sizing:border-box;display:grid;align-content:start;gap:24px';

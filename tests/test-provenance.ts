@@ -7,6 +7,9 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Run: node tests/test-provenance.js  (or via npm test)
 
 import fs from 'node:fs';
+import { JSDOM } from 'jsdom';
+import { buildMarkerHistoryMetadata } from '../js/marker-detail-history.js';
+import { renderHTML as renderMarkerHistory } from '../js/components/MarkerDetailHistory.svelte.html.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -47,8 +50,14 @@ assert('editMarkerValue sets provenance',
 // ─── 3. Detail Modal Display ───
 console.log('\n3. Detail Modal Display');
 assert('Detail modal reads markerSources', markerDetailSrc.includes('srcEntry?.markerSources?.[dotKey]'));
-assert('Detail modal has mv-source class', markerDetailHistorySrc.includes('class="mv-source"'));
-assert('Detail modal shows manual entry label', markerDetailHistorySrc.includes('mv-source-manual'));
+const fileMetadata = buildMarkerHistoryMetadata({ sourceFile: 'synthetic.pdf' }, null, '2026-01-01');
+const manualMetadata = buildMarkerHistoryMetadata(null, { file: null }, '2026-01-01');
+const provenanceDOM = new JSDOM([...fileMetadata.sources, ...manualMetadata.sources].map(view => renderMarkerHistory({ view })).join(''));
+assert('Detail modal has mv-source class',
+  provenanceDOM.window.document.querySelector('.mv-source:not(.mv-source-manual)')?.textContent === 'synthetic.pdf');
+assert('Detail modal shows manual entry label',
+  provenanceDOM.window.document.querySelector('.mv-source.mv-source-manual')?.textContent === 'manual entry');
+provenanceDOM.window.close();
 assert('Detail modal falls back to sourceFile', markerDetailHistorySrc.includes('entry?.sourceFile'));
 
 // ─── 4. CSS Styles ───

@@ -48,7 +48,7 @@ console.log('2. renderCard pairing');
 assert('Caller passes pairedMetric when rendering bp_systolic',
   /const pairedMetric = \(metricId === 'bp_systolic'\) \? summary\.metrics\?\.bp_diastolic : null/.test(wearablesSrc));
 assert('renderCard accepts an opts arg with pairedMetric',
-  /function renderCard\(metricId, canon, metric, showSourceBadge, sourceMaxDate, opts = \{\}\)/.test(wearablesSrc));
+  /function projectCard\(metricId, canon, metric, showSourceBadge, sourceMaxDate, opts = \{\}\)/.test(wearablesSrc));
 assert('renderCard derives isBPCard from metricId + pairedMetric',
   /const isBPCard = metricId === 'bp_systolic' && pairedMetric/.test(wearablesSrc));
 assert("Card label flips to 'Blood pressure' when paired",

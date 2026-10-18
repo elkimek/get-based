@@ -1,0 +1,129 @@
+/* Scoped rotation declarations only; no theme/base/preflight or layer wrapper. */
+@theme prefix(gb) {}
+@import "tailwindcss/utilities.css" prefix(gb) source(none);
+
+@utility sync-rotation-qr {
+  &:is(.modal.gb\:sync-rotation-modal, .modal.gb\:sync-rotation-modal *) {
+    flex-shrink:0;
+    background:#fff;
+    padding:8px;
+    border-radius:8px;
+    width:180px;
+    height:180px;
+  }
+}
+
+@utility sync-rotation-modal {
+  &:is(.modal.gb\:sync-rotation-modal, .modal.gb\:sync-rotation-modal *) {
+    max-width:560px;
+  }
+}
+
+@utility sync-rotation-body {
+  &:is(.modal.gb\:sync-rotation-modal, .modal.gb\:sync-rotation-modal *) {
+    font-size:13px;
+  }
+}
+
+@utility sync-rotation-warning {
+  &:is(.modal.gb\:sync-rotation-modal, .modal.gb\:sync-rotation-modal *) {
+    margin-bottom:12px;
+    padding:8px;
+    border:1px solid var(--red);
+    border-radius:6px;
+    background:rgba(255,80,80,0.08);
+  }
+}
+
+@utility sync-rotation-warning-title {
+  &:is(.modal.gb\:sync-rotation-modal, .modal.gb\:sync-rotation-modal *) {
+    font-weight:600;
+    margin-bottom:4px;
+  }
+}
+
+@utility sync-rotation-warning-copy {
+  &:is(.modal.gb\:sync-rotation-modal, .modal.gb\:sync-rotation-modal *) {
+    font-size:12px;
+    color:var(--text-muted);
+  }
+}
+
+@utility sync-rotation-layout {
+  &:is(.modal.gb\:sync-rotation-modal, .modal.gb\:sync-rotation-modal *) {
+    display:flex;
+    gap:16px;
+    align-items:flex-start;
+    margin-bottom:12px;
+  }
+}
+
+@utility sync-rotation-words-column {
+  &:is(.modal.gb\:sync-rotation-modal, .modal.gb\:sync-rotation-modal *) {
+    flex:1;
+  }
+}
+
+@utility sync-rotation-instructions {
+  &:is(.modal.gb\:sync-rotation-modal, .modal.gb\:sync-rotation-modal *) {
+    font-size:11px;
+    color:var(--text-muted);
+    margin-bottom:6px;
+  }
+}
+
+@utility sync-rotation-words {
+  &:is(.modal.gb\:sync-rotation-modal, .modal.gb\:sync-rotation-modal *) {
+    display:flex;
+    flex-wrap:wrap;
+    gap:4px;
+    margin-bottom:8px;
+  }
+}
+
+@utility sync-rotation-copy {
+  &:is(.modal.gb\:sync-rotation-modal, .modal.gb\:sync-rotation-modal *) {
+    font-size:11px;
+  }
+}
+
+@utility sync-rotation-saved {
+  &:is(.modal.gb\:sync-rotation-modal, .modal.gb\:sync-rotation-modal *) {
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:12px;
+    cursor:pointer;
+    font-size:12px;
+  }
+}
+
+@utility sync-rotation-actions {
+  &:is(.modal.gb\:sync-rotation-modal, .modal.gb\:sync-rotation-modal *) {
+    display:flex;
+    justify-content:flex-end;
+    gap:8px;
+  }
+}
+
+@utility sync-rotation-word {
+  &:is(.modal.gb\:sync-rotation-modal, .modal.gb\:sync-rotation-modal *) {
+    display:inline-flex;
+    align-items:baseline;
+    gap:4px;
+    padding:2px 6px;
+    background:var(--surface);
+    border-radius:4px;
+    font-family:monospace;
+    font-size:12px;
+  }
+}
+
+@utility sync-rotation-word-number {
+  &:is(.modal.gb\:sync-rotation-modal, .modal.gb\:sync-rotation-modal *) {
+    color:var(--text-muted);
+    font-size:10px;
+  }
+}
+
+@source inline("gb:sync-rotation-qr gb:sync-rotation-modal gb:sync-rotation-body gb:sync-rotation-warning gb:sync-rotation-warning-title gb:sync-rotation-warning-copy gb:sync-rotation-layout gb:sync-rotation-words-column gb:sync-rotation-instructions gb:sync-rotation-words gb:sync-rotation-copy gb:sync-rotation-saved gb:sync-rotation-actions gb:sync-rotation-word gb:sync-rotation-word-number");

@@ -1,0 +1,4384 @@
+{
+  "source": "js/therapy-correlation-view.ts",
+  "runtimeURL": "js/therapy-correlation-view.js",
+  "before": {
+    "bytes": 31744,
+    "sha256": "c2f7aa52a560710c29d218b2c3b078b644d59b5cd5b411848c7fd8c53d4f823e"
+  },
+  "after": {
+    "bytes": 37595,
+    "sha256": "1e0fbd8206471e003e31b9268f0ec207c49b56873ceb51af0cdb4c1545db359d"
+  },
+  "beforeFingerprint": {
+    "count": 5,
+    "digest": "1a0cb7e9704ba37fec6ec7cb870c653d1c644aed6a7ad95efc9ae7f808bd1fe0",
+    "kinds": {
+      "innerHTML": 5
+    }
+  },
+  "afterFingerprint": {
+    "count": 5,
+    "digest": "8f777f89d799bf5d9621fac6b40bb927392c6026b0af6ab2e1de00ffb93bf95e",
+    "kinds": {
+      "innerHTML": 5
+    }
+  },
+  "wholeUTF16ReverseEdits": [
+    {
+      "start": 8,
+      "end": 8,
+      "before": "",
+      "after": " "
+    },
+    {
+      "start": 40,
+      "end": 158,
+      "before": ",renderCorrelationWorkspaceReadout,renderCorrelationWorkspaceUsageSegments,correlationText,presentCorrelationRows,type",
+      "after": ""
+    },
+    {
+      "start": 159,
+      "end": 629,
+      "before": "CorrelationWorkspaceView,type CorrelationCurrentDose,type CorrelationCurrentDoseList,type CorrelationCurrentDoseItem,type CorrelationNoCurrentDose,type CorrelationDoseNotice,type CorrelationConfirmDose,type CorrelationConfirmPeriod,type CorrelationTimelinePanel,type CorrelationPlot,type CorrelationUsageTrack,type CorrelationPairTabs,type CorrelationPairTab,type CorrelationScatterUnavailable,type CorrelationHistory,type CorrelationReadout,type CorrelationUsageSegment",
+      "after": ""
+    },
+    {
+      "start": 693,
+      "end": 698,
+      "before": "type ",
+      "after": ""
+    },
+    {
+      "start": 699,
+      "end": 699,
+      "before": "",
+      "after": " render"
+    },
+    {
+      "start": 710,
+      "end": 710,
+      "before": "",
+      "after": "Workspace"
+    },
+    {
+      "start": 717,
+      "end": 921,
+      "before": "sView,CorrelationChoiceGroup,CorrelationChoice,CorrelationCustomDates,CorrelationTab,CorrelationIngredientPicker,CorrelationIngredientOption,CorrelationSeriesButton,CorrelationRangeError,CorrelationNoLabs",
+      "after": " "
+    },
+    {
+      "start": 1310,
+      "end": 1310,
+      "before": "",
+      "after": " escapeHTML,"
+    },
+    {
+      "start": 5730,
+      "end": 5730,
+      "before": "",
+      "after": "esc = escapeHTML;\nconst "
+    },
+    {
+      "start": 6279,
+      "end": 6283,
+      "before": "(():",
+      "after": "render"
+    },
+    {
+      "start": 6294,
+      "end": 6294,
+      "before": "",
+      "after": "Workspace"
+    },
+    {
+      "start": 6295,
+      "end": 6295,
+      "before": "",
+      "after": "ontrol(\"c"
+    },
+    {
+      "start": 6300,
+      "end": 6301,
+      "before": "G",
+      "after": "-g"
+    },
+    {
+      "start": 6305,
+      "end": 6314,
+      "before": "=>{\nconst",
+      "after": "\","
+    },
+    {
+      "start": 6315,
+      "end": 6329,
+      "before": "capturedHidden",
+      "after": "[\n    ()"
+    },
+    {
+      "start": 6331,
+      "end": 6331,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 6359,
+      "end": 6359,
+      "before": "",
+      "after": ",\n    ()"
+    },
+    {
+      "start": 6361,
+      "end": 6363,
+      "before": "==",
+      "after": ">"
+    },
+    {
+      "start": 6364,
+      "end": 6400,
+      "before": "\" hidden\";\nconst capturedLabel = `${",
+      "after": "("
+    },
+    {
+      "start": 6405,
+      "end": 6408,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 6409,
+      "end": 6414,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 6415,
+      "end": 6426,
+      "before": "capturedKey",
+      "after": "   ()"
+    },
+    {
+      "start": 6428,
+      "end": 6428,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 6429,
+      "end": 6432,
+      "before": "`${",
+      "after": "("
+    },
+    {
+      "start": 6435,
+      "end": 6438,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 6439,
+      "end": 6444,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 6445,
+      "end": 6468,
+      "before": "capturedAccessibleLabel",
+      "after": "   ()"
+    },
+    {
+      "start": 6470,
+      "end": 6470,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 6471,
+      "end": 6474,
+      "before": "`${",
+      "after": "("
+    },
+    {
+      "start": 6479,
+      "end": 6482,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 6483,
+      "end": 6488,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 6489,
+      "end": 6504,
+      "before": "capturedChoices",
+      "after": "   ()"
+    },
+    {
+      "start": 6506,
+      "end": 6506,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 6507,
+      "end": 6529,
+      "before": "presentCorrelationRows",
+      "after": ""
+    },
+    {
+      "start": 6554,
+      "end": 6558,
+      "before": "(():",
+      "after": "render"
+    },
+    {
+      "start": 6569,
+      "end": 6569,
+      "before": "",
+      "after": "Workspace"
+    },
+    {
+      "start": 6570,
+      "end": 6570,
+      "before": "",
+      "after": "ontrol(\"c"
+    },
+    {
+      "start": 6575,
+      "end": 6580,
+      "before": "=>{\nc",
+      "after": "-butt"
+    },
+    {
+      "start": 6582,
+      "end": 6584,
+      "before": "st",
+      "after": "\","
+    },
+    {
+      "start": 6585,
+      "end": 6604,
+      "before": "capturedClassSuffix",
+      "after": "[\n        ()"
+    },
+    {
+      "start": 6606,
+      "end": 6606,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 6607,
+      "end": 6610,
+      "before": "`${",
+      "after": "("
+    },
+    {
+      "start": 6638,
+      "end": 6641,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 6642,
+      "end": 6647,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 6648,
+      "end": 6661,
+      "before": "capturedIdKey",
+      "after": "       ()"
+    },
+    {
+      "start": 6663,
+      "end": 6663,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 6664,
+      "end": 6667,
+      "before": "`${",
+      "after": "("
+    },
+    {
+      "start": 6670,
+      "end": 6673,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 6674,
+      "end": 6679,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 6680,
+      "end": 6695,
+      "before": "capturedIdValue",
+      "after": "       ()"
+    },
+    {
+      "start": 6697,
+      "end": 6697,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 6698,
+      "end": 6701,
+      "before": "`${",
+      "after": "("
+    },
+    {
+      "start": 6702,
+      "end": 6705,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 6706,
+      "end": 6711,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 6712,
+      "end": 6726,
+      "before": "capturedAction",
+      "after": "       ()"
+    },
+    {
+      "start": 6728,
+      "end": 6728,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 6729,
+      "end": 6732,
+      "before": "`${",
+      "after": "("
+    },
+    {
+      "start": 6735,
+      "end": 6738,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 6739,
+      "end": 6744,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 6745,
+      "end": 6758,
+      "before": "capturedValue",
+      "after": "       ()"
+    },
+    {
+      "start": 6760,
+      "end": 6760,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 6761,
+      "end": 6764,
+      "before": "`${",
+      "after": "("
+    },
+    {
+      "start": 6765,
+      "end": 6768,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 6769,
+      "end": 6774,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 6775,
+      "end": 6790,
+      "before": "capturedPressed",
+      "after": "       ()"
+    },
+    {
+      "start": 6792,
+      "end": 6792,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 6793,
+      "end": 6793,
+      "before": "",
+      "after": "("
+    },
+    {
+      "start": 6804,
+      "end": 6805,
+      "before": ";",
+      "after": "),"
+    },
+    {
+      "start": 6806,
+      "end": 6811,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 6812,
+      "end": 6828,
+      "before": "capturedDisabled",
+      "after": "       ()"
+    },
+    {
+      "start": 6830,
+      "end": 6830,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 6860,
+      "end": 6936,
+      "before": " === \" disabled\";\nconst capturedLabel = `${t}`;\nreturn {kind:\"choice-button\"",
+      "after": ""
+    },
+    {
+      "start": 6937,
+      "end": 7126,
+      "before": "classSuffix:capturedClassSuffix,idKey:capturedIdKey,idValue:capturedIdValue,action:capturedAction,value:capturedValue,pressed:capturedPressed,disabled:capturedDisabled,label:capturedLabel};",
+      "after": ""
+    },
+    {
+      "start": 7127,
+      "end": 7129,
+      "before": "})",
+      "after": "        "
+    },
+    {
+      "start": 7131,
+      "end": 7131,
+      "before": "",
+      "after": " => (t)\n    ]"
+    },
+    {
+      "start": 7133,
+      "end": 7151,
+      "before": ";\nreturn {kind:\"ch",
+      "after": ".j"
+    },
+    {
+      "start": 7153,
+      "end": 7168,
+      "before": "ce-group\",hidde",
+      "after": ""
+    },
+    {
+      "start": 7169,
+      "end": 7289,
+      "before": ":capturedHidden,label:capturedLabel,key:capturedKey,accessibleLabel:capturedAccessibleLabel,choices:capturedChoices};\n})",
+      "after": ""
+    },
+    {
+      "start": 7290,
+      "end": 7290,
+      "before": "",
+      "after": "''))\n]"
+    },
+    {
+      "start": 11514,
+      "end": 11537,
+      "before": "presentCorrelationRows(",
+      "after": ""
+    },
+    {
+      "start": 11566,
+      "end": 11570,
+      "before": "(():",
+      "after": "render"
+    },
+    {
+      "start": 11581,
+      "end": 11581,
+      "before": "",
+      "after": "Workspace"
+    },
+    {
+      "start": 11582,
+      "end": 11582,
+      "before": "",
+      "after": "hrome(\"c"
+    },
+    {
+      "start": 11588,
+      "end": 11589,
+      "before": "D",
+      "after": "-d"
+    },
+    {
+      "start": 11592,
+      "end": 11601,
+      "before": "=>{\nconst",
+      "after": "\","
+    },
+    {
+      "start": 11602,
+      "end": 11614,
+      "before": "capturedName",
+      "after": "[\n    ()"
+    },
+    {
+      "start": 11616,
+      "end": 11616,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 11617,
+      "end": 11624,
+      "before": "`${corr",
+      "after": "("
+    },
+    {
+      "start": 11625,
+      "end": 11635,
+      "before": "lationText",
+      "after": "sc"
+    },
+    {
+      "start": 11643,
+      "end": 11646,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 11647,
+      "end": 11652,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 11653,
+      "end": 11663,
+      "before": "capturedId",
+      "after": "   ()"
+    },
+    {
+      "start": 11665,
+      "end": 11665,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 11666,
+      "end": 11673,
+      "before": "`${corr",
+      "after": "("
+    },
+    {
+      "start": 11674,
+      "end": 11684,
+      "before": "lationText",
+      "after": "sc"
+    },
+    {
+      "start": 11690,
+      "end": 11693,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 11694,
+      "end": 11699,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 11700,
+      "end": 11713,
+      "before": "capturedDoses",
+      "after": "   ()"
+    },
+    {
+      "start": 11715,
+      "end": 11715,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 11716,
+      "end": 11716,
+      "before": "",
+      "after": "("
+    },
+    {
+      "start": 11740,
+      "end": 11744,
+      "before": "(():",
+      "after": "render"
+    },
+    {
+      "start": 11755,
+      "end": 11755,
+      "before": "",
+      "after": "Workspace"
+    },
+    {
+      "start": 11756,
+      "end": 11756,
+      "before": "",
+      "after": "hrome(\"c"
+    },
+    {
+      "start": 11762,
+      "end": 11763,
+      "before": "D",
+      "after": "-d"
+    },
+    {
+      "start": 11766,
+      "end": 11767,
+      "before": "L",
+      "after": "-l"
+    },
+    {
+      "start": 11770,
+      "end": 11779,
+      "before": "=>{\nconst",
+      "after": "\","
+    },
+    {
+      "start": 11780,
+      "end": 11793,
+      "before": "capturedItems",
+      "after": "[\n        ()"
+    },
+    {
+      "start": 11795,
+      "end": 11795,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 11796,
+      "end": 11818,
+      "before": "presentCorrelationRows",
+      "after": ""
+    },
+    {
+      "start": 11843,
+      "end": 11847,
+      "before": "(():",
+      "after": "render"
+    },
+    {
+      "start": 11858,
+      "end": 11858,
+      "before": "",
+      "after": "Workspace"
+    },
+    {
+      "start": 11859,
+      "end": 11859,
+      "before": "",
+      "after": "hrome(\"c"
+    },
+    {
+      "start": 11865,
+      "end": 11866,
+      "before": "D",
+      "after": "-d"
+    },
+    {
+      "start": 11869,
+      "end": 11870,
+      "before": "I",
+      "after": "-i"
+    },
+    {
+      "start": 11873,
+      "end": 11882,
+      "before": "=>{\nconst",
+      "after": "\","
+    },
+    {
+      "start": 11883,
+      "end": 11901,
+      "before": "capturedIngredient",
+      "after": "[\n            ()"
+    },
+    {
+      "start": 11903,
+      "end": 11903,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 11904,
+      "end": 11911,
+      "before": "`${corr",
+      "after": "("
+    },
+    {
+      "start": 11912,
+      "end": 11922,
+      "before": "lationText",
+      "after": "sc"
+    },
+    {
+      "start": 11936,
+      "end": 11939,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 11940,
+      "end": 11945,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 11946,
+      "end": 11960,
+      "before": "capturedAmount",
+      "after": "           ()"
+    },
+    {
+      "start": 11962,
+      "end": 11962,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 11963,
+      "end": 11970,
+      "before": "`${corr",
+      "after": "("
+    },
+    {
+      "start": 11971,
+      "end": 11981,
+      "before": "lationText",
+      "after": "sc"
+    },
+    {
+      "start": 11994,
+      "end": 11997,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 11998,
+      "end": 12003,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 12004,
+      "end": 12017,
+      "before": "capturedSince",
+      "after": "           ()"
+    },
+    {
+      "start": 12019,
+      "end": 12019,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 12020,
+      "end": 12023,
+      "before": "`${",
+      "after": "("
+    },
+    {
+      "start": 12060,
+      "end": 12064,
+      "before": "corr",
+      "after": ""
+    },
+    {
+      "start": 12065,
+      "end": 12075,
+      "before": "lationText",
+      "after": "sc"
+    },
+    {
+      "start": 12119,
+      "end": 12231,
+      "before": "}`;\nreturn {kind:\"current-dose-item\",ingredient:capturedIngredient,amount:capturedAmount,since:capturedSince};\n}",
+      "after": ""
+    },
+    {
+      "start": 12232,
+      "end": 12233,
+      "before": "(",
+      "after": "\n        ]"
+    },
+    {
+      "start": 12235,
+      "end": 12247,
+      "before": ");\nreturn {k",
+      "after": ".jo"
+    },
+    {
+      "start": 12249,
+      "end": 12295,
+      "before": "d:\"current-dose-list\",items:capturedItems};\n})",
+      "after": ""
+    },
+    {
+      "start": 12296,
+      "end": 12296,
+      "before": "",
+      "after": "''))\n    ]"
+    },
+    {
+      "start": 12300,
+      "end": 12304,
+      "before": "(():",
+      "after": "render"
+    },
+    {
+      "start": 12315,
+      "end": 12316,
+      "before": "N",
+      "after": "W"
+    },
+    {
+      "start": 12317,
+      "end": 12319,
+      "before": "Cu",
+      "after": ""
+    },
+    {
+      "start": 12320,
+      "end": 12341,
+      "before": "rentDose=>{\n\nreturn {",
+      "after": ""
+    },
+    {
+      "start": 12342,
+      "end": 12346,
+      "before": "ind:",
+      "after": "spaceChrome("
+    },
+    {
+      "start": 12363,
+      "end": 12399,
+      "before": "};\n})();\nreturn {kind:\"current-dose\"",
+      "after": ""
+    },
+    {
+      "start": 12400,
+      "end": 12457,
+      "before": "name:capturedName,id:capturedId,doses:capturedDoses};\n})(",
+      "after": " []"
+    },
+    {
+      "start": 12459,
+      "end": 12459,
+      "before": "",
+      "after": "\n])).join(''"
+    },
+    {
+      "start": 12519,
+      "end": 12520,
+      "before": "(",
+      "after": "\"workspace\", [\n    "
+    },
+    {
+      "start": 12522,
+      "end": 12523,
+      "before": ":",
+      "after": " => (render"
+    },
+    {
+      "start": 12543,
+      "end": 12565,
+      "before": "View=>{\nconst captured",
+      "after": ""
+    },
+    {
+      "start": 12572,
+      "end": 12576,
+      "before": "s = ",
+      "after": ""
+    },
+    {
+      "start": 12577,
+      "end": 12598,
+      "before": "():CorrelationControl",
+      "after": "\""
+    },
+    {
+      "start": 12599,
+      "end": 12617,
+      "before": "View=>{\nconst capt",
+      "after": ""
+    },
+    {
+      "start": 12619,
+      "end": 12622,
+      "before": "edD",
+      "after": "f"
+    },
+    {
+      "start": 12623,
+      "end": 12629,
+      "before": "teChoi",
+      "after": ""
+    },
+    {
+      "start": 12631,
+      "end": 12632,
+      "before": "s",
+      "after": "\", [\n        ()"
+    },
+    {
+      "start": 12634,
+      "end": 12634,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 12635,
+      "end": 12635,
+      "before": "",
+      "after": "("
+    },
+    {
+      "start": 12766,
+      "end": 12767,
+      "before": ";",
+      "after": "),"
+    },
+    {
+      "start": 12768,
+      "end": 12773,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 12774,
+      "end": 12787,
+      "before": "capturedDates",
+      "after": "       ()"
+    },
+    {
+      "start": 12789,
+      "end": 12789,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 12790,
+      "end": 12790,
+      "before": "",
+      "after": "("
+    },
+    {
+      "start": 12817,
+      "end": 12821,
+      "before": "(():",
+      "after": "render"
+    },
+    {
+      "start": 12832,
+      "end": 12832,
+      "before": "",
+      "after": "Workspace"
+    },
+    {
+      "start": 12833,
+      "end": 12833,
+      "before": "",
+      "after": "ontrol(\"c"
+    },
+    {
+      "start": 12838,
+      "end": 12839,
+      "before": "D",
+      "after": "-d"
+    },
+    {
+      "start": 12843,
+      "end": 12852,
+      "before": "=>{\nconst",
+      "after": "\","
+    },
+    {
+      "start": 12853,
+      "end": 12866,
+      "before": "capturedStart",
+      "after": "[\n            ()"
+    },
+    {
+      "start": 12868,
+      "end": 12868,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 12869,
+      "end": 12876,
+      "before": "`${corr",
+      "after": "("
+    },
+    {
+      "start": 12877,
+      "end": 12887,
+      "before": "lationText",
+      "after": "sc"
+    },
+    {
+      "start": 12910,
+      "end": 12913,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 12914,
+      "end": 12919,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 12920,
+      "end": 12931,
+      "before": "capturedEnd",
+      "after": "           ()"
+    },
+    {
+      "start": 12933,
+      "end": 12933,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 12934,
+      "end": 12941,
+      "before": "`${corr",
+      "after": "("
+    },
+    {
+      "start": 12942,
+      "end": 12952,
+      "before": "lationText",
+      "after": "sc"
+    },
+    {
+      "start": 12973,
+      "end": 13044,
+      "before": "}`;\nreturn {kind:\"custom-dates\",start:capturedStart,end:capturedEnd};\n}",
+      "after": ""
+    },
+    {
+      "start": 13045,
+      "end": 13046,
+      "before": "(",
+      "after": "\n        ]"
+    },
+    {
+      "start": 13050,
+      "end": 13055,
+      "before": "null;",
+      "after": "''),"
+    },
+    {
+      "start": 13056,
+      "end": 13061,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 13062,
+      "end": 13079,
+      "before": "capturedRangeHelp",
+      "after": "       ()"
+    },
+    {
+      "start": 13081,
+      "end": 13081,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 13082,
+      "end": 13085,
+      "before": "`${",
+      "after": "("
+    },
+    {
+      "start": 13202,
+      "end": 13206,
+      "before": "corr",
+      "after": ""
+    },
+    {
+      "start": 13207,
+      "end": 13217,
+      "before": "lationText",
+      "after": "sc"
+    },
+    {
+      "start": 13246,
+      "end": 13250,
+      "before": "corr",
+      "after": ""
+    },
+    {
+      "start": 13251,
+      "end": 13261,
+      "before": "lationText",
+      "after": "sc"
+    },
+    {
+      "start": 13301,
+      "end": 13304,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 13305,
+      "end": 13310,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 13311,
+      "end": 13331,
+      "before": "capturedLayoutHidden",
+      "after": "       ()"
+    },
+    {
+      "start": 13333,
+      "end": 13333,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 13371,
+      "end": 13371,
+      "before": "",
+      "after": ",\n        ()"
+    },
+    {
+      "start": 13373,
+      "end": 13375,
+      "before": "==",
+      "after": ">"
+    },
+    {
+      "start": 13376,
+      "end": 13412,
+      "before": "\" hidden\";\nconst capturedGrouping = ",
+      "after": "("
+    },
+    {
+      "start": 13538,
+      "end": 13539,
+      "before": ";",
+      "after": "),"
+    },
+    {
+      "start": 13540,
+      "end": 13545,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 13546,
+      "end": 13560,
+      "before": "capturedLayout",
+      "after": "       ()"
+    },
+    {
+      "start": 13562,
+      "end": 13562,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 13563,
+      "end": 13563,
+      "before": "",
+      "after": "("
+    },
+    {
+      "start": 13658,
+      "end": 13659,
+      "before": ";",
+      "after": "),"
+    },
+    {
+      "start": 13660,
+      "end": 13665,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 13666,
+      "end": 13680,
+      "before": "capturedNoLabs",
+      "after": "       ()"
+    },
+    {
+      "start": 13682,
+      "end": 13682,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 13683,
+      "end": 13683,
+      "before": "",
+      "after": "("
+    },
+    {
+      "start": 13754,
+      "end": 13758,
+      "before": "(():",
+      "after": "render"
+    },
+    {
+      "start": 13769,
+      "end": 13770,
+      "before": "N",
+      "after": "W"
+    },
+    {
+      "start": 13771,
+      "end": 13780,
+      "before": "Labs=>{\n\n",
+      "after": ""
+    },
+    {
+      "start": 13781,
+      "end": 13788,
+      "before": "eturn {",
+      "after": ""
+    },
+    {
+      "start": 13789,
+      "end": 13790,
+      "before": "i",
+      "after": "spaceCo"
+    },
+    {
+      "start": 13791,
+      "end": 13793,
+      "before": "d:",
+      "after": "trol("
+    },
+    {
+      "start": 13809,
+      "end": 13815,
+      "before": "};\n})(",
+      "after": ", []"
+    },
+    {
+      "start": 13819,
+      "end": 13824,
+      "before": "null;",
+      "after": "''),"
+    },
+    {
+      "start": 13825,
+      "end": 13830,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 13831,
+      "end": 13851,
+      "before": "capturedStatusHidden",
+      "after": "       ()"
+    },
+    {
+      "start": 13853,
+      "end": 13853,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 13891,
+      "end": 13891,
+      "before": "",
+      "after": ",\n        ()"
+    },
+    {
+      "start": 13893,
+      "end": 13895,
+      "before": "==",
+      "after": ">"
+    },
+    {
+      "start": 13896,
+      "end": 13941,
+      "before": "\" hidden\";\nconst capturedStatusGrouping = `${",
+      "after": "("
+    },
+    {
+      "start": 14006,
+      "end": 14009,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 14010,
+      "end": 14015,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 14016,
+      "end": 14035,
+      "before": "capturedStatusCount",
+      "after": "       ()"
+    },
+    {
+      "start": 14037,
+      "end": 14037,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 14038,
+      "end": 14041,
+      "before": "`${",
+      "after": "("
+    },
+    {
+      "start": 14050,
+      "end": 14053,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 14054,
+      "end": 14059,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 14060,
+      "end": 14078,
+      "before": "capturedStatusNoun",
+      "after": "       ()"
+    },
+    {
+      "start": 14080,
+      "end": 14080,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 14081,
+      "end": 14084,
+      "before": "`${",
+      "after": "("
+    },
+    {
+      "start": 14120,
+      "end": 14123,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 14124,
+      "end": 14129,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 14130,
+      "end": 14150,
+      "before": "capturedStatusDetail",
+      "after": "       ()"
+    },
+    {
+      "start": 14152,
+      "end": 14152,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 14153,
+      "end": 14156,
+      "before": "`${",
+      "after": "("
+    },
+    {
+      "start": 14303,
+      "end": 14306,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 14307,
+      "end": 14312,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 14313,
+      "end": 14331,
+      "before": "capturedRangeError",
+      "after": "       ()"
+    },
+    {
+      "start": 14333,
+      "end": 14333,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 14334,
+      "end": 14334,
+      "before": "",
+      "after": "("
+    },
+    {
+      "start": 14357,
+      "end": 14361,
+      "before": "(():",
+      "after": "render"
+    },
+    {
+      "start": 14372,
+      "end": 14373,
+      "before": "R",
+      "after": "WorkspaceControl(\"r"
+    },
+    {
+      "start": 14377,
+      "end": 14378,
+      "before": "E",
+      "after": "-e"
+    },
+    {
+      "start": 14382,
+      "end": 14391,
+      "before": "=>{\nconst",
+      "after": "\","
+    },
+    {
+      "start": 14392,
+      "end": 14407,
+      "before": "capturedMessage",
+      "after": "[\n            ()"
+    },
+    {
+      "start": 14409,
+      "end": 14409,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 14410,
+      "end": 14417,
+      "before": "`${corr",
+      "after": "("
+    },
+    {
+      "start": 14418,
+      "end": 14428,
+      "before": "lationText",
+      "after": "sc"
+    },
+    {
+      "start": 14450,
+      "end": 14508,
+      "before": "}`;\nreturn {kind:\"range-error\",message:capturedMessage};\n}",
+      "after": ""
+    },
+    {
+      "start": 14509,
+      "end": 14510,
+      "before": "(",
+      "after": "\n        ]"
+    },
+    {
+      "start": 14514,
+      "end": 14519,
+      "before": "null;",
+      "after": "''),"
+    },
+    {
+      "start": 14520,
+      "end": 14525,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 14526,
+      "end": 14538,
+      "before": "capturedTabs",
+      "after": "       ()"
+    },
+    {
+      "start": 14540,
+      "end": 14540,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 14541,
+      "end": 14563,
+      "before": "presentCorrelationRows",
+      "after": ""
+    },
+    {
+      "start": 14605,
+      "end": 14609,
+      "before": "(():",
+      "after": "render"
+    },
+    {
+      "start": 14620,
+      "end": 14621,
+      "before": "T",
+      "after": "Worksp"
+    },
+    {
+      "start": 14622,
+      "end": 14627,
+      "before": "b=>{\n",
+      "after": ""
+    },
+    {
+      "start": 14628,
+      "end": 14628,
+      "before": "",
+      "after": "eC"
+    },
+    {
+      "start": 14630,
+      "end": 14631,
+      "before": "s",
+      "after": ""
+    },
+    {
+      "start": 14632,
+      "end": 14638,
+      "before": " captu",
+      "after": ""
+    },
+    {
+      "start": 14639,
+      "end": 14649,
+      "before": "edId = `${",
+      "after": "ol(\""
+    },
+    {
+      "start": 14650,
+      "end": 14655,
+      "before": "}`;\nc",
+      "after": "ab-butt"
+    },
+    {
+      "start": 14657,
+      "end": 14659,
+      "before": "st",
+      "after": "\","
+    },
+    {
+      "start": 14660,
+      "end": 14674,
+      "before": "capturedAction",
+      "after": "[\n            ()"
+    },
+    {
+      "start": 14676,
+      "end": 14676,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 14677,
+      "end": 14680,
+      "before": "`${",
+      "after": "("
+    },
+    {
+      "start": 14681,
+      "end": 14684,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 14685,
+      "end": 14690,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 14691,
+      "end": 14706,
+      "before": "capturedPressed",
+      "after": "           ()"
+    },
+    {
+      "start": 14708,
+      "end": 14708,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 14709,
+      "end": 14709,
+      "before": "",
+      "after": "(t),\n            () => ("
+    },
+    {
+      "start": 14718,
+      "end": 14719,
+      "before": ";",
+      "after": "),"
+    },
+    {
+      "start": 14720,
+      "end": 14725,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 14726,
+      "end": 14739,
+      "before": "capturedLabel",
+      "after": "           ()"
+    },
+    {
+      "start": 14741,
+      "end": 14741,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 14742,
+      "end": 14745,
+      "before": "`${",
+      "after": "("
+    },
+    {
+      "start": 14779,
+      "end": 14892,
+      "before": "}`;\nreturn {kind:\"tab-button\",id:capturedId,action:capturedAction,pressed:capturedPressed,label:capturedLabel};\n}",
+      "after": ""
+    },
+    {
+      "start": 14893,
+      "end": 14894,
+      "before": "(",
+      "after": "\n        ]"
+    },
+    {
+      "start": 14896,
+      "end": 14900,
+      "before": ");\nc",
+      "after": ".j"
+    },
+    {
+      "start": 14901,
+      "end": 14919,
+      "before": "nst capturedIngred",
+      "after": ""
+    },
+    {
+      "start": 14920,
+      "end": 14921,
+      "before": "e",
+      "after": ""
+    },
+    {
+      "start": 14922,
+      "end": 14924,
+      "before": "ts",
+      "after": "('')),\n        ()"
+    },
+    {
+      "start": 14926,
+      "end": 14926,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 14927,
+      "end": 14949,
+      "before": "presentCorrelationRows",
+      "after": ""
+    },
+    {
+      "start": 15023,
+      "end": 15027,
+      "before": "(():",
+      "after": "render"
+    },
+    {
+      "start": 15038,
+      "end": 15039,
+      "before": "I",
+      "after": "WorkspaceControl(\"i"
+    },
+    {
+      "start": 15048,
+      "end": 15049,
+      "before": "P",
+      "after": "-p"
+    },
+    {
+      "start": 15054,
+      "end": 15063,
+      "before": "=>{\nconst",
+      "after": "\","
+    },
+    {
+      "start": 15064,
+      "end": 15076,
+      "before": "capturedName",
+      "after": "[\n            ()"
+    },
+    {
+      "start": 15078,
+      "end": 15078,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 15079,
+      "end": 15086,
+      "before": "`${corr",
+      "after": "("
+    },
+    {
+      "start": 15087,
+      "end": 15097,
+      "before": "lationText",
+      "after": "sc"
+    },
+    {
+      "start": 15105,
+      "end": 15108,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 15109,
+      "end": 15114,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 15115,
+      "end": 15125,
+      "before": "capturedId",
+      "after": "           ()"
+    },
+    {
+      "start": 15127,
+      "end": 15127,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 15128,
+      "end": 15135,
+      "before": "`${corr",
+      "after": "("
+    },
+    {
+      "start": 15136,
+      "end": 15146,
+      "before": "lationText",
+      "after": "sc"
+    },
+    {
+      "start": 15152,
+      "end": 15155,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 15156,
+      "end": 15161,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 15162,
+      "end": 15177,
+      "before": "capturedOptions",
+      "after": "           ()"
+    },
+    {
+      "start": 15179,
+      "end": 15179,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 15180,
+      "end": 15202,
+      "before": "presentCorrelationRows",
+      "after": ""
+    },
+    {
+      "start": 15235,
+      "end": 15239,
+      "before": "(():",
+      "after": "render"
+    },
+    {
+      "start": 15250,
+      "end": 15251,
+      "before": "I",
+      "after": "WorkspaceControl(\"i"
+    },
+    {
+      "start": 15260,
+      "end": 15261,
+      "before": "O",
+      "after": "-o"
+    },
+    {
+      "start": 15266,
+      "end": 15275,
+      "before": "=>{\nconst",
+      "after": "\","
+    },
+    {
+      "start": 15276,
+      "end": 15289,
+      "before": "capturedValue",
+      "after": "[\n                ()"
+    },
+    {
+      "start": 15291,
+      "end": 15291,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 15292,
+      "end": 15299,
+      "before": "`${corr",
+      "after": "("
+    },
+    {
+      "start": 15300,
+      "end": 15310,
+      "before": "lationText",
+      "after": "sc"
+    },
+    {
+      "start": 15316,
+      "end": 15319,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 15320,
+      "end": 15325,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 15326,
+      "end": 15342,
+      "before": "capturedSelected",
+      "after": "               ()"
+    },
+    {
+      "start": 15344,
+      "end": 15344,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 15395,
+      "end": 15395,
+      "before": "",
+      "after": ",\n                ()"
+    },
+    {
+      "start": 15397,
+      "end": 15399,
+      "before": "==",
+      "after": ">"
+    },
+    {
+      "start": 15400,
+      "end": 15403,
+      "before": "\" s",
+      "after": "("
+    },
+    {
+      "start": 15404,
+      "end": 15416,
+      "before": "lected\";\ncon",
+      "after": ""
+    },
+    {
+      "start": 15417,
+      "end": 15419,
+      "before": "t ",
+      "after": ""
+    },
+    {
+      "start": 15420,
+      "end": 15453,
+      "before": "apturedLabel = `${correlationText",
+      "after": ""
+    },
+    {
+      "start": 15459,
+      "end": 15565,
+      "before": "}`;\nreturn {kind:\"ingredient-option\",value:capturedValue,selected:capturedSelected,label:capturedLabel};\n}",
+      "after": ""
+    },
+    {
+      "start": 15566,
+      "end": 15567,
+      "before": "(",
+      "after": "\n            ]"
+    },
+    {
+      "start": 15569,
+      "end": 15581,
+      "before": ");\nreturn {k",
+      "after": ".jo"
+    },
+    {
+      "start": 15583,
+      "end": 15665,
+      "before": "d:\"ingredient-picker\",name:capturedName,id:capturedId,options:capturedOptions};\n})",
+      "after": ""
+    },
+    {
+      "start": 15666,
+      "end": 15666,
+      "before": "",
+      "after": "''"
+    },
+    {
+      "start": 15668,
+      "end": 15670,
+      "before": ");",
+      "after": ""
+    },
+    {
+      "start": 15671,
+      "end": 15676,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 15677,
+      "end": 15688,
+      "before": "capturedSer",
+      "after": "       ])).jo"
+    },
+    {
+      "start": 15689,
+      "end": 15696,
+      "before": "esHidde",
+      "after": ""
+    },
+    {
+      "start": 15697,
+      "end": 15697,
+      "before": "",
+      "after": "('')),\n        ()"
+    },
+    {
+      "start": 15699,
+      "end": 15699,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 15737,
+      "end": 15737,
+      "before": "",
+      "after": ",\n        ()"
+    },
+    {
+      "start": 15739,
+      "end": 15741,
+      "before": "==",
+      "after": ">"
+    },
+    {
+      "start": 15742,
+      "end": 15798,
+      "before": "\" hidden\";\nconst capturedSeries = presentCorrelationRows",
+      "after": ""
+    },
+    {
+      "start": 15815,
+      "end": 15819,
+      "before": "(():",
+      "after": "render"
+    },
+    {
+      "start": 15830,
+      "end": 15831,
+      "before": "S",
+      "after": "WorkspaceControl(\"s"
+    },
+    {
+      "start": 15836,
+      "end": 15837,
+      "before": "B",
+      "after": "-b"
+    },
+    {
+      "start": 15842,
+      "end": 15851,
+      "before": "=>{\nconst",
+      "after": "\","
+    },
+    {
+      "start": 15852,
+      "end": 15862,
+      "before": "capturedId",
+      "after": "[\n            ()"
+    },
+    {
+      "start": 15864,
+      "end": 15864,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 15865,
+      "end": 15872,
+      "before": "`${corr",
+      "after": "("
+    },
+    {
+      "start": 15873,
+      "end": 15883,
+      "before": "lationText",
+      "after": "sc"
+    },
+    {
+      "start": 15889,
+      "end": 15892,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 15893,
+      "end": 15898,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 15899,
+      "end": 15914,
+      "before": "capturedPressed",
+      "after": "           ()"
+    },
+    {
+      "start": 15916,
+      "end": 15916,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 15917,
+      "end": 15917,
+      "before": "",
+      "after": "("
+    },
+    {
+      "start": 15934,
+      "end": 15935,
+      "before": ";",
+      "after": "),"
+    },
+    {
+      "start": 15936,
+      "end": 15941,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 15942,
+      "end": 15955,
+      "before": "capturedColor",
+      "after": "           ()"
+    },
+    {
+      "start": 15957,
+      "end": 15957,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 15958,
+      "end": 15961,
+      "before": "`${",
+      "after": "("
+    },
+    {
+      "start": 15968,
+      "end": 15971,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 15972,
+      "end": 15977,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 15978,
+      "end": 15990,
+      "before": "capturedDash",
+      "after": "           ()"
+    },
+    {
+      "start": 15992,
+      "end": 15992,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 15993,
+      "end": 15996,
+      "before": "`${",
+      "after": "("
+    },
+    {
+      "start": 16028,
+      "end": 16031,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 16032,
+      "end": 16037,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 16038,
+      "end": 16050,
+      "before": "capturedName",
+      "after": "           ()"
+    },
+    {
+      "start": 16052,
+      "end": 16052,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 16053,
+      "end": 16060,
+      "before": "`${corr",
+      "after": "("
+    },
+    {
+      "start": 16061,
+      "end": 16071,
+      "before": "lationText",
+      "after": "sc"
+    },
+    {
+      "start": 16079,
+      "end": 16082,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 16083,
+      "end": 16088,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 16089,
+      "end": 16107,
+      "before": "capturedIngredient",
+      "after": "           ()"
+    },
+    {
+      "start": 16109,
+      "end": 16109,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 16110,
+      "end": 16113,
+      "before": "`${",
+      "after": "("
+    },
+    {
+      "start": 16206,
+      "end": 16210,
+      "before": "corr",
+      "after": ""
+    },
+    {
+      "start": 16211,
+      "end": 16221,
+      "before": "lationText",
+      "after": "sc"
+    },
+    {
+      "start": 16258,
+      "end": 16261,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 16262,
+      "end": 16267,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 16268,
+      "end": 16280,
+      "before": "capturedUnit",
+      "after": "           ()"
+    },
+    {
+      "start": 16282,
+      "end": 16282,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 16283,
+      "end": 16286,
+      "before": "`${",
+      "after": "("
+    },
+    {
+      "start": 16301,
+      "end": 16305,
+      "before": "corr",
+      "after": ""
+    },
+    {
+      "start": 16306,
+      "end": 16316,
+      "before": "lationText",
+      "after": "sc"
+    },
+    {
+      "start": 16344,
+      "end": 16522,
+      "before": "}`;\nreturn {kind:\"series-button\",id:capturedId,pressed:capturedPressed,color:capturedColor,dash:capturedDash,name:capturedName,ingredient:capturedIngredient,unit:capturedUnit};\n}",
+      "after": ""
+    },
+    {
+      "start": 16523,
+      "end": 16524,
+      "before": "(",
+      "after": "\n        ]"
+    },
+    {
+      "start": 16526,
+      "end": 16558,
+      "before": ");\nreturn {kind:\"surface\",dateCh",
+      "after": ".j"
+    },
+    {
+      "start": 16560,
+      "end": 16606,
+      "before": "ces:capturedDateChoices,dates:capturedDates,ra",
+      "after": ""
+    },
+    {
+      "start": 16607,
+      "end": 17043,
+      "before": "geHelp:capturedRangeHelp,layoutHidden:capturedLayoutHidden,grouping:capturedGrouping,layout:capturedLayout,noLabs:capturedNoLabs,statusHidden:capturedStatusHidden,statusGrouping:capturedStatusGrouping,statusCount:capturedStatusCount,statusNoun:capturedStatusNoun,statusDetail:capturedStatusDetail,rangeError:capturedRangeError,tabs:capturedTabs,ingredients:capturedIngredients,seriesHidden:capturedSeriesHidden,series:capturedSeries};\n}",
+      "after": "(''"
+    },
+    {
+      "start": 17044,
+      "end": 17044,
+      "before": "",
+      "after": ")\n    ])),\n    "
+    },
+    {
+      "start": 17046,
+      "end": 17069,
+      "before": ";\nconst capturedNotices",
+      "after": ""
+    },
+    {
+      "start": 17071,
+      "end": 17071,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 17072,
+      "end": 17072,
+      "before": "",
+      "after": "("
+    },
+    {
+      "start": 17093,
+      "end": 17116,
+      "before": "presentCorrelationRows(",
+      "after": ""
+    },
+    {
+      "start": 17951,
+      "end": 17955,
+      "before": "(():",
+      "after": "render"
+    },
+    {
+      "start": 17966,
+      "end": 17967,
+      "before": "D",
+      "after": "WorkspaceChrome(\"d"
+    },
+    {
+      "start": 17970,
+      "end": 17971,
+      "before": "N",
+      "after": "-n"
+    },
+    {
+      "start": 17976,
+      "end": 17985,
+      "before": "=>{\nconst",
+      "after": "\","
+    },
+    {
+      "start": 17986,
+      "end": 17998,
+      "before": "capturedName",
+      "after": "[\n            ()"
+    },
+    {
+      "start": 18000,
+      "end": 18000,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 18001,
+      "end": 18008,
+      "before": "`${corr",
+      "after": "("
+    },
+    {
+      "start": 18009,
+      "end": 18019,
+      "before": "lationText",
+      "after": "sc"
+    },
+    {
+      "start": 18027,
+      "end": 18030,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 18031,
+      "end": 18036,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 18037,
+      "end": 18052,
+      "before": "capturedMessage",
+      "after": "           ()"
+    },
+    {
+      "start": 18054,
+      "end": 18054,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 18055,
+      "end": 18062,
+      "before": "`${corr",
+      "after": "("
+    },
+    {
+      "start": 18063,
+      "end": 18073,
+      "before": "lationText",
+      "after": "sc"
+    },
+    {
+      "start": 18082,
+      "end": 18085,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 18086,
+      "end": 18091,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 18092,
+      "end": 18112,
+      "before": "capturedConfirmation",
+      "after": "           ()"
+    },
+    {
+      "start": 18114,
+      "end": 18114,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 18115,
+      "end": 18115,
+      "before": "",
+      "after": "("
+    },
+    {
+      "start": 18136,
+      "end": 18140,
+      "before": "(():",
+      "after": "render"
+    },
+    {
+      "start": 18151,
+      "end": 18151,
+      "before": "",
+      "after": "Workspace"
+    },
+    {
+      "start": 18152,
+      "end": 18152,
+      "before": "",
+      "after": "hrome(\"c"
+    },
+    {
+      "start": 18158,
+      "end": 18159,
+      "before": "D",
+      "after": "-d"
+    },
+    {
+      "start": 18162,
+      "end": 18171,
+      "before": "=>{\nconst",
+      "after": "\","
+    },
+    {
+      "start": 18172,
+      "end": 18184,
+      "before": "capturedDose",
+      "after": "[\n                ()"
+    },
+    {
+      "start": 18186,
+      "end": 18186,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 18187,
+      "end": 18194,
+      "before": "`${corr",
+      "after": "("
+    },
+    {
+      "start": 18195,
+      "end": 18205,
+      "before": "lationText",
+      "after": "sc"
+    },
+    {
+      "start": 18284,
+      "end": 18287,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 18288,
+      "end": 18293,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 18294,
+      "end": 18309,
+      "before": "capturedPeriods",
+      "after": "               ()"
+    },
+    {
+      "start": 18311,
+      "end": 18311,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 18312,
+      "end": 18334,
+      "before": "presentCorrelationRows",
+      "after": ""
+    },
+    {
+      "start": 18356,
+      "end": 18360,
+      "before": "(():",
+      "after": "render"
+    },
+    {
+      "start": 18371,
+      "end": 18371,
+      "before": "",
+      "after": "Workspace"
+    },
+    {
+      "start": 18372,
+      "end": 18372,
+      "before": "",
+      "after": "hrome(\"c"
+    },
+    {
+      "start": 18378,
+      "end": 18379,
+      "before": "P",
+      "after": "-p"
+    },
+    {
+      "start": 18384,
+      "end": 18393,
+      "before": "=>{\nconst",
+      "after": "\","
+    },
+    {
+      "start": 18394,
+      "end": 18407,
+      "before": "capturedStart",
+      "after": "[\n                    ()"
+    },
+    {
+      "start": 18409,
+      "end": 18409,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 18410,
+      "end": 18417,
+      "before": "`${corr",
+      "after": "("
+    },
+    {
+      "start": 18418,
+      "end": 18428,
+      "before": "lationText",
+      "after": "sc"
+    },
+    {
+      "start": 18437,
+      "end": 18440,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 18441,
+      "end": 18446,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 18447,
+      "end": 18458,
+      "before": "capturedEnd",
+      "after": "                   ()"
+    },
+    {
+      "start": 18460,
+      "end": 18460,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 18461,
+      "end": 18468,
+      "before": "`${corr",
+      "after": "("
+    },
+    {
+      "start": 18469,
+      "end": 18479,
+      "before": "lationText",
+      "after": "sc"
+    },
+    {
+      "start": 18499,
+      "end": 18502,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 18503,
+      "end": 18508,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 18509,
+      "end": 18519,
+      "before": "capturedId",
+      "after": "                   ()"
+    },
+    {
+      "start": 18521,
+      "end": 18521,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 18522,
+      "end": 18529,
+      "before": "`${corr",
+      "after": "("
+    },
+    {
+      "start": 18530,
+      "end": 18540,
+      "before": "lationText",
+      "after": "sc"
+    },
+    {
+      "start": 18546,
+      "end": 18549,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 18550,
+      "end": 18555,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 18556,
+      "end": 18569,
+      "before": "capturedIndex",
+      "after": "                   ()"
+    },
+    {
+      "start": 18571,
+      "end": 18571,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 18572,
+      "end": 18575,
+      "before": "`${",
+      "after": "("
+    },
+    {
+      "start": 18582,
+      "end": 18689,
+      "before": "}`;\nreturn {kind:\"confirm-period\",start:capturedStart,end:capturedEnd,id:capturedId,index:capturedIndex};\n}",
+      "after": ""
+    },
+    {
+      "start": 18690,
+      "end": 18691,
+      "before": "(",
+      "after": "\n                ]"
+    },
+    {
+      "start": 18693,
+      "end": 18705,
+      "before": ");\nreturn {k",
+      "after": ".jo"
+    },
+    {
+      "start": 18707,
+      "end": 18770,
+      "before": "d:\"confirm-dose\",dose:capturedDose,periods:capturedPeriods};\n})",
+      "after": ""
+    },
+    {
+      "start": 18771,
+      "end": 18771,
+      "before": "",
+      "after": "''))\n            ]"
+    },
+    {
+      "start": 18775,
+      "end": 18780,
+      "before": "null;",
+      "after": "''),"
+    },
+    {
+      "start": 18781,
+      "end": 18786,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 18787,
+      "end": 18797,
+      "before": "capturedId",
+      "after": "           ()"
+    },
+    {
+      "start": 18799,
+      "end": 18799,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 18800,
+      "end": 18807,
+      "before": "`${corr",
+      "after": "("
+    },
+    {
+      "start": 18808,
+      "end": 18818,
+      "before": "lationText",
+      "after": "sc"
+    },
+    {
+      "start": 18824,
+      "end": 18827,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 18828,
+      "end": 18833,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 18834,
+      "end": 18853,
+      "before": "capturedReviewLabel",
+      "after": "           ()"
+    },
+    {
+      "start": 18855,
+      "end": 18855,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 18856,
+      "end": 18859,
+      "before": "`${",
+      "after": "("
+    },
+    {
+      "start": 18919,
+      "end": 19075,
+      "before": "}`;\nreturn {kind:\"dose-notice\",name:capturedName,message:capturedMessage,confirmation:capturedConfirmation,id:capturedId,reviewLabel:capturedReviewLabel};\n}",
+      "after": ""
+    },
+    {
+      "start": 19076,
+      "end": 19077,
+      "before": "(",
+      "after": "\n        ]"
+    },
+    {
+      "start": 19086,
+      "end": 19086,
+      "before": "",
+      "after": ".join(''"
+    },
+    {
+      "start": 19090,
+      "end": 19093,
+      "before": "[];",
+      "after": "''),"
+    },
+    {
+      "start": 19094,
+      "end": 19099,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 19100,
+      "end": 19119,
+      "before": "capturedPlotsHidden",
+      "after": "   ()"
+    },
+    {
+      "start": 19121,
+      "end": 19121,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 19183,
+      "end": 19183,
+      "before": "",
+      "after": ",\n    ()"
+    },
+    {
+      "start": 19185,
+      "end": 19187,
+      "before": "==",
+      "after": ">"
+    },
+    {
+      "start": 19188,
+      "end": 19244,
+      "before": "\" hidden\";\nconst capturedPanels = presentCorrelationRows",
+      "after": ""
+    },
+    {
+      "start": 19266,
+      "end": 19270,
+      "before": "(():",
+      "after": "render"
+    },
+    {
+      "start": 19281,
+      "end": 19282,
+      "before": "T",
+      "after": "WorkspaceChrome(\"t"
+    },
+    {
+      "start": 19289,
+      "end": 19290,
+      "before": "P",
+      "after": "-p"
+    },
+    {
+      "start": 19294,
+      "end": 19303,
+      "before": "=>{\nconst",
+      "after": "\","
+    },
+    {
+      "start": 19304,
+      "end": 19323,
+      "before": "capturedClassSuffix",
+      "after": "[\n        ()"
+    },
+    {
+      "start": 19325,
+      "end": 19325,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 19326,
+      "end": 19329,
+      "before": "`${",
+      "after": "("
+    },
+    {
+      "start": 19378,
+      "end": 19381,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 19382,
+      "end": 19387,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 19388,
+      "end": 19409,
+      "before": "capturedHeadingHidden",
+      "after": "       ()"
+    },
+    {
+      "start": 19411,
+      "end": 19411,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 19473,
+      "end": 19473,
+      "before": "",
+      "after": ",\n        ()"
+    },
+    {
+      "start": 19475,
+      "end": 19477,
+      "before": "==",
+      "after": ">"
+    },
+    {
+      "start": 19478,
+      "end": 19527,
+      "before": "\" class=\\\"sr-only\\\"\";\nconst capturedHeading = `${",
+      "after": "("
+    },
+    {
+      "start": 19538,
+      "end": 19542,
+      "before": "corr",
+      "after": ""
+    },
+    {
+      "start": 19543,
+      "end": 19553,
+      "before": "lationText",
+      "after": "sc"
+    },
+    {
+      "start": 19574,
+      "end": 19577,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 19578,
+      "end": 19583,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 19584,
+      "end": 19596,
+      "before": "capturedPlot",
+      "after": "       ()"
+    },
+    {
+      "start": 19598,
+      "end": 19598,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 19599,
+      "end": 19599,
+      "before": "",
+      "after": "("
+    },
+    {
+      "start": 19617,
+      "end": 19621,
+      "before": "(():",
+      "after": "render"
+    },
+    {
+      "start": 19632,
+      "end": 19633,
+      "before": "P",
+      "after": "WorkspaceChrome(\"p"
+    },
+    {
+      "start": 19636,
+      "end": 19640,
+      "before": "=>{\n",
+      "after": "-"
+    },
+    {
+      "start": 19641,
+      "end": 19647,
+      "before": "onst c",
+      "after": "h"
+    },
+    {
+      "start": 19648,
+      "end": 19651,
+      "before": "ptu",
+      "after": ""
+    },
+    {
+      "start": 19652,
+      "end": 19664,
+      "before": "edScaleLabel",
+      "after": "t\", [\n            ()"
+    },
+    {
+      "start": 19666,
+      "end": 19666,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 19667,
+      "end": 19670,
+      "before": "`${",
+      "after": "("
+    },
+    {
+      "start": 19835,
+      "end": 19839,
+      "before": "corr",
+      "after": ""
+    },
+    {
+      "start": 19840,
+      "end": 19850,
+      "before": "lationText",
+      "after": "sc"
+    },
+    {
+      "start": 19873,
+      "end": 19876,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 19877,
+      "end": 19882,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 19883,
+      "end": 19902,
+      "before": "capturedClassSuffix",
+      "after": "           ()"
+    },
+    {
+      "start": 19904,
+      "end": 19904,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 19905,
+      "end": 19908,
+      "before": "`${",
+      "after": "("
+    },
+    {
+      "start": 19939,
+      "end": 19942,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 19943,
+      "end": 19948,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 19949,
+      "end": 19962,
+      "before": "capturedIndex",
+      "after": "           ()"
+    },
+    {
+      "start": 19964,
+      "end": 19964,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 19965,
+      "end": 19968,
+      "before": "`${",
+      "after": "("
+    },
+    {
+      "start": 19969,
+      "end": 19972,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 19973,
+      "end": 19978,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 19979,
+      "end": 19991,
+      "before": "capturedName",
+      "after": "           ()"
+    },
+    {
+      "start": 19993,
+      "end": 19993,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 19994,
+      "end": 20001,
+      "before": "`${corr",
+      "after": "("
+    },
+    {
+      "start": 20002,
+      "end": 20012,
+      "before": "lationText",
+      "after": "sc"
+    },
+    {
+      "start": 20046,
+      "end": 20179,
+      "before": "}`;\nreturn {kind:\"plot-chart\",scaleLabel:capturedScaleLabel,classSuffix:capturedClassSuffix,index:capturedIndex,name:capturedName};\n}",
+      "after": ""
+    },
+    {
+      "start": 20180,
+      "end": 20181,
+      "before": "(",
+      "after": "\n        ]"
+    },
+    {
+      "start": 20185,
+      "end": 20190,
+      "before": "null;",
+      "after": "''),"
+    },
+    {
+      "start": 20191,
+      "end": 20196,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 20197,
+      "end": 20211,
+      "before": "capturedTracks",
+      "after": "       ()"
+    },
+    {
+      "start": 20213,
+      "end": 20213,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 20214,
+      "end": 20236,
+      "before": "presentCorrelationRows",
+      "after": ""
+    },
+    {
+      "start": 20294,
+      "end": 20298,
+      "before": "(():",
+      "after": "render"
+    },
+    {
+      "start": 20309,
+      "end": 20346,
+      "before": "UsageTrack=>{\nconst capturedId = `${c",
+      "after": "W"
+    },
+    {
+      "start": 20348,
+      "end": 20361,
+      "before": "relationText(",
+      "after": "k"
+    },
+    {
+      "start": 20362,
+      "end": 20378,
+      "before": ".id)}`;\nconst ca",
+      "after": ""
+    },
+    {
+      "start": 20379,
+      "end": 20385,
+      "before": "turedN",
+      "after": ""
+    },
+    {
+      "start": 20386,
+      "end": 20386,
+      "before": "",
+      "after": "ceChro"
+    },
+    {
+      "start": 20388,
+      "end": 20409,
+      "before": " = `${correlationText",
+      "after": ""
+    },
+    {
+      "start": 20410,
+      "end": 20434,
+      "before": "s.name)}`;\nreturn {kind:",
+      "after": ""
+    },
+    {
+      "start": 20451,
+      "end": 20451,
+      "before": "",
+      "after": " [\n            () => (esc(s."
+    },
+    {
+      "start": 20453,
+      "end": 20464,
+      "before": ":capturedId",
+      "after": "))"
+    },
+    {
+      "start": 20465,
+      "end": 20465,
+      "before": "",
+      "after": "\n            () => (esc(s."
+    },
+    {
+      "start": 20469,
+      "end": 20488,
+      "before": ":capturedName};\n})(",
+      "after": ""
+    },
+    {
+      "start": 20490,
+      "end": 20492,
+      "before": ");",
+      "after": ""
+    },
+    {
+      "start": 20493,
+      "end": 20499,
+      "before": "return",
+      "after": ""
+    },
+    {
+      "start": 20500,
+      "end": 20660,
+      "before": "{kind:\"timeline-panel\",classSuffix:capturedClassSuffix,headingHidden:capturedHeadingHidden,heading:capturedHeading,plot:capturedPlot,tracks:capturedTracks};\n})(",
+      "after": "       ]"
+    },
+    {
+      "start": 20662,
+      "end": 20666,
+      "before": ");\nc",
+      "after": ".j"
+    },
+    {
+      "start": 20667,
+      "end": 20667,
+      "before": "",
+      "after": "i"
+    },
+    {
+      "start": 20668,
+      "end": 20670,
+      "before": "st",
+      "after": "(''))\n"
+    },
+    {
+      "start": 20671,
+      "end": 20676,
+      "before": "captu",
+      "after": "   ])).join('') || "
+    },
+    {
+      "start": 20678,
+      "end": 20680,
+      "before": "dI",
+      "after": ""
+    },
+    {
+      "start": 20681,
+      "end": 20691,
+      "before": "spectorHid",
+      "after": ""
+    },
+    {
+      "start": 20693,
+      "end": 20693,
+      "before": "",
+      "after": "rCorrelatio"
+    },
+    {
+      "start": 20694,
+      "end": 20694,
+      "before": "",
+      "after": "WorkspaceChrome(\"no-series\", [])),\n    ()"
+    },
+    {
+      "start": 20696,
+      "end": 20696,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 20758,
+      "end": 20758,
+      "before": "",
+      "after": ",\n    ()"
+    },
+    {
+      "start": 20760,
+      "end": 20762,
+      "before": "==",
+      "after": ">"
+    },
+    {
+      "start": 20763,
+      "end": 20806,
+      "before": "\" hidden\";\nconst capturedInspectLabel = `${",
+      "after": "("
+    },
+    {
+      "start": 20829,
+      "end": 20832,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 20833,
+      "end": 20838,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 20839,
+      "end": 20858,
+      "before": "capturedUnpinHidden",
+      "after": "   ()"
+    },
+    {
+      "start": 20860,
+      "end": 20860,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 20896,
+      "end": 20896,
+      "before": "",
+      "after": ",\n    ()"
+    },
+    {
+      "start": 20898,
+      "end": 20900,
+      "before": "==",
+      "after": ">"
+    },
+    {
+      "start": 20901,
+      "end": 20944,
+      "before": "\" hidden\";\nconst capturedInspectValue = `${",
+      "after": "("
+    },
+    {
+      "start": 20967,
+      "end": 20970,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 20971,
+      "end": 20976,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 20977,
+      "end": 20995,
+      "before": "capturedInspectMin",
+      "after": "   ()"
+    },
+    {
+      "start": 20997,
+      "end": 20997,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 20998,
+      "end": 21001,
+      "before": "`${",
+      "after": "("
+    },
+    {
+      "start": 21023,
+      "end": 21026,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 21027,
+      "end": 21032,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 21033,
+      "end": 21051,
+      "before": "capturedInspectMax",
+      "after": "   ()"
+    },
+    {
+      "start": 21053,
+      "end": 21053,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 21054,
+      "end": 21057,
+      "before": "`${",
+      "after": "("
+    },
+    {
+      "start": 21081,
+      "end": 21084,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 21085,
+      "end": 21090,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 21091,
+      "end": 21111,
+      "before": "capturedMethodHidden",
+      "after": "   ()"
+    },
+    {
+      "start": 21113,
+      "end": 21113,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 21151,
+      "end": 21151,
+      "before": "",
+      "after": ",\n    ()"
+    },
+    {
+      "start": 21153,
+      "end": 21155,
+      "before": "==",
+      "after": ">"
+    },
+    {
+      "start": 21156,
+      "end": 21162,
+      "before": "\" hidd",
+      "after": "("
+    },
+    {
+      "start": 21163,
+      "end": 21170,
+      "before": "n\";\ncon",
+      "after": ""
+    },
+    {
+      "start": 21171,
+      "end": 21173,
+      "before": "t ",
+      "after": ""
+    },
+    {
+      "start": 21174,
+      "end": 21213,
+      "before": "apturedAnalysisTab = `${correlationText",
+      "after": ""
+    },
+    {
+      "start": 21218,
+      "end": 21221,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 21222,
+      "end": 21227,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 21228,
+      "end": 21248,
+      "before": "capturedAnalysisOpen",
+      "after": "   ()"
+    },
+    {
+      "start": 21250,
+      "end": 21250,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 21308,
+      "end": 21308,
+      "before": "",
+      "after": ",\n    ()"
+    },
+    {
+      "start": 21310,
+      "end": 21312,
+      "before": "==",
+      "after": ">"
+    },
+    {
+      "start": 21313,
+      "end": 21347,
+      "before": "\" open\";\nconst capturedPairTabs = ",
+      "after": "("
+    },
+    {
+      "start": 21366,
+      "end": 21370,
+      "before": "(():",
+      "after": "render"
+    },
+    {
+      "start": 21381,
+      "end": 21382,
+      "before": "P",
+      "after": "WorkspaceChrome(\"p"
+    },
+    {
+      "start": 21385,
+      "end": 21386,
+      "before": "T",
+      "after": "-t"
+    },
+    {
+      "start": 21389,
+      "end": 21398,
+      "before": "=>{\nconst",
+      "after": "\","
+    },
+    {
+      "start": 21399,
+      "end": 21412,
+      "before": "capturedItems",
+      "after": "[\n        ()"
+    },
+    {
+      "start": 21414,
+      "end": 21414,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 21415,
+      "end": 21437,
+      "before": "presentCorrelationRows",
+      "after": ""
+    },
+    {
+      "start": 21458,
+      "end": 21462,
+      "before": "(():",
+      "after": "render"
+    },
+    {
+      "start": 21473,
+      "end": 21474,
+      "before": "P",
+      "after": "WorkspaceChrome(\"p"
+    },
+    {
+      "start": 21477,
+      "end": 21478,
+      "before": "T",
+      "after": "-t"
+    },
+    {
+      "start": 21480,
+      "end": 21489,
+      "before": "=>{\nconst",
+      "after": "\","
+    },
+    {
+      "start": 21490,
+      "end": 21503,
+      "before": "capturedIndex",
+      "after": "[\n            ()"
+    },
+    {
+      "start": 21505,
+      "end": 21505,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 21506,
+      "end": 21509,
+      "before": "`${",
+      "after": "("
+    },
+    {
+      "start": 21510,
+      "end": 21513,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 21514,
+      "end": 21519,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 21520,
+      "end": 21539,
+      "before": "capturedActionIndex",
+      "after": "           ()"
+    },
+    {
+      "start": 21541,
+      "end": 21541,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 21542,
+      "end": 21545,
+      "before": "`${",
+      "after": "("
+    },
+    {
+      "start": 21546,
+      "end": 21549,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 21550,
+      "end": 21555,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 21556,
+      "end": 21572,
+      "before": "capturedSelected",
+      "after": "           ()"
+    },
+    {
+      "start": 21574,
+      "end": 21574,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 21575,
+      "end": 21575,
+      "before": "",
+      "after": "("
+    },
+    {
+      "start": 21590,
+      "end": 21591,
+      "before": ";",
+      "after": "),"
+    },
+    {
+      "start": 21592,
+      "end": 21597,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 21598,
+      "end": 21614,
+      "before": "capturedTabindex",
+      "after": "           ()"
+    },
+    {
+      "start": 21616,
+      "end": 21616,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 21617,
+      "end": 21617,
+      "before": "",
+      "after": "("
+    },
+    {
+      "start": 21641,
+      "end": 21642,
+      "before": ";",
+      "after": "),"
+    },
+    {
+      "start": 21643,
+      "end": 21648,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 21649,
+      "end": 21663,
+      "before": "capturedMarker",
+      "after": "           ()"
+    },
+    {
+      "start": 21665,
+      "end": 21665,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 21666,
+      "end": 21673,
+      "before": "`${corr",
+      "after": "("
+    },
+    {
+      "start": 21674,
+      "end": 21684,
+      "before": "lationText",
+      "after": "sc"
+    },
+    {
+      "start": 21698,
+      "end": 21701,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 21702,
+      "end": 21707,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 21708,
+      "end": 21723,
+      "before": "capturedTherapy",
+      "after": "           ()"
+    },
+    {
+      "start": 21725,
+      "end": 21725,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 21726,
+      "end": 21733,
+      "before": "`${corr",
+      "after": "("
+    },
+    {
+      "start": 21734,
+      "end": 21744,
+      "before": "lationText",
+      "after": "sc"
+    },
+    {
+      "start": 21759,
+      "end": 21940,
+      "before": "}`;\nreturn {kind:\"pair-tab\",index:capturedIndex,actionIndex:capturedActionIndex,selected:capturedSelected,tabindex:capturedTabindex,marker:capturedMarker,therapy:capturedTherapy};\n}",
+      "after": ""
+    },
+    {
+      "start": 21941,
+      "end": 21942,
+      "before": "(",
+      "after": "\n        ]"
+    },
+    {
+      "start": 21944,
+      "end": 21956,
+      "before": ");\nreturn {k",
+      "after": ".jo"
+    },
+    {
+      "start": 21958,
+      "end": 21996,
+      "before": "d:\"pair-tabs\",items:capturedItems};\n})",
+      "after": ""
+    },
+    {
+      "start": 21997,
+      "end": 21997,
+      "before": "",
+      "after": "''))\n    ]"
+    },
+    {
+      "start": 22001,
+      "end": 22006,
+      "before": "null;",
+      "after": "''),"
+    },
+    {
+      "start": 22007,
+      "end": 22012,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 22013,
+      "end": 22026,
+      "before": "capturedPanel",
+      "after": "   ()"
+    },
+    {
+      "start": 22028,
+      "end": 22028,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 22029,
+      "end": 22029,
+      "before": "",
+      "after": "("
+    },
+    {
+      "start": 22048,
+      "end": 22049,
+      "before": "{",
+      "after": "` "
+    },
+    {
+      "start": 22053,
+      "end": 22054,
+      "before": ":",
+      "after": "="
+    },
+    {
+      "start": 22065,
+      "end": 22075,
+      "before": "as const,\"",
+      "after": ""
+    },
+    {
+      "start": 22090,
+      "end": 22090,
+      "before": "",
+      "after": "="
+    },
+    {
+      "start": 22091,
+      "end": 22093,
+      "before": ":`",
+      "after": ""
+    },
+    {
+      "start": 22115,
+      "end": 22117,
+      "before": "`,",
+      "after": "\" "
+    },
+    {
+      "start": 22125,
+      "end": 22126,
+      "before": ":",
+      "after": "=\""
+    },
+    {
+      "start": 22127,
+      "end": 22137,
+      "before": " as const}",
+      "after": "\"`"
+    },
+    {
+      "start": 22140,
+      "end": 22145,
+      "before": "null;",
+      "after": "''),"
+    },
+    {
+      "start": 22146,
+      "end": 22151,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 22152,
+      "end": 22171,
+      "before": "capturedPairSummary",
+      "after": "   ()"
+    },
+    {
+      "start": 22173,
+      "end": 22173,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 22174,
+      "end": 22177,
+      "before": "`${",
+      "after": "("
+    },
+    {
+      "start": 22265,
+      "end": 22268,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 22269,
+      "end": 22274,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 22275,
+      "end": 22301,
+      "before": "capturedScatterUnavailable",
+      "after": "   ()"
+    },
+    {
+      "start": 22303,
+      "end": 22303,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 22304,
+      "end": 22304,
+      "before": "",
+      "after": "("
+    },
+    {
+      "start": 22346,
+      "end": 22350,
+      "before": "(():",
+      "after": "render"
+    },
+    {
+      "start": 22361,
+      "end": 22367,
+      "before": "Scatte",
+      "after": "Wo"
+    },
+    {
+      "start": 22368,
+      "end": 22392,
+      "before": "Unavailable=>{\n\nreturn {",
+      "after": ""
+    },
+    {
+      "start": 22393,
+      "end": 22397,
+      "before": "ind:",
+      "after": "spaceChrome("
+    },
+    {
+      "start": 22418,
+      "end": 22424,
+      "before": "};\n})(",
+      "after": ", []"
+    },
+    {
+      "start": 22428,
+      "end": 22433,
+      "before": "null;",
+      "after": "''),"
+    },
+    {
+      "start": 22434,
+      "end": 22439,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 22440,
+      "end": 22461,
+      "before": "capturedScatterHidden",
+      "after": "   ()"
+    },
+    {
+      "start": 22463,
+      "end": 22463,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 22546,
+      "end": 22546,
+      "before": "",
+      "after": ",\n    ()"
+    },
+    {
+      "start": 22548,
+      "end": 22550,
+      "before": "==",
+      "after": ">"
+    },
+    {
+      "start": 22551,
+      "end": 22586,
+      "before": "\" hidden\";\nconst capturedHistory = ",
+      "after": "("
+    },
+    {
+      "start": 22593,
+      "end": 22600,
+      "before": ".length",
+      "after": ""
+    },
+    {
+      "start": 22603,
+      "end": 22607,
+      "before": "(():",
+      "after": "render"
+    },
+    {
+      "start": 22618,
+      "end": 22622,
+      "before": "Hist",
+      "after": "W"
+    },
+    {
+      "start": 22624,
+      "end": 22668,
+      "before": "y=>{\nconst capturedItems = current;\nreturn {",
+      "after": ""
+    },
+    {
+      "start": 22669,
+      "end": 22673,
+      "before": "ind:",
+      "after": "spaceChrome("
+    },
+    {
+      "start": 22683,
+      "end": 22689,
+      "before": "items:",
+      "after": " [\n        () => ("
+    },
+    {
+      "start": 22690,
+      "end": 22693,
+      "before": "apt",
+      "after": ""
+    },
+    {
+      "start": 22695,
+      "end": 22695,
+      "before": "",
+      "after": "r"
+    },
+    {
+      "start": 22696,
+      "end": 22698,
+      "before": "dI",
+      "after": "n"
+    },
+    {
+      "start": 22699,
+      "end": 22706,
+      "before": "ems};\n}",
+      "after": ""
+    },
+    {
+      "start": 22707,
+      "end": 22708,
+      "before": "(",
+      "after": "\n    ]"
+    },
+    {
+      "start": 22712,
+      "end": 23334,
+      "before": "null;\nreturn {kind:\"workspace\",controls:capturedControls,notices:capturedNotices,plotsHidden:capturedPlotsHidden,panels:capturedPanels,inspectorHidden:capturedInspectorHidden,inspectLabel:capturedInspectLabel,unpinHidden:capturedUnpinHidden,inspectValue:capturedInspectValue,inspectMin:capturedInspectMin,inspectMax:capturedInspectMax,methodHidden:capturedMethodHidden,analysisTab:capturedAnalysisTab,analysisOpen:capturedAnalysisOpen,pairTabs:capturedPairTabs,panel:capturedPanel,pairSummary:capturedPairSummary,scatterUnavailable:capturedScatterUnavailable,scatterHidden:capturedScatterHidden,history:capturedHistory};\n}",
+      "after": "''"
+    },
+    {
+      "start": 23335,
+      "end": 23337,
+      "before": "()",
+      "after": "\n]"
+    },
+    {
+      "start": 28472,
+      "end": 28529,
+      "before": "renderCorrelationWorkspaceReadout(presentCorrelationRows(",
+      "after": ""
+    },
+    {
+      "start": 29146,
+      "end": 29150,
+      "before": "(():",
+      "after": "render"
+    },
+    {
+      "start": 29161,
+      "end": 29197,
+      "before": "Readout=>{\nconst capturedName = `${c",
+      "after": "W"
+    },
+    {
+      "start": 29199,
+      "end": 29212,
+      "before": "relationText(",
+      "after": "k"
+    },
+    {
+      "start": 29213,
+      "end": 29215,
+      "before": ".n",
+      "after": "p"
+    },
+    {
+      "start": 29216,
+      "end": 29216,
+      "before": "",
+      "after": "ceChro"
+    },
+    {
+      "start": 29218,
+      "end": 29263,
+      "before": ")}`;\nconst capturedValue = `${correlationText",
+      "after": ""
+    },
+    {
+      "start": 29264,
+      "end": 29287,
+      "before": "value)}`;\nreturn {kind:",
+      "after": ""
+    },
+    {
+      "start": 29297,
+      "end": 29297,
+      "before": "",
+      "after": " [\n    () => (esc(s."
+    },
+    {
+      "start": 29301,
+      "end": 29314,
+      "before": ":capturedName",
+      "after": "))"
+    },
+    {
+      "start": 29315,
+      "end": 29315,
+      "before": "",
+      "after": "\n    () => (esc("
+    },
+    {
+      "start": 29320,
+      "end": 29338,
+      "before": ":capturedValue};\n}",
+      "after": ""
+    },
+    {
+      "start": 29339,
+      "end": 29340,
+      "before": "(",
+      "after": ")\n]"
+    },
+    {
+      "start": 29349,
+      "end": 29350,
+      "before": ")",
+      "after": ".join(''"
+    },
+    {
+      "start": 30944,
+      "end": 30944,
+      "before": "",
+      "after": "segments.map(seg => "
+    },
+    {
+      "start": 30970,
+      "end": 30971,
+      "before": "U",
+      "after": "Chrome(\"u"
+    },
+    {
+      "start": 30975,
+      "end": 31007,
+      "before": "Segments(presentCorrelationRows(",
+      "after": "-"
+    },
+    {
+      "start": 31014,
+      "end": 31019,
+      "before": "s.map",
+      "after": "\", [\n    "
+    },
+    {
+      "start": 31020,
+      "end": 31023,
+      "before": "seg",
+      "after": ")"
+    },
+    {
+      "start": 31028,
+      "end": 31083,
+      "before": "():CorrelationUsageSegment=>{\nconst capturedUsage = `${",
+      "after": ""
+    },
+    {
+      "start": 31152,
+      "end": 31155,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 31156,
+      "end": 31161,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 31162,
+      "end": 31174,
+      "before": "capturedLeft",
+      "after": "   ()"
+    },
+    {
+      "start": 31176,
+      "end": 31176,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 31177,
+      "end": 31180,
+      "before": "`${",
+      "after": "("
+    },
+    {
+      "start": 31221,
+      "end": 31224,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 31225,
+      "end": 31230,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 31231,
+      "end": 31244,
+      "before": "capturedWidth",
+      "after": "   ()"
+    },
+    {
+      "start": 31246,
+      "end": 31246,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 31247,
+      "end": 31250,
+      "before": "`${",
+      "after": "("
+    },
+    {
+      "start": 31293,
+      "end": 31296,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 31297,
+      "end": 31302,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 31303,
+      "end": 31316,
+      "before": "capturedLabel",
+      "after": "   ()"
+    },
+    {
+      "start": 31318,
+      "end": 31318,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 31319,
+      "end": 31326,
+      "before": "`${corr",
+      "after": "("
+    },
+    {
+      "start": 31327,
+      "end": 31337,
+      "before": "lationText",
+      "after": "sc"
+    },
+    {
+      "start": 31424,
+      "end": 31427,
+      "before": "}`;",
+      "after": "),"
+    },
+    {
+      "start": 31428,
+      "end": 31433,
+      "before": "const",
+      "after": ""
+    },
+    {
+      "start": 31434,
+      "end": 31447,
+      "before": "capturedTitle",
+      "after": "   ()"
+    },
+    {
+      "start": 31449,
+      "end": 31449,
+      "before": "",
+      "after": ">"
+    },
+    {
+      "start": 31450,
+      "end": 31457,
+      "before": "`${corr",
+      "after": "("
+    },
+    {
+      "start": 31458,
+      "end": 31468,
+      "before": "lationText",
+      "after": "sc"
+    },
+    {
+      "start": 31479,
+      "end": 31651,
+      "before": "}`;\nreturn {kind:\"usage-segment\",accessibility:{role:\"img\",tabindex:0},usage:capturedUsage,left:capturedLeft,width:capturedWidth,label:capturedLabel,title:capturedTitle};\n}",
+      "after": ""
+    },
+    {
+      "start": 31652,
+      "end": 31653,
+      "before": "(",
+      "after": "\n]"
+    },
+    {
+      "start": 31655,
+      "end": 31656,
+      "before": ")",
+      "after": ".join(''"
+    }
+  ]
+}

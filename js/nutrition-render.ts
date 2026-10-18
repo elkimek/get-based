@@ -54,11 +54,17 @@ import { projectNutritionMealDetail } from './nutrition-meal-detail-model.js';
 import { buildNutritionTargetsView, buildNutritionFluidView, localDateTimeValue } from './nutrition-entry-model.js';
 export { localDateTimeValue } from './nutrition-entry-model.js';
 import { renderHTML as renderPresentation } from './components/NutritionPresentation.svelte.html.js';
+import { renderHTML as renderFuel } from './components/NutritionFuelCard.svelte.html.js';
+import { renderHTML as renderMealPhoto } from './components/NutritionMealPhoto.svelte.html.js';
+import { renderHTML as renderComparisonPicker } from './components/NutritionComparisonPicker.svelte.html.js';
+import { renderHTML as renderBenchmark } from './components/NutritionBenchmark.svelte.html.js';
+import { renderHTML as renderMealModel } from './components/NutritionMealModelPicker.svelte.html.js';
+import { renderHTML as renderEditor } from './components/NutritionMealEditor.svelte.html.js';
 import { hasFiniteNumber, projectNutritionFuel, projectNutritionHistory } from './nutrition-presentation-model.js';
 export { formatNumber, hasFiniteNumber, MEAL_TYPES, mealTypeLabel, mealImages, HISTORY_MEAL_PAGE_SIZE } from './nutrition-presentation-model.js';
 
-import { projectNutritionDashboard, projectNutritionFuelDashboard, nutritionDashboardGoalFields } from './nutrition-dashboard-model.js';
-import type { NutritionDashboardSummary } from './nutrition-dashboard-model.js';
+import { nutritionDashboardGoalFields } from './nutrition-dashboard-model.js';
+export { projectNutritionWidget, projectNutritionFuelWidget, renderNutritionWidget, renderNutritionFuelWidget, refreshNutritionWidgets } from './nutrition-widget-runtime.js';
 
 const ACTION_ATTR = 'data-nutrition-action';
 const NUTRITION_STYLESHEET_URL = new URL('../css/nutrition.css', import.meta.url).href;
@@ -96,11 +102,7 @@ export function ensureNutritionStylesheet() {
 }
 
 export function renderFuelOverlapCard(mix: FuelMixReader | null | undefined, options: FuelOverlapRenderOptions = {}) {
-  return renderPresentation({ kind: 'fuel', view: projectNutritionFuel(mix, options) });
-}
-
-export function renderNutritionWidget() {
-  return renderPresentation({ kind: 'dashboard', view: projectNutritionDashboard(state.nutritionSummary as NutritionDashboardSummary | null, resolveNutritionTargets()) });
+  return renderFuel({ view: projectNutritionFuel(mix, options) });
 }
 
 export function buildNutritionHistoryView(history: NutritionRenderHistory | null | undefined, options: { storageError?: unknown; returnTo?: unknown } = {}) {
@@ -110,10 +112,6 @@ export function buildNutritionHistoryView(history: NutritionRenderHistory | null
 
 export function renderNutritionHistoryModal(history: NutritionRenderHistory | null | undefined, options: { storageError?: unknown; returnTo?: unknown } = {}) {
   return renderPresentation({ kind: 'history', view: buildNutritionHistoryView(history, options) });
-}
-
-export function renderNutritionFuelWidget() {
-  return renderPresentation({ kind: 'dashboard', view: projectNutritionFuelDashboard(state.nutritionSummary as NutritionDashboardSummary | null, resolveNutritionTargets()) });
 }
 
 export function renderNutritionCustomizeModal(options: { returnTo?: unknown } = {}) {
@@ -141,7 +139,7 @@ export function setElementValue(id: string, value: unknown) {
 export function renderStoredPhotoPreview(images: readonly MealImageReader[]) {
   const preview = document.getElementById('nutrition-photo-preview');
   if (!preview || !images.length) return;
-  preview.innerHTML = renderPresentation({ kind: 'meal-photo', view: { kind: 'stored', urls: images.slice(0, 4).map(image => String((image.thumbnailUrl || image.dataUrl) ?? '')) } });
+  preview.innerHTML = renderMealPhoto({ view: { kind: 'stored', urls: images.slice(0, 4).map(image => String((image.thumbnailUrl || image.dataUrl) ?? '')) } });
 }
 
 export function renderMealDetail(meal: NutritionRenderMeal, options: { returnTo?: unknown } = {}) {
@@ -154,11 +152,11 @@ function comparisonPickerView(query: unknown = '') {
 }
 
 export function renderComparisonModelPicker(query: unknown = '') {
-  return renderPresentation({ kind: 'comparison-picker', view: comparisonPickerView(query) });
+  return renderComparisonPicker({ view: comparisonPickerView(query) });
 }
 
 export function renderNutritionBenchmarkModal() {
-  return renderPresentation({ kind: 'benchmark', view: comparisonPickerView() });
+  return renderBenchmark({ view: comparisonPickerView() });
 }
 
 function mealModelView(analysisKind: unknown = 'meal-photo') {
@@ -167,18 +165,11 @@ function mealModelView(analysisKind: unknown = 'meal-photo') {
 }
 
 export function renderMealModelControl(analysisKind: unknown = 'meal-photo') {
-  return renderPresentation({ kind: 'meal-model', view: mealModelView(analysisKind) });
+  return renderMealModel({ view: mealModelView(analysisKind) });
 }
 
 // Meal records have their own history view. The retained parameter keeps the
 // runtime import/call contract stable while the editor authors the handoff.
 export function renderNutritionEditor(_meals: readonly NutritionRenderMeal[], options: NutritionEditorRenderOptions = {}) {
-  return renderPresentation({ kind: 'editor', view: projectNutritionEditor(options, localDateTimeValue(), getMealAnalysisAvailability().available, isDebugMode(), mealModelView()) });
-}
-
-export function refreshNutritionWidgets() {
-  document.querySelectorAll('.dashboard-widget[data-widget-id="nutrition"] .dashboard-widget-body')
-    .forEach(body => { body.innerHTML = renderNutritionWidget(); });
-  document.querySelectorAll('.dashboard-widget[data-widget-id="nutrition-fuel-mix"] .dashboard-widget-body')
-    .forEach(body => { body.innerHTML = renderNutritionFuelWidget(); });
+  return renderEditor({ view: projectNutritionEditor(options, localDateTimeValue(), getMealAnalysisAvailability().available, isDebugMode(), mealModelView()) });
 }

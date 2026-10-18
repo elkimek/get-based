@@ -121,10 +121,10 @@ export function installLightConditionsActionDelegates(root: unknown = typeof doc
 
 if (typeof document !== 'undefined') installLightConditionsActionDelegates();
 
-export function renderLightConditionsWidgetBody({ variant = 'full', slotId = '' }: ConditionsNowOptions = {}) {
+export function getLightConditionsWidgetView({ variant = 'full', slotId = '' }: ConditionsNowOptions = {}) {
   const conditionsOpts: ConditionsNowOptions = { variant };
   if (slotId) conditionsOpts.slotId = slotId;
-  return renderHTML({ kind: 'widget', hasLocation: !!_getSunCoords(), slot: conditionsSlot(conditionsOpts) });
+  return {kind:'widget' as const,hasLocation:!!_getSunCoords(),slot:conditionsSlot(conditionsOpts)};
 }
 
 // "Conditions now" strip — renders current UVI / ozone / AQI / sun-angle
@@ -171,8 +171,8 @@ function _centerConditionsNowMarker(slotOrId: unknown) {
   else setTimeout(center, 0);
 }
 
-export function renderConditionsNow(opts: ConditionsNowOptions = {}) {
-  return renderHTML({ kind: 'slot', slot: conditionsSlot(opts) });
+export function getConditionsNowView(opts: ConditionsNowOptions = {}) {
+  return {kind:'slot' as const,slot:conditionsSlot(opts)};
 }
 
 function conditionsSlot(opts: ConditionsNowOptions): ConditionsSlotView {
@@ -448,3 +448,6 @@ function _bustMeteoCacheForCoords(_coords: unknown) {
     }
   } catch (e) {}
 }
+
+export function renderLightConditionsWidgetBody(opts:ConditionsNowOptions={}){return renderHTML(getLightConditionsWidgetView(opts));}
+export function renderConditionsNow(opts:ConditionsNowOptions={}){return renderHTML(getConditionsNowView(opts));}

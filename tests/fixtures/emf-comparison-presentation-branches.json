@@ -1,0 +1,487 @@
+[
+  {
+    "owner": "renderComparisonView",
+    "component": "EMFComparison",
+    "start": 30562,
+    "end": 30912,
+    "literals": [
+      "<div class=\"emf-compare-header\">\n    <span class=\"emf-compare-label\">Before: ",
+      "",
+      "</span>\n    <span class=\"emf-compare-arrow\">\u2192</span>\n    <span class=\"emf-compare-label\">After: ",
+      "",
+      "</span>\n  </div>"
+    ],
+    "expressions": [
+      {
+        "start": 30642,
+        "end": 30665,
+        "source": "formatDate(before.date)"
+      },
+      {
+        "start": 30668,
+        "end": 30720,
+        "source": "before.label ? ' \u2014 ' + escapeHTML(before.label) : ''"
+      },
+      {
+        "start": 30819,
+        "end": 30841,
+        "source": "formatDate(after.date)"
+      },
+      {
+        "start": 30844,
+        "end": 30894,
+        "source": "after.label ? ' \u2014 ' + escapeHTML(after.label) : ''"
+      }
+    ],
+    "kind": "header",
+    "ports": [
+      "beforeDate",
+      "beforeLabel",
+      "afterDate",
+      "afterLabel"
+    ],
+    "slots": [
+      {
+        "coordinate": "gb-emf-comparison-emfcomparison-header-before-date-end",
+        "port": "beforeDate"
+      },
+      {
+        "coordinate": "gb-emf-comparison-emfcomparison-header-before-label-end",
+        "port": "beforeLabel"
+      },
+      {
+        "coordinate": "gb-emf-comparison-emfcomparison-header-after-date-end",
+        "port": "afterDate"
+      },
+      {
+        "coordinate": "gb-emf-comparison-emfcomparison-header-after-label-end",
+        "port": "afterLabel"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"emf-compare-header\">\n    <span class=\"emf-compare-label\">Before: gb-emf-comparison-emfcomparison-header-before-date-endgb-emf-comparison-emfcomparison-header-before-label-end</span>\n    <span class=\"emf-compare-arrow\">\u2192</span>\n    <span class=\"emf-compare-label\">After: gb-emf-comparison-emfcomparison-header-after-date-endgb-emf-comparison-emfcomparison-header-after-label-end</span>\n  </div>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "authoredSkeleton": "<div class=\"emf-compare-header\">\n    <span class=\"emf-compare-label\">Before: gb-emf-comparison-emfcomparison-header-before-date-endgb-emf-comparison-emfcomparison-header-before-label-end</span>\n    <span class=\"emf-compare-arrow\">\u2192</span>\n    <span class=\"emf-compare-label\">After: gb-emf-comparison-emfcomparison-header-after-date-endgb-emf-comparison-emfcomparison-header-after-label-end</span>\n  </div>"
+  },
+  {
+    "owner": "renderComparisonView",
+    "component": "EMFComparison",
+    "start": 30954,
+    "end": 31116,
+    "literals": [
+      "<div class=\"emf-compare-note\">Comparing the two most recent assessments. ",
+      " earlier assessment",
+      " not shown.</div>"
+    ],
+    "expressions": [
+      {
+        "start": 31030,
+        "end": 31047,
+        "source": "sorted.length - 2"
+      },
+      {
+        "start": 31069,
+        "end": 31097,
+        "source": "sorted.length > 3 ? 's' : ''"
+      }
+    ],
+    "kind": "earlier-assessments",
+    "ports": [
+      "earlierCount",
+      "pluralSuffix"
+    ],
+    "slots": [
+      {
+        "coordinate": "gb-emf-comparison-emfcomparison-earlier-assessments-earlier-count-end",
+        "port": "earlierCount"
+      },
+      {
+        "coordinate": "gb-emf-comparison-emfcomparison-earlier-assessments-plural-suffix-end",
+        "port": "pluralSuffix"
+      }
+    ],
+    "nativeSkeleton": "<div class=\"emf-compare-note\">Comparing the two most recent assessments. gb-emf-comparison-emfcomparison-earlier-assessments-earlier-count-end earlier assessmentgb-emf-comparison-emfcomparison-earlier-assessments-plural-suffix-end not shown.</div>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "authoredSkeleton": "<div class=\"emf-compare-note\">Comparing the two most recent assessments. gb-emf-comparison-emfcomparison-earlier-assessments-earlier-count-end earlier assessmentgb-emf-comparison-emfcomparison-earlier-assessments-plural-suffix-end not shown.</div>"
+  },
+  {
+    "owner": "renderComparisonView",
+    "component": "EMFComparison",
+    "start": 31133,
+    "end": 31202,
+    "literals": [
+      "<div class=\"emf-compare-table\"><table>\n    <thead><tr><th>Room</th>"
+    ],
+    "expressions": [],
+    "kind": "table-open",
+    "ports": [],
+    "slots": [],
+    "nativeSkeleton": "<div class=\"emf-compare-table\"><table>\n    <thead><tr><th>Room</th>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "</tr></thead></table></div>",
+    "authoredSkeleton": "<div class=\"emf-compare-table\"><table>\n    <thead><tr><th>Room</th></tr></thead></table></div>"
+  },
+  {
+    "owner": "renderComparisonView",
+    "component": "EMFComparison",
+    "start": 31269,
+    "end": 31304,
+    "literals": [
+      "<th>",
+      "</th>"
+    ],
+    "expressions": [
+      {
+        "start": 31276,
+        "end": 31297,
+        "source": "measurementType.short"
+      }
+    ],
+    "kind": "column-heading",
+    "ports": [
+      "measurementLabel"
+    ],
+    "slots": [
+      {
+        "coordinate": "gb-emf-comparison-emfcomparison-column-heading-measurement-label-end",
+        "port": "measurementLabel"
+      }
+    ],
+    "nativeSkeleton": "<th>gb-emf-comparison-emfcomparison-column-heading-measurement-label-end</th>",
+    "syntheticPrefix": "<table><thead><tr>",
+    "syntheticSuffix": "</tr></thead></table>",
+    "authoredSkeleton": "<table><thead><tr><th>gb-emf-comparison-emfcomparison-column-heading-measurement-label-end</th></tr></thead></table>"
+  },
+  {
+    "owner": "renderComparisonView",
+    "component": "EMFComparison",
+    "start": 31320,
+    "end": 31342,
+    "literals": [
+      "</tr></thead><tbody>"
+    ],
+    "expressions": [],
+    "kind": "table-body-open",
+    "ports": [],
+    "slots": [],
+    "nativeSkeleton": "</tr></thead><tbody>",
+    "syntheticPrefix": "<table><thead><tr>",
+    "syntheticSuffix": "</tbody></table>",
+    "authoredSkeleton": "<table><thead><tr></tr></thead><tbody></tbody></table>"
+  },
+  {
+    "owner": "renderComparisonView",
+    "component": "EMFComparison",
+    "start": 31598,
+    "end": 31657,
+    "literals": [
+      "<tr><td class=\"emf-compare-room\">",
+      "</td>"
+    ],
+    "expressions": [
+      {
+        "start": 31634,
+        "end": 31650,
+        "source": "escapeHTML(name)"
+      }
+    ],
+    "kind": "room-row-open",
+    "ports": [
+      "roomLabel"
+    ],
+    "slots": [
+      {
+        "coordinate": "gb-emf-comparison-emfcomparison-room-row-open-room-label-end",
+        "port": "roomLabel"
+      }
+    ],
+    "nativeSkeleton": "<tr><td class=\"emf-compare-room\">gb-emf-comparison-emfcomparison-room-row-open-room-label-end</td>",
+    "syntheticPrefix": "<table><tbody>",
+    "syntheticSuffix": "</tr></tbody></table>",
+    "authoredSkeleton": "<table><tbody><tr><td class=\"emf-compare-room\">gb-emf-comparison-emfcomparison-room-row-open-room-label-end</td></tr></tbody></table>"
+  },
+  {
+    "owner": "renderComparisonView",
+    "component": "EMFComparison",
+    "start": 31948,
+    "end": 31985,
+    "literals": [
+      "<td class=\"emf-compare-cell\">\u2014</td>"
+    ],
+    "expressions": [],
+    "kind": "empty-cell",
+    "ports": [],
+    "slots": [],
+    "nativeSkeleton": "<td class=\"emf-compare-cell\">\u2014</td>",
+    "syntheticPrefix": "<table><tbody><tr>",
+    "syntheticSuffix": "</tr></tbody></table>",
+    "authoredSkeleton": "<table><tbody><tr><td class=\"emf-compare-cell\">\u2014</td></tr></tbody></table>"
+  },
+  {
+    "owner": "renderComparisonView",
+    "component": "EMFComparison",
+    "start": 32678,
+    "end": 32943,
+    "literals": [
+      "<span style=\"color:var(--",
+      ")\">",
+      "</span>\n          <span style=\"color:",
+      ";font-weight:600\">",
+      "</span>\n          <span style=\"color:var(--",
+      ")\">",
+      "</span>"
+    ],
+    "expressions": [
+      {
+        "start": 32706,
+        "end": 32743,
+        "source": "beforeSeverity?.color || 'text-muted'"
+      },
+      {
+        "start": 32749,
+        "end": 32760,
+        "source": "beforeValue"
+      },
+      {
+        "start": 32800,
+        "end": 32810,
+        "source": "arrowColor"
+      },
+      {
+        "start": 32831,
+        "end": 32836,
+        "source": "arrow"
+      },
+      {
+        "start": 32882,
+        "end": 32918,
+        "source": "afterSeverity?.color || 'text-muted'"
+      },
+      {
+        "start": 32924,
+        "end": 32934,
+        "source": "afterValue"
+      }
+    ],
+    "kind": "paired-values",
+    "ports": [
+      "beforeSeverityColor",
+      "beforeValue",
+      "deltaColor",
+      "deltaArrow",
+      "afterSeverityColor",
+      "afterValue"
+    ],
+    "slots": [
+      {
+        "coordinate": "gb-emf-comparison-emfcomparison-paired-values-before-severity-color-end",
+        "port": "beforeSeverityColor"
+      },
+      {
+        "coordinate": "gb-emf-comparison-emfcomparison-paired-values-before-value-end",
+        "port": "beforeValue"
+      },
+      {
+        "coordinate": "gb-emf-comparison-emfcomparison-paired-values-delta-color-end",
+        "port": "deltaColor"
+      },
+      {
+        "coordinate": "gb-emf-comparison-emfcomparison-paired-values-delta-arrow-end",
+        "port": "deltaArrow"
+      },
+      {
+        "coordinate": "gb-emf-comparison-emfcomparison-paired-values-after-severity-color-end",
+        "port": "afterSeverityColor"
+      },
+      {
+        "coordinate": "gb-emf-comparison-emfcomparison-paired-values-after-value-end",
+        "port": "afterValue"
+      }
+    ],
+    "nativeSkeleton": "<span style=\"color:var(--gb-emf-comparison-emfcomparison-paired-values-before-severity-color-end)\">gb-emf-comparison-emfcomparison-paired-values-before-value-end</span>\n          <span style=\"color:gb-emf-comparison-emfcomparison-paired-values-delta-color-end;font-weight:600\">gb-emf-comparison-emfcomparison-paired-values-delta-arrow-end</span>\n          <span style=\"color:var(--gb-emf-comparison-emfcomparison-paired-values-after-severity-color-end)\">gb-emf-comparison-emfcomparison-paired-values-after-value-end</span>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "authoredSkeleton": "<span style=\"color:var(--gb-emf-comparison-emfcomparison-paired-values-before-severity-color-end)\">gb-emf-comparison-emfcomparison-paired-values-before-value-end</span>\n          <span style=\"color:gb-emf-comparison-emfcomparison-paired-values-delta-color-end;font-weight:600\">gb-emf-comparison-emfcomparison-paired-values-delta-arrow-end</span>\n          <span style=\"color:var(--gb-emf-comparison-emfcomparison-paired-values-after-severity-color-end)\">gb-emf-comparison-emfcomparison-paired-values-after-value-end</span>"
+  },
+  {
+    "owner": "renderComparisonView",
+    "component": "EMFComparison",
+    "start": 33003,
+    "end": 33141,
+    "literals": [
+      "<span style=\"color:var(--text-muted)\">\u2014</span> \u2192 <span style=\"color:var(--",
+      ")\">",
+      "</span>"
+    ],
+    "expressions": [
+      {
+        "start": 33080,
+        "end": 33116,
+        "source": "afterSeverity?.color || 'text-muted'"
+      },
+      {
+        "start": 33122,
+        "end": 33132,
+        "source": "afterValue"
+      }
+    ],
+    "kind": "added-value",
+    "ports": [
+      "afterSeverityColor",
+      "afterValue"
+    ],
+    "slots": [
+      {
+        "coordinate": "gb-emf-comparison-emfcomparison-added-value-after-severity-color-end",
+        "port": "afterSeverityColor"
+      },
+      {
+        "coordinate": "gb-emf-comparison-emfcomparison-added-value-after-value-end",
+        "port": "afterValue"
+      }
+    ],
+    "nativeSkeleton": "<span style=\"color:var(--text-muted)\">\u2014</span> \u2192 <span style=\"color:var(--gb-emf-comparison-emfcomparison-added-value-after-severity-color-end)\">gb-emf-comparison-emfcomparison-added-value-after-value-end</span>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "authoredSkeleton": "<span style=\"color:var(--text-muted)\">\u2014</span> \u2192 <span style=\"color:var(--gb-emf-comparison-emfcomparison-added-value-after-severity-color-end)\">gb-emf-comparison-emfcomparison-added-value-after-value-end</span>"
+  },
+  {
+    "owner": "renderComparisonView",
+    "component": "EMFComparison",
+    "start": 33177,
+    "end": 33317,
+    "literals": [
+      "<span style=\"color:var(--",
+      ")\">",
+      "</span> \u2192 <span style=\"color:var(--text-muted)\">\u2014</span>"
+    ],
+    "expressions": [
+      {
+        "start": 33205,
+        "end": 33242,
+        "source": "beforeSeverity?.color || 'text-muted'"
+      },
+      {
+        "start": 33248,
+        "end": 33259,
+        "source": "beforeValue"
+      }
+    ],
+    "kind": "removed-value",
+    "ports": [
+      "beforeSeverityColor",
+      "beforeValue"
+    ],
+    "slots": [
+      {
+        "coordinate": "gb-emf-comparison-emfcomparison-removed-value-before-severity-color-end",
+        "port": "beforeSeverityColor"
+      },
+      {
+        "coordinate": "gb-emf-comparison-emfcomparison-removed-value-before-value-end",
+        "port": "beforeValue"
+      }
+    ],
+    "nativeSkeleton": "<span style=\"color:var(--gb-emf-comparison-emfcomparison-removed-value-before-severity-color-end)\">gb-emf-comparison-emfcomparison-removed-value-before-value-end</span> \u2192 <span style=\"color:var(--text-muted)\">\u2014</span>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "authoredSkeleton": "<span style=\"color:var(--gb-emf-comparison-emfcomparison-removed-value-before-severity-color-end)\">gb-emf-comparison-emfcomparison-removed-value-before-value-end</span> \u2192 <span style=\"color:var(--text-muted)\">\u2014</span>"
+  },
+  {
+    "owner": "renderComparisonView",
+    "component": "EMFComparison",
+    "start": 33341,
+    "end": 33388,
+    "literals": [
+      "<td class=\"emf-compare-cell\">",
+      "</td>"
+    ],
+    "expressions": [
+      {
+        "start": 33373,
+        "end": 33381,
+        "source": "cellHtml"
+      }
+    ],
+    "kind": "measurement-cell",
+    "ports": [
+      "valuePresentation"
+    ],
+    "slots": [
+      {
+        "coordinate": "gb-emf-comparison-emfcomparison-measurement-cell-value-presentation-end",
+        "port": "valuePresentation"
+      }
+    ],
+    "nativeSkeleton": "<td class=\"emf-compare-cell\">gb-emf-comparison-emfcomparison-measurement-cell-value-presentation-end</td>",
+    "syntheticPrefix": "<table><tbody><tr>",
+    "syntheticSuffix": "</tr></tbody></table>",
+    "authoredSkeleton": "<table><tbody><tr><td class=\"emf-compare-cell\">gb-emf-comparison-emfcomparison-measurement-cell-value-presentation-end</td></tr></tbody></table>"
+  },
+  {
+    "owner": "renderComparisonView",
+    "component": "EMFComparison",
+    "start": 33408,
+    "end": 33415,
+    "literals": [
+      "</tr>"
+    ],
+    "expressions": [],
+    "kind": "room-row-close",
+    "ports": [],
+    "slots": [],
+    "nativeSkeleton": "</tr>",
+    "syntheticPrefix": "<table><tbody><tr>",
+    "syntheticSuffix": "</tbody></table>",
+    "authoredSkeleton": "<table><tbody><tr></tr></tbody></table>"
+  },
+  {
+    "owner": "renderComparisonView",
+    "component": "EMFComparison",
+    "start": 33432,
+    "end": 33456,
+    "literals": [
+      "</tbody></table></div>"
+    ],
+    "expressions": [],
+    "kind": "table-close",
+    "ports": [],
+    "slots": [],
+    "nativeSkeleton": "</tbody></table></div>",
+    "syntheticPrefix": "<div><table><tbody>",
+    "syntheticSuffix": "",
+    "authoredSkeleton": "<div><table><tbody></tbody></table></div>"
+  },
+  {
+    "owner": "renderComparisonView",
+    "component": "EMFComparison",
+    "start": 33510,
+    "end": 33689,
+    "literals": [
+      "<div style=\"margin-top:12px\">\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" ",
+      ">Interpret Changes</button>\n    </div>"
+    ],
+    "expressions": [
+      {
+        "start": 33611,
+        "end": 33649,
+        "source": "emfActionAttrs('interpret-comparison')"
+      }
+    ],
+    "kind": "interpret-action",
+    "ports": [
+      "actionAttributes"
+    ],
+    "slots": [
+      {
+        "coordinate": "gb-emf-comparison-emfcomparison-interpret-action-action-attributes-end",
+        "port": "actionAttributes"
+      }
+    ],
+    "nativeSkeleton": "<div style=\"margin-top:12px\">\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" gb-emf-comparison-emfcomparison-interpret-action-action-attributes-end>Interpret Changes</button>\n    </div>",
+    "syntheticPrefix": "",
+    "syntheticSuffix": "",
+    "authoredSkeleton": "<div style=\"margin-top:12px\">\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" data-gb-emf-comparison-emfcomparison-interpret-action-action-attributes-end=\"\">Interpret Changes</button>\n    </div>"
+  }
+]

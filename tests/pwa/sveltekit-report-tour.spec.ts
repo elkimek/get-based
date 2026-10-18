@@ -16,7 +16,7 @@ async function keyboardActivate(page: Page, control: Locator) {
   await page.keyboard.press('Enter');
 }
 
-async function inspectReport(page: Page) {
+async function inspectReport(page: Page, phase: string) {
   const closeChat = page.getByRole('button', {name: 'Close chat', exact: true});
   if (await closeChat.isVisible()) await closeChat.click();
   const menu = page.getByRole('button', {name: 'Menu', exact: true});
@@ -89,6 +89,14 @@ async function inspectReport(page: Page) {
     await expect(overlay).toHaveCount(0);
     await preview.emulateMedia({media: 'print'});
     await expect(preview.locator('.report-print-btn')).toBeHidden();
+    if (preview.context().browser()?.browserType().name() === 'chromium') {
+      const pdf = await preview.pdf({format: 'A4', printBackground: true});
+      expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
+      expect(pdf.length).toBeGreaterThan(1000);
+      const file = test.info().outputPath(`report-print-${phase}.pdf`);
+      await fs.writeFile(file, pdf);
+      await test.info().attach(`report-print-${phase}`, {path: file, contentType: 'application/pdf'});
+    }
   } finally { await preview.close(); }
   await expect(page.locator('#sidebar-nav')).not.toHaveClass(/\bmobile-open\b/);
   expect(await page.locator('body').evaluate(node => getComputedStyle(node).overflow)).not.toBe('hidden');
@@ -161,7 +169,7 @@ test('static report setup, local preview and guided tour work on first offline u
     const loading = [{phase: 'initial-online', readyMs: await ready(page, server.origin)}];
     const before = await page.evaluate(readComparisonAcceptanceProfile);
     server.state.offline = true;
-    await inspectReport(page);
+    await inspectReport(page, 'initial-online');
     await inspectTour(page);
     expect(await page.evaluate(readComparisonAcceptanceProfile)).toEqual(before);
     await page.close();
@@ -169,7 +177,7 @@ test('static report setup, local preview and guided tour work on first offline u
       const cold = await context.newPage();
       await cold.clock.setFixedTime(new Date('2026-08-07T12:00:00Z'));
       loading.push({phase: `offline-cold-${launch + 1}`, readyMs: await ready(cold, server.origin)});
-      await inspectReport(cold);
+      await inspectReport(cold, `offline-cold-${launch + 1}`);
       await inspectTour(cold);
       expect(await cold.evaluate(readComparisonAcceptanceProfile)).toEqual(before);
       await cold.close();
