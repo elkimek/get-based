@@ -8,7 +8,12 @@ const original=JSON.parse(fs.readFileSync('tests/fixtures/light-environment-room
 const auditStyles=(JSON.parse(fs.readFileSync('tests/fixtures/light-audit-original.json','utf8')) as {styleBlocks:FrozenStyleBlock[]}).styleBlocks;
 const names=['empty','empty-standalone','Bedroom/false','Bedroom/true','Office/true','source-unknown','hours-0','skipped','nested-and-portable','all-readings','older-and-qualitative'];
 const examples=original.cases.filter(sample=>names.includes(sample.name)).map(sample=>({...sample,section:expectedGenuineLightChildren(sample.section),burdenView:nativeBurdenView(),measurementView:nativeEnvironmentView('measurement'),roomView:nativeEnvironmentView('room')}));
-test('authored rooms preserve independent layouts and readable accessible editor controls',async({page},info)=>{
+const roomThemes = ['dark','light','glass','synth-sunrise','neuromancer','cyberterm'] as const;
+test.beforeAll(() => {
+  expect(roomThemes).toEqual(['dark','light','glass','synth-sunrise','neuromancer','cyberterm']);
+  expect(examples).toHaveLength(11);
+});
+for (const [themeIndex, targetTheme] of roomThemes.entries()) test(`authored rooms preserve independent layouts and readable accessible editor controls: ${targetTheme}`,async({page},info)=>{
   test.setTimeout(120000);await installDiscussionFixture(page.context());await page.goto('/app');await expect(page.locator('html[data-app-ready]')).toBeAttached();await page.emulateMedia({reducedMotion:'reduce'});
   const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
   await page.evaluate(async({examples,css,now})=>{
@@ -37,7 +42,22 @@ test('authored rooms preserve independent layouts and readable accessible editor
     }}finally{Date.now=clock;env.configureLightEnv(prior);state.importedData=before;}
   },{examples,css:scopedFrozenStyles([...original.styleBlocks,...auditStyles]),now:original.now});
   const host=page.locator('#environment-room-acceptance');let pairs=0;
-  for(const width of [320,375,600,601,700,1100]){await page.setViewportSize({width,height:1000});for(const theme of ['dark','light','glass','synth-sunrise','neuromancer','cyberterm']){
+  let previousWidth = 320;
+  const warmTheme = async (theme: typeof roomThemes[number]) => {
+    await page.evaluate(async theme => (await import('/js/theme.js')).setTheme(theme), theme);
+    await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || 'dark')).toBe(theme);
+    await host.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  };
+  for(const width of [320,375,600,601,700,1100]){
+    // The original matrix ended each previous width in Cyberterm before resizing.
+    if (width !== 320) {
+      await page.setViewportSize({width:previousWidth,height:1000});
+      await warmTheme('cyberterm');
+    }
+    await page.setViewportSize({width,height:1000});
+    if (themeIndex > 0) await warmTheme(roomThemes[themeIndex - 1]!);
+    previousWidth = width;
+    for(const theme of [targetTheme]){
     await page.mouse.move(0,0);await page.evaluate(async theme=>(await import('/js/theme.js')).setTheme(theme),theme);await host.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
     const result=await host.evaluate(element=>{
       const props=['display','width','height','fontSize','fontWeight','fontFamily','lineHeight','letterSpacing','paddingTop','paddingRight','paddingBottom','paddingLeft','marginTop','marginRight','marginBottom','marginLeft','gap','gridTemplateColumns','alignItems','borderTopWidth','borderTopStyle','borderRadius','whiteSpace','overflow','opacity','backgroundColor','color'] as const;
@@ -54,7 +74,9 @@ test('authored rooms preserve independent layouts and readable accessible editor
   }}
   await host.locator('[data-original]').evaluateAll(elements=>elements.forEach(element=>element.remove()));
   await host.locator('details.light-env-picker-more').evaluateAll(elements=>elements.forEach(element=>(element as HTMLDetailsElement).open=true));
-  for(const theme of ['dark','light','glass','synth-sunrise','neuromancer','cyberterm']){
+  // Accessibility originally followed the complete geometry matrix at 1100px.
+  await warmTheme(themeIndex > 0 ? roomThemes[themeIndex - 1]! : 'cyberterm');
+  for(const theme of [targetTheme]){
     await page.evaluate(async theme=>(await import('/js/theme.js')).setTheme(theme),theme);await host.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
     for(const pair of await host.locator('[data-pair]').all()){
       // Audit the migrated room/section controls; saved audits retain their existing owner.
@@ -63,6 +85,8 @@ test('authored rooms preserve independent layouts and readable accessible editor
       expect(violations,`${theme}/${await pair.getAttribute('data-pair')} accessibility`).toEqual([]);
     }
   }
+  let focusCount: number | null = null;
+  if (targetTheme === 'cyberterm') {
   await page.keyboard.press('Tab');
   const focus=await host.evaluate(async element=>{
     const failures:string[]=[];let count=0;
@@ -71,8 +95,11 @@ test('authored rooms preserve independent layouts and readable accessible editor
       if(document.activeElement!==control||css.outlineWidth!=='2px')failures.push(`focus ${count}/${control.className}: ${css.outlineWidth}`);
       if(matchMedia('(pointer:coarse)').matches&&(box.width<44||box.height<44))failures.push(`target ${count}: ${box.width}x${box.height}`);count++;
     }return{failures,count};
-  });expect(focus.count).toBeGreaterThan(100);expect(focus.failures).toEqual([]);expect(errors).toEqual([]);expect(pairs).toBe(examples.length*36);
-  await fs.promises.writeFile(info.outputPath('environment-room-pairs.json'),JSON.stringify({pairs,examples:examples.length,themes:6,widths:[320,375,600,601,700,1100],focus:focus.count}));
+  });expect(focus.count).toBeGreaterThan(100);expect(focus.failures).toEqual([]);
+  focusCount = focus.count;
+  }
+  expect(errors).toEqual([]);expect(pairs).toBe(examples.length*6);
+  await fs.promises.writeFile(info.outputPath('environment-room-pairs.json'),JSON.stringify({pairs,examples:examples.length,theme:targetTheme,widths:[320,375,600,601,700,1100],focus:focusCount}));
 });
 
 test('assessment modal preserves responsive scroll containment and native room keyboard disclosure',async({page},info)=>{
