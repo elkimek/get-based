@@ -23,9 +23,13 @@ async function ready(page: Page, origin: string) {
   await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
 }
 async function open(page: Page) {
-  if (await page.locator('#chat-panel.open').isVisible()) return;
-  if (await page.locator('#chat-fab').isVisible()) await page.locator('#chat-fab').click();
-  else await page.getByRole('button', { name: 'Start guided chat', exact: true }).click();
+  // Deferred returning-user Chat can open and hide its FAB between visibility and click.
+  await expect(page.locator('body')).not.toHaveClass(/\bchat-autostart-reserved\b/);
+  if (!(await page.locator('#chat-panel.open').isVisible())) {
+    if (await page.locator('#chat-fab').isVisible()) await page.locator('#chat-fab').click();
+    else await page.getByRole('button', { name: 'Start guided chat', exact: true }).click();
+  }
+  await expect(page.locator('#chat-panel')).toHaveClass(/\bopen\b/);
 }
 async function rail(page: Page) {
   await open(page);

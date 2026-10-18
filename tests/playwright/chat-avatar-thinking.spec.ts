@@ -35,6 +35,14 @@ test('the composer opens AI context before dashboard context hooks are registere
 test('chat shows profile, CLI, and persona identities with rotating pre-token copy', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForSelector('#chat-messages', { state: 'attached' });
+  // Complete the real startup profile and neutral conversation before seeding identities.
+  await expect(page.locator('html[data-app-ready]')).toBeAttached();
+  await expect(page.locator('body')).not.toHaveClass(/\bchat-autostart-reserved\b/);
+  await expect(page.locator('#chat-thread-list .chat-thread-item.active .chat-thread-item-name')).toHaveText('New Conversation');
+  const closeChat = page.getByRole('button', { name: 'Close chat', exact: true });
+  if (await closeChat.isVisible()) await closeChat.click();
+  await expect(page.locator('body')).not.toHaveClass(/\bchat-open\b/);
+  await expect(page.locator('#chat-backdrop')).toBeHidden();
 
   const results = await page.evaluate(async () => {
     const [{ state }, render, thinking, panel] = await Promise.all([
@@ -43,7 +51,7 @@ test('chat shows profile, CLI, and persona identities with rotating pre-token co
       import('/js/chat-thinking-status.js'),
       import('/js/chat-panel.js'),
     ]);
-    await panel.openChatPanel();
+    if (await panel.openChatPanel() !== true) throw new Error('The settled Chat owner could not open');
     const tinyPng = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
     state.currentProfile = 'avatar-profile';
     state.profiles = [{ id: 'avatar-profile', name: 'Ada', avatar: tinyPng }];
