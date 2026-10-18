@@ -26,8 +26,28 @@ function nutritionRecipeProjection(css:string){
  return css.slice(block[0]!.source!.start!.offset!,block.at(-1)!.source!.end!.offset!);
 }
 function assertNutritionRecipeParity(current:string,native:string){expect(nutritionRecipeProjection(current)).toEqual(nutritionRecipeProjection(native));}
+// Preserve the accepted complete stylesheet pin while independently proving the
+// later narrow-screen ingredient-grid repair. Only its exact compiled span is
+// inverted; every other byte and all original native recipes remain qualified.
+const currentNutritionGridSelector = String.raw`.gb\:nutrition\:min-\[721px\]\:\[\@media\(pointer\:coarse\)\]\:grid-cols-\[minmax\(150px\,1fr\)_92px_minmax\(126px\,\.65fr\)_45px\]:is([data-nutrition-view],[data-nutrition-view] *)`;
+const currentNutritionGridRule = currentNutritionGridSelector+'{grid-template-columns:minmax(150px,1fr) 92px minmax(126px,.65fr) 45px}';
+const reviewedNutritionGridSpan = '}@media (min-width:721px){@media (pointer:coarse){'+currentNutritionGridRule+'}}@media (pointer:coarse){';
+function restoreReviewedNutritionGridCss(current:string):string {
+ const matches:postcss.Rule[]=[];
+ postcss.parse(current).walkRules(rule=>{if(rule.selector===currentNutritionGridSelector)matches.push(rule);});
+ expect(matches).toHaveLength(1);
+ const rule=matches[0]!,coarse=rule.parent,wide=coarse?.parent;
+ expect(rule.toString()).toBe(currentNutritionGridRule);
+ expect(coarse?.type).toBe('atrule');
+ if(coarse?.type!=='atrule'||wide?.type!=='atrule')throw new Error('Exact reviewed Nutrition grid media ancestry required');
+ expect([coarse.name,coarse.params,wide.name,wide.params,wide.parent?.type]).toEqual(['media','(pointer:coarse)','media','(min-width:721px)','root']);
+ expect(coarse.nodes).toHaveLength(1);expect(wide.nodes).toHaveLength(1);
+ expect(current.split(reviewedNutritionGridSpan)).toHaveLength(2);
+ const originalRule=currentNutritionGridRule.replace(String.raw`min-\[721px\]\:`, '');
+ return current.replace(reviewedNutritionGridSpan,originalRule);
+}
 function assertNutritionStyles(current:string,native:string){
- expect(createHash('sha256').update(current).digest('hex')).toBe(acceptedNutritionCss);
+ expect(createHash('sha256').update(restoreReviewedNutritionGridCss(current)).digest('hex')).toBe(acceptedNutritionCss);
  assertNutritionRecipeParity(current,native);
 }
 const lanes=[
@@ -79,4 +99,18 @@ it('rejects Nutrition native body, ancestry, motion and unrelated utility drift 
  const foreign=mutate(tree=>{tree.walkRules(rule=>{if(changedUtility||!rule.selector.startsWith('.gb\\:nutrition\\:'))return;const declaration=rule.nodes.find(node=>node.type==='decl');if(declaration?.type!=='decl')throw new Error('Current Svelte utility declaration required');declaration.value='initial';changedUtility=true;});});
  expect(changedUtility).toBe(true);assertNutritionRecipeParity(foreign,native);
  expect(()=>assertNutritionStyles(foreign,native)).toThrow();
+});
+
+
+it.each(['width','selector','declaration','priority','duplicate','unrelated'] as const)('rejects %s drift around the separately qualified Nutrition grid repair',async kind=>{
+ const native=await fs.readFile('tests/fixtures/complete-nutrition-original.css','utf8'),current=await fs.readFile('css/nutrition.css','utf8');
+ let changed=current;
+ if(kind==='width')changed=current.replace(reviewedNutritionGridSpan,reviewedNutritionGridSpan.replace('(min-width:721px)','(min-width:720px)'));
+ if(kind==='selector')changed=current.replace(currentNutritionGridSelector,currentNutritionGridSelector.replace('721px','720px'));
+ if(kind==='declaration')changed=current.replace(currentNutritionGridRule,currentNutritionGridRule.replace(' 45px}',' 46px}'));
+ if(kind==='priority')changed=current.replace(currentNutritionGridRule,currentNutritionGridRule.replace(' 45px}',' 45px!important}'));
+ if(kind==='duplicate')changed=current+'@media (min-width:721px){@media (pointer:coarse){'+currentNutritionGridRule+'}}';
+ if(kind==='unrelated')changed=current+'\n/* Unreviewed complete stylesheet byte */';
+ expect(changed).not.toBe(current);
+ expect(()=>assertNutritionStyles(changed,native)).toThrow();
 });
