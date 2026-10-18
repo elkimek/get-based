@@ -1,12 +1,12 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type Request } from '@playwright/test';
 import { createDefaultProfileData } from '../../js/profile.js';
 import { DEVICE_ENGINE_VERSION } from '../../js/light-device-session-engine.js';
 import { startKitServer } from './kit-server.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 import { readComparisonAcceptanceProfile } from '../helpers/nutrition-comparison-fixture.js';
-import { installOfflineStartupDiagnostics } from '../helpers/offline-launch-diagnostics.js';
+import { installOfflineStartupDiagnostics, captureOfflineRouteFailureDiagnostics } from '../helpers/offline-launch-diagnostics.js';
 import { readyLightArtifact as ready, openLightArtifact as openLight } from '../helpers/light-artifact-navigation.js';
 import type { ProfileData } from '../../types/app-state.js';
 function seed({defaults,now,version}:{defaults:ProfileData;now:number;version:number}){
@@ -26,7 +26,7 @@ function seed({defaults,now,version}:{defaults:ProfileData;now:number;version:nu
       doses:{nir_solar:5,pbm_red:5},safety:{hasUV:false,unsafeEyeExposure:false},engineVersion:version}],lightEnvironment:{rooms:[],screens:[]},lightMeasurements:[],lightAudits:[],lightDailyVerdicts:{}}));
 }
 const channels=['vitamin_d','circadian','nir_solar','no_cv','pomc','violet_eye'];
-async function inspect(page:Page){
+async function inspectChannels(page:Page){
   // Exercise the real optional Dashboard widget and cross-route navigation.
   if(await page.locator('#chat-panel.open').isVisible())await page.getByRole('button',{name:'Close chat',exact:true}).click();
   const menu=page.getByRole('button',{name:'Menu',exact:true});if(await menu.isVisible())await menu.click();
@@ -67,6 +67,24 @@ async function inspect(page:Page){
     }
     await detail.getByRole('button',{name:/^Close .* detail$/}).click();await expect(detail).toHaveCount(0);await expect(pill).toHaveAttribute('aria-expanded','false');
   }
+}
+async function inspect(page:Page){
+  const origin=new URL(page.url()).origin,latest=new Set<string>(),pending=new Map<Request,string>();
+  const requested=(request:Request)=>{
+    const url=new URL(request.url());
+    if(request.method()!=='GET'||url.origin!==origin||!url.pathname.startsWith('/_app/immutable/'))return;
+    latest.delete(url.href);latest.add(url.href);pending.set(request,url.href);
+    if(latest.size>8)latest.delete(latest.values().next().value!);
+    if(pending.size>8)pending.delete(pending.keys().next().value!);
+  };
+  const settled=(request:Request)=>{pending.delete(request);};
+  page.on('request',requested);page.on('requestfinished',settled);page.on('requestfailed',settled);
+  try{await inspectChannels(page);}
+  catch(error){
+    try{await captureOfflineRouteFailureDiagnostics(page,test.info(),[...new Set([...pending.values(),...[...latest].reverse()])].slice(0,8));}
+    catch{/* Failure evidence must never replace the original acceptance error. */}
+    throw error;
+  }finally{page.off('request',requested);page.off('requestfinished',settled);page.off('requestfailed',settled);}
 }
 test('static channel details first open offline with retained source charts, research and full profile across two cold launches',async({page,context})=>{
   test.setTimeout(120000);await installDiscussionFixture(context);await context.route('https://**',route=>route.abort());await installOfflineStartupDiagnostics(context);await context.addInitScript(seed,{defaults:createDefaultProfileData(),now:Date.now(),version:DEVICE_ENGINE_VERSION});

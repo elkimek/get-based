@@ -41,6 +41,15 @@ export async function navigateWithOfflineLaunchDiagnostics(page: Page, url: stri
 
 export async function captureOfflineLaunchDiagnostics(page: Page, info: TestInfo): Promise<void> {
   try {
+    const current = await page.evaluate(() => ({
+      pageURL: location.href, origin: location.origin, readyState: document.readyState,
+      cacheStorageAvailable: 'caches' in globalThis, serviceWorkerAvailable: 'serviceWorker' in navigator,
+    }));
+    await info.attach('offline-launch-current-page', {body: JSON.stringify(current, null, 2), contentType: 'application/json'});
+    if (!current.cacheStorageAvailable || !current.serviceWorkerAvailable || current.origin === 'null') {
+      await info.attach('offline-launch-cache-state', {body: JSON.stringify({...current, unavailable: 'Current page has no usable origin-scoped CacheStorage and service-worker APIs.'}, null, 2), contentType: 'application/json'});
+      return;
+    }
     const state = await page.evaluate(async () => {
       const bounded = <Value>(promise: Promise<Value>, label: string): Promise<Value | { timeout: string }> => Promise.race([
         promise, new Promise<{ timeout: string }>(resolve => setTimeout(() => resolve({ timeout: label }), 2000)),
