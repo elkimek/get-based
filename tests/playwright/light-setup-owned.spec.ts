@@ -122,6 +122,12 @@ test('authored setup has readable accessible forms, responsive panes and visible
 
 test('authored prompt and saved summary retain readable themes and reduced-motion behavior', async ({ page }, info) => {
   test.setTimeout(120000); await page.goto('/app');
+  await expect(page.locator('html[data-app-ready]')).toBeAttached({ timeout: 30000 });
+  await expect(page.locator('body')).not.toHaveClass(/\bchat-autostart-reserved\b/, { timeout: 30000 });
+  const closeChat = page.getByRole('button', { name: 'Close chat', exact: true });
+  if (await closeChat.isVisible()) await closeChat.click();
+  await expect(page.locator('body')).not.toHaveClass(/\bchat-open\b/);
+  await expect(page.locator('#chat-backdrop')).toBeHidden();
   await page.evaluate(async () => {
     await (await import('/js/light-sun-loader.js')).loadLightSunUI();
     const host = document.createElement('div'); host.id = 'setup-cards-acceptance';
