@@ -298,9 +298,61 @@ jobs:
           [ "$font_file" = /usr/share/fonts/opentype/urw-base35/NimbusSans-Regular.otf ]
           printf '%s  %s\n' 7c25be4d78155523080ab85b10277150657ff7dabbcad7037bdd536c9b6d0d08 "$font_file" | sha256sum --check --strict
       - name: Run selected shipping acceptance headlessly with finite skip guards
+        id: shipping_acceptance
         env:
           LANE: ${{ matrix.id }}
-        run: node scripts/ci-plan.mjs --run-kit "$LANE" --output "$CI_TEST_PLAN"
+          ENGINE: ${{ matrix.engine }}
+        run: |
+          if [ "$RUNNER_OS" = Linux ] && [ "$ENGINE" = webkit ]; then
+            # Process lifecycle/native stderr only; never enable protocol/API logs.
+            export DEBUG=pw:browser
+          fi
+          node scripts/ci-plan.mjs --run-kit "$LANE" --output "$CI_TEST_PLAN"
+      - name: DIAGNOSTIC Linux WebKit process and memory evidence after failure
+        if: failure() && runner.os == 'Linux' && matrix.engine == 'webkit' && steps.shipping_acceptance.outcome == 'failure'
+        continue-on-error: true
+        timeout-minutes: 1
+        run: |
+          directory=.local-notes/ci/native-process-evidence
+          mkdir -p "$directory"
+          {
+            date -u +'%Y-%m-%dT%H:%M:%SZ'
+            # Selected host capacity only; no environment or process arguments.
+            awk '/^(MemTotal|MemAvailable|SwapTotal|SwapFree):/' /proc/meminfo
+            cgroup_path=$(awk -F: '$1 == "0" && $2 == "" { print $3; exit }' /proc/self/cgroup)
+            if [ -n "$cgroup_path" ]; then
+              cgroup_directory=$(realpath -m -- "/sys/fs/cgroup$cgroup_path")
+              case "$cgroup_directory" in
+                /sys/fs/cgroup|/sys/fs/cgroup/*)
+                  printf 'current_cgroup=%s\n' "$cgroup_directory"
+                  for file in memory.current memory.events memory.max memory.peak memory.swap.current memory.swap.max; do
+                    printf '\n%s\n' "$file"
+                    if [ -r "$cgroup_directory/$file" ]; then
+                      head -c 4096 -- "$cgroup_directory/$file"
+                    else
+                      printf 'unavailable\n'
+                    fi
+                  done
+                  ;;
+                *) printf 'current_cgroup=unavailable (outside cgroup mount)\n' ;;
+              esac
+            else
+              printf 'current_cgroup=unavailable (no unified cgroup entry)\n'
+            fi
+          } > "$directory/memory.txt"
+          # A failed read is unavailable evidence, never proof that no OOM occurred.
+          set +e
+          timeout 5s sudo -n journalctl --kernel --boot --no-pager --output=short-monotonic \
+            --grep='(?i)(oom-kill|out of memory|killed process|(?:webkit|WPE(?:Web|Network)|MiniBrowser|NetworkProcess|WebProcess).*(?:segfault|crash|killed|exited|trap))' \
+            --lines=160 2>&1 | head -c 65536 > "$directory/kernel-events.txt"
+          kernel_status=${PIPESTATUS[0]}
+          printf '\njournalctl_status=%s (inspect output; nonzero may mean unavailable or no matches)\n' "$kernel_status" >> "$directory/kernel-events.txt"
+          timeout 5s ps -e -o pid=,ppid=,comm= \
+            | awk '$3 ~ /^(WebKit.*|WPE(Web|Network).*|MiniBrowser|NetworkProcess|WebProcess|bwrap|Xvfb|node)$/ { print; if (++count == 160) exit }' \
+            | head -c 32768 > "$directory/remaining-processes.txt"
+          process_status=${PIPESTATUS[0]}
+          printf '\nps_status=%s (PID/PPID/comm only; exited processes are recorded in pw:browser job logs)\n' "$process_status" >> "$directory/remaining-processes.txt"
+          exit 0
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
@@ -315,6 +367,7 @@ jobs:
           name: kit-results-${{ matrix.id }}
           path: |
             .local-notes/ci/results
+            .local-notes/ci/native-process-evidence
           include-hidden-files: true
           if-no-files-found: warn
           retention-days: 14
