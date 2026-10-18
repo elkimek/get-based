@@ -16,7 +16,17 @@ async function journal(page: Page) { return page.evaluate(() => new Promise<unkn
 test('static Routstr shell recovers actual SDK outgoing tokens privately after cached cold launch', async ({ page, context }) => {
   test.setTimeout(150_000); const synthetic = await prepareStaticWithdraw(context), server = await startKitServer(artifact, [synthetic.handleRequest]), errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   try {
-    await page.goto(server.origin + '/app?dev-sw=1'); await ready(page); await seedStaticWalletMints(page); await page.reload(); await ready(page); await wallet(page);
+    await page.goto(server.origin + '/app?dev-sw=1'); await ready(page);
+    // Finish an actual deferred Chat owner; mobile startup leaves Chat unloaded.
+    if (/\bchat-autostart-reserved\b/.test(await page.locator('body').getAttribute('class') || '') || await page.locator('#chat-panel.open').isVisible()) {
+      await expect(page.locator('body')).not.toHaveClass(/\bchat-autostart-reserved\b/);
+      await expect(page.locator('#chat-thread-list .chat-thread-item.active .chat-thread-item-name')).toHaveText('New Conversation');
+    }
+    const closeChat = page.getByRole('button', { name: 'Close chat', exact: true });
+    if (await closeChat.isVisible()) await closeChat.click();
+    await expect(page.locator('body')).not.toHaveClass(/\bchat-open\b/);
+    await expect(page.locator('#chat-backdrop')).toBeHidden();
+    await seedStaticWalletMints(page); await page.reload(); await ready(page); await wallet(page);
     await page.locator('#routstr-wallet-actions [data-wallet-action="withdraw"]').click(); const withdraw = page.locator('[data-wallet-withdraw-view]');
     await withdraw.getByRole('button', { name: 'Cashu Token', exact: true }).click(); await withdraw.locator('#routstr-send-amount').fill('4'); await withdraw.getByRole('button', { name: 'Send', exact: true }).click();
     const sent = withdraw.locator('textarea'); await expect(sent).toBeVisible(); const token = await sent.inputValue();

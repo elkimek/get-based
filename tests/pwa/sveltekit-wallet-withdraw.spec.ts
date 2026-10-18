@@ -18,7 +18,17 @@ async function journal(page: Page) { return page.evaluate(async () => { const db
 test('wallet withdrawal uses actual static SDK tokens and journals through close cold recovery and uncertain payment', async ({ page, context }) => {
   test.setTimeout(120_000); const synthetic = await prepareStaticWithdraw(context); const server = await startKitServer(artifact, [synthetic.handleRequest]); const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   try {
-    await page.goto(server.origin + '/app?dev-sw=1'); await ready(page); await seedStaticWalletMints(page); await page.waitForLoadState('networkidle'); await page.reload(); await ready(page); await wallet(page); await withdraw(page);
+    await page.goto(server.origin + '/app?dev-sw=1'); await ready(page);
+    // Complete returning Dashboard startup before reloading the seeded wallet.
+    if (await page.locator('body').evaluate(body => body.classList.contains('chat-autostart-reserved')) || await page.locator('#chat-panel.open').isVisible()) {
+      await expect(page.locator('body')).not.toHaveClass(/\bchat-autostart-reserved\b/);
+      await expect(page.locator('#chat-thread-list .chat-thread-item.active .chat-thread-item-name')).toHaveText('New Conversation');
+    }
+    const closeChat = page.getByRole('button', { name: 'Close chat', exact: true });
+    if (await closeChat.isVisible()) await closeChat.click();
+    await expect(page.locator('body')).not.toHaveClass(/\bchat-open\b/);
+    await expect(page.locator('#chat-backdrop')).toBeHidden();
+    await seedStaticWalletMints(page); await page.waitForLoadState('networkidle'); await page.reload(); await ready(page); await wallet(page); await withdraw(page);
     const panel = page.locator('[data-wallet-withdraw-view]'); await expect(panel).toContainText('12 sats'); await panel.getByRole('button', { name: 'Cashu Token', exact: true }).click(); await panel.locator('#routstr-send-amount').fill('4'); await panel.getByRole('button', { name: 'Send', exact: true }).click();
     const field = panel.locator('textarea'); await expect(field).toBeVisible(); const token = await field.inputValue(); const decoded = getDecodedToken(token, [synthetic.keysetId]); expect(decoded.mint).toBe('https://mint.minibits.cash/Bitcoin'); expect(decoded.proofs.reduce((sum, proof) => sum + Number(proof.amount), 0)).toBe(4);
     expect(synthetic.counts().swaps).toBe(1); expect(JSON.parse(String(await journal(page)))).toMatchObject({ token, mint: decoded.mint, localCommit: true, source: 'cashu-send' }); expect(await panel.locator('[data-clipboard-text],[data-token],[data-quote-id]').count()).toBe(0);
