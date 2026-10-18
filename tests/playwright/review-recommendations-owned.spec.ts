@@ -98,7 +98,13 @@ async function mountPairs(page: Page, samples: Sample[]) {
 }
 async function setTheme(page: Page, theme: string) {
  await page.evaluate(async theme => {
-  if (theme === 'default') document.documentElement.removeAttribute('data-theme'); else (await import('/js/theme.js')).setTheme(theme);
+  if (theme === 'default') document.documentElement.removeAttribute('data-theme');
+  else {
+   const themes = await import('/js/theme.js');
+   if (await themes.setTheme(theme) !== true) throw new Error('Requested theme failed to load: ' + theme);
+   const attribute = document.documentElement.getAttribute('data-theme');
+   if (themes.getTheme() !== theme || attribute !== (theme === 'dark' ? null : theme)) throw new Error('Requested theme did not become current: ' + theme);
+  }
   await document.fonts.ready;
  }, theme);
 }
