@@ -2820,6 +2820,8 @@ tests/pwa/sveltekit-island-ownership.spec.js
 tests/pwa/sveltekit-island-ownership.spec.js.map
 
 /tests/helpers/wearable-detail-pwa-receipt.js
+/tests/helpers/wearable-paint-diagnostics.js
+/tests/helpers/wearable-paint-diagnostics.js.map
 
 # Dashboard Labs marker presentation generated runtime outputs
 /js/dashboard-lab-markers-presentation.js

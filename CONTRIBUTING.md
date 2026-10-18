@@ -85,6 +85,13 @@ in headless Chromium. Production builds enforce the separate offline-cache growt
 budget. The previous native checks remain available as `performance:native:check`
 and `native:compatibility:check`. See the testing policy for release coverage.
 
+The Tests workflow also accepts the manual diagnostic choice
+`webkit-lens-wearable`. It runs only the original Lens Shell and Wearables cases
+in desktop WebKit and retains native cache and chart-pixel failure evidence.
+For example, use `gh workflow run test.yml --ref <branch> -f diagnostic=webkit-lens-wearable`.
+This diagnostic run does not publish the normal `test` gate or release evidence;
+the default `off` choice retains the complete normal workflow.
+
 GitHub Actions owns the exhaustive browser and combined-coverage matrix by
 default. An exceptional local full run requires an explicit high-write opt-in:
 

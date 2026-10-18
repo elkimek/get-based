@@ -1,10 +1,10 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
-import {expect,test,type Page} from '@playwright/test';
+import {expect,test,type Page,type Request} from '@playwright/test';
 import {createDefaultProfileData} from '../../js/profile.js';
 import {startKitServer} from './kit-server.js';
 import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
-import {installOfflineStartupDiagnostics} from '../helpers/offline-launch-diagnostics.js';
+import {installOfflineStartupDiagnostics,captureOfflineRouteFailureDiagnostics} from '../helpers/offline-launch-diagnostics.js';
 import {readComparisonAcceptanceProfile} from '../helpers/nutrition-comparison-fixture.js';
 import {readyLightArtifact as ready} from '../helpers/light-artifact-navigation.js';
 
@@ -36,6 +36,24 @@ async function checkLenses(page:Page,labsOrder:readonly string[]){
   }
  }
 }
+async function checkColdLenses(page:Page,labsOrder:readonly string[]){
+ const origin=new URL(page.url()).origin,latest=new Set<string>(),pending=new Map<Request,string>();
+ const requested=(request:Request)=>{
+  const url=new URL(request.url());
+  if(request.method()!=='GET'||url.origin!==origin||(!url.pathname.startsWith('/_app/immutable/')&&url.pathname!=='/css/genetics.css'))return;
+  latest.delete(url.href);latest.add(url.href);pending.set(request,url.href);
+  if(latest.size>8)latest.delete(latest.values().next().value!);
+  if(pending.size>8)pending.delete(pending.keys().next().value!);
+ };
+ const settled=(request:Request)=>{pending.delete(request);};
+ page.on('request',requested);page.on('requestfinished',settled);page.on('requestfailed',settled);
+ try{await checkLenses(page,labsOrder);}
+ catch(error){
+  try{await captureOfflineRouteFailureDiagnostics(page,test.info(),[...new Set([...pending.values(),...[...latest].reverse()])].slice(0,8));}
+  catch{/* Evidence must never replace the original acceptance failure. */}
+  throw error;
+ }finally{page.off('request',requested);page.off('requestfinished',settled);page.off('requestfailed',settled);}
+}
 test('static shared lens chrome and keyboard ordering survive closed-client offline launches without changing profile records',async({page,context})=>{
  test.setTimeout(120000);await installDiscussionFixture(context);await installOfflineStartupDiagnostics(context);
  await context.addInitScript(({defaults,demo})=>{
@@ -62,7 +80,7 @@ test('static shared lens chrome and keyboard ordering survive closed-client offl
   expect(await page.evaluate(readComparisonAcceptanceProfile)).toEqual(before);await page.close();
   for(let launch=0;launch<2;launch++){
    const cold=await context.newPage();await cold.clock.setFixedTime(new Date('2026-08-07T12:00:00Z'));
-   loading.push({phase:`offline-cold-${launch+1}`,readyMs:await ready(cold,server.origin)});await checkLenses(cold,changedOrder);
+   loading.push({phase:`offline-cold-${launch+1}`,readyMs:await ready(cold,server.origin)});await checkColdLenses(cold,changedOrder);
    expect(await cold.evaluate(readComparisonAcceptanceProfile)).toEqual(before);await cold.close();
   }
   expect(errors).toEqual([]);expect(csp).toEqual([]);await fs.writeFile(test.info().outputPath('lens-shell-loading.json'),JSON.stringify(loading,null,2));

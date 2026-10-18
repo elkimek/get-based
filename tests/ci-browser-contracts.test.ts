@@ -1,5 +1,7 @@
 import {describe, expect, it} from 'vitest';
 import fs from 'node:fs';
+import strictAssert from 'node:assert/strict';
+import {runInNewContext} from 'node:vm';
 import {chromiumWorkers} from '../scripts/ci-workers.mjs';
 import {allowedKitSkip, validateKitCases, portableKitIdentity, KIT_PROJECTS, type KitCase} from '../scripts/kit-acceptance-reporter.mjs';
 import base from '../playwright.config.js';
@@ -102,4 +104,86 @@ it('qualifies the native Linux font environment before unchanged shipping accept
   expect(step).toContain('7c25be4d78155523080ab85b10277150657ff7dabbcad7037bdd536c9b6d0d08');
   expect(step).toContain('sha256sum --check --strict');
   expect(step).not.toMatch(/sudo.*(?:fonts\.conf|conf\.d)|sed.*(?:fonts\.conf|conf\.d)/);
+});
+
+describe('manual WebKit diagnostic isolation', () => {
+  const workflow = fs.readFileSync('.github/workflows/test.yml', 'utf8');
+  function job(source: string, name: string): string {
+    const match = new RegExp(`^  ${name}:\\n([\\s\\S]*?)(?=^  [a-z_]+:|$(?![\\s\\S]))`, 'm').exec(source);
+    expect(match, `actual ${name} job`).not.toBeNull();
+    return match![1]!;
+  }
+  function expression(source: string, name: string, key: string): string {
+    const value = new RegExp(`^    ${key}: (.+)$`, 'm').exec(job(source, name))?.[1];
+    expect(value, `${name}.${key}`).toBeTruthy();
+    return value!.replace(/^\$\{\{\s*|\s*\}\}$/g, '');
+  }
+  function evaluate(value: string, event: string, diagnostic: string, success = true): unknown {
+    // Evaluate only the actual finite GitHub predicate subset used by these jobs.
+    return runInNewContext(value, {github: {event_name: event}, inputs: {diagnostic}, always: () => true, success: () => success}, {timeout: 100});
+  }
+  function verifyGates(source: string) {
+    const prepare = expression(source, 'prepare', 'if'), aggregate = expression(source, 'test', 'if');
+    const diagnosticJob = expression(source, 'webkit_diagnostics', 'if'), aggregateName = expression(source, 'test', 'name');
+    expect(source).toContain("default: 'off'\n        options: ['off', 'webkit-lens-wearable']");
+    for (const event of ['pull_request', 'push', 'workflow_call', 'workflow_dispatch']) for (const mode of ['off', '', 'webkit-lens-wearable']) {
+      const diagnostic = event === 'workflow_dispatch' && mode === 'webkit-lens-wearable';
+      expect(evaluate(prepare, event, mode), `${event}/${mode} prepare`).toBe(!diagnostic);
+      expect(evaluate(diagnosticJob, event, mode), `${event}/${mode} diagnostic`).toBe(diagnostic);
+      expect(evaluate(aggregateName, event, mode), `${event}/${mode} required-name isolation`).toBe(diagnostic ? 'DIAGNOSTIC normal gate omitted' : 'test');
+      // GitHub injects success() when no explicit status function is present.
+      for (const priorSuccess of [true, false]) {
+        const actual = /\balways\(\)/.test(aggregate) ? aggregate : `success() && (${aggregate})`;
+        expect(evaluate(actual, event, mode, priorSuccess), `${event}/${mode}/${priorSuccess} aggregate`).toBe(!diagnostic);
+      }
+    }
+    const group = /^  group: (.+)$/m.exec(source)?.[1];
+    expect(group).toContain("${{ inputs.full_suite == true && 'full' || 'scoped' }}${{ github.event_name == 'workflow_dispatch' && inputs.diagnostic == 'webkit-lens-wearable' && '-webkit-diagnostic' || '' }}");
+    expect(source).toContain("cancel-in-progress: ${{ github.event_name == 'pull_request' && inputs.full_suite != true }}");
+  }
+  it('keeps every normal event and failed-prepare aggregator intact, including forged diagnostic inputs', () => verifyGates(workflow));
+  it('rejects event bypass, missing always, default-on diagnostics and a misleading required check name', () => {
+    for (const changed of [
+      workflow.replace("    if: github.event_name != 'workflow_dispatch' || inputs.diagnostic != 'webkit-lens-wearable'", "    if: inputs.diagnostic != 'webkit-lens-wearable'"),
+      workflow.replace('    if: always() && (', '    if: ('),
+      workflow.replace("    if: github.event_name == 'workflow_dispatch' && inputs.diagnostic == 'webkit-lens-wearable'", "    if: inputs.diagnostic == 'webkit-lens-wearable'"),
+      workflow.replace('DIAGNOSTIC normal gate omitted', 'test'),
+      workflow.replace("default: 'off'", "default: 'webkit-lens-wearable'"),
+    ]) expect(() => verifyGates(changed)).toThrow();
+  });
+  it('preserves the exact native font commands, identity guards and bounded diagnostic command', () => {
+    const diagnostic = job(workflow, 'webkit_diagnostics');
+    expect(diagnostic).toContain('timeout-minutes: 20');
+    expect(diagnostic).toContain('GETBASED_KIT_ACCEPTANCE_GUARD: \'1\'');
+    expect(diagnostic).toContain('GETBASED_KIT_GUARD_REPORT: .local-notes/ci/webkit-diagnostics/guard.json');
+    expect(diagnostic).toContain('PLAYWRIGHT_KIT_OUTPUT_DIR: .local-notes/ci/webkit-diagnostics/results');
+    expect(diagnostic).toContain('--project=kit-webkit --workers=1 --retries=0');
+    expect(diagnostic.match(/node scripts\/build-sveltekit\.mjs --output dist/g)).toHaveLength(1);
+    expect(diagnostic).toContain('node scripts/ci-artifact.mjs seal --artifact dist');
+    expect(diagnostic).toContain('node scripts/ci-artifact.mjs verify --artifact dist --transport "$DIAGNOSTIC_DIR/transport" --github-env');
+    expect(diagnostic).not.toMatch(/\b(?:secrets|continue-on-error)\b|--(?:grep|headed|shard)\b|needs:/);
+    const start = workflow.indexOf('- name: Qualify the native Chart font before exact canvas acceptance');
+    const run = workflow.indexOf('        run: |\n', start) + '        run: |\n'.length;
+    const end = workflow.indexOf('      - name: Run selected shipping acceptance headlessly', run);
+    const originalCommands = workflow.slice(run, end).trimEnd().split('\n').map(line => line.slice(10)).join('\n');
+    const copied = /          \{\n([\s\S]*?)          \} 2>&1 \| tee/.exec(diagnostic)?.[1];
+    expect(copied?.trimEnd().split('\n').map(line => line.slice(12)).join('\n')).toBe(originalCommands);
+  });
+  it('executes the actual scope guard and rejects missing, duplicate, foreign, skipped or repeated cases', () => {
+    const diagnostic = job(workflow, 'webkit_diagnostics');
+    const block = /          node --input-type=module <<'NODE'\n([\s\S]*?)          NODE/.exec(diagnostic)?.[1];
+    expect(block).toBeTruthy();
+    const guard = block!.split('\n').map(line => line.slice(10)).filter(line => !line.startsWith('import ')).join('\n');
+    const one = {file: 'tests/pwa/sveltekit-lens-shell.spec.ts', project: 'kit-webkit', attemptCount: 1, status: 'passed', expectedStatus: 'passed', annotations: [] as {type: string}[]};
+    const two = {...one, file: 'tests/pwa/sveltekit-wearable-detail.spec.ts'};
+    const report = {execution: true, issues: [], tests: [one, two]};
+    const check = (value: unknown) => runInNewContext(guard, {assert: strictAssert, fs: {readFileSync: () => JSON.stringify(value), writeFileSync: () => {}}, process: {env: {GETBASED_KIT_GUARD_REPORT: 'synthetic', DIAGNOSTIC_DIR: 'synthetic'}}}, {timeout: 100});
+    expect(() => check(report)).not.toThrow();
+    for (const value of [
+      {...report, tests: [one]}, {...report, tests: [one, one]}, {...report, tests: [one, {...two, file: 'tests/pwa/foreign.spec.ts'}]},
+      {...report, tests: [one, {...two, project: 'kit-mobile-webkit'}]}, {...report, tests: [one, {...two, attemptCount: 2}]},
+      {...report, tests: [one, {...two, status: 'skipped', expectedStatus: 'skipped'}]}, {...report, tests: [one, {...two, annotations: [{type: 'skip'}]}]},
+      {...report, tests: [one, {...two, status: 'failed', expectedStatus: 'failed'}]}, {...report, execution: false}, {...report, issues: ['scope failure']},
+    ]) expect(() => check(value)).toThrow();
+  });
 });
