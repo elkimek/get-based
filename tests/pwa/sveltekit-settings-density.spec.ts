@@ -156,22 +156,31 @@ test.describe('original desktop Settings density', () => {
     } finally { await server.close(); }
   });
 
-  test('provider labels remain uncropped in the real Settings container across themes and widths', async ({ page, browserName }) => {
-    const server = await startKitServer(artifact);
-    try {
-      await openSettings(page, server.origin);
-      for (const theme of settingsThemes) {
-        await page.setViewportSize({ width: 1280, height: 900 });
-        await page.locator('#settings-nav-display').click();
-        await page.locator('#settings-tab-display [data-settings-action="open-tweaks"]').click();
-        await page.locator(`[data-tweaks-action="select-theme"][data-theme-id="${theme}"]`).click();
-        await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || 'dark')).toBe(theme);
-        await page.locator('[data-tweaks-action="close"]').click();
-        const closeChat = page.getByRole('button', { name: 'Close chat', exact: true });
-        if (await closeChat.isVisible()) await closeChat.click();
-        if (!await page.locator('#settings-modal').isVisible()) await openStaticSettings(page);
-        await page.locator('#settings-nav-ai').click();
-        await expect(page.locator('[data-custom-settings-view]')).toBeVisible();
+  for (const [themeIndex, theme] of settingsThemes.entries()) {
+    test(`provider labels remain uncropped in the real Settings container: ${theme} across widths`, async ({ page, browserName }) => {
+      const server = await startKitServer(artifact);
+      try {
+        await openSettings(page, server.origin);
+        const selectTheme = async (theme: typeof settingsThemes[number]) => {
+          await page.setViewportSize({ width: 1280, height: 900 });
+          await page.locator('#settings-nav-display').click();
+          await page.locator('#settings-tab-display [data-settings-action="open-tweaks"]').click();
+          await page.locator(`[data-tweaks-action="select-theme"][data-theme-id="${theme}"]`).click();
+          await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || 'dark')).toBe(theme);
+          await page.locator('[data-tweaks-action="close"]').click();
+          const closeChat = page.getByRole('button', { name: 'Close chat', exact: true });
+          if (await closeChat.isVisible()) await closeChat.click();
+          if (!await page.locator('#settings-modal').isVisible()) await openStaticSettings(page);
+          await page.locator('#settings-nav-ai').click();
+          await expect(page.locator('[data-custom-settings-view]')).toBeVisible();
+        };
+        // Retain the original adjacent theme transition, including whether its
+        // extra-theme stylesheet was first used or already loaded by its predecessor.
+        const predecessor = settingsThemes[Math.max(0, themeIndex - 1)]!;
+        if (themeIndex > 0) await selectTheme(predecessor);
+        await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || 'dark')).toBe(predecessor);
+        if (themeIndex > 0) await page.setViewportSize({ width: 320, height: 900 });
+        await selectTheme(theme);
         for (const width of [1280, 800, 700, 390, 320]) {
           await page.setViewportSize({ width, height: 900 });
           const panel = page.locator('[data-ai-settings-view]');
@@ -182,9 +191,9 @@ test.describe('original desktop Settings density', () => {
           for (const button of await buttons.all()) await expectProviderContentFits(button, browserName, label, theme, width);
           if (width <= 700) expect(await buttons.evaluateAll(elements => new Set(elements.map(element => Math.round(element.getBoundingClientRect().top))).size), label).toBe(4);
         }
-      }
-    } finally { await server.close(); }
-  });
+      } finally { await server.close(); }
+    });
+  }
 
   test('provider content bounds reject clipped labels and displaced icons', async ({ page, browserName }) => {
     const server = await startKitServer(artifact);

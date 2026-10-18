@@ -295,7 +295,20 @@ test('Biometric empty-metric calls to action retain readable text across six the
       for (const width of [1280, 390]) {
         await page.setViewportSize({width, height: 900});
         await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
-        const motion = await waitForFiniteVisualAnimations(page.locator('#main-content'));
+        // A desktop-to-mobile resize also animates the closed sidebar out of
+        // view. Settle that actual drawer as well as the cards beneath it.
+        await expect(page.locator('#sidebar-nav')).not.toHaveClass(/\bmobile-open\b/);
+        await expect(page.locator('#sidebar-backdrop')).toBeHidden();
+        const [motion, sidebarMotion] = await Promise.all([
+          waitForFiniteVisualAnimations(page.locator('#main-content')),
+          waitForFiniteVisualAnimations(page.locator('#sidebar-nav')),
+        ]);
+        const sidebarBounds = await page.locator('#sidebar-nav').boundingBox();
+        expect(sidebarBounds).not.toBeNull();
+        if (width === 390) {
+          expect(sidebarBounds!.width).toBeGreaterThan(0);
+          expect(sidebarBounds!.x + sidebarBounds!.width).toBeLessThanOrEqual(0);
+        }
         const nodes = [];
         for (const card of await cards.all()) {
           const cta = card.locator('.wearable-empty-cta');
@@ -322,7 +335,7 @@ test('Biometric empty-metric calls to action retain readable text across six the
           nodes.push({metric: await card.getAttribute('data-empty-metric'), style, result, gradientProofs});
         }
         expect(await profile(page, artifact.state)).toEqual(before);
-        receipts.push({theme, width, nodes, motion});
+        receipts.push({theme, width, nodes, motion, sidebarMotion, sidebarBounds});
       }
     }
     expect(errors).toEqual([]); expect(csp).toEqual([]); expect(external).toEqual([]);
