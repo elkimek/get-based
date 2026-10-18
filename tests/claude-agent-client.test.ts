@@ -92,15 +92,17 @@ describe('Claude event protocol boundaries', () => {
   });
 });
 
+type SyntheticClaudeChild = ChildProcessWithoutNullStreams & {stdout: PassThrough; stderr: PassThrough};
+
 it.each([
   {stderr: 'late CLI failure', code: 7, message: 'late CLI failure'},
   {stderr: '', code: 7, message: 'Claude Agent exited with code 7.'},
   {stderr: '', code: null, message: 'Claude Agent exited with code unknown.'},
 ])('rejects late process failure after stdout drains: $message', async ({stderr, code, message}) => {
   const cwd = mkdtempSync(join(tmpdir(), 'getbased-claude-late-exit-'));
-  let child: ChildProcessWithoutNullStreams | undefined;
+  let child: SyntheticClaudeChild | undefined;
   const spawnImpl = vi.fn(() => {
-    const process = new EventEmitter() as ChildProcessWithoutNullStreams;
+    const process = new EventEmitter() as SyntheticClaudeChild;
     process.stdin = new PassThrough(); process.stdout = new PassThrough(); process.stderr = new PassThrough(); process.kill = vi.fn();
     child = process; return process;
   });
