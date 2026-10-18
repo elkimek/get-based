@@ -223,7 +223,7 @@ jobs:
   kit:
     needs: prepare
     if: needs.prepare.outputs.kit == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -246,7 +246,9 @@ jobs:
         run: node scripts/ci-artifact.mjs verify --artifact dist --transport .local-notes/ci/transport --github-env
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
-          path: ~/.cache/ms-playwright
+          path: |
+            ~/.cache/ms-playwright
+            ~/Library/Caches/ms-playwright
           key: playwright-browsers-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - name: Install selected headless engines
         env:
@@ -258,6 +260,7 @@ jobs:
             npx --no-install playwright install --with-deps "$ENGINE"
           fi
       - name: Qualify the native Chart font before exact canvas acceptance
+        if: runner.os == 'Linux'
         run: |
           set -euo pipefail
           # Chart.js uses Helvetica from the system font family. Reproduce the

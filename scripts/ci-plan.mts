@@ -12,7 +12,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const projects = ['kit-chromium', 'kit-firefox', 'kit-webkit', 'kit-mobile-webkit'] as const;
 type NativeSuite = 'browser' | 'firefox' | 'pwa' | 'display';
 export interface NativeLane {id: string; suite: NativeSuite; engine: 'chromium' | 'firefox' | 'all'; shard: string; coverage: boolean}
-export interface KitLane {id: string; project: typeof projects[number]; engine: 'chromium' | 'firefox' | 'webkit'; shard: string}
+export const KIT_OPFS_FILE = 'tests/pwa/sveltekit-knowledge-base.spec.ts';
+export interface KitLane {id: string; project: typeof projects[number]; engine: 'chromium' | 'firefox' | 'webkit'; shard: string; runner: 'ubuntu-latest' | 'macos-15'; caseScope: 'all' | 'webkit-standard' | 'webkit-opfs'}
 export interface CiPlan {
   schemaVersion: 1; full: boolean; affected: TestPlan | null;
   unit: boolean; performance: boolean; native: boolean; kit: boolean;
@@ -34,9 +35,21 @@ export function createCiPlan(full: boolean, affected: TestPlan | null): CiPlan {
   if (full || affected!.pwa.length) add('pwa', 'all');
   if (full || affected!.browser.some(file => /(?:^|\/)settings-display-pilot\.spec\.[jt]s$/.test(file)) || affected!.pwa.some(file => /(?:^|\/)settings-display-pilot\.spec\.[jt]s$/.test(file))) add('display', 'all');
   const kit: KitLane[] = [];
-  const kitShards = full ? 2 : Math.min(2, affected!.kit.length);
-  if (kitShards) for (const project of projects) for (let shard = 1; shard <= kitShards; shard++) {
-    kit.push({id: `${project}-${shard}-of-${kitShards}`, project, engine: project === 'kit-chromium' ? 'chromium' : project === 'kit-firefox' ? 'firefox' : 'webkit', shard: `${shard}/${kitShards}`});
+  for (const project of projects) {
+    const webkit = project === 'kit-webkit' || project === 'kit-mobile-webkit';
+    const selected = affected?.kit || [];
+    const standardCount = webkit ? selected.filter(file => file !== KIT_OPFS_FILE).length : selected.length;
+    const shards = full ? 2 : Math.min(2, standardCount);
+    for (let shard = 1; shard <= shards; shard++) kit.push({
+      id: `${project}-${shard}-of-${shards}`, project,
+      engine: project === 'kit-chromium' ? 'chromium' : project === 'kit-firefox' ? 'firefox' : 'webkit',
+      shard: `${shard}/${shards}`, runner: 'ubuntu-latest', caseScope: webkit ? 'webkit-standard' : 'all',
+    });
+    // Linux WPE lacks the native sync OPFS backend. Cocoa runs the unchanged
+    // Worker/OPFS case under both existing WebKit project identities instead.
+    if (webkit && (full || selected.includes(KIT_OPFS_FILE))) kit.push({
+      id: `${project}-opfs-1-of-1`, project, engine: 'webkit', shard: '1/1', runner: 'macos-15', caseScope: 'webkit-opfs',
+    });
   }
   return {
     schemaVersion: 1, full, affected,
@@ -88,11 +101,12 @@ export function kitLaneCommand(planValue: CiPlan, id: string): {command: string[
   const plan = qualifiedPlan(planValue);
   const lane = plan.kitMatrix.include.find(value => value.id === id);
   assert(lane, 'The requested Kit lane is selected');
-  const environment = {GETBASED_KIT_PROJECT: lane.project, GETBASED_KIT_SHARD: lane.shard};
-  const command = plan.full
-    ? ['playwright', 'test', '--config=playwright.sveltekit.config.js', `--project=${lane.project}`, `--shard=${lane.shard}`]
-    : testCommands(plan.affected!, 'kit', file => file, environment)[0];
-  assert(command, 'A selected Kit command');
+  const environment = {GETBASED_KIT_PROJECT: lane.project, GETBASED_KIT_SHARD: lane.shard, GETBASED_KIT_CASE_SCOPE: lane.caseScope};
+  const selectedFiles = lane.caseScope === 'webkit-opfs' ? [KIT_OPFS_FILE]
+    : plan.affected?.kit.filter(file => lane.caseScope !== 'webkit-standard' || file !== KIT_OPFS_FILE);
+  const files = plan.full && lane.caseScope !== 'webkit-opfs' ? [] : selectedFiles;
+  assert(files && (plan.full || files.length), 'A selected nonempty Kit file group');
+  const command = ['playwright', 'test', ...files, '--config=playwright.sveltekit.config.js', `--project=${lane.project}`, `--shard=${lane.shard}`];
   return {command, environment: {
     ...environment,
     GETBASED_KIT_ACCEPTANCE_GUARD: '1',
@@ -109,6 +123,7 @@ export function kitCollectionCommand(planValue: CiPlan): {command: string[]; env
   assert(command, 'Selected Kit collection command');
   return {command: [...command, '--list'], environment: {
     GETBASED_KIT_ACCEPTANCE_GUARD: '1',
+    GETBASED_KIT_CASE_SCOPE: 'all',
     GETBASED_KIT_GUARD_REPORT: path.join(root, '.local-notes/ci/kit-collection.json'),
   }};
 }
@@ -131,6 +146,11 @@ function main() {
     assert(Number(Boolean(native)) + Number(Boolean(kit)) + Number(collect) === 1 && !options.has('--full') && !options.has('--base'), 'Execute exactly one frozen CI lane');
     if (!collect) assert.equal(process.env['GITHUB_ACTIONS'], 'true', 'Automatic matrix execution is GitHub Actions-only; use explicit focused tests locally');
     const plan = qualifiedPlan(JSON.parse(fs.readFileSync(output, 'utf8')));
+    if (kit) {
+      const lane = plan.kitMatrix.include.find(value => value.id === kit);
+      assert(lane, 'The requested Kit lane is selected');
+      assert.equal(process.platform, lane.runner === 'macos-15' ? 'darwin' : 'linux', 'Kit acceptance runs on its planned native platform');
+    }
     const selected = collect ? kitCollectionCommand(plan) : native ? nativeLaneCommand(plan, native) : kitLaneCommand(plan, kit!);
     const environment = {...process.env, ...selected.environment};
     const result = spawnSync('npx', ['--no-install', ...selected.command], {cwd: root, stdio: 'inherit', env: headlessBrowserEnvironment(path.join(root, '.local-notes/ci/headless-runtime'), environment)});

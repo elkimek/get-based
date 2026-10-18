@@ -26,6 +26,14 @@ shared [test workflow](../.github/workflows/test.yml) includes the native Displa
 suite and all SvelteKit browser projects. [Release verification](../.github/workflows/release-evidence.yml)
 reuses those full gates and adds separate real-model and container runtime checks.
 
+The [native Knowledge Base acceptance](../tests/pwa/sveltekit-knowledge-base.spec.ts)
+requires real Worker transport and OPFS persistence on Chromium, Firefox, desktop
+WebKit and mobile WebKit. Its WebKit cases run on macOS Cocoa because the pinned
+Linux WPE engine does not implement the required synchronous file-handle backend.
+Other WebKit cases stay on Linux. The planner partitions the same global case
+inventory across these runners; the required aggregate rejects missing or duplicate
+case receipts.
+
 The [static SvelteKit distribution](static-sveltekit.md) has a local focused acceptance
 command, `npm run test:sveltekit`, covering static aliases, CSP, delegated Display
 preferences, offline first use, cold launch, stored data and explicit worker updates.

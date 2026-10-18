@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import path from 'node:path';
-import {createCiPlan, ciPlanOutputs, nativeLaneCommand, kitLaneCommand, kitCollectionCommand} from '../scripts/ci-plan.mjs';
+import {createCiPlan, ciPlanOutputs, nativeLaneCommand, kitLaneCommand, kitCollectionCommand, KIT_OPFS_FILE} from '../scripts/ci-plan.mjs';
 import type {TestPlan} from '../scripts/pr-test-scope.mjs';
 function affected(changes: Partial<TestPlan> = {}): TestPlan {
   return {changedFiles: [], reasons: [], checks: [], unit: [], legacy: [], browser: [], firefox: [], pwa: [], kit: [], performance: false, sync: false, uncovered: [], ...changes};
@@ -12,12 +12,13 @@ describe('isolated CI matrix selection', () => {
     expect(plan.nativeMatrix.include.filter(lane => lane.suite !== 'browser').map(lane => lane.suite)).toEqual(['firefox', 'pwa', 'display']);
     expect(plan.kitMatrix.include.map(lane => [lane.project, lane.shard])).toEqual([
       ['kit-chromium', '1/2'], ['kit-chromium', '2/2'], ['kit-firefox', '1/2'], ['kit-firefox', '2/2'],
-      ['kit-webkit', '1/2'], ['kit-webkit', '2/2'], ['kit-mobile-webkit', '1/2'], ['kit-mobile-webkit', '2/2'],
+      ['kit-webkit', '1/2'], ['kit-webkit', '2/2'], ['kit-webkit', '1/1'],
+      ['kit-mobile-webkit', '1/2'], ['kit-mobile-webkit', '2/2'], ['kit-mobile-webkit', '1/1'],
     ]);
-    expect(plan.kitMatrix.include.map(lane => lane.engine)).toEqual(['chromium', 'chromium', 'firefox', 'firefox', 'webkit', 'webkit', 'webkit', 'webkit']);
+    expect(plan.kitMatrix.include.map(lane => lane.engine)).toEqual(['chromium', 'chromium', 'firefox', 'firefox', 'webkit', 'webkit', 'webkit', 'webkit', 'webkit', 'webkit']);
     expect(plan.unit && plan.performance && plan.native && plan.kit).toBe(true);
     expect(plan.jobs).toEqual({prepare: true, unit: true, native: true, kit: true, performance: true, coverage: true});
-    expect(new Set([...plan.nativeMatrix.include, ...plan.kitMatrix.include].map(lane => lane.id)).size).toBe(15);
+    expect(new Set([...plan.nativeMatrix.include, ...plan.kitMatrix.include].map(lane => lane.id)).size).toBe(17);
   });
   it('keeps the required unit job but acquires no browsers for documentation-only changes', () => {
     const plan = createCiPlan(false, affected({changedFiles: ['README.md']}));
@@ -71,12 +72,13 @@ describe('isolated CI matrix selection', () => {
     const plan = createCiPlan(true, null);
     const receipts = plan.kitMatrix.include.map(lane => {
       const {command, environment} = kitLaneCommand(plan, lane.id);
-      expect(command).toEqual(['playwright', 'test', '--config=playwright.sveltekit.config.js', `--project=${lane.project}`, `--shard=${lane.shard}`]);
+      expect(command).toEqual(['playwright', 'test', ...(lane.caseScope === 'webkit-opfs' ? [KIT_OPFS_FILE] : []), '--config=playwright.sveltekit.config.js', `--project=${lane.project}`, `--shard=${lane.shard}`]);
+      expect(environment['GETBASED_KIT_CASE_SCOPE']).toBe(lane.caseScope);
       expect(environment['GETBASED_KIT_ACCEPTANCE_GUARD']).toBe('1');
       expect(environment['PLAYWRIGHT_KIT_OUTPUT_DIR']).toBe(path.join(process.cwd(), '.local-notes/ci/results', lane.id));
       return environment['GETBASED_KIT_GUARD_REPORT'];
     });
-    expect(new Set(receipts).size).toBe(8);
+    expect(new Set(receipts).size).toBe(10);
   });
   it('serializes exact GitHub matrix outputs and booleans', () => {
     const plan = createCiPlan(false, affected({performance: true})), outputs = ciPlanOutputs(plan);
@@ -103,6 +105,7 @@ it('collects the same complete or affected Kit union without applying a matrix f
   const selected = kitCollectionCommand(createCiPlan(false, affected({kit: files})));
   expect(selected.command).toEqual(['playwright', 'test', ...files, '--config=playwright.sveltekit.config.js', '--list']);
   expect(selected.environment['GETBASED_KIT_ACCEPTANCE_GUARD']).toBe('1');
+  expect(selected.environment['GETBASED_KIT_CASE_SCOPE']).toBe('all');
   expect(selected.environment['GETBASED_KIT_GUARD_REPORT']).toBe(path.join(process.cwd(), '.local-notes/ci/kit-collection.json'));
   expect(() => kitCollectionCommand(createCiPlan(false, affected()))).toThrow('Kit collection requires selected acceptance cases');
 });
@@ -116,4 +119,51 @@ it('bounds affected Kit shards by selected file groups while preserving every se
       expect(kitLaneCommand(plan, lane.id).command).toEqual(['playwright', 'test', ...files, '--config=playwright.sveltekit.config.js', `--project=${lane.project}`, `--shard=${lane.shard}`]);
     }
   }
+});
+
+
+describe('native Cocoa OPFS acceptance placement', () => {
+  it('requires both original WebKit modes on Cocoa and retains the normal Linux matrix', () => {
+    const plan = createCiPlan(true, null);
+    const cocoa = plan.kitMatrix.include.filter(lane => lane.runner === 'macos-15');
+    expect(cocoa.map(lane => [lane.project, lane.shard, lane.caseScope])).toEqual([
+      ['kit-webkit', '1/1', 'webkit-opfs'], ['kit-mobile-webkit', '1/1', 'webkit-opfs'],
+    ]);
+    expect(plan.kitMatrix.include.filter(lane => lane.runner === 'ubuntu-latest')).toHaveLength(8);
+    expect(plan.jobs.kit).toBe(true);
+    for (const lane of plan.kitMatrix.include) {
+      expect(lane.caseScope).toBe(lane.runner === 'macos-15' ? 'webkit-opfs' : lane.engine === 'webkit' ? 'webkit-standard' : 'all');
+    }
+  });
+  it.each([[], ['tests/pwa/sveltekit.spec.ts'], ['tests/pwa/sveltekit.spec.ts', 'tests/pwa/sveltekit-wearable-detail.spec.ts']].map(companions => ({companions})))('partitions KB and $companions without dropping a browser identity', ({companions}) => {
+    const files = [KIT_OPFS_FILE, ...companions];
+    const plan = createCiPlan(false, affected({kit: files}));
+    const cocoa = plan.kitMatrix.include.filter(lane => lane.caseScope === 'webkit-opfs');
+    expect(cocoa).toHaveLength(2);
+    for (const project of ['kit-chromium', 'kit-firefox', 'kit-webkit', 'kit-mobile-webkit']) {
+      const lanes = plan.kitMatrix.include.filter(lane => lane.project === project);
+      expect(lanes.length).toBeGreaterThan(0);
+      const groups = new Map(lanes.map(lane => [lane.caseScope, kitLaneCommand(plan, lane.id).command.filter(arg => arg.endsWith('.spec.ts'))]));
+      const observed = [...groups.values()].flat();
+      expect(observed.toSorted()).toEqual(files.toSorted());
+      expect(new Set(observed).size).toBe(files.length);
+      for (const lane of lanes) {
+        const selected = kitLaneCommand(plan, lane.id).command.filter(arg => arg.endsWith('.spec.ts'));
+        expect(selected.length).toBeGreaterThan(0);
+        if (lane.caseScope === 'webkit-opfs') expect(selected).toEqual([KIT_OPFS_FILE]);
+        if (lane.caseScope === 'webkit-standard') expect(selected).toEqual(companions);
+      }
+    }
+  });
+  it('rejects removed Cocoa lanes and forged platform or case partitions', () => {
+    const plan = createCiPlan(true, null);
+    for (const mutate of [
+      (value: typeof plan) => {value.kitMatrix.include = value.kitMatrix.include.filter(lane => lane.caseScope !== 'webkit-opfs');},
+      (value: typeof plan) => {value.kitMatrix.include.find(lane => lane.caseScope === 'webkit-opfs')!.runner = 'ubuntu-latest';},
+      (value: typeof plan) => {value.kitMatrix.include.find(lane => lane.caseScope === 'webkit-standard')!.caseScope = 'all';},
+    ]) {
+      const corrupted = structuredClone(plan); mutate(corrupted);
+      expect(() => kitLaneCommand(corrupted, corrupted.kitMatrix.include[0]!.id)).toThrow('Exact derived CI scheduling plan');
+    }
+  });
 });

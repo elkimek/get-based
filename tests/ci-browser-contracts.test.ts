@@ -4,7 +4,7 @@ import {chromiumWorkers} from '../scripts/ci-workers.mjs';
 import {allowedKitSkip, validateKitCases, portableKitIdentity, KIT_PROJECTS, type KitCase} from '../scripts/kit-acceptance-reporter.mjs';
 import base from '../playwright.config.js';
 import pwa from '../playwright.pwa.config.js';
-import kit from '../playwright.sveltekit.config.js';
+import kit, {kitCaseSelection} from '../playwright.sveltekit.config.js';
 
 const example = (overrides: Partial<KitCase> = {}): KitCase => ({id: 'case-a', file: 'tests/pwa/sveltekit.spec.ts', project: 'kit-chromium', title: 'acceptance', status: 'passed', expectedStatus: 'passed', ...overrides});
 describe('bounded browser CPU scheduling', () => {
@@ -69,4 +69,23 @@ describe('SvelteKit acceptance collection and terminal-result guard', () => {
     ];
     for (const [file, reason] of cases) expect(fs.readFileSync(`tests/pwa/${file}`, 'utf8')).toContain(reason);
   });
+});
+
+
+it('limits native OPFS placement to its exact maintained file, WebKit modes and platform', () => {
+  expect(kitCaseSelection()).toEqual({testMatch: 'sveltekit*.spec.ts'});
+  for (const project of ['kit-webkit', 'kit-mobile-webkit']) {
+    expect(kitCaseSelection('webkit-standard', project, 'linux')).toEqual({testMatch: 'sveltekit*.spec.ts', testIgnore: '**/sveltekit-knowledge-base.spec.ts'});
+    expect(kitCaseSelection('webkit-opfs', project, 'darwin')).toEqual({testMatch: 'sveltekit-knowledge-base.spec.ts'});
+    expect(() => kitCaseSelection('webkit-standard', project, 'darwin')).toThrow('native platform');
+    expect(() => kitCaseSelection('webkit-opfs', project, 'linux')).toThrow('native platform');
+  }
+  for (const scope of ['webkit-standard', 'webkit-opfs']) {
+    for (const project of [undefined, 'kit-chromium', 'kit-firefox', 'foreign']) expect(() => kitCaseSelection(scope, project, 'darwin')).toThrow('WebKit project');
+  }
+  for (const scope of ['', '*', 'all-but-kb', 'webkit-opfs --headed']) expect(() => kitCaseSelection(scope)).toThrow('Unknown planned');
+  const workflow = fs.readFileSync('.github/workflows/test.yml', 'utf8');
+  expect(workflow).toContain('runs-on: ${{ matrix.runner }}');
+  expect(workflow).toContain('needs: [prepare, unit, native, kit, performance, coverage]');
+  expect(workflow).toContain('Prove every selected shipping case executed exactly once across all shards');
 });
