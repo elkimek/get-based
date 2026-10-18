@@ -1,4 +1,4 @@
-type LightSunFixtureGlobals={__lightSunModuleEvalCount?:unknown;__lightEnvironmentLoaderDepKeys?:unknown[];__deferredSunAnalysisIds?:unknown[];__deferredDeviceAnalysisIds?:unknown[];__lightSunUIEvalCount?:unknown;__lightSunUIRetryEvalCount?:unknown};
+type LightSunFixtureGlobals={__lightSunModuleEvalCount?:unknown;__lightEnvironmentLoaderDepKeys?:unknown[];__deferredSunAnalysisIds?:unknown[];__deferredDeviceAnalysisIds?:unknown[];__lightSunUIEvalCount?:unknown;__lightSunUIRetryEvalCount?:unknown;__lightSunFailureEvalCount?:unknown;__lightSunNetworkFirstPromise?:Promise<unknown>};
 import { routeJavaScript } from '../helpers/browser-static-routes.js';
 import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
@@ -257,7 +257,16 @@ test('Light & Sun loader clears its cached promise after failure', async ({ page
   let moduleRequests = 0;
   await page.route('**/js/app-light-sun-modules.js', route => {
     moduleRequests += 1;
-    return route.abort('failed');
+    // A real fetched module can fail evaluation while retaining its module-map entry.
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/javascript',
+      body: `
+        export const marker = 'light-sun-evaluation-failure';
+        globalThis.__lightSunFailureEvalCount = (globalThis.__lightSunFailureEvalCount || 0) + 1;
+        throw new Error('Light & Sun fixture evaluation failed');
+      `,
+    });
   });
   await openBlankPage(page, '/light-sun-loader-failure-coverage');
 
@@ -265,17 +274,21 @@ test('Light & Sun loader clears its cached promise after failure', async ({ page
     const loader = await ((import(loaderUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/light-sun-loader.js"), "loadLightSunModules" | "isLightSunModulesLoaded"> >);
     const firstPromise = (loader.loadLightSunModules as (...args:Parameters<typeof loader.loadLightSunModules>)=>Promise<unknown>)();
     let firstRejected = false;
+    let firstMessage = '';
     try {
       await firstPromise;
-    } catch {
+    } catch (error) {
       firstRejected = true;
+      firstMessage = String((error as {message?:unknown}|null|undefined)?.message || error);
     }
     const secondPromise = (loader.loadLightSunModules as (...args:Parameters<typeof loader.loadLightSunModules>)=>Promise<unknown>)();
     let secondRejected = false;
+    let secondMessage = '';
     try {
       await secondPromise;
-    } catch {
+    } catch (error) {
       secondRejected = true;
+      secondMessage = String((error as {message?:unknown}|null|undefined)?.message || error);
     }
     const [{ state }, sunStore, deviceStore] = await Promise.all([
       import('/js/state.js'),
@@ -307,6 +320,10 @@ test('Light & Sun loader clears its cached promise after failure', async ({ page
     });
     await new Promise(resolve => setTimeout(resolve, 50));
     return {
+      evaluationFailuresPreserveExactSentinel:
+        firstMessage === 'Light & Sun fixture evaluation failed'
+        && secondMessage === 'Light & Sun fixture evaluation failed',
+      failedModuleEvaluatesOnce: (globalThis as unknown as LightSunFixtureGlobals).__lightSunFailureEvalCount === 1,
       failedLoadRejects: firstRejected && secondRejected,
       failureLeavesLoaderUninitialized: loader.isLightSunModulesLoaded() === false,
       retryUsesAFreshPromise: firstPromise !== secondPromise,
@@ -323,6 +340,73 @@ test('Light & Sun loader clears its cached promise after failure', async ({ page
   for (const [name, passed] of Object.entries(results)) {
     expect(passed, name).toBe(true);
   }
+});
+
+test('Light & Sun network aborts retry per attempt and contain deferred completion failures', async ({ page }) => {
+  const requestUrls: string[] = [];
+  const pageErrors: string[] = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  await page.route('**/js/app-light-sun-modules.js', route => {
+    requestUrls.push(route.request().url());
+    return route.abort('failed');
+  });
+  await openBlankPage(page, '/light-sun-loader-network-failure-coverage');
+  const targetUrl = new URL('/js/app-light-sun-modules.js', page.url()).href;
+  const firstFailure = page.waitForEvent('requestfailed', { predicate: request => request.url() === targetUrl });
+  const first = await page.evaluate(async () => {
+    const loader = await import('/js/light-sun-loader.js');
+    const firstPromise = loader.loadLightSunModules();
+    const concurrentPromise = loader.loadLightSunModules();
+    (globalThis as unknown as LightSunFixtureGlobals).__lightSunNetworkFirstPromise = firstPromise;
+    let firstRejected = false;
+    try { await firstPromise; } catch { firstRejected = true; }
+    return {
+      firstRejected,
+      concurrentCallsShareTheFailedPromise: firstPromise === concurrentPromise,
+      failureLeavesLoaderUninitialized: loader.isLightSunModulesLoaded() === false,
+    };
+  });
+  expect((await firstFailure).failure()?.errorText).toBe('net::ERR_FAILED');
+  expect(requestUrls).toEqual([targetUrl]);
+  expect(first).toEqual({ firstRejected: true, concurrentCallsShareTheFailedPromise: true, failureLeavesLoaderUninitialized: true });
+
+  const secondFailure = page.waitForEvent('requestfailed', { predicate: request => request.url() === targetUrl });
+  const second = await page.evaluate(async () => {
+    const loader = await import('/js/light-sun-loader.js');
+    const secondPromise = loader.loadLightSunModules();
+    const firstPromise = (globalThis as unknown as LightSunFixtureGlobals).__lightSunNetworkFirstPromise;
+    let secondRejected = false;
+    try { await secondPromise; } catch { secondRejected = true; }
+    return { secondRejected, retryUsesAFreshPromise: firstPromise !== undefined && secondPromise !== firstPromise, failureLeavesLoaderUninitialized: loader.isLightSunModulesLoaded() === false };
+  });
+  expect((await secondFailure).failure()?.errorText).toBe('net::ERR_FAILED');
+  expect(requestUrls).toEqual([targetUrl, targetUrl]);
+  expect(second).toEqual({ secondRejected: true, retryUsesAFreshPromise: true, failureLeavesLoaderUninitialized: true });
+
+  const deferredFailure = page.waitForEvent('requestfailed', { predicate: request => request.url() === targetUrl });
+  const completed = await page.evaluate(async () => {
+    const [{ state }, sunStore, deviceStore] = await Promise.all([
+      import('/js/state.js'), import('/js/sun-sessions-store.js'), import('/js/light-devices-store.js'),
+    ]);
+    (state as {importedData:unknown}).importedData = {
+      entries: [], healthGoals: [], supplements: [], sunSessions: [], deviceSessions: [],
+      lightDevices: [{ id: 'loader-failure-device', type: 'sad', lux: 10000, channels: ['circadian'] }],
+    };
+    const endedAt = Date.now();
+    await sunStore.logCompletedSession({ startedAt: endedAt - 5 * 60 * 1000, endedAt, doses: { circadian: 5 } });
+    const deviceSession = await deviceStore.logDeviceSession({ deviceId: 'loader-failure-device', durationMin: 5 });
+    return {
+      deferredCompletionFailuresStayContained:
+        state.importedData.sunSessions!.length === 1
+        && state.importedData.deviceSessions!.length === 1
+        && !!deviceSession,
+    };
+  });
+  expect((await deferredFailure).failure()?.errorText).toBe('net::ERR_FAILED');
+  expect(requestUrls).toEqual([targetUrl, targetUrl, targetUrl]);
+  expect(completed.deferredCompletionFailuresStayContained).toBe(true);
+  expect(await page.evaluate(async () => (await import('/js/light-sun-loader.js')).isLightSunModulesLoaded())).toBe(false);
+  expect(pageErrors).toEqual([]);
 });
 
 test('returning-user startup defers Light UI resources until the Light route opens', async ({ page }) => {

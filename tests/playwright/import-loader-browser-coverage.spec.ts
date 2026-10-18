@@ -1,6 +1,8 @@
 import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
+type ImportLoaderFailureGlobals = { __pdfImportFailureEvalCount?: number; __pdfImportNetworkFirstPromise?: Promise<unknown> };
+
 const moduleUrl = (path:string) => `${path}?importLoaderCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const openBlankPage = createBlankPage({
@@ -105,7 +107,16 @@ test('import loader browser coverage rejects when the pdf import module fails to
   let pdfImportRequests = 0;
   await page.route('**/js/pdf-import.js', route => {
     pdfImportRequests += 1;
-    return route.abort('failed');
+    // Fetched module evaluation failures stay in the browser module map.
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/javascript',
+      body: `
+        export const marker = 'pdf-import-evaluation-failure';
+        globalThis.__pdfImportFailureEvalCount = (globalThis.__pdfImportFailureEvalCount || 0) + 1;
+        throw new Error('PDF import fixture evaluation failed');
+      `,
+    });
   });
   await openBlankPage(page, '/import-loader-failure-coverage');
 
@@ -143,6 +154,10 @@ test('import loader browser coverage rejects when the pdf import module fails to
     loaderUrl: moduleUrl('/js/import-loader.js'),
   });
 
+  expect(failure.firstMessage).toBe('PDF import fixture evaluation failed');
+  expect(failure.secondMessage).toBe('PDF import fixture evaluation failed');
+  expect(await page.evaluate(() => (globalThis as unknown as ImportLoaderFailureGlobals).__pdfImportFailureEvalCount)).toBe(1);
+
   const outcomes = {
     firstLazyImportRejectsWhenPdfImportFails:
       failure.firstRejected === true
@@ -158,6 +173,56 @@ test('import loader browser coverage rejects when the pdf import module fails to
   for (const [name, passed] of Object.entries(outcomes)) {
     expect(passed, name).toBe(true);
   }
+});
+
+test('import loader retries a genuine network abort once per explicit attempt', async ({ page }) => {
+  const requestUrls: string[] = [];
+  await page.route('**/js/pdf-import.js', route => {
+    requestUrls.push(route.request().url());
+    return route.abort('failed');
+  });
+  await openBlankPage(page, '/import-loader-network-failure-coverage');
+  const loaderUrl = moduleUrl('/js/import-loader.js');
+  const targetUrl = new URL('/js/pdf-import.js', page.url()).href;
+  const firstFailure = page.waitForEvent('requestfailed', { predicate: request => request.url() === targetUrl });
+  const first = await page.evaluate(async ({ loaderUrl }) => {
+    const loader = await import(loaderUrl) as Pick<typeof import('../../js/import-loader.js'), 'loadPdfImport'>;
+    const firstPromise = loader.loadPdfImport();
+    const concurrentPromise = loader.loadPdfImport();
+    (globalThis as unknown as ImportLoaderFailureGlobals).__pdfImportNetworkFirstPromise = firstPromise;
+    let firstRejected = false;
+    let firstMessage = '';
+    try { await firstPromise; } catch (error) {
+      firstRejected = true;
+      firstMessage = String((error as { message?: unknown } | null | undefined)?.message || error);
+    }
+    return { firstRejected, firstMessage, concurrentCallsShareTheFailedPromise: firstPromise === concurrentPromise };
+  }, { loaderUrl });
+  expect((await firstFailure).failure()?.errorText).toBe('net::ERR_FAILED');
+  expect(requestUrls).toEqual([targetUrl]);
+  expect(first.firstRejected).toBe(true);
+  expect(first.firstMessage.length).toBeGreaterThan(0);
+  expect(first.concurrentCallsShareTheFailedPromise).toBe(true);
+
+  const secondFailure = page.waitForEvent('requestfailed', { predicate: request => request.url() === targetUrl });
+  const second = await page.evaluate(async ({ loaderUrl }) => {
+    const loader = await import(loaderUrl) as Pick<typeof import('../../js/import-loader.js'), 'loadPdfImport'>;
+    const secondPromise = loader.loadPdfImport();
+    const firstPromise = (globalThis as unknown as ImportLoaderFailureGlobals).__pdfImportNetworkFirstPromise;
+    let secondRejected = false;
+    let secondMessage = '';
+    try { await secondPromise; } catch (error) {
+      secondRejected = true;
+      secondMessage = String((error as { message?: unknown } | null | undefined)?.message || error);
+    }
+    return { secondRejected, secondMessage, retryUsesAFreshPromise: firstPromise !== undefined && secondPromise !== firstPromise, allOutcomesReached: true };
+  }, { loaderUrl });
+  expect((await secondFailure).failure()?.errorText).toBe('net::ERR_FAILED');
+  expect(requestUrls).toEqual([targetUrl, targetUrl]);
+  expect(second.secondRejected).toBe(true);
+  expect(second.secondMessage.length).toBeGreaterThan(0);
+  expect(second.retryUsesAFreshPromise).toBe(true);
+  expect(second.allOutcomesReached).toBe(true);
 });
 
 test('import loader browser coverage single-flights the ordered stylesheet', async ({ page }) => {
