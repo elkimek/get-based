@@ -13,18 +13,18 @@ test('static onboarding first-use provider setup works after offline cold launch
   test.setTimeout(120000);
   const errors: string[] = []; context.on('page', p => p.on('pageerror', error => errors.push(error.message)));
   page.on('pageerror', error => errors.push(error.message));
-  await installDiscussionFixture(context);
+  await installDiscussionFixture(context, {provider: 'custom'});
   await context.addInitScript(() => {
     if (!['http:', 'https:'].includes(location.protocol)) return;
     if (!localStorage.getItem('onboarding-provider-seeded')) {
       localStorage.setItem('onboarding-provider-seeded', '1');
-      localStorage.setItem('labcharts-ai-provider', 'custom');
       localStorage.removeItem('labcharts-custom-url'); localStorage.removeItem('labcharts-custom-key');
-    } else localStorage.setItem('labcharts-ai-provider', 'custom'); // Consent fixture otherwise selects Ollama on every document.
+    }
   });
   const server = await startKitServer(artifact);
   try {
     await page.goto(server.origin + '/app?dev-sw=1'); await ready(page);
+    expect(await page.evaluate(() => localStorage.getItem('labcharts-ai-provider'))).toBe('custom');
     await page.getByRole('button', { name: 'Start guided chat', exact: true }).click();
     await page.locator('#chat-onboard-dob').fill('1990-01-01');
     await page.locator('#chat-onboard-name').fill('Ada <literal>');
@@ -38,6 +38,8 @@ test('static onboarding first-use provider setup works after offline cold launch
     server.state.offline = true; await page.close();
     const cold = await context.newPage(); await cold.emulateMedia({ reducedMotion: 'reduce' });
     await cold.goto(server.origin + '/app?dev-sw=1'); await ready(cold);
+    expect(await cold.evaluate(() => localStorage.getItem('labcharts-ai-provider'))).toBe('custom');
+    expect(await cold.evaluate(() => localStorage.getItem('labcharts-profiles'))).toBe(stored);
     await cold.getByRole('button', { name: 'Start guided chat', exact: true }).click();
     await expect(cold.getByRole('group', { name: 'Onboarding step 3 of 4: Add-ons' })).toBeVisible();
     await cold.getByRole('button', { name: 'Back to previous onboarding step' }).click();

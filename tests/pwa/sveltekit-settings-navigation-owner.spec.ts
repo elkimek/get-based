@@ -1,3 +1,4 @@
+import {openStaticSettings} from './settings-entry.js';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { startKitServer } from './kit-server.js';
@@ -19,7 +20,7 @@ async function startSettings(page: Page, origin: string) {
   await openDisplay(page);
 }
 async function openDisplay(page: Page) {
-  await page.locator('[data-shell-action="open-settings"]:visible').first().click();
+  await openStaticSettings(page);
   await page.locator('#settings-nav-display').click();
   await expect(page.locator('#settings-nav-display')).toHaveAttribute('aria-selected', 'true');
 }

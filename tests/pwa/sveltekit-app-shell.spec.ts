@@ -1,3 +1,4 @@
+import {openStaticSettings} from './settings-entry.js';
 import path from 'node:path';
 import {readFileSync} from 'node:fs';
 import {expect, test} from '@playwright/test';
@@ -63,7 +64,7 @@ test('static Kit owns the complete AppShell and preserves SSR controls through h
         await original.dispose();
         await expect(page.locator('#app-shell-host, #chat-shell-host')).toHaveCount(0);
         await expect(page.locator('#chat-panel')).toHaveCount(1);
-        await page.locator('.settings-btn').click();
+        await openStaticSettings(page);
         await expect(page.locator('#settings-modal-overlay')).toHaveClass(/show/);
         await page.locator('#settings-modal [data-settings-action="close"]').click();
         await expect(page.locator('#settings-modal-overlay')).not.toHaveClass(/show/);

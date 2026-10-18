@@ -1,5 +1,5 @@
 import type { BrowserContext, Page } from '@playwright/test';
-interface DiscussionFixtureOptions { provider?: 'ollama' | 'openrouter'; paused?: boolean; }
+interface DiscussionFixtureOptions { provider?: 'ollama' | 'openrouter' | 'custom'; paused?: boolean; }
 /** Returning-user consent with configurable AI state; no network AI replies are fabricated here. */
 export async function installDiscussionFixture(context: BrowserContext, {provider = 'ollama', paused = false}: DiscussionFixtureOptions = {}): Promise<void> {
   await context.addInitScript({ path: 'node_modules/axe-core/axe.min.js' });
