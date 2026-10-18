@@ -2,17 +2,18 @@ import { createNewMintKeys } from '@cashu/cashu-ts';
 import type { BrowserContext, Page } from '@playwright/test';
 import { makeTestInvoice } from '../fixtures/lightning-invoices.js';
 const mint = 'https://mint.minibits.cash/Bitcoin';
-export async function prepareStaticWallet(context: BrowserContext, seeded = true, withdraw = false): Promise<void> {
+export async function prepareStaticWallet(context: BrowserContext, seeded = true, withdraw = false, node = false): Promise<void> {
   // Deterministic synthetic mint keys and signed invoice; there is no payable backend.
   const synthetic = createNewMintKeys(12, new Uint8Array(32).fill(7), { versionByte: 0 });
   const publicKeys = Object.fromEntries(Object.entries(synthetic.pubKeys).map(([amount, key]) => [amount, Buffer.from(key).toString('hex')]));
-  await context.addInitScript(({ mint, keys, keysetId, invoice, seeded, withdraw }) => {
+  await context.addInitScript(({ mint, keys, keysetId, invoice, seeded, withdraw, node }) => {
     if (!['http:', 'https:'].includes(location.protocol)) return;
     const fixture = window as unknown as { syntheticFundingEnabled: boolean; syntheticFundingRequests: number; syntheticRestoreRequests: number };
     fixture.syntheticFundingEnabled = false; fixture.syntheticFundingRequests = 0; fixture.syntheticRestoreRequests = 0;
     const transport = window.fetch.bind(window);
     window.fetch = (input, init) => {
       const url = new URL(input instanceof Request ? input.url : String(input), location.href);
+      if (node && url.href.startsWith('https://synthetic-routstr.test/v1/')) return transport(location.origin + '/api/__synthetic-node/' + url.href.slice('https://synthetic-routstr.test/v1/'.length), init);
       if (withdraw && url.href.startsWith(mint + '/v1/')) return transport(location.origin + '/api/__synthetic-withdraw/' + url.href.slice((mint + '/v1/').length), init);
       if (url.origin !== location.origin) {
         ++fixture.syntheticFundingRequests;
@@ -35,7 +36,7 @@ export async function prepareStaticWallet(context: BrowserContext, seeded = true
     localStorage.setItem('wallet-funding-fixture-seeded', '1'); localStorage.setItem('labcharts-ai-provider', 'routstr'); localStorage.setItem('labcharts-ai-paused', 'false'); localStorage.setItem('labcharts-chat-backend', 'direct');
     localStorage.setItem('labcharts-routstr-node', 'https://synthetic-routstr.test'); localStorage.setItem('labcharts-cashu-wallet-mint', mint);
     if (seeded) localStorage.setItem('labcharts-cashu-wallet-mnemonic', 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about');
-  }, { mint, keys: publicKeys, keysetId: synthetic.keysetId, invoice: makeTestInvoice(1000), seeded, withdraw });
+  }, { mint, keys: publicKeys, keysetId: synthetic.keysetId, invoice: makeTestInvoice(1000), seeded, withdraw, node });
 }
 
 /** Nonspendable stored proofs exercise the real export codec without mint transport. */

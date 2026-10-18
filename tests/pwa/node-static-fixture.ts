@@ -4,17 +4,10 @@ import { createHash } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { BrowserContext } from '@playwright/test';
 import { prepareStaticWithdraw } from './withdraw-static-fixture.js';
-const node = 'https://synthetic-routstr.test', mint = 'https://mint.minibits.cash/Bitcoin';
+const mint = 'https://mint.minibits.cash/Bitcoin';
 /** Same-origin fixture routes preserve real browser SDK and journal execution. */
 export async function prepareStaticNode(context: BrowserContext) {
-  const synthetic = await prepareStaticWithdraw(context);
-  await context.addInitScript(({ node }) => {
-    const transport = window.fetch.bind(window);
-    window.fetch = (input, init) => {
-      const url = new URL(input instanceof Request ? input.url : String(input), location.href);
-      return url.href.startsWith(node + '/v1/') ? transport(location.origin + '/api/__synthetic-node/' + url.href.slice((node + '/v1/').length), init) : transport(input, init);
-    };
-  }, { node });
+  const synthetic = await prepareStaticWithdraw(context, true);
   const accounts = new Map<string, { proofs: Proof[]; token: string }>(); let deposits = 0, refunds = 0, failReceive = false;
   async function handleRequest(request: IncomingMessage, response: ServerResponse): Promise<boolean> {
     const pathname = new URL(request.url!, 'http://localhost').pathname;

@@ -4,8 +4,8 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { BrowserContext } from '@playwright/test';
 import { prepareStaticWallet } from './wallet-static-fixture.js';
 /** A local, deterministic mint simulator; no external payment or spendable mint. */
-export async function prepareStaticWithdraw(context: BrowserContext) {
-  await prepareStaticWallet(context, true, true);
+export async function prepareStaticWithdraw(context: BrowserContext, node = false) {
+  await prepareStaticWallet(context, true, true, node);
   const keys = createNewMintKeys(12, new Uint8Array(32).fill(7), { versionByte: 0 });
   const publicKeys = Object.fromEntries(Object.entries(keys.pubKeys).map(([amount, key]) => [amount, Buffer.from(key).toString('hex')]));
   const spent = new Set<string>(); let swaps = 0; let melts = 0; let payment = 'UNPAID'; let invoice = '';
