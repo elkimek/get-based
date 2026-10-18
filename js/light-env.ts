@@ -212,6 +212,7 @@ export function renderEnvironmentAssessmentSummary() {
 }
 
 const LIGHT_ENV_ASSESSMENT_OVERLAY_ID = 'light-env-assessment-overlay';
+const lightEnvironmentModalOwners = new WeakMap<HTMLElement, Pick<typeof state, 'currentProfile' | 'importedData'>>();
 
 function getLightEnvironmentAssessmentOverlay() {
   return document.getElementById(LIGHT_ENV_ASSESSMENT_OVERLAY_ID);
@@ -234,7 +235,45 @@ function renderLightEnvironmentAssessmentModal() {
     });
     document.body.appendChild(overlay);
   }
-  overlay.innerHTML = renderEnvironmentHTML({kind:'modal',view:readEnvironmentSection({embedded:true})});
+  const origin = { currentProfile: state.currentProfile, importedData: state.importedData };
+  const owner = lightEnvironmentModalOwners.get(overlay);
+  const sameOwner = owner !== undefined && owner.currentProfile === origin.currentProfile && owner.importedData === origin.importedData;
+  const active = document.activeElement;
+  const identityAttributes = ['data-light-env-action', 'data-light-env-id', 'data-light-env-kind',
+    'data-light-env-key', 'data-light-env-field', 'data-light-env-room-id', 'data-light-env-device',
+    'data-light-env-name', 'data-light-env-tool', 'data-light-env-old-id', 'data-light-env-new-id'];
+  const focused = wasOpen && sameOwner && active instanceof HTMLElement && overlay.contains(active)
+    && active.matches('button, input, select, textarea') && active.hasAttribute('data-light-env-action')
+    ? { element: active, tag: active.tagName, type: active.getAttribute('type'),
+      identity: identityAttributes.map(name => [name, active.getAttribute(name)] as const),
+      profile: state.currentProfile, data: state.importedData } : null;
+  const selection = focused && (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement)
+    && active.selectionStart !== null && active.selectionEnd !== null
+    ? { start: active.selectionStart, end: active.selectionEnd, direction: active.selectionDirection } : null;
+  const html = renderEnvironmentHTML({kind:'modal',view:readEnvironmentSection({embedded:true})});
+  // A save can finish after the user focuses the next control. Preserve that
+  // owned focus across replacement, without taking focus from another owner.
+  const retainFocus = focused && document.activeElement === focused.element
+    && state.currentProfile === focused.profile && state.importedData === focused.data;
+  overlay.innerHTML = html;
+  lightEnvironmentModalOwners.set(overlay, origin);
+  if (focused && retainFocus && overlay.isConnected && getLightEnvironmentAssessmentOverlay() === overlay
+    && overlay.classList.contains('show') && state.currentProfile === focused.profile
+    && state.importedData === focused.data && (!document.activeElement || document.activeElement === document.body)) {
+    const matches = Array.from(overlay.querySelectorAll('[data-light-env-action]')).filter(
+      (element): element is HTMLElement => element instanceof HTMLElement && element.tagName === focused.tag
+        && element.getAttribute('type') === focused.type
+        && focused.identity.every(([name, value]) => element.getAttribute(name) === value));
+    const target = matches.length === 1 ? matches[0] : null;
+    if (target && !target.matches(':disabled, input[type="hidden"]') && !target.closest('[hidden], [inert]')) {
+      target.focus({ preventScroll: true });
+      if (selection && (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)
+        && target.selectionStart !== null && target.selectionEnd !== null) {
+        try { target.setSelectionRange(selection.start, selection.end, selection.direction ?? undefined); }
+        catch { /* Unsupported text selection must not prevent native focus. */ }
+      }
+    }
+  }
   if (!wasOpen) openModalOverlay(overlay, { initialFocus: '.modal-close', focusDelay: 50 });
 }
 
@@ -246,6 +285,7 @@ export function closeLightEnvironmentAssessment() {
   const overlay = getLightEnvironmentAssessmentOverlay();
   if (!overlay) return;
   closeModalOverlay(overlay);
+  lightEnvironmentModalOwners.delete(overlay);
   overlay.remove();
 }
 

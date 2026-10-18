@@ -338,7 +338,7 @@ jobs:
           } > "$directory/memory.txt"
           # A failed read is unavailable evidence, never proof that no OOM occurred.
           set +e
-          timeout 5s sudo -n journalctl --kernel --boot --no-pager --output=short-monotonic \
+          timeout 5s sudo -n journalctl -k --boot --no-pager --output=short-monotonic \
             --grep='(?i)(oom-kill|out of memory|killed process|(?:webkit|WPE(?:Web|Network)|MiniBrowser|NetworkProcess|WebProcess).*(?:segfault|crash|killed|exited|trap))' \
             --lines=160 2>&1 | head -c 65536 > "$directory/kernel-events.txt"
           kernel_status=${PIPESTATUS[0]}

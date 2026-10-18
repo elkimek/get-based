@@ -3,7 +3,7 @@ import{nativeEnvironmentView,nativeBurdenView,expectedGenuineLightChildren,genui
 import {readFileSync} from 'node:fs';
 import {afterEach,beforeEach,expect,it,vi} from 'vitest';
 import {state} from '../js/state.js';
-import {configureLightEnv,renderEnvironmentSection} from '../js/light-env.js';
+import {closeLightEnvironmentAssessment,configureLightEnv,openLightEnvironmentAssessment,refreshLightEnvironmentAssessment,renderEnvironmentSection} from '../js/light-env.js';
 import {environmentActionValue,formatEnvironmentMeasureValue,formatEnvironmentMeasureTime,environmentReadingIcon} from '../js/light-environment-room-presentation.js';
 import type {EnvironmentMeasurementOperations} from '../types/light-env-view.js';
 interface Sample{name:string;data:unknown;expanded:boolean;callbacks:boolean;embedded:boolean;section:string}
@@ -104,4 +104,75 @@ it('has one authored owner for room/section/modal templates with only named conf
   expect(adapter).not.toContain('let html =');expect(adapter).not.toContain('renderRoomExpandedBody');expect(adapter).not.toContain('renderSourcePicker');expect(adapter).not.toContain('overlay.innerHTML = `');
   expect(room.match(/\{@html /g)).toBeNull();expect(room).toContain('<LightEnvironmentAI view={reading.ai}/>');expect(room).toContain('<LightEnvironmentAI view={body.ai}/>');expect(section.match(/\{@html /g)).toBeNull();expect(section).toContain('<LightAuditBlock view={view.audits}/>');expect(section).not.toContain('trustedAuditsHTML');expect(room).toContain('<LightEnvironmentScreen view={screen}/>');
   expect(css).not.toContain('.light-env-block-head');expect(css).not.toContain('.light-audit');expect(css).toContain('.dashboard-widget[data-widget-id="light-environment"]');expect(css).not.toMatch(/\.light-env-(?:room-|picker|chip|quickpick|tool-pill|reading|assessment|section)/);
+});
+
+
+function assessmentFocusFixture() {
+  const profile = state.currentProfile;
+  const room = {id: 'room"[focus]\\entity', name: 'Bedroom', primarySource: 'led-cool'};
+  state.currentProfile = 'light-assessment-focus';
+  (state as {importedData: unknown}).importedData = {
+    lightEnvironment: {rooms: [room], screens: []}, lightMeasurements: [], lightAudits: [],
+  };
+  localStorage.setItem('labcharts-light-env-active-room', room.id);
+  openLightEnvironmentAssessment();
+  const overlay = document.getElementById('light-env-assessment-overlay')!;
+  return {room, overlay, close() {closeLightEnvironmentAssessment(); state.currentProfile = profile;}};
+}
+
+it('retains native room disclosure focus across real assessment refresh without scrolling', () => {
+  const fixture = assessmentFocusFixture();
+  const focus = vi.spyOn(HTMLElement.prototype, 'focus');
+  try {
+    const original = fixture.overlay.querySelector<HTMLButtonElement>('[data-light-env-action="toggle-room-expanded"]')!;
+    expect(original.getAttribute('data-light-env-id')).toBe(fixture.room.id);
+    original.focus();
+    refreshLightEnvironmentAssessment();
+    const replacement = fixture.overlay.querySelector<HTMLButtonElement>('[data-light-env-action="toggle-room-expanded"]')!;
+    expect(original.isConnected).toBe(false);
+    expect(replacement).not.toBe(original);
+    expect(document.activeElement).toBe(replacement);
+    expect(focus).toHaveBeenLastCalledWith({preventScroll: true});
+    expect(replacement.getAttribute('aria-expanded')).toBe('true');
+  } finally {focus.mockRestore(); fixture.close();}
+});
+
+it('retains supported input selection while rendering the current model value', () => {
+  const fixture = assessmentFocusFixture();
+  try {
+    const original = fixture.overlay.querySelector<HTMLInputElement>('[data-light-env-action="update-room-name"]')!;
+    original.focus(); original.value = 'DOM-only draft'; original.setSelectionRange(2, 7, 'backward');
+    fixture.room.name = 'Newest saved room';
+    refreshLightEnvironmentAssessment();
+    const replacement = fixture.overlay.querySelector<HTMLInputElement>('[data-light-env-action="update-room-name"]')!;
+    expect(document.activeElement).toBe(replacement);
+    expect(replacement.value).toBe('Newest saved room');
+    expect([replacement.selectionStart, replacement.selectionEnd, replacement.selectionDirection]).toEqual([2, 7, 'backward']);
+    expect(fixture.room.name).toBe('Newest saved room');
+  } finally {fixture.close();}
+});
+
+it.each(['profile', 'data', 'removed room'] as const)('does not restore a retired control after changing %s before refresh', reason => {
+  const fixture = assessmentFocusFixture();
+  try {
+    const original = fixture.overlay.querySelector<HTMLButtonElement>('[data-light-env-action="toggle-room-expanded"]')!;
+    original.focus();
+    if (reason === 'profile') state.currentProfile = 'another-profile';
+    if (reason === 'data') state.importedData = structuredClone(state.importedData);
+    if (reason === 'removed room') state.importedData!.lightEnvironment!.rooms = [];
+    refreshLightEnvironmentAssessment();
+    expect(original.isConnected).toBe(false);
+    expect(document.activeElement).toBe(document.body);
+  } finally {fixture.close();}
+});
+
+it('does not take focus moved to another owner while rendering the assessment', () => {
+  const fixture = assessmentFocusFixture(), outside = document.createElement('input');
+  document.body.appendChild(outside);
+  try {
+    fixture.overlay.querySelector<HTMLButtonElement>('[data-light-env-action="toggle-room-expanded"]')!.focus();
+    configureLightEnv({getRoomAIView: () => {outside.focus(); return null;}});
+    refreshLightEnvironmentAssessment();
+    expect(document.activeElement).toBe(outside);
+  } finally {fixture.close(); outside.remove();}
 });
