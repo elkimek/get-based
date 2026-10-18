@@ -136,6 +136,12 @@ test('authored prompt and saved summary retain readable themes and reduced-motio
   const host = page.locator('#setup-cards-acceptance');
   for (const width of [320, 1100]) {
     await page.setViewportSize({ width, height: 1000 });
+    // Returning to desktop schedules Chat again; observe that owner before waiting for it to settle.
+    if (width > 799) await expect(page.locator('body')).toHaveClass(/\bchat-(?:autostart-reserved|open)\b/);
+    await expect(page.locator('body')).not.toHaveClass(/\bchat-autostart-reserved\b/, { timeout: 30000 });
+    if (await closeChat.isVisible()) await closeChat.click();
+    await expect(page.locator('body')).not.toHaveClass(/\bchat-open\b/);
+    await expect(page.locator('#chat-backdrop')).toBeHidden();
     for (const theme of ['dark', 'light', 'glass', 'synth-sunrise', 'neuromancer', 'cyberterm']) {
       await page.evaluate(async value => (await import('/js/theme.js')).setTheme(value), theme);
       for (const mode of ['prompt', 'deferred', 'saved-0', 'saved-6', 'saved-10']) {
