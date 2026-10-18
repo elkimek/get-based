@@ -425,6 +425,14 @@ test('custom persona UI keeps instructions usable while data protection stores c
 
 test('cross-device persona apply refreshes the encrypted personality picker UI', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
+  // Finish the returning empty Dashboard's neutral conversation before changing profiles.
+  await expect(page.locator('html[data-app-ready]')).toBeAttached();
+  await expect(page.locator('body')).not.toHaveClass(/\bchat-autostart-reserved\b/);
+  await expect(page.locator('#chat-thread-list .chat-thread-item.active .chat-thread-item-name')).toHaveText('New Conversation');
+  const closeChat = page.getByRole('button', { name: 'Close chat', exact: true });
+  if (await closeChat.isVisible()) await closeChat.click();
+  await expect(page.locator('body')).not.toHaveClass(/\bchat-open\b/);
+  await expect(page.locator('#chat-backdrop')).toBeHidden();
   const setup = await page.evaluate(async () => {
     const [{ state }, cryptoModule, chatLoader, chatApply] = await Promise.all([
       import('/js/state.js'),
