@@ -79,7 +79,13 @@ test('all theme palettes and sunset mode reach the pilot controls', async ({ pag
   await openDisplay(page);
   const button = page.locator('#settings-tab-display [data-unit="EU"]');
   for (const name of ['dark', 'light', 'cyberterm', 'glass', 'synth-sunrise', 'neuromancer']) {
-    await page.evaluate(async name => { await (await import('/js/theme.js')).setTheme(name); }, name);
+    await page.evaluate(async name => {
+      const themes = await import('/js/theme.js');
+      if (await themes.setTheme(name) !== true) throw new Error('Requested theme failed to load: ' + name);
+      const attribute = document.documentElement.getAttribute('data-theme');
+      if (themes.getTheme() !== name || attribute !== (name === 'dark' ? null : name)) throw new Error('Requested theme did not become current: ' + name);
+      await document.fonts.ready;
+    }, name);
     await expect.poll(() => button.evaluate(element => {
       const probe = document.createElement('span');
       probe.style.backgroundColor = 'var(--accent)';

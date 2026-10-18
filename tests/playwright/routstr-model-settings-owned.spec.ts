@@ -25,7 +25,13 @@ test.describe('coarse-pointer touch targets', () => {
     await select.focus(); await page.evaluate(async initial => (await import('/js/routstr-model-settings-component.js')).getRoutstrModelSettingsView()!.setModels({ ...initial.models, selectedModel: 'tinfoil-b' }), initial);
     await expect(select).toBeFocused(); await expect(select).toHaveValue('tinfoil-b');
     for (const theme of ['dark', 'light', 'cyberterm', 'glass', 'synth-sunrise', 'neuromancer']) {
-      await page.evaluate(async theme => { const themes = await import('/js/theme.js'); await themes.loadExtraThemesStylesheet(); themes.setTheme(theme); }, theme);
+      await page.evaluate(async theme => {
+        const themes = await import('/js/theme.js'); await themes.loadExtraThemesStylesheet();
+        if (await themes.setTheme(theme) !== true) throw new Error('Requested theme failed to load: ' + theme);
+        const attribute = document.documentElement.getAttribute('data-theme');
+        if (themes.getTheme() !== theme || attribute !== (theme === 'dark' ? null : theme)) throw new Error('Requested theme did not become current: ' + theme);
+        await document.fonts.ready;
+      }, theme);
       for (const state of ['private', 'regular', 'missing-catalog', 'unconfigured', 'saved-unavailable']) {
         await page.evaluate(async ({ state, initial }) => {
           const view = (await import('/js/routstr-model-settings-component.js')).getRoutstrModelSettingsView()!;
@@ -39,8 +45,9 @@ test.describe('coarse-pointer touch targets', () => {
           expect(await panel.evaluate(element => element.scrollWidth <= element.clientWidth), `${theme} ${state} ${width}`).toBe(true);
           const violations = await panel.evaluate(async element => (await (window as unknown as { axe: typeof import('axe-core') }).axe.run(element, { runOnly: { type: 'tag', values: ['wcag2a','wcag2aa','wcag21aa'] } })).violations.map(item => ({ id: item.id, nodes: item.nodes.map(node => ({ target: node.target, summary: node.failureSummary })) })));
           expect(violations, `${theme} ${state} ${width}`).toEqual([]);
+          const controls = await panel.locator('select:visible,#routstr-private-toggle').evaluateAll(elements => elements.map(element => ({ tag: element.tagName, id: element.id, height: element.getBoundingClientRect().height })));
+          for (const control of controls) expect(control.height, `${theme} ${state} ${width} ${control.tag}#${control.id}`).toBeGreaterThanOrEqual(44);
         }
-        for (const control of await panel.locator('select:visible,#routstr-private-toggle').all()) expect(await control.evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
       }
     }
     await page.evaluate(async () => (await import('/js/routstr-model-settings-component.js')).disposeRoutstrModelSettings());
