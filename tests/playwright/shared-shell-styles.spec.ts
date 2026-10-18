@@ -26,7 +26,11 @@ test(`shared Shell Tailwind preserves native header/footer geometry, colors, con
   await page.goto('/app');await page.evaluate(()=>document.fonts.ready);
   const values=[];
   for(const theme of [selectedTheme]){
-   await page.evaluate(async name=>{const {setTheme}=await import('/js/theme.js');await setTheme(name);await document.fonts.ready;},theme);
+   const appliedTheme=await page.evaluate(async name=>{
+    const themes=await import('/js/theme.js');const ready=await themes.setTheme(name);await document.fonts.ready;
+    return{ready,selected:themes.getTheme(),stored:localStorage.getItem('labcharts-theme'),attribute:document.documentElement.getAttribute('data-theme')};
+   },theme);
+   expect(appliedTheme).toEqual({ready:true,selected:theme,stored:theme,attribute:theme==='dark'?null:theme});
    for(const width of widths){
     await page.setViewportSize({width,height:900});await page.mouse.move(0,899);
     await page.evaluate(()=>{if(document.activeElement instanceof HTMLElement)document.activeElement.blur();});

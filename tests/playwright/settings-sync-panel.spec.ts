@@ -60,9 +60,9 @@ test.describe('coarse-pointer touch targets', () => {
             return result.violations.map(violation => ({ id: violation.id, nodes: violation.nodes.map(node => ({ target: node.target, summary: node.failureSummary })) }));
           });
           expect(violations, `${theme} ${mode} ${viewport.width}`).toEqual([]);
+          for (const button of await panel.locator('button').all()) await expect(button).toHaveCSS('min-height', '44px');
         }
         if (mode === 'blocked') await expect(panel.locator('[data-sync-action="setup-new-direct"]')).toBeDisabled();
-        for (const button of await panel.locator('button').all()) await expect(button).toHaveCSS('min-height', '44px');
       }
     }
     const panel = page.locator('[data-sync-settings-view]');

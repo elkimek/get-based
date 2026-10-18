@@ -17,7 +17,12 @@ test('Privacy theme tokens, responsive fields and keyboard controls remain usabl
   for (const viewport of [{ width: 1280, height: 900 }, { width: 700, height: 900 }, { width: 390, height: 844 }]) {
     await page.setViewportSize(viewport);
     for (const theme of ['dark', 'light', 'cyberterm', 'glass', 'synth-sunrise', 'neuromancer']) {
-      await page.evaluate(async name => { await (await import('/js/theme.js')).setTheme(name); }, theme);
+      const appliedTheme = await page.evaluate(async name => {
+        const themes = await import('/js/theme.js');
+        const ready = await themes.setTheme(name);
+        return { ready, selected: themes.getTheme(), stored: localStorage.getItem('labcharts-theme'), attribute: document.documentElement.getAttribute('data-theme') };
+      }, theme);
+      expect(appliedTheme, `${theme}/${viewport.width}`).toEqual({ ready: true, selected: theme, stored: theme, attribute: theme === 'dark' ? null : theme });
       expect(await panel.evaluate(element => {
         const input = element.querySelector<HTMLInputElement>('#pii-local-url-input')!;
         const card = element.querySelector<HTMLElement>('#privacy-status-card')!;
