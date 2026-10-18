@@ -306,7 +306,7 @@ assert('light environment assessment uses shared overlay lifecycle before remova
     lightEnvSrc.includes("const wasOpen = overlay?.classList?.contains('show') === true;") &&
     lightEnvSrc.includes("overlay.className = environmentRoomClasses('modal-overlay light-env-assessment-overlay')") &&
     /if \(!wasOpen\)\s+openModalOverlay\(overlay, \{ initialFocus: '\.modal-close', focusDelay: 50 \}\)/.test(lightEnvSrc) &&
-    /export function closeLightEnvironmentAssessment\(\) \{\s*const overlay = getLightEnvironmentAssessmentOverlay\(\);\s*if \(!overlay\) return;\s*closeModalOverlay\(overlay\);\s*overlay\.remove\(\);\s*\}/.test(lightEnvSrc) &&
+    /export function closeLightEnvironmentAssessment\(\) \{\s*const overlay = getLightEnvironmentAssessmentOverlay\(\);\s*if \(!overlay\) return;\s*closeModalOverlay\(overlay\);\s*lightEnvironmentModalOwners\.delete\(overlay\);\s*overlay\.remove\(\);\s*\}/.test(lightEnvSrc) &&
     !lightEnvSrc.includes('modal-overlay show light-env-assessment-overlay') &&
     !/overlay\.classList\.(?:add|remove)\(['"]show['"]\)/.test(lightEnvSrc));
 

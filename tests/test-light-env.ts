@@ -558,47 +558,28 @@ const {
     (window as typeof window & { computeLightDeficitAxes?: unknown }).computeLightDeficitAxes === undefined);
 
   const beforeModalSyncData = state.importedData;
-  const originalCreateElement = document.createElement;
-  const originalGetElementById = document.getElementById;
-  const originalBodyAppendChild = document.body.appendChild;
+  const modalDOM = new JSDOM('<!doctype html><html><body></body></html>', { url: 'http://localhost/' });
+  const priorDOMGlobals = new Map<string, PropertyDescriptor | undefined>();
+  const modalGlobals = {
+    document: modalDOM.window.document,
+    HTMLElement: modalDOM.window.HTMLElement,
+    HTMLInputElement: modalDOM.window.HTMLInputElement,
+    HTMLTextAreaElement: modalDOM.window.HTMLTextAreaElement,
+  };
   try {
-    let storedOverlay: unknown = null;
-    let dirtyModal = false;
-    const modalEl = {
-      scrollTop: 33,
-      querySelector: () => null,
-      querySelectorAll: () => dirtyModal
-        ? [{ disabled: false, tagName: 'INPUT', type: 'text', value: 'local edit', defaultValue: '' }]
-        : [],
-    };
-    const overlayEl = {
-      id: '',
-      className: '',
-      style: {},
-      dataset: {},
-      _html: '',
-      classList: {
-        add(cls: string) { if (!overlayEl.className.split(/\s+/).includes(cls)) overlayEl.className += `${overlayEl.className ? ' ' : ''}${cls}`; },
-        remove(cls: string) { overlayEl.className = overlayEl.className.split(/\s+/).filter(x => x && x !== cls).join(' '); },
-        contains(cls: string) { return overlayEl.className.split(/\s+/).includes(cls); },
-      },
-      addEventListener: () => {},
-      removeEventListener: () => {},
-      querySelector: (sel: string) => sel === '.light-env-assessment-modal' ? modalEl : null,
-      querySelectorAll: () => [],
-      remove() { if (storedOverlay === overlayEl) storedOverlay = null; },
-      set innerHTML(value) { overlayEl._html = String(value); },
-      get innerHTML() { return overlayEl._html; },
-    };
-    (document as unknown as { createElement: (tag: string) => unknown }).createElement = tag => tag === 'div' ? overlayEl : originalCreateElement.call(document, tag);
-    (document.body as unknown as { appendChild: (el: unknown) => unknown }).appendChild = el => { storedOverlay = el; return el; };
-    (document as unknown as { getElementById: (id: string) => unknown }).getElementById = id => id === 'light-env-assessment-overlay' ? storedOverlay : originalGetElementById.call(document, id);
-
+    for (const [name, value] of Object.entries(modalGlobals)) {
+      priorDOMGlobals.set(name, Object.getOwnPropertyDescriptor(globalThis, name));
+      Object.defineProperty(globalThis, name, { configurable: true, writable: true, value });
+    }
     (state as { importedData: unknown }).importedData = {
-      lightEnvironment: { rooms: [{ id: 'sync-room', name: 'Office', hoursOccupiedPerDay: 8 }], screens: [] },
+      lightEnvironment: { rooms: [{ id: 'sync-room', name: 'Office', primarySource: 'unknown', hoursOccupiedPerDay: 8 }], screens: [] },
       lightMeasurements: [],
     };
     openLightEnvironmentAssessment();
+    const storedOverlay = document.getElementById('light-env-assessment-overlay');
+    if (!storedOverlay) throw new Error('Expected the real Light assessment overlay');
+    const { hasDirtyFormFields } = await import('../js/utils.js');
+    assert('Native Light assessment fixture starts with pristine form defaults', !hasDirtyFormFields(storedOverlay));
     const initialModalHtml = (storedOverlay as { innerHTML: string } | null)?.innerHTML || '';
     state.importedData.lightEnvironment!.rooms[0].name = 'Bedroom';
     (window.dispatchEvent as unknown as (event: Pick<Event, "type">) => ReturnType<typeof window.dispatchEvent>)({ type: 'labcharts-sync-applied' });
@@ -607,19 +588,33 @@ const {
       new JSDOM((storedOverlay as {innerHTML:string}).innerHTML).window.document.querySelector('.light-env-room-disclosure-name')?.textContent === 'Bedroom' &&
       ![...new JSDOM((storedOverlay as {innerHTML:string}).innerHTML).window.document.querySelectorAll('.light-env-room-disclosure-name')].some(node=>node.textContent === 'Office'));
 
-    dirtyModal = true;
+    const modal = storedOverlay.querySelector('.light-env-assessment-modal');
+    if (!modal) throw new Error('Expected the real Light assessment modal');
+    const dirtyInput = document.createElement('input');
+    dirtyInput.type = 'text';
+    dirtyInput.value = 'local edit';
+    modal.appendChild(dirtyInput);
+    assert('Native Light assessment fixture detects the unsaved edit', hasDirtyFormFields(modal));
     const cleanSyncedHtml = (storedOverlay as { innerHTML: string }).innerHTML;
     state.importedData.lightEnvironment!.rooms[0].name = 'Kitchen';
     (window.dispatchEvent as unknown as (event: Pick<Event, "type">) => ReturnType<typeof window.dispatchEvent>)({ type: 'labcharts-sync-applied' });
     assert('Open Light Environment modal skips sync refresh while form is dirty',
       (storedOverlay as { innerHTML: string } | null)?.innerHTML === cleanSyncedHtml &&
       ![...new JSDOM((storedOverlay as {innerHTML:string}).innerHTML).window.document.querySelectorAll('.light-env-room-disclosure-name')].some(node=>node.textContent === 'Kitchen'));
-    closeLightEnvironmentAssessment();
   } finally {
-    document.createElement = originalCreateElement;
-    document.getElementById = originalGetElementById;
-    document.body.appendChild = originalBodyAppendChild;
-    (state as { importedData: unknown }).importedData = beforeModalSyncData;
+    try {
+      closeLightEnvironmentAssessment();
+    } finally {
+      (state as { importedData: unknown }).importedData = beforeModalSyncData;
+      try {
+        modalDOM.window.close();
+      } finally {
+        for (const [name, descriptor] of priorDOMGlobals) {
+          if (descriptor) Object.defineProperty(globalThis, name, descriptor);
+          else Reflect.deleteProperty(globalThis, name);
+        }
+      }
+    }
   }
 
   const fs = await import('node:fs/promises');
