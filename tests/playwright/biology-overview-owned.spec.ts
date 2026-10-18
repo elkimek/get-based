@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 import {expect,test} from './coverage-fixture.js';
 import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
-import {scopedFrozenStyles} from '../helpers/frozen-style-scope.js';
+import {scopedFrozenStyles,type FrozenStyleBlock} from '../helpers/frozen-style-scope.js';
+import {historicalBiologyNotesStyle} from '../helpers/biology-overview-native-cascade.js';
 import {prepareDemoProfile} from './biology-score-fixture.js';
 import type {BiologyRenderScore} from '../../js/biology-score-render.js';
 import type {BiologyAIState} from '../../js/biology-ai-presentation.js';
@@ -13,9 +14,12 @@ const samples=original.samples.filter(sample=>sample.score&&(sample.kind==='cohe
 const pageOriginal=JSON.parse(fs.readFileSync('tests/fixtures/biology-page-original.json','utf8')) as {styleBlocks:{selector:string;css:string;atRules:{name:string;params:string}[]}[]};
 const sharedNote=pageOriginal.styleBlocks.filter(block=>block.selector==='.biology-scores-note');
 if(sharedNote.length!==1||sharedNote[0]!.atRules.length!==0)throw new Error('Expected one original shared Biology note rule');
+// The complete native cascade restores the later shared reading-summary rule
+// on the reference only; candidate markup and all comparisons remain exact.
+const readingOriginal=JSON.parse(fs.readFileSync('tests/fixtures/biology-reading-original.json','utf8')) as {styleBlocks:FrozenStyleBlock[]};
 const frozenCSS=sharedNote.map(block=>block.css.replace('.biology-scores-note','[data-original] .biology-scores-note')).join('\n')+'\n'+original.styleBlocks.map(block=>{
  let rule=scopedFrozenStyles([{selector:block.selector,declarations:block.declarations,media:null}]);for(const wrapper of [...block.atRules].reverse())rule=`@${wrapper.name} ${wrapper.params}{${rule}}`;return rule;
-}).join('\n');
+}).join('\n')+'\n'+historicalBiologyNotesStyle(readingOriginal.styleBlocks);
 test('authored Biology overview preserves frozen layout themes domains and keyboard actions',async({page},info)=>{
  test.setTimeout(240000);await installDiscussionFixture(page.context());await prepareDemoProfile(page);
  await page.evaluate(async()=>{(await import('/js/views.js')).navigate('biology-scores');});

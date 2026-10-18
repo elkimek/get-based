@@ -11,7 +11,8 @@ const css=frozen.styleBlocks.map(block=>{
  const rule=postcss.parse(block.css);rule.walkRules(node=>{node.selector=node.selectors.map(selector=>`:where([data-original]) ${selector}`).join(',');});
  return block.atRules.reduceRight((text,at)=>`@${at.name} ${at.params}{${text}}`,rule.toString());
 }).join('\n');
-test('owned Biology page preserves frozen geometry, container layouts and typed controls',async({page},info)=>{
+const themes=['dark','light','glass','synth-sunrise','neuromancer','cyberterm'] as const;
+for(const theme of themes)test(`owned Biology page preserves frozen geometry, container layouts and typed controls (${theme})`,async({page},info)=>{
  test.setTimeout(300000);await installDiscussionFixture(page.context());await prepareDemoProfile(page);
  await page.evaluate(async()=> (await import('/js/views.js')).navigate('biology-scores'));
  await page.emulateMedia({reducedMotion:'reduce'});const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
@@ -25,9 +26,16 @@ test('owned Biology page preserves frozen geometry, container layouts and typed 
  const host=page.locator('#biology-page-acceptance');let pairs=0;
  const selector='.biology-scores-page,.lens-page-header,.lens-page-header h2,.lens-page-header p,.biology-score-header-actions,.date-range-filter,.range-btn,.biology-scores-note,.biology-context-review-details,.biology-context-review-summary,.biology-planning-grid,.biology-score-group,.biology-score-group > h3,.biology-score-group > summary,.biology-score-group > p,.biology-section-count,.lens-page-widgets,.biology-score-lens-row,.biology-score-compact,.biology-score-expanded,.biology-score-detail-tools,.dashboard-widget-tool';
  const widths=[320,650,651,850,851,1200,1201,1440];
- for(const width of widths)for(const theme of ['dark','light','glass','synth-sunrise','neuromancer','cyberterm']){
+ for(const [widthIndex,width] of widths.entries()){
   await page.setViewportSize({width,height:1000});await page.mouse.move(0,0);
-  await page.evaluate(async theme=>(await import('/js/theme.js')).setTheme(theme),theme);
+  // Reproduce the original width/theme loop's prior theme and stylesheet state.
+  // Every later width followed the previous width's Cyberterm pass.
+  await page.evaluate(async({theme,previous,widthIndex})=>{
+   const {setTheme}=await import('/js/theme.js');
+   if(widthIndex>0)await setTheme('cyberterm');
+   if(theme!=='dark'||widthIndex>0)await setTheme(previous);
+   await setTheme(theme);
+  },{theme,previous:themes[(themes.indexOf(theme)+themes.length-1)%themes.length]!,widthIndex});
   for(const expanded of [false,true])for(const sample of frozen.samples){
    await expect.poll(()=>host.evaluate((element,{name,expanded,selector})=>{
     const properties=['display','width','height','font-size','font-weight','font-family','line-height','letter-spacing','padding-top','padding-right','padding-bottom','padding-left','margin-top','margin-right','margin-bottom','margin-left','gap','grid-template-columns','grid-auto-flow','align-items','justify-content','border-top-width','border-top-color','border-radius','background-color','color','--biology-panel-offset'];
@@ -54,5 +62,6 @@ test('owned Biology page preserves frozen geometry, container layouts and typed 
    await button.focus();await expect(button).toBeFocused();expect(await button.evaluate(node=>parseFloat(getComputedStyle(node).outlineWidth))).toBeGreaterThanOrEqual(2);controls++;
   }
  }
- expect(errors).toEqual([]);fs.writeFileSync(info.outputPath('biology-page-parity.json'),JSON.stringify({pairs,controls,widths,themes:6,pageErrors:errors}));
+ expect(pairs).toBe(widths.length*frozen.samples.length*2);
+ expect(errors).toEqual([]);fs.writeFileSync(info.outputPath('biology-page-parity.json'),JSON.stringify({pairs,controls,widths,theme,themes:1,pageErrors:errors}));
 });
