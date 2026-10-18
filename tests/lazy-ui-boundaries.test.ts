@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import {scanActionEmission} from './helpers/action-emission.js';
+import {scanActionEmissionFamilies} from './helpers/action-emission.js';
 import {GENERIC_DATA_ATTRIBUTE_OWNERS,REVIEWED_ATTRIBUTE_RECORDS} from './helpers/action-emission-contracts.js';
 import {walkSourceFiles} from '../scripts/source-files.js';
 import { parseModuleSpecifiers } from '../scripts/architecture-map.mjs';
@@ -256,17 +256,36 @@ describe('lazy UI first-interaction ownership', () => {
     },
   );
 
-  it.each(IMPLEMENTATION_OWNED_ACTION_FAMILIES)(
-    '$token is not emitted from an unreviewed cold module',
-    ({ token, allowedFiles }) => {
-      const actualFiles:string[]=[];
-      for(const absolutePath of walkSourceFiles(JS_ROOT)){
-        const relative=repoRelative(absolutePath);
-        const scan=scanActionEmission(fs.readFileSync(absolutePath,'utf8'),relative,token,REVIEWED_ATTRIBUTE_RECORDS[relative]);
-        expect(scan.unclassified,relative).toEqual([]);
-        if(scan.emits)actualFiles.push(relative);
+  // All five original token/owner contracts still examine every authored file.
+  // Batches keep the existing five-second per-case deadline while each source
+  // is read and parsed only once, with no cross-test source or AST memoization.
+  const authoredFiles=walkSourceFiles(JS_ROOT);
+  const batches=Array.from({length:Math.ceil(authoredFiles.length/128)},(_,index)=>({
+    first:index*128,files:authoredFiles.slice(index*128,(index+1)*128),
+  }));
+  it('retains every reviewed cold action owner and every authored source in the scan inventory',()=>{
+    expect(authoredFiles.length).toBeGreaterThan(0);
+    expect(batches.flatMap(batch=>batch.files)).toEqual(authoredFiles);
+    const authored=new Set(authoredFiles.map(repoRelative));
+    for(const {token,allowedFiles}of IMPLEMENTATION_OWNED_ACTION_FAMILIES){
+      expect(allowedFiles.filter(file=>!authored.has(file)),token).toEqual([]);
+    }
+  });
+  it.each(batches)('all cold action ownership families inspect source batch $first',({files})=>{
+    const actualByToken=new Map(IMPLEMENTATION_OWNED_ACTION_FAMILIES.map(({token})=>[token,[] as string[]]));
+    const tokens=IMPLEMENTATION_OWNED_ACTION_FAMILIES.map(({token})=>token);
+    for(const absolutePath of files){
+      const relative=repoRelative(absolutePath);
+      const scans=scanActionEmissionFamilies(fs.readFileSync(absolutePath,'utf8'),relative,tokens,REVIEWED_ATTRIBUTE_RECORDS[relative]);
+      for(const token of tokens){
+        const scan=scans.get(token)!;
+        expect(scan.unclassified,`${relative}/${token}`).toEqual([]);
+        if(scan.emits)actualByToken.get(token)!.push(relative);
       }
-      expect(actualFiles).toEqual([...allowedFiles].sort());
-    },
-  );
+    }
+    const selected=new Set(files.map(repoRelative));
+    for(const {token,allowedFiles}of IMPLEMENTATION_OWNED_ACTION_FAMILIES){
+      expect(actualByToken.get(token),token).toEqual([...allowedFiles].filter(file=>selected.has(file)).sort());
+    }
+  });
 });

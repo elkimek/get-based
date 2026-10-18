@@ -25,36 +25,48 @@ function matches(attribute:string,token:string):boolean{return attribute==='data
  * selector strings alone never emit an attribute. Unknowns remain diagnostic.
  */
 export function scanActionEmission(source:string,file:string,token:string,contracts:SpreadContracts={}):ActionEmission{
- const result:ActionEmission={emits:false,unclassified:[]};
- const emit=(attribute:string)=>{if(matches(attribute,token))result.emits=true;};
- if(!file.endsWith('.svelte')&&!source.includes(token)&&!source.includes('action-attributes.js')&&!source.includes('setAttribute'))return result;
+ return scanActionEmissionFamilies(source,file,[token],contracts).get(token)!;
+}
+/** Inspect every requested family in one source pass. There is no source/AST
+ * cache: a new source string or contract is analyzed anew on every invocation. */
+export function scanActionEmissionFamilies(source:string,file:string,tokens:readonly string[],contracts:SpreadContracts={}):Map<string,ActionEmission>{
+ const results=new Map<string,ActionEmission>(tokens.map(token=>[token,{emits:false,unclassified:[]}]));
+ const active=tokens.filter(token=>file.endsWith('.svelte')||source.includes(token)||source.includes('action-attributes.js')||source.includes('setAttribute'));
+ if(!active.length)return results;
  const script=scriptSource(file,source);
- const namespace=/^data-(.+)-(?:action)?$/.exec(token)?.[1];
- if(namespace&&script.includes('action-attributes.js')&&sourceCallsNamespacedActionAttributes(script,namespace))result.emits=true;
- if(script.includes(token)||script.includes('setAttribute'))withParsedSource(script,syntaxFile(file),parsed=>{
+ const emit=(attribute:string,native=false)=>{for(const token of active){
+  if(native&&!script.includes(token)&&!script.includes('setAttribute'))continue;
+  if(matches(attribute,token))results.get(token)!.emits=true;
+ }};
+ const unclassified=(message:string)=>{for(const token of active)results.get(token)!.unclassified.push(message);};
+ for(const token of active){
+  const namespace=/^data-(.+)-(?:action)?$/.exec(token)?.[1];
+  if(namespace&&script.includes('action-attributes.js')&&sourceCallsNamespacedActionAttributes(script,namespace))results.get(token)!.emits=true;
+ }
+ if(active.some(token=>script.includes(token))||script.includes('setAttribute'))withParsedSource(script,syntaxFile(file),parsed=>{
   function visit(node:ts.Node):void{
    if((ts.isStringLiteralLikeNode(node)&&node.text.includes('<'))||ts.isTemplateExpression(node)){
     // Only an HTML-attribute lexeme is emission; `[data-x]` is a selector.
-    for(const match of (ts.isTemplateExpression(node)?node.getText(parsed):node.text).matchAll(/(?:^|\s)(data-[a-z0-9_.:-]+)\s*=/gi))emit(match[1]!);
+    for(const match of (ts.isTemplateExpression(node)?node.getText(parsed):node.text).matchAll(/(?:^|\s)(data-[a-z0-9_.:-]+)\s*=/gi))emit(match[1]!,true);
    }
-   if(ts.isPropertyAssignment(node)&&ts.isStringLiteralLikeNode(node.name))emit(node.name.text);
+   if(ts.isPropertyAssignment(node)&&ts.isStringLiteralLikeNode(node.name))emit(node.name.text,true);
    if(ts.isCallExpression(node)&&ts.isPropertyAccessExpression(node.expression)&&node.expression.name.text==='setAttribute'){
     const attribute=node.arguments[0];
-    if(attribute&&ts.isStringLiteralLikeNode(attribute))emit(attribute.text);
+    if(attribute&&ts.isStringLiteralLikeNode(attribute))emit(attribute.text,true);
     else {const key='setAttribute('+ (attribute?.getText(parsed)??'') +')';
-     if(Object.hasOwn(contracts,key)){for(const name of contracts[key]!)emit(name);}
-     else result.unclassified.push('unreviewed native attribute name: '+key);
+     if(Object.hasOwn(contracts,key)){for(const name of contracts[key]!)emit(name,true);}
+     else unclassified('unreviewed native attribute name: '+key);
     }
    }
    node.forEachChild(visit);
   }
   visit(parsed);
  });
- if(!file.endsWith('.svelte'))return result;
+ if(!file.endsWith('.svelte'))return results;
  const ast=parse(source,{filename:file,modern:true});const bindings=new Map<string,Node>();
  walk(ast.instance,node=>{if(node.type==='VariableDeclarator'){const key=name(node.id),value=object(node.init);if(key&&value)bindings.set(key,value);}});
  function keys(expression:unknown,seen:Set<string>=new Set()):void{
-  const node=object(expression);if(!node){result.unclassified.push('missing spread expression');return;}
+  const node=object(expression);if(!node){unclassified('missing spread expression');return;}
   const begin=typeof node.start==='number'?node.start:0,end=typeof node.end==='number'?node.end:begin;
   const text=source.slice(begin,end).trim();
   if(Object.hasOwn(contracts,text)){for(const key of contracts[text]!)emit(key);return;}
@@ -64,7 +76,7 @@ export function scanActionEmission(source:string,file:string,token:string,contra
     if(property.type==='SpreadElement'){keys(property.argument,seen);continue;}
     const key=name(property.key);
     if(key&&(!property.computed||object(property.key)?.type==='Literal'))emit(key);
-    else result.unclassified.push('dynamic key: '+text);
+    else unclassified('dynamic key: '+text);
    }return;
   }
   if(node.type==='ConditionalExpression'){keys(node.consequent,seen);keys(node.alternate,seen);return;}
@@ -76,7 +88,7 @@ export function scanActionEmission(source:string,file:string,token:string,contra
   if(node.type==='CallExpression'&&name(node.callee)==='$derived'){
    const args=Array.isArray(node.arguments)?node.arguments:[];keys(args[0],seen);return;
   }
-  result.unclassified.push('unreviewed DOM spread: '+text);
+  unclassified('unreviewed DOM spread: '+text);
  }
  walk(ast.fragment,node=>{
   if(node.type!=='RegularElement'&&node.type!=='SvelteElement')return;
@@ -86,5 +98,5 @@ export function scanActionEmission(source:string,file:string,token:string,contra
    if(attribute.type==='SpreadAttribute')keys(attribute.expression);
   }
  });
- result.unclassified=[...new Set(result.unclassified)];return result;
+ for(const result of results.values())result.unclassified=[...new Set(result.unclassified)];return results;
 }

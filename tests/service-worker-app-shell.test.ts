@@ -2,7 +2,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as ts from 'typescript/unstable/ast';
-import { withParsedSource } from '../scripts/native-typescript-ast.js';
+import { withParsedSource, withParsedSources } from '../scripts/native-typescript-ast.js';
 import { describe, expect, it } from 'vitest';
 import { BRAND_ASSETS } from '../js/brand-assets.js';
 import { parseAppShellEntries } from '../scripts/app-shell-budget.mjs';
@@ -29,8 +29,7 @@ function resolveLocalAsset(importerUrl: string, specifier: string) {
   return path.posix.normalize(path.posix.join(path.posix.dirname(importerUrl), clean));
 }
 
-function moduleSpecifiers(source: string, fileName = 'module.js') {
-  return withParsedSource(source, fileName, (sourceFile) => {
+function collectModuleSpecifiers(sourceFile: ts.SourceFile) {
     const specifiers = new Set<string>();
 
     function addStringLiteral(node: ts.Node | undefined) {
@@ -63,13 +62,10 @@ function moduleSpecifiers(source: string, fileName = 'module.js') {
     }
     visit(sourceFile);
     return [...specifiers];
-  });
 }
 
-function moduleDependencies(moduleUrl: string) {
-  return moduleSpecifiers(readRepoFile(moduleUrl), moduleUrl)
-    .map((specifier) => resolveLocalAsset(moduleUrl, specifier))
-    .filter(Boolean) as string[];
+function moduleSpecifiers(source: string, fileName = 'module.js') {
+  return withParsedSource(source, fileName, collectModuleSpecifiers);
 }
 
 function reachableAppModules() {
@@ -79,20 +75,26 @@ function reachableAppModules() {
   const reachable = new Set<string>();
   const missingFiles: string[] = [];
 
-  function visit(moduleUrl: string) {
-    if (reachable.has(moduleUrl)) return;
-    reachable.add(moduleUrl);
-    const filePath = path.join(REPO_ROOT, moduleUrl.replace(/^\//, ''));
-    if (!existsSync(filePath)) {
-      missingFiles.push(moduleUrl);
-      return;
+  let pending = entries;
+  while (pending.length) {
+    const sources = new Map<string, string>();
+    for (const moduleUrl of pending) {
+      if (reachable.has(moduleUrl)) continue;
+      reachable.add(moduleUrl);
+      const filePath = path.join(REPO_ROOT, moduleUrl.replace(/^\//, ''));
+      if (!existsSync(filePath)) {missingFiles.push(moduleUrl); continue;}
+      sources.set(moduleUrl, readRepoFile(moduleUrl));
     }
-    for (const dependency of moduleDependencies(moduleUrl)) {
-      if (/\.(?:js|mjs)$/.test(dependency)) visit(dependency);
-    }
+    pending = [];
+    if (!sources.size) continue;
+    // One genuine syntax project per frontier, rather than one process/project
+    // per module. Only strings leave the synchronous native AST callback.
+    const dependencies = withParsedSources(sources, files => [...files].flatMap(([moduleUrl, file]) =>
+      collectModuleSpecifiers(file).map(specifier => resolveLocalAsset(moduleUrl, specifier))
+        .filter((dependency): dependency is string => dependency !== null && /\.(?:js|mjs)$/.test(dependency))));
+    pending = [...new Set(dependencies)].filter(dependency => !reachable.has(dependency));
   }
 
-  entries.forEach(visit);
   return { entries, missingFiles, reachable: [...reachable].sort() };
 }
 

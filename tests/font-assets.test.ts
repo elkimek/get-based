@@ -44,6 +44,7 @@ it('shares one browser URL for identical fonts while retaining every font face a
   const root = path.resolve('vendor/fonts');
   const stylesheet = postcss.parse(await fs.readFile(path.join(root, 'fonts.css'), 'utf8'));
   const hashes = new Map<string, string>();
+  const digestsByFilename = new Map<string, string>();
   const faces: {prop: string; value: string; important: boolean}[][] = [];
   for (const rule of stylesheet.nodes) {
     if (rule.type !== 'atrule' || rule.name !== 'font-face') throw new Error('Unexpected font stylesheet structure');
@@ -54,7 +55,10 @@ it('shares one browser URL for identical fonts while retaining every font face a
       if (node.prop === 'src') {
         const filename = /^url\('\.\/([^']+)'\) format\('woff2'\)$/.exec(value)?.[1];
         if (!filename) throw new Error('Unexpected font source syntax');
-        const digest = createHash('sha256').update(await fs.readFile(path.join(root, filename))).digest('hex');
+        // This test never mutates the real font directory. Reuse only its
+        // already-read identical URL within this ordered descriptor proof.
+        let digest = digestsByFilename.get(filename);
+        if (digest === undefined) {digest = createHash('sha256').update(await fs.readFile(path.join(root, filename))).digest('hex'); digestsByFilename.set(filename, digest);}
         expect(hashes.get(digest) ?? filename, 'identical font bytes share a single resource URL').toBe(filename);
         hashes.set(digest, filename);
         value = `sha256:${digest}`;
@@ -88,9 +92,10 @@ it('proves every real legacy alias against current canonical bytes while retaini
   expect(fontUrls).toHaveLength(55);
   expect(plan.urls.filter(url => url.endsWith('.woff2'))).toHaveLength(18);
   expect(Object.entries(plan.aliases)).toHaveLength(37);
+  const bytes = new Map(await Promise.all(fontUrls.map(async url => [url, await fs.readFile(path.join(root, url))] as const)));
   for (const [alias, canonical] of Object.entries(plan.aliases)) {
     expect(plan.urls).not.toContain(alias); expect(plan.urls).toContain(canonical);
-    expect(await fs.readFile(path.join(root, alias))).toEqual(await fs.readFile(path.join(root, canonical)));
+    expect(bytes.get(alias)!.equals(bytes.get(canonical)!), `${alias} and ${canonical}: every byte`).toBe(true);
   }
 });
 it('does not alias a changed payload and fails closed when an omitted candidate cannot be verified', async () => {
@@ -119,7 +124,8 @@ it('native real shell retains all public faces and non-font URLs while measuring
  const worker=await readServiceWorkerSource(relative=>fs.readFile(path.resolve(relative),'utf8')),before=parseAppShellEntries(worker),output=await applyNativeFontPrecache(worker,path.resolve('.')),after=parseAppShellEntries(output),aliases=nativeAliases(output);
  expect(before.filter(url=>url.endsWith('.woff2'))).toHaveLength(55);expect(after.filter(url=>url.endsWith('.woff2'))).toHaveLength(18);expect(Object.entries(aliases)).toHaveLength(37);
  expect(after.filter(url=>!url.endsWith('.woff2'))).toEqual(before.filter(url=>!url.endsWith('.woff2')));
- let removedBytes=0;for(const[alias,canonical]of Object.entries(aliases)){expect(alias).toMatch(/^\/vendor\/fonts\/[^/]+\.woff2$/);expect(after).toContain(canonical);expect(after).not.toContain(alias);const bytes=await fs.readFile('.'+alias);expect(bytes).toEqual(await fs.readFile('.'+canonical));removedBytes+=bytes.length;}
+ const fontBytes=new Map(await Promise.all(before.filter(url=>url.endsWith('.woff2')).map(async url=>[url,await fs.readFile('.'+url)] as const)));
+ let removedBytes=0;for(const[alias,canonical]of Object.entries(aliases)){expect(alias).toMatch(/^\/vendor\/fonts\/[^/]+\.woff2$/);expect(after).toContain(canonical);expect(after).not.toContain(alias);const bytes=fontBytes.get(alias)!;expect(bytes.equals(fontBytes.get(canonical)!),`${alias} and ${canonical}: every byte`).toBe(true);removedBytes+=bytes.length;}
  const originalMetrics=await summarizeAppShell({serviceWorkerSource:worker,artifactRoot:path.resolve('.')}),nativeMetrics=await summarizeAppShell({serviceWorkerSource:output,artifactRoot:path.resolve('.local-notes/native-font-no-output'),sourceRoot:path.resolve('.')});
  expect(nativeMetrics).toEqual({resources:originalMetrics.resources-37,decodedBytes:originalMetrics.decodedBytes-removedBytes});
 });
