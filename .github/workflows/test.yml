@@ -267,6 +267,10 @@ jobs:
           # original capture input; never relax its exact pixel assertions.
           sudo apt-get install --yes --no-install-recommends fonts-urw-base35
           dpkg-query -W fonts-urw-base35
+          # Keep all host font rules; exclude only the same-name Type1 face.
+          # The qualifier enumerates every regular candidate and pins OTF bytes.
+          native_font_config=$(node scripts/ci-native-fonts.mjs)
+          export FONTCONFIG_FILE="$native_font_config"
           chart_family='Helvetica Neue,Helvetica,Arial,sans-serif'
           fc-match -f '%{family}\t%{file}\n' "$chart_family"
           # Record the renderer inputs as well as the exact font bytes.

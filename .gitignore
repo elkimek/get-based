@@ -3586,3 +3586,9 @@ tests/pwa/sveltekit-island-ownership.spec.js.map
 /tests/helpers/cocoa-opfs-context.js
 /tests/helpers/biology-overview-native-cascade.js
 /tests/biology-overview-native-cascade.test.js
+
+# Generated CI font environment qualification
+/scripts/ci-native-fonts.mjs
+/scripts/ci-native-fonts.mjs.map
+/tests/ci-native-fonts.test.js
+/tests/ci-native-fonts.test.js.map

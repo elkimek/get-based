@@ -89,3 +89,17 @@ it('limits native OPFS placement to its exact maintained file, WebKit modes and 
   expect(workflow).toContain('needs: [prepare, unit, native, kit, performance, coverage]');
   expect(workflow).toContain('Prove every selected shipping case executed exactly once across all shards');
 });
+
+
+it('qualifies the native Linux font environment before unchanged shipping acceptance', () => {
+  const workflow = fs.readFileSync('.github/workflows/test.yml', 'utf8');
+  const start = workflow.indexOf('- name: Qualify the native Chart font before exact canvas acceptance');
+  const end = workflow.indexOf('- name: Run selected shipping acceptance headlessly', start);
+  expect(start).toBeGreaterThan(0); expect(end).toBeGreaterThan(start);
+  const step = workflow.slice(start, end);
+  expect(step).toContain("if: runner.os == 'Linux'");
+  expect(step).toContain('node scripts/ci-native-fonts.mjs');
+  expect(step).toContain('7c25be4d78155523080ab85b10277150657ff7dabbcad7037bdd536c9b6d0d08');
+  expect(step).toContain('sha256sum --check --strict');
+  expect(step).not.toMatch(/sudo.*(?:fonts\.conf|conf\.d)|sed.*(?:fonts\.conf|conf\.d)/);
+});
