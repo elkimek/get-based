@@ -28,7 +28,12 @@ test.describe('coarse-pointer touch targets', () => {
     await page.evaluate(async initial => (await import('/js/ppq-settings-component.js')).getPpqSettingsView()!.setModels({ ...initial.models, selectedModel: 'private/b' }), initial);
     await expect(select).toBeFocused(); await expect(input).toHaveValue('edited-synthetic-key'); await expect(select).toHaveValue('private/b');
     for (const theme of ['dark', 'light', 'cyberterm', 'glass', 'synth-sunrise', 'neuromancer']) {
-      await page.evaluate(async theme => { const themes = await import('/js/theme.js'); await themes.loadExtraThemesStylesheet(); themes.setTheme(theme); }, theme);
+      await page.evaluate(async theme => {
+        const themes = await import('/js/theme.js'); await themes.loadExtraThemesStylesheet();
+        if (await themes.setTheme(theme) !== true) throw new Error('Requested theme failed to load: ' + theme);
+        if (themes.getTheme() !== theme || document.documentElement.getAttribute('data-theme') !== (theme === 'dark' ? null : theme)) throw new Error('Requested theme did not become current: ' + theme);
+        await document.fonts.ready;
+      }, theme);
       for (const mode of ['private', 'missing-catalog', 'unconfigured', 'saved-unavailable', 'account', 'picker', 'custom', 'pending', 'invoice', 'success', 'error']) {
         await page.evaluate(async ({ mode, initial }) => {
           const view = (await import('/js/ppq-settings-component.js')).getPpqSettingsView()!;
@@ -47,8 +52,9 @@ test.describe('coarse-pointer touch targets', () => {
           expect(await panel.evaluate(element => element.scrollWidth <= element.clientWidth), `${theme} ${mode} ${width}`).toBe(true);
           const violations = await panel.evaluate(async element => (await (window as unknown as { axe: typeof import('axe-core') }).axe.run(element, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } })).violations.map(item => ({ id: item.id, nodes: item.nodes.map(node => ({ target: node.target, summary: node.failureSummary })) })));
           expect(violations, `${theme} ${mode} ${width}`).toEqual([]);
+          const controls = await panel.locator('button:visible,summary:visible,#ppq-private-toggle:visible').evaluateAll(elements => elements.map(element => ({id: element.id, tag: element.tagName, height: element.getBoundingClientRect().height})));
+          for (const [index, control] of controls.entries()) expect(control.height, `${theme} ${mode} ${width} control ${index} ${control.tag}#${control.id}`).toBeGreaterThanOrEqual(44);
         }
-        for (const control of await panel.locator('button:visible,summary:visible,#ppq-private-toggle:visible').all()) expect(await control.evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
         expect(await panel.locator('[data-clipboard-text]').count()).toBe(0);
       }
     }

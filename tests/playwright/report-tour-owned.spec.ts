@@ -122,8 +122,12 @@ async function mountPairs(page: Page, samples: Sample[]) {
 
 async function setTheme(page: Page, theme: string) {
   await page.evaluate(async theme => {
+    const themes = await import('/js/theme.js');
+    // Default is the original absent-attribute state, using the app's dark fallback.
+    const requested = theme === 'default' ? 'dark' : theme;
+    if (await themes.setTheme(requested) !== true) throw new Error('Requested theme failed to load: ' + theme);
     if (theme === 'default') document.documentElement.removeAttribute('data-theme');
-    else (await import('/js/theme.js')).setTheme(theme);
+    if (themes.getTheme() !== requested || document.documentElement.getAttribute('data-theme') !== (requested === 'dark' ? null : requested)) throw new Error('Requested theme did not become current: ' + theme);
     await document.fonts.ready;
   }, theme);
 }

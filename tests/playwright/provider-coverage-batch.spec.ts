@@ -667,7 +667,8 @@ test('provider panels cover provider switching key saves balances custom API and
       const switchStoresPrevious = localStorage.getItem('labcharts-ai-provider') === 'openrouter';
       sessionStorage.setItem('or_previous_ai_provider', 'venice');
       panels.switchAIProvider('ppq');
-      const switchClearsOAuth = localStorage.getItem('labcharts-ai-provider') === 'ppq';
+      const switchClearsOAuth = localStorage.getItem('labcharts-ai-provider') === 'ppq'
+        && sessionStorage.getItem('or_previous_ai_provider') === null;
 
       panels.toggleAIPause(false);
       const pauseStoresDisabled = localStorage.getItem('labcharts-ai-paused') === 'true' && focusLoads >= 1;
