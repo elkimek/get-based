@@ -296,6 +296,10 @@ it('qualifies decoded runtime syntax, including escaped literals, rather than ra
   } finally { fs.rmSync(root, {recursive: true, force: true}); }
 });
 
+// These integrations each start the real Tailwind CLI and qualify every
+// authored runtime TS/Svelte consumer. Hosted runs take 5-7s under coverage;
+// bound compilation separately from unchanged CSS and shipping budgets.
+const LIGHT_SETUP_INTEGRATION_TIMEOUT_MS = 30_000;
 it('connects the genuine production style builder to this exact ordered owned recipe stylesheet', async () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'getbased-light-setup-built-proof-'));
   const outputPath = path.join(directory, 'light-setup.css');
@@ -308,7 +312,7 @@ it('connects the genuine production style builder to this exact ordered owned re
     expect(actual).toBe(expected);
     expect(actual).toBe(factorLightSetupStyles(accessibleNativeCSS, lightSetupUtilityRecipes).css);
   } finally {fs.rmSync(directory, {recursive: true, force: true});}
-});
+}, LIGHT_SETUP_INTEGRATION_TIMEOUT_MS);
 
 for (const stale of [false, true]) it(`checks the complete independent Light setup recipe output (${stale ? 'stale' : 'current'})`, async () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'getbased-light-setup-recipe-check-'));
@@ -322,4 +326,4 @@ for (const stale of [false, true]) it(`checks the complete independent Light set
     else await buildLightSetupStyles({outputPath, check: true});
     expect(fs.readFileSync(outputPath, 'utf8')).toBe(expected);
   } finally {fs.rmSync(directory, {recursive: true, force: true});}
-});
+}, LIGHT_SETUP_INTEGRATION_TIMEOUT_MS);

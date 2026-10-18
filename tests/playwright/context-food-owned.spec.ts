@@ -53,7 +53,10 @@ test('authored food signals preserve source groups, accessible themes, keyboard 
   expect(await page.evaluate(async () => (await import('/js/state.js')).state.importedData.changeHistory)).toEqual([]);
 });
 test('authored food signals open actual Chat and dispatch their original prompt once', async ({ page }) => {
-  await page.goto('/app', { waitUntil: 'load' }); await seed(page); await open(page);
+  await page.goto('/app', { waitUntil: 'load' });
+  await expect(page.locator('html[data-app-ready]')).toBeAttached();
+  await expect(page.locator('body')).not.toHaveClass(/\bchat-autostart-reserved\b/);
+  await seed(page); await open(page);
   await page.evaluate(async () => { Reflect.set(window, 'foodPrompts', []); (await import('/js/context-card-lifestyle-runtime.js')).configureContextCardLifestyleRuntimeDeps({ useChatPrompt: text => { (Reflect.get(window, 'foodPrompts') as string[]).push(text); } }); });
   await page.locator('#detail-modal').getByRole('button', { name: 'Discuss with AI', exact: true }).click(); await expect(page.locator('#modal-overlay')).not.toHaveClass(/show/); await expect(page.locator('#chat-panel')).toHaveClass(/open/);
   await expect.poll(() => page.evaluate(() => Reflect.get(window, 'foodPrompts'))).toEqual(['What food contaminants should I be concerned about based on my diet?']);

@@ -1,3 +1,4 @@
+import {openStaticSettings} from './settings-entry.js';
 import path from 'node:path';
 import { getDecodedToken } from '@cashu/cashu-ts';
 import { expect, test, type Page } from '@playwright/test';
@@ -6,7 +7,7 @@ import { prepareStaticWallet, seedStaticWalletMints } from './wallet-static-fixt
 const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
 const mint = 'https://mint.minibits.cash/Bitcoin', other = 'https://mint.other.test';
 async function ready(page: Page) { await expect(page.locator('html[data-app-ready][data-shell-framework="sveltekit"]')).toBeAttached({ timeout: 30_000 }); await page.evaluate(() => navigator.serviceWorker.ready.then(() => true)); await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller), { timeout: 30_000 }).toBe(true); }
-async function wallet(page: Page) { await page.locator('[data-shell-action="open-settings"]').click(); await page.locator('#settings-nav-ai').click(); }
+async function wallet(page: Page) { await openStaticSettings(page); await page.locator('#settings-nav-ai').click(); }
 async function exported(page: Page) { await page.locator('[data-routstr-wallet-action="toggle-wallet-menu"]').click(); await page.locator('[data-routstr-wallet-action="wallet-action"][data-wallet-action="backup"]').click(); await expect(page.locator('[data-wallet-export-view] textarea')).toBeAttached(); }
 test('wallet mints and readonly private exports preserve per-mint funds and recovery across cached cold launch', async ({ page, context }) => {
   test.setTimeout(150_000); await prepareStaticWallet(context);

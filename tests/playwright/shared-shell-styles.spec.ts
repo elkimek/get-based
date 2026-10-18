@@ -9,7 +9,8 @@ const candidate=Object.fromEntries(sheets.map(name=>[name,readFileSync(`css/${na
 const themes=['dark','light','cyberterm','glass','synth-sunrise','neuromancer'];
 const widths=[320,393,768,799,800,1440];
 
-test('shared Shell Tailwind preserves native header/footer geometry, colors, controls and focus across six themes and six widths',async({page})=>{
+for (const selectedTheme of themes) {
+test(`shared Shell Tailwind preserves native header/footer geometry, colors, controls and focus across six widths: ${selectedTheme}`,async({page})=>{
  test.setTimeout(60_000);
  let native=true;
  for(const name of sheets)await page.route(`**/css/${name}.css`,route=>route.fulfill({contentType:'text/css',body:(native?original:candidate)[name]!}));
@@ -24,7 +25,7 @@ test('shared Shell Tailwind preserves native header/footer geometry, colors, con
  async function snapshots(){
   await page.goto('/app');await page.evaluate(()=>document.fonts.ready);
   const values=[];
-  for(const theme of themes){
+  for(const theme of [selectedTheme]){
    await page.evaluate(async name=>{const {setTheme}=await import('/js/theme.js');await setTheme(name);await document.fonts.ready;},theme);
    for(const width of widths){
     await page.setViewportSize({width,height:900});await page.mouse.move(0,899);
@@ -48,5 +49,6 @@ test('shared Shell Tailwind preserves native header/footer geometry, colors, con
   return values;
  }
  const before=await snapshots();native=false;const after=await snapshots();
- expect(before).toHaveLength(36);expect(after).toEqual(before);expect(errors).toEqual([]);
+ expect(before).toHaveLength(6);expect(after).toEqual(before);expect(errors).toEqual([]);
 });
+}

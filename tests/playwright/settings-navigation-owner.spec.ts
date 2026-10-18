@@ -2,6 +2,8 @@ import { expect, test, type Page } from '@playwright/test';
 
 test.use({ serviceWorkers: 'block', viewport: { width: 1280, height: 900 } });
 async function openDisplay(page: Page) {
+  const closeChat = page.getByRole('button', {name: 'Close chat', exact: true});
+  if (await closeChat.isVisible()) await closeChat.click();
   await page.locator('[data-shell-action="open-settings"]:visible').first().click();
   await page.locator('#settings-nav-display').click();
   await expect(page.locator('#settings-nav-display')).toHaveAttribute('aria-selected', 'true');

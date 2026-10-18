@@ -1,3 +1,4 @@
+import {nativeEnvironmentView,nativeBurdenView,expectedGenuineLightChildren} from '../helpers/light-genuine-child-native-receipts.js';
 import fs from 'node:fs';
 import {expect,test} from './coverage-fixture.js';
 import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
@@ -6,7 +7,7 @@ interface Sample{name:string;data:unknown;expanded:boolean;callbacks:boolean;emb
 const original=JSON.parse(fs.readFileSync('tests/fixtures/light-environment-room-original.json','utf8')) as {now:number;cases:Sample[];styleBlocks:FrozenStyleBlock[]};
 const auditStyles=(JSON.parse(fs.readFileSync('tests/fixtures/light-audit-original.json','utf8')) as {styleBlocks:FrozenStyleBlock[]}).styleBlocks;
 const names=['empty','empty-standalone','Bedroom/false','Bedroom/true','Office/true','source-unknown','hours-0','skipped','nested-and-portable','all-readings','older-and-qualitative'];
-const examples=original.cases.filter(sample=>names.includes(sample.name));
+const examples=original.cases.filter(sample=>names.includes(sample.name)).map(sample=>({...sample,section:expectedGenuineLightChildren(sample.section),burdenView:nativeBurdenView(),measurementView:nativeEnvironmentView('measurement'),roomView:nativeEnvironmentView('room')}));
 test('authored rooms preserve independent layouts and readable accessible editor controls',async({page},info)=>{
   test.setTimeout(120000);await installDiscussionFixture(page.context());await page.goto('/app');await expect(page.locator('html[data-app-ready]')).toBeAttached();await page.emulateMedia({reducedMotion:'reduce'});
   const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
@@ -28,7 +29,7 @@ test('authored rooms preserve independent layouts and readable accessible editor
     try{for(const sample of examples){
       (state as {importedData:unknown}).importedData=structuredClone(sample.data);
       localStorage.setItem('labcharts-light-env-active-room',sample.expanded?String(state.importedData?.lightEnvironment?.rooms[0]?.id||''):'__none__');
-      env.configureLightEnv({getMeasurementsForRoom:(id:unknown)=>(state.importedData?.lightMeasurements||[]).filter(m=>m.roomId===id),renderBurdenInterp:sample.callbacks?()=>'<div data-fixture-burden>Trusted burden verdict</div>':null,renderMeasurementAIInline:sample.callbacks?()=>'<span data-fixture-reading-ai>Trusted reading verdict</span>':null,renderRoomAIBlock:sample.callbacks?()=>'<div data-fixture-room-ai>Trusted room verdict</div>':null,renderScreenAIBlock:null});
+      env.configureLightEnv({getMeasurementsForRoom:(id:unknown)=>(state.importedData?.lightMeasurements||[]).filter(m=>m.roomId===id),getBurdenInterpretationView:sample.callbacks?()=>sample.burdenView:null,getMeasurementAIView:sample.callbacks?()=>sample.measurementView:null,getRoomAIView:sample.callbacks?()=>sample.roomView:null,getScreenAIView:null});
       const pair=document.createElement('div');pair.dataset.pair=sample.name;
       const reference=document.createElement('section');reference.dataset.original='';reference.innerHTML=sample.section;
       const current=document.createElement('section');current.dataset.current='';current.innerHTML=env.renderEnvironmentSection({embedded:sample.embedded});

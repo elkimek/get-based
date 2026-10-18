@@ -6,6 +6,10 @@ import path from 'node:path';
 import postcss from 'postcss';
 import { expect, it } from 'vitest';
 import { buildLightSetupStyles } from '../scripts/build-styles.mjs';
+// Real Tailwind compilation includes whole-runtime TS/Svelte qualification.
+// CI coverage takes 5-7s per independent build; retain a bounded integration
+// deadline without changing any stylesheet, stale-output or resource assertion.
+const LIGHT_SETUP_INTEGRATION_TIMEOUT_MS = 30_000;
 it('retains the lazy stylesheet URL, valid numeric state selectors and scoped utilities without Preflight', async () => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'getbased-light-setup-styles-'));
   try {
@@ -47,7 +51,7 @@ it('retains the lazy stylesheet URL, valid numeric state selectors and scoped ut
     expect(nativeAI.every(selector => selector.includes(':not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *))'))).toBe(true);
     expect(source).toContain('[data-tier="2"]'); expect(source).toContain('[data-idx="5"]');
   } finally { await fs.rm(directory, { recursive: true, force: true }); }
-});
+}, LIGHT_SETUP_INTEGRATION_TIMEOUT_MS);
 
 for (const stale of [false, true]) it(`qualifies Light setup ${stale ? 'stale rejection' : 'complete CSS equality'} without rewriting output`, async () => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'getbased-light-setup-check-'));
@@ -59,4 +63,4 @@ for (const stale of [false, true]) it(`qualifies Light setup ${stale ? 'stale re
     else await buildLightSetupStyles({ outputPath, check: true });
     expect(await fs.readFile(outputPath, 'utf8')).toBe(source);
   } finally { await fs.rm(directory, { recursive: true, force: true }); }
-});
+}, LIGHT_SETUP_INTEGRATION_TIMEOUT_MS);

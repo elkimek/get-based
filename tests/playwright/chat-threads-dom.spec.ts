@@ -280,12 +280,11 @@ test('desktop conversations move into projects with drag and drop', async ({ pag
   });
   await page.goto('/app', { waitUntil: 'load' });
   const original = await page.evaluate(async () => {
-    const [{ state }, threads, panelModule] = await Promise.all([import('/js/state.js'), import('/js/chat-threads.js'), import('/js/chat-panel.js')]);
-    await panelModule.loadChatPresentationStylesheets();
-    const panel = document.getElementById('chat-panel');
-    panel?.classList.add('open');
-    panel?.removeAttribute('inert');
-    document.getElementById('chat-thread-rail')?.classList.add('open');
+    const [{ state }, threads] = await Promise.all([import('/js/state.js'), import('/js/chat-threads.js')]);
+    // The lazy composition installs actions and synchronizes the Svelte layout,
+    // including the conversation rail's inert state.
+    await (await import('/js/chat-loader.js')).openChatPanel();
+    if (!document.getElementById('chat-thread-rail')?.classList.contains('open')) threads.toggleThreadRail();
     document.getElementById('tour-overlay')?.remove();
     const snapshot = { chatThreads: state.chatThreads, currentThreadId: state.currentThreadId };
     const now = new Date().toISOString();
@@ -307,6 +306,7 @@ test('desktop conversations move into projects with drag and drop', async ({ pag
     document.getElementById('tour-overlay')?.remove();
     document.getElementById('tour-popup')?.remove();
   });
+  await expect(page.locator('#chat-thread-rail')).not.toHaveAttribute('inert');
   const source = page.locator('.chat-thread-item[data-thread-id="drag-me"] .chat-thread-item-main');
   const projectTarget = page.locator('[data-chat-project-drop="Metabolic"] .chat-thread-group-title');
   const sourceBox = await source.boundingBox();

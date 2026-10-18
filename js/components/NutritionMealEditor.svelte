@@ -2,7 +2,7 @@
   import type { NutritionEditorView } from '../nutrition-editor-model.js';
   import { MACRO_REVIEW_FIELDS, DETAILED_REVIEW_GROUPS, NUTRITION_PHOTO_PRIVACY } from '../nutrition-editor-model.js';
   import { MEAL_TYPES } from '../nutrition-presentation-model.js';
-  import { button, copy, field, input, editorSummary as summary, focus , textAction } from '../nutrition-view-classes.js';
+  import { button, readableCopy as copy, field, input, editorSummary as summary, focus , textAction } from '../nutrition-view-classes.js';
   import Navigation from './NutritionEditorNavigation.svelte';
   import ModelPicker from './NutritionMealModelPicker.svelte';
   let { view }: { view: NutritionEditorView } = $props();

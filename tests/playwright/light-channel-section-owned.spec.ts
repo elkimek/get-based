@@ -1,11 +1,12 @@
 import fs from 'node:fs';
 import { expect, test } from './coverage-fixture.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
+import {prepareDemoProfile} from './biology-score-fixture.js';
 const original = JSON.parse(fs.readFileSync('tests/fixtures/light-channel-section-original.json', 'utf8')) as { css: string; location: string[] };
 test('channel sections preserve container and location styles, keyboard actions and accessible narrow layouts', async ({ page }, info) => {
   test.setTimeout(120000);
-  await installDiscussionFixture(page.context());
-  await page.goto('/app'); await expect(page.locator('html[data-app-ready]')).toBeAttached();
+  await installDiscussionFixture(page.context(),{paused:true});
+  await prepareDemoProfile(page); await expect(page.locator('html[data-app-ready]')).toBeAttached();
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await page.evaluate(async original => {
@@ -15,7 +16,7 @@ test('channel sections preserve container and location styles, keyboard actions 
       if (rule instanceof CSSMediaRule) return `@media ${rule.conditionText}{${scope(rule.cssRules)}}`;
       const style = rule as CSSStyleRule; return `:where([data-original]) ${style.selectorText}{${style.style.cssText}}`;
     }).join('\n');
-    const style = document.createElement('style'); style.textContent = scope(sheet.cssRules); document.head.append(style);
+    const style = document.createElement('style'); style.textContent = scope(sheet.cssRules) + '@media(pointer:coarse),(max-width:480px){[data-original] [data-light-page-action="request-precise-location"]{min-height:44px;min-width:44px}}'; document.head.append(style);
     const host = document.createElement('div'); host.id = 'channel-section-acceptance'; host.style.cssText = 'position:fixed;inset:0;z-index:20000;overflow:auto;background:var(--bg-primary);padding:12px'; document.body.append(host);
     const { renderHTML } = await import('/js/components/LightPagePresentation.svelte.html.js');
     const channel = await import('/js/light-channel-view.js'); const page = await import('/js/light-page-view.js');
@@ -25,7 +26,7 @@ test('channel sections preserve container and location styles, keyboard actions 
     const dashboardHTML = page.renderDashboardLightChannelPills();
     const pairs: { old: string; current: string; dashboard: boolean }[] = [];
     for (const location of [null, { country: false }, { country: true, latitude: '50' }]) {
-      pairs.push({ old: `<div class="light-channels-section" data-light-page-presentation><p class="light-section-hint gb:light-page:text-xs gb:light-page:text-secondary">Channel lead</p>${channel.renderChannelPills({})}${location ? original.location[location.country ? 1 : 0] : ''}</div>`, current: renderHTML({ kind: 'channels', lead: 'Channel lead', pills: channelPills, location }), dashboard: false });
+      pairs.push({ old: `<div class="light-channels-section" data-light-page-presentation><p class="light-section-hint gb:light-page:text-secondary">Channel lead</p>${channel.renderChannelPills({})}${location ? original.location[location.country ? 1 : 0] : ''}</div>`, current: renderHTML({ kind: 'channels', lead: 'Channel lead', pills: channelPills, location }), dashboard: false });
     }
     for (const total of [0, 1]) {
       const lead = total === 0 ? 'No light sessions yet. Log sunlight or a device session to see which pathways may have received a signal.' : 'Seven-day light rhythm, with sunlight and device signals kept separate.';
@@ -61,6 +62,8 @@ test('channel sections preserve container and location styles, keyboard actions 
     const violations = await host.evaluate(async element => (await (window as unknown as { axe: typeof import('axe-core') }).axe.run(element, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } })).violations.map(item => ({id:item.id,nodes:item.nodes.map(node=>({target:node.target,summary:node.failureSummary}))})));
     expect(violations, `${theme} accessibility`).toEqual([]);
   }
+  const prepared=await page.evaluate(async()=>{const result=await(await import('/js/views.js')).navigate('dashboard');return{completed:result!==false,route:(await import('/js/state.js')).state.currentView,widgets:!!document.querySelector('#main-content .dashboard-widgets')};});
+  expect(prepared,'Actual Dashboard route prepares rendered widget actions').toEqual({completed:true,route:'dashboard',widgets:true});
   await page.evaluate(async () => {
     const calls: string[] = []; Object.assign(window, { channelSectionCalls: calls });
     (await import('/js/light-page-view.js')).configureLightPageView({ requestPreciseLocation: () => calls.push('location') });

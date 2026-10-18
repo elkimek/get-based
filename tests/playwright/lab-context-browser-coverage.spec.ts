@@ -215,8 +215,12 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
       const groupSettingsForProfile = state.importedData.contextSourceSettings;
       state.importedData.contextSourceSettings = {};
       localStorage.setItem('labcharts-active-profile', 'lab-context-other-profile');
+      outcomes.peerProfileSelectionCannotRedirectThisTabGroupSetting = labContext.isGroupInAIContext('specialty-coverage') === false;
+      // A real profile switch updates this tab's owner as well as the shared preference.
+      state.currentProfile = 'lab-context-other-profile';
       const groupDefaultsOnInOtherProfile = labContext.isGroupInAIContext('specialty-coverage') === true;
       localStorage.setItem('labcharts-active-profile', groupProfile || 'lab-context-browser-coverage');
+      state.currentProfile = groupProfile || 'lab-context-browser-coverage';
       state.importedData.contextSourceSettings = groupSettingsForProfile;
       const groupScopedToProfile = labContext.isGroupInAIContext('specialty-coverage') === false;
       localStorage.removeItem(`labcharts-${groupProfile || 'lab-context-browser-coverage'}-ai-ctx-lab-group-specialty-coverage`);
@@ -430,6 +434,7 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
       const contextHasHfeInventory = ['neutral finding', 'reference finding'].some(label =>
         context.includes(`HFE C282Y rs1800562: GG (${label}; evidence: Not graded; relevance: Relevance not graded; Iron)`));
       const summary = chatPromptContext.getContextSummary(context);
+      Object.assign(outcomes, { groupDisabled, groupSettingSyncedOff, groupEnabled, groupDefaultsOnInOtherProfile, groupScopedToProfile, groupProfileSettingControls, labMarkersOff, labMarkersOn, wearableOff, wearableOn, bodyContextSynced, supplementsIndependentFromInsightCards, supplementsMedsToggleOff, lightContextOff, lightContextOn, geneticsInventoryOff, geneticsSummaryOff, geneticsPriorityOff, geneticsInventoryOn });
       outcomes.groupWearableAndGeneticsTogglesAreApplied = groupDisabled && groupSettingSyncedOff && groupEnabled && groupDefaultsOnInOtherProfile && groupScopedToProfile && groupProfileSettingControls && labMarkersOff && labMarkersOn && wearableOff && wearableOn && bodyContextSynced && supplementsIndependentFromInsightCards && supplementsMedsToggleOff && lightContextOff && lightContextOn && geneticsInventoryOff && geneticsSummaryOff && geneticsPriorityOff && geneticsInventoryOn;
       outcomes.geneticsInventoryToggleControlsNormalSnpContext =
         !contextWithoutGeneticsInventory.includes('Imported SNP inventory for lookup')

@@ -9,7 +9,11 @@ import type {BiologyOverviewProps} from '../../js/biology-overview-presentation.
 interface Sample {kind:BiologyOverviewProps['kind'];name:string;score:BiologyRenderScore|null;ai:BiologyAIState|null;html:string}
 const original=JSON.parse(fs.readFileSync('tests/fixtures/biology-overview-original.json','utf8')) as {classes:string[];samples:Sample[];styleBlocks:{selector:string;declarations:string;atRules:{name:string;params:string}[]}[]};
 const samples=original.samples.filter(sample=>sample.score&&(sample.kind==='coherence'?['actual','empty','zero','escaped','snapshot','cached'].includes(sample.name):sample.kind==='dashboard-coherence'?['actual','empty','zero','unlinked','clamped'].includes(sample.name):['metabolicFlexibility','zero','historical','snapshot'].includes(sample.name))).map(sample=>({...sample,html:sample.html.replace(/class="@(\d+)"/g,(_,index:string)=>`class="${original.classes[Number(index)]}"`)}));
-const frozenCSS=original.styleBlocks.map(block=>{
+// The overview receipt omits this shared page-owned note rule; compose its exact historical owner.
+const pageOriginal=JSON.parse(fs.readFileSync('tests/fixtures/biology-page-original.json','utf8')) as {styleBlocks:{selector:string;css:string;atRules:{name:string;params:string}[]}[]};
+const sharedNote=pageOriginal.styleBlocks.filter(block=>block.selector==='.biology-scores-note');
+if(sharedNote.length!==1||sharedNote[0]!.atRules.length!==0)throw new Error('Expected one original shared Biology note rule');
+const frozenCSS=sharedNote.map(block=>block.css.replace('.biology-scores-note','[data-original] .biology-scores-note')).join('\n')+'\n'+original.styleBlocks.map(block=>{
  let rule=scopedFrozenStyles([{selector:block.selector,declarations:block.declarations,media:null}]);for(const wrapper of [...block.atRules].reverse())rule=`@${wrapper.name} ${wrapper.params}{${rule}}`;return rule;
 }).join('\n');
 test('authored Biology overview preserves frozen layout themes domains and keyboard actions',async({page},info)=>{

@@ -173,6 +173,8 @@ test('CLI provider discovers branded agents and keeps model controls stable acro
     localStorage.setItem('labcharts-agent-host-agent', 'opencode');
   });
   await page.goto('/app', { waitUntil: 'load' });
+  await expect(page.locator('html[data-app-ready]')).toBeAttached();
+  await expect(page.locator('body')).not.toHaveClass(/\bchat-autostart-reserved\b/);
   await page.evaluate(async () => {
     (window as unknown as {endTour?:()=>unknown}).endTour?.();
     document.getElementById('tour-overlay')?.remove();

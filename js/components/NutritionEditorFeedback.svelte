@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { NutritionEditorFeedbackView } from '../nutrition-editor-review-model.js';
-  import { copy } from '../nutrition-view-classes.js';
+  import { readableCopy as copy } from '../nutrition-view-classes.js';
   let { view }: { view: NutritionEditorFeedbackView } = $props();
 </script>
 {#snippet checks(label: string, items: string[])}

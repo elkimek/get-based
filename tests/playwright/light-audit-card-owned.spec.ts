@@ -1,3 +1,4 @@
+import {nativeEnvironmentView,expectedGenuineLightChildren} from '../helpers/light-genuine-child-native-receipts.js';
 import fs from 'node:fs';
 import { expect, test } from './coverage-fixture.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
@@ -6,7 +7,7 @@ interface Sample { name: string; data: unknown; expanded: string | null; callbac
 const original = JSON.parse(fs.readFileSync('tests/fixtures/light-audit-original.json', 'utf8')) as {cases: Sample[]; styleBlocks: FrozenStyleBlock[]};
 const compareOriginal=JSON.parse(fs.readFileSync('tests/fixtures/light-audit-compare-original.json','utf8')) as {cases:{name:string;audits:unknown[];provider:boolean;html:string}[]};
 const compareExamples=compareOriginal.cases.filter(sample=>['renamed-id','no-provider','proxy--0.01','duplicate-names','removed','no-measurements','no-rooms'].includes(sample.name)).map(sample=>({name:sample.name,data:{lightAudits:sample.audits},expanded:null,callbacks:false,compare:true,provider:sample.provider,html:sample.html}));
-const examples:Sample[] = original.cases.filter(sample => ['expanded', 'empty-snapshot', 'no-readings', 'latest-reading', 'snapshot-screen'].includes(sample.name)).concat(compareExamples);
+const examples = original.cases.filter(sample => ['expanded', 'empty-snapshot', 'no-readings', 'latest-reading', 'snapshot-screen'].includes(sample.name)).concat(compareExamples).map(sample=>({...sample,html:expectedGenuineLightChildren(sample.html),auditView:nativeEnvironmentView('audit'),dotView:nativeEnvironmentView('audit-dot')}));
 
 test('saved audit cards preserve frozen geometry and accessible snapshot controls', async ({page}, info) => {
   test.setTimeout(120000);
@@ -30,7 +31,7 @@ test('saved audit cards preserve frozen geometry and accessible snapshot control
       for (const [index, sample] of examples.entries()) {
         const api = await import(`/js/light-env-audits.js?audit-fixture=${index}`);
         (state as {importedData: unknown}).importedData = structuredClone(sample.data);
-        api.configureLightEnvAudits({computeRoomSeverity: computeRoomSeverityForRoom, hasAIProvider:()=>!!sample.provider, refreshLightEnvironmentUI: () => {}, renderAuditAIDot: () => sample.callbacks ? '<button type="button" data-fixture-audit-dot>Trusted audit dot</button>' : '', renderAuditAIBlock: () => sample.callbacks ? '<div data-fixture-audit-ai>Trusted audit verdict</div>' : ''});
+        api.configureLightEnvAudits({computeRoomSeverity: computeRoomSeverityForRoom, hasAIProvider:()=>!!sample.provider, refreshLightEnvironmentUI: () => {}, getAuditDotView: () => sample.callbacks ? sample.dotView : null, getAuditAIView: () => sample.callbacks ? sample.auditView : null});
         if (sample.expanded !== null) api.toggleLightAudit(sample.expanded);
         if(sample.compare)api.toggleLightAuditCompare();
         const pair = document.createElement('div'); pair.dataset.pair = sample.name;
@@ -85,7 +86,7 @@ test('saved audit cards preserve frozen geometry and accessible snapshot control
 test('native audit disclosure activates once by keyboard and leaves AI actions independent', async ({page}) => {
   await installDiscussionFixture(page.context()); await page.goto('/app');
   await expect(page.locator('html[data-app-ready]')).toBeAttached();
-  await page.evaluate(async sample => {
+  await page.evaluate(async ({sample,auditView,dotView}) => {
     localStorage.setItem('labcharts-ai-paused', 'true');
     await (await import('/js/light-sun-loader.js')).loadLightSunUI();
     const {state} = await import('/js/state.js'); const api = await import('/js/light-env-audits.js');
@@ -99,15 +100,15 @@ test('native audit disclosure activates once by keyboard and leaves AI actions i
       const current=host.querySelector('[data-light-env-action="toggle-audits-block"]')?.getAttribute('aria-expanded');
       if(previous!=null&&previous!==current)calls.push('block');
     };
-    api.configureLightEnvAudits({refreshLightEnvironmentUI: render, renderAuditAIDot: () => '<button type="button" data-fixture-audit-dot>AI verdict</button>'});
+    api.configureLightEnvAudits({refreshLightEnvironmentUI: render, getAuditDotView: () => dotView, getAuditAIView: () => auditView});
     api.setLightAuditsBlockOpen(true); render();
-    host.addEventListener('click', event => { if ((event.target as Element).closest('[data-fixture-audit-dot]')) calls.push('ai'); });
+    host.addEventListener('click', event => { if ((event.target as Element).closest('[data-ai-action="refresh-audit"]')) {calls.push('ai');event.stopPropagation();} });
     installLightEnvActionDelegates({...api.lightEnvAuditActionHandlers, toggleLightAudit: (id: unknown) => {calls.push('toggle'); api.toggleLightAudit(id);}}, host);
-  }, original.cases.find(sample => sample.name === 'collapsed')!);
+  }, {sample:original.cases.find(sample => sample.name === 'collapsed')!,auditView:{...nativeEnvironmentView('audit'),status:'ok' as const},dotView:nativeEnvironmentView('audit-dot')});
   const host = page.locator('#audit-keyboard'), toggle = host.locator('[data-light-env-action="toggle-audit"]');
   await toggle.focus(); await toggle.press('Enter'); await expect(host.locator('.light-audit-card')).toHaveClass(/expanded/);
   await expect.poll(() => page.evaluate(() => (window as unknown as {auditKeyboardCalls: string[]}).auditKeyboardCalls)).toEqual(['toggle']);
-  await host.locator('[data-fixture-audit-dot]').click(); await expect(host.locator('.light-audit-card')).toHaveClass(/expanded/);
+  await host.locator('[data-ai-action="refresh-audit"]').click(); await expect(host.locator('.light-audit-card')).toHaveClass(/expanded/);
   await toggle.focus(); await toggle.press('Space'); await expect(host.locator('.light-audit-card')).not.toHaveClass(/expanded/);
   const block=host.locator('[data-light-env-action="toggle-audits-block"]');
   await block.focus();await block.press('Space');await expect(block).toBeFocused();await expect(block).toHaveAttribute('aria-expanded','false');await expect(host.locator('.light-audits-body')).toBeHidden();

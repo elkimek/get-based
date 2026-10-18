@@ -21,22 +21,34 @@ async function stored(page: Page) {
     return JSON.parse((await crypto.encryptedGetItem(profile.profileStorageKey(state.currentProfile, 'imported')))!);
   });
 }
-test('authored Lens preserves literal multiline text, themes, keyboard save and confirmed clear', async ({ page }) => {
-  test.setTimeout(90000); await page.addInitScript({ path: axeScriptPath }); await page.goto('/app', { waitUntil: 'load' }); await seed(page);
-  const modal = page.locator('#detail-modal'), input = modal.getByRole('textbox', { name: 'Interpretive lens', exact: true });
-  await expect(input).toHaveValue('Existing <framework> & text\nSecond line'); await expect(input).toBeFocused(); expect(await modal.locator('framework, script, [data-lifestyle-action]').count()).toBe(0);
-  await page.evaluate(async () => { const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = '/themes-extra.css'; document.head.append(link); await new Promise<void>((resolve, reject) => { link.onload = () => resolve(); link.onerror = () => reject(new Error('Themes unavailable')); }); });
-  for (const theme of ['dark', 'light', 'cyberterm', 'glass', 'neuromancer', 'synth-sunrise']) for (const width of [320, 1100]) {
-    await page.evaluate(value => { document.documentElement.dataset.theme = value; }, theme); await page.setViewportSize({ width, height: 900 });
-    expect(await modal.evaluate(root => root.scrollWidth <= root.clientWidth + 1), `${theme}/${width} overflow`).toBe(true);
-    expect(await modal.evaluate(async root => (await (window as unknown as { axe: typeof import('axe-core') }).axe.run(root, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } })).violations.map(value => ({ id: value.id, nodes: value.nodes.map(node => ({ target: node.target, summary: node.failureSummary })) }))), `${theme}/${width} accessibility`).toEqual([]);
-    for (const button of await modal.getByRole('button').all()) { const bounds = await button.boundingBox(); expect(bounds!.height).toBeGreaterThanOrEqual(44); }
-  }
-  await input.fill('  New <lens> & text\nLine two  '); await modal.getByRole('button', { name: 'Save', exact: true }).focus(); await page.keyboard.press('Enter'); await expect(page.locator('#modal-overlay')).not.toHaveClass(/show/);
-  const saved = await stored(page); expect(saved.interpretiveLens).toBe('New <lens> & text\nLine two'); expect(saved.changeHistory.find((item: { field: string }) => item.field === 'interpretiveLens').snapshot).toBe(saved.interpretiveLens);
-  await page.evaluate(async () => { await (await import('/js/context-card-lifestyle-editors.js')).openInterpretiveLensEditor(); }); await expect(input).toHaveValue(saved.interpretiveLens);
-  await modal.getByRole('button', { name: 'Clear', exact: true }).click(); await page.locator('#confirm-cancel').click(); await expect(input).toHaveValue(saved.interpretiveLens);
-  await modal.getByRole('button', { name: 'Clear', exact: true }).click(); await page.locator('#confirm-ok').click(); await expect(page.locator('#modal-overlay')).not.toHaveClass(/show/); expect((await stored(page)).interpretiveLens).toBe('');
+// Dense fine-pointer controls retain their native sizing; touch targets use the coarse-pointer styles.
+test.describe('coarse-pointer touch targets', () => {
+  test.use({ hasTouch: true });
+  test.beforeEach(async ({ page }) => {
+    expect(await page.evaluate(() => ({
+      coarse: matchMedia('(pointer: coarse)').matches,
+      fine: matchMedia('(pointer: fine)').matches,
+      touch: navigator.maxTouchPoints > 0,
+    }))).toEqual({ coarse: true, fine: false, touch: true });
+  });
+
+  test('authored Lens preserves literal multiline text, themes, keyboard save and confirmed clear', async ({ page }) => {
+    test.setTimeout(90000); await page.addInitScript({ path: axeScriptPath }); await page.goto('/app', { waitUntil: 'load' }); await seed(page);
+    const modal = page.locator('#detail-modal'), input = modal.getByRole('textbox', { name: 'Interpretive lens', exact: true });
+    await expect(input).toHaveValue('Existing <framework> & text\nSecond line'); await expect(input).toBeFocused(); expect(await modal.locator('framework, script, [data-lifestyle-action]').count()).toBe(0);
+    await page.evaluate(async () => { const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = '/themes-extra.css'; document.head.append(link); await new Promise<void>((resolve, reject) => { link.onload = () => resolve(); link.onerror = () => reject(new Error('Themes unavailable')); }); });
+    for (const theme of ['dark', 'light', 'cyberterm', 'glass', 'neuromancer', 'synth-sunrise']) for (const width of [320, 1100]) {
+      await page.evaluate(value => { document.documentElement.dataset.theme = value; }, theme); await page.setViewportSize({ width, height: 900 });
+      expect(await modal.evaluate(root => root.scrollWidth <= root.clientWidth + 1), `${theme}/${width} overflow`).toBe(true);
+      expect(await modal.evaluate(async root => (await (window as unknown as { axe: typeof import('axe-core') }).axe.run(root, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } })).violations.map(value => ({ id: value.id, nodes: value.nodes.map(node => ({ target: node.target, summary: node.failureSummary })) }))), `${theme}/${width} accessibility`).toEqual([]);
+      for (const button of await modal.getByRole('button').all()) { const bounds = await button.boundingBox(); expect(bounds!.height).toBeGreaterThanOrEqual(44); }
+    }
+    await input.fill('  New <lens> & text\nLine two  '); await modal.getByRole('button', { name: 'Save', exact: true }).focus(); await page.keyboard.press('Enter'); await expect(page.locator('#modal-overlay')).not.toHaveClass(/show/);
+    const saved = await stored(page); expect(saved.interpretiveLens).toBe('New <lens> & text\nLine two'); expect(saved.changeHistory.find((item: { field: string }) => item.field === 'interpretiveLens').snapshot).toBe(saved.interpretiveLens);
+    await page.evaluate(async () => { await (await import('/js/context-card-lifestyle-editors.js')).openInterpretiveLensEditor(); }); await expect(input).toHaveValue(saved.interpretiveLens);
+    await modal.getByRole('button', { name: 'Clear', exact: true }).click(); await page.locator('#confirm-cancel').click(); await expect(input).toHaveValue(saved.interpretiveLens);
+    await modal.getByRole('button', { name: 'Clear', exact: true }).click(); await page.locator('#confirm-ok').click(); await expect(page.locator('#modal-overlay')).not.toHaveClass(/show/); expect((await stored(page)).interpretiveLens).toBe('');
+  });
 });
 test('authored Lens retains failed draft and retries actual IndexedDB storage', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' }); await seed(page);

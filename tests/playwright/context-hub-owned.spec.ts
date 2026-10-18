@@ -25,29 +25,41 @@ async function stored(page: Page) {
     return JSON.parse((await crypto.encryptedGetItem(profile.profileStorageKey(state.currentProfile, 'imported')))!);
   });
 }
-test('authored Context hub preserves source layout, all themes, keyboard settings and dialog navigation', async ({ page }) => {
-  test.setTimeout(90000); await page.addInitScript({ path: axeScriptPath }); await page.goto('/app', { waitUntil: 'load' }); await seed(page); await open(page);
-  const hub = page.locator('[data-context-hub-view]');
-  await expect(hub.getByRole('heading', { name: 'Context', exact: true })).toBeVisible(); await expect(hub.locator('[data-context-toggle]')).toHaveCount(9);
-  await expect(hub.locator('[data-context-section]')).toHaveCount(5); await expect(hub.locator('script, lens, [onclick], [style]')).toHaveCount(0);
-  await page.evaluate(async () => { const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = '/themes-extra.css'; document.head.append(link); await new Promise<void>((resolve, reject) => { link.onload = () => resolve(); link.onerror = () => reject(new Error('Themes unavailable')); }); });
-  const enabledSlider = hub.locator('label[for="context-source-insight-cards"] > span');
-  const inactiveSlider = hub.locator('label[for="context-source-genome-summary"] > span');
-  const thumbOffset = () => enabledSlider.evaluate(element => { const offset = getComputedStyle(element, '::after').translate; return offset === 'none' ? 0 : parseFloat(offset); });
-  for (const theme of ['dark', 'light', 'cyberterm', 'glass', 'neuromancer', 'synth-sunrise']) for (const width of [320, 1100]) {
-    await page.evaluate(value => { document.documentElement.dataset.theme = value; }, theme); await page.setViewportSize({ width, height: 900 });
-    expect(await hub.evaluate(root => root.scrollWidth <= root.clientWidth + 1), `${theme}/${width} overflow`).toBe(true);
-    expect(await hub.evaluate(async root => (await (window as unknown as { axe: typeof import('axe-core') }).axe.run(root, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } })).violations.map(value => ({ id: value.id, nodes: value.nodes.map(node => ({ target: node.target, summary: node.failureSummary })) }))), `${theme}/${width} accessibility`).toEqual([]);
-    expect(await enabledSlider.evaluate(element => getComputedStyle(element).backgroundColor)).not.toBe(await inactiveSlider.evaluate(element => getComputedStyle(element).backgroundColor));
-    await expect.poll(thumbOffset).toBe(16);
-    for (const control of await hub.locator('button, input, select').all()) expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(44);
-  }
-  const toggle = hub.locator('[data-context-toggle="insight-cards"]'); await toggle.focus(); await expect(enabledSlider).toHaveCSS('outline-width', '2px'); await page.keyboard.press('Space');
-  await expect(hub).toHaveAttribute('data-context-save-state', 'idle'); await expect(toggle).not.toBeChecked(); await expect(toggle).toBeFocused(); await expect.poll(thumbOffset).toBe(0); expect(await enabledSlider.evaluate(element => getComputedStyle(element).backgroundColor)).toBe(await inactiveSlider.evaluate(element => getComputedStyle(element).backgroundColor)); expect((await stored(page)).contextSourceSettings['insight-cards']).toBe(false);
-  await hub.locator('#nutrition-context-days').selectOption('90'); await expect(hub).toHaveAttribute('data-context-save-state', 'idle'); expect((await stored(page)).nutritionContextDays).toBe(90);
-  await hub.locator('[data-pick="lens"]').click(); await expect(page.locator('#context-hub-overlay')).not.toHaveClass(/show/); await expect(page.locator('#interpretive-lens-textarea')).toHaveValue('Existing <lens> & framework');
-  await page.locator('#detail-modal').getByRole('button', { name: 'Back to Context', exact: true }).click(); await expect(hub).toHaveAttribute('data-context-save-state', 'idle');
-  await page.keyboard.press('Escape'); await expect(page.locator('#context-hub-overlay')).not.toHaveClass(/show/); expect(await page.evaluate(() => document.body.style.overflow)).toBe('');
+// Dense fine-pointer controls retain their native sizing; touch targets use the coarse-pointer styles.
+test.describe('coarse-pointer touch targets', () => {
+  test.use({ hasTouch: true });
+  test.beforeEach(async ({ page }) => {
+    expect(await page.evaluate(() => ({
+      coarse: matchMedia('(pointer: coarse)').matches,
+      fine: matchMedia('(pointer: fine)').matches,
+      touch: navigator.maxTouchPoints > 0,
+    }))).toEqual({ coarse: true, fine: false, touch: true });
+  });
+
+  test('authored Context hub preserves source layout, all themes, keyboard settings and dialog navigation', async ({ page }) => {
+    test.setTimeout(90000); await page.addInitScript({ path: axeScriptPath }); await page.goto('/app', { waitUntil: 'load' }); await seed(page); await open(page);
+    const hub = page.locator('[data-context-hub-view]');
+    await expect(hub.getByRole('heading', { name: 'Context', exact: true })).toBeVisible(); await expect(hub.locator('[data-context-toggle]')).toHaveCount(9);
+    await expect(hub.locator('[data-context-section]')).toHaveCount(5); await expect(hub.locator('script, lens, [onclick], [style]')).toHaveCount(0);
+    await page.evaluate(async () => { const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = '/themes-extra.css'; document.head.append(link); await new Promise<void>((resolve, reject) => { link.onload = () => resolve(); link.onerror = () => reject(new Error('Themes unavailable')); }); });
+    const enabledSlider = hub.locator('label[for="context-source-insight-cards"] > span');
+    const inactiveSlider = hub.locator('label[for="context-source-genome-summary"] > span');
+    const thumbOffset = () => enabledSlider.evaluate(element => { const offset = getComputedStyle(element, '::after').translate; return offset === 'none' ? 0 : parseFloat(offset); });
+    for (const theme of ['dark', 'light', 'cyberterm', 'glass', 'neuromancer', 'synth-sunrise']) for (const width of [320, 1100]) {
+      await page.evaluate(value => { document.documentElement.dataset.theme = value; }, theme); await page.setViewportSize({ width, height: 900 });
+      expect(await hub.evaluate(root => root.scrollWidth <= root.clientWidth + 1), `${theme}/${width} overflow`).toBe(true);
+      expect(await hub.evaluate(async root => (await (window as unknown as { axe: typeof import('axe-core') }).axe.run(root, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } })).violations.map(value => ({ id: value.id, nodes: value.nodes.map(node => ({ target: node.target, summary: node.failureSummary })) }))), `${theme}/${width} accessibility`).toEqual([]);
+      expect(await enabledSlider.evaluate(element => getComputedStyle(element).backgroundColor)).not.toBe(await inactiveSlider.evaluate(element => getComputedStyle(element).backgroundColor));
+      await expect.poll(thumbOffset).toBe(16);
+      for (const control of await hub.locator('button, input, select').all()) expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    }
+    const toggle = hub.locator('[data-context-toggle="insight-cards"]'); await toggle.focus(); await expect(enabledSlider).toHaveCSS('outline-width', '2px'); await page.keyboard.press('Space');
+    await expect(hub).toHaveAttribute('data-context-save-state', 'idle'); await expect(toggle).not.toBeChecked(); await expect(toggle).toBeFocused(); await expect.poll(thumbOffset).toBe(0); expect(await enabledSlider.evaluate(element => getComputedStyle(element).backgroundColor)).toBe(await inactiveSlider.evaluate(element => getComputedStyle(element).backgroundColor)); expect((await stored(page)).contextSourceSettings['insight-cards']).toBe(false);
+    await hub.locator('#nutrition-context-days').selectOption('90'); await expect(hub).toHaveAttribute('data-context-save-state', 'idle'); expect((await stored(page)).nutritionContextDays).toBe(90);
+    await hub.locator('[data-pick="lens"]').click(); await expect(page.locator('#context-hub-overlay')).not.toHaveClass(/show/); await expect(page.locator('#interpretive-lens-textarea')).toHaveValue('Existing <lens> & framework');
+    await page.locator('#detail-modal').getByRole('button', { name: 'Back to Context', exact: true }).click(); await expect(hub).toHaveAttribute('data-context-save-state', 'idle');
+    await page.keyboard.press('Escape'); await expect(page.locator('#context-hub-overlay')).not.toHaveClass(/show/); expect(await page.evaluate(() => document.body.style.overflow)).toBe('');
+  });
 });
 test('authored Context hub retains a failed IndexedDB setting for retry without publishing it', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' }); await seed(page); await open(page); const before = await stored(page);

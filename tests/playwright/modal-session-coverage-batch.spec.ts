@@ -512,6 +512,7 @@ test('light sessions view covers all-sessions modal refresh scroll and row event
 
   const results = await page.evaluate(async ({ sessionsUrl }) => {
     const sessionsView = (await import(sessionsUrl) as unknown) as Pick<typeof import('../../js/light-sessions-view.js'), "configureLightSessionsView" | "renderUnifiedSessionsList" | "installLightSessionsActionDelegates" | "_openAllSessionsModal">;
+    const { projectCompletedSunSession } = await import('/js/light-session-presentation.js');
     const outcomes: Record<string, unknown> = {};
     const calls: unknown[] = [];
     const base = Date.UTC(2026, 5, 7, 12, 0);
@@ -520,10 +521,9 @@ test('light sessions view covers all-sessions modal refresh scroll and row event
       getSessions: () => [],
       getDeviceSessions: () => [],
       getDevices: () => [],
-      renderSunSessionRow: () => '',
+      getSunSessionRowView: () => null,
       openDeviceSessionDetail: () => {},
       deleteDeviceSession: () => {},
-      renderDeviceSessionAIInline: () => '',
       channelDisplay: {},
       channelTier: () => 0,
       formatChannelUnit: () => '',
@@ -556,12 +556,9 @@ test('light sessions view covers all-sessions modal refresh scroll and row event
         },
         channelTier: (value:number) => value > 0 ? 2 : 0,
         formatChannelUnit: (key: string, value:number) => `${Math.round(value)} ${key}`,
-        renderSunSessionRow: (sess: unknown) => `<div class="sun-session light-session-row light-session-sun" data-id="${(sess as {id: unknown}).id}" role="button" tabindex="0" aria-label="Sun ${(sess as {id: unknown}).id}">
-          <div class="sun-session-head"><span class="sun-session-date">${(sess as {id: unknown}).id}</span></div>
-        </div>`,
+        getSunSessionRowView: (session: Parameters<typeof projectCompletedSunSession>[0]) => ({ kind: 'row' as const, view: projectCompletedSunSession(session, { date: String(session.id), time: '' }, `${session.durationMin} min`, '') }),
         openDeviceSessionDetail: (id: string) => calls.push(['detail', id]),
         deleteDeviceSession: (id: string) => calls.push(['delete', id]),
-        renderDeviceSessionAIInline: (sess: unknown) => `<span class="ai-inline">AI ${(sess as {id: unknown}).id}</span>`,
       });
 
       const inlineHost = document.createElement('div');

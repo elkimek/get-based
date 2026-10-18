@@ -1,3 +1,4 @@
+import {openStaticSettings} from './settings-entry.js';
 import path from 'node:path';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { startKitServer } from './kit-server.js';
@@ -35,7 +36,7 @@ async function openSettings(page: Page, origin: string) {
   });
   await page.goto(origin + '/app');
   await expect(page.locator('html[data-app-ready][data-shell-framework="sveltekit"]')).toBeAttached({ timeout: 30_000 });
-  await page.locator('[data-shell-action="open-settings"]:visible').first().click();
+  await openStaticSettings(page);
   await page.locator('#settings-nav-ai').click();
   await expect(page.locator('[data-custom-settings-view]')).toBeVisible();
   await expect(page.locator('#ai-provider-panel')).toHaveAttribute('aria-busy', 'false');
@@ -168,7 +169,7 @@ test.describe('original desktop Settings density', () => {
         await page.locator('[data-tweaks-action="close"]').click();
         const closeChat = page.getByRole('button', { name: 'Close chat', exact: true });
         if (await closeChat.isVisible()) await closeChat.click();
-        if (!await page.locator('#settings-modal').isVisible()) await page.locator('[data-shell-action="open-settings"]:visible').first().click();
+        if (!await page.locator('#settings-modal').isVisible()) await openStaticSettings(page);
         await page.locator('#settings-nav-ai').click();
         await expect(page.locator('[data-custom-settings-view]')).toBeVisible();
         for (const width of [1280, 800, 700, 390, 320]) {

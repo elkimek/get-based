@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { NutritionComparisonResultsView } from '../nutrition-comparison-results-model.js';
   import Table from './NutritionComparisonTable.svelte';
-  import { button, copy, summary , textAction } from '../nutrition-view-classes.js';
+  import { button, readableCopy as copy, summary , readableTextAction as textAction } from '../nutrition-view-classes.js';
   let { view }: { view: NutritionComparisonResultsView } = $props();
   const actions = 'gb:nutrition:self-end gb:nutrition:mt-auto gb:nutrition:flex gb:nutrition:flex-wrap gb:nutrition:items-center gb:nutrition:justify-end gb:nutrition:gap-[9px]';
   const usage = 'gb:nutrition:min-h-[43px] gb:nutrition:box-border gb:nutrition:flex gb:nutrition:items-baseline gb:nutrition:justify-between gb:nutrition:gap-2.5 gb:nutrition:px-2.5 gb:nutrition:py-2 gb:nutrition:rounded-lg gb:nutrition:border gb:nutrition:border-[color-mix(in_srgb,var(--accent)_22%,var(--border))] gb:nutrition:tabular-nums gb:nutrition:max-[430px]:flex-col gb:nutrition:max-[430px]:items-start';

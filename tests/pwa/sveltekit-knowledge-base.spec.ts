@@ -263,6 +263,7 @@ test('native Knowledge Base create, Markdown ingest and rename persist through t
   const workerArtifactHash = createHash('sha256').update(workerArtifact).digest('hex');
   const server = await startKitServer(artifact);
   let closed = false, complete = false, stoppedOrigin = false;
+  const filePath = test.info().outputPath(SOURCE);
   let profileBefore: unknown;
   let queryCache: Awaited<ReturnType<typeof workerQueryCache>> = [];
   const loading: Array<{phase: string; readyMs: number}> = [], snapshots: Array<{phase: string; opfs: OpfsSnapshot}> = [], native: Array<{phase: string; receipt: Receipt}> = [], geometry: Array<{phase: string; receipt: Awaited<ReturnType<typeof controls>>}> = [];
@@ -295,7 +296,6 @@ test('native Knowledge Base create, Markdown ingest and rename persist through t
     snapshots.push({phase: 'created-empty', opfs: createdSnapshot});
     expect(await page.evaluate(readComparisonAcceptanceProfile)).toEqual(profileBefore);
 
-    const filePath = test.info().outputPath(SOURCE);
     await fs.writeFile(filePath, TEXT, 'utf8');
     await page.locator('#lens-local-filepick').setInputFiles(filePath);
     await expect(page.locator('#lens-local-progress-text')).toHaveText(/^Indexed 1 excerpts from 1 file in [\d.]+s\.$/);
@@ -416,6 +416,9 @@ test('native Knowledge Base create, Markdown ingest and rename persist through t
     expect(errors).toEqual([]); expect(csp).toEqual([]);
     complete = true;
   } finally {
+    // Retain the genuine hostile file through asynchronous native reads, then
+    // remove it before artifact upload rejects its NTFS-invalid characters.
+    await fs.rm(filePath, {force: true});
     const remainingClients = await Promise.all(context.pages().map(async client => {
       try { return await client.evaluate(() => ({url: location.href, native: (window as ObservedWindow).knowledgeBaseReceipt, storage: {secure: isSecureContext, storage: typeof navigator.storage, getDirectory: typeof navigator.storage?.getDirectory}, stats: document.getElementById('lens-local-stats')?.textContent})); }
       catch (error) { return {observationError: String(error)}; }

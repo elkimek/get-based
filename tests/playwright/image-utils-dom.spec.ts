@@ -23,7 +23,14 @@ test('chat image attachment DOM is present and its CSS loads on demand', async (
 
   const loadedRules = await page.evaluate(async () => {
     await (await import('/js/chat-panel.js')).loadChatPresentationStylesheets();
-    const selectors = ['.chat-image-badge', '.chat-drop-active'];
+    const fixture = document.createElement('div');
+    fixture.innerHTML = (await import('/js/chat-message-content.js')).renderChatStoredImages({hasImages: true, imageCount: 2});
+    document.body.append(fixture);
+    const badge = fixture.querySelector('.chat-image-badge');
+    if (!badge) throw new Error('Real stored-image badge did not render');
+    const style = getComputedStyle(badge);
+    const badgeReceipt = {fontSize: style.fontSize, fontStyle: style.fontStyle, marginBottom: style.marginBottom, text: badge.textContent};
+    fixture.remove();
     const cssText = [...document.styleSheets].map((sheet) => {
       try {
         return [...sheet.cssRules].map((rule) => rule.cssText).join('\n');
@@ -31,10 +38,10 @@ test('chat image attachment DOM is present and its CSS loads on demand', async (
         return '';
       }
     }).join('\n');
-    return Object.fromEntries(selectors.map((selector) => [selector, cssText.includes(selector)]));
+    return {badge: badgeReceipt, dropActiveRule: cssText.includes('.chat-drop-active')};
   });
 
-  expect(loadedRules).toEqual({ '.chat-image-badge': true, '.chat-drop-active': true });
+  expect(loadedRules).toEqual({badge: {fontSize: '11px', fontStyle: 'italic', marginBottom: '4px', text: '🖼 2 images attached'}, dropActiveRule: true});
   await expect(page.locator('html[data-app-ready]')).toBeAttached();
   await page.evaluate(async () => {
     await (await import('/js/chat-loader.js')).openChatPanel();

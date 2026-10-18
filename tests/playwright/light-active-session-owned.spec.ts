@@ -10,39 +10,51 @@ test.beforeEach(async ({ page, context }) => {
   await page.evaluate(async () => (await import('/js/light-sun-loader.js')).loadLightSunUI());
 });
 
-test('authored active session layouts retain themes, safety readability, labels and accessible controls', async ({ page }, info) => {
-  test.setTimeout(120000);
-  const before = await page.evaluate(async () => JSON.stringify((await import('/js/state.js')).state.importedData));
-  await page.evaluate(async () => {
-    const [{ renderHTML }, model] = await Promise.all([import('/js/components/LightSessionPresentation.svelte.html.js'), import('/js/light-active-session-presentation.js')]);
-    const chips = ['vitamin_d','pomc','no_cv','violet_eye','circadian','nir_solar'].map(key => model.sessionChannelChip(key, { label: `Signal <${key}>`, icon: '☀' }, key === 'vitamin_d' ? '~1400 IU-eq' : ''));
-    const initialSun = model.activeSunSessionView({ id: 'layout-sun', startedAt: 1, paused: true, bodyExposure: { rotatedSides: true, glassBetween: true, sunscreenSPF: 12 }, eyeExposure: { mode: 'direct' } }, 'Wednesday, June 10, 2026', '39:00', 'Upper chest <literal> & arms', 'Eyes open', chips, 13 * 3600000);
-    const sun = { ...initialSun, readouts: model.liveSessionReadouts({ doses: { vitamin_d: 2 }, sed: 4, medFraction: 1.1, retinalUV: 35, fitzpatrick: 'II', fitzpatrickAssumed: true, psmTier: 'severe', atm: { temperatureC: 34 } }, { iu: 1400, ratePerMin: 35 }, 39) };
-    const device = { ...sun, kind: 'device' as const, id: 'layout-device', date: 'Active · <Brand> Panel & One', body: '25 cm · Upper chest · ~6% skin · eye shielding logged', chips: null, readouts: [], forgotHours: null };
-    const host = document.createElement('div'); host.id = 'light-active-acceptance';
-    host.style.cssText = 'position:fixed;inset:0;z-index:10000;overflow:auto;background:var(--bg-primary);padding:16px;box-sizing:border-box;display:grid;align-content:start;gap:24px';
-    host.innerHTML = `<div class="light-active-session-pinned">${renderHTML({ kind: 'active', view: sun })}</div>` + renderHTML({ kind: 'active', view: { ...sun, id: 'layout-running', paused: false, rotated: false, forgotHours: null, readouts: model.initialSessionReadouts({ safety: { medFraction: 0.3 } }) } }) + renderHTML({ kind: 'active', view: device });
-    document.body.append(host);
+// Dense fine-pointer controls retain their native sizing; touch targets use the coarse-pointer styles.
+test.describe('coarse-pointer touch targets', () => {
+  test.use({ hasTouch: true });
+  test.beforeEach(async ({ page }) => {
+    expect(await page.evaluate(() => ({
+      coarse: matchMedia('(pointer: coarse)').matches,
+      fine: matchMedia('(pointer: fine)').matches,
+      touch: navigator.maxTouchPoints > 0,
+    }))).toEqual({ coarse: true, fine: false, touch: true });
   });
-  const root = page.locator('#light-active-acceptance');
-  await expect(root.locator('.sun-chip-extra:visible')).toHaveCount(0);
-  for (const toggle of await root.locator('.sun-chip-more').all()) await toggle.click();
-  await expect(root.locator('.sun-chip-extra:visible')).toHaveCount(6);
-  for (const width of [320,1100]) {
-    await page.setViewportSize({ width, height: 1000 });
-    for (const theme of ['dark','light','glass','synth-sunrise','neuromancer','cyberterm']) {
-      expect(await page.evaluate(async theme => { const api = await import('/js/theme.js'); return await api.setTheme(theme) && api.getTheme() === theme; }, theme)).toBe(true);
-      await expect.poll(() => root.evaluate(element => element.getAnimations({ subtree: true }).filter(animation => animation instanceof CSSTransition && animation.playState === 'running').length)).toBe(0);
-      expect(await root.evaluate(element => element.scrollWidth - element.clientWidth), `${width}/${theme} overflow`).toBeLessThanOrEqual(1);
-      expect(await root.evaluate(async element => (await (window as unknown as { axe: typeof import('axe-core') }).axe.run(element, { runOnly: { type: 'tag', values: ['wcag2a','wcag2aa','wcag21aa'] } })).violations.map(item => ({ id: item.id, nodes: item.nodes.map(node => ({ target: node.target, summary: node.failureSummary })) }))), `${width}/${theme} accessibility`).toEqual([]);
-      for (const control of await root.locator('button:visible').all()) { const box = await control.boundingBox(); expect(box!.width).toBeGreaterThanOrEqual(44); expect(box!.height).toBeGreaterThanOrEqual(44); }
-      for (const label of await root.locator('.sun-session-ctl-label').all()) await expect(label).toBeVisible();
+
+  test('authored active session layouts retain themes, safety readability, labels and accessible controls', async ({ page }, info) => {
+    test.setTimeout(120000);
+    const before = await page.evaluate(async () => JSON.stringify((await import('/js/state.js')).state.importedData));
+    await page.evaluate(async () => {
+      const [{ renderHTML }, model] = await Promise.all([import('/js/components/LightSessionPresentation.svelte.html.js'), import('/js/light-active-session-presentation.js')]);
+      const chips = ['vitamin_d','pomc','no_cv','violet_eye','circadian','nir_solar'].map(key => model.sessionChannelChip(key, { label: `Signal <${key}>`, icon: '☀' }, key === 'vitamin_d' ? '~1400 IU-eq' : ''));
+      const initialSun = model.activeSunSessionView({ id: 'layout-sun', startedAt: 1, paused: true, bodyExposure: { rotatedSides: true, glassBetween: true, sunscreenSPF: 12 }, eyeExposure: { mode: 'direct' } }, 'Wednesday, June 10, 2026', '39:00', 'Upper chest <literal> & arms', 'Eyes open', chips, 13 * 3600000);
+      const sun = { ...initialSun, readouts: model.liveSessionReadouts({ doses: { vitamin_d: 2 }, sed: 4, medFraction: 1.1, retinalUV: 35, fitzpatrick: 'II', fitzpatrickAssumed: true, psmTier: 'severe', atm: { temperatureC: 34 } }, { iu: 1400, ratePerMin: 35 }, 39) };
+      const device = { ...sun, kind: 'device' as const, id: 'layout-device', date: 'Active · <Brand> Panel & One', body: '25 cm · Upper chest · ~6% skin · eye shielding logged', chips: null, readouts: [], forgotHours: null };
+      const host = document.createElement('div'); host.id = 'light-active-acceptance';
+      host.style.cssText = 'position:fixed;inset:0;z-index:10000;overflow:auto;background:var(--bg-primary);padding:16px;box-sizing:border-box;display:grid;align-content:start;gap:24px';
+      host.innerHTML = `<div class="light-active-session-pinned">${renderHTML({ kind: 'active', view: sun })}</div>` + renderHTML({ kind: 'active', view: { ...sun, id: 'layout-running', paused: false, rotated: false, forgotHours: null, readouts: model.initialSessionReadouts({ safety: { medFraction: 0.3 } }) } }) + renderHTML({ kind: 'active', view: device });
+      document.body.append(host);
+    });
+    const root = page.locator('#light-active-acceptance');
+    await expect(root.locator('.sun-chip-extra:visible')).toHaveCount(0);
+    for (const toggle of await root.locator('.sun-chip-more').all()) await toggle.click();
+    await expect(root.locator('.sun-chip-extra:visible')).toHaveCount(6);
+    for (const width of [320,1100]) {
+      await page.setViewportSize({ width, height: 1000 });
+      for (const theme of ['dark','light','glass','synth-sunrise','neuromancer','cyberterm']) {
+        expect(await page.evaluate(async theme => { const api = await import('/js/theme.js'); return await api.setTheme(theme) && api.getTheme() === theme; }, theme)).toBe(true);
+        await expect.poll(() => root.evaluate(element => element.getAnimations({ subtree: true }).filter(animation => animation instanceof CSSTransition && animation.playState === 'running').length)).toBe(0);
+        expect(await root.evaluate(element => element.scrollWidth - element.clientWidth), `${width}/${theme} overflow`).toBeLessThanOrEqual(1);
+        expect(await root.evaluate(async element => (await (window as unknown as { axe: typeof import('axe-core') }).axe.run(element, { runOnly: { type: 'tag', values: ['wcag2a','wcag2aa','wcag21aa'] } })).violations.map(item => ({ id: item.id, nodes: item.nodes.map(node => ({ target: node.target, summary: node.failureSummary })) }))), `${width}/${theme} accessibility`).toEqual([]);
+        for (const control of await root.locator('button:visible').all()) { const box = await control.boundingBox(); expect(box!.width).toBeGreaterThanOrEqual(44); expect(box!.height).toBeGreaterThanOrEqual(44); }
+        for (const label of await root.locator('.sun-session-ctl-label').all()) await expect(label).toBeVisible();
+      }
+      await root.locator('[data-id="layout-sun"]').screenshot({ path: info.outputPath(`sun-active-${width}.png`) });
+      await root.locator('[data-id="layout-device"]').screenshot({ path: info.outputPath(`device-active-${width}.png`) });
     }
-    await root.locator('[data-id="layout-sun"]').screenshot({ path: info.outputPath(`sun-active-${width}.png`) });
-    await root.locator('[data-id="layout-device"]').screenshot({ path: info.outputPath(`device-active-${width}.png`) });
-  }
-  await expect(root.locator('img,script,[onerror]')).toHaveCount(0);
-  expect(await page.evaluate(async () => JSON.stringify((await import('/js/state.js')).state.importedData))).toBe(before);
+    await expect(root.locator('img,script,[onerror]')).toHaveCount(0);
+    expect(await page.evaluate(async () => JSON.stringify((await import('/js/state.js')).state.importedData))).toBe(before);
+  });
 });
 
 test('active ticker preserves controls, chip expansion and keyboard focus with single native actions', async ({ page }) => {

@@ -58,12 +58,14 @@ test('chat render browser coverage handles lens sources and rich transcript UI',
       const genericAdded = appendDiscussionOutputAttribution({
         threadId: null, aiMsgEl: liveDiscussion, provider: 'openrouter', modelId: 'example/model',
       });
+      const genericDiscussionUnchanged = liveDiscussion.childNodes.length === 0;
       const grokAdded = appendDiscussionOutputAttribution({
         threadId: null, aiMsgEl: liveDiscussion, provider: 'openrouter', modelId: 'x-ai/grok-4',
       });
-      outcomes.liveDiscussionMatchesTranscriptAttribution = !genericAdded && grokAdded
+      outcomes.liveDiscussionMatchesTranscriptAttribution = !genericAdded && genericDiscussionUnchanged && grokAdded
         && liveDiscussion.querySelectorAll<HTMLElement>('.chat-provider-attribution')!.length === 1
-        && liveDiscussion.textContent === 'Written with Grok';
+        && liveDiscussion.textContent.trim() === 'Written with Grok'
+        && liveDiscussion.querySelector('.chat-provider-attribution')?.textContent === 'Written with Grok';
 
       const attentionWrapper = document.createElement('details');
       attentionWrapper.className = 'rec-chat-wrapper rec-chat-unseen';
@@ -92,13 +94,14 @@ test('chat render browser coverage handles lens sources and rich transcript UI',
 
       previousRecommendationBridge = recommendationRuntime.configureRecommendationModuleBridge({
         isProductRecsEnabled: () => true,
-        renderRecommendationSectionSync: (slot:unknown, { label, maxProducts }:{label?:unknown;maxProducts?:unknown}) => `
-          <div class="rec-disclosure-banner">Disclosure for ${slot}</div>
-          <section class="rec-section" data-max="${maxProducts}">
-            <h3 class="rec-section-header">${label}</h3>
-            <p>${slot}</p>
-          </section>
-        `,
+        getRecommendationSectionViewSync: (slot: string, { label, maxProducts }: {label: string; maxProducts: number}) => {
+          if (maxProducts !== 2) throw new Error('Chat recommendations must retain their two-product limit');
+          return {
+            variant: 'standard', header: label, gated: false, banner: true, normalNote: false,
+            genetics: [], tiers: [{label: slot, hint: null, items: []}], products: [], coupon: null,
+            suggestionHref: null, footer: {region: 'US'}, disclaimer: false,
+          } satisfies import('../../js/tips-presentation.js').TipsSectionView;
+        },
       });
       recommendationRuntime.setRecommendationsCatalogCache({
         slots: {

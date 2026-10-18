@@ -449,8 +449,9 @@ async function evaluateBaseChecks(page:Page, theme:ThemeName, viewport:ViewportF
       assertNoOverlap('.m-dashboard-widgets .dashboard-widget', 'mobile dashboard widgets');
 
       if (theme === 'cyberterm') {
-        ok('cyberterm mobile section titles show bracket signature',
-          getComputedStyle(document.querySelector<HTMLElement>('.m-section-title')!, '::before').content.includes('['));
+        const titles = mobileWidgets.flatMap(widget => [...widget.querySelectorAll<HTMLElement>('.dashboard-widget-title')]).filter(visible);
+        ok('cyberterm mobile section titles show bracket signature', titles.length > 0 && titles.every(title =>
+          getComputedStyle(title, '::before').content.includes('[') && getComputedStyle(title, '::after').content.includes(']')));
       }
       if (theme === 'glass') {
         const filter = getComputedStyle(tabbar!).backdropFilter || (getComputedStyle(tabbar!) as unknown as {webkitBackdropFilter?:unknown}).webkitBackdropFilter;

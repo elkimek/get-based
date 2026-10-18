@@ -1,3 +1,4 @@
+import {openStaticSettings} from './settings-entry.js';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
@@ -192,7 +193,7 @@ for (const mode of modes) test.describe(`static cold startup: ${mode.name}`, () 
       });
       let navigations = 0;
       page.on('framenavigated', frame => {if (frame === page.mainFrame()) navigations++;});
-      await page.locator('[data-shell-action="open-settings"]').click();
+      await openStaticSettings(page);
       await page.locator('[data-settings-tab="display"]').click();
       const stylesheet = page.locator('link[data-settings-stylesheet]');
       await expect(stylesheet).toHaveAttribute('href', server.origin + '/css/settings.css');

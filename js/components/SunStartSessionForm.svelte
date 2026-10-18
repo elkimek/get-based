@@ -7,7 +7,7 @@
   const row = 'sun-detailed-row gb:light-session:grid gb:light-session:grid-cols-2 gb:light-session:gap-3 gb:light-session:mb-2 gb:light-session:mt-2.5 gb:light-session:max-[480px]:grid-cols-1';
   const input = 'gb:light-session:[@media(pointer:coarse)]:min-h-11 gb:light-session:max-[480px]:min-h-11 gb:light-session:w-full gb:light-session:min-w-0 gb:light-session:box-border';
   const hint = 'gb:light-session:text-xs gb:light-session:text-secondary gb:light-session:leading-normal gb:light-session:wrap-anywhere';
-  const explanation = `sun-detailed-glass-hint gb:light-session:text-[11px] gb:light-session:text-muted gb:light-session:leading-[1.45] gb:light-session:mt-1 gb:light-session:mb-0 gb:light-session:ml-6`;
+  const explanation = `sun-detailed-glass-hint gb:light-session:text-[11px] gb:light-session:text-secondary gb:light-session:leading-[1.45] gb:light-session:mt-1 gb:light-session:mb-0 gb:light-session:ml-6`;
 </script>
 <div class="modal sun-start-modal gb:light-session:w-full gb:light-session:max-w-[560px] gb:light-session:max-[480px]:p-4" role="dialog" aria-modal="true" aria-label={coverage ? 'Change coverage' : 'Start sun session'} data-light-session-presentation>
   <div class="modal-header"><h3>{coverage ? 'Update coverage mid-session' : 'Start a sun session'}</h3><button type="button" class="modal-close gb:light-session:[@media(pointer:coarse)]:min-h-11 gb:light-session:max-[480px]:min-h-11 gb:light-session:[@media(pointer:coarse)]:min-w-11 gb:light-session:max-[480px]:min-w-11" data-sun-start-close={coverage ? undefined : ''} data-sun-coverage-close={coverage ? '' : undefined} aria-label="Close">×</button></div>

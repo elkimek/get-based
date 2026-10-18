@@ -1,3 +1,4 @@
+import {openStaticSettings} from './settings-entry.js';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { startKitServer } from './kit-server.js';
@@ -8,7 +9,7 @@ async function ready(page:Page) {
   await expect.poll(()=>page.evaluate(()=>!!navigator.serviceWorker.controller),{timeout:30_000}).toBe(true);
 }
 async function openWearables(page:Page) {
-  await page.locator('[data-shell-action="open-settings"]').click();
+  await openStaticSettings(page);
   await page.locator('#settings-nav-wearables').click();
   await expect(page.locator('[data-wearables-view]')).toBeVisible();
 }

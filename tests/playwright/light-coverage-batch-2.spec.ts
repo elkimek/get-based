@@ -476,6 +476,8 @@ test('light tools AI analysis covers per-tool contexts fingerprints and inline s
         { id: 'unknown-one', tool: 'mystery-tool', value: 'raw', confidence: 0.5 },
       ];
       state.importedData.lightMeasurements = samples;
+      const fixtureData = await import('/js/data.js');
+      if (!await fixtureData.saveImportedDataForProfile(state.currentProfile, state.importedData, {forceProfileScope: true})) throw new Error('Could not persist the synthetic tool AI profile');
       const contexts: Record<string, string> = Object.fromEntries(samples.map(sample => [sample.id, analysis.buildMeasurementContext(sample)]));
       outcomes.contextLuxToolLine = contexts['lux-one']!.includes('Tool: lux meter');
       outcomes.contextLuxCalibrationLine = contexts['lux-one']!.includes('Calibration factor applied');
@@ -575,7 +577,8 @@ test('light tools AI analysis covers per-tool contexts fingerprints and inline s
       outcomes.inlineIdleShowsAnalyzeButton = idleHtml.includes('Get AI verdict');
       outcomes.inlineAnalyzingShowsProgress = analyzingHtml.includes('Analyzing');
       outcomes.inlineOkShowsGreenDot = okHtml.includes('sun-session-ai-dot-green');
-      outcomes.inlineOkEscapesTip = okHtml.includes('&lt;bright&gt;');
+      const okDOM = new DOMParser().parseFromString(okHtml, 'text/html');
+      outcomes.inlineOkEscapesTip = okDOM.body.textContent.includes('<bright>') && !okDOM.querySelector('bright,script,img');
       outcomes.inlineOkEscapesScriptDetail = !okHtml.includes('<script>');
       outcomes.inlineErrorShowsFailure = errorHtml.includes('Analysis failed');
       outcomes.inlineAuditRowsSkip = auditHtml === '';

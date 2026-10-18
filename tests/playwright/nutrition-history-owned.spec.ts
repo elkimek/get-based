@@ -36,20 +36,46 @@ test('owned History preserves paging, range selection, trends and read-only prof
   await expect(modal.locator('[data-nutrition-action="ask-history"]')).toBeEnabled();
   await modal.locator('[data-nutrition-range="30d"][data-nutrition-action="set-history-range"]').click(); await expect(modal.locator('[data-nutrition-range="30d"][data-nutrition-action="set-history-range"]')).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('tab', { name: 'Meals', exact: true }).click(); await expect(modal.locator('.nutrition-history-meals-head')).toContainText('29 entries');
-  expect(await modal.locator('[data-nutrition-action="set-history-range"][aria-pressed="true"]').evaluate(button => getComputedStyle(button).backgroundColor)).not.toBe(await modal.locator('[data-nutrition-action="set-history-range"][aria-pressed="false"]').first().evaluate(button => getComputedStyle(button).backgroundColor));
+  const rangeStyles = await modal.evaluate(root => {
+    const selected = root.querySelector('[data-nutrition-action="set-history-range"][aria-pressed="true"]');
+    const unselected = root.querySelector('[data-nutrition-action="set-history-range"][aria-pressed="false"]');
+    if (!selected || !unselected) throw new Error('Missing selected and unselected history ranges');
+    const probe = document.createElement('span'); probe.style.background = 'var(--accent-gradient)'; root.append(probe);
+    const expectedGradient = getComputedStyle(probe).backgroundImage; probe.remove();
+    const active = getComputedStyle(selected), inactive = getComputedStyle(unselected);
+    return {expectedGradient, activeImage: active.backgroundImage, activeBorder: active.borderColor, activeInk: active.color, inactiveImage: inactive.backgroundImage, inactiveBorder: inactive.borderColor};
+  });
+  expect(rangeStyles.expectedGradient).not.toBe('none');
+  expect(rangeStyles.activeImage).toBe(rangeStyles.expectedGradient);
+  expect(rangeStyles.activeBorder).toBe('rgba(0, 0, 0, 0)');
+  expect(rangeStyles.activeInk).toBe('rgb(255, 255, 255)');
+  expect(rangeStyles.inactiveImage).toBe('none');
+  expect(rangeStyles.inactiveBorder).not.toBe(rangeStyles.activeBorder);
   await modal.locator('.modal-close').click(); await expect(page.locator('#modal-overlay')).not.toHaveClass(/show/); expect(await stored(page)).toBe(before);
 });
-test('History is accessible in six themes and narrow layouts with usable action targets', async ({ page }) => {
-  test.setTimeout(120000); await open(page, 'trends');
-  await page.evaluate(async () => { const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = '/themes-extra.css'; const loaded = new Promise<void>((resolve, reject) => { link.onload = () => resolve(); link.onerror = () => reject(new Error('Themes unavailable')); }); document.head.append(link); await loaded; });
-  for (const theme of ['dark', 'light', 'cyberterm', 'glass', 'neuromancer', 'synth-sunrise']) for (const width of [320, 1100]) {
-    await page.setViewportSize({ width, height: 900 }); await page.evaluate(value => { document.documentElement.dataset.theme = value; }, theme);
-    const modal = page.locator('#detail-modal');
-    await modal.evaluate(async root => { const animations: Animation[] = [...root.getAnimations({ subtree: true })]; for (let element: Element | null = root; element; element = element.parentElement) { getComputedStyle(element).backgroundColor; animations.push(...element.getAnimations()); } await Promise.all(animations.filter(animation => animation.effect?.getComputedTiming().iterations !== Infinity).map(animation => animation.finished.catch(() => undefined))); });
-    expect(await modal.evaluate(root => root.scrollWidth <= root.clientWidth + 1), `${theme}/${width} overflow`).toBe(true);
-    for (const button of await modal.locator('button').all()) { const box = (await button.boundingBox())!; expect(box.height, `${theme}/${width} target height`).toBeGreaterThanOrEqual(44); expect(box.width, `${theme}/${width} target width`).toBeGreaterThanOrEqual(44); }
-    expect(await modal.evaluate(async root => (await (window as unknown as { axe: typeof import('axe-core') }).axe.run(root, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } })).violations.map(value => ({ id: value.id, nodes: value.nodes.map(node => ({ target: node.target, summary: node.failureSummary })) }))), `${theme}/${width} accessibility`).toEqual([]);
-  }
+// Dense fine-pointer controls retain their native sizing; touch targets use the coarse-pointer styles.
+test.describe('coarse-pointer touch targets', () => {
+  test.use({ hasTouch: true });
+  test.beforeEach(async ({ page }) => {
+    expect(await page.evaluate(() => ({
+      coarse: matchMedia('(pointer: coarse)').matches,
+      fine: matchMedia('(pointer: fine)').matches,
+      touch: navigator.maxTouchPoints > 0,
+    }))).toEqual({ coarse: true, fine: false, touch: true });
+  });
+
+  test('History is accessible in six themes and narrow layouts with usable action targets', async ({ page }) => {
+    test.setTimeout(120000); await open(page, 'trends');
+    await page.evaluate(async () => { const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = '/themes-extra.css'; const loaded = new Promise<void>((resolve, reject) => { link.onload = () => resolve(); link.onerror = () => reject(new Error('Themes unavailable')); }); document.head.append(link); await loaded; });
+    for (const theme of ['dark', 'light', 'cyberterm', 'glass', 'neuromancer', 'synth-sunrise']) for (const width of [320, 1100]) {
+      await page.setViewportSize({ width, height: 900 }); await page.evaluate(value => { document.documentElement.dataset.theme = value; }, theme);
+      const modal = page.locator('#detail-modal');
+      await modal.evaluate(async root => { const animations: Animation[] = [...root.getAnimations({ subtree: true })]; for (let element: Element | null = root; element; element = element.parentElement) { getComputedStyle(element).backgroundColor; animations.push(...element.getAnimations()); } await Promise.all(animations.filter(animation => animation.effect?.getComputedTiming().iterations !== Infinity).map(animation => animation.finished.catch(() => undefined))); });
+      expect(await modal.evaluate(root => root.scrollWidth <= root.clientWidth + 1), `${theme}/${width} overflow`).toBe(true);
+      for (const button of await modal.locator('button').all()) { const box = (await button.boundingBox())!; expect(box.height, `${theme}/${width} target height`).toBeGreaterThanOrEqual(44); expect(box.width, `${theme}/${width} target width`).toBeGreaterThanOrEqual(44); }
+      expect(await modal.evaluate(async root => (await (window as unknown as { axe: typeof import('axe-core') }).axe.run(root, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } })).violations.map(value => ({ id: value.id, nodes: value.nodes.map(node => ({ target: node.target, summary: node.failureSummary })) }))), `${theme}/${width} accessibility`).toEqual([]);
+    }
+  });
 });
 test('late History loading cannot replace another modal', async ({ page }) => {
   let release!: () => void; const gate = new Promise<void>(resolve => { release = resolve; });

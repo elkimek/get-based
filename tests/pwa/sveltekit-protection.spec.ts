@@ -1,3 +1,4 @@
+import {openStaticSettings} from './settings-entry.js';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
@@ -16,7 +17,7 @@ async function ready(page: Page) {
   await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller), { timeout: 30_000 }).toBe(true);
 }
 async function data(page: Page) {
-  await page.locator('[data-shell-action="open-settings"]').click();
+  await openStaticSettings(page);
   await page.locator('#settings-nav-data').click();
   await expect(page.locator('[data-protection-view="encryption"]')).toBeVisible();
 }

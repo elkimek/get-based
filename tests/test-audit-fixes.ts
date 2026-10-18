@@ -342,8 +342,9 @@ return (async function () {
       /\(0, syncSaveHooksDeps\.pushProfile\)\(profileId,\s*state\.importedData\)\.catch\(\(\)\s*=>\s*\{\s*\}\)/.test(helper));
     assert('onDataSaved routes through scheduleProfilePush',
       /scheduleProfilePush\(profileId,\s*data\)/.test(onSaved));
-    assert('onChatSaved routes through scheduleProfilePush',
-      /scheduleProfilePush\(profileId,\s*data\)/.test(onChat));
+    assert('onChatSaved routes the captured profile through its latest data into scheduleProfilePush',
+      /const latest = await readProfileImportedData\(profileId,\s*data\)/.test(onChat)
+        && /scheduleProfilePush\(profileId,\s*latest\)/.test(onChat));
   }
 
   // ─── 7. _syncDiag — no implicit console disclosure ─────────────────
@@ -375,30 +376,52 @@ return (async function () {
     const css = await fetchCssBundle();
     assert('CSS bundle loaded', css.length > 10000);
 
-    // Room name must allow shrinking + ellipsis on 375px viewports.
-    const roomBlock = css.match(/\.light-env-room-disclosure-name\s*\{[^}]+\}/);
-    assert('.light-env-room-disclosure-name rule present', !!roomBlock);
-    if (roomBlock) {
-      assert('room-name has min-width:0 (allows flex shrink)', /min-width:\s*0/.test(roomBlock[0]));
-      assert('room-name has text-overflow:ellipsis', /text-overflow:\s*ellipsis/.test(roomBlock[0]));
-      assert('room-name no longer flex-shrink:0', !/flex-shrink:\s*0\b/.test(roomBlock[0]));
-    }
+    // Probe the current scoped Tailwind recipes with their actual owner markers.
+    // The semantic classes intentionally no longer have standalone CSS rules.
+    const [{ environmentRoomClasses }, { environmentScreenClasses }] = await Promise.all([
+      import('/js/light-environment-room-classes.js'), import('/js/light-environment-screen-classes.js'),
+    ]);
+    const [roomSource, screenSource] = await Promise.all([
+      fetchSrc('js/components/LightEnvironmentRoom.svelte'), fetchSrc('js/components/LightEnvironmentScreen.svelte'),
+    ]);
+    const frame = document.createElement('iframe');
+    frame.title = 'Narrow environment layout and focus audit';
+    frame.style.cssText = 'position:fixed;left:-10000px;top:0;width:375px;height:400px;border:0';
+    document.body.append(frame);
+    try {
+      const doc = frame.contentDocument!, win = frame.contentWindow!;
+      await Promise.all(['styles.css', 'css/light-env.css'].map(sheet => new Promise<void>((resolve, reject) => {
+        const link = doc.createElement('link'); link.rel = 'stylesheet'; link.href = '/' + sheet;
+        link.onload = () => resolve(); link.onerror = () => reject(new Error('Audit stylesheet failed: ' + sheet));
+        doc.head.append(link);
+      })));
+      const room = doc.createElement('div'); room.dataset.lightEnvironmentRoom = '';
+      const screen = doc.createElement('div'); screen.dataset.lightEnvironmentScreen = '';
+      const roomName = doc.createElement('span'); roomName.className = environmentRoomClasses('light-env-room-disclosure-name');
+      const screenName = doc.createElement('span'); screenName.className = environmentScreenClasses('light-env-screen-card-name');
+      const screenSummary = doc.createElement('span'); screenSummary.className = environmentScreenClasses('light-env-screen-card-summary');
+      const overflow = doc.createElement('button'); overflow.type = 'button'; overflow.className = environmentScreenClasses('light-env-overflow'); overflow.textContent = '⋯';
+      room.append(roomName); screen.append(screenName, screenSummary, overflow); doc.body.append(room, screen);
+      const roomStyle = win.getComputedStyle(roomName), nameStyle = win.getComputedStyle(screenName), summaryStyle = win.getComputedStyle(screenSummary);
+      assert('room-name uses the current component recipe', roomSource.includes("c('light-env-room-disclosure-name')"));
+      assert('room-name has min-width:0 (allows flex shrink)', roomStyle.minWidth === '0px');
+      assert('room-name has text-overflow:ellipsis', roomStyle.textOverflow === 'ellipsis');
+      assert('room-name no longer flex-shrink:0', roomStyle.flexShrink === '1');
+      assert('screen name uses the current component recipe', screenSource.includes("c('light-env-screen-card-name')"));
+      assert('.light-env-screen-card-name has min-width:0', nameStyle.minWidth === '0px');
+      assert('.light-env-screen-card-summary has text-overflow:ellipsis',
+        screenSource.includes("c('light-env-screen-card-summary')") && summaryStyle.textOverflow === 'ellipsis');
+      assert('overflow uses the current component recipe', screenSource.includes("c('light-env-overflow')"));
+      assert('CSS audit runs with a fine pointer', win.matchMedia('(pointer: fine)').matches);
+      assert('.light-env-overflow width:32px', overflow.getBoundingClientRect().width === 32);
+      assert('.light-env-overflow height:32px', overflow.getBoundingClientRect().height === 32);
+      overflow.focus();
+      // The real button transitions all properties for 150 ms, including its outline.
+      for (let attempt = 0; attempt < 25 && win.getComputedStyle(overflow).outlineWidth !== '2px'; attempt += 1) await delay(20);
+      assert('.light-env-overflow has a visible 2px keyboard outline', overflow.matches(':focus-visible')
+        && win.getComputedStyle(overflow).outlineWidth === '2px' && win.getComputedStyle(overflow).outlineStyle !== 'none');
+    } finally { frame.remove(); }
 
-    // Screen card name + summary same protection.
-    const screenName = css.match(/\.light-env-screen-card-name\s*\{[^}]+\}/);
-    assert('.light-env-screen-card-name has min-width:0', screenName && /min-width:\s*0/.test(screenName[0]));
-    const screenSum = css.match(/\.light-env-screen-card-summary\s*\{[^}]+\}/);
-    assert('.light-env-screen-card-summary has text-overflow:ellipsis', screenSum && /text-overflow:\s*ellipsis/.test(screenSum[0]));
-
-    // .light-env-overflow bumped to 32px + focus-visible outline added.
-    const overflow = css.match(/\.light-env-overflow\s*\{[^}]+\}/);
-    assert('.light-env-overflow rule present', !!overflow);
-    if (overflow) {
-      assert('.light-env-overflow width:32px', /width:\s*32px/.test(overflow[0]));
-      assert('.light-env-overflow height:32px', /height:\s*32px/.test(overflow[0]));
-    }
-    assert('.light-env-overflow:focus-visible rule added',
-      /\.light-env-overflow:focus-visible\s*\{[^}]*outline:\s*2px/.test(css));
   }
 
   // ─── 10. Architecture contract + generated module map ─────────────
@@ -489,8 +512,8 @@ return (async function () {
       /import\s+['"]\.\/light-device-ai-analysis\.js['"]/.test(appLightSunFeatures));
     assert('app-ai-interaction-modules.js retains chat import',
       /import\s+['"]\.\/chat\.js['"]/.test(appAiInteractionFeatures));
-    assert('app-ui-shell-modules.js retains views import',
-      /import\s+['"]\.\/views\.js['"]/.test(appUiShellFeatures));
+    assert('app-ui-shell-modules.js retains the views runtime import',
+      /import\s+['"]\.\/views-runtime\.js['"]/.test(appUiShellFeatures));
   }
 
   // ─── Restore mutated globals ───────────────────────────────────────

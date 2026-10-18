@@ -28,21 +28,21 @@ test('owned Biology page preserves frozen geometry, container layouts and typed 
  for(const width of widths)for(const theme of ['dark','light','glass','synth-sunrise','neuromancer','cyberterm']){
   await page.setViewportSize({width,height:1000});await page.mouse.move(0,0);
   await page.evaluate(async theme=>(await import('/js/theme.js')).setTheme(theme),theme);
-  await expect.poll(()=>host.evaluate((element,{names,selector})=>{
+  for(const expanded of [false,true])for(const sample of frozen.samples){
+   await expect.poll(()=>host.evaluate((element,{name,expanded,selector})=>{
     const properties=['display','width','height','font-size','font-weight','font-family','line-height','letter-spacing','padding-top','padding-right','padding-bottom','padding-left','margin-top','margin-right','margin-bottom','margin-left','gap','grid-template-columns','grid-auto-flow','align-items','justify-content','border-top-width','border-top-color','border-radius','background-color','color','--biology-panel-offset'];
     const failures:string[]=[];
-    for(const expanded of [false,true])for(const name of names){
       // Only one pair is mounted, at a common origin; all strict comparisons remain.
       const pair=(element as HTMLElement & {pairs:Record<string,HTMLElement>}).pairs[name]!;pair.style.display='block';element.replaceChildren(pair);
       for(const node of pair.querySelectorAll('.biology-score-compact,.biology-score-unavailable-group')){if(expanded)node.setAttribute('open','');else node.removeAttribute('open');}
       // Use the unchanged real runtime row-measurement owner on both sides.
       window.dispatchEvent(new Event('resize'));
       const before=[...pair.querySelector('[data-original]')!.querySelectorAll(selector)],after=[...pair.querySelector('[data-current]')!.querySelectorAll(selector)];
-      if(before.length!==after.length){failures.push(`${name}/${expanded}: ${before.length}/${after.length}`);continue;}
+      if(before.length!==after.length){failures.push(`${name}/${expanded}: ${before.length}/${after.length}`);return failures;}
       before.forEach((node,index)=>{const a=getComputedStyle(node),b=getComputedStyle(after[index]!);for(const property of properties)if(a.getPropertyValue(property)!==b.getPropertyValue(property))failures.push(`${name}/${expanded}/${node.classList[0]}/${property}: ${b.getPropertyValue(property)} != ${a.getPropertyValue(property)}`);});
-    }
     return failures;
-  },{names:frozen.samples.map(sample=>sample.name),selector}),{message:`${width}/${theme} original full-page collapsed and expanded geometry`}).toEqual([]);
+   },{name:sample.name,expanded,selector}),{message:`${width}/${theme}/${sample.name}/${expanded?'expanded':'collapsed'} original full-page geometry`}).toEqual([]);
+  }
   pairs+=frozen.samples.length*2;
  }
  await host.locator('[data-original]').evaluateAll(nodes=>nodes.forEach(node=>node.remove()));let controls=0;

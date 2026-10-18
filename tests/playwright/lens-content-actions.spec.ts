@@ -5,6 +5,7 @@ import {expect, test} from './coverage-fixture.js';
 test('typed lens controls preserve shell action delegates without changing imported data', async ({page}) => {
   await installDiscussionFixture(page.context());
   await prepareDemoProfile(page);
+  expect(await page.evaluate(async () => (await import('/js/views-runtime.js')).navigate('body'))).toBe(true);
 
   const result = await page.evaluate(async () => {
     const [{state}, {createLensPageHandlers}, shell, presentation, contextRuntime, dnaBridge, settingsBridge] = await Promise.all([
@@ -46,17 +47,15 @@ test('typed lens controls preserve shell action delegates without changing impor
       getAvailableDashboardFixedWidgetIds: () => [],
       getDashboardWidgetPrefs: () => ({hidden}),
     });
+    const {createDashboardWidgetRenderers} = await import('/js/dashboard-widget-renderers.js');
+    const projectors = createDashboardWidgetRenderers({markerHasData: () => false, rerenderDashboardFromWidgetChange: () => {}, showRecommendations: () => {}});
     const handlers = createLensPageHandlers({
+      ...projectors,
+      projectDashboardWearableTilesWidget: (): ReturnType<typeof projectors.projectDashboardWearableTilesWidget> => ({kind: 'wearables', count: '0', pluralSuffix: 's', sync: {stale: false, label: ''}, rows: []}),
+      getLensContentGrid: shell.getLensContentGrid,
+      getLensWidgetChrome: shell.getLensWidgetChrome,
       setupDropZone: () => {},
       buildDashboardWidgetContext: (data: unknown) => ({data}),
-      renderLabsPriorityBanner: () => '',
-      renderDashboardQuickMarkersWidget: () => '',
-      renderDashboardKeyTrendsWidget: () => '',
-      renderDashboardGenomeWidget: () => '<p>Adjacent genome content fixture</p>',
-      renderDashboardWearableTilesWidget: () => '<p>Adjacent biometric content fixture</p>',
-      renderDashboardInsightsListWidget: () => '',
-      renderDashboardRecommendationsWidget: () => '',
-      renderFocusCard: () => '',
       loadFocusCard: () => {},
       getDashboardWidgetPrefs: () => ({hidden}),
       getCachedRecommendationsCatalog: () => null,

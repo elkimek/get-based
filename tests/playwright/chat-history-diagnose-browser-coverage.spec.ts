@@ -46,6 +46,7 @@ test('chat history browser coverage saves loads clears and updates thread state'
     const outcomes:Record<string,unknown> = {};
     let renderCalls = 0;
     let discussCalls = 0;
+    let releaseHeader: (() => Promise<void>) | null = null;
     const previousChatRuntime = chatRuntime.configureChatRuntimeCallbacks({
       renderChatMessages: () => { renderCalls += 1; },
       updateDiscussButton: () => { discussCalls += 1; },
@@ -69,6 +70,15 @@ test('chat history browser coverage saves loads clears and updates thread state'
         <div class="chat-header-title"></div>
         <button class="chat-summary-btn" type="button"></button>
       `;
+      // Header refreshes target its mounted Svelte owner, never a lookalike class.
+      const header = await import('/js/components/ChatHeader.svelte.native.js');
+      const { INITIAL_CHAT_LAYOUT } = await import('/js/chat-layout-view.js');
+      const headerHost = document.createElement('div'); document.body.appendChild(headerHost);
+      document.querySelector('.chat-header-title')?.remove();
+      document.querySelector('.chat-summary-btn')?.remove();
+      const mountedHeader = header.mount(header.default, {target: headerHost, props: {layout: INITIAL_CHAT_LAYOUT}});
+      header.flushSync();
+      releaseHeader = async () => { await header.unmount(mountedHeader); header.flushSync(); };
       state.currentProfile = profileId;
       state.currentChatPersonality = 'default';
       state.currentThreadId = null;
@@ -183,6 +193,7 @@ test('chat history browser coverage saves loads clears and updates thread state'
         && document.querySelector<HTMLElement>('.chat-header-title')?.textContent === 'AI Lab Analyst'
         && document.getElementById('notification-container')?.textContent!.includes('Chat history cleared') === true;
     } finally {
+      await releaseHeader?.();
       state.currentProfile = original.currentProfile;
       (state as {chatHistory:unknown}).chatHistory = original.chatHistory;
       (state as {chatThreads:unknown}).chatThreads = original.chatThreads;

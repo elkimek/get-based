@@ -10,9 +10,17 @@ const original = JSON.parse(fs.readFileSync('tests/fixtures/light-tools-original
   walkthrough: string; walkthroughStates: {kind: string; html: string}[]; styleBlocks: FrozenStyleBlock[];
 };
 const launchers = original.launchers.filter(sample => ['empty', 'one-recent', 'old-readings'].includes(sample.name));
-const golden = original.golden.filter(sample => ['unknown-12', 'solar-06', 'solar-12'].includes(sample.name)).map(sample => ({...sample,
-  view: projectGoldenHourLog(classifyDayWindow(sample.coords, new Date(sample.now), date => date.getHours() >= 6 && date.getHours() < 18 ? 70 : 110)),
-}));
+// Native solar receipts use Prague local hours; isolate that input from the runner timezone.
+function goldenViews() {
+  const prior = process.env.TZ;
+  try {
+    process.env.TZ = 'Europe/Prague';
+    expect(new Date('2026-08-07T12:00:00Z').getHours()).toBe(14);
+    return original.golden.filter(sample => ['unknown-12', 'solar-06', 'solar-12'].includes(sample.name)).map(sample => ({...sample,
+      view: projectGoldenHourLog(classifyDayWindow(sample.coords, new Date(sample.now), date => date.getHours() >= 6 && date.getHours() < 18 ? 70 : 110)),
+    }));
+  } finally {if(prior === undefined)delete process.env.TZ;else process.env.TZ = prior;}
+}
 
 test('authored light tool launchers and logs preserve frozen layouts and native controls', async ({page}, info) => {
   test.setTimeout(120000);
@@ -63,7 +71,7 @@ test('authored light tool launchers and logs preserve frozen layouts and native 
       }
     }
     host.querySelectorAll('details').forEach(node => node.open = true);
-  }, {launchers, golden, walkthrough: original.walkthrough, states: original.walkthroughStates, css: scopedFrozenStyles(original.styleBlocks)});
+  }, {launchers, golden: goldenViews(), walkthrough: original.walkthrough, states: original.walkthroughStates, css: scopedFrozenStyles(original.styleBlocks)});
   const host = page.locator('#light-tools-acceptance'); let pairs = 0;
   for (const width of [320, 430, 600, 700, 701, 720, 721, 1100]) for (const theme of ['dark', 'light', 'glass', 'synth-sunrise', 'neuromancer', 'cyberterm']) {
     await page.setViewportSize({width, height: 1000}); await page.mouse.move(0, 0);

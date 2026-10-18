@@ -12,7 +12,7 @@ const properties=new Set<string>();postcss.parse(original).walkDecls(decl=>{prop
 const props=[...properties].sort();
 for(const touch of [false,true])test.describe(touch?'coarse pointer':'fine pointer',()=>{
  test.use({hasTouch:touch});
- test('EMF Tailwind retains six-theme editor/preview/comparison layouts, hover/focus and native keyboard controls',async({page})=>{
+ for(const theme of ['dark','light','cyberterm','glass','synth-sunrise','neuromancer'])test('EMF Tailwind retains editor/preview/comparison layouts, hover/focus and native keyboard controls / '+theme,async({page})=>{
   test.setTimeout(120_000);
   await routeHtml(page,'**/emf-editor-style-parity','<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+common+'</style><style id="emf-style-under-test">'+compiled+'</style></head><body><div id="modal-overlay"><div id="detail-modal"></div></div></body></html>',200);
   await page.goto('/emf-editor-style-parity');
@@ -26,7 +26,7 @@ for(const touch of [false,true])test.describe(touch?'coarse pointer':'fine point
    owner.configureEMFEditor({hasAIProvider:()=>true,viewEMFPhoto:(...args:[string,number,number])=>calls.push(args)});owner.openEMFAssessmentEditor();
   });
   let comparisons=0,keyboardChecked=false;
-  for(const theme of ['dark','light','cyberterm','glass','synth-sunrise','neuromancer'])for(const width of [375,600,601,1024]){
+  for(const width of [375,600,601,1024]){
    await page.setViewportSize({width,height:900});await page.evaluate(theme=>{document.documentElement.dataset.theme=theme;},theme);
    for(const mode of ['editor','preview','empty','comparison'] as const){
     await page.evaluate(async mode=>{
@@ -59,6 +59,6 @@ for(const touch of [false,true])test.describe(touch?'coarse pointer':'fine point
     }
    }
   }
-  expect(comparisons).toBe(144);expect(keyboardChecked).toBe(true);
+  expect(comparisons).toBe(24);expect(keyboardChecked).toBe(true);
  });
 });

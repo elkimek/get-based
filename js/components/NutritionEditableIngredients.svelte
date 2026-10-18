@@ -2,7 +2,7 @@
   import type { EditableIngredientView } from '../nutrition-editor-review-model.js';
   import { ingredientRemove, copy, ingredientInput as input, textAction } from '../nutrition-view-classes.js';
   let { rows }: { rows: EditableIngredientView[] } = $props();
-  const columns = 'gb:nutrition:grid gb:nutrition:grid-cols-[minmax(150px,1fr)_92px_minmax(126px,.65fr)_30px] gb:nutrition:gap-[7px] gb:nutrition:[@media(pointer:coarse)]:grid-cols-[minmax(150px,1fr)_92px_minmax(126px,.65fr)_45px]';
+  const columns = 'gb:nutrition:grid gb:nutrition:grid-cols-[minmax(150px,1fr)_92px_minmax(126px,.65fr)_30px] gb:nutrition:gap-[7px] gb:nutrition:min-[721px]:[@media(pointer:coarse)]:grid-cols-[minmax(150px,1fr)_92px_minmax(126px,.65fr)_45px]';
 </script>
 <div data-nutrition-view class="nutrition-components-head gb:nutrition:flex gb:nutrition:flex-wrap gb:nutrition:items-center gb:nutrition:justify-between gb:nutrition:gap-3">
   <div class="gb:nutrition:grid gb:nutrition:gap-0.5"><strong class="gb:nutrition:text-sm">Ingredients and portions</strong><span class={`${copy} gb:nutrition:text-xs`}>Changing grams updates linked nutrients.</span></div>

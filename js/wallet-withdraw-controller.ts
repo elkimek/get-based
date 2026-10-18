@@ -59,11 +59,19 @@ export function createWalletWithdrawController(deps: WithdrawDependencies) {
     catch { status(view, 'Withdrawal unavailable or awaiting confirmation. Funds and recovery records are preserved. Check outgoing recovery before retrying.', 'danger'); }
     finally { busy = false; const latest = deps.view(); if (latest && current(latest)) latest.setState({ ...latest.getState(), pending: loadingView === latest }); }
   }
-  function paid(view: WalletWithdrawView, result: unknown): void {
-    if (record(result).paid !== true) throw new Error('Payment not confirmed');
+  function paid(view: WalletWithdrawView, result: unknown, requested?: number): void {
+    const reply = record(result);
+    if (reply.paid !== true) throw new Error('Payment not confirmed');
+    const address = requested === undefined ? null : {requested, sent: sats(reply.amount)};
+    if (address && address.sent > address.requested) throw new Error('Invalid paid amount');
     deps.refreshBalance(); deps.notify('Withdrawal complete', 'success');
-    if (current(view)) { view.clearPrivateFields(); view.setState({ ...view.getState(), phase: 'paid', status: { text: '✓ Withdrawn! Lightning payment sent.', tone: 'success' } }); }
+    if (current(view)) {
+      const text = address === null ? '✓ Withdrawn! Lightning payment sent.'
+        : `✓ Sent ${address.sent.toLocaleString()} sats${address.sent < address.requested ? ` (requested ${address.requested.toLocaleString()} sats)` : ''}. Lightning payment sent.`;
+      view.clearPrivateFields(); view.setState({ ...view.getState(), phase: 'paid', ...(address === null ? {} : {amount: address.sent}), status: { text, tone: 'success' } });
+    }
   }
+
   async function quote(): Promise<void> {
     await operation(async view => {
       const draft = view.readDraft(); const destination = draft.destination.trim();
@@ -74,7 +82,7 @@ export function createWalletWithdrawController(deps: WithdrawDependencies) {
       if (address) { if (!/^\d+$/.test(draft.amount) || !Number.isSafeInteger(Number(draft.amount)) || Number(draft.amount) < 1) { status(view, 'Enter a whole amount in sats', 'danger'); return; } amount = Number(draft.amount); }
       const mint = await original(view); if (!mint || !sameDraft(draft, view.readDraft())) return;
       status(view, address ? 'Withdrawing to Lightning address…' : 'Checking fee…');
-      if (address) { paid(view, await deps.address(destination, amount, mint)); return; }
+      if (address) { paid(view, await deps.address(destination, amount, mint), amount); return; }
       const reply = record(await deps.quote(destination, mint)); const quoteAmount = sats(reply.amount); const fee = sats(reply.fee_reserve, true);
       if (typeof reply.quote !== 'string' || !reply.quote || !Number.isSafeInteger(quoteAmount + fee)) throw new Error('Invalid quote');
       if (!current(view) || !sameDraft(draft, view.readDraft()) || mint !== await original(view) || !sameDraft(draft, view.readDraft())) return;

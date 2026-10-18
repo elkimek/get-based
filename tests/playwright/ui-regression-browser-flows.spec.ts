@@ -9,6 +9,8 @@ const UI_REGRESSION_BROWSER_TESTS: [string, string][] = [
 ];
 
 for (const [name, path] of UI_REGRESSION_BROWSER_TESTS) {
+  test.describe(name, () => {
+    if (path === 'tests/test-mobile.js') test.use({ hasTouch: true });
   (test as (title: string, details: Parameters<typeof test>[1] & {timeout: number}, body: Parameters<typeof test>[2]) => ReturnType<typeof test>)(name, { timeout: 60_000 }, async ({ page }) => {
     if (path === 'tests/test-chat-panel-ux.js') {
       // Opening awaits lazy stylesheets; exceed the old fixture's 50 ms sleep.
@@ -18,5 +20,6 @@ for (const [name, path] of UI_REGRESSION_BROWSER_TESTS) {
       });
     }
     await runBrowserScript(page, path);
+  });
   });
 }

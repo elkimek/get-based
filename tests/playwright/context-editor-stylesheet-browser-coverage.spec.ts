@@ -123,7 +123,7 @@ test('cold startup defers context editor presentation until a real editor opens'
     const contextCards = await import('/js/context-cards.js');
     await contextCards.openDietEditor();
     const modal = document.getElementById('detail-modal')!;
-    const head = modal?.querySelector('.ctx-editor-head');
+    const head = modal?.querySelector('#lifestyle-form-title')?.parentElement?.parentElement;
     return {
       label: modal?.getAttribute('aria-label') || '',
       overflowX: modal ? getComputedStyle(modal).overflowX : '',
@@ -159,9 +159,9 @@ test('long context editors use accessible progressive disclosure on mobile', asy
   const modal = page.locator('#detail-modal');
   await expect(page.locator('#tour-overlay')).toHaveCount(0);
   await expect(modal).toHaveAttribute('aria-label', 'Diet & Digestion');
-  await expect(modal.locator('details.ctx-editor-section')).toHaveCount(3);
-  await expect(modal.locator('details.ctx-editor-section[open]')).toHaveCount(0);
-  const mealsSection = modal.locator('details.ctx-editor-section').filter({ hasText: 'Typical meals' });
+  await expect(modal.locator('[data-context-form-view] details')).toHaveCount(3);
+  await expect(modal.locator('[data-context-form-view] details[open]')).toHaveCount(0);
+  const mealsSection = modal.locator('[data-context-form-view] details').filter({ hasText: 'Typical meals' });
   await mealsSection.locator('summary').click();
   await expect(mealsSection).toHaveAttribute('open', '');
   await expect(modal.locator('#diet-breakfast')).toBeVisible();
@@ -280,8 +280,8 @@ test('detailed meal logs pause Typical meals without turning partial logs into f
   expect(result.expiredDashboard).toContain('Typical meals active');
 
   const modal = page.locator('#detail-modal');
-  const mealsSection = modal.locator('details.ctx-editor-section').filter({ hasText: 'Typical meals' });
-  await expect(mealsSection.locator('.ctx-editor-section-summary')).toContainText('Paused — detailed log active');
+  const mealsSection = modal.locator('[data-context-form-view] details').filter({ hasText: 'Typical meals' });
+  await expect(mealsSection.locator('summary > span:last-child')).toContainText('Paused — detailed log active');
   await mealsSection.locator('summary').click();
   await expect(mealsSection.locator('#diet-meal-precedence')).toContainText('Saved examples stay here but are not sent to AI');
   await expect(mealsSection.locator('#diet-meal-precedence')).toContainText('unlogged meals stay unknown');
@@ -333,14 +333,18 @@ test('saved long-form details stay summarized and reopened editors start at the 
     return {
       scrolledDiet,
       reopenedAtTop: modal.scrollTop === 0,
-      collapsedSections: modal.querySelectorAll('details.ctx-editor-section[open]').length,
-      sectionSummaries: Array.from(modal.querySelectorAll('.ctx-editor-section-summary'))
+      reopenedScroll: modal.scrollTop,
+      reopenedTitle: modal.getAttribute('aria-label'),
+      liveModal: modal === document.getElementById('detail-modal'),
+      collapsedSections: modal.querySelectorAll('[data-context-form-view] details[open]').length,
+      sectionSummaries: Array.from(modal.querySelectorAll('[data-context-form-view] details > summary > span:last-child'))
         .map(el => el.textContent.trim()),
       noteTag: modal.querySelector<HTMLTextAreaElement>('#ctx-note-input')?.tagName,
       noteValue: modal.querySelector<HTMLTextAreaElement>('#ctx-note-input')?.value,
     };
   });
 
+  await test.info().attach('context-editor-reopen-diagnostic', {body: JSON.stringify(result), contentType: 'application/json'});
   expect(result.scrolledDiet).toBe(true);
   expect(result.reopenedAtTop).toBe(true);
   expect(result.collapsedSections).toBe(0);

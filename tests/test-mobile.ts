@@ -54,6 +54,7 @@ ${await fetchWithRetry('css/chat-redesign-open.css')}`;
   const responsiveFrame = document.createElement('iframe');
   responsiveFrame.title = 'Isolated responsive style audit';
   responsiveFrame.style.cssText = 'position:fixed;left:-10000px;top:0;width:600px;height:400px;border:0';
+  assert('mobile responsive audit runs with a coarse pointer', matchMedia('(pointer: coarse)').matches);
   let responsiveOwners: {width:number;overflowX:string;direction:string;menuDisplay:string;menuVisibility:string;menuWidth:number;menuHeight:number;menuTabIndex:number};
   try {
     document.body.append(responsiveFrame);

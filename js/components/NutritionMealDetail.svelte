@@ -2,7 +2,7 @@
   import type { NutritionMealDetailView, NutritionMealDetailActions } from '../nutrition-meal-detail-model.js';
   import Fuel from './NutritionFuelCard.svelte';
   import Response from './NutritionMealResponse.svelte';
-  import { closeButton, button, primary, copy, heading } from '../nutrition-view-classes.js';
+  import { closeButton, button, primary, copy, readableCopy, heading } from '../nutrition-view-classes.js';
   let { view, actions = { current: () => true, save: async () => false, failureMessage: () => '', notify: () => {} } }: { view: NutritionMealDetailView; actions?: NutritionMealDetailActions } = $props();
   let root: HTMLDivElement;
   let response = $state<ReturnType<typeof Response>>();
@@ -17,7 +17,7 @@
 <svelte:document onclickcapture={guard} oninputcapture={guard} onchangecapture={guard} onsubmitcapture={guard}/>
 <div bind:this={root} data-nutrition-meal-detail-view data-nutrition-view class="gb:nutrition:min-w-0 gb:nutrition:text-ink gb:nutrition:[overflow-wrap:anywhere]">
   <button type="button" class={closeButton} aria-label="Close Meals & Nutrition" data-nutrition-action="close">×</button>
-  <header class="nutrition-modal-head gb:nutrition:pr-11"><div><h3 id="nutrition-meal-detail-title" class="gb:nutrition:mt-0 gb:nutrition:text-xl">{view.name}</h3><p class={copy}>{view.date}</p></div></header>
+  <header class="nutrition-modal-head gb:nutrition:pr-11"><div><h3 id="nutrition-meal-detail-title" class="gb:nutrition:mt-0 gb:nutrition:text-xl">{view.name}</h3><p class={readableCopy}>{view.date}</p></div></header>
   <div class="nutrition-detail-layout gb:nutrition:mt-[18px] gb:nutrition:grid gb:nutrition:gap-4">
     {#if view.images.length}
       <div class="nutrition-detail-gallery gb:nutrition:grid gb:nutrition:gap-2 gb:nutrition:rounded-[14px] gb:nutrition:border gb:nutrition:border-line gb:nutrition:bg-[color-mix(in_srgb,var(--accent)_2.5%,var(--bg-card))] gb:nutrition:p-2 {view.images.length > 1 ? 'gb:nutrition:grid-cols-2 gb:nutrition:max-[600px]:grid-cols-1' : ''}">

@@ -4,7 +4,7 @@
   import Ring from './NutritionTargetRing.svelte';
   import Fuel from './NutritionFuelCard.svelte';
   import Meal from './NutritionMealRow.svelte';
-  import { closeButton, rings, goalGrid, button, dashboardButton, dashboardPrimary, historyTab, historyRange, copy, panel, timingPanel, heading, card } from '../nutrition-view-classes.js';
+  import { closeButton, rings, goalGrid, button, dashboardButton, dashboardPrimary, historyTab, historyRange, readableCopy as copy, panel, timingPanel, heading, card } from '../nutrition-view-classes.js';
   let { view, current = () => true }: { view: NutritionHistoryView; current?: () => boolean } = $props();
   let root: HTMLDivElement;
   function guard(event: MouseEvent) {

@@ -3,6 +3,8 @@ type FixtureFirstArgument<Callable> = Callable extends (...args: infer Args) => 
 type FixtureImportedRead = { sunDefaults?: { aiAnalysis?: FixtureVerdictRead | undefined } | null | undefined; sleepRest?: unknown; lightEnvironment?: { screens: { blueBlockerEnabled?: unknown }[]; burdenAI?: FixtureVerdictRead } | null; lightMeasurements?: unknown[]; channelMixAI?: FixtureVerdictRead; lightDailyVerdicts?: Record<string, FixtureVerdictRead> };
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
+import { createExpectAll } from '../helpers/browser-outcomes.js';
+const expectAll = createExpectAll(expect, 'collect');
 
 const moduleUrl = createModuleUrl('lightAiAnalysisCoverage');
 
@@ -18,6 +20,7 @@ test('sun and device session AI analysis covers contexts fingerprints and render
       import('/js/ai-verdict-engine-runtime.js'),
     ]);
     const outcomes: Record<string, unknown> = {};
+    const literalText = (html: string, text: string) => { const body = new DOMParser().parseFromString(html, 'text/html').body; return body.textContent.includes(text) && !body.querySelector('script,img,iframe,[onerror],[onload]'); };
     const saved = {
       importedData: JSON.parse(JSON.stringify(state.importedData || {})) as unknown,
       fetch: window.fetch,
@@ -148,6 +151,9 @@ test('sun and device session AI analysis covers contexts fingerprints and render
         lightDevices: [lightDevice],
         deviceSessions: [deviceSession, priorDeviceSession],
       };
+      // Scoped verdict commits compare against the profile actually stored.
+      const fixtureData = await import('/js/data.js');
+      if (!await fixtureData.saveImportedDataForProfile(state.currentProfile, state.importedData, {forceProfileScope: true})) throw new Error('Could not persist the synthetic AI profile');
       const sunContext = sun.buildSingleSessionContext(sunSession);
       outcomes.sunContextIncludesSolarPhase = sunContext.includes('Solar phase:')
         && sunContext.includes('sunrise window');
@@ -217,9 +223,9 @@ test('sun and device session AI analysis covers contexts fingerprints and render
       const cachedDeviceDetail = (device.renderDeviceSessionAIDetail as FixtureFirstArgument<typeof device.renderDeviceSessionAIDetail>)(cachedDevice);
       // `sun-session-ai-dot-*` is the shared verdict-dot class across Light/Sun AI surfaces.
       outcomes.cachedSessionVerdictsRenderWithoutProvider = cachedSunInline.includes('sun-session-ai-dot-green')
-        && cachedSunDetail.includes('&lt;sun detail&gt;')
+        && literalText(cachedSunDetail, '<sun detail>')
         && cachedDeviceInline.includes('sun-session-ai-dot-yellow')
-        && cachedDeviceDetail.includes('&lt;device detail&gt;');
+        && literalText(cachedDeviceDetail, '<device detail>');
 
       setLiveProvider();
       outcomes.inProgressSessionsDoNotRender = sun.renderSessionAIInline({ ...sunSession, endedAt: null }) === ''
@@ -286,6 +292,7 @@ test('sun and device session AI analysis covers contexts fingerprints and render
         return saved.fetch(url, options);
       };
       delete (sunSession as {aiAnalysis?: FixtureVerdictRead}).aiAnalysis;
+      if (!await fixtureData.saveImportedDataForProfile(state.currentProfile, state.importedData, {forceProfileScope: true})) throw new Error('Could not persist the synthetic AI profile');
       const sunRefresh = await sun.refreshSessionAIAnalysis(sunSession.id);
       const sunRefreshCallCountAfterHit = sunRefreshCalls;
       let missingSunRefreshCrashed = false;
@@ -324,6 +331,7 @@ test('sun and device session AI analysis covers contexts fingerprints and render
         return saved.fetch(url, options);
       };
       delete (deviceSession as {aiAnalysis?: FixtureVerdictRead}).aiAnalysis;
+      if (!await fixtureData.saveImportedDataForProfile(state.currentProfile, state.importedData, {forceProfileScope: true})) throw new Error('Could not persist the synthetic AI profile');
       const deviceRefresh = await device.refreshDeviceSessionAIAnalysis(deviceSession.id);
       outcomes.deviceRefreshWritesVerdictBySessionId = (deviceRefresh as FixtureVerdictRead | null | undefined)?.status === 'ok'
         && (deviceSession as {aiAnalysis?: FixtureVerdictRead}).aiAnalysis?.tip === 'device refresh tip'
@@ -341,6 +349,7 @@ test('sun and device session AI analysis covers contexts fingerprints and render
         return saved.fetch(url, options);
       };
       delete (deviceSession as {aiAnalysis?: FixtureVerdictRead}).aiAnalysis;
+      if (!await fixtureData.saveImportedDataForProfile(state.currentProfile, state.importedData, {forceProfileScope: true})) throw new Error('Could not persist the synthetic AI profile');
       const authResult = await device.analyzeDeviceSessionAI(deviceSession, { force: true });
       outcomes.deviceAnalyzeNormalizesAuthError = authResult === null
         && deviceAuthCalls === 1
@@ -371,9 +380,7 @@ test('sun and device session AI analysis covers contexts fingerprints and render
     apiUrl: moduleUrl('/js/api.js'),
   });
 
-  for (const [name, passed] of Object.entries(results)) {
-    expect(passed, name).toBe(true);
-  }
+  expectAll(results);
 });
 
 test('light environment AI analysis covers audit room screen and onboarding verdicts', async ({ page }) => {
@@ -390,6 +397,7 @@ test('light environment AI analysis covers audit room screen and onboarding verd
       import('/js/sun-defaults-runtime.js'),
     ]);
     const outcomes: Record<string, unknown> = {};
+    const literalText = (html: string, text: string) => { const body = new DOMParser().parseFromString(html, 'text/html').body; return body.textContent.includes(text) && !body.querySelector('script,img,iframe,[onerror],[onload]'); };
     const saved = {
       importedData: JSON.parse(JSON.stringify(state.importedData || {})) as unknown,
       fetch: window.fetch,
@@ -508,6 +516,9 @@ test('light environment AI analysis covers audit room screen and onboarding verd
         return saved.fetch(url, options);
       };
 
+      // Scoped verdict commits compare against the profile actually stored.
+      const fixtureData = await import('/js/data.js');
+      if (!await fixtureData.saveImportedDataForProfile(state.currentProfile, state.importedData, {forceProfileScope: true})) throw new Error('Could not persist the synthetic AI profile');
       const auditContext = audit.buildAuditContext(auditSnapshot);
       outcomes.auditContextIncludesRoomsScreensMeasurementsAndUser = auditContext.includes('Rooms: 2 · Screens: 2 · Measurements: 6')
         && auditContext.includes('Primary source: cool LED')
@@ -582,10 +593,10 @@ test('light environment AI analysis covers audit room screen and onboarding verd
       const cachedOnboardingDOM = new DOMParser().parseFromString(cachedOnboardingHtml, 'text/html');
       // `sun-session-ai-dot-*` is the shared verdict-dot class across Light/Sun AI surfaces.
       outcomes.cachedVerdictsRenderWhenProviderPaused = cachedAuditHtml.includes('sun-session-ai-dot-green')
-        && cachedAuditHtml.includes('&lt;audit&gt;')
+        && literalText(cachedAuditHtml, '<audit>')
         && cachedRoomHtml.includes('sun-session-ai-dot-yellow')
         && cachedScreenHtml.includes('sun-session-ai-dot-red')
-        && cachedScreenHtml.includes('&lt;screen detail&gt;')
+        && literalText(cachedScreenHtml, '<screen detail>')
         && cachedOnboardingHtml.includes('setup tip')
         && [...cachedOnboardingDOM.querySelectorAll('li')].some(item => item.textContent === '<dim lamps>')
         && !cachedOnboardingDOM.querySelector('dim, script, img');
@@ -614,6 +625,7 @@ test('light environment AI analysis covers audit room screen and onboarding verd
         && onboarding.renderOnboardingAIBlock().includes('setup failed');
 
       delete (auditSnapshot as {aiAnalysis?: FixtureVerdictRead}).aiAnalysis;
+      if (!await fixtureData.saveImportedDataForProfile(state.currentProfile, state.importedData, {forceProfileScope: true})) throw new Error('Could not persist the synthetic AI profile');
       const auditRefresh = await audit.refreshAuditAIAnalysis('audit-ai');
       let missingAuditRefreshCrashed = false;
       try { await audit.refreshAuditAIAnalysis('missing-audit'); }
@@ -623,6 +635,7 @@ test('light environment AI analysis covers audit room screen and onboarding verd
       outcomes.auditRefreshMissingIdNoops = !missingAuditRefreshCrashed;
 
       delete (bedroom as {aiAnalysis?: FixtureVerdictRead}).aiAnalysis;
+      if (!await fixtureData.saveImportedDataForProfile(state.currentProfile, state.importedData, {forceProfileScope: true})) throw new Error('Could not persist the synthetic AI profile');
       const roomRefresh = await roomAI.refreshRoomAIAnalysis('bedroom');
       let missingRoomRefreshCrashed = false;
       try { await roomAI.refreshRoomAIAnalysis('missing-room'); }
@@ -632,6 +645,7 @@ test('light environment AI analysis covers audit room screen and onboarding verd
       outcomes.roomRefreshMissingIdNoops = !missingRoomRefreshCrashed;
 
       delete (state.importedData as unknown as FixtureImportedRead).sunDefaults!.aiAnalysis;
+      if (!await fixtureData.saveImportedDataForProfile(state.currentProfile, state.importedData, {forceProfileScope: true})) throw new Error('Could not persist the synthetic AI profile');
       const analyzeResult = await onboarding.analyzeOnboardingAI({ force: true });
       outcomes.onboardingAnalyzeParsesActions = (analyzeResult as FixtureVerdictRead | null | undefined)?.status === 'ok'
         && Array.isArray((state.importedData as unknown as FixtureImportedRead).sunDefaults!.aiAnalysis?.actions)
@@ -658,9 +672,7 @@ test('light environment AI analysis covers audit room screen and onboarding verd
     onboardingUrl: moduleUrl('/js/sun-onboarding-ai.js'),
   });
 
-  for (const [name, passed] of Object.entries(results)) {
-    expect(passed, name).toBe(true);
-  }
+  expectAll(results);
 });
 
 test('light aggregate AI analysis covers channel burden and daily verdicts', async ({ page }) => {
@@ -676,6 +688,7 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
       import('/js/ai-verdict-engine-runtime.js'),
     ]);
     const outcomes: Record<string, unknown> = {};
+    const literalText = (html: string, text: string) => { const body = new DOMParser().parseFromString(html, 'text/html').body; return body.textContent.includes(text) && !body.querySelector('script,img,iframe,[onerror],[onload]'); };
     const saved = {
       importedData: JSON.parse(JSON.stringify(state.importedData || {})) as unknown,
       fetch: window.fetch,
@@ -814,6 +827,9 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
         },
         lightDailyVerdicts: {},
       };
+      // Scoped verdict commits compare against the profile actually stored.
+      const fixtureData = await import('/js/data.js');
+      if (!await fixtureData.saveImportedDataForProfile(state.currentProfile, state.importedData, {forceProfileScope: true})) throw new Error('Could not persist the synthetic AI profile');
       (window as unknown as {solarZenithAngle?: unknown}).solarZenithAngle = (date: Date) => (date.getHours() < 7 ? 87 : 28);
       const rollingChannelTotals = (days: unknown) => days === 7
         ? { vitamin_d: 260, circadian: 180, nir_solar: 130, no_cv: 60, pomc: 55, violet_eye: 30 }
@@ -939,11 +955,11 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
       const cachedHeroHtml = todayAI.renderLightTodayHero();
       const cachedChipHtml = todayAI.renderLightTodayDashboardChip();
       outcomes.cachedAggregateVerdictsRenderWithoutProvider = (cachedChannelHtml as string).includes('channel cached')
-        && (cachedChannelHtml as string).includes('&lt;channel detail&gt;')
+        && literalText((cachedChannelHtml as string), '<channel detail>')
         && cachedBurdenHtml.includes('burden cached')
-        && cachedBurdenHtml.includes('&lt;burden detail&gt;')
+        && literalText(cachedBurdenHtml, '<burden detail>')
         && cachedHeroHtml.includes('today cached')
-        && cachedHeroHtml.includes('&lt;today detail&gt;')
+        && literalText(cachedHeroHtml, '<today detail>')
         && cachedChipHtml.includes('today cached');
 
       setLiveProvider();
@@ -957,10 +973,10 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
       const idleHeroHtml = todayAI.renderLightTodayHero();
       const idleChipHtml = todayAI.renderLightTodayDashboardChip();
       outcomes.idleCtasRenderWhenNoCachedVerdictAndAnalysisGated = (idleChannelHtml as string).includes('Generate weekly review')
-        && (idleChannelHtml as string).includes('dashboard-action-btn light-channel-mix-ai-cta')
+        && new DOMParser().parseFromString(idleChannelHtml as string, 'text/html').querySelector('button.dashboard-action-btn.light-channel-mix-ai-cta') !== null
         && idleBurdenHtml.includes('Get AI verdict')
-        && idleHeroHtml.includes("Run today's verdict")
-        && idleChipHtml.includes("Get today's AI verdict");
+        && literalText(idleHeroHtml, "Run today's verdict")
+        && literalText(idleChipHtml, "Get today's AI verdict");
       await new Promise((resolve) => setTimeout(resolve, 20));
       (window as unknown as {DISABLE_AI_VERDICTS?: unknown}).DISABLE_AI_VERDICTS = false;
 
@@ -980,6 +996,7 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
       );
       delete (state.importedData as unknown as FixtureImportedRead).channelMixAI;
       delete (state.importedData as unknown as FixtureImportedRead).lightEnvironment!.burdenAI;
+      if (!await fixtureData.saveImportedDataForProfile(state.currentProfile, state.importedData, {forceProfileScope: true})) throw new Error('Could not persist the synthetic AI profile');
       const channelAnalysis = await channelAI.analyzeChannelMixAI({ force: true });
       // engine.refresh() forces a fresh analyze, so same-fingerprint refreshes consume the queued verdicts below.
       const channelRefresh = await channelAI.refreshChannelMixAI();
@@ -995,6 +1012,7 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
 
       queuedAIResponses.push({ dot: 'yellow', tip: 'aggregate tip', detail: 'aggregate detail' });
       delete (state.importedData as unknown as FixtureImportedRead).lightDailyVerdicts![todayKey];
+      if (!await fixtureData.saveImportedDataForProfile(state.currentProfile, state.importedData, {forceProfileScope: true})) throw new Error('Could not persist the synthetic AI profile');
       const dayAnalysis = await todayAI.analyzeDayAI(today, { force: true });
       outcomes.dayAnalyzeWritesDailyVerdict = (dayAnalysis as FixtureVerdictRead | null | undefined)?.status === 'ok'
         && (state.importedData as unknown as FixtureImportedRead).lightDailyVerdicts![todayKey]?.tip === 'aggregate tip';
@@ -1034,7 +1052,5 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
     todayUrl: moduleUrl('/js/light-today-ai.js'),
   });
 
-  for (const [name, passed] of Object.entries(results)) {
-    expect(passed, name).toBe(true);
-  }
+  expectAll(results);
 });

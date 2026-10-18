@@ -30,6 +30,8 @@ const properties=[
 async function mountPairs(page:Page,samples:Sample[]){
  await installDiscussionFixture(page.context(),{provider:'openrouter',paused:true});
  await prepareDemoProfile(page);await page.emulateMedia({reducedMotion:'reduce'});await page.clock.setFixedTime(new Date(frozen.fixedNow));
+ const prepared=await page.evaluate(async()=>(await import('/js/views.js')).navigate('body'));
+ expect(prepared,'Actual Body route prepares synchronous widget chrome').toBe(true);
  await page.evaluate(async({samples,originalStyles,placements})=>{
   for(const {file,anchor}of placements){
    const href='/'+file;

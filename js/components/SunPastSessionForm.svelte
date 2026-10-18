@@ -18,7 +18,7 @@
       <label class="ctx-label gb:light-session:text-secondary">Started at<input type="datetime-local" id="det-started-at" class={`ctx-input ${input}`} value={view.start} max={view.now}/></label>
       <label class="ctx-label gb:light-session:text-secondary">Ended at<input type="datetime-local" id="det-ended-at" class={`ctx-input ${input}`} value={view.now} max={view.now}/></label>
     </div>
-    <p class="sun-detailed-glass-hint gb:light-session:mt-1 gb:light-session:mb-0 gb:light-session:ml-6 gb:light-session:text-[11px] gb:light-session:text-muted gb:light-session:leading-[1.45]">Choose a protected-eye option only when the lenses are labeled UV-blocking. Dark tint alone does not prove UV protection.</p>
+    <p class="sun-detailed-glass-hint gb:light-session:mt-1 gb:light-session:mb-0 gb:light-session:ml-6 gb:light-session:text-[11px] gb:light-session:text-secondary gb:light-session:leading-[1.45]">Choose a protected-eye option only when the lenses are labeled UV-blocking. Dark tint alone does not prove UV protection.</p>
     <div class={`${hint} gb:light-session:-mt-1.5`} id="det-duration-hint">Duration: 15 min</div>
     <div class={row}>
       <label class="ctx-label gb:light-session:text-secondary">Sunscreen SPF<input type="number" id="det-spf" class={`ctx-input ${input}`} min="0" max="100" placeholder="none"/><span class={hint}>Modeled conservatively as variable typical-use protection, not the full laboratory SPF or permission to stay out longer.</span></label>

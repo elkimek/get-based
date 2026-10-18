@@ -12,6 +12,7 @@ async function prepareApp(page: Page) {
     localStorage.setItem(`labcharts-${profileId}-tour`, 'completed');
   });
   await page.goto('/app', { waitUntil: 'load' });
+  expect(await page.evaluate(async () => (await import('/js/views-runtime.js')).navigate('body'))).toBe(true);
   await waitForAsyncCondition(() => page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     return !!state;
@@ -109,7 +110,7 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
       }
 
       localStorage.removeItem(labsOrderKey);
-      views.navigate('labs');
+      await views.navigate('labs');
       await delay(120);
 
       const widgets = document.querySelector<HTMLElement>('.lens-page-widgets[data-lens-route="labs"]');

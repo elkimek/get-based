@@ -134,7 +134,7 @@ test('cold startup defers data protection presentation until an encryption actio
   const opened = await page.evaluate(async () => {
     const cryptoStore = await import('/js/crypto.js');
     await cryptoStore.showEnableEncryptionModal();
-    const overlay = document.getElementById('passphrase-overlay');
+    const overlay = document.getElementById('passphrase-overlay')?.querySelector('[role="dialog"]')?.parentElement;
     return {
       display: overlay ? getComputedStyle(overlay).display : '',
       position: overlay ? getComputedStyle(overlay).position : '',

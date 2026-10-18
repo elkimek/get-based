@@ -93,9 +93,58 @@ const pins: Record<string, string> = {
   "js/components/NutritionEditorFeedback.svelte": "788a99abd0191b8d854a324d815fe603f363f5e404315991fa22574a56adda30",
   "js/components/NutritionEditableIngredients.svelte": "3d6644001e6dc4fa48044d11ed0b89725b82093f1cfb649912d63e78e60ffda7"
 };
+// The later accessibility fixes change only these reviewed source spans. Restore
+// the exact pre-fix source for its original whole-file pin; candidate HTML stays
+// completely untouched and still compares byte for byte with the dispatcher.
+const reviewedLeafEdits: Readonly<Record<string, readonly (readonly [string, string])[]>> = {
+  "js/components/NutritionFuelCard.svelte": [
+    [
+      "  import { readableCopy as copy, fuelSummary, goalHead } from '../nutrition-view-classes.js';",
+      "  import { copy, fuelSummary, goalHead } from '../nutrition-view-classes.js';"
+    ],
+    [
+      "nutrition-fuel-meta gb:nutrition:text-[10px] gb:nutrition:text-secondary",
+      "nutrition-fuel-meta gb:nutrition:text-[10px] gb:nutrition:text-muted"
+    ]
+  ],
+  "js/components/NutritionMealEditor.svelte": [
+    [
+      "  import { button, readableCopy as copy, field, input, editorSummary as summary, focus , textAction } from '../nutrition-view-classes.js';",
+      "  import { button, copy, field, input, editorSummary as summary, focus , textAction } from '../nutrition-view-classes.js';"
+    ]
+  ],
+  "js/components/NutritionComparisonResults.svelte": [
+    [
+      "  import { button, readableCopy as copy, summary , readableTextAction as textAction } from '../nutrition-view-classes.js';",
+      "  import { button, copy, summary , textAction } from '../nutrition-view-classes.js';"
+    ]
+  ],
+  "js/components/NutritionEditorFeedback.svelte": [
+    [
+      "  import { readableCopy as copy } from '../nutrition-view-classes.js';",
+      "  import { copy } from '../nutrition-view-classes.js';"
+    ]
+  ],
+  "js/components/NutritionEditableIngredients.svelte": [
+    [
+      "gb:nutrition:min-[721px]:[@media(pointer:coarse)]:grid-cols-[minmax(150px,1fr)_92px_minmax(126px,.65fr)_45px]",
+      "gb:nutrition:[@media(pointer:coarse)]:grid-cols-[minmax(150px,1fr)_92px_minmax(126px,.65fr)_45px]"
+    ]
+  ]
+};
+function qualifyPinnedLeafSource(file: string, source: string): string {
+  if (!Object.hasOwn(pins, file)) throw new Error('Unknown Nutrition leaf owner: ' + file);
+  const hash = pins[file]!;
+  for (const [current, previous] of reviewedLeafEdits[file] || []) {
+    if (source.split(current).length !== 2) throw new Error('Unqualified reviewed Nutrition leaf span: ' + file);
+    source = source.replace(current, previous);
+  }
+  if (sha(source) !== hash) throw new Error('Unqualified original Nutrition leaf source: ' + file);
+  return source;
+}
 function qualifyReference(): void {
   expect(JSON.parse(fs.readFileSync('node_modules/svelte/package.json', 'utf8')).version).toBe('5.57.1');
-  for (const [file, hash] of Object.entries(pins)) expect(sha(fs.readFileSync(file, 'utf8')), file).toBe(hash);
+  for (const [file, hash] of Object.entries(pins)) expect(sha(qualifyPinnedLeafSource(file, fs.readFileSync(file, 'utf8'))), file).toBe(hash);
   for (const name of Object.values(components)) expect(HTML_COMPONENTS.has(name), name).toBe(true);
 }
 /**
@@ -150,6 +199,44 @@ const inputs: LiveProps[] = [
 ];
 
 it('qualifies the complete untouched dispatcher, thirteen genuine children, SDK and direct facade registrations', qualifyReference);
+for (const [file, edits] of Object.entries(reviewedLeafEdits)) {
+  it(`reviewed accessibility source reconstructs the unchanged whole original pin: ${file}`, () => {
+    const current = fs.readFileSync(file, 'utf8');
+    const original = qualifyPinnedLeafSource(file, current);
+    expect(original).not.toBe(current);
+    expect(sha(original)).toBe(pins[file]);
+  });
+  for (const [index, [current, previous]] of edits.entries()) {
+    it(`source qualification rejects missing, duplicate and wrong reviewed span ${index}: ${file}`, () => {
+      const source = fs.readFileSync(file, 'utf8');
+      const corruptions = [source.replace(current, previous), source + '\n' + current, source.replace(current, current + ' changed')];
+      for (const corrupted of corruptions) {
+        expect(corrupted).not.toBe(source);
+        expect(() => qualifyPinnedLeafSource(file, corrupted)).toThrow('Unqualified');
+      }
+    });
+  }
+  it(`source qualification rejects unrelated bytes after exact reviewed span restoration: ${file}`, () => {
+    const source = fs.readFileSync(file, 'utf8');
+    expect(() => qualifyPinnedLeafSource(file, source + '\n<!--unrelated source change-->')).toThrow('Unqualified original Nutrition leaf source');
+  });
+}
+it('source qualification rejects changed actions, unrelated base columns and wrong owners', () => {
+  const editorFile = 'js/components/NutritionMealEditor.svelte', editorSource = fs.readFileSync(editorFile, 'utf8');
+  const action = 'data-nutrition-action="analyze"';
+  expect(editorSource.split(action)).toHaveLength(2);
+  expect(() => qualifyPinnedLeafSource(editorFile, editorSource.replace(action, 'data-nutrition-action="wrong"'))).toThrow('Unqualified original Nutrition leaf source');
+  const gridFile = 'js/components/NutritionEditableIngredients.svelte', gridSource = fs.readFileSync(gridFile, 'utf8');
+  const baseColumns = 'grid-cols-[minmax(150px,1fr)_92px_minmax(126px,.65fr)_30px]';
+  expect(gridSource.split(baseColumns)).toHaveLength(2);
+  expect(() => qualifyPinnedLeafSource(gridFile, gridSource.replace(baseColumns, baseColumns.replace('_30px]', '_31px]')))).toThrow('Unqualified original Nutrition leaf source');
+  expect(() => qualifyPinnedLeafSource(gridFile, gridSource.replace('min-[721px]', 'min-[720px]'))).toThrow('Unqualified reviewed Nutrition leaf span');
+  expect(() => qualifyPinnedLeafSource(editorFile, editorSource.replace('readableCopy as copy', 'wrongCopy as copy'))).toThrow('Unqualified reviewed Nutrition leaf span');
+  expect(() => qualifyPinnedLeafSource('js/components/NutritionEditorFeedback.svelte', editorSource)).toThrow('Unqualified reviewed Nutrition leaf span');
+  expect(() => qualifyPinnedLeafSource('js/components/Unknown.svelte', editorSource)).toThrow('Unknown Nutrition leaf owner');
+  expect(() => qualifyPinnedLeafSource('toString', editorSource)).toThrow('Unknown Nutrition leaf owner');
+});
+
 for (const [index, input] of inputs.entries()) it(`${input.kind} witness ${index}: exact complete direct HTML retains every native child byte and action`, () => {
   qualifyReference();
   const before = structuredClone(input), rawReference = umbrella(input), rawActual = direct(input);

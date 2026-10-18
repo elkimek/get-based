@@ -80,6 +80,8 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
         lightCircadian: null,
         sunDefaults: {},
       };
+      // The setup session compares its captured defaults with durable profile data before committing.
+      if (!await data.saveImportedDataForProfile(state.currentProfile, state.importedData, { forceProfileScope: true })) throw new Error('Could not persist setup fixture baseline');
       data.invalidateActiveDataCache();
 
       sunDefaults.configureSunDefaults({
@@ -545,7 +547,7 @@ test('dashboard welcome hero uses delegated actions for chat import settings and
         getDashboardWidgetPrefs: () => ({}),
         getVisibleDashboardWidgetEntries: () => [],
         renderOnboardingBanner: () => '',
-        renderAIConnectionReminder: () => '',
+        projectAIConnectionReminder: () => null,
         renderDashboardStickyControls: () => '',
         renderDashboardControlButtons: () => '',
         renderDashboardWidget: () => '',

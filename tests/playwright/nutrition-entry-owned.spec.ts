@@ -40,43 +40,55 @@ for (const kind of ['targets', 'fluid'] as const) {
     await expect(field).toHaveValue(kind === 'targets' ? '2400' : 'Uninterrupted drink');
   });
 }
-test('owned nutrition forms stay accessible and contained across six themes and narrow layouts', async ({ page }) => {
-  test.setTimeout(120000);
-  await page.evaluate(async () => {
-    const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = '/themes-extra.css';
-    const loaded = new Promise<void>((resolve, reject) => { link.onload = () => resolve(); link.onerror = () => reject(new Error('Themes unavailable')); }); document.head.append(link); await loaded;
+// Dense fine-pointer controls retain their native sizing; touch targets use the coarse-pointer styles.
+test.describe('coarse-pointer touch targets', () => {
+  test.use({ hasTouch: true });
+  test.beforeEach(async ({ page }) => {
+    expect(await page.evaluate(() => ({
+      coarse: matchMedia('(pointer: coarse)').matches,
+      fine: matchMedia('(pointer: fine)').matches,
+      touch: navigator.maxTouchPoints > 0,
+    }))).toEqual({ coarse: true, fine: false, touch: true });
   });
-  for (const kind of ['targets', 'fluid'] as const) {
-    await open(page, kind); const modal = page.locator('#detail-modal');
-    for (const theme of ['dark', 'light', 'cyberterm', 'glass', 'neuromancer', 'synth-sunrise']) for (const width of [320, 1100]) {
-      await page.setViewportSize({ width, height: 900 }); await page.evaluate(value => { document.documentElement.dataset.theme = value; }, theme);
-      await modal.evaluate(async root => {
-        const animations = [...root.getAnimations({ subtree: true })];
-        for (let element: Element | null = root; element; element = element.parentElement) { getComputedStyle(element).backgroundColor; animations.push(...element.getAnimations()); }
-        await Promise.all(animations.filter(animation => animation.effect?.getComputedTiming().iterations !== Infinity).map(animation => animation.finished.catch(() => undefined)));
-      });
-      const geometry = await modal.evaluate(root => {
-        const bounds = root.getBoundingClientRect();
-        return { scrollWidth: root.scrollWidth, clientWidth: root.clientWidth, bounds: bounds.toJSON(),
-          overflow: Array.from(root.querySelectorAll<HTMLElement>('*')).flatMap(element => {
-            const rect = element.getBoundingClientRect();
-            return rect.width && (rect.right > bounds.right || element.scrollWidth > element.clientWidth + 1 || element.tagName === 'SELECT')
-              ? [{ tag: element.tagName, id: element.id, class: element.className, text: element.textContent?.slice(0, 80), rect: rect.toJSON(), scrollWidth: element.scrollWidth, clientWidth: element.clientWidth, width: getComputedStyle(element).width, minWidth: getComputedStyle(element).minWidth }] : [];
-          }),
-        };
-      });
-      if (geometry.scrollWidth > geometry.clientWidth + 1) await test.info().attach('nutrition-form-overflow', { body: JSON.stringify(geometry, null, 2), contentType: 'application/json' });
-      expect(geometry.scrollWidth <= geometry.clientWidth + 1, `${kind}/${theme}/${width} overflow`).toBe(true);
-      for (const action of await modal.locator('button, summary, .nutrition-widget-metric-option, .nutrition-fluid-kind').all()) {
-        const box = await action.boundingBox(); if (!box) continue;
-        const label = (await action.innerText()).slice(0, 60);
-        expect(box.height, `${kind}/${theme}/${width}/${label} target height`).toBeGreaterThanOrEqual(44);
-        expect(box.width, `${kind}/${theme}/${width}/${label} target width`).toBeGreaterThanOrEqual(44);
+
+  test('owned nutrition forms stay accessible and contained across six themes and narrow layouts', async ({ page }) => {
+    test.setTimeout(120000);
+    await page.evaluate(async () => {
+      const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = '/themes-extra.css';
+      const loaded = new Promise<void>((resolve, reject) => { link.onload = () => resolve(); link.onerror = () => reject(new Error('Themes unavailable')); }); document.head.append(link); await loaded;
+    });
+    for (const kind of ['targets', 'fluid'] as const) {
+      await open(page, kind); const modal = page.locator('#detail-modal');
+      for (const theme of ['dark', 'light', 'cyberterm', 'glass', 'neuromancer', 'synth-sunrise']) for (const width of [320, 1100]) {
+        await page.setViewportSize({ width, height: 900 }); await page.evaluate(value => { document.documentElement.dataset.theme = value; }, theme);
+        await modal.evaluate(async root => {
+          const animations = [...root.getAnimations({ subtree: true })];
+          for (let element: Element | null = root; element; element = element.parentElement) { getComputedStyle(element).backgroundColor; animations.push(...element.getAnimations()); }
+          await Promise.all(animations.filter(animation => animation.effect?.getComputedTiming().iterations !== Infinity).map(animation => animation.finished.catch(() => undefined)));
+        });
+        const geometry = await modal.evaluate(root => {
+          const bounds = root.getBoundingClientRect();
+          return { scrollWidth: root.scrollWidth, clientWidth: root.clientWidth, bounds: bounds.toJSON(),
+            overflow: Array.from(root.querySelectorAll<HTMLElement>('*')).flatMap(element => {
+              const rect = element.getBoundingClientRect();
+              return rect.width && (rect.right > bounds.right || element.scrollWidth > element.clientWidth + 1 || element.tagName === 'SELECT')
+                ? [{ tag: element.tagName, id: element.id, class: element.className, text: element.textContent?.slice(0, 80), rect: rect.toJSON(), scrollWidth: element.scrollWidth, clientWidth: element.clientWidth, width: getComputedStyle(element).width, minWidth: getComputedStyle(element).minWidth }] : [];
+            }),
+          };
+        });
+        if (geometry.scrollWidth > geometry.clientWidth + 1) await test.info().attach('nutrition-form-overflow', { body: JSON.stringify(geometry, null, 2), contentType: 'application/json' });
+        expect(geometry.scrollWidth <= geometry.clientWidth + 1, `${kind}/${theme}/${width} overflow`).toBe(true);
+        for (const action of await modal.locator('button, summary, .nutrition-widget-metric-option, .nutrition-fluid-kind').all()) {
+          const box = await action.boundingBox(); if (!box) continue;
+          const label = (await action.innerText()).slice(0, 60);
+          expect(box.height, `${kind}/${theme}/${width}/${label} target height`).toBeGreaterThanOrEqual(44);
+          expect(box.width, `${kind}/${theme}/${width}/${label} target width`).toBeGreaterThanOrEqual(44);
+        }
+        expect(await modal.evaluate(async root => (await (window as unknown as { axe: typeof import('axe-core') }).axe.run(root, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } })).violations.map(value => ({ id: value.id, nodes: value.nodes.map(node => ({ target: node.target, summary: node.failureSummary })) }))), `${kind}/${theme}/${width} accessibility`).toEqual([]);
       }
-      expect(await modal.evaluate(async root => (await (window as unknown as { axe: typeof import('axe-core') }).axe.run(root, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } })).violations.map(value => ({ id: value.id, nodes: value.nodes.map(node => ({ target: node.target, summary: node.failureSummary })) }))), `${kind}/${theme}/${width} accessibility`).toEqual([]);
+      await modal.locator('.modal-close').click(); await expect(page.locator('#modal-overlay')).not.toHaveClass(/show/);
     }
-    await modal.locator('.modal-close').click(); await expect(page.locator('#modal-overlay')).not.toHaveClass(/show/);
-  }
+  });
 });
 for (const kind of ['targets', 'fluid'] as const) {
   test(`late ${kind} loading cannot replace another surface`, async ({ page }) => {

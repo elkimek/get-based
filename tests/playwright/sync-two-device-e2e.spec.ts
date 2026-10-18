@@ -2,7 +2,10 @@ import {waitForAsyncCondition} from '../helpers/awaited-condition.js';
 type SyncE2ERawMerge=(profileId:Parameters<typeof import('../../js/sync-pull-merge.js').mergePulledImportedData>[0], remote:unknown, opts:Parameters<typeof import('../../js/sync-pull-merge.js').mergePulledImportedData>[2])=>ReturnType<typeof import('../../js/sync-pull-merge.js').mergePulledImportedData>;
 type SyncE2ERawRefresh=(options:Omit<NonNullable<Parameters<typeof import('../../js/sync-pull-active-refresh.js').refreshActiveProfileAfterPull>[0]>, 'merged'> & {merged:unknown})=>ReturnType<typeof import('../../js/sync-pull-active-refresh.js').refreshActiveProfileAfterPull>;
 import type {Browser,BrowserContext,Page,TestInfo} from '@playwright/test';
+type SyncPullSnapshot = {needsRebroadcast:boolean;remoteBroughtNewRows:boolean;localDataChanged:boolean;merged:unknown};
+type SyncPullOperation = {status:'pending'} | {status:'complete';result:SyncPullSnapshot} | {status:'failed';message:string};
 type SyncE2EGlobals={
+ __syncE2EPullOperation?:SyncPullOperation;
  __syncE2EState:{importedData:unknown};
  __syncE2EMergePulledImportedData:typeof import('../../js/sync-pull-merge.js').mergePulledImportedData;
  __syncE2EPersistPulledImportedData:typeof import('../../js/sync-pull-merge.js').persistPulledImportedData;
@@ -211,27 +214,47 @@ async function getImportedData(page:Page) {
 }
 
 async function pullRemoteImportedData(page:Page,remoteImportedData:unknown) {
-  return page.evaluate(async ({ profileId, remote }) => {
-    const state = (window as unknown as SyncE2EGlobals).__syncE2EState;
-    const result = await ((window as unknown as SyncE2EGlobals).__syncE2EMergePulledImportedData as SyncE2ERawMerge)(profileId, (JSON.parse as (text:string)=>unknown)(JSON.stringify(remote)), {
-      debug: () => {},
+  // Start once and observe explicit completion. Returning an async browser promise
+  // directly through CDP can lose its handle under collection in a shared worker.
+  await page.evaluate(({ profileId, remote }) => {
+    const fixture = window as unknown as SyncE2EGlobals;
+    fixture.__syncE2EPullOperation = {status:'pending'};
+    void (async () => {
+      const result = await (fixture.__syncE2EMergePulledImportedData as SyncE2ERawMerge)(profileId, (JSON.parse as (text:string)=>unknown)(JSON.stringify(remote)), {
+        debug: () => {},
+      });
+      await fixture.__syncE2EPersistPulledImportedData(result.localKey, profileId, result.merged, Date.now());
+      fixture.__syncE2ERefreshActiveProfileAfterPull({
+        profileId,
+        merged: result.merged,
+        chatApplied: false,
+        remoteBroughtNewRows: result.remoteBroughtNewRows,
+        localDataChanged: result.localDataChanged,
+        debug: () => {},
+      });
+      return {
+        needsRebroadcast: result.needsRebroadcast,
+        remoteBroughtNewRows: result.remoteBroughtNewRows,
+        localDataChanged: result.localDataChanged,
+        merged: (JSON.parse as (text:string)=>unknown)(JSON.stringify(fixture.__syncE2EState.importedData)) as unknown,
+      };
+    })().then(result => {fixture.__syncE2EPullOperation = {status:'complete',result};}, error => {
+      fixture.__syncE2EPullOperation = {status:'failed',message:error instanceof Error ? error.stack || error.message : String(error)};
     });
-    await (window as unknown as SyncE2EGlobals).__syncE2EPersistPulledImportedData(result.localKey, profileId, result.merged, Date.now());
-    (window as unknown as SyncE2EGlobals).__syncE2ERefreshActiveProfileAfterPull({
-      profileId,
-      merged: result.merged,
-      chatApplied: false,
-      remoteBroughtNewRows: result.remoteBroughtNewRows,
-      localDataChanged: result.localDataChanged,
-      debug: () => {},
-    });
-    return {
-      needsRebroadcast: result.needsRebroadcast,
-      remoteBroughtNewRows: result.remoteBroughtNewRows,
-      localDataChanged: result.localDataChanged,
-      merged: (JSON.parse as (text:string)=>unknown)(JSON.stringify(state.importedData)) as unknown,
-    };
   }, { profileId: PROFILE_ID, remote: remoteImportedData });
+  try {
+    await page.waitForFunction(() => {
+      const operation = (window as unknown as SyncE2EGlobals).__syncE2EPullOperation;
+      return operation && operation.status !== 'pending';
+    });
+    return await page.evaluate(() => {
+      const operation = (window as unknown as SyncE2EGlobals).__syncE2EPullOperation;
+      if (operation?.status !== 'complete') throw new Error(operation?.status === 'failed' ? operation.message : 'Missing sync pull completion');
+      return operation.result;
+    });
+  } finally {
+    await page.evaluate(() => {delete (window as unknown as SyncE2EGlobals).__syncE2EPullOperation;});
+  }
 }
 
 async function applyMergedImportedData(page:Page,mergedImportedData:unknown,remoteBroughtNewRows = true) {
@@ -410,6 +433,8 @@ async function sessionModalSnapshot(page:Page,kind:string) {
     return {
       open: !!modal,
       text: modal?.textContent || '',
+      when: [...modal?.querySelectorAll<HTMLElement>('.sun-detail-grid > div') || []]
+        .find(field => field.querySelector('span')?.textContent === 'When')?.querySelector('strong')?.textContent || '',
       durationMin: source?.durationMin,
       endedAt: source?.endedAt,
     };
@@ -710,7 +735,7 @@ async function run(browser:Browser,testInfo:TestInfo) {
     await pullRemoteImportedData(pageB, await getImportedData(pageA));
     const sunSnap = await sessionModalSnapshot(pageB, 'sun');
     assert('Device B open sun session modal refreshes pulled duration',
-      sunSnap.open && sunSnap.durationMin === 33 && /\b33 min\b/.test(sunSnap.text),
+      sunSnap.open && sunSnap.durationMin === 33 && /\b33 min$/.test(sunSnap.when),
       JSON.stringify(sunSnap));
 
     await closeFloatingModals(pageB);

@@ -17,7 +17,7 @@ const examples:TypedSample[]=original.cases.filter(sample=>['0/true/true','1/tru
  const nativeToday=children.screens.find(row=>row.name===sample.name);if(!nativeToday)throw new Error('Missing authenticated original screen Today input');
  let html=sample.html;
  if(html.includes('<div data-fixture-ai>Trusted AI renderer</div>'))html=html.replaceAll('<div data-fixture-ai>Trusted AI renderer</div>',nativeAI.html);
- if(html.includes('<button type="button" data-fixture-today>Trusted today</button>'))html=html.replaceAll('<button type="button" data-fixture-today>Trusted today</button>','<span class="screen-trusted-today">'+nativeToday.html+'</span>');
+ if(html.includes('<button type="button" data-fixture-today>Trusted today</button>'))html=html.replaceAll('<button type="button" data-fixture-today>Trusted today</button>',nativeToday.html);
  expect(html).not.toContain('data-fixture-');
  return {...sample,html,aiView:structuredClone(nativeAI.view),todayView:structuredClone(nativeToday.view)};
 });

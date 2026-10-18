@@ -172,14 +172,17 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
       }));
       localStorage.setItem('labcharts-debug', 'false');
       settingsModule.openSettingsModal('ai');
+      await waitFor(() => document.querySelector('[data-settings-action="open-import-benchmarks"]'), 'mounted benchmark entry');
       results.importBenchmarksVisibleOutsideDebugMode = document.querySelector<HTMLElement>('[data-settings-action="open-import-benchmarks"]') !== null;
       settingsModule.openSettingsModal('display');
       const debugToggle = (document.getElementById('debug-mode-toggle') as HTMLInputElement|null);
       debugToggle!.checked = true;
       debugToggle!.dispatchEvent(new Event('change', { bubbles: true }));
       settingsModule.openSettingsModal('ai');
+      await waitFor(() => document.querySelector('[data-settings-action="open-import-benchmarks"]'), 'mounted benchmark entry');
       const benchmarkButton = document.querySelector<HTMLElement>('[data-settings-action="open-import-benchmarks"]');
       benchmarkButton!.click();
+      await waitFor(() => document.getElementById('import-benchmarks-overlay'), 'opened benchmark dialog');
       const benchmarkOverlay = document.getElementById('import-benchmarks-overlay');
       const benchmarkText = benchmarkOverlay?.textContent || '';
       results.importBenchmarksModalShowsLocalMetrics = benchmarkOverlay?.classList.contains('show') === true
@@ -192,6 +195,7 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
         && benchmarkText.includes('import complete · retried');
       benchmarkOverlay!.querySelector<HTMLElement>('[data-import-benchmarks-action="close"]')!.click();
       results.importBenchmarksModalCloses = document.getElementById('import-benchmarks-overlay') === null;
+      await waitFor(() => document.querySelector('#ai-usage-section [data-settings-action="reset-profile-usage"]'), 'mounted usage controls');
       document.querySelector<HTMLElement>('#ai-usage-section [data-settings-action="reset-profile-usage"]')!.click();
       await wait(0);
       results.resetCurrentProfileUsage = localStorage.getItem(usageKey) === null
@@ -317,7 +321,7 @@ test('settings browser coverage renames imported entry dates through the data se
         changeHistory: [],
       };
 
-      document.body.insertAdjacentHTML('beforeend', '<section id="data-entries-section"></section>');
+      document.body.insertAdjacentHTML('beforeend', '<section id="data-entries-section">' + settingsModule.renderDataEntriesSection() + '</section>');
       settingsModule.refreshDataEntriesSection();
 
       const renamePromise = settingsModule.renameImportedEntryDateFromSettings('2026-02-01');

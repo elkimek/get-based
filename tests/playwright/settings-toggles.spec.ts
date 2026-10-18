@@ -30,22 +30,23 @@ test('Settings display toggles persist through delegated slider actions', async 
   await preparePage(page);
 
   await page.evaluate(async () => {
-    const settings = await import('/js/settings.js');
+    const settingsLoader = await import('/js/settings-loader.js');
+    const settings = await settingsLoader.loadSettingsModule();
     localStorage.removeItem('labcharts-show-product-recs');
     localStorage.removeItem('labcharts-debug');
     (await import('/js/theme.js')).setTheme('cyberterm');
     settings.configureSettingsRuntime({
       navigate: (view: string) => { document.body.dataset.settingsNavigate = view; },
     });
-    settings.openSettingsModal('display');
+    await settingsLoader.openSettingsModal('display');
   });
 
   await expect(page.locator('#settings-modal-overlay')).toHaveClass(SHOW_CLASS_TOKEN);
   await expect(page.locator('#settings-modal')).toHaveAttribute('data-delegated-actions', '1');
   await expect(page.locator('label[for="debug-mode-toggle"], label.settings-label').filter({ hasText: 'Debug Mode' })).toHaveCount(1);
 
-  await page.locator('#settings-product-recs + .toggle-slider').click();
-  await page.locator('#debug-mode-toggle + .toggle-slider').click();
+  await page.getByRole('checkbox', {name: 'Tips', exact: true}).click();
+  await page.getByRole('checkbox', {name: 'Debug Mode', exact: true}).click();
 
   await expect.poll(async () => page.evaluate(() => localStorage.getItem('labcharts-show-product-recs'))).toBe('false');
   await expect.poll(async () => page.evaluate(() => localStorage.getItem('labcharts-debug'))).toBe('true');
@@ -64,7 +65,7 @@ test('Settings data sync exposes visible setup controls and a working toggle', a
 
   const newSetup = page.locator('#sync-section [data-sync-action="setup-new-direct"]');
   const joinExisting = page.locator('#sync-section [data-sync-action="setup-restore-direct"]');
-  const syncSlider = page.locator('#sync-section [data-sync-action="toggle-sync"] + .chat-toggle-slider');
+  const syncSlider = page.locator('#sync-section label.sync-settings-toggle');
   await expect(newSetup).toBeVisible();
   await expect(joinExisting).toBeVisible();
   await expect(syncSlider).toBeVisible();
@@ -78,7 +79,7 @@ test('Settings data sync exposes visible setup controls and a working toggle', a
   await directRestoreOverlay.locator('[data-sync-setup-action="setup-cancel"]').click();
   await expect(directRestoreOverlay).not.toHaveClass(SHOW_CLASS_TOKEN);
 
-  await page.locator('#sync-section [data-sync-action="toggle-sync"] + .chat-toggle-slider').click();
+  await page.locator('#sync-section label.sync-settings-toggle').click();
 
   const setupOverlay = page.locator('#sync-setup-overlay');
   await expect(setupOverlay).toHaveClass(SHOW_CLASS_TOKEN);

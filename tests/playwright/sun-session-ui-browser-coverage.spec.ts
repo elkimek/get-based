@@ -14,6 +14,8 @@ test('sun session UI covers alternate list detail and chip rendering paths', asy
       import('/js/state.js'),
       ((import(sunSessionUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/sun-session-ui.js'),'configureSunSessionUI'|'renderSessionsList'|'renderSunSessionRow'|'renderChannelChips'|'openSunSessionDetail'|'openDetailedSessionDialog'|'deleteSunSession'|'editSunSessionDuration'>>),
     ]);
+    const { projectSessionAI } = await import('/js/light-session-ai-presentation.js');
+    const { aiActionOwner } = await import('/js/ai-action-delegates.js');
     const outcomes: Record<string,unknown> = {};
     const saved = {
       importedData: JSON.parse(JSON.stringify(state.importedData || {})) as unknown,
@@ -119,8 +121,12 @@ test('sun session UI covers alternate list detail and chip rendering paths', asy
       tierLabel: (tier:number) => ['none', 'low', 'moderate', 'high'][tier] || 'none',
       formatChannelUnit: (key:unknown, value:number) => `${Math.round(value)} ${key}`,
       tooShortForChannelVerdictMin: 2,
-      renderSessionAIInline: () => '<span class="ai-inline-test">AI inline</span>',
-      renderSessionAIDetail: () => '<section class="ai-detail-test">AI detail</section>',
+      getSessionAIDetailView: (session: { id?: unknown }) => projectSessionAI({
+        mode: 'detail', status: 'ok',
+        action: 'refresh-sun-session',
+        targetId: String(session.id), actionOwner: aiActionOwner(),
+        analysis: { dot: 'green', tip: 'AI detail', detail: 'Synthetic session context' },
+      }),
       solarZenithAngle: (...args:unknown[]) => (math.solarZenithAngle as (...args:unknown[])=>ReturnType<typeof math.solarZenithAngle>)(...args),
       reconstructSpectrum: (...args:unknown[]) => (math.reconstructSpectrum as (...args:unknown[])=>ReturnType<typeof math.reconstructSpectrum>)(...args),
       vitaminDIU: (...args:unknown[]) => (math.vitaminDIU as (...args:unknown[])=>ReturnType<typeof math.vitaminDIU>)(...args),
@@ -143,7 +149,7 @@ test('sun session UI covers alternate list detail and chip rendering paths', asy
       const sortedHost = document.createElement('div');
       sortedHost.innerHTML = sunUI.renderSessionsList();
       outcomes.sessionListSortsAndKeepsAIOutOfHistory = sortedHost.querySelector<HTMLElement>('.sun-session')?.dataset.id === 'paused-rotated'
-        && sortedHost.querySelectorAll<HTMLElement>('.ai-inline-test').length === 0;
+        && sortedHost.querySelectorAll<HTMLElement>('[data-light-session-ai]').length === 0;
 
       const activeHost = document.createElement('div');
       activeHost.innerHTML = sunUI.renderSunSessionRow(sessions[0]!);
@@ -168,7 +174,7 @@ test('sun session UI covers alternate list detail and chip rendering paths', asy
         && !!endedHost.querySelector<HTMLElement>('.light-session-complete')
         && !endedHost.textContent!.includes('low modeled dose')
         && !endedHost.textContent!.includes('Sunglasses')
-        && !endedHost.querySelector<HTMLElement>('.sun-session-delete,.sun-channel-chips,.ai-inline-test');
+        && !endedHost.querySelector<HTMLElement>('.sun-session-delete,.sun-channel-chips,[data-light-session-ai]');
 
       outcomes.noDosesRenderNoChips = sunUI.renderChannelChips(null) === '';
 
@@ -225,7 +231,8 @@ test('sun session UI covers alternate list detail and chip rendering paths', asy
       const activeDetail = document.querySelector<HTMLElement>('.sun-detail-modal')?.closest('.modal-overlay');
       outcomes.activeDetailOmitsEditDuration = !!activeDetail
         && !activeDetail.textContent!.includes('Edit duration')
-        && activeDetail.textContent!.includes('AI detail');
+        && activeDetail.querySelector<HTMLElement>('[data-light-session-ai][data-ai-state="ok"]')?.textContent?.includes('AI detail') === true
+        && !!activeDetail.querySelector<HTMLElement>('[data-ai-action="refresh-sun-session"][data-ai-target="paused-rotated"]');
       activeDetail?.remove();
 
       sunUI.openSunSessionDetail('manual-atm');
@@ -261,8 +268,7 @@ test('sun session UI covers alternate list detail and chip rendering paths', asy
         tierLabel: () => 'none',
         formatChannelUnit: () => '',
         tooShortForChannelVerdictMin: 2,
-        renderSessionAIInline: () => '',
-        renderSessionAIDetail: () => '',
+        getSessionAIDetailView: () => null,
         solarZenithAngle: null,
         reconstructSpectrum: null,
         geneticVitaminDMultiplier: () => ({ mult: 1.0, contributors: [] }),

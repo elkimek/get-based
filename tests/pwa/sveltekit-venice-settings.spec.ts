@@ -1,3 +1,4 @@
+import {openStaticSettings} from './settings-entry.js';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { startKitServer } from './kit-server.js';
@@ -9,7 +10,7 @@ async function ready(page: Page) {
   await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller),{timeout:30_000}).toBe(true);
 }
 async function openVenice(page: Page) {
-  await page.locator('[data-shell-action="open-settings"]').click(); await page.locator('#settings-nav-ai').click();
+  await openStaticSettings(page); await page.locator('#settings-nav-ai').click();
   await expect(page.locator('[data-venice-settings-view]')).toBeVisible();
 }
 test('Venice Settings uses cached assets with an unavailable origin and retains encrypted selections through cold launch',async({page,context})=>{

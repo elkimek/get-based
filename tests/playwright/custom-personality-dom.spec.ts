@@ -502,6 +502,7 @@ test('custom personality generator fills prompt and preserves selected custom te
       export function getActiveModelId() { return 'stub-model'; }
       export function isAIPaused() { return false; }
       export function supportsVision() { return false; }
+      export function supportsWebSearch() { return false; }
       export function isVeniceE2EEActive() { return false; }
       export function isPpqPrivateModeActive() { return false; }
       export function isRoutstrPrivateModeActive() { return false; }

@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { NutritionGoalView } from '../nutrition-presentation-model.js';
   import { nutritionToneColor } from '../nutrition-presentation-model.js';
-  import { inlineLog, copy, goalHead } from '../nutrition-view-classes.js';
+  import { inlineLog, readableCopy as copy, goalHead } from '../nutrition-view-classes.js';
   let { view }: { view: NutritionGoalView } = $props();
 </script>
 <div data-nutrition-view class="nutrition-goal-row gb:nutrition:grid gb:nutrition:gap-[5px] gb:nutrition:min-w-0"

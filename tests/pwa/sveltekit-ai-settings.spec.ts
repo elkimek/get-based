@@ -11,13 +11,22 @@ test('static AI chooser preserves all providers and feature pause through cached
     window.fetch = (input, options) => {
       const url = new URL(input instanceof Request ? input.url : String(input), location.href);
       if (url.pathname === '/api/local-agents' || /^http:\/\/(?:127\.0\.0\.1|localhost):(?:83\d\d|11434|1234)/.test(url.origin)) return Promise.resolve(Response.json({}, { status: 404 }));
+      // A controlling WebKit worker may bypass Playwright routing. The provider
+      // chooser exercises an unavailable external transport, never live nodes.
+      if (['http:', 'https:'].includes(url.protocol) && url.origin !== location.origin) {
+        return Promise.resolve(Response.json({data: []}, {status: 503}));
+      }
       return original(input, options);
     };
     for (const name of ['emptyTour','tour']) localStorage.setItem(`labcharts-default-${name}`,'completed');
     localStorage.setItem('labcharts-encryption-nudge-dismissed','true'); localStorage.setItem('labcharts-analytics-consent-seen','1');
     localStorage.setItem('labcharts-legal-acceptance',JSON.stringify({ accepted:true,termsVersion:'2026-08-22',privacyVersion:'2026-08-22',policyScope:'self-hosted-notice',acceptedAt:'2026-10-06T00:00:00Z',appVersion:'test',location:'local-test' }));
   });
-  const server = await startKitServer(artifact), errors: string[] = [];
+  const server = await startKitServer(artifact), errors: string[] = [], externalRequests: string[] = [];
+  context.on('request', request => {
+    const url = new URL(request.url());
+    if (['http:', 'https:'].includes(url.protocol) && url.origin !== server.origin) externalRequests.push(url.origin + url.pathname);
+  });
   page.on('pageerror',error => errors.push(error.message));
   const open = async (target: typeof page) => {
     await expect(target.locator('body')).not.toHaveClass(/\bchat-autostart-reserved\b/, { timeout: 30_000 });
@@ -64,6 +73,7 @@ test('static AI chooser preserves all providers and feature pause through cached
     const activeColor = await cold.locator('.ai-provider-btn[aria-pressed="true"]').evaluate(button => getComputedStyle(button).backgroundColor);
     await expect.poll(() => cold.locator('#ai-pause-toggle').evaluate(input => getComputedStyle(input.nextElementSibling!).backgroundColor)).toBe(activeColor);
     expect(errors).toEqual([]);
+    expect(externalRequests).toEqual([]);
     await cold.screenshot({ path: test.info().outputPath('ai-settings-cold.png') });
   } finally { await server.close(); }
 });

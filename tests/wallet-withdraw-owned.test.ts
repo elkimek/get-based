@@ -8,7 +8,7 @@ function fixture() {
   const host = document.createElement('div'); document.body.append(host); let active = true; const clears: (() => void)[] = [];
   const deps = { view: getWalletWithdrawView, isActive: () => active, mint: vi.fn(async () => mint), balance: vi.fn(async (): Promise<unknown> => 1500),
     maximum: vi.fn(async (_mint: string): Promise<unknown> => 1468), quote: vi.fn(async (_invoice: string, _mint: string): Promise<unknown> => ({ quote: 'PRIVATE_QUOTE', amount: 123, fee_reserve: 4 })),
-    execute: vi.fn(async (_quote: string, _mint: string): Promise<unknown> => ({ paid: true })), address: vi.fn(async (_address: string, _amount: number, _mint: string): Promise<unknown> => ({ paid: true })),
+    execute: vi.fn(async (_quote: string, _mint: string): Promise<unknown> => ({ paid: true })), address: vi.fn(async (_address: string, amount: number, _mint: string): Promise<unknown> => ({ paid: true, amount })),
     send: vi.fn(async (amount: number, _mint: string): Promise<unknown> => ({ token, amount, remaining: 1500 - amount })), recover: vi.fn(async (): Promise<unknown> => token),
     tokenMint: vi.fn(async (_token: string): Promise<unknown> => mint), receive: vi.fn(async (_token: string): Promise<unknown> => ({ received: 500, balance: 1500 })), clearRecovery: vi.fn(async () => {}),
     writeClipboard: vi.fn(async (_token: string) => {}), scheduleClear: (clear: () => void) => { clears.push(clear); }, refreshBalance: vi.fn(), notify: vi.fn() };
@@ -37,6 +37,7 @@ it('reads autofilled destination and amount through private ports and binds addr
   const f = fixture(); await f.controller.load(f.view); await f.controller.mode('lightning'); f.destination('alice@example.test');
   f.host.querySelector<HTMLInputElement>('#routstr-withdraw-amount')!.value = '42'; await f.controller.quote();
   expect(f.deps.address).toHaveBeenCalledExactlyOnceWith('alice@example.test', 42, mint);
+  expect(f.view.getState()).toMatchObject({phase: 'paid', amount: 42});
 });
 it.each(['edited', 'mint', 'owner', 'provider'] as const)('discards late quotes after %s changes', async change => {
   const f = fixture(); await f.controller.load(f.view); await f.controller.mode('lightning'); f.destination(invoice);
@@ -86,4 +87,27 @@ it('reclaims an original-mint recovery token and clears its record only after ac
 it.each([false, 'PAID', undefined])('does not claim a payment succeeded for paid=%s', async paid => {
   const f = fixture(); await f.controller.load(f.view); await f.controller.mode('lightning'); f.destination(invoice); await f.controller.quote(); f.deps.execute.mockResolvedValue({ paid }); await f.controller.execute();
   expect(f.view.getState().phase).toBe('quote'); expect(f.deps.notify).not.toHaveBeenCalled(); expect(f.deps.clearRecovery).not.toHaveBeenCalled(); expect(f.host.textContent).toContain('awaiting confirmation');
+});
+
+it.each([43, 50])('reports the actual confirmed address payment of %i sats', async amount => {
+  const f = fixture(); await f.controller.load(f.view); await f.controller.mode('lightning'); f.destination('alice@example.test');
+  f.host.querySelector<HTMLInputElement>('#routstr-withdraw-amount')!.value = '50';
+  f.deps.address.mockResolvedValue({paid: true, amount}); await f.controller.quote();
+  expect(f.deps.address).toHaveBeenCalledExactlyOnceWith('alice@example.test', 50, mint);
+  expect(f.view.getState().amount).toBe(amount); expect(f.view.getState().phase).toBe('paid');
+  expect(f.host.textContent).toContain(`Sent ${amount} sats`);
+  if (amount < 50) expect(f.host.textContent).toContain('requested 50 sats');
+  expect(f.deps.notify).toHaveBeenCalledExactlyOnceWith('Withdrawal complete', 'success');
+});
+it.each([
+  {paid: false, amount: 43}, {paid: 'PAID', amount: 43}, {amount: 43},
+  {paid: true}, {paid: true, amount: 0}, {paid: true, amount: 51},
+  {paid: true, amount: 1.5}, {paid: true, amount: '43'}, {paid: true, amount: Infinity},
+])('does not report an unconfirmed or invalid address result as sent: %j', async result => {
+  const f = fixture(); await f.controller.load(f.view); await f.controller.mode('lightning'); f.destination('alice@example.test');
+  f.host.querySelector<HTMLInputElement>('#routstr-withdraw-amount')!.value = '50';
+  f.deps.address.mockResolvedValue(result); await f.controller.quote();
+  expect(f.view.getState().phase).toBe('form'); expect(f.deps.notify).not.toHaveBeenCalled();
+  expect(f.deps.refreshBalance).not.toHaveBeenCalled(); expect(f.deps.clearRecovery).not.toHaveBeenCalled();
+  expect(f.host.textContent).toContain('awaiting confirmation'); expect(f.host.textContent).not.toContain('Sent');
 });

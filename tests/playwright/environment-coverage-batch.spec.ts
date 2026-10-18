@@ -1,3 +1,4 @@
+import { nativeEnvironmentView } from '../helpers/light-genuine-child-native-receipts.js';
 type EmfRoomFixtureReader = { name?: unknown; location?: unknown; sources: unknown[]; mitigations: unknown[]; photos?: unknown[]; measurements: Record<string, { value?: unknown; unit?: unknown; meter?: unknown }> };
 type EmfAssessmentFixtureReader = { id?: unknown; date?: unknown; label?: unknown; rooms: EmfRoomFixtureReader[] };
 type AuditFixtureReader = { id?: unknown; label?: unknown; updatedAt?: unknown; rooms?: { id?: unknown }[]; measurements?: { length: unknown } };
@@ -482,7 +483,7 @@ test('Light audit history covers save expand update compare interpret and delete
   await page.addInitScript(seedCompletedTour);
   await page.goto('/app', { waitUntil: 'load' });
 
-  const results = await page.evaluate(async () => {
+  const results = await page.evaluate(async ({ auditView, dotView }) => {
     const [{ state }, data, audits, { installLightEnvActionDelegates }] = await Promise.all([
       import('/js/state.js'),
       import('/js/data.js'),
@@ -626,8 +627,8 @@ test('Light audit history covers save expand update compare interpret and delete
         },
         hasAIProvider: () => true,
         maybeAnalyzeAuditAfterSave: (audit: unknown) => calls.push(['auto-audit', (audit as { id?: unknown }).id]),
-        renderAuditAIDot: (audit: unknown) => `<span class="light-audit-ai-dot" data-audit="${(audit as { id?: unknown }).id}"></span>`,
-        renderAuditAIBlock: (audit: unknown) => `<div class="light-audit-ai-block">AI note for ${(audit as { label?: unknown }).label}</div>`,
+        getAuditDotView: (audit: { id?: unknown }) => ({ ...dotView, targetId: String(audit.id) }),
+        getAuditAIView: (audit: { id?: unknown; label?: unknown }) => ({ ...auditView, status: 'ok', targetId: String(audit.id), tip: `AI note for ${audit.label}` }),
         openChatPanel: (prompt: unknown) => calls.push(['chat', prompt]),
       });
 
@@ -651,7 +652,8 @@ test('Light audit history covers save expand update compare interpret and delete
       outcomes.expandedAuditRendersChannelsAndAI =
         document.querySelector('.light-audit-card[data-id="audit_old"]')?.textContent!.includes('Camera blue proxy') === true
         && document.querySelector('.light-audit-card[data-id="audit_old"]')?.textContent!.includes('High signal') === true
-        && document.querySelector('.light-audit-card[data-id="audit_old"] .light-audit-ai-block')?.textContent!.includes('Baseline') === true;
+        && document.querySelector('.light-audit-card[data-id="audit_old"] [data-light-environment-ai][data-ai-state="ok"]')?.textContent!.includes('Baseline') === true
+        && document.querySelector('.light-audit-card[data-id="audit_old"] [data-ai-action="refresh-audit"][data-ai-target="audit_old"]') !== null;
 
       setAndChange('.light-audit-card[data-id="audit_old"] input[aria-label="Audit label"]', 'Baseline renamed');
       await waitUntil(() => (state.importedData.lightAudits as AuditFixtureReader[]).find(a => a.id === 'audit_old')?.label === 'Baseline renamed', 'audit label update');
@@ -705,8 +707,8 @@ test('Light audit history covers save expand update compare interpret and delete
       audits.configureLightEnvAudits({
         hasAIProvider: () => false,
         maybeAnalyzeAuditAfterSave: () => {},
-        renderAuditAIDot: () => '',
-        renderAuditAIBlock: () => '',
+        getAuditDotView: () => null,
+        getAuditAIView: () => null,
       });
       localStorage.clear();
       for (const [key, value] of storage) {
@@ -719,7 +721,7 @@ test('Light audit history covers save expand update compare interpret and delete
     }
 
     return outcomes;
-  });
+  }, { auditView: nativeEnvironmentView('audit'), dotView: nativeEnvironmentView('audit-dot') });
 
   for (const [name, passed] of Object.entries(results)) {
     expect(passed, name).toBe(true);

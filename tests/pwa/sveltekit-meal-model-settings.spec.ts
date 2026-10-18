@@ -1,3 +1,4 @@
+import {openStaticSettings} from './settings-entry.js';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { startKitServer } from './kit-server.js';
@@ -10,7 +11,7 @@ async function ready(page: Page) {
   await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
 }
 async function openModels(page: Page) {
-  await page.locator('[data-shell-action="open-settings"]').click();
+  await openStaticSettings(page);
   await page.locator('#settings-nav-ai').click();
   await expect(page.locator('[data-nutrition-ai-view]')).toBeVisible();
 }

@@ -113,13 +113,14 @@ test('custom health checks can be retried before activation and decline stores n
     localStorage.removeItem('labcharts-ai-transparency-acknowledgement');
     localStorage.removeItem('labcharts-cloud-ai-consent');
     localStorage.removeItem('labcharts-custom-url');
-    document.body.insertAdjacentHTML('beforeend', `
-      <div id="ai-provider-panel">
-        <input id="custom-url-input" value="https://custom-health.example/v1">
-        <input id="custom-key-input" value="test-key">
-      </div>`);
-    const panels = await import('/js/provider-panels.js');
-    (globalThis as unknown as {__customConnectionPromise?: Promise<unknown>}).__customConnectionPromise = panels.handleSaveCustomApi();
+    (await import('/js/api.js')).setAIProvider('custom');
+    document.body.insertAdjacentHTML('beforeend', '<div id="ai-provider-panel"><div data-custom-settings-host></div></div>');
+    (await import('/js/provider-panels.js')).hydrateCustomSettings();
+  });
+  await page.locator('#custom-url-input').fill('https://custom-health.example/v1');
+  await page.locator('#custom-key-input').fill('test-key');
+  await page.evaluate(async () => {
+    (globalThis as unknown as {__customConnectionPromise?: Promise<unknown>}).__customConnectionPromise = (await import('/js/provider-panels.js')).handleSaveCustomApi();
   });
 
   const overlay = page.locator('#cloud-ai-consent-overlay');
@@ -133,8 +134,8 @@ test('custom health checks can be retried before activation and decline stores n
   expect(await page.evaluate(() => localStorage.getItem('labcharts-custom-url'))).toBeNull();
   expect(await page.evaluate(async () => (await import('/js/api.js')).getCustomApiKey())).toBe('');
 
+  await page.locator('#custom-url-input').fill('https://bad-health.example/v1');
   await page.evaluate(async () => {
-    (document.getElementById('custom-url-input') as HTMLInputElement | null)!.value = 'https://bad-health.example/v1';
     (globalThis as unknown as {__customConnectionPromise?: Promise<unknown>}).__customConnectionPromise = (await import('/js/provider-panels.js')).handleSaveCustomApi();
     await (globalThis as unknown as {__customConnectionPromise?: Promise<unknown>}).__customConnectionPromise;
   });

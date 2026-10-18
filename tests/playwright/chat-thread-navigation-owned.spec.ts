@@ -1,6 +1,9 @@
 import { expect, test } from './coverage-fixture.js';
 import { routeHtml } from '../helpers/browser-static-routes.js';
 
+test.describe('coarse-pointer conversation navigation', () => {
+  test.use({hasTouch: true});
+
 test('owned Chat navigation retains accessible themes layouts menus and private result dispatch', async ({ page, context }) => {
   test.setTimeout(180000);
   await context.addInitScript({ path: 'node_modules/axe-core/axe.min.js' });
@@ -22,6 +25,7 @@ test('owned Chat navigation retains accessible themes layouts menus and private 
     const view = (await import('/js/chat-thread-navigation-component.js')).getChatThreadNavigationView()!;
     view.setSearch({phase:'done',progress:'',results:[{threadId:'a',threadName:'<script>literal</script>',msgIndex:0,role:'user',pre:'<svg>',match:'needle',post:'</svg>',contentPrefix:'PRIVATE-RESULT-PREFIX'}],truncated:false});
   });
+  expect(await page.evaluate(() => matchMedia('(pointer: coarse)').matches)).toBe(true);
   const owner = page.locator('[data-chat-thread-navigation-view]');
   const summary = owner.locator('[data-thread-id="a"] summary');
   for (const theme of ['dark','light','cyberterm','glass','synth-sunrise','neuromancer']) {
@@ -47,4 +51,35 @@ test('owned Chat navigation retains accessible themes layouts menus and private 
   expect(await owner.innerHTML()).not.toContain('PRIVATE-RESULT-PREFIX');
   await owner.locator('.chat-search-result').click(); await expect(page.locator('body')).toHaveAttribute('data-count','2'); await expect(page.locator('body')).toHaveAttribute('data-action','jump:a');
   await page.screenshot({path:test.info().outputPath('chat-navigation-mobile.png'),fullPage:true});
+});
+
+});
+
+test('fine-pointer desktop navigation retains compact controls and keyboard menus', async ({page}) => {
+  await routeHtml(page, '**/chat-navigation-fine-test', '<!doctype html><html lang="en"><head><title>Fine conversation navigation</title><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/css/chat-panel-open.css"><link rel="stylesheet" href="/css/chat-redesign-open.css"></head><body><main style="width:280px;height:700px"><div id="chat-thread-list"></div></main></body></html>');
+  await page.setViewportSize({width: 1280, height: 900});
+  await page.goto('/chat-navigation-fine-test');
+  expect(await page.evaluate(() => matchMedia('(pointer: fine)').matches)).toBe(true);
+  await page.evaluate(async () => {
+    const {mountChatThreadNavigation} = await import('/js/chat-thread-navigation-component.js');
+    const {projectThreadNavigation} = await import('/js/chat-thread-navigation-presentation.js');
+    const stamp = new Date().toISOString();
+    mountChatThreadNavigation(document.getElementById('chat-thread-list')!, projectThreadNavigation([
+      {id: 'fine', name: 'Compact desktop conversation', createdAt: stamp, updatedAt: stamp, messageCount: 1},
+    ], 'fine', 'recent', '', [], {default: '🔬'}), {
+      switch: () => {}, pin: () => {}, rename: () => {}, delete: () => {}, move: () => {},
+      renameProject: () => {}, deleteProject: () => {}, jump: () => {},
+    }, () => true);
+  });
+  const owner = page.locator('[data-chat-thread-navigation-view]'), summary = owner.locator('summary');
+  await expect(summary).toHaveCSS('width', '20px');
+  await expect(summary).toHaveCSS('height', '20px');
+  await summary.focus(); await summary.press('Enter');
+  await expect(summary.locator('..')).toHaveAttribute('open', '');
+  for (const button of await owner.locator('.chat-thread-item-menu-popover button:visible').all()) {
+    const box = await button.boundingBox();
+    expect(box!.height).toBeGreaterThanOrEqual(32); expect(box!.width).toBeGreaterThanOrEqual(44);
+  }
+  await summary.press('Escape');
+  await expect(summary).toBeFocused(); await expect(summary.locator('..')).not.toHaveAttribute('open');
 });

@@ -89,7 +89,10 @@ test('static startup banner first construction offline and two zero-page cold la
     if(['http:','https:'].includes(url.protocol)&&url.origin!==server.origin){external.push(url.href);await route.abort();}else await route.continue();});
   const phases:unknown[]=[],boundaries:unknown[]=[];
   try{
-    await ready(page,server.origin);await ready(page,server.origin);
+    await ready(page,server.origin);
+    // Settle this document's native imports before deliberately navigating it
+    // again; Firefox reports aborted imports from the retired page as pageerrors.
+    await page.waitForLoadState('networkidle');await ready(page,server.origin);
     const close=page.getByRole('button',{name:'Close chat',exact:true});if(await close.isVisible())await activate(page,close);
     await expect(page.locator('#analytics-consent-banner,#version-update-banner')).toHaveCount(0);
     const before=await profile(page,artifact.state),beforePreference=await preference(page),cache=await cacheReceipt(page,artifact),raw=await rawUpdateCache(page,artifact,requiredRaw);
@@ -99,7 +102,8 @@ test('static startup banner first construction offline and two zero-page cold la
     await page.evaluate(()=>localStorage.removeItem('labcharts-analytics-consent-seen'));
     const armed=await preference(page);expect(armed.seen).toBeNull();expect(armed.disabled).toBe('false');
     await server.close();stopped=true;await expect(fetch(server.origin+'/index.html')).rejects.toThrow();
-    await page.reload({waitUntil:'load'});await ready(page,server.origin);
+    await page.waitForLoadState('networkidle');await page.reload({waitUntil:'load'});
+    await page.waitForLoadState('networkidle');await ready(page,server.origin);
     for(let phase=0;phase<3;phase++){
       const beforeNewPage=phase?context.pages().length:null;
       if(phase){expect(beforeNewPage).toBe(0);page=await context.newPage();expect(context.pages()).toHaveLength(1);await ready(page,server.origin);}

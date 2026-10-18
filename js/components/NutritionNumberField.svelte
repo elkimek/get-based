@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { TargetField } from '../nutrition-entry-model.js';
-  import { field, input, copy } from '../nutrition-view-classes.js';
+  import { field, input, readableCopy as copy } from '../nutrition-view-classes.js';
   let { definition, value = $bindable(), disabled = false, hidden = false }: {
     definition: TargetField; value?: number | undefined; disabled?: boolean; hidden?: boolean;
   } = $props();

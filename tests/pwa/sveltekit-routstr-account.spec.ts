@@ -1,3 +1,4 @@
+import {openStaticSettings} from './settings-entry.js';
 import path from 'node:path';
 import { expect, test, type Page, type BrowserContext } from '@playwright/test';
 import { prepareStaticWallet } from './wallet-static-fixture.js';
@@ -24,7 +25,7 @@ async function prepare(context: BrowserContext, mode: SyntheticAccount['mode']) 
 }
 async function ready(page: Page) { await expect(page.locator('html[data-app-ready][data-shell-framework="sveltekit"]')).toBeAttached({ timeout: 30_000 }); await page.evaluate(() => navigator.serviceWorker.ready.then(() => true)); await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true); }
 async function open(page: Page) {
-  await page.locator('[data-shell-action="open-settings"]').click(); await page.locator('#settings-nav-ai').click(); await expect(page.locator('[data-routstr-settings-view]')).toBeVisible(); await page.locator('[data-routstr-settings-view] summary').click();
+  await openStaticSettings(page); await page.locator('#settings-nav-ai').click(); await expect(page.locator('[data-routstr-settings-view]')).toBeVisible(); await page.locator('[data-routstr-settings-view] summary').click();
 }
 async function consent(page: Page) {
   const overlay = page.locator('#cloud-ai-consent-overlay');

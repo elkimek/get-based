@@ -27,6 +27,10 @@ for (const width of [1280, 390]) {
 
     const standalone = await page.evaluate(async () => (await import('/js/context-cards.js')).renderProfileContextCards());
     expect(standalone).toContain('aria-labelledby=');
-    expect(standalone).toContain('class="context-section-title"');
+    expect(await page.evaluate(html => {
+      const fragment = document.createElement('div'); fragment.innerHTML = html;
+      const title = fragment.querySelector('.context-section-title');
+      return !!title?.id && fragment.querySelector('[aria-labelledby]')?.getAttribute('aria-labelledby') === title.id;
+    }, standalone)).toBe(true);
   });
 }

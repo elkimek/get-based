@@ -13,6 +13,7 @@ test('chart card recommendation browser coverage handles badges reorder clicks a
       status: 200,
       contentType: 'application/javascript',
       body: `
+        export * from '/js/utils.js?chartCardRecsActualUtils';
         export function showNotification(message, type) {
           window.__chartRecNotifications.push({ message, type });
         }

@@ -1,6 +1,18 @@
 // Regression cases from the Routstr fund-safety audit. Simulated services only.
 import { expect, test } from './coverage-fixture.js';
 
+test.beforeEach(async ({page, baseURL}) => {
+  if (!baseURL) throw new Error('The synthetic security fixture requires its local origin');
+  await page.route(url => /^https?:$/.test(url.protocol) && url.origin !== new URL(baseURL).origin, route => route.abort());
+  await page.addInitScript(() => {
+    localStorage.setItem('labcharts-ai-provider', 'routstr');
+    localStorage.setItem('labcharts-chat-backend', 'direct');
+    localStorage.setItem('labcharts-default-tour', 'completed');
+    localStorage.setItem('labcharts-default-emptyTour', 'completed');
+  });
+});
+
+
 test('a new node can be selected while old mint funds remain, with explicit mint selection', async ({ page }) => {
   await page.goto('/app');
   const initial = await page.evaluate(async () => {
@@ -88,15 +100,18 @@ test('a failed node mint lookup cannot submit a deposit', async ({ page }) => {
   await page.goto('/app');
   const result = await page.evaluate(async () => {
     const panels = await import('/js/provider-wallet-panels.js');
-    document.body.innerHTML = '<div id="routstr-deposit-status"></div>';
+    document.body.innerHTML = '<div id="routstr-node-picker"></div>';
     let deposits = 0;
     window.fetch = async () => new Response('{}', { status: 503 });
-    panels.configureRoutstrWalletRuntime({ cashuDepositToNode: async () => { deposits++; } });
+    panels.configureRoutstrWalletRuntime({ cashuGetMintUrl: async () => 'https://mint.test', cashuGetBalance: async () => 10, cashuDepositToNode: async () => { deposits++; } });
+    await panels.showRoutstrNodeDeposit('https://node.test');
+    const lookupMessage = document.body.textContent;
     await panels.doRoutstrNodeDeposit('https://node.test', 10);
-    return { deposits, message: document.body.textContent };
+    return { deposits, lookupMessage, message: document.body.textContent };
   });
   expect(result.deposits).toBe(0);
-  expect(result.message).toContain('Could not check');
+  expect(result.lookupMessage).toContain('Could not check');
+  expect(result.message).toContain('Reopen the node controls to check this account and mint');
 });
 
 test('displaying a token preserves its durable journal before copying', async ({ page }) => {
@@ -106,16 +121,19 @@ test('displaying a token preserves its durable journal before copying', async ({
     document.body.innerHTML = '<div id="routstr-wallet-fund-area"><div id="routstr-token-result"></div></div>';
     let clearCalls = 0;
     panels.configureRoutstrWalletRuntime({
+      cashuGetMintUrl: async () => 'https://mint.test', cashuGetBalance: async () => 100,
       cashuSendAsToken: async () => ({ token: 'cashuA-audit-only', amount: 10, remaining: 90 }),
       cashuClearPendingWithdraw: async () => { clearCalls++; },
       cashuHasWalletSeed: async () => true,
     });
+    await panels.showRoutstrWithdraw(); await panels.showRoutstrWithdrawToken();
     await panels.doRoutstrSendToken(10);
     const visible = document.querySelector<HTMLTextAreaElement>('textarea')?.value;
-    (document.getElementById('routstr-wallet-fund-area'))!.innerHTML = '';
-    return { clearCalls, visible, retainedInDom: document.body.textContent.includes('cashuA-audit-only') };
+    const text = document.querySelector<HTMLTextAreaElement>('textarea')!;
+    panels.clearRoutstrWalletTimers();
+    return { clearCalls, visible, retainedInDom: document.body.textContent.includes('cashuA-audit-only'), retainedValue: text.value };
   });
-  expect(result).toEqual({ clearCalls: 0, visible: 'cashuA-audit-only', retainedInDom: false });
+  expect(result).toEqual({ clearCalls: 0, visible: 'cashuA-audit-only', retainedInDom: false, retainedValue: '' });
 });
 
 test('depositing into node B never forwards node A bearer key', async ({ page }) => {
@@ -123,22 +141,23 @@ test('depositing into node B never forwards node A bearer key', async ({ page })
   const result = await page.evaluate(async () => {
     const panels = await import('/js/provider-wallet-panels.js');
     const cryptoStore = await import('/js/crypto.js');
-    document.body.innerHTML = '<div id="routstr-deposit-status"></div>';
+    document.body.innerHTML = '<div id="routstr-node-picker"></div>';
     localStorage.setItem('labcharts-routstr-node', 'https://node-a.test');
     cryptoStore.updateKeyCache('labcharts-routstr-key', 'sk-node-a-audit');
     window.fetch = async () => new Response(JSON.stringify({ mints: ['https://mint.test'] }));
     let captured: unknown;
     panels.configureRoutstrWalletPanels({ requestProviderActivation: async () => true });
     panels.configureRoutstrWalletRuntime({
-      cashuGetMintUrl: async () => 'https://mint.test',
+      cashuGetMintUrl: async () => 'https://mint.test', cashuGetBalance: async () => 100,
       cashuDepositToNode: async (...args: unknown[]) => { captured = args; throw new Error('stop after capturing outbound arguments'); },
       cashuRecoverPendingDeposit: async () => null,
       cashuHasWalletSeed: async () => true,
     });
+    await panels.showRoutstrNodeDeposit('https://node-b.test');
     await panels.doRoutstrNodeDeposit('https://node-b.test', 10);
     return captured;
   });
-  expect(result).toEqual(['https://node-b.test', 10, '']);
+  expect(result).toEqual(['https://node-b.test', 10, '', 'https://mint.test', '']);
 });
 
 test('refund journal storage failure displays the already-returned bearer token', async ({ page }) => {
@@ -157,11 +176,12 @@ test('refund journal storage failure displays the already-returned bearer token'
       cashuReceiveToken: async () => { receiveCalls++; return { received: 10 }; },
     });
     await panels.doRoutstrNodeWithdraw();
-    return { receiveCalls, text: document.body.textContent, hasToken: document.body.innerHTML.includes('cashuA-refund-audit-only') };
+    return { receiveCalls, text: document.body.textContent, token: document.querySelector<HTMLTextAreaElement>('textarea')?.value, serializedToken: document.body.innerHTML.includes('cashuA-refund-audit-only') };
   });
   expect(result.receiveCalls).toBe(0);
-  expect(result.text).toContain('QuotaExceededError');
-  expect(result.hasToken).toBe(true);
+  expect(result.text).toContain('Node refund outcome unconfirmed. Keep its recovery token and retry this saved record.');
+  expect(result.token).toBe('cashuA-refund-audit-only');
+  expect(result.serializedToken).toBe(false);
 });
 
 test('malicious mint invoice is rejected without injecting wallet markup', async ({ page }) => {
@@ -169,21 +189,26 @@ test('malicious mint invoice is rejected without injecting wallet markup', async
   await page.addScriptTag({ url: '/vendor/cashu-ts.js' });
   const result = await page.evaluate(async () => {
     const panels = await import('/js/provider-wallet-panels.js');
-    document.body.innerHTML = '<div id="routstr-wallet-fund-area"><div id="routstr-wfund-status"></div></div>';
+    document.body.innerHTML = '<div id="routstr-wallet-fund-area"></div><button id="elsewhere">Elsewhere</button>';
+    const {mountWalletFunding} = await import('/js/wallet-funding-component.js');
+    mountWalletFunding(document.getElementById('routstr-wallet-fund-area')!, 0, {submitCustom: () => panels.doRoutstrWalletFundCustom(), cancelCustom: () => {}});
     const invoice = 'lnbc10u1q"><img id="audit-injected" src="/audit-missing-image" onerror="window.__auditInjected=true"><a href="';
     // Exercise the real shipped validator; no mint is contacted.
     const wallet = new (window as unknown as {cashuts: typeof import('@cashu/cashu-ts')}).cashuts.Wallet('https://mint.test');
     const amount = (window as unknown as {cashuts: typeof import('@cashu/cashu-ts')}).cashuts.Amount.from(1000);
     (wallet as unknown as {assertBolt11MintQuoteAmount: import('@cashu/cashu-ts').Wallet['assertBolt11MintQuoteAmount']}).assertBolt11MintQuoteAmount({ amount, request: invoice }, amount);
     (window as unknown as {qrcode?: unknown}).qrcode = () => ({ addData() {}, make() {}, createSvgTag: () => '<svg></svg>' });
+    let invoiceCalls = 0;
     panels.configureRoutstrWalletRuntime({
-      cashuCreateFundingInvoice: async () => ({ quote: 'audit-quote', invoice }),
+      cashuGetMintUrl: async () => 'https://mint.test',
+      cashuCreateFundingInvoice: async () => { invoiceCalls++; return { quote: 'audit-quote', invoice }; },
       cashuCheckFundingStatus: async () => ({ paid: false }),
     });
-    await panels.doRoutstrWalletFund(1000);
+    const accepted = await panels.doRoutstrWalletFund(1000);
     panels.clearRoutstrWalletTimers();
-    return { injectedElement: !!document.getElementById('audit-injected') };
+    return { invoiceCalls, accepted, injectedElement: !!document.getElementById('audit-injected') };
   });
+  expect(result.invoiceCalls).toBe(1); expect(result.accepted).toBe(false);
   expect(result.injectedElement).toBe(false);
   expect(await page.evaluate(() => (window as unknown as {__auditInjected?: unknown}).__auditInjected)).toBeUndefined();
 });
@@ -192,10 +217,16 @@ test('withdrawal UI reports the reduced amount and refuses non-paid results', as
   await page.goto('/app');
   const result = await page.evaluate(async () => {
     const panels = await import('/js/provider-wallet-panels.js');
-    document.body.innerHTML = '<input id="routstr-withdraw-input" value="alice@node.test"><input id="routstr-withdraw-amount" value="50"><div id="routstr-withdraw-status"></div>';
-    panels.configureRoutstrWalletRuntime({ cashuWithdrawToAddress: async () => ({ paid: true, amount: 43 }), cashuExecuteWithdraw: async () => ({ paid: false }) });
+    document.body.innerHTML = '<div id="routstr-wallet-fund-area"></div>';
+    panels.configureRoutstrWalletRuntime({ cashuGetMintUrl: async () => 'https://mint.test', cashuGetBalance: async () => 100, cashuWithdrawToAddress: async () => ({ paid: true, amount: 43 }), cashuCreateWithdrawQuote: async () => ({quote: 'pending-quote', amount: 50, fee_reserve: 2}), cashuExecuteWithdraw: async () => ({ paid: false }) });
+    await panels.showRoutstrWithdraw(); await panels.showRoutstrWithdrawLightning();
+    document.querySelector<HTMLInputElement>('#routstr-withdraw-input')!.value = 'alice@node.test';
+    document.querySelector<HTMLInputElement>('#routstr-withdraw-amount')!.value = '50';
     await panels.doRoutstrWithdrawQuote();
     const reduced = (document.getElementById('routstr-withdraw-status'))!.textContent;
+    await panels.showRoutstrWithdrawLightning();
+    document.querySelector<HTMLInputElement>('#routstr-withdraw-input')!.value = 'lnbc-synthetic-invoice';
+    await panels.doRoutstrWithdrawQuote();
     await panels.doRoutstrWithdrawExecute('pending-quote');
     return { reduced, pending: (document.getElementById('routstr-withdraw-status'))!.textContent };
   });
@@ -241,7 +272,7 @@ test('switching back to a saved funded node does not require another deposit', a
     await api.saveRoutstrKey('sk-node-a', 'https://node-a.test');
     await api.saveRoutstrKey('sk-node-b', 'https://node-b.test');
     discovery.setSelectedNodeUrl('https://node-b.test');
-    document.body.innerHTML = '<div id="routstr-node-picker"></div>';
+    document.body.innerHTML = '<div id="ai-provider-panel"><div id="routstr-node-picker"></div><div id="routstr-node-balance"></div></div>';
     const requests: {url:Parameters<typeof fetch>[0];key:unknown}[] = [];
     window.fetch = async (url: Parameters<typeof fetch>[0], options?: RequestInit) => {
       requests.push({ url, key: (options?.headers as {Authorization?:unknown}|null|undefined)?.Authorization });
@@ -267,7 +298,9 @@ test('custom funding Enter then blur creates exactly one invoice and keeps its Q
   const invoice = (await import('../fixtures/lightning-invoices.js')).makeTestInvoice(500);
   await page.evaluate(async invoice => {
     const panels = await import('/js/provider-wallet-panels.js');
-    document.body.innerHTML = '<div id="routstr-wallet-fund-area"><div id="routstr-wfund-custom-slot"></div><div id="routstr-wfund-status"></div></div><button id="elsewhere">Elsewhere</button>';
+    document.body.innerHTML = '<div id="routstr-wallet-fund-area"></div><button id="elsewhere">Elsewhere</button>';
+    const {mountWalletFunding} = await import('/js/wallet-funding-component.js');
+    mountWalletFunding(document.getElementById('routstr-wallet-fund-area')!, 0, {submitCustom: () => panels.doRoutstrWalletFundCustom(), cancelCustom: () => {}});
     (window as unknown as {qrcode?: unknown}).qrcode = () => ({ addData() {}, make() {}, createSvgTag: () => '<svg></svg>' });
     (window as unknown as {__fundingCalls?: number}).__fundingCalls = 0;
     panels.configureRoutstrWalletRuntime({
@@ -290,18 +323,21 @@ test('concurrent funding clicks cannot replace a slow invoice response', async (
   const invoice = (await import('../fixtures/lightning-invoices.js')).makeTestInvoice(500);
   const result = await page.evaluate(async invoice => {
     const panels = await import('/js/provider-wallet-panels.js');
-    document.body.innerHTML = '<div id="routstr-wfund-status"></div>';
+    document.body.innerHTML = '<div id="routstr-wallet-fund-area"></div><button id="elsewhere">Elsewhere</button>';
+    const {mountWalletFunding} = await import('/js/wallet-funding-component.js');
+    mountWalletFunding(document.getElementById('routstr-wallet-fund-area')!, 0, {submitCustom: () => panels.doRoutstrWalletFundCustom(), cancelCustom: () => {}});
     (window as unknown as {qrcode?: unknown}).qrcode = () => ({ addData() {}, make() {}, createSvgTag: () => '<svg></svg>' });
-    let release: ((value:{quote:string;invoice:string})=>void)|undefined, calls = 0;
+    let release!: (value:{quote:string;invoice:string})=>void, began!: () => void, calls = 0;
+    const started = new Promise<void>(resolve => { began = resolve; });
     panels.configureRoutstrWalletRuntime({
       cashuGetMintUrl: async () => 'https://mint.test', cashuHasWalletSeed: async () => false,
-      cashuCreateFundingInvoice: async () => { calls++; return new Promise<{quote:string;invoice:string}>(resolve => { release = resolve; }); },
+      cashuCreateFundingInvoice: async () => { calls++; return new Promise<{quote:string;invoice:string}>(resolve => { release = resolve; began(); }); },
     });
     const first = panels.doRoutstrWalletFund(500);
-    await Promise.resolve(); await Promise.resolve();
-    await panels.doRoutstrWalletFund(1000);
-    (release as unknown as (value:{quote:string;invoice:string})=>void)({ quote: 'original', invoice }); await first;
-    return { calls, href: document.querySelector<HTMLElement>('a')?.getAttribute('href') };
+    await started;
+    const second = panels.doRoutstrWalletFund(1000);
+    release({ quote: 'original', invoice }); await Promise.all([first, second]);
+    return { calls, samePending: second === first, href: document.querySelector<HTMLElement>('a')?.getAttribute('href') };
   }, invoice);
-  expect(result).toEqual({ calls: 1, href: 'lightning:' + invoice });
+  expect(result).toEqual({ calls: 1, samePending: true, href: 'lightning:' + invoice });
 });

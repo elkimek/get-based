@@ -74,6 +74,7 @@ test('light screen AI browser coverage refreshes and auto-analyzes screen verdic
         healthGoals: [{ text: 'Improve sleep timing', severity: 'major' }],
         sleepRest: { qualityScore: 5, bedtime: '23:45' },
       };
+      if (!await data.saveImportedDataForProfile(state.currentProfile, state.importedData, {forceProfileScope: true})) throw new Error('Could not persist the synthetic screen AI profile');
       data.invalidateActiveDataCache();
       localStorage.setItem('labcharts-ai-provider', 'ollama');
       localStorage.removeItem('labcharts-ai-paused');

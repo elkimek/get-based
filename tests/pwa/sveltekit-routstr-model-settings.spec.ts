@@ -8,6 +8,9 @@ async function ready(page: Page) {
   await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller), { timeout: 30_000 }).toBe(true);
 }
 async function openRoutstr(page: Page) {
+  await expect(page.locator('body')).not.toHaveClass(/\bchat-autostart-reserved\b/, {timeout: 30_000});
+  const closeChat = page.getByRole('button', {name: 'Close chat', exact: true});
+  if (await closeChat.isVisible()) await closeChat.click();
   await page.locator('[data-shell-action="open-settings"]').click(); await page.locator('#settings-nav-ai').click();
   await expect(page.locator('[data-routstr-model-settings-view]')).toBeVisible();
 }

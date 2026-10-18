@@ -139,6 +139,15 @@ test('authored prompt and saved summary retain readable themes and reduced-motio
           const view = projectLightSetup({ defaults: complete ? { fitzpatrick: 'III', homeLight: 'led-warm', eyewear: 'sunglasses', photosensitiveMeds: 'moderate', ottScore: Number(mode.split('-')[1]) } : mode === 'deferred' ? { setupPromptDismissedAt: 1 } : {}, savedFitzpatrick: null, legacySkin: null, complete, coords: null, profileLocation: null });
           element.innerHTML = renderHTML({ surface: 'card', view });
         }, mode);
+        // The prompt is translucent: finish finite theme transitions on its backdrop before measuring contrast.
+        await host.evaluate(async element => {
+          const animations = [...element.getAnimations({ subtree: true })];
+          for (let ancestor: Element | null = element; ancestor; ancestor = ancestor.parentElement) {
+            getComputedStyle(ancestor).backgroundColor;
+            animations.push(...ancestor.getAnimations());
+          }
+          await Promise.all(animations.filter(animation => animation.effect?.getComputedTiming().iterations !== Infinity).map(animation => animation.finished.catch(() => undefined)));
+        });
         if (mode.startsWith('saved')) {
           const colors = await host.evaluate((element, mode) => {
             const tokens = ['--accent', '--orange', '--purple', mode === 'saved-0' ? '--green' : mode === 'saved-6' ? '--orange' : '--red'];

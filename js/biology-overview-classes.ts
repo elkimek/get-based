@@ -80,7 +80,7 @@ const classes: Record<string, string> = {
   ),
   'biology-coherence-breakdown': styles(
     "gb:biology-overview:[grid-column:1_/_-1] gb:biology-overview:[border-top:1px_solid_var(--border)] gb:biology-overview:[padding-top:6px]",
-    "gb:biology-overview:[&>summary]:[padding:8px_0]",
+    "gb:biology-overview:[&_summary]:[padding:8px_0]",
   ),
   'biology-overview-disclosure': styles(
     "gb:biology-overview:[cursor:pointer] gb:biology-overview:[font-size:14px] gb:biology-overview:[font-weight:500]",

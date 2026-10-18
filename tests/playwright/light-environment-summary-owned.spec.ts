@@ -1,3 +1,4 @@
+import {nativeEnvironmentView,nativeBurdenView,expectedGenuineLightChildren} from '../helpers/light-genuine-child-native-receipts.js';
 import fs from 'node:fs';
 import { expect, test } from './coverage-fixture.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
@@ -5,7 +6,7 @@ import { scopedFrozenStyles, type FrozenStyleBlock } from '../helpers/frozen-sty
 interface Sample {name:string;data:unknown;expanded:boolean;callbacks:boolean;embedded:boolean;section:string;summary:string}
 const original=JSON.parse(fs.readFileSync('tests/fixtures/light-environment-room-original.json','utf8')) as {now:number;cases:Sample[];styleBlocks:FrozenStyleBlock[]};
 const names=['empty','source-unknown','hours-0','hours-6','nested-and-portable','all-readings','older-and-qualitative','audits-and-orphans'];
-const examples=original.cases.filter(sample=>names.includes(sample.name));
+const examples=original.cases.filter(sample=>names.includes(sample.name)).map(sample=>({...sample,section:expectedGenuineLightChildren(sample.section),burdenView:nativeBurdenView(),measurementView:nativeEnvironmentView('measurement'),roomView:nativeEnvironmentView('room')}));
 test('authored assessment summaries preserve independent layouts, severity and accessible controls',async({page},info)=>{
   test.setTimeout(120000);await installDiscussionFixture(page.context());await page.goto('/app');await expect(page.locator('html[data-app-ready]')).toBeAttached();await page.emulateMedia({reducedMotion:'reduce'});
   const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
@@ -14,10 +15,10 @@ test('authored assessment summaries preserve independent layouts, severity and a
     // Declared improvements use current-theme foregrounds, readable small-text ink and 44px touch actions.
     const style=document.createElement('style');style.textContent=css+`[data-original] .light-env-assessment-summary,[data-original] .light-env-summary{color:var(--text-primary)}[data-original] .light-env-summary-kicker,[data-original] .light-env-summary-parts,[data-original] .light-env-assessment-parts,[data-original] .light-env-assessment-metric-label,[data-original] .light-env-assessment-metric span:last-child{color:var(--text-secondary)}@media(pointer:coarse){[data-original] .dashboard-action-btn{min-height:44px;min-width:44px}}`;document.head.append(style);
     const host=document.createElement('div');host.id='environment-summary-acceptance';host.style.cssText='position:fixed;inset:0;z-index:20000;overflow:auto;background:var(--bg-primary);padding:12px';document.body.append(host);
-    const env=await import('/js/light-env.js'),{state}=await import('/js/state.js'),before=state.importedData,prior=env.configureLightEnv({getMeasurementsForRoom:null,renderBurdenInterp:null});const clock=Date.now;Date.now=()=>now;
+    const env=await import('/js/light-env.js'),{state}=await import('/js/state.js'),before=state.importedData,prior=env.configureLightEnv({getMeasurementsForRoom:null,getBurdenInterpretationView:null});const clock=Date.now;Date.now=()=>now;
     try{for(const sample of examples){
       (state as {importedData:unknown}).importedData=structuredClone(sample.data);
-      env.configureLightEnv({getMeasurementsForRoom:(id:unknown)=>(state.importedData?.lightMeasurements||[]).filter(m=>m.roomId===id),renderBurdenInterp:sample.callbacks?()=>'<div data-fixture-burden>Trusted burden verdict</div>':null});
+      env.configureLightEnv({getMeasurementsForRoom:(id:unknown)=>(state.importedData?.lightMeasurements||[]).filter(m=>m.roomId===id),getBurdenInterpretationView:sample.callbacks?()=>sample.burdenView:null});
       const oldSection=document.createElement('div');oldSection.innerHTML=sample.section;const newSection=document.createElement('div');newSection.innerHTML=env.renderEnvironmentSection({embedded:sample.embedded});
       const pair=document.createElement('div');pair.dataset.pair=sample.name;
       const reference=document.createElement('section');reference.dataset.original='';reference.innerHTML=sample.summary;reference.append(oldSection.querySelector('.light-env-summary')!);

@@ -266,6 +266,17 @@ jobs:
           dpkg-query -W fonts-urw-base35
           chart_family='Helvetica Neue,Helvetica,Arial,sans-serif'
           fc-match -f '%{family}\t%{file}\n' "$chart_family"
+          # Record the renderer inputs as well as the exact font bytes.
+          fc-match -v "$chart_family"
+          for family in 'Helvetica Neue' Helvetica Arial 'Nimbus Sans' 'Noto Sans' 'Liberation Sans' sans-serif; do
+            printf 'family=%s\n' "$family"
+            fc-match -f '%{family}\t%{file}\trgba=%{rgba}\tdpi=%{dpi}\thintstyle=%{hintstyle}\n' "$family"
+          done
+          fc-conflist
+          dpkg-query -W libfontconfig1 libfreetype6 libcairo2 libharfbuzz0b libpixman-1-0
+          for name in FONTCONFIG_FILE FONTCONFIG_PATH FREETYPE_PROPERTIES MOZ_ENABLE_WAYLAND GDK_BACKEND LIBGL_ALWAYS_SOFTWARE; do
+            printf '%s=%s\n' "$name" "${!name-<unset>}"
+          done
           font_family=$(fc-match -f '%{family}' "$chart_family")
           font_file=$(fc-match -f '%{file}' "$chart_family")
           [ "$font_family" = 'Nimbus Sans' ]

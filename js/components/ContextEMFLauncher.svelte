@@ -12,5 +12,5 @@
     <strong class="gb:context-emf:text-[13px] gb:context-emf:text-ink">{view.title}</strong>
     <span class="gb:context-emf:text-xs gb:context-emf:leading-[1.4] gb:context-emf:text-secondary">{view.summary}</span>
   </span>
-  <span class="ctx-emf-launcher-action gb:context-emf:text-xs gb:context-emf:font-extrabold gb:context-emf:text-accent gb:context-emf:whitespace-nowrap gb:context-emf:max-[480px]:col-start-2">{view.action}</span>
+  <span class="ctx-emf-launcher-action gb:context-emf:text-xs gb:context-emf:font-extrabold gb:context-emf:text-ink gb:context-emf:whitespace-nowrap gb:context-emf:max-[480px]:col-start-2">{view.action}</span>
 </button>

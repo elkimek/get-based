@@ -74,25 +74,39 @@ test('authored medical history retries a failed stylesheet using the fixed retry
   const requests: string[] = []; await page.route('**/css/context-editor.css*', async route => { requests.push(route.request().url()); if (!route.request().url().includes('lazy-retry=1')) return route.fulfill({ status: 503, body: '', contentType: 'text/css' }); await route.continue(); });
   await page.goto('/app', { waitUntil: 'load' }); await open(page); await expect(page.locator('[data-context-medical-view]')).toHaveCount(0); await expect(page.locator('.notification-toast')).toContainText('could not be loaded'); await open(page); await expect(page.locator('[data-context-medical-view]')).toBeVisible(); expect(requests).toHaveLength(2); expect(requests[1]).toContain('lazy-retry=1');
 });
-test('authored medical history themes and narrow layouts retain accessible keyboard controls', async ({ page }) => {
-  test.setTimeout(120000); await page.addInitScript({ path: axePath }); await page.goto('/app', { waitUntil: 'load' }); await seed(page); const modal = page.locator('#detail-modal');
-  await page.evaluate(async () => { const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = '/themes-extra.css'; document.head.append(link); await new Promise<void>((resolve, reject) => { link.onload = () => resolve(); link.onerror = () => reject(new Error('Themes unavailable')); }); });
-  await modal.locator('#ctx-family-section > summary').click(); await modal.locator('summary').filter({ hasText: /^Major procedures/ }).click(); await modal.locator('summary').filter({ hasText: /^Interpretation flags/ }).click();
-  await modal.locator('.ctx-family-item').nth(1).getByRole('button', { name: 'Edit family history entry', exact: true }).click();
-  await modal.locator('#fh-condition').fill("Alzheimer's Disease with early cognitive symptoms and a very long literal description");
-  await modal.locator('#fh-note').fill('Long family note retained in storage and readable through the full field when editing');
-  await modal.getByRole('button', { name: 'Update family entry', exact: true }).click();
-  for (const theme of ['dark', 'light', 'cyberterm', 'glass', 'neuromancer', 'synth-sunrise']) for (const width of [320, 1100]) {
-    await page.evaluate(value => { document.documentElement.dataset.theme = value; }, theme); await page.setViewportSize({ width, height: 900 }); expect(await modal.evaluate(root => root.scrollWidth <= root.clientWidth + 1), `${theme}/${width} overflow`).toBe(true);
-    expect(await modal.evaluate(async root => (await (window as unknown as { axe: typeof import('axe-core') }).axe.run(root, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } })).violations.map(violation => ({ id: violation.id, nodes: violation.nodes.map(node => ({ target: node.target, summary: node.failureSummary })) }))), `${theme}/${width} accessibility`).toEqual([]);
-    expect(await modal.locator('.ctx-condition-name').first().evaluate(name => name.getBoundingClientRect().height <= parseFloat(getComputedStyle(name).fontSize) * 1.5), `${theme}/${width} condition name stays on one line`).toBe(true);
-    const familyCondition = modal.locator('.ctx-family-condition').nth(1);
-    await expect(familyCondition).toHaveCSS('white-space', 'nowrap'); await expect(familyCondition).toHaveCSS('text-overflow', 'ellipsis');
-    if (width > 600) {
-      expect((await modal.locator('.ctx-family-item').nth(1).boundingBox())!.height, `${theme} compact family row with touch targets`).toBeLessThanOrEqual(56);
-      await expect(modal.locator('[title="Other paternal relative"]').first()).toHaveCSS('text-overflow', 'ellipsis');
-    }
-    for (const control of await modal.getByRole('button').all()) expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(44);
-  }
-  await modal.locator('#condition-input').fill('Migraine'); await modal.locator('#condition-input').press('ArrowDown'); await modal.locator('#condition-input').press('Enter'); await expect(modal.locator('#condition-input')).toHaveValue('Migraine'); await modal.locator('#condition-input').press('Enter'); await expect(modal.locator('.ctx-condition-item')).toHaveCount(2);
-});
+// Dense fine-pointer controls retain their native sizing; touch targets use the coarse-pointer styles.
+for (const hasTouch of [false, true]) {
+  test.describe(`${hasTouch ? 'coarse' : 'fine'}-pointer medical history controls`, () => {
+    test.use({ hasTouch });
+    test.beforeEach(async ({ page }) => {
+      expect(await page.evaluate(() => ({
+        coarse: matchMedia('(pointer: coarse)').matches,
+        fine: matchMedia('(pointer: fine)').matches,
+        touch: navigator.maxTouchPoints > 0,
+      }))).toEqual({ coarse: hasTouch, fine: !hasTouch, touch: hasTouch });
+    });
+
+    test('authored medical history themes and narrow layouts retain accessible keyboard controls', async ({ page }) => {
+      test.setTimeout(120000); await page.addInitScript({ path: axePath }); await page.goto('/app', { waitUntil: 'load' }); await seed(page); const modal = page.locator('#detail-modal');
+      await page.evaluate(async () => { const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = '/themes-extra.css'; document.head.append(link); await new Promise<void>((resolve, reject) => { link.onload = () => resolve(); link.onerror = () => reject(new Error('Themes unavailable')); }); });
+      await modal.locator('#ctx-family-section > summary').click(); await modal.locator('summary').filter({ hasText: /^Major procedures/ }).click(); await modal.locator('summary').filter({ hasText: /^Interpretation flags/ }).click();
+      await modal.locator('.ctx-family-item').nth(1).getByRole('button', { name: 'Edit family history entry', exact: true }).click();
+      await modal.locator('#fh-condition').fill("Alzheimer's Disease with early cognitive symptoms and a very long literal description");
+      await modal.locator('#fh-note').fill('Long family note retained in storage and readable through the full field when editing');
+      await modal.getByRole('button', { name: 'Update family entry', exact: true }).click();
+      for (const theme of ['dark', 'light', 'cyberterm', 'glass', 'neuromancer', 'synth-sunrise']) for (const width of [320, 1100]) {
+        await page.evaluate(value => { document.documentElement.dataset.theme = value; }, theme); await page.setViewportSize({ width, height: 900 }); expect(await modal.evaluate(root => root.scrollWidth <= root.clientWidth + 1), `${theme}/${width} overflow`).toBe(true);
+        expect(await modal.evaluate(async root => (await (window as unknown as { axe: typeof import('axe-core') }).axe.run(root, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } })).violations.map(violation => ({ id: violation.id, nodes: violation.nodes.map(node => ({ target: node.target, summary: node.failureSummary })) }))), `${theme}/${width} accessibility`).toEqual([]);
+        expect(await modal.locator('.ctx-condition-name').first().evaluate(name => name.getBoundingClientRect().height <= parseFloat(getComputedStyle(name).fontSize) * 1.5), `${theme}/${width} condition name stays on one line`).toBe(true);
+        const familyCondition = modal.locator('.ctx-family-condition').nth(1);
+        await expect(familyCondition).toHaveCSS('white-space', 'nowrap'); await expect(familyCondition).toHaveCSS('text-overflow', 'ellipsis');
+        if (width > 600) {
+          if (!hasTouch) expect((await modal.locator('.ctx-family-item').nth(1).boundingBox())!.height, `${theme} compact fine-pointer family row`).toBeLessThanOrEqual(56);
+          await expect(modal.locator('[title="Other paternal relative"]').first()).toHaveCSS('text-overflow', 'ellipsis');
+        }
+        if (hasTouch) for (const control of await modal.getByRole('button').all()) expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      }
+      await modal.locator('#condition-input').fill('Migraine'); await modal.locator('#condition-input').press('ArrowDown'); await modal.locator('#condition-input').press('Enter'); await expect(modal.locator('#condition-input')).toHaveValue('Migraine'); await modal.locator('#condition-input').press('Enter'); await expect(modal.locator('.ctx-condition-item')).toHaveCount(2);
+    });
+  });
+}

@@ -30,10 +30,10 @@ test('lazy provider render follows a provider switch made while loading', async 
     const api = await import('/js/api.js');
     const bridge = await import('/js/settings-provider-bridge.js');
     api.setAIProvider('openrouter');
-    const panel = document.createElement('div');
-    panel!.id = 'ai-provider-panel';
-    panel!.innerHTML = bridge.renderAIProviderPanelBridge();
-    document.body.appendChild(panel);
+    const host = document.createElement('div');
+    host.dataset.aiSettingsHost = '';
+    document.body.appendChild(host);
+    bridge.hydrateAiSettings(false);
     const loading = bridge.initSettingsProviderPanels();
     api.setAIProvider('custom');
     await loading;

@@ -1,4 +1,5 @@
 import { expect, test } from './coverage-fixture.js';
+import { createExpectAll } from '../helpers/browser-outcomes.js';
 
 const moduleUrl = (path:string) => `${path}?settingsProviderCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
@@ -461,6 +462,7 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
       const messengerSection = (document.getElementById('messenger-section') as HTMLElement|null);
 
       syncSection!.innerHTML = syncPanel.renderSyncSection();
+      await waitFor(() => syncSection!.querySelector('[data-sync-settings-view]'), 'mounted sync settings owner');
       const tombstoneBanner = syncSection!.textContent!.includes('Old Profile');
       syncSection!.querySelector<HTMLButtonElement>('[data-sync-action="apply-tombstone"]')!.click();
       syncSection!.querySelector<HTMLButtonElement>('[data-sync-action="reject-tombstone"]')!.click();
@@ -477,19 +479,38 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
       setupOverlay!.click();
       const setupNudgesOnBackdrop = setupOverlay!.querySelector<HTMLElement>('.confirm-dialog')?.classList.contains('modal-nudge');
       setupOverlay!.querySelector<HTMLButtonElement>('[data-sync-setup-action="setup-restore"]')!.click();
-      const setupRestoreShown = setupOverlay!.querySelector<HTMLElement>('#sync-setup-restore')?.style.display === 'block';
+      const setupRestoreShown = setupOverlay!.querySelector<HTMLElement>('#sync-setup-restore')?.hidden === false
+        && setupOverlay!.querySelector<HTMLElement>('#sync-setup-choices')?.hidden === true;
       setupOverlay!.querySelector<HTMLButtonElement>('[data-sync-setup-action="setup-back"]')!.click();
-      const setupBackRestoresChoices = setupOverlay!.querySelector<HTMLElement>('#sync-setup-choices')?.style.display === '';
+      const setupBackRestoresChoices = setupOverlay!.querySelector<HTMLElement>('#sync-setup-choices')?.hidden === false
+        && setupOverlay!.querySelector<HTMLElement>('#sync-setup-restore')?.hidden === true;
 
       const setupDoneButton = document.createElement('button');
       setupDoneButton.dataset.syncSetupAction = 'setup-done';
       setupOverlay!.querySelector<HTMLElement>('.confirm-dialog')?.appendChild(setupDoneButton);
       setupDoneButton.click();
+      const unacknowledgedSetupStaysOpen = setupOverlay!.classList.contains('show');
+      setupDoneButton.remove();
+      // Supply a synthetic phrase through the same private view port used by identity creation.
+      // Exercise the actual acknowledgment and Done actions without creating a real sync identity.
+      const { getSyncDialogOwner } = await import('/js/sync-dialog-component.js');
+      const setupOwner = getSyncDialogOwner('setup');
+      if (!setupOwner) throw new Error('Missing setup dialog owner');
+      setupOwner.showGeneratedPhrase(mnemonic);
+      setupOwner.patch({ step: 'new', pending: false, message: '' });
+      const doneButton = setupOverlay!.querySelector<HTMLButtonElement>('#sync-setup-done-btn');
+      const setupDoneRequiresAcknowledgement = doneButton?.disabled === true;
+      const acknowledgement = setupOverlay!.querySelector<HTMLInputElement>('#sync-setup-ack');
+      acknowledgement!.checked = true;
+      acknowledgement!.dispatchEvent(new Event('change', { bubbles: true }));
+      const setupAcknowledgementEnablesDone = doneButton?.disabled === false;
+      doneButton!.click();
       const setupDoneCloses = !setupOverlay!.classList.contains('show');
 
       syncState.setSyncEnabled(true);
       localStorage.setItem('labcharts-sync-enabled', 'true');
       messengerSection!.innerHTML = syncPanel.renderMessengerSection();
+      await waitFor(() => messengerSection!.querySelector('[data-agent-access-view]'), 'mounted Agent Access owner');
       await wait(0);
       const ownerPendingToggle = messengerSection!.querySelector<HTMLInputElement>('[data-sync-action="toggle-messenger"]');
       const ownerPendingDisabled = ownerPendingToggle?.disabled === true;
@@ -501,10 +522,12 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
       const ownerReadyRerenderEnables = messengerSection!.querySelector<HTMLInputElement>('[data-sync-action="toggle-messenger"]')?.disabled === false;
       localStorage.setItem('labcharts-sync-relay', 'wss://relay.example');
       syncSection!.innerHTML = syncPanel.renderSyncSection();
+      await waitFor(() => syncSection!.querySelector('[data-sync-settings-view]'), 'mounted sync settings owner');
       const enabledRender = syncSection!.textContent!.includes('Your mnemonic')
         && syncSection!.querySelector<HTMLInputElement>('#sync-relay-input')?.value === 'wss://relay.example';
       syncState.setSyncPaused(true);
       syncSection!.innerHTML = syncPanel.renderSyncSection();
+      await waitFor(() => syncSection!.querySelector('[data-sync-settings-view]'), 'mounted sync settings owner');
       const pausedRender = syncSection!.textContent!.includes('Paused')
         && syncSection!.textContent!.includes('identity and sync history are retained')
         && !!syncSection!.querySelector<HTMLButtonElement>('[data-sync-action="resume-sync"]')
@@ -512,6 +535,7 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
         && !syncSection!.querySelector<HTMLButtonElement>('[data-sync-action="setup-restore-direct"]');
       syncState.setSyncPaused(false);
       syncSection!.innerHTML = syncPanel.renderSyncSection();
+      await waitFor(() => syncSection!.querySelector('[data-sync-settings-view]'), 'mounted sync settings owner');
       syncSection!.querySelector<HTMLButtonElement>('[data-sync-action="open-restore-dialog"]')!.click();
       await wait(0);
       const restoreOverlay = (document.getElementById('sync-restore-overlay') as HTMLElement|null);
@@ -541,6 +565,7 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
         && (document.getElementById('sync-status-text') as HTMLElement|null)?.textContent!.includes('Connected'), 'relay connected status');
 
       messengerSection!.innerHTML = syncPanel.renderMessengerSection();
+      await waitFor(() => messengerSection!.querySelector('[data-agent-access-view]'), 'mounted Agent Access owner');
       await wait(0);
       messengerSection!.querySelector<HTMLInputElement>('[data-sync-action="toggle-messenger"]')!.checked = true;
       messengerSection!.querySelector<HTMLInputElement>('[data-sync-action="toggle-messenger"]')!.dispatchEvent(new Event('change', { bubbles: true }));
@@ -594,6 +619,7 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
         && messengerSection!.textContent!.includes('Context encryption key');
       syncRuntime.setSyncAppOwner(null);
       messengerSection!.innerHTML = syncPanel.renderMessengerSection();
+      await waitFor(() => messengerSection!.querySelector('[data-agent-access-view]'), 'mounted Agent Access owner');
       await wait(0);
       const ownerLostToggle = messengerSection!.querySelector<HTMLInputElement>('[data-sync-action="toggle-messenger"]');
       const ownerLostCanDisable = ownerLostToggle?.checked === true
@@ -616,6 +642,9 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
         setupNudgesOnBackdrop,
         setupRestoreShown,
         setupBackRestoresChoices,
+        unacknowledgedSetupStaysOpen,
+        setupDoneRequiresAcknowledgement,
+        setupAcknowledgementEnablesDone,
         setupDoneCloses,
         ownerPendingDisabled,
         ownerReadyRerenderEnables,
@@ -665,7 +694,5 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
     syncMessengerUrl: '/js/sync-messenger.js',
   });
 
-  for (const [name, passed] of Object.entries(results)) {
-    expect(passed, name).toBe(true);
-  }
+  createExpectAll(expect, 'collect')(results);
 });

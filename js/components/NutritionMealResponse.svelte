@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import type { NutritionMealDetailView, NutritionMealDetailActions, MealResponseDraft } from '../nutrition-meal-detail-model.js';
-  import { primary, copy, textAction } from '../nutrition-view-classes.js';
+  import { primary, readableCopy as copy, textAction } from '../nutrition-view-classes.js';
   let { view, actions }: { view: NutritionMealDetailView; actions: NutritionMealDetailActions } = $props();
   let response: MealResponseDraft = $state(untrack(() => ({ ...view.response })));
   let form: HTMLFormElement;
@@ -44,7 +44,7 @@
         <legend class="gb:nutrition:px-1 gb:nutrition:text-[10px] gb:nutrition:font-bold">{group.legend}</legend>
         <div class="gb:nutrition:grid gb:nutrition:grid-cols-3 gb:nutrition:gap-1.5">
           {#each group.labels as label, index}
-            <label class="nutrition-response-choice gb:nutrition:relative gb:nutrition:grid gb:nutrition:min-h-[38px] gb:nutrition:[@media(pointer:coarse)]:min-h-11 gb:nutrition:min-w-0 gb:nutrition:place-items-center gb:nutrition:rounded-lg gb:nutrition:border gb:nutrition:border-line gb:nutrition:p-1.5 gb:nutrition:text-center gb:nutrition:text-[9px] gb:nutrition:leading-[1.25] gb:nutrition:font-bold gb:nutrition:text-muted gb:nutrition:cursor-pointer gb:nutrition:has-checked:border-accent gb:nutrition:has-checked:bg-hover gb:nutrition:has-checked:text-ink gb:nutrition:focus-within:outline-2 gb:nutrition:focus-within:outline-accent gb:nutrition:focus-within:outline-offset-2">
+            <label class="nutrition-response-choice gb:nutrition:relative gb:nutrition:grid gb:nutrition:min-h-[38px] gb:nutrition:[@media(pointer:coarse)]:min-h-11 gb:nutrition:min-w-0 gb:nutrition:place-items-center gb:nutrition:rounded-lg gb:nutrition:border gb:nutrition:border-line gb:nutrition:p-1.5 gb:nutrition:text-center gb:nutrition:text-[9px] gb:nutrition:leading-[1.25] gb:nutrition:font-bold gb:nutrition:text-secondary gb:nutrition:cursor-pointer gb:nutrition:has-checked:border-accent gb:nutrition:has-checked:bg-hover gb:nutrition:has-checked:text-ink gb:nutrition:focus-within:outline-2 gb:nutrition:focus-within:outline-accent gb:nutrition:focus-within:outline-offset-2">
               <input type="radio" name={group.name} value={index + 1} bind:group={response[group.key]} class="gb:nutrition:absolute gb:nutrition:inset-0 gb:nutrition:h-full gb:nutrition:w-full gb:nutrition:m-0 gb:nutrition:opacity-0 gb:nutrition:cursor-pointer"/><span>{label}</span>
             </label>
           {/each}

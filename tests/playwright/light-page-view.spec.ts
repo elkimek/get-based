@@ -137,6 +137,7 @@ test('Light live-session renderer shares the full active card with dashboard pla
 
   const results = await page.evaluate(async () => {
     const lightPage = await import('/js/light-page-view.js');
+    const { getSunSessionRowView } = await import('/js/sun-session-ui.js');
     const activeSun = {
       id: 'shared-live-sun',
       startedAt: Date.now() - 90_000,
@@ -147,15 +148,15 @@ test('Light live-session renderer shares the full active card with dashboard pla
     };
     lightPage.configureLightPageView({
       getActiveSession: () => activeSun,
-      renderSunSessionRow: (session: unknown) => `<section class="shared-live-card" data-id="${(session as { id?: unknown }).id}"><span class="sun-session-vitd">Vitamin D estimate</span></section>`,
-      renderActiveDeviceSessionCard: () => '',
+      getSunSessionRowView,
+      getActiveDeviceSessionCardView: () => null,
     });
     const pageHtml = lightPage.renderLightLiveSession();
     const dashboardHtml = lightPage.renderLightLiveSession({ includeEmptyState: true });
     lightPage.configureLightPageView({
       getActiveSession: () => null,
-      renderSunSessionRow: () => '',
-      renderActiveDeviceSessionCard: () => '',
+      getSunSessionRowView: () => null,
+      getActiveDeviceSessionCardView: () => null,
     });
     return {
       activeCardIsIdenticalAcrossPlacements: pageHtml === dashboardHtml,
@@ -244,15 +245,21 @@ test('Live sun card keeps vitamin D visible without horizontal overflow at dashb
 test('Light page today strip and empty-state hints cover adaptive branches', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForSelector('#main-content');
+  await page.evaluate(async () => {
+    const views = await import('/js/views-runtime.js');
+    await views.navigate('body');
+  });
+  await expect(page.locator('[data-lens-route="body"]')).toBeVisible();
 
   const results = await page.evaluate(async ({ lightPageUrl }) => {
-    const [{ state }, lightPage, lightEnv, lightTools, sunDefaults, settingsPrivacy] = await Promise.all([
+    const [{ state }, lightPage, lightEnv, lightTools, sunDefaults, settingsPrivacy, reviewAI] = await Promise.all([
       import('/js/state.js'),
       (import(lightPageUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/light-page-view.js'), "configureLightPageView" | "renderLightLiveSession" | "renderLightTodayStrip" | "showLight">>,
       import('/js/light-env.js'),
       import('/js/light-tools.js'),
       import('/js/sun-defaults.js'),
       import('/js/settings-privacy.js'),
+      import('/js/light-review-ai-presentation.js'),
     ]);
     const outcomes: Record<string, unknown> = {};
     const RealDate = Date;
@@ -280,10 +287,10 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
     let getDeviceSessions: () => unknown = () => [];
     let rollingDeviceTotals: () => unknown = () => ({});
     let renderDevicesSection: () => unknown = () => '';
-    let renderLightTodayDashboardChip: () => unknown = () => '';
-    let renderLightTodayHero: () => unknown = () => '';
-    let renderSunSetupCard = sunDefaults.renderSetupCard;
-    let renderSunDataSourceSettings = settingsPrivacy.renderSunDataSourceSettings;
+    let getLightTodayDashboardView: () => unknown = () => null;
+    let getLightTodayHeroView: () => unknown = () => null;
+    let getSunSetupCardView: () => ReturnType<typeof sunDefaults.getSunSetupCardView> | null = sunDefaults.getSunSetupCardView;
+    const getSunDataSourceSettingsView = settingsPrivacy.getSunDataSourceSettingsView;
     const syncLightPageDeps = () => lightPage.configureLightPageView({
       channelDisplay,
       weeklyChannelTier,
@@ -300,10 +307,10 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
       rollingVitaminDIU,
       vitaminDBudgetStatus,
       getSunCoords,
-      renderLightTodayDashboardChip,
-      renderLightTodayHero,
-      renderSunSetupCard,
-      renderSunDataSourceSettings,
+      getLightTodayDashboardView,
+      getLightTodayHeroView,
+      getSunSetupCardView,
+      getSunDataSourceSettingsView,
       renderDevicesSection,
       renderEnvironmentAssessmentSummary,
       renderLightTools,
@@ -359,7 +366,11 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
         exceedsSupplementUL: true,
       });
       getSunCoords = () => ({ lat: 50, lon: 14, altitudeM: 1700, source: 'profile-precise' });
-      renderLightTodayDashboardChip = () => '<div class="light-dashboard-chip-test">chip</div>';
+      getLightTodayDashboardView = () => reviewAI.projectReviewAI({
+        kind: 'dashboard', status: 'ok', variant: 'ok',
+        analysis: { dot: 'green', tip: 'Dashboard chip fixture' },
+        actionOwner: 'fixture-light-page',
+      });
       syncLightPageDeps();
 
       setHour(6);
@@ -379,7 +390,7 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
       outcomes.vitaminDDisplayDoesNotAddSunlightToOralIntake =
         morning.includes('Logged vitamin D supplements: 5k IU')
         && morning.includes('6.2k') === false;
-      outcomes.noSetupStripShowsDashboardChip = morning.includes('light-dashboard-chip-test');
+      outcomes.noSetupStripShowsDashboardChip = morning.includes('Dashboard chip fixture') && morning.includes('data-light-review-ai');
 
       state.importedData = {
         ...(state.importedData || {}),
@@ -415,8 +426,8 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
         activeStrip.includes('Stop session')
         && activeStrip.includes('data-live-elapsed-for="active-sun"');
 
-      renderLightTodayHero = () => '';
-      renderSunSetupCard = () => '<div class="setup-card-test">setup</div>';
+      getLightTodayHeroView = () => null;
+      getSunSetupCardView = () => null;
       renderDevicesSection = () => '<div class="devices-section-test">devices</div>';
       renderEnvironmentAssessmentSummary = () => '';
       renderLightTools = () => '';
@@ -520,9 +531,9 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
       renderDevicesSection = () => '';
       renderEnvironmentAssessmentSummary = lightEnv.renderEnvironmentAssessmentSummary;
       renderLightTools = lightTools.renderLightTools;
-      renderLightTodayDashboardChip = () => '';
-      renderLightTodayHero = () => '';
-      renderSunSetupCard = sunDefaults.renderSetupCard;
+      getLightTodayDashboardView = () => null;
+      getLightTodayHeroView = () => null;
+      getSunSetupCardView = sunDefaults.getSunSetupCardView;
       syncLightPageDeps();
     }
 

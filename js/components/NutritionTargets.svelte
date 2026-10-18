@@ -3,7 +3,7 @@
   import type { NutritionTargetsView, NutritionTargetDraft, NutritionEntryActions } from '../nutrition-entry-model.js';
   import { TARGET_FIELDS, PROTEIN_OPTIONS, PROTEIN_PRESETS, targetProteinPreview } from '../nutrition-entry-model.js';
   import { normalizeNutritionTargets } from '../nutrition-targets.js';
-  import { button, primary, targetPanel as panel, copy, modalCopy, field, input, summary, formGrid, formHead, focus , closeButton } from '../nutrition-view-classes.js';
+  import { button, primary, targetPanel as panel, readableCopy as copy, readableModalCopy as modalCopy, field, input, summary, formGrid, formHead, focus , closeButton } from '../nutrition-view-classes.js';
   import NumberField from './NutritionNumberField.svelte';
   let { view, actions }: { view: NutritionTargetsView; actions: NutritionEntryActions } = $props();
   let draft: NutritionTargetDraft = $state(untrack(() => structuredClone(view.targets)));

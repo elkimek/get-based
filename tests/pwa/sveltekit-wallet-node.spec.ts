@@ -19,7 +19,7 @@ async function saved(page: Page) { await page.locator('[data-routstr-wallet-acti
 test('node wallet uses actual static SDK deposits and private refund journals through cached cold recovery', async ({ page, context }) => {
   test.setTimeout(150_000); const synthetic = await prepareStaticNode(context), server = await startKitServer(artifact, [synthetic.handleRequest]); const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   try {
-    await page.goto(server.origin + '/app?dev-sw=1'); await ready(page); await seedStaticWalletMints(page); await page.reload(); await ready(page); await wallet(page);
+    await page.goto(server.origin + '/app?dev-sw=1'); await ready(page); await seedStaticWalletMints(page); await page.waitForLoadState('networkidle'); await page.reload(); await ready(page); await wallet(page);
     await page.locator('[data-node-action="deposit"]').click(); const panel = page.locator('[data-wallet-node-view]'); await expect(panel).toContainText('12 sats'); await page.screenshot({ path: test.info().outputPath('node-deposit.png') });
     await panel.locator('#routstr-deposit-amount').fill('4'); await panel.getByRole('button', { name: 'Deposit', exact: true }).click();
     const consent = page.getByRole('dialog').filter({ has: page.getByRole('heading', { name: 'Activate the Routstr node at https://synthetic-routstr.test?' }) });

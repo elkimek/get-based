@@ -627,16 +627,21 @@ return (async function() {
   assert('Diet editor opens', modalOverlay!.classList.contains('show'));
   const editorModal = document.getElementById('detail-modal');
   assert('Diet editor uses redesigned context modal shell',
-    editorModal!.classList.contains('ctx-editor-modal') && editorModal!.classList.contains('gb-form-modal'));
+    editorModal!.hasAttribute('data-context-form-modal')
+      && !!editorModal!.querySelector('[data-context-form-view="diet"]')
+      && getComputedStyle(editorModal!).overflowY === 'auto');
   assert('Diet editor has accurate dialog label', editorModal!.getAttribute('aria-label') === 'Diet & Digestion');
-  assert('Diet editor has redesigned modal header', !!editorModal!.querySelector<HTMLElement>('.ctx-editor-head .gb-modal-title'));
-  assert('Diet editor has pill buttons', !!editorModal!.querySelector<HTMLElement>('.ctx-btn-group'));
+  assert('Diet editor has redesigned modal header', editorModal!.querySelector('#lifestyle-form-title')?.textContent === 'Diet & Digestion'
+    && editorModal!.getAttribute('aria-labelledby') === 'lifestyle-form-title');
+  assert('Diet editor has pill buttons', !!editorModal!.querySelector('[role="group"] button[aria-pressed]'));
 
   // Check editor has save/cancel actions
-  const actions = editorModal!.querySelector<HTMLElement>('.ctx-editor-actions');
+  const saveBtn = [...editorModal!.querySelectorAll<HTMLButtonElement>('[data-context-form-view] button')]
+    .find(button => button.textContent?.trim() === 'Save');
+  const actions = saveBtn?.parentElement;
   assert('Editor has action buttons', !!actions);
-  const saveBtn = actions?.querySelector<HTMLElement>('button');
-  assert('Editor has save button', !!saveBtn);
+  assert('Editor has save button', !!saveBtn && !saveBtn.disabled
+    && [...actions!.querySelectorAll('button')].some(button => button.textContent?.trim() === 'Cancel'));
 
   // Close without saving
   viewsModule.closeModal();
@@ -650,7 +655,7 @@ return (async function() {
   assert('Profile Context widget renders on dashboard', ctxCards.length >= 5);
 
   // Check health dot structure
-  const dot = main!.querySelector<HTMLElement>('[id^="ctx-dot-"]');
+  const dot = main!.querySelector<HTMLElement>('[data-context-status-slot="indicator"] .ctx-health-dot');
   assert('Health dot element exists', !!dot);
   assert('Health dot has dot class', dot?.classList.contains('ctx-health-dot'));
 

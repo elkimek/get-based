@@ -12,9 +12,14 @@ async function ready(page: Page) {
   await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
 }
 async function openReturningChat(page: Page) {
-  // The empty mobile dashboard exposes guided Chat instead of its floating action.
-  if (await page.locator('#chat-fab').isVisible()) await page.locator('#chat-fab').click();
-  else await page.getByRole('button', { name: 'Start guided chat', exact: true }).click();
+  // A cold launch may already restore the optional onboarding inside Chat.
+  await expect(page.locator('body')).not.toHaveClass(/\bchat-autostart-reserved\b/, { timeout: 30000 });
+  if (!(await page.locator('#chat-panel.open').isVisible())) {
+    // The empty mobile dashboard exposes guided Chat instead of its floating action.
+    if (await page.locator('#chat-fab').isVisible()) await page.locator('#chat-fab').click();
+    else await page.getByRole('button', { name: 'Start guided chat', exact: true }).click();
+  }
+  await expect(page.locator('#chat-panel')).toHaveClass(/open/);
 }
 test('optional onboarding imports real DNA and mtDNA offline on first use and restores notes and both imports through cached cold launches', async ({ page, context }) => {
   test.setTimeout(120000);

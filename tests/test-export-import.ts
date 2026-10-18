@@ -96,7 +96,6 @@ return (async function() {
   const reportHtmlSrc = await fetch('/js/export-report-html.js').then(r => r.text());
   const reportBuilderSrc = await fetch('/js/export-report-builder.js').then(r => r.text());
   const reportSrc = `${reportCoreSrc}\n${reportHtmlSrc}\n${reportBuilderSrc}`;
-  const modalSharedSrc = await fetch('/css/modal-shared.css').then(r => r.text());
   const serviceWorkerSrc = await readServiceWorkerSource(relative => fetch('/' + relative).then(r => r.text()));
 
   // exportClientJSON produces v2 client export with profile metadata
@@ -207,36 +206,45 @@ return (async function() {
     serviceWorkerSrc.includes("'/js/export-report.js'") &&
       serviceWorkerSrc.includes("'/js/export-report-html.js'") &&
       serviceWorkerSrc.includes("'/js/export-report-builder.js'"));
+  await exportModule.openReportBuilder('clinician');
+  const reportOverlay = document.querySelector<HTMLElement>('[data-report-builder-overlay]');
+  const reportDialog = reportOverlay?.querySelector<HTMLElement>('[role="dialog"]');
   assert('Report builder opens as a first-class modal',
-    reportSrc.includes('export function openReportBuilder') &&
-      reportSrc.includes('report-builder-overlay') &&
-      reportSrc.includes('report-builder-scroll') &&
-      reportSrc.includes("reportBuilderActionAttrs('export')"));
+    reportSrc.includes('export function openReportBuilder')
+      && reportOverlay?.classList.contains('show')
+      && reportDialog?.getAttribute('aria-modal') === 'true'
+      && !!reportDialog.querySelector('.report-builder-scroll')
+      && !!reportDialog.querySelector('[data-report-action="export"]'));
   assert('Report builder facade delegates default preset to implementation',
     exportSrc.includes('export function openReportBuilder(presetId)') &&
       !exportSrc.includes("from './export-report-builder.js'") &&
       exportSrc.includes("import('./export-report-builder.js')") &&
       exportSrc.includes("import('./export-report-builder.js?lazy-retry=1')") &&
       !exportSrc.includes("openReportBuilder(presetId = 'clinician')"));
+  const reportAIEditor = reportDialog?.querySelector<HTMLTextAreaElement>('#report-ai-summary-text');
   assert('Report builder supports AI overview generation',
-    reportSrc.includes('export async function generateReportAISummary') &&
-      reportSrc.includes('REPORT_AI_SUMMARY_PROMPT') &&
-      reportSrc.includes('Record overview:') &&
-      reportSrc.includes('Discussion focus:') &&
-      reportSrc.includes('AI-generated overview') &&
-      reportSrc.includes("reportBuilderActionAttrs('generate-ai-summary')") &&
-      reportSrc.includes('report-ai-summary-text') &&
-      reportSrc.includes('aria-label="Editable AI-generated overview"') &&
-      !reportSrc.includes('class="report-ai-summary-text" readonly') &&
-      modalSharedSrc.includes('.report-ai-builder'));
+    reportSrc.includes('export async function generateReportAISummary')
+      && reportSrc.includes('REPORT_AI_SUMMARY_PROMPT')
+      && reportSrc.includes('Record overview:')
+      && reportSrc.includes('Discussion focus:')
+      && !!reportDialog?.querySelector('[data-report-action="generate-ai-summary"]')
+      && reportAIEditor?.getAttribute('aria-label') === 'Editable AI-generated overview'
+      && reportAIEditor.readOnly === false
+      && !!reportDialog?.querySelector('.report-ai-builder'));
+  const reportCategoryTitles = [...reportDialog!.querySelectorAll<HTMLElement>('.report-category-title')];
   assert('Report category picker renders text labels without legacy emojis',
-    reportSrc.includes('<span class="report-category-title">${escapeHTML(option.label)}</span>') &&
-      !reportSrc.includes('${escapeHTML(option.icon)} ${escapeHTML(option.label)}'));
+    reportCategoryTitles.length > 0
+      && reportCategoryTitles.every(title => !!title.textContent?.trim()
+        && !title.children.length && !/\p{Extended_Pictographic}/u.test(title.textContent)));
+  const reportPreview = reportDialog?.querySelector<HTMLButtonElement>('[data-report-action="export"]');
   assert('Report builder preview action uses primary modal styling',
-    reportSrc.includes('import-btn import-btn-primary report-builder-preview-btn') &&
-      modalSharedSrc.includes('.report-builder-scroll') &&
-      modalSharedSrc.includes('.report-builder-actions') &&
-      modalSharedSrc.includes('.report-builder-preview-btn'));
+    reportPreview?.classList.contains('import-btn')
+      && reportPreview.classList.contains('import-btn-primary')
+      && reportPreview.classList.contains('report-builder-preview-btn')
+      && reportPreview.textContent?.trim() === 'Preview PDF'
+      && getComputedStyle(reportDialog!.querySelector<HTMLElement>('.report-builder-scroll')!).overflowY === 'auto'
+      && !!reportPreview.closest('.report-builder-actions'));
+  exportModule.closeReportBuilder();
   assert('PDF report accepts builder options',
     reportSrc.includes('export function exportPDFReport(options = {}, previewWindow = null, preparedPayload = null, lifecycle = {})') &&
       reportSrc.includes('filterReportCategories(data, reportOptions.categoryKeys)') &&
@@ -1049,6 +1057,8 @@ return (async function() {
         'demo cache must distinguish bundled from provider-generated insights');
       const healthDotsSrc = await fetch('/js/context-card-health-dots.js').then(r => r.text());
       const contextCardsSrc = await fetch('/js/context-cards.js').then(r => r.text());
+      const contextDemoPresentationSrc = await fetch('/js/context-card-catalog-presentation.js').then(r => r.text());
+      const contextCatalogSrc = await fetch('/js/components/ContextCardCatalog.svelte').then(r => r.text());
       assert('demo context cards use provider-aware live AI consent',
         healthDotsSrc.includes("mode: 'local-live'")
           && healthDotsSrc.includes("mode: 'paid-off'")
@@ -1059,8 +1069,11 @@ return (async function() {
       assert('paid demo AI enablement uses a clear confirmation and reversible control',
         contextCardsSrc.includes('showConfirmDialog')
           && contextCardsSrc.includes('Context edits and manual refreshes may use paid tokens')
-          && contextCardsSrc.includes("contextCardActionAttrs('enable-demo-live-ai')")
-          && contextCardsSrc.includes("contextCardActionAttrs('disable-demo-live-ai')"),
+          && contextCardsSrc.includes("action === 'enable-demo-live-ai'")
+          && contextCardsSrc.includes("action === 'disable-demo-live-ai'")
+          && contextDemoPresentationSrc.includes("action: 'enable-demo-live-ai'")
+          && contextDemoPresentationSrc.includes("action: 'disable-demo-live-ai'")
+          && contextCatalogSrc.includes('data-context-card-action={view.demo.action}'),
         'paid demo consent must be explicit in the rendered UI');
       assert('loadDemoData prepares complete Biology Score data without fabricating an AI context review',
         _loadDemoSection.includes('prepareDemoBiologyData(JSON.parse(await blob.text()), sex)')
@@ -1282,12 +1295,14 @@ return (async function() {
       S.importedData.stress = { ...S.importedData.stress, note: 'Edited under paid provider' };
       await contextCards.loadContextHealthDots();
       const paidOffHtml = contextCards.renderProfileContextCards();
+      const paidOffView = new DOMParser().parseFromString(paidOffHtml, 'text/html');
       assert('Demo Sarah blocks paid inference until explicit consent',
         aiCallCount === callsBeforePaidGuard
           && contextHealth.getDemoContextAIMode().mode === 'paid-off'
           && paidOffHtml.includes('Enable live AI')
           && !paidOffHtml.includes('refresh-all-health-dots')
-          && document.getElementById('ctx-ai-stress')?.textContent.includes('not recalculated'));
+          && !!paidOffView.querySelector('[data-context-card-action="enable-demo-live-ai"]')
+          && document.querySelector('[data-context-card-key="stress"] .ctx-ai-summary')?.textContent?.includes('not recalculated'));
       localStorage.setItem(cloudConsent.CLOUD_AI_CONSENT_KEY, JSON.stringify({
         version: cloudConsent.CLOUD_AI_CONSENT_VERSION,
         approvals: { openrouter: { accepted: true } },

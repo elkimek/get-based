@@ -9,8 +9,8 @@ test('dashboard renders Biological Coherence hero and domain rows', async ({ pag
   await prepareDemoProfile(page);
 
   await page.evaluate(async () => {
-    (await import('/js/views.js')).navigate('dashboard');
-    await new Promise(r => setTimeout(r, 300));
+    const preparedDashboard = await (await import('/js/views.js')).navigate('dashboard');
+    if (preparedDashboard === false || (await import('/js/state.js')).state.currentView !== 'dashboard' || !document.querySelector('#main-content .dashboard-widgets')) throw new Error('Actual Dashboard route did not prepare');
   });
 
   const hero = page.locator('[data-widget-id="biology-score-biologicalCoherence"]').first();
@@ -64,8 +64,8 @@ test('dashboard coherence domain row navigates to Biology Scores lens and scroll
   await prepareDemoProfile(page);
 
   const targetScoreId = await page.evaluate(async () => {
-    (await import('/js/views.js')).navigate('dashboard');
-    await new Promise(r => setTimeout(r, 300));
+    const preparedDashboard = await (await import('/js/views.js')).navigate('dashboard');
+    if (preparedDashboard === false || (await import('/js/state.js')).state.currentView !== 'dashboard' || !document.querySelector('#main-content .dashboard-widgets')) throw new Error('Actual Dashboard route did not prepare');
     const row = document.querySelector<HTMLElement>('[data-widget-id="biology-score-biologicalCoherence"] .bc-micro-domain[data-biology-score-id]');
     if (!row) throw new Error('No coherence domain row found');
     const id = row.getAttribute('data-biology-score-id');
@@ -87,8 +87,8 @@ test('dashboard individual biology score widget is clickable and navigates to it
   await page.evaluate(async () => {
     const { showDashboardWidget } = (await import('/js/dashboard-widgets.js')) as typeof import('../../js/dashboard-widgets.js') & {showDashboardWidget?: undefined};
     (showDashboardWidget as ((...args: unknown[]) => unknown) | undefined)?.('biology-score-metabolicFlexibility', { force: true });
-    (await import('/js/views.js')).navigate('dashboard');
-    await new Promise(r => setTimeout(r, 300));
+    const preparedDashboard = await (await import('/js/views.js')).navigate('dashboard');
+    if (preparedDashboard === false || (await import('/js/state.js')).state.currentView !== 'dashboard' || !document.querySelector('#main-content .dashboard-widgets')) throw new Error('Actual Dashboard route did not prepare');
     const widget = document.querySelector<HTMLElement>('[data-widget-id="biology-score-metabolicFlexibility"]');
     const clickTarget = widget?.querySelector<HTMLElement>('[data-biology-score-action="jump-to-domain"]');
     if (!clickTarget) throw new Error('Metabolic widget click target not found');
@@ -133,8 +133,8 @@ test('dashboard domain rows without primaryScoreId get no-jump visual cue', asyn
   await prepareDemoProfile(page);
 
   await page.evaluate(async () => {
-    (await import('/js/views.js')).navigate('dashboard');
-    await new Promise(r => setTimeout(r, 300));
+    const preparedDashboard = await (await import('/js/views.js')).navigate('dashboard');
+    if (preparedDashboard === false || (await import('/js/state.js')).state.currentView !== 'dashboard' || !document.querySelector('#main-content .dashboard-widgets')) throw new Error('Actual Dashboard route did not prepare');
   });
 
   // All domain rows should have either jump-to-domain action or no-jump class

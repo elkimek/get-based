@@ -250,6 +250,7 @@ test('medical-history edits stay in a draft until Save and Cancel discards them'
         saveAndRefresh: (message: unknown, field: unknown) => saveCalls.push([message, field]),
       });
 
+      await (await import('/js/data.js')).saveImportedData();
       await editor.openDiagnosesEditor();
       (document.getElementById('condition-input') as HTMLInputElement).value = 'Cancelled draft';
       editor.addCondition();
@@ -264,7 +265,7 @@ test('medical-history edits stay in a draft until Save and Cancel discards them'
 
       (document.getElementById('condition-input') as HTMLInputElement).value = 'Saved draft';
       editor.addCondition();
-      editor.saveDiagnoses();
+      await editor.saveDiagnoses();
       const saveCommittedDraft =
         (state.importedData.diagnoses!.conditions)!.length === 2
         && (state.importedData.diagnoses!.conditions)!.some(item => item.name === 'Saved draft');
@@ -310,6 +311,7 @@ test('medical-history Clear requires confirmation before deleting saved context'
       flags: {},
       note: '',
     };
+    await (await import('/js/data.js')).saveImportedData();
     editor.configureMedicalHistoryEditor({
       close: () => {},
       saveAndRefresh: () => {},
@@ -317,7 +319,7 @@ test('medical-history Clear requires confirmation before deleting saved context'
     await editor.openDiagnosesEditor();
   });
 
-  await page.locator('[data-medical-history-action="clear"]').click();
+  await page.locator('[data-context-form-view="diagnoses"]').getByRole('button', {name: 'Clear', exact: true}).click();
   await expect(page.locator('#confirm-dialog-overlay')).toHaveClass(/show/);
   await expect.poll(() => page.evaluate(async () => {
     const { state } = await import('/js/state.js');
@@ -326,7 +328,7 @@ test('medical-history Clear requires confirmation before deleting saved context'
 
   await page.locator('#confirm-cancel').click();
   await expect(page.locator('#confirm-dialog-overlay')).not.toHaveClass(/show/);
-  await page.locator('[data-medical-history-action="clear"]').click();
+  await page.locator('[data-context-form-view="diagnoses"]').getByRole('button', {name: 'Clear', exact: true}).click();
   await page.locator('#confirm-ok').click();
   await expect.poll(() => page.evaluate(async () => {
     const { state } = await import('/js/state.js');

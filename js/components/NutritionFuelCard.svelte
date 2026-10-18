@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { NutritionFuelView } from '../nutrition-presentation-model.js';
-  import { copy, fuelSummary, goalHead } from '../nutrition-view-classes.js';
+  import { readableCopy as copy, fuelSummary, goalHead } from '../nutrition-view-classes.js';
   let { view }: { view: NutritionFuelView | null } = $props();
 </script>
 {#if view}
@@ -16,7 +16,7 @@
       </div>
       <div class="nutrition-fuel-split gb:nutrition:flex gb:nutrition:h-[11px] gb:nutrition:overflow-hidden gb:nutrition:rounded-full gb:nutrition:bg-hover"><span class="is-carb gb:nutrition:bg-[#618bd8]" style:width="{view.carb}%"></span><span class="is-fat gb:nutrition:bg-[#d7a34a]" style:width="{view.fat}%"></span></div>
     </div>
-    <div class="nutrition-fuel-meta gb:nutrition:text-[10px] gb:nutrition:text-muted gb:nutrition:text-right gb:nutrition-dashboard:text-secondary">{view.meta}</div>
+    <div class="nutrition-fuel-meta gb:nutrition:text-[10px] gb:nutrition:text-secondary gb:nutrition:text-right gb:nutrition-dashboard:text-secondary">{view.meta}</div>
     {#if view.scope === 'window'}<p class="nutrition-fuel-neutral {copy} gb:nutrition:m-0">A centered split is not automatically good or bad; amount and food quality matter more.</p>{/if}
     {#if view.guidance}<div class="nutrition-fuel-guidance {goalHead}"><span class={copy}>Worth reviewing</span><strong class="gb:nutrition:text-xs">{view.guidance}</strong></div>{/if}
     {#if view.pattern}<div class="nutrition-fuel-response-status is-ready gb:nutrition:grid gb:nutrition:gap-0.5 gb:nutrition:border-t gb:nutrition:border-line gb:nutrition:pt-[9px]"><strong class="gb:nutrition:text-[10px] gb:nutrition:text-accent">Check-in pattern · {view.pattern.count} meals</strong><span class={copy}>{view.pattern.copy} Personal association only.</span></div>{/if}

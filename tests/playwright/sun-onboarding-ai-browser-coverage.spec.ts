@@ -81,6 +81,7 @@ test('sun onboarding AI browser coverage refreshes and auto-analyzes completed s
           },
         },
       };
+      if (!await data.saveImportedDataForProfile(state.currentProfile, state.importedData, {forceProfileScope: true})) throw new Error('Could not persist the synthetic onboarding AI profile');
       data.invalidateActiveDataCache();
 
       const refreshed = await onboarding.refreshOnboardingAIAnalysis();
@@ -89,6 +90,7 @@ test('sun onboarding AI browser coverage refreshes and auto-analyzes completed s
         && state.importedData.sunDefaults!.aiAnalysis?.actions?.length === 3;
 
       delete state.importedData.sunDefaults!.aiAnalysis;
+      if (!await data.saveImportedDataForProfile(state.currentProfile, state.importedData, {forceProfileScope: true})) throw new Error('Could not persist the synthetic verdict reset');
       onboarding.maybeAnalyzeOnboardingAfterSave();
       await waitFor(
         () => state.importedData.sunDefaults!.aiAnalysis?.tip === 'auto tip',

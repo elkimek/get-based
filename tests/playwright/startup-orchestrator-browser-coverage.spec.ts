@@ -27,6 +27,9 @@ async function openStartupOrchestratorPage(page: Page) {
       export function renderStartupUI() {
         window.__startupCalls.push('ui');
       }
+      export async function finishStartupNavigation() {
+        window.__startupCalls.push('finish-navigation');
+      }
     `);
   await routeJavaScript(page, '**/js/startup-maintenance.js*', `
       export function runPostProfileStartupMaintenance() {

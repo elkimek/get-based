@@ -15,6 +15,8 @@ test('sun session UI covers list detail edit delete and past-session save paths'
       import('/js/state.js'),
       (import(sunSessionUiUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/sun-session-ui.js'), "configureSunSessionUI" | "renderSessionsList" | "renderChannelChips" | "openSunSessionDetail" | "openDetailedSessionDialog" | "editSunSessionDuration" | "deleteSunSession">>,
     ]);
+    const { projectSessionAI } = await import('/js/light-session-ai-presentation.js');
+    const { aiActionOwner } = await import('/js/ai-action-delegates.js');
     const outcomes: Record<string, unknown> = {};
     const originalView = (state as unknown as {currentView?:unknown}).currentView;
     let sessions: FixtureSessionRead[] = [
@@ -129,8 +131,12 @@ test('sun session UI covers list detail edit delete and past-session save paths'
         tierLabel: (tier: number) => ['none', 'low', 'moderate', 'high'][tier] || 'none',
         formatChannelUnit: (key: string, value: number) => `${Math.round(value)} ${key}`,
         tooShortForChannelVerdictMin: 2,
-        renderSessionAIInline: () => '<span class="ai-inline-test">AI inline</span>',
-        renderSessionAIDetail: () => '<section class="ai-detail-test">AI detail</section>',
+        getSessionAIDetailView: (session: { id?: unknown }) => projectSessionAI({
+          mode: 'detail', status: 'ok',
+          action: 'refresh-sun-session',
+          targetId: String(session.id), actionOwner: aiActionOwner(),
+          analysis: { dot: 'green', tip: 'AI detail', detail: 'Synthetic session context' },
+        }),
         navigate: (route: unknown) => calls.push(['navigate', route]),
         solarZenithAngle,
         reconstructSpectrum,
@@ -147,7 +153,7 @@ test('sun session UI covers list detail edit delete and past-session save paths'
       const completedRow = listHost.querySelector<HTMLElement>('[data-id="sun-ended"]');
       outcomes.sessionListIncludesActiveControls = !!activeRow?.querySelector<HTMLElement>('[data-sun-session-action="pause-session"]')
         && !!activeRow?.querySelector<HTMLElement>('[data-sun-session-action="forgot-stop"]')
-        && !listHost.querySelector<HTMLElement>('.ai-inline-test')
+        && !listHost.querySelector<HTMLElement>('[data-light-session-ai]')
         && completedRow?.classList.contains('light-session-complete')
         && !completedRow?.querySelector<HTMLElement>('.sun-channel-chips,.sun-session-delete');
 
@@ -165,7 +171,8 @@ test('sun session UI covers list detail edit delete and past-session save paths'
         && detailHtml.includes('GC TT')
         && detailText.includes('Behind glass')
         && detailOverlay.querySelectorAll<HTMLElement>('.sun-detail-channel-row').length >= 6
-        && !!detailOverlay.querySelector<HTMLElement>('.ai-detail-test');
+        && detailOverlay.querySelector<HTMLElement>('[data-light-session-ai][data-ai-state="ok"]')?.textContent?.includes('AI detail') === true
+        && !!detailOverlay.querySelector<HTMLElement>('[data-ai-action="refresh-sun-session"][data-ai-target="sun-ended"]');
       detailOverlay?.remove();
 
       sunUI.openDetailedSessionDialog();
@@ -237,8 +244,7 @@ test('sun session UI covers list detail edit delete and past-session save paths'
         tierLabel: () => 'none',
         formatChannelUnit: () => '',
         tooShortForChannelVerdictMin: 2,
-        renderSessionAIInline: () => '',
-        renderSessionAIDetail: () => '',
+        getSessionAIDetailView: () => null,
         navigate: () => {},
         solarZenithAngle: null,
         reconstructSpectrum: null,
@@ -823,6 +829,8 @@ test('light devices cover session detail edit log active card and rendered list 
       import('/js/profile.js'),
       import('/js/blob-storage.js'),
     ]);
+    const { projectSessionAI } = await import('/js/light-session-ai-presentation.js');
+    const { aiActionOwner } = await import('/js/ai-action-delegates.js');
     const outcomes: Record<string, unknown> = {};
     const originalImported = JSON.parse(JSON.stringify(state.importedData || {})) as unknown;
     const importedStorageKey = profileStorageKey(state.currentProfile || 'default', 'imported');
@@ -897,7 +905,12 @@ test('light devices cover session detail edit log active card and rendered list 
         deviceSessions: [session],
       };
       lightDevices.configureLightDevices({
-        renderDeviceSessionAIDetail: () => '<section class="device-ai-detail-test">Device AI</section>',
+        getDeviceSessionAIDetailView: (session: { id?: unknown }) => projectSessionAI({
+          mode: 'detail', status: 'ok',
+          action: 'refresh-device-session',
+          targetId: String(session.id), actionOwner: aiActionOwner(),
+          analysis: { dot: 'green', tip: 'Device AI', detail: 'Synthetic device context' },
+        }),
       });
 
       const devicesHtml = await lightDevices.renderDevicesSection();
@@ -920,7 +933,8 @@ test('light devices cover session detail edit log active card and rendered list 
       outcomes.deviceDetailShowsModeBodyChannelsAndAI = !!detailOverlay
         && detailOverlay.textContent.includes('Combo')
         && detailOverlay.textContent.includes('Upper chest')
-        && detailOverlay.textContent.includes('Device AI')
+        && detailOverlay.querySelector<HTMLElement>('[data-light-session-ai][data-ai-state="ok"]')?.textContent?.includes('Device AI') === true
+        && !!detailOverlay.querySelector<HTMLElement>('[data-ai-action="refresh-device-session"][data-ai-target="devsess-one"]')
         && detailOverlay.querySelectorAll<HTMLElement>('.sun-detail-channel-row').length >= 3;
       outcomes.deviceDetailChannelRowsOpenLightPage = false;
       if (detailOverlay) {
@@ -982,7 +996,7 @@ test('light devices cover session detail edit log active card and rendered list 
       else await blobStorage.setBlob(importedStorageKey, originalImportedBlobValue);
       if (originalImportedLocalValue == null) localStorage.removeItem(importedStorageKey);
       else localStorage.setItem(importedStorageKey, originalImportedLocalValue);
-      lightDevices.configureLightDevices({ renderDeviceSessionAIDetail: () => '' });
+      lightDevices.configureLightDevices({ getDeviceSessionAIDetailView: () => null });
       lightDevicesRuntime.configureLightDevicesRuntimeDeps(previousLightDevicesRuntimeDeps);
       recommendationRuntime.configureRecommendationModuleBridge(previousRecommendationBridge);
       document.querySelectorAll<HTMLElement>('.modal-overlay,.notification-container').forEach(el => el.remove());

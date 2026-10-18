@@ -2,7 +2,7 @@
   import { untrack } from 'svelte';
   import type { NutritionFluidView, NutritionEntryActions, FluidDraft } from '../nutrition-entry-model.js';
   import { FLUID_KINDS, fluidPreview, fluidDraftError } from '../nutrition-entry-model.js';
-  import { primary, panel, copy, field, input, formHead, closeButton, fluidPreset, fluidPanel } from '../nutrition-view-classes.js';
+  import { primary, panel, readableCopy as copy, field, input, formHead, closeButton, fluidPreset, fluidPanel } from '../nutrition-view-classes.js';
   let { view, actions }: { view: NutritionFluidView; actions: NutritionEntryActions } = $props();
   let draft: FluidDraft = $state(untrack(() => ({ ...view.initial })));
   let form: HTMLFormElement;
@@ -48,7 +48,7 @@
           <input type="radio" name="nutrition-fluid-kind" value={kind.key} bind:group={draft.kind} disabled={busy} class="gb:nutrition:absolute gb:nutrition:size-px gb:nutrition:opacity-0"/>
           <span aria-hidden="true" class="gb:nutrition:grid gb:nutrition:size-7 gb:nutrition:place-items-center gb:nutrition:rounded-lg gb:nutrition:bg-accent/10 gb:nutrition:text-base gb:nutrition:text-accent">{kind.icon}</span>
           <span class="gb:nutrition:grid gb:nutrition:gap-1">
-            <strong class="gb:nutrition:text-[11px] gb:nutrition:leading-[1.25]">{kind.title}</strong><small class="gb:nutrition:text-[9px] gb:nutrition:leading-[1.25] gb:nutrition:text-muted">{kind.detail}</small>
+            <strong class="gb:nutrition:text-[11px] gb:nutrition:leading-[1.25]">{kind.title}</strong><small class="gb:nutrition:text-[9px] gb:nutrition:leading-[1.25] gb:nutrition:text-secondary">{kind.detail}</small>
           </span>
         </label>
       {/each}

@@ -218,7 +218,7 @@ export function openModalOverlay(overlayOrId: OverlayReference, options: ModalOv
   const focusRequest = {};
   _overlayFocusRequests.set(overlay, focusRequest);
   if (!alreadyShown) {
-    const contextEditor = (overlay.querySelector('.ctx-editor-modal') as HTMLElement | null);
+    const contextEditor = (overlay.querySelector('.ctx-editor-modal, [data-context-form-modal]') as HTMLElement | null);
     if (contextEditor) contextEditor.scrollTop = 0;
   }
   if (options.scrollLock === true) _acquireOverlayScrollLock(overlay);

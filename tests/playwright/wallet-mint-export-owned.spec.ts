@@ -1,33 +1,45 @@
 import { expect, test } from '@playwright/test';
 import { routeHtml } from '../helpers/browser-static-routes.js';
 const mint = 'https://mint.minibits.cash/Bitcoin', other = 'https://mint.other.test/with/a/very/long/path/that/must/remain/readable/on/a/narrow/screen';
-test('owned mint and export controls preserve responsive accessible states themes and private fields', async ({ page, context }) => {
-  test.setTimeout(240_000); await context.addInitScript({ path: 'node_modules/axe-core/axe.min.js' });
-  await routeHtml(page, '**/wallet-tools-owned', '<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/css/settings.css"></head><body><main id="settings-modal" class="settings-modal"><div id="mint-host"></div><div id="export-host"></div></main></body></html>');
-  await page.goto('/wallet-tools-owned');
-  await page.evaluate(async () => { (await import('/js/wallet-mint-component.js')).mountWalletMint(document.getElementById('mint-host')!, { save: () => {}, cancel: () => {}, reload: () => {} }); (await import('/js/wallet-export-component.js')).mountWalletExport(document.getElementById('export-host')!, { prepare: () => {}, copy: () => {}, close: () => {} }); });
-  for (const theme of ['dark', 'light', 'cyberterm', 'glass', 'synth-sunrise', 'neuromancer']) {
-    await page.evaluate(async theme => { const themes = await import('/js/theme.js'); await themes.loadExtraThemesStylesheet(); themes.setTheme(theme); }, theme);
-    for (const state of ['loading', 'saved', 'checking', 'node-unavailable', 'error', 'export-ready', 'export-empty', 'export-error']) {
-      await page.evaluate(async ({ state, mint, other }) => {
-        const picker = (await import('/js/wallet-mint-component.js')).getWalletMintView()!, exporter = (await import('/js/wallet-export-component.js')).getWalletExportView()!;
-        picker.setDraft(other); picker.setState({ mint, saved: state === 'loading' ? [] : [{ mint, balance: 12 }, { mint: other, balance: 7 }], accepted: [other], loading: state === 'loading', pending: state === 'checking', hints: state === 'node-unavailable' ? 'unavailable' : 'ready', status: { text: state === 'error' ? 'Mint selection could not be confirmed. Existing balances and recovery records are preserved; reload balances before retrying.' : state === 'checking' ? 'Checking mint…' : '', tone: state === 'error' ? 'danger' : 'secondary' } });
-        exporter.showToken(state === 'export-ready' ? 'cashuAPRIVATE-SYNTHETIC-TOKEN' : ''); exporter.setState({ phase: state === 'export-ready' ? 'ready' : state === 'export-empty' ? 'empty' : state === 'export-error' ? 'error' : 'loading', mint: other, copied: false, pending: !state.startsWith('export-'), status: { text: state === 'export-ready' ? 'Clipboard copy failed. Open Token text to select and copy it manually.' : state === 'export-empty' ? 'Wallet is empty' : state === 'export-error' ? 'Wallet export unavailable. Funds and recovery records are preserved.' : 'Preparing wallet export…', tone: state === 'export-ready' || state === 'export-error' ? 'danger' : 'secondary' } });
-      }, { state, mint, other });
-      if (state === 'export-ready') await page.locator('[data-wallet-export-view] summary').click();
-      for (const width of [1280, 700, 390, 320]) {
-        await page.setViewportSize({ width, height: 1000 });
-        for (const panel of [page.locator('[data-wallet-mint-view]'), page.locator('[data-wallet-export-view]')]) {
-          expect(await panel.evaluate(element => element.scrollWidth <= element.clientWidth), `${theme} ${state} ${width}`).toBe(true);
-          const violations = await panel.evaluate(async element => (await (window as unknown as { axe: typeof import('axe-core') }).axe.run(element, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } })).violations.map(item => ({ id: item.id, nodes: item.nodes.map(node => ({ target: node.target, summary: node.failureSummary })) })));
-          expect(violations, `${theme} ${state} ${width}`).toEqual([]);
-          for (const control of await panel.locator('button:visible,input:visible,summary:visible').all()) expect(await control.evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
-          expect(await panel.locator('[data-token],[data-clipboard-text]').count()).toBe(0);
+// Dense fine-pointer controls retain their native sizing; touch targets use the coarse-pointer styles.
+test.describe('coarse-pointer touch targets', () => {
+  test.use({ hasTouch: true });
+  test.beforeEach(async ({ page }) => {
+    expect(await page.evaluate(() => ({
+      coarse: matchMedia('(pointer: coarse)').matches,
+      fine: matchMedia('(pointer: fine)').matches,
+      touch: navigator.maxTouchPoints > 0,
+    }))).toEqual({ coarse: true, fine: false, touch: true });
+  });
+
+  test('owned mint and export controls preserve responsive accessible states themes and private fields', async ({ page, context }) => {
+    test.setTimeout(240_000); await context.addInitScript({ path: 'node_modules/axe-core/axe.min.js' });
+    await routeHtml(page, '**/wallet-tools-owned', '<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/css/settings.css"></head><body><main id="settings-modal" class="settings-modal"><div id="mint-host"></div><div id="export-host"></div></main></body></html>');
+    await page.goto('/wallet-tools-owned');
+    await page.evaluate(async () => { (await import('/js/wallet-mint-component.js')).mountWalletMint(document.getElementById('mint-host')!, { save: () => {}, cancel: () => {}, reload: () => {} }); (await import('/js/wallet-export-component.js')).mountWalletExport(document.getElementById('export-host')!, { prepare: () => {}, copy: () => {}, close: () => {} }); });
+    for (const theme of ['dark', 'light', 'cyberterm', 'glass', 'synth-sunrise', 'neuromancer']) {
+      await page.evaluate(async theme => { const themes = await import('/js/theme.js'); await themes.loadExtraThemesStylesheet(); themes.setTheme(theme); }, theme);
+      for (const state of ['loading', 'saved', 'checking', 'node-unavailable', 'error', 'export-ready', 'export-empty', 'export-error']) {
+        await page.evaluate(async ({ state, mint, other }) => {
+          const picker = (await import('/js/wallet-mint-component.js')).getWalletMintView()!, exporter = (await import('/js/wallet-export-component.js')).getWalletExportView()!;
+          picker.setDraft(other); picker.setState({ mint, saved: state === 'loading' ? [] : [{ mint, balance: 12 }, { mint: other, balance: 7 }], accepted: [other], loading: state === 'loading', pending: state === 'checking', hints: state === 'node-unavailable' ? 'unavailable' : 'ready', status: { text: state === 'error' ? 'Mint selection could not be confirmed. Existing balances and recovery records are preserved; reload balances before retrying.' : state === 'checking' ? 'Checking mint…' : '', tone: state === 'error' ? 'danger' : 'secondary' } });
+          exporter.showToken(state === 'export-ready' ? 'cashuAPRIVATE-SYNTHETIC-TOKEN' : ''); exporter.setState({ phase: state === 'export-ready' ? 'ready' : state === 'export-empty' ? 'empty' : state === 'export-error' ? 'error' : 'loading', mint: other, copied: false, pending: !state.startsWith('export-'), status: { text: state === 'export-ready' ? 'Clipboard copy failed. Open Token text to select and copy it manually.' : state === 'export-empty' ? 'Wallet is empty' : state === 'export-error' ? 'Wallet export unavailable. Funds and recovery records are preserved.' : 'Preparing wallet export…', tone: state === 'export-ready' || state === 'export-error' ? 'danger' : 'secondary' } });
+        }, { state, mint, other });
+        if (state === 'export-ready') await page.locator('[data-wallet-export-view] summary').click();
+        for (const width of [1280, 700, 390, 320]) {
+          await page.setViewportSize({ width, height: 1000 });
+          for (const panel of [page.locator('[data-wallet-mint-view]'), page.locator('[data-wallet-export-view]')]) {
+            expect(await panel.evaluate(element => element.scrollWidth <= element.clientWidth), `${theme} ${state} ${width}`).toBe(true);
+            const violations = await panel.evaluate(async element => (await (window as unknown as { axe: typeof import('axe-core') }).axe.run(element, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } })).violations.map(item => ({ id: item.id, nodes: item.nodes.map(node => ({ target: node.target, summary: node.failureSummary })) })));
+            expect(violations, `${theme} ${state} ${width}`).toEqual([]);
+            for (const control of await panel.locator('button:visible,input:visible,summary:visible').all()) expect(await control.evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
+            expect(await panel.locator('[data-token],[data-clipboard-text]').count()).toBe(0);
+          }
         }
+        expect(await page.locator('[data-wallet-export-view]').textContent()).not.toContain('cashuAPRIVATE');
       }
-      expect(await page.locator('[data-wallet-export-view]').textContent()).not.toContain('cashuAPRIVATE');
     }
-  }
+  });
 });
 test('wallet mint export and balance facades reject late owners while accepted selection preserves a new private view', async ({ page }) => {
   await routeHtml(page, '**/wallet-tools-lifecycle', '<!doctype html><html><body><main id="ai-provider-panel"><div id="routstr-wallet-balance"></div><div id="routstr-mint-label"></div><div id="routstr-mint-edit" style="display:none"></div><div id="routstr-wallet-fund-area" style="display:none"></div><div id="routstr-node-picker" style="display:none"></div></main></body></html>');
