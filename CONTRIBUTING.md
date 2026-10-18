@@ -89,6 +89,9 @@ The Tests workflow also accepts the manual diagnostic choice
 `webkit-lens-wearable`. It runs only the original Lens Shell and Wearables cases
 in desktop WebKit and retains native cache and chart-pixel failure evidence.
 For example, use `gh workflow run test.yml --ref <branch> -f diagnostic=webkit-lens-wearable`.
+The manual diagnostic explicitly enables native CPU rendering for controlled
+renderer comparisons. This does not mask CPU features or change normal release
+jobs.
 This diagnostic run does not publish the normal `test` gate or release evidence;
 the default `off` choice retains the complete normal workflow.
 
@@ -101,8 +104,10 @@ GETBASED_ALLOW_HIGH_WRITE_TESTS=1 COVERAGE=1 ./run-tests.sh
 ```
 
 The runner starts an isolated server and runs the Node/Vitest, origin-guard and
-full Chromium checks. `COVERAGE=1` combines Vitest and Playwright V8 function
-coverage against `scripts/coverage-baseline.json`. Raise the committed minimum
+full Chromium checks. `COVERAGE=1` combines Vitest Istanbul data with Playwright
+V8 function ranges against `scripts/coverage-baseline.json`. Classic worker tests
+instrument only scripts admitted by the configured coverage scope and share
+genuine counters with Vitest. Raise the committed minimum
 when coverage improves; `COVERAGE_MIN` may demand more, never less. Function
 coverage does not establish branch coverage or complete workflow acceptance.
 Live paid providers, physical hardware and manual acceptance remain separate.

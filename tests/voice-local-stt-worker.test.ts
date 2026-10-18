@@ -148,3 +148,15 @@ it('keeps replacement weights when older disposal finishes late', async () => {
   expect(mocks.pipeline).toHaveBeenCalledTimes(2);
   expect(messages('disposed')).toHaveLength(1);
 });
+
+it('uses a valid GPU adapter when the runtime has no optional webgpu settings object', async () => {
+  Reflect.deleteProperty(mocks.env.backends.onnx, 'webgpu');
+  const requestAdapter = vi.fn<VoiceGpu['requestAdapter']>().mockResolvedValue({});
+  self.navigator.gpu = {requestAdapter};
+  await send({type: 'init', backend: 'webgpu'});
+  expect(requestAdapter).toHaveBeenCalledWith({powerPreference: 'high-performance'});
+  expect(mocks.pipeline).toHaveBeenCalledWith('automatic-speech-recognition', 'onnx-community/whisper-small', expect.objectContaining({device: 'webgpu'}));
+  expect(messages('ready')).toEqual([expect.objectContaining({id: 'request', kind: 'stt', backend: 'webgpu', model: 'onnx-community/whisper-small'})]);
+  expect(messages('error')).toEqual([]);
+  expect(mocks.env.backends.onnx).not.toHaveProperty('webgpu');
+});

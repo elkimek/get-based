@@ -244,3 +244,20 @@ it('completes an empty reply and preserves schema instructions', async () => {
   socket.reply(socket.frames[0]!); socket.event('message.complete');
   expect((await outcome).value).toEqual({ sessionId: 'chat' }); expect(events.at(-1)!.type).toBe('done');
 });
+
+it('rejects a correctly shaped image prompt before opening a remote gateway connection', async () => {
+  const instance = client();
+  await expect(instance.prompt({prompt: [{type: 'image', data: 'synthetic-image'}], onEvent: vi.fn()}))
+    .rejects.toThrow('Remote Hermes image input is not available through the safe gateway connection yet.');
+  expect(Socket.instances).toHaveLength(0);
+  expect(instance.sessions.size).toBe(0);
+});
+it('rejects an RPC when its socket closes immediately after connection readiness', async () => {
+  const {instance, socket} = await connected();
+  const connect = instance.connect.bind(instance);
+  vi.spyOn(instance, 'connect').mockImplementationOnce(async () => {await connect(); socket.close();});
+  await expect(instance.request('health')).rejects.toThrow('is not connected.');
+  expect(socket.frames).toEqual([]);
+  expect(instance.pending.size).toBe(0);
+  expect(vi.getTimerCount()).toBe(0);
+});

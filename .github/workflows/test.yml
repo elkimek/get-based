@@ -470,6 +470,8 @@ jobs:
       PLAYWRIGHT_KIT_OUTPUT_DIR: .local-notes/ci/webkit-diagnostics/results
       GETBASED_KIT_CASE_SCOPE: webkit-standard
       GETBASED_KIT_PROJECT: kit-webkit
+      # Native raster control only; not a release backend change or SIMD mask.
+      WEBKIT_SKIA_ENABLE_CPU_RENDERING: '1'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:

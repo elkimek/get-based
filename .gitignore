@@ -3594,3 +3594,9 @@ tests/pwa/sveltekit-island-ownership.spec.js.map
 /scripts/ci-native-fonts.mjs.map
 /tests/ci-native-fonts.test.js
 /tests/ci-native-fonts.test.js.map
+
+# Generated coverage producer contract
+/tests/coverage-producer.test.js
+/tests/coverage-producer.test.js.map
+/tests/helpers/coverage-global-setup.js
+/tests/helpers/coverage-global-setup.js.map

@@ -145,3 +145,14 @@ it.each(['isAnalysisRunning','isComparisonRunning'] as const)('restored %s works
   expect(overlay.hasAttribute('data-modal-background-dismissible')).toBe(true);
   expect(overlay.hasAttribute('data-modal-dismiss-protected')).toBe(true);
 });
+
+it('keeps comparison ownership correct after its modal overlay is removed', () => {
+  overlay.remove();
+  const controller = startNutritionComparisonRequest();
+  expect(isNutritionComparisonRequestActive(controller)).toBe(true);
+  expect(controller.signal.aborted).toBe(false);
+  finishNutritionComparisonRequest(controller);
+  expect(isNutritionComparisonRequestActive(controller)).toBe(false);
+  expect(controller.signal.aborted).toBe(false);
+  expect(document.getElementById('modal-overlay')).toBeNull();
+});

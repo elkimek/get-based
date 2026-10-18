@@ -93,3 +93,14 @@ describe('Evolu 8 identity vault', () => {
       .resolves.toBeNull();
   });
 });
+
+it('revokes the local commit token even when IndexedDB is unavailable', async () => {
+  const storage = createStorage();
+  storage.values.set(EVOLU8_IDENTITY_TOKEN_KEY, 'previous-owner-token');
+  const vault = createEvolu8IdentityVault({storage, indexedDb: null});
+  const invalidation = vault.invalidate();
+  expect(storage.getItem(EVOLU8_IDENTITY_TOKEN_KEY)).toBeNull();
+  expect(storage.removeItem).toHaveBeenCalledWith(EVOLU8_IDENTITY_TOKEN_KEY);
+  await expect(invalidation).resolves.toBeUndefined();
+  await expect(vault.read()).resolves.toBeNull();
+});

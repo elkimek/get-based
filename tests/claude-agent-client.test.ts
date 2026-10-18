@@ -2,8 +2,10 @@
 
 import type { ChildProcessWithoutNullStreams } from 'node:child_process';
 import type { AgentUsage } from '../lib/agent-turn-types.js';
-import { EventEmitter } from 'node:events';
-import { existsSync, readFileSync } from 'node:fs';
+import { EventEmitter, once } from 'node:events';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
 import { PassThrough } from 'node:stream';
 import { describe, expect, it, vi } from 'vitest';
 import { extractClaudeStreamEvent, getClaudeModelCatalog } from '../lib/claude-agent-client.js';
@@ -88,4 +90,38 @@ describe('Claude event protocol boundaries', () => {
     expect(extractClaudeStreamEvent({ type: 'result', is_error: true, ...details }))
       .toMatchObject({ type: 'error', message: details.result || details.error || '', resultText: '', finishReason: '' });
   });
+});
+
+it.each([
+  {stderr: 'late CLI failure', code: 7, message: 'late CLI failure'},
+  {stderr: '', code: 7, message: 'Claude Agent exited with code 7.'},
+  {stderr: '', code: null, message: 'Claude Agent exited with code unknown.'},
+])('rejects late process failure after stdout drains: $message', async ({stderr, code, message}) => {
+  const cwd = mkdtempSync(join(tmpdir(), 'getbased-claude-late-exit-'));
+  let child: ChildProcessWithoutNullStreams | undefined;
+  const spawnImpl = vi.fn(() => {
+    const process = new EventEmitter() as ChildProcessWithoutNullStreams;
+    process.stdin = new PassThrough(); process.stdout = new PassThrough(); process.stderr = new PassThrough(); process.kill = vi.fn();
+    child = process; return process;
+  });
+  const client = new ClaudeAgentClient({command: 'synthetic-claude', cwd, spawnImpl});
+  try {
+    let settled = false;
+    const pending = client.prompt({prompt: [], instructions: 'synthetic only', mcpConfig: {}, allowedToolNames: [], onEvent: vi.fn()});
+    void pending.then(() => {settled = true;}, () => {settled = true;});
+    const rejection = expect(pending).rejects.toThrow(message);
+    await vi.waitFor(() => expect(child).toBeDefined());
+    const drained = once(child!.stdout, 'end');
+    child!.stdout.end();
+    await drained;
+    // Yield one event-loop turn so the completed stdout iterator wins the race.
+    await new Promise<void>(resolve => setImmediate(resolve));
+    expect(settled).toBe(false);
+    if (stderr) child!.stderr.write(stderr);
+    child!.emit('exit', code); child!.emit('close', code);
+    await rejection;
+    expect(client.children.size).toBe(0);
+    expect(client.cancellations.size).toBe(0);
+    expect(readdirSync(cwd)).toEqual([]);
+  } finally {await client.close(); rmSync(cwd, {recursive: true, force: true});}
 });

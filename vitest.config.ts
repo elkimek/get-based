@@ -40,9 +40,10 @@ export default defineConfig({
       'dist-docs/**',
     ],
     setupFiles: ['./tests/_vitest-setup.js'],
+    globalSetup: ['./tests/helpers/coverage-global-setup.js'],
     reporters: ['default'],
     coverage: {
-      provider: 'v8',
+      provider: 'istanbul',
       reporter: ['json-summary', 'json'],
       reportsDirectory: 'tests/.vitest-coverage',
       ...{ all: true },
