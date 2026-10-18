@@ -1,11 +1,11 @@
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { startKitServer } from './kit-server.js';
+import {openStaticSettings} from './settings-entry.js';
 const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
 async function ready(page: Page) { await expect(page.locator('html[data-app-ready][data-shell-framework="sveltekit"]')).toBeAttached({ timeout: 30_000 }); await page.evaluate(() => navigator.serviceWorker.ready.then(() => true)); await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true); }
 async function settings(page: Page) {
-  const open = page.locator('[data-shell-action="open-settings"]');
-  try { await open.click({ timeout: 1500 }); } catch (error) { const close = page.getByRole('button', { name: 'Close chat', exact: true }); if (!await close.isVisible()) throw error; await close.click(); await open.click(); }
+  await openStaticSettings(page);
 }
 test('static Local AI preserves encrypted connection, cloud guidance and manual VRAM through cached cold launch', async ({ page, context }) => {
   test.setTimeout(150_000);

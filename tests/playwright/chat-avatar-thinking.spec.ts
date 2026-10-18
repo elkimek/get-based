@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
+    for(const key of ['emptyTour','tour'])localStorage.setItem(`labcharts-default-${key}`,'completed');
     localStorage.setItem('labcharts-ai-provider', 'ollama');
     localStorage.setItem('labcharts-ai-paused', 'false');
     localStorage.setItem('labcharts-legal-acceptance', JSON.stringify({
@@ -18,9 +19,8 @@ test.beforeEach(async ({ page }) => {
 
 test('the composer opens AI context before dashboard context hooks are registered', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
+  await page.locator('html[data-app-ready]').waitFor({state:'attached'});
   await page.evaluate(async () => {
-    (window as Window & {endTour?: typeof import('../../js/tour.js').endTour}).endTour?.();
-    for (const id of ['tour-overlay', 'tour-spotlight', 'tour-tooltip']) document.getElementById(id)?.remove();
     await (await import('/js/chat-panel.js')).openChatPanel();
     (await import('/js/state.js')).state.chatHistory = [{ role: 'user', content: 'Context menu fixture' }];
     (await import('/js/chat-render.js')).renderChatMessages();

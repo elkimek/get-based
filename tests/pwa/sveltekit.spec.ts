@@ -2,6 +2,7 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import type { Page, BrowserContext } from '@playwright/test';
 import { startKitServer } from './kit-server.js';
+import {openStaticSettings} from './settings-entry.js';
 
 const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
 async function prepare(context: BrowserContext, page: Page) {
@@ -26,15 +27,7 @@ async function ready(page: Page) {
   await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller), { timeout: 30_000 }).toBe(true);
 }
 async function display(page: Page) {
-  const settings = page.locator('[data-shell-action="open-settings"]');
-  try { await settings.click({ timeout: 1500 }); }
-  catch (error) {
-    // Returning desktop onboarding can finish while the first click waits.
-    // Dismiss it through its public control, preserving normal click checks.
-    const closeChat = page.getByRole('button', { name: 'Close chat', exact: true });
-    if (!await closeChat.isVisible()) throw error;
-    await closeChat.click(); await settings.click();
-  }
+  await openStaticSettings(page);
   await page.locator('[data-settings-tab="display"]').click();
   await expect(page.locator('#settings-tab-display [data-unit="US"]')).toBeVisible();
 }
@@ -592,6 +585,8 @@ test('imported records and usage hydrate offline with provenance, keyboard contr
       await page.locator('#settings-nav-ai').click();
       const usage = page.locator('#ai-usage-section');
       await usage.scrollIntoViewIfNeeded();
+      // The real active tab fades in for 200 ms; measure its settled ink.
+      await expect(page.locator('#settings-tab-ai')).toHaveCSS('opacity', '1');
       const usageViolations = await usage.evaluate(async element => {
         const axe = (window as unknown as { axe: typeof import('axe-core') }).axe;
         const result = await axe.run(element, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } });

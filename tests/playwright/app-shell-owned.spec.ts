@@ -45,7 +45,19 @@ for(const width of [393,1280])test(`AppShell cold hydration and real header acti
   }else{await expect(page.locator('.feedback-btn')).toBeVisible();await page.locator('.feedback-btn').click();}
   await expect(page.locator('#feedback-modal-overlay')).toHaveClass(/show/);
   await page.locator('#feedback-modal [data-feedback-action="close"]').first().click();await expect(page.locator('#feedback-modal-overlay')).not.toHaveClass(/show/);
-  if(width<800){await page.locator('#sidebar-toggle').click();await expect(page.locator('#sidebar-nav')).toHaveClass(/mobile-open/);await page.locator('#sidebar-backdrop').click();await expect(page.locator('#sidebar-nav')).not.toHaveClass(/mobile-open/);}
+  if(width<800){
+   await page.locator('#sidebar-toggle').click();await expect(page.locator('#sidebar-nav')).toHaveClass(/mobile-open/);
+   await expect(page.locator('#sidebar-nav')).toHaveCSS('transform','matrix(1, 0, 0, 1, 0, 0)');
+   const backdrop=page.locator('#sidebar-backdrop'),drawer=await page.locator('#sidebar-nav').boundingBox(),bounds=await backdrop.boundingBox();
+   expect(drawer).not.toBeNull();expect(bounds).not.toBeNull();
+   // The drawer covers the backdrop's center on a phone. Click the actual
+   // exposed strip to exercise its normal delegated dismissal action.
+   const left=Math.max(drawer!.x+drawer!.width,bounds!.x),right=bounds!.x+bounds!.width;
+   expect(right).toBeGreaterThan(left);
+   const x=(left+right)/2,y=bounds!.y+bounds!.height/2;
+   expect(await page.evaluate(({x,y})=>document.elementFromPoint(x,y)?.id,{x,y})).toBe('sidebar-backdrop');
+   await backdrop.click({position:{x:x-bounds!.x,y:y-bounds!.y}});await expect(page.locator('#sidebar-nav')).not.toHaveClass(/mobile-open/);
+  }
   const navigation=await page.evaluate(async()=>{
    const header=document.querySelector('.header'),footer=document.querySelector('.app-footer'),input=document.getElementById('chat-input'),main=document.getElementById('main-content');
    const {navigate}=await import('/js/views.js');navigate('dashboard');navigate('dashboard');

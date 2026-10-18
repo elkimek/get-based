@@ -130,7 +130,10 @@ async function seedDemoData(page:Page) {
     (await import('/js/chat-panel.js')).closeChatPanel();
   });
   await page.waitForSelector('#main-content', { timeout: 10000 });
-  await delay(200);
+  // Navigation mounts an asynchronous Dashboard loading state first. Wait for
+  // its actual widgets before measuring their geometry and theme signatures.
+  await page.waitForSelector('#main-content .dashboard-widget[data-widget-id]:visible', { timeout: 10000 });
+  await waitForAsyncCondition(() => page.locator('#main-content > [aria-busy="true"]').count().then(count => count === 0), 10000);
 }
 
 async function seedMobileLightSessions(page:Page) {
