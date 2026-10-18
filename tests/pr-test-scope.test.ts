@@ -361,3 +361,74 @@ describe('Kit matrix arguments', () => {
     for (const value of ['0/2', '3/2', '1/0', '1/65', '01/2', '1.5/2', '1/2 --headed', '', '9007199254740992/9007199254740992']) expect(() => kitMatrixArguments({GETBASED_KIT_SHARD: value})).toThrow();
   });
 });
+
+
+describe('implicit framework and retired owner scope', () => {
+  it.each(['native', 'html'])('routes changed or removed %s declarations through their actual component owner', mode => {
+    const declaration = `js/components/Feature.svelte.${mode}.d.ts`;
+    const sources = new Map([
+      ['js/components/Feature.svelte', '<strong>Feature</strong>'],
+      [declaration, 'export {};'],
+      ['js/feature.ts', "import Feature from './components/Feature.svelte.native.js';"],
+      ['tests/feature.test.ts', "import '../js/feature.js';"],
+      ['tests/unrelated.test.ts', ''],
+    ]);
+    for (const removed of [false, true]) {
+      if (removed) sources.delete(declaration);
+      const plan = createTestPlan(sources, [declaration]);
+      expect(plan.unit).toEqual(['tests/feature.test.ts']);
+      expect(plan.uncovered).toEqual([]);
+    }
+  });
+
+  it.each(['html', 'svg'])('propagates shared %s attribute augmentations to genuine component consumers', kind => {
+    const declaration = `js/components/svelte-${kind}-attributes.d.ts`;
+    const plan = createTestPlan(new Map([
+      [declaration, 'export {};'],
+      ['js/components/Feature.svelte', '<strong>Feature</strong>'],
+      ['tests/feature.test.ts', "read('js/components/Feature.svelte');"],
+      ['tests/unrelated.test.ts', ''],
+    ]), [declaration]);
+    expect(plan.unit).toEqual(['tests/feature.test.ts']);
+    expect(plan.uncovered).toEqual([]);
+  });
+
+  it('keeps orphan, untested and unknown declarations fail closed despite unrelated tests', () => {
+    const changes = ['js/components/Orphan.svelte.html.d.ts', 'js/components/Untested.svelte.native.d.ts', 'js/components/unknown.d.ts'];
+    const plan = createTestPlan(new Map([
+      ['js/components/Untested.svelte', '<span>Untested</span>'],
+      ['tests/unrelated.test.ts', ''],
+    ]), [...changes, 'tests/unrelated.test.ts']);
+    expect(plan.uncovered).toEqual(changes);
+    expect(createTestPlan(new Map([['tests/unrelated.test.ts', '']]), ['js/components/svelte-html-attributes.d.ts', 'tests/unrelated.test.ts']).uncovered)
+      .toEqual(['js/components/svelte-html-attributes.d.ts']);
+  });
+
+  it.each(['js/kit/hooks.ts', 'js/kit/routes/app/+layout.ts'])('selects actual static artifact and alias contracts for discovered %s', source => {
+    const plan = createTestPlan(new Map([
+      [source, 'export const prerender = true;'],
+      ['tests/production-build.test.ts', ''],
+      ['tests/pwa/sveltekit.spec.ts', ''],
+      ['tests/unrelated.test.ts', ''],
+    ]), [source]);
+    expect(plan.unit).toEqual(['tests/production-build.test.ts']);
+    expect(plan.kit).toEqual(['tests/pwa/sveltekit.spec.ts']);
+    expect(plan.performance).toBe(true);
+    expect(plan.uncovered).toEqual([]);
+  });
+
+  it.each([
+    ['js/provider-wallet-panel-renderers.ts', 'tests/wallet-mint-export-owned.test.ts'],
+    ['js/provider-wallet-refund-recovery.ts', 'tests/provider-wallet-recovery-html.test.ts'],
+  ])('retains replacement regression scope for retired %s', (source, test) => {
+    const plan = createTestPlan(new Map([[test!, ''], ['tests/unrelated.test.ts', '']]), [source!]);
+    expect(plan.unit).toEqual([test]);
+    expect(plan.uncovered).toEqual([]);
+    expect(createTestPlan(new Map([['tests/unrelated.test.ts', '']]), [source!, 'tests/unrelated.test.ts']).uncovered).toEqual([source]);
+  });
+
+  it('does not exempt arbitrary auto-discovered-looking or retired-looking modules', () => {
+    const changes = ['js/kit/unknown.ts', 'js/provider-wallet-unknown.ts'];
+    expect(createTestPlan(new Map([['tests/unrelated.test.ts', '']]), [...changes, 'tests/unrelated.test.ts']).uncovered).toEqual(changes);
+  });
+});

@@ -49,6 +49,12 @@ const TOOL_SCOPES: readonly ToolScope[] = [
     tests: ['tests/sync-evolu8-candidate.test.js', 'tests/sync-evolu8-identity-vault.test.js', 'tests/playwright/sync-evolu8-identity-vault.spec.js'],
     check: 'vendor:evolu8:check',
   },
+  // Kit discovers these entrypoints by filename rather than an import edge.
+  { sources: ['js/kit/hooks.js', 'js/kit/routes/app/+layout.js'], tests: ['tests/production-build.test.js', 'tests/pwa/sveltekit.spec.js'] },
+  // Retired serializers have no remaining importers. Their replacement owners
+  // retain these concrete mint/seed/withdraw/node and refund recovery contracts.
+  { sources: ['js/provider-wallet-panel-renderers.js'], tests: ['tests/wallet-mint-export-owned.test.js', 'tests/wallet-seed-owned.test.js', 'tests/wallet-withdraw-owned.test.js', 'tests/wallet-node-owned.test.js', 'tests/playwright/routstr-wallet-dom.spec.js', 'tests/pwa/sveltekit-wallet-mints.spec.js', 'tests/pwa/sveltekit-wallet-seed.spec.js', 'tests/pwa/sveltekit-wallet-withdraw.spec.js', 'tests/pwa/sveltekit-wallet-node.spec.js'] },
+  { sources: ['js/provider-wallet-refund-recovery.js'], tests: ['tests/provider-wallet-recovery-html.test.js', 'tests/wallet-node-owned.test.js', 'tests/playwright/routstr-wallet-dom.spec.js', 'tests/pwa/sveltekit-wallet-node.spec.js'] },
   { sources: ['scripts/build-marker-schema.mjs'], tests: ['tests/marker-schema-contract.test.js', 'tests/profile-marker-schema-migration.test.js'], check: 'marker-schema:check' },
   { sources: ['scripts/fetch-catalog.mjs'], tests: ['tests/project-owned-ci.test.js', 'tests/test-dev-server-helpers.js', 'tests/recommendations-runtime.test.js'] },
   { sources: ['scripts/generate-import-reference-pdf.mjs'], tests: ['tests/project-owned-ci.test.js', 'tests/playwright/import-benchmarks.spec.js'] },
@@ -132,6 +138,20 @@ export function createTestPlan(sources: Map<string, string>, changedFiles: strin
       if (!reverse.has(runtime)) reverse.set(runtime, new Set());
       reverse.get(runtime)!.add(file);
     }
+  }
+  // Native facade declarations and ambient HTML/SVG augmentations are resolved
+  // implicitly by the component compiler. Keep them connected to their actual
+  // authored owners, including a deleted declaration, instead of exempting all
+  // declaration files from the missing-relevant-tests guard.
+  const components = [...sources.keys()].filter(file => file.startsWith('js/components/') && file.endsWith('.svelte'));
+  for (const file of known) {
+    const component = /^js\/components\/.+\.svelte\.(?:native|html)\.d\.ts$/.test(file)
+      ? file.replace(/\.(?:native|html)\.d\.ts$/, '') : undefined;
+    const owners = component && sources.has(component) ? [component]
+      : ['js/components/svelte-html-attributes.d.ts', 'js/components/svelte-svg-attributes.d.ts'].includes(file) ? components : [];
+    if (!owners.length) continue;
+    if (!reverse.has(file)) reverse.set(file, new Set());
+    owners.forEach(owner => reverse.get(file)!.add(owner));
   }
   const checks = new Set<ValidationCheck>();
   for (const scope of TOOL_SCOPES) {
