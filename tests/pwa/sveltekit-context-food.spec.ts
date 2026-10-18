@@ -33,10 +33,9 @@ async function stored(page: Page) {
   });
 }
 test('static authored food signals open on offline first use and two cold launches without changing profile data', async ({ page, context }) => {
-  test.setTimeout(120000); await installDiscussionFixture(context);
+  test.setTimeout(120000); await installDiscussionFixture(context, {paused: true});
   await context.addInitScript(() => {
     if (!['http:', 'https:'].includes(location.protocol)) return;
-    localStorage.setItem('labcharts-ai-paused', 'true');
     for (const key of ['emptyTour', 'tour']) localStorage.setItem(`labcharts-default-${key}`, 'completed');
     localStorage.setItem('labcharts-encryption-nudge-dismissed', 'true');
     if (!localStorage.getItem('context-food-seeded')) {

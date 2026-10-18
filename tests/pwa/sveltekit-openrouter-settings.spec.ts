@@ -1,4 +1,4 @@
-import {openStaticSettings} from './settings-entry.js';
+import {openStaticSettings, awaitStaticThemeReady} from './settings-entry.js';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { startKitServer } from './kit-server.js';
@@ -53,6 +53,7 @@ test('OpenRouter Settings uses cached assets with an unavailable origin and reta
     for(const theme of ['dark','light','cyberterm','glass','synth-sunrise','neuromancer']) {
       await page.locator('#settings-nav-display').click();await page.locator('#settings-tab-display [data-settings-action="open-tweaks"]').click();
       await page.locator(`[data-tweaks-action="select-theme"][data-theme-id="${theme}"]`).click();await page.locator('[data-tweaks-action="close"]').click();
+      await awaitStaticThemeReady(page, theme);
       const closeChat=page.getByRole('button',{name:'Close chat',exact:true});if(await closeChat.isVisible())await closeChat.click();await openProvider(page);
       for(const width of [1280,700,390]) {
         await page.setViewportSize({width,height:900});await panel.scrollIntoViewIfNeeded();expect(await panel.evaluate(e=>e.scrollWidth<=e.clientWidth)).toBe(true);

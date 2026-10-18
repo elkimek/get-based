@@ -1,4 +1,4 @@
-import {openStaticSettings} from './settings-entry.js';
+import {openStaticSettings, awaitStaticThemeReady} from './settings-entry.js';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { startKitServer } from './kit-server.js';
@@ -59,6 +59,7 @@ test('meal-model Settings load offline and retain a dedicated route through a co
       await page.locator('#settings-tab-display [data-settings-action="open-tweaks"]').click();
       await page.locator(`[data-tweaks-action="select-theme"][data-theme-id="${theme}"]`).click();
       await page.locator('[data-tweaks-action="close"]').click();
+      await awaitStaticThemeReady(page, theme);
       const closeChat = page.getByRole('button',{name:'Close chat',exact:true});
       if (await closeChat.isVisible()) await closeChat.click();
       await openModels(page);
@@ -72,7 +73,7 @@ test('meal-model Settings load offline and retain a dedicated route through a co
       await expect(select).toHaveValue(routeB);
     }
     await page.close();
-    const cold = await context.newPage(); await cold.goto(server.origin + '/app?dev-sw=1'); await ready(cold); await openModels(cold);
+    const cold = await context.newPage(); cold.on('pageerror', error => errors.push(error.message)); await cold.goto(server.origin + '/app?dev-sw=1'); await ready(cold); await openModels(cold);
     const coldSelect = cold.locator('[data-nutrition-ai-view] select');
     await expect(coldSelect).toHaveValue(routeB);
     await expect(coldSelect).not.toContainText('Synthetic Text Only');

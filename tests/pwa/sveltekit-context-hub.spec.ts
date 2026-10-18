@@ -22,9 +22,9 @@ async function stored(page: Page) {
   });
 }
 test('static authored Context hub autosaves canonical sources offline and retains them across two cold launches', async ({ page, context }) => {
-  test.setTimeout(120000); await installDiscussionFixture(context);
+  test.setTimeout(120000); await installDiscussionFixture(context, {paused: true});
   await context.addInitScript(() => {
-    if (!['http:', 'https:'].includes(location.protocol)) return; localStorage.setItem('labcharts-ai-paused', 'true');
+    if (!['http:', 'https:'].includes(location.protocol)) return;
     if (!localStorage.getItem('context-hub-seeded')) {
       localStorage.setItem('context-hub-seeded', '1'); localStorage.setItem('labcharts-default-ai-ctx-wearables', 'off'); localStorage.setItem('labcharts-ai-ctx-genetics-inventory', 'on');
       localStorage.setItem('labcharts-default-imported', JSON.stringify({ entries: [], notes: [], nutritionMeals: [], diet: { breakfast: 'eggs' }, interpretiveLens: 'Original <lens> & text' }));

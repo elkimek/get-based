@@ -1,4 +1,4 @@
-import {openStaticSettings} from './settings-entry.js';
+import {openStaticSettings, awaitStaticThemeReady} from './settings-entry.js';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { startKitServer } from './kit-server.js';
@@ -38,22 +38,23 @@ test('Wearables settings mount on offline first use and retain profile visibilit
       await page.locator('#settings-nav-display').click();
       await page.locator('#settings-tab-display [data-settings-action="open-tweaks"]').click();await page.locator(`[data-tweaks-action="select-theme"][data-theme-id="${theme}"]`).click();
       await page.locator('[data-tweaks-action="close"]').click();
+      await awaitStaticThemeReady(page, theme);
       const closeChat=page.getByRole('button',{name:'Close chat',exact:true});if(await closeChat.isVisible())await closeChat.click();
       await openWearables(page);
       for(const viewport of [{width:1280,height:900},{width:700,height:900},{width:390,height:844}]) {
         await page.setViewportSize(viewport);await panel.scrollIntoViewIfNeeded();expect(await panel.evaluate(e=>e.scrollWidth<=e.clientWidth)).toBe(true);
         const violations=await panel.evaluate(async e=>(await(window as unknown as {axe:typeof import('axe-core')}).axe.run(e,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa']}})).violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>({target:n.target,summary:n.failureSummary}))})));
         expect(violations,`${theme} ${viewport.width}`).toEqual([]);
+        const dropzone=panel.locator('.apple-health-dropzone');await expect(dropzone).toBeVisible();await expect(dropzone).toHaveAttribute('type','button');expect(await dropzone.evaluate(e=>e.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
       }
       await expect(checkbox).not.toBeChecked();
-      const dropzone=panel.locator('.apple-health-dropzone');await expect(dropzone).toBeVisible();await expect(dropzone).toHaveAttribute('type','button');expect(await dropzone.evaluate(e=>e.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
     }
     const xml = '<HealthData><Record type="HKQuantityTypeIdentifierBodyMass" sourceName="Synthetic scale" unit="kg" value="72.4" startDate="2026-06-01 08:00:00 +0000" endDate="2026-06-01 08:00:00 +0000"/></HealthData>';
     await panel.locator('#apple-health-file-input').setInputFiles({ name:'synthetic-export.xml',mimeType:'application/xml',buffer:Buffer.from(xml) });
     await expect(panel.locator('[data-adapter="apple_health"] .wearable-adapter-identity')).toHaveText('Imported from synthetic-export.xml', {timeout:30_000});
     await expect(panel.locator('[data-adapter="apple_health"]')).toContainText('Imported from synthetic-export.xml');
     await expect(panel.locator('[data-adapter="apple_health"]')).toContainText('1 days');
-    await page.close();const cold=await context.newPage();await cold.goto(server.origin+'/app?dev-sw=1');await ready(cold);await openWearables(cold);
+    await page.close();const cold=await context.newPage();cold.on('pageerror',error=>errors.push(error.message));await cold.goto(server.origin+'/app?dev-sw=1');await ready(cold);await openWearables(cold);
     await expect(cold.locator('#wearables-strip-hidden-toggle')).not.toBeChecked();
     await expect(cold.locator('[data-adapter="apple_health"]')).toContainText('Imported from synthetic-export.xml');
     await expect(cold.locator('[data-adapter="apple_health"]')).toContainText('1 days');

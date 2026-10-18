@@ -23,9 +23,9 @@ async function stored(page: Page) {
   });
 }
 test('static authored Lens opens offline from Context and retains multiline text and history across two cold launches', async ({ page, context }) => {
-  test.setTimeout(120000); await installDiscussionFixture(context);
+  test.setTimeout(120000); await installDiscussionFixture(context, {paused: true});
   await context.addInitScript(() => {
-    if (!['http:', 'https:'].includes(location.protocol)) return; localStorage.setItem('labcharts-ai-paused', 'true');
+    if (!['http:', 'https:'].includes(location.protocol)) return;
     if (!localStorage.getItem('context-lens-seeded')) { localStorage.setItem('context-lens-seeded', '1'); localStorage.setItem('labcharts-default-imported', JSON.stringify({ entries: [], notes: [], nutritionMeals: [], interpretiveLens: 'Original <lens>' })); }
   });
   const errors: string[] = [], csp: string[] = []; page.on('pageerror', error => errors.push(error.message)); context.on('page', target => target.on('pageerror', error => errors.push(error.message)));
