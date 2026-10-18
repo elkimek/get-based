@@ -52,7 +52,17 @@ function staticClosure(entry: string) {
 it('keeps every startup path outside the lazy Biology request and page owners', () => {
   const reachable = staticClosure('js/main.ts');
   for (const lazy of ['js/biology-scores.ts', 'js/biology-score-ai.ts', 'js/biology-score-sections.ts',
-    'js/biology-score-context-ai.ts', 'js/biology-page-view.ts']) expect(reachable).not.toContain(lazy);
-  for (const needed of ['js/biology-score-compute.ts', 'js/biology-score-dashboard.ts',
+    'js/biology-score-context-ai.ts', 'js/biology-page-view.ts', 'js/biology-score-dashboard.ts']) expect(reachable).not.toContain(lazy);
+  for (const needed of ['js/biology-score-compute.ts',
     'js/biology-score-navigation.ts', 'js/biology-score-context-contract.ts']) expect(reachable).toContain(needed);
+});
+
+it('loads dashboard Biology projections through the real lazy composition without making AI requests eager', () => {
+  const startup = staticClosure('js/main.ts');
+  expect(startup).toContain('js/dashboard-composition-loader.ts');
+  const loader = readFileSync('js/dashboard-composition-loader.ts', 'utf8');
+  expect(loader).toContain("import('./dashboard-view-composition.js')");
+  const dashboard = staticClosure('js/dashboard-view-composition.ts');
+  for (const needed of ['js/biology-score-dashboard.ts', 'js/biology-score-compute.ts']) expect(dashboard).toContain(needed);
+  for (const lazy of ['js/biology-score-ai.ts', 'js/biology-score-sections.ts', 'js/biology-score-context-ai.ts', 'js/biology-page-view.ts']) expect(dashboard).not.toContain(lazy);
 });

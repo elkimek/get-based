@@ -7,7 +7,7 @@ import {parse} from 'svelte/compiler';
 import {renderDashboardGenomeWidgetView} from '../js/dashboard-genome-rows-presentation.js';
 import {projectDashboardMtdnaPanel} from '../js/dashboard-mtdna-panel-presentation.js';
 import {actionAttributes} from '../js/action-attributes.js';
-import {historicalGenomeController,historicalGenomeRows,qualifyCurrentGenomeSources,expectedCurrentGenomeTrace} from './helpers/dashboard-genome-review-history.js';
+import {historicalGenomeController,historicalGenomeRows,qualifyCurrentGenomeSources,restoreReviewedGenomeQuickMarkerBoundary,expectedCurrentGenomeTrace} from './helpers/dashboard-genome-review-history.js';
 import {expectedGenomeWidgetHTML} from './helpers/dashboard-genome-review-expected.js';
 const ports=vi.hoisted(()=>({change:(html:string)=>html}));
 const currentPorts=vi.hoisted(()=>({change:(html:string)=>html}));
@@ -213,4 +213,12 @@ describe('genuine current Genome Widget/Rows/mtDNA composition against complete 
    expect(changed).not.toBe(originalHTML);expect(()=>expectedGenomeWidgetHTML(changed)).toThrow();
   }
  });
+});
+
+it.each(['missing injection','wrong owner','changed Genome body','foreign bytes'] as const)('rejects altered current Genome composition before its original source pin: %s',mutation=>{
+ const source=fs.readFileSync('js/dashboard-widget-renderers.ts','utf8');
+ const changed=mutation==='missing injection'?source.replace('  }, quickMarkers);','  });'):
+  mutation==='wrong owner'?source.replace("'./dashboard-quick-marker-core.js'","'./state.js'"):
+  mutation==='changed Genome body'?source.replace('return renderDashboardGenomeWidgetView(projectDashboardGenomeWidget());','return "foreign";'):source+'\n// foreign';
+ expect(changed).not.toBe(source);expect(()=>restoreReviewedGenomeQuickMarkerBoundary(changed)).toThrow();
 });

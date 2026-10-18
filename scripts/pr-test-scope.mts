@@ -72,7 +72,6 @@ const SHIPPING_PERFORMANCE_ROOTS = new Set([
   'scripts/build-sveltekit.mjs',
   'tooling/svelte/build-static.mjs',
   '.github/workflows/test.yml',
-  '.github/workflows/display-pilot.yml',
 ]);
 
 export function fileReferences(file: string, source: string, knownFiles: Set<string>): Set<string> {

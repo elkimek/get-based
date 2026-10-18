@@ -306,5 +306,7 @@ for (const path of LEGACY_TESTS) {
       throw importError;
     }
     expect(fails, fails.join('\n  ')).toHaveLength(0);
-  });
+  // These two integrations load JSDOM and large compiled UI graphs under V8
+  // coverage. Bound that harness work separately from shipping performance gates.
+  }, path === './test-no-native-dialogs.js' || path === './test-biology-scores.js' ? 30_000 : undefined);
 }

@@ -21,7 +21,7 @@ const authored=['js/correlation-workspace-controls-presentation.js','js/componen
 const artifactOwners = ['js/correlation-workspace-chrome-presentation.js','js/components/CorrelationWorkspaceChrome.svelte.html.js','js/components/CorrelationWorkspaceControls.svelte','js/correlations-selection-presentation.js','js/components/CorrelationsSelectionPage.svelte.html.js','js/components/CorrelationsSelectionOptions.svelte.html.js','js/components/CorrelationsSelectionChips.svelte.html.js','js/therapy-comparison-presentation.js','js/components/TherapyComparisonResults.svelte.html.js','js/components/TherapyComparisonEntries.svelte','js/components/MarkerPairComparison.svelte.html.js'] as const;
 const modules=[...artifactOwners,'js/compare-correlations.js','js/therapy-correlation-view.js','js/therapy-correlations.js',
  'js/correlation-workspace-store.js','js/supplement-medication-domain.js','js/charts-runtime.js','js/health-data-loader.js',
- 'js/data-core.js','js/profile.js','js/profile-data-migrations.js','js/profile-list-store.js','js/state.js','js/crypto.js','js/blob-storage.js','js/nav.js','js/views.js'] as const;
+ 'js/data-core.js','js/profile.js','js/profile-data-migrations.js','js/profile-list-store.js','js/state.js','js/crypto.js','js/blob-storage.js','js/nav.js','js/views-runtime.js'] as const;
 const sheets=['css/category-views.css','styles.css','css/app-shell.css'] as const;
 interface CorrelationEvent {type:string;target:string;action:string|null;key:string|null;value:string|null;trusted:boolean}
 interface ObservedWindow extends Window {correlationPwaEvent(value:CorrelationEvent):Promise<void>;correlationPwaCsp(value:string):Promise<void>}

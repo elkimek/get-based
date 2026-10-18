@@ -257,6 +257,20 @@ jobs:
           else
             npx --no-install playwright install --with-deps "$ENGINE"
           fi
+      - name: Qualify the native Chart font before exact canvas acceptance
+        run: |
+          set -euo pipefail
+          # Chart.js uses Helvetica from the system font family. Reproduce the
+          # original capture input; never relax its exact pixel assertions.
+          sudo apt-get install --yes --no-install-recommends fonts-urw-base35
+          dpkg-query -W fonts-urw-base35
+          chart_family='Helvetica Neue,Helvetica,Arial,sans-serif'
+          fc-match -f '%{family}\t%{file}\n' "$chart_family"
+          font_family=$(fc-match -f '%{family}' "$chart_family")
+          font_file=$(fc-match -f '%{file}' "$chart_family")
+          [ "$font_family" = 'Nimbus Sans' ]
+          [ "$font_file" = /usr/share/fonts/opentype/urw-base35/NimbusSans-Regular.otf ]
+          printf '%s  %s\n' 7c25be4d78155523080ab85b10277150657ff7dabbcad7037bdd536c9b6d0d08 "$font_file" | sha256sum --check --strict
       - name: Run selected shipping acceptance headlessly with finite skip guards
         env:
           LANE: ${{ matrix.id }}

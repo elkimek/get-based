@@ -3580,3 +3580,4 @@ tests/pwa/sveltekit-island-ownership.spec.js.map
 /test-results/
 
 /playwright-report/
+/tests/helpers/knowledge-base-utils-dialog-contract.js

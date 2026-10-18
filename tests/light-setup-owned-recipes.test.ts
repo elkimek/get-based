@@ -307,8 +307,19 @@ it('connects the genuine production style builder to this exact ordered owned re
     const expected = withExpectedGlassCaption(original.css, glassCaptionRecipeRule);
     expect(actual).toBe(expected);
     expect(actual).toBe(factorLightSetupStyles(accessibleNativeCSS, lightSetupUtilityRecipes).css);
-    await buildLightSetupStyles({outputPath, check: true});
-    fs.writeFileSync(outputPath, actual + '/* stale */');
-    await expect(buildLightSetupStyles({outputPath, check: true})).rejects.toThrow('Light setup CSS is stale');
+  } finally {fs.rmSync(directory, {recursive: true, force: true});}
+});
+
+for (const stale of [false, true]) it(`checks the complete independent Light setup recipe output (${stale ? 'stale' : 'current'})`, async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'getbased-light-setup-recipe-check-'));
+  const outputPath = path.join(directory, 'light-setup.css');
+  try {
+    const original = factorLightSetupStyles(nativeCSS, originalRecipes);
+    expect(digest(original.css)).toBe(pins.semanticCSSExpectedSHA256);
+    const expected = withExpectedGlassCaption(original.css, glassCaptionRecipeRule) + (stale ? '/* stale */' : '');
+    fs.writeFileSync(outputPath, expected);
+    if (stale) await expect(buildLightSetupStyles({outputPath, check: true})).rejects.toThrow('Light setup CSS is stale');
+    else await buildLightSetupStyles({outputPath, check: true});
+    expect(fs.readFileSync(outputPath, 'utf8')).toBe(expected);
   } finally {fs.rmSync(directory, {recursive: true, force: true});}
 });

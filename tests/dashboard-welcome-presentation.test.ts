@@ -100,6 +100,22 @@ it('generates one static default owner through the production AppShell path and 
   expect(withDashboardWelcomeSnapshot(generated,body)).toBe(generated);
   expect(()=>withDashboardWelcomeSnapshot(source+source,body)).toThrow();
 });
+it('accepts a long sequence of complete compiler comments without changing snapshot bytes',()=>{
+  const source='<main class="main" id="main-content"><div data-prerendered-welcome>old</div></main>';
+  const owner='<div class="welcome-hero welcome-hero-noai" data-prerendered-welcome="">new</div>';
+  const body='<!----><!--[--><!--]-->'.repeat(10000)+owner;
+  expect(withDashboardWelcomeSnapshot(source,body)).toBe('<main class="main" id="main-content">\n      '+body+'\n    </main>');
+});
+it('rejects malformed or non-owner content after many comments without reinterpreting terminators',()=>{
+  const source='<main class="main" id="main-content"><div data-prerendered-welcome>old</div></main>';
+  const owner='<div class="welcome-hero welcome-hero-noai" data-prerendered-welcome>new</div>';
+  for(const body of ['<!---->'.repeat(10000)+'<div>wrong owner</div>',
+    '<!---->'.repeat(10000)+'<!--unterminated',
+    '<!--first-->foreign<!--second-->'+owner,
+    '<!--unterminated '+owner]){
+    expect(()=>withDashboardWelcomeSnapshot(source,body)).toThrow('one owned initial Dashboard welcome');
+  }
+});
 function authoredSlots(source:string,owner:string):string[] {
   const owned:string[]=[];
   function visit(value:unknown):void {

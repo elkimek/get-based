@@ -21,9 +21,10 @@ PR tests do not ordinarily collect whole-project coverage. Main-branch pushes,
 manual full test runs, and explicit release verification run the complete
 regression suite, critical coverage gates, and combined production measurement.
 A passing selective check is not a new whole-project coverage measurement.
-The [Display pilot workflow](../.github/workflows/display-pilot.yml) reuses
-the complete acceptance workflow on its isolated migration branch. Release
-verification retains separate real-model and container runtime checks.
+The required PR `test` check owns affected acceptance. Full execution of the
+shared [test workflow](../.github/workflows/test.yml) includes the native Display
+suite and all SvelteKit browser projects. [Release verification](../.github/workflows/release-evidence.yml)
+reuses those full gates and adds separate real-model and container runtime checks.
 
 The [static SvelteKit distribution](static-sveltekit.md) has a local focused acceptance
 command, `npm run test:sveltekit`, covering static aliases, CSP, delegated Display

@@ -105,3 +105,49 @@ test('context notes recover real storage failures and review conflicting saved t
   expect(results).toEqual({ failedDidNotWrite: true, recoveredDraft: 'Recover <literal> & draft', retryStored: 'Recover <literal> & draft',
     conflictVisible: true, keepingSavedDoesNotWrite: true, reobserved: 'Newest saved', recoveryFits: true, accessibility: [], finalStored: 'Explicit replacement draft', peerPreserved: true, unrelatedUnsavedExcluded: true });
 });
+
+
+test('Sync between notes keystrokes preserves the peer profile until explicit draft replacement', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  const results = await page.evaluate(async () => {
+    const [{ state }, profile, data, writes, cards, store] = await Promise.all([
+      import('/js/state.js'), import('/js/profile.js'), import('/js/data.js'), import('/js/profile-data-writes.js'), import('/js/context-cards.js'), import('/js/crypto.js'),
+    ]);
+    localStorage.setItem('labcharts-ai-paused', 'true');
+    const id = 'context-notes-keystroke-sync', key = profile.profileStorageKey(id, 'imported');
+    const read = async () => JSON.parse(await store.encryptedGetItem(key) || '{}') as typeof state.importedData;
+    const waitFor = async (predicate: () => boolean) => {
+      for (let i = 0; i < 100; i++) { if (predicate()) return; await new Promise(done => setTimeout(done, 25)); }
+      throw new Error('Notes Sync conflict did not settle');
+    };
+    state.currentProfile = id; state.importedData = profile.createDefaultProfileData(); state.importedData.contextNotes = 'Original saved';
+    writes.rememberProfileData(state.importedData); await store.encryptedSetItem(key, JSON.stringify(state.importedData)); data.invalidateActiveDataCache();
+    const host = document.createElement('div'); host.innerHTML = cards.renderProfileContextCards(); document.body.append(host);
+    const input = (value: string) => { const field = host.querySelector<HTMLTextAreaElement>('.ctx-notes-textarea')!; field.value = value; field.dispatchEvent(new InputEvent('input', { bubbles: true })); };
+    const status = () => host.querySelector('.ctx-notes-status')!.textContent;
+    input('Local first input');
+    const peer = structuredClone(state.importedData); peer.contextNotes = 'Peer saved during draft'; peer.notes.push({ date: '2026-10-18', text: 'Independent synced record' });
+    await store.encryptedSetItem(key, JSON.stringify(peer)); writes.adoptProfileData(state.importedData, peer); writes.rememberProfileData(state.importedData); data.invalidateActiveDataCache();
+    input('Local second input'); await waitFor(() => status() === 'Not saved — try again');
+    const peerPreservedAfterSync = JSON.stringify(await read()) === JSON.stringify(peer);
+    const draftRetained = host.querySelector('textarea')!.value === 'Local second input';
+    const conflictShown = host.querySelector('.ctx-notes-conflict-saved')!.textContent === 'Peer saved during draft';
+    input('Local third input'); await waitFor(() => status() === 'Not saved — try again');
+    const peerPreservedAfterMoreTyping = JSON.stringify(await read()) === JSON.stringify(peer);
+    const replace = host.querySelector<HTMLButtonElement>('.ctx-notes-retry')!;
+    const explicitLabel = replace.textContent;
+    const nextPeer = structuredClone(peer); nextPeer.contextNotes = 'Second peer saved after review';
+    await store.encryptedSetItem(key, JSON.stringify(nextPeer)); writes.adoptProfileData(state.importedData, nextPeer); writes.rememberProfileData(state.importedData); data.invalidateActiveDataCache();
+    const reviewedPeerStillDisplayed = host.querySelector('.ctx-notes-conflict-saved')!.textContent === 'Peer saved during draft';
+    replace.click(); await waitFor(() => status() === 'Not saved — try again');
+    const unseenPeerPreservedAfterReplacement = JSON.stringify(await read()) === JSON.stringify(nextPeer)
+      && host.querySelector('.ctx-notes-conflict-saved')!.textContent === nextPeer.contextNotes;
+    host.querySelector<HTMLButtonElement>('.ctx-notes-retry')!.click(); await waitFor(() => status() === 'Saved');
+    const replaced = await read(); input('Normal subsequent edit'); await waitFor(() => status() === 'Saved'); const final = await read();
+    const unrelated = (value: typeof state.importedData) => { const copy = structuredClone(value); delete (copy as Partial<typeof copy>).contextNotes; delete (copy as Partial<typeof copy>).changeHistory; return JSON.stringify(copy); };
+    return { peerPreservedAfterSync, draftRetained, conflictShown, peerPreservedAfterMoreTyping, explicitLabel, reviewedPeerStillDisplayed, unseenPeerPreservedAfterReplacement,
+      replacedNotes: replaced.contextNotes, finalNotes: final.contextNotes, unrelatedPeerDataPreserved: unrelated(final) === unrelated(peer) };
+  });
+  expect(results).toEqual({ peerPreservedAfterSync: true, draftRetained: true, conflictShown: true, peerPreservedAfterMoreTyping: true,
+    explicitLabel: 'Save draft instead', reviewedPeerStillDisplayed: true, unseenPeerPreservedAfterReplacement: true, replacedNotes: 'Local third input', finalNotes: 'Normal subsequent edit', unrelatedPeerDataPreserved: true });
+});

@@ -253,7 +253,6 @@ describe('shipping transfer-budget PR scope', () => {
     'vercel.json',
     'css/settings.base.css',
     '.github/workflows/test.yml',
-    '.github/workflows/display-pilot.yml',
   ])('requires the real shipping transfer gate for %s', changed => {
     expect(createTestPlan(shipping(), [changed]).performance).toBe(true);
   });

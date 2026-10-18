@@ -1,6 +1,9 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 const { start, provider, backend } = vi.hoisted(() => ({ start: vi.fn(), provider: vi.fn(), backend: vi.fn() }));
 vi.mock('../js/provider-wallet-panels.js', () => ({ startRoutstrFundingMonitor: start }));
+// Startup recovery does not open CLI Settings; keep that independently tested UI
+// outside this funding-monitor boundary instead of importing its controller tree.
+vi.mock('../js/settings-cli-agent-panel.js', () => ({ renderCLIAgentProviderPanel: vi.fn(() => '') }));
 vi.mock('../js/api.js', () => ({
   clearOpenRouterOAuthSession: vi.fn(), getAIProvider: provider,
   getOpenRouterKey: vi.fn(), rememberOpenRouterOAuthPreviousProvider: vi.fn(),

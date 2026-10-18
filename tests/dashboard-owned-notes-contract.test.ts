@@ -81,13 +81,13 @@ function publicReceipt(factory:Factory,fixture:Fixture){
 }
 it.each(Object.entries(fixtures))('%s public native and candidate receipts are exact',(name,fixture)=>{const original=originals.find(row=>row.name===name)!.original,candidate=publicReceipt(candidateFactory,fixture);const prior=original as ReturnType<typeof publicReceipt>,expected={...prior,factoryKeys:expectedOwnedLabFactoryKeys(prior.factoryKeys)};
  if(name==='non-array positive length'){
-  // Vite's import namespace index follows the new summary owner before state.
+  // Vite's import namespace index follows the quick-marker and summary owners before state.
   // This is one complete known harness error, not a general message normalizer.
   expect(prior.error).toEqual({name:'TypeError',message:'__vite_ssr_import_0__.state.importedData.notes.map is not a function'});
   const source=readFileSync(path.resolve(process.cwd(),'js/dashboard-lab-widget-renderers.ts'),'utf8');
   const imports=[...source.matchAll(/^import[\s\S]*?from ['"]([^'"]+)['"];?/gm)].map(match=>match[1]);
-  expect(imports.slice(0,2)).toEqual(['./dashboard-lab-summary-presentation.js','./state.js']);
-  expected.error={name:'TypeError',message:'__vite_ssr_import_1__.state.importedData.notes.map is not a function'};
+  expect(imports.slice(0,3)).toEqual(['./dashboard-quick-marker-core.js','./dashboard-lab-summary-presentation.js','./state.js']);
+  expected.error={name:'TypeError',message:'__vite_ssr_import_2__.state.importedData.notes.map is not a function'};
  }
 
  if(prior.dom!==null){expected.dom=nativeWithOwnedAnnotations(prior.dom,'notes');expect(candidate.assignments).toEqual([candidate.raw]);expect(typeof candidate.raw).toBe('string');expected.raw=candidate.raw;expected.assignments=candidate.assignments;}

@@ -1,8 +1,10 @@
-import {describe, expect, it} from 'vitest';
+import {afterEach, describe, expect, it, vi} from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {createCoverageInventory, qualifyCoverageUnion, qualifyJobs, qualifyKitUnion} from '../scripts/ci-results.mjs';
+
+afterEach(() => {vi.restoreAllMocks();});
 
 function fixtureCase(title: string) {
   const project = 'kit-chromium', file = 'tests/pwa/sveltekit.spec.ts', titlePath = [project, file, title], repeatEachIndex = 0;
@@ -94,4 +96,43 @@ describe('always-running required CI result gate', () => {
     expect(() => qualifyJobs(needs, selected, true)).toThrow();
     expect(qualifyJobs({...needs, coverage: {result: 'success'}}, {...selected, coverage: true}, true)).toMatchObject({status: 'passed', full: true});
   });
+});
+
+
+describe('coverage file replacement races', () => {
+  it.each(['raw', 'unit'])('keeps %s reads bound to the opened file when its path is replaced', kind => temp(directory => {
+    const rawDirectory = path.join(directory, 'raw'); raw(rawDirectory, 'one.json');
+    const inventory = createCoverageInventory(rawDirectory, '1/1'), units = unit(directory);
+    const target = kind === 'raw' ? path.join(rawDirectory, 'one.json') : units, outside = path.join(directory, 'outside.txt');
+    fs.writeFileSync(outside, 'invalid replacement JSON'); const open = fs.openSync.bind(fs); let swapped = false;
+    vi.spyOn(fs, 'openSync').mockImplementation((...args) => {
+      const descriptor = open(...args);
+      if (args[0] === target && !swapped) {swapped = true; fs.unlinkSync(target); fs.symlinkSync(outside, target);}
+      return descriptor;
+    });
+    if (kind === 'raw') expect(createCoverageInventory(rawDirectory, '1/1')).toEqual(inventory);
+    else expect(qualifyCoverageUnion(rawDirectory, [inventory], 1, units)).toMatchObject({status: 'passed', rawFiles: 1, unit: {files: 1}});
+    expect(swapped).toBe(true); expect(fs.readFileSync(outside, 'utf8')).toBe('invalid replacement JSON');
+  }));
+
+  it.each(['raw', 'unit'])('rejects a %s symlink introduced immediately before open', kind => temp(directory => {
+    const rawDirectory = path.join(directory, 'raw'); raw(rawDirectory, 'one.json');
+    const inventory = createCoverageInventory(rawDirectory, '1/1'), units = unit(directory);
+    const target = kind === 'raw' ? path.join(rawDirectory, 'one.json') : units, outside = path.join(directory, 'outside.txt');
+    fs.writeFileSync(outside, 'unqualified replacement'); const open = fs.openSync.bind(fs); let swapped = false;
+    vi.spyOn(fs, 'openSync').mockImplementation((...args) => {
+      if (args[0] === target && !swapped) {swapped = true; fs.unlinkSync(target); fs.symlinkSync(outside, target);}
+      return open(...args);
+    });
+    expect(() => qualifyCoverageUnion(rawDirectory, [inventory], 1, units)).toThrow(); expect(swapped).toBe(true);
+  }));
+
+  it('closes every opened descriptor when unit validation rejects a directory', () => temp(directory => {
+    const rawDirectory = path.join(directory, 'raw'); raw(rawDirectory, 'one.json');
+    const inventory = createCoverageInventory(rawDirectory, '1/1'), open = fs.openSync.bind(fs), descriptors: number[] = [];
+    vi.spyOn(fs, 'openSync').mockImplementation((...args) => {const descriptor = open(...args); descriptors.push(descriptor); return descriptor;});
+    const close = vi.spyOn(fs, 'closeSync');
+    expect(() => qualifyCoverageUnion(rawDirectory, [inventory], 1, directory)).toThrow('Unit coverage must be a regular file');
+    expect(descriptors.length).toBeGreaterThan(0); for (const descriptor of descriptors) expect(close).toHaveBeenCalledWith(descriptor);
+  }));
 });

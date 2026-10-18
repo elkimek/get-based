@@ -42,9 +42,29 @@ export function historicalGenomeRows(alter:(html:string)=>string):(view:unknown)
 }
 /** Source qualification is separate from the HTML and operation oracle. The
  * emitted source maps also bind actual SDK owners to their authored sources. */
+/** Later quick-marker injection changes only its three owned boundary spans;
+ * reconstruct the independently pinned complete Genome controller exactly. */
+export function restoreReviewedGenomeQuickMarkerBoundary(source:string):string {
+ assert.equal(sha(source),'8df96b996aef9734e879dfcddf5d2b91e415d8f0465680f7e79792ff2ccdddcd','Complete reviewed quick-marker-injected controller');
+ const edits=[
+  ["import type {createDashboardQuickMarkerCore} from './dashboard-quick-marker-core.js';\n",''],
+  ['export function createDashboardWidgetRenderers(deps: unknown, quickMarkers: ReturnType<typeof createDashboardQuickMarkerCore> | undefined = undefined) {','export function createDashboardWidgetRenderers(deps: unknown) {'],
+  ['  const labRenderers = createDashboardLabWidgetRenderers({\n    markerHasData,\n    rerenderDashboardFromWidgetChange,\n  }, quickMarkers);','  const labRenderers = createDashboardLabWidgetRenderers({\n    markerHasData,\n    rerenderDashboardFromWidgetChange,\n  });'],
+ ] as const;
+ for(const [current,previous] of edits){
+  assert.equal(source.split(current).length,2,'Exactly one reviewed quick-marker boundary span');
+  source=source.replace(current,previous);
+ }
+ assert.equal(sha(source),pins.current['js/dashboard-widget-renderers.ts'],'Every prior Genome controller byte remains exact');
+ return source;
+}
 export function qualifyCurrentGenomeSources():void {
  for(const [file,hash] of Object.entries(pins.original))assert.equal(sha(readFileSync(file,'utf8')),hash,'Immutable original Genome/child input: '+file);
- for(const [file,hash] of Object.entries(pins.current))assert.equal(sha(readFileSync(file,'utf8')),hash,'Reviewed actual Genome composition source: '+file);
+ for(const [file,hash] of Object.entries(pins.current)){
+  const current=readFileSync(file,'utf8');
+  const qualified=file==='js/dashboard-widget-renderers.ts'?restoreReviewedGenomeQuickMarkerBoundary(current):current;
+  assert.equal(sha(qualified),hash,'Reviewed actual Genome composition source: '+file);
+ }
  for(const owner of ['DashboardGenomeWidget','DashboardGenomeRows','DashboardGenomeLoading','DashboardMtdnaPanel']){
   const source=readFileSync('js/components/'+owner+'.svelte','utf8');
   const map=JSON.parse(readFileSync('js/components/'+owner+'.svelte.html.js.map','utf8')) as {sources:string[];sourcesContent:string[]};

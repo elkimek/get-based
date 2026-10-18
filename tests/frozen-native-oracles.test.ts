@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
-import {describe, expect, it} from 'vitest';
+import {afterEach, describe, expect, it, vi} from 'vitest';
 import {qualifyFrozenNativeOracles} from '../scripts/frozen-native-oracles.mjs';
 import {buildMigrationProgress, migrationSourceFiles} from '../scripts/migration-progress.js';
 
@@ -21,6 +21,8 @@ function fixture(run: (root: string, inventory: string[]) => void) {
     run(root, [...originals, 'js/native.ts']);
   } finally {fs.rmSync(root, {recursive: true, force: true});}
 }
+afterEach(() => vi.restoreAllMocks());
+
 describe('finite frozen native renderer classification', () => {
   it('qualifies the original fifteen renderer bytes without altering source or LOC accounting', () => fixture((root, inventory) => {
     expect(renderers).toHaveLength(15);
@@ -65,6 +67,38 @@ describe('finite frozen native renderer classification', () => {
     const report = buildMigrationProgress(root, [...inventory, file], {commit: 'fixed', totals: {lines: 10000, nonblank: 9000}});
     expect(report.migrated).toBe(false); expect(report.authoredJavaScriptFiles).toBe(1); expect(report.frozenHistoricalOracles.files).toHaveLength(15);
     expect(migrationSourceFiles(root, [...inventory, file])).toContain(file);
+  }));
+  it.each([renderers[0]!, `${archive}/${manifests[0]}`])('rejects replacement after opening original evidence: %s', file => fixture((root, inventory) => {
+    const target = path.join(root, file), previous = target + '.original';
+    const fstat = fs.fstatSync.bind(fs), opened = new Set<number>(), closed = new Set<number>(), selected = new Set<number>();
+    const open = fs.openSync.bind(fs), close = fs.closeSync.bind(fs);
+    vi.spyOn(fs, 'openSync').mockImplementation((...args) => { const fd = open(...args); opened.add(fd); if (args[0] === target) selected.add(fd); return fd; });
+    vi.spyOn(fs, 'closeSync').mockImplementation(fd => { closed.add(fd); return close(fd); });
+    let replaced = false;
+    vi.spyOn(fs, 'fstatSync').mockImplementation((...args) => {
+      const result = fstat(...args);
+      if (!replaced && selected.has(args[0])) {
+        replaced = true; fs.renameSync(target, previous); fs.writeFileSync(target, 'replacement evidence');
+      }
+      return result;
+    });
+    expect(() => qualifyFrozenNativeOracles(root, inventory)).toThrow('changed during qualification');
+    expect(replaced).toBe(true);
+    expect([...opened].every(fd => closed.has(fd))).toBe(true);
+  }));
+  it('reads the pinned open descriptor even if its pathname is replaced immediately before reading', () => fixture((root, inventory) => {
+    const target = path.join(root, renderers[0]!), read = fs.readFileSync.bind(fs), open = fs.openSync.bind(fs);
+    const selected = new Set<number>();
+    vi.spyOn(fs, 'openSync').mockImplementation((...args) => { const fd = open(...args); if (args[0] === target) selected.add(fd); return fd; });
+    let replaced = false;
+    vi.spyOn(fs, 'readFileSync').mockImplementation((...args) => {
+      if (typeof args[0] === 'number' && !replaced && selected.has(args[0])) {
+        replaced = true; fs.renameSync(target, target + '.original'); fs.writeFileSync(target, 'replacement evidence');
+      }
+      return read(...args);
+    });
+    expect([...qualifyFrozenNativeOracles(root, inventory)].sort()).toEqual(renderers);
+    expect(replaced).toBe(true);
   }));
   it('allows synthetic roots without archival inputs without exempting ordinary JavaScript', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'getbased-no-archive-'));

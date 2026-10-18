@@ -191,8 +191,8 @@ it('retains the lazy Chat stylesheet URL, scopes navigation utilities and reject
 });
 
 
-it('keeps app-shell and modal runtime URLs with owned utilities and no reset', async () => {
-  for (const [name, build] of [['app-shell', buildAppShellStyles], ['modal-shared', buildModalStyles]] as const) {
+const sharedStyleBuilders = [['app-shell', buildAppShellStyles], ['modal-shared', buildModalStyles]] as const;
+it.each(sharedStyleBuilders)('keeps %s runtime URLs with owned utilities and no reset', async (name, build) => {
     const outputPath = path.join(directory, `${name}.css`);
     await build({outputPath});
     const source = await fs.readFile(outputPath, 'utf8');
@@ -230,11 +230,18 @@ it('keeps app-shell and modal runtime URLs with owned utilities and no reset', a
       }
     });
     expect(hoverRules).toBeGreaterThan(0);
-    await build({outputPath, check: true});
-    await fs.writeFile(outputPath, source + '/* stale */');
-    await expect(build({outputPath, check: true})).rejects.toThrow('CSS is stale');
-    expect(await fs.readFile(outputPath, 'utf8')).toBe(source + '/* stale */');
-  }
+});
+it.each(sharedStyleBuilders)('validates the complete generated %s stylesheet without writing', async (name, build) => {
+  const outputPath = path.join(directory, `${name}.css`), source = await fs.readFile(`css/${name}.css`, 'utf8');
+  await fs.writeFile(outputPath, source);
+  await build({outputPath, check: true});
+  expect(await fs.readFile(outputPath, 'utf8')).toBe(source);
+});
+it.each(sharedStyleBuilders)('rejects stale %s CSS without rewriting it', async (name, build) => {
+  const outputPath = path.join(directory, `${name}.css`), source = await fs.readFile(`css/${name}.css`, 'utf8');
+  await fs.writeFile(outputPath, source + '/* stale */');
+  await expect(build({outputPath, check: true})).rejects.toThrow('CSS is stale');
+  expect(await fs.readFile(outputPath, 'utf8')).toBe(source + '/* stale */');
 });
 
 

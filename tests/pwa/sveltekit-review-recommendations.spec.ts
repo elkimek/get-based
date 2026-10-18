@@ -196,14 +196,15 @@ async function inspectRecommendations(page: Page, existingId?: string): Promise<
     await expect(card(bookmarks).getByRole('button', {name: 'Bookmarked', exact: true})).toHaveAttribute('data-dashboard-rec-on', 'false');
     await expect(card(hidden).getByRole('button', {name: 'Show', exact: true})).toBeVisible();
     await expect(card(active)).toHaveCount(0);
-    // The hidden page card invokes the same delegate as the initially active card.
+    // The first action in a cold document awaits the real lazy action owner;
+    // require its exact durable result before asserting the refreshed cards.
     await card(hidden).getByRole('button', {name: 'Show', exact: true}).click();
-    expect(await readPreferences(page)).toEqual({saved: [id], dismissed: []});
+    await expect.poll(()=>readPreferences(page)).toEqual({saved: [id], dismissed: []});
     await expect(hidden).toHaveCount(0);
     await expect(card(active)).toBeVisible();
     await expect(card(bookmarks)).toBeVisible();
     await card(bookmarks).getByRole('button', {name: 'Bookmarked', exact: true}).click();
-    expect(await readPreferences(page)).toEqual({saved: [], dismissed: []});
+    await expect.poll(()=>readPreferences(page)).toEqual({saved: [], dismissed: []});
     await expect(bookmarks).toHaveCount(0);
   } else {
     expect(await readPreferences(page)).toEqual({saved: [], dismissed: []});
@@ -211,13 +212,13 @@ async function inspectRecommendations(page: Page, existingId?: string): Promise<
   const bookmark = card(active).getByRole('button', {name: 'Bookmark', exact: true});
   await bookmark.focus();
   await page.keyboard.press('Enter');
-  expect(await readPreferences(page)).toEqual({saved: [id], dismissed: []});
+  await expect.poll(()=>readPreferences(page)).toEqual({saved: [id], dismissed: []});
   await expect(card(bookmarks)).toBeVisible();
   await expect(card(active).getByRole('button', {name: 'Bookmarked', exact: true})).toBeVisible();
   const hide = card(active).getByRole('button', {name: 'Hide', exact: true});
   await hide.focus();
   await page.keyboard.press('Space');
-  expect(await readPreferences(page)).toEqual({saved: [id], dismissed: [id]});
+  await expect.poll(()=>readPreferences(page)).toEqual({saved: [id], dismissed: [id]});
   await expect(card(active)).toHaveCount(0);
   await expect(card(hidden)).toBeVisible();
   await expect(card(bookmarks)).toBeVisible();

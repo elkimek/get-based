@@ -9,6 +9,7 @@ import {
 } from '../js/settings-cli-agent-panel.js';
 import { buildAiSettingsSnapshot } from '../js/ai-settings-presentation.js';
 import { getCLIAgentBrandAsset, renderCLIAgentBrandIcon } from '../js/cli-agent-brand-assets.js';
+import { renderHTML as renderProviderQuizHTML } from '../js/components/ChatProviderQuiz.svelte.html.js';
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -89,8 +90,12 @@ describe('local agent selection UI', () => {
 
   it('offers existing AI accounts in chat onboarding', () => {
     const source = read('js/chat-onboarding.js');
-    expect(source).toContain('Use an AI subscription I already have');
-    expect(source).toContain("branch === 'cli'");
+    const choices = renderProviderQuizHTML({ branch: '', name: 'Test' });
+    const cli = renderProviderQuizHTML({ branch: 'cli', name: 'Test' });
+    expect(choices).toContain('Use an AI subscription I already have');
+    expect(choices).toContain('data-chat-provider-branch="cli"');
+    expect(cli).toContain('data-chat-provider="cli"');
+    expect(cli).toContain('data-chat-onboarding-action="open-provider-settings"');
     expect(source).toContain("provider === 'cli'");
   });
 

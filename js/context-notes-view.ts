@@ -40,12 +40,12 @@ export function ensureContextNotes(): void {
 export function debounceContextNotes(input: HTMLTextAreaElement | null = [...document.querySelectorAll<HTMLTextAreaElement>('[data-context-notes-host] .ctx-notes-textarea')].find(field => {
   const host = field.closest<HTMLElement>('[data-context-notes-host]');
   return host && !retired.has(host) && current(host);
-}) || null): void {
+}) || null, reviewedSaved: string | null = null): void {
   const root = input?.closest<HTMLElement>('[data-context-notes-host]');
   if (!input || !root || retired.has(root) || !current(root)) return;
   const text = input.value;
   ensureContextNotes();
-  acceptContextNotes(root.dataset.contextNotesTicket || '', text);
+  acceptContextNotes(root.dataset.contextNotesTicket || '', text, reviewedSaved);
 }
 // A synchronous compatibility sender may dispatch before its render microtask.
 // Hydrate once, then pass the captured action to the same profile-owned service.
@@ -59,9 +59,12 @@ if (typeof document !== 'undefined') {
     const button = event.target.closest<HTMLButtonElement>('.ctx-notes-retry, .ctx-notes-use-saved');
     const root = button?.closest<HTMLElement>('[data-context-notes-host]');
     if (!button || !root || mounted.has(root) || retired.has(root) || contextChildIsOwned(root) || !current(root)) return;
-    ensureContextNotes();
-    if (button.matches('.ctx-notes-use-saved')) useSavedContextNotes(root.dataset.contextNotesTicket || '');
-    else debounceContextNotes(root.querySelector<HTMLTextAreaElement>('.ctx-notes-textarea'));
+    // Capture the rendered conflict before hydration can refresh its presentation.
+    const reviewedSaved = button.getAttribute('data-context-notes-reviewed-saved');
+    if (button.matches('.ctx-notes-use-saved')) {
+      ensureContextNotes();
+      useSavedContextNotes(root.dataset.contextNotesTicket || '');
+    } else debounceContextNotes(root.querySelector<HTMLTextAreaElement>('.ctx-notes-textarea'), reviewedSaved);
   });
   globalThis.addEventListener?.('labcharts-profile-switched', sweep);
 }

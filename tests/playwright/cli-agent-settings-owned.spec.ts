@@ -1,5 +1,8 @@
 import { expect,test } from '@playwright/test';
 import { routeHtml } from '../helpers/browser-static-routes.js';
+// The 44px contract applies to genuine coarse-pointer targets; desktop density
+// has separate acceptance in the Settings density suite.
+test.use({ hasTouch: true });
 test('owned CLI panel preserves companion states, themes, layouts and accessible controls',async ({ page,context }) => {
   test.setTimeout(180_000); await context.addInitScript({ path:'node_modules/axe-core/axe.min.js' });
   await routeHtml(page,'**/cli-settings-owned-test','<!doctype html><html lang="en"><head><title>CLI settings</title><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/css/settings.css"></head><body><main id="settings-modal" class="settings-modal"><div data-cli-agent-settings-host></div></main></body></html>');
@@ -24,6 +27,7 @@ test('owned CLI panel preserves companion states, themes, layouts and accessible
   },mode);
   const panel=page.locator('[data-cli-agent-settings-view]');
   const check=async (label:string) => {
+    expect(await page.evaluate(() => matchMedia('(pointer: coarse)').matches), label).toBe(true);
     expect(await panel.evaluate(element => element.scrollWidth <= element.clientWidth),label).toBe(true);
     const violations=await panel.evaluate(async element => (await (window as unknown as { axe:typeof import('axe-core') }).axe.run(element,{ runOnly:{ type:'tag',values:['wcag2a','wcag2aa','wcag21aa'] } })).violations.map(v => ({ id:v.id,nodes:v.nodes.map(n => n.target) })));
     expect(violations,label).toEqual([]);

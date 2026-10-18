@@ -10,7 +10,12 @@ function object(value: unknown, label: string): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(`${label} must be an object`);
   return value as Record<string, unknown>;
 }
-function json(file: string): unknown { return JSON.parse(fs.readFileSync(file, 'utf8')); }
+function regular(file: string, label: string): Buffer {
+  const descriptor = fs.openSync(file, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK);
+  try {assert(fs.fstatSync(descriptor).isFile(), label); return fs.readFileSync(descriptor);}
+  finally {fs.closeSync(descriptor);}
+}
+function json(file: string): unknown { return JSON.parse(regular(file, `Nonregular JSON file: ${file}`).toString('utf8')); }
 function assert(condition: unknown, message: string): asserts condition { if (!condition) throw new Error(message); }
 const digest = (body: Buffer) => createHash('sha256').update(body).digest('hex');
 const same = (first: unknown, second: unknown) => JSON.stringify(first) === JSON.stringify(second);
@@ -77,8 +82,7 @@ function parseShard(shard: string) {
 function coverageFile(directory: string, file: string): CoverageFile {
   assert(path.basename(file) === file && file.endsWith('.json'), 'Invalid raw coverage filename');
   const target = path.join(directory, file);
-  assert(fs.lstatSync(target).isFile(), `Nonregular raw coverage file: ${file}`);
-  const body = fs.readFileSync(target), value = object(JSON.parse(body.toString('utf8')), `Coverage ${file}`);
+  const body = regular(target, `Nonregular raw coverage file: ${file}`), value = object(JSON.parse(body.toString('utf8')), `Coverage ${file}`);
   assert(Array.isArray(value['entries']), `Missing raw entries: ${file}`);
   for (const entry of value['entries']) {
     const record = object(entry, `Coverage entry ${file}`);
@@ -92,8 +96,7 @@ export function createCoverageInventory(directory: string, shard: string): Cover
   return {schemaVersion: 1, shard: parseShard(shard), files};
 }
 function validateUnitCoverage(file: string): {files: number; sha256: string} {
-  assert(fs.lstatSync(file).isFile(), 'Unit coverage must be a regular file');
-  const body = fs.readFileSync(file), value = object(JSON.parse(body.toString('utf8')), 'Unit coverage');
+  const body = regular(file, 'Unit coverage must be a regular file'), value = object(JSON.parse(body.toString('utf8')), 'Unit coverage');
   const files = Object.entries(value);
   assert(files.length > 0, 'Unit coverage is empty');
   let statements = 0;

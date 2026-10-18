@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { brotliCompressSync, constants, gzipSync } from 'node:zlib';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   enforceSvelteKitResourceBudget,
   measureSvelteKitResources,
@@ -13,6 +13,7 @@ import {
 
 const directories: string[] = [];
 afterEach(async () => {
+  vi.restoreAllMocks();
   await Promise.all(directories.splice(0).map(directory => fs.rm(directory, { recursive: true, force: true })));
 });
 async function directory() {
@@ -194,6 +195,58 @@ describe('exact assembled artifact measurement', () => {
     await fs.symlink(path.join(outside, 'private.js'), path.join(root, 'public.js'));
     await expect(measureSvelteKitResources({ artifactRoot: root, serviceWorkerSource: shell(['/public.js']), generatedJavaScriptUrls: [] }))
       .rejects.toThrow('escapes artifact');
+  });
+
+  it('rejects linked files inside the artifact and linked ancestor directories', async () => {
+    const root = await directory();
+    await fs.mkdir(path.join(root, 'real'));
+    await fs.writeFile(path.join(root, 'real/a.js'), 'export {};');
+    await fs.symlink(path.join(root, 'real/a.js'), path.join(root, 'alias.js'));
+    await fs.symlink(path.join(root, 'real'), path.join(root, 'linked'), 'dir');
+    for (const url of ['/alias.js', '/linked/a.js']) {
+      await expect(measureSvelteKitResources({artifactRoot: root, serviceWorkerSource: shell([url]), generatedJavaScriptUrls: []})).rejects.toThrow('escapes artifact');
+    }
+  });
+
+  it('rejects non-regular precache resources', async () => {
+    const root = await directory(); await fs.mkdir(path.join(root, 'directory.js'));
+    await expect(measureSvelteKitResources({artifactRoot: root, serviceWorkerSource: shell(['/directory.js']), generatedJavaScriptUrls: []})).rejects.toThrow('not a file');
+  });
+
+  it('rejects replaced file identities after opening and closes the rejected descriptor', async () => {
+    const root = await directory(), target = path.join(root, 'a.js');
+    await fs.writeFile(target, 'original script');
+    const realpath = fs.realpath.bind(fs), open = fs.open.bind(fs);
+    let descriptor: Awaited<ReturnType<typeof fs.open>> | undefined, replaced = false;
+    vi.spyOn(fs, 'open').mockImplementation(async (...args) => { const handle = await open(...args); descriptor = handle; return handle; });
+    vi.spyOn(fs, 'realpath').mockImplementation(async (...args) => {
+      const result = await realpath(...args);
+      if (args[0] === target && !replaced) {
+        replaced = true; await fs.rename(target, target + '.original'); await fs.writeFile(target, 'replacement script');
+      }
+      return result;
+    });
+    await expect(measureSvelteKitResources({artifactRoot: root, serviceWorkerSource: shell(['/a.js']), generatedJavaScriptUrls: []})).rejects.toThrow('changed during measurement');
+    expect(replaced).toBe(true); expect(descriptor?.fd).toBe(-1);
+  });
+
+  it('reads the same descriptor when the qualified path is replaced just before the read', async () => {
+    const root = await directory(), target = path.join(root, 'a.js'), body = 'original script';
+    await fs.writeFile(target, body);
+    const stat = fs.stat.bind(fs), open = fs.open.bind(fs);
+    let descriptor: Awaited<ReturnType<typeof fs.open>> | undefined, replaced = false;
+    vi.spyOn(fs, 'open').mockImplementation(async (...args) => { const handle = await open(...args); descriptor = handle; return handle; });
+    vi.spyOn(fs, 'stat').mockImplementation(async (...args) => {
+      const result = await stat(...args);
+      if (args[0] === target && !replaced) {
+        replaced = true; await fs.rename(target, target + '.original'); await fs.writeFile(target, 'different replacement script');
+      }
+      return result;
+    });
+    const actual = await measureSvelteKitResources({artifactRoot: root, serviceWorkerSource: shell(['/a.js']), generatedJavaScriptUrls: ['/a.js']});
+    expect(actual.offlinePrecache.decodedBytes).toBe(Buffer.byteLength(body));
+    expect(actual.generatedJavaScript.decodedBytes).toBe(Buffer.byteLength(body));
+    expect(replaced).toBe(true); expect(descriptor?.fd).toBe(-1);
   });
 
   it.each([

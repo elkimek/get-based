@@ -7,7 +7,7 @@ import {installOfflineStartupDiagnostics} from '../helpers/offline-launch-diagno
 import {readyLightArtifact as ready} from '../helpers/light-artifact-navigation.js';
 import {flow,installEvents,openDashboard,preferences,protectedPreferences} from '../helpers/dashboard-action-bar-pwa-flow.js';
 const authored=['js/dashboard-action-bar-presentation.js','js/dashboard-action-bar-rendering.js','js/components/DashboardActionBar.svelte.html.js'] as const;
-const modules=[...authored,'js/dashboard-widget-controls.js','js/dashboard-widgets.js','js/dashboard-picker-presentation.js','js/views.js','js/nav.js','js/state.js','js/profile.js'] as const;
+const modules=[...authored,'js/dashboard-widget-controls.js','js/dashboard-widgets.js','js/dashboard-picker-presentation.js','js/views-runtime.js','js/nav.js','js/state.js','js/profile.js'] as const;
 const sheets=['css/app-shell.css','css/dashboard-core.css','css/dashboard-widgets.css','css/mobile-dashboard.css','css/chat-panel-open.css','css/modal-shared.css'] as const;
 async function wholeProfile(page:Page,artifact:Awaited<ReturnType<typeof artifactInputs>>){
   const active=await profile(page,artifact.state);

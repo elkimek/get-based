@@ -4,6 +4,8 @@ import {expect, it} from 'vitest';
 import {projectRecommendationCard, projectRecommendationEmpty, projectRecommendationList, type RecommendationPresentationView} from '../js/recommendation-presentation.js';
 import {recommendationCardClasses} from '../js/recommendation-cards-classes.js';
 import {renderHTML} from '../js/components/RecommendationPresentation.svelte.html.js';
+import {renderHTML as renderPageHTML} from '../js/components/RecommendationPage.svelte.html.js';
+import type {RecommendationPageView} from '../js/recommendation-page-presentation.js';
 
 function render(view: RecommendationPresentationView) {
   const root = document.createElement('div');
@@ -124,7 +126,30 @@ it('authors all card/list markup without raw HTML and replaces exactly the four 
   const controller = readFileSync('js/dashboard-recommendation-widget.ts', 'utf8');
   const page = readFileSync('js/lens-pages.ts', 'utf8');
   expect(controller).toContain('function renderRecommendationList(candidates: readonly RecRenderCandidate[])');
-  for (const variable of ['top', 'rows', 'saved', 'dismissed']) expect(page).toContain(`body: renderRecommendationList(${variable})`);
+  for (const variable of ['top', 'rows', 'saved', 'dismissed']) expect(page).toContain(`content: projectRecommendationList(${variable})`);
+  expect(page.match(/content: projectRecommendationList\(/g)).toHaveLength(4);
+  const authoredPage = readFileSync('js/components/RecommendationPage.svelte', 'utf8');
+  expect(authoredPage).toContain("<RecommendationPresentation view={{kind: 'list', cards: widget.content}}/>");
+  expect(authoredPage).not.toContain('{@html');
   expect(page).not.toContain('class="rec-next-list"');
   expect(page).not.toContain('.map(c => renderRecommendationCard(c))');
+});
+
+
+it('composes the four typed page list groups through the actual authored recommendation owner', () => {
+  const groups = ['top', 'rows', 'saved', 'dismissed'];
+  const view: RecommendationPageView = {
+    header: {title: 'Tips', subtitle: null, className: '', actions: null}, actions: {buttons: [], affiliate: false},
+    content: {kind: 'groups', grid: {route: 'recommendations', orderKey: 'recommendations', widgets: groups.map((id, index) => ({
+      view: {id, title: id, description: null, size: 'full', compact: false, tools: {move: null, dashboard: null}},
+      content: projectRecommendationList([{...candidate, id, saved: index === 2, dismissed: index === 3}]),
+    }))}},
+  };
+  const before = JSON.stringify(view), root = document.createElement('div'); root.innerHTML = renderPageHTML({view});
+  expect([...root.querySelectorAll('[data-widget-id]')].map(element => element.getAttribute('data-widget-id'))).toEqual(groups);
+  expect([...root.querySelectorAll('.rec-next-list > article')].map(element => element.getAttribute('data-rec-id'))).toEqual(groups);
+  expect(root.querySelectorAll('[data-dashboard-rec-action="dismiss"]')).toHaveLength(4);
+  expect(root.querySelector('[data-rec-id="saved"] [data-dashboard-rec-action="save"]')?.textContent).toBe('Bookmarked');
+  expect(root.querySelector('[data-rec-id="dismissed"] [data-dashboard-rec-action="dismiss"]')?.textContent).toBe('Show');
+  expect(JSON.stringify(view)).toBe(before);
 });

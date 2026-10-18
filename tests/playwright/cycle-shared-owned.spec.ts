@@ -33,7 +33,8 @@ const files = {
 };
 const fixtures = Object.fromEntries(Object.entries(files).map(([owner, file]) => [owner, JSON.parse(fs.readFileSync(file, 'utf8'))])) as Record<Owner, Frozen>;
 const fixtureHashes = Object.fromEntries(Object.entries(files).map(([owner, file]) => [owner, createHash('sha256').update(fs.readFileSync(file)).digest('hex')]));
-const appShellSHA256 = createHash('sha256').update(fs.readFileSync('index.html')).digest('hex');
+// Authenticate the captured baseline shell; current modal attributes are independently checked below.
+const appShellSHA256 = createHash('sha256').update(fs.readFileSync(new URL('../fixtures/cycle-shared-original-index.html', import.meta.url))).digest('hex');
 if (appShellSHA256 !== '8388ccf371eb403d2d03abcbabd15723a1e54e2137a3bf8573eaa5636198b6d7') throw new Error('Shared Cycle baseline app-shell source changed');
 const shellAttributes = {'aria-label': 'Marker Detail', 'aria-modal': 'true', role: 'dialog'};
 const wrapperComposition = 'Original editor fixture has only id/class on its scaffold. Its unchanged contents and native class are composed with the exact three pre-existing app-shell attributes captured before opening the editor; current attributes remain untouched.';
@@ -80,6 +81,10 @@ const originals = (Object.keys(fixtures) as Owner[]).flatMap(owner => fixtures[o
 async function mountPairs(page: Page): Promise<void> {
   await installDiscussionFixture(page.context(), {provider: 'openrouter', paused: true});
   await prepareDemoProfile(page);
+  // The genuine chrome fixtures use production's lazy Body/Dashboard ports.
+  // Prepare them through the public route before invoking their synchronous renderers.
+  const bodyPrepared = await page.evaluate(async () => (await import('/js/views-runtime.js')).navigate('body'));
+  expect(bodyPrepared).toBe(true);
   await page.clock.setFixedTime(new Date(fixtures.overview.fixedNow));
   await page.emulateMedia({reducedMotion: 'no-preference'});
   await page.evaluate(async ({cases, originals, placements, shellAttributes}) => {

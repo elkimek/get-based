@@ -71,7 +71,7 @@ it('materializes the pinned portable inputs without historical local notes and p
   await fixture.cleanup(); await expect(fs.stat(fixture.directory)).rejects.toThrow();
 });
 
-it('retains every original browser callback source and imported binding with only the three qualified chunk/map pairs', async () => {
+it.each(['kit-chromium', 'kit-firefox', 'kit-webkit', 'kit-mobile-webkit'])('retains every original %s callback source and imported binding with only the three qualified chunk/map pairs', async project => {
   const fixture = await materializeWearableNativeFixture(); cleanups.push(fixture.cleanup);
   const originalDirectory = path.join(fixture.directory, 'clone/.local-notes/original-kit-artifact');
   const sourceRoot = path.join(fixture.directory, 'source');
@@ -97,7 +97,6 @@ it('retains every original browser callback source and imported binding with onl
     await fs.mkdir(path.join(originalDirectory, 'vendor'), {recursive: true});
     await fs.copyFile(new URL('../vendor/' + file, import.meta.url), path.join(originalDirectory, 'vendor', file));
   }
-  for (const project of ['kit-chromium', 'kit-firefox', 'kit-webkit', 'kit-mobile-webkit']) {
     const capture = JSON.parse(await fs.readFile(path.join(fixture.directory, 'clone/.local-notes/original-browser-capture', project + '.json'), 'utf8')) as {artifact: NativeArtifact; rawStates: Record<string, {chart: unknown}>};
     const originals = Object.values(capture.rawStates).map(value => value.chart);
     const qualified = await wearableChartExpectedQualifier(fixture.directory, originalDirectory, sourceRoot, capture.artifact, originals);
@@ -113,5 +112,4 @@ it('retains every original browser callback source and imported binding with onl
     ]);
     expect(originals.map(value => qualified.qualify(value))).toEqual(originals);
     expect(qualified.proofs.every(proof => proof.replacements.length === 0)).toBe(true);
-  }
 }, 30000);

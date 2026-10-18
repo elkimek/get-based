@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import {readFileSync} from 'node:fs';
-import {afterEach,beforeEach,expect,it} from 'vitest';
+import {afterEach,beforeEach,expect,it,vi} from 'vitest';
 import type {BiologyRenderScore} from '../js/biology-score-render.js';
 import type {BiologyAIState} from '../js/biology-ai-presentation.js';
 import type {BiologyOverviewProps} from '../js/biology-overview-presentation.js';
@@ -10,6 +10,12 @@ import {renderBiologicalCoherenceLensHero,renderDashboardBiologicalCoherenceWidg
 import {configureLensPageShell,getLensDashboardToggleView} from '../js/lens-page-shell.js';
 import {getScoreAIRequestKey,pendingScoreExplanations,scoreExplanationErrors} from '../js/biology-score-sections.js';
 import {state} from '../js/state.js';
+// Original receipts were captured in Europe/Prague; keep their exact local-time inputs on every host.
+beforeEach(() => {
+  vi.stubEnv('TZ', 'Europe/Prague');
+  expect(new Date('2026-08-07T12:00:00Z').getHours()).toBe(14);
+});
+afterEach(() => vi.unstubAllEnvs());
 interface Sample {kind:BiologyOverviewProps['kind'];name:string;score:BiologyRenderScore|null;ai:BiologyAIState|null;html:string}
 const original=JSON.parse(readFileSync('tests/fixtures/biology-overview-original.json','utf8')) as {classes:string[];samples:Sample[]};
 function decode(html:string){return html.replace(/class="@(\d+)"/g,(_,index:string)=>{const value=original.classes[Number(index)];if(value===undefined)throw new Error('Invalid frozen class reference');return `class="${value}"`;});}

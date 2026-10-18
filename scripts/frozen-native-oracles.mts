@@ -11,6 +11,27 @@ const MANIFESTS = {
 } as const;
 const sha256 = (body: Buffer) => createHash('sha256').update(body).digest('hex');
 
+/** Inspect and read one opened file; pathname substitution cannot redirect the read. */
+function readFrozenFile(root: string, relative: string, label: string): Buffer {
+  const target = path.join(root, relative);
+  let descriptor: number;
+  try {
+    descriptor = fs.openSync(target, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK);
+  } catch (cause) {
+    throw new Error(`${label} must be a readable regular file`, {cause});
+  }
+  try {
+    const opened = fs.fstatSync(descriptor);
+    assert(opened.isFile(), `${label} must be a regular file`);
+    assert.equal(fs.realpathSync(target), path.join(fs.realpathSync(root), relative), `${label} has linked ancestors`);
+    const located = fs.statSync(target);
+    assert(opened.dev === located.dev && opened.ino === located.ino, `${label} changed during qualification`);
+    return fs.readFileSync(descriptor);
+  } finally {
+    fs.closeSync(descriptor);
+  }
+}
+
 /** Qualify the finite original renderers before distinguishing them from authored JS.
  * Historical absolute destination strings are provenance only and are never opened. */
 export function qualifyFrozenNativeOracles(root: string, inventory: readonly string[]): Set<string> {
@@ -23,9 +44,7 @@ export function qualifyFrozenNativeOracles(root: string, inventory: readonly str
   assert.equal(fs.realpathSync(directory), path.resolve(fs.realpathSync(root), ARCHIVE), 'Frozen native archive has linked ancestors');
   const files = new Map<string, string>();
   for (const [manifest, expectedHash] of Object.entries(MANIFESTS)) {
-    const file = path.join(directory, manifest);
-    assert(fs.lstatSync(file).isFile(), 'Frozen native manifest must be a regular file');
-    const body = fs.readFileSync(file);
+    const body = readFrozenFile(root, ARCHIVE + manifest, 'Frozen native manifest');
     assert.equal(sha256(body), expectedHash, 'Changed frozen native manifest: ' + manifest);
     const rows: unknown = JSON.parse(body.toString('utf8'));
     assert(Array.isArray(rows), 'Frozen native manifest must be an array');
@@ -43,10 +62,7 @@ export function qualifyFrozenNativeOracles(root: string, inventory: readonly str
   }
   assert.equal(files.size, 15, 'The original archive contains exactly fifteen renderers');
   for (const [file, expectedHash] of files) {
-    const target = path.join(root, file);
-    assert(fs.lstatSync(target).isFile(), 'Frozen native renderer must be a regular file');
-    assert.equal(fs.realpathSync(target), path.join(fs.realpathSync(root), file), 'Frozen native renderer has linked ancestors');
-    assert.equal(sha256(fs.readFileSync(target)), expectedHash, 'Changed frozen native renderer: ' + file);
+    assert.equal(sha256(readFrozenFile(root, file, 'Frozen native renderer')), expectedHash, 'Changed frozen native renderer: ' + file);
   }
   return new Set(files.keys());
 }

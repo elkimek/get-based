@@ -290,7 +290,14 @@ export async function setCLIAgentEffort(effort: string) {
 }
 
 export function resizeCLICompanionPanel(event: Pick<MessageEvent, 'data' | 'origin' | 'source'>): void {
-  getCliAgentSettingsView()?.resizeFrame(event);
+  const view = getCliAgentSettingsView();
+  const companion = view?.getSnapshot().companion;
+  if (!view || companion?.mode !== 'embedded') return;
+  let expectedOrigin: string;
+  try { expectedOrigin = new URL(companion.managementHref).origin; } catch { return; }
+  if (event.origin !== expectedOrigin) return;
+  // The component additionally verifies the live iframe's source browsing context.
+  view.resizeFrame(event);
 }
 if (typeof document !== 'undefined') document.defaultView?.addEventListener('message',resizeCLICompanionPanel);
 

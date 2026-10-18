@@ -1,11 +1,17 @@
 // @vitest-environment jsdom
 import {readFileSync} from 'node:fs';
-import {expect, it} from 'vitest';
+import {afterEach, beforeEach, expect, it, vi} from 'vitest';
 import type {BiologySectionScore} from '../js/biology-score-sections.js';
 import type {BiologyAIState} from '../js/biology-ai-presentation.js';
 import {projectBiologyQuestion,projectBiologyAISummary,projectBiologyAIAnswer} from '../js/biology-ai-presentation.js';
 import {renderHTML} from '../js/components/BiologyAIPresentation.svelte.html.js';
 const original=JSON.parse(readFileSync('tests/fixtures/biology-ai-original.json','utf8')) as {samples:(BiologyAIState & {name:string;score:BiologySectionScore;question:string;summary:string;answer:string})[]};
+// Original receipts were captured in Europe/Prague; keep their exact local-time inputs on every host.
+beforeEach(() => {
+  vi.stubEnv('TZ', 'Europe/Prague');
+  expect(new Date('2026-08-07T12:00:00Z').getHours()).toBe(14);
+});
+afterEach(() => vi.unstubAllEnvs());
 interface Structure {tag:string;text:string;attributes:Record<string,string>;children:Structure[]}
 function structure(node:Element):Structure{return {tag:node.tagName,text:node.textContent!.replace(/\s+/g,' ').trim(),attributes:Object.fromEntries([...node.attributes].filter(a=>!['class','style','data-biology-ai-view'].includes(a.name)).map(a=>[a.name,a.value])),children:[...node.children].map(structure)};}
 function host(html:string){const node=document.createElement('div');node.innerHTML=html;return node;}

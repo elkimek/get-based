@@ -20,6 +20,9 @@ test('static AI chooser preserves all providers and feature pause through cached
   const server = await startKitServer(artifact), errors: string[] = [];
   page.on('pageerror',error => errors.push(error.message));
   const open = async (target: typeof page) => {
+    await expect(target.locator('body')).not.toHaveClass(/\bchat-autostart-reserved\b/, { timeout: 30_000 });
+    const closeChat = target.getByRole('button', { name: 'Close chat', exact: true });
+    if (await closeChat.isVisible()) await closeChat.click();
     await target.locator('[data-shell-action="open-settings"]').click();
     await target.locator('#settings-nav-ai').click();
     await expect(target.locator('[data-ai-settings-view]')).toBeVisible();

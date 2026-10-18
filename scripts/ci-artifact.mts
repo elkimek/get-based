@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import {createHash} from 'node:crypto';
+import {createHash, randomUUID} from 'node:crypto';
+import {constants} from 'node:fs';
 import {execFileSync} from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -27,7 +28,13 @@ function paths(options: CIArtifactOptions) {
   assert(!transport.startsWith(artifact + path.sep) && !artifact.startsWith(transport + path.sep) && artifact !== transport, 'Artifact and transport are disjoint');
   return {root, artifact, transport};
 }
-async function regular(file: string): Promise<Buffer> {assert((await fs.lstat(file)).isFile(), 'Regular non-symlink file: ' + file); return fs.readFile(file);}
+async function regular(file: string): Promise<Buffer> {
+  // Validate and consume the same opened object; a pathname replacement cannot
+  // redirect the read after qualification. NONBLOCK also avoids hanging on FIFOs.
+  const handle = await fs.open(file, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+  try {assert((await handle.stat()).isFile(), 'Regular non-symlink file: ' + file); return await handle.readFile();}
+  finally {await handle.close();}
+}
 async function directory(file: string): Promise<void> {
   assert((await fs.lstat(file)).isDirectory(), 'Regular non-symlink directory: ' + file);
   assert.equal(await fs.realpath(file), path.resolve(file), 'No linked artifact directory ancestors');
@@ -140,9 +147,19 @@ export async function restoreCIArtifactCatalog(options: CIArtifactOptions): Prom
   const target = path.join(data, 'recommendations.json');
   // A clean fork may retain a dangling maintainer-only catalog symlink.
   const previous = await fs.lstat(target).catch((error: NodeJS.ErrnoException) => {if (error.code === 'ENOENT') return null; throw error;});
-  if (previous?.isSymbolicLink()) await fs.unlink(target);
-  else if (previous) assert(previous.isFile(), 'Catalog target is a regular file');
-  await fs.writeFile(target, catalog);
+  if (previous) assert(previous.isFile() || previous.isSymbolicLink(), 'Catalog target is a regular file');
+  const temporary = path.join(data, `.recommendations-ci-${randomUUID()}.tmp`);
+  const handle = await fs.open(temporary, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600);
+  try {
+    try {await handle.writeFile(catalog);}
+    finally {await handle.close();}
+    // rename replaces the directory entry itself, including a symlink introduced
+    // after lstat, without opening or truncating its destination. The original
+    // catalog remains available until the complete qualified body is published.
+    await fs.rename(temporary, target);
+  } finally {
+    await fs.unlink(temporary).catch((error: NodeJS.ErrnoException) => {if (error.code !== 'ENOENT') throw error;});
+  }
   return manifest;
 }
 export async function verifyCIArtifact(options: CIArtifactOptions): Promise<ArtifactManifest> {

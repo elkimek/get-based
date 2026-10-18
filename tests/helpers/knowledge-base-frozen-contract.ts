@@ -1,6 +1,7 @@
 import { expect } from 'vitest';
 import { JSDOM } from 'jsdom';
 import { reviewedUtilities } from './knowledge-base-current-capture.mjs';
+import {sharedUtilsPromptReceivers} from './knowledge-base-utils-dialog-contract.js';
 
 export interface StructuralSample {
   kind: 'panel' | 'status-toggle' | 'modal' | 'library-options' | 'library-create';
@@ -173,6 +174,7 @@ export function equalOriginalDOM(currentHTML: string | null, originalHTML: strin
     original.innerHTML = originalHTML;
     current.innerHTML = currentHTML;
     expect(shape(current)).toEqual(shape(original));
+    const sharedUtils = sharedUtilsPromptReceivers(current, original);
     const before = [...original.querySelectorAll('*')];
     const after = [...current.querySelectorAll('*')];
     expect(after).toHaveLength(before.length);
@@ -182,7 +184,7 @@ export function equalOriginalDOM(currentHTML: string | null, originalHTML: strin
       const nextClasses = [...next.classList];
       expect(nextClasses.slice(0, priorClasses.length), `Original class order at ${element.tagName}#${element.id}`).toEqual(priorClasses);
       for (const appended of nextClasses.slice(priorClasses.length)) {
-        expect(reviewedUtilities, `Unreviewed appended class: ${appended}`).toContain(appended);
+        expect(sharedUtils.get(next) ?? reviewedUtilities, `Unreviewed appended class: ${appended}`).toContain(appended);
       }
       expect(nativeControl(next)).toEqual(nativeControl(element));
     });

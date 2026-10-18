@@ -53,6 +53,34 @@ const mode = import.meta.env.MODE;`;
     expect(output.html).not.toContain('type="module"');
     expect(externalizeKitBootstrap(`<div><script>${code}</script></div>`).scripts[0]?.file).toBe(output.scripts[0]?.file);
   });
+  it.each(['SCRIPT', 'ScRiPt'])('externalizes %s bootstraps using browser tag semantics and original source bytes', tag => {
+    const code = '{ __sveltekit_test = {}; const element = document.currentScript.parentElement; }';
+    const before = '<!doctype html><html><head><SCRIPT SRC="/version.js" data-note=">"> </SCRIPT></head><body><div>';
+    const after = '</div><script TYPE="APPLICATION/JSON">{"literal":"<SCRIPT>"}</script></body></html>';
+    const output = externalizeKitBootstrap(before+`<${tag} data-note=">">${code}</${tag} ignored="browser-end-tag">`+after);
+    const canonical = externalizeKitBootstrap(`<div><script>${code}</script></div>`);
+    expect(output.scripts).toEqual(canonical.scripts);
+    expect(output.scripts[0]?.code).toBe(code);
+    expect(output.html).toBe(before+`<script src="/${canonical.scripts[0]?.file}"></script>`+after);
+  });
+  it('ignores inert comment and attribute script text while inspecting real inline elements', () => {
+    const code = '{ __sveltekit_test = {}; const element = document.currentScript.parentElement; }';
+    const before = '<!-- <SCRIPT>alert(1)</SCRIPT> --><div data-note="<script>alert(2)</script>">';
+    const after = '</div>';
+    const output = externalizeKitBootstrap(before+`<script>${code}</script>`+after);
+    expect(output.scripts).toHaveLength(1);
+    expect(output.html).toBe(before+`<script src="/${output.scripts[0]?.file}"></script>`+after);
+  });
+  it.each([
+    '<SCRIPT>alert(1)</SCRIPT>', '<ScRiPt>alert(1)</sCrIpT>',
+    '<script>alert(1)</script ignored="browser-end-tag">',
+    '<script data-note=">">alert(1)</script>',
+    '<script data-src="/not-an-external-script.js">alert(1)</script>',
+    '<script>unterminated',
+  ])('rejects browser-recognized unexpected inline scripts: %s', unexpected => {
+    const code = '{ __sveltekit_test = {}; const element = document.currentScript.parentElement; }';
+    expect(() => externalizeKitBootstrap(`<div><script>${code}</script>${unexpected}</div>`)).toThrow(/inline/);
+  });
   it('rejects unexpected inline executable scripts and missing bootstraps under the existing CSP', () => {
     expect(() => externalizeKitBootstrap('<script>alert(1)</script>')).toThrow('Unexpected inline');
     expect(() => externalizeKitBootstrap('<script src="/version.js"></script>')).toThrow('Expected one');

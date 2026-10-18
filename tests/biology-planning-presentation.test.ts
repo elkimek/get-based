@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import {readFileSync} from 'node:fs';
+import path from 'node:path';
+import {compileDashboardLabMarkerWidgetStyles} from '../scripts/dashboard-lab-markers-style-ownership.mjs';
 import {expect, it} from 'vitest';
 import postcss from 'postcss';
 import {renderBiologyScoreCoveragePlanner, renderBiologyScoresActionSummary, type BiologyRenderScore} from '../js/biology-score-render.js';
@@ -44,9 +46,11 @@ it('removes superseded planning templates and owned native styles',()=>{
   for(const name of ['BiologyPlanningCard','BiologyNextChecks','BiologyCoverageBundle','BiologyCoveragePlanner','BiologyPlanningPresentation']) expect(readFileSync(`js/components/${name}.svelte`,'utf8')).not.toContain('{@html');
 });
 
-it('scopes planning utilities without a reset or priority overrides',()=>{
+it('scopes planning utilities without a reset or priority overrides',async()=>{
   const css=readFileSync('css/dashboard-widgets.css','utf8');
-  expect(css).toContain(readFileSync('css/dashboard-widgets.base.css','utf8').trimEnd());
+  const basePath=path.resolve('css/dashboard-widgets.base.css');
+  const compiled=await compileDashboardLabMarkerWidgetStyles(readFileSync(basePath,'utf8'),basePath,process.cwd());
+  expect(css).toContain(compiled.css.trimEnd());
   postcss.parse(readFileSync('css/dashboard-widgets.base.css','utf8')).walkRules(rule=>{expect(rule.selector.trim()).not.toBe('');});
   const scoped:string[]=[];postcss.parse(css).walkRules(rule=>{for(const selector of rule.selectors)if(selector.includes('.gb\\:plan-ui'))scoped.push(selector);});
   expect(scoped.length).toBeGreaterThan(80);expect(scoped.every(selector=>selector.includes(':is([data-biology-planning-view],[data-biology-planning-view] *)'))).toBe(true);

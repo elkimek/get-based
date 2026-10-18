@@ -46,8 +46,17 @@ it('retains the lazy stylesheet URL, valid numeric state selectors and scoped ut
     expect(createHash('sha256').update(nativeLight).digest('hex')).toBe('82bb6eab1ee986e193e9a4e6eb5d5a0436260f9bf1250d3c623656ef2a477264');expect(nativeAI).toHaveLength(0);
     expect(nativeAI.every(selector => selector.includes(':not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *))'))).toBe(true);
     expect(source).toContain('[data-tier="2"]'); expect(source).toContain('[data-idx="5"]');
-    await buildLightSetupStyles({ outputPath, check: true }); await fs.writeFile(outputPath, source + '/* stale */');
-    await expect(buildLightSetupStyles({ outputPath, check: true })).rejects.toThrow('Light setup CSS is stale');
-    expect(await fs.readFile(outputPath, 'utf8')).toBe(source + '/* stale */');
+  } finally { await fs.rm(directory, { recursive: true, force: true }); }
+});
+
+for (const stale of [false, true]) it(`qualifies Light setup ${stale ? 'stale rejection' : 'complete CSS equality'} without rewriting output`, async () => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'getbased-light-setup-check-'));
+  try {
+    const outputPath = path.join(directory, 'light-setup.css');
+    const source = await fs.readFile('css/light-setup.css', 'utf8') + (stale ? '/* stale */' : '');
+    await fs.writeFile(outputPath, source);
+    if (stale) await expect(buildLightSetupStyles({ outputPath, check: true })).rejects.toThrow('Light setup CSS is stale');
+    else await buildLightSetupStyles({ outputPath, check: true });
+    expect(await fs.readFile(outputPath, 'utf8')).toBe(source);
   } finally { await fs.rm(directory, { recursive: true, force: true }); }
 });

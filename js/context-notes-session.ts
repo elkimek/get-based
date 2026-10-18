@@ -145,12 +145,14 @@ async function persist(session: NotesSession): Promise<void> {
   if (session.due && session.revision !== intent.revision) void persist(session);
 }
 /** Retired controls cannot accept input; already accepted writes survive removal. */
-export function acceptContextNotes(ticket: string, notes: string): boolean {
+export function acceptContextNotes(ticket: string, notes: string, reviewedSaved: string | null = null): boolean {
   const session = activeSession();
-  if (presentation(session).ticket !== ticket) return false;
+  if (presentation(session).ticket !== ticket || (reviewedSaved !== null && typeof reviewedSaved !== 'string')) return false;
   const data = state.importedData, base = profileDataBaseline(data);
   session.notes = notes;
-  session.expected = session.observed ?? noteText(base || data);
+  // Typing and a generic Retry never accept an unseen peer baseline. An
+  // explicit replacement authorizes only the exact saved text displayed at click.
+  if (reviewedSaved !== null) session.expected = reviewedSaved;
   session.revision += 1;
   session.intent = { data, base, revision: session.revision, notes, expected: session.expected, commitRevision: session.commitRevision };
   if (session.timer !== undefined) clearTimeout(session.timer);

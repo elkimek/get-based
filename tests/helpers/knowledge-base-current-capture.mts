@@ -48,6 +48,32 @@ const protectedCanonical = [
   'js/lens-actions.ts', 'js/modal-lifecycle.ts',
 ];
 
+// The shared modal UI has its own subsequent accessibility/lifecycle changes.
+// Preserve its exact original dependency evidence without claiming the current
+// global UI owner is unchanged Knowledge Base domain code. Candidate captures
+// still import the actual CURRENT modal-lifecycle.js and retain all DOM/trace
+// comparisons; they never substitute this historical module at runtime.
+const historicalModalFixtures = {
+  'js/modal-lifecycle.ts': 'modal-lifecycle.original.ts.txt',
+  'js/modal-lifecycle.js': 'modal-lifecycle.original.js.txt',
+} as const;
+export function qualifyHistoricalModalDependency(file: keyof typeof historicalModalFixtures, bytes: Uint8Array): string {
+  assert(Object.hasOwn(historicalModalFixtures, file), 'Known historical modal dependency');
+  const baseline = readFrozen<{originalCanonicalHashes: Record<string, string>; originalRuntimeHashes: Record<string, string>}>('candidate-baseline.json');
+  const expected = file.endsWith('.ts') ? baseline.originalCanonicalHashes[file] : baseline.originalRuntimeHashes[file];
+  assert(expected, 'Existing original modal dependency pin');
+  const actual = createHash('sha256').update(bytes).digest('hex');
+  assert.equal(actual, expected, 'Historical modal dependency changed: ' + file);
+  return actual;
+}
+function protectedReadPath(file: string): string {
+  if (!Object.hasOwn(historicalModalFixtures, file)) return file;
+  const original = file as keyof typeof historicalModalFixtures;
+  const snapshot = path.join(directory, historicalModalFixtures[original]);
+  qualifyHistoricalModalDependency(original, fs.readFileSync(snapshot));
+  return snapshot;
+}
+
 function currentProtectedGuard(): string {
   const baseline = readFrozen<{
     originalCanonicalHashes: Record<string, string>;
@@ -55,12 +81,12 @@ function currentProtectedGuard(): string {
   }>('candidate-baseline.json');
   const entries = protectedCanonical.flatMap(name => {
     const runtime = name.replace(/\.ts$/, '.js');
-    return [[name, baseline.originalCanonicalHashes[name]], [runtime, baseline.originalRuntimeHashes[runtime]]];
+    return [[name, baseline.originalCanonicalHashes[name], protectedReadPath(name)], [runtime, baseline.originalRuntimeHashes[runtime], protectedReadPath(runtime)]];
   });
   return `function verifyOriginal() {
     const observed = {};
-    for (const [file, expected] of ${JSON.stringify(entries)}) {
-      const actual = createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+    for (const [file, expected, source] of ${JSON.stringify(entries)}) {
+      const actual = createHash('sha256').update(fs.readFileSync(source)).digest('hex');
       if (actual !== expected) throw new Error('Protected domain source changed: ' + file);
       observed[file] = actual;
     }

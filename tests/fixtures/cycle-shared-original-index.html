@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <!-- Self-host operators may set these three values. Empty values never fall back to getbased policies. -->
+  <meta name="getbased-operator-name" content="">
+  <meta name="getbased-operator-privacy-url" content="">
+  <meta name="getbased-operator-terms-url" content="">
+  <title>getbased — personal health intelligence, under your control</title>
+  <meta name="description" content="Open-source health dashboard for labs, DNA, wearables, light, lifestyle context, and optional AI analysis. Browser-first, private by default, no account required.">
+  <meta property="og:title" content="getbased — personal health intelligence, under your control">
+  <meta property="og:description" content="Open-source health dashboard for labs, DNA, wearables, light, lifestyle context, and optional AI analysis. Browser-first, private by default, no account required.">
+  <meta property="og:type" content="website">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0a0a12" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="getbased">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <script src="js/theme-bootstrap.js"></script>
+  <style>#main-content{min-height:calc(100vh - 64px + 180px)}</style>
+  <link rel="stylesheet" href="vendor/fonts/fonts.css">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="css/app-shell.css">
+  <meta data-import-stylesheet-anchor>
+  <meta data-emf-stylesheet-anchor>
+  <link rel="stylesheet" href="css/modal-shared.css">
+  <link rel="stylesheet" href="css/dashboard-core.css">
+  <link rel="stylesheet" href="css/dashboard-widgets.css">
+  <link rel="stylesheet" href="css/dashboard-welcome.css">
+  <link rel="stylesheet" href="css/dashboard-data.css">
+  <meta data-category-views-stylesheet-anchor>
+  <link rel="stylesheet" href="css/context-profile.css">
+  <meta data-context-editor-stylesheet-anchor>
+  <meta data-genetics-stylesheet-anchor>
+  <meta data-data-protection-stylesheet-anchor>
+  <meta data-settings-stylesheet-anchor>
+  <link rel="stylesheet" href="css/mobile-dashboard.css">
+  <meta data-cycle-stylesheet-anchor>
+  <meta data-marker-detail-stylesheet-anchor>
+  <link rel="stylesheet" href="css/recommendations.css">
+  <meta data-client-list-stylesheet-anchor>
+  <meta data-wearables-stylesheet-anchor>
+  <meta data-nutrition-stylesheet-anchor>
+  <meta data-light-sun-stylesheet-anchor>
+  <link rel="stylesheet" href="css/chat-panel.css">
+  <meta data-chat-presentation-stylesheet-anchor>
+  <link rel="stylesheet" href="css/redesign-shell.css">
+  <link rel="stylesheet" href="css/chat-redesign.css">
+  <meta data-chat-redesign-open-stylesheet-anchor>
+  <meta data-extra-themes-stylesheet-anchor>
+  <script src="js/extra-theme-bootstrap.js"></script>
+  <style data-shared-theme-modes>
+    /* Keep shell geometry stable when any named theme is active. These rules
+       stay eager because light mode uses data-theme and sunset is cross-theme. */
+    [data-theme] .header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    [data-theme] .layout,
+    [data-theme] .main {
+      position: static;
+      z-index: auto;
+    }
+    @media (min-width: 1025px) {
+      [data-theme] .sidebar {
+        position: fixed;
+        top: 64px;
+        left: 0;
+        height: calc(100vh - 64px);
+        z-index: 10;
+      }
+    }
+    @media (max-width: 1024px) {
+      [data-theme] .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        height: 100vh;
+        z-index: 360;
+      }
+    }
+
+    /* Cross-theme long-wavelength palette for red blue-blocking glasses. */
+    :root[data-sunset-mode="on"] {
+      color-scheme: dark;
+      --bg-primary: #0b0201;
+      --bg-secondary: #150503;
+      --bg-card: #21100a;
+      --bg-hover: #31170d;
+      --border: #663014;
+      --text-primary: #ffe8bb;
+      --text-secondary: #f7b46a;
+      --text-muted: #c9793f;
+      --accent: #ffb000;
+      --accent-light: #ffd166;
+      --on-accent: #180500;
+      --donate-accent: #ff9a26;
+      --on-donate-accent: #160400;
+      --accent-fill: rgba(255, 176, 0, 0.16);
+      --accent-gradient: linear-gradient(135deg, #ff5a2e 0%, #ffb000 58%, #ffd166 100%);
+      --green: #ffd166;
+      --green-bg: rgba(255, 209, 102, 0.13);
+      --red: #ff5a2e;
+      --red-bg: rgba(255, 90, 46, 0.16);
+      --yellow: #ffb000;
+      --yellow-bg: rgba(255, 176, 0, 0.14);
+      --orange: #ff7a1a;
+      --orange-bg: rgba(255, 122, 26, 0.15);
+      --purple: #ff9b54;
+      --purple-light: rgba(255, 155, 84, 0.18);
+      --cyan: rgba(255, 200, 87, 0.68);
+      --neutral-soft-bg: rgba(247, 180, 106, 0.10);
+      --alert-soft-bg: rgba(255, 90, 46, 0.12);
+      --ref-band: rgba(255, 176, 0, 0.08);
+      --ref-border: rgba(255, 176, 0, 0.30);
+      --chart-grid: rgba(102, 48, 20, 0.55);
+      --chart-tooltip-bg: rgba(21, 5, 3, 0.96);
+      --shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+      --shadow-lg: 0 18px 52px -20px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 176, 0, 0.12);
+      --shadow-glow: 0 0 0 1px var(--accent), 0 0 22px rgba(255, 122, 26, 0.18);
+      --status-high: var(--red);
+      --status-low: var(--yellow);
+      --status-normal: var(--green);
+    }
+    :root[data-sunset-mode="on"] body {
+      background:
+        radial-gradient(75% 55% at 50% 0%, rgba(255, 90, 46, 0.16), transparent 62%),
+        linear-gradient(180deg, #150503 0%, #0b0201 72%);
+      color: var(--text-primary);
+    }
+    :root[data-sunset-mode="on"] body::before,
+    :root[data-sunset-mode="on"] .m-bg {
+      display: none !important;
+    }
+    :root[data-sunset-mode="on"] .chart-card,
+    :root[data-sunset-mode="on"] .dashboard-widget,
+    :root[data-sunset-mode="on"] .context-card,
+    :root[data-sunset-mode="on"] .focus-card,
+    :root[data-sunset-mode="on"] .lens-section,
+    :root[data-sunset-mode="on"] .trend-alert-card,
+    :root[data-sunset-mode="on"] .supp-timeline,
+    :root[data-sunset-mode="on"] .alert-card,
+    :root[data-sunset-mode="on"] .modal,
+    :root[data-sunset-mode="on"] .header,
+    :root[data-sunset-mode="on"] .sidebar,
+    :root[data-sunset-mode="on"] .m-tabbar,
+    :root[data-sunset-mode="on"] .m-stat-card,
+    :root[data-sunset-mode="on"] .m-section,
+    :root[data-sunset-mode="on"] .light-today-strip,
+    :root[data-sunset-mode="on"] .light-channels-section,
+    :root[data-sunset-mode="on"] .light-channel-detail,
+    :root[data-sunset-mode="on"] .sun-session {
+      background-color: var(--bg-card);
+      border-color: color-mix(in srgb, var(--border) 82%, transparent);
+    }
+    :root[data-sunset-mode="on"] .header,
+    :root[data-sunset-mode="on"] .sidebar,
+    :root[data-sunset-mode="on"] .tweaks-panel,
+    :root[data-sunset-mode="on"] .chat-panel {
+      background: color-mix(in srgb, var(--bg-secondary) 94%, #000);
+    }
+    :root[data-sunset-mode="on"] .status-normal,
+    :root[data-sunset-mode="on"] .status-high,
+    :root[data-sunset-mode="on"] .status-low,
+    :root[data-sunset-mode="on"] .chart-card-status,
+    :root[data-sunset-mode="on"] .sun-chip,
+    :root[data-sunset-mode="on"] .light-pill,
+    :root[data-sunset-mode="on"] .ctx-tag {
+      text-shadow: none;
+    }
+    :root[data-sunset-mode="on"] .sun-chip[data-channel],
+    :root[data-sunset-mode="on"] .light-pill[data-channel],
+    :root[data-sunset-mode="on"] .sun-detail-channel-row[data-channel] {
+      --channel-accent: var(--orange);
+    }
+    :root[data-sunset-mode="on"] .sun-chip[data-channel="vitamin_d"],
+    :root[data-sunset-mode="on"] .light-pill[data-channel="vitamin_d"],
+    :root[data-sunset-mode="on"] .sun-detail-channel-row[data-channel="vitamin_d"] {
+      --channel-accent: var(--yellow);
+    }
+    :root[data-sunset-mode="on"] .sun-chip[data-channel="circadian"],
+    :root[data-sunset-mode="on"] .light-pill[data-channel="circadian"],
+    :root[data-sunset-mode="on"] .sun-detail-channel-row[data-channel="circadian"] {
+      --channel-accent: var(--accent);
+    }
+    :root[data-sunset-mode="on"] .sun-chip[data-channel="no_cv"],
+    :root[data-sunset-mode="on"] .light-pill[data-channel="no_cv"],
+    :root[data-sunset-mode="on"] .sun-detail-channel-row[data-channel="no_cv"] {
+      --channel-accent: var(--green);
+    }
+  </style>
+</head>
+<body>
+  <div
+    id="legal-consent-overlay"
+    class="modal-overlay legal-consent-overlay show"
+    data-terms-version="2026-08-22"
+    data-privacy-version="2026-08-22"
+    data-policy-scope=""
+  >
+    <div class="legal-consent-modal" role="dialog" aria-modal="true" aria-labelledby="legal-consent-title" aria-describedby="legal-consent-desc">
+      <div class="legal-consent-kicker">getbased legal</div>
+      <h2 id="legal-consent-title">Accept Terms &amp; Privacy</h2>
+      <p id="legal-consent-desc" class="legal-consent-copy">Before using getbased, please review and accept the Terms and Privacy Policy.</p>
+      <div class="legal-consent-summary">
+        <div><strong>Terms:</strong> 2026-08-22</div>
+        <div><strong>Privacy:</strong> 2026-08-22</div>
+      </div>
+      <ul class="legal-consent-points">
+        <li>getbased is a wellness, self-tracking, and educational tool — not medical advice or a medical device.</li>
+        <li>Your health data is stored locally by default; optional network features are described in the Privacy Policy.</li>
+        <li>AI transparency is acknowledged separately from destination-specific sensitive-data approval.</li>
+        <li>Cookieless product analytics may run on the hosted app and can be turned off in Settings → Privacy; the analytics service does not store the raw IP address, while ordinary hosting metadata is described in the Privacy Policy.</li>
+      </ul>
+      <label class="legal-consent-check">
+        <input type="checkbox" id="legal-consent-checkbox">
+        <span>I have read and agree to the <a href="/terms" data-legal-kind="terms" target="_blank" rel="noopener">Terms of Service</a> and <a href="/privacy" data-legal-kind="privacy" target="_blank" rel="noopener">Privacy Policy</a>.</span>
+      </label>
+      <div class="legal-consent-actions">
+        <button type="button" class="legal-consent-accept" data-legal-consent-action="accept" disabled>Accept &amp; continue</button>
+      </div>
+    </div>
+  </div>
+  <!-- PRODUCTION_LEGAL_BOOTSTRAP_START -->
+  <script src="js/legal-consent-bootstrap.js"></script>
+  <!-- PRODUCTION_LEGAL_BOOTSTRAP_END -->
+
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+  <header class="header">
+    <div class="brand header-left">
+      <button class="sidebar-toggle" id="sidebar-toggle" data-shell-action="toggle-mobile-sidebar" aria-label="Menu"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+      <a href="/" class="logo-link"><h1 class="brand-mark">getbased</h1></a>
+    </div>
+    <div class="header-info header-mid">
+      <div id="profile-selector"></div>
+      <div class="header-group header-data-group">
+        <div id="header-dates" class="chip header-date-chip"><span class="label">Dates:</span></div>
+        <div id="header-range-toggle" class="range-toggle"></div>
+      </div>
+    </div>
+    <div class="header-group header-right">
+      <span id="sync-indicator-slot"></span>
+      <button class="header-icon-btn header-import-btn" data-shell-action="trigger-import" title="Import" aria-label="Import lab results"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg></button>
+      <button class="header-icon-btn header-share-btn" data-shell-action="share-profile" title="Share profile" aria-label="Share active profile"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button>
+      <button class="header-icon-btn tweaks-btn" data-shell-action="open-tweaks" title="Tweaks" aria-label="Tweaks"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg></button>
+        <button class="header-icon-btn settings-btn" data-shell-action="open-settings" title="Settings" aria-label="Settings"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+        <button class="header-icon-btn feedback-btn" data-shell-action="open-feedback" title="Send Feedback" aria-label="Send Feedback"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="6" width="8" height="14" rx="4"/><line x1="6" y1="9" x2="8" y2="9"/><line x1="16" y1="9" x2="18" y2="9"/><line x1="6" y1="15" x2="8" y2="15"/><line x1="16" y1="15" x2="18" y2="15"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="9" y1="4" x2="9" y2="2"/><line x1="15" y1="4" x2="15" y2="2"/><line x1="12" y1="13" x2="12" y2="13.01"/></svg></button>
+        <div class="header-icon-btn donate-btn donate-split" role="group" aria-label="Donation options">
+          <a href="https://hydranode.org/btcpay/api/v1/invoices?storeId=BfxZicwEaRcJvJnkBPHdzGuCAonAhwLBb5vbWfjT2ZR1&checkoutDesc=Donate%20to%20getbased.health&price=&currency=USD&redirectURL=https%3A%2F%2Fgetbased.health%2Fthank-you" target="_blank" rel="noopener" class="donate-option donate-option-bitcoin" title="Donate with Bitcoin" aria-label="Donate with Bitcoin">&#x20bf; Bitcoin</a>
+          <a href="https://ko-fi.com/getbased" target="_blank" rel="noopener" class="donate-option donate-option-kofi" title="Support on Ko-fi" aria-label="Support on Ko-fi">Ko-fi</a>
+        </div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <div class="sidebar-backdrop" id="sidebar-backdrop" data-shell-action="close-mobile-sidebar"></div>
+    <nav class="sidebar" id="sidebar-nav"></nav>
+    <main class="main" id="main-content">
+      <div class="welcome-hero welcome-hero-noai" data-prerendered-welcome>
+        <h2>Welcome to getbased</h2>
+        <p class="welcome-hero-subtitle">Health intelligence that's actually yours — five lenses on your biology, one private dashboard.</p>
+        <div class="welcome-primary-panel welcome-chat-panel">
+          <span class="welcome-primary-kicker">Start here</span>
+          <strong>Start with guided chat</strong>
+          <p>Chat starts with the basics, then guides AI setup only when it is needed for import or optional tips.</p>
+          <div class="welcome-primary-actions">
+            <button type="button" class="welcome-action-btn welcome-action-primary" data-dashboard-welcome-action="open-chat">Start guided chat</button>
+            <button type="button" class="welcome-action-btn welcome-direct-import-btn" data-dashboard-welcome-action="direct-import">Import file</button>
+          </div>
+        </div>
+        <div class="drop-zone drop-zone-hidden" id="drop-zone"></div>
+        <div class="welcome-demo-section">
+          <span class="welcome-section-label">Preview with demo data</span>
+          <div class="demo-cards">
+            <button type="button" class="demo-card" data-dashboard-welcome-action="load-demo" data-dashboard-welcome-demo="female">
+              <span class="demo-card-avatar">👩</span>
+              <span class="demo-card-name">Sarah, 34</span>
+              <span class="demo-card-desc">Iron + Oura: overtraining clues</span>
+            </button>
+            <button type="button" class="demo-card" data-dashboard-welcome-action="load-demo" data-dashboard-welcome-demo="male">
+              <span class="demo-card-avatar">👨</span>
+              <span class="demo-card-name">Alex, 38</span>
+              <span class="demo-card-desc">Metabolic + Withings body comp</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <footer class="app-footer">
+    <div class="app-footer-row app-footer-top">
+      <span class="app-footer-logo">getbased</span>
+      <div class="app-footer-socials">
+        <a href="https://github.com/elkimek/get-based" target="_blank" rel="noopener" aria-label="GitHub"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a>
+        <a href="https://discord.gg/zJdVB9zgQB" target="_blank" rel="noopener" aria-label="Discord"><svg width="18" height="14" viewBox="0 0 71 55" fill="currentColor"><path d="M60.1 4.9A58.5 58.5 0 0045.4.2a.2.2 0 00-.2.1 40.8 40.8 0 00-1.8 3.7 54 54 0 00-16.2 0A37.4 37.4 0 0025.4.3a.2.2 0 00-.2-.1A58.4 58.4 0 0010.5 4.9a.2.2 0 00-.1.1C1.5 18.7-.9 32.2.3 45.5v.2a58.9 58.9 0 0017.7 9 .2.2 0 00.3-.1 42.1 42.1 0 003.6-5.9.2.2 0 00-.1-.3 38.8 38.8 0 01-5.5-2.7.2.2 0 01 0-.4l1.1-.9a.2.2 0 01.2 0 42 42 0 0035.6 0 .2.2 0 01.2 0l1.1.9a.2.2 0 010 .4c-1.8 1-3.6 1.9-5.6 2.7a.2.2 0 00-.1.3 47.3 47.3 0 003.7 5.9.2.2 0 00.2.1 58.7 58.7 0 0017.7-9 .2.2 0 00.1-.2c1.4-15.1-2.4-28.2-10.1-39.8a.2.2 0 00-.1-.1zM23.7 37.3c-3.4 0-6.3-3.2-6.3-7s2.8-7 6.3-7 6.4 3.1 6.3 7-2.8 7-6.3 7zm23.2 0c-3.4 0-6.3-3.2-6.3-7s2.8-7 6.3-7 6.4 3.1 6.3 7-2.8 7-6.3 7z"/></svg></a>
+        <a href="https://x.com/getbasedhealth" target="_blank" rel="noopener" aria-label="X"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></a>
+        <a href="https://njump.me/npub13xgjkyve82xesxxzvy52vz99z5fcuusda4cytekct2tw800kepas498nt2" target="_blank" rel="noopener" aria-label="Nostr"><svg width="16" height="16" viewBox="0 0 875 875" fill="currentColor"><path d="m684.72,485.57c.22,12.59-11.93,51.47-38.67,81.3-26.74,29.83-56.02,20.85-58.42,20.16s-3.09-4.46-7.89-3.77-9.6,6.17-18.86,7.2-17.49,1.71-26.06-1.37c-4.46.69-5.14.71-7.2,2.24s-17.83,10.79-21.6,11.47c0,7.2-1.37,44.57,0,55.89s3.77,25.71,7.54,36c3.77,10.29,2.74,10.63,7.54,9.94s13.37.34,15.77,4.11c2.4,3.77,1.37,6.51,5.49,8.23s60.69,17.14,99.43,19.2c26.74.69,42.86,2.74,52.12,19.54,1.37,7.89,7.54,13.03,11.31,14.06s8.23,2.06,12,5.83,1.03,8.23,5.49,11.66c4.46,3.43,14.74,8.57,25.37,13.71,10.63,5.14,15.09,13.37,15.77,16.11s1.71,10.97,1.71,10.97c0,0-8.91,0-10.97-2.06s-2.74-5.83-2.74-5.83c0,0-6.17,1.03-7.54,3.43s.69,2.74-7.89.69-11.66-3.77-18.17-8.57c-6.51-4.8-16.46-17.14-25.03-16.8,4.11,8.23,5.83,8.23,10.63,10.97s8.23,5.83,8.23,5.83l-7.2,4.46s-4.46,2.06-14.74-.69-11.66-4.46-12.69-10.63,0-9.26-2.74-14.4-4.11-15.77-22.29-21.26c-18.17-5.49-66.52-21.26-100.12-24.69s-22.63-2.74-28.11-1.37-15.77,4.46-26.4-1.37c-10.63-5.83-16.8-13.71-17.49-20.23s-1.71-10.97,0-19.2,3.43-19.89,1.71-26.74-14.06-55.89-19.89-64.12c-13.03,1.03-50.74-.69-50.74-.69,0,0-2.4-.69-17.49,5.83s-36.48,13.76-46.77,19.93-14.4,9.7-16.12,13.13c.12,3-1.23,7.72-2.79,9.06s-12.48,2.42-12.48,2.42c0,0-5.85,5.86-8.25,9.97-6.86,9.6-55.2,125.14-66.52,149.83-13.54,32.57-9.77,27.43-37.71,27.43s-8.06.3-8.06.3c0,0-12.34,5.88-16.8,5.88s-18.86-2.4-26.4,0-16.46,9.26-23.31,10.29-4.95-1.34-8.38-3.74c-4-.21-14.27-.12-14.27-.12,0,0,1.74-6.51,7.91-10.88,8.23-5.83,25.37-16.11,34.63-21.26s17.49-7.89,23.31-9.26,18.51-6.17,30.51-9.94,19.54-8.23,29.83-31.54c10.29-23.31,50.4-111.43,51.43-116.23.63-2.96,3.73-6.48,4.8-15.09.66-5.35-2.49-13.04,1.71-22.63,10.97-25.03,21.6-20.23,26.4-20.23s17.14.34,26.4-1.37,15.43-2.74,24.69-7.89,11.31-8.91,11.31-8.91l-19.89-3.43s-18.51.69-25.03-4.46-15.43-15.77-15.43-15.77l-7.54-7.2,1.03,8.57s-5.14-8.91-6.51-10.29-8.57-6.51-11.31-11.31-7.54-25.03-7.54-25.03l-6.17,13.03-1.71-18.86-5.14,7.2-2.74-16.11-4.8,8.23-3.43-14.4-5.83,4.46-2.4-10.29-5.83-3.43s-14.06-9.26-16.46-9.6-4.46,3.43-4.46,3.43l1.37,12-12.2-6.27-7-11.9s2.36,4.01-9.62,7.53c-20.55,0-21.89-2.28-24.93-3.94-1.31-6.56-5.57-10.11-5.57-10.11h-20.57l-.34-6.86-7.89,3.09.69-10.29h-14.06l1.03-11.31h-8.91s3.09-9.26,25.71-22.97,25.03-16.46,46.29-17.14c21.26-.69,32.91,2.74,46.29,8.23s38.74,13.71,43.89,17.49c11.31-9.94,28.46-19.89,34.29-19.89,1.03-2.4,6.19-12.33,17.96-17.6,35.31-15.81,108.13-34,131.53-35.54,31.2-2.06,7.89-1.37,39.09,2.06,31.2,3.43,54.17,7.54,69.6,12.69,12.58,4.19,25.03,9.6,34.29,2.06,4.33-1.81,11.81-1.34,17.83-5.14,30.69-25.09,34.72-32.35,43.63-41.95s20.14-24.91,22.54-45.14,4.46-58.29-10.63-88.12-28.8-45.26-34.63-69.26c-5.83-24-8.23-61.03-6.17-73.03,2.06-12,5.14-22.29,6.86-30.51s9.94-14.74,19.89-16.46c9.94-1.71,17.83,1.37,22.29,4.8,4.46,3.43,11.65,6.28,13.37,10.29.34,1.71-1.37,6.51,8.23,8.23,9.6,1.71,16.05,4.16,16.05,4.16,0,0,15.64,4.29,3.11,7.73-12.69,2.06-20.52-.71-24.29,1.69s-7.21,10.08-9.61,11.1-7.2.34-12,4.11-9.6,6.86-12.69,14.4-5.49,15.77-3.43,26.74,8.57,31.54,14.4,43.2c5.83,11.66,20.23,40.8,24.34,47.66s15.77,29.49,16.8,53.83,1.03,44.23,0,54.86-10.84,51.65-35.53,85.94c-8.16,14.14-23.21,31.9-24.67,35.03-1.45,3.13-3.02,4.88-1.61,7.65,4.62,9.05,12.87,22.13,14.71,29.22,2.29,6.64,6.99,16.13,7.22,28.72Z"/></svg></a>
+        <a href="https://www.reddit.com/r/getbased/" target="_blank" rel="noopener" aria-label="Reddit"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0A12 12 0 000 12a12 12 0 0012 12 12 12 0 0012-12A12 12 0 0012 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 01-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614a3.111 3.111 0 01.042.52c0 2.694-3.13 4.87-7.004 4.87-3.874 0-7.004-2.176-7.004-4.87 0-.183.015-.366.043-.534A1.748 1.748 0 014.028 12c0-.968.786-1.754 1.754-1.754.463 0 .898.196 1.207.49 1.207-.883 2.878-1.43 4.744-1.487l.885-4.182a.342.342 0 01.14-.197.35.35 0 01.238-.042l2.906.617a1.214 1.214 0 011.108-.701zM9.25 12C8.561 12 8 12.562 8 13.25c0 .687.561 1.248 1.25 1.248.687 0 1.248-.561 1.248-1.249 0-.688-.561-1.249-1.249-1.249zm5.5 0c-.687 0-1.248.561-1.248 1.25 0 .687.561 1.248 1.249 1.248.688 0 1.249-.561 1.249-1.249 0-.687-.562-1.249-1.25-1.249zm-5.466 3.99a.327.327 0 00-.231.094.33.33 0 000 .463c.842.842 2.484.913 2.961.913.477 0 2.105-.056 2.961-.913a.361.361 0 00.029-.463.33.33 0 00-.464 0c-.547.533-1.684.73-2.512.73-.828 0-1.979-.196-2.512-.73a.326.326 0 00-.232-.095z"/></svg></a>
+      </div>
+      <span class="app-footer-version" id="app-footer-version">v<span id="app-version-text"></span> · <span id="app-commit-hash">···</span></span>
+    </div>
+    <div class="app-footer-fineprint">
+      <p class="app-footer-disclaimer">getbased is a general wellness and self-education tool, not a medical device. Not medical advice &mdash; consult a healthcare provider before making health decisions.</p>
+      <p class="app-footer-trademarks">Oura, Withings, Fitbit, Polar, WHOOP, Ultrahuman, Google Health, and Apple Health are trademarks of their respective owners. Logos and wordmarks shown in this app identify supported integrations and do not imply endorsement, partnership, or sponsorship by those companies.</p>
+      <p class="app-footer-legal">
+        <span>&copy; 2026 getbased s.r.o.</span>
+        <span class="app-footer-sep">·</span>
+        <span>Open source</span>
+        <span class="app-footer-sep">·</span>
+        <span>Founded and built with &#10084;&#65039; by <a href="https://linktr.ee/elkimek" target="_blank" rel="noopener">Elkim</a></span>
+        <span class="app-footer-sep">·</span>
+        <a href="https://docs.getbased.health" target="_blank" rel="noopener">Docs</a>
+        <span data-deployment-policy-footer>
+          <span class="app-footer-sep">·</span>
+          <a href="/privacy" data-footer-policy-kind="privacy" target="_blank" rel="noopener">Privacy</a>
+          <span class="app-footer-sep">·</span>
+          <a href="/terms" data-footer-policy-kind="terms" target="_blank" rel="noopener">Terms</a>
+        </span>
+      </p>
+    </div>
+  </footer>
+
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal" id="detail-modal" role="dialog" aria-modal="true" aria-label="Marker Detail"></div>
+  </div>
+
+  <div class="modal-overlay" id="import-modal-overlay">
+    <div class="modal" id="import-modal" role="dialog" aria-modal="true" aria-label="Import Lab Results"></div>
+  </div>
+
+  <div class="modal-overlay" id="settings-modal-overlay">
+    <div class="modal" id="settings-modal" role="dialog" aria-modal="true" aria-label="Settings"></div>
+  </div>
+
+  <div class="modal-overlay" id="feedback-modal-overlay">
+    <div class="modal" id="feedback-modal" role="dialog" aria-modal="true" aria-label="Send Feedback"></div>
+  </div>
+  <template id="feedback-form-template">
+    <div class="gb-modal-head feedback-modal-head">
+      <div><div class="gb-modal-kicker">GitHub issue</div><div class="gb-modal-title">Send Feedback</div></div>
+      <button type="button" class="modal-close" aria-label="Close" data-feedback-action="close">&times;</button>
+    </div>
+    <div class="gb-form-body feedback-form-body">
+      <form class="feedback-form" data-feedback-action="submit">
+        <div class="feedback-field">
+          <label class="feedback-label" for="feedback-type">Type</label>
+          <select class="kb-field-control" id="feedback-type" data-feedback-action="placeholder">
+            <option value="bug">Bug Report</option>
+            <option value="feature">Feature Request</option>
+            <option value="idea">Idea / Suggestion</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="feedback-field">
+          <label class="feedback-label" for="feedback-title">Title</label>
+          <input class="kb-field-control" id="feedback-title" maxlength="160" required>
+        </div>
+        <div class="feedback-field">
+          <label class="feedback-label" for="feedback-desc">Description</label>
+          <textarea class="kb-field-control feedback-textarea" id="feedback-desc" maxlength="10000" required></textarea>
+        </div>
+        <p class="feedback-notice">Public GitHub issue; account required. Keep health data and secrets out of text and screenshots. Includes app/browser settings, never automatic profile or lab attachments.</p>
+        <div id="feedback-result" class="feedback-field" hidden>
+          <p class="feedback-notice" role="status"><span id="feedback-status"></span> <a target="_blank" rel="noopener noreferrer">Continue on GitHub ↗</a>. Submit there to send it.</p>
+          <details>
+            <summary>View or copy full report</summary>
+            <label class="feedback-label" for="feedback-draft">Report preview</label>
+            <textarea id="feedback-draft" class="kb-field-control feedback-textarea" readonly></textarea>
+            <button type="button" class="import-btn import-btn-secondary" data-feedback-action="copy">Copy report</button>
+          </details>
+        </div>
+        <div class="feedback-actions">
+          <button type="button" class="import-btn import-btn-secondary" data-feedback-action="close">Close</button>
+          <button type="submit" class="import-btn import-btn-primary">Open GitHub draft</button>
+        </div>
+      </form>
+    </div>
+  </template>
+
+  <div class="modal-overlay" id="changelog-modal-overlay">
+    <div class="modal" id="changelog-modal" role="dialog" aria-modal="true" aria-label="What's New" style="max-width:600px"></div>
+  </div>
+
+  <div class="modal-overlay" id="client-list-overlay">
+    <div class="modal client-list-modal" id="client-list-modal" role="dialog" aria-modal="true" aria-label="Clients"></div>
+  </div>
+
+  <!-- CHAT_SVELTE_SHELL_START: generated by svelte:build -->
+  <div id="chat-shell-host" style="display:contents"><!--[--><div id="chat-shell" data-chat-layout-view="" style="display:contents"><div class="chat-backdrop" id="chat-backdrop"></div> <button class="chat-fab" id="chat-fab" data-chat-action="toggle-panel" aria-label="Ask AI" title="Ask AI"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg></button> <div class="chat-panel" id="chat-panel" role="complementary" aria-label="AI Lab Analyst" aria-hidden="true" inert=""><div class="chat-panel-resize-handle gb:chat-layout:hidden gb:chat-layout:min-[769px]:block gb:chat-layout:absolute gb:chat-layout:inset-y-0 gb:chat-layout:z-[12] gb:chat-layout:w-[9px] gb:chat-layout:cursor-col-resize gb:chat-layout:touch-none gb:chat-layout:focus-visible:outline-none gb:chat-layout:before:content-[''] gb:chat-layout:before:absolute gb:chat-layout:before:inset-y-0 gb:chat-layout:before:left-1 gb:chat-layout:before:w-px gb:chat-layout:before:bg-transparent gb:chat-layout:before:transition-[background,box-shadow] gb:chat-layout:before:duration-150 gb:chat-layout:hover:before:bg-accent gb:chat-layout:focus-visible:before:bg-accent gb:chat-layout:[body.chat-layout-resizing_&amp;]:before:bg-accent gb:chat-layout:hover:before:shadow-[0_0_0_2px_color-mix(in_srgb,var(--accent)_18%,transparent)] gb:chat-layout:focus-visible:before:shadow-[0_0_0_2px_color-mix(in_srgb,var(--accent)_18%,transparent)] gb:chat-layout:[body.chat-layout-resizing_&amp;]:before:shadow-[0_0_0_2px_color-mix(in_srgb,var(--accent)_18%,transparent)] gb:chat-layout:-left-[5px] gb:chat-layout:[.chat-panel-fullscreen_&amp;]:hidden" id="chat-panel-resize-handle" role="separator" aria-label="Resize chat" aria-orientation="vertical" aria-valuemin="420" aria-valuemax="1100" aria-valuenow="600" tabindex="0"></div><!----> <div class="chat-thread-rail" id="chat-thread-rail"><div class="chat-thread-rail-header"><button class="chat-rail-back" data-chat-action="toggle-thread-rail" aria-label="Close conversations"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5"></path><path d="M12 19l-7-7 7-7"></path></svg></button> <span class="chat-thread-rail-title">Conversations</span> <button class="chat-thread-new-btn" data-chat-action="create-thread" title="New conversation" aria-label="New conversation"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></button></div> <input type="search" class="chat-thread-search" id="chat-thread-search" placeholder="Search conversations..." aria-label="Search conversations and messages" data-chat-input-action="filter-thread-list"/> <div class="chat-thread-toolbar"><label class="chat-thread-sort-label" for="chat-thread-sort">Sort</label> <select class="chat-thread-sort" id="chat-thread-sort" aria-label="Sort conversations" data-chat-change-action="sort-thread-list"><option value="recent">Recent</option><option value="oldest">Oldest</option><option value="name">Name</option></select> <button type="button" class="chat-project-new-btn" data-chat-action="create-project" title="Create project" aria-label="Create project"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h6l2 2h10v11H3z"></path><path d="M15 11v5M12.5 13.5h5"></path></svg></button></div>  <div class="chat-thread-list" id="chat-thread-list" role="region" tabindex="0" aria-label="Conversation list"></div> <div id="chat-saved-summaries"></div></div> <div class="chat-rail-resize-handle gb:chat-layout:hidden gb:chat-layout:min-[769px]:block gb:chat-layout:absolute gb:chat-layout:inset-y-0 gb:chat-layout:z-[12] gb:chat-layout:w-[9px] gb:chat-layout:cursor-col-resize gb:chat-layout:touch-none gb:chat-layout:focus-visible:outline-none gb:chat-layout:before:content-[''] gb:chat-layout:before:absolute gb:chat-layout:before:inset-y-0 gb:chat-layout:before:left-1 gb:chat-layout:before:w-px gb:chat-layout:before:bg-transparent gb:chat-layout:before:transition-[background,box-shadow] gb:chat-layout:before:duration-150 gb:chat-layout:hover:before:bg-accent gb:chat-layout:focus-visible:before:bg-accent gb:chat-layout:[body.chat-layout-resizing_&amp;]:before:bg-accent gb:chat-layout:hover:before:shadow-[0_0_0_2px_color-mix(in_srgb,var(--accent)_18%,transparent)] gb:chat-layout:focus-visible:before:shadow-[0_0_0_2px_color-mix(in_srgb,var(--accent)_18%,transparent)] gb:chat-layout:[body.chat-layout-resizing_&amp;]:before:shadow-[0_0_0_2px_color-mix(in_srgb,var(--accent)_18%,transparent)] gb:chat-layout:relative gb:chat-layout:w-0 gb:chat-layout:flex-[0_0_0] gb:chat-layout:z-[13] gb:chat-layout:after:content-[''] gb:chat-layout:after:absolute gb:chat-layout:after:inset-y-0 gb:chat-layout:after:-left-1 gb:chat-layout:after:w-[9px] gb:chat-layout:[.chat-thread-rail:not(.open)_+_&amp;]:hidden" id="chat-rail-resize-handle" role="separator" aria-label="Resize conversation sidebar" aria-orientation="vertical" aria-valuemin="180" aria-valuemax="360" aria-valuenow="220" tabindex="0"></div><!----> <div class="chat-panel-conversation gb:attachment:[&amp;amp;.chat-drop-active]:outline-2 gb:attachment:[&amp;amp;.chat-drop-active]:outline-dashed gb:attachment:[&amp;amp;.chat-drop-active]:outline-accent gb:attachment:[&amp;amp;.chat-drop-active]:-outline-offset-[5px]" data-chat-attachment-drop=""><div data-chat-header-view="" class="chat-header gb:header:flex gb:header:items-center gb:header:justify-between gb:header:flex-wrap gb:header:gap-x-3 gb:header:gap-y-1 gb:header:min-h-16 gb:header:shrink-0 gb:header:border-b gb:header:border-line gb:header:px-[18px] gb:header:py-3.5 gb:header:bg-dialog-head gb:header:max-[768px]:min-h-[60px] gb:header:max-[768px]:px-3.5 gb:header:max-[768px]:py-3 gb:header:max-[768px]:gap-x-2 gb:header:max-[360px]:px-2.5 gb:header:theme-glass:backdrop-blur-[30px] gb:header:theme-glass:backdrop-saturate-[160%] gb:header:theme-glass:bg-[color-mix(in_srgb,var(--bg-secondary)_84%,transparent)] gb:header:theme-synth:border-[color-mix(in_srgb,var(--accent)_35%,transparent)]"><div class="chat-header-left gb:header:flex gb:header:items-center gb:header:gap-2.5 gb:header:min-w-0 gb:header:flex-1"><button type="button" class="chat-rail-toggle gb:header:inline-flex gb:header:items-center gb:header:justify-center gb:header:shrink-0 gb:header:size-[30px] gb:header:border-0 gb:header:rounded-control gb:header:theme-cyber:rounded-none gb:header:bg-transparent gb:header:p-0 gb:header:text-secondary gb:header:cursor-pointer gb:header:leading-none gb:header:hover:bg-hover gb:header:hover:text-ink gb:header:focus-visible:outline-2 gb:header:focus-visible:outline-accent gb:header:focus-visible:outline-offset-2 gb:header:disabled:opacity-50 gb:header:disabled:cursor-default gb:header:pointer-coarse:min-h-11 gb:header:pointer-coarse:min-w-11" data-chat-action="toggle-thread-rail" title="Conversations" aria-label="Toggle conversations" aria-expanded="false" aria-controls="chat-thread-rail"><svg class="gb:header:block gb:header:size-4 gb:header:fill-none gb:header:stroke-current gb:header:stroke-2 gb:header:[stroke-linecap:round] gb:header:[stroke-linejoin:round]" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></button> <div class="chat-header-info gb:header:flex gb:header:flex-col gb:header:min-w-0"><span class="chat-header-title gb:header:font-display gb:header:text-sm gb:header:font-semibold gb:header:truncate gb:header:theme-neuro:[font-family:var(--font-neuromancer-display)] gb:header:theme-neuro:[font-size-adjust:0.62] gb:header:theme-neuro:font-normal">AI Lab Analyst</span> <span class="chat-header-model gb:header:font-mono gb:header:text-[11px] gb:header:text-secondary gb:header:truncate gb:header:[&amp;[hidden]]:hidden" hidden=""><!--[-1--><!--]--></span></div></div> <div class="chat-header-actions gb:header:flex gb:header:shrink-0 gb:header:items-center gb:header:gap-1.5 gb:header:max-[768px]:gap-1"><label class="chat-websearch-toggle-label gb:header:relative gb:header:flex gb:header:gap-1.5 gb:header:items-center gb:header:min-h-[30px] gb:header:pointer-coarse:min-h-11 gb:header:text-[11px] gb:header:text-secondary gb:header:cursor-pointer gb:header:select-none gb:header:[&amp;[hidden]]:hidden" hidden="" title="Let AI search the web for current information (Venice &amp; OpenRouter)"><span class="chat-toggle-icon gb:header:hidden gb:header:max-[768px]:inline-flex" aria-hidden="true"><svg class="gb:header:block gb:header:size-4 gb:header:fill-none gb:header:stroke-current gb:header:stroke-2 gb:header:[stroke-linecap:round] gb:header:[stroke-linejoin:round]" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M2 12h20M12 2a15.3 15.3 0 0 1 0 20M12 2a15.3 15.3 0 0 0 0 20"></path></svg></span> <span class="chat-toggle-text gb:header:max-[768px]:hidden">Web</span> <input type="checkbox" class="gb:peer gb:header:sr-only" id="chat-websearch-checkbox" aria-label="Toggle web search" data-chat-change-action="set-websearch"/> <span class="chat-toggle-slider gb:header:relative gb:header:w-7 gb:header:h-4 gb:header:rounded-full gb:header:bg-line gb:header:peer-checked:bg-accent gb:header:peer-focus-visible:outline-2 gb:header:peer-focus-visible:outline-accent gb:header:peer-focus-visible:outline-offset-2 gb:header:before:content-[''] gb:header:before:absolute gb:header:before:left-0.5 gb:header:before:top-0.5 gb:header:before:size-3 gb:header:before:rounded-full gb:header:before:bg-secondary-surface gb:header:before:transition-transform gb:header:peer-checked:before:translate-x-3" aria-hidden="true"></span></label> <span class="sr-only" aria-live="polite" id="chat-context-live-status"></span> <button type="button" class="chat-summary-btn gb:header:inline-flex gb:header:items-center gb:header:justify-center gb:header:shrink-0 gb:header:size-[30px] gb:header:border-0 gb:header:rounded-control gb:header:theme-cyber:rounded-none gb:header:bg-transparent gb:header:p-0 gb:header:text-secondary gb:header:cursor-pointer gb:header:leading-none gb:header:hover:bg-hover gb:header:hover:text-ink gb:header:focus-visible:outline-2 gb:header:focus-visible:outline-accent gb:header:focus-visible:outline-offset-2 gb:header:disabled:opacity-50 gb:header:disabled:cursor-default gb:header:pointer-coarse:min-h-11 gb:header:pointer-coarse:min-w-11 gb:header:border gb:header:border-line " disabled="" data-chat-action="summarize-thread" title="Summary available after four messages" aria-label="Summary available after four messages"><svg class="gb:header:block gb:header:size-4 gb:header:fill-none gb:header:stroke-current gb:header:stroke-2 gb:header:[stroke-linecap:round] gb:header:[stroke-linejoin:round]" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16M4 9h10M4 14h16M4 19h10"></path></svg></button> <details class="chat-more-menu gb:header:relative"><summary class="gb:header:inline-flex gb:header:items-center gb:header:justify-center gb:header:shrink-0 gb:header:size-[30px] gb:header:border-0 gb:header:rounded-control gb:header:theme-cyber:rounded-none gb:header:bg-transparent gb:header:p-0 gb:header:text-secondary gb:header:cursor-pointer gb:header:leading-none gb:header:hover:bg-hover gb:header:hover:text-ink gb:header:focus-visible:outline-2 gb:header:focus-visible:outline-accent gb:header:focus-visible:outline-offset-2 gb:header:disabled:opacity-50 gb:header:disabled:cursor-default gb:header:pointer-coarse:min-h-11 gb:header:pointer-coarse:min-w-11 gb:header:list-none gb:header:[&amp;::-webkit-details-marker]:hidden" aria-label="More chat actions" title="More chat actions" aria-expanded="false"><span aria-hidden="true">•••</span></summary> <div class="chat-more-menu-popover gb:header:absolute gb:header:top-[calc(100%+6px)] gb:header:right-0 gb:header:z-20 gb:header:min-w-[170px] gb:header:p-1.5 gb:header:border gb:header:border-line gb:header:rounded-lg gb:header:bg-select-popup gb:header:shadow-dialog"><button type="button" class="chat-clear-btn gb:header:w-full gb:header:rounded-control gb:header:border-0 gb:header:bg-transparent gb:header:text-left gb:header:px-2.5 gb:header:py-[9px] gb:header:font-body gb:header:text-xs gb:header:text-danger-ink gb:header:cursor-pointer gb:header:hover:bg-hover gb:header:focus-visible:outline-2 gb:header:focus-visible:outline-accent gb:header:pointer-coarse:min-h-11" data-chat-action="clear-history">Clear conversation</button></div></details> <button type="button" class="chat-fullscreen-btn gb:header:inline-flex gb:header:items-center gb:header:justify-center gb:header:shrink-0 gb:header:size-[30px] gb:header:border-0 gb:header:rounded-control gb:header:theme-cyber:rounded-none gb:header:bg-transparent gb:header:p-0 gb:header:text-secondary gb:header:cursor-pointer gb:header:leading-none gb:header:hover:bg-hover gb:header:hover:text-ink gb:header:focus-visible:outline-2 gb:header:focus-visible:outline-accent gb:header:focus-visible:outline-offset-2 gb:header:disabled:opacity-50 gb:header:disabled:cursor-default gb:header:pointer-coarse:min-h-11 gb:header:pointer-coarse:min-w-11 gb:header:max-[768px]:hidden" data-chat-action="toggle-fullscreen" aria-label="Enter fullscreen chat" title="Enter fullscreen" aria-pressed="false"><svg class="gb:header:block gb:header:size-4 gb:header:fill-none gb:header:stroke-current gb:header:stroke-2 gb:header:[stroke-linecap:round] gb:header:[stroke-linejoin:round]" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"></path></svg></button> <button type="button" class="chat-close-btn gb:header:inline-flex gb:header:items-center gb:header:justify-center gb:header:shrink-0 gb:header:size-[30px] gb:header:border-0 gb:header:rounded-control gb:header:theme-cyber:rounded-none gb:header:bg-transparent gb:header:p-0 gb:header:text-secondary gb:header:cursor-pointer gb:header:leading-none gb:header:hover:bg-hover gb:header:hover:text-ink gb:header:focus-visible:outline-2 gb:header:focus-visible:outline-accent gb:header:focus-visible:outline-offset-2 gb:header:disabled:opacity-50 gb:header:disabled:cursor-default gb:header:pointer-coarse:min-h-11 gb:header:pointer-coarse:min-w-11" data-chat-action="close-panel" aria-label="Close chat"><svg class="gb:header:block gb:header:size-4 gb:header:fill-none gb:header:stroke-current gb:header:stroke-2 gb:header:[stroke-linecap:round] gb:header:[stroke-linejoin:round]" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18m0-12 12 12"></path></svg></button></div> <div class="gb:header:basis-full gb:header:min-w-0 gb:header:pl-10 gb:header:pointer-coarse:pl-[54px] gb:header:[&amp;[hidden]]:hidden" hidden=""><button type="button" class="chat-context-status gb:header:inline-flex gb:header:items-center gb:header:gap-1.5 gb:header:w-fit gb:header:max-w-full gb:header:px-2 gb:header:py-1 gb:header:border gb:header:rounded-full gb:header:font-body gb:header:text-[11px] gb:header:leading-tight gb:header:cursor-pointer gb:header:overflow-hidden gb:header:focus-visible:outline-2 gb:header:focus-visible:outline-offset-2 gb:header:pointer-coarse:min-h-11 gb:header:[&amp;[hidden]]:hidden gb:header:border-success/45 gb:header:bg-success/12 gb:header:text-success-ink gb:header:hover:border-success gb:header:hover:bg-success/18 gb:header:focus-visible:outline-success" hidden="" data-chat-action="open-chat-context"><span class="chat-context-dot gb:header:size-[7px] gb:header:rounded-full gb:header:shrink-0 gb:header:bg-success" aria-hidden="true"></span> <span class="gb:header:truncate"></span></button></div></div><!----> <div data-chat-personality-view="" class="chat-personality-bar gb:persona:relative gb:persona:z-4 gb:persona:shrink-0 gb:persona:border-b gb:persona:border-line gb:persona:bg-secondary-surface gb:persona:theme-glass:bg-[color-mix(in_srgb,var(--bg-secondary)_84%,transparent)] gb:persona:theme-glass:backdrop-blur-[30px] gb:persona:theme-glass:backdrop-saturate-[160%] "><button type="button" class="chat-personality-current gb:persona:flex gb:persona:w-full gb:persona:min-h-[37px] gb:persona:box-border gb:persona:items-center gb:persona:gap-2 gb:persona:py-2 gb:persona:px-[18px] gb:persona:border-0 gb:persona:bg-transparent gb:persona:text-ink gb:persona:font-[inherit] gb:persona:text-left gb:persona:cursor-pointer gb:persona:hover:bg-hover gb:persona:pointer-coarse:min-h-11 gb:persona:focus-visible:outline-2 gb:persona:focus-visible:outline-accent gb:persona:focus-visible:outline-offset-2" aria-expanded="false" aria-controls="chat-personality-options" data-chat-action="toggle-personality"><span class="chat-personality-current-icon gb:persona:text-sm" aria-hidden="true">🔬</span><span class="chat-personality-current-name gb:persona:text-xs gb:persona:font-mono gb:persona:text-secondary gb:persona:flex-1 gb:persona:min-w-0 gb:persona:truncate">AI Lab Analyst</span><span class="chat-personality-current-arrow gb:persona:text-[10px] gb:persona:text-secondary " aria-hidden="true">▾</span></button> <div class="chat-personality-options gb:persona:absolute gb:persona:top-[calc(100%+8px)] gb:persona:left-2.5 gb:persona:right-2.5 gb:persona:z-8 gb:persona:max-h-[min(420px,calc(100dvh-188px))] gb:persona:overflow-auto gb:persona:overscroll-contain gb:persona:p-2 gb:persona:border gb:persona:border-line gb:persona:rounded-[var(--radius)] gb:persona:bg-select-popup gb:persona:shadow-[0_18px_44px_rgba(0,0,0,.32)] gb:persona:[&amp;[hidden]]:hidden gb:persona:max-[600px]:left-2 gb:persona:max-[600px]:right-2 gb:persona:theme-glass:border-[rgba(255,255,255,.22)] gb:persona:theme-glass:shadow-[0_26px_70px_-26px_rgba(0,0,0,.88),0_0_0_1px_rgba(201,134,255,.16)] gb:persona:theme-glass:backdrop-blur-[28px] gb:persona:theme-glass:backdrop-saturate-[150%] gb:persona:theme-synth:border-[rgba(255,43,214,.46)] gb:persona:theme-synth:shadow-[0_26px_72px_-26px_rgba(0,0,0,.9),0_0_34px_-14px_rgba(255,43,214,.65)] gb:persona:theme-neuro:border-[rgba(0,229,255,.4)] gb:persona:theme-neuro:shadow-[0_28px_72px_-28px_rgba(0,0,0,.92),0_0_36px_-16px_rgba(0,229,255,.62)]" id="chat-personality-options" role="group" aria-label="Chat personality" hidden=""><!--[--><!--[-1--><!--]--><button type="button" class="chat-personality-opt gb:persona:flex gb:persona:items-center gb:persona:gap-2.5 gb:persona:w-full gb:persona:min-h-[46px] gb:persona:py-2 gb:persona:px-2.5 gb:persona:border-0 gb:persona:bg-transparent gb:persona:rounded-control gb:persona:cursor-pointer gb:persona:text-left gb:persona:font-[inherit] gb:persona:hover:bg-hover gb:persona:[&amp;.active]:bg-[rgba(99,102,241,.12)] gb:persona:focus-visible:outline-2 gb:persona:focus-visible:outline-accent gb:persona:focus-visible:outline-offset-2 gb:persona:theme-decorative:bg-[rgba(5,6,12,.36)] gb:persona:theme-decorative:hover:bg-[color-mix(in_srgb,var(--accent)_18%,rgba(5,6,12,.88))] gb:persona:theme-decorative:[&amp;.active]:bg-[color-mix(in_srgb,var(--accent)_24%,rgba(5,6,12,.92))] active " data-personality="default" data-chat-action="set-personality" aria-pressed="true"><span class="chat-personality-opt-icon gb:persona:text-lg gb:persona:shrink-0 gb:persona:w-6 gb:persona:text-center" aria-hidden="true">🔬</span> <span class="chat-personality-opt-info gb:persona:min-w-0 gb:persona:flex-1 gb:persona:flex gb:persona:flex-col gb:persona:gap-px"><span class="chat-personality-opt-name gb:persona:text-[13px] gb:persona:text-ink gb:persona:font-medium gb:persona:break-words">AI Lab Analyst</span><span class="chat-personality-opt-desc gb:persona:text-[11px] gb:persona:text-secondary">Neutral, professional analysis</span></span> <span class="chat-personality-opt-check gb:persona:text-[13px] gb:persona:text-accent gb:persona:shrink-0 " aria-hidden="true">✓</span></button><!----><!--[0--><div class="chat-personality-divider gb:persona:pt-2.5 gb:persona:px-3.5 gb:persona:pb-1.5 gb:persona:mt-2 gb:persona:border-t gb:persona:border-line gb:persona:text-[10px] gb:persona:uppercase gb:persona:tracking-[.8px] gb:persona:text-secondary gb:persona:font-semibold">Fictional Characters</div><!--]--><button type="button" class="chat-personality-opt gb:persona:flex gb:persona:items-center gb:persona:gap-2.5 gb:persona:w-full gb:persona:min-h-[46px] gb:persona:py-2 gb:persona:px-2.5 gb:persona:border-0 gb:persona:bg-transparent gb:persona:rounded-control gb:persona:cursor-pointer gb:persona:text-left gb:persona:font-[inherit] gb:persona:hover:bg-hover gb:persona:[&amp;.active]:bg-[rgba(99,102,241,.12)] gb:persona:focus-visible:outline-2 gb:persona:focus-visible:outline-accent gb:persona:focus-visible:outline-offset-2 gb:persona:theme-decorative:bg-[rgba(5,6,12,.36)] gb:persona:theme-decorative:hover:bg-[color-mix(in_srgb,var(--accent)_18%,rgba(5,6,12,.88))] gb:persona:theme-decorative:[&amp;.active]:bg-[color-mix(in_srgb,var(--accent)_24%,rgba(5,6,12,.92))]  " data-personality="house" data-chat-action="set-personality" aria-pressed="false"><span class="chat-personality-opt-icon gb:persona:text-lg gb:persona:shrink-0 gb:persona:w-6 gb:persona:text-center" aria-hidden="true">🦯</span> <span class="chat-personality-opt-info gb:persona:min-w-0 gb:persona:flex-1 gb:persona:flex gb:persona:flex-col gb:persona:gap-px"><span class="chat-personality-opt-name gb:persona:text-[13px] gb:persona:text-ink gb:persona:font-medium gb:persona:break-words">Dr. Gregory House</span><span class="chat-personality-opt-desc gb:persona:text-[11px] gb:persona:text-secondary">Sarcastic, brilliant, blunt</span></span> <span class="chat-personality-opt-check gb:persona:text-[13px] gb:persona:text-accent gb:persona:shrink-0 gb:persona:opacity-0" aria-hidden="true">✓</span></button><!----><!--]--> <div id="chat-personality-custom-section"><div class="chat-personality-divider gb:persona:pt-2.5 gb:persona:px-3.5 gb:persona:pb-1.5 gb:persona:mt-2 gb:persona:border-t gb:persona:border-line gb:persona:text-[10px] gb:persona:uppercase gb:persona:tracking-[.8px] gb:persona:text-secondary gb:persona:font-semibold">Custom</div> <!--[--><!--]--> <button type="button" class="chat-personality-add-btn gb:persona:flex gb:persona:items-center gb:persona:justify-center gb:persona:w-full gb:persona:min-h-11 gb:persona:py-2 gb:persona:px-2.5 gb:persona:border gb:persona:border-dashed gb:persona:border-line gb:persona:bg-transparent gb:persona:rounded-control gb:persona:cursor-pointer gb:persona:font-[inherit] gb:persona:text-xs gb:persona:text-secondary gb:persona:mt-1 gb:persona:hover:border-accent gb:persona:hover:text-accent gb:persona:hover:bg-hover gb:persona:focus-visible:outline-2 gb:persona:focus-visible:outline-accent gb:persona:focus-visible:outline-offset-2 gb:persona:theme-decorative:bg-[rgba(5,6,12,.36)] gb:persona:theme-decorative:hover:bg-[color-mix(in_srgb,var(--accent)_18%,rgba(5,6,12,.88))] gb:persona:theme-decorative:[&amp;.active]:bg-[color-mix(in_srgb,var(--accent)_24%,rgba(5,6,12,.92))]" data-chat-personality-action="start-new-custom">+ New Personality</button></div></div></div><!----> <div class="chat-messages" id="chat-messages" role="log" aria-live="off" aria-busy="false" aria-label="Conversation"></div> <span class="sr-only" id="chat-stream-status" role="status" aria-live="polite" aria-atomic="true"></span> <div class="chat-scroll-control"><button type="button" class="chat-jump-latest" id="chat-jump-latest" aria-label="Jump to latest message" hidden=""><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg> <span class="chat-jump-latest-label">Jump to latest</span></button></div> <div data-chat-composer-view="" data-chat-attachment-view="" data-chat-voice-view="" data-chat-discussion-view="" class="chat-input-area gb:composer:min-w-0 gb:composer:flex gb:composer:flex-col gb:composer:gap-2 gb:composer:shrink-0 gb:composer:p-3.5 gb:composer:bg-secondary-surface gb:composer:[.chat-onboarding-active_&amp;]:hidden gb:composer:[.chat-panel-fullscreen_&amp;]:px-[clamp(16px,2.5vw,48px)]"><!--[-1--><!--]--> <!--[-1--><!--]--><!----> <div class="chat-attach-preview gb:attachment:flex gb:attachment:flex-wrap gb:attachment:items-center gb:attachment:gap-2 gb:attachment:pt-2 gb:attachment:pb-1 gb:attachment:[&amp;[hidden]]:hidden gb:attachment:[.chat-message-edit-active_&amp;]:opacity-45 gb:attachment:[.chat-message-edit-active_&amp;]:pointer-events-none" id="chat-attach-preview" hidden=""><!--[--><!--]--> <!--[-1--><!--]--></div><!----> <div class="chat-input-row gb:composer:relative gb:composer:flex gb:composer:flex-col gb:composer:items-stretch gb:composer:gap-2 gb:composer:min-w-0 gb:composer:p-[5px] gb:composer:border gb:composer:border-line gb:composer:rounded-2xl gb:composer:bg-[var(--bg-primary)] gb:composer:shadow-[0_10px_28px_rgba(0,0,0,.12)] gb:composer:transition-[border-color,box-shadow] gb:composer:focus-within:border-accent gb:composer:focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--accent)_14%,transparent),0_12px_32px_rgba(0,0,0,.16)]"><textarea class="chat-input gb:composer:block gb:composer:w-full gb:composer:min-h-12 gb:composer:box-border gb:composer:pt-2.5 gb:composer:px-[11px] gb:composer:pb-1 gb:composer:border-0 gb:composer:rounded-control gb:composer:bg-[var(--bg-primary)] gb:composer:text-ink gb:composer:text-sm gb:composer:font-[inherit] gb:composer:resize-none gb:composer:leading-normal gb:composer:[--chat-input-max-height:240px] gb:composer:max-h-[var(--chat-input-max-height)] gb:composer:overflow-y-hidden gb:composer:[&amp;.is-scrollable]:overflow-y-auto gb:composer:focus:outline-none gb:composer:focus:shadow-none gb:composer:placeholder:text-muted gb:composer:max-[768px]:text-base gb:composer:max-[480px]:[--chat-input-max-height:180px] gb:composer:[.chat-message-edit-active_&amp;]:opacity-45 gb:composer:[.chat-message-edit-active_&amp;]:pointer-events-none" id="chat-input" placeholder="Ask about your lab results..." aria-label="Chat message" rows="1" enterkeyhint="send" autocapitalize="sentences" data-chat-key-action="message-input"></textarea> <div class="chat-composer-toolbar gb:composer:flex gb:composer:items-center gb:composer:justify-between gb:composer:gap-2 gb:composer:min-w-0 gb:composer:px-0.5 gb:composer:pb-0.5 gb:composer:[.chat-message-edit-active_&amp;]:opacity-45 gb:composer:[.chat-message-edit-active_&amp;]:pointer-events-none"><div class="chat-composer-tools gb:composer:flex gb:composer:items-center gb:composer:gap-2" aria-label="Message tools"><details class="chat-context-menu gb:attachment:relative" id="chat-context-menu"><summary class="chat-context-menu-toggle gb:composer:w-9 gb:composer:h-9 gb:composer:rounded-control gb:composer:border gb:composer:border-line gb:composer:bg-surface gb:composer:text-muted gb:composer:cursor-pointer gb:composer:flex gb:composer:items-center gb:composer:justify-center gb:composer:shrink-0 gb:composer:p-0 gb:composer:transition-colors gb:composer:hover:border-accent gb:composer:hover:text-accent gb:composer:hover:bg-hover gb:composer:pointer-coarse:size-11 gb:composer:focus-visible:outline-2 gb:composer:focus-visible:outline-accent gb:composer:focus-visible:outline-offset-2 gb:composer:[&amp;_svg]:size-[17px] gb:composer:[&amp;_svg]:fill-none gb:composer:[&amp;_svg]:stroke-current gb:composer:[&amp;_svg]:stroke-2 gb:composer:[&amp;_svg]:[stroke-linecap:round] gb:composer:[&amp;_svg]:[stroke-linejoin:round] gb:attachment:list-none gb:attachment:[&amp;::-webkit-details-marker]:hidden" id="chat-attach-btn" aria-label="Add to message" title="Add to message" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></summary> <div class="chat-context-menu-popover gb:attachment:absolute gb:attachment:left-0 gb:attachment:bottom-[calc(100%+9px)] gb:attachment:z-[28] gb:attachment:w-[min(320px,calc(100vw-40px))] gb:attachment:p-[7px] gb:attachment:border gb:attachment:border-line gb:attachment:rounded-xl gb:attachment:bg-select-popup gb:attachment:shadow-[0_18px_46px_rgba(0,0,0,.28)]" role="group" aria-label="Add to message" data-chat-owned-attachment-actions=""><button type="button" id="chat-add-photo-action" class="gb:attachment:w-full gb:attachment:grid gb:attachment:grid-cols-[36px_minmax(0,1fr)] gb:attachment:gap-[9px] gb:attachment:items-center gb:attachment:p-[9px] gb:attachment:border-0 gb:attachment:rounded-control gb:attachment:bg-transparent gb:attachment:text-ink gb:attachment:font-[inherit] gb:attachment:text-left gb:attachment:cursor-pointer gb:attachment:hover:bg-hover gb:attachment:focus-visible:outline-2 gb:attachment:focus-visible:outline-accent gb:attachment:focus-visible:-outline-offset-2 gb:attachment:[&amp;[hidden]]:hidden" hidden="" data-chat-action="attach-image"><span class="chat-context-menu-icon gb:attachment:size-[34px] gb:attachment:inline-flex gb:attachment:items-center gb:attachment:justify-center gb:attachment:border gb:attachment:border-line gb:attachment:rounded-control gb:attachment:text-secondary gb:attachment:bg-secondary-surface gb:attachment:[&amp;_svg]:size-[17px] gb:attachment:[&amp;_svg]:fill-none gb:attachment:[&amp;_svg]:stroke-current gb:attachment:[&amp;_svg]:[stroke-width:1.8] gb:attachment:[&amp;_svg]:[stroke-linecap:round] gb:attachment:[&amp;_svg]:[stroke-linejoin:round]"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><circle cx="8.5" cy="9" r="1.5"></circle><path d="m21 15-5-5L5 20"></path></svg></span><span><strong class="gb:attachment:block gb:attachment:text-xs gb:attachment:font-semibold">Add photos</strong></span></button> <button type="button" class="gb:attachment:w-full gb:attachment:grid gb:attachment:grid-cols-[36px_minmax(0,1fr)] gb:attachment:gap-[9px] gb:attachment:items-center gb:attachment:p-[9px] gb:attachment:border-0 gb:attachment:rounded-control gb:attachment:bg-transparent gb:attachment:text-ink gb:attachment:font-[inherit] gb:attachment:text-left gb:attachment:cursor-pointer gb:attachment:hover:bg-hover gb:attachment:focus-visible:outline-2 gb:attachment:focus-visible:outline-accent gb:attachment:focus-visible:-outline-offset-2 gb:attachment:[&amp;[hidden]]:hidden" data-chat-action="import-health-file"><span class="chat-context-menu-icon gb:attachment:size-[34px] gb:attachment:inline-flex gb:attachment:items-center gb:attachment:justify-center gb:attachment:border gb:attachment:border-line gb:attachment:rounded-control gb:attachment:text-secondary gb:attachment:bg-secondary-surface gb:attachment:[&amp;_svg]:size-[17px] gb:attachment:[&amp;_svg]:fill-none gb:attachment:[&amp;_svg]:stroke-current gb:attachment:[&amp;_svg]:[stroke-width:1.8] gb:attachment:[&amp;_svg]:[stroke-linecap:round] gb:attachment:[&amp;_svg]:[stroke-linejoin:round]"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16h16V8z"></path><path d="M14 2v6h6M8 13h8M8 17h5"></path></svg></span><span><strong class="gb:attachment:block gb:attachment:text-xs gb:attachment:font-semibold">Import health file</strong><small class="gb:attachment:block gb:attachment:mt-0.5 gb:attachment:text-secondary gb:attachment:text-[10px] gb:attachment:leading-[1.35]">PDF, spreadsheet, JSON, or export</small></span></button> <button type="button" class="gb:attachment:w-full gb:attachment:grid gb:attachment:grid-cols-[36px_minmax(0,1fr)] gb:attachment:gap-[9px] gb:attachment:items-center gb:attachment:p-[9px] gb:attachment:border-0 gb:attachment:rounded-control gb:attachment:bg-transparent gb:attachment:text-ink gb:attachment:font-[inherit] gb:attachment:text-left gb:attachment:cursor-pointer gb:attachment:hover:bg-hover gb:attachment:focus-visible:outline-2 gb:attachment:focus-visible:outline-accent gb:attachment:focus-visible:-outline-offset-2 gb:attachment:[&amp;[hidden]]:hidden" data-chat-action="open-chat-context"><span class="chat-context-menu-icon gb:attachment:size-[34px] gb:attachment:inline-flex gb:attachment:items-center gb:attachment:justify-center gb:attachment:border gb:attachment:border-line gb:attachment:rounded-control gb:attachment:text-secondary gb:attachment:bg-secondary-surface gb:attachment:[&amp;_svg]:size-[17px] gb:attachment:[&amp;_svg]:fill-none gb:attachment:[&amp;_svg]:stroke-current gb:attachment:[&amp;_svg]:[stroke-width:1.8] gb:attachment:[&amp;_svg]:[stroke-linecap:round] gb:attachment:[&amp;_svg]:[stroke-linejoin:round]"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M7 12h10M10 19h4"></path><circle cx="8" cy="5" r="2"></circle><circle cx="15" cy="12" r="2"></circle><circle cx="12" cy="19" r="2"></circle></svg></span><span><strong class="gb:attachment:block gb:attachment:text-xs gb:attachment:font-semibold">Manage AI context</strong><small class="gb:attachment:block gb:attachment:mt-0.5 gb:attachment:text-secondary gb:attachment:text-[10px] gb:attachment:leading-[1.35]">Choose which profile data can be used</small></span></button></div></details> <input type="file" id="chat-image-input" class="gb:attachment:hidden" aria-label="Attach photos" accept="image/jpeg,image/png,image/gif,image/webp" multiple=""/> <input type="file" id="chat-file-input" class="gb:attachment:hidden" aria-label="Choose a chat attachment or health file" accept=".pdf,.json,.cluedata,.txt,.csv,.xlsx,.xml,.zip,.jpg,.jpeg,.png,.gif,.webp,application/xml,text/xml,application/zip,image/jpeg,image/png,image/gif,image/webp" multiple=""/><!----></div> <div class="chat-composer-actions gb:composer:flex-1 gb:composer:min-w-0 gb:composer:justify-end gb:composer:shrink gb:composer:flex gb:composer:items-center gb:composer:gap-2"><button type="button" class="chat-discuss-btn gb:composer:w-9 gb:composer:h-9 gb:composer:rounded-control gb:composer:border gb:composer:border-line gb:composer:bg-surface gb:composer:text-muted gb:composer:cursor-pointer gb:composer:flex gb:composer:items-center gb:composer:justify-center gb:composer:shrink-0 gb:composer:p-0 gb:composer:transition-colors gb:composer:hover:border-accent gb:composer:hover:text-accent gb:composer:hover:bg-hover gb:composer:pointer-coarse:size-11 gb:composer:focus-visible:outline-2 gb:composer:focus-visible:outline-accent gb:composer:focus-visible:outline-offset-2 gb:composer:[&amp;_svg]:size-[17px] gb:composer:[&amp;_svg]:fill-none gb:composer:[&amp;_svg]:stroke-current gb:composer:[&amp;_svg]:stroke-2 gb:composer:[&amp;_svg]:[stroke-linecap:round] gb:composer:[&amp;_svg]:[stroke-linejoin:round]" id="chat-discuss-btn" data-chat-action="start-discussion" aria-label="Start a discussion" title="Start a discussion" style="display: none; opacity: 0.5;"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"></path></svg></button> <details data-chat-model-picker-view="" class="chat-model-menu gb:model-picker:relative gb:model-picker:min-w-0 gb:model-picker:max-[768px]:static" id="chat-model-menu"><summary class="chat-model-menu-toggle gb:model-picker:list-none gb:model-picker:[&amp;::-webkit-details-marker]:hidden gb:model-picker:h-9 gb:model-picker:max-w-[190px] gb:model-picker:min-w-28 gb:model-picker:max-[480px]:min-w-11 gb:model-picker:max-[480px]:max-w-[126px] gb:model-picker:flex gb:model-picker:items-center gb:model-picker:gap-[5px] gb:model-picker:pl-[11px] gb:model-picker:pr-[9px] gb:model-picker:border gb:model-picker:border-line gb:model-picker:rounded-control gb:model-picker:bg-surface gb:model-picker:text-secondary gb:model-picker:cursor-pointer gb:model-picker:text-[11px] gb:model-picker:leading-none gb:model-picker:transition-colors gb:model-picker:duration-150 gb:model-picker:hover:border-accent gb:model-picker:hover:text-ink gb:model-picker:hover:bg-hover gb:model-picker:pointer-coarse:h-11 gb:model-picker:focus-visible:outline-2 gb:model-picker:focus-visible:outline-accent gb:model-picker:focus-visible:outline-offset-2" id="chat-model-menu-toggle" aria-label="Choose model and reasoning effort" title="Choose model and reasoning effort"><span class="chat-model-menu-label gb:model-picker:min-w-0 gb:model-picker:truncate" id="chat-model-menu-label">Select model</span> <svg class="gb:model-picker:size-3.5 gb:model-picker:fill-none gb:model-picker:stroke-current gb:model-picker:stroke-2 gb:model-picker:[stroke-linecap:round] gb:model-picker:[stroke-linejoin:round] gb:model-picker:shrink-0 gb:model-picker:[details[open]_&amp;]:rotate-180" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"></path></svg></summary> <div class="chat-model-menu-popover gb:model-picker:absolute gb:model-picker:right-0 gb:model-picker:bottom-[calc(100%+9px)] gb:model-picker:z-[29] gb:model-picker:flex gb:model-picker:flex-col gb:model-picker:w-[min(330px,calc(100vw-32px))] gb:model-picker:overflow-y-auto gb:model-picker:border gb:model-picker:border-line gb:model-picker:rounded-[13px] gb:model-picker:bg-select-popup gb:model-picker:shadow-[0_18px_46px_rgba(0,0,0,.32)] gb:model-picker:max-[768px]:bottom-[58px] gb:model-picker:max-h-[calc(100dvh-var(--chat-visual-viewport-top,0px)-var(--chat-visual-viewport-bottom,0px)-160px)]" id="chat-model-menu-popover" aria-live="polite"><div class="chat-model-menu-head gb:model-picker:shrink-0 gb:model-picker:pt-[11px] gb:model-picker:px-3 gb:model-picker:pb-[9px] gb:model-picker:border-b gb:model-picker:border-line gb:model-picker:[&amp;_span]:block gb:model-picker:[&amp;_span]:truncate gb:model-picker:[&amp;_span]:text-[9px] gb:model-picker:[&amp;_span]:font-[650] gb:model-picker:[&amp;_span]:tracking-[.07em] gb:model-picker:[&amp;_span]:uppercase gb:model-picker:[&amp;_span]:text-secondary gb:model-picker:[&amp;_strong]:block gb:model-picker:[&amp;_strong]:truncate gb:model-picker:[&amp;_strong]:mt-1 gb:model-picker:[&amp;_strong]:text-ink gb:model-picker:[&amp;_strong]:text-xs gb:model-picker:[&amp;_strong]:font-semibold"><span></span><strong></strong></div> <!--[-1--><div class="chat-model-effort-unavailable gb:model-picker:shrink-0 gb:model-picker:py-[9px] gb:model-picker:px-3 gb:model-picker:border-b gb:model-picker:border-line gb:model-picker:text-secondary gb:model-picker:text-[9.5px] gb:model-picker:leading-[1.4]">This model does not expose a separate reasoning control.</div><!--]--> <!--[-1--><!--]--> <div class="chat-model-options gb:model-picker:min-h-11 gb:model-picker:max-h-[min(300px,45dvh)] gb:model-picker:overflow-y-auto gb:model-picker:overscroll-contain gb:model-picker:py-[5px] gb:model-picker:px-[7px]" id="chat-model-options" role="listbox" aria-label="Models"><!--[!--><div class="chat-model-empty gb:model-picker:py-[18px] gb:model-picker:px-2.5 gb:model-picker:text-secondary gb:model-picker:text-[11px] gb:model-picker:text-center">No model catalog is available yet.</div><!--]--></div> <button type="button" class="chat-model-refresh gb:model-picker:shrink-0 gb:model-picker:w-full gb:model-picker:min-h-9 gb:model-picker:flex gb:model-picker:items-center gb:model-picker:gap-[7px] gb:model-picker:py-[7px] gb:model-picker:px-3 gb:model-picker:border-0 gb:model-picker:border-t gb:model-picker:border-line gb:model-picker:bg-transparent gb:model-picker:text-secondary gb:model-picker:font-[inherit] gb:model-picker:text-[10px] gb:model-picker:cursor-pointer gb:model-picker:hover:text-ink gb:model-picker:hover:bg-hover gb:model-picker:disabled:cursor-progress gb:model-picker:disabled:opacity-65 gb:model-picker:pointer-coarse:min-h-11 gb:model-picker:focus-visible:outline-2 gb:model-picker:focus-visible:outline-accent gb:model-picker:focus-visible:outline-offset-2" data-chat-model-refresh=""><svg class="gb:model-picker:size-3.5 gb:model-picker:fill-none gb:model-picker:stroke-current gb:model-picker:stroke-2 gb:model-picker:[stroke-linecap:round] gb:model-picker:[stroke-linejoin:round]" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"></path></svg>Refresh models</button></div></details><!----> <button type="button" id="chat-voice-btn" data-chat-action="toggle-voice-recording" data-chat-owned-voice="" class="chat-voice-btn gb:composer:w-9 gb:composer:h-9 gb:composer:rounded-control gb:composer:border gb:composer:border-line gb:composer:bg-surface gb:composer:text-muted gb:composer:cursor-pointer gb:composer:flex gb:composer:items-center gb:composer:justify-center gb:composer:shrink-0 gb:composer:p-0 gb:composer:transition-colors gb:composer:hover:border-accent gb:composer:hover:text-accent gb:composer:hover:bg-hover gb:composer:pointer-coarse:size-11 gb:composer:focus-visible:outline-2 gb:composer:focus-visible:outline-accent gb:composer:focus-visible:outline-offset-2 gb:composer:[&amp;_svg]:size-[17px] gb:composer:[&amp;_svg]:fill-none gb:composer:[&amp;_svg]:stroke-current gb:composer:[&amp;_svg]:stroke-2 gb:composer:[&amp;_svg]:[stroke-linecap:round] gb:composer:[&amp;_svg]:[stroke-linejoin:round] gb:composer:disabled:opacity-50 gb:composer:disabled:cursor-not-allowed gb:composer:[&amp;.recording]:border-danger gb:composer:[&amp;.recording]:text-danger-ink gb:composer:[&amp;.recording]:bg-[color-mix(in_srgb,var(--red)_14%,var(--bg-card))] gb:composer:[&amp;.recording]:motion-safe:animate-pulse gb:composer:[&amp;.busy]:opacity-70" aria-label="Speak message" aria-pressed="false" title="Speak message"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3M8 22h8"></path></svg></button><!----> <button type="button" class="chat-send-btn gb:composer:w-11 gb:composer:h-10 gb:composer:rounded-control gb:composer:border-0 gb:composer:bg-[image:var(--accent-gradient)] gb:composer:text-on-accent gb:composer:cursor-pointer gb:composer:font-[inherit] gb:composer:flex gb:composer:items-center gb:composer:justify-center gb:composer:shrink-0 gb:composer:transition-[transform,box-shadow] gb:composer:hover:-translate-y-px gb:composer:hover:shadow-[0_8px_18px_-10px_color-mix(in_srgb,var(--accent)_70%,transparent)] gb:composer:disabled:opacity-50 gb:composer:disabled:cursor-not-allowed gb:composer:disabled:transform-none gb:composer:disabled:shadow-none gb:composer:[&amp;.streaming]:bg-none gb:composer:[&amp;.streaming]:bg-danger gb:composer:[&amp;.streaming]:text-on-danger gb:composer:pointer-coarse:min-h-11 gb:composer:focus-visible:outline-2 gb:composer:focus-visible:outline-accent gb:composer:focus-visible:outline-offset-2 gb:composer:[&amp;_svg]:size-[17px] gb:composer:[&amp;_svg]:fill-none gb:composer:[&amp;_svg]:stroke-current gb:composer:[&amp;_svg]:stroke-2 gb:composer:[&amp;_svg]:[stroke-linecap:round] gb:composer:[&amp;_svg]:[stroke-linejoin:round] gb:composer:[&amp;_svg]:size-[18px]" id="chat-send-btn" data-chat-action="send-message" aria-label="Send message" title="Send message" disabled=""><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"></path><path d="M22 2 11 13"></path></svg></button></div></div></div> <div id="chat-voice-status" class="chat-voice-status gb:composer:min-h-3.5 gb:composer:font-mono gb:composer:text-[9.5px] gb:composer:leading-[1.4] gb:composer:text-secondary gb:composer:[&amp;amp;.error]:text-danger-ink gb:composer:[&amp;amp;[hidden]]:hidden" role="status" aria-live="polite" hidden=""></div><!----></div><!----> <div class="chat-drop-overlay gb:attachment:absolute gb:attachment:inset-[64px_10px_10px] gb:attachment:z-30 gb:attachment:flex gb:attachment:flex-col gb:attachment:items-center gb:attachment:justify-center gb:attachment:gap-2 gb:attachment:p-6 gb:attachment:border-2 gb:attachment:border-dashed gb:attachment:border-accent gb:attachment:rounded-[14px] gb:attachment:bg-[color-mix(in_srgb,var(--bg-card)_92%,var(--accent))] gb:attachment:text-ink gb:attachment:text-center gb:attachment:pointer-events-none gb:attachment:shadow-dialog gb:attachment:[&amp;[hidden]]:hidden" id="chat-drop-overlay" aria-hidden="true" hidden=""><strong class="gb:attachment:text-base">Drop files here</strong> <span class="gb:attachment:max-w-[340px] gb:attachment:text-secondary gb:attachment:text-[13px] gb:attachment:leading-[1.45]">Images attach to your message. Reports and health-data files open import review.</span></div></div></div></div><!--]--></div>
+  <!-- CHAT_SVELTE_SHELL_END -->
+
+  <input type="file" id="pdf-input" aria-label="Import PDF or data file" accept=".pdf,.json,.cluedata,.txt,.csv,.xlsx,.xml,.zip,.jpg,.jpeg,.png,.webp,application/xml,text/xml,application/zip" style="display:none" multiple>
+  <div class="notification-container" id="notification-container" aria-live="polite" role="status"></div>
+
+  <script src="version.js" defer></script>
+  <script type="module" src="js/service-worker-update.js"></script>
+  <!-- PRODUCTION_MAIN_SCRIPT_START -->
+  <script type="module" src="js/main.js"></script>
+  <!-- PRODUCTION_MAIN_SCRIPT_END -->
+  <script src="js/analytics-bootstrap.js"></script>
+</body>
+</html>

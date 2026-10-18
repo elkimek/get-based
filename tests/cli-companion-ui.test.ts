@@ -192,13 +192,24 @@ describe('CLI companion setup UI', () => {
     cliSettingsFixture([{ id:'codex',compatible:true,status:'available',endpoint:'http://127.0.0.1:8325',capabilities:['companion-control','companion-restart','companion-management-embedded'] }]);
     const frame = document.querySelector('iframe')!;
     const event = { data: { type: 'getbased-companion-panel-size', height: 340 }, origin: 'http://127.0.0.1:8325', source: frame.contentWindow };
+    const postMessage = vi.spyOn(frame.contentWindow!, 'postMessage');
+    for (const origin of ['https://attacker.example', 'null', '', 'http://127.0.0.1:8324', 'http://127.0.0.1:8325.attacker.example']) {
+      window.dispatchEvent(new MessageEvent('message', { ...event, origin }));
+    }
+    expect(postMessage).not.toHaveBeenCalled();
     resizeCLICompanionPanel({ ...event, origin: 'https://attacker.example' });
     resizeCLICompanionPanel({ ...event, source: window });
     expect(frame.style.height).toBe('');
-    resizeCLICompanionPanel(event);
+    window.dispatchEvent(new MessageEvent('message', event));
     expect(frame.style.height).toBe('340px');
+    expect(postMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'getbased-companion-panel-theme' }), event.origin);
     resizeCLICompanionPanel({ ...event, data: { ...event.data, height: 100000 } });
     expect(frame.style.height).toBe('800px');
+    postMessage.mockClear();
+    disposeCliAgentSettings();
+    window.dispatchEvent(new MessageEvent('message', event));
+    expect(postMessage).not.toHaveBeenCalled();
+    postMessage.mockRestore();
   });
 
   it('shows a stopped companion state without attempting to load models', async () => {

@@ -32,12 +32,17 @@ test('shared Kit Chat shell retains composer identity, geometry and device-local
   });
   const server = await startKitServer(artifact);
   try {
+    // Desktop returning-user startup deliberately opens guided Chat. Exercise
+    // first offline construction from the genuine compact welcome instead.
+    const requestedViewport = page.viewportSize();
+    if (requestedViewport && requestedViewport.width > 768) await page.setViewportSize({ width: 700, height: requestedViewport.height });
     await page.goto(server.origin+'/app?dev-sw=1'); await ready(page);
     await expect(page.locator('#kit-root #chat-shell')).toHaveCount(1);
     await expect(page.locator('#chat-shell-host')).toHaveCount(0);
     await expect(page.locator('#chat-panel')).toHaveCount(1);
     expect(await page.locator('link[data-chat-presentation-stylesheet]').count()).toBe(0);
     await openChat(page); await expect(page.locator('#chat-messages')).toContainText('Stored answer');
+    if (requestedViewport) await page.setViewportSize(requestedViewport);
     const input = page.locator('#chat-input');
     await input.fill('Private composer draft retained offline. '.repeat(20));
     await expect(page.locator('#chat-send-btn')).toBeEnabled();

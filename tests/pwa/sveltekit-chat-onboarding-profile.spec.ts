@@ -27,11 +27,16 @@ test('static profile onboarding saves on offline first use and retains profile f
   });
   const server = await startKitServer(artifact);
   try {
+    // Desktop returning-user startup deliberately opens guided Chat. Exercise
+    // first offline construction from the genuine compact welcome instead.
+    const requestedViewport = page.viewportSize();
+    if (requestedViewport && requestedViewport.width > 768) await page.setViewportSize({ width: 700, height: requestedViewport.height });
     await page.goto(server.origin + '/app?dev-sw=1'); await ready(page);
     expect(await page.locator('[data-chat-profile-setup-view]').count()).toBe(0);
     server.state.offline = true;
     await page.getByRole('button', { name: 'Start guided chat', exact: true }).click();
     await expect(page.locator('[data-chat-profile-setup-view]')).toBeVisible();
+    if (requestedViewport) await page.setViewportSize(requestedViewport);
     await page.locator('#chat-onboard-dob').fill('1990-01-02');
     await page.locator('#chat-onboard-name').fill('Ada <literal>');
     await page.getByRole('button', { name: 'Female', exact: true }).click();

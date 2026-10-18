@@ -21,15 +21,13 @@ for(const [lane,compile,count,declarations]of lanes){
   expect(result.receivers.filter(receiver=>receiver.utility.startsWith('dashboard-native-'))).toHaveLength(count);
   const tree=postcss.parse(input);let ordinary=0;tree.walkRules(rule=>{let p=rule.parent;while(p&&p.type!=='root'){if(p.type==='atrule'&&(p.name==='utility'||p.name.endsWith('keyframes')))return;p=p.parent;}ordinary+=rule.nodes.filter(node=>node.type==='decl').length;});expect(ordinary).toBe(0);
  });
- it('rejects mutation of each '+lane+' newly owned recipe against the independent complete native stylesheet',async()=>{
-  for(const receiver of record.records){
+ it.each(record.records)('rejects '+lane+' recipe $utility mutation against the independent complete native stylesheet',async(receiver)=>{
    const marker='@utility '+receiver.utility+' {';expect(input.split(marker)).toHaveLength(2);
    const tree=postcss.parse(input),utilities:postcss.AtRule[]=[];tree.walkAtRules('utility',node=>{if(node.params===receiver.utility)utilities.push(node);});
    expect(utilities).toHaveLength(1);const declaration=utilities[0]!.nodes?.find(node=>node.type==='decl');
    expect(declaration?.type).toBe('decl');if(declaration?.type!=='decl')throw new Error('Native declaration required');
    declaration.value+='__changed';const changed=tree.toString();expect(changed).not.toBe(input);
    await expect(exact(changed)).rejects.toThrow();
-  }
  });
  for(const [label,change] of [
   ['missing recipe',(source:string)=>source.replace('@utility '+record.records[0]!.utility+' {','@utility unknown {')],

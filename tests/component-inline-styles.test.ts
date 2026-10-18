@@ -32,6 +32,14 @@ const customMarkerHandoffFixed = `  } else if (action === 'open-custom-marker') 
     openCreateMarkerFromNavRuntime();
   } else if (action === 'toggle-group') {`;
 function restoreReviewedComponentSource(file:string,source:string){
+ if(file==='js/components/AppShell.svelte'){
+  // The reviewed runes-mode repair is independent of the earlier style port.
+  // Require all current bytes before restoring that one compiler option.
+  expect(crypto.createHash('sha256').update(source).digest('hex')).toBe('a3358b27235c89fe2a53e2b6fcea4ac901e3b22c19069d50e8d329c0c74b2b85');
+  const current='<svelte:options runes={true} preserveWhitespace={true} />';
+  expect(source.split(current)).toHaveLength(2);
+  source=source.replace(current,'<svelte:options preserveWhitespace={true} />');
+ }
  if(file==='js/nav.ts'){
   // Qualify the real mobile handoff repair separately from the immutable
   // style-port proof, then retain its original complete-source SHA checks.
@@ -124,4 +132,10 @@ it.each(['missing close','different action','reordered close'] as const)('reject
  const changed=source.replace(customMarkerHandoffFixed,corrupted);
  expect(changed).not.toBe(source);
  expect(()=>restoreReviewedComponentSource(file,changed)).toThrow();
+});
+
+it.each(['compiler mode','foreign bytes'] as const)('rejects a corrupted current AppShell before its immutable style proof: %s',mutation=>{
+ const file='js/components/AppShell.svelte',source=readFileSync(file,'utf8');
+ const changed=mutation==='compiler mode'?source.replace('runes={true}','runes={false}'):source+'\n<!-- foreign -->';
+ expect(changed).not.toBe(source);expect(()=>restoreReviewedComponentSource(file,changed)).toThrow();
 });

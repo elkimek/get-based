@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import {constants as fsConstants} from 'node:fs';
 import path from 'node:path';
 import { brotliCompressSync, constants, gzipSync } from 'node:zlib';
 import { parseAppShellEntries } from './app-shell-budget.mjs';
@@ -94,6 +95,31 @@ function assetRelativePath(url: string): string {
   return relative;
 }
 
+/** Pin each read to one regular file descriptor and reject replaced path identities. */
+async function readArtifactResource(root: string, relative: string, url: string): Promise<Buffer> {
+  const target = path.join(root, relative);
+  let handle: Awaited<ReturnType<typeof fs.open>>;
+  try {
+    handle = await fs.open(target, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW | fsConstants.O_NONBLOCK);
+  } catch (cause) {
+    throw new Error(`SvelteKit precache resource escapes artifact or is missing/non-regular: ${url}`, {cause});
+  }
+  try {
+    const opened = await handle.stat();
+    const file = await fs.realpath(target);
+    if (!file.startsWith(root + path.sep) || file !== target || !opened.isFile()) {
+      throw new Error(`SvelteKit precache resource escapes artifact or is not a file: ${url}`);
+    }
+    const located = await fs.stat(file);
+    if (opened.dev !== located.dev || opened.ino !== located.ino) {
+      throw new Error(`SvelteKit precache resource changed during measurement: ${url}`);
+    }
+    return await handle.readFile();
+  } finally {
+    await handle.close();
+  }
+}
+
 /** Measure exact decoded Cache.put bodies; distinct document URLs each count. */
 export async function measureSvelteKitResources({
   serviceWorkerSource,
@@ -110,13 +136,7 @@ export async function measureSvelteKitResources({
   const bodies = new Map<string, Buffer>();
   for (const url of urls) {
     const relative = assetRelativePath(url);
-    const file = await fs.realpath(path.join(root, relative)).catch(error => {
-      throw new Error(`Missing SvelteKit precache resource: ${url}`, { cause: error });
-    });
-    if (!file.startsWith(root + path.sep) || !(await fs.stat(file)).isFile()) {
-      throw new Error(`SvelteKit precache resource escapes artifact or is not a file: ${url}`);
-    }
-    bodies.set(url, await fs.readFile(file));
+    bodies.set(url, await readArtifactResource(root, relative, url));
   }
   const uniqueJavaScript = new Set(generatedJavaScriptUrls);
   if (uniqueJavaScript.size !== generatedJavaScriptUrls.length) throw new Error('Duplicate generated JavaScript resource URL');

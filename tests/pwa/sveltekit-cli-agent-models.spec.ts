@@ -3,7 +3,12 @@ import { expect, test, type Page } from '@playwright/test';
 import { startKitServer } from './kit-server.js';
 const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
 async function ready(page: Page) { await expect(page.locator('html[data-app-ready][data-shell-framework="sveltekit"]')).toBeAttached({ timeout:30_000 }); await page.evaluate(() => navigator.serviceWorker.ready.then(() => true)); await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true); }
-async function settings(page: Page) { await page.locator('[data-shell-action="open-settings"]').click(); }
+async function settings(page: Page) {
+  await expect(page.locator('body')).not.toHaveClass(/\bchat-autostart-reserved\b/, { timeout: 30_000 });
+  const closeChat = page.getByRole('button', { name: 'Close chat', exact: true });
+  if (await closeChat.isVisible()) await closeChat.click();
+  await page.locator('[data-shell-action="open-settings"]').click();
+}
 test('static CLI model and reasoning choices remain isolated by execution target through encrypted cached cold launch', async ({ page,context }) => {
   test.setTimeout(150_000);
   await context.addInitScript(() => {

@@ -72,13 +72,11 @@ const scenarios:Scenario[]=[
 it.each(scenarios)('preserves native summary DOM, controls and read order %#',scenario=>{
  const before=run(scenario,false),after=run(scenario,true);expect(after.error).toEqual(before.error);expect(after.error).toBeNull();expect(after.trace).toEqual(before.trace);expect(dom(after.html)).toEqual(dom(before.html));
 });
-it('preserves all observed getter and domain-helper fault boundaries',()=>{
- for(const scenario of [scenarios[1]!,scenarios[6]!,scenarios[8]!]){
-  for(let index=1;index<=run(scenario,false).trace.length;index++){
-   const before=run(scenario,false,index),after=run(scenario,true,index);
-   expect(after.trace).toEqual(before.trace);expect(after.error).toEqual(before.error);expect(dom(after.html)).toEqual(dom(before.html));
-  }
- }
+const faultCases = [scenarios[1]!,scenarios[6]!,scenarios[8]!].flatMap(scenario =>
+ Array.from({length:run(scenario,false).trace.length},(_,offset)=>({scenario,index:offset+1})));
+it.each(faultCases)('preserves observed getter and domain-helper fault boundary %#',({scenario,index})=>{
+ const before=run(scenario,false,index),after=run(scenario,true,index);
+ expect(after.trace).toEqual(before.trace);expect(after.error).toEqual(before.error);expect(dom(after.html)).toEqual(dom(before.html));
 });
 it('escapes imported spark content rather than creating HTML',()=>{
  const scenario:Scenario={kind:'Alerts',ctx:{trendAlerts:[{id:'m',concern:'past_high',name:'Marker',category:'Blood',spark:['<img src=x onerror=evil()>']}],criticalFlags:[]}};

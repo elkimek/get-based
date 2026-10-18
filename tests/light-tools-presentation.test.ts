@@ -1,9 +1,15 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { renderHTML } from '../js/components/LightToolPresentation.svelte.html.js';
 import { projectAuditPauseRows, projectGoldenHourLog, projectLightTools, type WalkthroughStatus } from '../js/light-tools-presentation.js';
 import { classifyDayWindow } from '../js/light-tools-solar-time.js';
+// Original receipts were captured in Europe/Prague; keep their exact local-time inputs on every host.
+beforeEach(() => {
+  vi.stubEnv('TZ', 'Europe/Prague');
+  expect(new Date('2026-08-07T12:00:00Z').getHours()).toBe(14);
+});
+afterEach(() => vi.unstubAllEnvs());
 interface LauncherSample { name: string; now: number; data: { lightMeasurements: { capturedAt?: unknown }[]; lightEnvironment: { rooms?: unknown } }; html: string }
 interface GoldenSample { name: string; now: number; coords: { lat: number; lon: number } | null; html: string }
 const original = JSON.parse(readFileSync('tests/fixtures/light-tools-original.json', 'utf8')) as {

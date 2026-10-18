@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import MagicString from 'magic-string';
+import { JSDOM } from 'jsdom';
 import * as ts from 'typescript/unstable/ast';
 import { withParsedSource } from './native-typescript-ast.js';
 
@@ -42,16 +43,33 @@ export function staticKitTemplate(index: string): string {
 /** External classic bootstrap preserves document.currentScript and the deployed CSP. */
 export function externalizeKitBootstrap(html: string) {
   const scripts: Array<{ file: string; code: string }> = [];
-  const document = html.replace(/<script([^>]*)>([\s\S]*?)<\/script>/g, (tag: string, attributes: string, code: string) => {
-    if (/\bsrc\s*=/.test(attributes) || /type=["']application\/(?:json|ld\+json)["']/.test(attributes)) return tag;
-    if (!/\b__sveltekit_[a-z\d]+\s*=/.test(code) || !code.includes('document.currentScript.parentElement')) {
-      throw new Error('Unexpected inline executable script in the static SvelteKit document');
+  // Parse without running scripts or fetching resources. Source offsets let us
+  // replace only bootstrap tags, preserving every other authored byte.
+  const parsed = new JSDOM(html, { includeNodeLocations: true });
+  const document = new MagicString(html);
+  try {
+    for (const script of parsed.window.document.querySelectorAll('script')) {
+      const type = script.getAttribute('type')?.trim().toLowerCase();
+      if (script.hasAttribute('src') || type === 'application/json' || type === 'application/ld+json') continue;
+      const location: {
+        startOffset: number; endOffset: number;
+        startTag?: { endOffset: number }; endTag?: { startOffset: number };
+      } | null | undefined = parsed.nodeLocation(script);
+      if (!location?.startTag || !location.endTag) {
+        throw new Error('Incomplete inline script in the static SvelteKit document');
+      }
+      const code = html.slice(location.startTag.endOffset, location.endTag.startOffset);
+      if (!/\b__sveltekit_[a-z\d]+\s*=/.test(code) || !code.includes('document.currentScript.parentElement')) {
+        throw new Error('Unexpected inline executable script in the static SvelteKit document');
+      }
+      const hash = createHash('sha256').update(code).digest('hex').slice(0, 16);
+      const file = `js/kit-bootstrap-${hash}.js`;
+      scripts.push({ file, code });
+      document.overwrite(location.startOffset, location.endOffset, `<script src="/${file}"></script>`);
     }
-    const hash = createHash('sha256').update(code).digest('hex').slice(0, 16);
-    const file = `js/kit-bootstrap-${hash}.js`;
-    scripts.push({ file, code });
-    return `<script src="/${file}"></script>`;
-  });
-  if (scripts.length !== 1) throw new Error(`Expected one SvelteKit bootstrap; found ${scripts.length}`);
-  return { html: document, scripts };
+    if (scripts.length !== 1) throw new Error(`Expected one SvelteKit bootstrap; found ${scripts.length}`);
+    return { html: document.toString(), scripts };
+  } finally {
+    parsed.window.close();
+  }
 }

@@ -168,6 +168,91 @@ describe('context notes origin and persistence', () => {
     host.querySelector<HTMLButtonElement>('.ctx-notes-retry')!.click(); await vi.advanceTimersByTimeAsync(500);
     expect(mocks.save.mock.calls[1]![2].expectedContextNotes).toBe('Saved elsewhere <literal>'); expect(status(host)).toBe('Saved');
   });
+  it('retains the original baseline through Sync between inputs until an explicit replacement commits', async () => {
+    state.importedData.contextNotes = 'Original saved'; rememberProfileData(state.importedData);
+    let stored = 'Original saved';
+    mocks.save.mockImplementation((_profile: string, draft: ProfileData, options: ProfileSaveOptions) => {
+      if (options.expectedContextNotes !== stored) { options.onContextNotesConflict?.(stored); return false; }
+      stored = draft.contextNotes; return true;
+    });
+    const host = render(); edit(host, 'Local first input'); await vi.advanceTimersByTimeAsync(200);
+    stored = 'Peer saved during draft'; state.importedData.contextNotes = stored;
+    state.importedData.notes.push({ date: '2026-10-18', text: 'Independent synced record' }); rememberProfileData(state.importedData);
+    const peer = structuredClone(state.importedData);
+    edit(host, 'Local second input'); await vi.advanceTimersByTimeAsync(500);
+    expect(mocks.save).toHaveBeenCalledTimes(1);
+    expect(mocks.save.mock.calls[0]![2].expectedContextNotes).toBe('Original saved');
+    expect(stored).toBe('Peer saved during draft'); expect(state.importedData).toEqual(peer);
+    expect(host.querySelector('textarea')!.value).toBe('Local second input'); expect(status(host)).toBe('Not saved — try again');
+    expect(host.querySelector('.ctx-notes-conflict-saved')!.textContent).toBe('Peer saved during draft');
+    edit(host, 'Local third input'); await vi.advanceTimersByTimeAsync(500);
+    expect(mocks.save.mock.calls[1]![2].expectedContextNotes).toBe('Original saved');
+    expect(stored).toBe('Peer saved during draft'); expect(state.importedData).toEqual(peer);
+    const replace = host.querySelector<HTMLButtonElement>('.ctx-notes-retry')!;
+    expect(replace.textContent).toBe('Save draft instead'); replace.click(); await vi.advanceTimersByTimeAsync(500);
+    expect(mocks.save.mock.calls[2]![2].expectedContextNotes).toBe('Peer saved during draft');
+    expect(stored).toBe('Local third input'); expect(status(host)).toBe('Saved');
+    expect(state.importedData.notes).toEqual(peer.notes);
+    edit(host, 'Normal subsequent edit'); await vi.advanceTimersByTimeAsync(500);
+    expect(mocks.save.mock.calls[3]![2].expectedContextNotes).toBe('Local third input');
+    expect(stored).toBe('Normal subsequent edit'); expect(status(host)).toBe('Saved');
+  });
+  it.each(['mounted', 'unhydrated'] as const)('a %s generic Retry cannot accept a peer saved after an I/O failure', async kind => {
+    state.importedData.contextNotes = 'Original saved'; rememberProfileData(state.importedData);
+    let stored = 'Original saved';
+    mocks.save.mockResolvedValueOnce(false).mockImplementation((_profile: string, draft: ProfileData, options: ProfileSaveOptions) => {
+      if (options.expectedContextNotes !== stored) { options.onContextNotesConflict?.(stored); return false; }
+      stored = draft.contextNotes; return true;
+    });
+    let host = render(); edit(host, 'Retained local draft'); await vi.advanceTimersByTimeAsync(500);
+    if (kind === 'unhydrated') { host.remove(); host = render(); }
+    const retry = host.querySelector<HTMLButtonElement>('.ctx-notes-retry')!;
+    expect(retry.textContent).toBe('Retry save'); expect(retry.hasAttribute('data-context-notes-reviewed-saved')).toBe(false);
+    stored = 'Unseen peer after failure'; state.importedData.contextNotes = stored; rememberProfileData(state.importedData);
+    const peer = structuredClone(state.importedData);
+    retry.click(); await vi.advanceTimersByTimeAsync(500);
+    expect(mocks.save.mock.calls[1]![2].expectedContextNotes).toBe('Original saved');
+    expect(stored).toBe('Unseen peer after failure'); expect(state.importedData).toEqual(peer);
+    expect(host.querySelector('textarea')!.value).toBe('Retained local draft'); expect(status(host)).toBe('Not saved — try again');
+    expect(host.querySelector('.ctx-notes-conflict-saved')!.textContent).toBe('Unseen peer after failure');
+  });
+  it.each(['mounted', 'unhydrated'] as const)('a %s explicit replacement accepts only the displayed peer value', async kind => {
+    state.importedData.contextNotes = 'Original saved'; rememberProfileData(state.importedData);
+    let stored = 'Displayed first peer';
+    mocks.save.mockImplementation((_profile: string, draft: ProfileData, options: ProfileSaveOptions) => {
+      if (options.expectedContextNotes !== stored) { options.onContextNotesConflict?.(stored); return false; }
+      stored = draft.contextNotes; return true;
+    });
+    let host = render(); edit(host, 'Retained local draft'); await vi.advanceTimersByTimeAsync(500);
+    if (kind === 'unhydrated') { host.remove(); host = render(); }
+    const replace = host.querySelector<HTMLButtonElement>('.ctx-notes-retry')!;
+    expect(replace.textContent).toBe('Save draft instead'); expect(replace.getAttribute('data-context-notes-reviewed-saved')).toBe('Displayed first peer');
+    stored = 'Unseen second peer'; state.importedData.contextNotes = stored; rememberProfileData(state.importedData);
+    const peer = structuredClone(state.importedData);
+    replace.click(); await vi.advanceTimersByTimeAsync(500);
+    expect(mocks.save.mock.calls[1]![2].expectedContextNotes).toBe('Displayed first peer');
+    expect(stored).toBe('Unseen second peer'); expect(state.importedData).toEqual(peer);
+    expect(host.querySelector('textarea')!.value).toBe('Retained local draft'); expect(status(host)).toBe('Not saved — try again');
+    expect(host.querySelector('.ctx-notes-conflict-saved')!.textContent).toBe('Unseen second peer');
+    host.querySelector<HTMLButtonElement>('.ctx-notes-retry')!.click(); await vi.advanceTimersByTimeAsync(500);
+    expect(mocks.save.mock.calls[2]![2].expectedContextNotes).toBe('Unseen second peer');
+    expect(stored).toBe('Retained local draft'); expect(status(host)).toBe('Saved');
+  });
+  it('can explicitly replace a displayed empty saved value without treating it as an absent review', async () => {
+    state.importedData.contextNotes = 'Original saved'; rememberProfileData(state.importedData);
+    let stored = '';
+    mocks.save.mockImplementation((_profile: string, draft: ProfileData, options: ProfileSaveOptions) => {
+      if (options.expectedContextNotes !== stored) { options.onContextNotesConflict?.(stored); return false; }
+      stored = draft.contextNotes; return true;
+    });
+    const host = render(); edit(host, 'Explicit replacement'); await vi.advanceTimersByTimeAsync(500);
+    const replace = host.querySelector<HTMLButtonElement>('.ctx-notes-retry')!;
+    expect(replace.textContent).toBe('Save draft instead'); expect(replace.getAttribute('data-context-notes-reviewed-saved')).toBe('');
+    expect(host.querySelector('.ctx-notes-conflict-saved')!.textContent).toBe('Saved notes are empty.');
+    replace.click(); await vi.advanceTimersByTimeAsync(500);
+    expect(mocks.save.mock.calls[1]![2].expectedContextNotes).toBe('');
+    expect(stored).toBe('Explicit replacement'); expect(status(host)).toBe('Saved');
+  });
   it('uses an observed saved value without a write while preserving unrelated unsaved data', async () => {
     mocks.save.mockImplementationOnce((_profile, _draft, options: ProfileSaveOptions) => { options.onContextNotesConflict?.('Observed saved note'); return false; });
     const host = render(); state.importedData.interpretiveLens = 'Unsaved lens'; edit(host, 'Discarded draft'); await vi.advanceTimersByTimeAsync(500);

@@ -1,4 +1,4 @@
-import {afterEach, describe, expect, it} from 'vitest';
+import {afterEach, describe, expect, it, vi} from 'vitest';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import fs from 'node:fs/promises';
@@ -8,7 +8,7 @@ import {inventoryCIArtifact, restoreCIArtifactCatalog, sealCIArtifact, verifyCIA
 import {createStaticBuildFingerprint} from '../scripts/static-build-inputs.mjs';
 
 const cleanup: string[] = [];
-afterEach(async () => {for (const directory of cleanup.splice(0)) await fs.rm(directory, {recursive: true, force: true});});
+afterEach(async () => {vi.restoreAllMocks(); for (const directory of cleanup.splice(0)) await fs.rm(directory, {recursive: true, force: true});});
 const sha = (value: string | Buffer): string => createHash('sha256').update(value).digest('hex');
 async function fixture() {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'getbased-ci-artifact-')); cleanup.push(root);
@@ -112,5 +112,76 @@ describe('exact CI artifact transport', () => {
     const catalog = await fs.readFile(path.join(sample.root, sample.options.transport, 'catalog.json'));
     expect(manifest.catalog).toEqual({bytes: catalog.length, sha256: sha(catalog)});
     expect(manifest.files.every(file => Number.isSafeInteger(file.bytes) && /^[a-f0-9]{64}$/.test(file.sha256))).toBe(true);
+  });
+});
+
+
+describe('artifact file replacement races', () => {
+  it('rejects a symlink substituted just before opening a listed artifact member', async () => {
+    const sample = await fixture(), member = path.join(sample.root, 'dist/css/source.css'), outside = path.join(sample.root, 'outside.txt');
+    await fs.writeFile(outside, 'outside must not be consumed');
+    const open = fs.open.bind(fs); let swapped = false;
+    vi.spyOn(fs, 'open').mockImplementation(async (...args) => {
+      if (args[0] === member && !swapped) {swapped = true; await fs.unlink(member); await fs.symlink(outside, member);}
+      return open(...args);
+    });
+    await expect(inventoryCIArtifact(path.join(sample.root, 'dist'))).rejects.toThrow();
+    expect(swapped).toBe(true); expect(await fs.readFile(outside, 'utf8')).toBe('outside must not be consumed');
+  });
+
+  it('reads the qualified open object when its pathname is replaced during a read', async () => {
+    const sample = await fixture(), member = path.join(sample.root, 'dist/css/source.css'), outside = path.join(sample.root, 'outside.txt');
+    const original = await fs.readFile(member); await fs.writeFile(outside, 'replacement must not be consumed');
+    const open = fs.open.bind(fs); let swapped = false;
+    vi.spyOn(fs, 'open').mockImplementation(async (...args) => {
+      const handle = await open(...args);
+      if (args[0] === member && !swapped) {swapped = true; await fs.unlink(member); await fs.symlink(outside, member);}
+      return handle;
+    });
+    const inventory = await inventoryCIArtifact(path.join(sample.root, 'dist'));
+    expect(inventory.find(file => file.file === 'css/source.css')).toEqual({file: 'css/source.css', bytes: original.length, sha256: sha(original)});
+    expect(swapped).toBe(true);
+  });
+
+  it('closes the opened artifact descriptor when its read fails', async () => {
+    const sample = await fixture(), member = path.join(sample.root, 'dist/css/source.css'), open = fs.open.bind(fs);
+    let closed: unknown;
+    vi.spyOn(fs, 'open').mockImplementation(async (...args) => {
+      const handle = await open(...args);
+      if (args[0] === member) {vi.spyOn(handle, 'readFile').mockRejectedValueOnce(new Error('synthetic read failure')); closed = vi.spyOn(handle, 'close');}
+      return handle;
+    });
+    await expect(inventoryCIArtifact(path.join(sample.root, 'dist'))).rejects.toThrow('synthetic read failure');
+    expect(closed).toHaveBeenCalledOnce();
+  });
+
+  it('replaces a catalog symlink introduced at publication without modifying its destination', async () => {
+    const sample = await fixture(); await sealCIArtifact(sample.options);
+    const target = path.join(sample.root, 'data/recommendations.json'), outside = path.join(sample.root, 'outside.txt');
+    await fs.writeFile(outside, 'external catalog stays untouched');
+    const rename = fs.rename.bind(fs); let swapped = false;
+    vi.spyOn(fs, 'rename').mockImplementation(async (...args) => {
+      if (args[1] === target) {swapped = true; await fs.unlink(target); await fs.symlink(outside, target);}
+      return rename(...args);
+    });
+    await restoreCIArtifactCatalog(sample.options);
+    expect(swapped).toBe(true); expect(await fs.readFile(outside, 'utf8')).toBe('external catalog stays untouched');
+    expect((await fs.lstat(target)).isSymbolicLink()).toBe(false);
+    expect(await fs.readFile(target)).toEqual(await fs.readFile(path.join(sample.root, sample.options.transport, 'catalog.json')));
+    expect((await fs.readdir(path.dirname(target))).filter(file => file.startsWith('.recommendations-ci-'))).toEqual([]);
+  });
+
+  it('retains the old catalog and closes and removes a failed staging write', async () => {
+    const sample = await fixture(); await sealCIArtifact(sample.options);
+    const target = path.join(sample.root, 'data/recommendations.json'), original = await fs.readFile(target), open = fs.open.bind(fs);
+    let closed: unknown;
+    vi.spyOn(fs, 'open').mockImplementation(async (...args) => {
+      const handle = await open(...args);
+      if (String(args[0]).includes('.recommendations-ci-')) {vi.spyOn(handle, 'writeFile').mockRejectedValueOnce(new Error('synthetic staging failure')); closed = vi.spyOn(handle, 'close');}
+      return handle;
+    });
+    await expect(restoreCIArtifactCatalog(sample.options)).rejects.toThrow('synthetic staging failure');
+    expect(closed).toHaveBeenCalledOnce(); expect(await fs.readFile(target)).toEqual(original);
+    expect((await fs.readdir(path.dirname(target))).filter(file => file.startsWith('.recommendations-ci-'))).toEqual([]);
   });
 });
