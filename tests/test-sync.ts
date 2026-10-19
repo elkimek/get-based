@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { dataModuleSource } from './helpers/data-module-source.js';
-import { syncPushSourceContracts, syncChatSaveSourceContracts, syncHealthGoalsSourceContracts } from './helpers/sync-push-source-contracts.js';
+import { syncPushSourceContracts, syncChatSaveSourceContracts, syncHealthGoalsSourceContracts, syncPullEncryptionSourceContract } from './helpers/sync-push-source-contracts.js';
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-sync.js — Verify sync module exports, payload format, settings UI
@@ -1590,9 +1590,7 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
     !/if\s*\(\s*remoteUpdated\s*<\s*localUpdated\s*\)/.test(syncPullSrc),
     'skip-decisions before merge regress to clock-skew/stale-hash bugs');
   assert('onSyncReceived guards on _pulling', syncPullSrc.includes('_pulling') && syncPullSrc.includes('_pulling = true'));
-  assert('Pull handles encryption',
-    (syncPullMergeSrc.match(/await encryptedGetItem\(localKey,\s*\{\s*throwOnDecryptError:\s*true\s*\}\)/g)?.length === 2)
-      && syncPullMergeSrc.includes('await encryptedSetItem(localKey, JSON.stringify(committed))'));
+  assert('Pull handles encryption', syncPullEncryptionSourceContract(syncPullMergeSrc));
   assert('Pull merges profiles with allowlist', syncPullMergeSrc.includes('SYNC_PROFILE_FIELDS') && syncPullMergeSrc.includes('saveProfiles(profiles)'));
   // v1.7.4: pull re-renders whatever view the user is on, not just dashboard
   // (so a Light & Sun page picks up newly-merged sun sessions immediately

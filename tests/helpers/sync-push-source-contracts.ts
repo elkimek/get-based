@@ -100,3 +100,52 @@ export function syncHealthGoalsSourceContracts(source: string) {
       && text(callback.body) === '{if(view)refresh(view);}';
   });
 }
+
+
+/** Both actual queue callback owners read/decode fail-closed and write encrypted. */
+export function syncPullEncryptionSourceContract(source: string): boolean {
+  return withParsedSource(source, 'sync-pull-merge.js', file => {
+    const text=(node:ts.Node)=>node.getText(file).replace(/\s/g,'');
+    const named=(name:string)=>file.statements.filter(ts.isFunctionDeclaration).filter(node=>node.name?.text===name);
+    const queued=(name:string)=>{
+      const functions=named(name),body=functions[0]?.body;
+      if(functions.length!==1||!body||body.statements.length!==1)return undefined;
+      const statement=body.statements[0]!;
+      if(!ts.isReturnStatement(statement)||!statement.expression||!ts.isCallExpression(statement.expression))return undefined;
+      const call=statement.expression,callback=call.arguments[1];
+      return text(call.expression)==='queueProfileDataWrite'&&call.arguments.length===2&&text(call.arguments[0]!)==='profileId'
+        &&callback&&ts.isArrowFunction(callback)&&ts.isBlock(callback.body)?callback.body:undefined;
+    };
+    const variable=(body:ts.Block,name:string)=>{
+      const variables=body.statements.filter(ts.isVariableStatement).flatMap(statement=>[...statement.declarationList.declarations])
+        .filter(node=>ts.isIdentifier(node.name)&&node.name.text===name);
+      return variables.length===1?variables[0]:undefined;
+    };
+    const capture=queued('captureSyncPullBaseline'),persist=queued('persistPulledImportedData');
+    if(!capture||!persist)return false;
+    const read=(body:ts.Block,name:string)=>{
+      const value=variable(body,name)?.initializer;
+      return value&&ts.isAwaitExpression(value)&&ts.isCallExpression(value.expression)?value.expression:undefined;
+    };
+    const first=read(capture,'rawStored'),second=read(persist,'raw'),all=descendants(file,ts.isCallExpression);
+    const guarded=(call:ts.CallExpression)=>text(call.expression)==='encryptedGetItem'&&call.arguments.length===2&&text(call.arguments[1]!)==='{throwOnDecryptError:true}';
+    if(!first||!second||!guarded(first)||!guarded(second)||all.filter(call=>text(call.expression)==='encryptedGetItem').length!==2)return false;
+    const importedKey=(node:ts.Node)=>ts.isCallExpression(node)&&text(node.expression)==='profileStorageKey'
+      &&node.arguments.length===2&&text(node.arguments[0]!)==='profileId'&&ts.isStringLiteral(node.arguments[1]!)&&node.arguments[1]!.text==='imported';
+    if(!importedKey(first.arguments[0]!)||text(second.arguments[0]!)!=='localKey')return false;
+    const mergers=named('mergePulledImportedData'),writer=named('persistPulledImportedData')[0]!;
+    if(mergers.length!==1||!mergers[0]!.body||writer.parameters.length!==4||text(writer.parameters[0]!.name)!=='localKey'||text(writer.parameters[1]!.name)!=='profileId')return false;
+    const localKey=variable(mergers[0]!.body,'localKey')?.initializer;
+    if(!localKey||!importedKey(localKey))return false;
+    const returns=capture.statements.filter(ts.isReturnStatement),returned=returns[0]?.expression;
+    if(returns.length!==1||!returned||!ts.isObjectLiteralExpression(returned))return false;
+    const stored=returned.properties.filter(ts.isPropertyAssignment).filter(property=>text(property.name)==='stored');
+    const latest=variable(persist,'latest')?.initializer;
+    if(stored.length!==1||text(stored[0]!.initializer)!=='rawStored?JSON.parse(rawStored):null'||!latest||text(latest)!=='raw?JSON.parse(raw):null')return false;
+    const writes=persist.statements.filter(ts.isExpressionStatement).map(statement=>statement.expression)
+      .filter(ts.isAwaitExpression).map(node=>node.expression).filter(ts.isCallExpression).filter(call=>text(call.expression)==='encryptedSetItem');
+    return writes.length===1&&all.filter(call=>text(call.expression)==='encryptedSetItem').length===1
+      &&writes[0]!.arguments.length===2&&text(writes[0]!.arguments[0]!)==='localKey'
+      &&text(writes[0]!.arguments[1]!)==='JSON.stringify(committed)'&&second.getStart(file)<writes[0]!.getStart(file);
+  });
+}

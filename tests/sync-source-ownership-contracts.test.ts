@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { syncChatSaveSourceContracts, syncHealthGoalsSourceContracts } from './helpers/sync-push-source-contracts.js';
+import { syncChatSaveSourceContracts, syncHealthGoalsSourceContracts, syncPullEncryptionSourceContract } from './helpers/sync-push-source-contracts.js';
 
 const chat = readFileSync('js/sync-save-hooks-core.js', 'utf8');
 const goals = readFileSync('js/context-health-goals-view.js', 'utf8');
@@ -52,4 +52,40 @@ describe('maintained Sync source ownership contracts', () => {
     expect(syncHealthGoalsSourceContracts(change(goals, 'owned.component.refresh(owned.observed);', 'owned.component.report(owned.observed);'))).toBe(false);
     expect(syncHealthGoalsSourceContracts(change(goals, 'owned.observed = structuredClone(state.importedData.healthGoals);', 'owned.observed = [];'))).toBe(false);
   });
+});
+
+
+const pullMerge=readFileSync('js/sync-pull-merge.js','utf8');
+it('requires both exact queued imported-profile encrypted reads, decode guards and encrypted committed write',()=>{
+ expect(syncPullEncryptionSourceContract(pullMerge)).toBe(true);
+});
+it.each([
+ ['capture foreign profile key',"encryptedGetItem(profileStorageKey(profileId, 'imported'), { throwOnDecryptError: true })","encryptedGetItem(profileStorageKey(profileId, 'foreign'), { throwOnDecryptError: true })"],
+ ['capture decrypt fallback',"encryptedGetItem(profileStorageKey(profileId, 'imported'), { throwOnDecryptError: true })","encryptedGetItem(profileStorageKey(profileId, 'imported'), { throwOnDecryptError: false })"],
+ ['commit decrypt fallback','encryptedGetItem(localKey, { throwOnDecryptError: true })','encryptedGetItem(localKey, { throwOnDecryptError: false })'],
+ ['foreign merge storage key',"const localKey = profileStorageKey(profileId, 'imported');","const localKey = profileStorageKey(profileId, 'foreign');"],
+ ['commit foreign read key','encryptedGetItem(localKey, { throwOnDecryptError: true })',"encryptedGetItem('foreign-imported', { throwOnDecryptError: true })"],
+ ['unawaited capture',"await encryptedGetItem(profileStorageKey(profileId, 'imported'), { throwOnDecryptError: true })","encryptedGetItem(profileStorageKey(profileId, 'imported'), { throwOnDecryptError: true })"],
+ ['unawaited commit','await encryptedGetItem(localKey, { throwOnDecryptError: true })','encryptedGetItem(localKey, { throwOnDecryptError: true })'],
+ ['capture decode bypass','JSON.parse(rawStored)','{}'],
+ ['commit decode bypass','JSON.parse(raw)','{}'],
+ ['plaintext write','encryptedSetItem(localKey, JSON.stringify(committed))','localStorage.setItem(localKey, JSON.stringify(committed))'],
+ ['foreign write key','encryptedSetItem(localKey, JSON.stringify(committed))',"encryptedSetItem('foreign-imported', JSON.stringify(committed))"],
+] as const)('rejects actual Pull encryption ownership corruption: %s',(_name,before,after)=>{
+ expect(syncPullEncryptionSourceContract(change(pullMerge,before,after))).toBe(false);
+});
+
+
+it.each(['capture','commit','write'] as const)('rejects an uncalled nested %s encryption decoy in place of actual queue work',owner=>{
+ let changed=pullMerge;
+ if(owner==='capture'){
+  changed=change(changed,"const rawStored = await encryptedGetItem(profileStorageKey(profileId, 'imported'), { throwOnDecryptError: true });",
+   "async function unusedRead(){const rawStored = await encryptedGetItem(profileStorageKey(profileId, 'imported'), { throwOnDecryptError: true });return JSON.parse(rawStored);}");
+  changed=change(changed,'stored: rawStored ? JSON.parse(rawStored) : null','stored: {}');
+ }else if(owner==='commit'){
+  changed=change(changed,'const raw = await encryptedGetItem(localKey, { throwOnDecryptError: true });',
+   'async function unusedRead(){const raw = await encryptedGetItem(localKey, { throwOnDecryptError: true });return JSON.parse(raw);}');
+  changed=change(changed,'const latest = raw ? JSON.parse(raw) : null;','const latest = {};');
+ }else changed=change(changed,'await encryptedSetItem(localKey, JSON.stringify(committed));','async function unusedWrite(){await encryptedSetItem(localKey, JSON.stringify(committed));}');
+ expect(syncPullEncryptionSourceContract(changed)).toBe(false);
 });
