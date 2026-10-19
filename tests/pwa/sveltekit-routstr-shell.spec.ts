@@ -1,3 +1,4 @@
+import { openStaticSettings } from './settings-entry.js';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { getDecodedToken } from '@cashu/cashu-ts';
@@ -7,9 +8,7 @@ import { seedStaticWalletMints } from './wallet-static-fixture.js';
 const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
 async function ready(page: Page) { await expect(page.locator('html[data-app-ready][data-shell-framework="sveltekit"]')).toBeAttached({ timeout: 30_000 }); await page.evaluate(() => navigator.serviceWorker.ready.then(() => true)); await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true); }
 async function wallet(page: Page) {
-  const settings = page.locator('[data-shell-action="open-settings"]');
-  try { await settings.click({ timeout: 1500 }); }
-  catch (error) { const closeChat = page.getByRole('button', { name: 'Close chat', exact: true }); if (!await closeChat.isVisible()) throw error; await closeChat.click(); await settings.click(); }
+  await openStaticSettings(page);
   await page.locator('#settings-nav-ai').click(); await expect(page.locator('[data-routstr-settings-view]')).toBeVisible();
 }
 async function journal(page: Page) { return page.evaluate(() => new Promise<unknown>((resolve, reject) => { const request = indexedDB.open('getbased-cashu', 2); request.onerror = () => reject(request.error); request.onsuccess = () => { const db = request.result, tx = db.transaction('meta', 'readonly'), read = tx.objectStore('meta').get('pendingWithdraw'); read.onsuccess = () => resolve(read.result?.value ?? null); tx.oncomplete = () => db.close(); }; })); }
