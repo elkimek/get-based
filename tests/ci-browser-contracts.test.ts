@@ -124,12 +124,15 @@ describe('manual WebKit diagnostic isolation', () => {
   }
   function verifyGates(source: string) {
     const prepare = expression(source, 'prepare', 'if'), aggregate = expression(source, 'test', 'if');
-    const diagnosticJob = expression(source, 'webkit_diagnostics', 'if'), aggregateName = expression(source, 'test', 'name');
-    expect(source).toContain("default: 'off'\n        options: ['off', 'webkit-lens-wearable']");
-    for (const event of ['pull_request', 'push', 'workflow_call', 'workflow_dispatch']) for (const mode of ['off', '', 'webkit-lens-wearable']) {
-      const diagnostic = event === 'workflow_dispatch' && mode === 'webkit-lens-wearable';
+    const diagnosticJob = expression(source, 'webkit_diagnostics', 'if'), pwaDiagnosticJob = expression(source, 'webkit_pwa_routstr_diagnostics', 'if'), aggregateName = expression(source, 'test', 'name');
+    expect(source).toContain("default: 'off'\n        options: ['off', 'webkit-lens-wearable', 'webkit-pwa-routstr']");
+    for (const event of ['pull_request', 'push', 'workflow_call', 'workflow_dispatch']) for (const mode of ['off', '', 'webkit-lens-wearable', 'webkit-pwa-routstr', 'foreign']) {
+      const lensDiagnostic = event === 'workflow_dispatch' && mode === 'webkit-lens-wearable';
+      const pwaDiagnostic = event === 'workflow_dispatch' && mode === 'webkit-pwa-routstr';
+      const diagnostic = lensDiagnostic || pwaDiagnostic;
       expect(evaluate(prepare, event, mode), `${event}/${mode} prepare`).toBe(!diagnostic);
-      expect(evaluate(diagnosticJob, event, mode), `${event}/${mode} diagnostic`).toBe(diagnostic);
+      expect(evaluate(diagnosticJob, event, mode), `${event}/${mode} Lens diagnostic`).toBe(lensDiagnostic);
+      expect(evaluate(pwaDiagnosticJob, event, mode), `${event}/${mode} PWA diagnostic`).toBe(pwaDiagnostic);
       expect(evaluate(aggregateName, event, mode), `${event}/${mode} required-name isolation`).toBe(diagnostic ? 'DIAGNOSTIC normal gate omitted' : 'test');
       // GitHub injects success() when no explicit status function is present.
       for (const priorSuccess of [true, false]) {
@@ -139,14 +142,17 @@ describe('manual WebKit diagnostic isolation', () => {
     }
     const group = /^  group: (.+)$/m.exec(source)?.[1];
     expect(group).toContain("${{ inputs.full_suite == true && 'full' || 'scoped' }}${{ github.event_name == 'workflow_dispatch' && inputs.diagnostic == 'webkit-lens-wearable' && '-webkit-diagnostic' || '' }}");
+    expect(group).toContain("${{ github.event_name == 'workflow_dispatch' && inputs.diagnostic == 'webkit-pwa-routstr' && '-webkit-pwa-routstr-diagnostic' || '' }}");
     expect(source).toContain("cancel-in-progress: ${{ github.event_name == 'pull_request' && inputs.full_suite != true }}");
   }
   it('keeps every normal event and failed-prepare aggregator intact, including forged diagnostic inputs', () => verifyGates(workflow));
   it('rejects event bypass, missing always, default-on diagnostics and a misleading required check name', () => {
     for (const changed of [
-      workflow.replace("    if: github.event_name != 'workflow_dispatch' || inputs.diagnostic != 'webkit-lens-wearable'", "    if: inputs.diagnostic != 'webkit-lens-wearable'"),
+      workflow.replace("    if: github.event_name != 'workflow_dispatch' || (inputs.diagnostic != 'webkit-lens-wearable' && inputs.diagnostic != 'webkit-pwa-routstr')", "    if: inputs.diagnostic != 'webkit-lens-wearable' && inputs.diagnostic != 'webkit-pwa-routstr'"),
       workflow.replace('    if: always() && (', '    if: ('),
       workflow.replace("    if: github.event_name == 'workflow_dispatch' && inputs.diagnostic == 'webkit-lens-wearable'", "    if: inputs.diagnostic == 'webkit-lens-wearable'"),
+      workflow.replace("    if: github.event_name == 'workflow_dispatch' && inputs.diagnostic == 'webkit-pwa-routstr'", "    if: inputs.diagnostic == 'webkit-pwa-routstr'"),
+      workflow.replace(" && inputs.diagnostic != 'webkit-pwa-routstr'", ""),
       workflow.replace('DIAGNOSTIC normal gate omitted', 'test'),
       workflow.replace("default: 'off'", "default: 'webkit-lens-wearable'"),
     ]) expect(() => verifyGates(changed)).toThrow();
@@ -184,6 +190,61 @@ describe('manual WebKit diagnostic isolation', () => {
       {...report, tests: [one, {...two, project: 'kit-mobile-webkit'}]}, {...report, tests: [one, {...two, attemptCount: 2}]},
       {...report, tests: [one, {...two, status: 'skipped', expectedStatus: 'skipped'}]}, {...report, tests: [one, {...two, annotations: [{type: 'skip'}]}]},
       {...report, tests: [one, {...two, status: 'failed', expectedStatus: 'failed'}]}, {...report, execution: false}, {...report, issues: ['scope failure']},
+    ]) expect(() => check(value)).toThrow();
+  });
+  it('keeps the Cocoa PWA diagnostic private, headless, single-case and naturally verified', () => {
+    const diagnostic = job(workflow, 'webkit_pwa_routstr_diagnostics');
+    expect(diagnostic).toContain('name: DIAGNOSTIC Cocoa mobile WebKit Routstr PWA (not a release gate)');
+    expect(diagnostic).toContain('runs-on: macos-15');
+    expect(diagnostic).toContain('timeout-minutes: 20');
+    expect(diagnostic).toContain("GETBASED_KIT_ACCEPTANCE_GUARD: '1'");
+    expect(diagnostic).toContain('GETBASED_KIT_PROJECT: kit-mobile-webkit');
+    expect(diagnostic).toContain('GETBASED_PWA_DIAGNOSTIC: routstr-service-worker');
+    expect(workflow.match(/^      GETBASED_PWA_DIAGNOSTIC:/gm)).toHaveLength(1);
+    expect(workflow.slice(0, workflow.indexOf('  webkit_pwa_routstr_diagnostics:'))).not.toContain('GETBASED_PWA_DIAGNOSTIC');
+    expect(diagnostic).toContain('GETBASED_KIT_CASE_SCOPE: all');
+    expect(diagnostic).toContain('GETBASED_KIT_GUARD_REPORT: .local-notes/ci/webkit-pwa-routstr-diagnostics/guard.json');
+    expect(diagnostic).toContain('PLAYWRIGHT_KIT_OUTPUT_DIR: .local-notes/ci/webkit-pwa-routstr-diagnostics/results');
+    expect(diagnostic).toContain('persist-credentials: false');
+    expect(diagnostic).toContain('node-version: 24');
+    expect(diagnostic).toContain('run: node scripts/fetch-catalog.mts');
+    expect(diagnostic).toContain('run: npm ci');
+    expect(diagnostic).toContain('npx --no-install playwright install --with-deps webkit');
+    expect(diagnostic.match(/node scripts\/build-sveltekit\.mjs --output dist/g)).toHaveLength(1);
+    expect(diagnostic).toContain('node scripts/ci-artifact.mjs seal --artifact dist --transport "$DIAGNOSTIC_DIR/transport"');
+    expect(diagnostic).toContain('node scripts/ci-artifact.mjs verify --artifact dist --transport "$DIAGNOSTIC_DIR/transport" --github-env');
+    expect(diagnostic).toContain('--config=playwright.sveltekit.config.js --project=kit-mobile-webkit --workers=1 --retries=0');
+    expect(diagnostic).toContain('tests/pwa/sveltekit-routstr-model-settings.spec.ts 2>&1 | tee "$DIAGNOSTIC_DIR/case.log"');
+    const command = /      - name: Run only the unchanged mobile WebKit Routstr PWA case headlessly\n([\s\S]*?)      - name: Require exactly/.exec(diagnostic)?.[1];
+    expect(command).toBeTruthy();
+    expect(command!.match(/tests\/pwa\/[^\s]+\.spec\.ts/g)).toEqual(['tests/pwa/sveltekit-routstr-model-settings.spec.ts']);
+    expect(command).toContain('set -euo pipefail');
+    expect(diagnostic).not.toMatch(/\b(?:secrets|continue-on-error)\b|--(?:grep|headed|shard|timeout)\b|needs:|WEBKIT_SKIA|PLAYWRIGHT_WEBKIT_EXECUTABLE|FONTCONFIG|apt-get/);
+    expect(diagnostic).toContain("if: always() && steps.diagnostic_cases.outcome != 'skipped'");
+    expect(diagnostic).toContain('This run does not execute the normal matrix or provide the test release gate.');
+    expect(diagnostic).toContain('name: diagnostic-webkit-pwa-routstr-${{ github.run_id }}-${{ github.run_attempt }}');
+    for (const file of ['results', 'guard.json', 'scope.json', 'case.log', 'build.log', 'build-seal.json', 'build-verify.json', 'build-metrics.json', 'transport/manifest.json']) expect(diagnostic).toContain('.local-notes/ci/webkit-pwa-routstr-diagnostics/' + file);
+    for (const pin of ['actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1', 'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020', 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a']) expect(diagnostic).toContain(pin);
+    const canonical = fs.readFileSync('tests/pwa/sveltekit-routstr-model-settings.spec.ts', 'utf8');
+    expect(canonical.match(/^test\('/gm)).toHaveLength(1);
+    expect(canonical).toContain("test('static Routstr models retain private and regular choices through unavailable-origin cold launch'");
+    expect(canonical).toContain('test.setTimeout(120_000)');
+  });
+  it('executes the actual Cocoa PWA scope guard and rejects every false one-case result', () => {
+    const diagnostic = job(workflow, 'webkit_pwa_routstr_diagnostics');
+    const block = /          node --input-type=module <<'NODE'\n([\s\S]*?)          NODE/.exec(diagnostic)?.[1];
+    expect(block).toBeTruthy();
+    const guard = block!.split('\n').map(line => line.slice(10)).filter(line => !line.startsWith('import ')).join('\n');
+    const one = {file: 'tests/pwa/sveltekit-routstr-model-settings.spec.ts', title: 'static Routstr models retain private and regular choices through unavailable-origin cold launch', project: 'kit-mobile-webkit', attemptCount: 1, status: 'passed', expectedStatus: 'passed', declaredExpectedStatus: 'passed', outcome: 'expected', annotations: [] as {type: string}[], declaredAnnotations: [] as {type: string}[]};
+    const report = {execution: true, status: 'passed', issues: [], tests: [one]};
+    let saved = '';
+    const check = (value: unknown) => runInNewContext(guard, {assert: strictAssert, fs: {readFileSync: () => JSON.stringify(value), writeFileSync: (_path: string, body: string) => {saved = body;}}, process: {env: {GETBASED_KIT_GUARD_REPORT: 'synthetic', DIAGNOSTIC_DIR: 'synthetic'}}}, {timeout: 100});
+    expect(() => check(report)).not.toThrow();
+    expect(JSON.parse(saved)).toMatchObject({diagnosticOnly: true, releaseGate: false, platform: 'darwin', expectedFile: one.file, expectedTitle: one.title, expectedProject: one.project, report});
+    for (const value of [
+      {...report, tests: []}, {...report, tests: [one, one]},
+      ...[{file: 'tests/pwa/sveltekit-foreign.spec.ts'}, {title: one.title + '!'}, {project: 'kit-webkit'}, {attemptCount: 0}, {attemptCount: 2}, {status: 'skipped', expectedStatus: 'skipped'}, {status: 'failed', expectedStatus: 'failed'}, {expectedStatus: 'failed'}, {declaredExpectedStatus: 'failed'}, {outcome: 'flaky'}, {annotations: [{type: 'skip'}]}, {annotations: [{type: 'fixme'}]}, {declaredAnnotations: [{type: 'skip'}]}, {declaredAnnotations: [{type: 'fixme'}]}].map(change => ({...report, tests: [{...one, ...change}]})),
+      {...report, execution: false}, {...report, status: 'failed'}, {...report, issues: ['scope failure']},
     ]) expect(() => check(value)).toThrow();
   });
 });

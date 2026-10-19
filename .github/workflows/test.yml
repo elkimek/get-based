@@ -13,7 +13,7 @@ on:
         type: choice
         required: false
         default: 'off'
-        options: ['off', 'webkit-lens-wearable']
+        options: ['off', 'webkit-lens-wearable', 'webkit-pwa-routstr']
   workflow_call:
     inputs:
       full_suite:
@@ -23,14 +23,14 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: tests-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}-${{ inputs.full_suite == true && 'full' || 'scoped' }}${{ github.event_name == 'workflow_dispatch' && inputs.diagnostic == 'webkit-lens-wearable' && '-webkit-diagnostic' || '' }}
+  group: tests-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}-${{ inputs.full_suite == true && 'full' || 'scoped' }}${{ github.event_name == 'workflow_dispatch' && inputs.diagnostic == 'webkit-lens-wearable' && '-webkit-diagnostic' || '' }}${{ github.event_name == 'workflow_dispatch' && inputs.diagnostic == 'webkit-pwa-routstr' && '-webkit-pwa-routstr-diagnostic' || '' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' && inputs.full_suite != true }}
 env:
   GETBASED_KIT_ARTIFACT: ${{ github.workspace }}/dist
   CI_TEST_PLAN: .local-notes/ci/plan.json
 jobs:
   prepare:
-    if: github.event_name != 'workflow_dispatch' || inputs.diagnostic != 'webkit-lens-wearable'
+    if: github.event_name != 'workflow_dispatch' || (inputs.diagnostic != 'webkit-lens-wearable' && inputs.diagnostic != 'webkit-pwa-routstr')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     outputs:
@@ -457,9 +457,9 @@ jobs:
           if-no-files-found: error
           retention-days: 14
   test:
-    name: ${{ github.event_name == 'workflow_dispatch' && inputs.diagnostic == 'webkit-lens-wearable' && 'DIAGNOSTIC normal gate omitted' || 'test' }}
+    name: ${{ github.event_name == 'workflow_dispatch' && (inputs.diagnostic == 'webkit-lens-wearable' || inputs.diagnostic == 'webkit-pwa-routstr') && 'DIAGNOSTIC normal gate omitted' || 'test' }}
     needs: [prepare, unit, native, kit, performance, coverage]
-    if: always() && (github.event_name != 'workflow_dispatch' || inputs.diagnostic != 'webkit-lens-wearable')
+    if: always() && (github.event_name != 'workflow_dispatch' || (inputs.diagnostic != 'webkit-lens-wearable' && inputs.diagnostic != 'webkit-pwa-routstr'))
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -623,6 +623,94 @@ jobs:
             .local-notes/ci/webkit-diagnostics/build-verify.json
             .local-notes/ci/webkit-diagnostics/build-metrics.json
             .local-notes/ci/webkit-diagnostics/transport/manifest.json
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
+
+  webkit_pwa_routstr_diagnostics:
+    name: DIAGNOSTIC Cocoa mobile WebKit Routstr PWA (not a release gate)
+    if: github.event_name == 'workflow_dispatch' && inputs.diagnostic == 'webkit-pwa-routstr'
+    runs-on: macos-15
+    timeout-minutes: 20
+    env:
+      DIAGNOSTIC_DIR: .local-notes/ci/webkit-pwa-routstr-diagnostics
+      GETBASED_KIT_ACCEPTANCE_GUARD: '1'
+      GETBASED_KIT_GUARD_REPORT: .local-notes/ci/webkit-pwa-routstr-diagnostics/guard.json
+      PLAYWRIGHT_KIT_OUTPUT_DIR: .local-notes/ci/webkit-pwa-routstr-diagnostics/results
+      GETBASED_KIT_CASE_SCOPE: all
+      GETBASED_KIT_PROJECT: kit-mobile-webkit
+      GETBASED_PWA_DIAGNOSTIC: routstr-service-worker
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          cache: npm
+      - name: Resolve public catalog without private provider credentials
+        run: node scripts/fetch-catalog.mts
+      - name: Install and compile the selected diagnostic revision
+        run: npm ci
+      - name: Install the actual headless Cocoa WebKit engine
+        run: npx --no-install playwright install --with-deps webkit
+      - name: Build once and verify the natural diagnostic shipping identity
+        run: |
+          set -euo pipefail
+          mkdir -p "$DIAGNOSTIC_DIR"
+          node scripts/build-sveltekit.mjs --output dist | tee "$DIAGNOSTIC_DIR/build.log"
+          node scripts/ci-artifact.mjs seal --artifact dist --transport "$DIAGNOSTIC_DIR/transport" | tee "$DIAGNOSTIC_DIR/build-seal.json"
+          node scripts/ci-artifact.mjs verify --artifact dist --transport "$DIAGNOSTIC_DIR/transport" --github-env | tee "$DIAGNOSTIC_DIR/build-verify.json"
+          cp dist/build-metrics.json "$DIAGNOSTIC_DIR/build-metrics.json"
+      - name: Run only the unchanged mobile WebKit Routstr PWA case headlessly
+        id: diagnostic_cases
+        run: |
+          set -euo pipefail
+          node node_modules/@playwright/test/cli.js test \
+            --config=playwright.sveltekit.config.js --project=kit-mobile-webkit --workers=1 --retries=0 \
+            tests/pwa/sveltekit-routstr-model-settings.spec.ts 2>&1 | tee "$DIAGNOSTIC_DIR/case.log"
+      - name: Require exactly the executed diagnostic case without producing a release gate
+        if: always() && steps.diagnostic_cases.outcome != 'skipped'
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          const report = JSON.parse(fs.readFileSync(process.env.GETBASED_KIT_GUARD_REPORT, 'utf8'));
+          const file = 'tests/pwa/sveltekit-routstr-model-settings.spec.ts';
+          const title = 'static Routstr models retain private and regular choices through unavailable-origin cold launch';
+          fs.writeFileSync(process.env.DIAGNOSTIC_DIR + '/scope.json', JSON.stringify({diagnosticOnly: true, releaseGate: false, platform: 'darwin', expectedFile: file, expectedTitle: title, expectedProject: 'kit-mobile-webkit', report}, null, 2));
+          assert.equal(report.execution, true);
+          assert.equal(report.status, 'passed');
+          assert.deepEqual(report.tests.map(test => [test.file, test.title, test.project]), [[file, title, 'kit-mobile-webkit']]);
+          assert.deepEqual(report.issues, []);
+          const test = report.tests[0];
+          assert.equal(test.attemptCount, 1);
+          assert.equal(test.status, 'passed');
+          assert.equal(test.expectedStatus, 'passed');
+          assert.equal(test.declaredExpectedStatus, 'passed');
+          assert.equal(test.outcome, 'expected');
+          for (const annotations of [test.annotations, test.declaredAnnotations]) {
+            assert.equal(annotations.some(value => ['skip', 'fixme'].includes(value.type)), false);
+          }
+          NODE
+      - name: Label results as focused Cocoa diagnostics only
+        if: always()
+        run: |
+          printf '%s\n' '## DIAGNOSTIC Cocoa mobile WebKit Routstr PWA run' 'Only the canonical Routstr model-choice unavailable-origin cold-launch case was selected, with its existing assertions and deadline.' 'This run does not execute the normal matrix or provide the test release gate.' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: diagnostic-webkit-pwa-routstr-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            .local-notes/ci/webkit-pwa-routstr-diagnostics/results
+            .local-notes/ci/webkit-pwa-routstr-diagnostics/guard.json
+            .local-notes/ci/webkit-pwa-routstr-diagnostics/scope.json
+            .local-notes/ci/webkit-pwa-routstr-diagnostics/case.log
+            .local-notes/ci/webkit-pwa-routstr-diagnostics/build.log
+            .local-notes/ci/webkit-pwa-routstr-diagnostics/build-seal.json
+            .local-notes/ci/webkit-pwa-routstr-diagnostics/build-verify.json
+            .local-notes/ci/webkit-pwa-routstr-diagnostics/build-metrics.json
+            .local-notes/ci/webkit-pwa-routstr-diagnostics/transport/manifest.json
           include-hidden-files: true
           if-no-files-found: warn
           retention-days: 7
