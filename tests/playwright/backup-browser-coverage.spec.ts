@@ -355,6 +355,16 @@ test('backup browser coverage exercises IDB errors and folder reauthorization', 
     };
     const originalSetTimeout = window.setTimeout.bind(window);
     const delay = (ms: number) => new Promise((resolve) => originalSetTimeout(resolve, ms));
+    const waitForFolderView = (selector: string) => new Promise<void>((resolve) => {
+      const observer = new MutationObserver(check);
+      function check() {
+        if (!folderHost.querySelector(selector)) return;
+        observer.disconnect();
+        resolve();
+      }
+      observer.observe(folderHost, {childList: true, subtree: true, characterData: true});
+      check();
+    });
     const toasts = () => Array.from(document.querySelectorAll('.notification-toast')).map(el => el.textContent || '');
     const clearToasts = () => document.querySelectorAll('.notification-toast').forEach(el => el.remove());
     let mode = 'open-error';
@@ -458,12 +468,12 @@ test('backup browser coverage exercises IDB errors and folder reauthorization', 
 
       mode = 'folder-handle-denied';
       await backup.initFolderBackup();
-      await delay(20);
+      await waitForFolderView('[data-backup-action="reauthorize-folder"]');
       outcomes.initFolderBackupMarksPermissionLost = backup.getFolderBackupState().permissionLost === true
         && folderHost.textContent?.includes('Restore access') === true;
 
       document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      await delay(20);
+      await waitForFolderView('.backup-folder-status-ok');
       outcomes.deferredFolderReauthRestoresAccess = requestPermissionCalls === 1
         && backup.getFolderBackupState().permissionLost === false
         && folderHost.textContent?.includes('Coverage Backups') === true;
