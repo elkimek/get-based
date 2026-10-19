@@ -294,6 +294,8 @@ Update banners retain a visible, bounded pending state and bind automatic reload
 intent to the exact requested worker. Deferral, timeout, messaging failure or worker
 replacement restores an actionable status instead of silently hiding the update.
 Page exit clears pending reload intent; a delayed replacement cannot reuse it.
+Returning from the back/forward cache restores an eligible waiting offer without
+polling or reusing consent; a deliberate Later dismissal remains effective.
 
 Known cached app navigations record the resulting document's build before startup
 styles load. Unproven network navigation responses cannot be promoted into the

@@ -477,6 +477,7 @@ async function directWaitingFixture(buildId = 'original-document') {
   let message: ((event: MessageEvent<unknown>) => void) | undefined;
   let changed: (() => void) | undefined;
   let pagehide: (() => void) | undefined;
+  let pageshow: ((event: PageTransitionEvent) => void) | undefined;
   const registration: UpdateRegistrationView = { waiting, addEventListener: vi.fn() };
   const container: UpdateContainerView = {
     controller: active,
@@ -490,6 +491,7 @@ async function directWaitingFixture(buildId = 'original-document') {
     win: { APP_BUILD_ID: buildId, location: { hostname: 'getbased.health', search: '', reload },
       addEventListener: vi.fn((type: unknown, listener: unknown) => {
         if (type === 'pagehide') pagehide = listener as () => void;
+        if (type === 'pageshow') pageshow = listener as (event: PageTransitionEvent) => void;
       }) },
     serviceWorkerContainer: container,
     cacheStorage: null,
@@ -502,7 +504,8 @@ async function directWaitingFixture(buildId = 'original-document') {
     Object.defineProperty(event, 'source', { value: source });
     message!(event);
   };
-  return { active, waiting, reload, registration, container, receive, changed: () => changed!(), pagehide: () => pagehide!() };
+  return { active, waiting, reload, registration, container, receive, changed: () => changed!(), pagehide: () => pagehide!(),
+    pageshow: (persisted = true) => pageshow?.(new PageTransitionEvent('pageshow', { persisted })) };
 }
 
 describe('direct waiting-worker identity and deferred update notice', () => {
@@ -922,6 +925,84 @@ describe('vanished waiting-worker and document lifecycle recovery', () => {
     expect(fixture.registration.update).not.toHaveBeenCalled();
     expect(vi.getTimerCount()).toBe(0);
     expect(document.getElementById('version-update-banner')).toBeNull();
+    expect(fixture.reload).not.toHaveBeenCalled();
+  });
+});
+
+
+
+describe('BFCache waiting-update recovery', () => {
+  it('restores the offered waiting banner on persisted pageshow without a version check or automatic activation', async () => {
+    vi.useFakeTimers();
+    const fixture = await directWaitingFixture();
+    fixture.registration.update = vi.fn(async () => {});
+    fixture.pagehide();
+    expect(document.getElementById('version-update-banner')).toBeNull();
+    vi.advanceTimersByTime(1000);
+    fixture.pageshow();
+    const banner = document.getElementById('version-update-banner')!;
+    expect(banner).not.toBeNull();
+    expect(banner.textContent).toContain('Update ready.');
+    expect(banner.getAttribute('aria-busy')).toBe('false');
+    expect(banner.querySelector<HTMLButtonElement>('[data-version-update-action="apply"]')!.disabled).toBe(false);
+    expect(document.body.classList.contains('version-update-visible')).toBe(true);
+    expect(fixture.active.postMessage).toHaveBeenCalledExactlyOnceWith({ type: 'CLIENT_BUILD_ID', buildId: 'original-document' });
+    expect(fixture.waiting.postMessage).not.toHaveBeenCalled();
+    expect(fixture.registration.update).not.toHaveBeenCalled();
+    expect(fixture.reload).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('restores a pending-before-exit update as a fresh offer and never reuses the old reload consent', async () => {
+    vi.useFakeTimers();
+    const fixture = await directWaitingFixture();
+    serviceWorkerUpdate!.applyPendingServiceWorkerUpdate();
+    expectPendingUpdateBanner();
+    fixture.pagehide();
+    fixture.pageshow();
+    const banner = document.getElementById('version-update-banner')!;
+    expect(banner.textContent).toContain('Update ready.');
+    expect(banner.getAttribute('aria-busy')).toBe('false');
+    expect(fixture.waiting.postMessage).toHaveBeenCalledExactlyOnceWith({ type: 'SKIP_WAITING' });
+    expect(vi.getTimerCount()).toBe(0);
+    fixture.receive('UPDATE_ACTIVATION_DEFERRED');
+    expect(banner.textContent).not.toContain('Update paused');
+    fixture.container.controller = fixture.waiting;
+    fixture.changed();
+    expect(fixture.reload).not.toHaveBeenCalled();
+    expect(banner.textContent).toContain('New version installed');
+    banner.querySelector<HTMLButtonElement>('[data-version-update-action="apply"]')!.click();
+    expect(fixture.reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not override a deliberate Later dismissal when the same document returns', async () => {
+    const fixture = await directWaitingFixture();
+    document.querySelector<HTMLButtonElement>('[data-version-update-action="dismiss"]')!.click();
+    fixture.pagehide();
+    fixture.pageshow();
+    expect(document.getElementById('version-update-banner')).toBeNull();
+    expect(fixture.waiting.postMessage).not.toHaveBeenCalled();
+    expect(fixture.reload).not.toHaveBeenCalled();
+  });
+
+  it.each(['no-waiter', 'no-controller'])('keeps the restored page quiet when there is %s', async mode => {
+    const fixture = await directWaitingFixture();
+    fixture.pagehide();
+    if (mode === 'no-waiter') fixture.registration.waiting = null;
+    else fixture.container.controller = null;
+    fixture.pageshow();
+    expect(document.getElementById('version-update-banner')).toBeNull();
+    expect(fixture.waiting.postMessage).not.toHaveBeenCalled();
+    expect(fixture.reload).not.toHaveBeenCalled();
+  });
+
+  it('ignores a non-persisted pageshow rather than replaying the initial update offer', async () => {
+    const fixture = await directWaitingFixture();
+    fixture.pagehide();
+    fixture.pageshow(false);
+    expect(document.getElementById('version-update-banner')).toBeNull();
+    expect(fixture.active.postMessage).not.toHaveBeenCalled();
+    expect(fixture.waiting.postMessage).not.toHaveBeenCalled();
     expect(fixture.reload).not.toHaveBeenCalled();
   });
 });

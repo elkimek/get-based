@@ -514,6 +514,14 @@ export async function registerServiceWorkerUpdates({
       }
     });
     win.addEventListener?.('focus', reportClientBuild);
+    win.addEventListener?.('pageshow', event => {
+      if (!event.persisted) return;
+      // BFCache restores the same document after pagehide cleared its intent.
+      // Reoffer the waiting update directly, without a throttled version check
+      // or consent carried over from before the document left the page.
+      reportClientBuild();
+      if (canPromptForUpdate(registration, serviceWorkerContainer)) showVersionUpdateBanner(registration);
+    });
     reportClientBuild();
     let refreshing = false;
     let controller = serviceWorkerContainer.controller;
