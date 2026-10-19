@@ -41,6 +41,17 @@ function restoreReviewedComponentSource(file:string,source:string){
   source=source.replace(current,'<svelte:options preserveWhitespace={true} />');
  }
  if(file==='js/nav.ts'){
+  // The reviewed Safari client-list initiator fix is independent of this style port.
+  expect(crypto.createHash('sha256').update(source).digest('hex')).toBe('7482f3dbb3279427d5044bf5b124ff722e39c41fc6767cf7e75c1bd3bf59f78a');
+  const clientFocusEdits = [
+   {current:"  openClientList: (returnFocus?: HTMLElement) => unknown;",previous:"  openClientList: () => unknown;"},
+   {current:"    navActionDeps.openClientList(actionEl);",previous:"    navActionDeps.openClientList();"},
+  ] as const;
+  for(const edit of clientFocusEdits){
+   expect(source.split(edit.current).length-1).toBe(1);
+   source=source.replace(edit.current,edit.previous);
+  }
+  expect(crypto.createHash('sha256').update(source).digest('hex')).toBe('3fe30a0bc42ccc2e61f4b0bcbaff7b6c793cadbd363744cb6e4131c9c1ecd5ff');
   // Qualify the real mobile handoff repair separately from the immutable
   // style-port proof, then retain its original complete-source SHA checks.
   expect(source.split(customMarkerHandoffFixed).length-1).toBe(1);
@@ -137,5 +148,15 @@ it.each(['missing close','different action','reordered close'] as const)('reject
 it.each(['compiler mode','foreign bytes'] as const)('rejects a corrupted current AppShell before its immutable style proof: %s',mutation=>{
  const file='js/components/AppShell.svelte',source=readFileSync(file,'utf8');
  const changed=mutation==='compiler mode'?source.replace('runes={true}','runes={false}'):source+'\n<!-- foreign -->';
+ expect(changed).not.toBe(source);expect(()=>restoreReviewedComponentSource(file,changed)).toThrow();
+});
+
+
+it.each(['missing invocation','wrong target','wrong signature','foreign bytes'] as const)('rejects corrupted reviewed Client List focus ownership before original style proof: %s',mutation=>{
+ const file='js/nav.ts',source=readFileSync(file,'utf8');
+ const changed=mutation==='missing invocation'?source.replace('    navActionDeps.openClientList(actionEl);',''):
+  mutation==='wrong target'?source.replace('navActionDeps.openClientList(actionEl);','navActionDeps.openClientList(document.activeElement);'):
+  mutation==='wrong signature'?source.replace('openClientList: (returnFocus?: HTMLElement) => unknown;','openClientList: (returnFocus?: Element) => unknown;'):
+  source+'\n// foreign current nav source';
  expect(changed).not.toBe(source);expect(()=>restoreReviewedComponentSource(file,changed)).toThrow();
 });

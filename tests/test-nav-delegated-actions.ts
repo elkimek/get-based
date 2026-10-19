@@ -35,7 +35,8 @@ assert('nav.js routes external actions through adapters and publishes no globals
   navSrc.includes("from './nav-runtime.js'") &&
     navSrc.includes('navigateFromNavRuntime(') &&
     navSrc.includes('openEMFAssessmentFromNavRuntime()') &&
-    navSrc.includes('navActionDeps.openClientList()') &&
+    navSrc.includes('navActionDeps.openClientList(actionEl)') &&
+    !navSrc.includes('navActionDeps.openClientList()') &&
     !navSrc.includes('exposeNavRuntimeGlobals') &&
     !/\bwindow(?:\.|\s*\[)/.test(navSrc));
 assert('App shell injects nav view actions without bridge or window fallbacks',

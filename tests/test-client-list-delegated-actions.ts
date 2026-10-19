@@ -16,7 +16,8 @@ const formRenderingSrc = readRepositorySource('js/client-list-form-rendering.js'
 const authoredClientListSrc = [overviewSrc, rowSrc, menuSrc, iconSrc, formComponentSrc].join('\n');
 const actionMarkupSrc = `${authoredClientListSrc}\n${clientListFormSrc}`;
 const profileSrc = readRepositorySource('js/profile.js', 'utf8');
-const clientListUsesScrollLockedOverlay = /openModalOverlay\s*\(\s*overlay\s*,\s*\{\s*initialFocus:\s*['"]#cl-search['"]\s*,\s*scrollLock:\s*true\s*,?\s*\}\s*\)/s.test(clientListSrc);
+const clientListUsesScrollLockedOverlay = /export function openClientList\s*\(\s*returnFocus\s*\)/.test(clientListImplSrc)
+  && /openModalOverlay\s*\(\s*overlay\s*,\s*\{\s*initialFocus:\s*['"]#cl-search['"]\s*,\s*scrollLock:\s*true\s*,\s*returnFocus\s*,?\s*\}\s*\)/s.test(clientListSrc);
 const clientListClosesOverlay = /closeModalOverlay\s*\(\s*['"]client-list-overlay['"]\s*\)/.test(clientListSrc);
 
 const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
