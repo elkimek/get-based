@@ -61,8 +61,7 @@ return (async function() {
     S.profileDob = '1987-11-22';
     dataModule.saveImportedData();
     navModule.buildSidebar();
-    viewsModule.navigate('dashboard');
-    await wait(50);
+    await viewsModule.navigate('dashboard');
   }
   const data = dataModule.getActiveData();
   assert('Setup: demo data loaded', data.dates.length > 0, `${data.dates.length} dates`);
@@ -106,8 +105,7 @@ return (async function() {
     S.importedData = originalImportedData;
     dataModule.saveImportedData();
     navModule.buildSidebar();
-    viewsModule.navigate('dashboard');
-    await wait(50);
+    await viewsModule.navigate('dashboard');
   }
 
   // ═══════════════════════════════════════════════
@@ -145,8 +143,8 @@ return (async function() {
   // 1. DASHBOARD — renders all key sections
   // ═══════════════════════════════════════════════
   console.log('%c 1. Dashboard rendering', 'font-weight:bold;color:#6366f1');
-  viewsModule.navigate('dashboard');
-  await wait(50);
+  // Navigation completes after the lazy Dashboard renderer and hydration settle.
+  await viewsModule.navigate('dashboard');
 
   assert('Dashboard has main content', main!.innerHTML.length > 500);
   assert('Dashboard has Focus summary', main!.innerHTML.includes('Current Focus'));
@@ -227,8 +225,7 @@ return (async function() {
   assert('Correlations view rendered', main!.innerHTML.includes('orrelation'));
 
   // Back to dashboard
-  viewsModule.navigate('dashboard');
-  await wait(50);
+  await viewsModule.navigate('dashboard');
   assert('Back to dashboard', !!sidebar!.querySelector<HTMLElement>('.nav-item.active[data-category="dashboard"]'));
 
   // Lens pages are dedicated workspaces; they should not duplicate sidebar
@@ -262,8 +259,7 @@ return (async function() {
   }
   if (savedLabsOrder == null) localStorage.removeItem(labsOrderKey);
   else localStorage.setItem(labsOrderKey, savedLabsOrder);
-  viewsModule.navigate('dashboard');
-  await wait(50);
+  await viewsModule.navigate('dashboard');
 
   // ═══════════════════════════════════════════════
   // 3. SETTINGS MODAL — open, tabs, provider switch, close
@@ -429,8 +425,7 @@ return (async function() {
   // Verify the optional dashboard widget can be shown after save
   viewsModule.closeModal();
   await wait(20);
-  viewsModule.navigate('dashboard');
-  await wait(50);
+  await viewsModule.navigate('dashboard');
   viewsModule.showDashboardWidget?.('supplements');
   await wait(50);
   const suppSection = main!.querySelector<HTMLElement>('.supp-timeline-section');
@@ -449,8 +444,7 @@ return (async function() {
   assert('Supplement removed from state', (S.importedData.supplements || []).length === initialSuppCount);
 
   // Verify dashboard updated after delete
-  viewsModule.navigate('dashboard');
-  await wait(50);
+  await viewsModule.navigate('dashboard');
   const suppSectionAfter = main!.querySelector<HTMLElement>('.supp-timeline-section');
   const stillShows = suppSectionAfter?.innerHTML.includes('__UI_TEST_SUPP__');
   assert('Dashboard no longer shows deleted supplement', !stillShows);
@@ -618,8 +612,7 @@ return (async function() {
   // ═══════════════════════════════════════════════
   console.log('%c 7. Context cards', 'font-weight:bold;color:#6366f1');
 
-  viewsModule.navigate('dashboard');
-  await wait(50);
+  await viewsModule.navigate('dashboard');
 
   // Open diet editor
   await contextCards.openDietEditor();
@@ -792,8 +785,7 @@ return (async function() {
   // ═══════════════════════════════════════════════
   console.log('%c 14. Sidebar search', 'font-weight:bold;color:#6366f1');
 
-  viewsModule.navigate('dashboard');
-  await wait(50);
+  await viewsModule.navigate('dashboard');
   const staticNavCategories = new Set([
     'dashboard', 'labs', 'biology-scores', 'correlations', 'compare', 'recommendations',
     'reports', 'knowledge', 'context', 'custom-markers', 'light', 'body', 'wearables',
@@ -883,8 +875,7 @@ return (async function() {
   // ═══════════════════════════════════════════════
   // SUMMARY
   // ═══════════════════════════════════════════════
-  viewsModule.navigate('dashboard');
-  await wait(20);
+  await viewsModule.navigate('dashboard');
 
   console.log(`\n%c UI Flows: ${pass} passed, ${fail} failed `,
     fail > 0
