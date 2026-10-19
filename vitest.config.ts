@@ -11,6 +11,8 @@
 import { defineConfig } from 'vitest/config';
 import fs from 'node:fs';
 import { COVERAGE_INCLUDE } from './scripts/coverage-source.mjs';
+import { nativeCoveragePlugins } from './scripts/native-coverage-plugins.mjs';
+import NativeCoverageReporter from './scripts/native-coverage-reporter.mjs';
 
 export default defineConfig({
   plugins: [{
@@ -23,8 +25,9 @@ export default defineConfig({
       if (!/\.svelte\.(?:native|html)\.js$/.test(id)) return null;
       return { code: fs.readFileSync(id, 'utf8').replace(/\/\/# sourceMappingURL=[^\r\n]*/g, ''), map: null };
     },
-  }],
+  }, ...nativeCoveragePlugins()],
   test: {
+    includeTaskLocation: true,
     environment: 'node',
     include: [
       'tests/**/*.test.{js,ts}',
@@ -41,9 +44,10 @@ export default defineConfig({
     ],
     setupFiles: ['./tests/_vitest-setup.js'],
     globalSetup: ['./tests/helpers/coverage-global-setup.js'],
-    reporters: ['default'],
+    reporters: ['default', new NativeCoverageReporter()],
     coverage: {
-      provider: 'istanbul',
+      provider: 'custom',
+      customProviderModule: './scripts/native-coverage-runtime.mjs',
       reporter: ['json-summary', 'json'],
       reportsDirectory: 'tests/.vitest-coverage',
       ...{ all: true },

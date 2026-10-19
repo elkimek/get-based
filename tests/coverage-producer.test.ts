@@ -106,7 +106,7 @@ it('executes both async paths, a distinct same-named method and genuine compiled
     fs.writeFileSync(config, `import base from ${JSON.stringify(path.join(root, 'vitest.config.js'))};
 export default {...base, root: ${JSON.stringify(root)}, test: {...base.test,
   include: [${JSON.stringify(relative(fixture))}, 'tests/service-worker-client-cache.test.ts'], setupFiles: [],
-  coverage: {...base.test.coverage, enabled: true,
+  coverage: {...base.test.coverage, provider: 'istanbul', enabled: true,
     include: ${JSON.stringify([relative(mixed), relative(awaited), `${component}.native.js`, `${component}.html.js`, 'service-worker-runtime.js'])},
     reportsDirectory: ${JSON.stringify(reports)}}}};
 `);

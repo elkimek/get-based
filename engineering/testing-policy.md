@@ -559,11 +559,20 @@ do not assign them through broad overlap to improve a result.
 Svelte components are inventoried once at their emitted native-browser URL.
 Their generated source maps identify bundled third-party framework functions;
 only positively mapped library functions are separated from the first-party
-function denominator. Unit collection keeps these artifacts in the same compiled
-coordinate space as browser collection; external maps remain available to the
-combined collector. Missing component maps fail collection, and unmapped
-functions remain visible. Focused component tests do not replace the complete
-combined-coverage gate.
+function denominator. Unit collection uses a public native V8 provider and keeps these artifacts in
+the same compiled coordinate space as browser collection. Its explicit
+`coverage-functions.json` receipt contains function identities only: each positive
+must retain its own native entry count, exact canonical source mapping, complete
+public transform witness and collected-versus-finished test membership. The
+consumer independently rederives these identities from the retained raw capture.
+Unsupported function syntax and authenticated anonymous VM scripts remain visible
+with zero credit; malformed ranges,
+missing or ambiguous provenance, stale sources and altered transport fail.
+External component maps retain the authoritative framework ownership split.
+No native statement, branch or byte coverage is inferred. Native function coverage
+currently supports one-shot runs; ordinary `test:watch` remains available without
+`--coverage`. Focused component tests
+do not replace the complete combined-coverage gate.
 
 The retained `production-coverage` artifact includes per-file results, feature
 summaries, unmapped ranges, and revision information. The authoritative global
@@ -573,7 +582,8 @@ The current global function floor is **89%**, with independent floors for all
 be weakened to obtain a green check. Review classification and baseline changes
 explicitly; improvement in one feature cannot hide regression in another.
 
-`npm run test:critical-coverage` separately enforces line, statement, function,
+The dedicated producer contracts and `npm run test:critical-coverage` explicitly
+retain Istanbul. The critical gate separately enforces line, statement, function,
 and branch thresholds for selected critical modules. Its suite membership,
 source inventory, and per-module thresholds are defined in
 [vitest.critical.config.ts](../vitest.critical.config.ts), rather than a fixed

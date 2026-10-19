@@ -5,6 +5,7 @@ import {createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {qualifiedPlan} from './ci-plan.mjs';
 import {validateKitCases, type KitCase} from './kit-acceptance-reporter.mjs';
+import {readNativeFunctionCoverage, type NativeCoverageReadOptions} from './native-coverage-receipt.mjs';
 
 function object(value: unknown, label: string): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(`${label} must be an object`);
@@ -115,7 +116,7 @@ function validateUnitCoverage(file: string): {files: number; sha256: string} {
   assert(statements > 0, 'Unit coverage contains no statements');
   return {files: files.length, sha256: digest(body)};
 }
-export function qualifyCoverageUnion(directory: string, inventories: readonly unknown[], expectedShards: number, unitFile: string) {
+function qualifyBrowserCoverageUnion(directory: string, inventories: readonly unknown[], expectedShards: number) {
   assert(Number.isSafeInteger(expectedShards) && expectedShards > 0 && expectedShards <= 64 && inventories.length === expectedShards, 'Wrong coverage shard count');
   const shardIds = new Set<number>(), files = new Map<string, CoverageFile>();
   for (const raw of inventories) {
@@ -137,8 +138,26 @@ export function qualifyCoverageUnion(directory: string, inventories: readonly un
   }
   assert(same(jsonFiles(directory), [...files.keys()].sort()), 'Missing or unexpected raw coverage files');
   assert([...files.values()].some(file => file.entries > 0), 'No browser coverage entries');
-  const unit = validateUnitCoverage(unitFile);
-  return {schemaVersion: 1, status: 'passed', shards: expectedShards, rawFiles: files.size, unit};
+  return {schemaVersion: 1, status: 'passed', shards: expectedShards, rawFiles: files.size};
+}
+/** Retain the synchronous genuine Istanbul contract used by existing producers. */
+export function qualifyCoverageUnion(directory: string, inventories: readonly unknown[], expectedShards: number, unitFile: string) {
+  const browser = qualifyBrowserCoverageUnion(directory, inventories, expectedShards);
+  return {...browser, unit: validateUnitCoverage(unitFile)};
+}
+/** Native function-only evidence has its own explicit, asynchronously replayed contract. */
+export async function qualifyNativeCoverageUnion(directory: string, inventories: readonly unknown[], expectedShards: number, unitFile: string, options: NativeCoverageReadOptions = {}) {
+  const browser = qualifyBrowserCoverageUnion(directory, inventories, expectedShards);
+  const root = options.root ?? path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const receipt = await readNativeFunctionCoverage(unitFile, {root, ...(options.expectedRevision === undefined ? {} : {expectedRevision: options.expectedRevision})});
+  const body = regular(unitFile, 'Unit native coverage must be a regular file');
+  assert(same(JSON.parse(body.toString('utf8')), receipt), 'Native unit receipt changed during qualification');
+  return {...browser, unit: {
+    format: 'native-functions', producer: receipt.producer, files: receipt.files.length, sha256: digest(body),
+    calledFunctions: receipt.files.reduce((sum, entry) => sum + entry.called.length, 0),
+    unmappedFunctions: receipt.files.reduce((sum, entry) => sum + entry.unmapped.length, 0), unattributedScripts: receipt.unattributed.length,
+    mappingComplete: receipt.files.every(entry => entry.unmapped.length === 0), tests: receipt.tests,
+  }};
 }
 export function qualifyJobs(needsValue: unknown, selectedValue: unknown, full: boolean, coverageJob = 'coverage') {
   const needs = object(needsValue, 'Job results'), selected = object(selectedValue, 'Selected jobs');
@@ -152,17 +171,22 @@ export function qualifyJobs(needsValue: unknown, selectedValue: unknown, full: b
   }
   return {schemaVersion: 1, status: 'passed', full, jobs: selected};
 }
-function main(): void {
+async function main(): Promise<void> {
   const args = process.argv.slice(2), mode = args[0];
   const value = (flag: string) => {const index = args.indexOf(flag); assert(index >= 0 && args[index + 1], `Missing ${flag}`); return args[index + 1]!;};
   let result: unknown;
   if (mode === 'kit') result = qualifyKitUnion(json(value('--collection')), jsonFiles(value('--reports')).map(file => json(path.join(value('--reports'), file))));
   else if (mode === 'coverage-inventory') result = createCoverageInventory(value('--directory'), value('--shard'));
-  else if (mode === 'coverage-verify') result = qualifyCoverageUnion(value('--directory'), jsonFiles(value('--inventories')).map(file => json(path.join(value('--inventories'), file))), Number(value('--shards')), value('--unit'));
+  else if (mode === 'coverage-verify') {
+    const format = args.includes('--unit-format') ? value('--unit-format') : 'istanbul';
+    assert(format === 'istanbul' || format === 'native-functions', 'Unknown unit coverage format');
+    const directory = value('--directory'), inventories = jsonFiles(value('--inventories')).map(file => json(path.join(value('--inventories'), file))), shards = Number(value('--shards')), unit = value('--unit');
+    result = format === 'native-functions' ? await qualifyNativeCoverageUnion(directory, inventories, shards, unit) : qualifyCoverageUnion(directory, inventories, shards, unit);
+  }
   else if (mode === 'aggregate') {
     const plan = qualifiedPlan(json(value('--plan')));
     result = qualifyJobs(json(value('--needs')), plan.jobs, plan.full);
   } else throw new Error(`Unknown CI results mode: ${String(mode)}`);
   const output = value('--output'); fs.mkdirSync(path.dirname(output), {recursive: true}); fs.writeFileSync(output, JSON.stringify(result, null, 2) + '\n');
 }
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main().catch(error => {console.error(error); process.exitCode = 1;});

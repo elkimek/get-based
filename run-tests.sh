@@ -105,5 +105,5 @@ else
   PLAYWRIGHT_REUSE_SERVER=1 PORT=$PORT npm run test:playwright || exit 1
 fi
 if [ "$COVERAGE_ENABLED" = "1" ]; then
-  INCLUDE_VITEST_COVERAGE=1 REQUIRE_PLAYWRIGHT_COVERAGE_SHARDS=1 PLAYWRIGHT_COVERAGE_DIR="$DIR/tests/.playwright-coverage" PORT=$PORT node "$DIR/scripts/playwright-coverage.mjs" || exit 1
+  INCLUDE_VITEST_COVERAGE=1 VITEST_COVERAGE_FORMAT=native-functions VITEST_COVERAGE_JSON="$DIR/tests/.vitest-coverage/coverage-functions.json" REQUIRE_PLAYWRIGHT_COVERAGE_SHARDS=1 PLAYWRIGHT_COVERAGE_DIR="$DIR/tests/.playwright-coverage" PORT=$PORT node "$DIR/scripts/playwright-coverage.mjs" || exit 1
 fi

@@ -104,10 +104,13 @@ GETBASED_ALLOW_HIGH_WRITE_TESTS=1 COVERAGE=1 ./run-tests.sh
 ```
 
 The runner starts an isolated server and runs the Node/Vitest, origin-guard and
-full Chromium checks. `COVERAGE=1` combines Vitest Istanbul data with Playwright
-V8 function ranges against `scripts/coverage-baseline.json`. Classic worker tests
-instrument only scripts admitted by the configured coverage scope and share
-genuine counters with Vitest. Raise the committed minimum
+full Chromium checks. `COVERAGE=1` combines independently validated Vitest native
+V8 own-function identities with Playwright coverage against
+`scripts/coverage-baseline.json`. The unit receipt retains raw ranges, source and
+transform witnesses, and complete test membership; unsupported functions earn
+zero credit. Classic worker tests retain their actual raw script source. The
+separate critical gate and producer contracts explicitly use Istanbul for genuine
+line, statement, function and branch counters. Raise the committed minimum
 when coverage improves; `COVERAGE_MIN` may demand more, never less. Function
 coverage does not establish branch coverage or complete workflow acceptance.
 Live paid providers, physical hardware and manual acceptance remain separate.

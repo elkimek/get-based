@@ -433,10 +433,12 @@ jobs:
           path: .local-notes/ci/coverage-inventories
           merge-multiple: true
       - name: Reject missing, extra, corrupt or incomplete source-coverage inputs
-        run: node scripts/ci-results.mjs coverage-verify --inventories .local-notes/ci/coverage-inventories --directory tests/.playwright-coverage --shards 4 --unit tests/.vitest-coverage/coverage-final.json --output .local-notes/ci/coverage-inputs.json
+        run: node scripts/ci-results.mjs coverage-verify --inventories .local-notes/ci/coverage-inventories --directory tests/.playwright-coverage --shards 4 --unit tests/.vitest-coverage/coverage-functions.json --unit-format native-functions --output .local-notes/ci/coverage-inputs.json
       - name: Enforce unchanged combined source coverage denominator and floors
         env:
           INCLUDE_VITEST_COVERAGE: '1'
+          VITEST_COVERAGE_FORMAT: native-functions
+          VITEST_COVERAGE_JSON: tests/.vitest-coverage/coverage-functions.json
           REQUIRE_PLAYWRIGHT_COVERAGE_SHARDS: '1'
           PLAYWRIGHT_COVERAGE_DIR: tests/.playwright-coverage
         run: node scripts/playwright-coverage.mjs
@@ -448,7 +450,7 @@ jobs:
             tests/.coverage.json
             tests/.coverage.md
             tests/.coverage.html
-            tests/.vitest-coverage/coverage-summary.json
+            tests/.vitest-coverage/coverage-functions.json
             tests/.critical-coverage/coverage-summary.json
             .local-notes/ci/coverage-inputs.json
           include-hidden-files: true

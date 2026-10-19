@@ -73,6 +73,7 @@ export default defineConfig({
     ].map(file => sourcePath(file)),
     coverage: {
       ...base.test!.coverage!,
+      provider: 'istanbul',
       enabled: true,
       include: [
         'js/cycle-import-mutations.js',
