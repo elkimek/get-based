@@ -189,7 +189,11 @@ export async function replayNativeTransform(root: string, relative: string, cano
   const serializedMap = JSON.stringify(mapData);
   const runnerMap = {...mapData, toString: () => serializedMap, toUrl: () => 'data:application/json;charset=utf-8;base64,' + Buffer.from(serializedMap).toString('base64')};
   const result = await moduleRunnerTransform(post, runnerMap, file, post); assert(result?.map && 'version' in result.map && result.map.version === 3);
-  assert.equal(NATIVE_WRAPPER_PREFIX + result.code.trimEnd() + trailer + cache + SUFFIX, runtime, 'Whole public Vite runtime reconstruction failed');
+  // Vite's public fetchModule blanks only a leading hashbang after the SSR
+  // transform, preserving every source-map coordinate and the line ending.
+  const code = result.code.replace(/^#!.*/, hashbang => ' '.repeat(hashbang.length));
+  if (code !== result.code) assert(canonical.startsWith('#!') && post.startsWith('#!'), 'Unexpected public hashbang provenance');
+  assert.equal(NATIVE_WRAPPER_PREFIX + code.trimEnd() + trailer + cache + SUFFIX, runtime, 'Whole public Vite runtime reconstruction failed');
   assert(result.map.sources.length === 1 && result.map.sources[0] === file && result.map.sourcesContent?.[0] === canonical, 'Public transform source map provenance failed');
-  return {file, canonical, runtime, offset, code: result.code, map: result.map as EncodedSourceMap};
+  return {file, canonical, runtime, offset, code, map: result.map as EncodedSourceMap};
 }

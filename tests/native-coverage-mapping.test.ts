@@ -26,11 +26,12 @@ async function fixture(canonical: string, post = canonical, client = false) {
   const transformed = await moduleRunnerTransform(post, initialMap, file, post); expect(transformed?.map).toBeTruthy();
   const map = transformed!.map as EncodedSourceMap, inline = 'data:application/json;base64,' + Buffer.from(JSON.stringify(map)).toString('base64');
   const trailer = '\n//# sourceMappingSource=vite-generated\n//# sourceMappingURL=' + inline + '\n', cache = '\n//# vitestCache=' + Buffer.from('{}').toString('base64');
-  const runtime = NATIVE_WRAPPER_PREFIX + transformed!.code.trimEnd() + trailer + cache + '\n}}', lines = runtime.split('\n');
+  const code = transformed!.code.replace(/^#!.*/, hashbang => ' '.repeat(hashbang.length));
+  const runtime = NATIVE_WRAPPER_PREFIX + code.trimEnd() + trailer + cache + '\n}}', lines = runtime.split('\n');
   const snapshot: NativeSnapshot = {file: relative, scriptId: 'synthetic', url: pathToFileURL(file).href, source: {file: 'synthetic-source.js', sha256: nativeDigest(runtime), bytes: Buffer.byteLength(runtime)}, sourceLength: runtime.length, metadata: {scriptId: 'synthetic', url: pathToFileURL(file).href, startLine: 0, startColumn: 0, endLine: lines.length - 1, endColumn: lines.at(-1)!.length, executionContextId: 1, hash: nativeDigest(runtime), sourceMapURL: inline}};
   const geometry: NativeGeometry = {file: relative, environment: environment.viteEnvironment, consumer: environment.consumer, originalHash: nativeDigest(canonical), code: canonical};
   const observation: NativeObservation = {file: relative, environment: environment.viteEnvironment, consumer: environment.consumer, code: post, ordering: [{name: 'vite:import-analysis', order: null}, {name: 'getbased-native-coverage-observer', order: 'post'}], ownIndex: 1, analysisIndex: 0};
-  return {root, relative, file, canonical, runtime, snapshot, geometry, observation, environment, transform: {file, canonical, runtime, code: transformed!.code, map, offset: NATIVE_WRAPPER_PREFIX.length} satisfies NativeTransform};
+  return {root, relative, file, canonical, runtime, snapshot, geometry, observation, environment, transform: {file, canonical, runtime, code, map, offset: NATIVE_WRAPPER_PREFIX.length} satisfies NativeTransform};
 }
 const source = 'export function run(value) { return value ? 1 : 0; }';
 function own(transform: NativeTransform, count: number) {
@@ -244,4 +245,19 @@ it.each([
   await expect(replay({...value.observation, code: post + '/* changed package source */'})).rejects.toThrow();
   const client = await fixture(canonical, post, true);
   await expect(replayNativeTransform(client.root, client.relative, canonical, client.runtime, client.snapshot, NATIVE_WRAPPER_PREFIX.length, client.geometry, client.observation, client.environment)).rejects.toThrow('Package import rewrite requires SSR');
+});
+
+
+it('reconstructs only the public fetch-layer leading hashbang blanking without moving native entries',async()=>{
+ const hashbang='#!/usr/bin/env node',canonical=hashbang+'\n'+source,value=await fixture(canonical);
+ const replay=(runtime=value.runtime,observation=value.observation,geometry=value.geometry)=>replayNativeTransform(value.root,value.relative,canonical,runtime,value.snapshot,NATIVE_WRAPPER_PREFIX.length,geometry,observation,value.environment);
+ const transform=await replay();expect(transform.code.startsWith(' '.repeat(hashbang.length)+'\n')).toBe(true);
+ expect(transform.map?.sourcesContent).toEqual([canonical]);
+ const entry=own(transform,2);expect(nativeFunctionMapper(transform)(entry)).toEqual({start:canonical.indexOf('export function'),end:canonical.length,count:2});
+ await expect(replay(value.runtime.replace(' '.repeat(hashbang.length)+'\n',' '.repeat(hashbang.length-1)+'\n'))).rejects.toThrow('Whole public Vite runtime reconstruction failed');
+ await expect(replay(value.runtime.replace(' '.repeat(hashbang.length)+'\n',hashbang+'\n'))).rejects.toThrow('Whole public Vite runtime reconstruction failed');
+ await expect(replay(value.runtime,{...value.observation,code:canonical.replace('env node','env other')})).rejects.toThrow();
+ await expect(replay(value.runtime,value.observation,{...value.geometry,code:canonical.replace(hashbang,' '.repeat(hashbang.length))})).rejects.toThrow('Unqualified pre-transform projection');
+ const corrupted=structuredClone(transform.map!);corrupted.sourcesContent=[canonical.replace(hashbang,' '.repeat(hashbang.length))];
+ expect(()=>nativeFunctionMapper({...transform,map:corrupted})(entry)).toThrow('Source map does not bind canonical source');
 });
