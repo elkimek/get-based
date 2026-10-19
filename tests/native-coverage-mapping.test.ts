@@ -228,3 +228,20 @@ it.each(['moduleUrl', 'urls.active'])('reconstructs the public query helper arou
   const server = await fixture(canonical, post, false);
   await expect(replayNativeTransform(server.root, server.relative, canonical, server.runtime, server.snapshot, NATIVE_WRAPPER_PREFIX.length, server.geometry, server.observation, server.environment)).rejects.toThrow('Unsupported dynamic import rewrite');
 });
+
+
+it.each([
+  ['undici', '/node_modules/undici/index.js'],
+  ['@vercel/blob', '/node_modules/@vercel/blob/dist/index.js'],
+])('reconstructs the installed SSR ESM package entry for %s without loading it', async (specifier, target) => {
+  // Synthetic source and real public runtime output, not a native application capture.
+  const canonical = `import external from '${specifier}'; ` + source;
+  const post = canonical.replace(`'${specifier}'`, JSON.stringify(target)), value = await fixture(canonical, post);
+  const replay = (observation: NativeObservation) => replayNativeTransform(value.root, value.relative, canonical, value.runtime, value.snapshot, NATIVE_WRAPPER_PREFIX.length, value.geometry, observation, value.environment);
+  await expect(replay(value.observation)).resolves.toMatchObject({canonical, runtime: value.runtime});
+  await expect(replay({...value.observation, code: post.replace(target, target.replace(/\.js$/, '.cjs'))})).rejects.toThrow();
+  await expect(replay({...value.observation, code: post.replace(target, '/node_modules/other/index.js')})).rejects.toThrow();
+  await expect(replay({...value.observation, code: post + '/* changed package source */'})).rejects.toThrow();
+  const client = await fixture(canonical, post, true);
+  await expect(replayNativeTransform(client.root, client.relative, canonical, client.runtime, client.snapshot, NATIVE_WRAPPER_PREFIX.length, client.geometry, client.observation, client.environment)).rejects.toThrow('Package import rewrite requires SSR');
+});

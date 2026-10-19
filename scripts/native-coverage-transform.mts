@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import fs from 'node:fs';
+import {findPackageJSON} from 'node:module';
+import {pathToFileURL} from 'node:url';
 import MagicString from 'magic-string';
 import {moduleRunnerTransform, transformWithOxc} from 'vite';
 import * as ts from 'typescript/unstable/ast';
@@ -61,7 +63,38 @@ function syntax(source: string, file: string, post = false): ModuleFacts {
 }
 function resolvedLiteral(root: string, file: string, specifier: string, environment: NativeEnvironment): string {
   if (specifier.startsWith('node:')) {assert.equal(environment.consumer, 'client', 'SSR builtin import must remain unchanged'); return '/@id/__vite-browser-external:' + specifier;}
-  assert(specifier.startsWith('.'), 'Unsupported import resolution'); const relative = path.relative(root, path.resolve(path.dirname(file), specifier));
+  if (!specifier.startsWith('.')) {
+    assert.equal(environment.consumer, 'server', 'Package import rewrite requires SSR');
+    assert(/^(?:@[a-z0-9._~-]+\/)?[a-z0-9._~-]+$/.test(specifier), 'Unsupported import resolution');
+    // Bind both public Node package lookups to the same installed owner.
+    // Only deterministic import/main metadata forms qualify below.
+    const manifest = findPackageJSON(specifier, pathToFileURL(file));
+    assert(typeof manifest === 'string'); assert.equal(fs.realpathSync(manifest), manifest);
+    assert.equal(findPackageJSON(specifier, import.meta.url), manifest, 'Different package resolution owners');
+    const owned = path.relative(root, manifest);
+    assert(owned && !owned.startsWith('..' + path.sep) && !path.isAbsolute(owned), 'Package escapes repository');
+    const metadata: unknown = JSON.parse(readNativeRegular(manifest).toString('utf8'));
+    assert(metadata && typeof metadata === 'object' && 'name' in metadata && metadata.name === specifier, 'Package identity differs');
+    let entry: unknown = 'main' in metadata ? metadata.main : undefined;
+    if ('exports' in metadata) {
+      const entries = metadata.exports;
+      assert(entries && typeof entries === 'object' && '.' in entries, 'Unsupported package exports');
+      const main = entries['.'];
+      assert(main && typeof main === 'object' && 'import' in main && 'require' in main, 'Missing package import condition');
+      assert.deepEqual(Object.keys(main).sort(), ['import', 'require'], 'Unsupported package export conditions');
+      assert(typeof main.require === 'string' && typeof main.import === 'string' && main.import.startsWith('./'), 'Unsupported package import entry');
+      entry = main.import;
+    } else {
+      assert(!('module' in metadata) || metadata.module === entry, 'Conflicting package module entry');
+      assert(!('jsnext:main' in metadata) && !('jsnext' in metadata) && !('browser' in metadata), 'Unsupported package main fields');
+    }
+    assert(typeof entry === 'string' && entry.length > 0 && !/[\\?#\0]/.test(entry) && !path.isAbsolute(entry), 'Unsupported package entry');
+    const directory = path.dirname(manifest), target = path.resolve(directory, entry), within = path.relative(directory, target);
+    assert(within && !within.startsWith('..' + path.sep) && !path.isAbsolute(within), 'Package entry escapes owner');
+    assert.equal(fs.realpathSync(target), target); readNativeRegular(target);
+    return '/' + path.relative(root, target).split(path.sep).join('/');
+  }
+  const relative = path.relative(root, path.resolve(path.dirname(file), specifier));
   assert(relative && !relative.startsWith('..' + path.sep) && !path.isAbsolute(relative), 'Import escapes repository'); return '/' + relative.split(path.sep).join('/');
 }
 function decode64(value: string, max: number): Buffer {
