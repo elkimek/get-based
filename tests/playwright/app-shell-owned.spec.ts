@@ -34,6 +34,17 @@ for(const width of [393,1280])test(`AppShell cold hydration and real header acti
   });
   expect(initial.owned).toBe(true);expect(initial.chat).toBe(true);expect(initial.identities.every(Boolean)).toBe(true);expect(initial.header).toBe(true);expect(initial.footer).toBe(true);expect(initial.welcome).toBe(true);expect(initial.value).toBe('Restored before hydration');expect(initial.focus).toBe(true);expect(initial.after).toEqual(initial.before);expect(initial.panels).toBe(1);
   release();await page.waitForFunction(()=>document.documentElement.hasAttribute('data-app-ready'));
+  if(width>768){
+   // Returning empty desktop profiles intentionally auto-open onboarding Chat.
+   // Complete that real startup path and close it before exercising header buttons.
+   await expect(page.locator('#chat-panel')).toHaveClass(/\bopen\b/);
+   await expect(page.locator('#chat-panel')).toHaveAttribute('aria-hidden','false');
+   await page.getByRole('button',{name:'Close chat',exact:true}).click();
+   await expect(page.locator('#chat-panel')).not.toHaveClass(/\bopen\b/);
+   await expect(page.locator('#chat-panel')).toHaveAttribute('aria-hidden','true');
+   await expect(page.locator('body')).not.toHaveClass(/\bchat-open\b/);
+   await expect(page.locator('#chat-backdrop')).toBeHidden();
+  }
   // Real cold settings and feedback delegates exercise the authored header.
   await page.locator('.settings-btn').click();await expect(page.locator('#settings-modal-overlay')).toHaveClass(/show/);
   await page.locator('#settings-modal [data-settings-action="close"]').click();await expect(page.locator('#settings-modal-overlay')).not.toHaveClass(/show/);
