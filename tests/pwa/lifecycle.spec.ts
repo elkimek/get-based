@@ -1,4 +1,5 @@
-import type { Page } from '@playwright/test';
+import type { Page, Request } from '@playwright/test';
+import { writeFile } from 'node:fs/promises';
 import { expect, test } from '../playwright/coverage-fixture.js';
 import { startPwaServer } from './app-server.js';
 
@@ -68,6 +69,21 @@ test('installed shell opens lazy features and reloads with the origin disconnect
 test('failed update preserves the installed app; retry updates two tabs without losing local data', async ({ page, context, baseURL }) => {
   test.setTimeout(120_000);
   const server = await startPwaServer(baseURL);
+  const failedScripts: { path: string; error: string }[] = [];
+  let droppedFailures = 0;
+  const observeFailedScript = (request: Request) => {
+    try {
+      const url = new URL(request.url());
+      if (request.method() !== 'GET' || request.resourceType() !== 'script'
+        || url.origin !== server.origin
+        || !/^\/(?:js\/|_app\/immutable\/)[A-Za-z0-9_./-]+\.js$/.test(url.pathname)) return;
+      if (failedScripts.length === 16) { droppedFailures += 1; return; }
+      const error = request.failure()?.errorText || 'unknown';
+      failedScripts.push({ path: url.pathname.slice(0, 256),
+        error: /^[A-Za-z0-9_: -]{1,96}$/.test(error) ? error : 'unknown' });
+    } catch { /* Passive evidence must not interrupt the original case. */ }
+  };
+  page.on('requestfailed', observeFailedScript);
   try {
     await openInstalledApp(page, server.origin);
     await page.evaluate(() => localStorage.setItem('pwa-retained-data', 'retained'));
@@ -137,5 +153,83 @@ test('failed update preserves the installed app; retry updates two tabs without 
     await expect(async () => {
       expect(await page.evaluate(() => caches.keys())).toEqual(['labcharts-vbuild-build-b']);
     }).toPass({ timeout: 5_000 });
-  } finally { await server.close(); }
+  } catch (originalError) {
+    // Only a failed original case performs these bounded, read-only observations.
+    // A timeout can leave the read-only evaluation pending until page teardown.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const snapshot = await Promise.race([
+        page.evaluate(async () => {
+          const failure = (error: unknown) => ({ state: 'error',
+            name: error instanceof Error ? error.name.slice(0, 64) : typeof error });
+          const workerState = (worker: ServiceWorker | null) => worker ? { state: worker.state } : null;
+          const buildId: unknown = (window as typeof window & { APP_BUILD_ID?: unknown }).APP_BUILD_ID;
+          const documentState = { readyState: document.readyState,
+            appReady: document.documentElement.hasAttribute('data-app-ready'),
+            buildId: typeof buildId === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(buildId)
+              ? buildId : null };
+          const readWorkers = async () => {
+            try {
+              const registrations = await navigator.serviceWorker.getRegistrations();
+              return { state: 'complete', controller: workerState(navigator.serviceWorker.controller),
+                count: registrations.length, registrations: registrations.slice(0, 4).map(registration => ({
+                  installing: workerState(registration.installing), waiting: workerState(registration.waiting),
+                  active: workerState(registration.active),
+                })) };
+            } catch (error) { return failure(error); }
+          };
+          const readCachedScript = async () => {
+            try {
+              // CacheStorage.match with cacheName never creates a missing cache.
+              const response = await caches.match('/js/url-safety.js', { cacheName: 'labcharts-vbuild-build-a' });
+              if (!response) return { state: 'missing' };
+              const metadata = { status: response.status, contentType: (response.headers.get('content-type') || '').slice(0, 96) };
+              if (!response.body) return { state: 'no-body', ...metadata };
+              const reader = response.body.getReader();
+              const chunks: Uint8Array[] = [];
+              let bytes = 0;
+              try {
+                while (true) {
+                  const chunk = await reader.read();
+                  if (chunk.done) break;
+                  bytes += chunk.value.byteLength;
+                  if (bytes > 65_536) {
+                    await reader.cancel();
+                    return { state: 'oversize', ...metadata, maxBytes: 65_536 };
+                  }
+                  chunks.push(chunk.value);
+                }
+              } finally { reader.releaseLock(); }
+              const body = new Uint8Array(bytes);
+              let offset = 0;
+              for (const chunk of chunks) { body.set(chunk, offset); offset += chunk.byteLength; }
+              const digest = await crypto.subtle.digest('SHA-256', body);
+              const sha256 = Array.from(new Uint8Array(digest), value => value.toString(16).padStart(2, '0')).join('');
+              return { state: 'complete', ...metadata, bytes, sha256 };
+            } catch (error) { return failure(error); }
+          };
+          const [workers, cachedScript] = await Promise.all([readWorkers(), readCachedScript()]);
+          return { document: documentState, workers, cachedScript };
+        }).then(value => ({ state: 'complete', value }), error => ({ state: 'error',
+          name: error instanceof Error ? error.name.slice(0, 64) : typeof error })),
+        new Promise<{ state: 'timeout'; timeoutMs: number }>(resolve => {
+          timer = setTimeout(() => resolve({ state: 'timeout', timeoutMs: 2_000 }), 2_000);
+        }),
+      ]);
+      const file = test.info().outputPath('pwa-lifecycle-failure-state.json');
+      await writeFile(file, JSON.stringify({ schemaVersion: 1, failedScripts, droppedFailures, snapshot }, null, 2),
+        { encoding: 'utf8', flag: 'wx' });
+      await test.info().attach('pwa-lifecycle-failure-state', { path: file, contentType: 'application/json' });
+    } catch {
+      // Diagnostic errors never replace the original assertion/navigation error.
+      try {
+        test.info().annotations.push({ type: 'pwa-diagnostic-error', description: 'Failure evidence could not be written or attached.' });
+      } catch { /* Reporting cannot replace the original error either. */ }
+    } finally { if (timer !== undefined) clearTimeout(timer); }
+    throw originalError;
+  } finally {
+    try { page.off('requestfailed', observeFailedScript); }
+    catch { /* Listener cleanup cannot replace the original case outcome. */ }
+    await server.close();
+  }
 });
