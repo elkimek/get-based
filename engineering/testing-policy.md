@@ -753,3 +753,26 @@ and blocks completion. The complete source inventory and LOC baseline remain
 unchanged, with the qualified archive reported separately as
 `frozenHistoricalOracles`. These test fixtures are excluded from application
 output; they must not be regenerated from migrated components.
+
+
+The Wearables detail rendering contract compares all eighteen chronological
+chart states (8 + 5 + 5) against the immutable original application rendered in
+the same actual Playwright browser and public context conditions. The original
+application archive and its independent source/observer snapshot live only in
+`tests/fixtures/wearable-native-parity/`; they are excluded from the application
+output and offline cache. Their compressed bytes, decoded frame, member inventory
+and every original file are authenticated before temporary extraction and checked
+again before owned cleanup. Reference failure fails the case; there is no fallback
+to current components, a historical checkout, a network download or generated pins.
+
+The active paint gate requires exact raw RGBA bytes, dimensions and the complete
+paint receipt for every original/current pair, with no tolerance or alternate
+SHA. Existing historical manifests and receipts remain byte-exact: mismatches
+against their older renderer paint are reported explicitly as historical
+mismatches, never as passing historical SHA assertions. Complete original and
+current nonpaint Chart configuration, callbacks, DOM, profile, storage, cache,
+device, focus, action and event/POST chronology remain checked against the
+authenticated native receipts. The existing 240-second case deadline and 64 MiB
+per-journey raw-pixel cap, eighteen unique ordered states and browser matrix
+remain unchanged. Portable fixture, ordering, one-byte pixel, geometry and paint
+corruption controls exercise these boundaries.

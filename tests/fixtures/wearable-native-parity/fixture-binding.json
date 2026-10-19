@@ -1,0 +1,13 @@
+{
+  "kind": "REVIEWED portable original fixture binding/v2",
+  "format": "GBORIG1-GZIP1",
+  "compressedBytes": 12212273,
+  "compressedSHA256": "0d2741f9fdd336dd29c6a3012ea3cb4694e53b879147395fd6fd3e8f2bb4968a",
+  "frameBytes": 42886891,
+  "frameSHA256": "9cb3ee8e226f304fc2bc9795d710332ecc4de35c519fef2cc92bea51c08d0523",
+  "inventorySHA256": "010a2335e3eb09b2c41c4d2179d7e3441bf575caf0616be94830c803c484d283",
+  "artifactBuildId": "84924c09f326ea10684b8a0c0aa92f51419c7498b6dfe03654370378207987ec",
+  "fileCount": 769,
+  "decodedBodyBytes": 42783073,
+  "archiveFile": "original-artifact.gborig1.gz"
+}

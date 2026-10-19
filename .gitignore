@@ -3626,3 +3626,7 @@ tests/pwa/sveltekit-island-ownership.spec.js.map
 /scripts/native-coverage-types.mjs.map
 /tests/helpers/native-coverage-fixture.js
 /tests/helpers/native-coverage-fixture.js.map
+
+# Generated same-browser chart reference helper
+/tests/helpers/wearable-chart-reference.js
+/tests/helpers/wearable-chart-reference.js.map

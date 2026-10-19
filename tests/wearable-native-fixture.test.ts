@@ -113,3 +113,36 @@ it.each(['kit-chromium', 'kit-firefox', 'kit-webkit', 'kit-mobile-webkit'])('ret
     expect(originals.map(value => qualified.qualify(value))).toEqual(originals);
     expect(qualified.proofs.every(proof => proof.replacements.length === 0)).toBe(true);
 }, 30000);
+
+
+// Renderer portability keeps a byte-exact original app and strict raw comparison.
+import {verifyWearableOriginalAppArchive} from '../scripts/wearable-native-fixture.mjs';
+import {assertWearableChartFrame,assertWearableReferenceInventory,wearableReferenceKeys,type WearableChartFrame} from './helpers/wearable-chart-reference.js';
+function referenceFrame(key=wearableReferenceKeys[0]!) : WearableChartFrame {
+  const rgba=Buffer.from([10,20,30,255]);return {key,width:1,height:1,rgba,paint:{bytes:4,alphaPixels:1,distinctRGBAColors:1,sha256:sha(rgba)}};
+}
+it('accepts the complete exact chronological eighteen-state reference and full raw paint pair',()=>{
+ const frames=wearableReferenceKeys.map(key=>referenceFrame(key));assertWearableReferenceInventory(frames);assertWearableChartFrame(frames[0]!,referenceFrame());
+});
+it.each(['missing','duplicate','reordered'] as const)('rejects %s original chart states',kind=>{
+ const frames=wearableReferenceKeys.map(key=>referenceFrame(key));
+ if(kind==='missing')frames.pop();else if(kind==='duplicate')frames[1]=frames[0]!;else [frames[0],frames[1]]=[frames[1]!,frames[0]!];
+ expect(()=>assertWearableReferenceInventory(frames)).toThrow();
+});
+it.each(['key','rgba','dimensions','paint','observer-sha'] as const)('rejects corrupted candidate %s without tolerance',kind=>{
+ const expected=referenceFrame(),actual=referenceFrame();
+ if(kind==='key')actual.key=wearableReferenceKeys[1]!;
+ if(kind==='rgba'){actual.rgba[0]=11;actual.paint.sha256=sha(actual.rgba);}
+ if(kind==='dimensions')actual.width=2;
+ if(kind==='paint')actual.paint.alphaPixels=0;
+ if(kind==='observer-sha')actual.paint.sha256='0'.repeat(64);
+ expect(()=>assertWearableChartFrame(expected,actual)).toThrow();
+});
+it('authenticates the whole frozen original app and rejects archive or binding corruption before extraction',async()=>{
+ const directory=path.resolve('tests/fixtures/wearable-native-parity');const bytes=await fs.readFile(path.join(directory,'original-artifact.gborig1.gz')),binding=await fs.readFile(path.join(directory,'fixture-binding.json'));
+ const original=verifyWearableOriginalAppArchive(bytes,binding);expect(original.files).toHaveLength(769);expect(original.files.reduce((sum,row)=>sum+row.bytes.length,0)).toBe(42783073);
+ const corrupt=Buffer.from(bytes);corrupt[100]=corrupt[100]!^1;
+ expect(()=>verifyWearableOriginalAppArchive(corrupt,binding)).toThrow('Pinned complete original application');
+ expect(()=>verifyWearableOriginalAppArchive(Buffer.concat([bytes,Buffer.from([0])]),binding)).toThrow();
+ expect(()=>verifyWearableOriginalAppArchive(bytes,Buffer.concat([binding,Buffer.from(' ')]))).toThrow('Pinned original application binding');
+});
