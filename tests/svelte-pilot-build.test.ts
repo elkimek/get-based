@@ -122,7 +122,7 @@ it('merges real unit coverage in native coordinates without counting bundled fra
   execFileSync(process.execPath, ['node_modules/vitest/vitest.mjs', 'run',
     // This format witness inspects this self-contained native component's
     // owned and bundled framework functions. Release coverage stays global.
-    'tests/unit-profile-active-data.test.ts', '--coverage',
+    'tests/unit-profile-active-data.test.ts', '--coverage', '--coverage.provider=istanbul',
     '--coverage.include=js/components/DisplaySettings.svelte.native.js', `--coverage.reportsDirectory=${reports}`], {
     encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 20_000,
   });

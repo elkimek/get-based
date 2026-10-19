@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import fs from 'node:fs';
 import MagicString from 'magic-string';
-import {moduleRunnerTransform} from 'vite';
+import {moduleRunnerTransform, transformWithOxc} from 'vite';
 import * as ts from 'typescript/unstable/ast';
 import type {EncodedSourceMap} from '@jridgewell/trace-mapping';
 import {withParsedSource} from './native-typescript-ast.js';
@@ -11,21 +11,30 @@ import type {NativeEnvironment, NativeGeometry, NativeObservation, NativeSnapsho
 export const NATIVE_WRAPPER_PREFIX = "'use strict';async (__vite_ssr_exports__,__vite_ssr_import_meta__,__vite_ssr_import__,__vite_ssr_dynamic_import__,__vite_ssr_exportAll__,__vite_ssr_exportName__,__filename,__dirname,module,exports,require)=>{{";
 const SUFFIX = '\n}}', HELPER = 'import { injectQuery as __vite__injectQuery } from "/@vite/client";';
 interface Literal {kind: string; variant: string; start: number; end: number; value: string; original: string;}
-interface Dynamic {start: number; end: number; original: string; value: string | null; kind: string; closedArrow: boolean;}
-interface Asset {start: number; end: number; literal: string; binding: string; text: string;}
+interface Dynamic {start: number; end: number; original: string; value: string | null; kind: string;}
+interface Asset {start: number; end: number; literal: string | null; text: string; normalized: boolean; shadowed: boolean; worker: boolean; argument: string; baseStart: number; baseEnd: number; baseOnly: boolean;}
 interface ModuleFacts {literals: Literal[]; dynamics: Dynamic[]; assets: Asset[]; urlShadowed: boolean;}
 function syntax(source: string, file: string, post = false): ModuleFacts {
   return withParsedSource(source, file, (ast, project) => {
     assert.equal(project.program.getSyntacticDiagnostics().length, 0, 'Malformed transform source');
     const literals: Literal[] = [], dynamics: Dynamic[] = [], assets: Asset[] = []; let urlShadowed = false;
     function asset(node: ts.Node, parents: ts.Node[]): void {
-      if (!ts.isNewExpression(node) || !ts.isIdentifier(node.expression) || node.expression.text !== 'URL' || node.arguments?.length !== 2 || !ts.isStringLiteral(node.arguments[0]!)) return;
+      if (!ts.isNewExpression(node) || !ts.isIdentifier(node.expression) || node.expression.text !== 'URL' || node.arguments?.length !== 2) return;
+      const argument = node.arguments[0]!;
+      const template = ts.isTemplateExpression(argument) && argument.head.text === '' && argument.templateSpans.length === 1 && ts.isIdentifier(argument.templateSpans[0]!.expression);
+      if (!ts.isStringLiteral(argument) && !template) return;
       const second = node.arguments[1]!;
-      if (!post) {if (!ts.isPropertyAccessExpression(second) || second.name.text !== 'url' || !ts.isMetaProperty(second.expression) || second.expression.keywordToken !== ts.SyntaxKind.ImportKeyword) return;}
-      else if (!ts.isBinaryExpression(second) || second.operatorToken.kind !== ts.SyntaxKind.PlusToken || !ts.isStringLiteral(second.left) || second.left.text !== '' || !ts.isPropertyAccessExpression(second.right) || !ts.isIdentifier(second.right.expression) || second.right.expression.text !== 'self' || second.right.name.text !== 'location') return;
-      const prop = parents.at(-1), declaration = parents.at(-2), list = parents.at(-3), statement = parents.at(-4);
-      assert(prop && declaration && list && statement && ts.isPropertyAccessExpression(prop) && prop.expression === node && prop.name.text === 'href' && ts.isVariableDeclaration(declaration) && declaration.initializer === prop && ts.isIdentifier(declaration.name) && ts.isVariableDeclarationList(list) && (list.flags & ts.NodeFlags.Const) !== 0 && ts.isVariableStatement(statement) && parents.at(-5) === ast, 'Unsupported static asset scope');
-      assets.push({start: node.getStart(ast), end: node.end, literal: node.arguments[0]!.text, binding: declaration.name.text, text: source.slice(node.getStart(ast), node.end)});
+      const original = ts.isPropertyAccessExpression(second) && second.name.text === 'url' && ts.isMetaProperty(second.expression) && second.expression.keywordToken === ts.SyntaxKind.ImportKeyword;
+      const normalized = ts.isBinaryExpression(second) && second.operatorToken.kind === ts.SyntaxKind.PlusToken && ts.isStringLiteral(second.left) && second.left.text === '' && ts.isPropertyAccessExpression(second.right) && ts.isIdentifier(second.right.expression) && second.right.expression.text === 'self' && second.right.name.text === 'location';
+      const baseOnly = ts.isPropertyAccessExpression(second) && ts.isIdentifier(second.expression) && second.expression.text === 'self' && second.name.text === 'location';
+      if (!original && !(post && (normalized || baseOnly))) return;
+      // Asset rewriting belongs to this exact URL expression, regardless of its
+      // containing array, object, function or .href access. Local URL bindings
+      // remain ineligible for the global-constructor rewrite witness.
+      const shadowed = !!project.checker.getSymbolAtLocation(node.expression);
+      const parent = parents.at(-1), options = parent && ts.isNewExpression(parent) ? parent.arguments?.[1] : undefined;
+      const worker = !!(parent && ts.isNewExpression(parent) && ts.isIdentifier(parent.expression) && ['Worker', 'SharedWorker'].includes(parent.expression.text) && parent.arguments?.length === 2 && parent.arguments[0] === node && options && ts.isObjectLiteralExpression(options) && options.properties.length === 1 && options.properties.some(property => ts.isPropertyAssignment(property) && ts.isIdentifier(property.name) && property.name.text === 'type' && ts.isStringLiteral(property.initializer) && property.initializer.text === 'module'));
+      assets.push({start: node.getStart(ast), end: node.end, literal: ts.isStringLiteral(argument) ? argument.text : null, text: source.slice(node.getStart(ast), node.end), normalized, shadowed, worker, argument: source.slice(argument.getStart(ast), argument.end), baseStart: second.getStart(ast), baseEnd: second.end, baseOnly});
     }
     function visit(node: ts.Node, parents: ts.Node[]): void {
       if (ts.isImportDeclaration(node)) {
@@ -42,10 +51,8 @@ function syntax(source: string, file: string, post = false): ModuleFacts {
       }
       if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
         assert.equal(node.arguments.length, 1, 'Unsupported dynamic import options'); const arg = node.arguments[0]!;
-        const literal = ts.isStringLiteral(arg) || ts.isNoSubstitutionTemplateLiteral(arg), identifier = ts.isIdentifier(arg), parent = parents.at(-1);
-        const parameter = parent && ts.isArrowFunction(parent) && parent.body === node && parent.parameters.length === 1 ? parent.parameters[0] : undefined;
-        const closedArrow = !!(identifier && parameter && ts.isIdentifier(parameter.name) && parameter.name.text === arg.text && !parameter.dotDotDotToken && !parameter.initializer);
-        dynamics.push({start: arg.getStart(ast), end: arg.end, original: source.slice(arg.getStart(ast), arg.end), value: literal || identifier ? arg.text : null, kind: literal ? 'literal' : identifier ? 'identifier' : 'unsupported', closedArrow});
+        const literal = ts.isStringLiteral(arg) || ts.isNoSubstitutionTemplateLiteral(arg);
+        dynamics.push({start: arg.getStart(ast), end: arg.end, original: source.slice(arg.getStart(ast), arg.end), value: literal ? arg.text : null, kind: literal ? 'literal' : 'expression'});
       }
       asset(node, parents); node.forEachChild(child => visit(child, [...parents, node]));
     }
@@ -88,21 +95,43 @@ export async function replayNativeTransform(root: string, relative: string, cano
   for (let index = 0; index < before.dynamics.length; index++) {
     const a = before.dynamics[index]!, b = after.dynamics[index]!; if (a.original === b.original) continue;
     if (a.kind === 'literal') {assert(a.value); assert.equal(b.value, resolvedLiteral(root, file, a.value, environment)); const replacement = JSON.stringify(b.value); assert.equal(b.original, replacement); edited.overwrite(a.start, a.end, replacement);}
-    else {assert(environment.consumer === 'client' && a.kind === 'identifier' && a.closedArrow && helper, 'Unsupported dynamic import rewrite'); assert.equal(b.original, '__vite__injectQuery(' + a.original + ", 'import')"); edited.appendLeft(a.start, '__vite__injectQuery('); edited.appendLeft(a.end, ", 'import')"); wrapped++;}
+    else {assert(environment.consumer === 'client' && a.kind === 'expression' && helper, 'Unsupported dynamic import rewrite'); assert.equal(b.original, '__vite__injectQuery(' + a.original + ", 'import')"); edited.appendLeft(a.start, '__vite__injectQuery('); edited.appendLeft(a.end, ", 'import')"); wrapped++;}
   }
   assert.equal(helper, wrapped > 0); if (helper) edited.prepend(HELPER);
-  if (before.assets.length || after.assets.length) {
-    assert.equal(environment.consumer, 'client'); assert(!before.urlShadowed); assert.equal(before.assets.length, after.assets.length);
+  assert.equal(before.assets.length, after.assets.length, 'Changed static URL structure');
+  for (let index = 0; index < before.assets.length; index++) {
+    const a = before.assets[index]!, b = after.assets[index]!;
+    assert(!a.normalized && !a.baseOnly && a.worker === b.worker, 'Changed static URL context');
+    // Server modules do not run Vite's client asset plugins. Unchanged URL
+    // expressions still undergo the complete public runtime reconstruction.
+    if (!b.normalized && !b.baseOnly) {assert.equal(b.text, a.text, 'Changed unrewritten static URL'); continue;}
+    assert.equal(environment.consumer, 'client'); assert(!before.urlShadowed && !a.shadowed && !b.shadowed, 'Shadowed static URL constructor');
     const names = ordering.map(plugin => plugin.name), asset = names.indexOf('vite:asset-import-meta-url'), normalize = names.indexOf('vitest:normalize-url');
-    assert(asset >= 0 && names.lastIndexOf('vite:asset-import-meta-url') === asset && normalize > asset && names.lastIndexOf('vitest:normalize-url') === normalize && ownIndex > normalize);
-    for (let index = 0; index < before.assets.length; index++) {
-      const a = before.assets[index]!, b = after.assets[index]!; assert(a.binding === b.binding && a.literal.startsWith('.') && !/[?#]/.test(a.literal));
-      const target = path.resolve(path.dirname(file), a.literal), resource = path.relative(root, target); assert(resource && !resource.startsWith('..' + path.sep) && !path.isAbsolute(resource)); assert.equal(fs.realpathSync(target), target); readNativeRegular(target);
-      const url = '/' + resource.split(path.sep).join('/'), replacement = `new URL(${JSON.stringify(url)}, '' + ${'self.location'.padEnd(15, ' ')})`;
-      assert.equal(b.literal, url); assert.equal(b.text, replacement); assert(!before.literals.some(edit => a.start < edit.end && edit.start < a.end) && !before.dynamics.some(edit => a.start < edit.end && edit.start < a.end)); edited.overwrite(a.start, a.end, replacement);
+    assert(normalize >= 0 && names.lastIndexOf('vitest:normalize-url') === normalize && ownIndex > normalize);
+    if (a.literal === null) {
+      // A leading-interpolation template has no static directory: Vite leaves
+      // its argument intact; only Vitest's exact base normalization applies.
+      assert(b.literal === null && a.argument === b.argument && b.baseOnly && !b.normalized, 'Changed template URL argument');
+      const location = 'self.location'.padEnd(15, ' '), replacement = a.text.slice(0, a.baseStart - a.start) + location + a.text.slice(a.baseEnd - a.start);
+      assert.equal(b.text, replacement, 'Whole normalize-only template URL'); edited.overwrite(a.baseStart, a.baseEnd, location); continue;
     }
+    assert(b.normalized && !b.baseOnly, 'Qualified literal URL rewrite');
+    assert(asset >= 0 && names.lastIndexOf('vite:asset-import-meta-url') === asset && normalize > asset);
+    assert(a.literal.startsWith('.') && !/[?#]/.test(a.literal));
+    const target = path.resolve(path.dirname(file), a.literal), resource = path.relative(root, target); assert(resource && !resource.startsWith('..' + path.sep) && !path.isAbsolute(resource)); assert.equal(fs.realpathSync(target), target); readNativeRegular(target);
+    let url = '/' + resource.split(path.sep).join('/'), comment = '';
+    if (a.worker) {
+      const worker = names.indexOf('vite:worker-import-meta-url'); assert(worker >= 0 && names.lastIndexOf('vite:worker-import-meta-url') === worker && worker < asset, 'Qualified module Worker URL order');
+      url += '?worker_file&type=module'; comment = '/* @vite-ignore */ ';
+    }
+    const replacement = `new URL(${comment}${JSON.stringify(url)}, '' + ${'self.location'.padEnd(15, ' ')})`;
+    assert.equal(b.literal, url); assert.equal(b.text, replacement); assert(!before.literals.some(edit => a.start < edit.end && edit.start < a.end) && !before.dynamics.some(edit => a.start < edit.end && edit.start < a.end)); edited.overwrite(a.start, a.end, replacement);
   }
-  assert.equal(edited.toString(), post, 'Whole observed module differs from finite source reconstruction');
+  // Vitest's identity NODE_ENV define still invokes Vite's server-only public
+  // Oxc transform. Reconstruct every output byte and compose its map back to
+  // canonical input; formatting never substitutes for whole-source equality.
+  const defineProjection = environment.consumer === 'server' && /process\??\.env\??\.NODE_ENV/.test(projection);
+  if (!defineProjection) assert.equal(edited.toString(), post, 'Whole observed module differs from finite source reconstruction');
   if (environment.consumer === 'server') assert(!helper && !post.includes('__vite__injectQuery'), 'SSR received client-only rewrite');
   assert.equal(offset, NATIVE_WRAPPER_PREFIX.length); assert(runtime.startsWith(NATIVE_WRAPPER_PREFIX) && runtime.endsWith(SUFFIX));
   const body = runtime.slice(offset, -SUFFIX.length), marker = '\n//# vitestCache=', cacheAt = body.lastIndexOf(marker); assert(cacheAt >= 0 && body.indexOf(marker) === cacheAt);
@@ -111,9 +140,22 @@ export async function replayNativeTransform(root: string, relative: string, cano
   const inline: unknown = JSON.parse(decode64(url.slice('data:application/json;base64,'.length), 2 * 1024 * 1024).toString('utf8')); assert(inline && typeof inline === 'object' && 'version' in inline && inline.version === 3 && 'mappings' in inline && typeof inline.mappings === 'string');
   const trailer = '\n//# sourceMappingSource=vite-generated\n//# sourceMappingURL=' + url + '\n', withoutCache = body.slice(0, cacheAt); assert(withoutCache.endsWith(trailer) && withoutCache.indexOf('\n//# sourceMappingSource=') === withoutCache.length - trailer.length);
   const generated = edited.generateMap({hires: true, includeContent: true, source: file, file: path.basename(file) + '.post-import.js'});
-  assert(generated.sourcesContent);
-  const initialMap = {file: generated.file, version: generated.version, sources: generated.sources, sourcesContent: generated.sourcesContent, names: generated.names, mappings: generated.mappings, toString: () => generated.toString(), toUrl: () => generated.toUrl()};
-  const result = await moduleRunnerTransform(post, initialMap, file, post); assert(result?.map && 'version' in result.map && result.map.version === 3);
+  assert(generated.sourcesContent); assert.equal(generated.version, 3);
+  let initialMap: EncodedSourceMap = {file: generated.file, version: 3, sources: generated.sources, sourcesContent: generated.sourcesContent, names: generated.names, mappings: generated.mappings};
+  if (defineProjection) {
+    const names = ordering.map(plugin => plugin.name), define = names.indexOf('vite:define');
+    assert(define >= 0 && names.lastIndexOf('vite:define') === define && define < analysisIndex, 'Qualified server identity-define order');
+    const projected = await transformWithOxc(edited.toString(), file, {lang: 'js', sourceType: 'module', define: {'process.env.NODE_ENV': 'process.env.NODE_ENV'}, sourcemap: true, tsconfig: false}, generated);
+    assert.equal(projected.code, post, 'Whole public server identity-define projection differs');
+    assert(projected.map && projected.map.version === 3 && projected.map.sources.length === 1 && projected.map.sources[0] === file && projected.map.sourcesContent?.[0] === canonical, 'Public identity-define map provenance failed');
+    initialMap = {...projected.map, version: 3};
+  }
+  assert(initialMap.sources.length === 1 && initialMap.sources[0] === file && initialMap.sourcesContent?.length === 1 && initialMap.sourcesContent[0] === canonical, 'Canonical map before public runtime transform');
+  // The public runtime API requires serialization methods as well as encoded fields.
+  const mapData = {...initialMap, file: initialMap.file ?? generated.file, sources: [file], sourcesContent: [canonical], names: [...initialMap.names]};
+  const serializedMap = JSON.stringify(mapData);
+  const runnerMap = {...mapData, toString: () => serializedMap, toUrl: () => 'data:application/json;charset=utf-8;base64,' + Buffer.from(serializedMap).toString('base64')};
+  const result = await moduleRunnerTransform(post, runnerMap, file, post); assert(result?.map && 'version' in result.map && result.map.version === 3);
   assert.equal(NATIVE_WRAPPER_PREFIX + result.code.trimEnd() + trailer + cache + SUFFIX, runtime, 'Whole public Vite runtime reconstruction failed');
   assert(result.map.sources.length === 1 && result.map.sources[0] === file && result.map.sourcesContent?.[0] === canonical, 'Public transform source map provenance failed');
   return {file, canonical, runtime, offset, code: result.code, map: result.map as EncodedSourceMap};

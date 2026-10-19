@@ -79,8 +79,11 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const originalState = {currentView: state.currentView, currentProfile: state.currentProfile, importedData: state.importedData,
   nutritionSummary: state.nutritionSummary, profileSex: state.profileSex, chatHistory: state.chatHistory,
   rangeMode: state.rangeMode, dateRangeFilter: state.dateRangeFilter};
-afterEach(() => {
+afterEach(async () => {
   disposeDashboardPage(); runtime.retireProductionDashboard();
+  // Hydration starts real catalog imports outside the navigation-ready boundary.
+  // Settle that module graph before restoring globals or ending the environment.
+  await vi.dynamicImportSettled();
   Object.assign(runtime.viewsComposition, {dashboardView: undefined, lensPageHandlers: undefined, recommendationActions: undefined});
   Object.assign(state, originalState); invalidateActiveDataCache();
   configureStartupNavigationCompletion();

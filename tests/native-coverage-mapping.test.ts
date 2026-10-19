@@ -6,7 +6,7 @@ import {pathToFileURL} from 'node:url';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import MagicString from 'magic-string';
-import {moduleRunnerTransform} from 'vite';
+import {moduleRunnerTransform, transformWithOxc} from 'vite';
 import {decode, encode} from '@jridgewell/sourcemap-codec';
 import type {EncodedSourceMap} from '@jridgewell/trace-mapping';
 import {nativeFunctionMapper, UnmappedNativeFunction} from '../scripts/native-coverage-functions.mjs';
@@ -131,4 +131,100 @@ it('rejects a conflicting published native blob and removes its own temporary fi
     expect(() => writeNativeBlob(directory, 'expected complete source')).toThrow('Native record collision');
     expect(fs.readdirSync(path.join(directory, 'blobs'))).toEqual([path.basename(blob.file)]);
   } finally {fs.rmSync(directory, {recursive: true, force: true});}
+});
+
+
+// These source-only controls use the real public SSR transform. The finite
+// pre-SSR client rewrites below are the installed Vite/Vitest URL spellings;
+// real original-module capture is exercised by the existing chat/voice/lens tests.
+const assetExpression = "new URL('./voice-local-stt-worker.js', import.meta.url)";
+const assetReplacement = `new URL("/js/voice-local-stt-worker.js", '' + ${'self.location'.padEnd(15, ' ')})`;
+const workerReplacement = `new URL(/* @vite-ignore */ "/js/voice-local-stt-worker.js?worker_file&type=module", '' + ${'self.location'.padEnd(15, ' ')})`;
+async function assetFixture(canonical: string, post: string, client: boolean) {
+  const value = await fixture(canonical, post, client);
+  if (client) {
+    value.observation.ordering.unshift({name: 'vite:worker-import-meta-url', order: null}, {name: 'vite:asset-import-meta-url', order: null}, {name: 'vitest:normalize-url', order: null});
+    value.observation.analysisIndex += 3; value.observation.ownIndex += 3;
+  }
+  return value;
+}
+const assetForms = [
+  ['top-level href', `const asset = ${assetExpression}.href; export {asset};`],
+  ['array property href', `const assets = [{url: ${assetExpression}.href}]; export {assets};`],
+  ['URL object property', `const assets = {url: ${assetExpression}}; export {assets};`],
+  ['function Worker argument', `export function run() { return new Worker(${assetExpression}, {type: 'module'}); }`],
+] as const;
+describe('literal URL source witnesses in their actual containing expressions', () => {
+  it.each(assetForms)('preserves unchanged SSR %s URLs without client asset plugins', async (_name, canonical) => {
+    const value = await assetFixture(canonical, canonical, false);
+    await expect(replayNativeTransform(value.root, value.relative, canonical, value.runtime, value.snapshot, NATIVE_WRAPPER_PREFIX.length, value.geometry, value.observation, value.environment)).resolves.toMatchObject({canonical, runtime: value.runtime});
+  });
+  it.each(assetForms)('reconstructs exact client %s URLs before rejecting changed paths, bytes and plugin order', async (name, canonical) => {
+    const replacement = name === 'function Worker argument' ? workerReplacement : assetReplacement, post = canonical.replace(assetExpression, replacement);
+    const value = await assetFixture(canonical, post, true);
+    const replay = (observation: NativeObservation) => replayNativeTransform(value.root, value.relative, canonical, value.runtime, value.snapshot, NATIVE_WRAPPER_PREFIX.length, value.geometry, observation, value.environment);
+    await expect(replay(value.observation)).resolves.toMatchObject({canonical, runtime: value.runtime});
+    await expect(replay({...value.observation, code: post.replace('/js/voice-local-stt-worker.js', '/js/voice-local-tts-worker.js')})).rejects.toThrow();
+    await expect(replay({...value.observation, code: post + '/* unrelated mutation */'})).rejects.toThrow();
+    const ordering = value.observation.ordering.map(plugin => ({...plugin})); [ordering[1], ordering[2]] = [ordering[2]!, ordering[1]!];
+    await expect(replay({...value.observation, ordering})).rejects.toThrow();
+    if (name === 'function Worker argument') await expect(replay({...value.observation, code: post.replace('?worker_file&type=module', '?worker_file&type=classic')})).rejects.toThrow();
+  });
+  it('preserves a leading-interpolation template argument through only the exact client base normalization', async () => {
+    const canonical = 'const directory = "../vendor/evolu8/"; export const asset = new URL(`${directory}evolu-bundle.js`, import.meta.url).href;';
+    const server = await assetFixture(canonical, canonical, false);
+    await expect(replayNativeTransform(server.root, server.relative, canonical, server.runtime, server.snapshot, NATIVE_WRAPPER_PREFIX.length, server.geometry, server.observation, server.environment)).resolves.toMatchObject({canonical});
+    const post = canonical.replace('import.meta.url', 'self.location'.padEnd(15, ' ')), value = await assetFixture(canonical, post, true);
+    const replay = (observation: NativeObservation) => replayNativeTransform(value.root, value.relative, canonical, value.runtime, value.snapshot, NATIVE_WRAPPER_PREFIX.length, value.geometry, observation, value.environment);
+    await expect(replay(value.observation)).resolves.toMatchObject({canonical});
+    await expect(replay({...value.observation, code: post.replace('${directory}evolu-bundle.js', '${directory}other.js')})).rejects.toThrow();
+    await expect(replay({...value.observation, code: post.replace('self.location  ', 'self.location')})).rejects.toThrow();
+    const ordering = value.observation.ordering.map(plugin => plugin.name === 'vitest:normalize-url' ? {...plugin, name: 'unqualified-normalizer'} : plugin);
+    await expect(replay({...value.observation, ordering})).rejects.toThrow();
+  });
+  it('rejects a rewritten URL shadowed by a local parameter', async () => {
+    const canonical = `export function run(URL) { return ${assetExpression}; }`, post = canonical.replace(assetExpression, assetReplacement), value = await assetFixture(canonical, post, true);
+    await expect(replayNativeTransform(value.root, value.relative, canonical, value.runtime, value.snapshot, NATIVE_WRAPPER_PREFIX.length, value.geometry, value.observation, value.environment)).rejects.toThrow('Shadowed static URL constructor');
+  });
+});
+
+
+it('reconstructs the complete public server identity-define output with canonical map provenance', async () => {
+  // Real public SDK output over synthetic source, never an application capture.
+  const canonical = 'const environment=globalThis.process?.env?.NODE_ENV;export function run(value){return value?environment:null;}', file = path.join(process.cwd(), 'js/__native-coverage-syntax-fixture.js');
+  const projected = await transformWithOxc(canonical, file, {lang: 'js', sourceType: 'module', define: {'process.env.NODE_ENV': 'process.env.NODE_ENV'}, sourcemap: true, tsconfig: false});
+  expect(projected.code).not.toBe(canonical);
+  const value = await fixture(canonical, projected.code), ordering = [{name: 'vite:define', order: null}, ...value.observation.ordering];
+  const observation: NativeObservation = {...value.observation, ordering, ownIndex: value.observation.ownIndex + 1, analysisIndex: value.observation.analysisIndex + 1};
+  const replay = (changed: NativeObservation) => replayNativeTransform(value.root, value.relative, canonical, value.runtime, value.snapshot, NATIVE_WRAPPER_PREFIX.length, value.geometry, changed, value.environment);
+  const transform = await replay(observation); expect(transform.canonical).toBe(canonical); expect(transform.runtime).toBe(value.runtime);
+  expect(transform.map?.sourcesContent).toEqual([canonical]);
+  const startOffset = transform.runtime.indexOf('function run'), endOffset = transform.runtime.indexOf('}', startOffset) + 1;
+  expect(startOffset).toBeGreaterThan(0); expect(endOffset).toBeGreaterThan(startOffset);
+  const entry = {functionName: 'run', isBlockCoverage: true, ranges: [{startOffset, endOffset, count: 3}]};
+  // Oxc does not provide an exact mapping at the end of the `function`
+  // keyword. Keep that count3 native entry visible and ineligible; never
+  // fabricate an anchor or borrow a nearby point to manufacture coverage.
+  expect(() => nativeFunctionMapper(transform)(entry)).toThrow(UnmappedNativeFunction);
+  expect(() => nativeFunctionMapper(transform)(entry)).toThrow('MAP_EXACT');
+  await expect(replay({...observation, code: projected.code + '/* altered projection */'})).rejects.toThrow();
+  await expect(replay({...observation, ordering: observation.ordering.map(plugin => plugin.name === 'vite:define' ? {...plugin, name: 'unqualified-define'} : plugin)})).rejects.toThrow();
+  const corrupted = structuredClone(transform.map!); corrupted.sourcesContent = [canonical + '/* changed source */'];
+  expect(() => nativeFunctionMapper({...transform, map: corrupted})(entry)).toThrow('Source map does not bind canonical source');
+});
+
+
+it.each(['moduleUrl', 'urls.active'])('reconstructs the public query helper around the exact %s import argument', async argument => {
+  // Real public runtime transform over synthetic source; no module behavior runs.
+  const canonical = `const moduleUrl='/vendor/pdf.min.mjs',urls={active:moduleUrl};export function run(){return import(${argument});}`;
+  const helper = 'import { injectQuery as __vite__injectQuery } from "/@vite/client";';
+  const post = helper + canonical.replace(`import(${argument})`, `import(__vite__injectQuery(${argument}, 'import'))`), value = await fixture(canonical, post, true);
+  const replay = (observation: NativeObservation) => replayNativeTransform(value.root, value.relative, canonical, value.runtime, value.snapshot, NATIVE_WRAPPER_PREFIX.length, value.geometry, observation, value.environment);
+  await expect(replay(value.observation)).resolves.toMatchObject({canonical, runtime: value.runtime});
+  await expect(replay({...value.observation, code: post.replace(`__vite__injectQuery(${argument},`, '__vite__injectQuery(otherUrl,')})).rejects.toThrow();
+  await expect(replay({...value.observation, code: post.replace(", 'import')", ", 'other')")})).rejects.toThrow();
+  await expect(replay({...value.observation, code: post.slice(helper.length)})).rejects.toThrow();
+  await expect(replay({...value.observation, code: post + '/* unrelated mutation */'})).rejects.toThrow();
+  const server = await fixture(canonical, post, false);
+  await expect(replayNativeTransform(server.root, server.relative, canonical, server.runtime, server.snapshot, NATIVE_WRAPPER_PREFIX.length, server.geometry, server.observation, server.environment)).rejects.toThrow('Unsupported dynamic import rewrite');
 });
