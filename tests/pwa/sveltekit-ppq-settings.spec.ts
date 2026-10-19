@@ -12,6 +12,8 @@ async function ready(page: Page) {
 async function openPpq(page: Page) {
   await openStaticSettings(page); await page.locator('#settings-nav-ai').click();
   await expect(page.locator('[data-ppq-settings-view]')).toBeVisible();
+  // AI-tab entrance fades its whole provider subtree; contrast needs its settled paint.
+  await expect(page.locator('#settings-tab-ai')).toHaveCSS('opacity', '1');
 }
 test('PPQ Settings uses cached assets with an unavailable origin and retains private selections through cold launch',async({page,context})=>{
   test.setTimeout(150_000);await context.addInitScript({path:'node_modules/axe-core/axe.min.js'});

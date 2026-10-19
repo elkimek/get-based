@@ -349,9 +349,9 @@ test('sync context defaults and pull retry cover unconfigured browser paths', as
     };
     let nextTimerId = 1;
     const waitForPullIdle = async () => {
-      for (let i = 0; i < 20 && pull.isSyncPulling(); i += 1) {
-        await Promise.resolve();
-      }
+      // Join the timer's real in-flight pull: its early baseline reads IndexedDB,
+      // whose completion needs an event-loop task rather than microtask spins.
+      if (pull.isSyncPulling()) await pull.onSyncReceived();
       return pull.isSyncPulling() === false;
     };
 
