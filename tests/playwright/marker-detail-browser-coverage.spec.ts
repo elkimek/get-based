@@ -98,6 +98,7 @@ test('first delegated marker-card click loads and opens marker details', async (
   const loadedBeforeClick = await page.evaluate(async ({ modalUrl }) => {
     const modal = (await import(modalUrl) as unknown) as Pick<typeof import('../../js/marker-detail-modal.js'), "isMarkerDetailModuleLoaded" | "loadMarkerDetailModule" | "configureMarkerDetailModal" | "fetchCustomMarkerDescription" | "showDetailModal" | "editRefRange" | "saveRefRange" | "revertRefRange" | "openManualEntryForm" | "saveManualEntry" | "saveAndAddAnotherManualEntry" | "openCreateMarkerModal" | "pickNewCatIcon" | "saveCustomMarker" | "deleteMarkerValue" | "deleteCustomMarker" | "editMarkerValue" | "revertMarkerValue" | "editValueNote" | "deleteValueNote" | "toggleMarkerNoteEditor" | "saveMarkerNote" | "deleteMarkerNote" | "loadMarkerDetailStylesheet" | "closeModal">;
     const card = document.createElement('button');
+    card.id = 'first-marker-detail-card';
     card.type = 'button';
     card.dataset.markerDetailAction = 'show-detail-modal';
     card.dataset.markerDetailId = 'proteins_albumin';
@@ -108,8 +109,21 @@ test('first delegated marker-card click loads and opens marker details', async (
   }, { modalUrl: moduleUrl('/js/marker-detail-modal.js') });
 
   expect(loadedBeforeClick).toBe(false);
-  await expect.poll(() => page.evaluate(() => (window as unknown as {__markerDetailFacadeCalls: unknown}).__markerDetailFacadeCalls || []))
-    .toEqual([['showDetailModal', 'proteins_albumin', {}]]);
+  await expect.poll(() => page.evaluate(() => {
+    const card = document.getElementById('first-marker-detail-card');
+    const calls = (window as unknown as { __markerDetailFacadeCalls?: unknown[][] }).__markerDetailFacadeCalls || [];
+    return calls.map(call => {
+      const options = call[2];
+      if (!options || typeof options !== 'object') return call;
+      return [call[0], call[1], {
+        optionKeys: Reflect.ownKeys(options),
+        returnFocusIsClickedCard: card !== null && 'returnFocus' in options && options.returnFocus === card,
+      }, ...call.slice(3)];
+    });
+  })).toEqual([['showDetailModal', 'proteins_albumin', {
+    optionKeys: ['returnFocus'],
+    returnFocusIsClickedCard: true,
+  }]]);
   expect(implementationRequests).toBe(1);
 });
 
