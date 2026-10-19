@@ -444,6 +444,17 @@ const records = [
 const sha = (source: string) => createHash('sha256').update(source).digest('hex');
 export function restoreReviewedMigrationSource(file: string, source: string): string {
   if (file === 'js/marker-detail-modal-impl.ts') {
+    // Invert only the separately reviewed external modal-initiator repair.
+    assert.equal(sha(source), 'e1bd8757dcd7b136972c62d6d76b2330e8936fb2624346dfe9c372be4f5efb4b', 'Complete reviewed modal initiator source');
+    const focusEdits = [
+      {current: "  const overlay = document.getElementById(\"modal-overlay\");\n  // A visible history/mode rerender retains the original outside initiator.\n  if (!overlay?.classList.contains('show')) {\n    if (opts.returnFocus) rememberModalTrigger(opts.returnFocus);\n    else rememberModalTrigger();\n  }\n  const modal = setDetailModalShell('marker-detail-modal');", previous: "  rememberModalTrigger();\n  const modal = setDetailModalShell('marker-detail-modal');\n  const overlay = document.getElementById(\"modal-overlay\");"},
+      {current: "  openModalOverlay(overlay, { returnFocus: opts.returnFocus });", previous: "  openModalOverlay(overlay);"},
+    ] as const;
+    for (const edit of focusEdits) {
+      assert.equal(source.split(edit.current).length - 1, 1, 'Exactly one reviewed modal initiator replacement');
+      source = source.replace(edit.current, edit.previous);
+    }
+    assert.equal(sha(source), '49185d588cc3a86742835194986d5ab47c760d8f88648d754c2b0cb291e6b880', 'Exact source before modal initiator repair');
     // Separately qualify the real public-reference-save registration repair.
     const fixed = '    editRefRange,\n    saveRefRange,\n    revertRefRange,';
     assert.equal(source.split(fixed).length - 1, 1, 'Exactly one owned reference-save registration');

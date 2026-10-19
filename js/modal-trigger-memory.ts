@@ -2,12 +2,12 @@
 
 let modalLastTrigger: (Element & { focus: () => void }) | null = null;
 
-export function rememberModalTrigger() {
+export function rememberModalTrigger(trigger?: unknown) {
   if (typeof document === 'undefined') {
     modalLastTrigger = null;
     return;
   }
-  const el = document.activeElement;
+  const el = trigger instanceof Element && document.contains(trigger) ? trigger : document.activeElement;
   if (!(el instanceof Element) || el === document.body) {
     modalLastTrigger = null;
     return;

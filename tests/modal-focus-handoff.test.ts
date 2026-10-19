@@ -1,6 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { closeModalOverlay, openModalOverlay, openAppendedModalOverlay, removeModalOverlay, trapModalFocus } from '../js/modal-lifecycle.js';
+import {rememberModalTrigger,restoreModalTrigger} from '../js/modal-trigger-memory.js';
+import {installMarkerDetailActionDelegates,type MarkerDetailOptions} from '../js/marker-detail-actions.js';
+import {openWithMarkerDetailStylesheet} from '../js/marker-detail-runtime.js';
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -244,4 +247,42 @@ it('falls back to existing focus when an explicit modal initiator is disconnecte
   openModalOverlay(overlay, {autoFocus: false, returnFocus: document.createElement('button')});
   document.getElementById('back')!.focus(); closeModalOverlay(overlay);
   expect(document.activeElement).toBe(launcher);
+});
+
+
+it('retains the exact external delegated owner across stylesheet loading and unrelated active focus',async()=>{
+ const overlay=document.getElementById('overlay')!;overlay.id='modal-overlay';
+ const root=document.createElement('div');root.innerHTML='<button data-marker-detail-action="show-detail-modal" data-marker-detail-id="categoryPilot_sparse"><span>Open sparse</span></button>';document.body.prepend(root);
+ const launcher=root.querySelector('button')!;document.getElementById('launcher')!.focus();
+ let opening:unknown;let captured:MarkerDetailOptions|undefined;
+ installMarkerDetailActionDelegates({showDetailModal:(_id,options)=>{
+  captured=options;opening=openWithMarkerDetailStylesheet(()=>{
+   rememberModalTrigger(options.returnFocus);openModalOverlay(overlay,{returnFocus:options.returnFocus});
+  });
+ }},root);
+ root.querySelector('span')!.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true}));
+ expect(captured?.returnFocus).toBe(launcher);expect(overlay.classList.contains('show')).toBe(false);
+ // A delayed stylesheet resolves after mouse activation left another target active.
+ document.getElementById('launcher')!.focus();
+ const stylesheet=document.querySelector<HTMLLinkElement>('[data-marker-detail-stylesheet]');expect(stylesheet).not.toBeNull();stylesheet!.dispatchEvent(new Event('load'));
+ await opening;vi.advanceTimersByTime(30);expect(document.activeElement).toBe(document.getElementById('back'));
+ closeModalOverlay(overlay);restoreModalTrigger();expect(document.activeElement).toBe(launcher);
+});
+it('does not offer a nested history control as the outside modal initiator',()=>{
+ const overlay=document.getElementById('overlay')!;overlay.id='modal-overlay';overlay.classList.add('show');
+ const launcher=document.getElementById('launcher')!;launcher.focus();rememberModalTrigger(launcher);openModalOverlay(overlay,{autoFocus:false});
+ const nested=document.createElement('button');nested.dataset.markerDetailAction='show-detail-modal';nested.dataset.markerDetailId='categoryPilot_sparse';nested.textContent='More history';overlay.appendChild(nested);nested.focus();
+ let captured:MarkerDetailOptions|undefined;installMarkerDetailActionDelegates({showDetailModal:(_id,options)=>{captured=options;}},overlay);
+ nested.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true}));expect(captured).toBeDefined();expect(captured?.returnFocus).toBeUndefined();
+ openModalOverlay(overlay,{returnFocus:nested,autoFocus:false});closeModalOverlay(overlay);restoreModalTrigger();expect(document.activeElement).toBe(launcher);
+});
+it.each(['disconnected','non-element','omitted'] as const)('preserves active-element trigger fallback for %s explicit owners',kind=>{
+ const launcher=document.getElementById('launcher')!;launcher.focus();
+ if(kind==='omitted')rememberModalTrigger();else rememberModalTrigger(kind==='disconnected'?document.createElement('button'):{});
+ document.getElementById('draft')!.focus();restoreModalTrigger();expect(document.activeElement).toBe(launcher);
+});
+it('does not restore a detached explicit trigger or keep it for a later close',()=>{
+ const launcher=document.getElementById('launcher')!;rememberModalTrigger(launcher);launcher.remove();
+ const draft=document.getElementById('draft')!;draft.focus();restoreModalTrigger();expect(document.activeElement).toBe(draft);
+ const replacement=document.createElement('button');replacement.id='launcher';document.body.prepend(replacement);restoreModalTrigger();expect(document.activeElement).toBe(draft);
 });

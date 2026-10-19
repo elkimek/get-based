@@ -42,9 +42,10 @@ beforeEach(()=>{
  state.currentProfile='synthetic-action-bar';
  const add=document.addEventListener.bind(document);
  const capture=vi.spyOn(document,'addEventListener').mockImplementation((type,listener,options)=>{listeners.push({type,listener,options});add(type,listener,options);});
- try{controls=createDashboardWidgetControls({state,resetDashboardWidgetPrefs(){calls.push('reset');if(resetFailure)throw new Error('synthetic reset failure');},rerenderDashboardFromWidgetChange(){calls.push('render');}});}finally{capture.mockRestore();}
+ try{controls=createDashboardWidgetControls({state,getActiveData:()=>({categories:{}}),getAvailableDashboardFixedWidgets:()=>[],getDashboardWidgetPrefs:()=>({order:[],hidden:[]}),dashboardMarkerIdFromWidgetId:()=>'',getDashboardBiometricSelection:()=>[],getDashboardBiometricMetricOrder:()=>[],resetDashboardWidgetPrefs(){calls.push('reset');if(resetFailure)throw new Error('synthetic reset failure');},rerenderDashboardFromWidgetChange(){calls.push('render');}});}finally{capture.mockRestore();}
 });
 afterEach(()=>{
+ controls.closeDashboardWidgetPicker();
  for(const row of listeners.splice(0))document.removeEventListener(row.type,row.listener,row.options);
  for(const key of Reflect.ownKeys(state))if(!Object.hasOwn(originalState,key))Reflect.deleteProperty(state,key);Object.defineProperties(state,originalState);
  localStorage.clear();for(const [key,value]of storage)localStorage.setItem(key,value);
@@ -84,4 +85,30 @@ it('uses actual delegated Organize and Reset actions without changing per-profil
 it('retains organizing state and selection when the existing reset dependency throws',()=>{
  controls.toggleDashboardOrganizeMode(true);calls.length=0;const key=dashboardBiometricSelectionKey();localStorage.setItem(key,'keep');resetFailure=true;
  expect(()=>controls.resetDashboardWidgets()).toThrow('synthetic reset failure');expect(controls.isOrganizeMode()).toBe(true);expect(localStorage.getItem(key)).toBe('keep');expect(calls).toEqual(['reset']);
+});
+
+
+it.each(['Escape','close button','backdrop'] as const)('returns Dashboard picker focus to its delegated initiator after %s without click autofocus',dismissal=>{
+ const host=document.getElementById('host')!;host.innerHTML=controls.renderDashboardControlButtons()+'<button id="other-focus">Other focus</button>';
+ const opener=host.querySelector<HTMLButtonElement>('[data-dashboard-widget-action="open-picker"]')!,other=document.getElementById('other-focus')!;
+ other.focus();opener.click();
+ const overlay=document.getElementById('dashboard-widget-picker-overlay')!;expect(overlay).not.toBeNull();
+ expect(document.activeElement).toBe(other); // A click need not focus a button in Safari.
+ const close=overlay.querySelector<HTMLButtonElement>('[data-dashboard-widget-action="close-picker"]')!;close.focus();
+ if(dismissal==='Escape')document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+ else if(dismissal==='close button')close.click();
+ else overlay.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true}));
+ expect(document.getElementById('dashboard-widget-picker-overlay')).toBeNull();expect(document.activeElement).toBe(opener);expect(calls).toEqual([]);
+});
+it('does not restore Dashboard picker focus to a disconnected initiator',()=>{
+ const host=document.getElementById('host')!;host.innerHTML=controls.renderDashboardControlButtons()+'<button id="other-focus">Other focus</button>';
+ const opener=host.querySelector<HTMLButtonElement>('[data-dashboard-widget-action="open-picker"]')!,other=document.getElementById('other-focus')!;
+ other.focus();opener.click();expect(document.getElementById('dashboard-widget-picker-overlay')).not.toBeNull();opener.remove();other.focus();
+ controls.closeDashboardWidgetPicker();expect(document.activeElement).toBe(other);expect(calls).toEqual([]);
+});
+it('preserves the active-element fallback for programmatic Dashboard picker opening',()=>{
+ const other=document.createElement('button');document.getElementById('host')!.append(other);other.focus();
+ controls.openDashboardWidgetPicker();const overlay=document.getElementById('dashboard-widget-picker-overlay')!;expect(overlay).not.toBeNull();
+ overlay.querySelector<HTMLButtonElement>('[data-dashboard-widget-action="close-picker"]')!.focus();controls.closeDashboardWidgetPicker();
+ expect(document.activeElement).toBe(other);expect(calls).toEqual([]);
 });

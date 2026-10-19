@@ -7,7 +7,7 @@ import type { ActiveData, ActiveCategory } from './data-view-types.js';
 
 export interface NavActionDependencies {
   openLightEnvironmentAssessment: () => unknown;
-  openClientList: () => unknown;
+  openClientList: (returnFocus?: HTMLElement) => unknown;
   openKnowledgeBase: typeof openKnowledgeBaseModal;
 }
 interface NavItem { withData: number; flagged: number; view: SidebarCategoryView }
@@ -110,7 +110,7 @@ function handleNavActionClick(event: Event) {
   } else if (action === 'toggle-group') {
     toggleNavGroup(actionEl.dataset.navGroup || '');
   } else if (action === 'open-client-list') {
-    navActionDeps.openClientList();
+    navActionDeps.openClientList(actionEl);
   } else {
     handled = false;
   }

@@ -97,6 +97,31 @@ describe('client list runtime behavior', () => {
     expect(clientList.isClientListModuleLoaded()).toBe(false);
   });
 
+  it('restores the real delegated opener across lazy loading when its click did not focus it', async () => {
+    const clientList = await loadClientList();
+    const nav = await import('../js/nav.js');
+    const previousActions = nav.configureNavActions({openClientList: clientList.openClientList});
+    try {
+      document.body.insertAdjacentHTML('beforeend', '<div id="profile-selector"></div><button id="previous-focus">Previous</button>');
+      nav.renderProfileButton();
+      const trigger = document.querySelector<HTMLButtonElement>('#profile-selector [data-nav-action="open-client-list"]')!;
+      const previous = document.getElementById('previous-focus')!; previous.focus();
+      const profile = state.importedData, before = structuredClone(profile), registry = JSON.stringify(state.profiles);
+      expect(trigger).not.toBeNull(); expect(clientList.isClientListModuleLoaded()).toBe(false);
+      expect(document.activeElement).toBe(previous);
+      trigger.click();
+      await vi.waitFor(() => expect(document.getElementById('cl-search')).toBe(document.activeElement));
+      expect(document.getElementById('client-list-overlay')?.classList.contains('show')).toBe(true);
+      clientList.closeClientList();
+      expect(document.activeElement).toBe(trigger);
+      expect(document.getElementById('client-list-overlay')?.classList.contains('show')).toBe(false);
+      expect(state.importedData).toBe(profile); expect(state.importedData).toEqual(before);
+      expect(JSON.stringify(state.profiles)).toBe(registry);
+    } finally {
+      clientList.closeClientList(); nav.configureNavActions(previousActions);
+    }
+  });
+
   it('keeps focused search continuously attached through a deferred-RAF typing burst', async () => {
     const clientList = await loadClientList();
     await clientList.openClientList();

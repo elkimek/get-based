@@ -1,7 +1,7 @@
 import type { navigateMarkerDetailRuntime, isDashboardQuickMarkerPinnedRuntime, toggleDashboardQuickMarkerPinRuntime, renameMarkerRuntime, revertMarkerNameRuntime, askAIAboutMarkerRuntime, showEmojiPickerRuntime } from '../js/marker-detail-runtime.js';
 import type { BioAgeInputStatus } from '../js/marker-detail-content.js';
 export type BioInputStatus = BioAgeInputStatus;
-export interface MarkerModalOptions {showAllHistory?:unknown;historyLimit?:unknown;scrollToHistory?:unknown;scrollToRec?:unknown}
+export interface MarkerModalOptions {showAllHistory?:unknown;historyLimit?:unknown;scrollToHistory?:unknown;scrollToRec?:unknown;returnFocus?:HTMLElement}
 // Existing callback invocation operations; Object.assign does not validate snapshots.
 export interface MarkerModalCalls {navigate(...args:Parameters<typeof navigateMarkerDetailRuntime>):unknown;isDashboardQuickMarkerPinned(...args:Parameters<typeof isDashboardQuickMarkerPinnedRuntime>):unknown;toggleDashboardQuickMarkerPin(...args:Parameters<typeof toggleDashboardQuickMarkerPinRuntime>):unknown;renameMarker(...args:Parameters<typeof renameMarkerRuntime>):unknown;revertMarkerName(...args:Parameters<typeof revertMarkerNameRuntime>):unknown;askAIAboutMarker(...args:Parameters<typeof askAIAboutMarkerRuntime>):unknown;showEmojiPicker(...args:Parameters<typeof showEmojiPickerRuntime>):unknown}
 // Private existing numeric invocations, not validation of persisted clinical leaves.

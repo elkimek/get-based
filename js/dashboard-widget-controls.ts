@@ -195,7 +195,7 @@ export function createDashboardWidgetControls(deps: unknown) {
     if (action === 'toggle-organize') {
       toggleDashboardOrganizeMode();
     } else if (action === 'open-picker') {
-      openDashboardWidgetPicker();
+      openDashboardWidgetPicker(actionEl);
     } else if (action === 'reset-widgets') {
       resetDashboardWidgets();
     } else if (action === 'move-widget') {
@@ -462,7 +462,7 @@ export function createDashboardWidgetControls(deps: unknown) {
     return overlay;
   }
 
-  function openDashboardWidgetPicker() {
+  function openDashboardWidgetPicker(returnFocus?: HTMLElement) {
     closeDashboardWidgetPicker();
     const prefs = getDashboardWidgetPrefs();
     const hidden = getAvailableDashboardFixedWidgets().filter(def => prefs.hidden.includes(def.id));
@@ -470,7 +470,7 @@ export function createDashboardWidgetControls(deps: unknown) {
     const markerOptions = getDashboardMarkerWidgetOptions(getActiveData(), prefs);
     openDashboardWidgetPickerOverlay(renderDashboardPickerPresentation({
       view: projectDashboardPickerPresentation({kind: 'dashboard', hidden, biometrics: biometricOptions, markers: markerOptions}),
-    }));
+    }), {returnFocus});
   }
 
   function openDashboardBiometricPicker() {

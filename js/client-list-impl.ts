@@ -86,7 +86,7 @@ function loadClientListStylesheet() {
 }
 
 /** @returns {Promise<boolean>} */
-export function openClientList() {
+export function openClientList(returnFocus?: HTMLElement) {
   if (!_clientListOpen) {
     _clientListOpen = loadClientListStylesheet()
       .then(() => {
@@ -97,7 +97,7 @@ export function openClientList() {
         const overlay = document.getElementById('client-list-overlay');
         if (!overlay) return false;
         renderClientList();
-        openModalOverlay(overlay, { initialFocus: '#cl-search', scrollLock: true });
+        openModalOverlay(overlay, { initialFocus: '#cl-search', scrollLock: true, returnFocus });
         return true;
       })
       .catch(err => {

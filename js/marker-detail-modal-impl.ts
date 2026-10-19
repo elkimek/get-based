@@ -202,9 +202,13 @@ function renderDetailModal(id: string, opts: MarkerModalOptions = {}) {
   if (!marker) return false;
   // Remember which marker is open so toggleAltUnits can re-render in place.
   state._activeDetailMarkerId = id;
-  rememberModalTrigger();
-  const modal = setDetailModalShell('marker-detail-modal');
   const overlay = document.getElementById("modal-overlay");
+  // A visible history/mode rerender retains the original outside initiator.
+  if (!overlay?.classList.contains('show')) {
+    if (opts.returnFocus) rememberModalTrigger(opts.returnFocus);
+    else rememberModalTrigger();
+  }
+  const modal = setDetailModalShell('marker-detail-modal');
   if (!modal) return false;
   modal.dataset.syncRefreshKind = 'marker';
   modal.dataset.syncRefreshItemId = id;
@@ -693,7 +697,7 @@ function renderDetailModal(id: string, opts: MarkerModalOptions = {}) {
     deleteMarker = ({kind: "delete-marker", actions: projectMarkerDetailAction('delete-custom-marker', { id })} satisfies MarkerDetailChromeView);
   }
   modal.innerHTML = renderMarkerDetailModal({header,rows:historyRows,paging,trend,bio,actions,deleteMarker});
-  openModalOverlay(overlay);
+  openModalOverlay(overlay, { returnFocus: opts.returnFocus });
   if (opts.scrollToHistory) {
     setTimeout(() => {
       const historyEl = modal.querySelector('.marker-history-list');

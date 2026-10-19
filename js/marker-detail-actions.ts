@@ -4,7 +4,7 @@ import { escapeAttr } from './utils.js';
 
 type MarkerIdAction = (id: string) => unknown;
 type MarkerDatedAction = (id: string, date: string) => unknown;
-export interface MarkerDetailOptions { showAllHistory?: boolean; scrollToHistory?: boolean; historyLimit?: number }
+export interface MarkerDetailOptions { showAllHistory?: boolean; scrollToHistory?: boolean; historyLimit?: number; returnFocus?: HTMLElement }
 export interface MarkerDetailActions {
   closeModal?: () => unknown;
   saveRefRange?: (id: string, type: string) => unknown;
@@ -68,6 +68,9 @@ function numberAttr(actionEl: HTMLElement, name: string) {
 
 function showDetailOptions(actionEl: HTMLElement) {
   const opts: MarkerDetailOptions = {};
+  // Safari mouse activation need not focus its button. Keep the real external
+  // action owner across lazy module/stylesheet loading, never a nested control.
+  if (!actionEl.closest('#modal-overlay')) opts.returnFocus = actionEl;
   if (actionEl.dataset.markerDetailShowAllHistory === 'true') opts.showAllHistory = true;
   if (actionEl.dataset.markerDetailScrollToHistory === 'true') opts.scrollToHistory = true;
   const historyLimit = numberAttr(actionEl, 'markerDetailHistoryLimit');
