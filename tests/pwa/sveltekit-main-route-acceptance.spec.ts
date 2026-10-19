@@ -245,7 +245,7 @@ test('Dark main routes retain keyboard access, scoped accessibility and unchange
     expect(errors).toEqual([]); expect(csp).toEqual([]); expect(external).toEqual([]);
     await info.attach('main-route-acceptance', {body: JSON.stringify({buildId: artifact.buildId, artifactSHA256: artifact.artifactSHA256,
       project: info.project.name, receipts, before, errors, csp, external, stoppedOrigin: true, zeroClientColdLaunches: 1,
-      limits: 'Actual optimized artifact with controlled kit-test-a worker/version seam. Synthetic profile and paused credential-free AI; axe is test instrumentation. Screenshots are review evidence, not a frozen visual oracle. Scoped automation does not establish whole-app WCAG, OS speech, physical iOS/Android installation, or printer output. Mobile WebKit is Linux WPE with iPhone13 emulation. No claim about the separately retained intermittent1px WebKit issue.'}, null, 2), contentType: 'application/json'});
+      limits: 'Actual optimized artifact with controlled kit-test-a worker/version seam. Synthetic profile and paused credential-free AI; axe is test instrumentation. Screenshots are review evidence, not a frozen visual oracle. Scoped automation does not establish whole-app WCAG, OS speech, physical iOS/Android installation, or printer output. Mobile WebKit uses iPhone13 emulation on the recorded runner platform. No claim about the separately retained intermittent1px WebKit issue.'}, null, 2), contentType: 'application/json'});
   } finally {
     await info.attach('main-route-terminal-observers', {body: JSON.stringify({errors, csp, external, receipts}, null, 2), contentType: 'application/json'});
     for (const target of context.pages()) await target.close();

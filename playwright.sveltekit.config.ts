@@ -7,7 +7,7 @@ export function kitCaseSelection(scope = 'all', project?: string, platform = pro
   if (!['all', 'webkit-standard', 'webkit-opfs'].includes(scope)) throw new Error('Unknown planned Kit case scope');
   if (scope === 'all') return {testMatch: 'sveltekit*.spec.ts'};
   if (!['kit-webkit', 'kit-mobile-webkit'].includes(project || '')) throw new Error('Native OPFS placement requires a WebKit project');
-  if (platform !== (scope === 'webkit-opfs' ? 'darwin' : 'linux')) throw new Error('Kit case scope differs from its native platform');
+  if (platform !== 'darwin') throw new Error('Kit case scope differs from its native platform');
   return scope === 'webkit-opfs' ? {testMatch: 'sveltekit-knowledge-base.spec.ts'}
     : {testMatch: 'sveltekit*.spec.ts', testIgnore: '**/sveltekit-knowledge-base.spec.ts'};
 }

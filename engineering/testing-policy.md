@@ -34,10 +34,13 @@ The Cocoa cases use isolated persistent profiles because the pinned private data
 store exposes OPFS but cannot initialize its filesystem. A required native Worker
 control verifies exact write, flush and read bytes across a complete browser
 restart before the unchanged application acceptance runs; private-store behavior
-is recorded only as a diagnostic. Other WebKit cases stay on Linux. The planner
-partitions the same global case
-inventory across these runners; the required aggregate rejects missing or duplicate
-case receipts.
+is recorded only as a diagnostic. Standard UI shards for both shipping WebKit
+projects also run on Cocoa; Chromium and Firefox shipping acceptance and all native
+suites retain their Linux placement. The planner preserves the same global case
+inventory and disjoint standard/OPFS partitions; the required aggregate rejects
+missing or duplicate case receipts. Broad Linux WPE shipping UI acceptance is no
+longer a required gate. Its existing focused manual diagnostic covers only Lens
+and Wearables and cannot establish complete WPE UI compatibility.
 
 The [static SvelteKit distribution](static-sveltekit.md) has a local focused acceptance
 command, `npm run test:sveltekit`, covering static aliases, CSP, delegated Display

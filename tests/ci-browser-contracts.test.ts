@@ -77,9 +77,9 @@ describe('SvelteKit acceptance collection and terminal-result guard', () => {
 it('limits native OPFS placement to its exact maintained file, WebKit modes and platform', () => {
   expect(kitCaseSelection()).toEqual({testMatch: 'sveltekit*.spec.ts'});
   for (const project of ['kit-webkit', 'kit-mobile-webkit']) {
-    expect(kitCaseSelection('webkit-standard', project, 'linux')).toEqual({testMatch: 'sveltekit*.spec.ts', testIgnore: '**/sveltekit-knowledge-base.spec.ts'});
+    expect(kitCaseSelection('webkit-standard', project, 'darwin')).toEqual({testMatch: 'sveltekit*.spec.ts', testIgnore: '**/sveltekit-knowledge-base.spec.ts'});
     expect(kitCaseSelection('webkit-opfs', project, 'darwin')).toEqual({testMatch: 'sveltekit-knowledge-base.spec.ts'});
-    expect(() => kitCaseSelection('webkit-standard', project, 'darwin')).toThrow('native platform');
+    expect(() => kitCaseSelection('webkit-standard', project, 'linux')).toThrow('native platform');
     expect(() => kitCaseSelection('webkit-opfs', project, 'linux')).toThrow('native platform');
   }
   for (const scope of ['webkit-standard', 'webkit-opfs']) {

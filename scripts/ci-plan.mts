@@ -43,10 +43,10 @@ export function createCiPlan(full: boolean, affected: TestPlan | null): CiPlan {
     for (let shard = 1; shard <= shards; shard++) kit.push({
       id: `${project}-${shard}-of-${shards}`, project,
       engine: project === 'kit-chromium' ? 'chromium' : project === 'kit-firefox' ? 'firefox' : 'webkit',
-      shard: `${shard}/${shards}`, runner: 'ubuntu-latest', caseScope: webkit ? 'webkit-standard' : 'all',
+      shard: `${shard}/${shards}`, runner: webkit ? 'macos-15' : 'ubuntu-latest', caseScope: webkit ? 'webkit-standard' : 'all',
     });
-    // Linux WPE lacks the native sync OPFS backend. Cocoa runs the unchanged
-    // Worker/OPFS case under both existing WebKit project identities instead.
+    // Both WebKit shipping projects use Cocoa. Keep the unchanged Worker/OPFS
+    // partition separate from standard UI shards, with exact union completeness.
     if (webkit && (full || selected.includes(KIT_OPFS_FILE))) kit.push({
       id: `${project}-opfs-1-of-1`, project, engine: 'webkit', shard: '1/1', runner: 'macos-15', caseScope: 'webkit-opfs',
     });

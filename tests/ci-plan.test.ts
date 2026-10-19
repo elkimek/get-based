@@ -122,17 +122,19 @@ it('bounds affected Kit shards by selected file groups while preserving every se
 });
 
 
-describe('native Cocoa OPFS acceptance placement', () => {
-  it('requires both original WebKit modes on Cocoa and retains the normal Linux matrix', () => {
+describe('native Cocoa shipping acceptance placement', () => {
+  it('requires every original WebKit partition on Cocoa and retains Linux Chromium and Firefox', () => {
     const plan = createCiPlan(true, null);
     const cocoa = plan.kitMatrix.include.filter(lane => lane.runner === 'macos-15');
     expect(cocoa.map(lane => [lane.project, lane.shard, lane.caseScope])).toEqual([
-      ['kit-webkit', '1/1', 'webkit-opfs'], ['kit-mobile-webkit', '1/1', 'webkit-opfs'],
+      ['kit-webkit', '1/2', 'webkit-standard'], ['kit-webkit', '2/2', 'webkit-standard'], ['kit-webkit', '1/1', 'webkit-opfs'],
+      ['kit-mobile-webkit', '1/2', 'webkit-standard'], ['kit-mobile-webkit', '2/2', 'webkit-standard'], ['kit-mobile-webkit', '1/1', 'webkit-opfs'],
     ]);
-    expect(plan.kitMatrix.include.filter(lane => lane.runner === 'ubuntu-latest')).toHaveLength(8);
+    expect(plan.kitMatrix.include.filter(lane => lane.runner === 'ubuntu-latest')).toHaveLength(4);
     expect(plan.jobs.kit).toBe(true);
     for (const lane of plan.kitMatrix.include) {
-      expect(lane.caseScope).toBe(lane.runner === 'macos-15' ? 'webkit-opfs' : lane.engine === 'webkit' ? 'webkit-standard' : 'all');
+      expect(lane.runner).toBe(lane.engine === 'webkit' ? 'macos-15' : 'ubuntu-latest');
+      if (lane.engine !== 'webkit') expect(lane.caseScope).toBe('all');
     }
   });
   it.each([[], ['tests/pwa/sveltekit.spec.ts'], ['tests/pwa/sveltekit.spec.ts', 'tests/pwa/sveltekit-wearable-detail.spec.ts']].map(companions => ({companions})))('partitions KB and $companions without dropping a browser identity', ({companions}) => {
@@ -160,6 +162,7 @@ describe('native Cocoa OPFS acceptance placement', () => {
     for (const mutate of [
       (value: typeof plan) => {value.kitMatrix.include = value.kitMatrix.include.filter(lane => lane.caseScope !== 'webkit-opfs');},
       (value: typeof plan) => {value.kitMatrix.include.find(lane => lane.caseScope === 'webkit-opfs')!.runner = 'ubuntu-latest';},
+      (value: typeof plan) => {value.kitMatrix.include.find(lane => lane.caseScope === 'webkit-standard')!.runner = 'ubuntu-latest';},
       (value: typeof plan) => {value.kitMatrix.include.find(lane => lane.caseScope === 'webkit-standard')!.caseScope = 'all';},
     ]) {
       const corrupted = structuredClone(plan); mutate(corrupted);
