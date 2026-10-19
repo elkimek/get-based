@@ -13,6 +13,12 @@ export interface NativeCapture {
   moduleExecutionInfo: [string, {startOffset: number}][];
   completed: true;
 }
+/** Versioned storage only; readers restore the unchanged logical schema-one capture. */
+export interface NativeCaptureTransport {
+  schemaVersion: 2; producer: 'native-capture-transport';
+  capture: Omit<NativeCapture, 'snapshots'> & {snapshots: (NativeSnapshot & {sourceMapURLExternal?: true})[]};
+  sourceMapURLs: {scriptId: string; source: NativeBlob}[];
+}
 export interface NativeSuiteCapture {file: NativeBlob; testFiles: string[]; project: string; environment: string;}
 export interface NativeRaw {result: Profiler.ScriptCoverage[]; timestamp: number;}
 export interface NativeGeometry {file: string; environment: string; consumer: string; originalHash: string; code: string;}

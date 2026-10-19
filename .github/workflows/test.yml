@@ -165,7 +165,9 @@ jobs:
     timeout-minutes: 35
     strategy:
       fail-fast: false
-      max-parallel: 4
+      # Admit all four Chromium shards plus Firefox, PWA and Display together.
+      # Account concurrency and runner availability still bound actual starts.
+      max-parallel: 7
       matrix: ${{ fromJSON(needs.prepare.outputs.native_matrix) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -235,7 +237,10 @@ jobs:
     timeout-minutes: 45
     strategy:
       fail-fast: false
-      max-parallel: 4
+      # Admit Cocoa alongside the four Linux shards without opening all ten lanes.
+      # The short OPFS partition releases capacity for the remaining Cocoa shard;
+      # account concurrency and runner availability still bound actual starts.
+      max-parallel: 8
       matrix: ${{ fromJSON(needs.prepare.outputs.kit_matrix) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
