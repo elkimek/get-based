@@ -95,6 +95,12 @@ jobs.
 This diagnostic run does not publish the normal `test` gate or release evidence;
 the default `off` choice retains the complete normal workflow.
 
+Pull requests select affected tests, while main and explicit release verification
+retain the exhaustive regression and combined-coverage matrix. Browser jobs run
+in bounded parallel lanes: compatibility checks can start alongside Chromium,
+and macOS WebKit can start alongside Linux. The final `test` check validates the
+selected jobs and their evidence; separate security checks remain visible.
+
 GitHub Actions owns the exhaustive browser and combined-coverage matrix by
 default. An exceptional local full run requires an explicit high-write opt-in:
 

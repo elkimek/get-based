@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import {productionFunctionIndex} from './coverage-source.mjs';
-import {nativeDigest, nativeSelected, readNativeBlob, readNativeRegular} from './native-coverage-storage.mjs';
+import {nativeDigest, nativeSelected, readNativeBlob, readNativeCapture, readNativeRegular} from './native-coverage-storage.mjs';
 import {nativeFunctionMapper, UnmappedNativeFunction} from './native-coverage-functions.mjs';
 import {replayNativeTransform, NATIVE_WRAPPER_PREFIX} from './native-coverage-transform.mjs';
 import type {NativeCapture, NativeContext, NativeGeometry, NativeMappedCapture, NativeObservation, NativeRaw, NativeSuiteCapture, NativeTransform} from './native-coverage-types.mjs';
@@ -14,11 +14,12 @@ export function validateNativeEnvironment(capture: NativeCapture, independent: s
 /** A run-scoped mapper shares parse/transform work across isolated suites without sharing coverage counters. */
 export class NativeCaptureMapper {
   readonly #config: NativeContext;
+  readonly #sealed: ReadonlySet<string> | undefined;
   readonly #variants = new Map<string, string[]>();
   readonly #mapped = new Map<string, Map<string, {start: number; end: number} | {reason: string}>>();
   readonly #ownership = new Map<string, Set<string>>();
   constructor(config: NativeContext, sealed?: ReadonlySet<string>) {
-    this.#config = config;
+    this.#config = config; this.#sealed = sealed;
     for (const name of fs.readdirSync(config.directory).sort()) {
       if (!/^(?:geometry|observation)-[a-f0-9]{64}\.json$/.test(name)) continue;
       assert(!sealed || sealed.has(name), 'Unsealed native transform observation');
@@ -28,7 +29,7 @@ export class NativeCaptureMapper {
     }
   }
   async map(record: NativeSuiteCapture): Promise<NativeMappedCapture> {
-    const config = this.#config, capture = JSON.parse(readNativeBlob(config.directory, record.file).toString('utf8')) as NativeCapture;
+    const config = this.#config, capture = readNativeCapture(config.directory, record.file, this.#sealed);
     validateNativeEnvironment(capture, record.environment); assert.equal(capture.runId, config.runId); assert.equal(capture.revision, config.revision);
     const raw = JSON.parse(readNativeBlob(config.directory, capture.raw).toString('utf8')) as NativeRaw;
     assert(Array.isArray(raw.result) && Number.isFinite(raw.timestamp) && Array.isArray(capture.snapshots) && Array.isArray(capture.moduleExecutionInfo));

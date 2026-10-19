@@ -5,12 +5,12 @@ import {randomUUID} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import type {CoverageProvider, ResolvedCoverageOptions, Vitest} from 'vitest/node';
 import {productionSources} from './coverage-source.mjs';
-import {nativeContext, nativeDigest, readNativeBlob, readNativeRegular, writeNativeJSON} from './native-coverage-storage.mjs';
+import {nativeContext, nativeDigest, readNativeBlob, readNativeCapture, readNativeRegular, writeNativeJSON} from './native-coverage-storage.mjs';
 import {NativeCaptureMapper, validateNativeEnvironment} from './native-coverage-capture.mjs';
 import {nativeCoverageSummary, NATIVE_COVERAGE_FILE, validateNativeFunctionCoverage} from './native-coverage-receipt.mjs';
 import {validateNativeCases} from './native-coverage-cases.mjs';
 import type {NativeCoverageFile, NativeCoverageReceipt} from './native-coverage-receipt.mjs';
-import type {NativeBlob, NativeCapture, NativeContext, NativeMappedCapture, NativeSuiteCapture, NativeUnattributedScript} from './native-coverage-types.mjs';
+import type {NativeBlob, NativeContext, NativeMappedCapture, NativeSuiteCapture, NativeUnattributedScript} from './native-coverage-types.mjs';
 /** Public native provider: actual V8 own entries supply function credit; critical four-metric suites use Istanbul separately. */
 export default class NativeCoverageProvider implements CoverageProvider {
   name = 'custom';
@@ -31,7 +31,7 @@ export default class NativeCoverageProvider implements CoverageProvider {
   clean(): void { /* initialize owns the new run directory; preserve its injected context. */ }
   onAfterSuiteRun: CoverageProvider['onAfterSuiteRun'] = metadata => {
     const config = this.#config; assert(config); const manifest = metadata.coverage as NativeBlob; assert(manifest && /^capture-[a-f0-9-]{36}\.json$/.test(manifest.file));
-    const capture = JSON.parse(readNativeBlob(config.directory, manifest).toString('utf8')) as NativeCapture;
+    const capture = readNativeCapture(config.directory, manifest);
     validateNativeEnvironment(capture, metadata.environment); assert.equal(capture.runId, config.runId); assert.equal(capture.revision, config.revision);
     readNativeBlob(config.directory, capture.raw);
     const testFiles = metadata.testFiles.map(file => path.relative(config.root, file).split(path.sep).join('/')); assert(testFiles.length > 0 && new Set(testFiles).size === testFiles.length);
