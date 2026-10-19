@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {productionSources, productionFunctionIndex} from './coverage-source.mjs';
-import {nativeDigest, readNativeRegular, readNativeBlob, portable} from './native-coverage-storage.mjs';
+import {nativeDigest, readNativeRegular, readNativeBlob, readNativeCapture, portable} from './native-coverage-storage.mjs';
 import {NativeCaptureMapper} from './native-coverage-capture.mjs';
 import {validateNativeCases} from './native-coverage-cases.mjs';
 import type {NativeContext, NativeSuiteCapture, NativeMappedCapture, NativeUnattributedScript} from './native-coverage-types.mjs';
@@ -102,7 +102,7 @@ export async function readNativeFunctionCoverage(file: string, options: NativeCo
   for (const capture of captures) {
     assert(capture && typeof capture.project === 'string' && typeof capture.environment === 'string' && Array.isArray(capture.testFiles) && capture.testFiles.length > 0);
     capture.testFiles.forEach(portable); assert(names.has(capture.file.file) && !captureNames.has(capture.file.file), 'Missing or reused native capture'); captureNames.add(capture.file.file);
-    const raw = JSON.parse(readNativeBlob(directory, capture.file).toString('utf8')) as {raw: NativeTransportFile; snapshots: {source: NativeTransportFile}[]};
+    const raw = readNativeCapture(directory, capture.file, names);
     assert(names.has(raw.raw.file)); readNativeBlob(directory, raw.raw); assert(Array.isArray(raw.snapshots));
     for (const snapshot of raw.snapshots) {assert(names.has(snapshot.source.file)); readNativeBlob(directory, snapshot.source);}
   }

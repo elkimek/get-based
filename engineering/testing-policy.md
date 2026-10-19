@@ -568,6 +568,13 @@ the same compiled coordinate space as browser collection. Its explicit
 must retain its own native entry count, exact canonical source mapping, complete
 public transform witness and collected-versus-finished test membership. The
 consumer independently rederives these identities from the retained raw capture.
+Large inspector source-map URLs are stored once as authenticated, content-addressed
+JSON strings in the versioned capture transport. Readers restore their exact
+logical metadata before validation and replay, accept earlier inline captures,
+and require every referenced blob in the sealed receipt inventory. Raw entries,
+anonymous scripts, source snapshots, test membership and the 64 MiB per-record
+bound remain intact. Coverage transport uses Node's built-in filesystem directly
+so application filesystem mocks cannot intercept evidence collection.
 Unsupported function syntax and authenticated anonymous VM scripts remain visible
 with zero credit; malformed ranges,
 missing or ambiguous provenance, stale sources and altered transport fail.

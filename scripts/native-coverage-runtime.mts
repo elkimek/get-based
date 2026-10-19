@@ -4,7 +4,7 @@ import type {Debugger} from 'node:inspector';
 import {randomUUID} from 'node:crypto';
 import {inject, expect} from 'vitest';
 import {builtinEnvironments} from 'vitest/runtime';
-import {nativeContext, nativeDigest, nativeSelected, writeNativeBlob, writeNativeJSON} from './native-coverage-storage.mjs';
+import {nativeContext, nativeDigest, nativeSelected, writeNativeBlob, writeNativeJSON, writeNativeCapture} from './native-coverage-storage.mjs';
 import type {NativeCapture, NativeContext, NativeEnvironment, NativeSnapshot} from './native-coverage-types.mjs';
 const OWNER = 'getbased-native-v8-holder/v1';
 interface Holder {
@@ -71,7 +71,7 @@ export default {
         snapshots.push({file: nativeSelected(holder.config, script.url), scriptId: script.scriptId, url: script.url, metadata, source: writeNativeBlob(holder.config.directory, scriptSource), sourceLength: scriptSource.length});
       }
       const capture: NativeCapture = {schemaVersion: 1, runId: holder.config.runId, revision: holder.config.revision, holderId: holder.id, pid: holder.pid, environment: identity, raw: rawBlob, snapshots, moduleExecutionInfo: [...(options?.moduleExecutionInfo ?? [])], completed: true};
-      return writeNativeJSON(holder.config.directory, `capture-${id}.json`, capture);
+      return writeNativeCapture(holder.config.directory, `capture-${id}.json`, capture);
     } catch (error) {return failed(error, holder);}
   },
   async stopCoverage(): Promise<void> {const scope = context(); if (Reflect.has(globalThis, scope.key)) await release(current());},

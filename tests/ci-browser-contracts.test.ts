@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import strictAssert from 'node:assert/strict';
 import {runInNewContext} from 'node:vm';
 import {chromiumWorkers} from '../scripts/ci-workers.mjs';
+import {createCiPlan} from '../scripts/ci-plan.mjs';
 import {allowedKitSkip, validateKitCases, portableKitIdentity, KIT_PROJECTS, type KitCase} from '../scripts/kit-acceptance-reporter.mjs';
 import base from '../playwright.config.js';
 import pwa from '../playwright.pwa.config.js';
@@ -28,6 +29,26 @@ describe('bounded browser CPU scheduling', () => {
     expect(base.use?.headless).toBe(true); expect(kit.use?.headless).toBe(true);
   });
 });
+describe('cross-browser and platform matrix admission', () => {
+  it('admits compatibility lanes and both Kit platforms before long Chromium lanes must finish', () => {
+    const workflow = fs.readFileSync('.github/workflows/test.yml', 'utf8');
+    const limit = (job: string) => {
+      const body = new RegExp(`^  ${job}:\\n([\\s\\S]*?)(?=^  [a-z_]+:|$(?![\\s\\S]))`, 'm').exec(workflow)?.[1];
+      expect(body).toContain('fail-fast: false');
+      const maximum = /^      max-parallel: ([1-9]\d*)$/m.exec(body!)?.[1];
+      expect(maximum).toBeDefined();
+      return Number(maximum);
+    };
+    const plan = createCiPlan(true, null);
+    expect(plan.nativeMatrix.include.slice(0, limit('native'))).toEqual(plan.nativeMatrix.include);
+    const admitted = plan.kitMatrix.include.slice(0, limit('kit'));
+    expect([...new Set(admitted.map(lane => lane.project))]).toEqual([...KIT_PROJECTS]);
+    expect(new Set(admitted.map(lane => lane.runner))).toEqual(new Set(['ubuntu-latest', 'macos-15']));
+    // Leave a bounded second wave rather than scheduling every Kit lane at once.
+    expect(admitted.length).toBeLessThan(plan.kitMatrix.include.length);
+  });
+});
+
 describe('SvelteKit acceptance collection and terminal-result guard', () => {
   it('accepts genuine collection-only discovery and executed acceptance', () => {
     expect(validateKitCases([example({status: undefined, expectedStatus: undefined})], false)).toEqual([]);
