@@ -1,3 +1,4 @@
+import {nativeTabKey} from '../helpers/native-tab-key.js';
 import fs from 'node:fs/promises';
 import {expect,test,type Page} from '@playwright/test';
 import {startKitServer} from './kit-server.js';
@@ -48,7 +49,7 @@ async function open(page:Page){
 }
 async function tabTo(page:Page,selector:string){const path=[];
   for(let attempt=0;attempt<60;attempt++){
-    await page.keyboard.press('Tab');const sample=await page.evaluate(selector=>({at:performance.now(),matched:!!document.activeElement?.matches(selector),
+    await page.keyboard.press(nativeTabKey(page));const sample=await page.evaluate(selector=>({at:performance.now(),matched:!!document.activeElement?.matches(selector),
       active:document.activeElement?{tag:document.activeElement.tagName,id:document.activeElement.id,action:document.activeElement.getAttribute('data-cl-action')}:null}),selector);
     path.push(sample);if(sample.matched)return path;
   }
@@ -98,7 +99,7 @@ async function workflow(page:Page){
   await tagInput.fill('offline-tag');await tagInput.press('Enter');await expect(pills).toHaveText(['metabolic','offline-tag']);
   await activate(page,pills.first().getByRole('button',{name:'Remove tag',exact:true}));await expect(pills).toHaveText(['offline-tag']);
   await activate(page,page.locator(action('back-to-list')).first());await expect(page.locator('.cl-title')).toHaveText('Clients');
-  await page.keyboard.press('Tab');await expect(page.locator(action('toggle-tools-menu'))).toBeFocused();
+  await page.keyboard.press(nativeTabKey(page));await expect(page.locator(action('toggle-tools-menu'))).toBeFocused();
   await page.keyboard.press('Escape');await expect(page.locator('#client-list-overlay')).not.toHaveClass(/\bshow\b/);await expect(page.locator(button)).toBeFocused();
   await open(page);await activate(page,page.locator(action('close')).first());
   await expect(page.locator('#client-list-overlay')).not.toHaveClass(/\bshow\b/);await expect(page.locator(button)).toBeFocused();

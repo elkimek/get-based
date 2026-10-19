@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { closeModalOverlay, openModalOverlay, trapModalFocus } from '../js/modal-lifecycle.js';
+import { closeModalOverlay, openModalOverlay, openAppendedModalOverlay, removeModalOverlay, trapModalFocus } from '../js/modal-lifecycle.js';
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -220,4 +220,28 @@ it('does not run a disposed focus-trap timer into a reopened retained overlay', 
     vi.advanceTimersByTime(80);
     expect(document.activeElement).toBe(document.getElementById('draft'));
   } finally {release(false); closeModalOverlay(overlay);}
+});
+
+
+it.each(['escape', 'external removal'] as const)('restores the explicit modal initiator after %s when clicking did not focus it', async mode => {
+  const launcher = document.getElementById('launcher')!;
+  const previous = document.createElement('button'); document.body.appendChild(previous); previous.focus();
+  expect(document.activeElement).toBe(previous); expect(document.activeElement).not.toBe(launcher);
+  const overlay = document.createElement('div'); overlay.className = 'modal-overlay';
+  overlay.innerHTML = '<div role="dialog"><button id="owned-close">Close</button></div>';
+  openAppendedModalOverlay(overlay, () => removeModalOverlay(overlay), {returnFocus: launcher});
+  vi.advanceTimersByTime(30); expect(document.activeElement).toBe(overlay.querySelector('button'));
+  if (mode === 'escape') document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true, cancelable: true}));
+  else overlay.remove();
+  await Promise.resolve();
+  expect(overlay.isConnected).toBe(false); expect(document.activeElement).toBe(launcher);
+  previous.remove();
+});
+
+it('falls back to existing focus when an explicit modal initiator is disconnected', () => {
+  const launcher = document.getElementById('launcher')!; launcher.focus();
+  const overlay = document.getElementById('overlay')!;
+  openModalOverlay(overlay, {autoFocus: false, returnFocus: document.createElement('button')});
+  document.getElementById('back')!.focus(); closeModalOverlay(overlay);
+  expect(document.activeElement).toBe(launcher);
 });

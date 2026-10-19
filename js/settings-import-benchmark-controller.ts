@@ -35,7 +35,7 @@ export function closeImportBenchmarksModal(): boolean {
   return true;
 }
 
-export function openImportBenchmarksModal(): boolean {
+export function openImportBenchmarksModal(returnFocus?: HTMLElement): boolean {
   closeImportBenchmarksModal();
   const overlay = document.createElement('div');
   overlay.id = 'import-benchmarks-overlay';
@@ -47,7 +47,7 @@ export function openImportBenchmarksModal(): boolean {
     latest: () => controller?.latest(), clear: () => controller?.clear(),
     remove: id => controller?.remove(id), review: id => controller?.review(id), closeReview: () => controller?.closeReview(),
   });
-  openAppendedModalOverlay(overlay, closeImportBenchmarksModal, { initialFocus: '.modal-close', focusDelay: 30 });
+  openAppendedModalOverlay(overlay, closeImportBenchmarksModal, { initialFocus: '.modal-close', focusDelay: 30, returnFocus });
   controller = createImportBenchmarksController(view, {
     read, context: getImportBenchmarkContext, fixtureId: IMPORT_REFERENCE_FIXTURE.id,
     run, confirm: showConfirmDialog, remove: deleteImportBenchmarks,

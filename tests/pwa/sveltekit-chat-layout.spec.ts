@@ -1,3 +1,4 @@
+import {nativeTabKey} from '../helpers/native-tab-key.js';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { startKitServer } from './kit-server.js';
@@ -40,7 +41,7 @@ test('static Chat owns persisted splitter geometry through an unavailable-origin
     if(await rail.evaluate(node=>node.classList.contains('open')))await toggle.click();
     await expect(rail).toHaveAttribute('inert','');await toggle.focus();
     for(let step=0;step<16;step++){
-      await page.keyboard.press('Tab');
+      await page.keyboard.press(nativeTabKey(page));
       expect(await rail.evaluate(node=>node.contains(document.activeElement))).toBe(false);
     }
     await toggle.focus();await page.keyboard.press('Enter');await expect(rail).not.toHaveAttribute('inert');
@@ -48,13 +49,13 @@ test('static Chat owns persisted splitter geometry through an unavailable-origin
     if(mobile){
       // The explicit opener must transfer focus before its header is covered.
       await expect(railControl).toBeFocused();await expect(railControl).toBeInViewport();
-      await page.keyboard.press('Tab');await expect(page.getByRole('button',{name:'New conversation',exact:true})).toBeFocused();
-      await page.keyboard.press('Shift+Tab');await expect(railControl).toBeFocused();
+      await page.keyboard.press(nativeTabKey(page));await expect(page.getByRole('button',{name:'New conversation',exact:true})).toBeFocused();
+      await page.keyboard.press(nativeTabKey(page, true));await expect(railControl).toBeFocused();
     }else{
       // Desktop retains header focus; traverse into preceding live rail controls.
       await toggle.focus();let reached=false;
       for(let step=0;step<80;step++){
-        await page.keyboard.press('Shift+Tab');
+        await page.keyboard.press(nativeTabKey(page, true));
         if(await railControl.evaluate(node=>document.activeElement===node)){reached=true;break;}
       }
       expect(reached,'Opened rail control is reachable by physical keyboard events').toBe(true);

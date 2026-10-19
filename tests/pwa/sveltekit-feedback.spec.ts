@@ -1,3 +1,4 @@
+import {nativeTabKey} from '../helpers/native-tab-key.js';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
@@ -189,9 +190,9 @@ test('static Feedback first offline construction, recoverable draft and two zero
       await expect(page.locator('#feedback-type')).toHaveValue('bug'); await expect(page.locator('#feedback-result')).toBeHidden();
       expect(await description.evaluate(element => ({value: (element as HTMLTextAreaElement).defaultValue, required: (element as HTMLTextAreaElement).required})))
         .toEqual({value: '', required: true});
-      await page.keyboard.press('Shift+Tab'); await expect(page.locator('#feedback-type')).toBeFocused();
-      await page.keyboard.press('Tab'); await expect(title).toBeFocused(); await title.pressSequentially('Offline <literal> & report');
-      await page.keyboard.press('Tab'); await expect(description).toBeFocused(); await description.pressSequentially('Meaningful offline summary');
+      await page.keyboard.press(nativeTabKey(page, true)); await expect(page.locator('#feedback-type')).toBeFocused();
+      await page.keyboard.press(nativeTabKey(page)); await expect(title).toBeFocused(); await title.pressSequentially('Offline <literal> & report');
+      await page.keyboard.press(nativeTabKey(page)); await expect(description).toBeFocused(); await description.pressSequentially('Meaningful offline summary');
       await activate(page, page.getByRole('button', {name: 'Open GitHub draft', exact: true}));
       const opened = await page.evaluate(() => (window as unknown as ObservedWindow).feedbackPwa.opened);
       expect(opened).toHaveLength(1); expect(opened[0]!.target).toBe('_blank'); expect(opened[0]!.features).toBe('noopener,noreferrer');

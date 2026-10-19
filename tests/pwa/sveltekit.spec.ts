@@ -1,3 +1,4 @@
+import {nativeTabKey} from '../helpers/native-tab-key.js';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import type { Page, BrowserContext } from '@playwright/test';
@@ -62,7 +63,9 @@ test('static shell preserves aliases, manifest, CSP, lazy styles and delegated p
       await expect(us).toHaveCSS('padding', '4px 12px');
     }
     expect(await page.locator('link[data-settings-stylesheet]').getAttribute('href')).toBe(server.origin + '/css/settings.css');
-    await page.keyboard.press('Tab'); await page.keyboard.press('Shift+Tab');
+    // Cocoa pointer activation does not focus buttons; establish the keyboard start explicitly.
+    await us.focus();
+    await page.keyboard.press(nativeTabKey(page)); await page.keyboard.press(nativeTabKey(page, true));
     await expect(us).toBeFocused(); await expect(us).toHaveCSS('outline-width', '2px');
     for (const alias of ['/index.html', '/', '/app/']) {
       await page.goto(server.origin + alias + '?dev-sw=1', { waitUntil: 'load' }); await ready(page); await display(page);
@@ -326,7 +329,7 @@ test('Voice first use, themes, keyboard controls and preferences survive an offl
     // selectOption does not activate Firefox's :focus-visible heuristic.
     const sharedProvider = panel.locator('[data-voice-shared-provider]');
     await sharedProvider.focus();
-    await sharedProvider.press('Tab');
+    await sharedProvider.press(nativeTabKey(page));
     await expect(linked).toBeFocused();
     await linked.press('Space');
     await expect(linked.locator('..').locator('span')).toHaveCSS('outline-width', '2px');
@@ -440,7 +443,7 @@ test('Agent Access hydrates offline with masked persisted credentials, keyboard 
       expect(payload).toMatchObject({ client, token: 'a'.repeat(64), contextKey: 'b'.repeat(48) });
     }
     const setup = panel.locator('[data-sync-action="copy-agent-access-setup-command"]');
-    await setup.focus(); await setup.press('Tab');
+    await setup.focus(); await setup.press(nativeTabKey(page));
     const showToken = panel.locator('#messenger-token-toggle');
     await expect(showToken).toBeFocused(); await expect(showToken).toHaveCSS('outline-width', '2px');
     await showToken.press('Enter');
@@ -502,9 +505,9 @@ test('Agent Access hydrates offline with masked persisted credentials, keyboard 
     await expect(coldToggle).toBeChecked(); await expect(coldToggle).toBeEnabled();
     await cold.locator('#settings-nav-agent').focus();
     await expect(cold.locator('#settings-nav-agent')).toBeFocused();
-    await cold.keyboard.press('Tab');
+    await cold.keyboard.press(nativeTabKey(cold));
     // Firefox includes a scroll container in sequential keyboard navigation.
-    if (await cold.locator('.settings-content').evaluate(element => element === document.activeElement)) await cold.keyboard.press('Tab');
+    if (await cold.locator('.settings-content').evaluate(element => element === document.activeElement)) await cold.keyboard.press(nativeTabKey(cold));
     await expect(coldToggle).toBeFocused();
     await expect(coldToggle.locator('..').locator('span')).toHaveCSS('outline-width', '2px');
     await coldToggle.press('Space');
@@ -557,7 +560,7 @@ test('imported records and usage hydrate offline with provenance, keyboard contr
     await expect(records.locator('[data-settings-action="remove-imported-entry"][data-entry-date="2025-11-01"]')).toHaveCount(0);
     await expect(records.locator('img, script')).toHaveCount(0);
     const review = records.locator('[data-settings-action="review-import"]').first();
-    await review.focus(); await review.press('Tab');
+    await review.focus(); await review.press(nativeTabKey(page));
     const remove = records.locator('[data-settings-action="remove-import-snapshot"]').first();
     await expect(remove).toBeFocused(); await expect(remove).toHaveCSS('outline-width', '2px');
     for (const theme of ['dark', 'light', 'cyberterm', 'glass', 'synth-sunrise', 'neuromancer']) {

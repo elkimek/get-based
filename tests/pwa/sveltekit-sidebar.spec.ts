@@ -1,3 +1,4 @@
+import {nativeTabKey} from '../helpers/native-tab-key.js';
 import fs from 'node:fs/promises';
 import * as ts from 'typescript/unstable/ast';
 import {withParsedSource} from '../../scripts/native-typescript-ast.js';
@@ -74,7 +75,7 @@ test('static Sidebar eager native reconstruction and two zero-page offline start
    await check('constructed-collapsed');await showSidebar(page);const toggle=page.locator('#sidebar-nav .sidebar-group-toggle[data-nav-group="'+sidebarGroup+'"]'),search=page.locator('#sidebar-search');await expect(toggle).toHaveAttribute('aria-expanded','false');await keyboardActivate(page,toggle);await check('expanded');
    await search.fill('Flagged marker');await check('filter-matching');await expect(page.locator('#sidebar-nav .nav-item[data-category="'+sidebarRoutes.group+'"]')).toBeVisible();await expect(page.locator('#sidebar-nav .nav-item[data-category="'+sidebarRoutes.blood+'"]')).toBeHidden();
    await search.fill('no-such-sidebar-marker');await check('filter-missing');await search.fill('');await check('filter-reset-expanded');await activate(page,toggle);await check('collapsed-after-toggle');await search.fill('Flagged marker');await check('filter-transient-expanded');await search.fill('');await check('filter-reset-collapsed');
-   await keyboardActivate(page,toggle);const category=page.locator('#sidebar-nav .nav-item[data-category="'+sidebarRoutes.group+'"]');await page.keyboard.press('Tab');await expect(category).toBeFocused();await page.keyboard.press('Enter');await expect(category).toHaveAttribute('aria-current','page');await check('active-group');
+   await keyboardActivate(page,toggle);const category=page.locator('#sidebar-nav .nav-item[data-category="'+sidebarRoutes.group+'"]');await page.keyboard.press(nativeTabKey(page));await expect(category).toBeFocused();await page.keyboard.press('Enter');await expect(category).toHaveAttribute('aria-current','page');await check('active-group');
    if(await page.getByRole('button',{name:'Menu',exact:true}).isVisible()){await expect(page.locator('#sidebar-nav')).not.toHaveClass(/\bmobile-open\b/);await expect(page.locator('#sidebar-backdrop')).not.toHaveClass(/\bshow\b/);}
    await showSidebar(page);await activate(page,page.locator('#sidebar-nav [data-nav-action="navigate"][data-nav-route="light"]'));await expect(page.locator('.light-page[data-light-page-presentation]')).toBeVisible();await check('active-light');
    await showSidebar(page);await activate(page,page.locator('#sidebar-nav [data-nav-action="navigate"][data-nav-route="dashboard"]'));await check('active-dashboard');await showSidebar(page);await activate(page,toggle);await check('final-collapsed');

@@ -1,3 +1,4 @@
+import {nativeTabKey} from '../helpers/native-tab-key.js';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import {expect, test, type Locator, type Page} from '@playwright/test';
@@ -9,7 +10,7 @@ import {readComparisonAcceptanceProfile} from '../helpers/nutrition-comparison-f
 import {readyLightArtifact as ready} from '../helpers/light-artifact-navigation.js';
 
 async function keyboardActivate(page: Page, control: Locator) {
-  await page.keyboard.press('Tab');
+  await page.keyboard.press(nativeTabKey(page));
   await control.focus();
   await expect(control).toBeFocused();
   expect(await control.evaluate(node => parseFloat(getComputedStyle(node).outlineWidth))).toBeGreaterThanOrEqual(2);

@@ -1,3 +1,4 @@
+import {nativeTabKey} from './native-tab-key.js';
 import assert from 'node:assert/strict';
 import {deepStrictEqual} from 'node:assert';
 import {createHash} from 'node:crypto';
@@ -23,7 +24,7 @@ interface NativeOracle {profileStates:Record<string,ProfileReceipt>;detailBodies
 interface NativeState {name:string;profileState:string;raw:string;body:ReturnType<typeof OriginalObserver.wearableDetailBodyReceipt>;profile:ProfileReceipt;device:DeviceReceipt;chart:ChartReceipt|null}
 interface ReferenceHistory {artifact:Artifact;oracle:NativeOracle;rawStates:Record<string,NativeState>;chartCallbacks:Record<string,{cases:ChartReceipt['nativeCallbackCases'];outputs:ChartReceipt['nativeCallbackOutputs']}>;phases:Array<{phase:number;steps:NativeState[]}>}
 interface WarmHistory {profile:ProfileReceipt;device:DeviceReceipt;protectedStorage:unknown;cache:Awaited<ReturnType<typeof cacheReceipt>>}
-export interface WearableChartFrame {key:string;width:number;height:number;rgba:Buffer;paint:ChartReceipt['paint']}
+export interface WearableChartFrame {key:string;width:number;height:number;rgba:Buffer;paint:ChartReceipt['paint'];datasetMetadata:ChartReceipt['datasetMetadata']}
 const sha=(bytes:Uint8Array|string)=>createHash('sha256').update(bytes).digest('hex');
 export const wearableReferenceKeys = [
  'phase-0/migrated-baseline/weight-90d','phase-0/migrated-baseline/weight-all','phase-0/migrated-baseline/bp-invalid-form',
@@ -31,6 +32,15 @@ export const wearableReferenceKeys = [
  'phase-0/after-selected-pair-delete/bp-after-selected-pair-delete','phase-0/after-selected-pair-delete/pulse-after-merge',
  ...[1,2].flatMap(phase=>['weight-90d','weight-all','bp-invalid-form','bp-after-cancel','pulse-after-merge'].map(name=>`phase-${phase}/after-selected-pair-delete/${name}`)),
 ];
+/** Native point coordinates depend on the actual renderer. Their active gate
+ * is exact original/current equality in the same browser. Keep all historical
+ * dataset identity, ordering, point count/shape and other metadata unchanged. */
+export function historicalWearableDatasetMetadata(metadata:ChartReceipt['datasetMetadata']) {
+ return metadata.map(dataset=>({...dataset,points:dataset.points.map(point=>{
+  assert(Number.isFinite(point.x)&&Number.isFinite(point.y),'Finite actual native dataset coordinates');
+  return {...point,x:0,y:0};
+ })}));
+}
 /** Actual bytes, dimensions and complete paint receipt; neither tolerances nor
  * an alternate SHA can satisfy this boundary. The case checks all nonpaint too. */
 export function assertWearableChartFrame(expected:WearableChartFrame,actual:WearableChartFrame) {
@@ -43,6 +53,7 @@ export function assertWearableChartFrame(expected:WearableChartFrame,actual:Wear
  assert.equal(actual.width,expected.width);assert.equal(actual.height,expected.height);
  assert(actual.rgba.equals(expected.rgba),'Exact same-browser original/current RGBA');
  assert.deepEqual(actual.paint,expected.paint,'Complete same-browser original/current paint receipt');
+ assert.deepEqual(actual.datasetMetadata,expected.datasetMetadata,'Exact same-browser original/current native dataset metadata');
 }
 export function assertWearableReferenceInventory(frames:readonly WearableChartFrame[]) {
  assert.equal(frames.length,18,'Exactly eighteen chart frames');
@@ -58,7 +69,7 @@ async function rawFrame(page:Page,key:string,chart:ChartReceipt,binding:Artifact
   for(let i=0;i<bytes.length;i+=32768)binary+=String.fromCharCode(...bytes.subarray(i,i+32768));
   return {width:canvas.width,height:canvas.height,base64:btoa(binary)};
  });
- const actual={key,width:frame.width,height:frame.height,rgba:Buffer.from(frame.base64,'base64'),paint:chart.paint};
+ const actual={key,width:frame.width,height:frame.height,rgba:Buffer.from(frame.base64,'base64'),paint:chart.paint,datasetMetadata:structuredClone(chart.datasetMetadata)};
  assertWearableChartFrame(actual,actual);
  assert.deepEqual(await page.evaluate(observer,binding),chart,'Readback leaves the complete registered native Chart untouched');
  return actual;
@@ -89,6 +100,7 @@ export async function captureWearableChartReference(browser:Browser,candidatePag
  const history=historyInput as ReferenceHistory,warm=warmInput as WarmHistory;
  assert(history&&warm);assert.deepEqual(Object.keys(history.rawStates),wearableReferenceKeys);
  const frames:WearableChartFrame[]=[],historicalPaintMismatches:Array<{key:string;expected:ChartReceipt['paint'];actual:ChartReceipt['paint']}>=[];
+ const historicalDatasetCoordinateMismatches:Array<{key:string;expected:ChartReceipt['datasetMetadata'];actual:ChartReceipt['datasetMetadata']}>=[];
  const lifecycle:WearableFixtureLifecycle={errors:[],dropped:0,removed:false};
  let fixture:Awaited<ReturnType<typeof materializeWearableOriginalApplication>>|undefined,context:BrowserContext|undefined,ownedServer:Awaited<ReturnType<typeof startKitServer>>|undefined;
  let primary:unknown,present=false,totalBytes=0,environment:Awaited<ReturnType<typeof browserEnvironment>>|undefined;
@@ -135,10 +147,11 @@ export async function captureWearableChartReference(browser:Browser,candidatePag
    assert.deepEqual(actualArtifact,originalArtifact);const key=`phase-${phase}/${receipt.profileState}/${receipt.name}`;assert.equal(key,wearableReferenceKeys[frames.length],'Every original state once in chronological order');
    const expected=history.rawStates[key];assert(expected&&receipt.chart&&expected.chart);
    const {chart,...nonChart}=receipt,{chart:oldChart,...oldNonChart}=expected;assert.deepEqual(nonChart,oldNonChart,'Exact complete historical original non-chart receipt');
-   const {paint,...metadata}=chart,{paint:oldPaint,...oldMetadata}=oldChart;assert.deepEqual(metadata,oldMetadata,'Exact complete historical original nonpaint Chart');
+   const {paint,...metadata}=chart,{paint:oldPaint,...oldMetadata}=oldChart;assert.deepEqual({...metadata,datasetMetadata:historicalWearableDatasetMetadata(chart.datasetMetadata)},{...oldMetadata,datasetMetadata:historicalWearableDatasetMetadata(oldChart.datasetMetadata)},'Exact historical original nonpaint Chart except same-browser point coordinates');
    assert.deepEqual(chart.rawNativeConfiguration,history.oracle.chartStates[receipt.profileState+'/'+receipt.name]);assert.deepEqual({cases:chart.nativeCallbackCases,outputs:chart.nativeCallbackOutputs},history.chartCallbacks[receipt.profileState+'/'+receipt.name]);
    const frame=await rawFrame(target,key,chart,actualArtifact.state,wearableActualChartReceipt);totalBytes+=frame.rgba.length;assert(totalBytes<=64*1024*1024,'Unchanged 64MiB native journey cap');frames.push(frame);
    if(!isDeepStrictEqual(paint,oldPaint))historicalPaintMismatches.push({key,expected:oldPaint,actual:paint});
+   if(!isDeepStrictEqual(chart.datasetMetadata,oldChart.datasetMetadata))historicalDatasetCoordinateMismatches.push({key,expected:oldChart.datasetMetadata,actual:chart.datasetMetadata});
   };
 const oracle:NativeOracle={profileStates:{},detailBodies:{},dailyStates:{},chartStates:{},originalDetailSHA256:'65474562db0838d4267e1f57b6e6e0cde791c5545eb160554305363102f3fb16',originalManualSHA256:'',deviceSchema:null,eventChronology:[],nativePOSTRequests:[]};const cryptoModule=await import('node:crypto');const originalDetail=await fs.readFile(originalSourceDirectory+'/js/wearables-detail-modal.ts');expect(cryptoModule.createHash('sha256').update(originalDetail).digest('hex')).toBe(oracle.originalDetailSHA256);oracle.originalManualSHA256=cryptoModule.createHash('sha256').update(await fs.readFile(originalSourceDirectory+'/js/wearables-manual.ts')).digest('hex');const capture=<T>(dictionary:Record<string,T>,key:string,value:T)=>{if(Object.prototype.hasOwnProperty.call(dictionary,key))deepStrictEqual(value,dictionary[key]);else dictionary[key]=structuredClone(value);};const rawStates:Record<string,NativeState>={},chartCallbacks:Record<string,unknown>={};const seeded=migrateProfileData({...createDefaultProfileData(),...structuredClone(wearableAcceptanceSeedFields)});const artifact=await originalArtifactInputs(modules,sheets);const server=await startKitServer(artifact.directory);ownedServer=server;const errors:string[]=[],csp:string[]=[],external:string[]=[],events:unknown[]=[],requests:unknown[]=[],phases:Array<{phase:number;steps:unknown[]}>=[];
  await installDiscussionFixture(context,{paused:true});await installOfflineStartupDiagnostics(context);await context.addInitScript(({seeded,registry,selection})=>{if(!['http:','https:'].includes(location.protocol)||localStorage.getItem('wearable-detail-acceptance-seeded'))return;localStorage.setItem('wearable-detail-acceptance-seeded','1');localStorage.setItem('labcharts-theme','dark');localStorage.setItem('labcharts-encryption-enabled','false');localStorage.setItem('labcharts-profiles',JSON.stringify(registry));localStorage.setItem('labcharts-active-profile','default');localStorage.setItem('labcharts-default-onboarded','profile-set');localStorage.setItem('labcharts-default-imported',JSON.stringify(seeded));localStorage.setItem('labcharts-default-units','EU');localStorage.setItem('labcharts-default-rangeMode','reference');localStorage.setItem('labcharts-default-lastViewV1','light');localStorage.setItem('labcharts-default-dashboardBiometricMetricsV1',JSON.stringify(selection));localStorage.setItem('labcharts-other-imported',JSON.stringify({foreign:'preserve unrelated raw bytes <&>'}));localStorage.setItem('labcharts-analytics-disabled','true');localStorage.setItem('labcharts-show-product-recs','false');localStorage.setItem('labcharts-last-manual-backup',new Date().toISOString());},{seeded,registry:wearableAcceptanceRegistry,selection:wearableAcceptanceSelection});
@@ -149,7 +162,7 @@ const oracle:NativeOracle={profileStates:{},detailBodies:{},dailyStates:{},chart
   // Every native state retains complete configuration, callback, device and
   // actual raw-pixel qualification through all three chronological phases.
   for(let phase=0;phase<3;phase++){currentPhase=phase;
-   if(phase){expect(context.pages()).toHaveLength(0);page=await context.newPage();await page.clock.setFixedTime(new Date(wearableAcceptanceTime));await ready(page,server.origin);}await dashboard(page);const steps:unknown[]=[];const state=phase?'after-selected-pair-delete':'migrated-baseline';const trigger=await detail(page,'weight');steps.push(await check('weight-90d',state,true));const focusable=page.locator('#detail-modal').locator('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');await focusable.first().focus();await page.keyboard.press('Shift+Tab');await expect(focusable.last()).toBeFocused();await page.keyboard.press('Tab');await expect(focusable.first()).toBeFocused();const ranges=page.locator('#detail-modal .wearable-detail-range');await keyboard(page,ranges.locator('[data-wearable-range="all"]'));await expect(ranges.locator('[data-wearable-range="all"]')).toBeFocused();steps.push(await check('weight-all',state,true));await keyboard(page,ranges.locator('[data-wearable-range="90d"]'));await expect(ranges.locator('[data-wearable-range="90d"]')).toBeFocused();await page.keyboard.press('Escape');await expect(page.locator('#modal-overlay')).toBeHidden();await expect(trigger).toBeFocused();
+   if(phase){expect(context.pages()).toHaveLength(0);page=await context.newPage();await page.clock.setFixedTime(new Date(wearableAcceptanceTime));await ready(page,server.origin);}await dashboard(page);const steps:unknown[]=[];const state=phase?'after-selected-pair-delete':'migrated-baseline';const trigger=await detail(page,'weight');steps.push(await check('weight-90d',state,true));const focusable=page.locator('#detail-modal').locator('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');await focusable.first().focus();await page.keyboard.press(nativeTabKey(page, true));await expect(focusable.last()).toBeFocused();await page.keyboard.press(nativeTabKey(page));await expect(focusable.first()).toBeFocused();const ranges=page.locator('#detail-modal .wearable-detail-range');await keyboard(page,ranges.locator('[data-wearable-range="all"]'));await expect(ranges.locator('[data-wearable-range="all"]')).toBeFocused();steps.push(await check('weight-all',state,true));await keyboard(page,ranges.locator('[data-wearable-range="90d"]'));await expect(ranges.locator('[data-wearable-range="90d"]')).toBeFocused();await page.keyboard.press('Escape');await expect(page.locator('#modal-overlay')).toBeHidden();await expect(trigger).toBeFocused();
    await detail(page,'bp_systolic');await keyboard(page,page.locator('#detail-modal [data-wearable-action="open-detail-manual-add"]'));await expect(page.locator('#wlad-sys')).toBeFocused();await page.locator('#wlad-date').fill('2026-08-06');await page.locator('#wlad-sys').fill('80');await page.locator('#wlad-dia').fill('120');await keyboard(page,page.locator('#detail-modal .wearable-manual-add-form [type="submit"]'));await expect(page.locator('.notification-toast.error').filter({hasText:'Diastolic should be lower than systolic'})).toBeVisible();steps.push(await check('bp-invalid-form',state,true));
    if(!phase){await page.locator('#wlad-sys').fill('121');await page.locator('#wlad-dia').fill('79');await page.locator('#wlad-pulse').fill('61');await page.locator('#wlad-note').fill('  Synthetic note <&> "paired"  ');await activate(page,page.locator('#detail-modal .wearable-log-chip[data-tag="resting"]'));await keyboard(page,page.locator('#detail-modal .wearable-manual-add-form [type="submit"]'));await expect(page.locator('#detail-modal .wearable-manual-add-form')).toHaveCount(0);await expect(page.locator('#detail-modal .wearable-manual-entry[data-entry-date="2026-08-06"]')).toContainText('121');steps.push(await check('bp-after-save','after-bp-save',true));await page.keyboard.press('Escape');await expect(page.locator('#modal-overlay')).toBeHidden();
     await detail(page,'weight');await keyboard(page,page.locator('#detail-modal [data-wearable-action="open-detail-manual-add"]'));await expect(page.locator('#wlad-val')).toBeFocused();await page.locator('#wlad-date').fill('2026-08-06');await page.locator('#wlad-val').fill('71.5');await expect(page.locator('#wlad-note')).toHaveValue('');await keyboard(page,page.locator('#detail-modal .wearable-manual-add-form [type="submit"]'));await expect(page.locator('#detail-modal .wearable-manual-add-form')).toHaveCount(0);await expect(page.locator('#detail-modal .wearable-manual-entry[data-entry-date="2026-08-06"]')).toContainText('71.5');steps.push(await check('weight-after-merge','after-same-date-merge',true));await page.keyboard.press('Escape');await expect(page.locator('#modal-overlay')).toBeHidden();
@@ -166,18 +179,18 @@ const oracle:NativeOracle={profileStates:{},detailBodies:{},dailyStates:{},chart
   if(ownedServer&&!ownedServer.state.offline)try{await ownedServer.close();}catch(error){cleanupError('original server close',error);}
   if(context)try{await context.close();}catch(error){cleanupError('original context close',error);}
   if(fixture)try{await fixture.cleanup();}catch(error){cleanupError('original fixture aftercheck/removal',error);}
-  try {const originalProof=info.outputPath('wearable-same-browser-original-reference.json');await fs.writeFile(originalProof,JSON.stringify({project:info.project.name,browser:browser.browserType().name(),browserVersion:browser.version(),environment,originalApplicationSHA256:'0d2741f9fdd336dd29c6a3012ea3cb4694e53b879147395fd6fd3e8f2bb4968a',frames:frames.map(({rgba,...frame})=>({...frame,rgbaBytes:rgba.length})),totalRGBABytes:totalBytes,historicalPaintMismatches,historicalPaintGatePassed:frames.length===18&&historicalPaintMismatches.length===0,lifecycle,cleanupErrors,completed:!present&&frames.length===18&&cleanupErrors.length===0&&lifecycle.errors.length===0&&lifecycle.dropped===0&&lifecycle.removed},null,2),{flag:'wx'});await info.attach('wearable-same-browser-original-reference',{path:originalProof,contentType:'application/json'});}catch(error){cleanupError('original reference attachment',error);}
+  try {const originalProof=info.outputPath('wearable-same-browser-original-reference.json');await fs.writeFile(originalProof,JSON.stringify({project:info.project.name,browser:browser.browserType().name(),browserVersion:browser.version(),environment,originalApplicationSHA256:'0d2741f9fdd336dd29c6a3012ea3cb4694e53b879147395fd6fd3e8f2bb4968a',frames:frames.map(({rgba,...frame})=>({...frame,rgbaBytes:rgba.length})),totalRGBABytes:totalBytes,historicalPaintMismatches,historicalDatasetCoordinateMismatches,historicalDatasetCoordinateGatePassed:frames.length===18&&historicalDatasetCoordinateMismatches.length===0,historicalPaintGatePassed:frames.length===18&&historicalPaintMismatches.length===0,lifecycle,cleanupErrors,completed:!present&&frames.length===18&&cleanupErrors.length===0&&lifecycle.errors.length===0&&lifecycle.dropped===0&&lifecycle.removed},null,2),{flag:'wx'});await info.attach('wearable-same-browser-original-reference',{path:originalProof,contentType:'application/json'});}catch(error){cleanupError('original reference attachment',error);}
  }
  if(present)throw primary;
  assert.equal(cleanupErrors.length,0,'Original reference cleanup and evidence must succeed');assert.equal(lifecycle.errors.length,0);assert.equal(lifecycle.dropped,0);assert(lifecycle.removed);
  let consumed=0,candidateBytes=0;
- const comparedStates:Array<{key:string;width:number;height:number;bytes:number;sha256:string;rawBytesEqual:true;completePaintEqual:true}>=[];
+ const comparedStates:Array<{key:string;width:number;height:number;bytes:number;sha256:string;rawBytesEqual:true;completePaintEqual:true;datasetMetadataEqual:true}>=[];
  return {
   frames,historicalPaintMismatches,
   async compare(page:Page,key:string,chart:ChartReceipt,binding:Artifact['state'],observer:typeof OriginalObserver.wearableActualChartReceipt) {
    assert.equal(key,wearableReferenceKeys[consumed],'Every candidate state once in chronological order');const expected=frames[consumed];assert(expected);
-   const actual=await rawFrame(page,key,chart,binding,observer);candidateBytes+=actual.rgba.length;assert(candidateBytes<=64*1024*1024,'Unchanged 64MiB candidate journey cap');assertWearableChartFrame(expected,actual);comparedStates.push({key,width:actual.width,height:actual.height,bytes:actual.rgba.length,sha256:actual.paint.sha256,rawBytesEqual:true,completePaintEqual:true});consumed++;return expected.paint;
+   const actual=await rawFrame(page,key,chart,binding,observer);candidateBytes+=actual.rgba.length;assert(candidateBytes<=64*1024*1024,'Unchanged 64MiB candidate journey cap');assertWearableChartFrame(expected,actual);comparedStates.push({key,width:actual.width,height:actual.height,bytes:actual.rgba.length,sha256:actual.paint.sha256,rawBytesEqual:true,completePaintEqual:true,datasetMetadataEqual:true});consumed++;return expected.paint;
   },
-  finish() {assert.equal(consumed,18);assertWearableReferenceInventory(frames);assert.equal(comparedStates.length,18);assert.deepEqual(comparedStates.map(row=>row.key),wearableReferenceKeys);return {frames:consumed,comparedStates:comparedStates.map(row=>({...row})),originalRGBABytes:totalBytes,candidateRGBABytes:candidateBytes,historicalOriginalPaintMismatches:historicalPaintMismatches};},
+  finish() {assert.equal(consumed,18);assertWearableReferenceInventory(frames);assert.equal(comparedStates.length,18);assert.deepEqual(comparedStates.map(row=>row.key),wearableReferenceKeys);return {frames:consumed,comparedStates:comparedStates.map(row=>({...row})),originalRGBABytes:totalBytes,candidateRGBABytes:candidateBytes,historicalOriginalPaintMismatches:historicalPaintMismatches,historicalOriginalDatasetCoordinateMismatches:historicalDatasetCoordinateMismatches};},
  };
 }

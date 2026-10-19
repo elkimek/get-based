@@ -1,3 +1,4 @@
+import {nativeTabKey} from '../helpers/native-tab-key.js';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import {expect, test, type Page} from '@playwright/test';
@@ -59,18 +60,18 @@ async function inspectReview(page: Page) {
   // Use the date control's maintained label across browser role implementations.
   const dateInput = review.getByLabel('Collection date', {exact: true});
   await dateInput.fill('2026-07-15');
-  await dateInput.press('Tab');
+  await dateInput.press(nativeTabKey(page));
   await expect(confirm).toBeEnabled();
   await dateInput.fill('');
-  await dateInput.press('Tab');
+  await dateInput.press(nativeTabKey(page));
   await expect(confirm).toBeDisabled();
   await dateInput.fill('2026-07-15');
-  await dateInput.press('Tab');
+  await dateInput.press(nativeTabKey(page));
   await expect(confirm).toBeEnabled();
   const time = review.getByLabel('Blood collection time', {exact: true});
   await expect(time).toHaveValue('08:15');
   await time.fill('09:35');
-  await time.press('Tab');
+  await time.press(nativeTabKey(page));
   const fasting = review.getByLabel('Fasting status', {exact: true});
   await expect(fasting).toHaveValue('unknown');
   await fasting.selectOption('fasting');

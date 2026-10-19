@@ -68,7 +68,13 @@ export async function qualifyArtifactModuleSource(module: string, mappedSource: 
     assert.equal(mappedSource, await fs.readFile(module, 'utf8'), 'Fresh canonical emitted source in actual artifact: ' + module);
     return;
   }
-  const plugin = createSvelteFacadePlugin({root: process.cwd(), client: 'kit'});
+  const producerRoot = process.env['GETBASED_KIT_PRODUCER_ROOT'];
+  if (process.env['GITHUB_ACTIONS'] === 'true' && process.env['GETBASED_EXPECTED_KIT_BUILD_ID'])
+    assert(producerRoot, 'Verified CI transport requires its producer root');
+  if (producerRoot !== undefined) assert(producerRoot.length > 1 && producerRoot.length <= 4096
+    && !/[\\\0\r\n]/.test(producerRoot) && path.posix.isAbsolute(producerRoot)
+    && path.posix.normalize(producerRoot) === producerRoot && !producerRoot.endsWith('/'), 'Canonical private artifact producer root');
+  const plugin = createSvelteFacadePlugin({root: process.cwd(), client: 'kit', ...(producerRoot === undefined ? {} : {facadeRoot: producerRoot})});
   const wrapper = await plugin.load(path.resolve(module));
   assert.equal(typeof wrapper, 'string', 'Exact registered canonical Svelte facade wrapper: ' + module);
   assert.equal(mappedSource, wrapper, 'Fresh canonical optimized Svelte facade wrapper: ' + module);

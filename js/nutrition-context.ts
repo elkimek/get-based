@@ -159,6 +159,9 @@ function handleColdWidgetAction(event: Event) {
   const action = target.getAttribute('data-nutrition-action');
   if (!['open', 'open-history', 'open-targets', 'open-fluid-log'].includes(action || '')) return;
   event.preventDefault(); event.stopPropagation();
+  // Mouse activation need not focus buttons on Cocoa. Own the actual action
+  // before capturing its asynchronous focus boundary, without scrolling it.
+  target.focus({preventScroll: true});
   releaseColdActionFeedback();
   const ticket = ++coldActionRequest, profile = state.currentProfile, data = state.importedData;
   const revision = routeRevision(), route = state.currentView, main = document.getElementById('main-content');

@@ -1,3 +1,4 @@
+import {nativeTabKey} from '../helpers/native-tab-key.js';
 import fs from 'node:fs/promises';
 import {expect, test, type BrowserContext, type Locator, type Page, type TestInfo} from '@playwright/test';
 import {createDefaultProfileData, migrateProfileData} from '../../js/profile.js';
@@ -20,7 +21,7 @@ async function tabTo(page: Page, control: Locator): Promise<void> {
       expect(await control.evaluate(node => node.matches(':focus-visible'))).toBe(true);
       return;
     }
-    await page.keyboard.press('Tab');
+    await page.keyboard.press(nativeTabKey(page));
   }
   throw new Error(`Keyboard could not reach ${await control.getAttribute('data-nav-route') || await control.getAttribute('id') || 'expected visible control'}`);
 }

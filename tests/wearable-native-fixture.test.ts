@@ -117,9 +117,9 @@ it.each(['kit-chromium', 'kit-firefox', 'kit-webkit', 'kit-mobile-webkit'])('ret
 
 // Renderer portability keeps a byte-exact original app and strict raw comparison.
 import {verifyWearableOriginalAppArchive} from '../scripts/wearable-native-fixture.mjs';
-import {assertWearableChartFrame,assertWearableReferenceInventory,wearableReferenceKeys,type WearableChartFrame} from './helpers/wearable-chart-reference.js';
+import {assertWearableChartFrame,assertWearableReferenceInventory,historicalWearableDatasetMetadata,wearableReferenceKeys,type WearableChartFrame} from './helpers/wearable-chart-reference.js';
 function referenceFrame(key=wearableReferenceKeys[0]!) : WearableChartFrame {
-  const rgba=Buffer.from([10,20,30,255]);return {key,width:1,height:1,rgba,paint:{bytes:4,alphaPixels:1,distinctRGBAColors:1,sha256:sha(rgba)}};
+  const rgba=Buffer.from([10,20,30,255]);return {key,width:1,height:1,rgba,paint:{bytes:4,alphaPixels:1,distinctRGBAColors:1,sha256:sha(rgba)},datasetMetadata:[{index:0,type:'line',hidden:false,points:[{x:1,y:2}]}]};
 }
 it('accepts the complete exact chronological eighteen-state reference and full raw paint pair',()=>{
  const frames=wearableReferenceKeys.map(key=>referenceFrame(key));assertWearableReferenceInventory(frames);assertWearableChartFrame(frames[0]!,referenceFrame());
@@ -129,13 +129,14 @@ it.each(['missing','duplicate','reordered'] as const)('rejects %s original chart
  if(kind==='missing')frames.pop();else if(kind==='duplicate')frames[1]=frames[0]!;else [frames[0],frames[1]]=[frames[1]!,frames[0]!];
  expect(()=>assertWearableReferenceInventory(frames)).toThrow();
 });
-it.each(['key','rgba','dimensions','paint','observer-sha'] as const)('rejects corrupted candidate %s without tolerance',kind=>{
+it.each(['key','rgba','dimensions','paint','observer-sha','dataset-coordinate'] as const)('rejects corrupted candidate %s without tolerance',kind=>{
  const expected=referenceFrame(),actual=referenceFrame();
  if(kind==='key')actual.key=wearableReferenceKeys[1]!;
  if(kind==='rgba'){actual.rgba[0]=11;actual.paint.sha256=sha(actual.rgba);}
  if(kind==='dimensions')actual.width=2;
  if(kind==='paint')actual.paint.alphaPixels=0;
  if(kind==='observer-sha')actual.paint.sha256='0'.repeat(64);
+ if(kind==='dataset-coordinate')actual.datasetMetadata[0]!.points[0]!.x+=0.00000762939453125;
  expect(()=>assertWearableChartFrame(expected,actual)).toThrow();
 });
 it('authenticates the whole frozen original app and rejects archive or binding corruption before extraction',async()=>{
@@ -145,4 +146,24 @@ it('authenticates the whole frozen original app and rejects archive or binding c
  expect(()=>verifyWearableOriginalAppArchive(corrupt,binding)).toThrow('Pinned complete original application');
  expect(()=>verifyWearableOriginalAppArchive(Buffer.concat([bytes,Buffer.from([0])]),binding)).toThrow();
  expect(()=>verifyWearableOriginalAppArchive(bytes,Buffer.concat([binding,Buffer.from(' ')]))).toThrow('Pinned original application binding');
+});
+
+it('retains full historical dataset semantics while actual coordinates require exact same-browser equality',()=>{
+ const original=referenceFrame(),platform=referenceFrame();platform.datasetMetadata[0]!.points[0]!.x+=0.00000762939453125;
+ const before=JSON.stringify(platform.datasetMetadata);
+ expect(historicalWearableDatasetMetadata(platform.datasetMetadata)).toEqual(historicalWearableDatasetMetadata(original.datasetMetadata));
+ expect(JSON.stringify(platform.datasetMetadata)).toBe(before);
+ expect(()=>assertWearableChartFrame(original,platform)).toThrow('Exact same-browser original/current native dataset metadata');
+});
+it.each(['index','type','hidden','missing-point','extra-point','nonfinite-x','nonfinite-y'] as const)('retains historical dataset rejection for %s corruption',kind=>{
+ const original=referenceFrame(),changed=referenceFrame(),dataset=changed.datasetMetadata[0]!;
+ if(kind==='index')dataset.index=1;
+ if(kind==='type')dataset.type='foreign';
+ if(kind==='hidden')dataset.hidden=true;
+ if(kind==='missing-point')dataset.points.pop();
+ if(kind==='extra-point')dataset.points.push({x:3,y:4});
+ if(kind==='nonfinite-x')dataset.points[0]!.x=NaN;
+ if(kind==='nonfinite-y')dataset.points[0]!.y=Infinity;
+ if(kind.startsWith('nonfinite'))expect(()=>historicalWearableDatasetMetadata(changed.datasetMetadata)).toThrow('Finite actual native dataset coordinates');
+ else expect(historicalWearableDatasetMetadata(changed.datasetMetadata)).not.toEqual(historicalWearableDatasetMetadata(original.datasetMetadata));
 });

@@ -350,7 +350,7 @@ async function openImportBenchmarksFromSettings(actionEl: HTMLButtonElement): Pr
     switchAIProvider: switchAIProviderBridge, switchSettingsTab,
   });
   if (handled === true || (handled instanceof Promise && await handled)) return;
-  if (request === importBenchmarksEntryRequest && isImportBenchmarksEntryCurrent(actionEl)) openImportBenchmarksModal();
+  if (request === importBenchmarksEntryRequest && isImportBenchmarksEntryCurrent(actionEl)) openImportBenchmarksModal(actionEl);
 }
 
 let nutritionAISettingsRefreshQueued = false;

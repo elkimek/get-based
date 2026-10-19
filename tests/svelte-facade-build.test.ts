@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
-import {afterAll, beforeAll, expect, it} from 'vitest';
+import {afterAll, beforeAll, expect, it, vi} from 'vitest';
 import {build} from 'rolldown';
 import type {OutputChunk} from 'rolldown';
 import {buildSvelte, compileAuthoredComponent, HTML_COMPONENTS} from '../scripts/build-svelte.mjs';
@@ -179,4 +179,37 @@ it('source receipts qualify native Kit alias with complete authored-owner check'
   const {wrapper, maps} = await receiptSnapshot(module);
   await expect(qualifyArtifactModuleSource(module, wrapper, maps)).resolves.toBeUndefined();
   await expect(qualifyArtifactModuleSource(module, wrapper, [])).rejects.toThrow(/omits authored Svelte owner/);
+});
+
+
+it('reconstructs exact registered wrappers for an attested producer root without reading that filesystem', async () => {
+  const producerRoot = '/synthetic-linux-producer/checkout';
+  const producer = createSvelteFacadePlugin({root, client: 'kit', facadeRoot: producerRoot});
+  vi.stubEnv('GETBASED_KIT_PRODUCER_ROOT', producerRoot);
+  try {
+    for (const module of [receiptHtml, 'js/components/DisplaySettings.svelte.native.js']) {
+      const {maps} = await receiptSnapshot(module), wrapper = await producer.load(path.resolve(module));
+      expect(typeof wrapper).toBe('string');
+      await expect(qualifyArtifactModuleSource(module, wrapper as string, maps)).resolves.toBeUndefined();
+    }
+  } finally {vi.unstubAllEnvs();}
+});
+it('rejects a different producer root, component, mode, suffix or wrapper byte under the attested namespace', async () => {
+  const producerRoot = '/synthetic-linux-producer/checkout';
+  const wrapper = await createSvelteFacadePlugin({root, client: 'kit', facadeRoot: producerRoot}).load(path.resolve(receiptHtml));
+  if (typeof wrapper !== 'string') throw new Error('Expected registered producer wrapper');
+  const {maps} = await receiptSnapshot();
+  vi.stubEnv('GETBASED_KIT_PRODUCER_ROOT', producerRoot);
+  try {
+    for (const corrupt of [wrapper.replace(producerRoot, '/foreign-producer/checkout'), wrapper.replace('ChartLayersDropdown.svelte', 'HeaderDateSummary.svelte'), wrapper.replace(':html:', ':client:'), wrapper.replace('.compiled.js', '.foreign.js'), wrapper + ' '])
+      await expect(qualifyArtifactModuleSource(receiptHtml, corrupt, maps)).rejects.toThrow(/optimized Svelte facade wrapper/);
+    await expect(qualifyArtifactModuleSource(receiptHtml, wrapper, [])).rejects.toThrow(/omits authored Svelte owner/);
+    await expect(qualifyArtifactModuleSource(receiptHtml, wrapper, [{sources: ['../../' + receiptAuthored], sourcesContent: ['foreign']}])).rejects.toThrow(/complete authored Svelte owner/);
+  } finally {vi.unstubAllEnvs();}
+});
+it('requires the verified producer namespace for GitHub transport consumers', async () => {
+  const {wrapper, maps} = await receiptSnapshot();
+  vi.stubEnv('GITHUB_ACTIONS', 'true'); vi.stubEnv('GETBASED_EXPECTED_KIT_BUILD_ID', 'a'.repeat(64)); vi.stubEnv('GETBASED_KIT_PRODUCER_ROOT', undefined);
+  try {await expect(qualifyArtifactModuleSource(receiptHtml, wrapper, maps)).rejects.toThrow('Verified CI transport requires its producer root');}
+  finally {vi.unstubAllEnvs();}
 });

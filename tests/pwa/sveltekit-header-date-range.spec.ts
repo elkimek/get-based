@@ -1,3 +1,4 @@
+import {nativeTabKey} from '../helpers/native-tab-key.js';
 import fs from 'node:fs/promises';
 import {expect, test, type Page} from '@playwright/test';
 import {createDefaultProfileData, migrateProfileData} from '../../js/profile.js';
@@ -80,7 +81,7 @@ async function exactControls(page: Page, mode: Mode, settingsOpen: boolean) {
 async function keyboardRange(page: Page, mode: Mode) {
   const samples = [];
   for (let attempt = 0; attempt < 100; attempt++) {
-    await page.keyboard.press(mode === 'reference' ? 'Shift+Tab' : 'Tab');
+    await page.keyboard.press(nativeTabKey(page, mode === 'reference'));
     const raw = await page.evaluate(selector => ({at: performance.now(), matched: !!document.activeElement?.matches(selector),
       active: document.activeElement ? {tag: document.activeElement.tagName, id: document.activeElement.id,
         range: document.activeElement.getAttribute('data-range')} : null}), header(mode));

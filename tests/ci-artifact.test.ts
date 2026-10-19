@@ -48,6 +48,28 @@ describe('exact CI artifact transport', () => {
     await expect(sealCIArtifact(sample.options)).rejects.toThrow('new empty transport');
   });
 
+  it('keeps the attested producer root while verifying the same immutable artifact in a different consumer checkout', async () => {
+    const sample = await fixture(), manifest = await sealCIArtifact(sample.options);
+    expect(manifest.producerRoot).toBe(sample.root);
+    const consumer = await fs.mkdtemp(path.join(await fs.realpath(os.tmpdir()), 'getbased-ci-consumer-')); cleanup.push(consumer);
+    await fs.cp(sample.root, consumer, {recursive: true});
+    const options = {...sample.options, root: consumer};
+    expect(consumer).not.toBe(manifest.producerRoot);
+    expect(await restoreCIArtifactCatalog(options)).toEqual(manifest);
+    expect(await verifyCIArtifact(options)).toEqual(manifest);
+    expect(await inventoryCIArtifact(path.join(consumer, 'dist'))).toEqual(manifest.files);
+  });
+
+  it.each([undefined, '', '/', 'relative/root', '/producer/../foreign', '/producer/', '/producer\\foreign', '/producer\nINJECTED=value'])('rejects an unqualified private producer root %j', async value => {
+    const sample = await fixture(); await sealCIArtifact(sample.options);
+    const file = path.join(sample.root, sample.options.transport, 'manifest.json');
+    const manifest = JSON.parse(await fs.readFile(file, 'utf8')) as {producerRoot?: string};
+    if (value === undefined) delete manifest.producerRoot; else manifest.producerRoot = value;
+    await fs.writeFile(file, JSON.stringify(manifest));
+    await expect(restoreCIArtifactCatalog(sample.options)).rejects.toThrow('Canonical private artifact producer root');
+    await expect(verifyCIArtifact(sample.options)).rejects.toThrow('Canonical private artifact producer root');
+  });
+
   it.each(['missing', 'extra', 'changed', 'linked-file', 'linked-directory'])('rejects a %s artifact tree before restoring any catalog', async mutation => {
     const sample = await fixture(); await sealCIArtifact(sample.options);
     const original = await fs.readFile(path.join(sample.root, 'data/recommendations.json'));

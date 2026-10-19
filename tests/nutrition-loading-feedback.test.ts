@@ -118,3 +118,19 @@ it('legacy controls without an authored status port preserve every original attr
   status().remove(); const control = button(), attributes = control.outerHTML;
   click(); expect(control.outerHTML).toBe(attributes); loaded(); await settled(); expect(control.outerHTML).toBe(attributes); expect(openers.openNutritionEditor).toHaveBeenCalledOnce();
 });
+
+
+it.each([['open', 'openNutritionEditor'], ['open-history', 'openNutritionHistory'], ['open-targets', 'openNutritionTargets'], ['open-fluid-log', 'openFluidLog']] as const)('owns %s focus without scroll when native click did not focus its button', async (action, method) => {
+  const control = button(action), previous = document.getElementById('other')!, label = control.textContent, profile = state.importedData, before = structuredClone(profile);
+  previous.focus(); expect(document.activeElement).toBe(previous);
+  const focus = vi.spyOn(control, 'focus'), delivered: Event[] = [];
+  control.addEventListener('click', event => delivered.push(event), {once: true});
+  const event = new MouseEvent('click', {bubbles: true, cancelable: true}); control.dispatchEvent(event);
+  stylesheet = document.querySelector<HTMLLinkElement>('link[data-nutrition-stylesheet]')!;
+  expect(delivered).toEqual([event]); expect(event.defaultPrevented).toBe(true);
+  expect(focus).toHaveBeenCalledExactlyOnceWith({preventScroll: true}); expect(document.activeElement).toBe(control);
+  expect(button(action)).toBe(control); expect(control.textContent).toBe(label); expect(control.disabled).toBe(false); expect(control.getAttribute('aria-busy')).toBe('true');
+  loaded(); await vi.waitFor(() => expect(control.hasAttribute('aria-busy')).toBe(false)); expect(openers[method]).toHaveBeenCalledOnce();
+  expect(control.hasAttribute('aria-busy')).toBe(false); expect(status().textContent).toBe(''); expect(document.activeElement).toBe(control);
+  expect(state.importedData).toBe(profile); expect(state.importedData).toEqual(before);
+});

@@ -3630,3 +3630,7 @@ tests/pwa/sveltekit-island-ownership.spec.js.map
 # Generated same-browser chart reference helper
 /tests/helpers/wearable-chart-reference.js
 /tests/helpers/wearable-chart-reference.js.map
+
+# Generated native keyboard traversal helper
+/tests/helpers/native-tab-key.js
+/tests/helpers/native-tab-key.js.map

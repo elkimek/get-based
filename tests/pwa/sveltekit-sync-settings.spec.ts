@@ -1,3 +1,4 @@
+import {nativeTabKey} from '../helpers/native-tab-key.js';
 import {awaitStaticThemeReady} from './settings-entry.js';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
@@ -102,7 +103,7 @@ test('Sync settings mount on offline first use and cold launch without changing 
         if (missingCapability) await expect(join).toBeDisabled();
         else {
           await expect(join).toBeEnabled(); await join.focus();
-          await page.keyboard.press('Tab'); await page.keyboard.press('Shift+Tab'); await expect(join).toBeFocused();
+          await page.keyboard.press(nativeTabKey(page)); await page.keyboard.press(nativeTabKey(page, true)); await expect(join).toBeFocused();
         }
       }
     }

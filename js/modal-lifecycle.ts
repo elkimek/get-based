@@ -1,8 +1,8 @@
 import { createRetryingStylesheetLoader, findStylesheet } from './retrying-module-loader.js';
 import { getModalFocusables } from './modal-focusable.js';
-export interface ModalFocusTrapOptions { autoFocus?: boolean | undefined; closeOnEscape?: boolean; onEscape?: () => void; }
+export interface ModalFocusTrapOptions { autoFocus?: boolean | undefined; closeOnEscape?: boolean; onEscape?: () => void; returnFocus?: HTMLElement | undefined; }
 export interface ModalOverlayOptions {
-  initialFocus?: string | HTMLElement; focusDelay?: number; showClass?: string;
+  initialFocus?: string | HTMLElement; focusDelay?: number; showClass?: string; returnFocus?: HTMLElement | undefined;
   scrollLock?: boolean; autoFocus?: boolean; restoreFocus?: boolean;
   focusTrapOptions?: ModalFocusTrapOptions;
 }
@@ -94,6 +94,7 @@ export function openAppendedModalOverlay(overlay: Element, closeFn?: (() => void
   try {
     trapModalFocus(overlay, {
       ...(options.focusTrapOptions || {}),
+      returnFocus: options.returnFocus ?? options.focusTrapOptions?.returnFocus,
       autoFocus: options.initialFocus ? false : options.focusTrapOptions?.autoFocus,
       onEscape: typeof closeFn === 'function' ? closeFn : () => removeModalOverlay(overlay),
     });
@@ -211,8 +212,9 @@ export function openModalOverlay(overlayOrId: OverlayReference, options: ModalOv
   const showClass = options.showClass || 'show';
   const alreadyShown = overlay.classList.contains(showClass);
   const activeElementAtOpen = document.activeElement;
-  if (!alreadyShown && _isRestorableFocusTarget(activeElementAtOpen)) {
-    _overlayFocusTargets.set(overlay, activeElementAtOpen);
+  const returnFocus = _isRestorableFocusTarget(options.returnFocus) ? options.returnFocus : activeElementAtOpen;
+  if (!alreadyShown && _isRestorableFocusTarget(returnFocus)) {
+    _overlayFocusTargets.set(overlay, returnFocus);
   }
   overlay.classList.add(showClass);
   const focusRequest = {};
@@ -348,7 +350,7 @@ function _releaseOverlayScrollLock(overlay: Element): void {
 }
 
 export function trapModalFocus(overlay: Element, options: ModalFocusTrapOptions = {}): (restoreFocus?: boolean) => void {
-  const previouslyFocused = document.activeElement;
+  const previouslyFocused = _isRestorableFocusTarget(options.returnFocus) ? options.returnFocus : document.activeElement;
   const focusRequest = _overlayFocusRequests.get(overlay);
   const closeOnEscape = options.closeOnEscape !== false;
   const onEscape = typeof options.onEscape === 'function'

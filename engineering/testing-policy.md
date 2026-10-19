@@ -765,9 +765,9 @@ and every original file are authenticated before temporary extraction and checke
 again before owned cleanup. Reference failure fails the case; there is no fallback
 to current components, a historical checkout, a network download or generated pins.
 
-The active paint gate requires exact raw RGBA bytes, dimensions and the complete
-paint receipt for every original/current pair, with no tolerance or alternate
-SHA. Existing historical manifests and receipts remain byte-exact: mismatches
+The active rendering gate requires exact raw RGBA bytes, dimensions, the complete
+paint receipt and every native dataset point coordinate for every same-browser
+original/current pair, with no tolerance or alternate SHA. Existing historical manifests and receipts remain byte-exact: mismatches
 against their older renderer paint are reported explicitly as historical
 mismatches, never as passing historical SHA assertions. Complete original and
 current nonpaint Chart configuration, callbacks, DOM, profile, storage, cache,
@@ -776,3 +776,10 @@ authenticated native receipts. The existing 240-second case deadline and 64 MiB
 per-journey raw-pixel cap, eighteen unique ordered states and browser matrix
 remain unchanged. Portable fixture, ordering, one-byte pixel, geometry and paint
 corruption controls exercise these boundaries.
+
+Wearables historical dataset coordinates remain authenticated and are reported
+when the current platform differs. Their active expectation is the independently
+rendered original in that same browser, compared exactly before a successful pair
+is recorded. Dataset identity, type, hidden state, point structure/count and all
+other nonpaint fields retain exact historical checks. Historical coordinate
+mismatches are not reported as passing the old coordinate gate.

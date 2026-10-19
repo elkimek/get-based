@@ -1,3 +1,4 @@
+import {nativeTabKey} from '../helpers/native-tab-key.js';
 import {openStaticSettings} from './settings-entry.js';
 import path from 'node:path';
 import fs from 'node:fs/promises';
@@ -119,7 +120,7 @@ test('Security and Backup preserve offline first use, keyboard actions, themes a
             const target = await button.evaluate(element => { const rect = element.getBoundingClientRect(); return {width: rect.width, height: rect.height}; });
             expect(target.width).toBeGreaterThanOrEqual(44); expect(target.height).toBeGreaterThanOrEqual(44);
           }
-          await button.focus(); await page.keyboard.press('Tab'); await page.keyboard.press('Shift+Tab');
+          await button.focus(); await page.keyboard.press(nativeTabKey(page)); await page.keyboard.press(nativeTabKey(page, true));
           await expect(button).toBeFocused(); await expect(button).toHaveCSS('outline-width', '2px');
         }
       }

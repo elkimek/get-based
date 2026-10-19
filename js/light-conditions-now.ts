@@ -106,7 +106,7 @@ function handleLightConditionsActionClick(event: Event) {
     return;
   }
   if (action === 'inspect') {
-    _inspectConditionsNow();
+    _inspectConditionsNow(actionEl instanceof HTMLElement ? actionEl : undefined);
     event.stopPropagation();
     return;
   }
@@ -376,7 +376,7 @@ function conditionsConfidence(atm: InspectionAtmosphereReader | null, coords: Co
 // User-triggered: open a modal showing the raw atmosphere response so the
 // user can verify what the provider returned, what we parsed, and what the
 // engine will use. Pure inspection — no side effects.
-export function _inspectConditionsNow() {
+export function _inspectConditionsNow(returnFocus?: HTMLElement) {
   const coords = _getSunCoords() as CoordinateOperationReader | null | undefined;
   const key = _coordKey(coords);
   const atm = ((_conditionsCache && _conditionsCache.coordKey === key) ? _conditionsCache.atm : null) as InspectionAtmosphereReader;
@@ -404,7 +404,7 @@ export function _inspectConditionsNow() {
     warnings, raw: atm ? JSON.stringify(atm, null, 2) : 'No cached response.', cacheKeys,
   };
   overlay.innerHTML = renderHTML({ kind: 'inspect', view });
-  openAppendedModalOverlay(overlay, closeDialog);
+  openAppendedModalOverlay(overlay, closeDialog, { returnFocus });
   overlay.querySelectorAll('[data-conditions-inspect-close]').forEach(btn => {
     btn.addEventListener('click', closeDialog);
   });

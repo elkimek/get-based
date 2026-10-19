@@ -1,3 +1,4 @@
+import {nativeTabKey} from '../helpers/native-tab-key.js';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import {expect, test, type BrowserContext, type CDPSession, type Locator, type Page} from '@playwright/test';
@@ -17,7 +18,7 @@ async function tabTo(page: Page, target: Locator, backwards = false): Promise<vo
     if (await target.evaluate(element => document.activeElement === element)) {
       await expect(target).toBeFocused(); await expect(target).toBeInViewport(); return;
     }
-    await page.keyboard.press(backwards ? 'Shift+Tab' : 'Tab');
+    await page.keyboard.press(nativeTabKey(page, backwards));
   }
   throw new Error(`Keyboard could not reach ${await target.getAttribute('id') || await target.getAttribute('data-nutrition-action') || 'expected control'}`);
 }
@@ -122,11 +123,11 @@ test('true headless browser zoom retains keyboard Settings/provider journeys and
       await expect(page.locator('[data-provider="custom"]')).toHaveAttribute('aria-pressed', 'true');
       const url = page.locator('#custom-url-input'), key = page.locator('#custom-key-input');
       await tabTo(page, url); await page.keyboard.press('ControlOrMeta+A'); await page.keyboard.type('https://synthetic.invalid/v1');
-      await page.keyboard.press('Tab'); await expect(key).toBeFocused();
+      await page.keyboard.press(nativeTabKey(page)); await expect(key).toBeFocused();
       await page.keyboard.type('SYNTHETIC UNSAVED ACCESSIBILITY DRAFT');
       const retained = await key.elementHandle();
-      await page.keyboard.press('Shift+Tab'); await expect(url).toBeFocused();
-      await page.keyboard.press('Tab'); await expect(key).toBeFocused();
+      await page.keyboard.press(nativeTabKey(page, true)); await expect(url).toBeFocused();
+      await page.keyboard.press(nativeTabKey(page)); await expect(key).toBeFocused();
       expect(await page.locator('#settings-modal').innerHTML()).not.toContain('SYNTHETIC UNSAVED ACCESSIBILITY DRAFT');
       await expect(page.locator('#custom-key-status')).toHaveAttribute('role', 'status');
       await expect(page.locator('#custom-key-status')).toHaveAttribute('aria-live', 'polite');
@@ -139,9 +140,9 @@ test('true headless browser zoom retains keyboard Settings/provider journeys and
       expect(await retained!.evaluate((element: HTMLInputElement) => ({connected: element.isConnected, value: element.value}))).toEqual({connected: false, value: ''});
       await retained!.dispose();
       const close = page.locator('#settings-modal [data-settings-action="close"]');
-      await tabTo(page, close); await page.keyboard.press('Shift+Tab');
+      await tabTo(page, close); await page.keyboard.press(nativeTabKey(page, true));
       expect(await page.locator('#settings-modal').evaluate(modal => modal.contains(document.activeElement))).toBe(true);
-      await page.keyboard.press('Tab'); await expect(close).toBeFocused();
+      await page.keyboard.press(nativeTabKey(page)); await expect(close).toBeFocused();
       await page.keyboard.press('Escape'); await expect(page.locator('#settings-modal-overlay')).not.toHaveClass(/\bshow\b/);
       await expect(launcher).toBeFocused();
       receipts.push({factor, browserZoom: accepted.factor, settings: accepted.settings, metrics, orientation: direction, keyboardOnly: true, privateDraftScrubbed: true, axeViolations: violations});

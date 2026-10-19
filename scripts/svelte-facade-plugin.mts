@@ -20,7 +20,7 @@ export function compiledSvelteModulePattern(root: string): RegExp {
     + escape(path.join(path.resolve(root), 'js') + path.sep) + '.+\\.svelte' + escape(SUFFIX) + '$');
 }
 type Mode = 'client' | 'html';
-type Options = {root: string; client: 'compile' | 'kit'};
+type Options = {root: string; client: 'compile' | 'kit'; facadeRoot?: string};
 // Only these two hooks cross the Rolldown/Vite boundary. Exposing every optional
 // Plugin hook made TypeScript recursively compare unrelated bundler APIs.
 type FacadePlugin = {
@@ -29,7 +29,11 @@ type FacadePlugin = {
   load(id: string): Promise<LoadResult>;
 };
 
-export function createSvelteFacadePlugin({root, client}: Options): FacadePlugin {
+export function createSvelteFacadePlugin({root, client, facadeRoot}: Options): FacadePlugin {
+  if (facadeRoot !== undefined && (!path.isAbsolute(facadeRoot) || path.resolve(facadeRoot) !== facadeRoot)) throw new Error('Canonical facade producer root required');
+  // Only expected wrapper text may use a transported producer namespace.
+  // Resolution, filesystem reads and compilation remain owned by the local root.
+  const facadeFile = (file: string) => facadeRoot === undefined ? file : path.join(facadeRoot, path.relative(path.resolve(root), file));
   const js = path.join(path.resolve(root), 'js') + path.sep;
   const sveltePackage = createRequire(path.join(path.resolve(root), 'package.json')).resolve('svelte/package.json');
   // HTML compatibility entries used neutral resolution. Preserve its public
@@ -51,7 +55,7 @@ export function createSvelteFacadePlugin({root, client}: Options): FacadePlugin 
     return path.resolve(path.dirname(sveltePackage), expected);
   }
   const owned = (file: string) => file.startsWith(js) && path.resolve(file) === file && file.endsWith('.svelte');
-  const virtual = (file: string, mode: Mode) => PREFIX + mode + ':' + file + SUFFIX;
+  const virtual = (file: string, mode: Mode) => PREFIX + mode + ':' + facadeFile(file) + SUFFIX;
   function component(id: string): {file: string; mode: Mode} | null {
     if (!id.startsWith(PREFIX)) return null;
     const rest = id.slice(PREFIX.length), separator = rest.indexOf(':');
@@ -114,7 +118,7 @@ export function createSvelteFacadePlugin({root, client}: Options): FacadePlugin 
       }
       if (client === 'kit') {
         // This is the existing Kit adapter, now owned in one shared place.
-        return `export {default} from ${JSON.stringify(authored)}; export {mount, unmount, flushSync, hydrate} from 'svelte';`;
+        return `export {default} from ${JSON.stringify(facadeFile(authored))}; export {mount, unmount, flushSync, hydrate} from 'svelte';`;
       }
       return `export {default} from ${JSON.stringify(virtual(authored, 'client'))}; export {mount, unmount, flushSync${HYDRATABLE_COMPONENTS.has(path.basename(authored, '.svelte')) ? ', hydrate' : ''}} from 'svelte';`;
     },

@@ -1,3 +1,4 @@
+import {nativeTabKey} from './native-tab-key.js';
 import {expect, type Locator, type Page} from '@playwright/test';
 export const layoutKey = 'labcharts-default-dashboardWidgetsV13';
 export const biometricKey = 'labcharts-default-dashboardBiometricMetricsV1';
@@ -16,7 +17,7 @@ export async function openDashboard(page:Page){
 export function toolbar(page:Page){return page.locator('.dashboard-sticky-actions:visible,.m-dashboard-widget-actions:visible').first();}
 export function action(page:Page,name:string){return toolbar(page).locator('[data-dashboard-widget-action="'+name+'"]');}
 export async function tabTo(page:Page,target:Locator){
-  for(let n=0;n<100;n++){if(await target.evaluate(node=>node===document.activeElement))return;await page.keyboard.press('Tab');}
+  for(let n=0;n<100;n++){if(await target.evaluate(node=>node===document.activeElement))return;await page.keyboard.press(nativeTabKey(page));}
   throw new Error('Native Tab did not reach Dashboard action bar control');
 }
 export function installEvents(){
@@ -50,7 +51,7 @@ export async function flow(page:Page,record:(name:string)=>Promise<void>){
   expect(await page.evaluate(()=>document.elementFromPoint(8,8)?.id)).toBe('dashboard-widget-picker-overlay');
   if(await page.evaluate(()=>matchMedia('(pointer: coarse)').matches))await page.touchscreen.tap(8,8);else await page.mouse.click(8,8);
   await expect(picker).toHaveCount(0);await expect(action(page,'open-picker')).toBeFocused();
-  await page.keyboard.press('Shift+Tab');await expect(action(page,'toggle-organize')).toBeFocused();await page.keyboard.press('Space');
+  await page.keyboard.press(nativeTabKey(page, true));await expect(action(page,'toggle-organize')).toBeFocused();await page.keyboard.press('Space');
   await expect(action(page,'toggle-organize')).toHaveText('Customize');expect(await preferences(page)).toEqual(before);await record('done');
   await activate(page,action(page,'toggle-organize'));await expect(action(page,'toggle-organize')).toHaveText('Done');
   await activate(page,action(page,'reset-widgets'));await expect(action(page,'toggle-organize')).toHaveText('Customize');

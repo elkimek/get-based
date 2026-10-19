@@ -10,7 +10,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const hash = (body: Uint8Array): string => createHash('sha256').update(body).digest('hex');
 interface FileIdentity {file: string; bytes: number; sha256: string}
 interface ArtifactManifest {
-  schemaVersion: 1; revision: string; buildId: string; verificationDigest: string;
+  schemaVersion: 1; revision: string; buildId: string; verificationDigest: string; producerRoot: string;
   sourceInputCount: number; catalog: {bytes: number; sha256: string}; files: FileIdentity[];
 }
 export interface CIArtifactOptions {root?: string; artifact: string; transport: string}
@@ -18,6 +18,11 @@ function portable(file: unknown): asserts file is string {
   assert(typeof file === 'string' && file.length > 0 && !file.includes('\\') && !file.includes('\0')
     && !path.posix.isAbsolute(file) && !/^[A-Za-z]:/.test(file)
     && file.split('/').every(part => part && part !== '.' && part !== '..'), 'Canonical relative artifact member');
+}
+function producerRoot(value: unknown): asserts value is string {
+  assert(typeof value === 'string' && value.length > 1 && value.length <= 4096
+    && !/[\\\0\r\n]/.test(value) && path.posix.isAbsolute(value)
+    && path.posix.normalize(value) === value && !value.endsWith('/'), 'Canonical private artifact producer root');
 }
 function digest(value: unknown): asserts value is string {assert(typeof value === 'string' && /^[a-f0-9]{64}$/.test(value), 'SHA-256 identity');}
 function count(value: unknown): asserts value is number {assert(typeof value === 'number' && Number.isSafeInteger(value) && value >= 0, 'Nonnegative exact byte count');}
@@ -68,7 +73,7 @@ export async function inventoryCIArtifact(artifact: string): Promise<FileIdentit
 function validateManifest(value: unknown): ArtifactManifest {
   assert(value && typeof value === 'object' && !Array.isArray(value), 'Artifact transport manifest');
   const manifest = value as ArtifactManifest;
-  assert.equal(manifest.schemaVersion, 1, 'Known transport schema');
+  assert.equal(manifest.schemaVersion, 1, 'Known transport schema'); producerRoot(manifest.producerRoot);
   assert(typeof manifest.revision === 'string' && /^[a-f0-9]{40}$/.test(manifest.revision), 'Full source revision');
   digest(manifest.buildId); digest(manifest.verificationDigest); count(manifest.sourceInputCount); assert(manifest.sourceInputCount > 0, 'Nonempty authored source inventory');
   assert(manifest.catalog && typeof manifest.catalog === 'object', 'Qualified catalog'); count(manifest.catalog.bytes); digest(manifest.catalog.sha256);
@@ -133,7 +138,8 @@ export async function sealCIArtifact(options: CIArtifactOptions): Promise<Artifa
   const catalog = await fs.readFile(path.join(root, 'data/recommendations.json'));
   assert.deepEqual(await regular(path.join(artifact, 'data/recommendations.json')), catalog, 'Produced catalog matches current source');
   JSON.parse(catalog.toString());
-  const manifest: ArtifactManifest = {schemaVersion: 1, ...metrics, catalog: {bytes: catalog.length, sha256: hash(catalog)}, files: await inventoryCIArtifact(artifact)};
+  producerRoot(root);
+  const manifest: ArtifactManifest = {schemaVersion: 1, producerRoot: root, ...metrics, catalog: {bytes: catalog.length, sha256: hash(catalog)}, files: await inventoryCIArtifact(artifact)};
   await createTransportDirectory(root, transport);
   assert.equal((await fs.readdir(transport)).length, 0, 'Seal creates a new empty transport');
   await fs.writeFile(path.join(transport, 'catalog.json'), catalog, {flag: 'wx'});
@@ -183,7 +189,7 @@ async function cli(): Promise<void> {
   const operation = mode === 'seal' ? sealCIArtifact : mode === 'restore' ? restoreCIArtifactCatalog : mode === 'verify' ? verifyCIArtifact : undefined;
   assert(operation, 'Use seal, restore or verify');
   const manifest = await operation(options);
-  if (githubEnv) await fs.appendFile(process.env.GITHUB_ENV!, `GETBASED_EXPECTED_KIT_BUILD_ID=${manifest.buildId}\n`);
+  if (githubEnv) await fs.appendFile(process.env.GITHUB_ENV!, `GETBASED_EXPECTED_KIT_BUILD_ID=${manifest.buildId}\nGETBASED_KIT_PRODUCER_ROOT=${manifest.producerRoot}\n`);
   console.log(JSON.stringify({mode, revision: manifest.revision, buildId: manifest.buildId, files: manifest.files.length, catalogBytes: manifest.catalog.bytes}));
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await cli();

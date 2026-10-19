@@ -1,3 +1,4 @@
+import {nativeTabKey} from '../helpers/native-tab-key.js';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import {expect,test,type Page} from '@playwright/test';
@@ -38,12 +39,12 @@ test('static room editor edits all picker modes and saves first offline with two
     const loading=[{phase:'initial-online',readyMs:await ready(page,server.origin)}],before=await page.evaluate(readComparisonAcceptanceProfile) as Saved;server.state.offline=true;
     const dialog=await assessment(page),room=dialog.locator('[data-light-environment-room][data-id="room-bedroom"]'),disclosure=room.locator('.light-env-room-disclosure-toggle');
     await expect(disclosure).toHaveAttribute('aria-expanded','true');await disclosure.focus();await page.keyboard.press('Space');await expect(disclosure).toHaveAttribute('aria-expanded','false');await disclosure.focus();await page.keyboard.press('Enter');await expect(disclosure).toHaveAttribute('aria-expanded','true');
-    await room.getByRole('textbox',{name:'Room name'}).fill('Sleep studio');await room.getByRole('textbox',{name:'Room name'}).press('Tab');
+    await room.getByRole('textbox',{name:'Room name'}).fill('Sleep studio');await room.getByRole('textbox',{name:'Room name'}).press(nativeTabKey(page));
     await room.locator('[data-light-env-action="set-room-source-archetype"][data-light-env-key="warm"]').click();
     await room.getByText('More source types…',{exact:true}).click();await room.getByRole('combobox',{name:'Primary light source'}).selectOption('natural-only');
     await room.locator('[data-light-env-action="set-room-daylight-level"][data-light-env-key="strong"]').click();
     await room.locator('[data-light-env-action="set-room-hours-bucket"][data-light-env-key="some"]').click();
-    await room.getByText('Set exact hours…',{exact:true}).click();await room.getByRole('spinbutton',{name:'Hours per day'}).fill('5.5');await room.getByRole('spinbutton',{name:'Hours per day'}).press('Tab');
+    await room.getByText('Set exact hours…',{exact:true}).click();await room.getByRole('spinbutton',{name:'Hours per day'}).fill('5.5');await room.getByRole('spinbutton',{name:'Hours per day'}).press(nativeTabKey(page));
     await room.locator('[data-light-env-action="set-room-evening-bucket"][data-light-env-key="lt1"]').click();await room.locator('[data-light-environment-today][data-light-env-kind="room"]').click();
     await room.locator('[data-light-env-action="add-screen-with-device"][data-light-env-device="phone"]').click();await expect(room.locator('[data-light-environment-screen]')).toHaveCount(1);
     await dialog.locator('[data-light-env-action="add-room-named"][data-light-env-name="Office"]').click();await expect(dialog.locator('[data-light-environment-room]')).toHaveCount(2);

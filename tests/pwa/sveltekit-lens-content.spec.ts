@@ -1,3 +1,4 @@
+import {nativeTabKey} from '../helpers/native-tab-key.js';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import {expect,test,type Page} from '@playwright/test';
@@ -16,10 +17,10 @@ async function inspect(page:Page){
  await openLens(page,'genome');const panel=page.locator('.genome-import-details[data-lens-content-view]');
  await expect(panel.locator('.genetics-overview-card')).toHaveCount(4);await expect(panel).toContainText('Local <raw>');await expect(panel).toContainText('Stored <lineage>');
  await expect(panel.locator('script,img,[onerror]')).toHaveCount(0);await expect(page.locator('[data-lens-page-action="import-snp-report"][data-lens-content-view]')).toBeVisible();
- const reimport=panel.getByRole('button',{name:'Re-import',exact:true});await page.keyboard.press('Tab');await reimport.focus();await expect(reimport).toBeFocused();expect(await reimport.evaluate(node=>parseFloat(getComputedStyle(node).outlineWidth))).toBeGreaterThanOrEqual(2);
+ const reimport=panel.getByRole('button',{name:'Re-import',exact:true});await page.keyboard.press(nativeTabKey(page));await reimport.focus();await expect(reimport).toBeFocused();expect(await reimport.evaluate(node=>parseFloat(getComputedStyle(node).outlineWidth))).toBeGreaterThanOrEqual(2);
  await openLens(page,'body');const sources=page.locator('[data-widget-id="body-sources"] .dashboard-widget-picker-grid[data-lens-content-view]');
  await expect(sources.getByRole('button')).toHaveCount(2);await expect(sources).toContainText('Manual logs');await expect(sources).toContainText('7d coverage');
- const source=sources.getByRole('button').first();await page.keyboard.press('Tab');await source.focus();await expect(source).toBeFocused();expect(await source.evaluate(node=>parseFloat(getComputedStyle(node).outlineWidth))).toBeGreaterThanOrEqual(2);
+ const source=sources.getByRole('button').first();await page.keyboard.press(nativeTabKey(page));await source.focus();await expect(source).toBeFocused();expect(await source.evaluate(node=>parseFloat(getComputedStyle(node).outlineWidth))).toBeGreaterThanOrEqual(2);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
 }
 test('static imported Genome and connected Body source metadata remain escaped and available through closed-client offline launches',async({page,context})=>{
