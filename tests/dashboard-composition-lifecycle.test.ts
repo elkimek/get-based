@@ -84,8 +84,9 @@ beforeEach(() => {
   vi.spyOn(console, 'error').mockImplementation(() => {});
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
 });
-afterEach(() => {
+afterEach(async () => {
   runtime.retireProductionDashboard();
+  await vi.dynamicImportSettled();
   Object.assign(runtime.viewsComposition, {dashboardView: undefined, lensPageHandlers: undefined, recommendationActions: undefined});
   Object.assign(state, originalState);
   invalidateActiveDataCache();

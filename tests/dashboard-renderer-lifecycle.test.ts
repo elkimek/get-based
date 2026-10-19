@@ -40,7 +40,7 @@ beforeEach(()=>{
   document.body.innerHTML='<button id="outside">Outside</button><main id="main-content"></main>';document.body.className='';
   vi.spyOn(console,'error').mockImplementation(()=>{});vi.spyOn(window,'scrollTo').mockImplementation(()=>{});
 });
-afterEach(()=>{retireDashboardRenderRequests();Object.assign(state,previous);document.body.replaceChildren();document.body.className='';vi.restoreAllMocks();});
+afterEach(async()=>{retireDashboardRenderRequests();await vi.dynamicImportSettled();Object.assign(state,previous);document.body.replaceChildren();document.body.className='';vi.restoreAllMocks();});
 function renderers(){
   const desktop=vi.fn((_view:DesktopDashboardPageView)=>'<section class="dashboard-widgets">Desktop</section>');
   const mobile=vi.fn((_view:MobileDashboardPageView)=>'<section class="m-shell">Mobile</section>');
