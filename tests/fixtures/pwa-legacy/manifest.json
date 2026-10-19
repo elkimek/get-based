@@ -1,0 +1,16 @@
+{
+  "revision": "f0d4eb8fec54748d978ed8dc0cc09c6ef377f280",
+  "purpose": "Immutable pre-migration service worker update protocol regression fixtures. Keep exact original source bytes; current sources must not replace this backwards compatibility baseline.",
+  "files": [
+    {
+      "file": "service-worker-runtime.ts.txt",
+      "source": "service-worker-runtime.ts",
+      "sha256": "af3b63990ff3501337e06b52c286995177a02dc636af04d95a8b6cbea99d0215"
+    },
+    {
+      "file": "service-worker-update.ts.txt",
+      "source": "js/service-worker-update.ts",
+      "sha256": "09da0d5e51c52f6b55503e7f8753094b800bbcf7c6cfc2b237141ed6d6f84f56"
+    }
+  ]
+}

@@ -4,6 +4,18 @@ Function execution coverage and protection of user workflows are separate
 forms of evidence. A high global percentage does not prove that every input,
 branch, race, device, or provider works correctly.
 
+## PWA update acceptance
+
+Update acceptance preserves the all-window ownership census and exact retained
+build-cache checks. Check visible pending feedback, duplicate clicks, deferral,
+message failures, timeout recovery, vanished waiting workers, unrelated replacements
+and stale intent after page exit. [Banner tests](../tests/service-worker-update.test.ts)
+and [browser transitions](../tests/pwa/update-acceptance.spec.ts) cover this boundary;
+[worker ownership tests](../tests/service-worker-client-cache.test.ts) retain the
+activation and cache protections. The small browser fixture is a protocol regression,
+not whole-application release acceptance. Pre-protocol pages still require closing
+all app windows because their old script cannot handle the new worker messages.
+
 ## Choose checks for the change
 
 Run relevant tests and lightweight compiler, architecture, quality, and build

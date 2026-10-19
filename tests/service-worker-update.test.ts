@@ -15,6 +15,7 @@ beforeEach(async () => {
 afterEach(() => {
   serviceWorkerUpdate?.hideVersionUpdateBanner();
   serviceWorkerUpdate = null;
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.resetModules();
 });
@@ -209,7 +210,7 @@ describe('service worker update prompt', () => {
     if (!requested) expect(document.getElementById('version-update-banner')).toBeNull();
     container.controller = null;
     onControllerChange!();
-    container.controller = {};
+    container.controller = requested ? waiting : {};
     onControllerChange!();
     if (requested) {
       expect(reload).toHaveBeenCalledTimes(1);
@@ -409,8 +410,7 @@ describe('service worker update prompt', () => {
 
     banner!.querySelector<HTMLElement>('[data-version-update-action="apply"]')!.click();
     expect(waiting.postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING' });
-    expect(document.getElementById('version-update-banner')).toBeNull();
-    expect(document.body.classList.contains('version-update-visible')).toBe(false);
+    expectPendingUpdateBanner();
   });
 
   it('dismisses the current waiting worker without activating it', () => {
@@ -455,12 +455,28 @@ it('reports the document build to a replacement controller without confusing it 
   expect(nextWorker.postMessage).toHaveBeenCalledTimes(2);
 });
 
+function expectPendingUpdateBanner() {
+  const banner = document.getElementById('version-update-banner')!;
+  expect(banner).not.toBeNull();
+  expect(banner.getAttribute('role')).toBe('region');
+  expect(banner.getAttribute('aria-live')).toBe('polite');
+  expect(banner.getAttribute('aria-busy')).toBe('true');
+  expect(banner.getAttribute('aria-label')).toBe('App update in progress');
+  expect(banner.textContent).toContain('This page will reload when the update is ready.');
+  const primary = banner.querySelector<HTMLButtonElement>('[data-version-update-action="apply"]')!;
+  expect(primary.textContent).toBe('Updating…');
+  expect(primary.disabled).toBe(true);
+  expect(banner.querySelector<HTMLButtonElement>('[data-version-update-action="dismiss"]')!.disabled).toBe(true);
+  expect(document.body.classList.contains('version-update-visible')).toBe(true);
+}
+
 async function directWaitingFixture(buildId = 'original-document') {
   const active = { postMessage: vi.fn() };
   const waiting = { state: 'installed' as const, postMessage: vi.fn() };
   const reload = vi.fn();
   let message: ((event: MessageEvent<unknown>) => void) | undefined;
   let changed: (() => void) | undefined;
+  let pagehide: (() => void) | undefined;
   const registration: UpdateRegistrationView = { waiting, addEventListener: vi.fn() };
   const container: UpdateContainerView = {
     controller: active,
@@ -471,7 +487,10 @@ async function directWaitingFixture(buildId = 'original-document') {
     }),
   };
   await serviceWorkerUpdate!.registerServiceWorkerUpdates({
-    win: { APP_BUILD_ID: buildId, location: { hostname: 'getbased.health', search: '', reload } },
+    win: { APP_BUILD_ID: buildId, location: { hostname: 'getbased.health', search: '', reload },
+      addEventListener: vi.fn((type: unknown, listener: unknown) => {
+        if (type === 'pagehide') pagehide = listener as () => void;
+      }) },
     serviceWorkerContainer: container,
     cacheStorage: null,
   });
@@ -483,7 +502,7 @@ async function directWaitingFixture(buildId = 'original-document') {
     Object.defineProperty(event, 'source', { value: source });
     message!(event);
   };
-  return { active, waiting, reload, registration, container, receive, changed: () => changed!() };
+  return { active, waiting, reload, registration, container, receive, changed: () => changed!(), pagehide: () => pagehide!() };
 }
 
 describe('direct waiting-worker identity and deferred update notice', () => {
@@ -544,7 +563,7 @@ describe('direct waiting-worker identity and deferred update notice', () => {
     const fixture = await directWaitingFixture();
     expect(serviceWorkerUpdate!.applyPendingServiceWorkerUpdate(fixture.registration)).toBe(true);
     expect(fixture.waiting.postMessage).toHaveBeenCalledExactlyOnceWith({ type: 'SKIP_WAITING' });
-    expect(document.getElementById('version-update-banner')).toBeNull();
+    expectPendingUpdateBanner();
     fixture.receive('UPDATE_ACTIVATION_DEFERRED', fixture.waiting, { reason: '<img src=x onerror=alert(1)>' });
     const banner = document.getElementById('version-update-banner')!;
     expect(banner.textContent).toContain('Update paused to protect open tabs. Close all getbased tabs and app windows, then reopen getbased to finish updating.');
@@ -554,6 +573,7 @@ describe('direct waiting-worker identity and deferred update notice', () => {
     expect(banner.getAttribute('aria-busy')).toBe('false');
     expect(banner.querySelector('img')).toBeNull();
     expect(banner.querySelector<HTMLButtonElement>('[data-version-update-action="apply"]')!.disabled).toBe(false);
+    expect(banner.querySelector<HTMLButtonElement>('[data-version-update-action="apply"]')!.textContent).toBe('Retry update');
     expect(banner.querySelector<HTMLButtonElement>('[data-version-update-action="dismiss"]')!.disabled).toBe(false);
     expect(document.body.classList.contains('version-update-visible')).toBe(true);
     expect(fixture.reload).not.toHaveBeenCalled();
@@ -565,9 +585,9 @@ describe('direct waiting-worker identity and deferred update notice', () => {
     expect(document.getElementById('version-update-banner')!.textContent).not.toContain('Update paused');
     serviceWorkerUpdate!.applyPendingServiceWorkerUpdate(fixture.registration);
     fixture.receive('UPDATE_ACTIVATION_DEFERRED', fixture.active);
-    expect(document.getElementById('version-update-banner')).toBeNull();
+    expectPendingUpdateBanner();
     fixture.receive('UPDATE_ACTIVATION_DEFERRED', { postMessage: vi.fn() });
-    expect(document.getElementById('version-update-banner')).toBeNull();
+    expectPendingUpdateBanner();
     fixture.receive('UPDATE_ACTIVATION_DEFERRED');
     expect(document.getElementById('version-update-banner')!.textContent).toContain('Update paused');
   });
@@ -589,9 +609,9 @@ describe('direct waiting-worker identity and deferred update notice', () => {
     document.querySelector<HTMLButtonElement>('[data-version-update-action="apply"]')!.click();
     expect(fixture.waiting.postMessage).toHaveBeenCalledTimes(2);
     expect(fixture.waiting.postMessage.mock.calls[1]).toEqual([{ type: 'SKIP_WAITING' }]);
-    expect(document.getElementById('version-update-banner')).toBeNull();
+    expectPendingUpdateBanner();
     expect(fixture.reload).not.toHaveBeenCalled();
-    fixture.container.controller = { postMessage: vi.fn() };
+    fixture.container.controller = fixture.waiting;
     fixture.changed();
     expect(fixture.reload).toHaveBeenCalledTimes(1);
   });
@@ -604,6 +624,304 @@ describe('direct waiting-worker identity and deferred update notice', () => {
     fixture.receive('UPDATE_ACTIVATION_DEFERRED');
     expect(document.getElementById('version-update-banner')).toBeNull();
     expect(serviceWorkerUpdate!.showVersionUpdateBanner(fixture.registration)).toBe(false);
+    expect(fixture.reload).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('pending update outcomes', () => {
+  it('keeps a visible busy notice and sends only one request despite duplicate actions', async () => {
+    const fixture = await directWaitingFixture();
+    expect(serviceWorkerUpdate!.applyPendingServiceWorkerUpdate()).toBe(true);
+    expectPendingUpdateBanner();
+    expect(serviceWorkerUpdate!.applyPendingServiceWorkerUpdate()).toBe(false);
+    document.querySelector<HTMLButtonElement>('[data-version-update-action="apply"]')!.click();
+    document.querySelector<HTMLButtonElement>('[data-version-update-action="dismiss"]')!.click();
+    // Disabled controls must remain harmless even if a click is dispatched directly.
+    document.querySelector('[data-version-update-action="dismiss"]')!
+      .dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(fixture.waiting.postMessage).toHaveBeenCalledExactlyOnceWith({ type: 'SKIP_WAITING' });
+    expectPendingUpdateBanner();
+    expect(fixture.reload).not.toHaveBeenCalled();
+  });
+
+  it('removes the pending notice only when the requested worker becomes controller', async () => {
+    vi.useFakeTimers();
+    const fixture = await directWaitingFixture();
+    serviceWorkerUpdate!.applyPendingServiceWorkerUpdate();
+    expectPendingUpdateBanner();
+    fixture.container.controller = fixture.waiting;
+    fixture.changed();
+    expect(fixture.reload).toHaveBeenCalledTimes(1);
+    expect(document.getElementById('version-update-banner')).toBeNull();
+    expect(document.body.classList.contains('version-update-visible')).toBe(false);
+    expect(vi.getTimerCount()).toBe(0);
+    vi.advanceTimersByTime(60_000);
+    expect(document.getElementById('version-update-banner')).toBeNull();
+    expect(fixture.reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('prompts for an unrelated controller replacement instead of consuming another worker intent', async () => {
+    vi.useFakeTimers();
+    const fixture = await directWaitingFixture();
+    serviceWorkerUpdate!.applyPendingServiceWorkerUpdate();
+    fixture.container.controller = { postMessage: vi.fn() };
+    fixture.changed();
+    expect(fixture.reload).not.toHaveBeenCalled();
+    expect(document.getElementById('version-update-banner')!.textContent).toContain('New version installed');
+    expect(document.getElementById('version-update-banner')!.getAttribute('aria-busy')).toBe('false');
+    expect(vi.getTimerCount()).toBe(0);
+    fixture.container.controller = fixture.waiting;
+    fixture.changed();
+    expect(fixture.reload).not.toHaveBeenCalled();
+  });
+
+  it('clears pending intent when a different waiting update replaces the requested worker', async () => {
+    vi.useFakeTimers();
+    const fixture = await directWaitingFixture();
+    serviceWorkerUpdate!.applyPendingServiceWorkerUpdate();
+    const replacement = { state: 'installed' as const, postMessage: vi.fn() };
+    fixture.registration.waiting = replacement;
+    expect(serviceWorkerUpdate!.showVersionUpdateBanner(fixture.registration)).toBe(true);
+    const primary = document.querySelector<HTMLButtonElement>('[data-version-update-action="apply"]')!;
+    expect(primary.disabled).toBe(false);
+    expect(primary.textContent).toBe('Reload');
+    expect(vi.getTimerCount()).toBe(0);
+    fixture.receive('UPDATE_ACTIVATION_DEFERRED', fixture.waiting);
+    expect(document.getElementById('version-update-banner')!.textContent).not.toContain('Update paused');
+    fixture.container.controller = fixture.waiting;
+    fixture.changed();
+    expect(fixture.reload).not.toHaveBeenCalled();
+  });
+
+  it('restores an actionable retry after postMessage throws without retaining reload intent', async () => {
+    vi.useFakeTimers();
+    const fixture = await directWaitingFixture();
+    fixture.waiting.postMessage.mockImplementationOnce(() => { throw new Error('Worker unavailable'); });
+    expect(serviceWorkerUpdate!.applyPendingServiceWorkerUpdate()).toBe(false);
+    const banner = document.getElementById('version-update-banner')!;
+    expect(banner.textContent).toContain('The update could not start.');
+    expect(banner.getAttribute('aria-busy')).toBe('false');
+    expect(banner.querySelector<HTMLButtonElement>('[data-version-update-action="apply"]')!.textContent).toBe('Retry update');
+    expect(banner.querySelector<HTMLButtonElement>('[data-version-update-action="apply"]')!.disabled).toBe(false);
+    expect(vi.getTimerCount()).toBe(0);
+    fixture.container.controller = fixture.waiting;
+    fixture.changed();
+    expect(fixture.reload).not.toHaveBeenCalled();
+  });
+
+  it('offers a retry after a finite timeout and never reloads for a later unrequested activation', async () => {
+    vi.useFakeTimers();
+    const fixture = await directWaitingFixture();
+    serviceWorkerUpdate!.applyPendingServiceWorkerUpdate();
+    vi.advanceTimersByTime(29_999);
+    expectPendingUpdateBanner();
+    vi.advanceTimersByTime(1);
+    const banner = document.getElementById('version-update-banner')!;
+    expect(banner.textContent).toContain('The update is taking longer than expected.');
+    expect(banner.getAttribute('aria-busy')).toBe('false');
+    const primary = banner.querySelector<HTMLButtonElement>('[data-version-update-action="apply"]')!;
+    expect(primary.textContent).toBe('Retry update');
+    expect(primary.disabled).toBe(false);
+    expect(banner.querySelector<HTMLButtonElement>('[data-version-update-action="dismiss"]')!.disabled).toBe(false);
+    expect(vi.getTimerCount()).toBe(0);
+    fixture.receive('UPDATE_ACTIVATION_DEFERRED');
+    expect(banner.textContent).toContain('taking longer than expected');
+    fixture.container.controller = fixture.waiting;
+    fixture.changed();
+    expect(fixture.reload).not.toHaveBeenCalled();
+    expect(banner.textContent).toContain('New version installed');
+  });
+
+  it('allows a fresh explicit retry after timeout and reloads only for its exact worker', async () => {
+    vi.useFakeTimers();
+    const fixture = await directWaitingFixture();
+    serviceWorkerUpdate!.applyPendingServiceWorkerUpdate();
+    vi.advanceTimersByTime(30_000);
+    document.querySelector<HTMLButtonElement>('[data-version-update-action="apply"]')!.click();
+    expect(fixture.waiting.postMessage).toHaveBeenCalledTimes(2);
+    expectPendingUpdateBanner();
+    fixture.container.controller = fixture.waiting;
+    fixture.changed();
+    expect(fixture.reload).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('keeps Later dismissal effective after timeout and cancels pending timeout after deferral', async () => {
+    vi.useFakeTimers();
+    const fixture = await directWaitingFixture();
+    serviceWorkerUpdate!.applyPendingServiceWorkerUpdate();
+    fixture.receive('UPDATE_ACTIVATION_DEFERRED');
+    expect(vi.getTimerCount()).toBe(0);
+    document.querySelector<HTMLButtonElement>('[data-version-update-action="apply"]')!.click();
+    vi.advanceTimersByTime(30_000);
+    document.querySelector<HTMLButtonElement>('[data-version-update-action="dismiss"]')!.click();
+    fixture.receive('UPDATE_ACTIVATION_DEFERRED');
+    vi.advanceTimersByTime(60_000);
+    expect(document.getElementById('version-update-banner')).toBeNull();
+    expect(serviceWorkerUpdate!.showVersionUpdateBanner(fixture.registration)).toBe(false);
+    expect(fixture.reload).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('vanished waiting-worker and document lifecycle recovery', () => {
+  it('checks again when the offered worker vanishes before the first click without reusing consent', async () => {
+    vi.useFakeTimers();
+    const fixture = await directWaitingFixture();
+    const replacement = { postMessage: vi.fn() };
+    fixture.registration.waiting = null;
+    fixture.registration.update = vi.fn(async () => { fixture.registration.waiting = replacement; });
+    const banner = document.getElementById('version-update-banner')!;
+    banner.querySelector<HTMLButtonElement>('[data-version-update-action="apply"]')!.click();
+    expect(banner.textContent).toContain('Checking for the update.');
+    expect(banner.getAttribute('aria-busy')).toBe('true');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fixture.registration.update).toHaveBeenCalledTimes(1);
+    expect(banner.textContent).toContain('Update ready.');
+    expect(banner.getAttribute('aria-busy')).toBe('false');
+    expect(replacement.postMessage).not.toHaveBeenCalled();
+    expect(fixture.reload).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+    fixture.container.controller = replacement;
+    fixture.changed();
+    expect(fixture.reload).not.toHaveBeenCalled();
+    expect(banner.textContent).toContain('New version installed');
+  });
+
+  it('offers manual Reload when the exact requested worker controls the page despite a missed notification', async () => {
+    vi.useFakeTimers();
+    const fixture = await directWaitingFixture();
+    serviceWorkerUpdate!.applyPendingServiceWorkerUpdate();
+    fixture.registration.waiting = null;
+    fixture.container.controller = fixture.waiting;
+    vi.advanceTimersByTime(30_000);
+    const banner = document.getElementById('version-update-banner')!;
+    expect(banner.textContent).toContain('New version installed');
+    expect(banner.getAttribute('aria-busy')).toBe('false');
+    const primary = banner.querySelector<HTMLButtonElement>('[data-version-update-action="apply"]')!;
+    expect(primary.textContent).toBe('Reload');
+    expect(primary.disabled).toBe(false);
+    expect(fixture.reload).not.toHaveBeenCalled();
+    primary.click();
+    expect(fixture.reload).toHaveBeenCalledTimes(1);
+    expect(document.getElementById('version-update-banner')).toBeNull();
+  });
+
+  it('checks for a vanished worker and requires fresh consent before activating its replacement', async () => {
+    vi.useFakeTimers();
+    const fixture = await directWaitingFixture();
+    serviceWorkerUpdate!.applyPendingServiceWorkerUpdate();
+    fixture.registration.waiting = null;
+    const replacement = { postMessage: vi.fn() };
+    const update = vi.fn(async () => { fixture.registration.waiting = replacement; });
+    fixture.registration.update = update;
+    vi.advanceTimersByTime(30_000);
+    document.querySelector<HTMLButtonElement>('[data-version-update-action="apply"]')!.click();
+    expect(document.getElementById('version-update-banner')!.textContent).toContain('Checking for the update.');
+    expect(document.getElementById('version-update-banner')!.getAttribute('aria-busy')).toBe('true');
+    expect(serviceWorkerUpdate!.applyPendingServiceWorkerUpdate()).toBe(false);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(document.getElementById('version-update-banner')!.textContent).toContain('Update ready.');
+    expect(vi.getTimerCount()).toBe(0);
+    expect(replacement.postMessage).not.toHaveBeenCalled();
+    expect(fixture.reload).not.toHaveBeenCalled();
+    document.querySelector<HTMLButtonElement>('[data-version-update-action="apply"]')!.click();
+    expect(replacement.postMessage).toHaveBeenCalledExactlyOnceWith({ type: 'SKIP_WAITING' });
+    fixture.container.controller = fixture.waiting;
+    fixture.changed();
+    expect(fixture.reload).not.toHaveBeenCalled();
+  });
+
+  it('reports no waiting update after a completed retry and keeps another check available', async () => {
+    vi.useFakeTimers();
+    const fixture = await directWaitingFixture();
+    fixture.registration.update = vi.fn(async () => {});
+    serviceWorkerUpdate!.applyPendingServiceWorkerUpdate();
+    fixture.registration.waiting = null;
+    vi.advanceTimersByTime(30_000);
+    document.querySelector<HTMLButtonElement>('[data-version-update-action="apply"]')!.click();
+    await vi.advanceTimersByTimeAsync(0);
+    const banner = document.getElementById('version-update-banner')!;
+    expect(banner.textContent).toContain('No waiting update is available yet.');
+    expect(banner.getAttribute('aria-busy')).toBe('false');
+    expect(banner.querySelector<HTMLButtonElement>('[data-version-update-action="apply"]')!.textContent).toBe('Retry update');
+    expect(banner.querySelector<HTMLButtonElement>('[data-version-update-action="apply"]')!.disabled).toBe(false);
+    expect(fixture.reload).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('bounds a stalled retry check and ignores its eventual result without restoring reload intent', async () => {
+    vi.useFakeTimers();
+    const fixture = await directWaitingFixture();
+    let finishUpdate: (() => void) | undefined;
+    fixture.registration.update = vi.fn(() => new Promise<void>(resolve => { finishUpdate = resolve; }));
+    serviceWorkerUpdate!.applyPendingServiceWorkerUpdate();
+    fixture.registration.waiting = null;
+    vi.advanceTimersByTime(30_000);
+    document.querySelector<HTMLButtonElement>('[data-version-update-action="apply"]')!.click();
+    await vi.advanceTimersByTimeAsync(30_000);
+    const banner = document.getElementById('version-update-banner')!;
+    expect(banner.textContent).toContain('taking longer than expected');
+    expect(banner.getAttribute('aria-busy')).toBe('false');
+    expect(vi.getTimerCount()).toBe(0);
+    fixture.registration.waiting = fixture.waiting;
+    finishUpdate!();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(banner.textContent).toContain('taking longer than expected');
+    fixture.container.controller = fixture.waiting;
+    fixture.changed();
+    expect(fixture.reload).not.toHaveBeenCalled();
+  });
+
+  it('offers an actual manual Reload when no waiting worker or update method remains', async () => {
+    vi.useFakeTimers();
+    const fixture = await directWaitingFixture();
+    serviceWorkerUpdate!.applyPendingServiceWorkerUpdate();
+    fixture.registration.waiting = null;
+    vi.advanceTimersByTime(30_000);
+    const banner = document.getElementById('version-update-banner')!;
+    expect(banner.textContent).toContain('No waiting update is available. Reload getbased to check again.');
+    const primary = banner.querySelector<HTMLButtonElement>('[data-version-update-action="apply"]')!;
+    expect(primary.textContent).toBe('Reload');
+    expect(primary.disabled).toBe(false);
+    expect(fixture.reload).not.toHaveBeenCalled();
+    primary.click();
+    expect(fixture.reload).toHaveBeenCalledTimes(1);
+    expect(document.getElementById('version-update-banner')).toBeNull();
+  });
+
+  it('clears pending activation on pagehide so restoring the document cannot force a reload', async () => {
+    vi.useFakeTimers();
+    const fixture = await directWaitingFixture();
+    serviceWorkerUpdate!.applyPendingServiceWorkerUpdate();
+    expect(vi.getTimerCount()).toBe(1);
+    fixture.pagehide();
+    expect(vi.getTimerCount()).toBe(0);
+    expect(document.getElementById('version-update-banner')).toBeNull();
+    vi.advanceTimersByTime(60_000);
+    fixture.receive('UPDATE_ACTIVATION_DEFERRED');
+    expect(document.getElementById('version-update-banner')).toBeNull();
+    fixture.container.controller = fixture.waiting;
+    fixture.changed();
+    expect(fixture.reload).not.toHaveBeenCalled();
+    expect(document.getElementById('version-update-banner')!.textContent).toContain('New version installed');
+  });
+
+  it('prevents a queued retry from running after pagehide', async () => {
+    vi.useFakeTimers();
+    const fixture = await directWaitingFixture();
+    fixture.registration.update = vi.fn(async () => {});
+    serviceWorkerUpdate!.applyPendingServiceWorkerUpdate();
+    fixture.registration.waiting = null;
+    vi.advanceTimersByTime(30_000);
+    document.querySelector<HTMLButtonElement>('[data-version-update-action="apply"]')!.click();
+    fixture.pagehide();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(fixture.registration.update).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+    expect(document.getElementById('version-update-banner')).toBeNull();
     expect(fixture.reload).not.toHaveBeenCalled();
   });
 });

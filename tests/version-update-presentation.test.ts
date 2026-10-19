@@ -95,13 +95,19 @@ describe('authored update fragments through the public controller', () => {
     }
   });
 
-  it('leaves the banner intact when the original activation message throws', () => {
+  it('retains the same accessible banner with a usable retry when activation messaging fails', () => {
     const failure = new Error('activation failed');
     const waiting = { postMessage: vi.fn(() => { throw failure; }) };
     const registration = { waiting };
     update.showVersionUpdateBanner(registration);
     const root = banner();
-    expect(() => update.applyPendingServiceWorkerUpdate(registration)).toThrow(failure);
+    expect(update.applyPendingServiceWorkerUpdate(registration)).toBe(false);
+    expect(root.getAttribute('aria-busy')).toBe('false');
+    expect(root.getAttribute('aria-label')).toBe('App update needs attention');
+    expect(root.textContent).toContain('The update could not start.');
+    const retry = root.querySelector<HTMLButtonElement>('[data-version-update-action="apply"]')!;
+    expect(retry.textContent).toBe('Retry update');
+    expect(retry.disabled).toBe(false);
     expect(waiting.postMessage).toHaveBeenCalledExactlyOnceWith({ type: 'SKIP_WAITING' });
     expect(banner()).toBe(root);
     expect(document.body.classList.contains('version-update-visible')).toBe(true);
