@@ -12,6 +12,13 @@ export type PulledImportedData = NonNullable<Parameters<typeof mergeImportedData
 type MaybePulledData = PulledImportedData | null | undefined;
 type RecoveredRow = SyncProfileRow & { profileId: unknown };
 
+/** Immutable local origin captured before a pull's asynchronous preflight/decode. */
+export interface SyncPullBaseline {
+  readonly stored: MaybePulledData;
+  readonly live: MaybePulledData;
+  readonly baseline: MaybePulledData;
+}
+
 interface SyncPullMergeResult {
   localKey: string; localImportedForMerge: MaybePulledData; merged: NormalizedProfileData; mergeMsg: string;
   needsRebroadcast: boolean; remoteBroughtNewRows: boolean; localDataChanged: boolean; restoreJoinApplied: boolean;
@@ -194,20 +201,25 @@ function preserveLocalOnlyProfileData(merged: PulledImportedData, localImported:
   }
 }
 
-export async function mergePulledImportedData(profileId: string, importedData: PulledImportedData | null, options: { debug?: (...args: unknown[]) => unknown; remoteUpdated?: number } = {}) {
-  const { remoteUpdated = 0 } = options;
-  const localKey = profileStorageKey(profileId, 'imported');
-  // Capture durable and live baselines before asynchronous row overlays. Read
-  // errors must abort rather than letting a pull replace unreadable local data.
-  const { stored, live, baseline } = await queueProfileDataWrite(profileId, async () => {
-    const rawStored = await encryptedGetItem(localKey, { throwOnDecryptError: true });
+export function captureSyncPullBaseline(profileId: string): Promise<SyncPullBaseline> {
+  return queueProfileDataWrite(profileId, async () => {
+    const rawStored = await encryptedGetItem(profileStorageKey(profileId, 'imported'), { throwOnDecryptError: true });
     const active = profileId === state.currentProfile;
     return {
       stored: rawStored ? JSON.parse(rawStored) as PulledImportedData : null,
       live: active ? structuredClone(state.importedData || null) : null,
-      baseline: active ? profileDataBaseline(state.importedData) : null,
+      baseline: active ? structuredClone(profileDataBaseline(state.importedData)) : null,
     };
   });
+}
+
+export async function mergePulledImportedData(profileId: string, importedData: PulledImportedData | null, options: { debug?: (...args: unknown[]) => unknown; remoteUpdated?: number; earlyBaseline?: SyncPullBaseline } = {}) {
+  const { remoteUpdated = 0 } = options;
+  const localKey = profileStorageKey(profileId, 'imported');
+  // Public helper callers retain their existing capture behavior. The receive
+  // pipeline supplies its earlier origin so saves during decode stay edits,
+  // even if a fast successful push already cleared their dirty token.
+  const { stored, live, baseline } = options.earlyBaseline ?? await captureSyncPullBaseline(profileId);
   const localImportedForMerge = live && baseline && stored
     ? mergeProfileMutation(baseline, live, stored) : (live || stored);
   const localImportedBeforeMerge = importedDataSnapshot(localImportedForMerge);

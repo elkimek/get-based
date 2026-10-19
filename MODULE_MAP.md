@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 1848 |
-| Internal import edges | 5592 |
+| Internal import edges | 5593 |
 | Dynamic internal edges | 128 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -65,7 +65,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/state.ts`](js/state.ts) | 257 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 78 |
+| [`js/state.ts`](js/state.ts) | 258 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 78 |
 | [`js/utils.ts`](js/utils.ts) | 256 | [`js/chat-send.ts`](js/chat-send.ts) | 38 |
 | [`js/caught-error.ts`](js/caught-error.ts) | 93 | [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) | 36 |
 | [`js/data.ts`](js/data.ts) | 87 | [`js/provider-panels.ts`](js/provider-panels.ts) | 34 |
@@ -4672,7 +4672,7 @@ Native browser modules shipped with the static application.
 - [`js/sync-pull-maintenance.ts`](js/sync-pull-maintenance.ts) → no in-scope imports
 - [`js/sync-pull-merge.ts`](js/sync-pull-merge.ts) → [`js/biology-score-context-contract.ts`](js/biology-score-context-contract.ts), [`js/biology-score-persistence.ts`](js/biology-score-persistence.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/clear-all-profile-reset.ts`](js/clear-all-profile-reset.ts) *(dynamic)*, [`js/crypto.ts`](js/crypto.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/nutrition-sync-sanitize.ts`](js/nutrition-sync-sanitize.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile-sync-policy.ts`](js/profile-sync-policy.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/sync-delta.ts`](js/sync-delta.ts), [`js/sync-identity.ts`](js/sync-identity.ts), [`js/sync-payload.ts`](js/sync-payload.ts), [`js/sync-profile-fields.ts`](js/sync-profile-fields.ts)
 - [`js/sync-pull-rebroadcast.ts`](js/sync-pull-rebroadcast.ts) → [`js/state.ts`](js/state.ts), [`js/sync-state.ts`](js/sync-state.ts)
-- [`js/sync-pull.ts`](js/sync-pull.ts) → [`js/nutrition-sync-sanitize.ts`](js/nutrition-sync-sanitize.ts), [`js/profile-sync-policy.ts`](js/profile-sync-policy.ts), [`js/routstr-session.ts`](js/routstr-session.ts), [`js/sync-apply.ts`](js/sync-apply.ts) *(dynamic)*, [`js/sync-backup-restore-state.ts`](js/sync-backup-restore-state.ts), [`js/sync-chat-apply.ts`](js/sync-chat-apply.ts), [`js/sync-identity.ts`](js/sync-identity.ts), [`js/sync-origin-state.ts`](js/sync-origin-state.ts), [`js/sync-payload.ts`](js/sync-payload.ts), [`js/sync-pull-active-refresh.ts`](js/sync-pull-active-refresh.ts), [`js/sync-pull-maintenance.ts`](js/sync-pull-maintenance.ts), [`js/sync-pull-merge.ts`](js/sync-pull-merge.ts), [`js/sync-pull-rebroadcast.ts`](js/sync-pull-rebroadcast.ts), [`js/sync-save-hooks.ts`](js/sync-save-hooks.ts), [`js/sync-state.ts`](js/sync-state.ts), [`js/sync-tombstones.ts`](js/sync-tombstones.ts)
+- [`js/sync-pull.ts`](js/sync-pull.ts) → [`js/nutrition-sync-sanitize.ts`](js/nutrition-sync-sanitize.ts), [`js/profile-sync-policy.ts`](js/profile-sync-policy.ts), [`js/routstr-session.ts`](js/routstr-session.ts), [`js/state.ts`](js/state.ts), [`js/sync-apply.ts`](js/sync-apply.ts) *(dynamic)*, [`js/sync-backup-restore-state.ts`](js/sync-backup-restore-state.ts), [`js/sync-chat-apply.ts`](js/sync-chat-apply.ts), [`js/sync-identity.ts`](js/sync-identity.ts), [`js/sync-origin-state.ts`](js/sync-origin-state.ts), [`js/sync-payload.ts`](js/sync-payload.ts), [`js/sync-pull-active-refresh.ts`](js/sync-pull-active-refresh.ts), [`js/sync-pull-maintenance.ts`](js/sync-pull-maintenance.ts), [`js/sync-pull-merge.ts`](js/sync-pull-merge.ts), [`js/sync-pull-rebroadcast.ts`](js/sync-pull-rebroadcast.ts), [`js/sync-save-hooks.ts`](js/sync-save-hooks.ts), [`js/sync-state.ts`](js/sync-state.ts), [`js/sync-tombstones.ts`](js/sync-tombstones.ts)
 - [`js/sync-push-deltas.ts`](js/sync-push-deltas.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/sync-delta.ts`](js/sync-delta.ts)
 - [`js/sync-push.ts`](js/sync-push.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/nutrition-sync-sanitize.ts`](js/nutrition-sync-sanitize.ts), [`js/profile-sync-policy.ts`](js/profile-sync-policy.ts), [`js/profile.ts`](js/profile.ts), [`js/sync-chat-merge.ts`](js/sync-chat-merge.ts) *(dynamic)*, [`js/sync-delta.ts`](js/sync-delta.ts), [`js/sync-dirty-state.ts`](js/sync-dirty-state.ts), [`js/sync-origin-state.ts`](js/sync-origin-state.ts), [`js/sync-payload.ts`](js/sync-payload.ts), [`js/sync-push-deltas.ts`](js/sync-push-deltas.ts), [`js/sync-relay-health.ts`](js/sync-relay-health.ts), [`js/sync-state.ts`](js/sync-state.ts)
 - [`js/sync-reconcile.ts`](js/sync-reconcile.ts) → [`js/data-merge.ts`](js/data-merge.ts), [`js/profile-sync-policy.ts`](js/profile-sync-policy.ts), [`js/state.ts`](js/state.ts), [`js/sync-chat-apply.ts`](js/sync-chat-apply.ts), [`js/sync-identity.ts`](js/sync-identity.ts), [`js/sync-payload-collectors.ts`](js/sync-payload-collectors.ts), [`js/sync-payload.ts`](js/sync-payload.ts), [`js/sync-state.ts`](js/sync-state.ts)

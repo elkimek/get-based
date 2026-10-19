@@ -2,7 +2,7 @@ import type { StoredProfileRecord } from './profile-list-store.js';
 import type { SyncProfileRow } from './sync-payload.js';
 import type { ParsedSyncPayload } from './sync-payload-codec.js';
 import type { SyncChatData } from './sync-chat-merge.js';
-import type { PulledImportedData } from './sync-pull-merge.js';
+import type { PulledImportedData, SyncPullBaseline } from './sync-pull-merge.js';
 import type { RuntimeDependencyUpdates } from './runtime-callbacks.js';
 
 type PullClient = { getQueryRows(query: unknown): readonly SyncProfileRow[] | null | undefined };
@@ -30,12 +30,13 @@ interface SyncPullDeps {
 
 import { encodeMergedRoutstrSessions, ROUTSTR_SESSIONS_KEY } from './routstr-session.js';
 
+import { state } from './state.js';
 import { parseSyncPayload } from './sync-payload.js';
 import { applyChatData, chatDataNeedsRebroadcast, getChatDataLocalLockRemainingMs } from './sync-chat-apply.js';
 import { refreshActiveProfileAfterPull } from './sync-pull-active-refresh.js';
 import { clearStaleSyncHashKeysOnce } from './sync-pull-maintenance.js';
 import {
-  isMalformedPulledImportedData, isSafeProfileId, mergePulledImportedData,
+  captureSyncPullBaseline, isMalformedPulledImportedData, isSafeProfileId, mergePulledImportedData,
   mergePulledProfile, persistPulledImportedData, prepareSyncPullRows,
 } from './sync-pull-merge.js';
 import { maybeScheduleRebroadcast } from './sync-pull-rebroadcast.js';
@@ -250,7 +251,19 @@ async function receiveSync() {
   _pulling = true;
   clearStaleSyncHashKeysOnce(dbg);
   updateSyncStatus({ pull: 'pulling' });
+  const earlyBaselines = new Map<string, { ok: true; value: SyncPullBaseline } | { ok: false; error: unknown }>();
   try {
+    // Reserve every existing local profile read before the first await. Query
+    // rows may have missing IDs recovered only by async decoding, so known
+    // local profiles/current profile are the correctness fallback. This adds
+    // one queued read/copy per local profile; no lock spans preflight or decode.
+    const baselineIds = new Set(_getProfiles().map(profile => profile.id).filter(isSafeProfileId));
+    if (state.currentProfile && isSafeProfileId(state.currentProfile)) baselineIds.add(state.currentProfile);
+    await Promise.all([...baselineIds].map(async profileId => {
+      try { earlyBaselines.set(profileId, { ok: true, value: await captureSyncPullBaseline(profileId) }); }
+      catch (error) { earlyBaselines.set(profileId, { ok: false, error }); }
+    }));
+
     // Backup restore is an explicit local recovery action. Republish every
     // restored profile before processing any relay tombstones; otherwise a
     // Join Existing pull can make the recovered data flash briefly and then
@@ -359,12 +372,19 @@ async function receiveSync() {
           continue;
         }
 
+        const earlyBaseline = earlyBaselines.get(profileId);
+        // A failed read belongs only to this row; it is never an absent profile.
+        // Preserve the original thrown value, including null or undefined.
+        if (earlyBaseline && !earlyBaseline.ok) throw earlyBaseline.error;
         const {
           localKey, merged, mergeMsg,
           needsRebroadcast, remoteBroughtNewRows, localDataChanged, restoreJoinApplied,
         } = await mergePulledImportedData(profileId, importedData as PulledImportedData | null, {
           debug: dbg,
           remoteUpdated,
+          // An unknown remote profile had no local data at pull start. A
+          // profile created meanwhile is a local mutation against that absence.
+          earlyBaseline: earlyBaseline?.ok ? earlyBaseline.value : { stored: null, live: null, baseline: null },
         });
         dbg(mergeMsg);
         logSyncEvent('pull', mergeMsg);
@@ -411,6 +431,8 @@ async function receiveSync() {
         });
       } catch (e) {
         console.error('[sync] Pull failed for row:', e);
+      } finally {
+        if (typeof row.profileId === 'string') earlyBaselines.delete(row.profileId);
       }
     }
 
@@ -428,6 +450,7 @@ async function receiveSync() {
       _renderProfileButton();
     }
   } finally {
+    earlyBaselines.clear();
     _pulling = false;
     updateSyncStatus({ pull: 'received', pullReceivedAt: Date.now() });
   }
