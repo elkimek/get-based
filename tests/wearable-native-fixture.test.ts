@@ -117,7 +117,7 @@ it.each(['kit-chromium', 'kit-firefox', 'kit-webkit', 'kit-mobile-webkit'])('ret
 
 // Renderer portability keeps a byte-exact original app and strict raw comparison.
 import {verifyWearableOriginalAppArchive} from '../scripts/wearable-native-fixture.mjs';
-import {assertWearableChartFrame,assertWearableReferenceInventory,historicalWearableDatasetMetadata,wearableReferenceKeys,type WearableChartFrame} from './helpers/wearable-chart-reference.js';
+import {assertWearableChartFrame,assertWearableReferenceInventory,historicalWearableDatasetMetadata,wearableExpectedEventChronology,wearableReferenceKeys,type WearableChartFrame} from './helpers/wearable-chart-reference.js';
 function referenceFrame(key=wearableReferenceKeys[0]!) : WearableChartFrame {
   const rgba=Buffer.from([10,20,30,255]);return {key,width:1,height:1,rgba,paint:{bytes:4,alphaPixels:1,distinctRGBAColors:1,sha256:sha(rgba)},datasetMetadata:[{index:0,type:'line',hidden:false,points:[{x:1,y:2}]}]};
 }
@@ -166,4 +166,41 @@ it.each(['index','type','hidden','missing-point','extra-point','nonfinite-x','no
  if(kind==='nonfinite-y')dataset.points[0]!.y=Infinity;
  if(kind.startsWith('nonfinite'))expect(()=>historicalWearableDatasetMetadata(changed.datasetMetadata)).toThrow('Finite actual native dataset coordinates');
  else expect(historicalWearableDatasetMetadata(changed.datasetMetadata)).not.toEqual(historicalWearableDatasetMetadata(original.datasetMetadata));
+});
+
+
+function historicalChordEvents():unknown[] {
+ const rows:unknown[]=Array.from({length:110},(_,index)=>({type:'preserved',index}));
+ for(const reverse of [2,56,84]){
+  rows[reverse]={type:'keydown',action:'modal-close',metric:null,key:'Shift',trusted:true,focus:''};
+  rows[reverse+1]={type:'keydown',action:'modal-close',metric:null,key:'Tab',trusted:true,focus:''};
+  rows[reverse+2]={type:'keydown',action:'delete-detail-manual-entry',metric:'weight',key:'Tab',trusted:true,focus:''};
+ }
+ return rows;
+}
+it('expands only six fixed Cocoa WebKit chords and preserves every historical event unchanged',()=>{
+ const historical=historicalChordEvents(),before=structuredClone(historical),expanded=wearableExpectedEventChronology(historical,'darwin','webkit');
+ expect(expanded).toHaveLength(116);
+ const positions=[2,5,58,61,88,91];
+ expect(positions.map(index=>expanded[index])).toEqual([2,4,56,58,84,86].map(index=>({...historical[index] as object,key:'Alt'})));
+ expect(expanded.filter((_,index)=>!positions.includes(index))).toEqual(historical);expect(historical).toEqual(before);
+ for(const [platform,browser] of [['linux','webkit'],['darwin','chromium'],['darwin','firefox']])expect(wearableExpectedEventChronology(historical,platform!,browser!)).toEqual(historical);
+});
+it.each(['missing','extra','position','owner','metric','key','trust','focus','reverse-tab'] as const)('rejects corrupted frozen chord %s before Cocoa expansion',kind=>{
+ const historical=historicalChordEvents();
+ if(kind==='missing')historical.pop();else if(kind==='extra')historical.push({});
+ else if(kind==='position')[historical[2],historical[1]]=[historical[1],historical[2]];
+ else {
+  const index=kind==='reverse-tab'?3:2;
+  historical[index]={...historical[index] as object,...(kind==='owner'?{action:'foreign'}:kind==='metric'?{metric:'weight'}:kind==='key'?{key:'Alt'}:kind==='trust'?{trusted:false}:kind==='focus'?{focus:'foreign'}:{key:'Enter'})};
+ }
+ expect(()=>wearableExpectedEventChronology(historical,'darwin','webkit')).toThrow();
+});
+it('qualifies the exact six expansion positions in both authenticated frozen WebKit event arrays',async()=>{
+ const materialized=await materializeWearableNativeFixture();cleanups.push(materialized.cleanup);
+ for(const project of ['kit-webkit','kit-mobile-webkit']){
+  const capture=JSON.parse(await fs.readFile(path.join(materialized.directory,'clone/.local-notes/original-browser-capture',project+'.json'),'utf8')) as {oracle:{eventChronology:unknown[]}};
+  const historical=capture.oracle.eventChronology,expanded=wearableExpectedEventChronology(historical,'darwin','webkit');
+  expect(expanded).toHaveLength(116);expect(expanded.filter((_,index)=>![2,5,58,61,88,91].includes(index))).toEqual(historical);
+ }
 });

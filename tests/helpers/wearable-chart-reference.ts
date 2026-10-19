@@ -41,6 +41,26 @@ export function historicalWearableDatasetMetadata(metadata:ChartReceipt['dataset
   return {...point,x:0,y:0};
  })}));
 }
+/** Cocoa WebKit needs Option for physical full-control traversal. Expand only
+ * the six known chords in the authenticated 110-row historical chronology. */
+export function wearableExpectedEventChronology(historical:readonly unknown[],platform:string,browserName:string):unknown[] {
+ assert.equal(historical.length,110,'Complete frozen 110-event chronology');
+ if(platform!=='darwin'||browserName!=='webkit')return structuredClone([...historical]);
+ const reverse={type:'keydown',action:'modal-close',metric:null,key:'Shift',trusted:true,focus:''};
+ const forward={type:'keydown',action:'delete-detail-manual-entry',metric:'weight',key:'Tab',trusted:true,focus:''};
+ const positions=new Map<number,typeof reverse|typeof forward>([[2,reverse],[4,forward],[56,reverse],[58,forward],[84,reverse],[86,forward]]);
+ for(const [index,expected] of positions){
+  assert.deepEqual(historical[index],expected,'Exact frozen physical chord owner, metric, key, trust and focus');
+  if(expected===reverse)assert.deepEqual(historical[index+1],{...reverse,key:'Tab'},'Exact frozen reverse chord Tab');
+ }
+ const expanded:unknown[]=[];
+ for(const [index,row] of historical.entries()){
+  const chord=positions.get(index);if(chord)expanded.push({...chord,key:'Alt'});
+  expanded.push(structuredClone(row));
+ }
+ assert.equal(expanded.length,116,'Exactly six trusted Cocoa Option keydowns');
+ return expanded;
+}
 /** Actual bytes, dimensions and complete paint receipt; neither tolerances nor
  * an alternate SHA can satisfy this boundary. The case checks all nonpaint too. */
 export function assertWearableChartFrame(expected:WearableChartFrame,actual:WearableChartFrame) {
@@ -101,6 +121,8 @@ export async function captureWearableChartReference(browser:Browser,candidatePag
  assert(history&&warm);assert.deepEqual(Object.keys(history.rawStates),wearableReferenceKeys);
  const frames:WearableChartFrame[]=[],historicalPaintMismatches:Array<{key:string;expected:ChartReceipt['paint'];actual:ChartReceipt['paint']}>=[];
  const historicalDatasetCoordinateMismatches:Array<{key:string;expected:ChartReceipt['datasetMetadata'];actual:ChartReceipt['datasetMetadata']}>=[];
+ const expectedEventChronology=wearableExpectedEventChronology(history.oracle.eventChronology,process.platform,browser.browserType().name());
+ let originalEventChronology:unknown[]=[],originalEventsQualified=false;
  const lifecycle:WearableFixtureLifecycle={errors:[],dropped:0,removed:false};
  let fixture:Awaited<ReturnType<typeof materializeWearableOriginalApplication>>|undefined,context:BrowserContext|undefined,ownedServer:Awaited<ReturnType<typeof startKitServer>>|undefined;
  let primary:unknown,present=false,totalBytes=0,environment:Awaited<ReturnType<typeof browserEnvironment>>|undefined;
@@ -170,8 +192,8 @@ const oracle:NativeOracle={profileStates:{},detailBodies:{},dailyStates:{},chart
    else{await keyboard(page,page.locator('#detail-modal [data-wearable-action="close-detail-manual-add"]'));steps.push(await check('bp-after-cancel',state,true));}
    await page.keyboard.press('Escape');await expect(page.locator('#modal-overlay')).toBeHidden();await detail(page,'rhr');steps.push(await check('pulse-after-merge','after-selected-pair-delete',true));await page.keyboard.press('Escape');await expect(page.locator('#modal-overlay')).toBeHidden();phases.push({phase,steps});await page.close();expect(context.pages()).toHaveLength(0);
   }
-  oracle.eventChronology=structuredClone(events);oracle.nativePOSTRequests=requests.filter(row=>(row as {method:string}).method==='POST').map(row=>{const request=row as {url:string;method:string;body:string|null};return{path:new URL(request.url).pathname,method:request.method,body:request.body};});expect(errors).toEqual([]);expect(csp).toEqual([]);expect(external).toEqual([]);expect(await originalArtifactInputs(modules,sheets)).toEqual(artifact);const captured={originalNativeBrowserCapture:true,project:info.project.name,oracle,chartCallbacks,rawStates,artifact,phases,events,requests,errors,csp,external,allSourceKnownMutationGuardsPassed:true,actualRealVendorChart:true,candidateAcceptanceClaimed:false};
-  assert.deepEqual(captured.oracle,history.oracle,'Complete original semantic oracle, event and native POST chronology');
+  oracle.eventChronology=structuredClone(events);originalEventChronology=structuredClone(events);oracle.nativePOSTRequests=requests.filter(row=>(row as {method:string}).method==='POST').map(row=>{const request=row as {url:string;method:string;body:string|null};return{path:new URL(request.url).pathname,method:request.method,body:request.body};});expect(errors).toEqual([]);expect(csp).toEqual([]);expect(external).toEqual([]);expect(await originalArtifactInputs(modules,sheets)).toEqual(artifact);const captured={originalNativeBrowserCapture:true,project:info.project.name,oracle,chartCallbacks,rawStates,artifact,phases,events,requests,errors,csp,external,allSourceKnownMutationGuardsPassed:true,actualRealVendorChart:true,candidateAcceptanceClaimed:false};
+  assert.deepEqual(captured.oracle,{...history.oracle,eventChronology:expectedEventChronology},'Complete original semantic oracle, exact platform chord events and native POST chronology');originalEventsQualified=true;
   assert.deepEqual(captured.phases.map(value=>({phase:value.phase,keys:(value.steps as NativeState[]).map(row=>row.profileState+'/'+row.name)})),history.phases.map(value=>({phase:value.phase,keys:value.steps.map(row=>row.profileState+'/'+row.name)})));
   assertWearableReferenceInventory(frames);await fixture.verify();
  } catch(error) {primary=error;present=true;}
@@ -179,14 +201,14 @@ const oracle:NativeOracle={profileStates:{},detailBodies:{},dailyStates:{},chart
   if(ownedServer&&!ownedServer.state.offline)try{await ownedServer.close();}catch(error){cleanupError('original server close',error);}
   if(context)try{await context.close();}catch(error){cleanupError('original context close',error);}
   if(fixture)try{await fixture.cleanup();}catch(error){cleanupError('original fixture aftercheck/removal',error);}
-  try {const originalProof=info.outputPath('wearable-same-browser-original-reference.json');await fs.writeFile(originalProof,JSON.stringify({project:info.project.name,browser:browser.browserType().name(),browserVersion:browser.version(),environment,originalApplicationSHA256:'0d2741f9fdd336dd29c6a3012ea3cb4694e53b879147395fd6fd3e8f2bb4968a',frames:frames.map(({rgba,...frame})=>({...frame,rgbaBytes:rgba.length})),totalRGBABytes:totalBytes,historicalPaintMismatches,historicalDatasetCoordinateMismatches,historicalDatasetCoordinateGatePassed:frames.length===18&&historicalDatasetCoordinateMismatches.length===0,historicalPaintGatePassed:frames.length===18&&historicalPaintMismatches.length===0,lifecycle,cleanupErrors,completed:!present&&frames.length===18&&cleanupErrors.length===0&&lifecycle.errors.length===0&&lifecycle.dropped===0&&lifecycle.removed},null,2),{flag:'wx'});await info.attach('wearable-same-browser-original-reference',{path:originalProof,contentType:'application/json'});}catch(error){cleanupError('original reference attachment',error);}
+  try {const originalProof=info.outputPath('wearable-same-browser-original-reference.json');await fs.writeFile(originalProof,JSON.stringify({project:info.project.name,browser:browser.browserType().name(),browserVersion:browser.version(),environment,eventChronology:originalEventChronology,historicalEventChronology:history.oracle.eventChronology,expectedEventChronology,eventChronologyQualified:originalEventsQualified,originalApplicationSHA256:'0d2741f9fdd336dd29c6a3012ea3cb4694e53b879147395fd6fd3e8f2bb4968a',frames:frames.map(({rgba,...frame})=>({...frame,rgbaBytes:rgba.length})),totalRGBABytes:totalBytes,historicalPaintMismatches,historicalDatasetCoordinateMismatches,historicalDatasetCoordinateGatePassed:frames.length===18&&historicalDatasetCoordinateMismatches.length===0,historicalPaintGatePassed:frames.length===18&&historicalPaintMismatches.length===0,lifecycle,cleanupErrors,completed:!present&&frames.length===18&&cleanupErrors.length===0&&lifecycle.errors.length===0&&lifecycle.dropped===0&&lifecycle.removed},null,2),{flag:'wx'});await info.attach('wearable-same-browser-original-reference',{path:originalProof,contentType:'application/json'});}catch(error){cleanupError('original reference attachment',error);}
  }
  if(present)throw primary;
  assert.equal(cleanupErrors.length,0,'Original reference cleanup and evidence must succeed');assert.equal(lifecycle.errors.length,0);assert.equal(lifecycle.dropped,0);assert(lifecycle.removed);
  let consumed=0,candidateBytes=0;
  const comparedStates:Array<{key:string;width:number;height:number;bytes:number;sha256:string;rawBytesEqual:true;completePaintEqual:true;datasetMetadataEqual:true}>=[];
  return {
-  frames,historicalPaintMismatches,
+  frames,historicalPaintMismatches,eventChronology:structuredClone(originalEventChronology),expectedEventChronology:structuredClone(expectedEventChronology),
   async compare(page:Page,key:string,chart:ChartReceipt,binding:Artifact['state'],observer:typeof OriginalObserver.wearableActualChartReceipt) {
    assert.equal(key,wearableReferenceKeys[consumed],'Every candidate state once in chronological order');const expected=frames[consumed];assert(expected);
    const actual=await rawFrame(page,key,chart,binding,observer);candidateBytes+=actual.rgba.length;assert(candidateBytes<=64*1024*1024,'Unchanged 64MiB candidate journey cap');assertWearableChartFrame(expected,actual);comparedStates.push({key,width:actual.width,height:actual.height,bytes:actual.rgba.length,sha256:actual.paint.sha256,rawBytesEqual:true,completePaintEqual:true,datasetMetadataEqual:true});consumed++;return expected.paint;
