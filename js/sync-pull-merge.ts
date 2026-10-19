@@ -32,7 +32,7 @@ import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { invalidateActiveDataCache } from './data.js';
 import {
-  getProfiles, loadProfile, migrateProfileData, profileStorageKey, saveProfiles,
+  getProfiles, isActiveProfileDataOwner, loadProfile, migrateProfileData, profileStorageKey, saveProfiles,
 } from './profile.js';
 import { encryptedSetItem, encryptedGetItem } from './crypto.js';
 import { mergeImportedData, localHasRowsRemoteLacks, preserveFreshLocalLabEntries } from './data-merge.js';
@@ -204,7 +204,7 @@ function preserveLocalOnlyProfileData(merged: PulledImportedData, localImported:
 export function captureSyncPullBaseline(profileId: string): Promise<SyncPullBaseline> {
   return queueProfileDataWrite(profileId, async () => {
     const rawStored = await encryptedGetItem(profileStorageKey(profileId, 'imported'), { throwOnDecryptError: true });
-    const active = profileId === state.currentProfile;
+    const active = isActiveProfileDataOwner(profileId, state.importedData);
     return {
       stored: rawStored ? JSON.parse(rawStored) as PulledImportedData : null,
       live: active ? structuredClone(state.importedData || null) : null,
@@ -223,7 +223,7 @@ export async function mergePulledImportedData(profileId: string, importedData: P
   const localImportedForMerge = live && baseline && stored
     ? mergeProfileMutation(baseline, live, stored) : (live || stored);
   const localImportedBeforeMerge = importedDataSnapshot(localImportedForMerge);
-  const restoreJoinApplied = profileId === state.currentProfile && isRestoreJoinPending();
+  const restoreJoinApplied = isActiveProfileDataOwner(profileId, state.importedData) && isRestoreJoinPending();
   const localBaselineForMerge = restoreJoinApplied
     ? withoutLocalTombstones(localImportedForMerge)
     : localImportedForMerge;
@@ -235,7 +235,7 @@ export async function mergePulledImportedData(profileId: string, importedData: P
   // payload (tokens stay per-device), so the remote blob never carries
   // them. Without this merge the pull would wipe this device's OAuth
   // tokens and silently disconnect every connected vendor.
-  const localWearableConnections = profileId === state.currentProfile
+  const localWearableConnections = isActiveProfileDataOwner(profileId, state.importedData)
     ? (state.importedData?.wearableConnections || null)
     : (localImportedForMerge?.wearableConnections || null);
   if (localWearableConnections && importedData) {
@@ -308,17 +308,25 @@ export async function persistPulledImportedData(localKey: string, profileId: str
     // Rebase edits committed while the row overlay was running, under the same
     // lock as ordinary saves. Local changes since the pull began take priority.
     let committed = baseline ? mergeProfileMutation(baseline.stored || {}, latest || {}, merged) : structuredClone(merged);
-    const liveBeforeWrite = profileId === state.currentProfile ? structuredClone(state.importedData || null) : null;
-    if (baseline?.live && liveBeforeWrite) committed = mergeProfileMutation(baseline.live, liveBeforeWrite, committed);
+    const liveDataBeforeWrite = isActiveProfileDataOwner(profileId, state.importedData) ? state.importedData : null;
+    const liveBeforeWrite = liveDataBeforeWrite ? structuredClone(liveDataBeforeWrite) : null;
+    // A profile activated after the early snapshot still owns unsaved edits.
+    // Compare them with that live object's remembered origin, never with its
+    // already-edited value; retain the early stored origin for durable saves.
+    const liveBaseline = baseline && (baseline.live ?? (liveBeforeWrite ? profileDataBaseline(state.importedData) : null));
+    if (liveBaseline && liveBeforeWrite) committed = mergeProfileMutation(liveBaseline, liveBeforeWrite, committed);
     preserveFreshLocalBiologyScoreAI(committed, latest, null);
     migrateProfileData(committed as ProfileData);
     await encryptedSetItem(localKey, JSON.stringify(committed));
     localStorage.setItem(`labcharts-${profileId}-sync-ts`, String(remoteUpdated));
     const needsRebroadcast = !importedDataMatches(importedDataSnapshot(merged), committed);
     adoptProfileData(merged, committed);
-    if (profileId === state.currentProfile && state.importedData) {
+    if (isActiveProfileDataOwner(profileId, state.importedData) && state.importedData) {
       const live = state.importedData;
-      const result = rebaseLiveProfileData(liveBeforeWrite || {}, live, committed);
+      // A newly installed profile object has its own read origin. Reusing an
+      // earlier object (or {}) would turn its loaded fields into local edits.
+      const liveOrigin = live === liveDataBeforeWrite ? liveBeforeWrite : profileDataBaseline(live);
+      const result = rebaseLiveProfileData(liveOrigin || {}, live, committed);
       adoptProfileData(live, result.data);
       rememberProfileData(live, result.baseline);
       invalidateActiveDataCache();

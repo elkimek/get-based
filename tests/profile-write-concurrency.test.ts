@@ -2,7 +2,7 @@ import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import { state } from '../js/state.js';
 import { mergeProfileMutation, rememberProfileData, adoptProfileData } from '../js/profile-data-writes.js';
 import { saveImportedData, saveImportedDataForProfile, notifyProfileDataContextChanged, configureDataContextDependencies } from '../js/data.js';
-import { profileStorageKey } from '../js/profile.js';
+import { profileStorageKey, loadProfile, configureProfileRuntimeDeps } from '../js/profile.js';
 import * as crypto from '../js/crypto.js';
 import * as sync from '../js/sync.js';
 import { mergePulledImportedData, persistPulledImportedData } from '../js/sync-pull-merge.js';
@@ -779,6 +779,317 @@ it('isolates an unreadable profile while a healthy profile accepts its remote up
       configureSyncPull({ getEvolu: () => null, getProfileQuery: () => null, isSyncEnabled: () => true, getProfiles: () => [], pushDirtyProfiles: async () => ({ total: 0, succeeded: 0, failed: 0, skipped: 0 }), reconcilePulledManualWearables: async () => {} });
       configureSyncTombstones(previousTombstones);
       if (previousHealthy === null) await crypto.encryptedRemoveItem(healthyKey); else await crypto.encryptedSetItem(healthyKey, previousHealthy);
+    }
+  }
+});
+
+for (const failSave of [true, false]) it(`retains edits after switching into a formerly inactive pull profile: ${failSave ? 'failed save' : 'committed save'}`, async () => {
+  const previousState = { ...state };
+  const originalA = state.importedData;
+  const storedA = await crypto.encryptedGetItem(key);
+  const otherId = `${profileId}-switched-live-${failSave ? 'failed' : 'saved'}`;
+  const otherKey = profileStorageKey(otherId, 'imported');
+  const previousOther = await crypto.encryptedGetItem(otherKey);
+  const previousActive = localStorage.getItem('labcharts-active-profile');
+  const prefix = `labcharts-${otherId}-`;
+  const previousKeys = new Map<string, string>();
+  for (let index = 0; index < localStorage.length; index++) {
+    const name = localStorage.key(index);
+    if (name?.startsWith(prefix)) previousKeys.set(name, localStorage.getItem(name)!);
+  }
+  const baselineB = structuredClone(originalA);
+  baselineB.contextNotes = 'B before pull';
+  baselineB.lightEnvironment = { rooms: [
+    { id: 'shared-room', name: 'Original room', updatedAt: 1 },
+    { id: 'deleted-room', name: 'Remove locally', updatedAt: 1 },
+  ] };
+  await crypto.encryptedSetItem(otherKey, JSON.stringify(baselineB));
+  const remote = structuredClone(baselineB);
+  remote.contextNotes = 'conflicting remote scalar';
+  remote.interpretiveLens = 'independent remote lens';
+  remote.lightEnvironment = { rooms: [
+    { id: 'shared-room', name: 'Conflicting remote room', updatedAt: 3 },
+    { id: 'deleted-room', name: 'Remove locally', updatedAt: 1 },
+    { id: 'remote-room', name: 'Independent remote room', updatedAt: 3 },
+  ] };
+  const remoteNote = { date: '2026-09-18', text: 'independent remote note' };
+  remote.notes!.push(remoteNote);
+  const dataJson = JSON.stringify({ _v: 3, importedData: remote, profile: null });
+  const row = { id: 'switched-live-row', profileId: otherId, syncedAt: '2026-09-01T00:00:00.000Z', dataJson };
+  const profiles = () => [{ id: profileId }, { id: otherId }];
+  const previousHooks = configureSyncSaveHooks({});
+  const previousTombstones = configureSyncTombstones({ getEvolu: () => null });
+  const previousRuntime = configureProfileRuntimeDeps({ invalidateProfileContextCache: null,
+    reloadProfileRuntimeShell: null, refreshProfileWearables: null });
+  const actualDecode = syncPayload.parseSyncPayload;
+  let release!: () => void, entered!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const decoding = new Promise<void>(resolve => { entered = resolve; });
+  let gated = false, pending: Promise<void> | undefined;
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  try {
+    localStorage.removeItem(`${prefix}sync-dirty`);
+    configureSyncSaveHooks({ isSyncConfigured: () => true, isSyncEnabled: () => false, getProfiles: profiles });
+    configureSyncPull({ getEvolu: () => ({ getQueryRows: () => [row] }), getProfileQuery: () => ({}),
+      isSyncEnabled: () => true, getProfiles: profiles,
+      pushDirtyProfiles: async () => ({ total: 0, succeeded: 0, failed: 0, skipped: 0 }),
+      pushProfile: async () => {}, reconcilePulledManualWearables: async () => {},
+    });
+    vi.spyOn(syncPayload, 'parseSyncPayload').mockImplementation(async value => {
+      const parsed = await actualDecode(value);
+      if (value === dataJson && !gated) { gated = true; entered(); await gate; }
+      return parsed;
+    });
+    pending = onSyncReceived();
+    await Promise.race([decoding, pending.then(() => { throw new Error('Pull never reached the decoder barrier'); })]);
+    expect(state.currentProfile).toBe(profileId);
+    // Genuine profile loading remembers B's own persisted origin; A owned the
+    // earlier receive snapshot. The failed write must leave this edit live.
+    await loadProfile(otherId);
+    expect(state.currentProfile).toBe(otherId);
+    expect(state.importedData.contextNotes).toBe('B before pull');
+    state.importedData.contextNotes = 'local edit after switching';
+    state.importedData.lightEnvironment = { rooms: [{ id: 'shared-room', name: 'Local edited room', updatedAt: 2 }] };
+    const localNote = { date: '2026-09-17', text: 'local after switching' };
+    state.importedData.notes!.push(localNote);
+    if (failSave) vi.spyOn(crypto, 'encryptedSetItem').mockRejectedValueOnce(new Error('owned switched-profile save fault'));
+    expect(await saveImportedData()).toBe(!failSave);
+    const beforeResume = JSON.parse((await crypto.encryptedGetItem(otherKey))!) as typeof baselineB;
+    expect(beforeResume.contextNotes).toBe(failSave ? 'B before pull' : 'local edit after switching');
+    expect(state.importedData.contextNotes).toBe('local edit after switching');
+    expect(state.importedData.lightEnvironment!.rooms).toEqual([{ id: 'shared-room', name: 'Local edited room', updatedAt: 2 }]);
+    expect(getSyncDirtyToken(otherId)).toEqual(failSave ? null : expect.any(String));
+    release(); await pending;
+    const committed = JSON.parse((await crypto.encryptedGetItem(otherKey))!) as typeof baselineB;
+    for (const data of [state.importedData, committed]) {
+      expect(data.contextNotes).toBe('local edit after switching');
+      expect(data.interpretiveLens).toBe('independent remote lens');
+      expect(data.lightEnvironment!.rooms).toHaveLength(2);
+      expect(data.lightEnvironment!.rooms).toEqual(expect.arrayContaining([
+        { id: 'shared-room', name: 'Local edited room', updatedAt: 2 },
+        { id: 'remote-room', name: 'Independent remote room', updatedAt: 3 },
+      ]));
+      expect(data.notes).toHaveLength(2);
+      expect(data.notes).toEqual(expect.arrayContaining([localNote, remoteNote]));
+    }
+    expect(state.currentProfile).toBe(otherId);
+    expect(await crypto.encryptedGetItem(key)).toBe(storedA);
+    expect(originalA.contextNotes).toBe('original');
+    expect(originalA.notes).toEqual([]);
+    expect(isSyncPulling()).toBe(false);
+    expect(await saveImportedData()).toBe(true);
+  } finally {
+    try { release(); await pending; } finally {
+      clearSyncSaveTimers(); vi.clearAllTimers(); vi.useRealTimers();
+      configureSyncPull({ getEvolu: () => null, getProfileQuery: () => null, isSyncEnabled: () => true, getProfiles: () => [], pushDirtyProfiles: async () => ({ total: 0, succeeded: 0, failed: 0, skipped: 0 }), pushProfile: async () => {}, reconcilePulledManualWearables: async () => {} });
+      configureSyncSaveHooks(previousHooks); configureSyncTombstones(previousTombstones);
+      configureProfileRuntimeDeps(previousRuntime);
+      Object.assign(state, previousState);
+      if (previousActive === null) localStorage.removeItem('labcharts-active-profile'); else localStorage.setItem('labcharts-active-profile', previousActive);
+      for (let index = localStorage.length - 1; index >= 0; index--) { const name = localStorage.key(index); if (name?.startsWith(prefix)) localStorage.removeItem(name); }
+      for (const [name, value] of previousKeys) localStorage.setItem(name, value);
+      if (previousOther === null) await crypto.encryptedRemoveItem(otherKey); else await crypto.encryptedSetItem(otherKey, previousOther);
+    }
+  }
+});
+
+it('retains live edits when an inactive pull profile is activated during the queued persistence read', async () => {
+  const previousState = { ...state };
+  const originalA = state.importedData;
+  const storedA = await crypto.encryptedGetItem(key);
+  const otherId = `${profileId}-switched-during-persist`;
+  const otherKey = profileStorageKey(otherId, 'imported');
+  const previousOther = await crypto.encryptedGetItem(otherKey);
+  const previousActive = localStorage.getItem('labcharts-active-profile');
+  const previousTimestamp = localStorage.getItem(`labcharts-${otherId}-sync-ts`);
+  const baselineB = structuredClone(originalA);
+  baselineB.contextNotes = 'B before persistence';
+  await crypto.encryptedSetItem(otherKey, JSON.stringify(baselineB));
+  const remote = structuredClone(baselineB);
+  remote.contextNotes = 'conflicting remote value';
+  remote.interpretiveLens = 'independent queued remote lens';
+  const actualRead = crypto.encryptedGetItem;
+  const previousRuntime = configureProfileRuntimeDeps({ invalidateProfileContextCache: null,
+    reloadProfileRuntimeShell: null, refreshProfileWearables: null });
+  let release!: () => void, entered!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const reading = new Promise<void>(resolve => { entered = resolve; });
+  let gated = false, pending: ReturnType<typeof persistPulledImportedData> | undefined;
+  try {
+    // The public merge captures B while A remains active. Then the actual
+    // locked persistence read yields before B is loaded and edited in memory.
+    const pull = await mergePulledImportedData(otherId, remote);
+    expect(state.currentProfile).toBe(profileId);
+    vi.spyOn(crypto, 'encryptedGetItem').mockImplementation(async (...args) => {
+      const raw = await actualRead(...args);
+      if (args[0] === otherKey && !gated) { gated = true; entered(); await gate; }
+      return raw;
+    });
+    pending = persistPulledImportedData(pull.localKey, otherId, pull.merged, Date.now());
+    await Promise.race([reading, pending.then(() => { throw new Error('Persistence never reached the encrypted-read barrier'); })]);
+    await loadProfile(otherId);
+    expect(state.importedData.contextNotes).toBe('B before persistence');
+    state.importedData.contextNotes = 'local edit during queued persistence';
+    expect(JSON.parse((await actualRead(otherKey))!).contextNotes).toBe('B before persistence');
+    release(); await pending;
+    expect(state.currentProfile).toBe(otherId);
+    expect(state.importedData.contextNotes).toBe('local edit during queued persistence');
+    expect(state.importedData.interpretiveLens).toBe('independent queued remote lens');
+    expect(JSON.parse((await actualRead(otherKey))!)).toMatchObject({
+      contextNotes: 'local edit during queued persistence', interpretiveLens: 'independent queued remote lens',
+    });
+    expect(await actualRead(key)).toBe(storedA);
+    expect(originalA.contextNotes).toBe('original');
+  } finally {
+    try { release(); await pending; } finally {
+      configureProfileRuntimeDeps(previousRuntime);
+      Object.assign(state, previousState);
+      if (previousActive === null) localStorage.removeItem('labcharts-active-profile'); else localStorage.setItem('labcharts-active-profile', previousActive);
+      if (previousTimestamp === null) localStorage.removeItem(`labcharts-${otherId}-sync-ts`); else localStorage.setItem(`labcharts-${otherId}-sync-ts`, previousTimestamp);
+      if (previousOther === null) await crypto.encryptedRemoveItem(otherKey); else await crypto.encryptedSetItem(otherKey, previousOther);
+    }
+  }
+});
+
+for (const rejectInvalidation of [false, true]) it(`avoids cross-profile adoption during a profile-data handoff: ${rejectInvalidation ? 'rejected invalidation' : 'pending invalidation'}`, async () => {
+  const previousState = { ...state };
+  const originalA = state.importedData;
+  const pristineA = structuredClone(originalA);
+  const storedA = await crypto.encryptedGetItem(key);
+  const otherId = `${profileId}-handoff-${rejectInvalidation ? 'rejected' : 'pending'}`;
+  const otherKey = profileStorageKey(otherId, 'imported');
+  const previousOther = await crypto.encryptedGetItem(otherKey);
+  const previousActive = localStorage.getItem('labcharts-active-profile');
+  const previousTimestamp = localStorage.getItem(`labcharts-${otherId}-sync-ts`);
+  const baselineB = structuredClone(originalA);
+  baselineB.contextNotes = 'B before handoff';
+  baselineB.wearableConnections = { oura: { token: 'synthetic-B-owned-credential' } };
+  await crypto.encryptedSetItem(otherKey, JSON.stringify(baselineB));
+  const remote = structuredClone(baselineB);
+  remote.contextNotes = 'B remote value';
+  remote.interpretiveLens = 'independent B remote lens';
+  originalA.contextNotes = 'A unsaved value must stay with A';
+  originalA.wearableConnections = { oura: { token: 'synthetic-A-private-credential' } };
+  const beforeLiveA = structuredClone(originalA);
+  let release!: () => void, reject!: (reason: unknown) => void, entered!: () => void;
+  const gate = new Promise<void>((resolve, fail) => { release = resolve; reject = fail; });
+  const invalidating = new Promise<void>(resolve => { entered = resolve; });
+  const fault = new Error('owned profile context invalidation fault');
+  const previousRuntime = configureProfileRuntimeDeps({ invalidateProfileContextCache: async () => { entered(); await gate; },
+    reloadProfileRuntimeShell: null, refreshProfileWearables: null });
+  let loading: ReturnType<typeof loadProfile> | undefined;
+  try {
+    loading = loadProfile(otherId);
+    const rejection = rejectInvalidation ? expect(loading).rejects.toBe(fault) : undefined;
+    await Promise.race([invalidating, loading.then(() => { throw new Error('Profile load never reached the context handoff barrier'); })]);
+    expect(state.currentProfile).toBe(otherId);
+    expect(state.importedData).toBe(originalA);
+    if (rejectInvalidation) { reject(fault); await rejection; }
+    // Both public baseline capture and device-local credential selection run
+    // while the selected B ID still references the unowned A object.
+    const pull = await mergePulledImportedData(otherId, remote);
+    await persistPulledImportedData(pull.localKey, otherId, pull.merged, Date.now());
+    const committedB = JSON.parse((await crypto.encryptedGetItem(otherKey))!) as typeof baselineB;
+    expect(committedB).toMatchObject({ contextNotes: 'B remote value', interpretiveLens: 'independent B remote lens' });
+    expect(committedB.wearableConnections).toEqual(baselineB.wearableConnections);
+    expect(originalA).toEqual(beforeLiveA);
+    expect(await crypto.encryptedGetItem(key)).toBe(storedA);
+    if (!rejectInvalidation) {
+      release(); await loading;
+      expect(state.currentProfile).toBe(otherId);
+      expect(state.importedData).not.toBe(originalA);
+      // This first load owns the B snapshot read before the invalidation gate.
+      expect(state.importedData.contextNotes).toBe('B before handoff');
+      await loadProfile(otherId);
+      expect(state.importedData.contextNotes).toBe('B remote value');
+      expect(state.importedData.interpretiveLens).toBe('independent B remote lens');
+      expect(state.importedData.wearableConnections).toEqual(baselineB.wearableConnections);
+      expect(originalA).toEqual(beforeLiveA);
+    }
+  } finally {
+    try { release(); await loading?.catch(() => {}); } finally {
+      // Complete a genuine data installation after either handoff outcome so
+      // the deliberately rejected transition cannot leak into later cases.
+      configureProfileRuntimeDeps({ invalidateProfileContextCache: null, reloadProfileRuntimeShell: null, refreshProfileWearables: null });
+      try { await loadProfile(profileId); } finally {
+        configureProfileRuntimeDeps(previousRuntime);
+        adoptProfileData(originalA, pristineA);
+        Object.assign(state, previousState);
+        if (previousActive === null) localStorage.removeItem('labcharts-active-profile'); else localStorage.setItem('labcharts-active-profile', previousActive);
+        if (previousTimestamp === null) localStorage.removeItem(`labcharts-${otherId}-sync-ts`); else localStorage.setItem(`labcharts-${otherId}-sync-ts`, previousTimestamp);
+        if (previousOther === null) await crypto.encryptedRemoveItem(otherKey); else await crypto.encryptedSetItem(otherKey, previousOther);
+      }
+    }
+  }
+});
+
+it('rebases an installed profile object during a pending shell hook after the pull write began', async () => {
+  const previousState = { ...state };
+  const originalA = state.importedData;
+  const storedA = await crypto.encryptedGetItem(key);
+  const otherId = `${profileId}-installed-during-write`;
+  const otherKey = profileStorageKey(otherId, 'imported');
+  const previousOther = await crypto.encryptedGetItem(otherKey);
+  const previousActive = localStorage.getItem('labcharts-active-profile');
+  const prefix = `labcharts-${otherId}-`;
+  const previousKeys = new Map<string, string>();
+  for (let index = 0; index < localStorage.length; index++) {
+    const name = localStorage.key(index);
+    if (name?.startsWith(prefix)) previousKeys.set(name, localStorage.getItem(name)!);
+  }
+  const baselineB = structuredClone(originalA);
+  baselineB.contextNotes = 'B read before write';
+  await crypto.encryptedSetItem(otherKey, JSON.stringify(baselineB));
+  const remote = structuredClone(baselineB);
+  remote.contextNotes = 'B remote committed value';
+  remote.interpretiveLens = 'independent remote lens during write';
+  const previousHooks = configureSyncSaveHooks({ isSyncConfigured: () => true, isSyncEnabled: () => false,
+    getProfiles: () => [{ id: profileId }, { id: otherId }] });
+  let releaseWrite!: () => void, writeEntered!: () => void, releaseShell!: () => void, shellEntered!: () => void;
+  const writeGate = new Promise<void>(resolve => { releaseWrite = resolve; });
+  const writing = new Promise<void>(resolve => { writeEntered = resolve; });
+  const shellGate = new Promise<void>(resolve => { releaseShell = resolve; });
+  const installed = new Promise<void>(resolve => { shellEntered = resolve; });
+  const previousRuntime = configureProfileRuntimeDeps({ invalidateProfileContextCache: null,
+    reloadProfileRuntimeShell: async () => { shellEntered(); await shellGate; }, refreshProfileWearables: null });
+  const actualWrite = crypto.encryptedSetItem;
+  let gated = false, pending: ReturnType<typeof persistPulledImportedData> | undefined, loading: ReturnType<typeof loadProfile> | undefined;
+  try {
+    const pull = await mergePulledImportedData(otherId, remote);
+    vi.spyOn(crypto, 'encryptedSetItem').mockImplementation(async (...args) => {
+      if (args[0] === otherKey && !gated) { gated = true; writeEntered(); await writeGate; }
+      return actualWrite(...args);
+    });
+    pending = persistPulledImportedData(pull.localKey, otherId, pull.merged, Date.now());
+    await Promise.race([writing, pending.then(() => { throw new Error('Pull never reached the encrypted-write barrier'); })]);
+    loading = loadProfile(otherId);
+    await Promise.race([installed, loading.then(() => { throw new Error('Profile load never reached the shell barrier'); })]);
+    expect(state.currentProfile).toBe(otherId);
+    expect(state.importedData).not.toBe(originalA);
+    expect(state.importedData.contextNotes).toBe('B read before write');
+    state.importedData.contextNotes = 'local edit after B object installation';
+    releaseWrite(); await pending;
+    expect(state.importedData.contextNotes).toBe('local edit after B object installation');
+    expect(state.importedData.interpretiveLens).toBe('independent remote lens during write');
+    expect(JSON.parse((await crypto.encryptedGetItem(otherKey))!)).toMatchObject({
+      contextNotes: 'B remote committed value', interpretiveLens: 'independent remote lens during write',
+    });
+    releaseShell(); await loading;
+    expect(await saveImportedData()).toBe(true);
+    expect(JSON.parse((await crypto.encryptedGetItem(otherKey))!)).toMatchObject({
+      contextNotes: 'local edit after B object installation', interpretiveLens: 'independent remote lens during write',
+    });
+    expect(await crypto.encryptedGetItem(key)).toBe(storedA);
+    expect(originalA.contextNotes).toBe('original');
+  } finally {
+    try { releaseWrite(); releaseShell(); await pending; await loading; } finally {
+      clearSyncSaveTimers(); configureSyncSaveHooks(previousHooks);
+      configureProfileRuntimeDeps(previousRuntime);
+      Object.assign(state, previousState);
+      if (previousActive === null) localStorage.removeItem('labcharts-active-profile'); else localStorage.setItem('labcharts-active-profile', previousActive);
+      for (let index = localStorage.length - 1; index >= 0; index--) { const name = localStorage.key(index); if (name?.startsWith(prefix)) localStorage.removeItem(name); }
+      for (const [name, value] of previousKeys) localStorage.setItem(name, value);
+      if (previousOther === null) await crypto.encryptedRemoveItem(otherKey); else await crypto.encryptedSetItem(otherKey, previousOther);
     }
   }
 });
