@@ -156,12 +156,16 @@ function clearPendingActivation() {
   activationTimer = null;
 }
 
-export function hideVersionUpdateBanner() {
+function suspendVersionUpdateBanner() {
   clearPendingActivation();
   activationError = null;
-  reloadAvailable = false;
   activationDeferred = false;
   removeBanner();
+}
+
+export function hideVersionUpdateBanner() {
+  reloadAvailable = false;
+  suspendVersionUpdateBanner();
 }
 
 export function showVersionUpdateBanner(registration?: UpdateRegistrationView | null) {
@@ -482,7 +486,7 @@ export async function registerServiceWorkerUpdates({
     const registration = await serviceWorkerContainer.register!('/service-worker.js', { updateViaCache: 'none' });
     registeredContainer = serviceWorkerContainer;
     reloadPage = () => win.location!.reload();
-    win.addEventListener?.('pagehide', hideVersionUpdateBanner);
+    win.addEventListener?.('pagehide', suspendVersionUpdateBanner);
     const reportClientBuildTo = (...workers: Array<UpdateWorkerView | null | undefined>) => {
       const id = typeof win.APP_BUILD_ID === 'string' ? win.APP_BUILD_ID.trim() : '';
       if (!/^[a-z\d._-]{1,128}$/i.test(id)) return;
@@ -517,10 +521,10 @@ export async function registerServiceWorkerUpdates({
     win.addEventListener?.('pageshow', event => {
       if (!event.persisted) return;
       // BFCache restores the same document after pagehide cleared its intent.
-      // Reoffer the waiting update directly, without a throttled version check
-      // or consent carried over from before the document left the page.
+      // Reoffer waiting updates or an installed version's manual Reload action,
+      // without a throttled check or automatic consent from before page exit.
       reportClientBuild();
-      if (canPromptForUpdate(registration, serviceWorkerContainer)) showVersionUpdateBanner(registration);
+      if (reloadAvailable || canPromptForUpdate(registration, serviceWorkerContainer)) showVersionUpdateBanner(registration);
     });
     reportClientBuild();
     let refreshing = false;

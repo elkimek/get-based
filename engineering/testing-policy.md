@@ -9,7 +9,9 @@ branch, race, device, or provider works correctly.
 Update acceptance preserves the all-window ownership census and exact retained
 build-cache checks. Check visible pending feedback, duplicate clicks, deferral,
 message failures, timeout recovery, vanished waiting workers, unrelated replacements
-and stale intent after page exit. [Banner tests](../tests/service-worker-update.test.ts)
+and stale intent after page exit. Returning from the back/forward cache must restore
+an installed version's manual Reload offer without automatically reloading; Later
+must still dismiss it. [Banner tests](../tests/service-worker-update.test.ts)
 and [browser transitions](../tests/pwa/update-acceptance.spec.ts) cover this boundary;
 [worker ownership tests](../tests/service-worker-client-cache.test.ts) retain the
 activation and cache protections. The small browser fixture is a protocol regression,

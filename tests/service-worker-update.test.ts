@@ -932,6 +932,54 @@ describe('vanished waiting-worker and document lifecycle recovery', () => {
 
 
 describe('BFCache waiting-update recovery', () => {
+  it.each(['controllerchange', 'activation-timeout'])('restores the installed Reload offer after %s without carrying automatic consent across page exit', async origin => {
+    vi.useFakeTimers();
+    const fixture = await directWaitingFixture();
+    if (origin === 'activation-timeout') serviceWorkerUpdate!.applyPendingServiceWorkerUpdate();
+    fixture.container.controller = fixture.waiting;
+    fixture.registration.waiting = null;
+    if (origin === 'controllerchange') fixture.changed();
+    else vi.advanceTimersByTime(30_000);
+    expect(document.getElementById('version-update-banner')!.textContent).toContain('New version installed');
+    fixture.waiting.postMessage.mockClear();
+    for (let visit = 0; visit < 2; visit += 1) {
+      fixture.pagehide();
+      expect(document.getElementById('version-update-banner')).toBeNull();
+      expect(document.body.classList.contains('version-update-visible')).toBe(false);
+      fixture.pageshow();
+      const banner = document.getElementById('version-update-banner')!;
+      expect(banner).not.toBeNull();
+      expect(banner.textContent).toContain('New version installed');
+      expect(banner.getAttribute('aria-busy')).toBe('false');
+      expect(banner.getAttribute('aria-label')).toBe('App update ready to reload');
+      expect(document.body.classList.contains('version-update-visible')).toBe(true);
+      const primary = banner.querySelector<HTMLButtonElement>('[data-version-update-action="apply"]')!;
+      expect(primary.textContent).toBe('Reload');
+      expect(primary.disabled).toBe(false);
+      expect(fixture.reload).not.toHaveBeenCalled();
+      expect(vi.getTimerCount()).toBe(0);
+    }
+    expect(fixture.waiting.postMessage).toHaveBeenCalledTimes(2);
+    expect(fixture.waiting.postMessage).toHaveBeenNthCalledWith(1, { type: 'CLIENT_BUILD_ID', buildId: 'original-document' });
+    expect(fixture.waiting.postMessage).toHaveBeenNthCalledWith(2, { type: 'CLIENT_BUILD_ID', buildId: 'original-document' });
+    document.querySelector<HTMLButtonElement>('[data-version-update-action="apply"]')!.click();
+    expect(fixture.reload).toHaveBeenCalledTimes(1);
+    expect(document.getElementById('version-update-banner')).toBeNull();
+  });
+
+  it('does not restore a deliberately dismissed installed Reload offer', async () => {
+    const fixture = await directWaitingFixture();
+    fixture.container.controller = fixture.waiting;
+    fixture.registration.waiting = null;
+    fixture.changed();
+    expect(document.getElementById('version-update-banner')!.textContent).toContain('New version installed');
+    document.querySelector<HTMLButtonElement>('[data-version-update-action="dismiss"]')!.click();
+    fixture.pagehide();
+    fixture.pageshow();
+    expect(document.getElementById('version-update-banner')).toBeNull();
+    expect(fixture.reload).not.toHaveBeenCalled();
+    expect(fixture.waiting.postMessage).not.toHaveBeenCalledWith({ type: 'SKIP_WAITING' });
+  });
   it('restores the offered waiting banner on persisted pageshow without a version check or automatic activation', async () => {
     vi.useFakeTimers();
     const fixture = await directWaitingFixture();
