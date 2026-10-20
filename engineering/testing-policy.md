@@ -36,7 +36,8 @@ or source-audit tool is not an application input. Cached module URLs and the
 bootstrap HTML are packaging references, so an indirect feature edit does not
 pretend that the worker or HTML itself changed. Changed application modules
 still select their actual transitive behavior consumers and the app-shell graph
-and shipping-build contracts. Unknown modules and untested Svelte owners fail
+and shipping-build contracts. Changes reaching application initialization also
+retain actual AppShell hydration acceptance in all four shipping browser projects. Unknown modules and untested Svelte owners fail
 closed even when unrelated packaging checks are selected.
 
 The planner may qualify a precache inventory diff as additive only against its

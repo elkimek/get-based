@@ -255,6 +255,10 @@ export function createTestPlan(sources: Map<string, string>, changedFiles: strin
     .filter(file => /^tests\/test-.*\.[jt]s$/.test(file));
   const reasons: string[] = [];
   if (additions) reasons.push('Additive precache modules: retain asset graph contracts and select each added module behavior.');
+  if ([...affected].some(file => runtimePath(file) === 'js/main.js')) {
+    for (const file of all) if (runtimePath(file) === 'tests/pwa/sveltekit-app-shell.spec.js') affected.add(file);
+    reasons.push('Shared application initialization: retain actual four-engine AppShell hydration acceptance.');
+  }
   if (roots.some(file => /^(?:js|vendor)\//.test(file))) {
     for (const file of all) if (['tests/service-worker-app-shell.test.js', 'tests/production-build.test.js'].includes(runtimePath(file))) affected.add(file);
   }

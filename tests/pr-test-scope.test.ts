@@ -441,6 +441,7 @@ describe('behavior dependencies stop at packaging and runnable test boundaries',
     'service-worker.ts': "importScripts('/service-worker-assets.js');",
     'tests/pwa/kit-server.ts': "read('/index.html'); read('/service-worker.js');",
     'tests/pwa/sveltekit-unrelated.spec.ts': "import './kit-server.js';",
+    'tests/pwa/sveltekit-app-shell.spec.ts': "read('index.html');",
     'tests/leaf-contract.test.ts': "read('js/leaf.js');",
     'scripts/known-tests.mts': "const contracts = ['tests/leaf-contract.test.js'];",
     'tests/planner.test.ts': "import '../scripts/known-tests.mjs';",
@@ -451,11 +452,11 @@ describe('behavior dependencies stop at packaging and runnable test boundaries',
     const plan = createTestPlan(application(), ['js/leaf.js']);
     expect(plan.unit).toContain('tests/leaf-contract.test.ts');
     expect(plan.unit).toContain('tests/service-worker-app-shell.test.ts'); expect(plan.unit).toContain('tests/production-build.test.ts');
-    expect(plan.unit).not.toContain('tests/planner.test.ts'); expect(plan.kit).toEqual([]);
+    expect(plan.unit).not.toContain('tests/planner.test.ts'); expect(plan.kit).toEqual(['tests/pwa/sveltekit-app-shell.spec.ts']);
     expect(plan.browser).toEqual(['tests/playwright/consumer.spec.js']); expect(plan.uncovered).toEqual([]);
   });
   it.each(['service-worker-assets.ts', 'service-worker.ts', 'index.html', 'js/main.js'])('preserves full shipping acceptance for directly changed shared boundary %s', file => {
-    expect(createTestPlan(application(), [file]).kit).toEqual(['tests/pwa/sveltekit-unrelated.spec.ts']);
+    expect(createTestPlan(application(), [file]).kit).toEqual(['tests/pwa/sveltekit-app-shell.spec.ts', 'tests/pwa/sveltekit-unrelated.spec.ts']);
   });
   it('does not let mandatory packaging contracts falsely cover an otherwise untested feature', () => {
     const plan = createTestPlan(application(), ['js/no-behavior-test.ts', 'js/components/Untested.svelte']);
@@ -463,7 +464,7 @@ describe('behavior dependencies stop at packaging and runnable test boundaries',
   });
   it('follows changed test helpers and retains each changed runnable test itself', () => {
     const sources = application();
-    expect(createTestPlan(sources, ['tests/pwa/kit-server.ts']).kit).toEqual(['tests/pwa/sveltekit-unrelated.spec.ts']);
+    expect(createTestPlan(sources, ['tests/pwa/kit-server.ts']).kit).toEqual(['tests/pwa/sveltekit-app-shell.spec.ts', 'tests/pwa/sveltekit-unrelated.spec.ts']);
     const changedTest = createTestPlan(sources, ['tests/leaf-contract.test.ts']);
     expect(changedTest.unit).toEqual(['tests/leaf-contract.test.ts']);
     expect(changedTest.kit).toEqual([]);
