@@ -9,9 +9,11 @@ import {fileURLToPath} from 'node:url';
 import {brotliCompressSync, brotliDecompressSync, constants as zlibConstants} from 'node:zlib';
 import type {withAppShellSnapshot as WithShell} from './app-shell-snapshot.mjs';
 import type {withInlineThemeStyleSnapshot as WithThemes} from './inline-theme-style-snapshot.mjs';
+import type {withLegalConsentSnapshot as WithLegal} from './legal-consent-snapshot.mjs';
 // These preinstall helpers are canonical sources with no package dependencies.
 const {withAppShellSnapshot}: {withAppShellSnapshot: typeof WithShell} = await import(new URL('./app-shell-snapshot.mts', import.meta.url).href);
 const {withInlineThemeStyleSnapshot}: {withInlineThemeStyleSnapshot: typeof WithThemes} = await import(new URL('./inline-theme-style-snapshot.mts', import.meta.url).href);
+const {withLegalConsentSnapshot}: {withLegalConsentSnapshot: typeof WithLegal} = await import(new URL('./legal-consent-snapshot.mts', import.meta.url).href);
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TRANSPORT = '.local-notes/ci/compiled';
@@ -46,11 +48,11 @@ async function member(root: string, file: string): Promise<Member> {
   return {file, bytes: body.length, sha256: hash(body)};
 }
 function inputIdentity(file: string, body: Buffer): Member {
-  // Only the existing compiler-owned shell and two inline style bodies are
+  // Only the existing compiler-owned shell, legal gate and two inline style bodies are
   // derived. Their owners validate unique boundaries and exact boot order;
   // every other HTML byte and every canonical source remain exact inputs.
   const authored = file === 'index.html'
-    ? Buffer.from(withAppShellSnapshot(withInlineThemeStyleSnapshot(body.toString('utf8'), '#main-content{}', ''), '')) : body;
+    ? Buffer.from(withLegalConsentSnapshot(withAppShellSnapshot(withInlineThemeStyleSnapshot(body.toString('utf8'), '#main-content{}', ''), ''), '')) : body;
   return {file, bytes: authored.length, sha256: hash(authored)};
 }
 async function inputMember(root: string, file: string): Promise<Member> {

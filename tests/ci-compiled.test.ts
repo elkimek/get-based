@@ -7,6 +7,7 @@ import {createHash} from 'node:crypto';
 import {brotliCompressSync, brotliDecompressSync} from 'node:zlib';
 import {withAppShellSnapshot} from '../scripts/app-shell-snapshot.mjs';
 import {withInlineThemeStyleSnapshot} from '../scripts/inline-theme-style-snapshot.mjs';
+import {withLegalConsentSnapshot} from '../scripts/legal-consent-snapshot.mjs';
 import {sealCompiledInputs, restoreCompiledInputs, verifyCompiledInputs} from '../scripts/ci-compiled.mjs';
 
 const cleanup: string[] = [];
@@ -111,7 +112,7 @@ it('qualifies hundreds of authored inputs without exhausting a low runner descri
 
 it('transports rebuilt shell and inline styles while retaining every authored HTML byte', async () => {
   const sample = await fixture(), original = await fs.readFile('index.html', 'utf8');
-  const generated = withAppShellSnapshot(withInlineThemeStyleSnapshot(original, '#main-content{color:red}', 'html{color:blue}'), '<p>New generated shell</p>');
+  const generated = withLegalConsentSnapshot(withAppShellSnapshot(withInlineThemeStyleSnapshot(original, '#main-content{color:red}', 'html{color:blue}'), '<p>New generated shell</p>'), '<div id="legal-consent-overlay">New generated legal gate</div>');
   await sample.write('index.html', generated);
   const manifest = await sealCompiledInputs(sample.root);
   expect(manifest.outputs.some(row => row.file === 'index.html')).toBe(true);
@@ -149,4 +150,13 @@ it('prequalifies the transported HTML envelope before writing any generated outp
   await sample.write('css/feature.css', 'Retain current generated output');
   await expect(restoreCompiledInputs(sample.root)).rejects.toThrow('Exact authored HTML outside generated sections');
   expect(await fs.readFile(path.join(sample.root, 'css/feature.css'), 'utf8')).toBe('Retain current generated output');
+});
+
+
+it.each(['missing', 'duplicate'])('rejects %s early legal-gate boundaries before sealing compiler output', async kind => {
+  const sample = await fixture(), original = await fs.readFile('index.html', 'utf8');
+  const start = '<!-- LEGAL_SVELTE_BOOT_START -->';
+  const changed = original.replace(start, kind === 'missing' ? '' : start + start);
+  await sample.write('index.html', changed);
+  await expect(sealCompiledInputs(sample.root)).rejects.toThrow('Expected one early legal snapshot boundary');
 });
