@@ -92,7 +92,14 @@ async function inspectSettingsAndDiscussion(page: Page, id: string) {
   await hiddenCard(page, id).getByRole('button', {name: 'Discuss', exact: true}).click();
   await expect(page.locator('#chat-panel')).toHaveClass(/\bopen\b/);
   await expect(page.locator('#chat-input')).toHaveValue(new RegExp('Tip topic: Synthetic glucose <context>'));
+  const prompt = await page.locator('#chat-input').inputValue();
+  const threads = await page.evaluate(() => JSON.parse(localStorage.getItem('labcharts-default-chat-threads')!) as Array<{id: string}>);
+  expect(threads).toHaveLength(1);
+  const draftKey = `labcharts-default-chatDraft_${threads[0]!.id}`;
   await page.getByRole('button', {name: 'Close chat', exact: true}).click();
+  // Closing the panel does not await the accepted composer's debounced save.
+  // Capture the full storage baseline only after that exact draft is durable.
+  await expect.poll(() => page.evaluate(key => localStorage.getItem(key), draftKey)).toBe(prompt);
   expect(await page.evaluate(() => (window as unknown as {discussionRequests: unknown[]}).discussionRequests)).toEqual([]);
 }
 
