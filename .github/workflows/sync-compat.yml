@@ -10,6 +10,11 @@ on:
 permissions:
   contents: read
 
+# Superseded PR heads cannot produce current review evidence. Main runs remain intact.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   scope:
     name: Select sync compatibility scope

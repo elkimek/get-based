@@ -55,7 +55,7 @@
     "pretest": "npm run typescript:build",
     "preproduction:build": "npm run typescript:build",
     "preproduction:check": "npm run typescript:build",
-    "prepare": "npm run typescript:build",
+    "prepare": "node scripts/prepare.mts",
     "styles:build": "node scripts/build-styles.mjs",
     "styles:check": "node scripts/build-styles.mjs --check",
     "svelte:build": "npm run check --workspace @getbased/svelte-tooling && node scripts/build-svelte.mjs",

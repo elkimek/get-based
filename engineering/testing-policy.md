@@ -31,6 +31,34 @@ select a broader scope. A runtime module without selected test coverage blocks
 the plan; unrelated tests cannot compensate for missing relevant tests.
 The retained CI plan and job summary explain the selection.
 
+Runnable test entries terminate dependency selection; a test listed by a planner
+or source-audit tool is not an application input. Cached module URLs and the
+bootstrap HTML are packaging references, so an indirect feature edit does not
+pretend that the worker or HTML itself changed. Changed application modules
+still select their actual transitive behavior consumers and the app-shell graph
+and shipping-build contracts. Unknown modules and untested Svelte owners fail
+closed even when unrelated packaging checks are selected.
+
+The planner may qualify a precache inventory diff as additive only against its
+actual Git base: the literal array must retain all existing entries in order,
+only known local JavaScript module URLs may be added, and code outside the array
+must be identical. It selects the added modules' behavior and exact graph checks.
+Missing baselines, removals, reordered entries, unknown/non-module URLs, executable
+array entries and worker changes retain complete offline lifecycle acceptance.
+
+CI compiles canonical TypeScript, Tailwind and Svelte outputs on the producer and
+runs all existing compiler, architecture, supply-chain and quality gates before
+sealing generated siblings in a compressed stream. Virtual component facade
+imports are checkout-independent so code and source maps remain reproducible.
+Consumers restore the same catalog, qualify the exact
+revision and authored-input inventory, and check every output body before reuse.
+The CI-only install mode verifies those hashes again inside npm prepare; absent,
+stale, changed or linked payloads fail instead of silently skipping compilation.
+Dependencies and their install scripts still run normally on each runner's OS.
+Normal local npm installs continue to compile, and the shipping artifact keeps
+its separate source/build-identity verification. No coverage or resource limit is
+reduced by compiler reuse.
+
 PR tests do not ordinarily collect whole-project coverage. Main-branch pushes,
 manual full test runs, and explicit release verification run the complete
 regression suite, critical coverage gates, and combined production measurement.

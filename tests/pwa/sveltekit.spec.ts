@@ -474,7 +474,7 @@ test('Agent Access hydrates offline with masked persisted credentials, keyboard 
       await display(page); await page.locator('#settings-nav-agent').click();
       for (const viewport of [{ width: 1280, height: 900 }, { width: 700, height: 900 }, { width: 390, height: 844 }]) {
         await page.setViewportSize(viewport);
-        expect(await panel.evaluate(element => {
+        await expect.poll(() => panel.evaluate(element => {
           const control = element.querySelector<HTMLSelectElement>('#agent-wearable-series-select')!;
           const button = element.querySelector<HTMLButtonElement>('[data-sync-action="copy-agent-access-setup-command"]')!;
           const probe = document.createElement('span');
@@ -488,7 +488,7 @@ test('Agent Access hydrates offline with masked persisted credentials, keyboard 
           const themedButton = primary.backgroundColor === expectedButton.backgroundColor && primary.color === expectedButton.color;
           probe.remove();
           return { match, themedButton, noOverflow: element.scrollWidth <= element.clientWidth };
-        }), `${theme} at ${viewport.width}px`).toMatchObject({ match: true, themedButton: true, noOverflow: true });
+        }), {message: `${theme} at ${viewport.width}px`}).toMatchObject({ match: true, themedButton: true, noOverflow: true });
         const box = (await panel.locator('#messenger-token').boundingBox())!; const bounds = (await panel.boundingBox())!;
         expect(box.x + box.width).toBeLessThanOrEqual(bounds.x + bounds.width + 1);
       }

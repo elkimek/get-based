@@ -128,15 +128,16 @@ export async function buildSvelte({ component = COMPONENT, outputDirectory = pat
       name: 'getbased-svelte-component',
       resolveId(id, importer) {
         if (id === 'getbased:component-entry') return id;
+        if (id === 'getbased:authored-component') return path.resolve(component);
         if (output === 'html' && id === 'node:async_hooks') return { id, external: true }; // Svelte retains its optional async renderer; this entry exposes only synchronous .body.
         if (importer?.endsWith('.svelte') && id.startsWith('.') && id.endsWith('.js')) return { id, external: true };
         return null;
       },
       async load(id) {
         if (id === 'getbased:component-entry') {
-          if (output === 'html') return `import Component from ${JSON.stringify(component)}; import { render } from 'svelte/server'; export const renderHTML = props => render(Component, { props }).body;`;
+          if (output === 'html') return `import Component from 'getbased:authored-component'; import { render } from 'svelte/server'; export const renderHTML = props => render(Component, { props }).body;`;
           const hydration = HYDRATABLE_COMPONENTS.has(path.basename(component, '.svelte')) ? ', hydrate' : '';
-          return `export { default } from ${JSON.stringify(component)}; export { mount, unmount, flushSync${hydration} } from 'svelte';`;
+          return `export { default } from 'getbased:authored-component'; export { mount, unmount, flushSync${hydration} } from 'svelte';`;
         }
         if (!id.endsWith('.svelte')) return null;
         return compileAuthoredComponent(await fs.readFile(id, 'utf8'), id, output);

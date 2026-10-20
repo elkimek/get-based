@@ -98,6 +98,8 @@ jobs:
       - name: Record the selected SvelteKit collection without launching browsers
         if: steps.plan.outputs.kit == 'true'
         run: node scripts/ci-plan.mjs --collect-kit --output "$CI_TEST_PLAN"
+      - name: Seal portable generated outputs after compiler and semantic checks
+        run: node scripts/ci-compiled.mts seal
       - name: Seal immutable artifact and catalog transport
         run: node scripts/ci-artifact.mjs seal --artifact dist --transport .local-notes/ci/transport
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -106,6 +108,7 @@ jobs:
           path: |
             dist
             .local-notes/ci/transport
+            .local-notes/ci/compiled
             .local-notes/ci/plan.json
             .local-notes/ci/affected.json
             .local-notes/ci/kit-collection.json
@@ -136,7 +139,11 @@ jobs:
           name: shipping-inputs
       - name: Restore the qualified catalog before compilation
         run: node scripts/ci-artifact.mts restore --artifact dist --transport .local-notes/ci/transport
-      - name: Install and compile once on this runner
+      - name: Restore exact generated outputs before dependency installation
+        run: node scripts/ci-compiled.mts restore
+      - name: Install native dependencies and verify reused compiler output
+        env:
+          GETBASED_CI_COMPILED: '1'
         run: npm ci
       - name: Verify exact shipping bytes and current authored sources
         run: node scripts/ci-artifact.mjs verify --artifact dist --transport .local-notes/ci/transport --github-env
@@ -180,7 +187,11 @@ jobs:
           name: shipping-inputs
       - name: Restore the qualified catalog before compilation
         run: node scripts/ci-artifact.mts restore --artifact dist --transport .local-notes/ci/transport
-      - name: Install and compile once on this runner
+      - name: Restore exact generated outputs before dependency installation
+        run: node scripts/ci-compiled.mts restore
+      - name: Install native dependencies and verify reused compiler output
+        env:
+          GETBASED_CI_COMPILED: '1'
         run: npm ci
       - name: Verify exact shipping bytes and current authored sources
         run: node scripts/ci-artifact.mjs verify --artifact dist --transport .local-notes/ci/transport --github-env
@@ -253,7 +264,11 @@ jobs:
           name: shipping-inputs
       - name: Restore the qualified catalog before compilation
         run: node scripts/ci-artifact.mts restore --artifact dist --transport .local-notes/ci/transport
-      - name: Install and compile once on this runner
+      - name: Restore exact generated outputs before dependency installation
+        run: node scripts/ci-compiled.mts restore
+      - name: Install native dependencies and verify reused compiler output
+        env:
+          GETBASED_CI_COMPILED: '1'
         run: npm ci
       - name: Verify exact shipping bytes and current authored sources
         run: node scripts/ci-artifact.mjs verify --artifact dist --transport .local-notes/ci/transport --github-env
@@ -388,7 +403,11 @@ jobs:
           name: shipping-inputs
       - name: Restore the qualified catalog before compilation
         run: node scripts/ci-artifact.mts restore --artifact dist --transport .local-notes/ci/transport
-      - name: Install and compile once on this runner
+      - name: Restore exact generated outputs before dependency installation
+        run: node scripts/ci-compiled.mts restore
+      - name: Install native dependencies and verify reused compiler output
+        env:
+          GETBASED_CI_COMPILED: '1'
         run: npm ci
       - name: Verify exact shipping bytes and current authored sources
         run: node scripts/ci-artifact.mjs verify --artifact dist --transport .local-notes/ci/transport --github-env
@@ -419,7 +438,11 @@ jobs:
           name: shipping-inputs
       - name: Restore the qualified catalog before compilation
         run: node scripts/ci-artifact.mts restore --artifact dist --transport .local-notes/ci/transport
-      - name: Install and compile once on this runner
+      - name: Restore exact generated outputs before dependency installation
+        run: node scripts/ci-compiled.mts restore
+      - name: Install native dependencies and verify reused compiler output
+        env:
+          GETBASED_CI_COMPILED: '1'
         run: npm ci
       - name: Verify exact shipping bytes and current authored sources
         run: node scripts/ci-artifact.mjs verify --artifact dist --transport .local-notes/ci/transport --github-env
@@ -480,7 +503,12 @@ jobs:
       - name: Restore qualified catalog
         if: needs.prepare.result == 'success'
         run: node scripts/ci-artifact.mts restore --artifact dist --transport .local-notes/ci/transport
-      - run: npm ci
+      - name: Restore exact generated outputs
+        run: node scripts/ci-compiled.mts restore
+      - name: Install native dependencies and verify reused compiler output
+        env:
+          GETBASED_CI_COMPILED: '1'
+        run: npm ci
       - name: Reject unsuccessful or unexpectedly skipped selected jobs
         env:
           NEEDS_JSON: ${{ toJSON(needs) }}

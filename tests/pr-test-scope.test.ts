@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
-import { createTestPlan, fileReferences, testCommands, validationCommands, kitMatrixArguments } from '../scripts/pr-test-scope.mjs';
+import { createTestPlan, fileReferences, testCommands, validationCommands, kitMatrixArguments, additivePrecacheModules } from '../scripts/pr-test-scope.mjs';
 
 const fixture = (extra?: Record<string, string>) => new Map(Object.entries({
   'js/leaf.js': 'export const value = 1;',
@@ -429,5 +429,86 @@ describe('implicit framework and retired owner scope', () => {
   it('does not exempt arbitrary auto-discovered-looking or retired-looking modules', () => {
     const changes = ['js/kit/unknown.ts', 'js/provider-wallet-unknown.ts'];
     expect(createTestPlan(new Map([['tests/unrelated.test.ts', '']]), [...changes, 'tests/unrelated.test.ts']).uncovered).toEqual(changes);
+  });
+});
+
+
+describe('behavior dependencies stop at packaging and runnable test boundaries', () => {
+  const application = () => fixture({
+    'js/main.js': "import './consumer.js';",
+    'index.html': '<script type="module" src="/js/main.js"></script>',
+    'service-worker-assets.ts': "const APP_SHELL = ['/js/leaf.js', '/js/unrelated.js'];",
+    'service-worker.ts': "importScripts('/service-worker-assets.js');",
+    'tests/pwa/kit-server.ts': "read('/index.html'); read('/service-worker.js');",
+    'tests/pwa/sveltekit-unrelated.spec.ts': "import './kit-server.js';",
+    'tests/leaf-contract.test.ts': "read('js/leaf.js');",
+    'scripts/known-tests.mts': "const contracts = ['tests/leaf-contract.test.js'];",
+    'tests/planner.test.ts': "import '../scripts/known-tests.mjs';",
+    'tests/service-worker-app-shell.test.ts': "read('service-worker-assets.js');",
+    'tests/production-build.test.ts': "read('index.html');",
+  });
+  it('checks the changed feature plus packaging contracts without selecting every cached journey or a test consumer', () => {
+    const plan = createTestPlan(application(), ['js/leaf.js']);
+    expect(plan.unit).toContain('tests/leaf-contract.test.ts');
+    expect(plan.unit).toContain('tests/service-worker-app-shell.test.ts'); expect(plan.unit).toContain('tests/production-build.test.ts');
+    expect(plan.unit).not.toContain('tests/planner.test.ts'); expect(plan.kit).toEqual([]);
+    expect(plan.browser).toEqual(['tests/playwright/consumer.spec.js']); expect(plan.uncovered).toEqual([]);
+  });
+  it.each(['service-worker-assets.ts', 'service-worker.ts', 'index.html', 'js/main.js'])('preserves full shipping acceptance for directly changed shared boundary %s', file => {
+    expect(createTestPlan(application(), [file]).kit).toEqual(['tests/pwa/sveltekit-unrelated.spec.ts']);
+  });
+  it('does not let mandatory packaging contracts falsely cover an otherwise untested feature', () => {
+    const plan = createTestPlan(application(), ['js/no-behavior-test.ts', 'js/components/Untested.svelte']);
+    expect(plan.unit).toContain('tests/production-build.test.ts'); expect(plan.uncovered).toEqual(['js/no-behavior-test.ts', 'js/components/Untested.svelte']);
+  });
+  it('follows changed test helpers and retains each changed runnable test itself', () => {
+    const sources = application();
+    expect(createTestPlan(sources, ['tests/pwa/kit-server.ts']).kit).toEqual(['tests/pwa/sveltekit-unrelated.spec.ts']);
+    const changedTest = createTestPlan(sources, ['tests/leaf-contract.test.ts']);
+    expect(changedTest.unit).toEqual(['tests/leaf-contract.test.ts']);
+    expect(changedTest.kit).toEqual([]);
+  });
+});
+
+
+describe('additive module precache qualification', () => {
+  const before = "const APP_SHELL = ['/index.html'];\nself.assets = APP_SHELL;";
+  const after = "const APP_SHELL = ['/index.html', '/js/leaf.js'];\nself.assets = APP_SHELL;";
+  const app = () => fixture({
+    'service-worker-assets.ts': after,
+    'tests/pwa/sveltekit-feature.spec.ts': "import '/js/leaf.js';",
+    'tests/pwa/sveltekit-unrelated.spec.ts': '',
+    'tests/service-worker-app-shell.test.ts': "read('service-worker-assets.js');",
+    'tests/production-build.test.ts': '',
+  });
+  it('selects the added module behavior and exact graph contracts without every offline journey', () => {
+    const plan = createTestPlan(app(), ['service-worker-assets.ts'], new Map([['service-worker-assets.ts', before]]));
+    expect(plan.kit).toEqual(['tests/pwa/sveltekit-feature.spec.ts']);
+    expect(plan.unit).toContain('tests/service-worker-app-shell.test.ts');
+    expect(plan.unit).toContain('tests/production-build.test.ts');
+    expect(plan.uncovered).toEqual([]); expect(plan.reasons.join(' ')).toContain('Additive precache');
+  });
+  it('fails closed if the added module has no behavior contract, despite unrelated graph contracts', () => {
+    const files = app(); files.set('service-worker-assets.ts', after.replace('leaf.js', 'uncovered.js')); files.set('js/uncovered.ts', '');
+    expect(createTestPlan(files, ['service-worker-assets.ts'], new Map([['service-worker-assets.ts', before]])).uncovered).toEqual(['js/uncovered.ts']);
+  });
+  it.each([
+    undefined,
+    "const APP_SHELL = ['/index.html', '/js/removed.js'];\nself.assets = APP_SHELL;",
+    "const APP_SHELL = ['/index.html'];\nself.changed = APP_SHELL;",
+  ])('keeps complete offline coverage for unavailable or nonadditive base %s', baseline => {
+    const plan = createTestPlan(app(), ['service-worker-assets.ts'], new Map(baseline ? [['service-worker-assets.ts', baseline]] : []));
+    expect(plan.kit).toHaveLength(2);
+  });
+  it.each([
+    '/js/unknown.js', '/css/feature.css', '/js/../escape.js', '/js/leaf.js?changed=1', 'https://external.invalid/leaf.js',
+  ])('rejects unqualified additions %s', url => {
+    expect(additivePrecacheModules(before, after.replace('/js/leaf.js', url), new Set(['js/leaf.js']))).toBeNull();
+  });
+  it('rejects executable array elements, duplicate entries, and outside-array mutations', () => {
+    const known = new Set(['js/leaf.js']);
+    for (const changed of [after.replace("'/js/leaf.js'", 'load()'), after.replace("'/js/leaf.js'", "'/js/leaf.js', '/js/leaf.js'"), after + '\nself.extra = true;']) {
+      expect(additivePrecacheModules(before, changed, known)).toBeNull();
+    }
   });
 });

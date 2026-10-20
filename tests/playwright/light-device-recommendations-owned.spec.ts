@@ -39,7 +39,8 @@ test('authored channel device options retain independent layouts and policy with
   }
   const old=host.locator('[data-original] .rec-light-deficit-link').first(),current=host.locator('[data-current] .rec-light-deficit-link').first();
   const hover=(element:Element)=>{const css=getComputedStyle(element);return{border:css.borderTopColor,decoration:css.textDecorationLine};};
-  await old.hover();const expected=await old.evaluate(hover);await current.hover();expect(await current.evaluate(hover)).toEqual(expected);
+  await old.hover();await old.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
+  const expected=await old.evaluate(hover);await current.hover();await expect.poll(()=>current.evaluate(hover)).toEqual(expected);
   await host.locator('[data-original]').evaluateAll(elements=>elements.forEach(element=>element.remove()));
   for(const theme of ['dark','light','glass','synth-sunrise','neuromancer','cyberterm']){
     await page.evaluate(async theme=>(await import('/js/theme.js')).setTheme(theme),theme);

@@ -182,3 +182,20 @@ it('merges real unit coverage in native coordinates without counting bundled fra
   expect(() => qualifyDisplayCoverageRoles(source, corruptMap, index.owned, authored)).toThrow();
   expect(called.size).toBeLessThan(owned.size); // Unit fixture does not call refresh.
 }, 30_000);
+
+
+it.each(['client', 'html'] as const)('emits identical %s code and source maps across checkout paths', async output => {
+  await fs.mkdir('.local-notes', {recursive: true});
+  const root = await fs.mkdtemp(path.join(path.resolve('.local-notes'), 'svelte-portable-'));
+  try {
+    const outputs: Buffer[][] = [];
+    for (const checkout of ['short-checkout', 'a-different-checkout-path']) {
+      const directory = path.join(root, checkout, 'js/components'); await fs.mkdir(directory, {recursive: true});
+      const component = path.join(directory, 'Portable.svelte'); await fs.writeFile(component, '<script lang="ts">let {value}: {value: string} = $props();</script><p>{value}</p>');
+      await buildSvelte({component, outputDirectory: directory, output});
+      const suffix = output === 'html' ? 'html' : 'native';
+      outputs.push(await Promise.all([`${component}.${suffix}.js`, `${component}.${suffix}.js.map`].map(file => fs.readFile(file))));
+    }
+    expect(outputs[0]).toEqual(outputs[1]);
+  } finally {await fs.rm(root, {recursive: true, force: true});}
+});

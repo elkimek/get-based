@@ -180,3 +180,12 @@ successful benchmark receipt.
   OS and reproduction steps. Report vulnerabilities privately through
   [SECURITY.md](SECURITY.md). Planned work is on the
   [project board](https://github.com/users/elkimek/projects/2).
+
+### Compiler output in CI
+
+Local `npm ci` runs the canonical TypeScript, styles and Svelte build through
+`prepare`. CI consumers may reuse the producer's exact generated files after
+revision, authored-input and output-hash verification. That mode is CI-only;
+native dependencies still install separately on each runner. The producer retains
+all compiler and semantic checks. See [the testing policy](engineering/testing-policy.md)
+for affected-test selection and full-suite requirements.

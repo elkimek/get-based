@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {execFileSync, spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
-import {createTestPlan, planningSourceFiles, testCommands, type TestPlan} from './pr-test-scope.mjs';
+import {createTestPlan, baseAssetInventories, planningSourceFiles, testCommands, type TestPlan} from './pr-test-scope.mjs';
 import {readVendorManifest} from './project-owned-vendor.mjs';
 import {headlessBrowserEnvironment} from './headless-browser-environment.js';
 
@@ -167,7 +167,7 @@ function main() {
     const changed = git('diff', '--name-only', '-z', `${base}...HEAD`).split('\0').filter(Boolean);
     const files = git('ls-files', '-z').split('\0').filter(Boolean);
     const sources = new Map(planningSourceFiles(files, readVendorManifest(root)).filter(file => fs.existsSync(path.join(root, file))).map(file => [file, fs.readFileSync(path.join(root, file), 'utf8')]));
-    affected = createTestPlan(sources, changed);
+    affected = createTestPlan(sources, changed, baseAssetInventories(base, root));
   }
   const plan = createCiPlan(full, affected);
   fs.mkdirSync(path.dirname(output), {recursive: true}); fs.writeFileSync(output, JSON.stringify(plan, null, 2) + '\n');

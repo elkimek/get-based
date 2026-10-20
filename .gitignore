@@ -3634,3 +3634,11 @@ tests/pwa/sveltekit-island-ownership.spec.js.map
 # Generated native keyboard traversal helper
 /tests/helpers/native-tab-key.js
 /tests/helpers/native-tab-key.js.map
+
+# Verified CI compiler-output transport
+/scripts/ci-compiled.mjs
+/scripts/ci-compiled.mjs.map
+/scripts/prepare.mjs
+/scripts/prepare.mjs.map
+/tests/ci-compiled.test.js
+/tests/ci-compiled.test.js.map

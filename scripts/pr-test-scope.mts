@@ -25,6 +25,9 @@ const isBrowser = (file: string) => /^tests\/playwright\/.*\.spec\.[jt]s$/.test(
 const isFirefox = (file: string) => /^tests\/firefox\/.*\.spec\.[jt]s$/.test(file);
 const isKit = (file: string) => /^tests\/pwa\/sveltekit[^/]*\.spec\.[jt]s$/.test(file);
 const isPwa = (file: string) => /^tests\/pwa\/.*\.spec\.[jt]s$/.test(file) && !isKit(file);
+// Runnable tests are sinks in the dependency graph, not application inputs.
+const isTestEntry = (file: string) => /^tests\/.*\.(?:test|spec)\.[jt]s$/.test(file);
+const ASSET_INVENTORY = 'service-worker-assets.js';
 const escapeRegex = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // Explicit edges cover UI-only tests that exercise these catalogs through DOM
@@ -50,7 +53,7 @@ const TOOL_SCOPES: readonly ToolScope[] = [
     check: 'vendor:evolu8:check',
   },
   // Kit discovers these entrypoints by filename rather than an import edge.
-  { sources: ['js/kit/hooks.js', 'js/kit/routes/app/+layout.js'], tests: ['tests/production-build.test.js', 'tests/pwa/sveltekit.spec.js'] },
+  { sources: ['js/kit/hooks.js', 'js/kit/routes/app/+layout.js', 'js/kit/routes/app/+page.svelte.native.js'], tests: ['tests/production-build.test.js', 'tests/pwa/sveltekit.spec.js'] },
   // Retired serializers have no remaining importers. Their replacement owners
   // retain these concrete mint/seed/withdraw/node and refund recovery contracts.
   { sources: ['js/provider-wallet-panel-renderers.js'], tests: ['tests/wallet-mint-export-owned.test.js', 'tests/wallet-seed-owned.test.js', 'tests/wallet-withdraw-owned.test.js', 'tests/wallet-node-owned.test.js', 'tests/playwright/routstr-wallet-dom.spec.js', 'tests/pwa/sveltekit-wallet-mints.spec.js', 'tests/pwa/sveltekit-wallet-seed.spec.js', 'tests/pwa/sveltekit-wallet-withdraw.spec.js', 'tests/pwa/sveltekit-wallet-node.spec.js'] },
@@ -117,7 +120,51 @@ function referencesForSources(sources: Map<string, string>, knownFiles: Set<stri
   })));
 }
 
-export function createTestPlan(sources: Map<string, string>, changedFiles: string[]): TestPlan {
+/** Qualify only additive module URLs. Removals, mutations, unknown files and
+ * changes outside the literal array keep complete offline lifecycle coverage. */
+export function additivePrecacheModules(before: string | undefined, after: string | undefined, known: ReadonlySet<string>): string[] | null {
+  if (before === undefined || after === undefined) return null;
+  function entries(source: string) {
+    return withParsedSource(source, 'service-worker-assets.ts', parsed => {
+      const arrays: ts.ArrayLiteralExpression[] = [];
+      const visit = (node: ts.Node): void => {
+        if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === 'APP_SHELL'
+          && node.initializer && ts.isArrayLiteralExpression(node.initializer)) arrays.push(node.initializer);
+        node.forEachChild(visit);
+      };
+      visit(parsed);
+      if (arrays.length !== 1) return null;
+      const array = arrays[0]!;
+      if (!array.elements.every(ts.isStringLiteral)) return null;
+      const urls = array.elements.map(node => (node as ts.StringLiteral).text);
+      return {urls, envelope: source.slice(0, array.getStart(parsed)) + '[]' + source.slice(array.end)};
+    });
+  }
+  const old = entries(before), next = entries(after);
+  if (!old || !next || old.envelope !== next.envelope || new Set(next.urls).size !== next.urls.length) return null;
+  if (JSON.stringify(next.urls.filter(url => old.urls.includes(url))) !== JSON.stringify(old.urls)) return null;
+  const added = next.urls.filter(url => !old.urls.includes(url));
+  if (!added.length) return null;
+  const modules: string[] = [];
+  for (const url of added) {
+    if (!/^\/js\/[a-zA-Z0-9_./-]+\.(?:js|mjs)$/.test(url) || url.includes('..')) return null;
+    const runtime = url.slice(1), native = runtime.replace(/\.svelte\.(?:native|html)\.js$/, '.svelte').replace(/\.mjs$/, '.mts').replace(/\.js$/, '.ts');
+    const file = known.has(native) ? native : known.has(runtime) ? runtime : null;
+    if (!file) return null;
+    modules.push(file);
+  }
+  return modules;
+}
+export function baseAssetInventories(base: string, root = ROOT): ReadonlyMap<string, string> {
+  const result = new Map<string, string>();
+  for (const file of ['service-worker-assets.ts', 'service-worker-assets.js']) {
+    try {result.set(file, execFileSync('git', ['show', `${base}:${file}`], {cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']}));}
+    catch { /* A new or unavailable inventory requires broad lifecycle checks. */ }
+  }
+  return result;
+}
+
+export function createTestPlan(sources: Map<string, string>, changedFiles: string[], baseline: ReadonlyMap<string, string> = new Map()): TestPlan {
   const known = new Set([...sources.keys(), ...changedFiles]);
   const ownedVendor = new Set(projectOwnedVendorSources(sources.get('vendor/components.json'), [...known]));
   const reverse = new Map<string, Set<string>>();
@@ -125,6 +172,10 @@ export function createTestPlan(sources: Map<string, string>, changedFiles: strin
   for (const [file] of sources) {
     if (!SOURCE.test(file)) continue;
     for (const dependency of references.get(file)!) {
+      // Asset URLs describe packaging, not execution of every cached feature.
+      // The asset/graph contract always checks these bytes; changing the actual
+      // inventory or worker still selects the complete offline acceptance.
+      if (runtimePath(file) === ASSET_INVENTORY || file === 'index.html') continue;
       if (!reverse.has(dependency)) reverse.set(dependency, new Set());
       reverse.get(dependency)!.add(file);
     }
@@ -172,15 +223,18 @@ export function createTestPlan(sources: Map<string, string>, changedFiles: strin
       }
     }
   }
-  const affected = new Set(changedFiles);
+  const inventory = changedFiles.find(file => runtimePath(file) === ASSET_INVENTORY);
+  const additions = inventory ? additivePrecacheModules(baseline.get(inventory), sources.get(inventory), known) : null;
+  const roots = [...new Set([...changedFiles, ...(additions || [])])];
+  const affected = new Set(roots);
   // These catalog modules have an explicit feature boundary: following their
   // api.js barrel into app startup would otherwise select almost every UI test.
-  const queue = changedFiles.filter(file => !MODEL_SOURCES.has(runtimePath(file)));
+  const queue = roots.filter(file => !isTestEntry(file) && !MODEL_SOURCES.has(runtimePath(file)) && !(additions && file === inventory));
   for (const file of changedFiles.filter(file => MODEL_SOURCES.has(runtimePath(file)))) {
     for (const consumer of reverse.get(file) || []) {
       if (consumer.startsWith('tests/')) {
         affected.add(consumer);
-        queue.push(consumer);
+        if (!isTestEntry(consumer)) queue.push(consumer);
       }
     }
   }
@@ -189,7 +243,7 @@ export function createTestPlan(sources: Map<string, string>, changedFiles: strin
       // The legacy harness lists every script; select its individual cases below.
       if (runtimePath(consumer) === LEGACY || affected.has(consumer)) continue;
       affected.add(consumer);
-      queue.push(consumer);
+      if (!isTestEntry(consumer)) queue.push(consumer);
     }
   }
   for (const scope of TOOL_SCOPES) {
@@ -200,6 +254,10 @@ export function createTestPlan(sources: Map<string, string>, changedFiles: strin
   const legacyScripts = [...fileReferences(legacyHarness, sources.get(legacyHarness) || '', known)]
     .filter(file => /^tests\/test-.*\.[jt]s$/.test(file));
   const reasons: string[] = [];
+  if (additions) reasons.push('Additive precache modules: retain asset graph contracts and select each added module behavior.');
+  if (roots.some(file => /^(?:js|vendor)\//.test(file))) {
+    for (const file of all) if (['tests/service-worker-app-shell.test.js', 'tests/production-build.test.js'].includes(runtimePath(file))) affected.add(file);
+  }
   const addMatching = (predicate: (file: string) => boolean, reason: string): void => {
     all.filter(predicate).forEach(file => affected.add(file));
     reasons.push(reason);
@@ -213,7 +271,7 @@ export function createTestPlan(sources: Map<string, string>, changedFiles: strin
   if (changedFiles.some(file => /^(package(?:-lock)?\.json|playwright\.config\.js|dev-server\.js|index\.html|css\/|js\/(?:main|startup[^/]*|state|utils)\.js|tests\/playwright\/.*(?:fixture|helper).*\.js)/.test(runtimePath(file)))) {
     addMatching(isBrowser, 'Shared browser runtime, styling, dependencies, or harness changed: all Chromium specs are affected.');
   }
-  if (changedFiles.some(file => /^(package(?:-lock)?\.json|service-worker[^/]*\.js|version\.js|index\.html|manifest.*\.json|playwright(?:\.pwa)?\.config\.js|tests\/pwa\/.*(?:fixture|helper|server|support)[^/]*\.[cm]?js$)/.test(runtimePath(file)))) {
+  if (changedFiles.some(file => !(additions && file === inventory) && /^(package(?:-lock)?\.json|service-worker[^/]*\.js|version\.js|index\.html|manifest.*\.json|playwright(?:\.pwa)?\.config\.js|tests\/pwa\/.*(?:fixture|helper|server|support)[^/]*\.[cm]?js$)/.test(runtimePath(file)))) {
     addMatching(file => isPwa(file) || isKit(file), 'Offline lifecycle or PWA harness changed.');
   }
   if (changedFiles.some(file => /^(playwright\.sveltekit\.config\.js|scripts\/kit-acceptance-reporter\.mjs|js\/kit\/|tooling\/svelte\/|scripts\/build-sveltekit\.mjs|css\/|js\/(?:main|startup[^/]*|state|utils)\.js)/.test(runtimePath(file)))) {
@@ -241,8 +299,8 @@ export function createTestPlan(sources: Map<string, string>, changedFiles: strin
   };
   // An unknown runtime change must never silently produce an empty green check.
   const selected = new Set([...plan.unit, ...plan.legacy, ...plan.browser, ...plan.firefox, ...plan.pwa, ...plan.kit]);
-  plan.uncovered = changedFiles.filter(file => {
-    if (!/^(js\/|lib\/|api\/|server\/|scripts\/).*\.[cm]?[jt]s$/.test(file) && !ownedVendor.has(file)) return false;
+  plan.uncovered = roots.filter(file => {
+    if (!/^(js\/|lib\/|api\/|server\/|scripts\/).*\.(?:[cm]?[jt]s|svelte)$/.test(file) && !ownedVendor.has(file)) return false;
     if (MODEL_SOURCES.has(runtimePath(file))) return ![...selected].some(test => MODEL_TESTS.test(test));
     if (TOOL_SCOPES.some(scope => scope.sources.includes(runtimePath(file)) && scope.check && checks.has(scope.check))) return false;
     const visited = new Set([file]);
@@ -347,7 +405,7 @@ function main(): void {
   const files = git('ls-files', '-z').split('\0').filter(Boolean);
   const sources = new Map(planningSourceFiles(files, readVendorManifest(ROOT)).filter(file => fs.existsSync(path.join(ROOT, file)))
     .map(file => [file, fs.readFileSync(path.join(ROOT, file), 'utf8')]));
-  const plan = createTestPlan(sources, changedFiles);
+  const plan = createTestPlan(sources, changedFiles, baseAssetInventories(base!));
   fs.writeFileSync(output, JSON.stringify(plan, null, 2) + '\n');
   const summary = ['## Affected PR tests', ...['unit', 'legacy', 'browser', 'firefox', 'pwa', 'kit'].map(suite => `- ${suite}: ${plan[suite as BrowserSuite].length}`), `- shipping transfer budget: ${plan.performance}`, `- mandatory validation: ${plan.checks.join(', ') || 'none'}`, ...plan.reasons.map(reason => `- ${reason}`), '\nFull coverage runs on main, manual dispatch, and explicit release verification.'].join('\n');
   console.log(summary);
