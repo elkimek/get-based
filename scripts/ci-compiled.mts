@@ -42,7 +42,10 @@ async function member(root: string, file: string): Promise<Member> {
 }
 async function authoredInputs(root: string): Promise<Member[]> {
   const files = git(root, 'ls-files', '--cached', '--others', '--exclude-standard', '-z').split('\0').filter(Boolean).sort();
-  return Promise.all(files.map(file => member(root, file)));
+  // macOS runners can have a much lower open-file limit than Linux.
+  const inputs: Member[] = [];
+  for (let index = 0; index < files.length; index += 16) inputs.push(...await Promise.all(files.slice(index, index + 16).map(file => member(root, file))));
+  return inputs;
 }
 function outputAllowed(file: string, inputs: ReadonlySet<string>): boolean {
   if (inputs.has(file)) return false;

@@ -1,4 +1,4 @@
-import {afterEach, describe, expect, it} from 'vitest';
+import {afterEach, describe, expect, it, vi} from 'vitest';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
@@ -6,7 +6,7 @@ import {execFileSync} from 'node:child_process';
 import {sealCompiledInputs, restoreCompiledInputs, verifyCompiledInputs} from '../scripts/ci-compiled.mjs';
 
 const cleanup: string[] = [];
-afterEach(async () => {for (const root of cleanup.splice(0)) await fs.rm(root, {recursive: true, force: true});});
+afterEach(async () => {vi.restoreAllMocks(); for (const root of cleanup.splice(0)) await fs.rm(root, {recursive: true, force: true});});
 async function fixture() {
   const root = await fs.mkdtemp(path.join(await fs.realpath(os.tmpdir()), 'getbased-compiled-')); cleanup.push(root);
   const write = async (file: string, body: string) => {await fs.mkdir(path.dirname(path.join(root, file)), {recursive: true}); await fs.writeFile(path.join(root, file), body);};
@@ -83,4 +83,23 @@ it('keeps normal npm install scripts, all producer gates and explicit fail-close
   expect(prepare).toContain("process.env['GITHUB_ACTIONS'], 'true'"); expect(prepare).toContain('await verifyCompiledInputs()');
   expect(prepare).toContain("['run', 'typescript:build']");
   const pkg = JSON.parse(await fs.readFile('package.json', 'utf8')); expect(pkg.scripts.prepare).toBe('node scripts/prepare.mts');
+});
+
+
+it('qualifies hundreds of authored inputs without exhausting a low runner descriptor budget', async () => {
+  const sample = await fixture();
+  for (let index = 0; index < 200; index++) await sample.write(`docs/input-${index}.md`, 'Synthetic authored input');
+  const open = fs.open.bind(fs); let active = 0, peak = 0;
+  vi.spyOn(fs, 'open').mockImplementation(async (...args: Parameters<typeof fs.open>) => {
+    if (active >= 32) throw Object.assign(new Error('Synthetic descriptor budget exhausted'), {code: 'EMFILE'});
+    active++; peak = Math.max(peak, active);
+    try {
+      const handle = await open(...args), close = handle.close.bind(handle);
+      handle.close = async () => {try {return await close();} finally {active--;}};
+      return handle;
+    } catch (error) {active--; throw error;}
+  });
+  const manifest = await sealCompiledInputs(sample.root);
+  expect(manifest.inputs.length).toBeGreaterThan(200); expect(peak).toBeLessThanOrEqual(32);
+  expect(await verifyCompiledInputs(sample.root)).toEqual(manifest); expect(active).toBe(0);
 });
