@@ -7,6 +7,11 @@ import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {brotliCompressSync, brotliDecompressSync, constants as zlibConstants} from 'node:zlib';
+import type {withAppShellSnapshot as WithShell} from './app-shell-snapshot.mjs';
+import type {withInlineThemeStyleSnapshot as WithThemes} from './inline-theme-style-snapshot.mjs';
+// These preinstall helpers are canonical sources with no package dependencies.
+const {withAppShellSnapshot}: {withAppShellSnapshot: typeof WithShell} = await import(new URL('./app-shell-snapshot.mts', import.meta.url).href);
+const {withInlineThemeStyleSnapshot}: {withInlineThemeStyleSnapshot: typeof WithThemes} = await import(new URL('./inline-theme-style-snapshot.mts', import.meta.url).href);
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TRANSPORT = '.local-notes/ci/compiled';
@@ -40,14 +45,26 @@ async function member(root: string, file: string): Promise<Member> {
   portable(file); const body = await regular(path.join(root, file));
   return {file, bytes: body.length, sha256: hash(body)};
 }
+function inputIdentity(file: string, body: Buffer): Member {
+  // Only the existing compiler-owned shell and two inline style bodies are
+  // derived. Their owners validate unique boundaries and exact boot order;
+  // every other HTML byte and every canonical source remain exact inputs.
+  const authored = file === 'index.html'
+    ? Buffer.from(withAppShellSnapshot(withInlineThemeStyleSnapshot(body.toString('utf8'), '#main-content{}', ''), '')) : body;
+  return {file, bytes: authored.length, sha256: hash(authored)};
+}
+async function inputMember(root: string, file: string): Promise<Member> {
+  portable(file); return inputIdentity(file, await regular(path.join(root, file)));
+}
 async function authoredInputs(root: string): Promise<Member[]> {
   const files = git(root, 'ls-files', '--cached', '--others', '--exclude-standard', '-z').split('\0').filter(Boolean).sort();
   // macOS runners can have a much lower open-file limit than Linux.
   const inputs: Member[] = [];
-  for (let index = 0; index < files.length; index += 16) inputs.push(...await Promise.all(files.slice(index, index + 16).map(file => member(root, file))));
+  for (let index = 0; index < files.length; index += 16) inputs.push(...await Promise.all(files.slice(index, index + 16).map(file => inputMember(root, file))));
   return inputs;
 }
 function outputAllowed(file: string, inputs: ReadonlySet<string>): boolean {
+  if (file === 'index.html') return inputs.has(file);
   if (inputs.has(file)) return false;
   const runtime = file.replace(/\.map$/, '');
   if (/\.(?:js|mjs)$/.test(runtime) && inputs.has(runtime.replace(/\.mjs$/, '.mts').replace(/\.js$/, '.ts'))) return true;
@@ -71,7 +88,7 @@ function validate(value: unknown): CompiledManifest {
   const bytes = manifest.outputs.reduce((sum, output) => sum + output.bytes, 0);
   assert(Number.isSafeInteger(bytes) && bytes > 0 && bytes <= 1024 ** 3, 'Bounded portable compiler payload');
   const inputs = new Set(manifest.inputs.map(row => row.file));
-  for (const row of manifest.outputs) assert(outputAllowed(row.file, inputs), 'Only generated outputs, never authored/dependency files');
+  for (const row of manifest.outputs) assert(outputAllowed(row.file, inputs), 'Only compiler-owned outputs, never other authored/dependency files');
   return manifest;
 }
 export async function sealCompiledInputs(root = ROOT): Promise<CompiledManifest> {
@@ -86,7 +103,7 @@ export async function sealCompiledInputs(root = ROOT): Promise<CompiledManifest>
   for (const directory of ['css', 'js']) {
     for (const entry of await fs.readdir(path.join(root, directory)).catch((error: NodeJS.ErrnoException) => {if (error.code === 'ENOENT') return []; throw error;})) candidates.add(directory + '/' + entry);
   }
-  candidates.add('styles.css'); candidates.add('themes-extra.css');
+  candidates.add('styles.css'); candidates.add('themes-extra.css'); candidates.add('index.html');
   const outputs: Member[] = [];
   for (const file of [...candidates].sort()) {
     if (!outputAllowed(file, known)) continue;
@@ -119,7 +136,10 @@ async function qualified(root: string) {
   assert.equal(payload.length, bytes, 'Exact decompressed payload size');
   let offset = 0;
   for (const output of manifest.outputs) {
-    assert.equal(hash(payload.subarray(offset, offset + output.bytes)), output.sha256, 'Exact compiled payload'); offset += output.bytes;
+    const body = payload.subarray(offset, offset + output.bytes);
+    assert.equal(hash(body), output.sha256, 'Exact compiled payload');
+    if (output.file === 'index.html') assert.deepEqual(inputIdentity(output.file, body), manifest.inputs.find(row => row.file === output.file), 'Exact authored HTML outside generated sections');
+    offset += output.bytes;
   }
   return {manifest, payload};
 }
@@ -130,9 +150,14 @@ export async function restoreCompiledInputs(root = ROOT): Promise<CompiledManife
   for (const output of manifest.outputs) {
     await safeDirectory(root, path.posix.dirname(output.file));
     const target = path.join(root, output.file);
-    const previous = await fs.lstat(target).catch((error: NodeJS.ErrnoException) => {if (error.code === 'ENOENT') return null; throw error;});
-    assert(!previous || previous.isFile(), 'No linked output target');
-    await fs.writeFile(target, payload.subarray(offset, offset + output.bytes), {flag: constants.O_WRONLY | constants.O_CREAT | constants.O_TRUNC | constants.O_NOFOLLOW});
+    // Open without truncating; qualify and write the same object. A pathname
+    // swap cannot redirect the write, and hard links cannot clobber source data.
+    const handle = await fs.open(target, constants.O_WRONLY | constants.O_CREAT | constants.O_NOFOLLOW | constants.O_NONBLOCK)
+      .catch((error: NodeJS.ErrnoException) => {if (error.code === 'ELOOP') throw new Error('No linked output target'); throw error;});
+    try {
+      const info = await handle.stat(); assert(info.isFile() && info.nlink === 1, 'No linked output target');
+      await handle.truncate(0); await handle.writeFile(payload.subarray(offset, offset + output.bytes));
+    } finally {await handle.close();}
     offset += output.bytes;
   }
   return manifest;

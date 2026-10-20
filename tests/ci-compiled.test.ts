@@ -3,6 +3,10 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import {execFileSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
+import {brotliCompressSync, brotliDecompressSync} from 'node:zlib';
+import {withAppShellSnapshot} from '../scripts/app-shell-snapshot.mjs';
+import {withInlineThemeStyleSnapshot} from '../scripts/inline-theme-style-snapshot.mjs';
 import {sealCompiledInputs, restoreCompiledInputs, verifyCompiledInputs} from '../scripts/ci-compiled.mjs';
 
 const cleanup: string[] = [];
@@ -31,7 +35,7 @@ describe('portable exact compiler output reuse', () => {
     expect(await verifyCompiledInputs(consumer)).toEqual(manifest);
     expect(await fs.readFile(path.join(consumer, 'js/feature.ts'), 'utf8')).toBe('export const value = 1;');
   });
-  it.each(['js/feature.ts', 'css/feature.tailwind.css', '.gitignore'])('rejects changed current input %s before restoring outputs', async file => {
+  it.each(['js/feature.ts', 'js/Panel.svelte', 'css/feature.tailwind.css', '.gitignore'])('rejects changed current input %s before restoring outputs', async file => {
     const sample = await fixture(); await sealCompiledInputs(sample.root);
     await sample.write(file, 'changed current input');
     await sample.write('js/feature.js', 'keep current output');
@@ -102,4 +106,47 @@ it('qualifies hundreds of authored inputs without exhausting a low runner descri
   const manifest = await sealCompiledInputs(sample.root);
   expect(manifest.inputs.length).toBeGreaterThan(200); expect(peak).toBeLessThanOrEqual(32);
   expect(await verifyCompiledInputs(sample.root)).toEqual(manifest); expect(active).toBe(0);
+});
+
+
+it('transports rebuilt shell and inline styles while retaining every authored HTML byte', async () => {
+  const sample = await fixture(), original = await fs.readFile('index.html', 'utf8');
+  const generated = withAppShellSnapshot(withInlineThemeStyleSnapshot(original, '#main-content{color:red}', 'html{color:blue}'), '<p>New generated shell</p>');
+  await sample.write('index.html', generated);
+  const manifest = await sealCompiledInputs(sample.root);
+  expect(manifest.outputs.some(row => row.file === 'index.html')).toBe(true);
+  await sample.write('index.html', original);
+  await restoreCompiledInputs(sample.root); await verifyCompiledInputs(sample.root);
+  expect(await fs.readFile(path.join(sample.root, 'index.html'), 'utf8')).toBe(generated);
+  await sample.write('index.html', original + '\n<!-- Changed authored document -->');
+  await expect(restoreCompiledInputs(sample.root)).rejects.toThrow('Exact current authored inputs');
+});
+it('rejects missing generated HTML boundaries instead of excluding the whole document', async () => {
+  const sample = await fixture(); await sample.write('index.html', '<html><body>Authored</body></html>');
+  await expect(sealCompiledInputs(sample.root)).rejects.toThrow();
+});
+it('rejects an output hard link without changing its authored target', async () => {
+  const sample = await fixture(); await sealCompiledInputs(sample.root);
+  await fs.unlink(path.join(sample.root, 'js/feature.js'));
+  await fs.link(path.join(sample.root, 'js/feature.ts'), path.join(sample.root, 'js/feature.js'));
+  await expect(restoreCompiledInputs(sample.root)).rejects.toThrow('No linked output target');
+  expect(await fs.readFile(path.join(sample.root, 'js/feature.ts'), 'utf8')).toBe('export const value = 1;');
+});
+
+
+it('prequalifies the transported HTML envelope before writing any generated output', async () => {
+  const sample = await fixture(); await sample.write('index.html', await fs.readFile('index.html', 'utf8'));
+  const manifest = await sealCompiledInputs(sample.root), file = path.join(sample.transport, 'payload.br');
+  const payload = brotliDecompressSync(await fs.readFile(file)); let offset = 0;
+  const bodies = manifest.outputs.map(row => {
+    const body = payload.subarray(offset, offset + row.bytes); offset += row.bytes;
+    if (row.file !== 'index.html') return body;
+    const changed = Buffer.concat([body, Buffer.from('\n<!-- Altered authored document -->')]);
+    row.bytes = changed.length; row.sha256 = createHash('sha256').update(changed).digest('hex'); return changed;
+  });
+  await fs.writeFile(file, brotliCompressSync(Buffer.concat(bodies)));
+  await fs.writeFile(path.join(sample.transport, 'manifest.json'), JSON.stringify(manifest));
+  await sample.write('css/feature.css', 'Retain current generated output');
+  await expect(restoreCompiledInputs(sample.root)).rejects.toThrow('Exact authored HTML outside generated sections');
+  expect(await fs.readFile(path.join(sample.root, 'css/feature.css'), 'utf8')).toBe('Retain current generated output');
 });

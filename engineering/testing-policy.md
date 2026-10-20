@@ -53,6 +53,13 @@ sealing generated siblings in a compressed stream. Virtual component facade
 imports are checkout-independent so code and source maps remain reproducible.
 Consumers restore the same catalog, qualify the exact
 revision and authored-input inventory, and check every output body before reuse.
+The rebuilt HTML travels with the generated output. Its input identity excludes
+only the existing compiler-owned AppShell and two inline theme-style bodies;
+unique boundaries, boot ordering and every other document byte remain verified,
+as do all canonical component/style sources. Restoring a generated HTML payload
+also checks that its authored document bytes match before any output is written.
+Output writes qualify the same opened file descriptor before truncation and
+reject symbolic or hard links.
 The CI-only install mode verifies those hashes again inside npm prepare; absent,
 stale, changed or linked payloads fail instead of silently skipping compilation.
 Dependencies and their install scripts still run normally on each runner's OS.
