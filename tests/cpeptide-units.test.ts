@@ -5,6 +5,7 @@ import { normalizeToSI } from '../js/schema.js';
 import { convertImportValueUnit, getValidUnitsForMarker } from '../js/pdf-import-unit-conversions.js';
 import { getActiveData, invalidateActiveDataCache, applyUnitConversion } from '../js/data.js';
 import { state } from '../js/state.js';
+import { getMarkerHit } from '../js/biology-score-engine.js';
 import { convertDisplayToCanonical, getMarkerInputUnits } from '../js/unit-profiles.js';
 
 const key = 'diabetes.cPeptide';
@@ -35,7 +36,9 @@ describe('C-peptide report and display units', () => {
       state.profileSex = null;
       state.profileDob = null;
       invalidateActiveDataCache();
-      const marker = getActiveData().categories.diabetes!.markers.cPeptide!;
+      const active = getActiveData();
+      const marker = active.categories.diabetes!.markers.cPeptide!;
+      expect(getMarkerHit(active, key)).toMatchObject({ value, canonicalValue: 2 });
       expect(marker.unit).toBe(unit);
       expect(marker.values).toEqual([value]);
       const factor = value / 2;
