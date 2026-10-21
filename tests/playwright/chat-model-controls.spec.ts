@@ -268,7 +268,7 @@ test('direct provider and Local AI catalogs expose their reported reasoning cont
 });
 
 
-test('DeepSeek latest aliases and Argon lead recommendations while Gemini 3.8 remains available', async ({ page }) => {
+test('DeepSeek latest aliases and both Gemini tiers remain recommended', async ({ page }) => {
   await page.route('https://openrouter.ai/**', route => route.abort());
   await page.addInitScript(() => {
     localStorage.setItem('labcharts-ai-provider', 'openrouter');
@@ -287,8 +287,8 @@ test('DeepSeek latest aliases and Argon lead recommendations while Gemini 3.8 re
   await expect(page.locator('#chat-model-menu-label')).toHaveText('Gemini 3.8 Flash');
   await page.locator('#chat-model-menu-toggle').click();
   await expect(page.locator('.chat-model-option-group-label')).toHaveText(['Recommended', 'Other models']);
-  const recommended = await page.locator('.chat-model-option').evaluateAll(options => options.slice(0, 3).map(option => option.getAttribute('data-chat-model-value')));
-  expect(recommended).toEqual(['~deepseek/deepseek-flash-latest', '~deepseek/deepseek-pro-latest', 'google/gemini-4-argon']);
+  const recommended = await page.locator('.chat-model-option').evaluateAll(options => options.slice(0, 4).map(option => option.getAttribute('data-chat-model-value')));
+  expect(recommended).toEqual(['~deepseek/deepseek-flash-latest', '~deepseek/deepseek-pro-latest', 'google/gemini-3.8-flash', 'google/gemini-4-argon']);
   await expect(page.locator('[data-chat-model-value="google/gemini-3.8-flash"]')).toBeVisible();
   await page.locator('[data-chat-model-value="~deepseek/deepseek-flash-latest"]').click();
   await expect(page.locator('#chat-model-menu-label')).toHaveText('DeepSeek Flash Latest');

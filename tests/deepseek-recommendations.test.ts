@@ -58,12 +58,15 @@ describe('DeepSeek current-family recommendations', () => {
     }
   });
 
-  it.each(providers)('recommends Argon without retaining an older Gemini Flash fallback for %s', provider => {
-    const old = ['gemini-3.8-flash', 'gemini-3-8-flash', 'google/gemini-3.8-flash:batch',
-      'gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3-flash-preview'].map(id => ({ id }));
-    const argon = { id: provider === 'venice' ? 'gemini-4-argon' : 'google/gemini-4-argon' };
-    expect(selectLatestRecommendedModels(provider, [...old, argon])).toEqual([argon]);
+  it.each(providers)('recommends both Gemini tiers without reviving older Flash fallbacks for %s', provider => {
+    const old = ['gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3-flash-preview'].map(id => ({ id }));
+    const prefix = provider === 'venice' ? '' : 'google/';
+    const flash = { id: prefix + (provider === 'venice' ? 'gemini-3-8-flash' : 'gemini-3.8-flash') };
+    const argon = { id: prefix + 'gemini-4-argon' };
+    expect(selectLatestRecommendedModels(provider, [...old, { id: flash.id + ':batch' }, flash, argon])).toEqual([flash, argon]);
+    expect(selectLatestRecommendedModels(provider, [flash])).toEqual([flash]);
     expect(selectLatestRecommendedModels(provider, old)).toEqual([]);
+    expect(isRecommendedModel(provider, flash.id + '-cyber')).toBe(false);
   });
 
   it('preserves existing private and local recommendation policies', () => {

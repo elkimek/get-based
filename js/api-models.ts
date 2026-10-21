@@ -225,7 +225,10 @@ export function isRecommendedModel(provider: string, modelId: string) {
   // Contributor routes and coding-focused Spark Open remain available outside
   // the general-analysis recommendations. Private routes keep their allowlists.
   if (/(^|[/-])muse-/.test(normalizedId) && /(?:^|[-:])(contributor|open)(?:$|[-:])/.test(normalizedId)) return false;
-  if (deepSeekRecommendation(modelId) && ['openrouter', 'venice', 'routstr', 'ppq', 'custom'].includes(provider)) return true;
+  // Flash remains a separate Gemini tier alongside Argon. Do not promote
+  // specialized variants such as Flash Cyber through a shared prefix.
+  const gemini38Flash = /^(?:google\/)?gemini-3-8-flash(?::(?:batch|free))?$/.test(normalizedId);
+  if ((deepSeekRecommendation(modelId) || gemini38Flash) && ['openrouter', 'venice', 'routstr', 'ppq', 'custom'].includes(provider)) return true;
   if (provider === 'openrouter') return OPENROUTER_RECOMMENDED.some(function(prefix) { return modelStartsWithRecommended(modelId, prefix); });
   if (provider === 'venice') {
     if (modelId.startsWith('e2ee-')) return /qwen3-5-122b|gpt-oss-120b|qwen3-30b|glm-5-3-flash/.test(modelId);

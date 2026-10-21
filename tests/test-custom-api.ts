@@ -58,7 +58,7 @@ assert('getActiveModelDisplay handles custom', /provider === 'custom'\)\s+return
 assert('isRecommendedModel handles custom Sonnet 5', apiModelsSrc.includes("provider === 'custom'") && apiModelsSrc.includes('isCustomRecommendedModel'));
 assert('isRecommendedModel handles custom Fable 5.1', apiModelsSrc.includes('isClaudeFable51Model'));
 assert('isRecommendedModel handles custom Gemini 4 Argon', apiModelsSrc.includes('gemini-4-argon'));
-assert('Custom Gemini 3.x Flash recommendations are superseded', !apiModelsSrc.includes('8-flash|7-flash'));
+assert('Custom Gemini 3.8 Flash remains recommended alongside Argon', apiModelsSrc.includes('gemini-3-8-flash'));
 assert('isRecommendedModel handles custom GLM 5.3 Flash and Kimi K3', apiModelsSrc.includes('glm-5-3-flash') && apiModelsSrc.includes('kimi-k3'));
 assert('callClaudeAPI handles custom', /provider === 'custom'\)\s+return callCustomAPI\(/.test(apiSrc));
 assert('supportsWebSearch false for custom', /provider === 'custom'\)\s+return false/.test(apiModelsSrc));

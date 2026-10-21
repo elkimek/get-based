@@ -87,7 +87,7 @@ assert('Curated: openai/gpt prefix', apiModelsSrc.includes("'openai/gpt-5'"));
 assert('Curated: google/gemini-3 prefix', apiModelsSrc.includes("'google/gemini-3'"));
 assert('Curated: google/gemini-2 prefix', apiModelsSrc.includes("'google/gemini-2'"));
 assert('Recommended: Gemini 4 Argon', apiModelsSrc.includes("'google/gemini-4-argon'"));
-assert('Gemini 3.8 Flash is superseded', !apiModelsSrc.includes("'google/gemini-3.8-flash'"));
+assert('Gemini 3.8 Flash remains recommended alongside Argon', apiModelsSrc.includes('gemini-3-8-flash'));
 assert('Curated: deepseek prefix', apiModelsSrc.includes("'deepseek/deepseek'"));
 assert('Curated: qwen prefix', apiModelsSrc.includes("'qwen/qwen'"));
 assert('Curated: z-ai/glm-5 prefix', apiModelsSrc.includes("'z-ai/glm-5'"));
