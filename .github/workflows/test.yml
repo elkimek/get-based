@@ -138,7 +138,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: shipping-inputs
       - name: Restore the qualified catalog before compilation
@@ -201,7 +201,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: shipping-inputs
       - name: Restore the qualified catalog before compilation
@@ -279,7 +279,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: shipping-inputs
       - name: Restore the qualified catalog before compilation
@@ -429,7 +429,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: shipping-inputs
       - name: Restore the qualified catalog before compilation
@@ -464,7 +464,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: shipping-inputs
       - name: Restore the qualified catalog before compilation
@@ -477,16 +477,16 @@ jobs:
         run: npm ci
       - name: Verify exact shipping bytes and current authored sources
         run: node scripts/ci-artifact.mjs verify --artifact dist --transport .local-notes/ci/transport --github-env
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: unit-coverage
           path: tests
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: coverage-raw-*
           path: tests/.playwright-coverage
           merge-multiple: true
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: coverage-inventory-*
           path: .local-notes/ci/coverage-inventories
@@ -531,7 +531,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         if: needs.prepare.result == 'success'
         with:
           name: shipping-inputs
@@ -550,7 +550,7 @@ jobs:
         run: |
           node -e 'require("node:fs").writeFileSync("/tmp/ci-needs.json",process.env.NEEDS_JSON)'
           node scripts/ci-results.mjs aggregate --needs /tmp/ci-needs.json --plan "$CI_TEST_PLAN" --output .local-notes/ci/aggregate.json
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         if: needs.prepare.outputs.kit == 'true'
         with:
           pattern: kit-receipt-*
