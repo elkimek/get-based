@@ -56,12 +56,14 @@ function fixture({buildId = buildA, aliases = {[canonical]: hash}, clients = [],
   return {stores, storage, fetchImpl, install: () => invoke('install'), activate: () => invoke('activate'),
     report: (client: Client, reported: string) => invoke('message', {origin, source: client,
       data: {type: 'CLIENT_BUILD_ID', buildId: reported}}),
-    async request(url: string, clientId = '', init: RequestInit = {}): Promise<Response | null> {
+    async request(url: string, clientId = '', init: RequestInit = {}, navigation = false): Promise<Response | null> {
       let response: Promise<Response> | null = null;
       const work: Promise<unknown>[] = [];
       const listener = listeners.get('fetch');
       if (!listener) throw Error('Missing actual fetch listener');
-      listener({clientId, request: new Request(new URL(url, origin), init),
+      const request = new Request(new URL(url, origin), init);
+      if (navigation) Object.defineProperty(request, 'mode', {value: 'navigate'});
+      listener({clientId, request,
         waitUntil: pending => work.push(pending),
         respondWith: (pending: Promise<Response>) => { response = pending; }});
       const result = await response;
@@ -290,4 +292,68 @@ it.each([
   '/js/bundle-missing-ABC.js',
 ])('rejects unqualified producer declaration %s', invalid => {
   expect(() => fixture({aliases: {[invalid]: hash}})).toThrow('Invalid build-proven retry chunk alias');
+});
+
+
+it.each(['before-download', 'after-download'] as const)(
+  'preserves the active same-build cache when deployment verification fails %s', async phase => {
+    const f = fixture(), name = 'labcharts-vbuild-' + buildA;
+    await f.install();
+    const prior = f.stores.get(name)!;
+    const oldBodies = await Promise.all([...prior].map(async ([url, response]) => [url, await response.clone().text()] as const));
+    let probes = 0;
+    f.fetchImpl.mockImplementation(async request => {
+      const url = new URL(typeof request === 'string' ? request : request instanceof URL ? request.href : request.url, origin);
+      if (url.pathname === '/version.js') {
+        probes++;
+        return new Response("self.APP_BUILD_ID = '" + (phase === 'before-download' || probes > 1 ? buildB : buildA) + "';");
+      }
+      return new Response(body);
+    });
+    await expect(f.install()).rejects.toThrow('Deployment changed during app installation');
+    expect(f.stores.get(name)).toBe(prior);
+    expect(await Promise.all([...prior].map(async ([url, response]) => [url, await response.clone().text()] as const))).toEqual(oldBodies);
+    expect(await (await f.request('/', '', {}, true))!.text()).toBe(body);
+    expect((await f.request('/', '', {}, true))!.status).toBe(200);
+    expect([...f.stores.keys()]).toEqual([name]);
+  },
+);
+
+it('publishes missing same-build resources only after the final deployment check', async () => {
+  const extra = '/missing.json';
+  const f = fixture({appShell: ['/index.html', canonical, extra]}), name = 'labcharts-vbuild-' + buildA;
+  await f.install();
+  const prior = f.stores.get(name)!;
+  prior.delete(origin + extra);
+  let probes = 0;
+  f.fetchImpl.mockImplementation(async request => {
+    expect(prior.has(origin + extra)).toBe(false);
+    expect(await prior.get(origin + '/index.html')!.clone().text()).toBe(body);
+    const url = new URL(typeof request === 'string' ? request : request instanceof URL ? request.href : request.url, origin);
+    if (url.pathname === '/version.js') {probes++; return new Response("self.APP_BUILD_ID = '" + buildA + "';");}
+    expect(url.pathname).toBe(extra);
+    return new Response('verified replacement');
+  });
+  await f.install();
+  expect(probes).toBe(2);
+  expect(await prior.get(origin + extra)!.clone().text()).toBe('verified replacement');
+  expect(await (await f.request('/', '', {}, true))!.text()).toBe(body);
+  expect([...f.stores.keys()]).toEqual([name]);
+});
+
+
+it('preserves the installed shell when a missing resource cannot be refilled during same-build installation', async () => {
+  const extra = '/missing.json';
+  const f = fixture({appShell: ['/index.html', canonical, extra]}), name = 'labcharts-vbuild-' + buildA;
+  await f.install();
+  const prior = f.stores.get(name)!;
+  prior.delete(origin + extra);
+  f.fetchImpl.mockImplementation(async request => {
+    const url = new URL(typeof request === 'string' ? request : request instanceof URL ? request.href : request.url, origin);
+    return new Response(url.pathname === '/version.js' ? "self.APP_BUILD_ID = '" + buildA + "';" : 'unavailable', {status: url.pathname === extra ? 503 : 200});
+  });
+  await expect(f.install()).rejects.toThrow('Failed to precache /missing.json: HTTP 503');
+  expect(f.stores.get(name)).toBe(prior);
+  expect(await (await f.request('/', '', {}, true))!.text()).toBe(body);
+  expect([...f.stores.keys()]).toEqual([name]);
 });

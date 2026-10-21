@@ -18,6 +18,15 @@ activation and cache protections. The small browser fixture is a protocol regres
 not whole-application release acceptance. Pre-protocol pages still require closing
 all app windows because their old script cannot handle the new worker messages.
 
+Same-build worker reinstall attempts must leave the active build cache intact
+until deployment metadata, required resources and producer proofs pass. Failed
+checks remove only the candidate; invalid existing producer proofs still reject
+and invalidate their cache. Preserve resumable bodies, native ownership and
+profile storage. [Unit regressions](../tests/service-worker-retry-aliases.test.ts)
+and [real browser reinstall/reload cases](../tests/playwright/service-worker-install-ownership.spec.ts)
+cover failed metadata checks before and after download, first-reload availability,
+and unchanged synthetic localStorage/IndexedDB data.
+
 ## Choose checks for the change
 
 Run relevant tests and lightweight compiler, architecture, quality, and build

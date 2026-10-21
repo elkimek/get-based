@@ -114,17 +114,25 @@ function installServiceWorkerRuntime({
       statusText: response.statusText, headers});
   }
 
+  class RetryCacheIntegrityError extends Error {
+    readonly canonical: string;
+    constructor(message: string, canonical: string) {
+      super(message);
+      this.canonical = canonical;
+    }
+  }
+
   async function annotateRetryChunks(cache: Cache) {
     for (const [canonical, expectedHash] of verifiedRetryChunks) {
       const response = await cache.match(canonical);
-      if (response?.status !== 200) throw new Error('Missing successful retry canonical body');
+      if (response?.status !== 200) throw new RetryCacheIntegrityError('Missing successful retry canonical body', canonical);
       const bytes = await response.clone().arrayBuffer();
-      if (await retryBodyHash(bytes) !== expectedHash) throw new Error('Retry canonical body hash mismatch');
+      if (await retryBodyHash(bytes) !== expectedHash) throw new RetryCacheIntegrityError('Retry canonical body hash mismatch', canonical);
       // A terminated installation may leave an already annotated matching entry.
       // It is safe to resume only the exact same build/path/body declaration.
       if (response.headers.has(RETRY_PROOF_HEADER)) {
         if (retryProof(response, canonical, buildId) !== expectedHash) {
-          throw new Error('Conflicting cached retry chunk proof');
+          throw new RetryCacheIntegrityError('Conflicting cached retry chunk proof', canonical);
         }
         continue;
       }
@@ -264,15 +272,48 @@ function installServiceWorkerRuntime({
   scope.addEventListener('install', (event) => {
     event.waitUntil((async () => {
       const name = await resolveCacheName();
+      const existing = !!buildId && (await caches.keys()).includes(name);
+      // Imported-script changes can reinstall the same BUILD_ID. Its public
+      // cache may still serve the active worker, so prepare the candidate apart.
+      // Updates for one registration are serialized; a per-build name also lets
+      // the next attempt discard an interrupted candidate without touching it.
+      const candidateName = existing ? `labcharts-install-${buildId}` : name;
+      const copied = new Set<string>();
       try {
         await verifyDeployment();
-        const cache = await caches.open(name);
+        if (existing) await caches.delete(candidateName);
+        const cache = await caches.open(candidateName);
+        if (existing) {
+          const installed = await caches.open(name);
+          for (let start = 0; start < appShell.length; start += PRECACHE_CONCURRENCY) {
+            await Promise.all(appShell.slice(start, start + PRECACHE_CONCURRENCY).map(async url => {
+              const response = await installed.match(url);
+              if (response) { copied.add(url); await cache.put(url, response); }
+            }));
+          }
+        }
         await precacheAppShell(cache);
         await annotateRetryChunks(cache);
         await verifyDeployment();
+        if (existing) {
+          const installed = await caches.open(name);
+          for (let start = 0; start < appShell.length; start += PRECACHE_CONCURRENCY) {
+            await Promise.all(appShell.slice(start, start + PRECACHE_CONCURRENCY).map(async url => {
+              const response = await cache.match(url);
+              if (!response) throw new Error(`Missing verified install resource: ${url}`);
+              await installed.put(url, response);
+            }));
+          }
+        }
       } catch (error) {
-        if (buildId) await caches.delete(name);
+        // Invalid cached producer proof still invalidates that cache. A failed
+        // candidate or deployment probe cannot delete an existing valid build.
+        if (buildId && (!existing || (error instanceof RetryCacheIntegrityError && copied.has(error.canonical)))) {
+          await caches.delete(name);
+        }
         throw error;
+      } finally {
+        if (existing) await caches.delete(candidateName);
       }
     })());
   });
