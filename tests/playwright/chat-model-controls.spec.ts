@@ -266,3 +266,31 @@ test('direct provider and Local AI catalogs expose their reported reasoning cont
   await expect(page.locator('#chat-model-effort')).toHaveAttribute('max', '3');
   await expect(page.locator('#chat-model-effort-value')).toHaveText('Default');
 });
+
+
+test('DeepSeek latest aliases and Argon lead recommendations while Gemini 3.8 remains available', async ({ page }) => {
+  await page.route('https://openrouter.ai/**', route => route.abort());
+  await page.addInitScript(() => {
+    localStorage.setItem('labcharts-ai-provider', 'openrouter');
+    localStorage.setItem('labcharts-openrouter-model', 'google/gemini-3.8-flash');
+    localStorage.setItem('labcharts-openrouter-models', JSON.stringify([
+      { id: 'deepseek/deepseek-v4-flash-0731', name: 'DeepSeek V4 Flash 0731' },
+      { id: 'deepseek/deepseek-v4.1-flash-1017', name: 'DeepSeek V4.1 Flash 1017' },
+      { id: '~deepseek/deepseek-flash-latest', name: 'DeepSeek Flash Latest' },
+      { id: '~deepseek/deepseek-pro-latest', name: 'DeepSeek Pro Latest' },
+      { id: 'google/gemini-3.8-flash', name: 'Gemini 3.8 Flash' },
+      { id: 'google/gemini-4-argon', name: 'Gemini 4 Argon' },
+    ]));
+  });
+  await page.goto('/app');
+  await page.evaluate(async () => (await import('/js/chat-panel.js')).openChatPanel());
+  await expect(page.locator('#chat-model-menu-label')).toHaveText('Gemini 3.8 Flash');
+  await page.locator('#chat-model-menu-toggle').click();
+  await expect(page.locator('.chat-model-option-group-label')).toHaveText(['Recommended', 'Other models']);
+  const recommended = await page.locator('.chat-model-option').evaluateAll(options => options.slice(0, 3).map(option => option.getAttribute('data-chat-model-value')));
+  expect(recommended).toEqual(['~deepseek/deepseek-flash-latest', '~deepseek/deepseek-pro-latest', 'google/gemini-4-argon']);
+  await expect(page.locator('[data-chat-model-value="google/gemini-3.8-flash"]')).toBeVisible();
+  await page.locator('[data-chat-model-value="~deepseek/deepseek-flash-latest"]').click();
+  await expect(page.locator('#chat-model-menu-label')).toHaveText('DeepSeek Flash Latest');
+  expect(await page.evaluate(() => localStorage.getItem('labcharts-openrouter-model'))).toBe('~deepseek/deepseek-flash-latest');
+});

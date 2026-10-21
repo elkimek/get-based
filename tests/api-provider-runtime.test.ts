@@ -350,10 +350,10 @@ describe('API provider runtime behavior', () => {
       'anthropic/claude-fable-5.1',
       'anthropic/claude-sonnet-4.6',
       'anthropic/claude-sonnet-5',
-      'google/gemini-3.5-flash',
       'z-ai/glm-5.3-flash',
       'openai/gpt-6-astra',
       'moonshotai/kimi-k3',
+      'google/gemini-3.5-flash',
       'openai/gpt-5.5',
       'moonshotai/kimi-k2.7-code',
       'qwen/qwen3.8-27b',
@@ -457,7 +457,7 @@ describe('API provider runtime behavior', () => {
 
     const ppqModels = await fetchPpqModels('sk-ppq');
 
-    expect(ppqModels.map(m => m.id)).toEqual(['claude-sonnet-4.6', 'claude-fable-5.1', 'claude-sonnet-5', 'google/gemini-3.5-flash', 'glm-5.3-flash', 'grok-4.20', 'x-ai/grok-4.3', 'moonshotai/kimi-k3', 'moonshotai/kimi-k2.7-code', 'qwen/qwen3.8-27b', 'perplexity/sonar']);
+    expect(ppqModels.map(m => m.id)).toEqual(['claude-sonnet-4.6', 'claude-fable-5.1', 'claude-sonnet-5', 'glm-5.3-flash', 'grok-4.20', 'x-ai/grok-4.3', 'moonshotai/kimi-k3', 'google/gemini-3.5-flash', 'moonshotai/kimi-k2.7-code', 'qwen/qwen3.8-27b', 'perplexity/sonar']);
     expect(localStorage.getItem('labcharts-ppq-model')).toBe('claude-sonnet-5');
     expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-ppq-pricing'))['claude-sonnet-4.6']).toEqual({ input: 3, output: 15 });
     expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-ppq-pricing'))['claude-sonnet-5']).toEqual({ input: 2, output: 10 });
@@ -858,13 +858,13 @@ describe('API provider runtime behavior', () => {
     expect(isRecommendedModel('openrouter', 'openai/gpt-5.6-terra')).toBe(false);
     expect(isRecommendedModel('openrouter', 'openai/gpt-5.6-luna')).toBe(false);
     expect(isRecommendedModel('openrouter', 'openai/gpt-5.5')).toBe(false);
-    expect(isRecommendedModel('openrouter', 'google/gemini-3.5-flash')).toBe(true);
+    expect(isRecommendedModel('openrouter', 'google/gemini-3.5-flash')).toBe(false);
     expect(isRecommendedModel('openrouter', 'z-ai/glm-5.3-flash')).toBe(true);
     expect(isRecommendedModel('openrouter', 'z-ai/glm-5.3')).toBe(false);
-    expect(isRecommendedModel('openrouter', 'google/gemini-3.6-flash')).toBe(true);
-    expect(isRecommendedModel('openrouter', 'google/gemini-3.7-flash')).toBe(true);
-    expect(isRecommendedModel('openrouter', 'google/gemini-3.8-flash')).toBe(true);
-    expect(isRecommendedModel('openrouter', 'google/gemini-3.8-flash:batch')).toBe(true);
+    expect(isRecommendedModel('openrouter', 'google/gemini-3.6-flash')).toBe(false);
+    expect(isRecommendedModel('openrouter', 'google/gemini-3.7-flash')).toBe(false);
+    expect(isRecommendedModel('openrouter', 'google/gemini-3.8-flash')).toBe(false);
+    expect(isRecommendedModel('openrouter', 'google/gemini-3.8-flash:batch')).toBe(false);
     expect(isRecommendedModel('openrouter', 'google/gemini-3.8-flash-cyber')).toBe(false);
     expect(isRecommendedModel('openrouter', 'z-ai/glm-5.2')).toBe(false);
     expect(isRecommendedModel('openrouter', 'moonshotai/kimi-k2.7-code')).toBe(false);
@@ -882,11 +882,11 @@ describe('API provider runtime behavior', () => {
     expect(isRecommendedModel('venice', 'openai-gpt-56-luna')).toBe(false);
     expect(isRecommendedModel('venice', 'openai-gpt-6-sol')).toBe(true);
     expect(isRecommendedModel('venice', 'openai-gpt-51')).toBe(false);
-    expect(isRecommendedModel('venice', 'gemini-3-5-flash')).toBe(true);
+    expect(isRecommendedModel('venice', 'gemini-3-5-flash')).toBe(false);
     expect(isRecommendedModel('venice', 'z-ai-glm-5-3-flash')).toBe(true);
     expect(isRecommendedModel('venice', 'z-ai-glm-5-3')).toBe(false);
-    expect(isRecommendedModel('venice', 'gemini-3-7-flash')).toBe(true);
-    expect(isRecommendedModel('venice', 'gemini-3-8-flash')).toBe(true);
+    expect(isRecommendedModel('venice', 'gemini-3-7-flash')).toBe(false);
+    expect(isRecommendedModel('venice', 'gemini-3-8-flash')).toBe(false);
     expect(isRecommendedModel('venice', 'gemini-3-8-flash-cyber')).toBe(false);
     expect(isRecommendedModel('venice', 'zai-org-glm-5-2')).toBe(false);
     expect(isRecommendedModel('venice', 'kimi-k2-7-code')).toBe(false);
@@ -910,9 +910,9 @@ describe('API provider runtime behavior', () => {
     expect(isRecommendedModel('routstr', 'tinfoil-glm-5-3-flash')).toBe(true);
     expect(isRecommendedModel('routstr', 'tinfoil-glm-5-2')).toBe(false);
     expect(isRecommendedModel('routstr', 'moonshotai/kimi-k3')).toBe(true);
-    expect(isRecommendedModel('routstr', 'google/gemini-3.7-flash')).toBe(true);
-    expect(isRecommendedModel('routstr', 'gemini-3.8-flash')).toBe(true);
-    expect(isRecommendedModel('routstr', 'google/gemini-3.8-flash')).toBe(true);
+    expect(isRecommendedModel('routstr', 'google/gemini-3.7-flash')).toBe(false);
+    expect(isRecommendedModel('routstr', 'gemini-3.8-flash')).toBe(false);
+    expect(isRecommendedModel('routstr', 'google/gemini-3.8-flash')).toBe(false);
     expect(isRecommendedModel('routstr', 'google/gemini-3.8-flash-cyber')).toBe(false);
     expect(isRecommendedModel('routstr', 'z-ai/glm-5.3')).toBe(false);
     expect(isRecommendedModel('routstr', 'moonshotai/kimi-k2.7-code')).toBe(false);
@@ -924,36 +924,36 @@ describe('API provider runtime behavior', () => {
     expect(isRecommendedModel('ppq', 'claude-opus-5.5')).toBe(true);
     expect(isRecommendedModel('ppq', 'claude-opus-4.8')).toBe(false);
     expect(isRecommendedModel('ppq', 'x-ai/grok-4.3')).toBe(true);
-    expect(isRecommendedModel('ppq', 'google/gemini-3.5-flash')).toBe(true);
+    expect(isRecommendedModel('ppq', 'google/gemini-3.5-flash')).toBe(false);
     expect(isRecommendedModel('ppq', 'z-ai/glm-5.3-flash')).toBe(true);
     expect(isRecommendedModel('ppq', 'glm-5.3-flash')).toBe(true);
     expect(isRecommendedModel('ppq', 'glm-5.3')).toBe(false);
     expect(isRecommendedModel('ppq', 'z-ai/glm-5.2')).toBe(false);
     expect(isRecommendedModel('ppq', 'private/glm-5-3-flash')).toBe(true);
     expect(isRecommendedModel('ppq', 'private/glm-5-2')).toBe(false);
-    expect(isRecommendedModel('ppq', 'google/gemini-3.7-flash')).toBe(true);
-    expect(isRecommendedModel('ppq', 'gemini-3.8-flash')).toBe(true);
-    expect(isRecommendedModel('ppq', 'google/gemini-3.8-flash')).toBe(true);
+    expect(isRecommendedModel('ppq', 'google/gemini-3.7-flash')).toBe(false);
+    expect(isRecommendedModel('ppq', 'gemini-3.8-flash')).toBe(false);
+    expect(isRecommendedModel('ppq', 'google/gemini-3.8-flash')).toBe(false);
     expect(isRecommendedModel('ppq', 'gemini-3.8-flash-cyber')).toBe(false);
     expect(isRecommendedModel('ppq', 'z-ai/glm-5.3')).toBe(false);
     expect(isRecommendedModel('ppq', 'moonshotai/kimi-k2.7-code')).toBe(false);
     expect(isRecommendedModel('ppq', 'moonshotai/kimi-k2.6')).toBe(false);
     expect(isRecommendedModel('ppq', 'moonshotai/kimi-k3')).toBe(true);
-    expect(isRecommendedModel('ppq', 'gemini-3-flash-preview')).toBe(true);
+    expect(isRecommendedModel('ppq', 'gemini-3-flash-preview')).toBe(false);
     expect(isRecommendedModel('custom', 'claude-fable-5-1')).toBe(true);
     expect(isRecommendedModel('custom', 'anthropic/claude-fable-5.1')).toBe(true);
     expect(isRecommendedModel('custom', 'claude-fable-5')).toBe(false);
     expect(isRecommendedModel('custom', 'claude-sonnet-5')).toBe(true);
     expect(isRecommendedModel('custom', 'anthropic/claude-opus-5.5')).toBe(true);
     expect(isRecommendedModel('custom', 'anthropic/claude-opus-4.8')).toBe(false);
-    expect(isRecommendedModel('custom', 'gemini-3.5-flash')).toBe(true);
+    expect(isRecommendedModel('custom', 'gemini-3.5-flash')).toBe(false);
     expect(isRecommendedModel('custom', 'z-ai/glm-5.3-flash')).toBe(true);
     expect(isRecommendedModel('custom', 'glm-5.3-flash')).toBe(true);
     expect(isRecommendedModel('custom', 'z-ai/glm-5.3')).toBe(false);
     expect(isRecommendedModel('custom', 'z-ai/glm-5.2')).toBe(false);
-    expect(isRecommendedModel('custom', 'gemini-3.7-flash')).toBe(true);
-    expect(isRecommendedModel('custom', 'gemini-3.8-flash')).toBe(true);
-    expect(isRecommendedModel('custom', 'google/gemini-3.8-flash')).toBe(true);
+    expect(isRecommendedModel('custom', 'gemini-3.7-flash')).toBe(false);
+    expect(isRecommendedModel('custom', 'gemini-3.8-flash')).toBe(false);
+    expect(isRecommendedModel('custom', 'google/gemini-3.8-flash')).toBe(false);
     expect(isRecommendedModel('custom', 'gemini-3.8-flash-cyber')).toBe(false);
     expect(isRecommendedModel('custom', 'moonshotai/kimi-k2.7-code')).toBe(false);
     expect(isRecommendedModel('custom', 'moonshotai/kimi-k2.6')).toBe(false);
@@ -974,6 +974,7 @@ describe('API provider runtime behavior', () => {
     expect(selectLatestRecommendedModels('openrouter', [
       { id: 'anthropic/claude-fable-5', name: 'Claude Fable 5' },
       { id: 'anthropic/claude-fable-5.1', name: 'Claude Fable 5.1' },
+      { id: 'google/gemini-4-argon', name: 'Gemini 4 Argon' },
       { id: 'google/gemini-3.5-flash', name: 'Gemini 3.5 Flash' },
       { id: 'google/gemini-3.6-flash', name: 'Gemini 3.6 Flash' },
       { id: 'google/gemini-3.7-flash', name: 'Gemini 3.7 Flash' },
@@ -983,7 +984,7 @@ describe('API provider runtime behavior', () => {
       { id: 'z-ai/glm-5.3-flash', name: 'GLM 5.3 Flash' },
     ])).toEqual([
       { id: 'anthropic/claude-fable-5.1', name: 'Claude Fable 5.1' },
-      { id: 'google/gemini-3.8-flash', name: 'Gemini 3.8 Flash' },
+      { id: 'google/gemini-4-argon', name: 'Gemini 4 Argon' },
       { id: 'z-ai/glm-5.3-flash', name: 'GLM 5.3 Flash' },
     ]);
     expect(selectLatestRecommendedModels('openrouter', [
