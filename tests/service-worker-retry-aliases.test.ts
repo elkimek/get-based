@@ -357,3 +357,33 @@ it('preserves the installed shell when a missing resource cannot be refilled dur
   expect(await (await f.request('/', '', {}, true))!.text()).toBe(body);
   expect([...f.stores.keys()]).toEqual([name]);
 });
+
+
+it('holds unpublished responses only in memory while verification is pending, preserving other build caches', async () => {
+  const extra = '/pending.json';
+  const f = fixture({appShell: ['/index.html', canonical, extra]}), name = 'labcharts-vbuild-' + buildA;
+  await f.install();
+  const prior = f.stores.get(name)!;
+  prior.delete(origin + extra);
+  await (await f.storage.open('labcharts-vbuild-' + buildB)).put('/app', new Response('future build'));
+  let release!: (response: Response) => void;
+  const pending = new Promise<Response>(resolve => {release = resolve;});
+  let probes = 0;
+  f.fetchImpl.mockImplementation(async request => {
+    const url = new URL(typeof request === 'string' ? request : request instanceof URL ? request.href : request.url, origin);
+    if (url.pathname === '/version.js') {
+      probes++;
+      return probes === 2 ? pending : new Response("self.APP_BUILD_ID = '" + buildA + "';");
+    }
+    return new Response('unpublished candidate body');
+  });
+  const install = f.install();
+  await vi.waitFor(() => expect(probes).toBe(2));
+  expect([...f.stores.keys()].sort()).toEqual([name, 'labcharts-vbuild-' + buildB].sort());
+  expect(prior.has(origin + extra)).toBe(false);
+  expect(await (await f.request('/', '', {}, true))!.text()).toBe(body);
+  release(new Response("self.APP_BUILD_ID = '" + buildB + "';"));
+  await expect(install).rejects.toThrow('Deployment changed during app installation');
+  expect([...f.stores.keys()].sort()).toEqual([name, 'labcharts-vbuild-' + buildB].sort());
+  expect(prior.has(origin + extra)).toBe(false);
+});

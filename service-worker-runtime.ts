@@ -9,6 +9,10 @@ interface ServiceWorkerRuntimeConfig {
   resolveCacheName: () => Promise<string>;
   shouldUseNetworkOnly: (url: URL, sameOrigin: boolean) => boolean;
 }
+interface InstallCache {
+  match(url: string): Promise<Response | undefined>;
+  put(url: string, response: Response): Promise<void>;
+}
 interface ServiceWorkerGlobalScope {
   GetBasedServiceWorkerRuntime?: { install: typeof installServiceWorkerRuntime };
   GetBasedServiceWorkerAssets?: readonly string[];
@@ -122,7 +126,7 @@ function installServiceWorkerRuntime({
     }
   }
 
-  async function annotateRetryChunks(cache: Cache) {
+  async function annotateRetryChunks(cache: InstallCache) {
     for (const [canonical, expectedHash] of verifiedRetryChunks) {
       const response = await cache.match(canonical);
       if (response?.status !== 200) throw new RetryCacheIntegrityError('Missing successful retry canonical body', canonical);
@@ -174,7 +178,7 @@ function installServiceWorkerRuntime({
     return 'network error';
   }
 
-  async function cacheAppShellEntry(cache: Cache, url: string) {
+  async function cacheAppShellEntry(cache: InstallCache, url: string) {
     const existing = await cache.match(url);
     if (existing) {
       // Resume only producer-owned annotations. Declared entries are rechecked
@@ -200,7 +204,7 @@ function installServiceWorkerRuntime({
     throw new Error(`Failed to precache ${url}: ${errorMessage(lastError)}`);
   }
 
-  async function precacheAppShell(cache: Cache) {
+  async function precacheAppShell(cache: InstallCache) {
     let nextIndex = 0;
     let cachedCount = 0;
     const failures: string[] = [];
@@ -273,47 +277,34 @@ function installServiceWorkerRuntime({
     event.waitUntil((async () => {
       const name = await resolveCacheName();
       const existing = !!buildId && (await caches.keys()).includes(name);
-      // Imported-script changes can reinstall the same BUILD_ID. Its public
-      // cache may still serve the active worker, so prepare the candidate apart.
-      // Updates for one registration are serialized; a per-build name also lets
-      // the next attempt discard an interrupted candidate without touching it.
-      const candidateName = existing ? `labcharts-install-${buildId}` : name;
-      const copied = new Set<string>();
+      // Imported-script changes can reinstall the same BUILD_ID. Keep only
+      // changed/missing responses in memory until this attempt is verified;
+      // existing bodies stay in the installed cache. An interrupted worker
+      // therefore leaves neither mutations nor an orphaned persistent cache.
+      const candidate = new Map<string, Response>();
       try {
         await verifyDeployment();
-        if (existing) await caches.delete(candidateName);
-        const cache = await caches.open(candidateName);
-        if (existing) {
-          const installed = await caches.open(name);
-          for (let start = 0; start < appShell.length; start += PRECACHE_CONCURRENCY) {
-            await Promise.all(appShell.slice(start, start + PRECACHE_CONCURRENCY).map(async url => {
-              const response = await installed.match(url);
-              if (response) { copied.add(url); await cache.put(url, response); }
-            }));
-          }
-        }
+        const installed = await caches.open(name);
+        const cache: InstallCache = existing ? {
+          match: async url => candidate.get(url)?.clone() || installed.match(url),
+          put: async (url, response) => {
+            // Complete the body before the final deployment check, retaining
+            // the original Response URL, status and headers for publication.
+            await response.clone().arrayBuffer();
+            candidate.set(url, response);
+          },
+        } : installed;
         await precacheAppShell(cache);
         await annotateRetryChunks(cache);
         await verifyDeployment();
-        if (existing) {
-          const installed = await caches.open(name);
-          for (let start = 0; start < appShell.length; start += PRECACHE_CONCURRENCY) {
-            await Promise.all(appShell.slice(start, start + PRECACHE_CONCURRENCY).map(async url => {
-              const response = await cache.match(url);
-              if (!response) throw new Error(`Missing verified install resource: ${url}`);
-              await installed.put(url, response);
-            }));
-          }
-        }
+        for (const [url, response] of candidate) await installed.put(url, response);
       } catch (error) {
         // Invalid cached producer proof still invalidates that cache. A failed
         // candidate or deployment probe cannot delete an existing valid build.
-        if (buildId && (!existing || (error instanceof RetryCacheIntegrityError && copied.has(error.canonical)))) {
+        if (buildId && (!existing || (error instanceof RetryCacheIntegrityError && !candidate.has(error.canonical)))) {
           await caches.delete(name);
         }
         throw error;
-      } finally {
-        if (existing) await caches.delete(candidateName);
       }
     })());
   });
