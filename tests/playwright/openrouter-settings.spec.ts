@@ -123,11 +123,12 @@ test('CLI provider discovers branded agents and keeps model controls stable acro
   await page.route('**/api/local-agents*', route => route.fulfill({
     status: 200, contentType: 'application/json', body: JSON.stringify({ agents }),
   }));
-  await page.route(`${endpoint}/v1/discovery`, route => route.fulfill({
+  await page.route(url => url.origin === endpoint && url.pathname === '/v1/discovery', route => route.fulfill({
     status: 200,
     contentType: 'application/json',
     body: JSON.stringify({
-      service: 'getbased-agent-host', endpoint, token, agents,
+      service: 'getbased-agent-host', endpoint, token,
+      agents: agents.map(agent => agent.id === 'codex' ? { ...agent, version: new URL(route.request().url()).searchParams.get('refresh') === 'true' ? 'codex-cli 0.163.0' : 'codex-cli 0.156.1' } : agent),
       protocolVersion: 5,
       capabilities: ['chat-stream', 'companion-control', 'execution-targets'],
       companionVersion: '1.1.0', runtimeMode: 'temporary', platform: 'linux',
@@ -186,6 +187,7 @@ test('CLI provider discovers branded agents and keeps model controls stable acro
 
   const rows = page.locator('.local-agent-row');
   await expect(rows).toHaveCount(6);
+  await expect(rows.filter({ hasText: 'Codex CLI' })).toContainText('codex-cli 0.163.0');
   await expect(rows).toContainText(['Codex CLI', 'Claude Agent', 'OpenCode', 'Hermes Agent', 'Grok Build', 'OpenClaw']);
   const iconsLoaded = await page.locator('.local-agent-icon img').evaluateAll(images => images.map(image => ({
     complete: (image as HTMLImageElement).complete, naturalWidth: (image as HTMLImageElement).naturalWidth,
