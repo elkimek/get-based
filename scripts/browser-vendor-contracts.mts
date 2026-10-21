@@ -23,7 +23,7 @@ export async function qualifyBrowserVendorAssets({root,read=(file:string)=>fs.re
  const [manifestText,lockText]=await Promise.all([readRelative('vendor/browser-vendors.json'),readRelative('package-lock.json')]);
  const manifest=JSON.parse(manifestText)as Manifest,lock=JSON.parse(lockText)as Lock;
  assert.equal(manifest.schemaVersion,2,'Qualified browser vendor manifest schema');
- assert.equal(manifest.bundler.package,'rolldown');assert.equal(manifest.bundler.version,'1.2.5');
+ assert.equal(manifest.bundler.package,'rolldown');assert.equal(manifest.bundler.version,'1.2.12');
  assert.equal(manifest.bundler.version,lock.packages['node_modules/rolldown']?.version);assert.equal(manifest.bundler.integrity,lock.packages['node_modules/rolldown']?.integrity);
  const assets:BrowserVendorAsset[]=[],physical=new Map<string,BrowserVendorAsset>();
  for(const sdk of BROWSER_VENDOR_SDKS){

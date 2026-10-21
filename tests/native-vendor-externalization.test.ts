@@ -14,11 +14,11 @@ const root=process.cwd();
 // Independent complete generated vendor bytes, reviewed against locked package
 // provenance. The externalization helper cannot manufacture these expectations.
 const immutable=[
- ['vendor/tinfoil-browser.js','tinfoil','1.2.1','eedea2235ab1bd5d5e31267c17859ec0cc814597d8b78b6668109d0f746a3c6a'],
- ['vendor/ehbp-browser.js','ehbp','0.3.2','b90c92f240adcb8b67051f8e62c47f36f1815a41d1c98742e37c5b9155ee62ef'],
- ['vendor/venice-dcap.js','@phala/dcap-qvl','0.6.2','2433eda462946265e19dd3b7d9b6764bb2ef8465b3556ac06a9ccdb30476c657'],
- ['vendor/venice-e2ee.js','venice-e2ee','0.5.3','3587d0ae7c2cd1a6c07a2a0f746abba746acc78bfb1ecb489edf1793a35b39cc'],
- ['vendor/venice-nvidia.js','venice-e2ee','0.5.3','b246e7b58aefbbbc9a95c1c249abc756867d5b3cdff9ae0d0f7ece19d5be173c'],
+ ['vendor/tinfoil-browser.js','tinfoil','1.2.1','ff4f3edb6bbc76f59e4201438c0b6e5b8e767eee1b484af8e9a921b9485bbec0'],
+ ['vendor/ehbp-browser.js','ehbp','0.3.2','0b1920574176ad02cf22a35cfabb0178c6b3c52fa50281799390399aa936a30c'],
+ ['vendor/venice-dcap.js','@phala/dcap-qvl','0.6.3','fce31e45aac962dfb4f7e77500e15df0c1d61e952f4560d2f85bf96159c063ce'],
+ ['vendor/venice-e2ee.js','venice-e2ee','0.5.3','02aa0a9aa5d85582c5ad0f95c3af8812930f802bac3a9a261e0f8abbe7636f3d'],
+ ['vendor/venice-nvidia.js','venice-e2ee','0.5.3','dd61d41c2ecc02bfe7863fee100d728c523cb880a251c76db87d8d3d9c950480'],
 ]as const;
 let vendors:Awaited<ReturnType<typeof createNativeVendorExternals>>;
 beforeAll(async()=>{vendors=await createNativeVendorExternals({root});});
@@ -33,11 +33,11 @@ it('qualifies exactly the five independent complete SDK hashes and locked immuta
   expect(vendors.paths[path.join(root,file)]).toBe('../'+file);
  }
 });
-it('keeps all full SDK resources in the real pruned worker and the unchanged complete APP_SHELL byte metric',async()=>{
+it('keeps all full SDK resources in the real pruned worker and the complete reviewed APP_SHELL byte metric',async()=>{
  const worker=inlineServiceWorkerAssets(await fs.readFile('service-worker.js','utf8'),await fs.readFile('service-worker-assets.js','utf8'));
  const pruned=pruneSourceModuleAppShell(worker,new Set());expect(()=>vendors.assertShell(pruned)).not.toThrow();
  const urls=vendors.assets.map(asset=>asset.url),metrics=await summarizeAppShell({serviceWorkerSource:shell(urls),artifactRoot:path.join(os.tmpdir(),'getbased-native-vendor-no-artifact'),sourceRoot:root});
- expect(metrics).toEqual({resources:5,decodedBytes:729249});expect(metrics.decodedBytes).toBe(vendors.assets.reduce((bytes,asset)=>bytes+asset.bytes,0));
+ expect(metrics).toEqual({resources:5,decodedBytes:736798});expect(metrics.decodedBytes).toBe(vendors.assets.reduce((bytes,asset)=>bytes+asset.bytes,0));
 });
 it.each(immutable)('rejects lost or duplicated cached immutable resource %s',file=>{
  const urls=vendors.assets.map(asset=>asset.url);expect(()=>vendors.assertShell(shell(urls.filter(url=>url!=='/'+file)))).toThrow('APP_SHELL');expect(()=>vendors.assertShell(shell([...urls,'/'+file]))).toThrow();

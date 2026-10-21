@@ -102,7 +102,7 @@ describe('supply-chain inventory', () => {
     expect(Object.keys(resolved)).toHaveLength(14);
     expect((resolved['@noble/curves'] as { package_url?: unknown } | null | undefined)?.package_url).toBe('pkg:npm/%40noble/curves@2.2.0');
     expect(resolved['@phala/dcap-qvl']).toEqual({
-      package_url: 'pkg:npm/%40phala/dcap-qvl@0.6.2',
+      package_url: 'pkg:npm/%40phala/dcap-qvl@0.6.3',
       relationship: 'direct',
       scope: 'runtime',
     });

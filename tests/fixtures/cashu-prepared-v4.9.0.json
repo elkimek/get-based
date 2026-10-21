@@ -1,0 +1,126 @@
+{
+  "description": "Synthetic unfunded mint. Actual cashu-ts 4.9.0 prepared send captured before upgrading; fixed mint seed1, 112sat input and4sat send. Never regenerate with the new SDK.",
+  "sdkVersion": "4.9.0",
+  "sourceCommit": "6775cbc1aa24bc18194505adbc1fc41af4730af7",
+  "mint": "https://mint.synthetic.test",
+  "proofs": [
+    {
+      "id": "01fd34298aec01e3fd17d7f79947509864e4ffa35e69d6d28a3e1a777187c1bcfe",
+      "amount": 16,
+      "C": "02ed0da2376d162a088a41c0888c9acd0dff18e4c7bb05133364665f0267cadb51",
+      "secret": "227c87492d539ac8d32f9dafdc7ea8c45242fd314c3149973f9b2ce529a47a6f",
+      "_mint": "https://mint.synthetic.test"
+    },
+    {
+      "id": "01fd34298aec01e3fd17d7f79947509864e4ffa35e69d6d28a3e1a777187c1bcfe",
+      "amount": 32,
+      "C": "034af5237d2ff749abc6a05acc40e4b48170e0b9f1d9e1d83b6db7f10cfea12fe1",
+      "secret": "4b58c0ac10b17e11f84013101c1a972af2a3d32cf5c18641831ef6d6ee96fb22",
+      "_mint": "https://mint.synthetic.test"
+    },
+    {
+      "id": "01fd34298aec01e3fd17d7f79947509864e4ffa35e69d6d28a3e1a777187c1bcfe",
+      "amount": 64,
+      "C": "029f8a02fdab387b38c3dcb6497e378d278f54b5d53bf437c4b6721db94c60d79e",
+      "secret": "671689355f5144b46ad10a46b6b80d764cb05ac57c8fdc9166da4d52a7606faa",
+      "_mint": "https://mint.synthetic.test"
+    }
+  ],
+  "record": {
+    "version": 2,
+    "operation": "send",
+    "mint": "https://mint.synthetic.test",
+    "createdAt": 1792576800000,
+    "localInputs": [
+      {
+        "id": "01fd34298aec01e3fd17d7f79947509864e4ffa35e69d6d28a3e1a777187c1bcfe",
+        "amount": 16,
+        "C": "02ed0da2376d162a088a41c0888c9acd0dff18e4c7bb05133364665f0267cadb51",
+        "secret": "227c87492d539ac8d32f9dafdc7ea8c45242fd314c3149973f9b2ce529a47a6f",
+        "_mint": "https://mint.synthetic.test"
+      }
+    ],
+    "inputs": [
+      {
+        "id": "01fd34298aec01e3fd17d7f79947509864e4ffa35e69d6d28a3e1a777187c1bcfe",
+        "amount": 16,
+        "C": "02ed0da2376d162a088a41c0888c9acd0dff18e4c7bb05133364665f0267cadb51",
+        "secret": "227c87492d539ac8d32f9dafdc7ea8c45242fd314c3149973f9b2ce529a47a6f",
+        "_mint": "https://mint.synthetic.test"
+      }
+    ],
+    "unselectedProofs": [
+      {
+        "id": "01fd34298aec01e3fd17d7f79947509864e4ffa35e69d6d28a3e1a777187c1bcfe",
+        "amount": 32,
+        "C": "034af5237d2ff749abc6a05acc40e4b48170e0b9f1d9e1d83b6db7f10cfea12fe1",
+        "secret": "4b58c0ac10b17e11f84013101c1a972af2a3d32cf5c18641831ef6d6ee96fb22",
+        "_mint": "https://mint.synthetic.test"
+      },
+      {
+        "id": "01fd34298aec01e3fd17d7f79947509864e4ffa35e69d6d28a3e1a777187c1bcfe",
+        "amount": 64,
+        "C": "029f8a02fdab387b38c3dcb6497e378d278f54b5d53bf437c4b6721db94c60d79e",
+        "secret": "671689355f5144b46ad10a46b6b80d764cb05ac57c8fdc9166da4d52a7606faa",
+        "_mint": "https://mint.synthetic.test"
+      }
+    ],
+    "keysetId": "01fd34298aec01e3fd17d7f79947509864e4ffa35e69d6d28a3e1a777187c1bcfe",
+    "sendOutputCount": 1,
+    "outputs": [
+      {
+        "blindedMessage": {
+          "amount": "4",
+          "B_": "029e7ed1d9821a47aa302dc54b687d1caa7fce2494ec1c1146c028e71d6f1b84cc",
+          "id": "01fd34298aec01e3fd17d7f79947509864e4ffa35e69d6d28a3e1a777187c1bcfe"
+        },
+        "blindingFactor": "50598013458738972092161412470987169668097635034268790979902617607842623254009",
+        "secret": "61346231643337666138343963333631353134383261316166643566326132333536303230613664323236636564333733323934666434663931353534663464"
+      },
+      {
+        "blindedMessage": {
+          "amount": "8",
+          "B_": "03544d352111aeb5022ddbf84b5312b44d3d7898dfb0644d84b9548722eb7d8097",
+          "id": "01fd34298aec01e3fd17d7f79947509864e4ffa35e69d6d28a3e1a777187c1bcfe"
+        },
+        "blindingFactor": "49848605168163589642819408232139185517303818262827109867912881237446584485503",
+        "secret": "38383239396532656434656533343031303739303362383966383934656235623362636138393732633634393939323866373337313335396536333038383437"
+      },
+      {
+        "blindedMessage": {
+          "amount": "4",
+          "B_": "029f2c0ca8c8c3fdb3d192f93e92f6763267c72de7c673b10dc1459106b4e73942",
+          "id": "01fd34298aec01e3fd17d7f79947509864e4ffa35e69d6d28a3e1a777187c1bcfe"
+        },
+        "blindingFactor": "3839065441522033838690262734966265701192614504221239019245827017055127066862",
+        "secret": "31363566303336373336396563303038396138303530363537373038393131666233663139303261656662343461323561313536376364646634316633333461"
+      }
+    ]
+  },
+  "signatures": [
+    {
+      "B_": "029e7ed1d9821a47aa302dc54b687d1caa7fce2494ec1c1146c028e71d6f1b84cc",
+      "signature": {
+        "id": "01fd34298aec01e3fd17d7f79947509864e4ffa35e69d6d28a3e1a777187c1bcfe",
+        "amount": "4",
+        "C_": "034558c5b982b82e5aac0c5691239790026bc37a10125bf8892f16c2986b46d240"
+      }
+    },
+    {
+      "B_": "03544d352111aeb5022ddbf84b5312b44d3d7898dfb0644d84b9548722eb7d8097",
+      "signature": {
+        "id": "01fd34298aec01e3fd17d7f79947509864e4ffa35e69d6d28a3e1a777187c1bcfe",
+        "amount": "8",
+        "C_": "02f138cb1126887c698867b9871139789cdcee75f6459d0bc9280d3c86764d2bd2"
+      }
+    },
+    {
+      "B_": "029f2c0ca8c8c3fdb3d192f93e92f6763267c72de7c673b10dc1459106b4e73942",
+      "signature": {
+        "id": "01fd34298aec01e3fd17d7f79947509864e4ffa35e69d6d28a3e1a777187c1bcfe",
+        "amount": "4",
+        "C_": "038f83fe8f83f163bd6628c3ebecd501f0167fad8a6395946c385bf455de0bf257"
+      }
+    }
+  ]
+}

@@ -78,7 +78,7 @@ it('keeps complete exact copied SDK bytes in both public site and measured servi
  const raw=inlineServiceWorkerAssets(await fs.readFile('service-worker.js','utf8'),await fs.readFile('service-worker-assets.js','utf8'));
  expect(()=>vendors.assertShell(pruneSourceModuleAppShell(raw,new Set()))).not.toThrow();
  const metrics=await summarizeAppShell({serviceWorkerSource:shell(vendors.assets.map(asset=>asset.url)),artifactRoot:directory});
- expect(metrics).toEqual({resources:5,decodedBytes:729249});
+ expect(metrics).toEqual({resources:5,decodedBytes:736798});
 });
 it.each(['missing','truncated','same-size-corruption']as const)('rejects copied public SDK %s before emitting a Kit artifact',async kind=>{
  const directory=await copiedDirectory(),file=path.join(directory,'vendor/tinfoil-browser.js');

@@ -48,8 +48,8 @@
     },
     {
       "name": "@cashu/cashu-ts",
-      "version": "4.9.0",
-      "purl": "pkg:npm/%40cashu/cashu-ts@4.9.0",
+      "version": "4.11.0",
+      "purl": "pkg:npm/%40cashu/cashu-ts@4.11.0",
       "license": "MIT",
       "source": "https://github.com/cashubtc/cashu-ts",
       "monitoring": "github-advisory",
@@ -82,8 +82,8 @@
     },
     {
       "name": "@phala/dcap-qvl",
-      "version": "0.6.2",
-      "purl": "pkg:npm/%40phala/dcap-qvl@0.6.2",
+      "version": "0.6.3",
+      "purl": "pkg:npm/%40phala/dcap-qvl@0.6.3",
       "license": "Apache-2.0",
       "source": "https://github.com/Phala-Network/dcap-qvl",
       "monitoring": "github-advisory",

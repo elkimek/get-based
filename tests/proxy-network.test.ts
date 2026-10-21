@@ -9,7 +9,7 @@ import {
 import type { PinnedProxyLookup, ProxyDispatcher, ProxyFetch, ProxyRequestOptions } from '../lib/proxy-network.js';
 
 describe('proxy DNS pinning transport', () => {
-  it('pins the exact static transport used by the last healthy Node 24 deployment', () => {
+  it('pins the reviewed static Node 24 transport version', () => {
     const packageJson = JSON.parse(readFileSync(
       new URL('../package.json', import.meta.url),
       'utf8',
@@ -24,8 +24,8 @@ describe('proxy DNS pinning transport', () => {
     );
 
     expect(packageJson.engines.node).toBe('24.x');
-    expect(packageJson.dependencies.undici).toBe('8.10.2');
-    expect(packageLock.packages['node_modules/undici'].version).toBe('8.10.2');
+    expect(packageJson.dependencies.undici).toBe('8.11.2');
+    expect(packageLock.packages['node_modules/undici'].version).toBe('8.11.2');
     expect(source).toContain("import { Agent, fetch as undiciFetch } from 'undici'");
     expect(source).not.toContain("import('undici')");
   });
