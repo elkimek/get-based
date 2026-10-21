@@ -9,6 +9,10 @@ updates:
       interval: weekly
     open-pull-requests-limit: 5
     groups:
+      vitest:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
       types:
         patterns:
           - "@types/*"
@@ -20,3 +24,7 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    groups:
+      codeql:
+        patterns:
+          - "github/codeql-action/*"

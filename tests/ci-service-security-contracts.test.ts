@@ -87,3 +87,14 @@ describe('security workflow compiler and dependency ownership', () => {
     expect(workflow).toContain('permissions:\n      contents: write');
   });
 });
+
+
+it('keeps CodeQL steps on one immutable release and groups coupled Dependabot updates', () => {
+  const workflow = read('.github/workflows/codeql.yml');
+  const versions = [...workflow.matchAll(/uses: github\/codeql-action\/(?:init|analyze)@([a-f0-9]{40})/g)].map(match => match[1]);
+  expect(versions).toHaveLength(2);
+  expect(new Set(versions).size).toBe(1);
+  const dependabot = read('.github/dependabot.yml');
+  expect(dependabot).toMatch(/codeql:\n\s+patterns:\n\s+- "github\/codeql-action\/\*"/);
+  expect(dependabot).toMatch(/vitest:\n\s+patterns:\n\s+- "vitest"\n\s+- "@vitest\/\*"/);
+});
