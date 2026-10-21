@@ -70,7 +70,7 @@ export const SECONDARY_UNIT_CONVERSIONS: Record<string, SecondaryUnitConversion[
     ['mU/l', 21.2], ['mIU/l', 21.2], ['µU/ml', 21.2], ['µIU/ml', 21.2], ['µg/l', 1],
   ),
   'diabetes.insulin': multiplyUnits(['pmol/l', 6.0], ['mU/l', 1]),
-  'diabetes.cPeptide': multiplyUnits(['nmol/l', 0.331]),
+  'diabetes.cPeptide': multiplyUnits(['nmol/l', 0.331], ['pmol/l', 331]),
   'hormones.acth': multiplyUnits(['pg/ml', 4.541]),
   'hormones.aldosterone': multiplyUnits(['ng/dl', 0.03605]),
   'hormones.lh': multiplyUnits(['U/l', 1]),

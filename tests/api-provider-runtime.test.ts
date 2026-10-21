@@ -81,6 +81,60 @@ afterEach(() => {
 });
 
 describe('API provider runtime behavior', () => {
+  it('recommends Argon, Wonder and general Spark across supported provider ID formats', () => {
+    for (const provider of ['openrouter', 'ppq', 'routstr', 'venice', 'custom']) {
+      const prefix = provider === 'venice' ? '' : 'meta/';
+      const wonder = { id: prefix + 'muse-wonder' };
+      const spark = { id: prefix + 'muse-spark-1.3' };
+      const argon = { id: (provider === 'venice' ? '' : 'google/') + 'gemini-4-argon' };
+      const batch = { id: argon.id + ':batch' };
+      const others = ['muse-spark-1.1', 'muse-spark-1.2', 'muse-spark-1.3-contributor', 'muse-spark-open']
+        .map(id => ({ id: prefix + id }));
+      expect(selectLatestRecommendedModels(provider, [...others, batch, wonder, spark, argon]))
+        .toEqual([argon, wonder, spark]);
+    }
+    expect(selectLatestModelFamilies([{ id: 'meta/muse-spark-1.1' }, { id: 'meta/muse-spark-1.3' }]))
+      .toEqual([{ id: 'meta/muse-spark-1.3' }]);
+    expect(isRecommendedModel('venice', 'e2ee-muse-wonder')).toBe(false);
+    expect(isRecommendedModel('routstr', 'tinfoil-muse-wonder')).toBe(false);
+    expect(isRecommendedModel('ppq', 'private/muse-wonder')).toBe(false);
+    expect(isRecommendedModel('ollama', 'meta/muse-wonder')).toBe(false);
+  });
+
+  it('discovers current Meta and Gemini routes without inventing availability, vision or selections', async () => {
+    localStorage.setItem('labcharts-routstr-node', 'https://node.example.com/');
+    for (const [provider, fetchModels, formats] of [
+      ['openrouter', fetchOpenRouterModels, ['namespaced']],
+      ['ppq', fetchPpqModels, ['bare', 'namespaced']],
+      ['routstr', fetchRoutstrModels, ['bare', 'namespaced']],
+      ['venice', fetchVeniceModels, ['bare']],
+    ] as const) {
+      for (const format of formats) {
+        const meta = format === 'namespaced' ? 'meta/' : '';
+        const google = format === 'namespaced' ? 'google/' : '';
+        const rows = [
+          { id: meta + 'muse-wonder', enabled: true, type: 'text', architecture: { input_modalities: ['text', 'image'] } },
+          { id: meta + 'muse-spark-1.3', enabled: true, type: 'text' },
+          { id: meta + 'muse-spark-open', enabled: true, type: 'text' },
+          { id: google + 'gemini-4-argon', enabled: true, type: 'text' },
+          { id: meta + 'muse-wonder-unavailable', enabled: false, type: 'text' },
+        ];
+        localStorage.setItem(`labcharts-${provider}-model`, rows[1]!.id);
+        (fetch as Mock<typeof realFetch>).mockResolvedValueOnce(jsonResponse({ data: rows }));
+        const models = await fetchModels();
+        expect(models.map(model => model.id)).toEqual(expect.arrayContaining(rows.slice(0, 4).map(model => model.id)));
+        expect(models.map(model => model.id)).not.toContain(rows[4]!.id);
+        expect(selectLatestRecommendedModels(provider, models).map(model => model.id).sort())
+          .toEqual([rows[0]!.id, rows[1]!.id, rows[3]!.id].sort());
+        expect(localStorage.getItem(`labcharts-${provider}-model`)).toBe(rows[1]!.id);
+        if (provider !== 'venice') {
+          expect(JSON.parse(localStorage.getItem(`labcharts-${provider}-vision-models`) || '[]')).toContain(rows[0]!.id);
+          expect(JSON.parse(localStorage.getItem(`labcharts-${provider}-vision-models`) || '[]')).not.toContain(rows[1]!.id);
+        }
+      }
+    }
+  });
+
   it('excludes only models explicitly marked unavailable by their catalog', () => {
     expect(modelMetadataIsAvailable({ id: 'ready' })).toBe(true);
     expect(modelMetadataIsAvailable({ id: 'disabled', enabled: false })).toBe(false);

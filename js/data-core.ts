@@ -593,7 +593,7 @@ export function createDataCore(ports: DataCorePorts) {
       entryContextByDate,
       refOverrides,
     });
-    if (ports.state.unitSystem !== 'EU') applyUnitConversion(data, ports.state.unitSystem);
+    applyUnitConversion(data, ports.state.unitSystem);
     // Values, calculations, and unit conversions always run against immutable
     // storage dotkeys. Category placement is a final view projection only.
     (0, ports.applyMarkerPlacements)(data.categories, ports.state.importedData || {});

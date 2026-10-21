@@ -27,6 +27,12 @@ export const UNIT_PROFILE_LABELS = Object.freeze({
 const RCPA_CHEMICAL_PATHOLOGY_SOURCE = 'RCPA SPIA Chemical Pathology RS v4.0 / Preferred Units v1.3';
 const RCPA_ENDOCRINE_SOURCE = 'RCPA Harmonisation of Endocrine Dynamic Testing (adult) v1.9';
 
+// Mayo Clinic Laboratories, C-Peptide (CPR): ng/mL × 331 = pmol/L.
+// https://www.mayocliniclabs.com/api/sitecore/TestCatalog/DownloadTestCatalog?testId=8804
+export const EU_UNIT_OVERRIDES: Readonly<Record<string, ProfileConversion>> = Object.freeze({
+  'diabetes.cPeptide': { factor: 331, unit: 'pmol/L', type: 'multiply', source: 'Mayo Clinic Laboratories CPR SI conversion' },
+});
+
 /**
  * ANZ overrides are differences from the canonical schema unit. Markers not
  * listed here still resolve explicitly through the identity fallback, which is
@@ -120,6 +126,8 @@ export function resolveMarkerUnitProfile(dotKey: string, unitProfile: unknown, c
     conversion = usProfileConversion(dotKey);
   } else if (profile === 'ANZ' && marker) {
     conversion = ANZ_UNIT_OVERRIDES[dotKey] || null;
+  } else if (profile === 'EU' && marker) {
+    conversion = EU_UNIT_OVERRIDES[dotKey] || null;
   }
   const unit = conversion?.unit
     || (profile === 'ANZ' && marker ? formatAnzIdentityUnit(storedUnit) : storedUnit);
