@@ -106,7 +106,7 @@ jobs:
         run: node scripts/ci-compiled.mts seal
       - name: Seal immutable artifact and catalog transport
         run: node scripts/ci-artifact.mjs seal --artifact dist --transport .local-notes/ci/transport
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: shipping-inputs
           path: |
@@ -119,7 +119,7 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 14
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: failure()
         with:
           name: prepare-failure
@@ -157,7 +157,7 @@ jobs:
       - name: Enforce resource budgets before affected unit tests
         if: needs.prepare.outputs.full != 'true' && needs.prepare.outputs.performance == 'true' && needs.prepare.outputs.kit != 'true'
         run: node scripts/sveltekit-performance-budget.mjs --artifact "$GETBASED_KIT_ARTIFACT" --output .local-notes/ci/performance
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always() && needs.prepare.outputs.full != 'true' && needs.prepare.outputs.performance == 'true' && needs.prepare.outputs.kit != 'true'
         with:
           name: shipping-performance-budget
@@ -173,7 +173,7 @@ jobs:
       - name: Affected unit tests and mandatory changed-source checks
         if: needs.prepare.outputs.full != 'true'
         run: node scripts/pr-test-scope.mjs --run unit --output .local-notes/ci/affected.json
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always() && needs.prepare.outputs.full == 'true'
         with:
           name: unit-coverage
@@ -237,7 +237,7 @@ jobs:
           LANE: ${{ matrix.id }}
           SHARD: ${{ matrix.shard }}
         run: node scripts/ci-results.mjs coverage-inventory --directory ".local-notes/ci/coverage/$LANE" --shard "$SHARD" --output ".local-notes/ci/coverage-inventories/$LANE.json"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
           name: native-results-${{ matrix.id }}
@@ -246,14 +246,14 @@ jobs:
           include-hidden-files: true
           if-no-files-found: warn
           retention-days: 14
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always() && matrix.coverage == true
         with:
           name: coverage-raw-${{ matrix.id }}
           path: .local-notes/ci/coverage/${{ matrix.id }}
           include-hidden-files: true
           if-no-files-found: error
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always() && matrix.coverage == true
         with:
           name: coverage-inventory-${{ matrix.id }}
@@ -310,7 +310,7 @@ jobs:
       - name: Enforce resource budgets before the first shipping shard
         if: needs.prepare.outputs.full != 'true' && needs.prepare.outputs.performance == 'true' && startsWith(matrix.shard, '1/')
         run: node scripts/sveltekit-performance-budget.mjs --artifact "$GETBASED_KIT_ARTIFACT" --output .local-notes/ci/performance
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always() && needs.prepare.outputs.full != 'true' && needs.prepare.outputs.performance == 'true' && startsWith(matrix.shard, '1/')
         with:
           name: shipping-performance-budget
@@ -400,7 +400,7 @@ jobs:
           process_status=${PIPESTATUS[0]}
           printf '\nps_status=%s (PID/PPID/comm only; exited processes are recorded in pw:browser job logs)\n' "$process_status" >> "$directory/remaining-processes.txt"
           exit 0
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
           name: kit-receipt-${{ matrix.id }}-attempt-${{ github.run_attempt }}
@@ -408,7 +408,7 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 14
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
           name: kit-results-${{ matrix.id }}
@@ -445,7 +445,7 @@ jobs:
       - run: npx --no-install playwright install --with-deps chromium
       - name: Enforce unchanged startup, first-use and offline budgets in isolation
         run: node scripts/sveltekit-performance-budget.mjs --artifact "$GETBASED_KIT_ARTIFACT" --output .local-notes/ci/performance
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
           name: shipping-performance-budget
@@ -501,7 +501,7 @@ jobs:
           REQUIRE_PLAYWRIGHT_COVERAGE_SHARDS: '1'
           PLAYWRIGHT_COVERAGE_DIR: tests/.playwright-coverage
         run: node scripts/playwright-coverage.mjs
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
           name: production-coverage
@@ -565,7 +565,7 @@ jobs:
           EXPECTED_COMMIT_SHA: ${{ github.sha }}
           PRODUCTION_BASE_URL: https://app.getbased.health
         run: node scripts/production-smoke.mjs
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
           name: acceptance-gate
@@ -677,7 +677,7 @@ jobs:
         if: always()
         run: |
           printf '%s\n' '## DIAGNOSTIC WebKit run' 'Only canonical Lens Shell and Wearables desktop WebKit cases were selected.' 'This run does not execute the normal matrix or provide the test release gate.' >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
           name: diagnostic-webkit-${{ github.run_id }}-${{ github.run_attempt }}
@@ -765,7 +765,7 @@ jobs:
         if: always()
         run: |
           printf '%s\n' '## DIAGNOSTIC Cocoa mobile WebKit Routstr PWA run' 'Only the canonical Routstr model-choice unavailable-origin cold-launch case was selected, with its existing assertions and deadline.' 'This run does not execute the normal matrix or provide the test release gate.' >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
           name: diagnostic-webkit-pwa-routstr-${{ github.run_id }}-${{ github.run_attempt }}

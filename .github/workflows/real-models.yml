@@ -63,7 +63,7 @@ jobs:
           git rev-parse HEAD > real-model-revision.txt
           echo "Real-model workflow: $SELECTED_MODEL; revision: $(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
           echo 'Only the selected workflow was tested. GPU and larger voice tiers require separate hardware evidence.' >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
           name: real-model-${{ inputs.model }}-${{ github.sha }}
