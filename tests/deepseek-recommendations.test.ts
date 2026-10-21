@@ -73,6 +73,24 @@ describe('DeepSeek current-family recommendations', () => {
     expect(isRecommendedModel('ollama', 'deepseek-v4.1-flash-1017')).toBe(false);
   });
 
+  it('preserves full-date revisions through provider discovery before choosing the newest', async () => {
+    localStorage.setItem('labcharts-routstr-node', 'https://node.example.com');
+    for (const [provider, fetchModels] of [
+      ['openrouter', fetchOpenRouterModels], ['ppq', fetchPpqModels],
+      ['routstr', fetchRoutstrModels], ['venice', fetchVeniceModels],
+    ] as const) {
+      const prefix = provider === 'venice' ? '' : 'deepseek/';
+      const older = { id: prefix + 'deepseek-v4-pro-20261017', name: 'A older release', enabled: true, type: 'text' };
+      const newer = { id: prefix + 'deepseek-v4-pro-20261018', name: 'Z newer release', enabled: true, type: 'text' };
+      for (const rows of [[older, newer], [newer, older]]) {
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ data: rows })));
+        const catalog = await fetchModels();
+        expect(ids(catalog)).toEqual(ids([older, newer]));
+        expect(selectLatestRecommendedModels(provider, catalog)).toEqual([newer]);
+      }
+    }
+  });
+
   it('discovers available DeepSeek routes with their original IDs and preserves selections and capability metadata', async () => {
     localStorage.setItem('labcharts-routstr-node', 'https://node.example.com');
     for (const [provider, fetchModels] of [

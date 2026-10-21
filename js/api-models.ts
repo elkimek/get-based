@@ -62,7 +62,9 @@ export function modelMetadataIsAvailable(value: unknown) {
 export function deduplicateModels<Model extends StoredProviderModel>(models: Model[], familyFn: (id: string) => string) {
   const seen: Record<string, boolean> = {};
   return models.filter(function(m) {
-    const fam = familyFn(m.id);
+    // DeepSeek date suffixes identify separately selectable releases. Preserve
+    // them until the recommendation selector compares their actual versions.
+    const fam = deepSeekRecommendation(m.id) ? m.id : familyFn(m.id);
     if (seen[fam]) return false;
     seen[fam] = true;
     return true;
