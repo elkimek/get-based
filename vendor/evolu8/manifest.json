@@ -14,25 +14,25 @@
       "integrity": "sha512-/JOYGFN93QspD2C8HVxVgBUlFWqJ1IpaVuIhEB53u4+ZvE+D3LjpNHDYiwZgf0n7VaH2U85OY5eV3wUrWc3scg=="
     },
     "rolldown": {
-      "version": "1.2.5",
-      "integrity": "sha512-VD2IE5PUG4Oj8zz2VGykiYd5wbnjdIiSsNQb8Qu5B+noEp+A78mu2iVvpp27g8es14Tk9rofNs5Tku9iQCS4fA=="
+      "version": "1.2.12",
+      "integrity": "sha512-8wafseiaG80xmXSfqidUNqZcylTlhmPZZt+za2m+js2sFZ8dTNlhIOV2WcbIPx2hgwPBJpEUGFAMZ9bgBBLTSQ=="
     }
   },
   "bundles": [
     {
       "entry": "scripts/vendor-entries/evolu8.js",
       "output": "vendor/evolu8/evolu-bundle.js",
-      "sha256": "3da7f2cdf30ee5d7016b9f7831c0c537970a358d13a50fdefa71ffda63fccabd"
+      "sha256": "d48fd23aaa1f5f9610d4b5baf9154ca107558b3d045ab1fd272b751a665e8a5d"
     },
     {
       "entry": "scripts/vendor-entries/evolu8-db-worker.js",
       "output": "vendor/evolu8/Db.worker.js",
-      "sha256": "70e2972eeb74717c9524986f3a9c12721ef01fa26a0b4629d3d56fba5c2c7964"
+      "sha256": "e2cd4f42eb4e870f1be57d86a76e5a509a1f96f2e3ba3181cda38ea7ff7b3817"
     },
     {
       "entry": "scripts/vendor-entries/evolu8-shared-worker.js",
       "output": "vendor/evolu8/Shared.worker.js",
-      "sha256": "7bcfa3bf8e59849bc0105039943721a79415b95e554d3f62fc23ac3ea2fdc6f9"
+      "sha256": "9ef44230768f3e3d43d84d616b1f36d93a74481b5e8e43ecb6f8ec02192bc042"
     }
   ],
   "assets": [
