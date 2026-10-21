@@ -183,7 +183,7 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
         { id: 'anthropic/claude-fable-5.1', name: 'Claude Fable 5.1' },
         { id: 'google/gemini-3.5-flash', name: 'Gemini 3.5 Flash' },
         { id: 'google/gemini-3.7-flash', name: 'Gemini 3.7 Flash' },
-        { id: 'google/gemini-3.8-flash', name: 'Gemini 3.8 Flash' },
+        { id: 'google/gemini-4-argon', name: 'Gemini 4 Argon' },
         { id: 'google/gemini-3.1-pro', name: 'Gemini 3.1 Pro' },
         { id: 'z-ai/glm-5.3-flash', name: 'GLM 5.3 Flash' },
         { id: 'z-ai/glm-5.3', name: 'GLM 5.3' },
@@ -199,7 +199,7 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
       const openRouterRecommendedGroup = document.querySelector<HTMLElement>('#openrouter-model-select optgroup[label="Recommended"]');
       const openRouterRecommended = !!openRouterRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="anthropic/claude-fable-5.1"]')
         && !!openRouterRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="anthropic/claude-sonnet-5"]')
-        && !!openRouterRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="google/gemini-3.8-flash"]')
+        && !!openRouterRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="google/gemini-4-argon"]')
         && !!openRouterRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="z-ai/glm-5.3-flash"]')
         && !!openRouterRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="moonshotai/kimi-k3"]')
         && !openRouterRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="anthropic/claude-sonnet-4.6"]')
@@ -268,12 +268,12 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
         { id: 'regular-a', name: 'Regular A' },
         { id: 'claude-fable-5-1', name: 'Claude Fable 5.1' },
         { id: 'gemini-3-7-flash', name: 'Gemini 3.7 Flash' },
-        { id: 'gemini-3-8-flash', name: 'Gemini 3.8 Flash' },
+        { id: 'gemini-4-argon', name: 'Gemini 4 Argon' },
       ]);
       const veniceLatestGeminiRecommended = !!document.querySelector<HTMLElement>(
         '#venice-model-select optgroup[label="Recommended"] option[value="claude-fable-5-1"]'
       )
-        && !!document.querySelector<HTMLElement>('#venice-model-select optgroup[label="Recommended"] option[value="gemini-3-8-flash"]')
+        && !!document.querySelector<HTMLElement>('#venice-model-select optgroup[label="Recommended"] option[value="gemini-4-argon"]')
         && !document.querySelector<HTMLElement>('#venice-model-select optgroup[label="Recommended"] option[value="gemini-3-7-flash"]')
         && !!document.querySelector<HTMLElement>('#venice-model-select optgroup[label="Other models"] option[value="gemini-3-7-flash"]');
       controls.toggleVeniceE2EE(true);
@@ -305,7 +305,7 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
       controls.renderRoutstrModelDropdown([
         { id: 'anthropic/claude-fable-5.1', name: 'Claude Fable 5.1' },
         { id: 'google/gemini-3.7-flash', name: 'Gemini 3.7 Flash' },
-        { id: 'google/gemini-3.8-flash', name: 'Gemini 3.8 Flash' },
+        { id: 'google/gemini-4-argon', name: 'Gemini 4 Argon' },
         { id: 'grok-41-fast', name: 'Grok 4.1 Fast' },
         { id: 'x-ai/grok-4.3', name: 'Grok 4.3' },
         { id: 'z-ai/glm-5.3-flash', name: 'GLM 5.3 Flash' },
@@ -316,7 +316,7 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
       ]);
       const routstrRecommendedGroup = document.querySelector<HTMLElement>('#routstr-model-select optgroup[label="Recommended"]');
       const routstrLatestGrokRecommended = !!routstrRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="anthropic/claude-fable-5.1"]')
-        && !!routstrRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="google/gemini-3.8-flash"]')
+        && !!routstrRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="google/gemini-4-argon"]')
         && !!routstrRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="x-ai/grok-4.3"]')
         && !!routstrRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="z-ai/glm-5.3-flash"]')
         && !!routstrRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="moonshotai/kimi-k3"]')
@@ -341,7 +341,7 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
         { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash Preview' },
         { id: 'google/gemini-3.5-flash', name: 'Gemini 3.5 Flash' },
         { id: 'google/gemini-3.7-flash', name: 'Gemini 3.7 Flash' },
-        { id: 'google/gemini-3.8-flash', name: 'Gemini 3.8 Flash' },
+        { id: 'google/gemini-4-argon', name: 'Gemini 4 Argon' },
         { id: 'glm-5.3-flash', name: 'GLM 5.3 Flash' },
         { id: 'glm-5.3', name: 'GLM 5.3' },
         { id: 'z-ai/glm-5.2', name: 'GLM 5.2' },
@@ -356,7 +356,7 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
         && !!ppqRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="x-ai/grok-4.3"]')
         && !ppqRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="grok-4.20"]')
         && !!document.querySelector<HTMLElement>('#ppq-model-select optgroup[label="Other models"] option[value="grok-4.20"]');
-      const ppqLatestGeminiRecommended = !!ppqRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="google/gemini-3.8-flash"]')
+      const ppqLatestGeminiRecommended = !!ppqRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="google/gemini-4-argon"]')
         && !ppqRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="google/gemini-3.7-flash"]')
         && !ppqRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="gemini-3-flash-preview"]')
         && !!document.querySelector<HTMLElement>('#ppq-model-select optgroup[label="Other models"] option[value="google/gemini-3.7-flash"]')
@@ -383,7 +383,7 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
         { id: 'model-a', name: 'Model A' },
         { id: 'claude-fable-5-1', name: 'Claude Fable 5.1' },
         { id: 'gemini-3.7-flash', name: 'Gemini 3.7 Flash' },
-        { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash' },
+        { id: 'gemini-4-argon', name: 'Gemini 4 Argon' },
         { id: 'z-ai/glm-5.3-flash', name: 'GLM 5.3 Flash' },
         { id: 'z-ai/glm-5.3', name: 'GLM 5.3' },
         { id: 'z-ai/glm-5.2', name: 'GLM 5.2' },
@@ -393,7 +393,7 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
       ]);
       const customRecommendedGroup = document.querySelector<HTMLElement>('#custom-model-select optgroup[label="Recommended"]');
       const customGlmKimiRecommended = !!customRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="claude-fable-5-1"]')
-        && !!customRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="gemini-3.8-flash"]')
+        && !!customRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="gemini-4-argon"]')
         && !!customRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="z-ai/glm-5.3-flash"]')
         && !!customRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="moonshotai/kimi-k3"]')
         && !customRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="z-ai/glm-5.3"]')

@@ -245,7 +245,7 @@ describe('meal-photo model routing', () => {
     expect(isConfirmedMealVisionModel('custom', 'verified-vision-model')).toBe(true);
   });
 
-  it('prefers Gemini 3.8 Flash and excludes text-only GLM 5.3 from meal routes', () => {
+  it('retains an explicitly selected legacy Gemini while excluding older and text-only meal routes', () => {
     updateKeyCache('labcharts-openrouter-key', 'test-openrouter-key');
     setAIProvider('openrouter');
     setOpenRouterModel('google/gemini-3.8-flash');
