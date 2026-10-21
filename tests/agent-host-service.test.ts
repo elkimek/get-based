@@ -119,6 +119,48 @@ async function nextEvent(reader: ReadableStreamDefaultReader<Uint8Array>, decode
 }
 
 describe('agent host service', () => {
+  it('refreshes installed versions without replacing clients or waiting on gateways', async () => {
+    const client = { restart: vi.fn(), close: vi.fn() };
+    const listRoutes = vi.fn(() => new Promise(() => {}));
+    const refreshAgentVersions = vi.fn(async () => new Map([['codex', 'codex-cli 0.163.0']]));
+    const options = { appServer: null, token: TOKEN, workspaceRoot: '/tmp/agent-test', refreshAgentVersions,
+      agents: [{ id: 'codex', name: 'Codex CLI', description: 'CLI', protocol: 'codex', client,
+        version: 'codex-cli 0.156.1', routeProvider: { listRoutes, resolve: vi.fn() } }] };
+    const service = (createAgentHostService as unknown as (options: ServiceFixtureOptions) => ReturnType<typeof createAgentHostService>)(options);
+    const request = (query = '') => service.handleRequest(new Request(`http://127.0.0.1:8324/v1/discovery${query}`, {
+      headers: { Origin: 'https://app.getbased.health' },
+    }));
+    expect(await (await request()).json()).toMatchObject({ agents: [{ version: 'codex-cli 0.156.1' }] });
+    expect(refreshAgentVersions).not.toHaveBeenCalled();
+    expect(await (await request('?refresh=true')).json()).toMatchObject({ agents: [{ version: 'codex-cli 0.163.0' }] });
+    expect(await (await request()).json()).toMatchObject({ agents: [{ version: 'codex-cli 0.163.0' }] });
+    expect(refreshAgentVersions).toHaveBeenCalledOnce();
+    expect(client.restart).not.toHaveBeenCalled();
+    expect(client.close).not.toHaveBeenCalled();
+    expect(listRoutes).not.toHaveBeenCalled();
+    for (const origin of ['', 'https://untrusted.example']) {
+      expect((await service.handleRequest(new Request('http://127.0.0.1:8324/v1/discovery?refresh=true', {
+        headers: origin ? { Origin: origin } : {},
+      }))).status).toBe(403);
+    }
+    expect(refreshAgentVersions).toHaveBeenCalledOnce();
+  });
+
+  it('clears stale version text when refresh fails without hiding the configured agent', async () => {
+    const options = { appServer: null, token: TOKEN, workspaceRoot: '/tmp/agent-test',
+      refreshAgentVersions: vi.fn(async () => { throw new Error('private command failure'); }),
+      agents: [{ id: 'codex', name: 'Codex CLI', description: 'CLI', protocol: 'codex', client: null,
+        version: 'codex-cli 0.156.1', status: 'login_required', compatible: true }] };
+    const service = (createAgentHostService as unknown as (options: ServiceFixtureOptions) => ReturnType<typeof createAgentHostService>)(options);
+    const response = await service.handleRequest(new Request('http://127.0.0.1:8324/v1/discovery?refresh=true', {
+      headers: { Origin: 'https://app.getbased.health' },
+    }));
+    expect(response.status).toBe(200);
+    const payload = await response.json();
+    expect(payload).toMatchObject({ agents: [{ id: 'codex', version: '', compatible: true, status: 'login_required' }] });
+    expect(JSON.stringify(payload)).not.toContain('private command failure');
+  });
+
   it('discovers local CLIs without waiting for an unreachable personal gateway', async () => {
     const listRoutes = vi.fn(() => new Promise(() => {}));
     const service = (createAgentHostService as unknown as (options: ServiceFixtureOptions) => ReturnType<typeof createAgentHostService>)({

@@ -28,7 +28,7 @@ describe('agent chat settings', () => {
     expect(getAgentHostToken()).toBe('private-token-for-8325');
   });
   beforeEach(() => { localStorage.clear(); clearKeyCache(); });
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 
   it('accepts only loopback HTTP endpoints', () => {
     expect(normalizeAgentHostEndpoint('http://localhost:8324/')).toBe('http://localhost:8324');
@@ -63,6 +63,54 @@ describe('agent chat settings', () => {
     const agents = await discoverLocalChatAgents({ refresh: true });
     expect(fetchMock).toHaveBeenCalledWith('/api/local-agents?refresh=1', expect.objectContaining({ cache: 'no-store' }));
     expect(agents[0]).toMatchObject({ id: 'codex', description: 'OpenAI official CLI', compatible: true });
+  });
+
+  it('forwards Settings refresh to the installed companion and uses its current version', async () => {
+    const fetchMock = vi.fn(async input => {
+      const url = String(input);
+      if (url.startsWith('/api/local-agents')) return new Response('{"error":"not_found"}', { status: 404 });
+      const target = new URL(url);
+      if (target.port !== '8324') throw new TypeError('connection refused');
+      return new Response(JSON.stringify({ service: 'getbased-agent-host', endpoint: 'http://127.0.0.1:8324',
+        token: 'automatic-companion-token', protocolVersion: 5, capabilities: ['companion-control'],
+        agents: [{ id: 'codex', name: 'Codex CLI', status: 'available', compatible: true,
+          version: target.searchParams.get('refresh') === 'true' ? 'codex-cli 0.163.0' : 'codex-cli 0.156.1' }],
+      }), { status: 200 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(discoverLocalChatAgents({ refresh: true })).resolves.toEqual([
+      expect.objectContaining({ id: 'codex', version: 'codex-cli 0.163.0' }),
+    ]);
+    expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:8324/v1/discovery?refresh=true', expect.anything());
+  });
+
+  it('keeps unused-port discovery short but lets an identified companion finish bounded version refresh', async () => {
+    vi.useFakeTimers();
+    const payload = (version: string) => new Response(JSON.stringify({ service: 'getbased-agent-host',
+      endpoint: 'http://127.0.0.1:8325', token: 'automatic-companion-token', capabilities: ['companion-control'],
+      agents: [{ id: 'codex', compatible: true, status: 'available', version }],
+    }));
+    const fetchMock = vi.fn(async (input: unknown, init?: RequestInit) => {
+      const url = String(input);
+      if (url.startsWith('/api/local-agents')) return new Response('{}', { status: 404 });
+      if (url === 'http://127.0.0.1:8324/v1/discovery') return new Promise<Response>((_resolve, reject) => {
+        init!.signal!.addEventListener('abort', () => reject(new Error('unused port timed out')), { once: true });
+      });
+      if (url === 'http://127.0.0.1:8325/v1/discovery') return payload('codex-cli 0.156.1');
+      if (url === 'http://127.0.0.1:8325/v1/discovery?refresh=true') return new Promise<Response>((resolve, reject) => {
+        const timer = setTimeout(() => resolve(payload('codex-cli 0.163.0')), 800);
+        init!.signal!.addEventListener('abort', () => { clearTimeout(timer); reject(new Error('refresh timed out')); }, { once: true });
+      });
+      throw new Error('unexpected later probe');
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const result = discoverLocalChatAgents({ refresh: true });
+    await vi.runAllTimersAsync();
+    await expect(result).resolves.toEqual([expect.objectContaining({ version: 'codex-cli 0.163.0' })]);
+    expect(fetchMock.mock.calls.map(call => call[0])).toEqual([
+      '/api/local-agents?refresh=1', 'http://127.0.0.1:8324/v1/discovery',
+      'http://127.0.0.1:8325/v1/discovery', 'http://127.0.0.1:8325/v1/discovery?refresh=true',
+    ]);
   });
 
   it('discovers a standalone companion without manual endpoint or token input', async () => {

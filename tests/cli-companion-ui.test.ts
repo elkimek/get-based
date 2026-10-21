@@ -84,7 +84,7 @@ describe('CLI companion setup UI', () => {
       return new Response(JSON.stringify({
         service: 'getbased-agent-host', endpoint: 'http://127.0.0.1:8324', token: '1234567890123456',
         protocolVersion: 5, capabilities: ['companion-control', 'companion-restart'], runtimeMode: 'installed',
-        companionVersion: '1.2.0', agents: [{ id: 'codex', name: 'Codex CLI', status: 'available', compatible: true }],
+        companionVersion: '1.2.0', agents: [{ id: 'codex', name: 'Codex CLI', status: 'available', compatible: true, version: String(input).includes('refresh=true') ? 'codex-cli 0.163.0' : 'codex-cli 0.156.1' }],
       }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }));
 
@@ -96,6 +96,8 @@ describe('CLI companion setup UI', () => {
       expect(document.querySelector('[data-value="restart-companion"]')).not.toBeNull();
     });
     expect(fetch).toHaveBeenCalledWith('/api/local-agents?refresh=1', expect.any(Object));
+    expect(document.body.textContent).toContain('codex-cli 0.163.0');
+    expect(document.body.textContent).not.toContain('codex-cli 0.156.1');
     expect(document.querySelector('.local-agent-install-card')).toBeNull();
 
     const companion = document.getElementById('local-agent-companion-section')!;

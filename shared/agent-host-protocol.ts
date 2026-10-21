@@ -1,7 +1,7 @@
 // Runtime-neutral version and capability contract for the loopback companion.
 
 export const AGENT_HOST_PROTOCOL_VERSION = 5;
-export const GETBASED_COMPANION_VERSION = '1.3.1';
+export const GETBASED_COMPANION_VERSION = '1.3.2';
 export const AGENT_HOST_MAX_PROMPT_CHARS = 100_000;
 
 export const AGENT_HOST_CAPABILITIES = Object.freeze({

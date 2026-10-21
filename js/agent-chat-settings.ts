@@ -186,7 +186,7 @@ export async function discoverLocalChatAgents(options: AgentDiscoveryOptions & {
   // server can expose its own temporary host, but service-level controls such
   // as restart belong to the installed companion on the standard loopback
   // port. The bounded probe also lets a current host replace a legacy result.
-  const companions = await discoverLoopbackAgentHosts({ signal: options.signal, requiredTextFeatureTarget: options.requiredTextFeatureTarget, requiredAgentId: options.requiredAgentId }).catch(() => []);
+  const companions = await discoverLoopbackAgentHosts({ refresh: options.refresh, signal: options.signal, requiredTextFeatureTarget: options.requiredTextFeatureTarget, requiredAgentId: options.requiredAgentId }).catch(() => []);
   return runtime.mergeDiscoveredAgents(direct, companions);
 }
 

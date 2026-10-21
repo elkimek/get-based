@@ -48,6 +48,7 @@ export interface AgentHostServiceOptions {
   controlHandler?: (action: HostControlAction, context: { origin: string }) => Promise<Record<string, unknown>>;
   agents?: (HostAgent | (HostAgentMetadata & { protocol: HostProtocol; client: null }))[];
   bundlePath?: string;
+  refreshAgentVersions?: () => Promise<ReadonlyMap<string, string>>;
 }
 export interface HostUpload { path: string; mediaType: string; timer: ReturnType<typeof setTimeout> }
 export interface ActiveHostTurn {

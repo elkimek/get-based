@@ -34,6 +34,7 @@ export function createAgentHostService(options: AgentHostServiceOptions) {
     status: 'available', compatible: true, protocol: ('codex' as const), client: appServer,
   }];
   const agents = new Map((configuredAgents.filter(agent => agent?.id && agent.client) as HostAgent[]).map(agent => [agent.id, agent]));
+  let installedVersions: ReadonlyMap<string, string> = new Map();
   const instanceId = randomUUID();
   const startedAt = new Date().toISOString();
   const toolTimeoutMs = options.toolTimeoutMs || DEFAULT_TOOL_TIMEOUT_MS;
@@ -320,11 +321,15 @@ export function createAgentHostService(options: AgentHostServiceOptions) {
     }
     if (url.pathname === '/v1/discovery' && request.method === 'GET') {
       if (!origin) return jsonResponse({ error: 'origin_required' }, 403, cors);
+      if (url.searchParams.get('refresh') === 'true' && options.refreshAgentVersions) {
+        try { installedVersions = await options.refreshAgentVersions(); }
+        catch { installedVersions = new Map(configuredAgents.map(agent => [agent.id, ''])); }
+      }
       const discovery = createDiscoverySession(origin);
       // Discovery has a short browser deadline. Gateway profile enumeration
       // belongs to /v1/targets, so an offline remote cannot hide local CLIs.
       const discoveredAgents = configuredAgents.map(agent => ({
-        id: agent.id, name: agent.name, description: agent.description, version: agent.version || '',
+        id: agent.id, name: agent.name, description: agent.description, version: installedVersions.get(agent.id) ?? agent.version ?? '',
         status: paused && agent.status === 'available' ? 'paused' : (agent.status || 'available'),
         compatible: agent.compatible !== false,
         protocolVersion: AGENT_HOST_PROTOCOL_VERSION,

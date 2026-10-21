@@ -8,6 +8,7 @@ import {
 
 export type DiscoveredAgent = ReturnType<typeof normalizeDiscoveredAgent>;
 export interface AgentDiscoveryOptions {
+  refresh?: boolean | undefined;
   signal?: AbortSignal | undefined;
   ports?: number[] | undefined;
   requiredTextFeatureTarget?: string | undefined;
@@ -69,19 +70,32 @@ export function normalizeDiscoveredAgent(agent: Record<string, unknown> | null |
   };
 }
 
-async function probeLoopbackAgentHost(endpoint: string, parentSignal: AbortSignal | undefined, normalizeEndpoint: (value: string) => string) {
+async function probeLoopbackAgentHost(endpoint: string, parentSignal: AbortSignal | undefined, normalizeEndpoint: (value: string) => string, refresh = false) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), LOOPBACK_DISCOVERY_TIMEOUT_MS);
+  let timer = setTimeout(() => controller.abort(), LOOPBACK_DISCOVERY_TIMEOUT_MS);
   const abort = () => controller.abort(parentSignal?.reason);
   parentSignal?.addEventListener('abort', abort, { once: true });
   try {
-    const response = await fetch(`${endpoint}/v1/discovery`, {
-      cache: 'no-store', signal: controller.signal,
-      headers: { Accept: 'application/json' },
-    });
-    if (!response.ok) return [];
-    const payload = await response.json() as DiscoveryPayload;
-    if (payload?.service !== 'getbased-agent-host') return [];
+    const readDiscovery = async (query = '') => {
+      const response = await fetch(`${endpoint}/v1/discovery${query}`, {
+        cache: 'no-store', signal: controller.signal,
+        headers: { Accept: 'application/json' },
+      });
+      if (!response.ok) return null;
+      const payload = await response.json() as DiscoveryPayload;
+      const token = String(payload?.token || '');
+      return payload?.service === 'getbased-agent-host' && token.length >= 16 && token.length <= 256 ? payload : null;
+    };
+    let payload = await readDiscovery();
+    if (!payload) return [];
+    if (refresh) {
+      // Keep unused-port probes fast. Only an identified Companion gets the
+      // longer deadline needed for concurrent, bounded CLI version probes.
+      clearTimeout(timer);
+      timer = setTimeout(() => controller.abort(), 6_000);
+      payload = await readDiscovery('?refresh=true');
+      if (!payload) return [];
+    }
     const normalizedEndpoint = normalizeEndpoint(payload.endpoint || endpoint);
     const token = String(payload.token || '');
     if (token.length < 16 || token.length > 256) return [];
@@ -125,7 +139,7 @@ export async function discoverLoopbackAgentHostsRuntime(options: AgentDiscoveryO
   let legacyCompanion: DiscoveredAgent[] = [];
   for (const endpoint of endpoints) {
     if (options.signal?.aborted) return [];
-    const agents = await probeLoopbackAgentHost(endpoint, options.signal, options.normalizeEndpoint);
+    const agents = await probeLoopbackAgentHost(endpoint, options.signal, options.normalizeEndpoint, options.refresh);
     const allowedAgents = agents.filter(agent => isAgentAllowedForDeployment(agent.id));
     if (!allowedAgents.length) continue;
     if (options.requiredTextFeatureTarget) {

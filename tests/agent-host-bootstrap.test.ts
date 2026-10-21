@@ -18,7 +18,7 @@ const m = vi.hoisted(() => ({ server: null as unknown as FixtureServer, signals:
 vi.mock('node:http', () => ({ createServer: () => m.server }));
 vi.mock('node:fs', () => ({ mkdtempSync: () => '/fixture/workspace', rmSync: m.rm }));
 vi.mock('../lib/agent-host-storage.js', () => ({ prepareAgentHostStorage: m.storage }));
-vi.mock('../lib/local-agent-registry.js', () => ({ detectLocalAgents: m.detect, buildLocalAgentEnvironment: (env: NodeJS.ProcessEnv) => ({ ...env, FIXTURE: 'yes' }) }));
+vi.mock('../lib/local-agent-registry.js', () => ({ detectLocalAgents: m.detect, createAgentVersionRefresher: () => async () => new Map(), buildLocalAgentEnvironment: (env: NodeJS.ProcessEnv) => ({ ...env, FIXTURE: 'yes' }) }));
 vi.mock('../lib/codex-agent-isolation.js', () => ({ buildIsolatedCodexArgs: () => ['isolated'], buildIsolatedCodexEnvironment: () => ({ CODEX_HOME: '/fixture/codex' }) }));
 vi.mock('../lib/codex-app-server-client.js', () => ({ CodexAppServerClient: m.codex }));
 vi.mock('../lib/acp-agent-client.js', () => ({ ACPAgentClient: m.acp }));

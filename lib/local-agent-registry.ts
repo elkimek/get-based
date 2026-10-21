@@ -1,6 +1,6 @@
 // Cross-platform discovery metadata for CLI harnesses supported by the companion.
 
-import { execFileSync } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import { delimiter, isAbsolute, posix, win32 } from 'node:path';
 import { accessSync, constants, existsSync, readFileSync, readdirSync } from 'node:fs';
 
@@ -26,6 +26,7 @@ export interface LocalAgentDiscoveryOptions {
 export interface DetectedLocalAgent extends Omit<LocalAgentSpec, 'args'> {
   args: string[];
   version: string;
+  versionArgs?: string[];
   compatible: boolean;
   status: string;
   message?: string;
@@ -191,9 +192,33 @@ export function detectLocalAgents(options: LocalAgentDiscoveryOptions = {}): Det
     }
     return [{
       ...spec, args: [...launch.args, ...('args' in spec ? spec.args! : [])], command: launch.command,
-      version, compatible: true, status, ...(message ? { message } : {}),
+      version, versionArgs: [...launch.args], compatible: true, status, ...(message ? { message } : {}),
     }];
   });
+}
+
+// Refresh only installed-version metadata. Keep each adapter's configured command
+// and launcher argv; ACP/gateway arguments must never enter a --version probe.
+export function createAgentVersionRefresher(agents: DetectedLocalAgent[], options: {
+  env?: NodeJS.ProcessEnv;
+  execFileImpl?: typeof execFile;
+} = {}) {
+  let pending: Promise<ReadonlyMap<string, string>> | undefined;
+  return (): Promise<ReadonlyMap<string, string>> => {
+    if (!pending) {
+      pending = Promise.all(agents.map(agent => new Promise<[string, string]>(resolve => {
+        const finish = (version: string) => resolve([agent.id, version]);
+        if (agent.compatible === false) { finish(''); return; }
+        try {
+          (options.execFileImpl || execFile)(agent.command, [...(agent.versionArgs || []), '--version'], {
+            encoding: 'utf8', env: options.env || process.env, timeout: 5_000,
+            maxBuffer: 16_384, windowsHide: true, killSignal: 'SIGKILL',
+          }, (error, stdout) => finish(error ? '' : normalizeAgentVersion(agent.id, stdout)));
+        } catch { finish(''); }
+      }))).then(entries => new Map(entries)).finally(() => { pending = undefined; });
+    }
+    return pending;
+  };
 }
 
 export function publicAgentDescriptors(agents: DetectedLocalAgent[]) {

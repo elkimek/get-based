@@ -20,7 +20,7 @@ import {
 import { prepareAgentHostStorage } from '../lib/agent-host-storage.js';
 import { createCompanionRuntimeController } from '../lib/companion-runtime-control.js';
 import { recoverCompanionListener } from '../lib/companion-listener.js';
-import { buildLocalAgentEnvironment, detectLocalAgents } from '../lib/local-agent-registry.js';
+import { buildLocalAgentEnvironment, createAgentVersionRefresher, detectLocalAgents } from '../lib/local-agent-registry.js';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 
@@ -135,6 +135,7 @@ const runtimeController = createCompanionRuntimeController({
 const service = createAgentHostService({
   appServer,
   agents: agentAdapters,
+  refreshAgentVersions: createAgentVersionRefresher(detectedAgents, { env: localAgentEnvironment }),
   bundlePath: bridgePath,
   token,
   workspaceRoot,
