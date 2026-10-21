@@ -93,9 +93,16 @@ async function probeLoopbackAgentHost(endpoint: string, parentSignal: AbortSigna
       // longer deadline needed for concurrent, bounded CLI version probes.
       clearTimeout(timer);
       timer = setTimeout(() => controller.abort(), 6_000);
-      payload = await readDiscovery('?refresh=true');
-      if (!payload) return [];
+      const discovered = payload;
+      try { payload = await readDiscovery('?refresh=true'); }
+      catch { payload = null; }
+      if (!payload) {
+        if (parentSignal?.aborted) return [];
+        payload = { ...discovered, agents: Array.isArray(discovered.agents)
+          ? discovered.agents.map(agent => ({ ...agent, version: '' })) : [] };
+      }
     }
+    if (parentSignal?.aborted) return [];
     const normalizedEndpoint = normalizeEndpoint(payload.endpoint || endpoint);
     const token = String(payload.token || '');
     if (token.length < 16 || token.length > 256) return [];

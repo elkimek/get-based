@@ -119,11 +119,13 @@ test('CLI provider discovers branded agents and keeps model controls stable acro
     supportedReasoningEfforts: [{ reasoningEffort: 'medium', description: 'Medium' }],
   }];
   let delayGatewayModels = false;
+  let failVersionRefresh = false;
 
   await page.route('**/api/local-agents*', route => route.fulfill({
     status: 200, contentType: 'application/json', body: JSON.stringify({ agents }),
   }));
-  await page.route(url => url.origin === endpoint && url.pathname === '/v1/discovery', route => route.fulfill({
+  await page.route(url => url.origin === endpoint && url.pathname === '/v1/discovery', route => failVersionRefresh && new URL(route.request().url()).searchParams.get('refresh') === 'true'
+    ? route.fulfill({ status: 503, body: '{}' }) : route.fulfill({
     status: 200,
     contentType: 'application/json',
     body: JSON.stringify({
@@ -194,6 +196,13 @@ test('CLI provider discovers branded agents and keeps model controls stable acro
   })));
   expect(iconsLoaded).toHaveLength(6);
   expect(iconsLoaded.every(icon => icon.complete && icon.naturalWidth > 0)).toBe(true);
+
+  failVersionRefresh = true;
+  await page.evaluate(async () => (await import('/js/settings-cli-agent-panel.js')).refreshDetectedAgentList({ refresh: true }));
+  await expect(rows).toHaveCount(6);
+  await expect(rows.filter({ hasText: 'Codex CLI' })).not.toContainText('codex-cli');
+  await expect(page.locator('.local-agent-install-card')).toHaveCount(0);
+  failVersionRefresh = false;
 
   const options = page.locator('#cli-agent-options');
   await expect(options).toBeVisible();

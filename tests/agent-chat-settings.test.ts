@@ -84,6 +84,56 @@ describe('agent chat settings', () => {
     expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:8324/v1/discovery?refresh=true', expect.anything());
   });
 
+  it.each(['http', 'network', 'invalid-json', 'wrong-service'])('retains discovered agents with unknown versions when only refresh fails: %s', async failure => {
+    const fetchMock = vi.fn(async (input: unknown) => {
+      const url = String(input);
+      if (url.startsWith('/api/local-agents')) return new Response('{}', { status: 404 });
+      if (url === 'http://127.0.0.1:8324/v1/discovery') return new Response(JSON.stringify({
+        service: 'getbased-agent-host', endpoint: 'http://127.0.0.1:8324', token: 'known-discovery-token',
+        capabilities: ['companion-control'], agents: [{ id: 'codex', status: 'available', compatible: true, version: 'codex-cli 0.156.1' }],
+      }));
+      if (url.endsWith('?refresh=true')) {
+        if (failure === 'network') throw new TypeError('refresh disconnected');
+        if (failure === 'http') return new Response('{}', { status: 503 });
+        if (failure === 'invalid-json') return new Response('not json');
+        return new Response(JSON.stringify({ service: 'different-service', token: 'different-discovery-token' }));
+      }
+      throw new Error('unexpected later probe');
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(discoverLocalChatAgents({ refresh: true })).resolves.toEqual([expect.objectContaining({
+      id: 'codex', status: 'available', compatible: true, version: '', token: 'known-discovery-token',
+      endpoint: 'http://127.0.0.1:8324', controlAuthorized: false,
+    })]);
+    expect(fetchMock.mock.calls.map(call => call[0])).toEqual([
+      '/api/local-agents?refresh=1', 'http://127.0.0.1:8324/v1/discovery',
+      'http://127.0.0.1:8324/v1/discovery?refresh=true',
+    ]);
+  });
+
+  it.each(['timeout', 'caller-abort'])('preserves discovered agents on a refresh timeout but respects caller cancellation: %s', async failure => {
+    vi.useFakeTimers();
+    const controller = new AbortController();
+    vi.stubGlobal('fetch', vi.fn(async (input: unknown, init?: RequestInit) => {
+      const url = String(input);
+      if (url.startsWith('/api/local-agents')) return new Response('{}', { status: 404 });
+      if (url === 'http://127.0.0.1:8324/v1/discovery') return new Response(JSON.stringify({
+        service: 'getbased-agent-host', endpoint: 'http://127.0.0.1:8324', token: 'known-discovery-token',
+        capabilities: ['companion-control'], agents: [{ id: 'codex', status: 'available', compatible: true, version: 'codex-cli 0.156.1' }],
+      }));
+      if (url.endsWith('?refresh=true')) return new Promise<Response>((_resolve, reject) => {
+        init!.signal!.addEventListener('abort', () => reject(new Error('refresh aborted')), { once: true });
+        if (failure === 'caller-abort') setTimeout(() => controller.abort(), 100);
+      });
+      throw new Error('unexpected later probe');
+    }));
+    const result = discoverLocalChatAgents({ refresh: true, signal: controller.signal });
+    await vi.runAllTimersAsync();
+    await expect(result).resolves.toEqual(failure === 'caller-abort' ? [] : [expect.objectContaining({
+      id: 'codex', version: '', token: 'known-discovery-token', controlAuthorized: false,
+    })]);
+  });
+
   it('keeps unused-port discovery short but lets an identified companion finish bounded version refresh', async () => {
     vi.useFakeTimers();
     const payload = (version: string) => new Response(JSON.stringify({ service: 'getbased-agent-host',
