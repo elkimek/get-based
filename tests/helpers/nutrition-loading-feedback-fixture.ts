@@ -26,7 +26,10 @@ async function nextFeedbackPaint(page: Page) {
 // Finish deliberate viewport preparation before measuring application feedback.
 // Keep repeated native focus/reveal outside the measured activation.
 async function prepareFeedbackControl(page: Page, control: Locator) {
-  await control.scrollIntoViewIfNeeded(); await control.hover();
+  // The expanded Body biometrics can put this section below the fold. Centre
+  // the whole control before the measured activation, including tall buttons.
+  await control.evaluate(button => button.scrollIntoView({block: 'center', inline: 'nearest', behavior: 'instant'}));
+  await control.hover();
   await control.evaluate(button => {if (!(button instanceof HTMLElement)) throw new Error('Expected a Nutrition button'); button.focus({preventScroll: true});});
   await expect(control).toBeFocused(); await nextFeedbackPaint(page);
 }

@@ -137,7 +137,7 @@ The [main-route acceptance supplement](../tests/pwa/sveltekit-main-route-accepta
 walks the main routes with the keyboard in Dark desktop Chromium and emulated
 mobile WebKit, checks scoped accessibility and horizontal overflow, and retains
 screenshots and exact profile receipts through stopped-origin and cold launches.
-It also checks the three empty manual-metric calls to action across six themes
+It also checks the four default empty manual-metric calls to action across six themes
 and two widths: primary text ink is an intentional readability improvement.
 The manual-card Remove control sits at the bottom right so its coarse-pointer
 target cannot cover the metric label.

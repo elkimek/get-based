@@ -281,8 +281,8 @@ test('Biometric empty-metric calls to action retain readable text across six the
     expect(before.live).toEqual(seed); expect(before.stored).toEqual(seed); expect(before.rawCommitted).toBe(rawSeed);
     // These are real empty manual-log cards, not isolated text swatches.
     const cards = page.locator('.db-biometric-manual-empty');
-    await expect(cards).toHaveCount(3);
-    expect(await cards.evaluateAll(nodes => nodes.map(node => node.getAttribute('data-empty-metric')))).toEqual(['weight', 'bp_systolic', 'rhr']);
+    await expect(cards).toHaveCount(4);
+    expect(await cards.evaluateAll(nodes => nodes.map(node => node.getAttribute('data-empty-metric')))).toEqual(['weight', 'waist', 'bp_systolic', 'rhr']);
     for (const theme of ['dark', 'light', 'cyberterm', 'glass', 'synth-sunrise', 'neuromancer']) {
       await page.setViewportSize({width: 1280, height: 900});
       await page.locator('[data-shell-action="open-settings"]:visible').first().click();
