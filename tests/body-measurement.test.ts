@@ -5,7 +5,7 @@ import {state} from '../js/state.js';
 import {createDefaultProfileData} from '../js/profile.js';
 import {saveImportedData} from '../js/data.js';
 import {bodyMeasurementRecords, measurementPatch, waistToHeightRatio, bodyMeasurementHeightCm, type BodyMeasurementDraft} from '../js/body-measurement-model.js';
-import {logBodyMeasurement, logManualMetric, deleteBodyMeasurement, deleteAllManualMetrics, parseManualMirrorEntry} from '../js/wearables-manual.js';
+import {logBodyMeasurement, logManualMetric, deleteManualMetric, deleteBodyMeasurement, deleteAllManualMetrics, parseManualMirrorEntry} from '../js/wearables-manual.js';
 import {getDaily, clearSource, deleteWearablesDB} from '../js/wearables-store.js';
 import {applyPulledManualBodyReadings} from '../js/wearables-manual-sync.js';
 import {buildClientExportObject} from '../js/export.js';
@@ -85,6 +85,48 @@ it('keeps abdominal depth separate from waist circumference', async () => {
   await logBodyMeasurement(profile, draft({kind: 'abdominal_depth', value: 21, hip: null, position: 'supine', site: 'iliac'}));
   expect(bodyMeasurementRecords(state.importedData, 'waist')).toHaveLength(1);
   expect(bodyMeasurementRecords(state.importedData, 'abdominal_depth')[0]).toMatchObject({valueCm: 21, hipCm: null, position: 'supine', site: 'iliac'});
+});
+it('moves a corrected date without duplicates or revival while retaining unrelated old-date readings and context', async () => {
+  await logManualMetric(profile, 'weight', {date, value: 78, note: 'Morning', tags: ['morning-fasted']});
+  await logBodyMeasurement(profile, draft());
+  const original = {field: 'waist_standing_midpoint', date};
+  await logBodyMeasurement(profile, draft({date: '2026-09-20', original}));
+  expect(bodyMeasurementRecords(state.importedData, 'waist').map(row => row.date)).toEqual(['2026-09-20']);
+  expect(state.importedData.manualBodyReadings?.[`hip_standing_midpoint.${date}`]?.value).toBeNull();
+  expect(state.importedData.manualBodyReadings?.[`note.${date}`]?.value).toBe('Morning');
+  expect(await getDaily(profile, 'manual', date)).toMatchObject({weight: 78, note: 'Morning'});
+  await applyPulledManualBodyReadings(profile, state.importedData);
+  expect((await getDaily(profile, 'manual', date))?.waist_standing_midpoint).toBeUndefined();
+  expect(await getDaily(profile, 'manual', '2026-09-20')).toMatchObject({waist_standing_midpoint: 86, hip_standing_midpoint: 100});
+});
+it('moves the method on the same date and clears date context only when the final reading is deleted', async () => {
+  await logManualMetric(profile, 'weight', {date, value: 78, note: 'Morning', tags: ['resting']});
+  await logBodyMeasurement(profile, draft());
+  await deleteManualMetric(profile, 'weight', date);
+  await logBodyMeasurement(profile, draft({position: 'seated', original: {field: 'waist_standing_midpoint', date}}));
+  expect(bodyMeasurementRecords(state.importedData, 'waist').map(row => row.field)).toEqual(['waist_seated_midpoint']);
+  expect(state.importedData.manualBodyReadings?.[`note.${date}`]?.value).toBe('Morning');
+  await deleteBodyMeasurement(profile, 'waist_seated_midpoint', date);
+  for (const field of ['note', 'tags', 'waist_seated_midpoint', 'hip_seated_midpoint']) expect(state.importedData.manualBodyReadings?.[`${field}.${date}`]?.value).toBeNull();
+  expect(await getDaily(profile, 'manual', date)).toBeNull();
+  await applyPulledManualBodyReadings(profile, state.importedData);
+  await logBodyMeasurement(profile, draft());
+  expect((await getDaily(profile, 'manual', date))?.note).toBeUndefined();
+  expect((await buildClientExportObject(profile)).manualBodyReadings).toEqual(state.importedData.manualBodyReadings);
+});
+it('clears orphaned old-date context when moving a final reading and rejects occupied destinations without deleting either pair', async () => {
+  await logManualMetric(profile, 'weight', {date, value: 78, note: 'Private context', tags: ['resting']});
+  await logBodyMeasurement(profile, draft());
+  await deleteManualMetric(profile, 'weight', date);
+  await logBodyMeasurement(profile, draft({date: '2026-09-20', original: {field: 'waist_standing_midpoint', date}}));
+  expect(state.importedData.manualBodyReadings?.[`note.${date}`]?.value).toBeNull();
+  expect(state.importedData.manualBodyReadings?.[`tags.${date}`]?.value).toBeNull();
+  expect(await getDaily(profile, 'manual', date)).toBeNull();
+  await logBodyMeasurement(profile, draft({position: 'seated'}));
+  const before = structuredClone(state.importedData.manualBodyReadings);
+  await expect(logBodyMeasurement(profile, draft({position: 'seated', original: {field: 'waist_standing_midpoint', date: '2026-09-20'}}))).rejects.toThrow('already exists');
+  expect(state.importedData.manualBodyReadings).toEqual(before);
+  expect(bodyMeasurementRecords(state.importedData, 'waist')).toHaveLength(2);
 });
 it('projects the actual Waist tile directly from the portable measurements with its method and date', async () => {
   await logBodyMeasurement(profile, draft({position: 'supine'}));

@@ -15,6 +15,11 @@ same date coexist. Waist and optional hips share a write clock; clearing the
 optional hip value clears the previous pair. Ratios require matching pair clocks.
 Deleting a waist measurement commits deletion intent for both waist and hips.
 These fields participate in the existing full manual-data deletion flow too.
+Corrections retain the original date/method identity: moving it publishes the
+new pair and old deletion in one profile commit and refuses an occupied target.
+Untouched measurements retain full centimetre precision across edits and unit
+switches; only display values are rounded. Deleting or moving the last reading
+on a date clears its shared notes and tags in that same portable commit.
 
 The Waist and Abdominal depth tiles project the validated portable mirror, so
 their display survives local Reading-store catch-up. History comparisons and

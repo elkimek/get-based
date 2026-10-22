@@ -75,6 +75,53 @@ test('measurement editor fits a phone and supports the separate SAD caliper entr
   expect(records[0]).toMatchObject({valueCm: 21, position: 'supine', site: 'iliac'});
 });
 
+test('corrections move a reading and preserve untouched centimetres across imperial edits and unit switches', async ({page}) => {
+  await page.clock.setFixedTime(new Date('2026-10-22T12:00:00Z'));
+  await page.goto('/app');
+  const open = async () => page.evaluate(async () => {
+    (await import('/js/chat-panel.js')).closeChatPanel();
+    await (await import('/js/body-measurement-loader.js')).openBodyMeasurement('waist');
+  });
+  const records = async () => page.evaluate(async () => (await import('/js/body-measurement-model.js')).bodyMeasurementRecords((await import('/js/state.js')).state.importedData, 'waist'));
+  const editor = page.locator('[data-body-measurement-view]');
+  await open();
+  await editor.getByLabel('Waist in cm').fill('86');
+  await editor.getByLabel('Hips in cm').fill('100');
+  await editor.getByRole('button', {name: 'in', exact: true}).click();
+  await editor.getByRole('button', {name: 'cm', exact: true}).click();
+  await editor.getByRole('button', {name: 'Save measurement'}).click();
+  await expect(editor).toHaveCount(0);
+  expect((await records())[0]).toMatchObject({valueCm: 86, hipCm: 100});
+  await open();
+  await editor.locator('summary').click();
+  await editor.getByRole('button', {name: 'Edit', exact: true}).click();
+  await editor.getByRole('button', {name: 'in', exact: true}).click();
+  await expect(editor.getByLabel('Waist in in')).toHaveValue('33.9');
+  await editor.getByLabel('Hips in in').fill('40');
+  await editor.getByLabel('Measurement date').fill('2026-10-21');
+  await editor.getByRole('button', {name: 'Save measurement'}).click();
+  await expect(editor).toHaveCount(0);
+  expect(await records()).toMatchObject([{date: '2026-10-21', valueCm: 86, hipCm: 101.6}]);
+  await open();
+  await editor.locator('summary').click();
+  await editor.getByRole('button', {name: 'Edit', exact: true}).click();
+  await editor.getByRole('button', {name: 'Seated', exact: true}).click();
+  await editor.locator('select').selectOption('navel');
+  await editor.getByRole('button', {name: 'Save measurement'}).click();
+  await expect(editor).toHaveCount(0);
+  expect(await records()).toMatchObject([{date: '2026-10-21', valueCm: 86, hipCm: 101.6, field: 'waist_seated_navel'}]);
+  await page.reload();
+  await open();
+  await editor.locator('summary').click();
+  await editor.getByRole('button', {name: 'Delete measurement from 2026-10-21'}).click();
+  await page.locator('#confirm-cancel').click();
+  expect(await records()).toHaveLength(1);
+  await editor.getByRole('button', {name: 'Delete measurement from 2026-10-21'}).click();
+  await page.locator('#confirm-ok').click();
+  await expect(editor).toHaveCount(0);
+  expect(await records()).toEqual([]);
+});
+
 test('waist-to-height explains missing height and uses canonical profile height with an imperial preference', async ({page}) => {
   await page.goto('/app');
   await page.evaluate(async () => {(await import('/js/chat-panel.js')).closeChatPanel(); await (await import('/js/body-measurement-loader.js')).openBodyMeasurement('waist');});

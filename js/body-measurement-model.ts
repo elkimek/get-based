@@ -28,6 +28,7 @@ export interface BodyMeasurement {
 export interface BodyMeasurementDraft {
   kind: BodyMeasurementKind; date: string; value: number; hip: number | null;
   position: BodyPosition; site: WaistSite; unit: 'cm' | 'in';
+  original?: Pick<BodyMeasurement, 'field' | 'date'>;
 }
 export function isBodyMeasurementId(value: unknown): value is BodyMeasurementKind {
   return value === 'waist' || value === 'abdominal_depth';

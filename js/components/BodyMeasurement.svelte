@@ -16,6 +16,8 @@
   let site = $state<WaistSite>(recent?.site || 'midpoint');
   let unit = $state<'cm' | 'in'>(untrack(() => initialUnit));
   let value = $state<number | undefined>(), hip = $state<number | undefined>();
+  let valueCm = $state<number | undefined>(), hipCm = $state<number | undefined>();
+  let original = $state.raw<BodyMeasurementDraft['original']>();
   let date = $state(isoDay()), busy = $state(false), status = $state('');
   let valueInput: HTMLInputElement;
   const isWaist = $derived(kind === 'waist');
@@ -24,8 +26,8 @@
   const timing = $derived(bodyMeasurementTiming(cycle, matching, isoDay()));
   const cycleLabel = $derived(bodyMeasurementCycleLabel(cycle, date));
   const latest = $derived(matching[0]);
-  const ratio = $derived(value && hip ? (value / hip).toFixed(2) : null);
-  const heightRatio = $derived(isWaist && value !== undefined ? waistToHeightRatio(value * (unit === 'in' ? 2.54 : 1), heightCm) : null);
+  const ratio = $derived(valueCm && hipCm ? (valueCm / hipCm).toFixed(2) : null);
+  const heightRatio = $derived(isWaist && valueCm !== undefined ? waistToHeightRatio(valueCm, heightCm) : null);
   const latestHeightRatio = $derived(isWaist && latest ? waistToHeightRatio(latest.valueCm, heightCm) : null);
   const series = $derived([...matching].reverse());
   const minimum = $derived(Math.min(...series.map(row => row.valueCm)) - 1);
@@ -38,19 +40,25 @@
   export function focusInput(): void {valueInput?.focus({preventScroll: true});}
   function setUnit(next: 'cm' | 'in'): void {
     if (next === unit) return;
-    const scale = next === 'in' ? 1 / 2.54 : 2.54;
-    if (value !== undefined) value = Number((value * scale).toFixed(1));
-    if (hip !== undefined) hip = Number((hip * scale).toFixed(1));
+    if (valueCm !== undefined) value = Number(measurementNumber(valueCm, next));
+    if (hipCm !== undefined) hip = Number(measurementNumber(hipCm, next));
     unit = next;
+  }
+  function changeValue(event: Event, hips = false): void {
+    const number = (event.currentTarget as HTMLInputElement).valueAsNumber;
+    const cm = Number.isFinite(number) ? number * (unit === 'in' ? 2.54 : 1) : undefined;
+    if (hips) hipCm = cm; else valueCm = cm;
   }
   function submit(event: SubmitEvent): void {
     event.preventDefault();
-    if (!current() || busy || value === undefined) return;
-    save({kind, date, value, hip: isWaist ? hip ?? null : null, position: isWaist ? position : 'supine', site: isWaist ? site : 'iliac', unit});
+    if (!current() || busy || valueCm === undefined) return;
+    save({kind, date, value: valueCm, hip: isWaist ? hipCm ?? null : null, position: isWaist ? position : 'supine', site: isWaist ? site : 'iliac', unit: 'cm', ...(original ? {original} : {})});
   }
   function edit(row: Reading): void {
     if (!current() || busy) return;
     position = row.position; site = row.site; date = row.date;
+    original = {field: row.field, date: row.date};
+    valueCm = row.valueCm; hipCm = row.hipCm ?? undefined;
     value = Number(measurementNumber(row.valueCm, unit));
     hip = row.hipCm === null ? undefined : Number(measurementNumber(row.hipCm, unit));
     focusInput();
@@ -90,8 +98,8 @@
         {#each ['cm', 'in'] as option}<button type="button" class={choiceButton} aria-pressed={unit === option} disabled={busy} onclick={() => setUnit(option as 'cm' | 'in')}>{option}</button>{/each}
       </div>
       <div class="gb:context-form:grid gb:context-form:grid-cols-2 gb:context-form:items-end gb:context-form:gap-4 gb:context-form:max-[480px]:grid-cols-1">
-        <label><span class={labelClass}>{isWaist ? 'Waist' : 'Abdominal depth'} · {unit}</span><input class={inputClass} bind:this={valueInput} bind:value type="number" step="0.1" min="0.1" max={unit === 'cm' ? 400 : 157.4} inputmode="decimal" aria-label={isWaist ? `Waist in ${unit}` : `Abdominal depth in ${unit}`} placeholder={unit} required disabled={busy}/></label>
-        {#if isWaist}<label><span class={labelClass}>Hips · {unit} <span class={small}>(optional)</span></span><input class={inputClass} bind:value={hip} type="number" step="0.1" min="0.1" max={unit === 'cm' ? 400 : 157.4} inputmode="decimal" aria-label={`Hips in ${unit}`} placeholder={unit} disabled={busy}/></label>{/if}
+        <label><span class={labelClass}>{isWaist ? 'Waist' : 'Abdominal depth'} · {unit}</span><input class={inputClass} bind:this={valueInput} bind:value oninput={event => changeValue(event)} type="number" step="0.1" min="0.1" max={unit === 'cm' ? 400 : 157.4} inputmode="decimal" aria-label={isWaist ? `Waist in ${unit}` : `Abdominal depth in ${unit}`} placeholder={unit} required disabled={busy}/></label>
+        {#if isWaist}<label><span class={labelClass}>Hips · {unit} <span class={small}>(optional)</span></span><input class={inputClass} bind:value={hip} oninput={event => changeValue(event, true)} type="number" step="0.1" min="0.1" max={unit === 'cm' ? 400 : 157.4} inputmode="decimal" aria-label={`Hips in ${unit}`} placeholder={unit} disabled={busy}/></label>{/if}
       </div>
       {#if isWaist}
         <fieldset class="gb:context-form:mx-0 gb:context-form:my-5 gb:context-form:border-0 gb:context-form:p-0">
