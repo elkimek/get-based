@@ -13,7 +13,8 @@ vi.useFakeTimers();vi.setSystemTime(new Date('2026-07-01T12:00:00Z'));
 type Listener={type:string;callback:EventListenerOrEventListenerObject};
 async function load(loadModule:()=>Promise<typeof import('../js/wearables.js')>){const listeners:Listener[]=[];const native=document.addEventListener.bind(document);const spy=vi.spyOn(document,'addEventListener').mockImplementation((type,callback,opts)=>{if(typeof callback==='function'&&['handleWearableActionClick','handleWearableActionKeydown','handleWearableFormSubmit'].includes(callback.name))listeners.push({type,callback});native(type,callback,opts);});try{const api=await loadModule();expect(listeners.map(row=>row.type)).toEqual(['click','keydown','submit']);for(const row of listeners)document.removeEventListener(row.type,row.callback);return{api,listeners};}finally{spy.mockRestore();}}
 const candidate=await load(()=>import('../js/wearables.js'));
-const metrics=()=>Object.fromEntries(Object.keys(CANONICAL_METRICS).map(id=>[id,{primarySource:'oura',latest:52,baseline:45,latestDate:'2026-06-29',weekly:[40,43,48,52],trend30d:'rising'}]));
+// Preserve the recorded pre-waist inputs; method-specific body metrics have their own feature tests.
+const metrics=()=>Object.fromEntries(Object.keys(CANONICAL_METRICS).filter(id=>id!=='waist'&&id!=='abdominal_depth').map(id=>[id,{primarySource:'oura',latest:52,baseline:45,latestDate:'2026-06-29',weekly:[40,43,48,52],trend30d:'rising'}]));
 const metric=(overrides:Record<string,unknown>={})=>({primarySource:'oura',latest:52,baseline:45,latestDate:'2026-06-29',weekly:[40,43,48,52],trend30d:'rising',...overrides});
 const summary=(values:unknown={hrv_rmssd:metric()},sources:unknown={oura:{coverageDays:30,lastSyncAt:Date.now()}})=>({sources,metrics:values});
 const primitive=(trace:string[],name:string,value:unknown)=>({[Symbol.toPrimitive](hint:string){trace.push(name+':'+hint);return value;}});

@@ -4,6 +4,12 @@ import {readFileSync} from 'node:fs';
 import {prepareDemoBiologyData} from '../../js/demo-biology-data.js';
 import {upgradeMenstrualCycleProfile} from '../../js/cycle-summary.js';
 
+test.beforeEach(async ({page}) => {
+  await page.addInitScript(() => {
+    for (const name of ['emptyTour', 'tour']) localStorage.setItem(`labcharts-default-${name}`, 'completed');
+  });
+});
+
 test('Waist is an actual Body biometric with persistent method-specific readings', async ({page}) => {
   const seed = createDefaultProfileData();
   await page.addInitScript(seed => {

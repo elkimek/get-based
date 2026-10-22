@@ -1,4 +1,6 @@
 const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for first-launch offline use.
+  '/js/body-measurement-model.js', '/js/body-measurement-cycle.js',
+  '/js/body-measurement-loader.js', '/js/body-measurement-modal.js', '/js/components/BodyMeasurement.svelte.native.js',
   '/js/recommendation-action-delegates.js',
   '/js/views-runtime.js',
   '/js/navigation-completion.js',

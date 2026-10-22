@@ -45,6 +45,10 @@ export function historicalGenomeRows(alter:(html:string)=>string):(view:unknown)
 /** Later quick-marker injection changes only its three owned boundary spans;
  * reconstruct the independently pinned complete Genome controller exactly. */
 export function restoreReviewedGenomeQuickMarkerBoundary(source:string):string {
+ // Authenticate the complete new controller, then remove only the added waist boundary.
+ assert.equal(sha(source),'20ad9d20392c833ddacbc6e2439fbf773c51b270927d826e857c5d4842e412d2','Complete reviewed waist-injected controller');
+ const waistEdits=[["import {bodyMeasurementRecords, bodyPositionLabel, isBodyMeasurementId, measurementDateLabel, measurementNumber, waistToHeightRatio} from './body-measurement-model.js';\nimport {getProfileHeight} from './profile.js';\n", ""], ["      'abdominal_depth',\n", ""], ["    if (isBodyMeasurementId(metricId)) {\n      const latest = bodyMeasurementRecords(state.importedData, metricId)[0];\n      const label = metricId === 'waist' ? 'Waist' : 'Abdominal depth';\n      if (!latest) return allowEmptyManual ? {id: metricId, label, value: '—', unit: 'cm', change: '+ Log', empty: true} : null;\n      const unit = state.unitSystem === 'US' ? 'in' : 'cm';\n      const heightRatio = metricId === 'waist' ? waistToHeightRatio(latest.valueCm, getProfileHeight(state.currentProfile).height) : null;\n      return {id: metricId, label, value: measurementNumber(latest.valueCm, unit), unit,\n        change: `${bodyPositionLabel(latest.position)} · ${measurementDateLabel(latest.date)}${heightRatio !== null ? ` · Waist/height ${heightRatio.toFixed(2)}` : ''}`, empty: false};\n    }\n", ""]] as const;
+ for(const [current,previous] of waistEdits){assert.equal(source.split(current).length,2,'Exactly one reviewed waist boundary span');source=source.replace(current,previous);}
  assert.equal(sha(source),'8df96b996aef9734e879dfcddf5d2b91e415d8f0465680f7e79792ff2ccdddcd','Complete reviewed quick-marker-injected controller');
  const edits=[
   ["import type {createDashboardQuickMarkerCore} from './dashboard-quick-marker-core.js';\n",''],
