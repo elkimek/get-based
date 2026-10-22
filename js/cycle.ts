@@ -37,6 +37,9 @@ import { clearCycleProfileData, getCycleImportSummarySectionView } from './cycle
 import { recordContextCardChangeRuntime } from './context-cards-runtime.js';
 import { closeCycleModalRuntime, configureCycleAnalysisBridge, isCycleStylesheetLoaded, loadCycleStylesheetForAction, navigateCycleViewRuntime } from './cycle-runtime.js';
 import { getRecordedDrawPhase } from './cycle-draw-phases.js';
+import {bodyMeasurementRecords} from './body-measurement-model.js';
+import {bodyMeasurementTiming} from './body-measurement-cycle.js';
+import {isoDay} from './wearable-adapters.js';
 import { projectCycleEditorPresentation } from './cycle-editor-presentation.js';
 import { cycleEditorModalClasses } from './cycle-editor-classes.js';
 import { renderHTML as renderCycleEditorPresentation } from './components/CycleEditorPresentation.svelte.html.js';
@@ -555,6 +558,9 @@ export function projectMenstrualCycleSection(data: ActiveData | ProfileData | nu
     const isActiveCycle = isActiveCycleStatus(mc.cycleStatus);
     const drawRec = isActiveCycle ? getNextBestDrawDate(mc) : null;
     if (drawRec) input.drawDescription = literal(drawRec.description);
+    input.measurementTiming = bodyMeasurementTiming(mc, [
+      ...bodyMeasurementRecords(state.importedData, 'waist'), ...bodyMeasurementRecords(state.importedData, 'abdominal_depth'),
+    ], isoDay());
     if (isActiveCycle && ((data as ActiveData | null)?.dates?.length as number) > 0) {
       const phases = getBloodDrawPhases(mc, (data as ActiveData).dates, (data as ActiveData).entryContextByDate);
       const phaseDates = Object.entries(phases);

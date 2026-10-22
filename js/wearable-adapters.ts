@@ -95,6 +95,8 @@ export const CANONICAL_METRICS = {
   // Biometric-rooted canonicals (Withings scale/BP cuff, etc.) — these overlap
   // with manual biometrics entries; Phase 3 will decide on a merge policy.
   weight:           { id: 'weight',           label: 'Weight',      sub: '',      unit: 'kg',    worseWhen: 'either' },
+  waist:            { id: 'waist',            label: 'Waist',       sub: '',      unit: 'cm',    worseWhen: 'either' },
+  abdominal_depth:  { id: 'abdominal_depth',  label: 'Abdominal depth', sub: 'SAD', unit: 'cm',   worseWhen: 'either' },
   bp_systolic:      { id: 'bp_systolic',      label: 'BP',          sub: 'syst',  unit: 'mmHg',  worseWhen: 'up',    ariaLabel: 'Blood pressure systolic' },
   bp_diastolic:     { id: 'bp_diastolic',     label: 'BP',          sub: 'dia',   unit: 'mmHg',  worseWhen: 'up',    ariaLabel: 'Blood pressure diastolic' },
   // Canonical extras — adapters opt in by mapping to them

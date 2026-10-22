@@ -21,6 +21,14 @@
         <small>Early follicular phase gives the most stable baseline for hormones, iron, and inflammation markers.</small>
       </div>
     </div>{/if}
+    {#if view.measurementTiming}<div class={c('cycle-draw-date')} data-cycle-body-timing>
+      <span class={c('cycle-draw-icon')}><CycleIcon name="calendar"/></span>
+      <div class={c('cycle-draw-copy')}>
+        <strong>Waist &amp; abdominal depth · {view.measurementTiming.heading.toLowerCase()}</strong>
+        {#if view.measurementTiming.dateLabel}<span>{view.measurementTiming.dateLabel}</span>{/if}
+        <small>{view.measurementTiming.hint}</small>
+      </div>
+    </div>{/if}
     <CycleOverviewPhases phases={view.phases} overflowLabel={view.overflowLabel}/>
     <CycleOverviewHistory periods={view.periods}/>
     <CycleOverviewAlerts alerts={view.alerts}/>

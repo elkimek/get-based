@@ -5,9 +5,65 @@ use the encrypted profile Sync surface `manualBodyReadings`. Raw vendor and
 file-imported wearable histories stay device-local. Connection credentials and
 restricted provider data do not enter this map.
 
+Waist, paired hip circumference and sagittal abdominal diameter use the same
+numeric field mirror. Waist/hip keys encode position (`standing`, `seated`,
+`supine`) and tape location (`midpoint`, `iliac`, `navel`), for example
+`waist_seated_midpoint.2026-10-22`. `sad_supine_iliac` is a separate caliper
+measurement. Values are stored in centimetres; the UI also accepts inches.
+One reading per date and method can be edited, while different methods on the
+same date coexist. Waist and optional hips share a write clock; clearing the
+optional hip value clears the previous pair. Ratios require matching pair clocks.
+Deleting a waist measurement commits deletion intent for both waist and hips.
+These fields participate in the existing full manual-data deletion flow too.
+
+The Waist and Abdominal depth tiles project the validated portable mirror, so
+their display survives local Reading-store catch-up. History comparisons and
+charts include only the same position and location. The editor remembers the
+method from the most recently saved measurement, supports raw ratios without
+health-risk categories, and retains its draft when a write fails. No wearable
+baseline, pooled trend, diagnostic threshold or Biology score is inferred from
+measurements taken with different methods.
+
+Waist-to-height ratio divides the recorded waist in centimetres by the current
+profile height, which is already stored in centimetres regardless of its display
+unit. It appears in the Waist tile, the draft and latest-reading summaries, and
+history. History labels this as the current profile height: changing height
+recalculates these displayed ratios without rewriting measurements or claiming
+that height was recorded at each historical measurement. Missing or invalid
+height gets a short profile-height prompt instead of a ratio. This calculation
+does not apply to SAD and does not add diagnostic categories or insulin-resistance
+claims. [NICE guidance](https://www.nice.org.uk/guidance/ng246/chapter/Rationale-and-impact)
+supports waist-to-height ratio for assessing central adiposity and related health
+risk; it is not an insulin-resistance diagnosis.
+
+Cycle tracking adds display-only context to Waist and Abdominal depth. Cycle days
+come from the last logged period on or before the measurement date; phase labels
+are estimates and are recalculated when period history changes. They are not
+stored as confirmed ovulation or used to correct a measurement. Inactive cycle
+profiles show no timing note. Dates beyond the expected cycle length show elapsed
+time since the last logged period rather than asserting a current cycle day.
+Irregular cycles, perimenopause and hormonal
+contraception receive general consistency guidance without a dated phase forecast.
+
+For a first baseline, mid-follicular timing after bleeding and bloating settle is
+a practical suggestion inferred from [prospective bloating diaries](https://pmc.ncbi.nlm.nih.gov/articles/PMC3154522/),
+not a validated optimal day for waist or SAD. The dated heuristic centres a
+three-day window between the later of usual/logged bleeding end and two days
+before calendar-estimated ovulation (cycle length minus 14). It requires a regular
+natural cycle, a 21–40-day numeric cycle length, a 1–10-day period length and a
+logged period start. The window rolls forward to the current or next forecast
+cycle even when the last logged period is older. These dates remain labelled
+estimated, with a brief request to update the period date when history is old or
+contradictory; projected periods are never saved as observed bleeding. With a
+dated baseline, the next comparison repeats its cycle day for the same method,
+including an estimated calendar day when that baseline fell in an unlogged cycle.
+The Cycle card uses the most recently saved method. Missing cycle inputs get an
+explicit explanation rather than a fabricated date. Any date remains eligible
+for logging. Blood-draw timing remains a separate recommendation.
+
 Each key is `<field>.<YYYY-MM-DD>`, so same-day weight, BP and pulse compose rather
 than replacing a date-wide row. Values carry `value` and `updatedAt`; the known
-fields are the four manual metrics plus the existing shared date-level tags and
+fields are the manual metrics, the method-specific body measurements, and the existing shared date-level tags and
 note. Values must have their expected primitive type and a real calendar date.
 Unknown incoming fields are retained in profile data but are not written into
 the local Reading store. Updates preserve opaque existing row fields.

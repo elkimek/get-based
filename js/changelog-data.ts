@@ -4,6 +4,13 @@ import { CURRENT_RELEASE } from './changelog-current.js';
 // Shared authored notes; retry controllers retain their own evaluation and delegates.
 export const CHANGELOG: readonly ChangelogEntry[] = [
   CURRENT_RELEASE,
+  { version: '1.24.0', date: '2026-10-18', title: 'A stronger foundation', items: [
+  '<b>Rebuilt for the future.</b> The interface now uses Svelte, SvelteKit and Tailwind CSS, making getbased easier to maintain and improve.',
+  '<b>Your familiar app, preserved.</b> Existing profiles, health data, preferences and workflows carry forward.',
+  '<b>More consistent across screens.</b> Refined spacing, text, buttons and layouts improve readability and usability on desktop and mobile.',
+  '<b>Smarter loading and reliable offline use.</b> Features load when needed, with improvements to startup, offline caching and app updates.',
+  '<b>Better checks before release.</b> Expanded browser, accessibility and performance checks help catch problems as getbased evolves.',
+] },
   { version: '1.23.0', date: '2026-10-05', title: 'Migration to TypeScript 7', items: [
   '<b>getbased has been fully migrated to TypeScript 7.</b> This gives future development a stronger foundation, helps catch errors earlier, and makes the code easier to maintain. Existing profiles, data, and familiar workflows remain compatible.',
   '<b>Fixes for issues inherited from the JavaScript codebase.</b> Improved Routstr wallet handling across mints, nodes, and refund recovery.',

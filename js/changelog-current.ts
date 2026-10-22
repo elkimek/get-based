@@ -6,10 +6,9 @@ export interface ChangelogEntry {
   forceShow?: boolean;
 }
 // Current release kept separate so the historical archive remains bounded.
-export const CURRENT_RELEASE = { version: '1.24.0', date: '2026-10-18', title: 'A stronger foundation', items: [
-  '<b>Rebuilt for the future.</b> The interface now uses Svelte, SvelteKit and Tailwind CSS, making getbased easier to maintain and improve.',
-  '<b>Your familiar app, preserved.</b> Existing profiles, health data, preferences and workflows carry forward.',
-  '<b>More consistent across screens.</b> Refined spacing, text, buttons and layouts improve readability and usability on desktop and mobile.',
-  '<b>Smarter loading and reliable offline use.</b> Features load when needed, with improvements to startup, offline caching and app updates.',
-  '<b>Better checks before release.</b> Expanded browser, accessibility and performance checks help catch problems as getbased evolves.',
+export const CURRENT_RELEASE = { version: '1.25.0', date: '2026-10-22', title: 'Waist measurements and cycle guidance', items: [
+  '<b>More body measurements.</b> Log waist and optional hip measurements, see waist-to-hip and waist-to-height ratios, or record abdominal depth (SAD) with a caliper.',
+  '<b>Measure in a way that suits you.</b> Choose standing, seated or lying down for waist measurements, with simple guidance and centimetres or inches.',
+  '<b>Follow your progress consistently.</b> The app remembers your measurement method and keeps different positions and locations separate in your history.',
+  '<b>Use your cycle for timing.</b> See cycle context beside measurements and estimated dates for your first measurement and later comparisons.',
 ] } satisfies ChangelogEntry;

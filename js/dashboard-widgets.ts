@@ -36,7 +36,7 @@ export const DASHBOARD_WIDGET_DEFAULT_IDS = [
   'biology-score-metabolicFlexibility',
   'cycle',
 ];
-export const DASHBOARD_MANUAL_BIOMETRIC_METRICS = ['weight', 'bp_systolic', 'rhr'];
+export const DASHBOARD_MANUAL_BIOMETRIC_METRICS = ['weight', 'waist', 'bp_systolic', 'rhr'];
 
 export function dashboardWidgetStorageKey() {
   return profileStorageKey(state.currentProfile || 'default', `dashboardWidgetsV${DASHBOARD_WIDGETS_VERSION}`);

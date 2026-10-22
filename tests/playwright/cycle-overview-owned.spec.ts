@@ -52,10 +52,17 @@ async function mountPairs(page:Page,samples:Sample[]){
   try{for(const sample of samples){
    state.importedData={menstrualCycle:structuredClone(sample.input.mc??null)} as typeof state.importedData;
    state.profileDob=sample.input.profileDob??null;
-   const html=cycle.renderMenstrualCycleSection(structuredClone(sample.input.data??null) as Parameters<typeof cycle.renderMenstrualCycleSection>[0],sample.input.opts as Parameters<typeof cycle.renderMenstrualCycleSection>[1]);
+   const data=structuredClone(sample.input.data??null) as Parameters<typeof cycle.renderMenstrualCycleSection>[0],opts=sample.input.opts as Parameters<typeof cycle.renderMenstrualCycleSection>[1];
+   const html=cycle.renderMenstrualCycleSection(data,opts),timing=cycle.projectMenstrualCycleSection(data,opts).measurementTiming;
+   // Compare every pre-existing node/style against its immutable receipt. The
+   // additive timing note has separate real-page acceptance in body-measurement.spec.ts.
+   const compatible=document.createElement('div');compatible.innerHTML=html;
+   const added=compatible.querySelectorAll('[data-cycle-body-timing]');
+   if(added.length!==(timing?1:0))throw new Error('Cycle measurement timing presence '+sample.name);
+   if(timing){const note=added[0]!;if(note.querySelector('strong')?.textContent!==`Waist & abdominal depth · ${timing.heading.toLowerCase()}`||note.querySelector('small')?.textContent!==timing.hint||(note.querySelector('.cycle-draw-copy > span')?.textContent??null)!==timing.dateLabel)throw new Error('Cycle measurement timing content '+sample.name);note.remove();}
    for(const placement of ['body-full','dashboard-half','dashboard-full']){
     const pair=document.createElement('div');pair.dataset.name=sample.name+'/'+placement;pair.style.cssText='position:absolute;inset:0;padding:12px';
-    for(const[kind,content]of[['original',sample.html],['current',html]]){const side=document.createElement('section');side.dataset[kind!]='';side.style.cssText='position:absolute;inset:0;padding:12px';side.innerHTML=wrap(content!,placement);pair.append(side);}
+    for(const[kind,content]of[['original',sample.html],['current',compatible.innerHTML]]){const side=document.createElement('section');side.dataset[kind!]='';side.style.cssText='position:absolute;inset:0;padding:12px';side.innerHTML=wrap(content!,placement);pair.append(side);}
     host.pairs.push(pair);
    }
   }}finally{state.importedData=saved.data;state.profileDob=saved.dob;}

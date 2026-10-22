@@ -9,6 +9,7 @@
 @source "../js/components/ContextLightSetupMirror.svelte";
 @source "../js/context-form-dialog.ts";
 @source "../js/components/ContextHealthGoals.svelte";
+@source "../js/components/BodyMeasurement.svelte";
 @custom-variant context-form (&:is([data-context-form-modal], [data-context-form-modal] *));
 
 @source "../js/components/ContextEMFLauncher.svelte";

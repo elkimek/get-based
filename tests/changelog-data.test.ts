@@ -39,39 +39,47 @@ function archiveLiteral(source:string):string {
   return source.slice(value.getStart(file),value.end);
  });
 }
-// Appending a new release must preserve both the previous current entry and the
+// Appending a new release must preserve the previous current entries and the
 // independently qualified 1.22-and-earlier archive; never replace their pins.
-function previousCurrentLiteral(source:string):string {
+function previousCurrentLiteral(source:string,version:'1.24.0'|'1.23.0'='1.24.0'):string {
  return withParsedSource(source,'js/changelog-data.ts',file=>{
   const statement=file.statements[2];assert(statement&&ts.isVariableStatement(statement));
   const value=statement.declarationList.declarations[0]?.initializer;
   assert(value&&ts.isArrayLiteralExpression(value));
-  const previous=value.elements[1];assert(previous&&ts.isObjectLiteralExpression(previous));
-  const version=previous.properties[0];assert(version&&ts.isPropertyAssignment(version));
-  assert(ts.isIdentifier(version.name)&&version.name.text==='version');
-  assert(ts.isStringLiteral(version.initializer)&&version.initializer.text==='1.23.0');
+  const previous=value.elements[version==='1.24.0'?1:2];assert(previous&&ts.isObjectLiteralExpression(previous));
+  const property=previous.properties[0];assert(property&&ts.isPropertyAssignment(property));
+  assert(ts.isIdentifier(property.name)&&property.name.text==='version');
+  assert(ts.isStringLiteral(property.initializer)&&property.initializer.text===version);
   return source.slice(previous.getStart(file),previous.end);
  });
 }
 function qualifiedOriginalArchive(source:string):string {
  archiveLiteral(source); // Validate the complete current declaration first.
  const previous=previousCurrentLiteral(source);
- assert.equal(Buffer.byteLength(previous),943);
- assert.equal(sha(previous),'d5eb37abdea9fd02d4f6518c230143c75367a4de877a5a9c68aad3ffb81bdd1a');
+ assert.equal(Buffer.byteLength(previous),769);
+ assert.equal(sha(previous),'e9ebcfe08904e8993151c72666df78a94785f1d58665ecb24f1680f01301267e');
+ const typescript=previousCurrentLiteral(source,'1.23.0');
+ assert.equal(Buffer.byteLength(typescript),943);
+ assert.equal(sha(typescript),'d5eb37abdea9fd02d4f6518c230143c75367a4de877a5a9c68aad3ffb81bdd1a');
  const insertion='  '+previous+',\n';
  assert.equal(source.split(insertion).length,2,'Exactly one previous release entry');
- return archiveLiteral(source.replace(insertion,''));
+ const typescriptInsertion='  '+typescript+',\n';
+ assert.equal(source.split(typescriptInsertion).length,2,'Exactly one TypeScript release entry');
+ return archiveLiteral(source.replace(insertion,'').replace(typescriptInsertion,''));
 }
-it('keeps the previous TypeScript release byte-exact beside the new app release',()=>{
+it('keeps the previous app and TypeScript releases byte-exact beside the new body measurements release',()=>{
  const literal=previousCurrentLiteral(dataSource);
- expect(Buffer.byteLength(literal)).toBe(943);
- expect(sha(literal)).toBe('d5eb37abdea9fd02d4f6518c230143c75367a4de877a5a9c68aad3ffb81bdd1a');
+ expect(Buffer.byteLength(literal)).toBe(769);
+ expect(sha(literal)).toBe('e9ebcfe08904e8993151c72666df78a94785f1d58665ecb24f1680f01301267e');
+ const typescript=previousCurrentLiteral(dataSource,'1.23.0');
+ expect(Buffer.byteLength(typescript)).toBe(943);
+ expect(sha(typescript)).toBe('d5eb37abdea9fd02d4f6518c230143c75367a4de877a5a9c68aad3ffb81bdd1a');
  const versionSource=readFileSync('version.ts','utf8');
  expect(versionSource.match(/self\.APP_VERSION = '([^']+)';/)?.[1]).toBe(CURRENT_RELEASE.version);
- expect(CURRENT_RELEASE.version).toBe('1.24.0');
- expect(CURRENT_RELEASE.date).toBe('2026-10-18');
- expect(CURRENT_RELEASE.title).toBe('A stronger foundation');
- expect(CURRENT_RELEASE.items).toHaveLength(5);
+ expect(CURRENT_RELEASE.version).toBe('1.25.0');
+ expect(CURRENT_RELEASE.date).toBe('2026-10-22');
+ expect(CURRENT_RELEASE.title).toBe('Waist measurements and cycle guidance');
+ expect(CURRENT_RELEASE.items).toHaveLength(4);
 });
 it('moves the exact original 82166-byte archive and leaves every controller statement unchanged',()=>{
  const literal=qualifiedOriginalArchive(dataSource);
@@ -122,6 +130,7 @@ it('the independent archive pin rejects changed text, order and force-show metad
 it('rejects edits, removal and duplicate insertion of the previous current release',()=>{
  const literal=previousCurrentLiteral(dataSource);
  for(const changed of [dataSource.replace('Migration to TypeScript 7','Migration to TypeScript 8'),
+  dataSource.replace('A stronger foundation','An altered foundation'),
   dataSource.replace('  '+literal+',\n',''),dataSource.replace('  '+literal+',\n','  '+literal+',\n  '+literal+',\n')]){
   expect(()=>qualifiedOriginalArchive(changed)).toThrow();
  }

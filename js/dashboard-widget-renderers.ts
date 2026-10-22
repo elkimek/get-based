@@ -25,6 +25,8 @@ import { getDnaModuleFunction } from './dna-runtime-bridge.js';
 import { safeMarkerId } from './utils.js';
 import { renderBiologyScoresWidget, renderDashboardBiologyScoreWidget, renderDashboardBiologicalCoherenceWidget } from './biology-score-dashboard.js';
 import { wearableDisplayUnit } from './wearables-formatters.js';
+import {bodyMeasurementRecords, bodyPositionLabel, isBodyMeasurementId, measurementDateLabel, measurementNumber, waistToHeightRatio} from './body-measurement-model.js';
+import {getProfileHeight} from './profile.js';
 
 import type {WidgetRendererDependencies, BiometricTile, GenomeStored, GenomeProfile, GenomeEvidence, GenomeFinding, GenomeGroup, GenomeGenetics, GenomeHaplogroupTable, MtdnaReader, WearableConnectionReader} from '../types/dashboard-widget-renderers.js';
 import {prepareDashboardInsights, projectDashboardInsights} from './dashboard-insights-projection.js';
@@ -211,6 +213,7 @@ export function createDashboardWidgetRenderers(deps: unknown, quickMarkers: Retu
       ...DEFAULT_METRIC_ORDER,
       ...Object.keys(summary?.metrics || {}),
       ...DASHBOARD_MANUAL_BIOMETRIC_METRICS,
+      'abdominal_depth',
     ];
     const seen = new Set<unknown>();
     return ordered.filter(metricId => {
@@ -281,6 +284,15 @@ export function createDashboardWidgetRenderers(deps: unknown, quickMarkers: Retu
   }
 
   function getDashboardBiometricTile(metricId: unknown, { allowEmptyManual = false }: {allowEmptyManual?:unknown} = {}): BiometricTile | null {
+    if (isBodyMeasurementId(metricId)) {
+      const latest = bodyMeasurementRecords(state.importedData, metricId)[0];
+      const label = metricId === 'waist' ? 'Waist' : 'Abdominal depth';
+      if (!latest) return allowEmptyManual ? {id: metricId, label, value: '—', unit: 'cm', change: '+ Log', empty: true} : null;
+      const unit = state.unitSystem === 'US' ? 'in' : 'cm';
+      const heightRatio = metricId === 'waist' ? waistToHeightRatio(latest.valueCm, getProfileHeight(state.currentProfile).height) : null;
+      return {id: metricId, label, value: measurementNumber(latest.valueCm, unit), unit,
+        change: `${bodyPositionLabel(latest.position)} · ${measurementDateLabel(latest.date)}${heightRatio !== null ? ` · Waist/height ${heightRatio.toFixed(2)}` : ''}`, empty: false};
+    }
     const summary = state.importedData?.wearableSummary as import("../types/mobile-dashboard.js").MobileWearableReader | null | undefined;
     const metric = summary?.metrics?.[metricId as string];
     const canon = (canonicalMetric as (id:unknown)=>ReturnType<typeof canonicalMetric>)(metricId);

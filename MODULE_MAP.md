@@ -9,9 +9,9 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1857 |
-| Internal import edges | 5626 |
-| Dynamic internal edges | 135 |
+| Modules | 1862 |
+| Internal import edges | 5659 |
+| Dynamic internal edges | 136 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
 | Largest cyclic component | 0 |
@@ -65,14 +65,14 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/state.ts`](js/state.ts) | 258 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 78 |
-| [`js/utils.ts`](js/utils.ts) | 257 | [`js/chat-send.ts`](js/chat-send.ts) | 38 |
-| [`js/caught-error.ts`](js/caught-error.ts) | 93 | [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) | 36 |
+| [`js/state.ts`](js/state.ts) | 260 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 78 |
+| [`js/utils.ts`](js/utils.ts) | 259 | [`js/chat-send.ts`](js/chat-send.ts) | 38 |
+| [`js/caught-error.ts`](js/caught-error.ts) | 94 | [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) | 36 |
 | [`js/data.ts`](js/data.ts) | 87 | [`js/provider-panels.ts`](js/provider-panels.ts) | 34 |
-| [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts) | 84 | [`js/settings.ts`](js/settings.ts) | 34 |
+| [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts) | 85 | [`js/settings.ts`](js/settings.ts) | 34 |
 | [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts) | 65 | [`js/pdf-import.ts`](js/pdf-import.ts) | 31 |
-| [`js/api.ts`](js/api.ts) | 52 | [`js/provider-wallet-panels.ts`](js/provider-wallet-panels.ts) | 30 |
-| [`js/profile.ts`](js/profile.ts) | 52 | [`js/sync-configure.ts`](js/sync-configure.ts) | 29 |
+| [`js/profile.ts`](js/profile.ts) | 54 | [`js/provider-wallet-panels.ts`](js/provider-wallet-panels.ts) | 30 |
+| [`js/api.ts`](js/api.ts) | 52 | [`js/sync-configure.ts`](js/sync-configure.ts) | 29 |
 | [`js/crypto.ts`](js/crypto.ts) | 41 | [`js/wearables-connect.ts`](js/wearables-connect.ts) | 28 |
 | [`js/schema.ts`](js/schema.ts) | 41 | [`js/chat-empty-state.ts`](js/chat-empty-state.ts) | 26 |
 | [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts) | 39 | [`js/export.ts`](js/export.ts) | 26 |
@@ -591,9 +591,19 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>body</code> family — 1 module</summary>
+<details><summary><code>body</code> family — 5 modules</summary>
 
+- [`js/body-measurement-cycle.ts`](js/body-measurement-cycle.ts) → [`js/body-measurement-model.ts`](js/body-measurement-model.ts)
+- [`js/body-measurement-loader.ts`](js/body-measurement-loader.ts) → [`js/body-measurement-modal.ts`](js/body-measurement-modal.ts) *(dynamic)*, [`js/route-lifecycle.ts`](js/route-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/body-measurement-modal.ts`](js/body-measurement-modal.ts) → [`js/body-measurement-model.ts`](js/body-measurement-model.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/components/BodyMeasurement.svelte`](js/components/BodyMeasurement.svelte), [`js/context-card-editor-ui.ts`](js/context-card-editor-ui.ts), [`js/context-form-dialog.ts`](js/context-form-dialog.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/profile.ts`](js/profile.ts), [`js/route-lifecycle.ts`](js/route-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts), [`js/wearables-manual.ts`](js/wearables-manual.ts), [`js/wearables-runtime.ts`](js/wearables-runtime.ts)
+- [`js/body-measurement-model.ts`](js/body-measurement-model.ts) → no in-scope imports
 - [`js/marker-schema/body-composition.ts`](js/marker-schema/body-composition.ts) → no in-scope imports
+
+</details>
+
+<details><summary><code>BodyMeasurement.svelte</code> family — 1 module</summary>
+
+- [`js/components/BodyMeasurement.svelte`](js/components/BodyMeasurement.svelte) → [`js/body-measurement-cycle.ts`](js/body-measurement-cycle.ts), [`js/body-measurement-model.ts`](js/body-measurement-model.ts), [`js/context-form-classes.ts`](js/context-form-classes.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts)
 
 </details>
 
@@ -1569,7 +1579,7 @@ Native browser modules shipped with the static application.
 - [`js/cycle-shared-classes.ts`](js/cycle-shared-classes.ts) → no in-scope imports
 - [`js/cycle-store.ts`](js/cycle-store.ts) → [`js/transaction-completion.ts`](js/transaction-completion.ts)
 - [`js/cycle-summary.ts`](js/cycle-summary.ts) → no in-scope imports
-- [`js/cycle.ts`](js/cycle.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/components/CycleEditorPresentation.svelte`](js/components/CycleEditorPresentation.svelte), [`js/components/CycleOverviewPresentation.svelte`](js/components/CycleOverviewPresentation.svelte), [`js/constants.ts`](js/constants.ts), [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/cycle-draw-phases.ts`](js/cycle-draw-phases.ts), [`js/cycle-editor-classes.ts`](js/cycle-editor-classes.ts), [`js/cycle-editor-presentation.ts`](js/cycle-editor-presentation.ts), [`js/cycle-import-runtime.ts`](js/cycle-import-runtime.ts), [`js/cycle-overview-presentation.ts`](js/cycle-overview-presentation.ts), [`js/cycle-runtime.ts`](js/cycle-runtime.ts), [`js/cycle-summary.ts`](js/cycle-summary.ts), [`js/data.ts`](js/data.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/tour.ts`](js/tour.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/cycle.ts`](js/cycle.ts) → [`js/body-measurement-cycle.ts`](js/body-measurement-cycle.ts), [`js/body-measurement-model.ts`](js/body-measurement-model.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/components/CycleEditorPresentation.svelte`](js/components/CycleEditorPresentation.svelte), [`js/components/CycleOverviewPresentation.svelte`](js/components/CycleOverviewPresentation.svelte), [`js/constants.ts`](js/constants.ts), [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/cycle-draw-phases.ts`](js/cycle-draw-phases.ts), [`js/cycle-editor-classes.ts`](js/cycle-editor-classes.ts), [`js/cycle-editor-presentation.ts`](js/cycle-editor-presentation.ts), [`js/cycle-import-runtime.ts`](js/cycle-import-runtime.ts), [`js/cycle-overview-presentation.ts`](js/cycle-overview-presentation.ts), [`js/cycle-runtime.ts`](js/cycle-runtime.ts), [`js/cycle-summary.ts`](js/cycle-summary.ts), [`js/data.ts`](js/data.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/tour.ts`](js/tour.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts)
 
 </details>
 
@@ -1708,8 +1718,8 @@ Native browser modules shipped with the static application.
 - [`js/dashboard-widget-copy.ts`](js/dashboard-widget-copy.ts) → no in-scope imports
 - [`js/dashboard-widget-packing.ts`](js/dashboard-widget-packing.ts) → no in-scope imports
 - [`js/dashboard-widget-presentation.ts`](js/dashboard-widget-presentation.ts) → [`js/components/DashboardWidgetBody.svelte`](js/components/DashboardWidgetBody.svelte), [`js/components/DashboardWidgetFrame.svelte`](js/components/DashboardWidgetFrame.svelte), [`js/dashboard-widget-copy.ts`](js/dashboard-widget-copy.ts), [`js/lens-widget-content.ts`](js/lens-widget-content.ts)
-- [`js/dashboard-widget-renderers.ts`](js/dashboard-widget-renderers.ts) → [`js/biology-score-dashboard.ts`](js/biology-score-dashboard.ts), [`js/components/LightReviewAI.svelte`](js/components/LightReviewAI.svelte), [`js/dashboard-biometric-presentation.ts`](js/dashboard-biometric-presentation.ts), [`js/dashboard-biometric-projection.ts`](js/dashboard-biometric-projection.ts), [`js/dashboard-genome-rows-presentation.ts`](js/dashboard-genome-rows-presentation.ts), [`js/dashboard-insights-projection.ts`](js/dashboard-insights-projection.ts), [`js/dashboard-lab-widget-renderers.ts`](js/dashboard-lab-widget-renderers.ts), [`js/dashboard-loading-state-presentation.ts`](js/dashboard-loading-state-presentation.ts), [`js/dashboard-mtdna-panel-presentation.ts`](js/dashboard-mtdna-panel-presentation.ts), [`js/dashboard-recommendation-widget.ts`](js/dashboard-recommendation-widget.ts), [`js/dashboard-widget-runtime.ts`](js/dashboard-widget-runtime.ts), [`js/dashboard-widgets.ts`](js/dashboard-widgets.ts), [`js/dna-runtime-bridge.ts`](js/dna-runtime-bridge.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts), [`js/wearables-formatters.ts`](js/wearables-formatters.ts)
-- [`js/dashboard-widget-runtime.ts`](js/dashboard-widget-runtime.ts) → [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/dna-runtime-bridge.ts`](js/dna-runtime-bridge.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/state.ts`](js/state.ts), [`js/wearables-runtime.ts`](js/wearables-runtime.ts)
+- [`js/dashboard-widget-renderers.ts`](js/dashboard-widget-renderers.ts) → [`js/biology-score-dashboard.ts`](js/biology-score-dashboard.ts), [`js/body-measurement-model.ts`](js/body-measurement-model.ts), [`js/components/LightReviewAI.svelte`](js/components/LightReviewAI.svelte), [`js/dashboard-biometric-presentation.ts`](js/dashboard-biometric-presentation.ts), [`js/dashboard-biometric-projection.ts`](js/dashboard-biometric-projection.ts), [`js/dashboard-genome-rows-presentation.ts`](js/dashboard-genome-rows-presentation.ts), [`js/dashboard-insights-projection.ts`](js/dashboard-insights-projection.ts), [`js/dashboard-lab-widget-renderers.ts`](js/dashboard-lab-widget-renderers.ts), [`js/dashboard-loading-state-presentation.ts`](js/dashboard-loading-state-presentation.ts), [`js/dashboard-mtdna-panel-presentation.ts`](js/dashboard-mtdna-panel-presentation.ts), [`js/dashboard-recommendation-widget.ts`](js/dashboard-recommendation-widget.ts), [`js/dashboard-widget-runtime.ts`](js/dashboard-widget-runtime.ts), [`js/dashboard-widgets.ts`](js/dashboard-widgets.ts), [`js/dna-runtime-bridge.ts`](js/dna-runtime-bridge.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts), [`js/wearables-formatters.ts`](js/wearables-formatters.ts)
+- [`js/dashboard-widget-runtime.ts`](js/dashboard-widget-runtime.ts) → [`js/body-measurement-loader.ts`](js/body-measurement-loader.ts), [`js/body-measurement-model.ts`](js/body-measurement-model.ts), [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/dna-runtime-bridge.ts`](js/dna-runtime-bridge.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/state.ts`](js/state.ts), [`js/wearables-runtime.ts`](js/wearables-runtime.ts)
 - [`js/dashboard-widgets.ts`](js/dashboard-widgets.ts) → [`js/biology-score-compute.ts`](js/biology-score-compute.ts), [`js/dashboard-owned-widget-html.ts`](js/dashboard-owned-widget-html.ts), [`js/dashboard-widget-presentation.ts`](js/dashboard-widget-presentation.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 
 </details>
@@ -5189,7 +5199,7 @@ Native browser modules shipped with the static application.
 - [`js/wearables-manual-form-ui.ts`](js/wearables-manual-form-ui.ts) → [`js/wearables-entry-presentation.ts`](js/wearables-entry-presentation.ts)
 - [`js/wearables-manual-lock.ts`](js/wearables-manual-lock.ts) → no in-scope imports
 - [`js/wearables-manual-sync.ts`](js/wearables-manual-sync.ts) → [`js/crypto.ts`](js/crypto.ts), [`js/profile-load-safety.ts`](js/profile-load-safety.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/sync-runtime.ts`](js/sync-runtime.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts), [`js/wearables-manual-lock.ts`](js/wearables-manual-lock.ts), [`js/wearables-manual.ts`](js/wearables-manual.ts), [`js/wearables-store.ts`](js/wearables-store.ts), [`js/wearables-summary-model.ts`](js/wearables-summary-model.ts) *(dynamic)*
-- [`js/wearables-manual.ts`](js/wearables-manual.ts) → [`js/data.ts`](js/data.ts), [`js/state.ts`](js/state.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts), [`js/wearables-connect.ts`](js/wearables-connect.ts) *(dynamic)*, [`js/wearables-formatters.ts`](js/wearables-formatters.ts), [`js/wearables-manual-lock.ts`](js/wearables-manual-lock.ts), [`js/wearables-store.ts`](js/wearables-store.ts), [`js/wearables-summary.ts`](js/wearables-summary.ts)
+- [`js/wearables-manual.ts`](js/wearables-manual.ts) → [`js/body-measurement-model.ts`](js/body-measurement-model.ts), [`js/data.ts`](js/data.ts), [`js/state.ts`](js/state.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts), [`js/wearables-connect.ts`](js/wearables-connect.ts) *(dynamic)*, [`js/wearables-formatters.ts`](js/wearables-formatters.ts), [`js/wearables-manual-lock.ts`](js/wearables-manual-lock.ts), [`js/wearables-store.ts`](js/wearables-store.ts), [`js/wearables-summary.ts`](js/wearables-summary.ts)
 - [`js/wearables-oura-auth.ts`](js/wearables-oura-auth.ts) → [`js/proxy-runtime.ts`](js/proxy-runtime.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-oauth-state.ts`](js/wearable-oauth-state.ts), [`js/wearable-oauth-tokens.ts`](js/wearable-oauth-tokens.ts), [`js/wearables-auth-runtime.ts`](js/wearables-auth-runtime.ts)
 - [`js/wearables-oura.ts`](js/wearables-oura.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/proxy-runtime.ts`](js/proxy-runtime.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts)
 - [`js/wearables-polar-auth.ts`](js/wearables-polar-auth.ts) → [`js/proxy-runtime.ts`](js/proxy-runtime.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-oauth-state.ts`](js/wearable-oauth-state.ts), [`js/wearable-oauth-tokens.ts`](js/wearable-oauth-tokens.ts), [`js/wearables-auth-runtime.ts`](js/wearables-auth-runtime.ts)
@@ -5203,7 +5213,7 @@ Native browser modules shipped with the static application.
 - [`js/wearables-settings-runtime.ts`](js/wearables-settings-runtime.ts) → [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/wearables-settings-view.ts`](js/wearables-settings-view.ts) → [`js/brand-assets.ts`](js/brand-assets.ts), [`js/url-safety.ts`](js/url-safety.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts), [`js/wearables-connect.ts`](js/wearables-connect.ts), [`js/wearables-settings-groups.ts`](js/wearables-settings-groups.ts)
 - [`js/wearables-store.ts`](js/wearables-store.ts) → [`js/transaction-completion.ts`](js/transaction-completion.ts), [`js/wearables-manual-lock.ts`](js/wearables-manual-lock.ts), [`js/wearables-whoop-storage.ts`](js/wearables-whoop-storage.ts) *(dynamic)*
-- [`js/wearables-strip-actions.ts`](js/wearables-strip-actions.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/data.ts`](js/data.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts), [`js/wearables-connect.ts`](js/wearables-connect.ts), [`js/wearables-detail-modal.ts`](js/wearables-detail-modal.ts), [`js/wearables-entry-presentation.ts`](js/wearables-entry-presentation.ts), [`js/wearables-formatters.ts`](js/wearables-formatters.ts), [`js/wearables-manual-form-ui.ts`](js/wearables-manual-form-ui.ts), [`js/wearables-manual.ts`](js/wearables-manual.ts), [`js/wearables-runtime.ts`](js/wearables-runtime.ts), [`js/wearables-summary.ts`](js/wearables-summary.ts)
+- [`js/wearables-strip-actions.ts`](js/wearables-strip-actions.ts) → [`js/body-measurement-loader.ts`](js/body-measurement-loader.ts), [`js/body-measurement-model.ts`](js/body-measurement-model.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/data.ts`](js/data.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts), [`js/wearables-connect.ts`](js/wearables-connect.ts), [`js/wearables-detail-modal.ts`](js/wearables-detail-modal.ts), [`js/wearables-entry-presentation.ts`](js/wearables-entry-presentation.ts), [`js/wearables-formatters.ts`](js/wearables-formatters.ts), [`js/wearables-manual-form-ui.ts`](js/wearables-manual-form-ui.ts), [`js/wearables-manual.ts`](js/wearables-manual.ts), [`js/wearables-runtime.ts`](js/wearables-runtime.ts), [`js/wearables-summary.ts`](js/wearables-summary.ts)
 - [`js/wearables-summary-model.ts`](js/wearables-summary-model.ts) → [`js/wearable-adapters.ts`](js/wearable-adapters.ts)
 - [`js/wearables-summary.ts`](js/wearables-summary.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/nutrition-store.ts`](js/nutrition-store.ts) *(dynamic)*, [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts), [`js/wearables-store.ts`](js/wearables-store.ts), [`js/wearables-summary-model.ts`](js/wearables-summary-model.ts)
 - [`js/wearables-ultrahuman-auth.ts`](js/wearables-ultrahuman-auth.ts) → [`js/proxy-runtime.ts`](js/proxy-runtime.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-oauth-state.ts`](js/wearable-oauth-state.ts), [`js/wearable-oauth-tokens.ts`](js/wearable-oauth-tokens.ts), [`js/wearables-auth-runtime.ts`](js/wearables-auth-runtime.ts)
@@ -5215,7 +5225,7 @@ Native browser modules shipped with the static application.
 - [`js/wearables-withings-auth.ts`](js/wearables-withings-auth.ts) → [`js/proxy-runtime.ts`](js/proxy-runtime.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-oauth-state.ts`](js/wearable-oauth-state.ts), [`js/wearable-oauth-tokens.ts`](js/wearable-oauth-tokens.ts), [`js/wearables-auth-runtime.ts`](js/wearables-auth-runtime.ts), [`js/wearables-withings-errors.ts`](js/wearables-withings-errors.ts)
 - [`js/wearables-withings-errors.ts`](js/wearables-withings-errors.ts) → no in-scope imports
 - [`js/wearables-withings.ts`](js/wearables-withings.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/proxy-runtime.ts`](js/proxy-runtime.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-daily-row.ts`](js/wearable-daily-row.ts), [`js/wearables-oura.ts`](js/wearables-oura.ts), [`js/wearables-withings-errors.ts`](js/wearables-withings-errors.ts)
-- [`js/wearables.ts`](js/wearables.ts) → [`js/state.ts`](js/state.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts), [`js/wearable-strip-empty-presentation.ts`](js/wearable-strip-empty-presentation.ts), [`js/wearable-strip-presentation.ts`](js/wearable-strip-presentation.ts), [`js/wearable-strip-stub-presentation.ts`](js/wearable-strip-stub-presentation.ts), [`js/wearables-detail-modal.ts`](js/wearables-detail-modal.ts), [`js/wearables-formatters.ts`](js/wearables-formatters.ts), [`js/wearables-manual-form-ui.ts`](js/wearables-manual-form-ui.ts), [`js/wearables-runtime.ts`](js/wearables-runtime.ts), [`js/wearables-settings-panel.ts`](js/wearables-settings-panel.ts), [`js/wearables-strip-actions.ts`](js/wearables-strip-actions.ts)
+- [`js/wearables.ts`](js/wearables.ts) → [`js/body-measurement-loader.ts`](js/body-measurement-loader.ts), [`js/body-measurement-model.ts`](js/body-measurement-model.ts), [`js/state.ts`](js/state.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts), [`js/wearable-strip-empty-presentation.ts`](js/wearable-strip-empty-presentation.ts), [`js/wearable-strip-presentation.ts`](js/wearable-strip-presentation.ts), [`js/wearable-strip-stub-presentation.ts`](js/wearable-strip-stub-presentation.ts), [`js/wearables-detail-modal.ts`](js/wearables-detail-modal.ts), [`js/wearables-formatters.ts`](js/wearables-formatters.ts), [`js/wearables-manual-form-ui.ts`](js/wearables-manual-form-ui.ts), [`js/wearables-runtime.ts`](js/wearables-runtime.ts), [`js/wearables-settings-panel.ts`](js/wearables-settings-panel.ts), [`js/wearables-strip-actions.ts`](js/wearables-strip-actions.ts)
 
 </details>
 

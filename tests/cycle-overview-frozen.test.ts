@@ -18,6 +18,9 @@ vi.mock('../js/cycle-runtime.js',()=>({isCycleStylesheetLoaded:()=>true,loadCycl
 import {renderMenstrualCycleSection,getNextBestDrawDate,getBloodDrawPhases,detectPerimenopausePattern,detectCycleIronAlerts} from '../js/cycle.js';
 import {upgradeMenstrualCycleProfile,recentCyclePeriods} from '../js/cycle-summary.js';
 import {cycleOverviewClasses} from '../js/cycle-overview-classes.js';
+import {bodyMeasurementTiming} from '../js/body-measurement-cycle.js';
+import {bodyMeasurementRecords} from '../js/body-measurement-model.js';
+import {isoDay} from '../js/wearable-adapters.js';
 interface Control {tag:string;id:string;action:string|null;value:unknown;checked:unknown;disabled:unknown;hidden:HTMLElement['hidden'];pressed:string|null;selectedIndex:number|null;options:{value:string;text:string|null;selectedAttribute:boolean;selected:boolean;disabled:boolean}[]|null}
 interface Prepared {compact:boolean;showHeader:boolean;hasProfile:boolean;summary:null|{primary:string;aria:string|null;meta:(string|null)[]};drawDescription:string|null;phases:{phase:string;label:string|null;spans:(string|null)[]}[];phaseOverflowLabel:string|null;periods:{dateLabel:string|null;flowClass:string;flow:string|null;symptoms:(string|null)[];notes:string|null}[];alerts:{classes:string;title:string|null;message:string|null;iconPaths:(string|null)[]}[]}
 interface Sample {kind:'overview'|'throw';name:string;input:{name:string;mc?:unknown;profileDob?:string|null;data?:unknown;opts?:unknown};html:string;error:null|{name:string;message:string};events:{stage:string;values:Record<string,unknown>}[];prepared:Prepared|null;controls:Control[];initialState:Record<string,unknown>;finalState:Record<string,unknown>;bootstrapTrace:unknown[];runtimeTrace:{port:string}[];originalInputUnmutated:boolean}
@@ -53,14 +56,22 @@ function domainFacts(sample:Sample,input:Sample['input']){
 }
 beforeEach(()=>{vi.stubEnv('TZ','UTC');vi.useFakeTimers();vi.setSystemTime(frozen.fixedNow);owned.effects.length=0;document.body.innerHTML='';});
 afterEach(()=>{vi.useRealTimers();vi.unstubAllEnvs();});
-it.each(frozen.samples)('preserves original complete overview, controls, domain facts and exact throws: $name',sample=>{
+it.each(frozen.samples)('preserves prior overview content, controls, domain facts and exact throws alongside optional measurement timing: $name',sample=>{
  const frozenBefore=JSON.stringify(sample),input=structuredClone(sample.input),inputBefore=structuredClone(input);
  for(const key of Object.keys(owned.state))delete owned.state[key];Object.assign(owned.state,structuredClone(sample.initialState));
  const stateBefore=structuredClone(owned.state);let html='',error:Sample['error']=null;
  try{const data=(input.data??null) as Parameters<typeof renderMenstrualCycleSection>[0];html=Object.hasOwn(input,'opts')?renderMenstrualCycleSection(data,input.opts as Parameters<typeof renderMenstrualCycleSection>[1]):renderMenstrualCycleSection(data);}catch(caught){expect(caught).toBeInstanceOf(Error);const exception=caught as Error;error={name:exception.name,message:exception.message};}
  expect(error).toEqual(sample.error);
  if(sample.kind==='overview'){
-  const current=fragment(html),original=fragment(sample.html);equalDOM(current,original);expect(controls(current)).toEqual(sample.controls);expect(displayFacts(current)).toEqual(sample.prepared);domainFacts(sample,input);
+  const current=fragment(html),original=fragment(sample.html);
+  // The new, independently tested timing note is additive. Keep every original
+  // node, class, clinical fact and control covered by the immutable receipts.
+  const profile=owned.state.importedData as Parameters<typeof bodyMeasurementRecords>[0]&{menstrualCycle?:unknown};
+  const mc=profile?.menstrualCycle?upgradeMenstrualCycleProfile(profile.menstrualCycle):null;
+  const timing=bodyMeasurementTiming(mc,profile?[...bodyMeasurementRecords(profile,'waist'),...bodyMeasurementRecords(profile,'abdominal_depth')]:[],isoDay());
+  const added=current.querySelectorAll('[data-cycle-body-timing]');expect(added).toHaveLength(timing?1:0);
+  if(timing){const note=added[0]!;expect(note.querySelector('strong')?.textContent).toBe(`Waist & abdominal depth · ${timing.heading.toLowerCase()}`);expect(note.querySelector('small')?.textContent).toBe(timing.hint);expect(note.querySelector('.cycle-draw-copy > span')?.textContent??null).toBe(timing.dateLabel);note.remove();}
+  equalDOM(current,original);expect(controls(current)).toEqual(sample.controls);expect(displayFacts(current)).toEqual(sample.prepared);domainFacts(sample,input);
   expect(current.querySelector('img[onerror],svg[onload],script,[onclick],[onchange]')).toBeNull();
   // Preserve the hidden file reader and sibling/accept/input contract whenever
   // the actual original header predicate includes its direct Picker child.

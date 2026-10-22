@@ -5,6 +5,8 @@ import { triggerContextCardDNAFilePickerRuntime } from './context-cards-runtime.
 import { getDnaModuleFunction } from './dna-runtime-bridge.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 import { state } from './state.js';
+import {isBodyMeasurementId} from './body-measurement-model.js';
+import {openBodyMeasurement} from './body-measurement-loader.js';
 import {
   getWearablesModuleFunction,
   isWearablesStylesheetLoaded,
@@ -94,6 +96,7 @@ export function syncDashboardWearableNow(actionEl: unknown) {
 }
 
 export function openDashboardWearableDetail(id: string) {
+  if (isBodyMeasurementId(id)) { void openBodyMeasurement(id); return true; }
   const openDetail = getWearablesModuleFunction('openWearableDetail');
   if (!openDetail) return false;
   const ownsLazyStylesheet = typeof document !== 'undefined'
@@ -109,6 +112,7 @@ export function openDashboardWearableDetail(id: string) {
 }
 
 export function openDashboardManualLogForm(id: string, event: unknown) {
+  if (isBodyMeasurementId(id)) { void openBodyMeasurement(id); return; }
   const openManualLogForm = getWearablesModuleFunction('openManualLogForm');
   if (!openManualLogForm) return;
   const ownsLazyStylesheet = typeof document !== 'undefined'

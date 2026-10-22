@@ -18,6 +18,8 @@
 import type { MetricOperations, SummaryOperations, CardOptions, CanonicalMetric, ActionTarget, DisplayItem, ProfileCacheReader } from '../types/wearables-view.js';
 
 import { state } from './state.js';
+import {isBodyMeasurementId} from './body-measurement-model.js';
+import {openBodyMeasurement} from './body-measurement-loader.js';
 import { ADAPTERS, adapterById, canonicalMetric, metricsForSources } from './wearable-adapters.js';
 import { isWearableStripHidden } from './wearables-settings-panel.js';
 import {
@@ -170,6 +172,7 @@ function installWearableDelegates() {
 }
 
 export function openWearableDetail(metricId: Parameters<typeof openWearableDetailModal>[0], opts: Parameters<typeof openWearableDetailModal>[1] = {}) {
+  if (isBodyMeasurementId(metricId)) return openBodyMeasurement(metricId);
   resetOpenManualLogForms();
   return openWearableDetailModal(metricId, opts);
 }

@@ -47,6 +47,19 @@ checks use the fixed inventory in
 
 ## Presentation and lifecycle contract
 
+`body-measurement-model.ts` owns method-specific waist/hip/SAD field identities
+and validated portable-mirror projection. `wearables-manual.ts` owns their paired
+numeric writes and deletion clocks through the existing encrypted manual-reading
+path. Overview tiles read this projection without pooling methods into a wearable
+baseline. The lazy body-measurement loader guards profile, route and modal
+ownership; its Svelte editor preserves drafts and compares only matching methods.
+Waist-to-height ratio is a display projection from canonical centimetre waist
+values and the current profile height; it does not rewrite measurement history.
+`body-measurement-cycle.ts` projects optional date-specific cycle context and
+rolling estimated comparison windows for this editor and the Cycle overview.
+Forecast dates never create observed periods, change raw measurements or infer
+an adjustment to fat mass.
+
 Svelte components own first-party markup. Pure presentation modules project
 readonly data; feature controllers retain calculations, provider requests,
 storage, navigation and delegated actions. Projections preserve observable getter,

@@ -7,6 +7,8 @@ import { getErrorMessage } from './caught-error.js';
 import { showNotification } from './utils.js';
 import { state } from './state.js';
 import { weightToKilograms } from './wearables-formatters.js';
+import {isBodyMeasurementId} from './body-measurement-model.js';
+import {openBodyMeasurement} from './body-measurement-loader.js';
 import {
   ADAPTERS,
   adapterById,
@@ -275,6 +277,7 @@ export async function moveWearableCard(metricId: string, delta: number) {
 
 // Inline manual-log form (Phase 3) — opens from the empty strip cards.
 export function openManualLogForm(metricId: string, event?: unknown, opts: ManualLogFormOptions = {}) {
+  if (isBodyMeasurementId(metricId)) { void openBodyMeasurement(metricId); return; }
   if (!opts.delegated && (event as WearableActionEvent | null | undefined)?.target?.closest?.('[data-wearable-action]')) return;
   if (event) (event as Pick<Event, 'stopPropagation'>).stopPropagation();
   let card = document.querySelector(`.wearable-card-empty[data-empty-metric="${metricId}"]`);

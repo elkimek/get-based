@@ -1,6 +1,16 @@
 # Local task progress, checkpoints, and audit logs
 /.local-notes/
 
+# Generated method-aware body measurement runtime
+/js/body-measurement-model.js
+/js/body-measurement-cycle.js
+/tests/body-measurement-cycle.test.js
+/tests/body-measurement-cycle.test.js.map
+/js/body-measurement-loader.js
+/js/body-measurement-modal.js
+/tests/body-measurement.test.js
+/tests/body-measurement.test.js.map
+
 .claude/
 *.pdf
 !data/import-benchmark-reference-us-v2.pdf

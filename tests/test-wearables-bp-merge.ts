@@ -92,9 +92,10 @@ assert('CANONICAL_METRICS still keeps bp_systolic + bp_diastolic separate',
   /bp_systolic:\s*\{[^}]*ariaLabel: 'Blood pressure systolic'/.test(adaptersSrc) &&
   /bp_diastolic:\s*\{[^}]*ariaLabel: 'Blood pressure diastolic'/.test(adaptersSrc));
 
-const manualSrc = read('js/wearables-manual.js');
+const {MANUAL_METRICS} = await import('../js/wearables-manual.js');
 assert('MANUAL_METRICS still lists both bp_systolic and bp_diastolic separately',
-  /MANUAL_METRICS\s*=\s*\['weight', 'bp_systolic', 'bp_diastolic', 'rhr'\]/.test(manualSrc));
+  MANUAL_METRICS.filter(metric => metric === 'bp_systolic').length === 1 &&
+  MANUAL_METRICS.filter(metric => metric === 'bp_diastolic').length === 1);
 
 console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
 process.exit(legacyAssertions.fail > 0 ? 1 : 0);

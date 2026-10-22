@@ -1,3 +1,4 @@
+import type {BodyMeasurementTiming} from './body-measurement-cycle.js';
 /** Already prepared overview facts; the controller owns dates, calculations and scalar coercions. */
 export interface CycleOverviewSummaryInput {
   primary: string; aria: string; meta: readonly string[];
@@ -22,6 +23,7 @@ export interface CycleOverviewPresentationInput {
   summary: CycleOverviewSummaryInput | null; drawDescription: string | null;
   phases: readonly CycleOverviewPhaseView[]; phaseOverflow: number;
   periods: readonly CycleOverviewPeriodView[]; alerts: readonly CycleOverviewAlertView[];
+  measurementTiming?: BodyMeasurementTiming | null;
 }
 export interface CycleOverviewPresentationView extends Omit<CycleOverviewPresentationInput, 'summary' | 'phaseOverflow'> {
   summary: CycleOverviewSummaryView | null;
@@ -34,6 +36,7 @@ export function projectCycleOverviewPresentation(input: CycleOverviewPresentatio
     compact: input.compact, showHeader: input.showHeader, hasProfile: input.hasProfile,
     summary: input.summary ? {primary: input.summary.primary, ariaLabel: `Edit cycle: ${input.summary.aria}`, meta: input.summary.meta} : null,
     drawDescription: input.drawDescription, phases: input.phases, periods: input.periods, alerts: input.alerts,
+    measurementTiming: input.measurementTiming ?? null,
     editLabel: input.hasProfile ? 'Edit' : 'Set up', editIcon: input.hasProfile ? 'edit' : 'plus',
     overflowLabel: input.phaseOverflow > 0 ? `+${input.phaseOverflow} more draws` : null,
   };

@@ -89,9 +89,13 @@ async function inspectOverview(section:Locator,isCompact:boolean){
   await expect(section.locator('.cycle-summary-copy strong')).toHaveText('Perimenopause');
   await expect(section.locator('.cycle-meta-tag')).toHaveText(meta);
   await expect(section.locator('.cycle-summary-card')).toHaveAccessibleName('Edit cycle: '+['Perimenopause',...meta].join(', '));
-  await expect(section.locator('.cycle-draw-copy > span')).toHaveText('~Aug 15-Aug 17 (days 3-5, early follicular)');
-  if(isCompact)await expect(section.locator('.cycle-draw-copy > small')).toBeHidden();
-  else await expect(section.locator('.cycle-draw-copy > small')).toBeVisible();
+  const blood=section.locator('.cycle-draw-date:not([data-cycle-body-timing])');
+  await expect(blood.locator('.cycle-draw-copy > span')).toHaveText('~Aug 15-Aug 17 (days 3-5, early follicular)');
+  if(isCompact)await expect(blood.locator('.cycle-draw-copy > small')).toBeHidden();
+  else await expect(blood.locator('.cycle-draw-copy > small')).toBeVisible();
+  const bodyTiming=section.locator('[data-cycle-body-timing]');
+  await expect(bodyTiming).toContainText('measurement timing');
+  await expect(bodyTiming.locator('.cycle-draw-copy > span')).toHaveCount(0); // Perimenopause does not receive a dated phase forecast.
   const visiblePhases=isCompact?PHASES.slice(0,2):PHASES;
   const tags=section.locator('.cycle-draw-tag:not(.cycle-draw-more)');await expect(tags).toHaveCount(visiblePhases.length);
   for(let i=0;i<visiblePhases.length;i++){

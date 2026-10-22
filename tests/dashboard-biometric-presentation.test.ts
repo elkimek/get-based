@@ -5,7 +5,7 @@ import path from 'node:path';
 import {createDashboardWidgetRenderers as candidate} from '../js/dashboard-widget-renderers.js';
 import {expectedOwnedBiometricReceipt} from './helpers/dashboard-biometric-owned-receipts.js';
 import {state} from '../js/state.js';
-import {dashboardBiometricSelectionKey,DASHBOARD_MANUAL_BIOMETRIC_METRICS} from '../js/dashboard-widgets.js';
+import {dashboardBiometricSelectionKey} from '../js/dashboard-widgets.js';
 const saved={importedData:state.importedData,unitSystem:state.unitSystem};
 afterEach(()=>{state.importedData=saved.importedData;state.unitSystem=saved.unitSystem;localStorage.clear();vi.restoreAllMocks();});
 type Scenario={name:string;selection?:unknown;sync?:string;mode?:string;trace?:string};
@@ -39,7 +39,8 @@ const scenarios:Scenario[]=[
  {name:'default'}, {name:'malformed-selection',selection:'malformed'}, {name:'nonarray-selection',selection:{}},{name:'invalid-selection',selection:['unsafe<','unknown',null]},
  {name:'empty-selection',selection:[]},{name:'one-populated',selection:['weight']},{name:'plural-populated',selection:['weight','steps']},{name:'duplicate-selection',selection:['weight','weight','steps']},
  {name:'blood-pressure-pair',selection:['bp_systolic','bp_diastolic']},{name:'diastolic-first',selection:['bp_diastolic','bp_systolic']},
- {name:'manual-empty',selection:[...DASHBOARD_MANUAL_BIOMETRIC_METRICS],mode:'empty'},{name:'no-summary-manual',selection:['weight','steps'],mode:'no-summary'},{name:'null-latest-manual',selection:['weight'],mode:'null-latest'},
+ // Keep this frozen pre-waist receipt's original inputs; new defaults have a dedicated feature test.
+ {name:'manual-empty',selection:['weight','bp_systolic','rhr'],mode:'empty'},{name:'no-summary-manual',selection:['weight','steps'],mode:'no-summary'},{name:'null-latest-manual',selection:['weight'],mode:'null-latest'},
  ...['fresh','minutes','hours','days','stale','before-boundary','unsynced','reauth','tokenless','unconnected','future','mixed','coercion','nan'].map(sync=>({name:'sync-'+sync,selection:['weight'],sync})),
  ...['imperial','falsy-change','getter','coercion','symbol-value'].map(mode=>({name:'tile-'+mode,selection:['weight','steps'],mode})),
  ...['connection','throw-connection','throw-metric','throw-value'].map(trace=>({name:'native-'+trace,selection:['weight','steps'],trace})),
