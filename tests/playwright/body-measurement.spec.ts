@@ -7,6 +7,9 @@ import {upgradeMenstrualCycleProfile} from '../../js/cycle-summary.js';
 test.beforeEach(async ({page}) => {
   await page.addInitScript(() => {
     for (const name of ['emptyTour', 'tour']) localStorage.setItem(`labcharts-default-${name}`, 'completed');
+    // Consent and onboarding have their own suites; their delayed banners must
+    // not cover the measurement controls in these returning-user workflows.
+    localStorage.setItem('labcharts-analytics-consent-seen', '1');
   });
 });
 
