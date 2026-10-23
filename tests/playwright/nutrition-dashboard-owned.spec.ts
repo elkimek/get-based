@@ -29,7 +29,7 @@ test('authored nutrition widgets preserve Dashboard and Nutrition actions and re
   }
 });
 test('authored nutrition dashboard widgets fit their containers across themes and pass accessibility', async ({ page }) => {
-  test.setTimeout(120000); await navigate(page, 'body');
+  test.setTimeout(120000); await navigate(page, 'nutrition');
   await page.evaluate(async () => { const link=document.createElement('link'); link.rel='stylesheet'; link.href='/themes-extra.css'; const ready=new Promise<void>((resolve,reject)=>{link.onload=()=>resolve();link.onerror=()=>reject(new Error('Themes unavailable'));});document.head.append(link);await ready; });
   for (const width of [320, 1100]) for (const theme of ['dark','light','cyberterm','glass','neuromancer','synth-sunrise']) {
     await page.setViewportSize({width,height:900}); await page.evaluate(value=>document.documentElement.dataset.theme=value,theme);
