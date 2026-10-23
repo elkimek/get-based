@@ -1,6 +1,6 @@
 import {renderHTML} from './components/MobileBottomNavigation.svelte.html.js';
 
-export type MobileNavigationRoute = 'dashboard' | 'labs' | 'body' | 'light' | 'insight';
+export type MobileNavigationRoute = 'dashboard' | 'labs' | 'body' | 'nutrition' | 'supplements' | 'light' | 'insight';
 
 export interface MobileNavigationView {
   readonly activeTab: MobileNavigationRoute | null;

@@ -158,6 +158,13 @@ profile refresh share that same operation; loading summary state does not requir
 the editor. Keep initialization, reconciliation, retries and accepted writes in
 their existing storage owners.
 
+Nutrition and Supplements & Medication are standalone lens routes. Nutrition
+owns meal summaries and fuel mix; Supplements & Medication owns the existing
+regimen timeline and editor entry points. Their routes prepare only their own
+lazy feature. The Biometrics lens retains measurements, connected sources and optional cycle
+context; its existing `body` route remains stable. Desktop and mobile navigation expose both routes; the mobile bottom
+navigation scrolls horizontally and keeps the selected destination visible.
+
 The encrypted meal store delegates ordered row reads to `nutrition-store-reads`.
 It uses bounded reverse batch reads only when the browser supports them and the
 limit is a primitive positive integer within IndexedDB's count range; other limits
@@ -468,7 +475,8 @@ dependency.
 | Boot and shell | `main.js`, `app-*`, `startup-*`, `nav*`, `views-router*` | Startup ordering, route selection, and shell wiring |
 | Foundation | `state.js`, `profile*`, `data*`, `crypto.js`, `blob-storage.js` | Active state, durable profile data, encryption, migration, and storage |
 | Labs and genome | `schema*`, `adapters.js`, `marker-*`, `dna*`, `biology-score*` | Marker normalization, reference data, genetics, and deterministic scoring |
-| Body | `wearables-*`, `wearable-*`, `cycle*`, `supplements*`, `supplement-*` | Device adapters, local raw rows, synced summaries, cycle context, and period-based therapy/product evidence |
+| Body | `wearables-*`, `wearable-*`, `cycle*` | Device adapters, local raw rows, synced summaries, and cycle context |
+| Nutrition and regimen | `nutrition*`, `supplements*`, `supplement-*` | Meal and nutrient records, nutrition summaries, and period-based supplement/medication evidence |
 | Light and environment | `light-*`, `sun-*`, `emf*` | Light measurements, spectral/session models, environment and EMF context |
 | AI, voice, knowledge, and agents | `api-*`, `provider-*`, `chat-*`, `voice-*`, `lens-*`, `agent-tool-*`, `pii.js` | Provider routing, prompt/context workflows, STT/TTS, RAG, portable agent-tool contracts, transport, and PII controls |
 | Sync and Agent Access | `sync-*` | Encrypted CRDT payloads, deltas, relay health, configured/paused identity lifecycle, restore preflight, and agent context |

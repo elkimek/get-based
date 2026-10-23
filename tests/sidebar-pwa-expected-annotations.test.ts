@@ -1,3 +1,4 @@
+import {withoutStandaloneLensEntries} from './helpers/sidebar-lens-entries.js';
 // @vitest-environment jsdom
 import {readFileSync}from'node:fs';
 import {expect,it}from'vitest';
@@ -5,6 +6,7 @@ import {expectedSidebarPwaReceipt,qualifySidebarPwaGrammar,sidebarPwaGrammarSour
 import {expectedSidebarHTML}from'./helpers/sidebar-owned-receipts.js';
 import {sidebarPresentationReceipt,type SidebarNativeOracle}from'./helpers/sidebar-pwa-receipt.js';
 import {renderSidebarPresentation,type SidebarView,type SidebarIcon,type SidebarActionName}from'../js/sidebar-presentation.js';
+import {expectedCurrentSidebarPwaReceipt} from './helpers/sidebar-pwa-expected-annotations.js';
 const oracleFile='tests/fixtures/sidebar-pwa-native.json';
 const oracle=JSON.parse(readFileSync(oracleFile,'utf8'))as SidebarNativeOracle;
 const row=(icon:SidebarIcon,name:SidebarActionName,route?:string)=>({icon,action:{name,...(route===undefined?{}:{route})}});
@@ -12,9 +14,9 @@ const conditional=(category:string,icon:SidebarIcon,label:string,name:SidebarAct
 const category=(name:string,markers:string,group:string,label:string,flagged:boolean)=>({category:name,markerNames:markers,group,action:{name:'navigate'as const,route:name},label,badge:{kind:flagged?'flagged'as const:'count'as const,text:'1'}});
 // Independent fixed DTO for the unchanged original assignment. Every one of the
 // thirteen PWA states uses this same complete initial renderer assignment.
-const view:SidebarView={searchIcon:'search',dashboard:row('dashboard','navigate','dashboard'),dashboardCount:'3',labs:row('labs','navigate','labs'),labsCount:'3',biology:row('biologyScores','navigate','biology-scores'),genome:row('genome','navigate','genome'),genomeBadge:{kind:'count',text:'1 H1'},body:row('body','navigate','body'),bodyBadge:{kind:'count',text:'1'},light:{...conditional('light','light','Light','navigate','light'),badge:{kind:'count',text:'1'}},insight:row('insight','navigate','insight'),recommendations:row('recommendations','navigate','recommendations'),compare:row('compare','navigate','compare'),correlations:row('correlations','navigate','correlations'),emf:conditional('emf','emf','EMF assessment','open-emf-assessment'),lightAssessment:conditional('light-env-assessment','light','Light assessment','open-light-assessment'),reports:row('report','open-report-builder'),context:row('context','open-context'),knowledge:row('knowledge','open-knowledge-base'),custom:row('plus','open-custom-marker'),labAction:{name:'open-custom-marker'},categories:[category('sidebarBlood','Blood normal','','Sidebar Blood <&>',false)],groups:[{className:'sidebar-group-header collapsed',name:'Sidebar specialty',headerAction:{name:'toggle-group',group:'Sidebar specialty'},toggleAction:{name:'toggle-group',group:'Sidebar specialty'},expanded:'false',accessibleName:'Sidebar specialty group',label:'Sidebar specialty',flagged:'1',itemsName:'Sidebar specialty',collapsedStyle:'display:none',items:[category('sidebarSpecialty','Flagged marker <&>|Grouped normal','Sidebar specialty','Group <&>',true)]}]};
+const view:SidebarView={searchIcon:'search',dashboard:row('dashboard','navigate','dashboard'),dashboardCount:'3',labs:row('labs','navigate','labs'),labsCount:'3',biology:row('biologyScores','navigate','biology-scores'),genome:row('genome','navigate','genome'),genomeBadge:{kind:'count',text:'1 H1'},body:row('body','navigate','body'),bodyBadge:{kind:'count',text:'1'},nutrition:row('nutrition','navigate','nutrition'),supplements:row('supplements','navigate','supplements'),light:{...conditional('light','light','Light','navigate','light'),badge:{kind:'count',text:'1'}},insight:row('insight','navigate','insight'),recommendations:row('recommendations','navigate','recommendations'),compare:row('compare','navigate','compare'),correlations:row('correlations','navigate','correlations'),emf:conditional('emf','emf','EMF assessment','open-emf-assessment'),lightAssessment:conditional('light-env-assessment','light','Light assessment','open-light-assessment'),reports:row('report','open-report-builder'),context:row('context','open-context'),knowledge:row('knowledge','open-knowledge-base'),custom:row('plus','open-custom-marker'),labAction:{name:'open-custom-marker'},categories:[category('sidebarBlood','Blood normal','','Sidebar Blood <&>',false)],groups:[{className:'sidebar-group-header collapsed',name:'Sidebar specialty',headerAction:{name:'toggle-group',group:'Sidebar specialty'},toggleAction:{name:'toggle-group',group:'Sidebar specialty'},expanded:'false',accessibleName:'Sidebar specialty group',label:'Sidebar specialty',flagged:'1',itemsName:'Sidebar specialty',collapsedStyle:'display:none',items:[category('sidebarSpecialty','Flagged marker <&>|Grouped normal','Sidebar specialty','Group <&>',true)]}]};
 it('qualifies original bytes, independent grammar, all genuine owners and compiler',()=>{qualifySidebarPwaGrammar();expect(Object.keys(oracle.receipts)).toHaveLength(13);expect(new Set(Object.values(oracle.rawAssignments)).size).toBe(1);});
-it('current complete genuine renderer equals the independently qualified original grammar byte for byte',()=>{const original=oracle.rawAssignments['constructed-collapsed']!;expect(renderSidebarPresentation(view)).toBe(expectedSidebarHTML(original));});
+it('current complete genuine renderer equals the independently qualified original grammar byte for byte',()=>{const original=oracle.rawAssignments['constructed-collapsed']!;expect(withoutStandaloneLensEntries(renderSidebarPresentation(view))).toBe(expectedSidebarHTML(original));});
 it.each(Object.entries(oracle.receipts))('%s preserves every original semantic node and exact state metadata',(_name,input)=>{
  const before=JSON.stringify(input),raw=oracle.rawAssignments['constructed-collapsed']!,expected=expectedSidebarPwaReceipt(input,raw);
  const template=document.createElement('aside');template.innerHTML=expectedSidebarHTML(raw);
@@ -51,4 +53,11 @@ it.each(['comment','label','attribute','namespace','row-order','query','active']
  if(kind==='query')actual.query='foreign';
  if(kind==='active')actual.active=[];
  expect(actual).not.toEqual(expected);
+});
+
+it('checks the complete current navigation tree while retaining immutable legacy state qualification',()=>{
+ const original=oracle.rawAssignments['constructed-collapsed']!;
+ const host=document.createElement('aside');host.innerHTML=renderSidebarPresentation(view);
+ host.querySelector('[data-category="dashboard"]')!.setAttribute('aria-current','page');
+ expect(sidebarPresentationReceipt(host)).toEqual(expectedCurrentSidebarPwaReceipt(oracle.receipts['constructed-collapsed']!,original));
 });

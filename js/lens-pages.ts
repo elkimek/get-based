@@ -155,23 +155,30 @@ export function createLensPageHandlers(deps: unknown) {
     main.innerHTML = renderLensDataPage({view: {kind: 'genome', header, actions, grid}});
   }
 
-  function showBodyLens() {
-    const main = document.getElementById("main-content");
+  function showHealthLens(route: 'body' | 'nutrition' | 'supplements') {
+    const main = document.getElementById('main-content');
     if (!main) return;
     document.body.classList.remove('mobile-dashboard-active');
-    const header = projectLensHeader('Body', '');
-    const actions = projectLensActions('body');
-    const widgets: LensContentWidget<LensDataWidgetContent>[] = [
+    const title = route === 'nutrition' ? 'Nutrition' : route === 'supplements' ? 'Supplements & Medication' : 'Biometrics';
+    const header = projectLensHeader(title, '');
+    const actions = route === 'body' ? projectLensActions('body') : {buttons: [], affiliate: false};
+    const widgets: LensContentWidget<LensDataWidgetContent>[] = route === 'nutrition' ? [
+      {id: 'nutrition', title: 'Meals & Nutrition', description: 'Optional photo-assisted meal log with rolling nutrition context', content: {kind: 'nutrition', view: projectNutritionWidget()}, size: 'full', opts: {source: 'Nutrition', dashboardId: 'nutrition'}},
+      {id: 'nutrition-fuel-mix', title: 'Fuel Mix Context', description: 'Seven-day carbohydrate and fat mix', content: {kind: 'fuel', view: projectFuelWidget()}, size: 'full', opts: {source: 'Nutrition', dashboardId: 'nutrition-fuel-mix'}},
+    ] : route === 'supplements' ? [
+      {id: 'supplements', title: 'Supplements & Medication', description: 'Tracked supplements and medications that feed lab and AI context', content: {kind: 'supplements', view: projectSupplementsSection()}, size: 'full', opts: {source: 'Supplements & Medication'}},
+    ] : [
       {id: 'wearables', title: 'Biometrics Overview', description: 'User-selected body signal tiles', content: {kind: 'wearables', view: projectDashboardWearableTilesWidget()}, size: 'full', opts: {source: 'Body'}},
       {id: 'body-sources', title: 'Connected Sources', description: 'Wearable and manual sources feeding body context', content: {kind: 'body-sources', view: projectBodySources(state.importedData?.wearableConnections, state.importedData?.wearableSummary)}, size: 'full', opts: {source: 'Body', dashboardId: ''}},
-      {id: 'nutrition', title: 'Meals & Nutrition', description: 'Optional photo-assisted meal log with rolling nutrition context', content: {kind: 'nutrition', view: projectNutritionWidget()}, size: 'full', opts: {source: 'Body', dashboardId: 'nutrition'}},
-      {id: 'nutrition-fuel-mix', title: 'Fuel Mix Context', description: 'Seven-day carbohydrate and fat mix', content: {kind: 'fuel', view: projectFuelWidget()}, size: 'full', opts: {source: 'Body', dashboardId: 'nutrition-fuel-mix'}},
-      {id: 'supplements', title: 'Supplements & Meds', description: 'Tracked supplements and medications that feed lab and AI context', content: {kind: 'supplements', view: projectSupplementsSection()}, size: 'full', opts: {source: 'Body'}},
     ];
-    if (state.profileSex === 'female') widgets.push({id: 'cycle', title: 'Cycle', description: 'Menstrual cycle context for hormone, iron, and inflammation interpretation', content: {kind: 'cycle', view: projectMenstrualCycleSection(getActiveData())}, size: 'full', opts: {source: 'Body'}});
-    const grid = getLensContentGrid('body', widgets);
-    main.innerHTML = renderLensDataPage({view: {kind: 'body', header, actions, grid}});
+    if (route === 'body' && state.profileSex === 'female') widgets.push({id: 'cycle', title: 'Cycle', description: 'Menstrual cycle context for hormone, iron, and inflammation interpretation', content: {kind: 'cycle', view: projectMenstrualCycleSection(getActiveData())}, size: 'full', opts: {source: 'Body'}});
+    const grid = getLensContentGrid(route, widgets);
+    main.innerHTML = renderLensDataPage({view: {kind: route, header, actions, grid}});
   }
+
+  function showBodyLens() { return showHealthLens('body'); }
+  function showNutritionLens() { return showHealthLens('nutrition'); }
+  function showSupplementsLens() { return showHealthLens('supplements'); }
 
   function showInsightLens(preData: unknown) {
     const rawData = preData || getActiveData();
@@ -252,5 +259,5 @@ export function createLensPageHandlers(deps: unknown) {
     main.innerHTML = render(getRecommendationsPageGroups(ctx, catalog));
   }
 
-  return { showLabs, showBiologyScores, showGenomeLens, showBodyLens, showInsightLens, showRecommendations };
+  return { showLabs, showBiologyScores, showGenomeLens, showBodyLens, showNutritionLens, showSupplementsLens, showInsightLens, showRecommendations };
 }

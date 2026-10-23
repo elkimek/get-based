@@ -19,6 +19,8 @@ export {
   showBiologyScoresLens,
   showGenomeLens,
   showBodyLens,
+  showNutritionLens,
+  showSupplementsLens,
   showInsightLens,
   showRecommendations,
   showDashboard,

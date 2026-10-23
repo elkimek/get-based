@@ -192,7 +192,7 @@ test('Dark main routes retain keyboard access, scoped accessibility and unchange
     const main = page.locator('#main-content');
     await expect(main.locator('[data-widget-id]').first()).toBeVisible();
     receipts.push(await inspect(page, main, 'dashboard', info)); await unchanged(page);
-    for (const [route, title] of [['labs', 'Labs'], ['genome', 'Genome'], ['body', 'Body'], ['insight', 'Insight'], ['recommendations', 'Tips']] as const) {
+    for (const [route, title] of [['labs', 'Labs'], ['genome', 'Genome'], ['body', 'Biometrics'], ['nutrition', 'Nutrition'], ['supplements', 'Supplements & Medication'], ['insight', 'Insight'], ['recommendations', 'Tips']] as const) {
       await navigate(page, route);
       await expect(main.locator('.lens-page-header h2')).toHaveText(title);
       receipts.push(await inspect(page, main, route, info)); await unchanged(page);

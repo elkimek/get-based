@@ -10,13 +10,17 @@
     <span class="nav-item-count">{view.labsCount}</span></div><div class="nav-item" data-category="biology-scores" tabindex="0" role="button" data-nav-action={view.biology.action.name} data-nav-route={view.biology.action.route}>
     <span class="nav-item-icon" aria-hidden="true"><SidebarIcon name={view.biology.icon}/></span>
     <span class="nav-item-label">Biology Scores</span>
-    <span class="nav-item-dot"></span></div><div class="nav-item" data-category="genome" tabindex="0" role="button" data-nav-action={view.genome.action.name} data-nav-route={view.genome.action.route}>
+    <span class="nav-item-dot"></span></div><div class="nav-item" data-category="body" tabindex="0" role="button" data-nav-action={view.body.action.name} data-nav-route={view.body.action.route}>
+    <span class="nav-item-icon" aria-hidden="true"><SidebarIcon name={view.body.icon}/></span>
+    <span class="nav-item-label">Biometrics</span>
+    {#if view.bodyBadge.kind==='dot'}<span class="nav-item-dot"></span>{:else}<span class="nav-item-count">{view.bodyBadge.text}</span>{/if}</div><div class="nav-item" data-category="nutrition" tabindex="0" role="button" data-nav-action={view.nutrition.action.name} data-nav-route={view.nutrition.action.route}>
+    <span class="nav-item-icon" aria-hidden="true"><SidebarIcon name={view.nutrition.icon}/></span>
+    <span class="nav-item-label">Nutrition</span><span class="nav-item-dot"></span></div><div class="nav-item" data-category="supplements" tabindex="0" role="button" data-nav-action={view.supplements.action.name} data-nav-route={view.supplements.action.route}>
+    <span class="nav-item-icon" aria-hidden="true"><SidebarIcon name={view.supplements.icon}/></span>
+    <span class="nav-item-label">Supplements &amp; Meds</span><span class="nav-item-dot"></span></div><ConditionalSidebarItem view={view.light}/><div class="nav-item" data-category="genome" tabindex="0" role="button" data-nav-action={view.genome.action.name} data-nav-route={view.genome.action.route}>
     <span class="nav-item-icon" aria-hidden="true"><SidebarIcon name={view.genome.icon}/></span>
     <span class="nav-item-label">Genome</span>
-    {#if view.genomeBadge.kind==='dot'}<span class="nav-item-dot"></span>{:else}<span class="nav-item-count">{view.genomeBadge.text}</span>{/if}</div><div class="nav-item" data-category="body" tabindex="0" role="button" data-nav-action={view.body.action.name} data-nav-route={view.body.action.route}>
-    <span class="nav-item-icon" aria-hidden="true"><SidebarIcon name={view.body.icon}/></span>
-    <span class="nav-item-label">Body</span>
-    {#if view.bodyBadge.kind==='dot'}<span class="nav-item-dot"></span>{:else}<span class="nav-item-count">{view.bodyBadge.text}</span>{/if}</div><ConditionalSidebarItem view={view.light}/><div class="nav-item" data-category="insight" tabindex="0" role="button" data-nav-action={view.insight.action.name} data-nav-route={view.insight.action.route}>
+    {#if view.genomeBadge.kind==='dot'}<span class="nav-item-dot"></span>{:else}<span class="nav-item-count">{view.genomeBadge.text}</span>{/if}</div><div class="nav-item" data-category="insight" tabindex="0" role="button" data-nav-action={view.insight.action.name} data-nav-route={view.insight.action.route}>
     <span class="nav-item-icon" aria-hidden="true"><SidebarIcon name={view.insight.icon}/></span>
     <span class="nav-item-label">Insight</span>
     <span class="nav-item-dot"></span></div><div class="nav-item" data-category="recommendations" tabindex="0" role="button" data-nav-action={view.recommendations.action.name} data-nav-route={view.recommendations.action.route}>

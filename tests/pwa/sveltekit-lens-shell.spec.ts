@@ -11,7 +11,9 @@ import {readyLightArtifact as ready} from '../helpers/light-artifact-navigation.
 const lenses = [
  {route:'labs',title:'Labs',ids:['quick-markers','key-trends']},
  {route:'genome',title:'Genome',ids:['genome']},
- {route:'body',title:'Body',ids:['wearables','body-sources','nutrition','nutrition-fuel-mix','supplements']},
+ {route:'body',title:'Biometrics',ids:['wearables','body-sources']},
+ {route:'nutrition',title:'Nutrition',ids:['nutrition','nutrition-fuel-mix']},
+ {route:'supplements',title:'Supplements & Medication',ids:['supplements']},
  {route:'insight',title:'Insight',ids:['focus','recommendations','insights','profile-context']},
  {route:'recommendations',title:'Tips',ids:['recommendations-disabled']},
 ] as const;
@@ -26,6 +28,15 @@ async function order(page:Page,route:string){
 async function checkLenses(page:Page,labsOrder:readonly string[]){
  for(const lens of lenses){
   await openLens(page,lens.route,lens.title);
+  const navigation=page.locator('.m-tabbar');
+  if((lens.route==='nutrition'||lens.route==='supplements')&&await navigation.isVisible()){
+   const selected=navigation.locator(`[data-tab="${lens.route}"]`);
+   await expect(selected).toHaveAttribute('aria-current','page');
+   await expect.poll(()=>selected.evaluate(button=>{
+    const bar=button.closest('.m-tabbar')!,box=button.getBoundingClientRect(),bounds=bar.getBoundingClientRect();
+    return box.left>=bounds.left&&box.right<=bounds.right;
+   })).toBe(true);
+  }
   if(lens.route==='recommendations'){
    await expect(page.locator('[data-widget-id="recommendations-disabled"][data-lens-shell-view]')).toBeVisible();
    await expect(page.getByRole('button',{name:'Open settings',exact:true})).toBeVisible();

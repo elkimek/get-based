@@ -4,13 +4,14 @@ import {readFileSync} from 'node:fs';
 import {isDeepStrictEqual} from 'node:util';
 import {JSDOM} from 'jsdom';
 import {expectedSidebarHTML} from './sidebar-owned-receipts.js';
+import {standaloneLensEntries} from './sidebar-lens-entries.js';
 import type {SidebarNativeOracle,SidebarReceipt} from './sidebar-pwa-receipt.js';
 
 const oracleFile='tests/fixtures/sidebar-pwa-native.json';
 const oracleSHA256='f9501cd92c3bb5254c73d54c2ec2318b3d38803f3ff93d573f5a1708ad462502';
 export const sidebarPwaGrammarSources={
-  'js/components/SidebarNavigation.svelte':'e54b3a043a4061885086f014c7a90b011b91583f45c834072a6e6049d3c875c4',
-  'js/components/SidebarIcon.svelte':'bfb095c64e38e62404827bc296e9c426953b4e545a96c407801b5ad787a77fc3',
+  'js/components/SidebarNavigation.svelte':'5271f17fd374c04b9fcaffc47cf8d79bce7cadd19971ab3fd82afccd8c25e422',
+  'js/components/SidebarIcon.svelte':'681e0f5ad3ab638ba30fd67957b16b01cdd64c0ae3889a48ed069345bf43ca43',
   'js/components/ConditionalSidebarItem.svelte':'fe282d61dfc81246a862fb0e95a44f348114bbd82c216744e23102ba5787e6e1',
   'js/components/SidebarCategoryItem.svelte':'dcb89314d27fcf32ec4d8a9210d3eb6e3c4463686e6294af84983cfdc2175cb2',
   'tests/helpers/sidebar-owned-receipts.ts':'6a2fe08828b151b2e37e3ec87b631c73f719182f95ff869f3782a1ae4600de2c',
@@ -62,4 +63,29 @@ export function expectedSidebarPwaReceipt(input:SidebarReceipt,rawAssignment:str
     annotate([...original.childNodes].map(node),template,true);
     return{...structuredClone(input),children:annotate(input.children as SidebarExpectedNode[],template,false)};
   }finally{dom.window.close();}
+}
+
+/** The current navigation adds two explicit destinations, renames Body and
+ * moves Genome below Light; all other immutable state remains exact. */
+export function expectedCurrentSidebarPwaReceipt(input:SidebarReceipt,rawAssignment:string):SidebarReceipt {
+  const result=expectedSidebarPwaReceipt(input,rawAssignment);
+  const children=result.children as SidebarExpectedNode[];
+  const category=(entry:SidebarExpectedNode)=>entry.attributes?.find(([name])=>name==='data-category')?.[1];
+  const genomeIndex=children.findIndex(entry=>category(entry)==='genome');
+  assert.ok(genomeIndex>=0);
+  const genome=children.splice(genomeIndex,1)[0]!;
+  const bodyIndex=children.findIndex(entry=>category(entry)==='body');
+  const label=children[bodyIndex]!.children?.find(entry=>entry.attributes?.some(([name,value])=>name==='class'&&value==='nav-item-label'));
+  assert.deepEqual(label?.children,[{type:3,text:'Body'}]);
+  label!.children=[{type:3,text:'Biometrics'}];
+  const dom=new JSDOM('');
+  try{
+    const host=dom.window.document.createElement('div');
+    host.innerHTML=standaloneLensEntries().join('');
+    children.splice(bodyIndex+1,0,...[...host.childNodes].map(node));
+  }finally{dom.window.close();}
+  const lightIndex=children.findIndex(entry=>category(entry)==='light');
+  assert.deepEqual(children[lightIndex+1],{type:8,text:''});
+  children.splice(lightIndex+2,0,genome);
+  return result;
 }

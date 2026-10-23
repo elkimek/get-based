@@ -9,7 +9,7 @@ export type LensDataPageView =
   | {readonly kind: 'labs-empty'; readonly header: LensHeaderView; readonly range: LabDateRangeView}
   | {readonly kind: 'labs'; readonly header: LensHeaderView; readonly range: LabDateRangeView;
       readonly priority: DashboardPriorityView | null; readonly grid: LensContentGrid<LensDataWidgetContent>}
-  | {readonly kind: 'genome' | 'body' | 'insight'; readonly header: LensHeaderView; readonly actions: LensActionsView;
+  | {readonly kind: 'genome' | 'body' | 'nutrition' | 'supplements' | 'insight'; readonly header: LensHeaderView; readonly actions: LensActionsView;
       readonly grid: LensContentGrid<LensDataWidgetContent>};
 
 /** Unloaded/empty feature snapshots retain the existing shared empty state. */

@@ -1694,7 +1694,7 @@ test('nutrition history defaults to 30D and offers 3M, 6M, 1Y, and All on deskto
   await expect(page.locator('.nutrition-history-modal')).not.toBeVisible();
 });
 
-test('saved nutrition summary hydrates after a cache-bypassing hard reload on Dashboard and Body', async ({ page, context }) => {
+test('saved nutrition summary hydrates after a cache-bypassing hard reload on Dashboard and Nutrition', async ({ page, context }) => {
   await page.goto('/app', { waitUntil: 'load' });
   await page.evaluate(async () => {
     const now = new Date();
@@ -1721,8 +1721,8 @@ test('saved nutrition summary hydrates after a cache-bypassing hard reload on Da
   await expect(dashboardWidget).toBeVisible();
   await expect(dashboardWidget).toContainText('Recorded daily averages');
   await expect(dashboardWidget).toContainText('38');
-  await page.evaluate(async () => (await import('/js/views.js')).navigate('body'));
-  const bodyWidget = page.locator('.lens-page-widgets[data-lens-route="body"] .dashboard-widget[data-widget-id="nutrition"]');
+  await page.evaluate(async () => (await import('/js/views.js')).navigate('nutrition'));
+  const bodyWidget = page.locator('.lens-page-widgets[data-lens-route="nutrition"] .dashboard-widget[data-widget-id="nutrition"]');
   await expect(bodyWidget).toBeVisible();
   await expect(bodyWidget).toContainText('Recorded daily averages');
   await expect(bodyWidget).toContainText('38');

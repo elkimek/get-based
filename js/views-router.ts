@@ -18,13 +18,15 @@ import {
 interface ScrollAnchor { selector: string; viewportTop: number }
 interface RouteDataOperations { categories?: Record<string, unknown> | null; preserveScroll?: unknown; preserveSidebar?: boolean; scrollAnchor?: string }
 type RouteHandler = (data?: unknown) => unknown;
-export interface NavigateDependencies { routeHandlers: Partial<Record<'dashboard' | 'labs' | 'genome' | 'body' | 'insight' | 'recommendations' | 'correlations' | 'compare' | 'light' | 'biologyScores', RouteHandler>> & { category?: (route: string, data?: unknown) => unknown }; syncMobileBottomNav?: ((route: string) => unknown) | null; destroyAllCharts?: (() => unknown) | null }
+export interface NavigateDependencies { routeHandlers: Partial<Record<'dashboard' | 'labs' | 'genome' | 'body' | 'nutrition' | 'supplements' | 'insight' | 'recommendations' | 'correlations' | 'compare' | 'light' | 'biologyScores', RouteHandler>> & { category?: (route: string, data?: unknown) => unknown }; syncMobileBottomNav?: ((route: string) => unknown) | null; destroyAllCharts?: (() => unknown) | null }
 
 export const CORE_ROUTES = new Set([
   'dashboard',
   'labs',
   'genome',
   'body',
+  'nutrition',
+  'supplements',
   'insight',
   'recommendations',
   'correlations',
@@ -137,6 +139,8 @@ export function createNavigate({ routeHandlers, syncMobileBottomNav, destroyAllC
     else if (routeCategory === "labs") routeResult = routeHandlers.labs?.(routeData);
     else if (routeCategory === "genome") routeResult = routeHandlers.genome?.(routeData);
     else if (routeCategory === "body") routeResult = routeHandlers.body?.(routeData);
+    else if (routeCategory === "nutrition") routeResult = routeHandlers.nutrition?.(routeData);
+    else if (routeCategory === "supplements") routeResult = routeHandlers.supplements?.(routeData);
     else if (routeCategory === "insight") routeResult = routeHandlers.insight?.(routeData);
     else if (routeCategory === "recommendations") routeResult = routeHandlers.recommendations?.(routeData);
     else if (routeCategory === "correlations") routeResult = routeHandlers.correlations?.(routeData);

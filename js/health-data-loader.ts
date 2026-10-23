@@ -104,11 +104,11 @@ const nutrition = createLazyModule(
   () => import('./nutrition-context.js'),
 );
 
-async function loadNutritionFeature() {
+export async function loadNutritionFeature() {
   return (await nutrition.load()).loadNutritionWidgetFeature();
 }
 
-function isNutritionFeatureReady() {
+export function isNutritionFeatureReady() {
   return !!nutrition.get()?.isNutritionWidgetFeatureReady?.();
 }
 
@@ -212,15 +212,13 @@ export function loadDashboardHealthDataModules(data: unknown, options: Dashboard
 }
 
 export function loadBodyHealthDataModules() {
-  const loads: Promise<HealthModule>[] = [loadSupplementsModule(), loadNutritionFeature()];
+  const loads: Promise<HealthModule>[] = [];
   if (state.profileSex === 'female') loads.push(loadCycleModule());
   return Promise.all(loads);
 }
 
 export function isBodyHealthDataReady() {
-  return isSupplementsModuleLoaded()
-    && isNutritionFeatureReady()
-    && (state.profileSex !== 'female' || isCycleModuleLoaded());
+  return state.profileSex !== 'female' || isCycleModuleLoaded();
 }
 
 export function renderNutritionWidget() {

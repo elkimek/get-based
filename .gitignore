@@ -6,6 +6,11 @@
 /js/body-measurement-cycle.js
 /tests/body-measurement-cycle.test.js
 /tests/body-measurement-cycle.test.js.map
+/tests/helpers/sidebar-lens-entries.js
+/tests/mobile-navigation-scroll.test.js
+/tests/mobile-navigation-scroll.test.js.map
+/tests/standalone-health-lenses.test.js
+/tests/standalone-health-lenses.test.js.map
 /js/body-measurement-loader.js
 /js/body-measurement-modal.js
 /tests/body-measurement.test.js

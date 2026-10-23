@@ -582,8 +582,11 @@
     margin: 0 auto;
     box-sizing: border-box;
     transform: translateX(-50%);
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    display: flex;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
     gap: 4px;
     padding: 8px;
     border: 1px solid var(--border);
@@ -595,7 +598,9 @@
 
 @utility mobile-tab {
     position: relative;
-    min-width: 0;
+    min-width: 76px;
+    flex: 0 0 22%;
+    scroll-snap-align: center;
     height: 52px;
     border: 0;
     border-radius: 17px;

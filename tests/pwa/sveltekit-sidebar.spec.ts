@@ -9,7 +9,7 @@ import {artifactInputs,cacheReceipt,profile,activate,type StateBinding} from './
 import {readyLightArtifact as ready} from '../helpers/light-artifact-navigation.js';
 import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
 import {installOfflineStartupDiagnostics} from '../helpers/offline-launch-diagnostics.js';
-import {expectedSidebarPwaReceipt,qualifySidebarPwaGrammar} from '../helpers/sidebar-pwa-expected-annotations.js';
+import {expectedCurrentSidebarPwaReceipt as expectedSidebarPwaReceipt,qualifySidebarPwaGrammar} from '../helpers/sidebar-pwa-expected-annotations.js';
 import {sidebarGroup,sidebarRoutes,sidebarRegistry,sidebarSeedFields,sidebarPresentationReceipt,type SidebarNativeOracle} from '../helpers/sidebar-pwa-receipt.js';
 
 const authored=['js/sidebar-presentation.js','js/components/ConditionalSidebarItem.svelte.html.js','js/components/SidebarCategoryItem.svelte.html.js','js/components/SidebarNavigation.svelte.html.js'] as const;

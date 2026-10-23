@@ -25,18 +25,28 @@ function tree(node:Node):unknown{
   children:[...el.childNodes].map(tree).filter(child=>child!==null)};
 }
 function nav(html:string){return new JSDOM(html).window.document.querySelector('nav')!;}
+function originalTabs(html:string){
+ const node=nav(html);
+ expect([...node.querySelectorAll('button')].map(button=>button.dataset.mobileDashboardRoute)).toEqual(['dashboard','labs','body','nutrition','supplements','light','insight']);
+ node.querySelectorAll('[data-tab="nutrition"],[data-tab="supplements"]').forEach(button=>button.remove());
+ const biometrics=node.querySelector('[data-tab="body"]')!;
+ expect(biometrics.getAttribute('aria-label')).toBe('Biometrics');
+ expect(biometrics.querySelector('small')?.textContent).toBe('Biometrics');
+ biometrics.setAttribute('aria-label','Body');biometrics.querySelector('small')!.textContent='Body';
+ return node;
+}
 it.each(['dashboard','labs','body','light','insight','genome',null,{},Symbol('unknown')])('preserves native navigation, SVG geometry and button defaults for %s',active=>{
- const before=nav(run(native,active,'mobile-bottom-tabs')),after=nav(run(current,active,'mobile-bottom-tabs'));
+ const before=nav(run(native,active,'mobile-bottom-tabs')),after=originalTabs(run(current,active,'mobile-bottom-tabs'));
  expect(tree(after)).toEqual(tree(before));
  expect([...after.querySelectorAll('button')].map(button=>button.dataset.mobileDashboardRoute)).toEqual(['dashboard','labs','body','light','insight']);
 });
 it.each(['',0,null,undefined])('omits optional ID under the same native truthiness rule: %s',id=>{
- expect(tree(nav(run(current,'body',id)))).toEqual(tree(nav(run(native,'body',id))));
+ expect(tree(originalTabs(run(current,'body',id)))).toEqual(tree(nav(run(native,'body',id))));
 });
 it('captures a nonprimitive ID exactly once with the native string hint',()=>{
  const before:string[]=[],after:string[]=[];
  const id=(trace:string[])=>({[Symbol.toPrimitive](hint:string){trace.push(hint);return 'id<&';}});
- expect(tree(nav(run(current,'dashboard',id(after))))).toEqual(tree(nav(run(native,'dashboard',id(before)))));
+ expect(tree(originalTabs(run(current,'dashboard',id(after))))).toEqual(tree(nav(run(native,'dashboard',id(before)))));
  expect(after).toEqual(['string']);expect(after).toEqual(before);
 });
 it('retains exceptional Symbol ID conversion',()=>{
@@ -50,3 +60,13 @@ it('escapes an optional ID rather than creating markup attributes',()=>{
 });
 
 it('keeps unexpected HTML comments observable',()=>{expect(()=>tree(nav('<nav><!--unexpected--></nav>'))).toThrow();});
+
+it.each(['nutrition','supplements'] as const)('selects the standalone %s route with a labeled native button',route=>{
+ const node=nav(run(current,route,'mobile-bottom-tabs'));
+ expect(node.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
+ const button=node.querySelector<HTMLButtonElement>(`[data-tab="${route}"]`)!;
+ expect(button.getAttribute('aria-current')).toBe('page');
+ expect(button.dataset.mobileDashboardRoute).toBe(route);
+ expect(button.getAttribute('aria-label')).toBe(route==='nutrition'?'Nutrition':'Supplements & Medication');
+ expect(button.type).toBe('button');expect(button.querySelector('svg path')).not.toBeNull();
+});

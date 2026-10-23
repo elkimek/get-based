@@ -1,3 +1,4 @@
+import {withoutStandaloneLensEntries} from './helpers/sidebar-lens-entries.js';
 import {expectedSidebarReceipt} from './helpers/sidebar-owned-receipts.js';
 // @vitest-environment jsdom
 import {afterEach,expect,it,vi} from 'vitest';
@@ -18,7 +19,7 @@ const originalReceipts=JSON.parse(readFileSync(path.join(import.meta.dirname,'fi
 function tree(n:Node):unknown{return n.nodeType===Node.ELEMENT_NODE?{tag:(n as Element).tagName,attrs:[...(n as Element).attributes].map(a=>[a.name,a.value]),children:[...n.childNodes].map(tree)}:{type:n.nodeType,text:n.nodeValue};}
 function capture(renderer:Renderer,s:Scenario){
  vi.useFakeTimers();vi.setSystemTime(new Date('2026-10-12T12:00:00Z'));localStorage.clear();document.body.innerHTML='<button id="launch">Launch</button><aside id="sidebar-nav" class="sidebar"></aside><div id="sidebar-backdrop" tabindex="-1"></div><div id="profile-selector"></div><div id="outside" data-nav-action="navigate" data-nav-route="outside"></div>';
- let rawAssignment:string|null=null;const navElement=document.getElementById('sidebar-nav')!;const descriptor=Object.getOwnPropertyDescriptor(Element.prototype,'innerHTML')!;Object.defineProperty(navElement,'innerHTML',{get(){return descriptor.get!.call(this);},set(value:string){rawAssignment=value;descriptor.set!.call(this,value);},configurable:true});
+ let rawAssignment:string|null=null;const navElement=document.getElementById('sidebar-nav')!;const descriptor=Object.getOwnPropertyDescriptor(Element.prototype,'innerHTML')!;Object.defineProperty(navElement,'innerHTML',{get(){return descriptor.get!.call(this);},set(value:string){rawAssignment=withoutStandaloneLensEntries(value);descriptor.set!.call(this,rawAssignment);},configurable:true});
  const trace:string[]=[];const calls:unknown[]=[];state.dateRangeFilter=s.dateRange||'all';state.currentView=s.current||'dashboard';state.rangeMode='reference';state.markerRegistry={};
  const marker=(name:string,values:Array<number|null>)=>({name,unit:'mg/dL',values,refMin:60,refMax:100} satisfies ActiveMarker);
  let first=marker('ApoB <&> gb-sidebar-sidebarcategoryitem-item-label-end',[80,130]);const hidden={...marker('Hidden',[170,200]),hidden:true};const nulls=marker('No data',[null,null]);

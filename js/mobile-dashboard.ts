@@ -40,6 +40,7 @@ const MOBILE_WEARABLE_PRIORITY = [
 
 let _mobileChromeStateObserver: MutationObserver | null = null;
 let _mobileDashboardActionsInstalled = false;
+let _mobileNavigationScrollLeft = 0;
 
 const MOBILE_DASHBOARD_ACTION_ATTR = 'data-mobile-dashboard-action';
 const MOBILE_DASHBOARD_ACTION_SELECTOR = `[${MOBILE_DASHBOARD_ACTION_ATTR}]`;
@@ -81,6 +82,8 @@ function handleMobileDashboardActionClick(event: Event) {
   if (!actionEl) return;
   const action = actionEl.getAttribute(MOBILE_DASHBOARD_ACTION_ATTR);
   if (action === 'navigate-tab') {
+    const navigation = actionEl.closest<HTMLElement>('.m-tabbar');
+    if (navigation) _mobileNavigationScrollLeft = navigation.scrollLeft;
     const tab = actionEl.dataset.mobileDashboardTab || 'dashboard';
     const route = actionEl.dataset.mobileDashboardRoute || tab;
     mobileDashboardSetTab(tab);
@@ -131,6 +134,11 @@ function initMobileChromeStateSync() {
       _mobileChromeStateObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] });
     }
     syncMobileChromeRootState();
+    document.addEventListener('scroll', event => {
+      if (event.target instanceof HTMLElement && event.target.classList.contains('m-tabbar')) {
+        _mobileNavigationScrollLeft = event.target.scrollLeft;
+      }
+    }, {capture: true, passive: true});
   };
   if (document.body) start();
   else document.addEventListener('DOMContentLoaded', start, { once: true });
@@ -140,7 +148,7 @@ function initMobileChromeStateSync() {
 }
 
 function getMobileBottomTabForRoute(route: string) {
-  if (['dashboard', 'labs', 'body', 'light', 'insight'].includes(route)) return route;
+  if (['dashboard', 'labs', 'body', 'nutrition', 'supplements', 'light', 'insight'].includes(route)) return route;
   if (route === 'recommendations') return 'insight';
   if (route === 'compare' || route === 'correlations') return 'labs';
   if (route && getActiveData().categories?.[route]) return 'labs';
@@ -161,10 +169,12 @@ export function syncMobileBottomNav(route: string = state.currentView || 'dashbo
   const activeTab = getMobileBottomTabForRoute(route);
   const html = renderMobileBottomTabs(activeTab, { id: 'mobile-bottom-tabs' });
   if (existing) {
+    _mobileNavigationScrollLeft = existing.scrollLeft;
     existing.outerHTML = html;
   } else {
     document.body.insertAdjacentHTML('beforeend', html);
   }
+  mobileDashboardSetTab(activeTab);
 }
 
 export function refreshMobileDashboardActiveTab() {
@@ -393,10 +403,22 @@ export function mobileDashboardSetTab(tab: unknown) {
     tabButton.classList.toggle('active', isActive);
     tabButton.setAttribute('aria-current', isActive ? 'page' : 'false');
   });
+  document.querySelectorAll<HTMLElement>('.m-tabbar').forEach(navigation => {
+    navigation.scrollLeft = _mobileNavigationScrollLeft;
+    const active = navigation.querySelector<HTMLElement>('.m-tab.active');
+    if (!active || !navigation.clientWidth) return;
+    const bounds = navigation.getBoundingClientRect();
+    const button = active.getBoundingClientRect();
+    if (button.left < bounds.left + 8 || button.right > bounds.right - 8) {
+      navigation.scrollLeft += button.left + button.width / 2 - (bounds.left + bounds.width / 2);
+    }
+    _mobileNavigationScrollLeft = navigation.scrollLeft;
+  });
 }
 
 function renderMobileBottomTabs(activeTab: unknown = 'dashboard', { id = '' }: {id?: unknown} = {}) {
   const active = activeTab === 'dashboard' || activeTab === 'labs' || activeTab === 'body'
+    || activeTab === 'nutrition' || activeTab === 'supplements'
     || activeTab === 'light' || activeTab === 'insight' ? activeTab : null;
   return renderMobileNavigation({activeTab: active, id: id ? `${id}` : null});
 }
@@ -417,7 +439,7 @@ export function openMobileDashboardSearch() {
 }
 
 export function mobileDashboardJump(section: string) {
-  const route = ['dashboard', 'labs', 'genome', 'body', 'light', 'insight', 'recommendations'].includes(section) ? section : 'dashboard';
+  const route = ['dashboard', 'labs', 'genome', 'body', 'nutrition', 'supplements', 'light', 'insight', 'recommendations'].includes(section) ? section : 'dashboard';
   mobileDashboardSetTab(route === 'genome' || route === 'recommendations' ? 'dashboard' : route);
   mobileDashboardDeps.navigate(route);
 }

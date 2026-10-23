@@ -11,7 +11,7 @@ import {readyLightArtifact as ready} from '../helpers/light-artifact-navigation.
 async function openLens(page:Page,route:string){
  const menu=page.getByRole('button',{name:'Menu',exact:true});if(await menu.isVisible())await menu.click();
  await page.locator(`[data-nav-action="navigate"][data-nav-route="${route}"]`).click();
- await expect(page.locator('.lens-page-header h2')).toHaveText(route==='genome'?'Genome':'Body');
+ await expect(page.locator('.lens-page-header h2')).toHaveText(route==='genome'?'Genome':'Biometrics');
 }
 async function inspect(page:Page){
  await openLens(page,'genome');const panel=page.locator('.genome-import-details[data-lens-content-view]');

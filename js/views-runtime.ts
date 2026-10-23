@@ -26,12 +26,16 @@ import {
 } from './light-sun-loader.js';
 import {
   isBodyHealthDataReady,
+  isNutritionFeatureReady,
+  isSupplementsModuleLoaded,
   isChartsModuleLoaded,
   isDashboardHealthDataReady,
   isDnaModuleLoaded,
   isInsightHealthDataReady,
   isRecommendationsHealthDataReady,
   loadBodyHealthDataModules,
+  loadNutritionFeature,
+  loadSupplementsModule,
   loadChartsModule,
   loadDashboardHealthDataModules,
   loadDnaModule,
@@ -247,7 +251,9 @@ export function showBiologyScoresLens(preData?: unknown) {
   );
 }
 export function showGenomeLens() { return withLens('genome', 'Genome', handlers => handlers.showGenomeLens()); }
-export function showBodyLens() { return withLens('body', 'Body', handlers => handlers.showBodyLens()); }
+export function showBodyLens() { return withLens('body', 'Biometrics', handlers => handlers.showBodyLens()); }
+export function showNutritionLens() { return withLens('nutrition', 'Nutrition', handlers => handlers.showNutritionLens()); }
+export function showSupplementsLens() { return withLens('supplements', 'Supplements & Medication', handlers => handlers.showSupplementsLens()); }
 export function showInsightLens(preData?: unknown) { return withLens('insight', 'Insight', handlers => handlers.showInsightLens(preData)); }
 export function showRecommendations(preData?: unknown) { return withLens('recommendations', 'Tips', handlers => handlers.showRecommendations(preData)); }
 
@@ -613,7 +619,7 @@ function showDashboardRoute(data: unknown): unknown {
 function showBodyRoute() {
   return showPreparedRoute(
     'body',
-    'Body',
+    'Biometrics',
     () => isBodyHealthDataReady()
       && (state.profileSex !== 'female' || isCycleStylesheetLoaded()),
     () => Promise.all([
@@ -653,6 +659,8 @@ const _navigate = createNavigate({
     biologyScores: showBiologyScoresLens,
     genome: showGenomeRoute,
     body: showBodyRoute,
+    nutrition: () => showPreparedRoute('nutrition', 'Nutrition', isNutritionFeatureReady, loadNutritionFeature, showNutritionLens),
+    supplements: () => showPreparedRoute('supplements', 'Supplements & Medication', isSupplementsModuleLoaded, loadSupplementsModule, showSupplementsLens),
     insight: showInsightRoute,
     recommendations: showRecommendationsRoute,
     correlations: data => showCategoryPresentationRoute(

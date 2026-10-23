@@ -4,10 +4,14 @@ import {fileURLToPath} from 'node:url';
 import {expect,test} from '@playwright/test';
 import postcss from 'postcss';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
-const original=fs.readFileSync(path.join(root,'tests/fixtures/mobile-dashboard-original.css'),'utf8');
+const original=fs.readFileSync(path.join(root,'tests/fixtures/mobile-dashboard-original.css'),'utf8')+`
+@media(max-width:799px){
+ .m-tabbar{display:flex;grid-template-columns:none;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;scrollbar-width:none;}
+ .m-tab{min-width:76px;flex:0 0 22%;scroll-snap-align:center;}
+}`;
 const compiled=fs.readFileSync(path.join(root,'css/mobile-dashboard.css'),'utf8');
 const common=fs.readFileSync(path.join(root,'styles.css'),'utf8')+'\n'+fs.readFileSync(path.join(root,'themes-extra.css'),'utf8');
-const properties=new Set<string>();postcss.parse(original).walkDecls(declaration=>{properties.add(declaration.prop);});
+const properties=new Set<string>();postcss.parse(original).walkDecls(declaration=>{properties.add(declaration.prop);});postcss.parse(compiled).walkDecls(declaration=>{properties.add(declaration.prop);});
 const props=[...properties].sort();
 const stat=(kind:string)=>`<button class="m-stat-card ${kind}"><span class="m-stat-head"><span class="m-marker-dot"></span><span class="m-stat-label">Marker summary</span></span><strong>123<small>units</small></strong><span class="m-stat-meta">Recent result</span></button>`;
 const insight=(kind:string)=>`<button class="m-insight ${kind}"><span class="m-insight-eyebrow">Research</span><strong>Review recent results</strong><span>Follow a familiar detailed workflow</span><small>Updated today</small></button>`;

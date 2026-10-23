@@ -24,12 +24,23 @@ function semantics(css:string):unknown {
   }
   return postcss.parse(css).nodes.map(visit).filter(n=>n!==null);
 }
-it('preserves the entire original Mobile stylesheet cascade and all414 declarations',async()=>{
+it('preserves the Mobile cascade with the explicit horizontal navigation changes',async()=>{
   const original=await fs.readFile(nativePath,'utf8');
   expect(createHash('sha256').update(original).digest('hex')).toBe('8699dc45aadcfbe11494018533dcc8cafe922cbc3632ed03a9603d02c273051f');
   const compiled=await fs.readFile(outputPath,'utf8');
-  expect(semantics(compiled)).toEqual(semantics(original));
-  let count=0;postcss.parse(compiled).walkDecls(()=>{count++;});expect(count).toBe(414);
+  const expected=postcss.parse(original);
+  expected.walkRules('.m-tabbar',rule=>{
+    rule.walkDecls('display',decl=>{decl.value='flex';});
+    rule.walkDecls('grid-template-columns',decl=>{
+      decl.replaceWith({prop:'overflow-x',value:'auto'},{prop:'overscroll-behavior-x',value:'contain'},
+        {prop:'scroll-snap-type',value:'x proximity'},{prop:'scrollbar-width',value:'none'});
+    });
+  });
+  expected.walkRules('.m-tab',rule=>{rule.walkDecls('min-width',decl=>{
+    decl.value='76px';decl.after({prop:'scroll-snap-align',value:'center'});decl.after({prop:'flex',value:'0 0 22%'});
+  });});
+  expect(semantics(compiled)).toEqual(semantics(expected.toString()));
+  let count=0;postcss.parse(compiled).walkDecls(()=>{count++;});expect(count).toBe(419);
   expect(await fs.readFile(path.join(root,'css/mobile-dashboard.base.css'),'utf8')).toContain('/* Mobile dashboard app shell */');
 });
 it('owns every rule with one scoped Tailwind recipe and emits no reset or global utility layer',async()=>{

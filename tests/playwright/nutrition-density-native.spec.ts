@@ -17,9 +17,9 @@ test.beforeEach(async ({ context, page }) => {
   await page.goto('/app'); await expect(page.locator('html[data-app-ready]')).toBeAttached();
 });
 async function open(page: Page, workflow: string) {
-  const mobileBody = page.locator('[data-mobile-dashboard-action="navigate-tab"][data-mobile-dashboard-route="body"]');
-  if (await mobileBody.isVisible()) await mobileBody.click();
-  else await page.locator('#sidebar-nav [data-nav-route="body"]').click();
+  const mobileNutrition = page.locator('[data-mobile-dashboard-action="navigate-tab"][data-mobile-dashboard-route="nutrition"]');
+  if (await mobileNutrition.isVisible()) await mobileNutrition.click();
+  else await page.locator('#sidebar-nav [data-nav-route="nutrition"]').click();
   const action = workflow.replace('nutrition-', '');
   await page.locator('.nutrition-widget-actions [data-nutrition-action="' + action + '"]').click();
   await expect(page.locator('#modal-overlay')).toHaveClass(/show/);
