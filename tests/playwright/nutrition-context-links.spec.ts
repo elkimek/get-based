@@ -34,18 +34,20 @@ test('nutrition card links preserve real meal/trend navigation and do not write 
   await expect(diet).toContainText('Detailed meal log active'); await expect(diet).toContainText('2 logged meals · 1/7 days');
   await expect(page.locator('[data-food-contaminant-badge]')).toHaveCount(0);
   await diet.focus(); await page.keyboard.press('Enter');
-  await expect(page.locator('.nav-item[data-category="body"]')).toHaveClass(/active/);
+  await expect(page.locator('.nav-item[data-category="nutrition"]')).toHaveClass(/active/);
   await expect(page.locator('#detail-modal .nutrition-history-head h3')).toHaveText('Meals & Nutrition');
   await expect(page.getByRole('tab', { name: 'Meals', exact: true })).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('#detail-modal')).toContainText('Link breakfast'); await expect(page.locator('#detail-modal')).toContainText('Link dinner');
   await page.locator('#detail-modal .modal-close').click(); await expect(page.locator('#modal-overlay')).not.toHaveClass(/show/);
+  await expect(page.locator('#main-content .nutrition-widget')).toBeVisible();
   await insight(page);
   const timing = page.locator('[data-context-card-key="lightCircadian"] [data-nutrition-context-link]');
   await expect(timing).toContainText('Logged meal timing'); await expect(timing).toContainText('first 08:00 · last 18:00');
   await timing.focus(); await page.keyboard.press('Space');
   await expect(page.getByRole('tab', { name: 'Trends', exact: true })).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('.nutrition-history-timing')).toBeVisible(); await expect(page.locator('.nutrition-history-timing')).toContainText('Logged meal timing');
-  await page.locator('#detail-modal .modal-close').click(); await expect(page.locator('#modal-overlay')).not.toHaveClass(/show/); expect(await saved(page)).toBe(before);
+  await page.locator('#detail-modal .modal-close').click(); await expect(page.locator('#modal-overlay')).not.toHaveClass(/show/);
+  await expect(page.locator('#main-content .nutrition-widget')).toBeVisible(); expect(await saved(page)).toBe(before);
 });
 // Dense fine-pointer controls retain their native sizing; touch targets use the coarse-pointer styles.
 test.describe('coarse-pointer touch targets', () => {

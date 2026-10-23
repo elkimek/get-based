@@ -19,7 +19,7 @@ async function stored(page: Page) {
   });
 }
 async function verifyWidgets(page: Page, before: string) {
-  for (const route of ['dashboard','body']) {
+  for (const route of ['dashboard','nutrition']) {
     const menu=page.getByRole('button',{name:'Menu',exact:true});if(await menu.isVisible())await menu.click();
     await page.locator(`.nav-item[data-category="${route}"]`).click();
     const widget=page.locator('[data-nutrition-dashboard-view="intake"]'),fuel=page.locator('[data-nutrition-dashboard-view="fuel"]');

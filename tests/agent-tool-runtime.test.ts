@@ -206,6 +206,19 @@ describe('agent tool runtime', () => {
     expect(navigate).toHaveBeenCalledWith({ view: '', marker: 'TSH' });
   });
 
+  it.each(['nutrition', 'supplements'])('advertises and opens the %s lens without creating a draft or reading health data', async view => {
+    const navigate = vi.fn(() => ({ changed: true }));
+    const readContext = vi.fn(() => CONTEXT), onDraftCreated = vi.fn();
+    const runtime = createAgentToolRuntime({ readContext, navigate, onDraftCreated });
+    const schema = getAgentToolCatalog().find(tool => tool.name === 'getbased_navigate')!.inputSchema;
+    expect(schema.properties?.view).toMatchObject({ enum: expect.arrayContaining([view]) });
+    await expect(runtime.execute({ tool: 'getbased_navigate', arguments: { view } })).resolves.toMatchObject({ success: true });
+    expect(navigate).toHaveBeenCalledExactlyOnceWith({ view, marker: '' });
+    expect(readContext).not.toHaveBeenCalled();
+    expect(onDraftCreated).not.toHaveBeenCalled();
+    expect(runtime.getDrafts()).toEqual([]);
+  });
+
   it('creates review-only drafts and never invokes a persistence dependency', async () => {
     let nextId = 0;
     const onDraftCreated = vi.fn();

@@ -79,7 +79,7 @@ test('first data-backed Dashboard loads Health and Data once without duplicate m
   });
 
   await expect(page.locator('.m-shell')).toBeVisible();
-  await expect(page.locator('.m-tab')).toHaveCount(5);
+  await expect(page.locator('.m-tab')).toHaveCount(7);
   await expect(page.locator('#mobile-bottom-tabs')).toHaveCount(0);
   for (const pathname of [
     '/js/context-cards.js',
@@ -95,7 +95,7 @@ test('first data-backed Dashboard loads Health and Data once without duplicate m
     await views.navigate('dashboard');
   });
   await expect(page.locator('.m-shell')).toBeVisible();
-  await expect(page.locator('.m-tab')).toHaveCount(5);
+  await expect(page.locator('.m-tab')).toHaveCount(7);
   await expect(page.locator('#mobile-bottom-tabs')).toHaveCount(0);
   for (const pathname of [
     '/js/context-cards.js',

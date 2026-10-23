@@ -222,10 +222,10 @@ export async function openNutritionModule(navigate: unknown = null) {
     const module = await loadNutritionFeature();
     if (!current() || state.currentView !== route || document.getElementById('main-content') !== main) return false;
     if (typeof navigate === 'function') {
-      const navigation = (navigate as (category: string) => unknown)('body');
+      const navigation = (navigate as (category: string) => unknown)('nutrition');
       revision = routeRevision();
       await navigation;
-      if (!current() || state.currentView !== 'body') return false;
+      if (!current() || state.currentView !== 'nutrition') return false;
     }
     if (!current()) return false;
     const mountedMain = document.getElementById('main-content');
@@ -247,10 +247,10 @@ export async function openNutritionHistoryModule({ view = 'meals', focus = '' }:
     const module = await loadNutritionFeature();
     if (!current() || state.currentView !== route) return false;
     if (typeof navigate === 'function') {
-      const navigation = (navigate as (category: string) => unknown)('body');
+      const navigation = (navigate as (category: string) => unknown)('nutrition');
       revision = routeRevision();
       await navigation;
-      if (!current() || state.currentView !== 'body') return false;
+      if (!current() || state.currentView !== 'nutrition') return false;
     }
     if (!current()) return false;
     return await module.openNutritionHistoryView(view, { focus });

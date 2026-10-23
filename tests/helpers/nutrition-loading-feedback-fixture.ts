@@ -26,7 +26,7 @@ async function nextFeedbackPaint(page: Page) {
 // Finish deliberate viewport preparation before measuring application feedback.
 // Keep repeated native focus/reveal outside the measured activation.
 async function prepareFeedbackControl(page: Page, control: Locator) {
-  // The expanded Body biometrics can put this section below the fold. Centre
+  // The Nutrition section can be below the fold. Centre
   // the whole control before the measured activation, including tall buttons.
   await control.evaluate(button => button.scrollIntoView({block: 'center', inline: 'nearest', behavior: 'instant'}));
   await control.hover();
@@ -100,7 +100,7 @@ export async function checkNutritionFeedback(page: Page, origin: string, editorP
   try {
     await page.goto(origin + '/app'); await expect(page.locator('html[data-app-ready]')).toBeAttached();
     const menu = page.getByRole('button', {name: 'Menu', exact: true}); if (await menu.isVisible()) await menu.click();
-    await page.locator('.nav-item[data-category="body"]').click();
+    await page.locator('.nav-item[data-category="nutrition"]').click();
     const root = page.locator('[data-nutrition-dashboard-view="intake"]'), control = root.locator('[data-nutrition-action="open"]'), status = root.locator('[data-nutrition-loading-status]');
     await expect(root).toBeVisible(); await expect(status).toBeAttached(); const label = (await control.textContent())!.trim(), profile = await profileReceipt(page);
     await page.evaluate(async () => {const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = '/themes-extra.css'; const loaded = new Promise<void>((resolve, reject) => {link.onload = () => resolve(); link.onerror = () => reject(new Error('Extra themes unavailable'));}); document.head.append(link); await loaded;});

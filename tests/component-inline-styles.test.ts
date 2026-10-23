@@ -41,6 +41,17 @@ function restoreReviewedComponentSource(file:string,source:string){
   source=source.replace(current,'<svelte:options preserveWhitespace={true} />');
  }
  if(file==='js/nav.ts'){
+  // Qualify only the additive lens wiring before the immutable style-port proof.
+  expect(crypto.createHash('sha256').update(source).digest('hex')).toBe('244d3484e70ed6d85f57f8a4c6be16ea1813522ffb0582736ee2574a48318d30');
+  const lensEdits = [
+   {current:"  const nutrition = {action:sidebarAction(_navNavigateAttrs('nutrition'),'navigate','nutrition'),icon:_sidebarIcon('nutrition')};\n  const supplements = {action:sidebarAction(_navNavigateAttrs('supplements'),'navigate','supplements'),icon:_sidebarIcon('supplements')};\n",previous:""},
+   {current:"body,bodyBadge,nutrition,supplements,light",previous:"body,bodyBadge,light"},
+   {current:"cat === 'body' || cat === 'nutrition' || cat === 'supplements'",previous:"cat === 'body'"},
+  ];
+  for(const edit of lensEdits){
+   expect(source.split(edit.current)).toHaveLength(2);
+   source=source.replace(edit.current,edit.previous);
+  }
   // The reviewed Safari client-list initiator fix is independent of this style port.
   expect(crypto.createHash('sha256').update(source).digest('hex')).toBe('7482f3dbb3279427d5044bf5b124ff722e39c41fc6767cf7e75c1bd3bf59f78a');
   const clientFocusEdits = [

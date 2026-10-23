@@ -64,7 +64,7 @@ const catalog: readonly AgentToolDefinition[] = Object.freeze([
     limit: property('integer', {"minimum": 1, "maximum": 10}),
   }, ["query"]),
   tool("getbased_navigate", "Open a getbased view for the user. This changes only visible navigation state and never edits health data.", "navigate", {
-    view: property('string', {"enum": ["dashboard", "labs", "biologyScores", "genome", "body", "light", "insight", "recommendations", "correlations", "compare"]}),
+    view: property('string', {"enum": ["dashboard", "labs", "biologyScores", "genome", "body", "nutrition", "supplements", "light", "insight", "recommendations", "correlations", "compare"]}),
     marker: property('string', {"minLength": 1, "maxLength": MAX_AGENT_QUERY_LENGTH, "description": "Optional stable marker key or unambiguous marker name to open."}),
   }),
   tool("getbased_draft_note", "Prepare a reviewable active-profile or marker note. This does not save anything; the user must approve the draft in getbased.", "draft", {

@@ -183,7 +183,7 @@ test('keyboard-only Nutrition cold and warm actions expose owned loading statuse
     await ready(page, server.origin); const stored = await profileReceipt(page);
     const menu = page.getByRole('button', {name: 'Menu', exact: true});
     if (await menu.isVisible()) await keyboardActivate(page, menu);
-    await keyboardActivate(page, page.locator('.nav-item[data-category="body"]'));
+    await keyboardActivate(page, page.locator('.nav-item[data-category="nutrition"]'));
     const root = page.locator('[data-nutrition-dashboard-view="intake"]'), status = root.locator('[data-nutrition-loading-status]');
     await expect(root).toBeVisible(); await expect(status).toHaveText('');
     expect(requests).toEqual([]);

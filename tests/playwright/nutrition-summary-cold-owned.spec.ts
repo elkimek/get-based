@@ -12,7 +12,7 @@ async function receipt(page: Page) {
 }
 async function start(page: Page) {
   await page.goto('/app'); await expect(page.locator('html[data-app-ready]')).toBeAttached();
-  await page.locator('.nav-item[data-category="body"]').click();
+  await page.locator('.nav-item[data-category="nutrition"]').click();
   await expect(page.locator('[data-nutrition-dashboard-view="intake"]')).toBeVisible();
   await expect(page.locator('#modal-overlay')).not.toHaveClass(/show/);
 }
@@ -20,7 +20,7 @@ function control(page: Page, action: string) {return page.locator(`[data-nutriti
 
 test.beforeEach(async ({ context }) => {await installDiscussionFixture(context, {paused: true}); await context.addInitScript(seedNutritionMealDetail);});
 
-test('Body summaries are ready before editor requests, and a held actual first-click opens exactly one editor without altering saved data', async ({ page }) => {
+test('Nutrition summaries are ready before editor requests, and a held actual first-click opens exactly one editor without altering saved data', async ({ page }) => {
   const errors: string[] = [], moduleRequests: string[] = []; page.on('pageerror', error => errors.push(error.message));
   let release!: () => void; const gate = new Promise<void>(done => {release = done;});
   await page.route('**/js/nutrition.js', async route => {moduleRequests.push(route.request().url()); await gate; await route.continue();});

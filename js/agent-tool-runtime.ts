@@ -351,7 +351,7 @@ export function createAgentToolRuntime(dependencies: AgentToolDependencies) {
           const view = optionalString(args, 'view', 40);
           const marker = optionalString(args, 'marker', MAX_AGENT_QUERY_LENGTH);
           if (!view && !marker) throw new Error('view or marker is required.');
-          if (view && !['dashboard', 'labs', 'biologyScores', 'genome', 'body', 'light', 'insight', 'recommendations', 'correlations', 'compare'].includes(view)) {
+          if (view && !['dashboard', 'labs', 'biologyScores', 'genome', 'body', 'nutrition', 'supplements', 'light', 'insight', 'recommendations', 'correlations', 'compare'].includes(view)) {
             throw new Error('view is not supported.');
           }
           return successJson(await runDependency('navigate', { view, marker }));

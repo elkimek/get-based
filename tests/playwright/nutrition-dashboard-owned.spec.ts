@@ -10,8 +10,8 @@ async function navigate(page: import('@playwright/test').Page, route: string) {
   await page.locator(`.nav-item[data-category="${route}"]`).click();
   await expect(page.locator('[data-nutrition-dashboard-view="intake"]')).toBeVisible();
 }
-test('authored nutrition widgets preserve Dashboard and Body actions and refreshed values', async ({ page }) => {
-  for (const route of ['dashboard', 'body']) {
+test('authored nutrition widgets preserve Dashboard and Nutrition actions and refreshed values', async ({ page }) => {
+  for (const route of ['dashboard', 'nutrition']) {
     await navigate(page, route); const widget = page.locator('[data-nutrition-dashboard-view="intake"]');
     await expect(widget).toContainText('2 of 7 days'); await expect(widget).toContainText('38 g recorded · 128 guide');
     await expect(page.locator('[data-nutrition-dashboard-view="fuel"] .nutrition-fuel-meta')).toContainText('2 of 2 meals included');

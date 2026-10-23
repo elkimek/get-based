@@ -174,6 +174,7 @@ export function createLensPageHandlers(deps: unknown) {
     if (route === 'body' && state.profileSex === 'female') widgets.push({id: 'cycle', title: 'Cycle', description: 'Menstrual cycle context for hormone, iron, and inflammation interpretation', content: {kind: 'cycle', view: projectMenstrualCycleSection(getActiveData())}, size: 'full', opts: {source: 'Body'}});
     const grid = getLensContentGrid(route, widgets);
     main.innerHTML = renderLensDataPage({view: {kind: route, header, actions, grid}});
+    return true;
   }
 
   function showBodyLens() { return showHealthLens('body'); }

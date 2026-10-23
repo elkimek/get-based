@@ -176,13 +176,14 @@ async function readStoredProfile(page: Page) {
     function assertString(value: unknown): asserts value is string {if (typeof value !== 'string') throw Error('Missing committed profile');}
   });
 }
+// Keep the historical probe/receipt field names stable; the measured meal workspace now lives in Nutrition.
 async function installBodyProbe(page: Page) {
   await page.addInitScript(() => {
     const view = window as unknown as ProbeWindow;
     view.benchmarkBodyProbe = {events: [], domAt: null, firstFrameAt: null, twoFramesAt: null};
     document.addEventListener('click', event => {
       if (!(event.target instanceof Element)) return;
-      const menu = event.target.closest('button[aria-label="Menu"]'), body = event.target.closest('.nav-item[data-category="body"]');
+      const menu = event.target.closest('button[aria-label="Menu"]'), body = event.target.closest('.nav-item[data-category="nutrition"]');
       if (!menu && !body) return;
       view.benchmarkBodyProbe.events.push({target: menu ? 'menu' : 'body', at: performance.now()});
       if (!body) return;
@@ -202,7 +203,7 @@ async function openBody(page: Page) {
   const begin = await page.evaluate(() => performance.now());
   const menu = page.getByRole('button', {name: 'Menu', exact: true});
   if (await menu.isVisible()) await menu.click();
-  await page.locator('.nav-item[data-category="body"]').click();
+  await page.locator('.nav-item[data-category="nutrition"]').click();
   await page.locator('[data-nutrition-dashboard-view="intake"]').waitFor({state: 'visible'});
   const end = await page.evaluate(() => performance.now());
   await page.waitForFunction(() => (window as unknown as ProbeWindow).benchmarkBodyProbe.twoFramesAt !== null);

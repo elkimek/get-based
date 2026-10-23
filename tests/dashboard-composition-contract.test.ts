@@ -47,8 +47,9 @@ it('pins the independently recovered native constructor, pin algorithm and full 
   expect(sha(native.quickPinSource)).toBe('0e3cfb40264fcab6b63dc81d571dd8b8245e498b3995d97c75dcc8e9180a4a43');
   expect(originalConfigure(read('js/views.ts'))).toBe(native.source);
   expect(read('js/dashboard-quick-marker-core.ts')).toContain(native.quickPinSource);
-  expect(Object.keys(facade).sort()).toEqual([...native.exports].sort());
-  for (const name of native.exports.filter(name => name !== 'configureDashboardViewFactory')) {
+  const addedLenses = ['showNutritionLens', 'showSupplementsLens'];
+  expect(Object.keys(facade).sort()).toEqual([...native.exports, ...addedLenses].sort());
+  for (const name of [...native.exports, ...addedLenses].filter(name => name !== 'configureDashboardViewFactory')) {
     expect((facade as Record<string, unknown>)[name], name).toBe((runtime as Record<string, unknown>)[name]);
   }
   expect(createDashboardViewComposition.length).toBe(1);

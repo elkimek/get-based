@@ -117,7 +117,7 @@ test('Female Body route contains a Cycle stylesheet failure and retries', async 
   });
   const firstOpened = await page.evaluate(async () => (await import('/js/views.js')).navigate('body'));
   expect(firstOpened).toBe(false);
-  await expect(page.locator('#main-content [role="alert"]')).toContainText('Body could not be loaded');
+  await expect(page.locator('#main-content [role="alert"]')).toContainText('Biometrics could not be loaded');
   await expect(page.locator('link[data-cycle-stylesheet]')).toHaveCount(0);
 
   await page.unroute('**/css/cycle.css*');
@@ -149,7 +149,7 @@ test('Female Body route waits for Cycle presentation while the default path stay
     };
   });
 
-  expect(beforeLoad.status).toContain('Loading Body');
+  expect(beforeLoad.status).toContain('Loading Biometrics');
   expect(beforeLoad.links).toBe(1);
   await expect.poll(() => !!stylesheetRoute).toBe(true);
   await stylesheetRoute!.fulfill({

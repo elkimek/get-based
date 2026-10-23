@@ -27,11 +27,12 @@ async function verifyLinks(page: Page, before: string) {
   const meals = page.locator('[data-context-card-key="diet"] [data-nutrition-context-link]');
   await expect(meals).toContainText('Detailed meal log active'); await expect(meals).toContainText('2 logged meals · 1/7 days');
   await meals.focus(); await page.keyboard.press('Enter');
-  await expect(page.locator('.nav-item[data-category="body"]')).toHaveClass(/active/);
+  await expect(page.locator('.nav-item[data-category="nutrition"]')).toHaveClass(/active/);
   await expect(page.locator('#detail-modal .nutrition-history-head h3')).toHaveText('Meals & Nutrition');
   await expect(page.getByRole('tab', { name: 'Meals', exact: true })).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('#detail-modal')).toContainText('Offline link breakfast'); await expect(page.locator('#detail-modal')).toContainText('Offline link dinner');
   await page.locator('#detail-modal .modal-close').click(); await expect(page.locator('#modal-overlay')).not.toHaveClass(/show/);
+  await expect(page.locator('#main-content .nutrition-widget')).toBeVisible();
   await insight(page);
   const timing = page.locator('[data-context-card-key="lightCircadian"] [data-nutrition-context-link]');
   await expect(timing).toContainText('7-day average · first 08:00 · last 18:00');
@@ -39,6 +40,7 @@ async function verifyLinks(page: Page, before: string) {
   await expect(page.getByRole('tab', { name: 'Trends', exact: true })).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('.nutrition-history-timing')).toBeVisible(); await expect(page.locator('.nutrition-history-timing')).toContainText('Logged meal timing');
   await page.locator('#detail-modal .modal-close').click(); await expect(page.locator('#modal-overlay')).not.toHaveClass(/show/);
+  await expect(page.locator('#main-content .nutrition-widget')).toBeVisible();
   expect(await stored(page)).toBe(before);
 }
 test('static nutrition card links load History offline on first use and two cold launches without profile writes', async ({ page, context }) => {
