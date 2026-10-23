@@ -104,6 +104,15 @@ describe('TypeScript migration boundaries', () => {
 
   it('retains every field in the original agent tool JSON contracts', () => {
     const contract = { catalog: getAgentToolCatalog(), codex: getCodexDynamicTools() };
+    // Qualify the additive navigation choices before retaining the complete
+    // immutable migration receipt for every other schema field.
+    for (const tools of [contract.catalog, contract.codex]) {
+      const navigate = tools.find(tool => tool.name === 'getbased_navigate');
+      const view = navigate?.inputSchema.properties?.view;
+      expect(view?.enum).toEqual(['dashboard', 'labs', 'biologyScores', 'genome', 'body', 'nutrition', 'supplements', 'light', 'insight', 'recommendations', 'correlations', 'compare']);
+      if (!view) throw new Error('Missing navigation view schema');
+      view.enum = ['dashboard', 'labs', 'biologyScores', 'genome', 'body', 'light', 'insight', 'recommendations', 'correlations', 'compare'];
+    }
     expect(createHash('sha256').update(JSON.stringify(contract)).digest('hex')).toBe('91d5ca6b12033a5b2838397b958c9200d25ac95125154295ea6db33f9ca287fa');
     contract.catalog[0]!.name = 'caller mutation';
     expect(getAgentToolCatalog()[0]!.name).toBe('getbased_lab_context');
