@@ -61,7 +61,7 @@ async function openBody(page: Page) {
   const menu = page.getByRole('button', {name: 'Menu', exact: true});
   if (await menu.isVisible() && !await page.locator('#sidebar-nav').evaluate(node => node.classList.contains('mobile-open'))) await menu.click();
   await page.locator('[data-nav-action="navigate"][data-nav-route="body"]').click();
-  await expect(page.locator('.lens-page-header h2')).toHaveText('Body');
+  await expect(page.locator('.lens-page-header h2')).toHaveText('Biometrics');
   await expect(page.locator('.lens-page-widgets[data-lens-route="body"] [data-widget-id="cycle"] .cycle-section')).toBeVisible();
 }
 async function openEditor(page: Page) {

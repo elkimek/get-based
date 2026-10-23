@@ -573,8 +573,9 @@ const _origProfileSex = state ? state.profileSex : null;
     assert('nav.js: sidebar rebuild preserves current route selection',
       /export function syncSidebarActive/.test(navSrc)
       && /nav\.innerHTML\s*=\s*html;\s*syncSidebarActive\(state\.currentView \|\| 'dashboard'\)/.test(navSrc));
+    // Check the dispatch/state/nav sequence rather than an arbitrary source-length cap.
     assert('views-router.js: route renderer rebuilds cannot leave Dashboard selected',
-      /_syncSidebarActive\(activeCategory\)[\s\S]{0,1000}routeHandlers\.[\s\S]{0,1000}_syncSidebarActive\(routeCategory\)/.test(routerSrc));
+      /_syncSidebarActive\(activeCategory\);[\s\S]*?let routeResult;[\s\S]*?routeHandlers\.[\s\S]*?state\.currentView = routeCategory;\s*_persistCurrentView\(routeCategory\);\s*syncMobileBottomNav\?\.\(routeCategory\);\s*_syncSidebarActive\(routeCategory\);/.test(routerSrc));
   }
 
   // ─── 19. Category marker card redesign ──────────────────────────────
