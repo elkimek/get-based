@@ -19,7 +19,7 @@ import {
   AGENT_BASE_INSTRUCTIONS, DEFAULT_TOOL_TIMEOUT_MS, DISCOVERY_SESSION_TTL_MS,
   IMAGE_EXTENSIONS, MAX_DISCOVERY_SESSIONS, MAX_IMAGE_BYTES, MAX_IMAGES_PER_TURN,
   MAX_MCP_SESSIONS, MAX_REQUESTED_INSTRUCTIONS_CHARS, PERSONAL_AGENT_BASE_INSTRUCTIONS,
-  UPLOAD_TTL_MS, cleanError, corsHeaders, createThreadHandle, declinedResult,
+  UPLOAD_TTL_MS, cleanError, codexTurnErrorMessage, corsHeaders, createThreadHandle, declinedResult,
   hasImageSignature, isAllowedAgentHostOrigin, isAllowedAgentTool, isLoopbackOrigin, isRecord,
   jsonResponse, readJson, readThreadHandle, sanitizeDynamicTools, sanitizeHistory,
   sanitizeModelCatalog, sanitizeOutputSchema, sanitizeToolResult, tokenMatches,
@@ -198,9 +198,20 @@ export function createAgentHostService(options: AgentHostServiceOptions) {
         status: notification.method === 'item/completed' ? 'completed' : 'started',
         query: String(params.item.query || '').slice(0, 500),
       });
+    } else if (notification.method === 'error') {
+      // The app-server may recover internally. Only terminal errors close the
+      // browser stream; never retain a transient failure for a later turn.
+      if (params.willRetry === true) return;
+      active.send({ type: 'error', message: codexTurnErrorMessage(params.error) });
+      active.cleanup();
+      activeTurns.delete(threadId);
+      cancelPendingTools(threadId);
     } else if (notification.method === 'turn/completed') {
       const status = String(params.turn?.status || 'completed');
-      active.send({ type: 'done', finishReason: status === 'completed' ? 'stop' : status });
+      if (status === 'completed') active.send({ type: 'done', finishReason: 'stop' });
+      else active.send({ type: 'error', message: status === 'interrupted'
+        ? 'The CLI agent response was interrupted. Please retry.'
+        : codexTurnErrorMessage(params.turn?.error) });
       active.cleanup();
       activeTurns.delete(threadId);
       cancelPendingTools(threadId);
@@ -640,7 +651,7 @@ export function createAgentHostService(options: AgentHostServiceOptions) {
           resumed,
         });
       } catch (error) {
-        send({ type: 'error', message: cleanError(error) });
+        send({ type: 'error', message: codexTurnErrorMessage(error) });
         if (threadId) {
           activeTurns.delete(threadId);
           cancelPendingTools(threadId);

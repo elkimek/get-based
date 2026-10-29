@@ -57,6 +57,19 @@ describe('agent chat client', () => {
     expect((fetchMock.mock.calls as [unknown, {headers: {Authorization: string}; body: string}][])[1]![1].headers.Authorization).toBe('Bearer secret-token');
   });
 
+  it.each(['failed', 'interrupted'])('rejects a legacy Companion %s completion even when partial text is valid JSON', async finishReason => {
+    const cancel = vi.fn();
+    const bytes = new TextEncoder().encode([
+      JSON.stringify({ type: 'text_delta', delta: '{"markers":[]}' }),
+      JSON.stringify({ type: 'done', finishReason }),
+    ].join('\n') + '\n');
+    const reader = { read: vi.fn().mockResolvedValueOnce({ value: bytes, done: false }).mockResolvedValue({ done: true }), cancel };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, body: { getReader: () => reader } }));
+    await expect(streamAgentTurn({ endpoint: 'http://127.0.0.1:8324', token: 'test-token', prompt: 'Synthetic report', tools: [] }))
+      .rejects.toThrow(finishReason === 'failed' ? 'could not complete' : 'interrupted');
+    expect(cancel).toHaveBeenCalledOnce();
+  });
+
   it('rejects non-loopback endpoints before sending health data', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);

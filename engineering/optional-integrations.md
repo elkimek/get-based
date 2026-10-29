@@ -100,6 +100,13 @@ expose a port or pairing token. Sources for the entry point, host, installers,
 protocol and bundle are in [`bin/`](../bin/), [`server/`](../server/),
 [`lib/`](../lib/), [`shared/`](../shared/) and [`scripts/`](../scripts/).
 
+The Companion reports failed Codex turns as errors, with specific messages for
+recognized schema, reasoning-effort, authentication, rate, usage and context-limit
+failures. Raw CLI messages and additional details stay private because they may
+contain credentials, paths or health data. Recoverable app-server errors keep
+streaming while Codex retries; failed or interrupted responses never count as
+successful feature results, including with an older Companion.
+
 The dormant Claude adapter is not advertised or detected in normal builds.
 Consumer claude.ai Free/Pro/Max credentials are not permitted for this path
 without Anthropic's prior approval. Operators using Anthropic Console/API billing

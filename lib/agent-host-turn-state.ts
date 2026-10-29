@@ -101,7 +101,7 @@ export interface ACPUpdateEnvelope {
 }
 export interface CodexHostMessage { id?: unknown; method?: unknown; params?: unknown }
 export interface CodexNotificationParams extends Record<string, unknown> {
-  turn?: { id?: unknown; status?: unknown } | null;
+  turn?: { id?: unknown; status?: unknown; error?: unknown } | null;
   tokenUsage?: { last?: unknown } | null;
 }
 export interface CodexThreadResult { thread?: { id?: unknown } | null; model?: unknown }

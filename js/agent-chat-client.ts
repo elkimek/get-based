@@ -251,6 +251,10 @@ export async function streamAgentTurn(options: AgentTurnOptions) {
       if (!toolResponse.ok) throw new Error(await responseError(toolResponse));
     } else if (event?.type === 'done') {
       finishReason = String(event.finishReason || 'stop');
+      // Older Companions return terminal failures as done events. A partial
+      // answer, including valid JSON, must not become a successful feature result.
+      if (finishReason === 'failed') throw new Error('The CLI agent could not complete the response. Check the Companion and selected agent, then try again.');
+      if (finishReason === 'interrupted') throw new Error('The CLI agent response was interrupted. Please retry.');
     } else if (event?.type === 'error') {
       throw new Error(String(event.message || 'CLI agent response failed.'));
     }

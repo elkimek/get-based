@@ -70,6 +70,27 @@ export function cleanError(value: unknown) {
   return 'The agent request failed. Check the Companion and selected agent, then try again.';
 }
 
+// Classify provider failures without returning their free-form message or details.
+// Those fields can echo private prompts, local paths, credentials or a stack.
+export function codexTurnErrorMessage(value: unknown): string {
+  const error = isRecord(value) ? value : {};
+  const message = typeof error.message === 'string' ? error.message : '';
+  if (/\binvalid_json_schema\b/.test(message)) {
+    return 'Codex rejected the output schema. Update getbased and the Companion, then retry.';
+  }
+  if (/\bunsupported_value\b/.test(message) && /\b(?:effort|reasoning_effort|reasoningEffort)\b/.test(message)) {
+    return 'Codex rejected the reasoning effort. Choose a supported effort in AI settings and retry.';
+  }
+  switch (error.codexErrorInfo) {
+    case 'badRequest': return 'Codex rejected the AI request. Update getbased and the Companion, or choose another model in AI settings.';
+    case 'unauthorized': return 'Codex could not authenticate. Sign in to the Codex CLI and retry.';
+    case 'rateLimitExceeded': return 'Codex reached a rate limit. Wait before retrying.';
+    case 'usageLimitExceeded': return 'Codex reached its usage limit. Check your Codex account before retrying.';
+    case 'contextWindowExceeded': return 'This request exceeds the Codex model’s context limit. Split it into smaller requests.';
+    default: return cleanError(value);
+  }
+}
+
 export function jsonResponse(value: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(value), { status, headers: { ...JSON_HEADERS, ...headers } });
 }

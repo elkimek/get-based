@@ -714,6 +714,16 @@ does not establish a fresh whole-project combined measurement.
 
 Opening CLI Settings and an explicit rescan must refresh installed versions through the separately installed Companion. Ordinary discovery keeps its short unused-port deadline; only an identified Companion receives the longer bounded refresh request. Version probes run asynchronously and concurrently against each configured executable and its launcher arguments, without ACP/gateway arguments, authentication checks, client restarts or gateway enumeration. Failed probes clear stale version text. Browser refresh failures retain the already discovered agents and their original discovery credential with version text cleared; explicit caller cancellation still discards the result. Concurrent refreshes share work, and discovery origin/credential boundaries remain unchanged. [Version probes](../tests/local-agent-version-refresh.test.ts), [host discovery](../tests/agent-host-service.test.ts), [browser discovery](../tests/agent-chat-settings.test.ts) and [Settings presentation](../tests/cli-companion-ui.test.ts) cover this contract.
 
+Codex turn failures must reach the browser as errors rather than empty or partial
+successful answers. Preserve turn/thread isolation, let retryable app-server
+errors recover, release pending tools and request reservations on terminal errors,
+and keep raw provider messages, stacks, paths, credentials and prompt text out of
+the browser. The client also rejects legacy `done` events with `failed` or
+`interrupted` finish reasons, even after valid JSON text.
+[Host and client failures](../tests/agent-host-turn-errors.test.ts),
+[legacy client completions](../tests/agent-chat-client.test.ts) and
+[error redaction](../tests/agent-host-errors.test.ts) cover this contract.
+
 [Release evidence](../.github/workflows/release-evidence.yml) is requested by
 manual dispatch or the `run-release-evidence` PR label. It runs full regression,
 both selected real WASM model scenarios, and the two isolated service-image
