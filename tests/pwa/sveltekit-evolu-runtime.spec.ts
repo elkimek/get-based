@@ -45,6 +45,13 @@ test('the shipping Evolu database row, worker graph and encrypted identity survi
   const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
   const proof = await artifactInputs(owners, []); expect(proof.directory).toBe(artifact);
   const server = await startKitServer(artifact);
+  // Keep the unavailable relay on its own origin, as in deployment. Routing
+  // its probes through the app's SW makes WebKit report expected network
+  // failures as page errors even when the application's fetch is caught.
+  const relay = await startKitServer(artifact, [async (_request, response) => {
+    response.setHeader('Access-Control-Allow-Origin', '*');
+    response.writeHead(503); response.end('Synthetic relay unavailable'); return true;
+  }]);
   const profile = info.outputPath('evolu-profile');
   const device = devices[browserName === 'chromium' ? 'Desktop Chrome' : browserName === 'firefox' ? 'Desktop Firefox'
     : info.project.name.includes('mobile') ? 'iPhone 13' : 'Desktop Safari']!;
@@ -69,7 +76,7 @@ test('the shipping Evolu database row, worker graph and encrypted identity survi
       localStorage.setItem('labcharts-default-onboarded', 'profile-set'); localStorage.setItem('labcharts-encryption-nudge-dismissed', 'true');
       localStorage.setItem('labcharts-legal-acceptance', JSON.stringify({accepted: true, termsVersion: '2026-08-22', privacyVersion: '2026-08-22',
         policyScope: 'self-hosted-notice', acceptedAt: '2026-10-30T00:00:00.000Z', appVersion: 'evolu-test', location: 'local-test'}));
-    }, {relay: server.origin.replace(/^http/, 'ws') + '/unavailable-relay', self: server.origin + '/unavailable-relay'});
+    }, {relay: relay.origin.replace(/^http/, 'ws'), self: relay.origin});
     const page = context.pages()[0] || await context.newPage(); page.on('pageerror', error => errors.push(error.message));
     await page.goto(server.origin + '/app?dev-sw=1'); await ready(page);
     const identity = await openIdentity(page); const before = await identityState(page);
@@ -114,6 +121,6 @@ test('the shipping Evolu database row, worker graph and encrypted identity survi
     expect(after).toEqual(before); expect(errors).toEqual([]);
     expect(await artifactInputs(owners, [])).toEqual(proof);
     await info.attach('evolu-offline-restart', {body: JSON.stringify({artifact: proof, identityCode: identity, before, after, databaseBefore, databaseAfter, cached,
-      boundary: 'Actual shipping bundles, WASM, OPFS, identity vault, cache and browser-process restart. Fresh synthetic identity, loopback discard relay, paused AI, no provider credentials or user health records.'}), contentType: 'application/json'});
-  } finally {await context?.close(); await server.close();}
+      boundary: 'Actual shipping bundles, WASM, OPFS, identity vault, cache and browser-process restart. Fresh synthetic identity, unavailable loopback relay, paused AI, no provider credentials or user health records.'}), contentType: 'application/json'});
+  } finally {await context?.close(); await server.close(); await relay.close();}
 });
