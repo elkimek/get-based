@@ -3,11 +3,25 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   AGENT_MODEL_CATALOG_AGENT_KEY, AGENT_MODEL_CATALOG_TARGET_KEY, cacheAgentModelCatalog, getCachedAgentModelCatalog,
+  resolveAgentFeatureEffort,
 } from '../js/agent-model-catalog.js';
 import { mountCliAgentModels, disposeCliAgentModels } from '../js/cli-agent-models-component.js';
 import { filterCLIAgentModelOptions } from '../js/settings-cli-agent-panel.js';
 
 describe('CLI agent model catalog cache', () => {
+  it('maps low-effort feature hints only to advertised native controls without changing preferences', () => {
+    const models = cacheAgentModelCatalog([{ id: 'native-model', supportedReasoningEfforts: [{ reasoningEffort: 'low' }, { reasoningEffort: 'high' }] }], 'codex');
+    const stored = localStorage.getItem('labcharts-agent-model-catalog-v1');
+    expect(resolveAgentFeatureEffort('none', 'high', 'native-model', models)).toBe('low');
+    expect(resolveAgentFeatureEffort('minimal', 'high', 'native-model', models)).toBe('low');
+    expect(resolveAgentFeatureEffort('high', 'low', 'native-model', models)).toBe('high');
+    expect(resolveAgentFeatureEffort('ultra', 'high', 'native-model', models)).toBe('high');
+    expect(resolveAgentFeatureEffort('none', 'high', 'other-model', models)).toBe('');
+    expect(resolveAgentFeatureEffort('none', 'high', 'native-model', getCachedAgentModelCatalog('hermes'))).toBe('');
+    expect(resolveAgentFeatureEffort(undefined, 'high', 'native-model', models)).toBe('high');
+    expect(resolveAgentFeatureEffort('', 'high', 'native-model', models)).toBe('');
+    expect(localStorage.getItem('labcharts-agent-model-catalog-v1')).toBe(stored);
+  });
   beforeEach(() => localStorage.clear());
   afterEach(() => { disposeCliAgentModels(); document.body.replaceChildren(); });
 

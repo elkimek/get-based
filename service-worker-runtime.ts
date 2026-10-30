@@ -67,11 +67,11 @@ function installServiceWorkerRuntime({
       verifiedSqliteAliases.set(alias, canonical);
     }
   }
-  // The native producer declares only byte-identical, independently evaluated
-  // retry roots. Other builds supply no declarations but can retain older proofs.
+  // Producers declare only byte-identical, independently evaluated retry roots.
+  // Both native and Kit builds retain older selected-build proofs.
   const RETRY_PROOF_HEADER = 'x-getbased-retry-proof';
   const RETRY_QUERY = '?lazy-retry=1';
-  const retryPath = /^\/js\/bundle-[A-Za-z0-9_-]+\.js$/;
+  const retryPath = /^(?:\/js\/bundle-[A-Za-z0-9_-]+|\/_app\/immutable\/chunks\/[A-Za-z0-9_-]{8,})\.js$/;
   const verifiedRetryChunks = new Map<string, string>();
   for (const [canonical, hash] of Object.entries(retryChunkAliases)) {
     if (!isProduction || !/^[a-f0-9]{64}$/.test(buildId) || !retryPath.test(canonical)

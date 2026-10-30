@@ -1,3 +1,4 @@
+import { createWearableFetchScope } from './wearable-fetch-scope.js';
 import { createBasicWearableRow } from './wearable-daily-row.js';
 import type { BasicWearableDailyRow, WearableErrorBody, WearableRequestError } from './wearable-data-types.js';
 
@@ -69,17 +70,19 @@ export async function fetchFitbitPersonalInfo(accessToken: string) {
 }
 
 export async function fetchFitbitDailyRange(accessToken: string, startDate: string, endDate: string) {
+  const requests = createWearableFetchScope();
   // Seven range-reads in parallel, one per metric family. Each endpoint
   // degrades to null on failure so we don't lose the rest of the backfill.
   const [hrv, hr, steps, sleep, spo2, skinTemp, weight] = await Promise.all([
-    fbGET<FitbitPayload>(`1/user/-/hrv/date/${startDate}/${endDate}.json`,                       accessToken).catch(e => { logDebug('hrv',       e); return null; }),
-    fbGET<FitbitPayload>(`1/user/-/activities/heart/date/${startDate}/${endDate}.json`,          accessToken).catch(e => { logDebug('hr',        e); return null; }),
-    fbGET<FitbitPayload>(`1/user/-/activities/steps/date/${startDate}/${endDate}.json`,          accessToken).catch(e => { logDebug('steps',     e); return null; }),
-    fbGET<FitbitPayload>(`1.2/user/-/sleep/date/${startDate}/${endDate}.json`,                   accessToken).catch(e => { logDebug('sleep',     e); return null; }),
-    fbGET<FitbitSpO2[]>(`1/user/-/spo2/date/${startDate}/${endDate}.json`,                      accessToken).catch(e => { logDebug('spo2',      e); return null; }),
-    fbGET<FitbitPayload>(`1/user/-/temp/skin/date/${startDate}/${endDate}.json`,                 accessToken).catch(e => { logDebug('temp',      e); return null; }),
-    fbGET<FitbitPayload>(`1/user/-/body/log/weight/date/${startDate}/${endDate}.json`,           accessToken).catch(e => { logDebug('weight',    e); return null; }),
+    requests.run(fbGET<FitbitPayload>(`1/user/-/hrv/date/${startDate}/${endDate}.json`,                       accessToken), null, e => { logDebug('hrv',       e); }),
+    requests.run(fbGET<FitbitPayload>(`1/user/-/activities/heart/date/${startDate}/${endDate}.json`,          accessToken), null, e => { logDebug('hr',        e); }),
+    requests.run(fbGET<FitbitPayload>(`1/user/-/activities/steps/date/${startDate}/${endDate}.json`,          accessToken), null, e => { logDebug('steps',     e); }),
+    requests.run(fbGET<FitbitPayload>(`1.2/user/-/sleep/date/${startDate}/${endDate}.json`,                   accessToken), null, e => { logDebug('sleep',     e); }),
+    requests.run(fbGET<FitbitSpO2[]>(`1/user/-/spo2/date/${startDate}/${endDate}.json`,                      accessToken), null, e => { logDebug('spo2',      e); }),
+    requests.run(fbGET<FitbitPayload>(`1/user/-/temp/skin/date/${startDate}/${endDate}.json`,                 accessToken), null, e => { logDebug('temp',      e); }),
+    requests.run(fbGET<FitbitPayload>(`1/user/-/body/log/weight/date/${startDate}/${endDate}.json`,           accessToken), null, e => { logDebug('weight',    e); }),
   ]);
+  requests.assertSuccessful();
 
   // Build row skeletons first so days with partial data still get a row.
   const byDate = new Map<string, BasicWearableDailyRow<'fitbit'>>();

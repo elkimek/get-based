@@ -1,3 +1,4 @@
+import { callDirectChatWithTools } from './direct-chat-tools.js';
 // chat-send.js — direct chat send, streaming, stop button, and typewriter state
 
 import { state } from './state.js';
@@ -18,14 +19,15 @@ import {
   configureChatComposer, initChatComposer, resetChatComposer,
 } from './chat-composer.js';
 import { autoNameThread, createNewThread } from './chat-threads.js';
+import { createAppControlSession } from './app-control-session.js';
 import { injectLensChunks } from './lab-context-output.js';
-import { hasLens, queryLensMulti } from './lens.js';
+import { canQueryLens, queryLensMulti } from './lens.js';
 import { createChatLiveMessage, completeChatLiveMessage, publishChatLiveText } from './chat-live-message-component.js';
 import type { ChatLiveMessageHandle } from './chat-live-message-component.js';
 import { setIconButtonContent } from './chat-icons.js';
 import { renderChatMessages } from './chat-render.js';
 import {
-  CHAT_RESPONSE_MAX_TOKENS, callChatAPIWithContinuation,
+  CHAT_RESPONSE_MAX_TOKENS,
   isAIResponseTruncated,
 } from './chat-continuation.js';
 import {
@@ -274,7 +276,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
     : getAIProvider();
   const { requestAIProcessingApproval } = await import('./cloud-ai-consent.js');
   if (!await requestAIProcessingApproval(_msgProvider, { kind: hasImages ? 'image' : 'text' })) return;
-  if (!scopeIsCurrent() || useCodexAgent !== isCodexChatBackend()
+  if (!scopeIsCurrent() || isChatThreadInputBlocked() || useCodexAgent !== isCodexChatBackend()
     || (useCodexAgent ? _msgAgentId !== getAgentHostAgent() || _msgAgentTarget !== getAgentHostTarget() : _msgProvider !== getAIProvider())) return;
 
   // Capture attachments before clearing (they're ephemeral)
@@ -349,6 +351,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
 
   // Switch to stop mode
   const controller = new AbortController();
+  const appControlSession = createAppControlSession(text, scopeIsCurrent, controller.signal);
   _chatAbortController = controller;
   const generationUI: ActiveChatGenerationUI = {
     container,
@@ -364,6 +367,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
   setSendButtonMode(sendBtn, 'streaming');
   setChatStreamStatus(`${getActivePersonality().name} is responding.`, { busy: true });
   let streamOutcome = 'complete';
+  let deferredPersona: { index: number; ids: string[] } | null = null;
 
   let _msgModelId = useCodexAgent ? 'codex' : getActiveModelId(_msgProvider);
   let _msgModelDisplay = useCodexAgent ? getChatBackendDisplay() : getActiveModelDisplay(_msgProvider);
@@ -381,7 +385,9 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
   try {
     let labContext = buildChatLabContext(text);
     let _lensResultForMsg: Awaited<ReturnType<typeof queryLensMulti>> = null;
-    if (hasLens()) {
+    // Tool-capable chats retrieve only when the model requests document evidence.
+    // Personal gateways cannot call local tools, so retain their baseline retrieval.
+    if (useCodexAgent && isPersonalAgentTarget(_msgAgentTarget) && canQueryLens()) {
       const lensResult = await queryLensMulti(text, { signal: _chatAbortController ? _chatAbortController.signal : undefined });
       if (!scopeIsCurrent()) return;
       if (lensResult) {
@@ -437,17 +443,28 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
       if (scopeIsCurrent() && !controller.signal.aborted) typewriter!.update(streamedText);
       else { typewriter!.stop(); controller.abort(); }
     };
+    const onKnowledgeResult = (result: NonNullable<Awaited<ReturnType<typeof queryLensMulti>>>) => {
+      if (scopeIsCurrent() && !controller.signal.aborted) _lensResultForMsg = result;
+    };
     let aiResult;
     if (useCodexAgent) {
       const currentThread = state.chatThreads.find(thread => thread.id === state.currentThreadId);
+      const selectedRoute = getAssistantExecutionRoute();
+      const selectedAgentModel = selectedRoute.model;
+      // A native backend may pin its session model. Keep the saved transcript,
+      // but start a fresh backend session when the selected model changed.
+      const resumeAgentThread = currentThread?.chatBackend === 'codex' && selectedAgentModel && currentThread.agentModel === selectedAgentModel
+        && currentThread.agentProvider === selectedRoute.provider && currentThread.agentTarget === selectedRoute.target
+        ? currentThread.agentThreadId : undefined;
       // The native sender serializes historical roles without validating their values.
       aiResult = await (callCodexAgent as RawAgentCaller)({
         prompt: text || 'Respond to the attached image.',
         instructions: `${CHAT_SYSTEM_PROMPT}${personalityPrompt}${multiPersonaInstruction}`,
         labContext,
         profileId: state.currentProfile || '',
+        isCurrent: scopeIsCurrent,
         target: _msgAgentTarget,
-        threadId: currentThread?.agentThreadId,
+        threadId: resumeAgentThread,
         history: apiMessages.slice(0, -1).filter(message => typeof message.content === 'string').map(message => ({
           role: message.role,
           content: (message.content as string),
@@ -455,6 +472,8 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
         images: attachments.map(attachment => ({ base64: attachment.base64, mediaType: attachment.mediaType })),
         signal: getStreamSignal(),
         onStream,
+        onKnowledgeResult,
+        appControlSession,
       });
       if (!scopeIsCurrent()) return;
       controller.signal.throwIfAborted();
@@ -462,24 +481,37 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
         currentThread.agentThreadId = aiResult.threadId;
         currentThread.chatBackend = 'codex';
         currentThread.agentModel = aiResult.model;
+        currentThread.agentProvider = _msgAgentId;
+        currentThread.agentTarget = _msgAgentTarget;
       }
       const agentToolCalls = Array.isArray(aiResult.toolCalls) ? aiResult.toolCalls : [];
       contextSnapshot = mergeAgentContextReceipts(agentToolCalls, contextSnapshot);
     } else {
-      aiResult = await (callChatAPIWithContinuation as RawDirectCaller)({
+      aiResult = await (callDirectChatWithTools as RawDirectCaller)({
+        prompt: text || 'Respond to the attached image.', labContext, profileId: profile, isCurrent: scopeIsCurrent,
+        modelOverride: _msgModelId,
         system: systemPrompt,
         messages: apiMessages,
         maxTokens: CHAT_RESPONSE_MAX_TOKENS,
         signal: getStreamSignal(),
         onStream,
+        onKnowledgeResult,
         webSearch: webSearchEnabled,
         provider: _msgProvider,
         reasoningEffort: _msgReasoningEffort,
+        appControlSession,
       });
     }
     if (!scopeIsCurrent()) return;
     controller.signal.throwIfAborted();
-    if (useCodexAgent && aiResult.model) {
+    if (!useCodexAgent) {
+      // An intervening API reply is part of the browser transcript, but not an
+      // old CLI session. The next CLI turn must rehydrate the full history.
+      const currentThread = state.chatThreads.find(thread => thread.id === state.currentThreadId);
+      if (currentThread) currentThread.chatBackend = 'direct';
+    }
+    if (!useCodexAgent) contextSnapshot = mergeAgentContextReceipts(aiResult.toolCalls, contextSnapshot);
+    if (useCodexAgent && 'model' in aiResult && aiResult.model) {
       _msgModelId = ((aiResult as Awaited<ReturnType<typeof callCodexAgent>>)).model;
       _msgModelDisplay = getAgentModelDisplay(((aiResult as Awaited<ReturnType<typeof callCodexAgent>>)).model, getCachedAgentModelCatalog(getAgentHostAgent(), _msgAgentTarget));
     }
@@ -493,7 +525,10 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
 
     // Build assistant message object with context snapshot
     const assistantMsg: ChatSendMessage = { role: 'assistant', content: fullText, context: contextSnapshot, personalityName: personality.name, personalityIcon: personality.icon, provider: _msgProvider, agentId: _msgAgentId, modelId: _msgModelId, modelDisplay: _msgModelDisplay };
-    if (useCodexAgent && Array.isArray(aiResult.drafts) && aiResult.drafts.length) assistantMsg.agentDrafts = aiResult.drafts;
+    if (Array.isArray(aiResult.drafts) && aiResult.drafts.length) assistantMsg.agentDrafts = aiResult.drafts;
+    const appControls = appControlSession.finish();
+    if (responseTruncated) for (const record of appControls) if (record.action === 'assistant.persona') record.status = 'expired';
+    if (appControls.length) assistantMsg.appControls = appControls;
     if (responseTruncated) {
       assistantMsg.truncated = true;
       assistantMsg.finishReason = aiResult.finishReason || 'length';
@@ -546,7 +581,12 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
     })();
 
     completeChatLiveMessage(aiMsgEl, assistantMsg as (typeof state.chatHistory)[number]);
-    await saveChatHistory();
+    const replySaved = await saveChatHistory();
+    const personaControls = appControls.filter(record => record.action === 'assistant.persona' && record.status === 'pending');
+    if (replySaved && scopeIsCurrent() && !controller.signal.aborted && personaControls.length) {
+      appControlSession.admitDeferredAfterSavedReply(); deferredPersona = { index: state.chatHistory.length - 1, ids: personaControls.map(record => record.id) };
+    }
+    else for (const record of personaControls) record.status = 'expired';
     if (!scopeIsCurrent()) return;
     liveMessage.dispose();
     renderChatMessages({ preserveScroll: true, attentionMessage: assistantMsg });
@@ -614,24 +654,50 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
       }
     }
   } finally {
-    typewriter?.stop();
-    stopChatThinkingStatus(typingEl);
-    typingEl.remove();
-    liveMessage?.dispose();
-    if (_activeChatGenerationUI === generationUI) {
-      _chatAbortController = null;
-      _activeChatGenerationUI = null;
-      setSendButtonMode(sendBtn, 'idle');
-      updateDiscussButton();
-      updateChatHeaderTitle();
-      notifyChatContentAdded(container);
-      setChatStreamStatus(
-        !scopeIsCurrent() ? '' : streamOutcome === 'complete' ? 'Response complete.'
-          : streamOutcome === 'stopped' ? 'Response stopped. Retry is available.'
-            : 'Response failed. Retry is available.',
-        { busy: false },
-      );
-    }
+    const finishPersona = !!deferredPersona && streamOutcome === 'complete' && !controller.signal.aborted && scopeIsCurrent() && _activeChatGenerationUI === generationUI;
+    if (finishPersona) chatSavePending = true;
+    try {
+      appControlSession.cancel({ preserveDeferred: finishPersona });
+      typewriter?.stop();
+      stopChatThinkingStatus(typingEl);
+      typingEl.remove();
+      liveMessage?.dispose();
+      if (_activeChatGenerationUI === generationUI) {
+        _chatAbortController = null;
+        _activeChatGenerationUI = null;
+        setSendButtonMode(sendBtn, 'idle');
+        updateDiscussButton();
+        updateChatHeaderTitle();
+        notifyChatContentAdded(container);
+        setChatStreamStatus(
+          !scopeIsCurrent() ? '' : streamOutcome === 'complete' ? 'Response complete.'
+            : streamOutcome === 'stopped' ? 'Response stopped. Retry is available.'
+              : 'Response failed. Retry is available.',
+          { busy: false },
+        );
+      }
+      if (finishPersona && deferredPersona) {
+        try {
+          const controls = await import('./chat-app-controls.js');
+          for (const id of deferredPersona.ids) {
+            if (!scopeIsCurrent() || controller.signal.aborted) break;
+            await controls.handleChatAppControl(deferredPersona.index, id, 'apply', () => { if (scopeIsCurrent()) renderChatMessages({ preserveScroll: true }); });
+          }
+          if (scopeIsCurrent()) {
+            const pending = state.chatHistory[deferredPersona.index]?.appControls?.filter(record => deferredPersona!.ids.includes(record.id) && record.status === 'pending') || [];
+            for (const record of pending) record.status = 'expired';
+            if (pending.length) { await saveChatHistory({ preservePersonality: true }); renderChatMessages({ preserveScroll: true }); }
+          }
+        } catch {
+          const message = state.chatHistory[deferredPersona.index];
+          if (scopeIsCurrent()) {
+            for (const record of message?.appControls || []) if (record.action === 'assistant.persona' && record.status === 'pending') record.status = 'expired';
+            renderChatMessages({ preserveScroll: true });
+            showNotification('The queued persona request could not finish. Check the native persona picker before trying again.', 'info');
+          }
+        }
+      }
+    } finally { if (finishPersona) { appControlSession.cancel(); chatSavePending = false; } }
   }
 }
 

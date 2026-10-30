@@ -85,7 +85,7 @@ test('simultaneous weight and blood-pressure entries retain both measurements', 
   expect(row).toMatchObject({ weight: 80, bp_systolic: 120, bp_diastolic: 80, rhr: 60 });
 });
 
-test('two tabs serialize manual row writes through the same profile lock', async ({ page, context }) => {
+test('two tabs serialize complete manual commands through the same profile lock', async ({ page, context }) => {
   await page.goto('/app');
   const profile = await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
@@ -101,7 +101,7 @@ test('two tabs serialize manual row writes through the same profile lock', async
     (state as {importedData: unknown}).importedData = (JSON.parse((await encryptedGetItem(`labcharts-${profile}-imported`))!) as unknown);
     if (!state.importedData) throw new Error('Shared profile not loaded');
   }, profile);
-  const lockName = `getbased-manual-rows:${profile}`;
+  const lockName = `getbased-manual-operation:${profile}`;
   await page.evaluate(lockName => {
     (window as unknown as {manualTestLockHeld?: boolean}).manualTestLockHeld = false;
     navigator.locks.request(lockName, async () => {
@@ -116,12 +116,18 @@ test('two tabs serialize manual row writes through the same profile lock', async
   ];
   try {
     await expect.poll(() => page.evaluate(async lockName => (await navigator.locks.query()).pending!.filter(lock => lock.name === lockName).length, lockName)).toBe(2);
+    // Neither command may enter its row write before it owns the whole command.
+    expect(await page.evaluate(async profile => (await navigator.locks.query()).pending!.filter(lock => lock.name === `getbased-manual-rows:${profile}`).length, profile)).toBe(0);
   } finally {
     await page.evaluate(() => (window as unknown as {releaseManualTestLock?: () => void}).releaseManualTestLock!());
     await Promise.all(writes);
   }
   const row = await page.evaluate(async profile => (await import('/js/wearables-store.js')).getDaily(profile, 'manual', '2026-09-19'), profile);
   expect(row).toMatchObject({ weight: 82, bp_systolic: 118, bp_diastolic: 76 });
+  expect(await page.evaluate(async profile => {
+    const raw = await (await import('/js/crypto.js')).encryptedGetItem(`labcharts-${profile}-imported`);
+    return JSON.parse(raw!).manualBodyReadings;
+  }, profile)).toMatchObject({ 'weight.2026-09-19': { value: 82 }, 'bp_systolic.2026-09-19': { value: 118 }, 'bp_diastolic.2026-09-19': { value: 76 } });
 });
 
 test('raw backup restoration and a manual edit share the row lock', async ({ page }) => {

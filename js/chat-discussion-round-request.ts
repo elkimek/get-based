@@ -1,3 +1,4 @@
+import { callDirectChatWithTools } from './direct-chat-tools.js';
 // chat-discussion-round-request.js - API request helpers for discussion rounds
 
 import { CHAT_SYSTEM_PROMPT } from './chat-system-prompt.js';
@@ -7,7 +8,7 @@ import {
   isPpqPrivateModeActive, isRoutstrPrivateModeActive, isVeniceE2EEActive,
 } from './api.js';
 import { injectLensChunks } from './lab-context-output.js';
-import { hasLens, queryLensMulti } from './lens.js';
+import { canQueryLens, queryLensMulti } from './lens.js';
 import { getActivePersonality, getCustomPersonality } from './chat-personalities.js';
 import {
   attachLensSources, buildChatLabContext, buildChatSystemPrompt, buildMultiPersonaInstruction,
@@ -19,7 +20,7 @@ import { getAssistantExecutionRoute } from './ai-execution-routing.js';
 import { isPersonalAgentTarget } from './agent-chat-context.js';
 import { callCodexAgent } from './agent-chat-backend.js';
 import {
-  CHAT_RESPONSE_MAX_TOKENS, callChatAPIWithContinuation,
+  CHAT_RESPONSE_MAX_TOKENS,
 } from './chat-continuation.js';
 import { getAgentModelDisplay, getCachedAgentModelCatalog } from './agent-model-catalog.js';
 import { mergeAgentContextReceipts } from './agent-tool-runtime.js';
@@ -80,7 +81,7 @@ export async function buildDiscussionRoundRequest({ msgText, roundHistory, signa
   const apiMessages = buildTaggedChatMessages(roundHistory, personality.name);
   let labContext = buildChatLabContext(msgText);
   let lensResult: Awaited<ReturnType<typeof queryLensMulti>> = null;
-  if (hasLens()) {
+  if (canQueryLens()) {
     lensResult = await queryLensMulti(msgText, { signal });
     signal?.throwIfAborted();
     if (lensResult) labContext = injectLensChunks(labContext, lensResult);
@@ -125,7 +126,8 @@ export async function buildDiscussionRoundRequest({ msgText, roundHistory, signa
 export async function callDiscussionRoundAssistant({ request, thread, profileId, signal, onStream }: RoundAssistantInput) {
   signal?.throwIfAborted();
   if (!request.useCodexAgent) {
-    const result = await (callChatAPIWithContinuation as (options: Omit<Parameters<typeof callChatAPIWithContinuation>[0], 'messages'> & { messages: DiscussionRoundRequest['apiMessages'] }) => ReturnType<typeof callChatAPIWithContinuation>)({
+    const result = await (callDirectChatWithTools as (options: Omit<Parameters<typeof callDirectChatWithTools>[0], 'messages'> & { messages: DiscussionRoundRequest['apiMessages'] }) => ReturnType<typeof callDirectChatWithTools>)({
+      prompt: typeof request.msgText === 'string' ? request.msgText : '', labContext: request.labContext, profileId,
       system: request.systemPrompt,
       messages: request.apiMessages,
       maxTokens: CHAT_RESPONSE_MAX_TOKENS,
@@ -137,6 +139,7 @@ export async function callDiscussionRoundAssistant({ request, thread, profileId,
       reasoningEffort: request.reasoningEffort,
     });
     signal?.throwIfAborted();
+    request.context = mergeAgentContextReceipts(result.toolCalls, request.context);
     return result;
   }
 
@@ -199,7 +202,7 @@ export function buildDiscussionAssistantMessage({
     assistantMsg.finishReason = (aiResult as RoundAIResultReader).finishReason || 'length';
   }
   if (request.webSearch) assistantMsg.webSearch = true;
-  if (request.useCodexAgent && Array.isArray((aiResult as RoundAIResultReader).drafts) && ((aiResult as RoundAIResultReader).drafts as { length: unknown }).length) {
+  if (Array.isArray((aiResult as RoundAIResultReader).drafts) && ((aiResult as RoundAIResultReader).drafts as { length: unknown }).length) {
     assistantMsg.agentDrafts = (aiResult as RoundAIResultReader).drafts;
   }
   if (request.e2ee) {

@@ -1,17 +1,17 @@
 // Custom persona draft workflow; components own markup and input events.
 import type { PersonaEditorLocation } from './chat-personality-policy.js';
 import { state } from './state.js';
-import { CHAT_PERSONALITIES } from './constants.js';
 import { showNotification, showConfirmDialog } from './utils.js';
 import { callAssistantFeatureAI, hasAssistantFeatureProvider } from './ai-feature-routing.js';
-import { saveChatThreadIndex, renderThreadList } from './chat-threads.js';
-import { renderChatMessagesRuntime, notifyCustomPersonalitySavedRuntime } from './chat-runtime.js';
-import { createUniqueId } from './unique-id.js';
+import { renderThreadList } from './chat-threads.js';
+import { renderChatMessagesRuntime, notifyCustomPersonalitySavedRuntime, isChatRuntimeStreaming } from './chat-runtime.js';
 import { closePersonaEditorOverlay } from './chat-persona-editor-component.js';
-import { getCachedCustomPersonalities, recordCustomPersonalityDeletion } from './chat-personality-storage.js';
-import { getCustomPersonalities, saveCustomPersonalities, pickPersonaIcon } from './chat-personality-models.js';
+import { captureCustomPersonalityDeletion, commitCustomPersonalityDeletion, releaseCustomPersonalityDeletion, captureCustomPersonalityEdit, commitCustomPersonalityEdit, releaseCustomPersonalityEdit, PersonaStorageConflict } from './chat-personality-storage.js';
+import { getCustomPersonalities, pickPersonaIcon } from './chat-personality-models.js';
 import { buildPersonaAgreementRecord, getPersonaAgreementCheckbox, openPersonaEditorDialog } from './chat-personality-editor.js';
 import { closePersonalityPickerView, getPersonalityPickerView } from './chat-personality-picker-view.js';
+import { parsePersonaEditorDraft, type PersonaEditorDraft } from '../shared/persona-control-contract.js';
+import { capturePersonaSelection, commitPersonaSelection, capturePersonaMetadataRefresh, commitPersonaMetadataRefresh, releasePersonaMetadataRefresh } from './chat-personality-selection.js';
 
 let presentation = { refresh: () => { }, header: () => { } };
 export function configurePersonaEditing(next: typeof presentation): void { presentation = next; }
@@ -40,18 +40,31 @@ const PERSONALITY_EDITOR_OVERLAY_ID = 'chat-personality-editor-overlay';
 
 interface PersonaEditorOwner {
   overlay: HTMLElement; profileId: typeof state.currentProfile; threadId: typeof state.currentThreadId;
-  revision: number; generation: number; saving: boolean;
+  root: typeof state.importedData; history: typeof state.chatHistory;
+  revision: number; generation: number; saving: boolean; uncertain: boolean; targetId: string | null;
+  baseline: { name: string; promptText: string; icon: string } | undefined;
+  lease: ReturnType<typeof captureCustomPersonalityEdit> | null;
 }
 let _editorOwner: PersonaEditorOwner | null = null;
-function editorIsCurrent(owner: PersonaEditorOwner | null): owner is PersonaEditorOwner {
+function editorViewIsCurrent(owner: PersonaEditorOwner | null): owner is PersonaEditorOwner {
   return !!owner && _editorOwner === owner && owner.overlay.isConnected
-    && document.getElementById(PERSONALITY_EDITOR_OVERLAY_ID) === owner.overlay
-    && state.currentProfile === owner.profileId && state.currentThreadId === owner.threadId;
+    && document.getElementById(PERSONALITY_EDITOR_OVERLAY_ID) === owner.overlay;
+}
+function editorIsCurrent(owner: PersonaEditorOwner | null): owner is PersonaEditorOwner {
+  return editorViewIsCurrent(owner) && state.currentProfile === owner.profileId && state.currentThreadId === owner.threadId && state.importedData === owner.root && state.chatHistory === owner.history;
+}
+function readEditorLease(owner: PersonaEditorOwner) {
+  const pending = captureCustomPersonalityEdit(owner.targetId, owner.profileId, owner.baseline);
+  void pending.catch(() => {}); return pending;
+}
+function releaseEditorLease(owner: PersonaEditorOwner | null) {
+  if (owner?.lease) { void owner.lease.then(value => releaseCustomPersonalityEdit(value.leaseId), () => {}); owner.lease = null; }
 }
 function closePersonalityPicker() { closePersonalityPickerView(); }
 function showPersonalityPickerAfterEditor(personalityId = '') { getPersonalityPickerView()?.setOpen(true, personalityId || 'new'); }
 
 export function closePersonalityEditor({ returnToPicker = true, personalityId = '' } = {}) {
+  releaseEditorLease(_editorOwner);
   const overlay = document.getElementById(PERSONALITY_EDITOR_OVERLAY_ID);
   if (overlay) closePersonaEditorOverlay(overlay);
   _editorOwner = null;
@@ -64,6 +77,7 @@ export function closePersonalityEditor({ returnToPicker = true, personalityId = 
 }
 
 function openPersonalityEditor(id: string, locationLike: PersonaEditorLocation | null | undefined = globalThis.location) {
+  releaseEditorLease(_editorOwner);
   const previous = document.getElementById(PERSONALITY_EDITOR_OVERLAY_ID);
   if (previous) closePersonaEditorOverlay(previous, false);
   const isNew = id === 'new';
@@ -80,7 +94,10 @@ function openPersonalityEditor(id: string, locationLike: PersonaEditorLocation |
     actions: { generate: generateCustomPersonality, save: saveCustomPersonality, changed: () => { if (_editorOwner) _editorOwner.revision++; markPersonalityDirty(); } },
     onCancel: cancelCustomPersonalityEditor,
   });
-  _editorOwner = { overlay, profileId: state.currentProfile, threadId: state.currentThreadId, revision: 0, generation: 0, saving: false };
+  _editorOwner = { overlay, profileId: state.currentProfile, threadId: state.currentThreadId, root: state.importedData, history: state.chatHistory,
+    revision: 0, generation: 0, saving: false, uncertain: false, targetId: isNew ? null : id,
+    baseline: personality ? { name: personality.name, promptText: personality.promptText, icon: personality.icon } : undefined, lease: null };
+  _editorOwner.lease = readEditorLease(_editorOwner);
   autoResizePersonaTextarea();
   snapshotPersonalityClean();
 }
@@ -96,7 +113,7 @@ function _getPersonaCurrentState() {
 }
 
 export function isPersonalityDirty() {
-  if (!editorIsCurrent(_editorOwner) || !_editingPersonalityId || !_personaCleanState) return false;
+  if (!editorViewIsCurrent(_editorOwner) || !_editingPersonalityId || !_personaCleanState) return false;
   const current = _getPersonaCurrentState();
   return current.name !== _personaCleanState.name
     || current.text !== _personaCleanState.text
@@ -107,7 +124,7 @@ export async function confirmDiscardPersonalityChanges() {
   if (!isPersonalityDirty()) return true;
   const owner = _editorOwner, draft = JSON.stringify(_getPersonaCurrentState());
   const discard = await showConfirmDialog('Discard your unsaved personality changes?');
-  return discard && editorIsCurrent(owner) && draft === JSON.stringify(_getPersonaCurrentState());
+  return discard && editorViewIsCurrent(owner) && draft === JSON.stringify(_getPersonaCurrentState());
 }
 
 export function snapshotPersonalityClean() {
@@ -119,6 +136,7 @@ export function snapshotPersonalityClean() {
 export function markPersonalityDirty() {
   if (_editorOwner?.saving) return;
   const saveBtn = buttonBySelector('.chat-personality-custom-save');
+  if (_editorOwner?.uncertain) { if (saveBtn) saveBtn.disabled = true; return; }
   const agreementCheckbox = getPersonaAgreementCheckbox();
   const agreementSatisfied = !agreementCheckbox || agreementCheckbox.checked;
   if (!saveBtn || !_personaCleanState) {
@@ -140,12 +158,13 @@ export function autoResizePersonaTextarea() {
 }
 
 export async function saveCustomPersonality() {
-  const owner = _editorOwner; if (!editorIsCurrent(owner) || owner.saving) return;
+  const owner = _editorOwner; if (!editorIsCurrent(owner) || owner.saving || owner.uncertain) return;
+  const metadataRequired = !!owner.targetId && state.currentChatPersonality === owner.targetId;
   const textarea = textareaBySelector('.chat-personality-custom-textarea');
   const nameInput = textControlById('chat-personality-custom-name');
   if (!textarea) return;
   const name = (nameInput ? nameInput.value.trim() : '') || 'Custom Personality';
-  const icon = _generatedPersonaIcon || pickPersonaIcon(name);
+  const icon = _generatedPersonaIcon || (owner.targetId ? undefined : pickPersonaIcon(name));
   const promptText = textarea.value.trim();
   if (!promptText) {
     showNotification('Describe how this personality should communicate before saving.', 'info');
@@ -161,64 +180,52 @@ export async function saveCustomPersonality() {
   const editorOverlay = document.getElementById(PERSONALITY_EDITOR_OVERLAY_ID);
   const personaAgreement = (buildPersonaAgreementRecord(editorOverlay));
   const acceptedDraft = _getPersonaCurrentState();
-  const customs = getCustomPersonalities();
-  const now = new Date().toISOString();
-  let id: string;
-  if (_editingPersonalityId && _editingPersonalityId !== 'new') {
-    id = _editingPersonalityId;
-    const idx = customs.findIndex(p => p.id === id);
-    if (idx < 0) { showNotification('This personality was removed. Copy your draft before creating a new personality.', 'info'); return; }
-    customs[idx] = {
-      ...customs[idx]!,
-      name,
-      icon,
-      promptText,
-      createdAt: customs[idx]!.createdAt || now,
-      updatedAt: now,
-      ...(personaAgreement ? { personaAgreement } : {}),
-    };
-  } else {
-    id = createUniqueId('custom_');
-    customs.push({
-      id,
-      name,
-      icon,
-      promptText,
-      evidenceBased: false,
-      createdAt: now,
-      updatedAt: now,
-      ...(personaAgreement ? { personaAgreement } : {}),
-    });
-  }
+  const lease = owner.lease || readEditorLease(owner); owner.lease = null;
   owner.saving = true;
   const saveButton = buttonBySelector('.chat-personality-custom-save'); if (saveButton) saveButton.disabled = true;
+  let saved: Awaited<ReturnType<typeof commitCustomPersonalityEdit>>;
+  let metadataLease: string | null = null;
   try {
-    await saveCustomPersonalities(customs, owner.profileId);
-  } catch {
+    if (metadataRequired) {
+      try { metadataLease = (await capturePersonaMetadataRefresh(owner.targetId!)).leaseId; } catch { /* A failed label review cannot prevent a separately valid definition save. */ }
+    }
+    const snapshot = await lease;
+    if (!editorIsCurrent(_editorOwner) || _editorOwner !== owner) { if (metadataLease) releasePersonaMetadataRefresh(metadataLease); owner.saving = false; return; }
+    saved = await commitCustomPersonalityEdit(snapshot.leaseId, { name, promptText, ...(icon ? { icon } : {}), ...(personaAgreement ? { personaAgreement } : {}) }, {
+      canCommit: () => editorIsCurrent(owner) && (!agreementCheckbox || agreementCheckbox.checked && getPersonaAgreementCheckbox() === agreementCheckbox),
+    });
+  } catch (error) {
+    if (metadataLease) releasePersonaMetadataRefresh(metadataLease);
     owner.saving = false;
+    owner.uncertain = error instanceof PersonaStorageConflict && error.persistenceUncertain;
     if (!editorIsCurrent(owner)) return;
     markPersonalityDirty();
-    showNotification('Could not save custom personality', 'error');
+    showNotification(error instanceof PersonaStorageConflict ? error.message : 'Could not save custom personality. Your draft is still open.', 'error');
     return;
   }
-  owner.saving = false;
-  if (!editorIsCurrent(owner)) return;
-  _editingPersonalityId = id;
-  if (state.currentChatPersonality === id) {
-    const thread = state.chatThreads.find(t => t.id === state.currentThreadId);
-    if (thread) {
-      thread.personality = id;
-      thread.personalityName = name;
-      thread.personalityIcon = icon;
-      void saveChatThreadIndex();
-    }
+  let metadataConfirmed = false, metadataRefreshed = false;
+  if (metadataLease) {
+    try { metadataRefreshed = (await commitPersonaMetadataRefresh(metadataLease, saved, { canCommit: () => editorIsCurrent(owner) })).refreshed; metadataConfirmed = true; }
+    catch { /* The verified definition remains saved; report its separate label outcome below. */ }
+    finally { releasePersonaMetadataRefresh(metadataLease); }
   }
+  owner.saving = false;
+  let syncNotified = true;
+  try { notifyCustomPersonalitySavedRuntime(owner.profileId); } catch { syncNotified = false; }
+  if (!editorIsCurrent(owner)) return;
+  const id = saved.id;
+  owner.targetId = id; owner.baseline = { name, promptText, icon: saved.icon };
+  owner.lease = saved.leaseId ? Promise.resolve({ leaseId: saved.leaseId, id }) : null;
+  _editingPersonalityId = id;
+  const metadataWarning = state.currentChatPersonality === id && !metadataConfirmed;
+  const viewWarning = state.currentChatPersonality === id && metadataConfirmed && !metadataRefreshed;
   const newerEdits = JSON.stringify(acceptedDraft) !== JSON.stringify(_getPersonaCurrentState());
-  if (newerEdits) { _personaCleanState = acceptedDraft; markPersonalityDirty(); presentation.refresh(); }
-  else closePersonalityEditor({ personalityId: id });
-  presentation.header();
-  renderThreadList();
-  showNotification('Custom personality saved', 'success');
+  try {
+    if (newerEdits) { _personaCleanState = acceptedDraft; markPersonalityDirty(); presentation.refresh(); }
+    else closePersonalityEditor({ personalityId: id });
+    presentation.header(); renderThreadList();
+  } catch { /* Optional view refresh cannot negate either verified save. */ }
+  showNotification(metadataWarning ? 'Persona saved. The conversation label update was not confirmed.' : viewWarning ? 'Persona and conversation label saved. Reopen the conversation to refresh its view.' : syncNotified ? 'Custom personality saved' : 'Custom personality saved on this device. Sync could not be notified.', metadataWarning || viewWarning ? 'info' : 'success');
 }
 
 function requestPersonalityEditor(id: string, locationLike: PersonaEditorLocation | null | undefined) {
@@ -228,48 +235,88 @@ function requestPersonalityEditor(id: string, locationLike: PersonaEditorLocatio
 }
 export function startNewCustomPersonality(locationLike: PersonaEditorLocation | null | undefined = globalThis.location) { requestPersonalityEditor('new', locationLike); }
 export function editCustomPersonality(id: string, locationLike: PersonaEditorLocation | null | undefined = globalThis.location) { requestPersonalityEditor(id, locationLike); }
+/** Prepare only native input values. The existing native Save owner retains all persistence authority. */
+export function openPreparedPersonaEditor(id: string | null, input: PersonaEditorDraft, canOpen: () => boolean, locationLike: PersonaEditorLocation | null | undefined = globalThis.location): boolean {
+  const draft = parsePersonaEditorDraft(input), target = id ? getCustomPersonalities().find(item => item.id === id) : null;
+  if (!draft || id && !target || !id && (!draft.promptText || draft.promptMode === 'append') || !canOpen() || isPersonalityDirty()) return false;
+  const text = draft.promptText === undefined ? undefined : draft.promptMode === 'append' && target?.promptText
+    ? `${target.promptText}\n\n${draft.promptText}` : draft.promptText;
+  if (text && text.length > 50_000) return false;
+  openPersonalityEditor(id || 'new', locationLike);
+  const owner = _editorOwner;
+  if (!editorIsCurrent(owner) || owner.targetId !== id) return false;
+  const name = textControlById('chat-personality-custom-name'), prompt = textareaBySelector('.chat-personality-custom-textarea');
+  if (!name || !prompt) return false;
+  if (draft.name !== undefined) name.value = draft.name;
+  if (text !== undefined) prompt.value = text;
+  owner.revision++; markPersonalityDirty();
+  return true;
+}
 export async function cancelCustomPersonalityEditor() {
   const owner = _editorOwner;
   if (!(await confirmDiscardPersonalityChanges()) || _editorOwner !== owner) return;
   closePersonalityEditor({ returnToPicker: editorIsCurrent(owner) });
 }
 
-export async function deleteCustomPersonality(id: string) {
+export interface PersonaDeletionOutcome { status: 'deleted' | 'cancelled' | 'conflict' | 'failed' | 'unconfirmed'; selection: 'unchanged' | 'default' | 'unconfirmed' }
+let deletionReviewOwner: object | null = null;
+/** Opening returns immediately; only the native confirmation can resolve the private completion. */
+export async function openCustomPersonaDeletionReview(id: string, canOpen: () => boolean = () => true) {
+  const rejected = (status: PersonaDeletionOutcome['status'] = 'conflict') => ({ opened: false, completion: Promise.resolve<PersonaDeletionOutcome>({ status, selection: 'unchanged' }) });
+  if (!canOpen() || isPersonalityDirty() || document.querySelector('.confirm-overlay.show')) return rejected();
   const profileId = state.currentProfile, threadId = state.currentThreadId;
-  const customs = getCustomPersonalities();
-  const cp = customs.find(p => p.id === id);
-  const name = cp ? cp.name : 'personality';
-  if (await showConfirmDialog(`Delete "${name}"? This cannot be undone.`)) {
-    if (state.currentProfile !== profileId || state.currentThreadId !== threadId) return;
-    const updated = getCachedCustomPersonalities(profileId).filter(p => p.id !== id);
+  const editor = _editorOwner, draft = JSON.stringify(_getPersonaCurrentState()), root = state.importedData, history = state.chatHistory;
+  const threads = state.chatThreads, selected = state.currentChatPersonality, prefKey = `labcharts-${profileId}-chatPersonality`, preference = localStorage.getItem(prefKey);
+  const token = {}, originCurrent = () => state.currentProfile === profileId && state.currentThreadId === threadId && state.importedData === root && state.chatHistory === history
+    && _editorOwner === editor && JSON.stringify(_getPersonaCurrentState()) === draft;
+  let review: Awaited<ReturnType<typeof captureCustomPersonalityDeletion>>;
+  try { review = await captureCustomPersonalityDeletion(id, profileId); }
+  catch { showNotification('Could not read the personality safely. Reopen the persona editor before deleting.', 'error'); return rejected('failed'); }
+  if (!originCurrent() || !canOpen() || document.querySelector('.confirm-overlay.show')) { releaseCustomPersonalityDeletion(review.leaseId); return rejected(); }
+  deletionReviewOwner = token;
+  const decision = showConfirmDialog(`Delete "${review.name}"? This cannot be undone.`, { confirmLabel: 'Delete persona', ariaLabel: 'Delete persona' });
+  const overlay = document.getElementById('confirm-dialog-overlay'), button = overlay?.querySelector('#confirm-ok');
+  const canDelete = () => deletionReviewOwner === token && originCurrent() && !!overlay && document.getElementById('confirm-dialog-overlay') === overlay && !!button && overlay.contains(button);
+  const selectionCurrent = () => canDelete() && state.chatThreads === threads && state.currentChatPersonality === selected && (preference === selected || preference === null) && localStorage.getItem(prefKey) === preference;
+  const completion = (async (): Promise<PersonaDeletionOutcome> => {
+    let deleted = false;
     try {
-      await saveCustomPersonalities(updated, profileId);
-      await recordCustomPersonalityDeletion(id, profileId);
-      notifyCustomPersonalitySavedRuntime(profileId);
-    } catch {
-      showNotification('Could not delete custom personality', 'error');
-      return;
-    }
-    if (state.currentProfile !== profileId || state.currentThreadId !== threadId) return;
-    if (state.currentChatPersonality === id) {
-      state.currentChatPersonality = 'default';
-      localStorage.setItem(`labcharts-${state.currentProfile}-chatPersonality`, 'default');
-      _editingPersonalityId = null;
-      const thread = state.chatThreads.find(t => t.id === state.currentThreadId);
-      if (thread) {
-        thread.personality = 'default';
-        const fallback = CHAT_PERSONALITIES.find(p => p.id === 'default') || CHAT_PERSONALITIES[0]!;
-        thread.personalityName = fallback?.name || 'Default';
-        thread.personalityIcon = fallback?.icon || '';
-        void saveChatThreadIndex();
+      if (!await decision) return { status: 'cancelled', selection: 'unchanged' };
+      if (!canDelete() || isChatRuntimeStreaming()) { showNotification('The persona review changed or a reply is still running. Nothing was deleted. Request a fresh review.', 'info'); return { status: 'conflict', selection: 'unchanged' }; }
+      try { await commitCustomPersonalityDeletion(review.leaseId, { canCommit: () => canDelete() && !isChatRuntimeStreaming() }); }
+      catch (error) {
+        showNotification(error instanceof PersonaStorageConflict ? error.message : 'Could not delete custom personality. Check the native editor before retrying.', 'error');
+        return { status: error instanceof PersonaStorageConflict && error.persistenceUncertain ? 'unconfirmed' : 'failed', selection: 'unchanged' };
       }
-    } else if (_editingPersonalityId === id) {
-      _editingPersonalityId = null;
+      deleted = true;
+      let selection: PersonaDeletionOutcome['selection'] = 'unchanged';
+      if (selected === id && selectionCurrent()) {
+        try {
+          const fallback = await capturePersonaSelection('default');
+          await commitPersonaSelection(fallback.leaseId, { canCommit: selectionCurrent }); selection = 'default';
+        } catch (error) { selection = error instanceof Error && 'noChangeApplied' in error && error.noChangeApplied === true ? 'unchanged' : 'unconfirmed'; }
+      }
+      let notified = true;
+      try { notifyCustomPersonalitySavedRuntime(profileId); } catch { notified = false; }
+      if (canDelete()) {
+        if (_editingPersonalityId === id) _editingPersonalityId = null;
+        try { presentation.refresh(); presentation.header(); renderChatMessagesRuntime(); } catch { /* Persistence remains committed when a view cannot refresh. */ }
+      }
+      showNotification(selected === id && selection !== 'default' ? 'Persona deleted. Choose a chat persona in the native picker; its saved selection could not be confirmed.' : notified ? 'Custom personality deleted' : 'Custom personality deleted on this device. Sync could not be notified.', 'success');
+      return { status: 'deleted', selection };
+    } catch {
+      try { showNotification(deleted ? 'Persona deleted. Check the native picker for its current chat selection.' : 'The persona deletion outcome is unconfirmed. Check the native picker before trying again.', 'info'); } catch { /* A failed notification cannot reverse a saved deletion. */ }
+      return { status: deleted ? 'deleted' : 'unconfirmed', selection: 'unconfirmed' };
+    } finally {
+      releaseCustomPersonalityDeletion(review.leaseId);
+      if (deletionReviewOwner === token) deletionReviewOwner = null;
     }
-    presentation.refresh();
-    presentation.header();
-    renderChatMessagesRuntime();
-  }
+  })();
+  return { opened: !!overlay?.classList.contains('show') && !!button, completion };
+}
+export async function deleteCustomPersonality(id: string) {
+  const review = await openCustomPersonaDeletionReview(id);
+  await review.completion;
 }
 
 export async function generateCustomPersonality() {

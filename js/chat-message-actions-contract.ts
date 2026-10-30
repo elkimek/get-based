@@ -1,6 +1,9 @@
+import { canDiscloseLabOverlays } from './lab-overlay-policy.js';
 import type { state } from './state.js';
 type ChatMessage = (typeof state.chatHistory)[number];
 import { projectAgentDraftCards, type AgentDraftCard } from './agent-draft-presentation.js';
+import { normalizeAppControls } from '../shared/agent-control-contract.js';
+import { canDiscloseLabOrdering } from './lab-ordering-policy.js';
 export interface ChatMessageActionsView {
   index: number;
   kind: 'user' | 'assistant';
@@ -9,6 +12,7 @@ export interface ChatMessageActionsView {
   speech: boolean;
   context: { label: string; detail: string | null }[];
   drafts: AgentDraftCard[];
+  controls: ReturnType<typeof normalizeAppControls>;
 }
 export function latestVisibleUserMessageIndex(history: readonly ChatMessage[]): number {
   return history.findLastIndex(message => message.role === 'user' && !message.hidden && !message.joined);
@@ -18,7 +22,7 @@ export function projectChatMessageActions(history: readonly ChatMessage[], index
   if (!message) return null;
   if (message.role === 'user') {
     if (message.hidden || message.joined || message.hasImages || index !== latestVisibleUserMessageIndex(history)) return null;
-    return { index, kind: 'user', retry: null, resume: false, speech: false, context: [], drafts: [] };
+    return { index, kind: 'user', retry: null, resume: false, speech: false, context: [], drafts: [], controls: [] };
   }
   if (message.role !== 'assistant') return null;
   const last = index === history.length - 1;
@@ -33,6 +37,7 @@ export function projectChatMessageActions(history: readonly ChatMessage[], index
     index, kind: 'assistant', retry, resume: last && !!message.discussionError, speech: !message.error,
     context: Array.isArray(message.context) ? message.context.map(area => ({ label: String(area.label), detail: area.detail ? String(area.detail) : null })) : [],
     drafts: projectAgentDraftCards(message),
+    controls: normalizeAppControls(message.appControls, true).filter(record => (record.action !== 'labs.ordering' || canDiscloseLabOrdering(record)) && (record.action !== 'labs.overlays' || canDiscloseLabOverlays(record))),
   };
 }
 export type ChatCopyMode = 'idle' | 'copied' | 'failed' | 'unsupported';

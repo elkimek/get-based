@@ -4,6 +4,8 @@ import { renderMarkerDetailEditor } from './marker-detail-results-presentation.j
 // marker-detail-editing.js — Marker value, range, and note mutation workflows
 
 import { state } from './state.js';
+import { validateMarkerRange } from './marker-range-core.js';
+import { profileDataValuesEqual } from './profile-data-writes.js';
 import { showNotification, showConfirmDialog, showPromptDialog } from './utils.js';
 import { getActiveData, updateHeaderDates, convertDisplayToSI } from './data.js';
 import {
@@ -188,7 +190,7 @@ export function saveAndAddAnotherManualEntry(id: string) {
   return saveManualEntry(id, { keepOpen: true });
 }
 
-export async function deleteMarkerValue(id: string, date: string) {
+export async function deleteMarkerValue(id: string, date: string, panelId?: string) {
   const dotKey = storageDotKeyForId(id);
   if (!dotKey) return;
   if (!state.importedData.entries) return;
@@ -196,7 +198,7 @@ export async function deleteMarkerValue(id: string, date: string) {
   if (!entry) return;
   if (!hasMarkerValueForDate(dotKey, date)) return;
   if (await showConfirmDialog(`Delete this value (${date})? This can't be undone.`)) {
-    const deleted = await deleteManualMarkerValue(dotKey, date);
+    const deleted = await deleteManualMarkerValue(dotKey, date, { ...(panelId ? { panelId } : {}) });
     if (!deleted) return;
     buildSidebar();
     updateHeaderDates();
@@ -209,7 +211,7 @@ export async function deleteMarkerValue(id: string, date: string) {
   }
 }
 
-export function editMarkerValue(id: string, date: string, currentValue: unknown, event: Event) {
+export function editMarkerValue(id: string, date: string, currentValue: unknown, event: Event, panelId?: string) {
   const el = (event.target as Element).closest('.mv-value');
   if (!el || el.querySelector('input')) return;
   const input = document.createElement('input');
@@ -235,7 +237,7 @@ export function editMarkerValue(id: string, date: string, currentValue: unknown,
     const dotKey = storageDotKeyForId(id);
     if (!dotKey) return;
     const storedValue = convertDisplayToSI(dotKey, newValue);
-    const updated = await editManualMarkerValue({ dotKey, date, storedValue });
+    const updated = await editManualMarkerValue({ dotKey, date, storedValue, ...(panelId ? { panelId } : {}) });
     if (!updated) { saveStarted = false; return; }
     // Rebuild the underlying view so Table/Heatmap/Chart reflect the edit.
     markerDetailDeps.navigate(state.currentView || 'dashboard');
@@ -248,10 +250,10 @@ export function editMarkerValue(id: string, date: string, currentValue: unknown,
   });
 }
 
-export async function revertMarkerValue(id: string, date: string) {
+export async function revertMarkerValue(id: string, date: string, panelId?: string) {
   const dotKey = storageDotKeyForId(id);
   if (!dotKey) return;
-  const updated = await revertManualMarkerValue(dotKey, date);
+  const updated = await revertManualMarkerValue(dotKey, date, { ...(panelId ? { panelId } : {}) });
   if (!updated) return;
   // Rebuild the underlying view so Table/Heatmap/Chart reflect the revert.
   markerDetailDeps.navigate(state.currentView || 'dashboard');
@@ -286,6 +288,7 @@ export async function deleteValueNote(id: string, date: string) {
   if (changed) showDetailModal(id);
 }
 
+const rangeEditOwners = new WeakMap<Element, { profile: string; root: typeof state.importedData; key: string; units: string; override: unknown }>();
 export function editRefRange(id: string, type: string, evt: Event) {
   const marker = state.markerRegistry[id] as RegistryRangeReader | null | undefined;
   if (!marker) return;
@@ -300,6 +303,9 @@ export function editRefRange(id: string, type: string, evt: Event) {
   // Replace span with inline inputs
   const form = document.createElement('span');
   form.className = 'ref-edit-form';
+  const key = storageDotKeyForId(id);
+  if (!key) return;
+  rangeEditOwners.set(form, { profile: state.currentProfile, root: state.importedData, key, units: state.unitSystem, override: structuredClone(state.importedData.refOverrides?.[key] ?? null) });
   form.innerHTML = renderMarkerDetailEditor({ kind: "reference", label: `${captureMarkerDetailText(label)}`, minimum: `${captureMarkerDetailText(curMin ?? '')}`,
     clearMinimum: projectMarkerDetailAction('clear-ref-edit-field', { field: 'min' }), maximum: `${captureMarkerDetailText(curMax ?? '')}`,
     clearMaximum: projectMarkerDetailAction('clear-ref-edit-field', { field: 'max' }),
@@ -320,15 +326,18 @@ export async function saveRefRange(id: string, type: string) {
   const minEl = (document.getElementById('ref-edit-min') as HTMLInputElement | null);
   const maxEl = (document.getElementById('ref-edit-max') as HTMLInputElement | null);
   if (!minEl || !maxEl) return;
-  let newMin = minEl.value.trim() !== '' ? parseFloat(minEl.value) : null;
-  let newMax = maxEl.value.trim() !== '' ? parseFloat(maxEl.value) : null;
-  // Treat NaN as null (open-ended)
-  if (newMin != null && isNaN(newMin)) newMin = null;
-  if (newMax != null && isNaN(newMax)) newMax = null;
+  const form = minEl.closest('.ref-edit-form'), owner = form ? rangeEditOwners.get(form) : undefined;
+  if (owner && (state.currentProfile !== owner.profile || state.importedData !== owner.root || dotKey !== owner.key || state.unitSystem !== owner.units || !profileDataValuesEqual(owner.override, state.importedData.refOverrides?.[dotKey] ?? null))) {
+    showNotification('The profile, units or range changed while editing. Reopen the range editor; your current values have been kept.', 'error'); return;
+  }
+  let newMin = minEl.value.trim() !== '' ? Number(minEl.value) : null;
+  let newMax = maxEl.value.trim() !== '' ? Number(maxEl.value) : null;
 
   // If user is in US mode, convert back to SI for storage (overrides are applied before unit conversion)
   if (newMin != null) newMin = convertDisplayToSI(dotKey, newMin);
   if (newMax != null) newMax = convertDisplayToSI(dotKey, newMax);
+  try { validateMarkerRange(newMin, newMax); }
+  catch (error) { showNotification(error instanceof Error ? error.message : 'Review the range bounds.', 'error'); return; }
 
   const saved = await saveRefRangeOverride(dotKey, type, { min: newMin, max: newMax });
   if (!saved) return;

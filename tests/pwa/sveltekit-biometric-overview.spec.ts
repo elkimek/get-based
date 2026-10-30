@@ -3,7 +3,7 @@ import * as ts from 'typescript/unstable/ast';
 import {withParsedSource} from '../../scripts/native-typescript-ast.js';
 import {expect,test,type Page,type Locator} from '@playwright/test';
 import {createDefaultProfileData,migrateProfileData} from '../../js/profile.js';
-import {startKitServer} from './kit-server.js';
+import {startKitServer} from './kit-release-server.js';
 import {artifactInputs,cacheReceipt,profile,activate,type StateBinding} from './kit-native-receipts.js';
 import {readyLightArtifact as ready} from '../helpers/light-artifact-navigation.js';
 import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';

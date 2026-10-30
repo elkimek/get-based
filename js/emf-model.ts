@@ -13,10 +13,8 @@ export const MEASUREMENT_TYPES = [
 export const SLEEPING_ROOMS = new Set(['Bedroom', 'Children\'s Room', 'Nursery']);
 
 export function ensureEMFAssessments() {
-  if (!(state.importedData as { emfAssessment?: unknown }).emfAssessment) {
-    (state.importedData as { emfAssessment?: unknown }).emfAssessment = { assessments: [] };
-  }
-  return (state.importedData as { emfAssessment: { assessments?: unknown } }).emfAssessment.assessments;
+  const emf = state.importedData.emfAssessment;
+  return emf ? emf.assessments : [];
 }
 
 const SAFE_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];

@@ -5,6 +5,9 @@
       "/js/*": [
         "./js/*"
       ],
+      "/js/blob-storage.js?persona-recovery-original": [
+        "./js/blob-storage.ts"
+      ],
       "/scripts/*": [
         "./scripts/*"
       ],

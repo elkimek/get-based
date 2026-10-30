@@ -35,6 +35,16 @@ it('returns failure for an unsaved deferral without publishing skipped flags', a
   expect(state.importedData).toEqual(before);
 });
 
+it('rechecks native setup source inside canonical persistence after an awaited read', async () => {
+  const session = createSunSetupSession(), before = await crypto.encryptedGetItem(key), original = crypto.encryptedGetItem;
+  let entered!: () => void, release!: () => void;
+  const reading = new Promise<void>(resolve => { entered = resolve; }), gate = new Promise<void>(resolve => { release = resolve; });
+  vi.spyOn(crypto, 'encryptedGetItem').mockImplementation(async (...args) => { const value = await original(...args); if (args[0] === key) { entered(); await gate; } return value; });
+  const saving = session.saveValues(values); await reading;
+  state.importedData.sunDefaults!.homeLight = 'candle'; release();
+  expect(await saving).toBe('conflict'); expect(await original(key)).toBe(before); expect(state.importedData.sunDefaults?.homeLight).toBe('candle');
+});
+
 it('keeps an accepted save on its original profile after retirement and rejects duplicate writes', async () => {
   const source = state.importedData, original = crypto.encryptedSetItem;
   let release!: () => void; const gate = new Promise<void>(resolve => { release = resolve; });

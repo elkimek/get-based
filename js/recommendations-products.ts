@@ -1,3 +1,4 @@
+import {isProductRecsEnabled} from './recommendation-preferences.js';
 import { renderHTML as renderTipsProductHTML } from './components/TipsProduct.svelte.html.js';
 import { renderHTML as renderTipsCouponHTML } from './components/TipsCoupon.svelte.html.js';
 import { renderHTML as renderTipsDisclosureHTML } from './components/TipsDisclosure.svelte.html.js';
@@ -49,14 +50,7 @@ export function recActionAttrs(action: string, attrs: Parameters<typeof actionAt
   return actionAttributes("rec", action, attrs);
 }
 
-export function isProductRecsEnabled() {
-  return localStorage.getItem('labcharts-show-product-recs') !== 'false';
-}
-
-export function setProductRecsEnabled(on: unknown) {
-  localStorage.setItem('labcharts-show-product-recs', on ? 'true' : 'false');
-}
-
+export {isProductRecsEnabled, setProductRecsEnabled} from './recommendation-preferences.js';
 export function hasSeenDisclosure() {
   return localStorage.getItem('labcharts-rec-disclosure') === 'seen';
 }

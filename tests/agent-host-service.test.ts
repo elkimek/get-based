@@ -13,6 +13,7 @@ import {
   createAgentHostService, getAgentHostToolSpecs, isAllowedAgentHostOrigin,
 } from '../lib/agent-host-service.js';
 import { getCodexDynamicTools } from '../js/agent-tool-runtime.js';
+import { AGENT_TOOL_CONTRACT_VERSION } from '../shared/agent-tool-contract.js';
 import {
   AGENT_HOST_CAPABILITIES, AGENT_HOST_PROTOCOL_VERSION,
 } from '../shared/agent-host-protocol.js';
@@ -239,8 +240,10 @@ describe('agent host service', () => {
     expect(discovery).toMatchObject({
       service: 'getbased-agent-host',
       protocolVersion: AGENT_HOST_PROTOCOL_VERSION,
+      toolContractVersion: AGENT_TOOL_CONTRACT_VERSION,
       capabilities: expect.arrayContaining([
         AGENT_HOST_CAPABILITIES.CHAT_STREAM,
+        AGENT_HOST_CAPABILITIES.APPLICATION_CONTEXT,
         AGENT_HOST_CAPABILITIES.IMAGE_UPLOAD,
         AGENT_HOST_CAPABILITIES.STRUCTURED_OUTPUT,
       ]),
@@ -522,6 +525,17 @@ describe('agent host service', () => {
     expect((await reader.read()).done).toBe(true);
   });
 
+  it('surfaces failed Codex turns without echoing private provider diagnostics', async () => {
+    const appServer = new FakeAppServer();
+    const service = (createAgentHostService as unknown as (options: ServiceFixtureOptions) => ReturnType<typeof createAgentHostService>)({ appServer, token: TOKEN, workspaceRoot:'/tmp/agent-test' });
+    const response = await service.handleRequest(turnRequest());
+    const reader = response.body!.getReader(), decoder = new TextDecoder(), buffer = {value:''};
+    await nextEvent(reader, decoder, buffer);
+    appServer.emit('notification', {method:'turn/completed', params:{threadId:'thread-1', turn:{id:'turn-1', status:'failed', error:{message:'private path /home/private secret-token'}}}});
+    expect(await nextEvent(reader, decoder, buffer)).toEqual({type:'error', message:'The selected agent could not complete this response. Try again, or choose another model in AI settings.'});
+    expect((await reader.read()).done).toBe(true);
+  });
+
   it('validates a temporary image upload and supplies it to a structured feature turn', async () => {
     const workspaceRoot = mkdtempSync(join(tmpdir(), 'getbased-agent-host-test-'));
     try {
@@ -677,7 +691,7 @@ describe('agent host service', () => {
   it('resumes only a host-signed thread handle', async () => {
     const appServer = new FakeAppServer();
     const service = (createAgentHostService as unknown as (options: ServiceFixtureOptions) => ReturnType<typeof createAgentHostService>)({ appServer, token: TOKEN, workspaceRoot: '/tmp/agent-test' });
-    const first = await service.handleRequest(turnRequest());
+    const first = await service.handleRequest(turnRequest({ applicationContext: '{"status":"pending","reviewActions":["Apply","Discard"]}' }));
     const firstReader = first.body!.getReader();
     const firstBuffer = { value: '' };
     const session = await nextEvent(firstReader, new TextDecoder(), firstBuffer);
@@ -686,7 +700,7 @@ describe('agent host service', () => {
     });
     await nextEvent(firstReader, new TextDecoder(), firstBuffer);
 
-    const second = await service.handleRequest(turnRequest({ threadId: session.threadId }));
+    const second = await service.handleRequest(turnRequest({ threadId: session.threadId, prompt: 'Now remove the indexed document.', applicationContext: '{"status":"discarded","reviewActions":[]}' }));
     const secondReader = second.body!.getReader();
     const secondBuffer = { value: '' };
     await nextEvent(secondReader, new TextDecoder(), secondBuffer);
@@ -694,9 +708,20 @@ describe('agent host service', () => {
       method: 'thread/resume',
       params: expect.objectContaining({ threadId: 'thread-1', sandbox: 'read-only', runtimeWorkspaceRoots: [] }),
     });
+    const currentInput = appServer.requests.filter(entry => entry.method === 'turn/start').at(-1)!.params.input;
+    expect(currentInput).toEqual([
+      { type: 'text', text: expect.stringContaining('{"status":"discarded","reviewActions":[]}') },
+      { type: 'text', text: 'Now remove the indexed document.' },
+    ]);
+    expect(JSON.stringify(currentInput)).not.toContain('"status":"pending"');
     appServer.emit('notification', {
       method: 'turn/completed', params: { threadId: 'thread-1', turn: { id: 'turn-1', status: 'completed' } },
     });
     await nextEvent(secondReader, new TextDecoder(), secondBuffer);
+  });
+  it.each([null, 42, 'x'.repeat(100001)])('rejects malformed or oversized application state without truncation', async applicationContext => {
+    const appServer = new FakeAppServer();
+    const service = (createAgentHostService as unknown as (options: ServiceFixtureOptions) => ReturnType<typeof createAgentHostService>)({ appServer, token: TOKEN, workspaceRoot: '/tmp/agent-test' });
+    const response = await service.handleRequest(turnRequest({ applicationContext })); expect(response.status).toBe(400); expect(await response.json()).toEqual({ error: 'invalid_application_context' }); expect(appServer.requests).toEqual([]);
   });
 });

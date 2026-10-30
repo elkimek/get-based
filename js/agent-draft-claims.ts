@@ -2,6 +2,7 @@
 // The journal intentionally contains identifiers only, never proposal payloads.
 import { encryptedGetItem, encryptedSetItem, getEncryptionEnabled, isUnlocked } from './crypto.js';
 import { normalizeChatRecordId } from './chat-storage-safety.js';
+import { runNativeCommandWithLocks } from './native-command-locks.js';
 
 interface StoredClaims { version?: unknown; claims?: Record<string, unknown> | null }
 
@@ -12,9 +13,9 @@ export async function claimAgentDraft(profileId: string, draftId: string) {
   const locks = globalThis.navigator?.locks;
   if (!locks?.request) throw new Error('This browser cannot safely coordinate proposal changes across tabs.');
   const key = `labcharts-${profileId}-agent-draft-claims`;
-  return locks.request(key, { mode: 'exclusive' }, async () => {
+  return runNativeCommandWithLocks(locks, [key], async () => {
     if (getEncryptionEnabled() && !isUnlocked()) throw new Error('Unlock your data before applying a proposal.');
-    const stored = await encryptedGetItem(key);
+    const stored = await encryptedGetItem(key, { throwOnDecryptError: true });
     if (stored === null && localStorage.getItem(key) !== null) throw new Error('Proposal history could not be read.');
     const journal = stored === null ? { version: 1, claims: {} } : JSON.parse(stored) as StoredClaims | null;
     if (journal?.version !== 1 || !journal.claims || typeof journal.claims !== 'object' || Array.isArray(journal.claims)) {

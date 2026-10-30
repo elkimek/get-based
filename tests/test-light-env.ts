@@ -46,9 +46,15 @@ const {
   isQuantitativeLuxMeasurement,
 } = model;
 
-  const orig = state.importedData;
-  function reset(seed = {}) {
+  const orig = state.importedData, originalProfile = state.currentProfile;
+  state.currentProfile = 'light-env-canonical-fixture';
+  const { saveImportedData } = await import('../js/data.js');
+  const { encryptedSetItem } = await import('../js/crypto.js');
+  const { profileStorageKey } = await import('../js/profile.js');
+  async function reset(seed = {}) {
     (state as { importedData: unknown }).importedData = Object.assign({ entries: [] }, seed);
+    await encryptedSetItem(profileStorageKey(state.currentProfile, 'imported'), JSON.stringify(state.importedData));
+    assert('fixture seed saves through canonical storage', await saveImportedData() === true);
   }
 
   // ─── 1. Constant shape ───────────────────────────────────────────────
@@ -81,7 +87,7 @@ const {
   // ─── 2. getEnvironment lazy init ─────────────────────────────────────
   console.log('%c 2. getEnvironment lazy init ', 'font-weight:bold;color:#f59e0b');
 
-  reset();
+  await reset();
   const e = getEnvironment();
   assert('getEnvironment seeds rooms[] + screens[]',
     e && Array.isArray(e.rooms) && Array.isArray(e.screens));
@@ -93,7 +99,7 @@ const {
   // ─── 3. Room CRUD + nextDefaultRoomName ──────────────────────────────
   console.log('%c 3. Room CRUD + name picker ', 'font-weight:bold;color:#f59e0b');
 
-  reset();
+  await reset();
   assert('nextDefaultRoomName starts at "Bedroom"', nextDefaultRoomName() === 'Bedroom');
 
   await addRoom('Bedroom');
@@ -119,7 +125,7 @@ const {
   assert('updateRoom patches fields', getEnvironment!()!.rooms![0]!.primarySource === 'fluorescent');
   assert('updateRoom stamps updatedAt', getEnvironment!()!.rooms![0]!.updatedAt! > 0);
 
-  reset({
+  await reset({
     lightEnvironment: {
       rooms: [{ id: 'legacy-evening-room', name: 'Legacy', eveningUseAfterSunset: true }],
       screens: [],
@@ -144,7 +150,7 @@ const {
   // ─── 4. Screen CRUD ──────────────────────────────────────────────────
   console.log('%c 4. Screen CRUD ', 'font-weight:bold;color:#f59e0b');
 
-  reset();
+  await reset();
   await addRoom('Office');
   const officeId = getEnvironment!()!.rooms![0]!.id;
 
@@ -243,7 +249,7 @@ const {
   assert('A mapped evening screen is enough to make an otherwise-empty room interpretable',
     screenOnlyRoom.tier === 3 && screenOnlyRoom.label === 'High signal');
 
-  reset({
+  await reset({
     lightEnvironment: {
       rooms: [{ id: 'r-screen', name: 'Bedroom', primarySource: 'led-warm', hoursOccupiedPerDay: 8 }],
       screens: [{ id: 's-screen', roomId: 'r-screen', device: 'phone', eveningUseAfterSunset: 3, blueBlockerEnabled: false }],
@@ -283,7 +289,7 @@ const {
     isActiveToday({ id: 'a' }) === true);
 
   // Today override active=false → skipped
-  reset();
+  await reset();
   await addRoom('Bedroom');
   const rid = getEnvironment!()!.rooms![0]!.id;
   await setTodayActive('room', rid, false);
@@ -300,7 +306,7 @@ const {
   // ─── 8. computeDeficitAxes ───────────────────────────────────────────
   console.log('%c 8. computeDeficitAxes ', 'font-weight:bold;color:#f59e0b');
 
-  reset();
+  await reset();
   // Empty world → 0/0
   let axes = computeDeficitAxes();
   assert('Empty environment → d2=0, d3=0', axes.d2 === 0 && axes.d3 === 0);
@@ -340,7 +346,7 @@ const {
   // ─── 9. computeIndoorBurden ──────────────────────────────────────────
   console.log('%c 9. computeIndoorBurden ', 'font-weight:bold;color:#f59e0b');
 
-  reset();
+  await reset();
   // Nothing mapped → light load with empty interp pointing user to add
   let burden = computeIndoorBurden();
   assert('Empty env → tier 0 light load with mapping hint',
@@ -373,7 +379,7 @@ const {
     injectedLoadHtml.toLowerCase().includes('add a room'));
   configureLightEnv(restoredBurdenRenderer);
 
-  reset();
+  await reset();
   await addRoom('Bedroom');
   const injectedRoom = getEnvironment!()!.rooms![0];
   await updateRoom(injectedRoom!.id, {
@@ -410,7 +416,7 @@ const {
   configureLightEnv(restoredRenderDeps);
 
   // Heavy indoor + heavy evening → tier 2
-  reset();
+  await reset();
   await addRoom('Office');
   await updateRoom(getEnvironment!()!.rooms![0]!.id, {
     primarySource: 'led-cool',
@@ -441,7 +447,7 @@ const {
   // ─── 10. Light Audits ────────────────────────────────────────────────
   console.log('%c 10. Light audits CRUD ', 'font-weight:bold;color:#f59e0b');
 
-  reset();
+  await reset();
   await addRoom('Bedroom');
   // Drop a measurement so saveLightAudit has something to snapshot.
   if (!Array.isArray(state.importedData.lightMeasurements))
@@ -476,7 +482,7 @@ const {
   assert('deleteLightAudit removes from list',
     !(getLightAudits as unknown as () => Array<FixtureAuditRead>)().some(a => a.id === audit!.id));
   const auditModule = await import('../js/light-env-audits.js');
-  reset({
+  await reset({
     lightEnvironment: {
       rooms: [{ id: 'r1', name: 'Bedroom', primarySource: 'led-warm', hoursOccupiedPerDay: 8 }],
       screens: [],
@@ -836,9 +842,9 @@ const {
     !emptySummaryHtml.includes('Readings') &&
     !emptySummaryHtml.includes('Audits') &&
     emptySummaryHtml.includes('Start assessment'));
-  assert('Assessment workspace hides orphan readings and audits until a room is mapped',
+  assert('Assessment workspace keeps orphan readings hidden and offers saved audit history without live rooms',
     !emptyAssessmentHtml.includes('Portable readings') &&
-    !emptyAssessmentHtml.includes('Light audits'));
+    emptyAssessmentHtml.includes('Light audits'));
   assert('Room and portable-screen empty states share header actions plus quick-picks',
     emptyAssessmentHtml.includes('+ Room') &&
     emptyAssessmentHtml.includes('+ Screen') &&
@@ -928,7 +934,7 @@ const {
   // ─── deleteRoom orphan cleanup ─────────────────────────────────────
   // Deleting a live room must not destroy its historical readings.
   console.log('%c deleteRoom orphan cleanup ', 'font-weight:bold;color:#f59e0b');
-  (state as { importedData: unknown }).importedData = {
+  await reset({
     lightEnvironment: {
       rooms: [{ id: 'r-orphan', name: 'Bedroom' }],
       screens: [{ id: 's-orphan', device: 'phone', roomId: 'r-orphan' }],
@@ -937,7 +943,7 @@ const {
       { id: 'm-orphan-1', roomId: 'r-orphan', tool: 'lux', value: 50, takenAt: Date.now() },
       { id: 'm-orphan-2', roomId: 'other-room', tool: 'lux', value: 200, takenAt: Date.now() },
     ],
-  };
+  });
   await deleteRoom('r-orphan');
   const measurementsAfter = state.importedData.lightMeasurements as Array<{ id?: unknown; roomId?: unknown; roomSnapshot?: { name?: unknown } | null }> | undefined;
   const screensAfter = (state.importedData.lightEnvironment as { screens: Array<{ id?: unknown; roomId?: unknown }> }).screens;
@@ -993,7 +999,7 @@ const {
   // a return value the binding silently fails and pause-detected lux
   // never reaches the room cards.
   console.log('%c addRoom return value ', 'font-weight:bold;color:#f59e0b');
-  (state as { importedData: unknown }).importedData = { lightEnvironment: { rooms: [], screens: [] } };
+  await reset({ lightEnvironment: { rooms: [], screens: [] } });
   const newId = await addRoom('Office');
   assert('addRoom returns the created room id (string starting with room_)',
     typeof newId === 'string' && newId.startsWith('room_'),
@@ -1033,6 +1039,7 @@ const {
 
   // Restore
   (state as { importedData: unknown }).importedData = orig;
+  state.currentProfile = originalProfile;
 
 console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
 process.exit(legacyAssertions.fail > 0 ? 1 : 0);

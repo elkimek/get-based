@@ -1,7 +1,11 @@
 import type { LabEntryDraft, LabMarkerDeletion, CreatedLabEntry } from './lab-entry.js';
 import type { LabMergeData } from './data-merge-lab-entries.js';
+import { removeLabPanel } from './lab-panel-mutations.js';
+import type { LabPanelTombstones } from './lab-panel-deletions.js';
+import { migrateLabPanelIdentities } from './lab-panel-identity.js';
 
 interface LabMutationData extends LabMergeData {
+  labPanelTombstones?: LabPanelTombstones;
   manualValues?: Record<string, unknown> | null;
   markerValueNotes?: Record<string, unknown> | null;
 }
@@ -22,7 +26,6 @@ type LabRow<Data extends LabMutationData> = NonNullable<Data['entries']>[number]
 import {
   appendImportedArrayItem,
   clearTombstone,
-  deleteImportedArrayItems,
   ensureImportedArray,
 } from './data-merge.js';
 import {
@@ -47,22 +50,27 @@ export function findOrCreateLabEntry<Data extends LabMutationData>(
 }
 
 export function deleteEmptyLabEntries<Data extends OptionalMutationData>(importedData: Data) {
-  return deleteImportedArrayItems(importedData, 'entries', entry => isLabEntryRemovable(entry as LabEntryDraft));
+  const rows = (importedData?.entries || []).filter(entry => isLabEntryRemovable(entry));
+  for (const entry of rows) if (importedData) removeLabPanel(importedData, entry);
+  return rows;
 }
 
 export function deleteLabEntryMarkerFromImportedData(
   importedData: OptionalMutationData, entry: LabEntryDraft | null | undefined,
   dotKey: string, opts: LabMutationOptions = {},
 ) {
+  if (importedData) migrateLabPanelIdentities(importedData);
   const result = deleteLabEntryMarker(entry, dotKey, opts);
   if (!result.changed) return result;
   if (opts.deleteMetadata !== false) {
-    for (const key of result.deletedKeys) deleteLabEntryMarkerMetadata(importedData, key, entry!.date);
+    for (const key of result.deletedKeys) {
+      if (entry?.manualOriginals) delete entry.manualOriginals[key];
+      if (!(importedData?.entries || []).some(row => row !== entry && row.date === entry?.date && Object.hasOwn(row.markers || {}, key))) deleteLabEntryMarkerMetadata(importedData, key, entry!.date);
+    }
   }
   if (opts.deleteEntryIfEmpty === false) return result;
   if (isLabEntryRemovable(entry)) {
-    const removed = deleteImportedArrayItems(importedData, 'entries', item => item === entry);
-    result.removedEntry = removed.length > 0;
+    result.removedEntry = !!importedData && !!entry && removeLabPanel(importedData, entry, opts.now);
   }
   return result;
 }

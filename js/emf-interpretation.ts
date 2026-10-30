@@ -3,7 +3,7 @@
 import { state } from './state.js';
 import { SBM_2015_THRESHOLDS, getEMFSeverity, calculateCost, formatCost, trackUsage } from './schema.js';
 import {renderEMFInterpretationModal, renderEMFInterpretationStatus, renderEMFInterpretationError} from './emf-interpretation-presentation.js';
-import { saveImportedData } from './data.js';
+import { commitEMFInterpretation, onEMFRecordChanged } from './emf-native-records.js';
 import { getAssistantFeatureIdentity } from './ai-feature-routing.js';
 import { configureEMFInterpretationRuntimeDeps, getEMFInterpretationRuntimeDeps, registerEMFInterpretationCloseHandler } from './emf-interpretation-runtime.js';
 import { renderMarkdown } from './markdown.js';
@@ -22,6 +22,11 @@ export { configureEMFInterpretationRuntimeDeps };
 let _aiAbortController: AbortController | null = null;
 let _aiRequest = 0;
 let _interpretationSession = 0;
+
+onEMFRecordChanged(() => {
+  const overlay = document.getElementById('emf-interp-overlay') as InterpretationOverlay | null;
+  if (overlay?._ownsData?.() && !overlay._isCurrent?.()) closeEMFInterpretation();
+});
 
 function closeParentEMFModalRuntime() {
   (getEMFInterpretationRuntimeDeps() as RuntimeInvocationOperations).closeModal?.();
@@ -120,7 +125,11 @@ function installEMFInterpretationDelegates(overlay: InterpretationOverlay) {
   overlay.addEventListener('click', _handleEMFInterpretationClick);
 }
 
-function openInterpretationModal(title: unknown, existingInterp: InterpretationOperations | null | undefined, onGenerate: () => unknown, mitigationTags: unknown[] = []) {
+function assessmentInputs(value: unknown) {
+  return JSON.stringify(value, (key, item) => ['interpretation', 'comparisonInterpretation'].includes(key) ? undefined : item);
+}
+
+function openInterpretationModal(title: unknown, existingInterp: InterpretationOperations | null | undefined, onGenerate: () => unknown, mitigationTags: unknown[] = [], sourceCurrent = () => true) {
   const session = ++_interpretationSession;
   const profile = state.currentProfile;
   const importedData = state.importedData;
@@ -146,8 +155,10 @@ function openInterpretationModal(title: unknown, existingInterp: InterpretationO
   const body = overlay.querySelector('#emf-interp-body');
   const canClose = () => session === _interpretationSession && ownedOverlay.isConnected
     && document.getElementById('emf-interp-overlay') === ownedOverlay;
-  const isCurrent = () => canClose() && state.currentProfile === profile && state.importedData === importedData
+  const ownsData = () => canClose() && state.currentProfile === profile && state.importedData === importedData
     && !!body && document.getElementById('emf-interp-body') === body && ownedOverlay.contains(body);
+  const isCurrent = () => ownsData() && sourceCurrent();
+  overlay._ownsData = ownsData;
   overlay._canClose = canClose;
   overlay._isCurrent = isCurrent;
 
@@ -186,7 +197,7 @@ function buildMetaLine(interp: InterpretationOperations | null | undefined) {
   return parts.length ? parts.join(separator) : '';
 }
 
-function streamInterpretation(prompt: string, onComplete: ((interp: GeneratedInterpretation) => unknown) | null | undefined) {
+function streamInterpretation(prompt: string, onComplete: ((interp: GeneratedInterpretation, authorized: () => boolean) => unknown) | null | undefined, sourceCurrent = () => true) {
   if (_aiAbortController) _aiAbortController.abort();
   const request = ++_aiRequest;
   const controller = new AbortController();
@@ -202,7 +213,7 @@ function streamInterpretation(prompt: string, onComplete: ((interp: GeneratedInt
   const isCurrent = () => request === _aiRequest && !controller.signal.aborted
     && state.currentProfile === profile && state.importedData === importedData
     && !!overlay?.isConnected && document.getElementById('emf-interp-overlay') === overlay
-    && document.getElementById('emf-interp-body') === body && overlay.contains(body);
+    && document.getElementById('emf-interp-body') === body && overlay.contains(body) && sourceCurrent();
   const releaseController = () => {
     if (_aiAbortController === controller) _aiAbortController = null;
   };
@@ -235,7 +246,8 @@ function streamInterpretation(prompt: string, onComplete: ((interp: GeneratedInt
     releaseController();
     const finalText = stripThinking((response as ResponseOperations | null | undefined)?.text || '');
     const usage = ((response as ResponseOperations | null | undefined)?.usage || {}) as TokenOperations;
-    body.innerHTML = finalText ? renderMarkdown(finalText) : renderEMFInterpretationStatus('No response received.');
+    const finalHTML = finalText ? renderMarkdown(finalText) : renderEMFInterpretationStatus('No response received.');
+    body.innerHTML = finalHTML;
 
     const interp = {
       text: finalText,
@@ -248,28 +260,31 @@ function streamInterpretation(prompt: string, onComplete: ((interp: GeneratedInt
     };
     if (!identity.subscription) (trackUsage as UsageReader)(provider, modelId, usage.inputTokens || 0, usage.outputTokens || 0);
 
-    if (meta) meta.textContent = buildMetaLine(interp);
-
-    // Update generate button
-    const btn = document.getElementById('emf-interp-generate') as HTMLButtonElement | null;
-    if (btn) { btn.disabled = false; btn.textContent = 'Re-interpret'; }
-
-    // Add discuss button if not present
-    const overlay = document.getElementById('emf-interp-overlay') as InterpretationOverlay | null;
-    const actions = overlay?.querySelector('.emf-interp-actions');
-    if (actions && !actions.querySelector('[data-emf-interp-action="discuss"]')) {
-      const discussBtn = document.createElement('button');
-      discussBtn.type = 'button';
-      discussBtn.className = 'import-btn import-btn-secondary';
-      discussBtn.dataset.emfInterpAction = 'discuss';
-      discussBtn.textContent = 'Discuss in Chat';
-      actions.appendChild(discussBtn);
-    }
-
-    // Store for discuss
-    if (overlay) overlay._interpretText = finalText;
-
-    if (onComplete && isCurrent()) onComplete(interp);
+    const ownedOverlay = overlay as InterpretationOverlay, regenerate = ownedOverlay._onGenerate;
+    let saving = false;
+    const saveResult = async () => {
+      if (saving || !isCurrent()) return; saving = true;
+      const btn = document.getElementById('emf-interp-generate') as HTMLButtonElement | null;
+      if (btn) btn.disabled = true;
+      try {
+        if (onComplete) await onComplete(interp, isCurrent);
+        if (!isCurrent()) return;
+        body.innerHTML = finalHTML;
+        if (meta) meta.textContent = buildMetaLine(interp);
+        if (btn) { btn.disabled = false; btn.textContent = 'Re-interpret'; }
+        const actions = ownedOverlay.querySelector('.emf-interp-actions');
+        if (actions && !actions.querySelector('[data-emf-interp-action="discuss"]')) {
+          const discussBtn = document.createElement('button'); discussBtn.type = 'button'; discussBtn.className = 'import-btn import-btn-secondary'; discussBtn.dataset.emfInterpAction = 'discuss'; discussBtn.textContent = 'Discuss in Chat'; actions.appendChild(discussBtn);
+        }
+        ownedOverlay._interpretText = finalText; ownedOverlay._onGenerate = regenerate;
+      } catch (error) {
+        if (!isCurrent()) return;
+        body.innerHTML = renderEMFInterpretationError(error instanceof Error ? error.message : 'Could not save this interpretation. Retry saving.');
+        if (btn) { btn.disabled = false; btn.textContent = 'Retry saving'; }
+      } finally { saving = false; }
+    };
+    ownedOverlay._onGenerate = () => { void saveResult(); };
+    return saveResult();
   }).catch((err: ErrorOperations) => {
     const current = isCurrent();
     releaseController();
@@ -327,6 +342,8 @@ export function interpretEMFAssessment(assessmentId: unknown, deps: Interpretati
   const assessments = getAssessments(deps) as AssessmentOperations[];
   const a = assessments.find(x => x.id === assessmentId);
   if (!a) return;
+  const revision = assessmentInputs(a);
+  const sourceCurrent = () => { const current = (getAssessments(deps) as AssessmentOperations[]).find(row => row.id === assessmentId); return !!current && assessmentInputs(current) === revision; };
 
   const fmtDate = new Date((a.date as string) + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   const title = `EMF Interpretation \u2014 ${fmtDate}${a.label ? ' (' + a.label + ')' : ''}`;
@@ -335,11 +352,8 @@ export function interpretEMFAssessment(assessmentId: unknown, deps: Interpretati
 
   openInterpretationModal(title, a.interpretation as InterpretationOperations | null | undefined, () => {
     const prompt = `Interpret this Baubiologie EMF assessment. Identify the most concerning readings, explain health implications (especially for sleeping areas), and recommend specific mitigations in priority order.\n\n${data}`;
-    streamInterpretation(prompt, (interp) => {
-      a.interpretation = interp;
-      saveImportedData();
-    });
-  }, tags);
+    streamInterpretation(prompt, (interp, authorized) => commitEMFInterpretation(assessmentId, interp, authorized), sourceCurrent);
+  }, tags, sourceCurrent);
 }
 
 export function interpretEMFComparison(deps: InterpretationDependencies = {}) {
@@ -350,6 +364,8 @@ export function interpretEMFComparison(deps: InterpretationDependencies = {}) {
 
   const emf = state.importedData.emfAssessment as {comparisonInterpretation?: unknown} | null | undefined;
   if (!emf) return;
+  const revision = assessmentInputs(assessments);
+  const sourceCurrent = () => !!state.importedData.emfAssessment && assessmentInputs(getAssessments(deps)) === revision;
   const title = 'EMF Comparison \u2014 Before vs After';
   const before = serializeAssessment(sorted[1]!);
   const after = serializeAssessment(sorted[0]!);
@@ -360,9 +376,6 @@ export function interpretEMFComparison(deps: InterpretationDependencies = {}) {
 
   openInterpretationModal(title, emf.comparisonInterpretation as InterpretationOperations | null | undefined, () => {
     const prompt = `Compare these two Baubiologie EMF assessments (before and after). Evaluate what improved, what worsened, and what still needs attention. Prioritize remaining concerns and suggest next steps.\n\nBEFORE:\n${before}\nAFTER:\n${after}`;
-    streamInterpretation(prompt, (interp) => {
-      emf.comparisonInterpretation = interp;
-      saveImportedData();
-    });
-  }, dedup);
+    streamInterpretation(prompt, (interp, authorized) => commitEMFInterpretation(null, interp, authorized), sourceCurrent);
+  }, dedup, sourceCurrent);
 }

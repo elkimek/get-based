@@ -36,6 +36,7 @@ export interface AgentTurnOptions extends AgentHostConnection {
   model?: string | undefined;
   effort?: string | undefined;
   instructions?: string | undefined;
+  applicationContext?: string | undefined;
   imageUploadIds?: string[] | undefined;
   outputSchema?: Record<string, unknown> | undefined;
   purpose?: 'chat' | 'feature' | undefined;
@@ -50,6 +51,7 @@ interface AgentHostStatusPayload extends Record<string, unknown> {
   paused?: unknown;
   state?: unknown;
   protocolVersion?: unknown;
+  toolContractVersion?: unknown;
   capabilities?: unknown;
 }
 
@@ -68,6 +70,7 @@ async function responseError(response: Response) {
   try {
     const body = await response.json() as {error?: unknown} | null;
     if (body?.error === 'invalid_prompt') return 'The Companion rejected an empty or oversized AI request. Retry this score on its own.';
+    if (body?.error === 'invalid_application_context') return 'The Companion rejected the current application context. Refresh and reduce its size before retrying.';
     if (typeof body?.error === 'string') return body.error.replaceAll('_', ' ');
   } catch { /* use status fallback */ }
   return `Agent Host returned HTTP ${response.status}.`;
@@ -80,6 +83,8 @@ export function agentHostUpgradeRequiredError(capability: string) {
       ? 'companion controls'
       : capability === AGENT_HOST_CAPABILITIES.EXECUTION_TARGETS
         ? 'personal gateway targets'
+    : capability === 'context-change-proposals'
+      ? 'structured context updates'
     : capability === AGENT_HOST_CAPABILITIES.STRUCTURED_HEALTH_TOOLS
       ? 'the latest getbased tools'
       : 'this feature';
@@ -100,6 +105,7 @@ export async function checkAgentHost(options: AgentHostConnection) {
   return {
     ...payload,
     protocolVersion: normalizeAgentHostProtocolVersion(payload.protocolVersion),
+    toolContractVersion: normalizeAgentHostProtocolVersion(payload.toolContractVersion),
     capabilities: normalizeAgentHostCapabilities(payload.capabilities),
   };
 }
@@ -190,6 +196,7 @@ export async function streamAgentTurn(options: AgentTurnOptions) {
       model: options.model || undefined,
       effort: options.effort || undefined,
       instructions: options.instructions || undefined,
+      applicationContext: options.applicationContext || undefined,
       imageUploadIds: options.imageUploadIds || undefined,
       outputSchema: options.outputSchema || undefined,
       purpose: options.purpose || 'chat',
@@ -251,10 +258,14 @@ export async function streamAgentTurn(options: AgentTurnOptions) {
       if (!toolResponse.ok) throw new Error(await responseError(toolResponse));
     } else if (event?.type === 'done') {
       finishReason = String(event.finishReason || 'stop');
-      // Older Companions return terminal failures as done events. A partial
-      // answer, including valid JSON, must not become a successful feature result.
-      if (finishReason === 'failed') throw new Error('The CLI agent could not complete the response. Check the Companion and selected agent, then try again.');
-      if (finishReason === 'interrupted') throw new Error('The CLI agent response was interrupted. Please retry.');
+      // Legacy Companions can finish with partial valid JSON despite failure.
+      // Every terminal failure rejects; an owned cancellation stays AbortError.
+      if (['failed', 'error', 'cancelled', 'interrupted'].includes(finishReason)) {
+        if (options.signal?.aborted) throw new DOMException('The response was cancelled.', 'AbortError');
+        if (finishReason === 'failed') throw new Error('The CLI agent could not complete the response. Check the Companion and selected agent, then try again.');
+        if (finishReason === 'interrupted') throw new Error('The CLI agent response was interrupted. Please retry.');
+        throw new Error('The selected agent did not complete this response. Try again, or choose another model in AI settings.');
+      }
     } else if (event?.type === 'error') {
       throw new Error(String(event.message || 'CLI agent response failed.'));
     }
@@ -280,5 +291,6 @@ export async function streamAgentTurn(options: AgentTurnOptions) {
     throw error;
   }
   if (!finishReason) throw new Error('The companion disconnected before the CLI agent completed the response.');
+  if (!text.trim() && !toolCalls.length) throw new Error('The selected agent returned an empty response. Try again, or choose another model in AI settings.');
   return { text, threadId, model, finishReason, usage, toolCalls, webSearches };
 }

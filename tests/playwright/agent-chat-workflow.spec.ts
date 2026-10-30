@@ -1,5 +1,7 @@
 import { expect, test } from './coverage-fixture.js';
 import { AGENT_HOST_CAPABILITY_LIST, AGENT_HOST_PROTOCOL_VERSION } from '../../shared/agent-host-protocol.js';
+import { AGENT_TOOL_CONTRACT_VERSION } from '../../shared/agent-tool-contract.js';
+import { routeJavaScript } from '../helpers/browser-static-routes.js';
 
 test('chat sends through the companion, executes a real marker tool, and persists an edited retry after reload', async ({ page }) => {
   const turns: {prompt: unknown; tools: {name?: unknown}[]}[] = [];
@@ -8,6 +10,7 @@ test('chat sends through the companion, executes a real marker tool, and persist
   const companion = {
     service: 'getbased-agent-host', endpoint: 'http://127.0.0.1:8324', token,
     protocolVersion: AGENT_HOST_PROTOCOL_VERSION, capabilities: AGENT_HOST_CAPABILITY_LIST,
+    toolContractVersion: AGENT_TOOL_CONTRACT_VERSION,
     agents: [{ id: 'codex', name: 'Codex CLI', status: 'available', compatible: true }],
   };
   await page.addInitScript(() => {
@@ -91,4 +94,58 @@ test('chat sends through the companion, executes a real marker tool, and persist
   await expect(page.locator('#chat-messages')).not.toContainText('Read my saved glucose result.');
   await expect(page.locator('#chat-messages')).toContainText('Your saved glucose result is 5.8 mmol/l.');
   expect(turns).toHaveLength(2);
+});
+
+test('native model selection starts a fresh CLI session with retained transcript, then resumes the matching model', async ({ page }) => {
+  await page.addInitScript(() => { for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(`labcharts-default-${suffix}`, 'completed'); });
+  const turns: Array<{ model: string; effort?: string; threadId?: string; history?: Array<{ role: string; content: string }> }> = [];
+  const models = ['model-a', 'model-b'].map(id => ({ id, displayName: id, inputModalities: ['text'], isDefault: id === 'model-a', supportedReasoningEfforts: ['low', 'high'].map(reasoningEffort => ({ reasoningEffort, description: '' })) }));
+  const companion = { service: 'getbased-agent-host', endpoint: 'http://127.0.0.1:8324', token: 'synthetic-model-session-token',
+    protocolVersion: AGENT_HOST_PROTOCOL_VERSION, capabilities: AGENT_HOST_CAPABILITY_LIST, toolContractVersion: AGENT_TOOL_CONTRACT_VERSION,
+    agents: [{ id: 'codex', name: 'Codex CLI', status: 'available', compatible: true }] };
+  await routeJavaScript(page, '**/js/cloud-ai-consent.js', `export * from '/js/cloud-ai-consent.js?model-session-original'; export async function requestAIProcessingApproval(){return true;} export async function requireAIProcessingApproval(){}`);
+  await page.route('**/api/local-agents*', route => route.fulfill({ json: { agents: [] } }));
+  await page.route('**/v1/**', async route => {
+    const request = route.request(), path = new URL(request.url()).pathname;
+    if (path === '/v1/turns') {
+      const turn = request.postDataJSON(); turns.push(turn);
+      await route.fulfill({ contentType: 'application/x-ndjson', body: [
+        { type: 'session', threadId: `native-${turn.model}`, model: turn.model },
+        { type: 'text_delta', delta: `Reply from ${turn.model}.` }, { type: 'done', finishReason: 'stop' },
+      ].map(value => JSON.stringify(value)).join('\n') + '\n' });
+    } else if (path === '/v1/models') await route.fulfill({ json: { models } });
+    else if (path === '/v1/targets') await route.fulfill({ json: { targets: [{ id: 'local', label: 'Local CLI', status: 'available' }] } });
+    else await route.fulfill({ json: companion });
+  });
+  await page.goto('/app');
+  await page.evaluate(async models => {
+    const profiles = await import('/js/profile.js'), id = await profiles.createProfile('Synthetic CLI model session', { sex: 'female', skipInitialSync: true });
+    for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(profiles.profileStorageKey(id, suffix), 'completed');
+    for (const prefix of ['labcharts-onboard-extras-done-', 'labcharts-onboard-context-cards-skipped-']) localStorage.setItem(prefix + id, '1');
+    await profiles.switchProfile(id); const settings = await import('/js/agent-chat-settings.js');
+    await settings.saveAgentChatSettings({ agent: 'codex', endpoint: 'http://127.0.0.1:8324', token: 'synthetic-model-session-token', model: 'model-a' });
+    (await import('/js/agent-model-catalog.js')).cacheAgentModelCatalog(models, 'codex'); settings.setChatBackend('codex');
+    (await import('/js/api.js')).setAIPaused(false); await (await import('/js/chat-loader.js')).openChatPanel();
+  }, models);
+  await page.locator('#chat-input').fill('Hello Alpha.'); await page.locator('#chat-send-btn').click();
+  await expect(page.locator('#chat-messages')).toContainText('Reply from model-a.');
+  await expect.poll(() => page.evaluate(async () => (await import('/js/chat-send.js')).isChatStreaming())).toBe(false);
+  await page.locator('#chat-model-menu summary').click(); await page.locator('[data-chat-model-value="model-b"]').click();
+  await expect(page.locator('#chat-model-menu-label')).toHaveText('model-b');
+  await page.locator('#chat-model-menu summary').click();
+  await page.locator('#chat-model-effort').focus(); await page.locator('#chat-model-effort').press('End');
+  await expect.poll(() => page.evaluate(async () => (await import('/js/assistant-selection.js')).readAssistantSelection().effort)).toBe('high');
+  await expect(page.locator('#chat-model-effort-value')).toHaveText('High');
+  await page.locator('#chat-model-menu summary').click();
+  await page.locator('#chat-input').fill('Hello Beta.'); await page.locator('#chat-send-btn').click();
+  await expect(page.locator('#chat-messages')).toContainText('Reply from model-b.');
+  await expect.poll(() => page.evaluate(async () => (await import('/js/chat-send.js')).isChatStreaming())).toBe(false);
+  await page.locator('#chat-input').fill('Continue Beta.'); await page.locator('#chat-send-btn').click();
+  await expect.poll(() => turns.length).toBe(3); await expect.poll(() => page.evaluate(async () => (await import('/js/chat-send.js')).isChatStreaming())).toBe(false);
+  expect(turns.map(turn => turn.model)).toEqual(['model-a', 'model-b', 'model-b']);
+  expect(turns[1]!.effort).toBe('high'); expect(turns[2]!.effort).toBe('high');
+  expect(turns[1]!.threadId).toBeUndefined(); expect(turns[2]!.threadId).toBe('native-model-b');
+  expect(turns[1]!.history).toContainEqual({ role: 'user', content: 'Hello Alpha.' });
+  expect(turns[1]!.history).toContainEqual({ role: 'assistant', content: 'Reply from model-a.' });
+  expect(await page.evaluate(async () => (await import('/js/state.js')).state.chatHistory.filter(message => message.role === 'assistant').map(message => message.modelId))).toEqual(['model-a', 'model-b', 'model-b']);
 });

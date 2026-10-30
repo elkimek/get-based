@@ -10,6 +10,8 @@ import {
   recalculateLabEntryHOMAIR,
 } from './lab-entry.js';
 import type { LabEntryDraft, LabMarkerSource } from './lab-entry.js';
+import { expandLabPanelRows, identifyLabPanels, labPanelEvidence, labPanelJSON, labPanelsHaveDistinctCollections, packLabPanelRows, validLabPanelId } from './lab-panel-identity.js';
+import { filterRemovedLabPanels, mergeLabPanelTombstones } from './lab-panel-deletions.js';
 export { normalizeTimestamp } from './lab-entry.js';
 
 export interface LabMergeData {
@@ -42,8 +44,9 @@ const TIMESTAMP_FIELDS = [
 // the most recently-edited signal first, then creation/capture fields that
 // several synced array surfaces use. Returns 0 if nothing recognizable is
 // present so older/foreign records can still merge without throwing.
-export function pickTimestamp(rec: unknown) {
+export function pickTimestamp(rec: unknown): number {
   if (!rec || typeof rec !== 'object') return 0;
+  if (Object.hasOwn(rec, 'labPanelBundle')) return Math.max(0, ...expandLabPanelRows([rec as LabEntryDraft]).map(pickTimestamp));
   for (const field of TIMESTAMP_FIELDS) {
     const ts = normalizeTimestamp((rec as Record<string, unknown>)[field]);
     if (ts !== null) return ts;
@@ -94,12 +97,19 @@ export function mergeLabEntry(existing: OptionalLabEntry, incoming: OptionalLabE
 export function mergeLabEntry(existing: OptionalLabEntry, incoming: OptionalLabEntry) {
   if (!existing || typeof existing !== 'object') return incoming;
   if (!incoming || typeof incoming !== 'object') return existing;
+  const plain = (entry: LabEntryDraft) => { const { panelId: _id, ...rest } = entry; return rest; };
+  if (labPanelJSON(plain(existing)) === labPanelJSON(plain(incoming))) {
+    const result = structuredClone(existing), panelId = existing.panelId || incoming.panelId;
+    if (validLabPanelId(panelId)) result.panelId = panelId;
+    return result;
+  }
   const existingTs = pickTimestamp(existing);
   const incomingTs = pickTimestamp(incoming);
   const incomingWins = incomingTs >= existingTs;
   const base = incomingWins ? { ...existing, ...incoming } : { ...incoming, ...existing };
   const markers: Record<string, unknown> = {};
   const markerSources: Record<string, LabMarkerSource | null | undefined> = {};
+  const manualOriginals: Record<string, unknown> = {};
   const markerTombstones: Record<string, number> = {};
   const existingMarkers = existing.markers && typeof existing.markers === 'object' ? existing.markers : {};
   const incomingMarkers = incoming.markers && typeof incoming.markers === 'object' ? incoming.markers : {};
@@ -138,6 +148,8 @@ export function mergeLabEntry(existing: OptionalLabEntry, incoming: OptionalLabE
         || (incomingValueTs === existingValueTs && incomingWins);
       markers[key] = markerIncomingWins ? incomingMarkers[key] : existingMarkers[key];
       const sources = markerIncomingWins ? incomingSources : existingSources;
+      const original = (markerIncomingWins ? incoming.manualOriginals : existing.manualOriginals)?.[key];
+      if (Object.hasOwn((markerIncomingWins ? incoming.manualOriginals : existing.manualOriginals) || {}, key)) manualOriginals[key] = structuredClone(original);
       if (Object.prototype.hasOwnProperty.call(sources, key)) markerSources[key] = sources[key];
       else if (Object.is(existingMarkers[key], incomingMarkers[key])) {
         const other = (markerIncomingWins ? existingSources : incomingSources)[key];
@@ -147,16 +159,20 @@ export function mergeLabEntry(existing: OptionalLabEntry, incoming: OptionalLabE
         homaIRInputChanged = true;
       }
     } else if (hasIncoming) {
+      if (Object.hasOwn(incoming.manualOriginals || {}, key)) manualOriginals[key] = structuredClone(incoming.manualOriginals![key]);
       markers[key] = incomingMarkers[key];
       if (incomingSources[key]) markerSources[key] = incomingSources[key];
       if (labEntryMarkerAffectsHOMAIR(key)) homaIRInputChanged = true;
     } else if (hasExisting) {
+      if (Object.hasOwn(existing.manualOriginals || {}, key)) manualOriginals[key] = structuredClone(existing.manualOriginals![key]);
       markers[key] = existingMarkers[key];
       if (existingSources[key]) markerSources[key] = existingSources[key];
       if (labEntryMarkerAffectsHOMAIR(key)) homaIRInputChanged = true;
     }
   }
   base.markers = markers;
+  if (Object.keys(manualOriginals).length) base.manualOriginals = manualOriginals;
+  else delete base.manualOriginals;
   if (Object.keys(markerSources).length) base.markerSources = markerSources;
   else delete base.markerSources;
   if (Object.keys(markerTombstones).length) base[LAB_ENTRY_MARKER_TOMBSTONES] = markerTombstones;
@@ -178,29 +194,58 @@ export function mergeLabEntry(existing: OptionalLabEntry, incoming: OptionalLabE
   return base;
 }
 
+/** Match legacy replicas only when they identify one panel unambiguously. */
+export function labPanelPeerIndex(rows: readonly LabEntryDraft[], panel: LabEntryDraft): number {
+  const candidates = rows.flatMap((row, index) => row.date === panel.date ? [{ row, index }] : []);
+  if (validLabPanelId(panel.panelId)) {
+    const exact = candidates.filter(({ row }) => row.panelId === panel.panelId);
+    if (exact.length === 1) return exact[0]!.index;
+  }
+  const compatible = candidates.filter(({ row }) => !(validLabPanelId(row.panelId) && validLabPanelId(panel.panelId)) && !labPanelsHaveDistinctCollections(row, panel));
+  const plain = (entry: LabEntryDraft) => { const { panelId: _id, ...rest } = entry; return rest; };
+  const equal = compatible.filter(({ row }) => labPanelJSON(plain(row)) === labPanelJSON(plain(panel)));
+  if (equal.length === 1) return equal[0]!.index;
+  const evidence = labPanelEvidence(panel), sourced = evidence ? compatible.filter(({ row }) => labPanelEvidence(row) === evidence) : [];
+  if (sourced.length === 1) return sourced[0]!.index;
+  // Old date-unique rows keep their additive merge. A named or split panel
+  // cannot be matched merely because it shares that date.
+  return candidates.length === 1 && compatible.length === 1 && !validLabPanelId(panel.panelId) && !validLabPanelId(compatible[0]!.row.panelId) ? compatible[0]!.index : -1;
+}
 export function mergeLabEntriesByDate(localEntries: unknown, remoteEntries: unknown) {
   const hasLocal = Array.isArray(localEntries);
   const hasRemote = Array.isArray(remoteEntries);
   if (!hasLocal && !hasRemote) return undefined;
-  const byDate = new Map<string, LabEntryDraft>();
+  const byDate = new Map<string, LabEntryDraft[]>();
   const noDate: LabEntryDraft[] = [];
   function consume(entries: unknown) {
     if (!Array.isArray(entries)) return;
-    for (const entry of entries) {
+    for (const entry of identifyLabPanels(entries as LabEntryDraft[])) {
       if (!entry || typeof entry !== 'object') continue;
       if (typeof entry.date !== 'string' || !entry.date) {
         noDate.push(entry);
         continue;
       }
-      const existing = byDate.get(entry.date);
-      byDate.set(entry.date, existing ? mergeLabEntry(existing, entry) : entry);
+      const panels = byDate.get(entry.date) || [], index = labPanelPeerIndex(panels, entry);
+      if (index < 0) panels.push(entry);
+      else {
+        const existing = panels[index]!, panelId = existing.panelId || entry.panelId;
+        panels[index] = mergeLabEntry(existing, entry);
+        if (validLabPanelId(panelId)) panels[index]!.panelId = panelId;
+      }
+      byDate.set(entry.date, panels);
     }
   }
   // Remote first, local second. Local wins timestamp ties so a just-imported
   // unsynced lab entry cannot be wiped by a stale pull.
   consume(remoteEntries);
   consume(localEntries);
-  return [...byDate.values(), ...noDate].sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+  return identifyLabPanels([...byDate.values()].flat().concat(noDate)).sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+}
+
+/** Merge one legacy date carrier or a versioned multi-panel carrier. */
+export function mergeLabDayRow(existing: LabEntryDraft, incoming: LabEntryDraft): LabEntryDraft {
+  if (existing.date !== incoming.date) throw new Error('Lab date carriers do not match.');
+  return packLabPanelRows(mergeLabEntriesByDate([existing], [incoming])!)[0]!;
 }
 
 function isFreshLocalLabEntry(entry: OptionalLabEntry, now: number): entry is LabEntryDraft & { date: string; updatedAt: number } {
@@ -218,31 +263,10 @@ export function preserveFreshLocalLabEntries(merged: LabMergeData | null | undef
 
   if (!Array.isArray(merged.entries)) merged.entries = [];
   const deletedEntryDates = new Set(Array.isArray(merged._deleted?.entries) ? merged._deleted.entries : []);
-  const byDate = new Map<string, number>();
-  for (let i = 0; i < merged.entries.length; i++) {
-    const date = merged.entries[i]?.date;
-    if (typeof date === 'string' && date) byDate.set(date, i);
-  }
-
-  let changed = false;
-  for (const localEntry of freshLocalEntries) {
-    if (deletedEntryDates.has(localEntry.date)) continue;
-    const idx = byDate.get(localEntry.date);
-    if (idx === undefined) {
-      merged.entries.push(localEntry);
-      byDate.set(localEntry.date, merged.entries.length - 1);
-      changed = true;
-      continue;
-    }
-    const before = JSON.stringify(merged.entries[idx]);
-    const next = mergeLabEntry(merged.entries[idx], localEntry);
-    if (JSON.stringify(next) !== before) {
-      merged.entries[idx] = next;
-      changed = true;
-    }
-  }
-  if (changed) {
-    merged.entries.sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
-  }
+  const tombs = mergeLabPanelTombstones(merged.labPanelTombstones, local.labPanelTombstones);
+  if (Object.keys(tombs).length) merged.labPanelTombstones = tombs;
+  const next = filterRemovedLabPanels(mergeLabEntriesByDate(filterRemovedLabPanels(freshLocalEntries.filter(entry => !deletedEntryDates.has(entry.date)), tombs), merged.entries)!, tombs);
+  const changed = labPanelJSON(next) !== labPanelJSON(merged.entries);
+  if (changed) merged.entries = next;
   return changed;
 }

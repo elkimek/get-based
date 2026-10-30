@@ -5,6 +5,7 @@
   import { MESSAGE_ACTION_BUTTON, MESSAGE_ACTION_FOCUS } from '../chat-message-actions-classes.js';
   import ChatMessageIcon from './ChatMessageIcon.svelte';
   import ChatAgentDraftCards from './ChatAgentDraftCards.svelte';
+  import ChatAppControlCards from './ChatAppControlCards.svelte';
   import ChatSpeechButton from './ChatSpeechButton.svelte';
   let { view }: { view: ChatMessageActionsView } = $props();
   let copied = $state<ChatCopyMode>('idle');
@@ -26,6 +27,7 @@
     </div>
   {:else}
     <ChatAgentDraftCards cards={view.drafts} index={String(view.index)}/>
+    <ChatAppControlCards controls={view.controls} index={view.index}/>
     <div class="chat-action-bar gb:message-actions:flex gb:message-actions:flex-wrap gb:message-actions:gap-1 gb:message-actions:mt-2 gb:message-actions:pt-2 gb:message-actions:border-t gb:message-actions:border-line">
       {#if view.retry}<button class={MESSAGE_ACTION_BUTTON} type="button" data-chat-message-action={view.retry.action} data-chat-message-persona-id={view.retry.personaId} title={view.retry.title}><ChatMessageIcon name="refresh"/><span>{view.retry.label}</span></button>{/if}
       {#if view.resume}<button class={MESSAGE_ACTION_BUTTON} type="button" data-chat-message-action="resume-discussion" title="Retry every remaining discussion response"><span>Resume round</span></button>{/if}

@@ -289,3 +289,42 @@ it('honors an explicit feature token ceiling for thinking models without changin
   for (const strictTokenLimit of [true, false]) await callOpenAICompatibleAPI('https://example.test', 'test-key', 'claude-opus-5.5', 'Routstr', { messages: [{ role: 'user', content: 'Explain' }], maxTokens: 900, strictTokenLimit }, {}, { fetchImpl });
   expect(limits).toEqual([900, 16384]);
 });
+
+// Native function-call transport is shared by regular and secure-fetch adapters.
+describe('native tool-call transport', () => {
+  const tools = [{ type: 'function' as const, function: { name: 'getbased_read_context_card', description: 'Read', parameters: { type: 'object' as const } } }];
+  const tool = { id: 'call-1', type: 'function' as const, function: { name: 'getbased_read_context_card', arguments: '{"card":"healthGoals"}' } };
+  it('accepts tool-only responses and retains tool IDs in subsequent messages', async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ choices: [{ message: { content: null, tool_calls: [tool] }, finish_reason: 'tool_calls' }] })));
+    const result = await callOpenAICompatibleAPI('https://synthetic.test', 'key', 'model', 'Custom', { messages: [{ role: 'assistant', content: null, tool_calls: [tool] }, { role: 'tool', tool_call_id: tool.id, content: '{}' }], tools }, {}, { fetchImpl });
+    expect(result).toMatchObject({ text: '', toolCalls: [tool], assistantMessage: { content: null, tool_calls: [tool] } });
+    const body = JSON.parse((fetchImpl.mock.calls as unknown as Parameters<typeof fetch>[])[0]![1]!.body as string);
+    expect(body).toMatchObject({ tools, tool_choice: 'auto', messages: [{ role: 'assistant', tool_calls: [tool] }, { role: 'tool', tool_call_id: tool.id }] });
+  });
+  it('collects fragmented streaming names, arguments and multiple indexed calls', async () => {
+    const events = [
+      { choices: [{ delta: { tool_calls: [{ index: 0, id: 'call-', type: 'function', function: { name: 'getbased_read_', arguments: '{"card":' } }] } }] },
+      { choices: [{ delta: { tool_calls: [{ index: 1, id: 'call-2', type: 'function', function: { name: 'getbased_read_context_card', arguments: '{}' } }, { index: 0, id: '1', function: { name: 'context_card', arguments: '"healthGoals"}' } }] }, finish_reason: 'tool_calls' }] },
+      { usage: { prompt_tokens: 8, completion_tokens: 4 } },
+    ];
+    const fetchImpl = async () => new Response(events.map(event => `data: ${JSON.stringify(event)}\n\n`).join('') + 'data: [DONE]\n\n');
+    const result = await callOpenAICompatibleAPI('https://synthetic.test', 'key', 'model', 'PPQ Private', { messages: [], tools, onStream: vi.fn() }, {}, { fetchImpl });
+    expect(result).toMatchObject({ toolCalls: [tool, { id: 'call-2' }], usage: { inputTokens: 8, outputTokens: 4 } });
+  });
+  it('rejects unfinished JSON and excessive streamed calls', async () => {
+    for (const delta of [{ index: 0, id: 'call-1', function: { name: 'getbased_read_context_card', arguments: '{' } }, { index: 999 }]) {
+      const fetchImpl = async () => new Response(`data: ${JSON.stringify({ choices: [{ delta: { tool_calls: [delta] } }] })}\n\n`);
+      await expect(callOpenAICompatibleAPI('https://synthetic.test', 'key', 'model', 'Custom', { messages: [], tools, onStream: vi.fn() }, {}, { fetchImpl })).rejects.toThrow();
+    }
+  });
+  it('reports explicit native-tool incompatibility without retrying without tools', async () => {
+    const fetchImpl = vi.fn(async () => new Response('{"error":{"message":"tools not supported by this model"}}', { status: 400 }));
+    await expect(callOpenAICompatibleAPI('https://synthetic.test', 'key', 'model', 'Custom', { messages: [], tools }, {}, { fetchImpl })).rejects.toMatchObject({ code: 'ai_tools_unsupported' });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+  it('does not dispatch after a recipient change', async () => {
+    const fetchImpl = vi.fn();
+    await expect(callOpenAICompatibleAPI('https://synthetic.test', 'key', 'model', 'Custom', { messages: [], tools, requestCurrent: () => false }, {}, { fetchImpl })).rejects.toThrow('changed');
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+});

@@ -5,9 +5,20 @@ import type { AgentToolDefinition } from '../shared/agent-tool-contract.js';
 
 type CodexHostClient = Pick<CodexAppServerClient, 'initialize' | 'request' | 'respond' | 'on'>;
 type ACPHostClient = Pick<ACPAgentClient, 'ensureSession' | 'configureSession' | 'prompt' | 'getModelCatalog'>;
+type ACPHostSession = Awaited<ReturnType<ACPHostClient['ensureSession']>>;
 type StreamHostClient = Pick<ClaudeAgentClient, 'prompt'> & { getModelCatalog(options?: { model?: string; refresh?: boolean }): Promise<unknown> };
+export interface HostMcpServer {
+  name: string;
+  command: string;
+  args: (string | undefined)[];
+  env: { name: string; value: string }[];
+}
 type HostConnection = { protocol: 'codex'; client: CodexHostClient }
-  | { protocol: 'acp'; client: ACPHostClient }
+  | { protocol: 'acp'; client: ACPHostClient; createTurnClient?: (servers: HostMcpServer[]) => {
+    client: ACPHostClient;
+    afterCatalog?: (session: ACPHostSession) => Promise<ACPHostSession>;
+    close(): Promise<void>;
+  } }
   | { protocol: 'claude' | 'openclaw' | 'hermes-gateway'; client: StreamHostClient };
 type HostProtocol = HostConnection['protocol'];
 interface HostAgentMetadata {
@@ -59,7 +70,12 @@ export interface ActiveHostTurn {
   cleanup(): void;
 }
 export interface PendingHostTool { threadId: string; timer: ReturnType<typeof setTimeout>; respond(result: unknown): void }
-export interface McpSession { activeKey: string; tools: AgentToolDefinition[] }
+export interface McpSession {
+  activeKey: string;
+  tools: AgentToolDefinition[];
+  catalogDelivered?: Promise<void>;
+  markCatalogDelivered?: () => void;
+}
 export interface McpContext { token: string; session: McpSession }
 export interface ExternalAgentTurnOptions {
   agent: Exclude<HostAgent, { protocol: 'codex' }>;
@@ -79,6 +95,7 @@ export interface ExternalAgentTurnOptions {
   bridgePath: string | undefined;
   baseInstructions: string;
   requestedInstructions: string;
+  applicationContext?: string;
   history: { role: string; content: string }[];
   outputSchema: unknown;
   prompt: string;

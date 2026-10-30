@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { getDecodedToken } from '@cashu/cashu-ts';
 import { expect, test, type Page } from '@playwright/test';
-import { startKitServer } from './kit-server.js';
+import { startKitServer } from './kit-release-server.js';
 import { prepareStaticWithdraw } from './withdraw-static-fixture.js';
 import { seedStaticWalletMints } from './wallet-static-fixture.js';
 import { makeTestInvoice } from '../fixtures/lightning-invoices.js';

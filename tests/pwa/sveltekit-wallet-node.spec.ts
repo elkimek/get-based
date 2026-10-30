@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { getDecodedToken } from '@cashu/cashu-ts';
 import { expect, test, type Page } from '@playwright/test';
-import { startKitServer } from './kit-server.js';
+import { startKitServer } from './kit-release-server.js';
 import { prepareStaticNode } from './node-static-fixture.js';
 import { seedStaticWalletMints } from './wallet-static-fixture.js';
 const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');

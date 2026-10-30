@@ -20,7 +20,7 @@
 import './_node-shim.js';
 interface EmfFlowMeasurementRead {value?: unknown;unit?: unknown;meter?: unknown}
 interface EmfFlowRoomRead {name?: unknown;location?: unknown;measurements: Record<string, EmfFlowMeasurementRead | undefined>}
-interface EmfFlowAssessmentRead {id: unknown;name?: unknown;notes?: unknown;date?: unknown;rooms: EmfFlowRoomRead[]}
+interface EmfFlowAssessmentRead {id: unknown;label?: unknown;note?: unknown;date?: unknown;rooms: EmfFlowRoomRead[]}
 interface EmfFlowStateRead {importedData: {emfAssessment: {assessments: EmfFlowAssessmentRead[];compareMode?: unknown}}}
 
 
@@ -84,101 +84,93 @@ await import('../js/data.js'); // saveImportedData lives here
 assert('emf.js module exports loaded', typeof emfMod.addEMFAssessment === 'function');
 assert('emf.js does not install its former window facade', typeof (window as {addEMFAssessment?: unknown}).addEMFAssessment === 'undefined');
 
-// Snapshot the existing emfAssessment subtree so we can restore it at the
-// end and not pollute downstream tests (test-wearables-bp-merge has been
-// observed to fail when state from this test bleeds over).
-const _origEmf: unknown = (state as unknown as EmfFlowStateRead).importedData?.emfAssessment
-  ? JSON.parse(JSON.stringify((state as unknown as EmfFlowStateRead).importedData.emfAssessment))
-  : null;
-
-(state as unknown as EmfFlowStateRead).importedData = (state as unknown as EmfFlowStateRead).importedData || {};
-(state as unknown as EmfFlowStateRead).importedData.emfAssessment = { assessments: [], compareMode: false };
+// Exercise acknowledged commands in an isolated durable profile. Real form input
+// collection and failed-save behavior are covered by emf-native-ownership.test.ts.
+const originalData = state.importedData, originalProfile = state.currentProfile, originalActive = localStorage.getItem('labcharts-active-profile');
+const profiles = await import('../js/profile.js'), data = await import('../js/data.js');
+state.currentProfile = 'native-emf-flow'; localStorage.setItem('labcharts-active-profile', state.currentProfile); state.importedData = profiles.createDefaultProfileData();
+state.importedData.emfAssessment = { assessments: [], compareMode: false }; assert('Initial native EMF profile saves durably', await data.saveImportedData());
 
 // ── 1. Assessment CRUD ────────────────────────────────────────────────
 const beforeAdd = (state as unknown as EmfFlowStateRead).importedData.emfAssessment.assessments.length;
-emfMod.addEMFAssessment();
+await emfMod.addEMFAssessment();
 const afterAdd = (state as unknown as EmfFlowStateRead).importedData.emfAssessment.assessments.length;
 assert('addEMFAssessment appends one assessment', afterAdd === beforeAdd + 1);
 
 const asmId = (state as unknown as EmfFlowStateRead).importedData.emfAssessment.assessments[afterAdd - 1]!.id;
 assert('New assessment has a string id', typeof asmId === 'string' && asmId.length > 0);
 
-emfMod.updateEMFField(asmId, 'name', 'Coverage Probe');
+await emfMod.updateEMFField(asmId, 'label', 'Coverage Probe');
 const asm = (state as unknown as EmfFlowStateRead).importedData.emfAssessment.assessments.find(a => a.id === asmId);
-assert('updateEMFField writes name', asm!.name === 'Coverage Probe');
+assert('updateEMFField writes label', asm!.label === 'Coverage Probe');
 
-emfMod.updateEMFField(asmId, 'notes', 'Multi-line\nnotes here');
-assert('updateEMFField writes notes', asm!.notes === 'Multi-line\nnotes here');
+await emfMod.updateEMFField(asmId, 'note', 'Multi-line\nnotes here');
+assert('updateEMFField writes note', asm!.note === 'Multi-line\nnotes here');
 
-emfMod.updateEMFField(asmId, 'date', '2024-02-03');
+await emfMod.updateEMFField(asmId, 'date', '2024-02-03');
 assert('updateEMFField writes date', asm!.date === '2024-02-03');
 
-const modalStub = document.getElementById('detail-modal') as unknown as ReturnType<typeof _modalStub>;
-modalStub._query = {
-  '[data-emf-field="date"]': { value: '2023-12-24' },
-};
-emfMod.saveEMFExplicit();
-assert('saveEMFExplicit collects live date input before saving', asm!.date === '2023-12-24');
-modalStub._query = {};
+await emfMod.updateEMFField(asmId, 'date', '2023-12-24');
+assert('Explicit Save acknowledges the durable date', await emfMod.saveEMFExplicit() && asm!.date === '2023-12-24');
 
 // ── 2. Room CRUD ──────────────────────────────────────────────────────
 // A new assessment ships with one default room (newRoom() inside emf.js).
 const startingRooms = asm!.rooms.length;
 assert('New assessment has a default room', startingRooms >= 1);
 
-emfMod.addEMFRoom(asmId);
+await emfMod.addEMFRoom(asmId);
 assert('addEMFRoom adds room', asm!.rooms.length === startingRooms + 1);
 
-emfMod.updateEMFRoom(asmId, 0, 'name', 'Bedroom');
+await emfMod.updateEMFRoom(asmId, 0, 'name', 'Bedroom');
 assert('updateEMFRoom updates name', asm!.rooms[0]!.name === 'Bedroom');
 
-emfMod.updateEMFRoom(asmId, 0, 'location', 'east-facing wall');
+await emfMod.updateEMFRoom(asmId, 0, 'location', 'east-facing wall');
 assert('updateEMFRoom updates location', asm!.rooms[0]!.location === 'east-facing wall');
 
 // ── 3. Measurement + meter flow ──────────────────────────────────────
 // updateEMFMeasurement stores `{ value, unit, meter }` — not the raw number.
 // updateEMFMeter writes into the SAME nested object's `.meter` field, so
 // the measurement must exist first.
-emfMod.updateEMFMeasurement(asmId, 0, 'acElectric', 12);
+await emfMod.updateEMFMeasurement(asmId, 0, 'acElectric', 12);
 assert('updateEMFMeasurement stores nested value object',
   asm!.rooms[0]!.measurements?.acElectric?.value === 12);
 assert('updateEMFMeasurement also tags the unit',
   typeof asm!.rooms[0]!.measurements.acElectric!.unit === 'string');
 
-emfMod.updateEMFMeasurement(asmId, 0, 'rfMicrowave', 250);
-emfMod.updateEMFMeasurement(asmId, 0, 'acMagnetic', 80);
-emfMod.updateEMFMeasurement(asmId, 0, 'dirtyElectricity', 40);
+await emfMod.updateEMFMeasurement(asmId, 0, 'rfMicrowave', 250);
+await emfMod.updateEMFMeasurement(asmId, 0, 'acMagnetic', 80);
+await emfMod.updateEMFMeasurement(asmId, 0, 'dirtyElectricity', 40);
 assert('Multiple measurement types coexist',
   Object.keys(asm!.rooms[0]!.measurements).length >= 4);
 
-emfMod.updateEMFMeter(asmId, 0, 'acElectric', 'Safe and Sound EM3');
+await emfMod.updateEMFMeter(asmId, 0, 'acElectric', 'Safe and Sound EM3');
 assert('updateEMFMeter writes into measurement.meter',
   asm!.rooms[0]!.measurements.acElectric!.meter === 'Safe and Sound EM3');
 
-// Clear path: passing '' deletes the measurement.
-emfMod.updateEMFMeasurement(asmId, 0, 'dirtyElectricity', '');
-assert('updateEMFMeasurement with empty value clears',
-  asm!.rooms[0]!.measurements.dirtyElectricity === undefined);
+// Clearing the value preserves the instrument/source record with unknown value.
+await emfMod.updateEMFMeasurement(asmId, 0, 'dirtyElectricity', '');
+assert('updateEMFMeasurement with empty value clears only the value',
+  asm!.rooms[0]!.measurements.dirtyElectricity?.value === null);
 
 // ── 4. Selection + render (modal stub provided by the top-level getElementById patch) ───
-try { emfMod.openEMFAssessmentEditor(); } catch (_) {}
+try { await emfMod.openEMFAssessmentEditor(); } catch (_) {}
 assert('openEMFAssessmentEditor ran', true);
 
-try { emfMod.toggleEMFAssessment(asmId); } catch (_) {}
+try { await emfMod.toggleEMFAssessment(asmId); } catch (_) {}
 assert('toggleEMFAssessment ran', true);
 
-try { emfMod.selectEMFRoom(asmId, 0); } catch (_) {}
+try { await emfMod.selectEMFRoom(asmId, 0); } catch (_) {}
 assert('selectEMFRoom ran', true);
 
 await withTimeout(() => emfMod.handleEMFRoomDropdown(asmId, 0, '0', { value: '0' }));
 assert('handleEMFRoomDropdown ran', true);
 
 // Compare view: needs ≥ 2 assessments. Add a second.
-emfMod.addEMFAssessment();
+await emfMod.addEMFAssessment();
 const secondId = (state as unknown as EmfFlowStateRead).importedData.emfAssessment.assessments.at(-1)!.id;
-try { emfMod.toggleEMFCompare(); } catch (_) {}
+try { await emfMod.toggleEMFCompare(); } catch (_) {}
 assert('toggleEMFCompare ran (with 2 assessments)', true);
-try { emfMod.toggleEMFCompare(); } catch (_) {} // toggle off
+try { await emfMod.toggleEMFCompare(); } catch (_) {} // toggle off
 
 // ── 5. Photos (FileReader path) ──────────────────────────────────────
 // 1×1 PNG so the read actually succeeds (otherwise the photo never lands
@@ -194,10 +186,10 @@ const photoFile = new File([tinyPng], 'probe.png', { type: 'image/png' });
 await withTimeout(() => emfMod.addEMFPhotos(asmId, 0, [photoFile]));
 assert('addEMFPhotos ran', true);
 
-try { emfMod.viewEMFPhoto(asmId, 0, 0); } catch (_) {}
+try { await emfMod.viewEMFPhoto(asmId, 0, 0); } catch (_) {}
 assert('viewEMFPhoto ran', true);
 
-try { emfMod.removeEMFPhoto(asmId, 0, 0); } catch (_) {}
+try { await emfMod.removeEMFPhoto(asmId, 0, 0); } catch (_) {}
 assert('removeEMFPhoto ran', true);
 
 // ── 6. Interpretation flow (stub the AI; bound with a timeout) ───────
@@ -207,18 +199,18 @@ assert('removeEMFPhoto ran', true);
 const restoreInterpretationDeps = emfInterpretationMod.configureEMFInterpretationRuntimeDeps({
   callClaudeAPI: async () => ({ text: 'Stub interpretation', usage: { inputTokens: 1, outputTokens: 1 } }),
 });
-try { emfMod.interpretEMFAssessment(asmId); } catch (_) {}
+try { await emfMod.interpretEMFAssessment(asmId); } catch (_) {}
 assert('interpretEMFAssessment ran', true);
-try { emfMod.interpretEMFComparison(); } catch (_) {}
+try { await emfMod.interpretEMFComparison(); } catch (_) {}
 assert('interpretEMFComparison ran', true);
 // Drain microtasks so the stubbed AI promises resolve.
 await new Promise(r => setTimeout(r, 50));
 emfInterpretationMod.configureEMFInterpretationRuntimeDeps(restoreInterpretationDeps);
 
-try { emfMod.closeEMFInterpretation(); } catch (_) {}
+try { await emfMod.closeEMFInterpretation(); } catch (_) {}
 assert('closeEMFInterpretation ran', true);
 
-try { emfMod.discussEMFInterpretation(); } catch (_) {}
+try { await emfMod.discussEMFInterpretation(); } catch (_) {}
 assert('discussEMFInterpretation ran', true);
 
 // ── 7. PDF import path (stubbed) ─────────────────────────────────────
@@ -235,9 +227,9 @@ assert('handleEMFPDF ran', true);
 emfMod.configureEMFAIDeps(restoreEMFAIDeps);
 
 // ── 8. removeEMFRoom + deleteEMFAssessment ───────────────────────────
-emfMod.addEMFRoom(asmId);
+await emfMod.addEMFRoom(asmId);
 const beforeRm = asm!.rooms.length;
-try { emfMod.removeEMFRoom(asmId, asm!.rooms.length - 1); } catch (_) {}
+try { await emfMod.removeEMFRoom(asmId, asm!.rooms.length - 1); } catch (_) {}
 assert('removeEMFRoom decrements room count', asm!.rooms.length === beforeRm - 1);
 
 // deleteEMFAssessment awaits showConfirmDialog (imported directly from
@@ -251,15 +243,17 @@ await withTimeout(() => emfMod.deleteEMFAssessment(asmId));
 assert('deleteEMFAssessment called without throwing', true);
 
 // ── 9. saveEMFExplicit ───────────────────────────────────────────────
-try { emfMod.saveEMFExplicit(); } catch (_) {}
+try { await emfMod.saveEMFExplicit(); } catch (_) {}
 assert('saveEMFExplicit ran', true);
 
 // Restore the snapshot so downstream tests see the same emfAssessment
 // they expected. This is the load-bearing cleanup — without it,
 // test-wearables-bp-merge has been observed to fail because saveEMFExplicit
 // persisted our probe data over its expected fixtures.
-if (_origEmf) ((state as unknown as EmfFlowStateRead).importedData as {emfAssessment: unknown}).emfAssessment = _origEmf;
-else delete ((state as unknown as EmfFlowStateRead).importedData as {emfAssessment?: unknown}).emfAssessment;
+await (await import('../js/crypto.js')).encryptedRemoveItem(profiles.profileStorageKey(state.currentProfile, 'imported'));
+(await import('../js/sync-save-hooks.js')).clearSyncSaveTimers();
+state.importedData = originalData; state.currentProfile = originalProfile;
+if (originalActive === null) localStorage.removeItem('labcharts-active-profile'); else localStorage.setItem('labcharts-active-profile', originalActive);
 
 // Restore the original getElementById — the patch is installed at module
 // top-level, and the legacy runner's beforeEach doesn't reset `document`.

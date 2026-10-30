@@ -3,6 +3,7 @@
 import { state } from './state.js';
 import {
   getRoomEveningHoursAfterSunset,
+  hasRoomEveningAnswer,
   roomUsesEveningAfterSunset,
 } from './light-env-evening.js';
 import { isQuantitativeDarknessMeasurement } from './light-env-model.js';
@@ -49,9 +50,9 @@ export function lightEnvironmentBlock() {
     // Per-room one-liner: name, primary source, hours/day, severity.
     for (const r of rooms) {
       const src = r.primarySource || 'unknown source';
-      const hrs = r.hoursOccupiedPerDay ? `${r.hoursOccupiedPerDay}h/day` : '';
+      const hrs = r.hoursOccupiedPerDay != null ? `${r.hoursOccupiedPerDay}h/day` : 'occupancy unknown';
       const evHr = getRoomEveningHoursAfterSunset(r);
-      const evening = evHr ? `${evHr}h after sunset` : '';
+      const evening = !hasRoomEveningAnswer(r) ? 'evening use unknown' : evHr ? `${evHr}h after sunset` : 'not used after sunset';
       const severity = r.aiAnalysis?.dot ? ` · AI verdict: ${r.aiAnalysis.dot}` : '';
       const daylight = r.daylightLevel && r.daylightLevel !== 'unknown' ? `${r.daylightLevel} daylight` : '';
       const parts = [src, daylight, hrs, evening].filter(Boolean).join(', ');
@@ -60,17 +61,17 @@ export function lightEnvironmentBlock() {
   }
   if (screens.length > 0) {
     const evening = screens.filter(sc => sc.eveningUseAfterSunset).length;
-    const blueOff = screens.filter(sc => sc.eveningUseAfterSunset && !sc.blueBlockerEnabled).length;
+    const blueOff = screens.filter(sc => sc.eveningUseAfterSunset && sc.blueBlockerEnabled === false).length;
     s += `- Screens tracked: ${screens.length}`;
     if (evening > 0) s += `; ${evening} used after sunset`;
     if (blueOff > 0) s += `; ${blueOff} without a recorded blue-reduction measure`;
     s += '\n';
     // Per-screen one-liner: device type, hours, evening use, blocker status.
     for (const sc of screens) {
-      const hours = sc.hoursPerDay ? `${sc.hoursPerDay}h/day` : '';
+      const hours = sc.hoursPerDay != null ? `${sc.hoursPerDay}h/day` : 'hours unknown';
       const eveHr = (sc.eveningUseAfterSunset || 0) as number;
-      const eve = eveHr > 0 ? `${eveHr}h after sunset` : 'daytime only';
-      const blocker = sc.blueBlockerEnabled ? 'blue reduction noted (not zero exposure)' : 'no blue reduction noted';
+      const eve = sc.eveningUseAfterSunset == null ? 'evening use unknown' : eveHr > 0 ? `${eveHr}h after sunset` : 'daytime only';
+      const blocker = sc.blueBlockerEnabled == null ? 'blue reduction unknown' : sc.blueBlockerEnabled ? 'blue reduction noted (not zero exposure)' : 'no blue reduction noted';
       const parts = [hours, eve, blocker].filter(Boolean).join(', ');
       s += `  - ${sc.device || 'screen'} (${parts})\n`;
     }

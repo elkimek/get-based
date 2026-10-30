@@ -1,7 +1,10 @@
 import {renderMarkerDetailHistory} from '../js/marker-detail-results-presentation.js';
 // @vitest-environment jsdom
-import { beforeEach, expect, it, vi } from 'vitest';
-vi.mock('../js/data.js', () => ({ saveImportedData: vi.fn(async () => true), invalidateActiveDataCache: vi.fn() }));
+import { afterEach, beforeEach, expect, it } from 'vitest';
+import { createDefaultProfileData, profileStorageKey } from '../js/profile.js';
+import { saveImportedData } from '../js/data.js';
+import { encryptedRemoveItem } from '../js/crypto.js';
+import { clearSyncSaveTimers } from '../js/sync-save-hooks.js';
 import { state } from '../js/state.js';
 import { repairEditedImportProvenance } from '../js/profile-import-provenance.js';
 import { editManualMarkerValue, saveManualMarkerValue, revertManualMarkerValue } from '../js/marker-detail-store.js';
@@ -10,6 +13,7 @@ import { buildMarkerHistoryMetadata } from '../js/marker-detail-history.js';
 const key = 'biochemistry.glucose';
 const date = '2026-01-01';
 const mapKey = `${key}:${date}`;
+const editTime = Date.parse(date);
 type ProvenanceFixture = { entries: {date: string; markers: Record<string, number>; markerSources: Record<string, {snapshotId?: string; file: string | null; at: number; manuallyEdited?: boolean}>; deletedMarkers?: Record<string, number>}[]; importSnapshots: {id: string; date: string; fileName: string; markers: {mappedKey: string; value: number; unit: string}[]; excludedIndices?: number[]}[]; manualValues: Record<string, number | boolean | null>; _deleted?: {importSnapshots: string[]} };
 function fixture(): ProvenanceFixture {
   return {
@@ -22,42 +26,52 @@ function fixture(): ProvenanceFixture {
     manualValues: {},
   };
 }
-beforeEach(() => { (state as { importedData: unknown }).importedData = fixture(); });
+const original = { profile: state.currentProfile, data: state.importedData };
+let storageKey: string;
+beforeEach(async () => {
+  state.currentProfile = `provenance-${crypto.randomUUID()}`;
+  storageKey = profileStorageKey(state.currentProfile, 'imported');
+  state.importedData = Object.assign(createDefaultProfileData(), fixture());
+  expect(await saveImportedData()).toBe(true);
+});
+afterEach(async () => { clearSyncSaveTimers(); await encryptedRemoveItem(storageKey); state.currentProfile = original.profile; state.importedData = original.data; });
 
 it('retains report ancestry across both edit paths and revert, while stamping each change', async () => {
-  await editManualMarkerValue({ dotKey: key, date, storedValue: 6, now: 200 });
-  await saveManualMarkerValue({ dotKey: key, date, storedValue: 7, now: 300 });
+  await editManualMarkerValue({ dotKey: key, date, storedValue: 6, now: editTime + 200 });
+  await saveManualMarkerValue({ dotKey: key, date, storedValue: 7, now: editTime + 300 });
   const entry = state.importedData.entries[0];
-  expect(entry!.markerSources![key]).toEqual({ snapshotId: 'report', file: 'lab.pdf', at: 300, manuallyEdited: true });
+  expect(entry!.markerSources![key]).toEqual({ snapshotId: 'report', file: 'lab.pdf', at: editTime + 300, manuallyEdited: true });
   expect(state.importedData.manualValues![mapKey]).toBe(5);
   const history = buildMarkerHistoryMetadata(entry, entry!.markerSources![key], date).sources.map(renderMarkerDetailHistory).join('');
   expect(history).toContain('lab.pdf');
   expect(history).toContain('manually edited');
-  await revertManualMarkerValue(key, date, { now: 400 });
+  await revertManualMarkerValue(key, date, { now: editTime + 400 });
   expect(entry!.markers[key]).toBe(5);
-  expect(entry!.markerSources![key]).toEqual({ snapshotId: 'report', file: 'lab.pdf', at: 400 });
+  expect(entry!.markerSources![key]).toEqual({ snapshotId: 'report', file: 'lab.pdf', at: editTime + 400 });
   expect(state.importedData.manualValues![mapKey]).toBeNull();
 });
 
 it('keeps a genuinely manual marker manual even on a date containing imported markers', async () => {
   state.importedData.entries[0]!.sourceFile = 'lab.pdf';
+  expect(await saveImportedData()).toBe(true);
   const manualKey = 'biochemistry.alt';
-  await saveManualMarkerValue({ dotKey: manualKey, date, storedValue: 0, now: 200 });
-  await editManualMarkerValue({ dotKey: manualKey, date, storedValue: 0.2, now: 300 });
+  await saveManualMarkerValue({ dotKey: manualKey, date, storedValue: 0, now: editTime + 200 });
+  await editManualMarkerValue({ dotKey: manualKey, date, storedValue: 0.2, now: editTime + 300 });
   expect(state.importedData.manualValues![`${manualKey}:${date}`]).toBe(true);
-  expect(state.importedData.entries[0]!.markerSources![manualKey]).toEqual({ file: null, at: 300 });
+  expect(state.importedData.entries[0]!.markerSources![manualKey]).toEqual({ file: null, at: editTime + 300 });
 });
 
 it('retains a zero original and a report link even without a filename', async () => {
   const entry = state.importedData.entries[0];
   entry!.markers[key] = 0;
   entry!.markerSources![key]!.file = null;
-  await editManualMarkerValue({ dotKey: key, date, storedValue: 1, now: 200 });
-  await editManualMarkerValue({ dotKey: key, date, storedValue: 2, now: 300 });
+  expect(await saveImportedData()).toBe(true);
+  await editManualMarkerValue({ dotKey: key, date, storedValue: 1, now: editTime + 200 });
+  await editManualMarkerValue({ dotKey: key, date, storedValue: 2, now: editTime + 300 });
   expect(state.importedData.manualValues![mapKey]).toBe(0);
-  await revertManualMarkerValue(key, date, { now: 400 });
+  await revertManualMarkerValue(key, date, { now: editTime + 400 });
   expect(entry!.markers[key]).toBe(0);
-  expect(entry!.markerSources![key]).toEqual({ file: null, snapshotId: 'report', at: 400 });
+  expect(entry!.markerSources![key]).toEqual({ file: null, snapshotId: 'report', at: editTime + 400 });
   expect(buildMarkerHistoryMetadata(entry, entry!.markerSources![key], date).sources.map(renderMarkerDetailHistory).join('')).toContain('Imported report');
 });
 

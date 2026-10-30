@@ -23,7 +23,9 @@ const thread = (id: string, updatedAt = oldDate, messageCount = 1) => ({ id, upd
 const payload = (id: string) => ({ threads: [thread(id)], messages: { [id]: [{ role: 'user', content: id }] } });
 
 beforeEach(() => {
-  vi.useFakeTimers();
+  // IDB and native Web Locks need their real event-loop turns; only the sync
+  // debounce/watchdog clock is controlled by this suite.
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
   localStorage.clear(); sessionStorage.clear(); resetSyncStatus();
   state.currentProfile = profileId; (state as { importedData: unknown }).importedData = {};
   const deltas = makeEvolu();
@@ -157,7 +159,8 @@ test('outbound payload merges chat without changing local storage before the pul
 test('a corrupted index cannot discard deletion evidence during recovery', async () => {
   localStorage.setItem(key, '{broken index');
   localStorage.setItem(deletedKey, JSON.stringify({ a: Date.parse(newDate) }));
-  await applyChatData(profileId, payload('a'));
+  expect(await applyChatData(profileId, payload('a'))).toBe(false);
+  expect(localStorage.getItem(key)).toBe('{broken index');
   expect((await collectChatData(profileId))!.threads).toEqual([]);
   expect(JSON.parse(localStorage.getItem(deletedKey)!)).toEqual({ a: Date.parse(newDate) });
 });
@@ -173,6 +176,24 @@ test('a later rename cannot override a newer message edit or clear', () => {
   const edited = mergeChatData(renamedClear, newerMessage);
   expect(edited.messages.a).toEqual(payload('a').messages.a);
   expect(edited.threads[0]!.messageCount).toBe(1);
+});
+test.each(['legacy', 'older-persona'] as const)('a later %s rename preserves a versioned persona choice and the newer message body', kind => {
+  const selectedAt = '2026-10-02T00:00:00.000Z', remoteAt = '2026-10-03T00:00:00.000Z';
+  const local = { threads: [{ ...thread('a', selectedAt), name: 'Original title', messagesUpdatedAt: selectedAt, personality: 'concise', personalityName: 'Concise', personalityIcon: 'C', personalityUpdatedAt: selectedAt, opaque: 'retained-local' }], messages: { a: [{ role: 'assistant', content: 'Newer retained answer' }] } };
+  const remote = { threads: [{ ...thread('a', remoteAt), name: 'Newer remote title', messagesUpdatedAt: oldDate, personality: 'default', personalityName: 'Default', personalityIcon: 'D', ...(kind === 'older-persona' ? { personalityUpdatedAt: oldDate } : {}), opaque: 'retained-remote' }], messages: { a: [{ role: 'assistant', content: 'Older answer' }] } };
+  const merged = mergeChatData(local, remote); expect(merged).toEqual(mergeChatData(remote, local));
+  expect(merged.threads[0]).toMatchObject({ name: 'Newer remote title', opaque: 'retained-remote', personality: 'concise', personalityName: 'Concise', personalityIcon: 'C', personalityUpdatedAt: selectedAt, messagesUpdatedAt: selectedAt }); expect(merged.messages.a).toEqual(local.messages.a);
+  expect(chatHasLocalChanges(merged, merged)).toBe(false);
+});
+test('persona revision ties converge independently of newer unrelated thread metadata', () => {
+  const stamp = '2026-10-02T00:00:00.000Z';
+  const a = { threads: [{ ...thread('a', oldDate, 0), name: 'Earlier title', personality: 'alpha', personalityUpdatedAt: stamp }] }, b = { threads: [{ ...thread('a', newDate, 0), name: 'Latest title', personality: 'zeta', personalityUpdatedAt: stamp }] };
+  const merged = mergeChatData(a, b); expect(merged).toEqual(mergeChatData(b, a)); expect(merged.threads[0]?.name).toBe('Latest title'); expect(merged.threads[0]?.personality).toBe('zeta');
+});
+test('a newer persona Undo preserves absent metadata fields instead of reviving stale persona labels', () => {
+  const chosen = { threads: [{ ...thread('a', '2026-10-03', 0), name: 'Newer unrelated title', personality: 'concise', personalityName: 'Concise', personalityIcon: 'C', personalityUpdatedAt: '2026-10-01' }] };
+  const undone = { threads: [{ ...thread('a', '2026-10-02', 0), personalityUpdatedAt: '2026-10-02' }] };
+  const merged = mergeChatData(chosen, undone); expect(merged).toEqual(mergeChatData(undone, chosen)); expect(merged.threads[0]?.name).toBe('Newer unrelated title'); expect(merged.threads[0]).not.toHaveProperty('personality'); expect(merged.threads[0]).not.toHaveProperty('personalityName'); expect(merged.threads[0]).not.toHaveProperty('personalityIcon');
 });
 
 test('legacy metadata edits preserve the old body clock before rename, pin or project changes', async () => {

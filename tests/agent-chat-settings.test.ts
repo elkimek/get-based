@@ -10,6 +10,56 @@ import {
 import { clearKeyCache } from '../js/crypto-key-cache.js';
 
 describe('agent chat settings', () => {
+  it('keeps the development companion when the installed host lacks the context tool contract', async () => {
+    const capabilities = ['chat-stream', 'companion-control', 'dynamic-tools', 'structured-health-tools'];
+    vi.stubGlobal('fetch', vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      const payload = { service: 'getbased-agent-host', protocolVersion: 5, capabilities };
+      const agent = { id: 'codex', status: 'available', compatible: true };
+      if (url === '/api/local-agents') return new Response(JSON.stringify({ agents: [{ ...agent, endpoint: 'http://127.0.0.1:18324', token: 'development-private-token', toolContractVersion: 4, capabilities }] }));
+      if (url === 'http://127.0.0.1:8324/v1/discovery') return new Response(JSON.stringify({ ...payload, endpoint: 'http://127.0.0.1:8324', token: 'installed-private-token', agents: [agent] }));
+      if (url === 'http://127.0.0.1:18324/v1/status') return new Response(JSON.stringify({ ...payload, toolContractVersion: 4 }));
+      return new Response('{}', { status: 404 });
+    }));
+    await expect(connectDetectedCodex({ requiredCapabilities: capabilities, requiredToolContractVersion: 4 }))
+      .resolves.toMatchObject({ endpoint: 'http://127.0.0.1:18324', toolContractVersion: 4 });
+    expect(getAgentHostEndpoint()).toBe('http://127.0.0.1:18324');
+    expect(getAgentHostToken()).toBe('development-private-token');
+    expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:8324/v1/status')).toBe(false);
+  });
+
+  it.each([undefined, 3, 'invalid'])('rejects an older or invalid tool contract before publishing credentials: %s', async toolContractVersion => {
+    const capabilities = ['chat-stream', 'companion-control', 'dynamic-tools', 'structured-health-tools'];
+    vi.stubGlobal('fetch', vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      const payload = { service: 'getbased-agent-host', protocolVersion: 5, capabilities, toolContractVersion };
+      if (url === '/api/local-agents') return new Response(JSON.stringify({ agents: [] }));
+      if (url === 'http://127.0.0.1:8324/v1/discovery') return new Response(JSON.stringify({ ...payload, endpoint: 'http://127.0.0.1:8324', token: 'installed-private-token', agents: [{ id: 'codex', status: 'available', compatible: true }] }));
+      if (url === 'http://127.0.0.1:8324/v1/status') return new Response(JSON.stringify(payload));
+      return new Response('{}', { status: 404 });
+    }));
+    await expect(connectDetectedCodex({ requiredCapabilities: capabilities, requiredToolContractVersion: 4 }))
+      .rejects.toThrow('structured context updates');
+    expect(getAgentHostToken()).toBe('');
+  });
+
+  it('continues past an installed host with general tool support to find the current context tool contract', async () => {
+    const capabilities = ['chat-stream', 'companion-control', 'dynamic-tools', 'structured-health-tools'];
+    vi.stubGlobal('fetch', vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      const payload = { service: 'getbased-agent-host', protocolVersion: 5, capabilities };
+      if (url === '/api/local-agents') return new Response(JSON.stringify({ agents: [] }));
+      if (url.endsWith('/v1/discovery') && /:832[45]\//.test(url)) {
+        const port = new URL(url).port;
+        return new Response(JSON.stringify({ ...payload, ...(port === '8325' ? { toolContractVersion: 4 } : {}), endpoint: `http://127.0.0.1:${port}`, token: `private-token-for-${port}`, agents: [{ id: 'codex', status: 'available', compatible: true }] }));
+      }
+      if (url === 'http://127.0.0.1:8325/v1/status') return new Response(JSON.stringify({ ...payload, toolContractVersion: 4 }));
+      return new Response('{}', { status: 404 });
+    }));
+    await expect(connectDetectedCodex({ requiredCapabilities: capabilities, requiredToolContractVersion: 4 }))
+      .resolves.toMatchObject({ endpoint: 'http://127.0.0.1:8325', toolContractVersion: 4 });
+  });
+
   it('skips a generally current installed host when only the next host supports the requested gateway feature', async () => {
     const caps = ['chat-stream', 'companion-control', 'execution-targets'];
     const json = (payload: unknown) => new Response(JSON.stringify(payload), { headers: { 'Content-Type': 'application/json' } });
@@ -297,4 +347,20 @@ describe('agent chat settings', () => {
     await saveAgentChatSettings({ model });
     expect(getAgentHostModel()).toBe(model);
   });
+  it('checks a bound feature connection without saving its refreshed credential or choosing another endpoint', async () => {
+    await saveAgentChatSettings({ endpoint: 'http://127.0.0.1:8324', token: 'original-private-token' });
+    const payload = { service: 'getbased-agent-host', protocolVersion: 5, capabilities: ['chat-stream'], toolContractVersion: 47 };
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url === '/api/local-agents') return new Response(JSON.stringify({ agents: [] }));
+      if (/http:\/\/127\.0\.0\.1:832[45]\/v1\/discovery/.test(url)) return new Response(JSON.stringify({ ...payload, endpoint: new URL(url).origin, token: 'refreshed-private-token', agents: [{ id: 'codex', status: 'available', compatible: true }] }));
+      if (url === 'http://127.0.0.1:8324/v1/status') return new Response(JSON.stringify(payload));
+      return new Response('{}', { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(connectDetectedAgent('codex', { persistConnection: false, requiredEndpoint: 'http://127.0.0.1:8324', requiredCapabilities: ['chat-stream'] })).resolves.toMatchObject({ endpoint: 'http://127.0.0.1:8324', token: 'refreshed-private-token' });
+    expect(getAgentHostEndpoint()).toBe('http://127.0.0.1:8324'); expect(getAgentHostToken()).toBe('original-private-token');
+    expect(fetchMock.mock.calls.some(([input]) => String(input) === 'http://127.0.0.1:8325/v1/status')).toBe(false);
+  });
+
 });

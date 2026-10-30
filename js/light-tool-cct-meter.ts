@@ -122,7 +122,7 @@ export async function openCCTMeter(opts: { roomId?: unknown } = {}, deps: Parame
 
   queryRequired(overlay, '#cct-save').addEventListener('click', async () => {
     if (currentCCT == null) return;
-    await saveMeasurement('cct', currentCCT, {
+    const saved = await saveMeasurement('cct', currentCCT, {
       confidence: measurementConfidence,
       extra: {
         // Keep the legacy key so existing exports and older consumers do not
@@ -138,6 +138,7 @@ export async function openCCTMeter(opts: { roomId?: unknown } = {}, deps: Parame
       },
       roomId,
     });
+    if (saved === null || saved === false) { if (deps.isCurrent?.() ?? true) showNotification('Could not save this reading. Try again.', 'error'); return; }
     showNotification(`Color temp saved: ${currentCCT} K`);
     closeCCTOverlay();
   });

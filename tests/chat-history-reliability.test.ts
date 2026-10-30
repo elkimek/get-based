@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { beforeEach, expect, it, vi } from 'vitest';
 const m = vi.hoisted(() => ({ get: vi.fn(), set: vi.fn(), index: vi.fn(), render: vi.fn(), list: vi.fn(), notify: vi.fn(), confirm: vi.fn() }));
-vi.mock('../js/crypto.js', () => ({ encryptedGetItem: m.get, encryptedSetItem: m.set }));
+vi.mock('../js/crypto.js', async original => ({ ...await original<typeof import('../js/crypto.js')>(), encryptedGetItem: m.get, encryptedSetItem: m.set }));
 vi.mock('../js/data.js', () => ({ saveImportedData: vi.fn() }));
 vi.mock('../js/data-merge.js', () => ({ deleteImportedArrayItems: vi.fn() }));
-vi.mock('../js/utils.js', () => ({ showConfirmDialog: m.confirm, showNotification: m.notify }));
+vi.mock('../js/utils.js', async original => ({ ...await original<typeof import('../js/utils.js')>(), showConfirmDialog: m.confirm, showNotification: m.notify }));
 vi.mock('../js/chat-threads.js', async () => {
   const { state } = await import('../js/state.js');
   return { getChatThreadKey: (id: unknown) => `${state.currentProfile}:${id}`, invalidateThreadContentCache: vi.fn(), renderThreadList: m.list, saveChatThreadIndex: m.index };
@@ -293,4 +293,23 @@ it('does not resurrect a deleted background conversation after pending encryptio
   gate.resolve!(); expect(await saving).toBe(false);
   expect(localStorage.getItem(key)).toBeNull();
   expect(m.index).not.toHaveBeenCalled();
+});
+
+it('preserves established persona metadata and its independent revision when saving message bodies', async () => {
+  Object.assign(state.chatThreads[0]!, { personality: 'custom_saved', personalityName: 'Saved reviewer', personalityIcon: 'S', personalityUpdatedAt: '2200-01-01', updatedAt: '2190-01-01', messagesUpdatedAt: '2020-01-01' });
+  state.currentChatPersonality = 'custom_saved'; expect(await saveChatHistory()).toBe(true);
+  expect(state.chatThreads[0]).toMatchObject({ personality: 'custom_saved', personalityName: 'Saved reviewer', personalityIcon: 'S', personalityUpdatedAt: '2200-01-01' }); expect(Date.parse(state.chatThreads[0]!.updatedAt)).toBeGreaterThanOrEqual(Date.parse('2200-01-01'));
+});
+it('does not restore a captured persona over a newer selection completed during body encryption', async () => {
+  const gate = deferred(); m.set.mockReturnValueOnce(gate.promise); const saving = saveChatHistory(); await vi.waitFor(() => expect(m.set).toHaveBeenCalled());
+  Object.assign(state.chatThreads[0]!, { personality: 'custom_newer', personalityName: 'Newer reviewer', personalityIcon: 'N', personalityUpdatedAt: '2200-01-01', updatedAt: '2200-01-01' }); state.currentChatPersonality = 'custom_newer'; gate.resolve!(); expect(await saving).toBe(true);
+  expect(state.chatThreads[0]).toMatchObject({ personality: 'custom_newer', personalityName: 'Newer reviewer', personalityIcon: 'N', personalityUpdatedAt: '2200-01-01', updatedAt: '2200-01-01' });
+});
+it('preserves partial legacy persona fields rather than replacing them from current cached metadata', async () => {
+  state.chatThreads[0]!.personalityName = 'Unresolved historical reviewer'; expect(await saveChatHistory()).toBe(true);
+  expect(state.chatThreads[0]!.personalityName).toBe('Unresolved historical reviewer'); expect(state.chatThreads[0]).not.toHaveProperty('personality'); expect(state.chatThreads[0]).not.toHaveProperty('personalityUpdatedAt');
+});
+it('does not regress a future saved body clock on another edited message save', async () => {
+  state.chatThreads[0]!.personality = 'default'; state.chatThreads[0]!.messagesUpdatedAt = '2200-01-01'; state.chatThreads[0]!.updatedAt = '2200-01-01';
+  expect(await saveChatHistory()).toBe(true); expect(Date.parse(String(state.chatThreads[0]!.messagesUpdatedAt))).toBeGreaterThan(Date.parse('2200-01-01')); expect(state.chatThreads[0]!.updatedAt).toBe(state.chatThreads[0]!.messagesUpdatedAt);
 });

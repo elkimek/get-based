@@ -167,6 +167,12 @@ function _latestMeasurement(measurements: LightMeasurement[] | null | undefined,
     .sort((a, b) => ((b.capturedAt || 0) as number) - ((a.capturedAt || 0) as number))[0] || null;
 }
 
+// Model requests disclose known acquisition classes, never arbitrary file labels.
+export function lightMeasurementSourceLabel(measurement: LightMeasurement | null | undefined): string {
+  const source = measurement?.extra?.source;
+  return typeof source === 'string' && ['AmbientLightSensor', 'manual-entry', 'meter-entry', 'camera-estimate'].includes(source) ? source : 'legacy/unknown source';
+}
+
 export function isQuantitativeLuxMeasurement(measurement: LightMeasurement | null | undefined): boolean {
   if (!measurement || measurement.tool !== 'lux' || !Number.isFinite(Number(measurement.value))) return false;
   const source = measurement.extra?.source;

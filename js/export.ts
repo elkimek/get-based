@@ -21,6 +21,7 @@ import {
   switchProfile,
 } from './profile.js';
 import { encryptedGetItem, encryptedRemoveItem } from './crypto.js';
+import { withCommittedPersonaStorage } from './persona-storage-transaction.js';
 import { clearProfileStorage, listStoredProfileIds } from './profile-storage-cleanup.js';
 import { findOrCreateLabEntry } from './lab-entry-mutations.js';
 import { setLabEntryMarker } from './lab-entry.js';
@@ -183,8 +184,10 @@ async function _exportChatData(profileId: string) {
     try { messages[t.id as string] = raw ? JSON.parse(raw) : []; } catch { messages[t.id as string] = []; }
   }
   const personality = localStorage.getItem(`labcharts-${profileId}-chatPersonality`) || null;
-  const customRaw = await encryptedGetItem(`labcharts-${profileId}-chatPersonalityCustom`);
-  const customDeletedRaw = await encryptedGetItem(`labcharts-${profileId}-chatPersonalityDeleted`);
+  const { customRaw, customDeletedRaw } = await withCommittedPersonaStorage(profileId, async () => ({
+    customRaw: await encryptedGetItem(`labcharts-${profileId}-chatPersonalityCustom`),
+    customDeletedRaw: await encryptedGetItem(`labcharts-${profileId}-chatPersonalityDeleted`),
+  }));
   let customPersonalities: unknown;
   let customPersonalityDeleted: unknown;
   try { customPersonalities = customRaw ? JSON.parse(customRaw) : null; } catch { customPersonalities = null; }
@@ -231,6 +234,8 @@ export async function buildClientExportObject(profileId: string, includeChat = f
     interpretiveLens: data.interpretiveLens || '', contextNotes: data.contextNotes || '',
     healthGoals: data.healthGoals || [], customMarkers: data.customMarkers || {},
     markerPlacements: data.markerPlacements || {},
+    labOrdering: data.labOrdering || {},
+    customMarkerLifecycle: data.customMarkerLifecycle || {},
     refOverrides: data.refOverrides || {},
     categoryLabels: data.categoryLabels || null,
     categoryIcons: data.categoryIcons || null,

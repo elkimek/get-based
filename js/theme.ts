@@ -1,4 +1,6 @@
 import { createRetryingStylesheetLoader, findStylesheet } from './retrying-module-loader.js';
+import { getTimeFormat } from './display-preferences.js';
+export { getTimeFormat, setTimeFormat } from './display-preferences.js';
 // Theme management, chart colors, and time format.
 
 import { showNotification } from './utils.js';
@@ -192,8 +194,6 @@ function refreshThemeDependentsFromRuntime(options: ThemeRefreshOptions) {
   themeRuntimeHooks.refreshThemeDependentsFromRuntime(options);
 }
 
-export function getTimeFormat() { return localStorage.getItem('labcharts-time-format') || '24h'; }
-export function setTimeFormat(fmt: string) { localStorage.setItem('labcharts-time-format', fmt); }
 
 export function formatTime(time24: string) {
   if (!time24) return '';

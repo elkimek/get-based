@@ -1,4 +1,7 @@
+import { normalizeAgentDataProposal, supersedePendingDataProposals } from '../shared/agent-data-contract.js';
+import { normalizeAppControls } from '../shared/agent-control-contract.js';
 import type { ChatThread } from '../types/chat-data.js';
+import { normalizeAgentContextProposal, supersedePendingContextProposals } from '../shared/agent-tool-contract.js';
 
 export interface StoredCustomPersonality {
   id: string;
@@ -13,9 +16,9 @@ export interface StoredCustomPersonality {
 interface StoredAgentDraft {
   id: string;
   profileId: string;
-  kind: 'note' | 'meal' | 'biometric' | 'supplement';
+  kind: 'note' | 'meal' | 'biometric' | 'supplement' | 'context' | 'data';
   payload: NonNullable<ReturnType<typeof normalizeAgentDraftPayload>>;
-  status: 'pending' | 'applied' | 'discarded' | 'failed';
+  status: 'pending' | 'applied' | 'discarded' | 'failed' | 'conflict' | 'superseded';
   summary: string;
   appliedAt?: string;
 }
@@ -38,6 +41,7 @@ export interface StoredChatMessage extends Record<string, unknown> {
   usage?: { inputTokens: number; outputTokens: number };
   lensSources?: Array<{ source: string; text: string; score?: number }>;
   agentDrafts?: ReturnType<typeof normalizeAgentDrafts>;
+  appControls?: ReturnType<typeof normalizeAppControls>;
   discussionPersonaId?: string;
   recSlots?: string[];
   recOpen?: boolean;
@@ -150,6 +154,8 @@ function normalizeLensSources(value: unknown) {
 }
 
 function normalizeAgentDraftPayload(kind: unknown, value: unknown) {
+  if (kind === 'data') return normalizeAgentDataProposal(value);
+  if (kind === 'context') return normalizeAgentContextProposal(value);
   if (!isRecord(value)) return null;
   const string = (key: string, max: number) => boundedString(value[key], max).trim();
   const numberFrom = (source: Record<string, unknown> | null | undefined, key: string, min: number, max: number) => {
@@ -192,7 +198,7 @@ function normalizeAgentDraftPayload(kind: unknown, value: unknown) {
       metric,
       date,
       value: number('value', metric === 'weight' ? 1 : 20, metric === 'weight' ? 1000 : 250),
-      unit: ['kg', 'lb', 'bpm'].includes(value.unit as string) ? value.unit : metric === 'weight' ? 'kg' : 'bpm',
+      unit: ['kg', 'lb', 'bpm'].includes(value.unit as string) ? value.unit : metric === 'weight' ? '' : 'bpm',
       systolic: number('systolic', 40, 300),
       diastolic: number('diastolic', 20, 200),
       pulse: number('pulse', 20, 250),
@@ -224,12 +230,13 @@ function normalizeAgentDrafts(value: unknown) {
     if (!isRecord(draft)) continue;
     const id = normalizeChatRecordId(draft.id);
     const profileId = normalizeChatRecordId(draft.profileId);
-    const kind = ['note', 'meal', 'biometric', 'supplement'].includes(draft.kind as string) ? draft.kind as StoredAgentDraft['kind'] : '';
+    const kind = ['note', 'meal', 'biometric', 'supplement', 'context', 'data'].includes(draft.kind as string) ? draft.kind as StoredAgentDraft['kind'] : '';
     const payload = normalizeAgentDraftPayload(kind, draft.payload);
     if (!id || !profileId || !kind || !payload) continue;
-    // A persisted in-flight mutation has an uncertain outcome after reload.
+    // In-flight or unrecognized persisted states have an uncertain outcome.
+    // Only an explicit pending state may regain review actions after reload.
     const status = draft.status === 'applying' ? 'failed'
-      : ['pending', 'applied', 'discarded', 'failed'].includes(draft.status as string) ? draft.status as StoredAgentDraft['status'] : 'pending';
+      : ['pending', 'applied', 'discarded', 'failed', 'conflict', 'superseded'].includes(draft.status as string) ? draft.status as StoredAgentDraft['status'] : 'failed';
     drafts.push({
       id, profileId, kind, payload, status,
       summary: boundedString(draft.summary, 500),
@@ -260,7 +267,7 @@ function normalizeDiscussionPersonas(value: unknown) {
 
 export function normalizeChatMessages(value: unknown) {
   if (!Array.isArray(value)) return [];
-  return value.slice(0, MAX_MESSAGES_PER_THREAD).filter(isRecord).map(message => {
+  const messages = value.slice(0, MAX_MESSAGES_PER_THREAD).filter(isRecord).map(message => {
     const normalized: StoredChatMessage = {
       ...message,
       content: boundedString(message.content, 2_000_000),
@@ -291,6 +298,8 @@ export function normalizeChatMessages(value: unknown) {
 
     const agentDrafts = normalizeAgentDrafts(message.agentDrafts);
     setOptionalChatField(normalized, 'agentDrafts', agentDrafts, agentDrafts?.length);
+    const appControls = normalized.role === 'assistant' ? normalizeAppControls(message.appControls) : [];
+    setOptionalChatField(normalized, 'appControls', appControls, appControls.length);
 
     for (const flag of ['auto', 'discussion', 'discussionError', 'hidden', 'joined', 'stopped']) {
       if (message[flag] === true) normalized[flag] = true;
@@ -313,6 +322,9 @@ export function normalizeChatMessages(value: unknown) {
     }
     return normalized;
   });
+  supersedePendingContextProposals(messages);
+  supersedePendingDataProposals(messages);
+  return messages;
 }
 
 export function normalizeChatThreads(value: unknown) {
@@ -360,10 +372,15 @@ export function normalizeChatThreads(value: unknown) {
       setOptionalChatField(normalized, 'agentThreadId', agentThreadId);
       const agentModel = boundedString(thread.agentModel, 160).trim();
       setOptionalChatField(normalized, 'agentModel', agentModel);
+      setOptionalChatField(normalized, 'agentProvider', boundedString(thread.agentProvider, 40).trim());
+      const agentTarget = boundedString(thread.agentTarget, 80).trim();
+      setOptionalChatField(normalized, 'agentTarget', /^[a-z0-9-]{1,80}$/.test(agentTarget) ? agentTarget : '');
     } else {
       delete normalized.chatBackend;
       delete normalized.agentThreadId;
       delete normalized.agentModel;
+      delete normalized.agentProvider;
+      delete normalized.agentTarget;
     }
     threads.push(normalized);
     if (threads.length >= MAX_THREADS) break;

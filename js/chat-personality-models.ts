@@ -57,7 +57,10 @@ export function getActivePersonality(selection = state.currentChatPersonality) {
 }
 
 export function getCustomPersonalityText() {
-  return getCustomPersonality().promptText;
+  const selection = state.currentChatPersonality;
+  if (typeof selection !== 'string' || !selection.startsWith('custom_')) return '';
+  const personality = getCustomPersonalities().find(item => item.id === selection);
+  return personality && isCustomPersonalityUsable(personality) ? personality.promptText : '';
 }
 
 export function loadChatPersonality() {

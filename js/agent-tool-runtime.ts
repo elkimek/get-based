@@ -1,11 +1,21 @@
+import { parseAgentDataPatch } from '../shared/agent-data-contract.js';
+import { validateAppNavigation, LAB_VIEW_RANGES } from '../shared/app-navigation-contract.js';
+import type { AppNavigationRequest } from '../shared/app-navigation-contract.js';
+import { chatAppControlAllowed, chatDataReadAllowed, chatDataChangeAllowed, CHAT_DATA_OPERATIONS, CHAT_APP_REVIEW_ACTIONS, CHAT_NATIVE_UI_NOTICE } from '../shared/chat-control-policy.js';
+import { APP_CONTROL_ACTIONS } from '../shared/agent-control-contract.js';
+import { AGENT_DATA_RESOURCES, AGENT_DATA_LABELS, normalizeAgentDataProposal } from '../shared/agent-data-contract.js';
+import type { AgentDataResource, AgentDataOperation, AgentLegacyDraftKind } from '../shared/agent-data-contract.js';
 // agent-tool-runtime.js — Portable getbased agent-tool catalog and read-only execution boundary.
 
 import {
   getAgentToolCatalog,
+  AGENT_CONTEXT_CARDS,
+  normalizeAgentContextProposal,
   MAX_AGENT_NOTE_LENGTH,
   MAX_AGENT_QUERY_LENGTH,
   MAX_AGENT_SECTION_NAME_LENGTH as MAX_SECTION_NAME_LENGTH,
 } from '../shared/agent-tool-contract.js';
+import type { AgentContextCard, AgentContextChange } from '../shared/agent-tool-contract.js';
 
 export {
   AGENT_TOOL_CONTRACT_VERSION, getAgentToolCatalog, getCodexDynamicTools,
@@ -19,25 +29,36 @@ export interface AgentToolReceipt {tool?: string | undefined; arguments?: unknow
 export interface AgentToolInvocation {tool?: unknown; arguments?: unknown; namespace?: unknown}
 export interface AgentDraft {
   id: string;
-  kind: 'note' | 'meal' | 'biometric' | 'supplement';
+  kind: 'note' | 'meal' | 'biometric' | 'supplement' | 'context' | 'data';
   summary: string;
   payload: Readonly<Record<string, unknown>>;
   status: 'pending';
 }
 export interface AgentToolReadOptions {
-  searchMarkers: {query: string; limit: number};
+  listAppActions: Record<string, never>;
+  readAppState: { action: string; query?: string; offset?: number; limit?: number; connectionId?: string; profileId?: string; scopeId?: string };
+  prepareAppControl: { action: string; snapshotId: string; parameters: string; reason: string; evidence: string };
+  prepareLegacyDraft: { kind: AgentLegacyDraftKind; payload: Record<string, unknown>; evidence: string };
+  readData: { resource: AgentDataResource | ''; recordId: string; create: boolean; query: string; offset: number; limit: number };
+  prepareDataChange: { resource: AgentDataResource; snapshotId: string; operation: AgentDataOperation; patch: string; reason: string; evidence: string };
+  searchMarkers: {query: string; limit: number; includeUnrecorded?: boolean};
   readMarkerHistory: {marker: string; from: string; to: string; limit: number};
   readNutritionSummary: {range: string};
   readWearableSeries: {days: number};
-  searchKnowledge: {query: string; limit: number};
-  navigate: {view: string; marker: string};
+  searchKnowledge: {query: string; limit?: number};
+  readKnowledge: {libraryId: string; query: string; offset: number; limit: number};
+  navigate: AppNavigationRequest;
+  readContextCard: {card: AgentContextCard | ''};
+  prepareContextChange: {card: AgentContextCard; snapshotId: string; changes: AgentContextChange[]; reason: string; evidence: string};
 }
 type ToolReader<Options> = (options: Options) => unknown | Promise<unknown>;
 export type AgentToolDependencies = {
   [Key in keyof AgentToolReadOptions]?: ToolReader<AgentToolReadOptions[Key]>;
 } & {
   readContext: () => string | AgentContextSnapshot | Promise<string | AgentContextSnapshot>;
+  userMessage?: string;
   onDraftCreated?: (draft: AgentDraft) => void | Promise<void>;
+  canDiscloseDraftReview?: (draft: AgentDraft) => boolean;
   createId?: () => string;
 };
 interface ToolResult {success: boolean; contentItems: [{type: 'inputText'; text: string}]}
@@ -76,21 +97,29 @@ export function parseAgentContextSections(context: string) {
  */
 export function summarizeAgentToolReceipts(toolCalls: AgentToolReceipt[], fullContext: AgentContextReceipt[] = []) {
   const successful = Array.isArray(toolCalls) ? toolCalls.filter(call => call?.success === true) : [];
-  if (successful.some(call => call.tool === 'getbased_lab_context')) return fullContext;
+  const broad = successful.some(call => call.tool === 'getbased_lab_context');
   const clean = (value: unknown) => String(value || '').replace(/[\u0000-\u001F\u007F]+/g, ' ').trim().slice(0, 160);
   const receipts = successful.flatMap(call => {
     const args = call.arguments && typeof call.arguments === 'object' && !Array.isArray(call.arguments)
       ?  (call.arguments as Record<string, unknown>) : {};
     if (call.tool === 'getbased_section') return [{ label: 'getbased agent tool', detail: `Section: ${clean(args.section) || 'section list'}` }];
-    if (call.tool === 'getbased_search_markers') return [{ label: 'Blood marker results', detail: `Search: ${clean(args.query) || 'markers'}` }];
+    if (call.tool === 'getbased_search_markers') return [{ label: args.includeUnrecorded ? 'Lab Marker Definitions' : 'Blood marker results', detail: `Search: ${clean(args.query) || 'markers'}` }];
     if (call.tool === 'getbased_marker_history') return [{ label: 'Blood marker results', detail: `History: ${clean(args.marker) || 'marker'}` }];
     if (call.tool === 'getbased_nutrition_summary') return [{ label: 'Meals & Nutrition', detail: `Summary: ${clean(args.range) || '30d'}` }];
     if (call.tool === 'getbased_wearable_series') return [{ label: 'Wearable recovery context', detail: `Series: ${clean(args.days) || '30'} days` }];
+    if (call.tool === 'getbased_read_knowledge') return [{ label: 'Knowledge Base', detail: args.libraryId ? 'Saved document inventory' : 'Saved library inventory' }];
     if (call.tool === 'getbased_search_knowledge') return [{ label: 'Knowledge Base', detail: `Search: ${clean(args.query) || 'knowledge'}` }];
+    if (call.tool === 'getbased_read_app' && args.action === 'conversations.search') return [{ label: 'Prior conversations', detail: 'Bounded historical excerpts' }];
+    if (broad && !(call.tool === 'getbased_read_app' && args.action === 'wearables.sources')) return [];
+    if (call.tool === 'getbased_read_app' && args.action === 'wearables.sources') return [{ label: 'Configured health sources', detail: 'Source freshness metadata' }];
+    if (call.tool === 'getbased_read_context_card') return [{ label: 'Insight Context Cards', detail: `Card: ${clean(args.card) || 'card list'}` }];
+    if (call.tool === 'getbased_read_data' && args.resource === 'knowledgeSettings' && !args.create) return [{ label: 'Knowledge Base Preferences', detail: 'Browser-wide retrieval preferences' }];
+    if (call.tool === 'getbased_read_data' && AGENT_DATA_RESOURCES.includes(args.resource as AgentDataResource) && !args.create) return [{ label: args.resource === 'knowledgeLibraries' || args.resource === 'knowledgeDocuments' || args.resource === 'knowledgeImports' ? 'Knowledge Base' : args.resource === 'labSamples' || args.resource === 'labResults' || args.resource === 'markerNotes' || args.resource === 'markerValueNotes' ? 'Lab Markers' : args.resource === 'manualReadings' ? 'Wearables & Manual Readings' : args.resource === 'supplements' ? 'Supplements & Medications' : args.resource === 'nutritionTargets' || args.resource === 'meals' ? 'Meals & Nutrition' : args.resource === 'profile' ? 'Profile Details' : 'Insight Context Cards', detail: `Resource: ${clean(args.resource)}` }];
     if (call.tool === 'getbased_navigate' && args.marker) return [{ label: 'Blood marker results', detail: `Opened: ${clean(args.marker)}` }];
     return [];
   });
-  return uniqueReceipts(receipts, 20);
+  if (broad && !receipts.length) return fullContext;
+  return uniqueReceipts([...receipts, ...(broad ? fullContext : [])], 20);
 }
 
 /**
@@ -112,6 +141,9 @@ function success(text: string): ToolResult {
 }
 
 function successJson(value: unknown) {
+  if (value && typeof value === 'object' && 'available' in value && value.available === false) {
+    return failure('reason' in value && typeof value.reason === 'string' ? value.reason : 'This data source is unavailable.');
+  }
   return success(JSON.stringify(value, null, 2));
 }
 
@@ -241,6 +273,8 @@ export function createAgentToolRuntime(dependencies: AgentToolDependencies) {
   if (typeof readContext !== 'function') throw new TypeError('readContext is required');
 
   const drafts: AgentDraft[] = [];
+  const turnTime = new Date();
+  const turnLocalDate = `${turnTime.getFullYear()}-${String(turnTime.getMonth() + 1).padStart(2, '0')}-${String(turnTime.getDate()).padStart(2, '0')}`;
 
   const runDependency = async <Key extends keyof AgentToolReadOptions>(name: Key, options: AgentToolReadOptions[Key]) => {
     const handler = dependencies[name] as ToolReader<AgentToolReadOptions[Key]> | undefined;
@@ -248,7 +282,7 @@ export function createAgentToolRuntime(dependencies: AgentToolDependencies) {
     return handler(options);
   };
 
-  const createDraft = async (kind: AgentDraft['kind'], payload: Record<string, unknown>, summary: string) => {
+  const createDraft = async (kind: AgentDraft['kind'], payload: Record<string, unknown>, summary: string, publicReview?: unknown) => {
     const generated = typeof dependencies.createId === 'function'
       ? dependencies.createId()
       : globalThis.crypto?.randomUUID?.() || `draft-${Date.now()}-${drafts.length + 1}`;
@@ -261,7 +295,23 @@ export function createAgentToolRuntime(dependencies: AgentToolDependencies) {
     });
     drafts.push(draft);
     await dependencies.onDraftCreated?.(draft);
+    if (publicReview !== undefined && dependencies.canDiscloseDraftReview?.(draft)) {
+      const response = { draftId: draft.id, status: 'pending_user_approval', summary, review: publicReview };
+      const encoded = JSON.stringify(response);
+      if (encoded.length <= 64000) return success(encoded);
+      return successJson({ draftId: draft.id, status: 'pending_user_approval', summary, reviewNotice: 'The full effect review is available in the proposal card. Do not invent omitted effects.' });
+    }
     return successJson({ draftId: draft.id, status: 'pending_user_approval', summary });
+  };
+  const createLegacyDraft = async (kind: AgentLegacyDraftKind, payload: Record<string, unknown>) => {
+    const evidence = typeof dependencies.userMessage === 'string' ? dependencies.userMessage.trim().slice(0, 1000) : '';
+    if (!evidence) return failure('This shortcut needs the accepted user message. Use the exact record tools.');
+    const result = await runDependency('prepareLegacyDraft', { kind, payload, evidence }) as { available?: boolean; reason?: string; proposals?: unknown[] } | null;
+    const proposals = result?.proposals?.map(normalizeAgentDataProposal);
+    if (!result?.available || !proposals?.length || proposals.some(proposal => !proposal)) return failure(result?.reason || 'This change needs an exact record review.');
+    const ids: string[] = [];
+    for (const proposal of proposals) { await createDraft('data', { ...proposal! }, `${AGENT_DATA_LABELS[proposal!.resource]} · ${proposal!.operation}`); ids.push(drafts.at(-1)!.id); }
+    return successJson({ draftIds: ids, status: 'pending_user_approval', separateApprovals: ids.length > 1 });
   };
 
   return Object.freeze({
@@ -307,10 +357,12 @@ export function createAgentToolRuntime(dependencies: AgentToolDependencies) {
         }
 
         if (tool === 'getbased_search_markers') {
-          rejectUnknownArguments(args, ['query', 'limit']);
+          rejectUnknownArguments(args, ['query', 'limit', 'includeUnrecorded']);
+          if (args.includeUnrecorded !== undefined && typeof args.includeUnrecorded !== 'boolean') throw new Error('includeUnrecorded must be a boolean.');
           return successJson(await runDependency('searchMarkers', {
             query: requiredString(args, 'query', MAX_AGENT_QUERY_LENGTH),
             limit: optionalInteger(args, 'limit', { min: 1, max: 25, fallback: 10 }),
+            ...(args.includeUnrecorded === true ? { includeUnrecorded: true } : {}),
           }));
         }
 
@@ -340,21 +392,125 @@ export function createAgentToolRuntime(dependencies: AgentToolDependencies) {
 
         if (tool === 'getbased_search_knowledge') {
           rejectUnknownArguments(args, ['query', 'limit']);
-          return successJson(await runDependency('searchKnowledge', {
+          if (args.limit !== undefined && !Number.isInteger(args.limit)) throw new Error('limit must be an integer from 1 to 10.');
+          const result = await runDependency('searchKnowledge', {
             query: requiredString(args, 'query', MAX_AGENT_QUERY_LENGTH),
-            limit: optionalInteger(args, 'limit', { min: 1, max: 10, fallback: 5 }),
+            ...(args.limit === undefined ? {} : { limit: optionalInteger(args, 'limit', { min: 1, max: 10, fallback: 5 }) }),
+          }) as { available?: boolean; reason?: string } | null;
+          return result?.available === false ? failure(result.reason || 'Knowledge Base search is unavailable.') : successJson(result);
+        }
+
+        if (tool === 'getbased_read_context_card') {
+          rejectUnknownArguments(args, ['card']);
+          const card = optionalString(args, 'card', 80);
+          if (card && !AGENT_CONTEXT_CARDS.includes(card as AgentContextCard)) throw new Error('card is not supported.');
+          const result = await runDependency('readContextCard', { card: card as AgentContextCard | '' }) as { available?: boolean; reason?: string } | null;
+          if (result?.available === false) return failure(result.reason || 'This context card is unavailable.');
+          return successJson(result);
+        }
+
+        if (tool === 'getbased_draft_context') {
+          rejectUnknownArguments(args, ['card', 'snapshotId', 'changes', 'reason', 'evidence']);
+          const card = enumValue(args, 'card', [...AGENT_CONTEXT_CARDS]) as AgentContextCard;
+          const snapshotId = requiredString(args, 'snapshotId', 128);
+          const reason = requiredString(args, 'reason', 500);
+          const evidence = requiredString(args, 'evidence', 1000);
+          if (dependencies.userMessage !== undefined && !dependencies.userMessage.includes(evidence)) {
+            throw new Error('evidence must quote the current user message exactly.');
+          }
+          if (!Array.isArray(args.changes)) throw new Error('changes must be a nonempty array of fields.');
+          for (const change of args.changes) rejectUnknownArguments(parseToolArguments(change), ['field', 'value', 'values', 'operation', 'index', 'record']);
+          const input = normalizeAgentContextProposal({ card, baseline: 'null', changes: args.changes, reason, evidence });
+          if (!input) throw new Error('changes must contain distinct fields with either value or values.');
+          const result = await runDependency('prepareContextChange', { card, snapshotId, changes: input.changes, reason, evidence }) as {
+            available?: boolean; reason?: string; payload?: unknown; summary?: string;
+          } | null;
+          if (!result?.available) return failure(result?.reason || 'Context changes are unavailable.');
+          const payload = normalizeAgentContextProposal(result.payload);
+          if (!payload) return failure('The context proposal is invalid.');
+          return createDraft('context', { ...payload }, result.summary || 'Update profile context');
+        }
+
+        if (tool === 'getbased_app_actions') {
+          rejectUnknownArguments(args, []);
+          return successJson(await runDependency('listAppActions', {}));
+        }
+        if (tool === 'getbased_read_app') {
+          rejectUnknownArguments(args, ['action', 'query', 'offset', 'limit', 'connectionId', 'profileId']);
+          if (args.action === 'assistant.personas') throw new Error('action must use the manual persona picker and editor.');
+          if (!APP_CONTROL_ACTIONS.some(action => action.id === args.action)) throw new Error('Unsupported app action.');
+          const action = requiredString(args, 'action', 80);
+          const snapshot = await runDependency('readAppState', { action,
+            ...(args.profileId === undefined ? {} : { profileId: requiredString(args, 'profileId', 160) }),
+            ...(args.connectionId === undefined ? {} : { connectionId: requiredString(args, 'connectionId', 120) }),
+            ...(args.query === undefined ? {} : { query: optionalString(args, 'query', 160) }),
+            ...(args.offset === undefined ? {} : { offset: optionalInteger(args, 'offset', { min: 0, max: 100000, fallback: 0 }) }),
+            ...(args.limit === undefined ? {} : { limit: optionalInteger(args, 'limit', { min: 1, max: 25, fallback: 10 }) }),
+          });
+          return successJson(CHAT_APP_REVIEW_ACTIONS.some(id => id === action) && snapshot && typeof snapshot === 'object' && !Array.isArray(snapshot)
+            ? { ...snapshot, reviewPrepared: false, nextToolForReview: 'getbased_request_app' }
+            : snapshot);
+        }
+        if (tool === 'getbased_request_app') {
+          rejectUnknownArguments(args, ['action', 'snapshotId', 'parameters', 'reason', 'evidence']);
+          const evidence = requiredString(args, 'evidence', 1000);
+          const action = enumValue(args, 'action', [...CHAT_APP_REVIEW_ACTIONS]);
+          if (!chatAppControlAllowed(action, JSON.parse(requiredString(args, 'parameters', 9000)))) return failure(CHAT_NATIVE_UI_NOTICE);
+          if (typeof dependencies.userMessage !== 'string' || !dependencies.userMessage.includes(evidence)) throw new Error('Evidence must quote the accepted human message exactly.');
+          return successJson(await runDependency('prepareAppControl', {
+            action: requiredString(args, 'action', 80), snapshotId: requiredString(args, 'snapshotId', 128),
+            parameters: requiredString(args, 'parameters', 9000), reason: requiredString(args, 'reason', 500), evidence,
           }));
+        }
+        if (tool === 'getbased_read_data') {
+          rejectUnknownArguments(args, ['resource', 'recordId', 'create', 'query', 'offset', 'limit']);
+          const resource = optionalString(args, 'resource', 80);
+          if (resource && !chatDataReadAllowed(resource)) return failure(CHAT_NATIVE_UI_NOTICE);
+          if (args.create !== undefined && typeof args.create !== 'boolean') throw new Error('create must be a boolean.');
+          return successJson(await runDependency('readData', { resource: resource as AgentDataResource | '',
+            recordId: optionalString(args, 'recordId', 160), create: args.create === true, query: optionalString(args, 'query', 160),
+            offset: optionalInteger(args, 'offset', { min: 0, max: 100000, fallback: 0 }), limit: optionalInteger(args, 'limit', { min: 1, max: 25, fallback: 10 }),
+          }));
+        }
+        if (tool === 'getbased_draft_data') {
+          rejectUnknownArguments(args, ['resource', 'snapshotId', 'operation', 'patch', 'reason', 'evidence']);
+          if (!chatDataChangeAllowed(requiredString(args, 'resource', 80), requiredString(args, 'operation', 80))) return failure(CHAT_NATIVE_UI_NOTICE);
+          const evidence = requiredString(args, 'evidence', 1000);
+          if (dependencies.userMessage !== undefined && !dependencies.userMessage.includes(evidence)) throw new Error('evidence must quote the current user message exactly.');
+          if (args.resource === 'knowledgeImports') {
+            const patch = parseAgentDataPatch(requiredString(args, 'patch', 16000));
+            if(patch.input==='selectedFiles')throw new Error('input must come from the native file picker, never model-supplied file tokens.');
+            if (patch.input!=='chooseFiles' && (typeof patch.text !== 'string' || typeof dependencies.userMessage !== 'string' || !dependencies.userMessage.includes(patch.text))) throw new Error('text must occur verbatim in the current user message. Use chooseFiles for local files.');
+          }
+          const result = await runDependency('prepareDataChange', {
+            resource: enumValue(args, 'resource', [...AGENT_DATA_RESOURCES]) as AgentDataResource,
+            snapshotId: requiredString(args, 'snapshotId', 128), operation: enumValue(args, 'operation', [...CHAT_DATA_OPERATIONS]) as AgentDataOperation,
+            patch: requiredString(args, 'patch', 16000), reason: requiredString(args, 'reason', 500), evidence,
+          }) as { available?: boolean; reason?: string; payload?: unknown; summary?: string; publicReview?: unknown } | null;
+          const payload = normalizeAgentDataProposal(result?.payload);
+          if (!result?.available || !payload) return failure(result?.reason || 'Invalid data proposal.');
+          return createDraft('data', { ...payload }, result.summary || 'Update application data', result.publicReview);
         }
 
         if (tool === 'getbased_navigate') {
-          rejectUnknownArguments(args, ['view', 'marker']);
+          rejectUnknownArguments(args, ['view', 'marker', 'category', 'card', 'recordId', 'subview', 'range', 'firstDate', 'secondDate', 'swapDates', 'snapshotId', 'correlation', 'history', 'undoId']);
           const view = optionalString(args, 'view', 40);
           const marker = optionalString(args, 'marker', MAX_AGENT_QUERY_LENGTH);
-          if (!view && !marker) throw new Error('view or marker is required.');
-          if (view && !['dashboard', 'labs', 'biologyScores', 'genome', 'body', 'nutrition', 'supplements', 'light', 'insight', 'recommendations', 'correlations', 'compare'].includes(view)) {
-            throw new Error('view is not supported.');
-          }
-          return successJson(await runDependency('navigate', { view, marker }));
+          const request: AppNavigationRequest = { view, marker };
+          if (Object.hasOwn(args, 'category')) request.category = requiredString(args, 'category', 160);
+          if (Object.hasOwn(args, 'card')) request.card = enumValue(args, 'card', [...AGENT_CONTEXT_CARDS]);
+          if (Object.hasOwn(args, 'recordId')) request.recordId = requiredString(args, 'recordId', 160);
+          if (Object.hasOwn(args, 'subview')) request.subview = requiredString(args, 'subview', 40);
+          if (Object.hasOwn(args, 'range')) request.range = enumValue(args, 'range', [...LAB_VIEW_RANGES]);
+          if (Object.hasOwn(args, 'firstDate')) request.firstDate = requiredString(args, 'firstDate', 10);
+          if (Object.hasOwn(args, 'secondDate')) request.secondDate = requiredString(args, 'secondDate', 10);
+          if (Object.hasOwn(args, 'snapshotId')) request.snapshotId = requiredString(args, 'snapshotId', 128);
+          if (Object.hasOwn(args, 'correlation')) request.correlation = requiredString(args, 'correlation', 9000);
+          if (Object.hasOwn(args, 'history')) request.history = requiredString(args, 'history', 9000);
+          if (Object.hasOwn(args, 'undoId')) request.undoId = requiredString(args, 'undoId', 128);
+          if (Object.hasOwn(args, 'swapDates')) { if (args.swapDates !== true) throw new Error('swapDates must be true.'); request.swapDates = true; }
+          validateAppNavigation(request);
+          return successJson(await runDependency('navigate', request));
         }
 
         if (tool === 'getbased_draft_note') {
@@ -364,13 +520,13 @@ export function createAgentToolRuntime(dependencies: AgentToolDependencies) {
           if (scope === 'marker' && !marker) throw new Error('marker is required for a marker note.');
           const text = requiredString(args, 'text', MAX_AGENT_NOTE_LENGTH);
           const mode = enumValue(args, 'mode', ['append', 'replace'], 'append');
-          return createDraft('note', { scope, marker, text, mode }, `${scope === 'marker' ? `Marker note for ${marker}` : 'Profile note'}: ${text.slice(0, 120)}`);
+          return await createLegacyDraft('note', { scope, marker, text, mode });
         }
 
         if (tool === 'getbased_draft_meal') {
           rejectUnknownArguments(args, ['name', 'eatenAt', 'mealType', 'energyKcal', 'proteinG', 'carbohydrateG', 'fatG', 'fiberG', 'fluidMl', 'note']);
           const name = requiredString(args, 'name', 160);
-          const eatenAt = optionalString(args, 'eatenAt', 40);
+          const eatenAt = optionalString(args, 'eatenAt', 40) || turnTime.toISOString();
           if (eatenAt && !Number.isFinite(new Date(eatenAt).getTime())) throw new Error('eatenAt must be an ISO-8601 date-time.');
           const mealType = enumValue(args, 'mealType', ['breakfast', 'brunch', 'lunch', 'dinner', 'snack', 'drink', 'other'], 'other');
           const payload = { name, eatenAt, mealType, note: optionalString(args, 'note', 500), nutrients: {} as Record<string, number> };
@@ -378,34 +534,34 @@ export function createAgentToolRuntime(dependencies: AgentToolDependencies) {
             const value = optionalFiniteNumber(args, key, { min: 0, max });
             if (value !== null) payload.nutrients[key] = value;
           }
-          return createDraft('meal', payload, `${name}${eatenAt ? ` · ${eatenAt}` : ''}`);
+          return await createLegacyDraft('meal', payload);
         }
 
         if (tool === 'getbased_draft_biometric') {
           rejectUnknownArguments(args, ['metric', 'date', 'value', 'unit', 'systolic', 'diastolic', 'pulse', 'note']);
           const metric = enumValue(args, 'metric', ['weight', 'bp', 'rhr']);
-          const date = optionalDate(args, 'date');
+          const date = optionalDate(args, 'date') || turnLocalDate;
           const note = optionalString(args, 'note', 500);
           if (metric === 'bp') {
             const systolic = optionalFiniteNumber(args, 'systolic', { min: 40, max: 300 });
             const diastolic = optionalFiniteNumber(args, 'diastolic', { min: 20, max: 200 });
             const pulse = optionalFiniteNumber(args, 'pulse', { min: 20, max: 250 });
             if (systolic === null || diastolic === null) throw new Error('systolic and diastolic are required for blood pressure.');
-            return createDraft('biometric', { metric, date, systolic, diastolic, pulse, note }, `Blood pressure ${systolic}/${diastolic}${pulse ? ` · pulse ${pulse}` : ''}`);
+            return await createLegacyDraft('biometric', { metric, date, systolic, diastolic, pulse, note });
           }
           const value = optionalFiniteNumber(args, 'value', metric === 'weight' ? { min: 1, max: 1000 } : { min: 20, max: 250 });
           if (value === null) throw new Error('value is required.');
-          const unit = metric === 'weight' ? enumValue(args, 'unit', ['kg', 'lb'], 'kg') : 'bpm';
-          return createDraft('biometric', { metric, date, value, unit, note }, `${metric === 'weight' ? 'Weight' : 'Resting pulse'} ${value} ${unit}`);
+          const unit = metric === 'weight' ? enumValue(args, 'unit', ['kg', 'lb']) : 'bpm';
+          return await createLegacyDraft('biometric', { metric, date, value, unit, note });
         }
 
         rejectUnknownArguments(args, ['name', 'type', 'dosage', 'startDate', 'note']);
         const name = requiredString(args, 'name', 160);
         const type = enumValue(args, 'type', ['supplement', 'medication']);
         const dosage = optionalString(args, 'dosage', 160);
-        const startDate = optionalDate(args, 'startDate');
+        const startDate = optionalDate(args, 'startDate') || turnLocalDate;
         const note = optionalString(args, 'note', 500);
-        return createDraft('supplement', { name, type, dosage, startDate, note }, `${type === 'medication' ? 'Medication' : 'Supplement'}: ${name}${dosage ? ` · ${dosage}` : ''}`);
+        return await createLegacyDraft('supplement', { name, type, dosage, startDate, note });
       } catch (error) {
         const message = error instanceof Error ? error.message : '';
         const safeInputError = /^(Tool arguments|Unknown argument:|[A-Za-z]+ (?:is|required|must)|from must|view or marker)/.test(message);

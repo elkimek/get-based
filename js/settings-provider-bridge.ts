@@ -138,12 +138,17 @@ if (typeof globalThis.addEventListener === 'function') {
   });
 }
 
-export function toggleAIPauseBridge(enabled: unknown): void {
+let pauseRequest = 0;
+export async function toggleAIPauseBridge(enabled: unknown): Promise<void> {
   const view = getAiSettingsView(); if (!view) return;
-  try { setAiSettingsEnabled(enabled); view.setPauseError(''); }
-  catch { if (view.isCurrent()) view.setPauseError('AI features could not be updated. Try again.'); }
-  finally { if (view.isCurrent()) { try { view.setEnabled(!isAIPaused()); } catch { view.setEnabled(view.getSnapshot().enabled); } } }
+  const request = ++pauseRequest, current = () => view.isCurrent() && request === pauseRequest;
+  try { await setAiSettingsEnabled(enabled, undefined, { canCommit: current }); if (current()) view.setPauseError(''); }
+  catch { if (current()) view.setPauseError('AI features could not be updated. Try again.'); }
+  finally { if (current()) { try { view.setEnabled(!isAIPaused()); } catch { view.setEnabled(view.getSnapshot().enabled); } } }
 }
+if (typeof globalThis.addEventListener === 'function') globalThis.addEventListener('getbased:assistant-preferences-changed', () => {
+  try { const view = getAiSettingsView(); if (view) { view.setEnabled(!isAIPaused()); view.setPauseError(''); } } catch { /* Reopening settings rereads the saved value. */ }
+});
 
 export function testPIIOllamaConnectionBridge() {
   return loadProviderPanels().then(providerPanels => providerPanels.testPIIOllamaConnection());

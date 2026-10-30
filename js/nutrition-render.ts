@@ -2,7 +2,7 @@
 
 import { state } from './state.js';
 import { getMealAnalysisAvailability } from './nutrition-analysis.js';
-import { getDefaultNutritionComparisonModelValues, getMealAISelection, isNutritionLocalAICatalogLoading, listNutritionVisionModels, nutritionModelPricing } from './nutrition-ai-settings.js';
+import { getDefaultNutritionComparisonModelValues, getMealAISelection, getAutomaticMealAISelection, isNutritionLocalAICatalogLoading, listNutritionVisionModels, nutritionModelPricing } from './nutrition-ai-settings.js';
 import { projectNutritionComparisonPicker } from './nutrition-benchmark-model.js';
 import { assessFuelStrategy, calculateFuelOverlap } from './nutrition-fuel-mix.js';
 import { projectNutritionEditor, projectNutritionMealModel } from './nutrition-editor-model.js';
@@ -30,7 +30,7 @@ export type MealComponentReader = RawFields<MealComponent, 'name' | 'quantityG'>
 export type MealSourceReader = RawFields<NativeSource, 'kind' | 'modelDisplay' | 'model' | 'provider' | 'usage'> & {
   originalSource?: RawFields<NativeSource, 'kind'> | null; correction?: { userProvidedMealName?: unknown } | null;
   label?: RawFields<NonNullable<MealPhotoAnalysis['label']>> | null;
-  review?: { editedPortions?: unknown; editedNutrients?: unknown; editedComponentIdentities?: unknown } | null;
+  review?: { editedPortions?: unknown; editedNutrients?: unknown; editedComponentIdentities?: unknown; analysisInvalidated?: unknown } | null;
   foodData?: { sourceName?: unknown; barcode?: unknown; schemaVersion?: unknown; productUpdatedAt?: unknown; cacheHit?: unknown } | null;
   foodComposition?: { sourceName?: unknown; dataset?: unknown; matchedComponents?: unknown; totalComponents?: unknown; completeMicronutrientKeys?: unknown } | null;
 };
@@ -161,7 +161,7 @@ export function renderNutritionBenchmarkModal() {
 
 function mealModelView(analysisKind: unknown = 'meal-photo') {
   const selection = getMealAISelection();
-  return projectNutritionMealModel(selection, listNutritionVisionModels(), isNutritionLocalAICatalogLoading(), nutritionModelPricing(selection.provider, selection.model).priceLabel, analysisKind);
+  return projectNutritionMealModel(selection, listNutritionVisionModels(), isNutritionLocalAICatalogLoading(), nutritionModelPricing(selection.provider, selection.model).priceLabel, analysisKind, getAutomaticMealAISelection());
 }
 
 export function renderMealModelControl(analysisKind: unknown = 'meal-photo') {

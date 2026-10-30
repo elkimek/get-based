@@ -1,7 +1,7 @@
 import {nativeTabKey} from '../helpers/native-tab-key.js';
 import fs from 'node:fs/promises';
 import {expect,test,type Page} from '@playwright/test';
-import {startKitServer} from './kit-server.js';
+import {startKitServer} from './kit-release-server.js';
 import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
 import {installOfflineStartupDiagnostics} from '../helpers/offline-launch-diagnostics.js';
 import {readyLightArtifact as ready} from '../helpers/light-artifact-navigation.js';
@@ -180,6 +180,6 @@ test('static Client List first construction offline and two zero-page cold launc
     expect(errors).toEqual([]);expect(csp).toEqual([]);expect(external).toEqual([]);expect(traffic.every(request=>request.method==='GET')).toBe(true);
     await info.attach('client-list-stopped-origin-acceptance',{body:JSON.stringify({artifact,before,onlineCache,servedWorkerSHA256:sha(new Uint8Array(servedWorker)),
       declarationsSHA256:sha(declarations),stoppedListener:true,coldLaunches:2,boundaries,phases,traffic,errors,csp,external,
-      boundary:'Actual static Kit source-map bindings, controlling SW/cache bytes and stopped HTTP listener. First Client List construction is offline; two zero-page cold clients. Real profile button, trusted search/keyboard/touch, archived details, nonmutating tools/row menu, authored New/Edit forms, named groups, duplicate/add/remove tags and Cancel, Escape/close/reopen. Whole native committed default profile, all three raw imported stores, live profile/registry/preferences exact. Complete39-field synthetic prebootstrap profiles, paused credential-free OpenRouter, returning-user recent manual backup; existing kit-test-a/version/legacyProbe seam. No backend/provider reply, export/import, profile switch, destructive action, OS install, hardware Safari/iPhone, SW-process termination or full-app acceptance.'},null,2),contentType:'application/json'});
+      boundary:'Actual static Kit source-map bindings, controlling SW/cache bytes and stopped HTTP listener. First Client List construction is offline; two zero-page cold clients. Real profile button, trusted search/keyboard/touch, archived details, nonmutating tools/row menu, authored New/Edit forms, named groups, duplicate/add/remove tags and Cancel, Escape/close/reopen. Whole native committed default profile, all three raw imported stores, live profile/registry/preferences exact. Complete39-field synthetic prebootstrap profiles, paused credential-free OpenRouter, returning-user recent manual backup; existing aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/version/legacyProbe seam. No backend/provider reply, export/import, profile switch, destructive action, OS install, hardware Safari/iPhone, SW-process termination or full-app acceptance.'},null,2),contentType:'application/json'});
   }finally{if(!stopped)await server.close();}
 });

@@ -68,19 +68,22 @@ it('uses the latest provider when only the stored selection changes while the lo
   expect(state.render).toHaveBeenCalledWith('venice'); expect(getAiSettingsView()?.getSnapshot().activeProvider).toBe('venice'); expect(state.hydrate).toHaveBeenCalledOnce(); expect(state.init).toHaveBeenCalledTimes(2);
 });
 
-it('keeps a rejected feature toggle consistent with persistence and allows a retry', () => {
+it('keeps a rejected feature toggle consistent with persistence and allows a retry', async () => {
   host(); const checkbox = document.querySelector<HTMLInputElement>('#ai-pause-toggle')!;
   state.persistPause.mockImplementationOnce(() => { throw new Error('storage unavailable'); });
   checkbox.click();
+  await vi.waitFor(() => expect(document.body.textContent).toContain('AI features could not be updated'));
   expect(checkbox.checked).toBe(true); expect(state.paused).toBe(false);
   expect(document.body.textContent).toContain('AI features could not be updated');
   expect(state.notify).not.toHaveBeenCalled(); expect(state.focus).not.toHaveBeenCalled();
   checkbox.click();
+  await vi.waitFor(() => expect(state.paused).toBe(true));
+  await vi.waitFor(() => expect(document.body.textContent).not.toContain('AI features could not be updated'));
   expect(checkbox.checked).toBe(false); expect(state.paused).toBe(true);
   expect(document.body.textContent).not.toContain('AI features could not be updated');
   expect(state.notify).toHaveBeenCalledExactlyOnceWith('AI features paused','info');
   expect(state.focus).toHaveBeenCalledOnce();
-  checkbox.click(); expect(checkbox.checked).toBe(true); expect(state.paused).toBe(false);
+  checkbox.click(); await vi.waitFor(() => expect(state.paused).toBe(false)); expect(checkbox.checked).toBe(true);
 });
 it('rejects pause and provider helpers after the parent is disposed', () => {
   host(); disposeSettingsProviderPanels();

@@ -4,7 +4,7 @@ import {createHash} from 'node:crypto';
 import postcss from 'postcss';
 import {expect, test, type Page} from '@playwright/test';
 import {parseAppShellEntries} from '../../scripts/app-shell-budget.mjs';
-import {startKitServer} from './kit-server.js';
+import {startKitServer} from './kit-release-server.js';
 
 const artifact = path.resolve(process.env.GETBASED_KIT_ARTIFACT || '.local-notes/sveltekit-build');
 const fontPrefix = '/vendor/fonts/';

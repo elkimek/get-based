@@ -357,7 +357,7 @@ export async function openLuxMeter(opts: LuxMeterOptions = {}, deps: MeterDepend
     }
     const source = activeSource === 'als' ? 'AmbientLightSensor' : activeSource === 'manual' ? 'manual-entry' : 'camera-estimate';
     const confidence = activeSource === 'als' ? 0.8 : activeSource === 'manual' ? 0.85 : 0.55;
-    await saveMeasurement('lux', currentLux, {
+    const saved = await saveMeasurement('lux', currentLux, {
       confidence,
       extra: {
         source,
@@ -368,6 +368,7 @@ export async function openLuxMeter(opts: LuxMeterOptions = {}, deps: MeterDepend
       },
       roomId,
     });
+    if (saved === null || saved === false) { if (deps.isCurrent?.() ?? true) showNotification('Could not save this reading. Try again.', 'error'); return; }
     showNotification(`Lux reading saved: ${Math.round(currentLux)}`);
     closeLuxMeterOverlay();
   });

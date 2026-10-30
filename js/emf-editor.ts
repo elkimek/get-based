@@ -12,11 +12,14 @@ import {
   EMF_METER_PRESETS,
 } from './constants.js';
 import { showNotification } from './utils.js';
-import { saveImportedData } from './data.js';
+import { state } from './state.js';
+import { emfRoomId } from './emf-record-fields.js';
+import { rememberEMFEditorInputs, retireEMFEditorInputs, emfEditorIdentity, hasEMFEditorDraft, captureEMFEditorInputs } from './emf-editor-inputs.js';
+import type { EMFEditorLocation } from './emf-editor-inputs.js';
+import { captureEMFNativeOwner, isEMFNativeOwnerCurrent, persistEMFEditorInputs, hasPendingEMFNativeWrites, freezeEMFImportPreview, commitEMFImportPreview } from './emf-native-records.js';
 import { toggleCtxTag } from './context-card-editor-ui.js';
 import { loadEMFCatalog, isProductRecsEnabled } from './recommendations.js';
 import { openModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
-import { createUniqueId } from './unique-id.js';
 import {
   MEASUREMENT_TYPES,
   SLEEPING_ROOMS,
@@ -71,9 +74,15 @@ export const emfEditorState = {
 let emfEditorReturnRoute: ReturnRoute | null = null;
 
 let emfEditorDelegatesInstalled = false;
+let pendingFilePicker: HTMLInputElement | null = null;
 
 function isEMFEditorTarget(element: Element) {
-  return !!element.closest('#detail-modal');
+  const modal = emfEditorIdentity().modal; return !!modal && modal === element.closest('#detail-modal');
+}
+
+function markEMFFilePicker(input: HTMLInputElement) {
+  pendingFilePicker = input;
+  input.addEventListener('cancel', () => { if (pendingFilePicker === input) { pendingFilePicker = null; refreshEMFEditorAfterChange(); } }, { once: true });
 }
 
 function removeEMFEditorDelegates() {
@@ -94,31 +103,25 @@ function closeEMFPreviewModal() {
   requestAnimationFrame(() => focusTarget?.focus());
 }
 
-function closeEMFEditorModal() {
-  emfEditorDeps.collectActiveAssessmentState?.();
-  saveImportedData();
+async function closeEMFEditorModal() {
+  const owner = captureEMFNativeOwner();
+  const saved = emfEditorDeps.collectActiveAssessmentState ? await emfEditorDeps.collectActiveAssessmentState() : await persistEMFEditorInputs();
+  if (saved === false || !isEMFNativeOwnerCurrent(owner)) return;
   document.querySelectorAll('.emf-lightbox').forEach(element => removeModalOverlay(element));
-  const owner=document.getElementById('detail-modal');if(owner)disposeEMFMeterRecommendations(owner);
-  removeEMFEditorDelegates();
-  emfEditorReturnRoute = null;
-  emfEditorDeps.closeModal?.();
+  const modal = document.getElementById('detail-modal'); if (modal) disposeEMFMeterRecommendations(modal);
+  removeEMFEditorDelegates(); emfEditorReturnRoute = null; retireEMFEditorInputs(); emfEditorDeps.closeModal?.();
 }
-
-function returnFromEMFEditor() {
-  const route = emfEditorReturnRoute;
+async function returnFromEMFEditor() {
+  const owner = captureEMFNativeOwner(), route = emfEditorReturnRoute;
   const modal = document.getElementById('detail-modal'), content = modal?.firstElementChild;
-  emfEditorDeps.collectActiveAssessmentState?.();
-  saveImportedData();
+  const saved = emfEditorDeps.collectActiveAssessmentState ? await emfEditorDeps.collectActiveAssessmentState() : await persistEMFEditorInputs();
+  if (saved === false || !isEMFNativeOwnerCurrent(owner)) return;
   document.querySelectorAll('.emf-lightbox').forEach(element => removeModalOverlay(element));
-  const owner=document.getElementById('detail-modal');if(owner)disposeEMFMeterRecommendations(owner);
-  removeEMFEditorDelegates();
-  emfEditorReturnRoute = null;
-  emfEditorDeps.closeModal?.();
-  if (route?.callback) {
-    setTimeout(() => {
-      if (modal?.isConnected && document.getElementById('detail-modal') === modal && modal.firstElementChild === content) (route.callback as () => void)();
-    }, 0);
-  }
+  if (modal) disposeEMFMeterRecommendations(modal);
+  removeEMFEditorDelegates(); emfEditorReturnRoute = null; retireEMFEditorInputs(); emfEditorDeps.closeModal?.();
+  if (route?.callback) setTimeout(() => {
+    if (state.currentProfile === owner.profile && state.importedData === owner.root && modal?.isConnected && document.getElementById('detail-modal') === modal && modal.firstElementChild === content) (route.callback as () => void)();
+  }, 0);
 }
 
 function emfNumberAttr(element: HTMLElement, name: string, fallback = 0) {
@@ -130,10 +133,12 @@ function emfNumberAttr(element: HTMLElement, name: string, fallback = 0) {
 function handleEMFEditorClick(event: MouseEvent) {
   const target = event.target;
   if (!(target instanceof Element)) return;
+  if (target instanceof HTMLInputElement && target.type === 'file' && isEMFEditorTarget(target)) markEMFFilePicker(target);
   const actionElement = target.closest('[data-emf-action]');
   if (!(actionElement instanceof HTMLElement) || !isEMFEditorTarget(actionElement)) return;
 
   const action = actionElement.dataset.emfAction || '';
+  if (action !== 'trigger-pdf-import') pendingFilePicker = null;
   const assessmentId = actionElement.dataset.emfAssessmentId || '';
   const roomIdx = emfNumberAttr(actionElement, 'emfRoomIdx');
   const photoIdx = emfNumberAttr(actionElement, 'emfPhotoIdx');
@@ -145,7 +150,7 @@ function handleEMFEditorClick(event: MouseEvent) {
   if (action === 'close-preview') { closeEMFPreviewModal(); return; }
   if (action === 'add-assessment') { emfEditorDeps.addEMFAssessment?.(); return; }
   if (action === 'trigger-pdf-import') {
-    document.getElementById('emf-pdf-input')?.click();
+    const picker = document.getElementById('emf-pdf-input'); if (picker instanceof HTMLInputElement) { markEMFFilePicker(picker); picker.click(); }
     return;
   }
   if (action === 'toggle-compare') { emfEditorDeps.toggleEMFCompare?.(); return; }
@@ -174,7 +179,7 @@ function handleEMFEditorClick(event: MouseEvent) {
     if (assessmentId) void emfEditorDeps.deleteEMFAssessment?.(assessmentId);
     return;
   }
-  if (action === 'toggle-tag') { toggleCtxTag(actionElement); return; }
+  if (action === 'toggle-tag') { toggleCtxTag(actionElement); void persistEMFEditorInputs().then(saved => { if (saved) refreshEMFEditorAfterChange(); }); return; }
   if (action === 'view-photo') {
     if (assessmentId) emfEditorDeps.viewEMFPhoto?.(assessmentId, roomIdx, photoIdx);
     return;
@@ -193,13 +198,14 @@ function handleEMFEditorChange(event: Event) {
   if (!(actionElement instanceof HTMLElement) || !isEMFEditorTarget(actionElement)) return;
 
   const action = actionElement.dataset.emfChangeAction || '';
+  if (pendingFilePicker === actionElement) pendingFilePicker = null;
   const assessmentId = actionElement.dataset.emfAssessmentId || '';
   const roomIdx = emfNumberAttr(actionElement, 'emfRoomIdx');
 
   if (action === 'pdf-input') {
     const input = actionElement instanceof HTMLInputElement ? actionElement : null;
     const file = input?.files?.[0];
-    if (file) void emfEditorDeps.handleEMFPDF?.(file);
+    if (file) { void emfEditorDeps.handleEMFPDF?.(file); if (input) input.value = ''; }
     return;
   }
 
@@ -248,7 +254,7 @@ function handleEMFEditorChange(event: Event) {
 
   if (action === 'photos') {
     const input = actionElement instanceof HTMLInputElement ? actionElement : null;
-    if (input?.files?.length) void emfEditorDeps.addEMFPhotos?.(assessmentId, roomIdx, input.files);
+    if (input?.files?.length) { void emfEditorDeps.addEMFPhotos?.(assessmentId, roomIdx, input.files); input.value = ''; }
   }
 }
 
@@ -272,14 +278,17 @@ function installEMFEditorDelegates() {
   document.addEventListener('keydown', handleEMFEditorKeydown);
 }
 
-export function openEMFAssessmentEditor(options: EditorOptions = {}) {
+export function openEMFAssessmentEditor(options: EditorOptions = {}): void | false {
+  if (options.isCurrent?.() === false) return false;
+  if (options.assessmentId && !state.importedData.emfAssessment?.assessments?.some((row: { id: string }) => row.id === options.assessmentId)) return false;
+  retireEMFEditorInputs(); pendingFilePicker = null;
   installEMFEditorDelegates();
   const modal = document.getElementById('detail-modal');
   const overlay = document.getElementById('modal-overlay');
   emfEditorReturnRoute = typeof options.onReturn === 'function'
     ? { label: String(options.returnLabel || 'Back'), callback: options.onReturn }
     : null;
-  emfEditorState.editingAssessmentId = null;
+  emfEditorState.editingAssessmentId = options.assessmentId || null;
   renderEMFEditor(modal);
   openModalOverlay(overlay);
 }
@@ -327,6 +336,7 @@ export function renderEMFEditor(modal: {innerHTML: string} | null) {
     modal.setAttribute('aria-label', 'Baubiologie EMF Assessment');
     modal.removeAttribute('aria-labelledby');
   }
+  const location: EMFEditorLocation | null = typeof HTMLElement !== 'undefined' && modal instanceof HTMLElement ? {} : null;
   const assessments = ensureEMFAssessments() as AssessmentOperations[];
   const sorted = [...assessments].sort((a, b) => (b.date as {localeCompare(value: unknown): number}).localeCompare(a.date));
   const returnLabel=emfEditorReturnRoute?text(emfEditorReturnRoute.label):null;
@@ -344,7 +354,7 @@ export function renderEMFEditor(modal: {innerHTML: string} | null) {
       const label=assessment.label?text(assessment.label):null;
       const consultant=assessment.consultant?text(assessment.consultant):null;
       const severity=getWorstSeverity(assessment)??null;
-      const detail=expanded?projectAssessmentDetail(assessment):null;
+      const detail=expanded?projectAssessmentDetail(assessment,location):null;
       cards.push({expanded,toggleId,date,label,consultant,severity,detail});
     }
     body={kind:'assessments',cards};
@@ -352,6 +362,7 @@ export function renderEMFEditor(modal: {innerHTML: string} | null) {
   const html=renderEMFEditorPresentation({returnLabel,ai,compareLabel,body});
   if(typeof HTMLElement!=='undefined'&&modal instanceof HTMLElement)disposeEMFMeterRecommendations(modal);
   modal!.innerHTML=html;
+  if (location && modal instanceof HTMLElement) rememberEMFEditorInputs(modal,location);
   const meterSlot = document.getElementById('emf-meter-recs-slot');
   if (meterSlot && isProductRecsEnabled()) {
     loadEMFCatalog().then(catalog => {
@@ -362,9 +373,24 @@ export function renderEMFEditor(modal: {innerHTML: string} | null) {
   }
 }
 
-function projectAssessmentDetail(assessment:AssessmentOperations):EMFAssessmentDetailView {
+export function refreshEMFEditorAfterChange() {
+  const identity = emfEditorIdentity(); if (!identity.modal || pendingFilePicker?.isConnected || hasEMFEditorDraft() || hasPendingEMFNativeWrites()) return;
+  const active = document.activeElement instanceof HTMLElement && identity.modal.contains(document.activeElement) ? document.activeElement : null;
+  const attrs = active ? [...active.attributes].filter(attr => attr.name.startsWith('data-emf-')).map(attr => [attr.name, attr.value] as const) : [];
+  const selection = active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement ? { start: active.selectionStart, end: active.selectionEnd } : null;
+  const records = ensureEMFAssessments() as AssessmentOperations[];
+  if (emfEditorState.editingAssessmentId && !records.some(row => row.id === emfEditorState.editingAssessmentId)) emfEditorState.editingAssessmentId = null;
+  renderEMFEditor(identity.modal);
+  if (active && attrs.length) {
+    const target = [...identity.modal.querySelectorAll<HTMLElement>('[data-emf-action], [data-emf-change-action]')].find(element => element.tagName === active.tagName && attrs.every(([key, value]) => element.getAttribute(key) === value) && (element.tagName !== 'BUTTON' || element.textContent === active.textContent));
+    if (target) { target.focus(); if (selection?.start != null && selection.end != null && (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) try { target.setSelectionRange(selection.start, selection.end); } catch { /* Number/file inputs do not support text selection. */ } }
+  }
+}
+
+function projectAssessmentDetail(assessment:AssessmentOperations,location:EMFEditorLocation|null):EMFAssessmentDetailView {
   if(emfEditorState.activeRoomIdx>=assessment.rooms.length)emfEditorState.activeRoomIdx=0;
   const roomIdx=emfEditorState.activeRoomIdx;
+  if(location){location.assessmentId=String(assessment.id);location.roomId=emfRoomId(String(assessment.id),{id:(assessment.rooms[roomIdx] as {id?:unknown}).id},roomIdx);}
   const fields:EMFAssessmentDetailView['fields']=[
     {field:'date',value:text(assessment.date),assessmentId:attr(assessment.id)},
     {field:'label',value:text(assessment.label),assessmentId:attr(assessment.id)},
@@ -411,8 +437,8 @@ function projectRoomContent(assessmentId:unknown,roomIdx:number,room:RoomOperati
     measurements.push({key:measurementType.key,label:measurementType.short,value,measurementId,unit,dot,placeholder,meter,meterId});
   }
   const meters=MEASUREMENT_TYPES.map(type=>({key:type.key,names:EMF_METER_PRESETS.filter(preset=>preset.types.includes(type.key)).map(preset=>text(preset.name))}));
-  const sourcesId=`emf-sources-${assessmentId}-${roomIdx}`,sources=EMF_SOURCES.map(source=>({label:text(source),active:(room.sources||[]).includes(source)}));
-  const mitigationsId=`emf-mits-${assessmentId}-${roomIdx}`,mitigations=EMF_MITIGATIONS.map(mitigation=>({label:text(mitigation),active:(room.mitigations||[]).includes(mitigation)}));
+  const sourcesId=`emf-sources-${assessmentId}-${roomIdx}`,sources=[...new Set([...EMF_SOURCES,...(room.sources||[]).filter((value):value is string=>typeof value==='string')])].map(source=>({label:text(source),active:(room.sources||[]).includes(source)}));
+  const mitigationsId=`emf-mits-${assessmentId}-${roomIdx}`,mitigations=[...new Set([...EMF_MITIGATIONS,...(room.mitigations||[]).filter((value):value is string=>typeof value==='string')])].map(mitigation=>({label:text(mitigation),active:(room.mitigations||[]).includes(mitigation)}));
   const note=text(room.note),noteId=attr(assessmentId),rawPhotos=room.photos||[];
   const photos:EMFPhotoView[]=rawPhotos.map((photo,index)=>{
     const src=`data:${safeEMFMediaType(photo.mediaType)};base64,${photo.base64}`,name=text(photo.name||'Photo'),viewId=attr(assessmentId),removeId=attr(assessmentId);
@@ -422,52 +448,28 @@ function projectRoomContent(assessmentId:unknown,roomIdx:number,room:RoomOperati
   return{index:roomIdx,options,dropdownId,location,locationId,sleeping,sleepingId,removeId,removable,measurements,meters,sourcesId,sources,mitigationsId,mitigations,note,noteId,photos,photosId};
 }
 
-export function showEMFImportPreview(parsed: PreviewInput) {
+export function showEMFImportPreview(parsed: PreviewInput, canPublish = () => true): void | Promise<void> {
   installEMFEditorDelegates();
-  const modal = document.getElementById('detail-modal');
-  const overlay = document.getElementById('modal-overlay');
-  if (!modal || !overlay) return;
-  // The preview replaces the editor DOM. Capture any in-progress field edits
-  // first so Cancel/Back can reconstruct the exact assessment state.
-  emfEditorDeps.collectActiveAssessmentState?.();
-  const view=projectImportPreview(parsed);
-  const html=renderEMFImportPreviewPresentation(view);
-  disposeEMFMeterRecommendations(modal);
-  modal.innerHTML=html;
-  const confirmButton = modal.querySelector('#emf-confirm-btn');
-  if (!confirmButton) return;
-  openModalOverlay(overlay);
-
-  confirmButton.addEventListener('click', () => {
-    const assessments = ensureEMFAssessments() as AssessmentOperations[];
-    const assessment = {
-      id: createUniqueId('emf_'),
-      date: parsed.date || new Date().toISOString().slice(0, 10),
-      label: '',
-      consultant: parsed.consultant || '',
-      rooms: (parsed.rooms as RoomOperations[]).map(room => ({
-        name: room.name || 'Unknown',
-        location: room.location || '',
-        sleeping: SLEEPING_ROOMS.has((room.name || 'Unknown') as string),
-        measurements: room.measurements || {},
-        sources: room.sources || [],
-        mitigations: room.mitigations || [],
-        note: '',
-      })),
-      note: parsed.note || '',
-    };
-    for (const room of assessment.rooms) {
-      for (const [type, measurement] of Object.entries(room.measurements || {})) {
-        const definition = SBM_2015_THRESHOLDS[type];
-        if (definition && measurement) measurement.unit = definition.unit;
-      }
-    }
-    assessments.push(assessment);
-    saveImportedData();
-    showNotification('EMF assessment imported', 'success');
-    emfEditorState.editingAssessmentId = assessment.id;
-    renderEMFEditor(modal);
-  });
+  const modal = document.getElementById('detail-modal'), overlay = document.getElementById('modal-overlay'); if (!modal || !overlay) return;
+  const owner = captureEMFNativeOwner();
+  const publish = () => {
+    if (!isEMFNativeOwnerCurrent(owner) || !canPublish()) return;
+    const view = projectImportPreview(parsed), frozen = freezeEMFImportPreview(parsed);
+    disposeEMFMeterRecommendations(modal); modal.innerHTML = renderEMFImportPreviewPresentation(view); rememberEMFEditorInputs(modal, {});
+    const confirmButton = modal.querySelector<HTMLButtonElement>('#emf-confirm-btn'); if (!confirmButton) return;
+    openModalOverlay(overlay);
+    const previewOwner = captureEMFNativeOwner(true); previewOwner.guard = () => confirmButton.isConnected && document.getElementById('emf-confirm-btn') === confirmButton;
+    confirmButton.addEventListener('click', async () => {
+      const result = await commitEMFImportPreview(frozen, previewOwner);
+      if (!result.saved || !isEMFNativeOwnerCurrent(previewOwner)) return;
+      showNotification('EMF assessment imported', 'success'); emfEditorState.editingAssessmentId = result.id; emfEditorState.activeRoomIdx = 0; renderEMFEditor(modal);
+    });
+  };
+  const collected = emfEditorDeps.collectActiveAssessmentState?.();
+  if (collected && typeof (collected as Promise<unknown>).then === 'function') return Promise.resolve(collected).then(saved => { if (saved !== false) publish(); });
+  if (collected === false) return;
+  if (captureEMFEditorInputs()?.changes.length) return persistEMFEditorInputs().then(saved => { if (saved) publish(); });
+  publish();
 }
 
 function projectImportPreview(parsed:PreviewInput):EMFImportPreviewView {
@@ -480,10 +482,12 @@ function projectImportPreview(parsed:PreviewInput):EMFImportPreviewView {
   for(const type of MEASUREMENT_TYPES){
    const measurement=(room.measurements||{})[type.key];if(!measurement)continue;
    const definition=SBM_2015_THRESHOLDS[type.key]!,sleeping=SLEEPING_ROOMS.has(room.name as string);
-   const severity=(getEMFSeverity as SeverityReader)(type.key,measurement.value,sleeping)??null;
-   const value=`${measurement.value}`;
-   measurements.push({label:type.short,value,unit:definition.unit,severity});
+   const unit=measurement.unit==null?definition.unit:text(measurement.unit);
+   const severity=typeof measurement.value==='number'&&Number.isFinite(measurement.value)&&measurement.value>=0&&unit===definition.unit?(getEMFSeverity as SeverityReader)(type.key,measurement.value,sleeping)??null:null;
+   const value=measurement.value==null?'Unknown':`${measurement.value}`;
+   measurements.push({label:type.short,value,unit,severity});
   }
+  if(room.sources!=null&&!Array.isArray(room.sources)||room.mitigations!=null&&!Array.isArray(room.mitigations))throw new Error('Review the reported source and mitigation tags before importing.');
   const sources=room.sources&&room.sources.length?room.sources.map(source=>text(source)).join(', '):null;
   const mitigations=room.mitigations&&room.mitigations.length?room.mitigations.map(mitigation=>text(mitigation)).join(', '):null;
   rooms.push({name,location,measurements,sources,mitigations});

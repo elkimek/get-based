@@ -75,12 +75,12 @@ it('restores the initiating selection when its view closes during consent withou
   expect(state.provider).toBe('openrouter'); expect(target.textContent).toBe('CLI replacement');
 });
 
-it('retains the public pause helper and its configured focus refresh port', () => {
+it('retains the public pause helper and its configured focus refresh port', async () => {
   const refresh = vi.fn(), previous = configureProviderPanelDeps({ loadFocusCard: refresh });
   const stored = localStorage.getItem('labcharts-ai-paused');
   try {
-    toggleAIPause(false); expect(localStorage.getItem('labcharts-ai-paused')).toBe('true');
-    toggleAIPause(true); expect(localStorage.getItem('labcharts-ai-paused')).toBe('false');
+    await toggleAIPause(false); expect(localStorage.getItem('labcharts-ai-paused')).toBe('true');
+    await toggleAIPause(true); expect(localStorage.getItem('labcharts-ai-paused')).toBe('false');
     expect(refresh).toHaveBeenCalledTimes(2);
   } finally {
     configureProviderPanelDeps(previous);

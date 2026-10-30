@@ -3,6 +3,12 @@
 // older runtimes without Web Locks. Record arrays merge by stable identity.
 import { DELTA_ARRAY_CONFIG } from './sync-delta-surface-config.js';
 import type { SyncIdentityRecord } from './sync-delta-surface-config.js';
+import { validLabPanelId } from './lab-panel-identity.js';
+import { mergeLabPanelTombstones } from './lab-panel-deletions.js';
+import { mergeGeneticsSnpStates } from './genetics-snp-lifecycle.js';
+import { mergeGeneticsLifecycle } from './genetics-lifecycle.js';
+import { mergeCustomMarkerLifecycle } from './custom-marker-lifecycle.js';
+import { mergeLabOrdering } from './lab-ordering-core.js';
 type ProfileRows = Map<string | null, unknown>;
 interface ProfileRebase<T> { data: T; baseline: unknown; conflict: boolean; }
 const baselines = new WeakMap<object, unknown>();
@@ -23,20 +29,32 @@ export function rememberProfileData(data: unknown, persisted: unknown = data) {
 export function profileDataBaseline<T>(data: T): T | undefined { return baselines.get(data as object) as T | undefined; }
 
 export function mergeProfileMutation<T>(base: unknown, next: T, latest: unknown, path = ''): T {
+  if (path === 'labPanelTombstones') return mergeLabPanelTombstones(next, latest) as T;
+  if (path === 'geneticsSnpTombstones') return mergeGeneticsSnpStates(next, latest) as T;
+  if (path === 'geneticsLifecycle') return mergeGeneticsLifecycle(next, latest) as T;
+  if (path === 'customMarkerLifecycle') return mergeCustomMarkerLifecycle(next, latest) as T;
   if (equal(base, next)) return structuredClone(latest) as T;
+  if (path === 'labOrdering') return mergeLabOrdering(next, latest) as T;
   if (Array.isArray(next)) return mergeRecordArray(base, next, latest, path) as T;
   if (!object(next)) return structuredClone(next);
   base = object(base) ? base : {};
   const merged = object(latest) ? structuredClone(latest) : {};
   for (const key of new Set([...Object.keys(base as object), ...Object.keys(next)])) {
     if (['__proto__', 'constructor', 'prototype'].includes(key) || equal((base as Record<string, unknown>)[key], next[key])) continue;
-    if (!Object.hasOwn(next, key)) delete merged[key];
+    if (!Object.hasOwn(next, key)) {
+      if (!path && key === 'geneticsSnpTombstones') merged[key] = mergeGeneticsSnpStates((base as Record<string, unknown>)[key], merged[key]);
+      else if (!path && key === 'geneticsLifecycle') merged[key] = mergeGeneticsLifecycle((base as Record<string, unknown>)[key], merged[key]);
+      else if (!path && key === 'customMarkerLifecycle') merged[key] = mergeCustomMarkerLifecycle((base as Record<string, unknown>)[key], merged[key]);
+      else if (!path && key === 'labOrdering') merged[key] = mergeLabOrdering((base as Record<string, unknown>)[key], merged[key]);
+      else delete merged[key];
+    }
     else merged[key] = mergeProfileMutation((base as Record<string, unknown>)[key], next[key], merged[key], path ? `${path}.${key}` : key);
   }
   return merged as T;
 }
 
 function recordKey(item: unknown, path: string) {
+  if (path === 'entries.panels' && object(item) && validLabPanelId(item.panelId)) return item.panelId;
   if (path.startsWith('_deleted.') && typeof item === 'string') return item;
   return DELTA_ARRAY_CONFIG[path]?.itemIdFn?.(item as SyncIdentityRecord) || (object(item) && typeof item.id === 'string' ? item.id : null);
 }
@@ -80,6 +98,7 @@ function mergeEntryPanels(base: unknown[], next: unknown[], latest: unknown[]) {
   if (equal(base, next)) return latest;
   if (equal(base, latest) || equal(next, latest)) return next;
   if (!base.length) return [...latest, ...next.filter(panel => !latest.some(item => equal(item, panel)))];
+  if ([base, next, latest].every(panels => panels.every(panel => object(panel) && validLabPanelId(panel.panelId)))) return mergeRecordArray(base, next, latest, 'entries.panels');
   if (base.length === 1 && next.length === 1 && latest.length === 1) {
     return [mergeProfileMutation(base[0], next[0], latest[0], 'entries[]')];
   }

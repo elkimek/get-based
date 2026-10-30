@@ -73,7 +73,10 @@ export function renderChatMessagesRuntime() {
 }
 
 export function notifyCustomPersonalitySavedRuntime(profileId?: string | null) {
-  chatRuntimeCallbacks.onChatSaved?.({ customPersonality: true, ...(profileId !== undefined ? {profileId} : {}) });
+  notifyChatSavedRuntime(profileId, true);
+}
+export function notifyChatSavedRuntime(profileId?: string | null, customPersonality = false) {
+  chatRuntimeCallbacks.onChatSaved?.({ customPersonality, ...(profileId !== undefined ? {profileId} : {}) });
 }
 
 export function resumeChatAIRuntime() {

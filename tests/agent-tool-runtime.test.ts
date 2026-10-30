@@ -23,10 +23,12 @@ describe('agent tool catalog', () => {
       { tool: 'getbased_marker_history', arguments: { marker: 'ApoB' }, success: true },
       { tool: 'getbased_nutrition_summary', arguments: { range: '30d' }, success: true },
       { tool: 'getbased_search_knowledge', arguments: { query: 'sleep' }, success: false },
+      { tool: 'getbased_read_data', arguments: { resource: 'knowledgeSettings' }, success: true },
       { tool: 'getbased_draft_note', arguments: {}, success: true },
     ], full)).toEqual([
       { label: 'Blood marker results', detail: 'History: ApoB' },
       { label: 'Meals & Nutrition', detail: 'Summary: 30d' },
+      { label: 'Knowledge Base Preferences', detail: 'Browser-wide retrieval preferences' },
     ]);
     expect(summarizeAgentToolReceipts([
       { tool: 'getbased_lab_context', arguments: {}, success: true },
@@ -43,8 +45,17 @@ describe('agent tool catalog', () => {
     ]);
   });
 
+  it('identifies library and document metadata reads as Knowledge Base disclosure', () => {
+    expect(summarizeAgentToolReceipts([
+      { tool: 'getbased_read_data', arguments: { resource: 'knowledgeLibraries' }, success: true },
+      { tool: 'getbased_read_data', arguments: { resource: 'knowledgeDocuments' }, success: true },
+    ])).toEqual([
+      { label: 'Knowledge Base', detail: 'Resource: knowledgeLibraries' },
+      { label: 'Knowledge Base', detail: 'Resource: knowledgeDocuments' },
+    ]);
+  });
   it('exports versioned least-authority tools using Codex dynamic-tool schemas', () => {
-    expect(AGENT_TOOL_CONTRACT_VERSION).toBe(2);
+    expect(AGENT_TOOL_CONTRACT_VERSION).toBe(60);
     expect(getAgentToolCatalog().map(tool => [tool.name, tool.access])).toEqual([
       ['getbased_lab_context', 'read'],
       ['getbased_section', 'read'],
@@ -53,11 +64,18 @@ describe('agent tool catalog', () => {
       ['getbased_nutrition_summary', 'read'],
       ['getbased_wearable_series', 'read'],
       ['getbased_search_knowledge', 'read'],
+      ['getbased_read_context_card', 'read'],
+      ['getbased_read_data', 'read'],
+      ['getbased_draft_data', 'draft'],
       ['getbased_navigate', 'navigate'],
       ['getbased_draft_note', 'draft'],
+      ['getbased_draft_context', 'draft'],
       ['getbased_draft_meal', 'draft'],
       ['getbased_draft_biometric', 'draft'],
       ['getbased_draft_supplement', 'draft'],
+      ['getbased_app_actions', 'read'],
+      ['getbased_read_app', 'read'],
+      ['getbased_request_app', 'draft'],
     ]);
 
     expect(getCodexDynamicTools()).toEqual(getAgentToolCatalog().map(({ access: _access, ...tool }) => ({
@@ -202,7 +220,13 @@ describe('agent tool runtime', () => {
     expect(readMarkerHistory).toHaveBeenCalledWith({ marker: 'hormones.tsh', from: '2026-01-01', to: '', limit: 50 });
     expect(readNutritionSummary).toHaveBeenCalledWith({ range: '30d' });
     expect(readWearableSeries).toHaveBeenCalledWith({ days: 7 });
-    expect(searchKnowledge).toHaveBeenCalledWith({ query: 'magnesium', limit: 5 });
+    expect(searchKnowledge).toHaveBeenCalledWith({ query: 'magnesium' });
+    await runtime.execute({ tool: 'getbased_search_knowledge', arguments: { query: 'magnesium', limit: 2 } });
+    expect(searchKnowledge).toHaveBeenLastCalledWith({ query: 'magnesium', limit: 2 });
+    for (const limit of [0, 11, 1.5, null]) {
+      expect((await runtime.execute({ tool: 'getbased_search_knowledge', arguments: { query: 'magnesium', limit } })).success).toBe(false);
+    }
+    expect(searchKnowledge).toHaveBeenCalledTimes(2);
     expect(navigate).toHaveBeenCalledWith({ view: '', marker: 'TSH' });
   });
 
@@ -224,6 +248,8 @@ describe('agent tool runtime', () => {
     const onDraftCreated = vi.fn();
     const runtime = createAgentToolRuntime({
       readContext: () => CONTEXT,
+      userMessage: 'My blood pressure was 120/80 on 3 September 2026.',
+      prepareLegacyDraft: async input => ({ available: true, proposals: [{ resource: 'manualReadings', operation: 'add', recordId: 'bp.2026-09-03', baseline: 'null', patch: JSON.stringify(input.payload), evidence: input.evidence, reason: 'An explicit report.', effectiveDate: '2026-09-03', recordedAt: 1 }] }),
       createId: () => `draft-${++nextId}`,
       onDraftCreated,
     });
@@ -236,9 +262,9 @@ describe('agent tool runtime', () => {
     expect(result.success).toBe(true);
     expect(runtime.getDrafts()).toEqual([expect.objectContaining({
       id: 'draft-1',
-      kind: 'biometric',
+      kind: 'data',
       status: 'pending',
-      payload: expect.objectContaining({ metric: 'bp', systolic: 120, diastolic: 80 }),
+      payload: expect.objectContaining({ resource: 'manualReadings', operation: 'add' }),
     })]);
     expect(onDraftCreated).toHaveBeenCalledTimes(1);
   });
@@ -262,4 +288,36 @@ describe('agent tool runtime', () => {
     expect(impossibleDate).toMatchObject({ success: false });
     expect(searchMarkers).not.toHaveBeenCalled();
   });
+});
+
+it('freezes implicit dates at turn creation instead of at approval or a later tool round', async () => {
+  vi.useFakeTimers();
+  try {
+    vi.setSystemTime(new Date('2026-10-23T12:00:00Z'));
+    const before = new Date();
+    const date = `${before.getFullYear()}-${String(before.getMonth() + 1).padStart(2, '0')}-${String(before.getDate()).padStart(2, '0')}`;
+    const prepared: Record<string, unknown>[] = [];
+    const runtime = createAgentToolRuntime({ readContext: () => '', userMessage: 'I reported a weight, a therapy and a meal.', prepareLegacyDraft: async input => {
+      prepared.push(input.payload);
+      return { available: true, proposals: [{ resource: 'profileNotes', operation: 'update', recordId: '', baseline: '""', patch: JSON.stringify({ text: 'Reported' }), evidence: input.evidence, reason: 'Explicit report.', effectiveDate: date, recordedAt: before.getTime() }] };
+    } });
+    vi.setSystemTime(new Date('2026-10-25T12:00:00Z'));
+    for (const [tool, args] of [
+      ['getbased_draft_biometric', { metric: 'weight', value: 80, unit: 'kg' }],
+      ['getbased_draft_supplement', { name: 'Example', type: 'supplement' }],
+      ['getbased_draft_meal', { name: 'Lunch' }],
+    ] as const) expect((await runtime.execute({ tool, arguments: args })).success).toBe(true);
+    expect(prepared).toMatchObject([
+      { date }, { startDate: date }, { eatenAt: before.toISOString() },
+    ]);
+  } finally { vi.useRealTimers(); }
+});
+
+it('does not label disabled or unavailable lookups as successful data disclosure', async () => {
+  const unavailable = async () => ({ available: false, reason: 'Disabled by user.' });
+  const runtime = createAgentToolRuntime({ readContext: () => '', readNutritionSummary: unavailable, readWearableSeries: unavailable, searchKnowledge: unavailable });
+  for (const [tool, args] of [['getbased_nutrition_summary', {}], ['getbased_wearable_series', { days: 7 }], ['getbased_search_knowledge', { query: 'test' }]] as const) {
+    const result = await runtime.execute({ tool, arguments: args });
+    expect(result.success).toBe(false); expect(result.contentItems[0].text).toContain('Disabled by user.');
+  }
 });

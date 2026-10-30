@@ -150,3 +150,58 @@ export function sourceFunctionHasEventListenerStatement(
     return found;
   });
 }
+
+/** Require an actual call chain in a top-level return, excluding comments/unused callbacks. */
+export function sourceFunctionReturnsChainContaining(source: string, name: string, expression: string) {
+  return withParsedSources(new Map([['contract.js', source], ['expected.js', `const expected = ${expression};`]]), files => {
+    const scope = body(parse(files.get('contract.js')), name), statement = parse(files.get('expected.js'))?.statements[0];
+    const expected = statement && ts.isVariableStatement(statement) ? statement.declarationList.declarations[0]?.initializer : undefined;
+    if (!scope || !expected) return false;
+    return scope.statements.some(statement => {
+      if (!ts.isReturnStatement(statement) || !statement.expression) return false;
+      let value: ts.Expression = statement.expression;
+      while (true) {
+        if (matches(value, expected)) return true;
+        if (ts.isParenthesizedExpression(value)) value = value.expression;
+        else if (ts.isCallExpression(value) && ts.isPropertyAccessExpression(value.expression)) value = value.expression.expression;
+        else return false;
+      }
+    });
+  });
+}
+
+/** Inspect a named module-level factory configuration without accepting inert source strings. */
+export function sourceFactoryPropertyHasInitializer(source: string, variableName: string, factory: string, path: readonly string[], expression: string) {
+  return withParsedSources(new Map([['contract.js', source], ['expected.js', `const expected = ${expression};`]]), files => {
+    const file = parse(files.get('contract.js')), statement = parse(files.get('expected.js'))?.statements[0];
+    const expected = statement && ts.isVariableStatement(statement) ? statement.declarationList.declarations[0]?.initializer : undefined;
+    const declaration = file?.statements.flatMap(item => ts.isVariableStatement(item) ? [...item.declarationList.declarations] : [])
+      .find(item => ts.isIdentifier(item.name) && item.name.text === variableName);
+    const call = declaration?.initializer;
+    if (!call || !ts.isCallExpression(call) || !ts.isIdentifier(call.expression) || call.expression.text !== factory || !expected) return false;
+    let value: ts.Expression | undefined = call.arguments[0];
+    for (const key of path) {
+      if (!value || !ts.isObjectLiteralExpression(value)) return false;
+      const property = value.properties.find((item): item is ts.PropertyAssignment => ts.isPropertyAssignment(item)
+        && (ts.isIdentifier(item.name) || ts.isStringLiteral(item.name)) && item.name.text === key);
+      value = property?.initializer;
+    }
+    return matches(value, expected);
+  });
+}
+
+/** Require the selected variable's real chained method argument, preserving callback predicates. */
+export function sourceFunctionVariableCallHasArgument(source: string, name: string, key: string, method: string, expression: string) {
+  return withParsedSources(new Map([['contract.js', source], ['expected.js', `const expected = ${expression};`]]), files => {
+    const statement = parse(files.get('expected.js'))?.statements[0];
+    const expected = statement && ts.isVariableStatement(statement) ? statement.declarationList.declarations[0]?.initializer : undefined;
+    let value = variable(parse(files.get('contract.js')), name, key)?.initializer;
+    while (value) {
+      if (ts.isParenthesizedExpression(value)) { value = value.expression; continue; }
+      if (!ts.isCallExpression(value) || !ts.isPropertyAccessExpression(value.expression)) return false;
+      if (value.expression.name.text === method && matches(value.arguments[0], expected)) return true;
+      value = value.expression.expression;
+    }
+    return false;
+  });
+}

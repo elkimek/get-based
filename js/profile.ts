@@ -1,5 +1,8 @@
 import {tsStateStyles} from './ts-state-ui-inline-style-map.generated.js';
-import { rememberProfileData } from './profile-data-writes.js';
+import { rememberProfileData, profileDataValuesEqual } from './profile-data-writes.js';
+import { configureProfileSelectionOwner } from './profile-selection-runtime.js';
+import { renderChatMessagesRuntime } from './chat-runtime.js';
+import { beginProfileChatTransition, completeProfileChatTransition, isProfileChatReady } from './profile-chat-state.js';
 import { readProfileForLoad } from './profile-load-safety.js';
 import { state, resetCorrelationSelection } from './state.js';
 import { restoreCorrelationWorkspace } from './correlation-workspace-store.js';
@@ -19,6 +22,7 @@ import {
   getProfiles as getStoredProfiles,
   initProfilesCache as initStoredProfilesCache,
   mutateProfiles,
+  readCurrentProfiles,
   saveProfiles as saveStoredProfiles,
 } from './profile-list-store.js';
 import {
@@ -52,7 +56,7 @@ export interface ProfileRecord extends StoredProfileRecord {
   tags: string[]; notes: string; status: string; avatar: string | null;
   height: number | string | null; heightUnit: string; createdAt: number; lastUpdated: number; pinned: boolean;
 }
-interface ProfileMetaUpdates {
+export interface ProfileMetaUpdates {
   name?: string; sex?: string | null; dob?: string | null; location?: ProfileLocation;
   tags?: string[]; notes?: string; status?: string; avatar?: string | null;
   height?: number | string | null; heightUnit?: string; pinned?: boolean;
@@ -167,6 +171,10 @@ export function getProfiles(): ProfileRecord[] {
   return getStoredProfiles() as ProfileRecord[];
 }
 
+export async function readCurrentProfileMeta(profileId: string) {
+  return (await readCurrentProfiles()).find(profile => profile.id === profileId) || null;
+}
+
 export async function initProfilesCache() {
   await initStoredProfilesCache();
 }
@@ -246,7 +254,8 @@ export function isActiveProfileDataOwner(profileId: string, data: unknown): bool
     && profileId === state.currentProfile && data === state.importedData;
 }
 
-export async function loadProfile(profileId: string) {
+export interface ProfileLoadOptions { beforePublish?: (saved: string | null) => boolean | Promise<boolean> }
+export async function loadProfile(profileId: string, options: ProfileLoadOptions = {}): Promise<void | false> {
   const generation = ++profileLoadGeneration;
   const isCurrent = () => generation === profileLoadGeneration;
   profileLoadPending = true;
@@ -255,8 +264,19 @@ export async function loadProfile(profileId: string) {
       if (isCurrent()) profileDeps.showNotification(message, severity, duration);
     });
     if (!isCurrent()) return;
+    if (options.beforePublish && !await options.beforePublish(savedImported)) return false;
+    if (!isCurrent()) return;
     profileDataTransition = generation;
     state.currentProfile = profileId;
+    // Retire source conversation/marker ownership before any target-side await.
+    // A failed context or workspace rebuild must not let a later Send publish
+    // the source transcript under the newly selected profile.
+    state.chatHistory = [];
+    state.chatThreads = [];
+    state.currentThreadId = null;
+    state.markerRegistry = {};
+    const chatTransition = beginProfileChatTransition(profileId);
+    renderChatMessagesRuntime();
     setActiveProfileId(profileId);
     await invalidateProfileContextCache();
     if (!isCurrent()) return;
@@ -319,13 +339,10 @@ export async function loadProfile(profileId: string) {
     resetCorrelationSelection();
     await restoreCorrelationWorkspace(profileId);
     if (!isCurrent()) return;
-    state.chatHistory = [];
-    state.chatThreads = [];
-    state.currentThreadId = null;
-    state.markerRegistry = {};
     await reloadProfileRuntimeShell(profileId);
     if (!isCurrent()) return;
     refreshProfileWearables(profileId, state.importedData?.biometrics);
+    completeProfileChatTransition(chatTransition);
   } finally {
     // An interrupted handoff remains unowned until a successful installation;
     // a stale or failed load must not certify the old object under a new ID.
@@ -384,15 +401,32 @@ export async function renameProfile(profileId: string, newName: string) {
   return changed;
 }
 
-export async function updateProfileMeta(profileId: string, updates: ProfileMetaUpdates) {
-  const changed = await mutateProfiles(profileEdit(profileId, profile => {
-    for (const [key, val] of Object.entries(updates)) {
-      if (key === 'id' || key === 'createdAt') continue;
-      profile[key] = val;
+export async function updateProfileMeta(profileId: string, updates: ProfileMetaUpdates, options: { expected?: StoredProfileRecord; canCommit?: () => boolean } = {}) {
+  const expected = options.expected ? structuredClone(options.expected) : null;
+  const changed = await mutateProfiles(profiles => {
+    if (options.canCommit && !options.canCommit()) throw Object.assign(new Error('Profile editing authorization changed. No change was applied.'), { noChangeApplied: true });
+    const profile = profiles.find(candidate => candidate.id === profileId);
+    if (expected && (!profile || [...new Set([...Object.keys(expected), ...Object.keys(updates)])].some(key => !profileDataValuesEqual(profile[key], expected[key])))) {
+      throw Object.assign(new Error('Profile details changed since the proposal. Ask for a new proposal. No change was applied.'), { noChangeApplied: true });
     }
-  }));
+    return profileEdit(profileId, profile => {
+      for (const [key, val] of Object.entries(updates)) {
+        if (key === 'id' || key === 'createdAt') continue;
+        profile[key] = val;
+      }
+    })(profiles);
+  });
   if (changed) queueProfileSync(profileId);
   return changed;
+}
+
+/** Refresh derived context and the visible profile after a reviewed metadata edit. */
+export async function refreshProfileMetaRuntime(profileId: string) {
+  if (state.currentProfile !== profileId) return;
+  const profile = getProfiles().find(profile => profile.id === profileId);
+  state.profileSex = profile?.sex || null; state.profileDob = profile?.dob || null;
+  await invalidateProfileContextCache();
+  if (state.currentProfile === profileId) await refreshProfileButton();
 }
 
 export function getAllTags() {
@@ -446,8 +480,8 @@ export async function deleteProfile(profileId: string, onComplete?: () => void) 
   }
 }
 
-export async function switchProfile(profileId: string) {
-  if (profileId === state.currentProfile && !profileLoadPending) return;
+export async function switchProfile(profileId: string, options: ProfileLoadOptions = {}): Promise<boolean | undefined> {
+  if (profileId === state.currentProfile && !profileLoadPending && isProfileChatReady(profileId)) return;
   // loadProfile is async (encryptedGetItem awaits IDB / OPFS). Earlier
   // draft fired-and-forgot it, leaving switchProfile resolving before
   // state.importedData was actually populated — callers like loadDemoData
@@ -455,16 +489,16 @@ export async function switchProfile(profileId: string) {
   // and end up with the demo data saved to the WRONG profile id, or
   // overwritten when the (delayed) loadProfile finally read the empty
   // localStorage row for the new profile.
-  const load = loadProfile(profileId);
+  const load = loadProfile(profileId, options);
   const generation = profileLoadGeneration;
-  await load;
-  if (generation !== profileLoadGeneration || state.currentProfile !== profileId) return;
+  const loaded = await load;
+  if (loaded === false || generation !== profileLoadGeneration || state.currentProfile !== profileId) return false;
   // loadProfile keeps the ordinary app-shell refresh non-blocking, but a
   // caller explicitly awaiting a profile switch needs a stable imported-data
   // snapshot. Otherwise the old background wearable refresh can finish after
   // an immediate import and replace its wearable summary.
   await waitForProfileWearables(profileId);
-  if (generation !== profileLoadGeneration || state.currentProfile !== profileId) return;
+  if (generation !== profileLoadGeneration || state.currentProfile !== profileId) return false;
   const profiles = getProfiles();
   const p = profiles.find(p => p.id === profileId);
   profileDeps.showNotification(`Switched to ${p ? p.name : 'profile'}`, 'info');
@@ -474,7 +508,22 @@ export async function switchProfile(profileId: string) {
   dispatchProfileSwitched(profileId);
   // Push updated context to messenger gateway so bots see the new profile
   Promise.resolve(profileDeps.pushContextToGateway()).catch(() => {});
+  return true;
 }
+
+configureProfileSelectionOwner({
+  readProfiles: readCurrentProfiles,
+  ownsData: isActiveProfileDataOwner,
+  switchProfile: (profileId, beforePublish) => switchProfile(profileId, { beforePublish }),
+  validateSnapshot: saved => {
+    if (saved === null) return true;
+    try {
+      const value: unknown = JSON.parse(saved);
+      if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+      migrateProfileData(value); return true;
+    } catch { return false; }
+  },
+});
 
 export function getProfileSex(profileId: string) {
   const profiles = getProfiles();

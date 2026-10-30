@@ -16,6 +16,7 @@ import { _readDeltaSnapshot, _writeDeltaSnapshot } from './sync-delta-snapshot.j
 import { mergeArrayRowsIntoImported } from './sync-delta-array-merge.js';
 import { mergeMapRowsIntoImported } from './sync-delta-map-merge.js';
 import { mergeScalarRowsIntoImported } from './sync-delta-scalar-merge.js';
+import { reconcileGeneticsSnpState } from './genetics-snp-lifecycle.js';
 
 const mergeQueryAccess = createDeltaQueryAccess();
 
@@ -100,30 +101,11 @@ export async function _mergeItemRowsIntoImported<Data extends DeltaImportedData>
   resetPullDeltaSnapshot(profileId);
   const _DELTA_MAPS_SET = new Set(DELTA_MAPS);
   const _DELTA_SCALARS_SET = new Set(DELTA_SCALARS);
+  // Lifecycle state precedes transport deletes and metadata, independently of
+  // relay scan order. A final reconciliation also covers metadata-only rows.
+  const lifecycle = byArray.get('geneticsLifecycle');
+  if (lifecycle) await mergeMapRowsIntoImported(imported, 'geneticsLifecycle', lifecycle);
+  const snpHistory = byArray.get('geneticsSnpTombstones');
+  if (snpHistory) await mergeMapRowsIntoImported(imported, 'geneticsSnpTombstones', snpHistory);
   for (const [arrayName, arrRows] of byArray) {
-    if (_DELTA_SCALARS_SET.has(arrayName!) || arrayName === PROFILE_METADATA_SURFACE) continue;
-    if (_DELTA_MAPS_SET.has(arrayName!)) {
-      await mergeMapRowsIntoImported(imported, arrayName!, arrRows);
-      continue;
-    }
-    const baselineItems = options.baselineImported
-      ? getAt(options.baselineImported, arrayName)
-      : null;
-    await mergeArrayRowsIntoImported(imported, arrayName!, arrRows, {
-      baselineItems: Array.isArray(baselineItems) ? baselineItems : [],
-      baselineSyncedAt: options.baselineSyncedAt,
-    });
-  }
-  for (const field of DELTA_SCALARS) {
-    const baselineValue = getAt(options.baselineImported, field);
-    await mergeScalarRowsIntoImported(imported, field, byArray.get(field) || [], {
-      hasBaseline: baselineValue !== undefined,
-      baselineSyncedAt: options.scalarClocks ? options.scalarClocks[field] || 0 : options.baselineSyncedAt,
-      clockedBaseline: options.scalarClocks !== undefined, baselineValue,
-      profileId: typeof profileId === 'string' ? profileId : undefined,
-      localValue: getAt(options.localImported, field), hasLocal: !!options.localImported,
-      onVersion: version => {if (options.scalarVersions) options.scalarVersions[field] = version;},
-    });
-  }
-  return imported;
-}
+    if (arrayName === 'geneticsSnpTombstones' || arrayName === 'geneticsLifecycle') continue;

@@ -6,7 +6,7 @@ import {createHash} from 'node:crypto';
 import {expect, test, type Locator, type Page} from '@playwright/test';
 import {createDefaultProfileData, migrateProfileData} from '../../js/profile.js';
 import type {ProfileData} from '../../types/app-state.js';
-import {startKitServer} from './kit-server.js';
+import {startKitServer} from './kit-release-server.js';
 import {qualifyArtifactModuleSource} from './kit-native-receipts.js';
 import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
 import {installOfflineStartupDiagnostics} from '../helpers/offline-launch-diagnostics.js';
@@ -64,9 +64,9 @@ async function artifactInputs() {
   assert.equal(new Set(cachePaths).size, cachePaths.length, 'Unique cached runtime dependencies');
   for (const url of cachePaths) {assert(shell.includes(url)); assert(files.some(file => file.path === url));}
   for (const mapping of mappings) for (const url of mapping.chunks) assert(cachePaths.includes(url), 'Feedback chunk in actual APP_SHELL');
-  const servedSw = sw.replace(/const BUILD_ID = '[^']*';/, "const BUILD_ID = 'kit-test-a';")
+  const servedSw = sw.replace(/const BUILD_ID = '[^']*';/, "const BUILD_ID = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';")
     .replace('const APP_SHELL = [', "const APP_SHELL = [\n  '/js/bundle-legacy-probe-AAA.js',");
-  const servedVersion = version.replace(/self.APP_BUILD_ID = '[^']*';/, "self.APP_BUILD_ID = 'kit-test-a';");
+  const servedVersion = version.replace(/self.APP_BUILD_ID = '[^']*';/, "self.APP_BUILD_ID = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';");
   return {directory, buildId, files, artifactSHA256: sha(JSON.stringify(files)), mappings, cachePaths,
     servedWorkerSHA256: sha(servedSw), servedVersion: {path: '/version.js', bytes: Buffer.byteLength(servedVersion), sha256: sha(servedVersion)}};
 }
@@ -242,6 +242,6 @@ test('static Feedback first offline construction, recoverable draft and two zero
     expect(errors).toEqual([]); expect(csp).toEqual([]); expect(external).toEqual([]);
     await info.attach('feedback-stopped-origin-acceptance', {body: JSON.stringify({artifact, before, onlineCache, servedWorker,
       stoppedOrigin: true, coldLaunches: 2, clientBoundaries, phases, errors, csp, external,
-      boundary: 'Actual compiled static Kit/SW/cache/native IDB; encryption disabled synthetic returning-user profile. Existing kit-test-a worker/version and legacyProbe fixture seam retained. Native public header/Tweaks, keyboard/touch/mouse; synthetic window.open/clipboard denial prevents GitHub/OS clipboard actions. No OS installation, provider, actual Safari certification or SW termination claim.'}, null, 2), contentType: 'application/json'});
+      boundary: 'Actual compiled static Kit/SW/cache/native IDB; encryption disabled synthetic returning-user profile. Existing aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa worker/version and legacyProbe fixture seam retained. Native public header/Tweaks, keyboard/touch/mouse; synthetic window.open/clipboard denial prevents GitHub/OS clipboard actions. No OS installation, provider, actual Safari certification or SW termination claim.'}, null, 2), contentType: 'application/json'});
   } finally {if (!closed) await server.close();}
 });

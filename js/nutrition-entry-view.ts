@@ -48,6 +48,14 @@ export function captureNutritionEditorRestore(modal: HTMLElement, overlay: HTMLE
     && document.getElementById('main-content') === main && document.getElementById('detail-modal') === modal
     && document.getElementById('modal-overlay') === overlay && overlay.classList.contains('show') === shown;
 }
+/** A native meal form owns its Save independently of the originating chat turn. */
+export function captureNutritionMealSaveOwner(modal: HTMLElement, overlay: HTMLElement) {
+  const profile = state.currentProfile, content = modal.firstElementChild;
+  const visible = () => state.currentProfile === profile && !!content?.isConnected && modal.firstElementChild === content
+    && document.getElementById('detail-modal') === modal && document.getElementById('modal-overlay') === overlay && overlay.classList.contains('show');
+  return { profile, current: captureNutritionEditorRestore(modal, overlay), visible };
+}
+
 function current(owned: View): boolean {
   return view === owned && owned.root.isConnected && owned.overlay.classList.contains('show') && owned.session.current()
     && routeRevision() === owned.route && document.getElementById('detail-modal') === owned.modal && document.getElementById('modal-overlay') === owned.overlay;

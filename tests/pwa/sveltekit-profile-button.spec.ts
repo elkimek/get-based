@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import {expect, test, type Locator, type Page} from '@playwright/test';
 import {createDefaultProfileData, migrateProfileData} from '../../js/profile.js';
 import type {ProfileData} from '../../types/app-state.js';
-import {startKitServer} from './kit-server.js';
+import {startKitServer} from './kit-release-server.js';
 import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
 import {installOfflineStartupDiagnostics} from '../helpers/offline-launch-diagnostics.js';
 import {readyLightArtifact as ready} from '../helpers/light-artifact-navigation.js';
@@ -166,6 +166,6 @@ test('static compact profile and native Client List preserve whole profiles on f
     await info.attach('profile-button-stopped-origin-acceptance', {body: JSON.stringify({artifact, before, onlineCache, onlineEvents, onlineTitleStates,
       swDeclarationsSHA256: sha(swDeclarations), servedWorkerSHA256: sha(new Uint8Array(servedWorker)), stoppedListener: true,
       coldLaunches: 2, boundaries, phases, traffic, errors, csp, external,
-      boundary: 'Actual static Kit/SW/cache and public compact profile native Client List click/tap/close/Escape/focus. Online lazy consumer warm, first offline use plus two zero-page cold clients; whole real bundled live imported profile, native readonly IDB commit/raw registry and profile preferences unchanged. Synthetic returning-user unencrypted default profile/recent manual backup and paused credential-free OpenRouter; no provider/window override. Existing kit-test-a/version/legacyProbe server seam. No OS install, hardware Safari/iPhone, SW termination, full-app or pending Tweaks parity claim.'}, null, 2), contentType: 'application/json'});
+      boundary: 'Actual static Kit/SW/cache and public compact profile native Client List click/tap/close/Escape/focus. Online lazy consumer warm, first offline use plus two zero-page cold clients; whole real bundled live imported profile, native readonly IDB commit/raw registry and profile preferences unchanged. Synthetic returning-user unencrypted default profile/recent manual backup and paused credential-free OpenRouter; no provider/window override. Existing aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/version/legacyProbe server seam. No OS install, hardware Safari/iPhone, SW termination, full-app or pending Tweaks parity claim.'}, null, 2), contentType: 'application/json'});
   } finally {if (!closed) await server.close();}
 });

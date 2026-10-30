@@ -2,6 +2,7 @@ import type { LabEntry } from '../types/lab-data.js';
 
 /** Accepted edit/merge view: foreign metadata stays opaque until existing checks consume it. */
 export interface LabEntryDraft {
+  manualOriginals?: Record<string, unknown> | null;
   date?: unknown;
   markers?: Record<string, unknown> | null;
   markerSources?: Record<string, LabMarkerSource | null | undefined> | null;
@@ -14,6 +15,7 @@ export interface LabEntryDraft {
   [key: string]: unknown;
 }
 export interface LabMarkerSource {
+  reported?: boolean;
   file?: unknown; at?: unknown; snapshotId?: unknown; derivedFrom?: readonly string[]; manuallyEdited?: unknown;
 }
 interface LabEditOptions { now?: number | undefined; stamp?: boolean | undefined }
@@ -175,10 +177,17 @@ export function createLabEntry(date: string, opts: { now?: number | undefined } 
 
 export function recalculateLabEntryHOMAIR(entry: OptionalLabEntry) {
   if (!entry?.markers) return;
+  if (getLabEntryMarkerTombstoneAt(entry, 'diabetes.homaIR') > 0) {
+    delete entry.markers['diabetes.homaIR'];
+    if (entry.markerSources) delete entry.markerSources['diabetes.homaIR'];
+    return;
+  }
+  const reported = entry.markers['diabetes.homaIR'];
+  if (entry.markerSources?.['diabetes.homaIR']?.reported === true && typeof reported === 'number' && Number.isFinite(reported)) return;
   const glucose = entry.markers['biochemistry.glucose'];
   const insulinKey = insulinValueKey(entry);
   const insulin = insulinKey ? entry.markers[insulinKey] : undefined;
-  if (glucose !== undefined && insulin !== undefined) {
+  if (typeof glucose === 'number' && Number.isFinite(glucose) && typeof insulin === 'number' && Number.isFinite(insulin)) {
     entry.markers['diabetes.homaIR'] = Math.round(((glucose as number) * (insulin as number)) / 22.5 * 100) / 100;
     const glucoseSource = entry.markerSources?.['biochemistry.glucose'];
     const insulinSource = insulinKey ? entry.markerSources?.[insulinKey] : undefined;
@@ -193,7 +202,10 @@ export function recalculateLabEntryHOMAIR(entry: OptionalLabEntry) {
         derivedFrom: ['biochemistry.glucose', insulinKey || CANONICAL_INSULIN_MARKER_KEY],
       };
     } else if (entry.markerSources) {
-      delete entry.markerSources['diabetes.homaIR'];
+      const current = entry.markerSources['diabetes.homaIR'];
+      if (current?.file === null && !current.snapshotId && current.derivedFrom?.length) {
+        entry.markerSources['diabetes.homaIR'] = { ...current, at: Math.max(normalizeTimestamp(glucoseSource?.at) || 0, normalizeTimestamp(insulinSource?.at) || 0, normalizeTimestamp(entry.updatedAt) || 0), derivedFrom: ['biochemistry.glucose', insulinKey || CANONICAL_INSULIN_MARKER_KEY] };
+      } else delete entry.markerSources['diabetes.homaIR'];
     }
   } else {
     delete entry.markers['diabetes.homaIR'];
@@ -208,6 +220,7 @@ export function labEntryMarkerAffectsHOMAIR(dotKey: string) {
 
 export function isSnapshotDerivedHOMAIR(entry: OptionalLabEntry, dotKey: string) {
   if (dotKey !== 'diabetes.homaIR') return false;
+  if (entry?.markerSources?.[dotKey]?.reported === true) return false;
   const glucoseSource = entry?.markerSources?.['biochemistry.glucose'];
   const insulinKey = insulinValueKey(entry);
   const insulinSource = insulinKey ? entry?.markerSources?.[insulinKey] : undefined;
@@ -258,6 +271,12 @@ export function markLabEntryMarkerDeleted(entry: OptionalLabEntry, dotKey: strin
   ensureMarkerTombstones(entry)[dotKey] = now;
 }
 
+function moveLabManualOriginal(entry: LabEntryDraft, from: string, to: string, overwrite = false): boolean {
+  const originals = entry.manualOriginals;
+  if (from === to || !originals || !Object.hasOwn(originals, from)) return false;
+  if (overwrite || !Object.hasOwn(originals, to)) Object.defineProperty(originals, to, { value: originals[from], enumerable: true, configurable: true, writable: true });
+  delete originals[from]; return true;
+}
 export function setLabEntryMarker<T extends OptionalLabEntry>(entry: T, dotKey: string, value: unknown, opts: MarkerEditOptions = {}): T | null {
   if (!entry || typeof entry !== 'object' || !dotKey) return null;
   const now = Number.isFinite(opts.now) ? opts.now : Date.now();
@@ -266,6 +285,7 @@ export function setLabEntryMarker<T extends OptionalLabEntry>(entry: T, dotKey: 
 
   if (storageKey === CANONICAL_INSULIN_MARKER_KEY) {
     for (const legacyKey of LEGACY_INSULIN_MARKER_KEYS) {
+      moveLabManualOriginal(entry, legacyKey, storageKey);
       if (entry.markers) delete entry.markers[legacyKey];
       if (entry.markerSources) delete entry.markerSources[legacyKey];
       clearLabEntryMarkerTombstone(entry, legacyKey);
@@ -280,6 +300,7 @@ export function setLabEntryMarker<T extends OptionalLabEntry>(entry: T, dotKey: 
         if (entry.markerSources) delete entry.markerSources[key];
       } else {
         ensureMarkerSources(entry)[key] = opts.source;
+        if (opts.stamp !== false && (opts.source.snapshotId || opts.source.file) && !opts.source.manuallyEdited) { entry.manualOriginals ||= {}; entry.manualOriginals[key] = null; }
       }
     } else if (opts.clearSource && entry.markerSources) {
       delete entry.markerSources[key];
@@ -295,6 +316,7 @@ export function syncLabEntryInsulinMirror(entry: OptionalLabEntry, opts: LabEdit
   const now = Number.isFinite(opts.now) ? opts.now : Date.now();
   const sourceKey = insulinValueKey(entry);
   if (!sourceKey) return false;
+  moveLabManualOriginal(entry, sourceKey, CANONICAL_INSULIN_MARKER_KEY);
   const markerSource = entry.markerSources?.[sourceKey];
   entry.markers[CANONICAL_INSULIN_MARKER_KEY] = entry.markers[sourceKey];
   if (markerSource) {
@@ -302,6 +324,7 @@ export function syncLabEntryInsulinMirror(entry: OptionalLabEntry, opts: LabEdit
   }
   clearLabEntryMarkerTombstone(entry, CANONICAL_INSULIN_MARKER_KEY);
   for (const legacyKey of LEGACY_INSULIN_MARKER_KEYS) {
+    moveLabManualOriginal(entry, legacyKey, CANONICAL_INSULIN_MARKER_KEY);
     delete entry.markers[legacyKey];
     if (entry.markerSources) delete entry.markerSources[legacyKey];
     clearLabEntryMarkerTombstone(entry, legacyKey);
@@ -322,9 +345,11 @@ export function deleteLabEntryMarker(entry: OptionalLabEntry, dotKey: string, op
   for (const key of keys) {
     const hadValue = !!(entry.markers && Object.prototype.hasOwnProperty.call(entry.markers, key));
     const hadSource = !!(entry.markerSources && Object.prototype.hasOwnProperty.call(entry.markerSources, key));
-    if (!hadValue && !hadSource) continue;
+    const hadOriginal = !!entry.manualOriginals && Object.hasOwn(entry.manualOriginals, key);
+    if (!hadValue && !hadSource && !hadOriginal) continue;
     if (entry.markers) delete entry.markers[key];
     if (entry.markerSources) delete entry.markerSources[key];
+    if (entry.manualOriginals) delete entry.manualOriginals[key];
     if (opts.recordTombstone !== false) markLabEntryMarkerDeleted(entry, key, now);
     deletedKeys.push(key);
   }
@@ -336,6 +361,7 @@ export function deleteLabEntryMarker(entry: OptionalLabEntry, dotKey: string, op
 export function renameLabEntryMarker(entry: OptionalLabEntry, fromKey: string, toKey: string, opts: MarkerEditOptions = {}) {
   if (!entry || typeof entry !== 'object' || !fromKey || !toKey || fromKey === toKey) return false;
   let changed = false;
+  if (moveLabManualOriginal(entry, fromKey, toKey, opts.overwrite)) changed = true;
   const markers = entry.markers && typeof entry.markers === 'object' ? entry.markers : null;
   if (markers && Object.prototype.hasOwnProperty.call(markers, fromKey)) {
     if (opts.overwrite || !Object.prototype.hasOwnProperty.call(markers, toKey)) {

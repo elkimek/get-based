@@ -5,7 +5,7 @@ import type { BackupSnapshot } from '../../js/backup.js';
 import type { ProfileData } from '../../types/app-state.js';
 import { createDefaultProfileData } from '../../js/profile.js';
 import { getConfiguredArrayItemId } from '../../js/data-merge.js';
-import { startKitServer } from './kit-server.js';
+import { startKitServer } from './kit-release-server.js';
 import { installDiscussionFixture, installDiscussionProvider } from '../helpers/chat-discussion-fixture.js';
 import { seedChatSummaryFixture } from '../helpers/chat-summary-fixture.js';
 import { readComparisonAcceptanceProfile } from '../helpers/nutrition-comparison-fixture.js';

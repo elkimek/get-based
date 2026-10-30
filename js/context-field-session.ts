@@ -32,6 +32,7 @@ export function createContextFieldSession<Value>(key: ContextFieldKey, apply: (d
           expectedContextField: {
             key, value: base[key] ?? null
           }, onContextFieldConflict: () => { conflict = true; },
+          ...(key === 'environment' ? { expectedContextFields: [{ key: 'emfAssessment' as const, value: base.emfAssessment ?? null }] } : {}),
         });
         if (!saved)
           return conflict ? 'conflict' : 'failed';

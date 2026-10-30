@@ -38,12 +38,12 @@ const _DEVICE_LABELS: Record<string, unknown> = {
 export function getScreenFingerprint(s: LightScreen | null | undefined) {
   if (!s) return '';
   const parts = [
-    'v2-blue-reduction-not-zero',
+    'v3-explicit-unknowns',
     s.device || '',
     s.roomId || 'portable',
-    Math.round(((s.hoursPerDay || 0) as number) * 10) / 10,
-    Math.round(((s.eveningUseAfterSunset || 0) as number) * 10) / 10,
-    s.blueBlockerEnabled ? 1 : 0,
+    s.hoursPerDay == null ? 'unknown' : Math.round((s.hoursPerDay as number) * 10) / 10,
+    s.eveningUseAfterSunset == null ? 'unknown' : Math.round((s.eveningUseAfterSunset as number) * 10) / 10,
+    s.blueBlockerEnabled == null ? 'unknown' : s.blueBlockerEnabled ? 1 : 0,
   ];
   return hashString(parts.join('|'));
 }
@@ -65,7 +65,7 @@ export function buildScreenContext(s: LightScreen | null | undefined) {
     const ev = Number(s.eveningUseAfterSunset);
     lines.push(`Time after sunset: ${ev > 0 ? ev + ' hr' : 'none'}`);
   }
-  lines.push(`Blue-reduction measure noted: ${s.blueBlockerEnabled ? 'yes (type and attenuation unknown; do not treat exposure as zero)' : 'no'}`);
+  lines.push(`Blue-reduction measure noted: ${s.blueBlockerEnabled == null ? 'unknown' : s.blueBlockerEnabled ? 'yes (type and attenuation unknown; do not treat exposure as zero)' : 'no'}`);
 
   // Bedroom-phone signal — important timing context, not a measured dose.
   if (s.device === 'phone' && room && /bedroom|sleep/i.test(room.name || '')) {

@@ -18,7 +18,7 @@ const m = vi.hoisted(() => ({ server: null as unknown as FixtureServer, signals:
 vi.mock('node:http', () => ({ createServer: () => m.server }));
 vi.mock('node:fs', () => ({ mkdtempSync: () => '/fixture/workspace', rmSync: m.rm }));
 vi.mock('../lib/agent-host-storage.js', () => ({ prepareAgentHostStorage: m.storage }));
-vi.mock('../lib/local-agent-registry.js', () => ({ detectLocalAgents: m.detect, createAgentVersionRefresher: () => async () => new Map(), buildLocalAgentEnvironment: (env: NodeJS.ProcessEnv) => ({ ...env, FIXTURE: 'yes' }) }));
+vi.mock('../lib/local-agent-registry.js', async importOriginal => ({ ...await importOriginal<typeof import('../lib/local-agent-registry.js')>(), detectLocalAgents: m.detect, createAgentVersionRefresher: () => async () => new Map(), buildLocalAgentEnvironment: (env: NodeJS.ProcessEnv) => ({ ...env, FIXTURE: 'yes' }) }));
 vi.mock('../lib/codex-agent-isolation.js', () => ({ buildIsolatedCodexArgs: () => ['isolated'], buildIsolatedCodexEnvironment: () => ({ CODEX_HOME: '/fixture/codex' }) }));
 vi.mock('../lib/codex-app-server-client.js', () => ({ CodexAppServerClient: m.codex }));
 vi.mock('../lib/acp-agent-client.js', () => ({ ACPAgentClient: m.acp }));
@@ -29,7 +29,7 @@ vi.mock('../lib/companion-http.js', () => ({ createCompanionRequestHandler: m.ht
 vi.mock('../lib/agent-host-service.js', () => ({ createAgentHostService: m.service }));
 vi.mock('../lib/companion-runtime-control.js', () => ({ createCompanionRuntimeController: m.controller }));
 vi.mock('../lib/companion-listener.js', () => ({ recoverCompanionListener: m.recover }));
-const agent = (protocol: LocalAgentSpec['protocol'] = 'acp', extra: Record<string, unknown> = {}) => ({ id: protocol, protocol, command: '/fixture/agent', args: ['fixture'], status: 'available', compatible: true, ...extra });
+const agent = (protocol: LocalAgentSpec['protocol'] = 'acp', extra: Record<string, unknown> = {}) => ({ id: protocol, protocol, command: '/fixture/agent', args: ['fixture'], version: '1.0.0', status: 'available', compatible: true, ...extra });
 const boot = () => import('../server/agent-host-server.js');
 beforeEach(() => {
   vi.resetModules(); vi.clearAllMocks(); m.clients = []; m.signals = {};
@@ -62,6 +62,11 @@ it.each(['codex','acp','claude','openclaw'] as const)('builds the %s adapter wit
   expect(m[protocol]).toHaveBeenCalledWith(expect.objectContaining({cwd:'/fixture/workspace',command:'/fixture/agent'}));
   expect(m.adapters.agents[0]!.client).toBe(m.clients[0]);
   expect(m.server.listen).toHaveBeenCalledWith(8324,'127.0.0.1');
+});
+it('gives OpenCode 2.1 an isolated client factory for each application turn', async () => {
+  m.detect.mockReturnValue([agent('acp', { id: 'opencode', version: '2.1.4' })]);
+  await boot();
+  expect(m.adapters.agents[0]).toHaveProperty('createTurnClient', expect.any(Function));
 });
 it('exposes login-required Codex without creating a process client', async () => {
   m.detect.mockReturnValue([agent('codex')]); m.storage.mockReturnValue({token:'secret',codexAuthenticated:false}); await boot();

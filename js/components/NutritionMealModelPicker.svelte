@@ -8,7 +8,7 @@
     <span id="nutrition-model-purpose" class="gb:nutrition:text-[10px] gb:nutrition:font-bold gb:nutrition:text-secondary">{view.purpose}</span>
     <div class="gb:nutrition:relative gb:nutrition:min-w-0">
     <select aria-label={view.accessibleLabel} data-nutrition-model-route class={`${input} gb:nutrition:appearance-none gb:nutrition:truncate gb:nutrition:pr-[34px] gb:nutrition:py-[9px] gb:nutrition:px-2.5 gb:nutrition:text-xs`}>
-      <option value="" selected={view.automatic} disabled={!view.available}>{view.automaticLabel}</option>
+      <option value="" selected={view.automatic} disabled={!(view.automaticAvailable ?? view.available)}>{view.automaticLabel}</option>
       {#if view.savedChoice}<option value={view.selectedValue} selected>{view.savedChoice}</option>{/if}
       {#each view.options as option}<option value={option.value} selected={option.value === view.selectedValue}>{option.label}</option>{/each}
     </select>

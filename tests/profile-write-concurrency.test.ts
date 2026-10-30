@@ -5,7 +5,7 @@ import { mergeProfileMutation, rememberProfileData, adoptProfileData } from '../
 import { saveImportedData, saveImportedDataForProfile, notifyProfileDataContextChanged, configureDataContextDependencies } from '../js/data.js';
 import { profileStorageKey, loadProfile, configureProfileRuntimeDeps } from '../js/profile.js';
 import * as crypto from '../js/crypto.js';
-import * as sync from '../js/sync.js';
+import * as sync from '../js/sync-save-hooks.js';
 import { mergePulledImportedData, persistPulledImportedData } from '../js/sync-pull-merge.js';
 import { refreshActiveProfileAfterPull } from '../js/sync-pull-active-refresh.js';
 import { configureSyncPull, onSyncReceived, isSyncPulling } from '../js/sync-pull.js';
@@ -273,17 +273,17 @@ it('keeps same-day specimen and collection context attached to each panel', () =
   expect(mergeProfileMutation(empty,{entries:[serum]},{entries:[saliva]}).entries).toEqual([saliva,serum]);
 });
 
-it('rejects ambiguous same-day panel conflicts without committing a guessed merge', async () => {
+it('rejects a stale reviewed lab date inside the locked save even after panels gain identities', async () => {
   state.importedData.entries = [entry('2026-09-01',{a:1}),entry('2026-09-01',{b:2})];
   expect(await saveImportedData()).toBe(true);
   const base = structuredClone(state.importedData), a = structuredClone(base), b = structuredClone(base);
   a.entries[0]!.markers.a=3; b.entries[1]!.markers.b=4;
   expect(await saveImportedDataForProfile(profileId,a,{baseData:base,forceProfileScope:true})).toBe(true);
-  expect(await saveImportedDataForProfile(profileId,b,{baseData:base,forceProfileScope:true})).toBe(false);
+  expect(await saveImportedDataForProfile(profileId,b,{baseData:base,forceProfileScope:true,expectedLabDateRecords:[{date:'2026-09-01',value:base.entries}]})).toBe(false);
   expect((await read()).entries).toEqual(a.entries);
 });
 
-for (const duringWrite of [false, true]) it(`a committed scoped answer stays successful when live panels conflict ${duringWrite ? 'during' : 'before'} storage`, async () => {
+for (const duringWrite of [false, true]) it(`a committed scoped answer rebases independent named panels ${duringWrite ? 'during' : 'before'} storage`, async () => {
   state.importedData.entries = [entry('2026-09-01', { a: 1 }), entry('2026-09-01', { b: 2 })];
   expect(await saveImportedData()).toBe(true);
   const base = structuredClone(state.importedData), intent = structuredClone(base), peer = structuredClone(base);
@@ -302,13 +302,13 @@ for (const duringWrite of [false, true]) it(`a committed scoped answer stays suc
   expect((await read()).biologyScoreAI!.test!.text).toBe('Saved interpretation');
   expect((await read()).entries).toEqual(peer.entries);
   expect(state.importedData.biologyScoreAI!.test!.text).toBe('Saved interpretation');
-  expect(state.importedData.entries.map(e => e.markers)).toEqual([{ a: 1 }, { b: 4 }]);
-  // The retained original baseline prevents a later save from hiding the conflict.
-  expect(await saveImportedData()).toBe(false);
-  expect((await read()).entries).toEqual(peer.entries);
+  expect(state.importedData.entries.map(e => e.markers)).toEqual([{ a: 3 }, { b: 4 }]);
+  // The peer edit is published, while the independent draft only persists on save.
+  expect(await saveImportedData()).toBe(true);
+  expect((await read()).entries.map(e => e.markers)).toEqual([{ a: 3 }, { b: 4 }]);
 });
 
-it('a committed pull preserves conflicting unsaved panels without rejecting after storage', async () => {
+it('a committed pull rebases independent named panels while retaining the unsaved draft', async () => {
   state.importedData.entries = [entry('2026-09-01', { a: 1 }), entry('2026-09-01', { b: 2 })];
   expect(await saveImportedData()).toBe(true);
   const pull = await mergePulledImportedData(profileId, null);
@@ -320,8 +320,9 @@ it('a committed pull preserves conflicting unsaved panels without rejecting afte
   });
   await expect(persistPulledImportedData(key, profileId, pull.merged, Date.now())).resolves.toBeDefined();
   expect((await read()).entries.map(e => e.markers)).toEqual([{ a: 3 }, { b: 2 }]);
-  expect(state.importedData.entries.map(e => e.markers)).toEqual([{ a: 1 }, { b: 4 }]);
-  expect(await saveImportedData()).toBe(false);
+  expect(state.importedData.entries.map(e => e.markers)).toEqual([{ a: 3 }, { b: 4 }]);
+  expect(await saveImportedData()).toBe(true);
+  expect((await read()).entries.map(e => e.markers)).toEqual([{ a: 3 }, { b: 4 }]);
 });
 
 it('wearable reconciliation leaves newer live notes intact until the pull commits', async () => {
@@ -492,6 +493,31 @@ it('guards observed goal arrays atomically and retains peer goals without publis
   const conflict = vi.fn();
   expect(await saveImportedDataForProfile(profileId, draft, { forceProfileScope: true, baseData: base, expectedContextField: { key: 'healthGoals', value: base.healthGoals }, onContextFieldConflict: conflict })).toBe(false);
   expect(conflict).toHaveBeenCalledOnce(); expect(JSON.parse((await crypto.encryptedGetItem(key))!).healthGoals).toEqual(peer.healthGoals);
+});
+
+it.each([undefined, null])('accepts the first goal when durable empty goals are represented as %s', async initial => {
+  const base = structuredClone(state.importedData), stored = structuredClone(base);
+  if (initial === undefined) delete (stored as Partial<typeof stored>).healthGoals;
+  else Object.assign(stored, { healthGoals: null });
+  await crypto.encryptedSetItem(key, JSON.stringify(stored));
+  const next = structuredClone(base); next.healthGoals = [{ text: 'Improve my sleep', severity: 'mild' }];
+  expect(await saveImportedDataForProfile(profileId, next, { forceProfileScope: true, baseData: base,
+    expectedContextField: { key: 'healthGoals', value: [] } })).toBe(true);
+  const saved = JSON.parse((await crypto.encryptedGetItem(key))!);
+  expect(saved.healthGoals).toEqual(next.healthGoals);
+  expect(saved.entries).toEqual(base.entries);
+  expect(state.importedData.healthGoals).toEqual(next.healthGoals);
+});
+
+it('still rejects the first-goal proposal if a peer added a goal after the empty snapshot', async () => {
+  const base = structuredClone(state.importedData), next = structuredClone(base), peer = structuredClone(base);
+  next.healthGoals = [{ text: 'Improve my sleep' }]; peer.healthGoals = [{ text: 'Peer goal' }];
+  await crypto.encryptedSetItem(key, JSON.stringify(peer));
+  const conflict = vi.fn();
+  expect(await saveImportedDataForProfile(profileId, next, { forceProfileScope: true, baseData: base,
+    expectedContextField: { key: 'healthGoals', value: [] }, onContextFieldConflict: conflict })).toBe(false);
+  expect(conflict).toHaveBeenCalledOnce();
+  expect(JSON.parse((await crypto.encryptedGetItem(key))!).healthGoals).toEqual(peer.healthGoals);
 });
 
 it('guards an observed lens inside the storage transaction and preserves a peer lens on conflict', async () => {
@@ -1143,4 +1169,31 @@ it('quiet background snapshot rejection still prevents every stale write', async
   expect(write).not.toHaveBeenCalled();
   expect(await crypto.encryptedGetItem(key)).toBe(before);
   expect(state.importedData.contextNotes).toBe('original');
+});
+
+it.each([false, true])('guards only the reviewed therapy record while preserving peer notes (changed target: %s)', async changeTarget => {
+  state.importedData.supplements = [{ id: 'reviewed-therapy', name: 'Example', type: 'supplement' }];
+  expect(await saveImportedData()).toBe(true);
+  const base = structuredClone(state.importedData), next = structuredClone(base), peer = structuredClone(base);
+  next.supplements[0]!.note = 'Accepted edit';
+  peer.notes.push({ date: '2026-10-23', text: 'Unrelated peer note' });
+  peer.supplements.push({ id: 'unrelated-therapy', name: 'Preserve peer therapy', type: 'supplement', schemaVersion: 2 });
+  if (changeTarget) peer.supplements[0]!.note = 'Other tab edit';
+  await crypto.encryptedSetItem(key, JSON.stringify(peer));
+  const onContextFieldConflict = vi.fn();
+  expect(await saveImportedDataForProfile(profileId, next, { baseData: base, expectedProfileRecords: [{ key: 'supplements', id: 'reviewed-therapy', value: base.supplements[0] }], onContextFieldConflict })).toBe(!changeTarget);
+  const saved = JSON.parse((await crypto.encryptedGetItem(key))!) as typeof base;
+  expect(saved.notes).toContainEqual(peer.notes.at(-1));
+  expect(saved.supplements).toContainEqual(peer.supplements.at(-1));
+  expect(saved.supplements[0]!.note).toBe(changeTarget ? 'Other tab edit' : 'Accepted edit');
+  expect(onContextFieldConflict).toHaveBeenCalledTimes(changeTarget ? 1 : 0);
+});
+
+it('rejects a concurrent addition with the proposed new record identity', async () => {
+  const base = structuredClone(state.importedData), next = structuredClone(base), peer = structuredClone(base);
+  next.supplements = [{ id: 'new-therapy', name: 'Proposed' }];
+  peer.supplements = [{ id: 'new-therapy', name: 'Peer addition' }];
+  await crypto.encryptedSetItem(key, JSON.stringify(peer));
+  expect(await saveImportedDataForProfile(profileId, next, { baseData: base, expectedProfileRecords: [{ key: 'supplements', id: 'new-therapy', value: null }] })).toBe(false);
+  expect((await read()).supplements).toEqual(peer.supplements);
 });

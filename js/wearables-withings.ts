@@ -1,3 +1,4 @@
+import { createWearableFetchScope } from './wearable-fetch-scope.js';
 import { createBasicWearableRow } from './wearable-daily-row.js';
 import type { BasicWearableMetric, WearableDailyRow, WearableErrorBody, WearableRequestError, WearableQuery, WearableQueryConstructor } from './wearable-data-types.js';
 
@@ -162,6 +163,7 @@ export async function fetchWithingsPersonalInfo(accessToken: string) {
 }
 
 export async function fetchWithingsDailyRange(accessToken: string, startDate: string, endDate: string, lastSyncUnix: number | null = null) {
+  const requests = createWearableFetchScope();
   const startUnix = Math.floor(new Date(startDate + 'T00:00:00Z').getTime() / 1000);
   const endUnix   = Math.floor(new Date(endDate + 'T23:59:59Z').getTime() / 1000);
 
@@ -182,13 +184,13 @@ export async function fetchWithingsDailyRange(accessToken: string, startDate: st
   // Fetch in parallel: body measures (weight, BP, pulse), sleep summary.
   // Heartrate list is per-device and noisy; deferring to a follow-up.
   const [meas, sleep] = await Promise.all([
-    withingsPOST('getmeas', accessToken, measParams)
-      .catch((e): WithingsBody => { logDebug('getmeas', e); return {}; }),
-    withingsPOST('getsleepsummary', accessToken, {
+    requests.run(withingsPOST('getmeas', accessToken, measParams), {}, e => { logDebug('getmeas', e); }),
+    requests.run(withingsPOST('getsleepsummary', accessToken, {
       startdateymd: startDate, enddateymd: endDate,
       data_fields: SLEEP_DATA_FIELDS,
-    }).catch((e): WithingsBody => { logDebug('getsleepsummary', e); return {}; }),
+    }), {}, e => { logDebug('getsleepsummary', e); }),
   ]);
+  requests.assertSuccessful();
 
   const byDate = new Map<string, WithingsDailyRow>();
   function ensureRow(day: string): WithingsDailyRow {

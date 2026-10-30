@@ -331,9 +331,11 @@ function mirrorAgentAccessToLegacyLocalStorage(aa: AgentAccessRecord | null = cu
     }
     // Never write bearer/decryption secrets back into localStorage. This mirror
     // contains only the toggle and series preference after source retirement.
-    const wearableSeriesDays = typeof aa?.wearableSeriesDays === 'number'
-      ? normalizeAgentSeriesDays(aa.wearableSeriesDays)
-      : currentAgentWearableSeriesDays(aa);
+    const split = (state.importedData as AgentAccessProfile | null)?.agentAccessWearableSeriesDays;
+    // A read API's 0 can mean "no synced preference". Only mirror an actual
+    // saved choice; otherwise keep the profile's legacy local window intact.
+    const wearableSeriesDays = typeof split === 'number' ? normalizeAgentSeriesDays(split)
+      : typeof aa.wearableSeriesDays === 'number' ? normalizeAgentSeriesDays(aa.wearableSeriesDays) : null;
     if (typeof wearableSeriesDays === 'number') {
       const pid = state.currentProfile || localStorage.getItem('labcharts-active-profile') || 'default';
       localStorage.setItem(`labcharts-${pid}-agent-wearable-series`, wearableSeriesDays > 0 ? String(wearableSeriesDays) : 'off');
@@ -382,7 +384,7 @@ export function refreshAgentAccessFromSyncedProfile({ migrateLegacy = true, clea
     return fallback;
   }
   const withSeries = { ...aa, wearableSeriesDays: currentAgentWearableSeriesDays(aa) };
-  mirrorAgentAccessToLegacyLocalStorage(withSeries);
+  mirrorAgentAccessToLegacyLocalStorage(aa);
   return withSeries;
 }
 

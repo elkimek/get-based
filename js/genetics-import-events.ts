@@ -4,6 +4,8 @@ import type { ProfileData } from '../types/app-state.js';
 export const GENETICS_IMPORTED = 'labcharts-genetics-imported';
 export interface GeneticsImported {
   profileId: string;
+  /** Captured live owner for presentation; previousData is an independent snapshot. */
+  ownerData?: ProfileData;
   previousData: ProfileData;
   data: ProfileData;
   source: string;

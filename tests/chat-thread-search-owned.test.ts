@@ -98,3 +98,14 @@ it('retires invalidated search progress and permits a fresh query to complete', 
   filterThreadList('needle'); await vi.advanceTimersByTimeAsync(250);
   expect(document.querySelectorAll('.chat-search-result')).toHaveLength(1);
 });
+
+it('never highlights a stale exact source even when its content prefix matches', async () => {
+  const reveal = vi.fn(() => true); configureChatThreadSearch({ revealMessage: reveal, switchToThread: async id => { state.currentThreadId = id; state.chatHistory = [{ role: 'user', content: 'Same prefix but different full source' }]; } });
+  await jumpToSearchResult('b', 0, 'Same prefix', 'Same prefix with the original full source');
+  expect(reveal).not.toHaveBeenCalled(); expect(frames).toHaveLength(0);
+});
+it('retires an exact source between scheduling its native highlight and rendering it', async () => {
+  const content = 'Needle original source'; state.chatHistory = [{ role: 'user', content }];
+  await jumpToSearchResult('a', 0, content.slice(0, 50), content); expect(frames).toHaveLength(1);
+  state.chatHistory[0]!.content = 'Newer edited source'; frames[0]!(0); expect(document.querySelector('.chat-msg-highlight')).toBeNull();
+});

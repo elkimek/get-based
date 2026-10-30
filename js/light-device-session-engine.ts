@@ -16,7 +16,7 @@ import {
   validateModeCoupling as validateDeviceModeCoupling,
 } from './sun-spectrum.js';
 
-export const DEVICE_ENGINE_VERSION = 5;
+export const DEVICE_ENGINE_VERSION = 6;
 
 export interface DeviceModel extends SpectralDevice {
   recommendedDistanceCm?: number | null;
@@ -205,6 +205,10 @@ export function computeDeviceSessionDoses({
   eyesProtected = true,
   mode = null,
 }: DeviceSessionDoseInput = {}, deps: Partial<DeviceEngineDeps> = {}) {
+  const referenceUnknown = device?.recommendedDistanceCm === null;
+  // Explicit unknown reference distance is not the legacy omitted 15 cm default.
+  // Keep the original reported specification; withhold numerical reference estimates.
+  if (referenceUnknown) device = { ...device, mwPerCm2At15cm: null, lux: null, melanopicDER: null, melanopicEdiLux: null };
   const resolvedMode = resolveDeviceMode(device, mode, deps);
   const bodyExposureFraction = bodyFractionForDeviceSession({ bodyAreas, bodyArea });
   const distanceFactor = deviceDistanceFactor(device, distanceCm);
@@ -236,7 +240,7 @@ export function computeDeviceSessionDoses({
     unsafeEyeExposure: hasUV && !eyesProtected,
   };
   const metrics: DeviceMetrics = {};
-  const warnings: string[] = [];
+  const warnings: string[] = referenceUnknown ? ['Reference distance is unknown; reference-based numerical estimates are withheld.'] : [];
   const distanceInfo = _distanceModelInfo(device, distanceCm);
   if (distanceInfo.warning) warnings.push(distanceInfo.warning);
   const sourcePeaks = Array.isArray(device?.peakWavelengths)

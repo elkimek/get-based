@@ -6,7 +6,7 @@ import * as ts from 'typescript/unstable/ast';
 import {withParsedSource} from '../../scripts/native-typescript-ast.js';
 import {performance as hostPerformance} from 'node:perf_hooks';
 import {devices, expect, test} from '@playwright/test';
-import {startKitServer} from './kit-server.js';
+import {startKitServer} from './kit-release-server.js';
 
 const artifact = path.resolve(process.env.GETBASED_KIT_ARTIFACT || '.local-notes/sveltekit-build');
 const pixel = devices['Pixel 5'];

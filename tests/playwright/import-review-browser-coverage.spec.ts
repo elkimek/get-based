@@ -246,7 +246,7 @@ test('PDF import review modal covers filtering mapping exclusion and batch close
 
       const modal = document.getElementById('import-modal');
       const overlay = document.getElementById('import-modal-overlay');
-      const confirmBtn = (document.getElementById('import-confirm-btn') as HTMLButtonElement | null);
+      let confirmBtn = (document.getElementById('import-confirm-btn') as HTMLButtonElement | null);
       outcomes.opensAndEscapesFilename = overlay?.classList.contains('show') === true
         && modal?.innerHTML.includes('&lt;cbc-review&gt;.pdf') === true;
       outcomes.rendersSummaryAndWarnings = modal?.textContent.includes('1 matched') === true
@@ -262,9 +262,11 @@ test('PDF import review modal covers filtering mapping exclusion and batch close
       outcomes.renderedControlsUseDelegatedActions = modal?.querySelectorAll<HTMLElement>('[onclick],[onchange],[oninput]').length === 0
         && modal?.querySelectorAll<HTMLElement>('[data-import-review-action]').length >= 13;
 
-      const dateInput = (document.getElementById('import-manual-date') as HTMLInputElement | null);
+      let dateInput = (document.getElementById('import-manual-date') as HTMLInputElement | null);
       dateInput!.value = '2026-06-01';
       dispatchChange(dateInput);
+      dateInput = document.querySelector<HTMLInputElement>('#import-manual-date');
+      confirmBtn = document.querySelector<HTMLButtonElement>('#import-confirm-btn');
 
       const sampleTimeInput = (document.getElementById('import-sample-time') as HTMLInputElement | null);
       const fastingInput = (document.getElementById('import-fasting') as HTMLSelectElement | null);
@@ -279,10 +281,14 @@ test('PDF import review modal covers filtering mapping exclusion and batch close
         && confirmBtn?.disabled === false;
       dateInput!.value = '';
       dispatchChange(dateInput);
+      dateInput = document.querySelector<HTMLInputElement>('#import-manual-date');
+      confirmBtn = document.querySelector<HTMLButtonElement>('#import-confirm-btn');
       outcomes.emptyManualDateDisablesImport = review.getPendingImport()?.date === ''
         && confirmBtn?.disabled === true;
       dateInput!.value = '2026-06-01';
       dispatchChange(dateInput);
+      dateInput = document.querySelector<HTMLInputElement>('#import-manual-date');
+      confirmBtn = document.querySelector<HTMLButtonElement>('#import-confirm-btn');
 
       const glucoseRow = document.querySelector<HTMLElement>('tr[data-import-idx="0"]');
       const glucoseUnit = glucoseRow!.querySelector<HTMLElement>('.import-unit-input');

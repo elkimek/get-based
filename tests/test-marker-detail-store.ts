@@ -71,6 +71,8 @@ assert('saveManualMarkerValue rejects missing date before creating an entry',
   refOverrides: {},
 };
 
+if (!await (await import('../js/data.js')).saveImportedData()) throw new Error('Could not persist marker-detail fixture');
+
 console.log('%c 2. Manual values ', 'font-weight:bold;color:#f59e0b');
 await saveManualMarkerValue({
   dotKey: 'diabetes.insulin',
@@ -156,8 +158,8 @@ assert('deleteMarkerNoteText deletes marker note key so map tombstone planner ca
   !Object.prototype.hasOwnProperty.call(state.importedData.markerNotes, 'biochemistry.alt'));
 
 console.log('%c 4. Boundary guard ', 'font-weight:bold;color:#f59e0b');
-const editingSrc = read('js/marker-detail-editing.js');
-const storeSrc = read('js/marker-detail-store.js');
+const editingSrc = read('js/marker-detail-editing.ts');
+const storeSrc = read('js/marker-detail-store.ts');
 const deleteMarkerValueBlock = editingSrc.match(/export async function deleteMarkerValue[\s\S]*?export function editMarkerValue/)?.[0] || '';
 const saveRefRangeBlock = editingSrc.match(/export async function saveRefRange[\s\S]*?export async function revertRefRange/)?.[0] || '';
 assert('marker-detail-editing imports the store boundary',

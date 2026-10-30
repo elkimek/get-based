@@ -1,7 +1,7 @@
 import { beforeEach, expect, it, vi } from 'vitest';
-const mocks = vi.hoisted(() => ({ wearable: vi.fn(), rows: vi.fn(), meta: vi.fn(), notify: vi.fn() }));
+const mocks = vi.hoisted(() => ({ wearable: vi.fn(), rows: vi.fn(), meta: vi.fn(), notify: vi.fn(), journalKeys: vi.fn() }));
 vi.mock('../js/utils.js', () => ({ showConfirmDialog: vi.fn(), showNotification: mocks.notify, escapeAttr: (value: unknown) => value, escapeHTML: (value: unknown) => value }));
-vi.mock('../js/blob-storage.js', () => ({ getBlob: async () => null, setBlob: vi.fn(), shouldUseBlob: () => true }));
+vi.mock('../js/blob-storage.js', () => ({ getBlob: async () => null, getBlobKeys: mocks.journalKeys, setBlob: vi.fn(), shouldUseBlob: () => true }));
 vi.mock('../js/wearables-store.js', () => ({ getDailyRangeRaw: mocks.wearable, upsertDailyBatchRaw: vi.fn() }));
 vi.mock('../js/cycle-store.js', () => ({ getAllCycleObservationsRaw: mocks.rows, getAllCycleImportMetaRaw: mocks.meta, upsertCycleObservationBatchRaw: vi.fn(), upsertCycleImportMetaBatchRaw: vi.fn() }));
 import { buildFullBackupSnapshot, exportEncryptedBackup, configureBackupRuntimeDeps } from '../js/backup.js';
@@ -10,10 +10,16 @@ beforeEach(() => {
   localStorage.setItem('labcharts-profiles', JSON.stringify([{ id: 'a', name: 'Profile' }]));
   configureBackupRuntimeDeps({ encryptedGetItem: async () => null, getEncryptionEnabled: () => false });
   mocks.wearable.mockResolvedValue([]); mocks.rows.mockResolvedValue([]); mocks.meta.mockResolvedValue([]);
+  mocks.journalKeys.mockResolvedValue([]);
 });
 it.each(['wearable', 'rows', 'meta'] as const)('rejects a full snapshot when %s cannot be read', async store => {
   mocks[store].mockRejectedValue(new Error('Read failed'));
-  await expect(buildFullBackupSnapshot()).rejects.toThrow();
+  await expect(buildFullBackupSnapshot()).rejects.toThrow('Read failed');
+});
+it('refuses an incomplete recovery scan and never marks its export as successful', async () => {
+  mocks.journalKeys.mockRejectedValue(new Error('Recovery enumeration failed'));
+  await expect(buildFullBackupSnapshot()).rejects.toThrow('Recovery enumeration failed');
+  await expect(exportEncryptedBackup()).resolves.toBeUndefined(); expect(localStorage.getItem('labcharts-last-manual-backup')).toBeNull(); expect(mocks.notify).not.toHaveBeenCalledWith(expect.any(String), 'success');
 });
 it.each(['wearable', 'rows', 'meta'] as const)('reports export failure without marking a successful backup when %s cannot be read', async store => {
   mocks[store].mockRejectedValue(new Error('Read failed'));

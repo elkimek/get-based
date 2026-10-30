@@ -110,6 +110,24 @@ test('Settings loader caches initialization and preserves lazy bridge actions', 
   }
 });
 
+test('the AI settings handoff rechecks its native owner after a delayed load', async ({ page }) => {
+  let release!: () => void, requested = false;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  await page.route('**/js/settings.js*', async route => { requested = true; await held; await route.fulfill({ contentType: 'application/javascript', body: syntheticSettingsModule() }); });
+  await openBlankPage(page, '/settings-owner-handoff-coverage');
+  await page.evaluate(async () => {
+    const loader = await import('/js/settings-loader.js');
+    const fixture = globalThis as typeof globalThis & { __settingsOwner: boolean; __settingsOwnedPending: unknown };
+    fixture.__settingsOwner = true; fixture.__settingsOwnedPending = loader.openAISettingsForOwner(() => fixture.__settingsOwner);
+  });
+  await expect.poll(() => requested).toBe(true);
+  await page.evaluate(() => { (globalThis as typeof globalThis & { __settingsOwner: boolean }).__settingsOwner = false; }); release();
+  expect(await page.evaluate(async () => await (globalThis as typeof globalThis & { __settingsOwnedPending: Promise<unknown> }).__settingsOwnedPending)).toBe(false);
+  expect(await page.evaluate(() => (globalThis as typeof globalThis & { __openedSettingsTabs?: string[] }).__openedSettingsTabs)).toBeUndefined();
+  await page.evaluate(async () => { await (await import('/js/settings-loader.js')).openAISettingsForOwner(() => true); });
+  expect(await page.evaluate(() => (globalThis as typeof globalThis & { __openedSettingsTabs?: string[] }).__openedSettingsTabs)).toEqual(['ai']);
+});
+
 test('Settings loader retries direct loads after a failed import', async ({ page }) => {
   let settingsRequests = 0;
   await page.route('**/js/settings.js*', route => {

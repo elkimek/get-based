@@ -8,12 +8,12 @@ import { discoverLocalAI, getCachedLocalAiModelDetail, markCachedLocalAiModelLoa
 import type { OllamaInferenceOptions } from './local-ai-provider-ollama.js';
 import type { LocalAiModel } from './local-ai-provider-shared.js';
 
-interface PromptEstimateOptions { system?: unknown; messages?: unknown; promptCharsPerToken?: unknown }
+interface PromptEstimateOptions { tools?: unknown; system?: unknown; messages?: unknown; promptCharsPerToken?: unknown }
 export interface LocalAiRequestOptions extends OllamaInferenceOptions {
   maxTokens?: number | undefined; minOutputTokens?: number | undefined;
   promptCharsPerToken?: number | undefined; modelOverride?: unknown;
 }
-interface PromptMessage { content?: unknown }
+interface PromptMessage { content?: unknown; tool_calls?: unknown }
 interface PromptBlock { text?: unknown; type?: unknown }
 interface LocalAiConfig { url: string; apiKey: unknown }
 
@@ -27,12 +27,13 @@ function contentTokenEstimate(content: unknown, charsPerToken: number) {
   }, 0);
 }
 
-export function estimateLocalAiPromptTokens({ system, messages, promptCharsPerToken }: PromptEstimateOptions) {
+export function estimateLocalAiPromptTokens({ system, messages, promptCharsPerToken, tools }: PromptEstimateOptions) {
   // 3.5 chars/token fits prose; dense numeric tables (lab reports) tokenize
   // closer to 3, so callers with that input shape pass promptCharsPerToken.
   const charsPerToken = Number(promptCharsPerToken) > 0 ? Number(promptCharsPerToken) : 3.5;
-  const contentTokens = String(system || '').length / charsPerToken
-    + (Array.isArray(messages) ? messages.reduce((total, message) => total + contentTokenEstimate((message as PromptMessage | null | undefined)?.content, charsPerToken), 0) : 0);
+  const contentTokens = (String(system || '').length + (tools ? JSON.stringify(tools).length : 0)) / charsPerToken
+    + (Array.isArray(messages) ? messages.reduce((total, message) => total + contentTokenEstimate((message as PromptMessage | null | undefined)?.content, charsPerToken)
+      + ((message as PromptMessage | null | undefined)?.tool_calls ? JSON.stringify((message as PromptMessage).tool_calls).length / charsPerToken : 0), 0) : 0);
   const messageOverhead = (Array.isArray(messages) ? messages.length : 0) * 6 + (system ? 6 : 0);
   return Math.ceil(contentTokens) + messageOverhead;
 }
@@ -132,7 +133,8 @@ export async function callOpenAICompatibleLocalAPI(opts: LocalAiRequestOptions) 
     roundContextLength,
   }) || null;
   let effectiveModelDetail = nativeRequest?.modelDetail || modelDetail;
-  let useNativeInfer = !!(nativeRequest && providerAdapter.infer);
+  // Native fallback serializers are text-only; tool turns use the compatible endpoint.
+  let useNativeInfer = !opts.tools?.length && !!(nativeRequest && providerAdapter.infer);
 
   // Prefer load-then-stream: (re)load the model at the target context via the
   // lifecycle hook, then generate over the streaming compatible endpoint. The

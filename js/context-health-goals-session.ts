@@ -3,11 +3,11 @@ import { state } from './state.js';
 import { saveImportedDataForProfile, notifyProfileDataContextChanged } from './data.js';
 import { profileDataBaseline, profileDataValuesEqual, rebaseLiveProfileData, adoptProfileData, rememberProfileData } from './profile-data-writes.js';
 import { isProfileReadBlocked } from './profile-load-safety.js';
-import { appendImportedArrayItem, deleteImportedArrayItem, clearImportedArray, clearTombstone, getConfiguredArrayItemId } from './data-merge.js';
+import { appendImportedArrayItem, replaceImportedArrayItem, deleteImportedArrayItem, clearImportedArray, clearTombstone, getConfiguredArrayItemId, pickTimestamp } from './data-merge.js';
 import { recordContextCardChange } from './context-cards-runtime.js';
-import { healthGoalList } from './health-goals-utils.js';
-export type HealthGoalMutation = { kind: 'add'; text: string; severity: string } | { kind: 'remove'; index: number } | { kind: 'clear' };
-export type HealthGoalResult = 'saved' | 'failed' | 'conflict' | 'retired' | 'blocked' | 'busy' | 'empty';
+import { healthGoalList, HEALTH_GOAL_PRIORITIES } from './health-goals-utils.js';
+export type HealthGoalMutation = { kind: 'add'; text: string; severity: string } | { kind: 'priority'; index: number; severity: string } | { kind: 'remove'; index: number } | { kind: 'clear' };
+export type HealthGoalResult = 'saved' | 'unchanged' | 'failed' | 'conflict' | 'retired' | 'blocked' | 'busy' | 'empty';
 export function createHealthGoalsSession() {
   const profile = state.currentProfile, origin = state.importedData;
   let retired = false, saving = false;
@@ -21,7 +21,10 @@ export function createHealthGoalsSession() {
       if (!profileDataValuesEqual(origin.healthGoals, observed)) return 'conflict';
       if (mutation.kind === 'add' && !mutation.text.trim()) return 'empty';
       const goals = healthGoalList(observed);
-      if (mutation.kind === 'remove' && (!Number.isInteger(mutation.index) || mutation.index < 0 || mutation.index >= goals.length)) return 'empty';
+      if ((mutation.kind === 'remove' || mutation.kind === 'priority') && (!Number.isInteger(mutation.index) || mutation.index < 0 || mutation.index >= goals.length)) return 'empty';
+      if ((mutation.kind === 'add' || mutation.kind === 'priority') && !HEALTH_GOAL_PRIORITIES.some(option => option.value === mutation.severity)) return 'empty';
+      if (mutation.kind === 'priority' && (typeof goals[mutation.index]?.text !== 'string' || !goals[mutation.index]!.text!.trim())) return 'empty';
+      if (mutation.kind === 'priority' && goals[mutation.index]?.severity === mutation.severity) return 'unchanged';
       saving = true;
       let conflict = false;
       try {
@@ -30,6 +33,10 @@ export function createHealthGoalsSession() {
         if (mutation.kind === 'add') {
           const goal = appendImportedArrayItem(draft, 'healthGoals', { text: mutation.text.trim(), severity: mutation.severity, updatedAt: Date.now() });
           clearTombstone(draft, 'healthGoals', getConfiguredArrayItemId('healthGoals', goal));
+        }
+        else if (mutation.kind === 'priority') {
+          const goal = goals[mutation.index]!;
+          replaceImportedArrayItem(draft, 'healthGoals', mutation.index, { ...goal, severity: mutation.severity, updatedAt: Math.max(Date.now(), pickTimestamp(goal) + 1) });
         }
         else if (mutation.kind === 'remove') deleteImportedArrayItem(draft, 'healthGoals', mutation.index);
         else clearImportedArray(draft, 'healthGoals');

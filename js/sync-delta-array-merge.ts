@@ -9,8 +9,10 @@ import {
   pickTimestamp,
   getAt,
   setAt,
-  mergeLabEntry,
 } from './data-merge.js';
+import { mergeLabDayRow } from './data-merge-lab-entries.js';
+import { expandLabPanelRows, packLabPanelRows } from './lab-panel-identity.js';
+import { filterRemovedLabPanels } from './lab-panel-deletions.js';
 import { recordPullDeltaSurface } from './sync-delta-pull-snapshot.js';
 import { DELTA_ARRAY_CONFIG } from './sync-delta-surface-config.js';
 import { _isAllowlistSafeId } from './sync-delta-id.js';
@@ -72,6 +74,10 @@ export async function mergeArrayRowsIntoImported(
         const ts = pickTimestamp(item);
         const sa = String(row.syncedAt || '');
         const cur = liveById.get(row.itemId);
+        if (arrayName === 'entries' && cur) {
+          liveById.set(row.itemId, { item: mergeLabDayRow(cur.item, item), ts: Math.max(ts, cur.ts), syncedAt: sa > cur.syncedAt ? sa : cur.syncedAt });
+          continue;
+        }
         if (!cur || ts > cur.ts || (ts === cur.ts && sa > cur.syncedAt)) {
           liveById.set(row.itemId, { item, ts, syncedAt: sa });
         }
@@ -97,6 +103,7 @@ export async function mergeArrayRowsIntoImported(
   // Apply tombstones (drop) + live (replace or insert). Both sides key on
   // itemIdFn so changeHistory finds existing entries by synthesized id.
   let nextArr = curArr.filter(it => !tombstoneWinsOverItem(itemIdFn(it), it));
+  if (arrayName === 'entries') nextArr = packLabPanelRows(nextArr);
   // Dedup `nextArr` by itemIdFn before the liveById overlay. Keep the first
   // occurrence; the live overlay below will replace it with relay-authority.
   const seen = new Map<string, number>();
@@ -117,11 +124,12 @@ export async function mergeArrayRowsIntoImported(
   for (const [itemId, entry] of liveById) {
     // Honour blob tombstones seeded above.
     if (tombstoneWinsOverLiveRow(itemId, entry)) continue;
-    const item = entry.item;
+    const item = arrayName === 'entries' ? packLabPanelRows(expandLabPanelRows([entry.item]).filter(panel => !tombstoneWinsOverLiveRow(itemId, { ts: pickTimestamp(panel), syncedAt: entry.syncedAt })))[0] : entry.item;
+    if (!item) continue;
     const idx = seen.get(itemId);
     if (idx !== undefined) {
       if (arrayName === 'entries') {
-        nextArr[idx] = mergeLabEntry(nextArr[idx] as LabEntryDraft, item as LabEntryDraft);
+        nextArr[idx] = mergeLabDayRow(nextArr[idx] as LabEntryDraft, item as LabEntryDraft);
         continue;
       }
       // The blob merge may already contain a fresh local edit that has not
@@ -132,7 +140,7 @@ export async function mergeArrayRowsIntoImported(
     }
     else nextArr.push(item);
   }
-  writeArr(nextArr);
+  writeArr(arrayName === 'entries' ? filterRemovedLabPanels(expandLabPanelRows(nextArr), imported.labPanelTombstones) : nextArr);
   // Re-apply COMPOSITE_KEYED_ARRAYS cap after the per-row overlay. v4 cutover
   // skips the blob merge entirely, so changeHistory needs this cap here.
   const cap = COMPOSITE_KEYED_ARRAYS.find(c => c.path === arrayName)?.cap;

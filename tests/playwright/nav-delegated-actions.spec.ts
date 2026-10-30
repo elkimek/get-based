@@ -99,7 +99,7 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
       restoreNavActions = nav.configureNavActions({
         openLightEnvironmentAssessment: () => calls.push(['open-light-env']),
         openClientList: () => calls.push(['open-client-list']),
-        openKnowledgeBase: options => calls.push(['open-knowledge-base', (options as {source?: unknown} | null)?.source]),
+        openKnowledgeBase: async options => calls.push(['open-knowledge-base', (options as {source?: unknown} | null)?.source]),
       });
       restoreContextCardsRuntime = contextCardsRuntime.configureContextCardsRuntimeCallbacks({
         openContextModal: () => calls.push(['open-context']),

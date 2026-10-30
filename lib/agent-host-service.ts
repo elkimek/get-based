@@ -15,10 +15,11 @@ import {
 } from '../shared/agent-host-protocol.js';
 import { startExternalAgentTurn } from './agent-host-external-turn.js';
 import { createCompanionManagement } from './companion-management.js';
+import { AGENT_TOOL_CONTRACT_VERSION } from '../shared/agent-tool-contract.js';
 import {
   AGENT_BASE_INSTRUCTIONS, DEFAULT_TOOL_TIMEOUT_MS, DISCOVERY_SESSION_TTL_MS,
   IMAGE_EXTENSIONS, MAX_DISCOVERY_SESSIONS, MAX_IMAGE_BYTES, MAX_IMAGES_PER_TURN,
-  MAX_MCP_SESSIONS, MAX_REQUESTED_INSTRUCTIONS_CHARS, PERSONAL_AGENT_BASE_INSTRUCTIONS,
+  MAX_MCP_SESSIONS, MAX_REQUESTED_INSTRUCTIONS_CHARS, MAX_APPLICATION_CONTEXT_CHARS, formatAgentApplicationContext, PERSONAL_AGENT_BASE_INSTRUCTIONS,
   UPLOAD_TTL_MS, cleanError, codexTurnErrorMessage, corsHeaders, createThreadHandle, declinedResult,
   hasImageSignature, isAllowedAgentHostOrigin, isAllowedAgentTool, isLoopbackOrigin, isRecord,
   jsonResponse, readJson, readThreadHandle, sanitizeDynamicTools, sanitizeHistory,
@@ -239,6 +240,7 @@ export function createAgentHostService(options: AgentHostServiceOptions) {
     state: paused ? 'paused' : 'running',
     paused,
     protocolVersion: AGENT_HOST_PROTOCOL_VERSION,
+    toolContractVersion: AGENT_TOOL_CONTRACT_VERSION,
     capabilities: AGENT_HOST_CAPABILITY_LIST,
     instanceId,
     startedAt,
@@ -296,6 +298,10 @@ export function createAgentHostService(options: AgentHostServiceOptions) {
         return jsonResponse({ tools: session.tools.map(spec => ({
           name: spec.name, description: spec.description, inputSchema: spec.inputSchema,
         })) });
+      }
+      if (url.pathname === '/internal/mcp/ready' && request.method === 'POST') {
+        session.markCatalogDelivered?.();
+        return jsonResponse({ ok: true });
       }
       if (url.pathname === '/internal/mcp/call' && request.method === 'POST') {
         let body;
@@ -456,6 +462,8 @@ export function createAgentHostService(options: AgentHostServiceOptions) {
     const requestedInstructions = typeof body.instructions === 'string'
       ? body.instructions.trim().slice(0, MAX_REQUESTED_INSTRUCTIONS_CHARS)
       : '';
+    if (body.applicationContext !== undefined && (typeof body.applicationContext !== 'string' || body.applicationContext.length > MAX_APPLICATION_CONTEXT_CHARS)) return jsonResponse({ error: 'invalid_application_context' }, 400, cors);
+    const applicationContext = typeof body.applicationContext === 'string' ? body.applicationContext : '';
     const requestedThreadHandle = typeof body.threadId === 'string' ? body.threadId.trim() : '';
     const requestedSession = requestedThreadHandle ? readThreadHandle(requestedThreadHandle, token, instanceId) : null;
     if (requestedThreadHandle && !requestedSession) {
@@ -549,7 +557,7 @@ export function createAgentHostService(options: AgentHostServiceOptions) {
         activeTurns, pendingTools, turnUploads, cleanup: cleanupTurnUploads,
         origin: url.origin, bridgePath: options.bundlePath || process.argv[1],
         baseInstructions: routedAgent.target?.kind === 'gateway' ? PERSONAL_AGENT_BASE_INSTRUCTIONS : AGENT_BASE_INSTRUCTIONS,
-        requestedInstructions, history, outputSchema, prompt, model, effort, send, close, cleanError,
+        requestedInstructions, applicationContext, history, outputSchema, prompt, model, effort, send, close, cleanError,
         createHandle: sessionId => createThreadHandle(sessionId, token, agentId, instanceId, targetId),
       });
       handleStreamCancel = abort;
@@ -625,6 +633,7 @@ export function createAgentHostService(options: AgentHostServiceOptions) {
           threadId,
           input: [
             ...turnUploads.map(upload => ({ type: 'localImage', path: upload.path })),
+            ...(applicationContext ? [{ type: 'text', text: formatAgentApplicationContext(applicationContext) }] : []),
             { type: 'text', text: prompt },
           ],
           environments: [],

@@ -152,14 +152,20 @@ it('uses the unchanged profile-scoped pin algorithm before any body is resident'
 });
 
 it('keeps actual first-party imports cold and publishes native event handlers only after the real body exists', () => {
-  const boot = read('js/app-shell-hooks.ts'), runtimeSource = read('js/views-runtime.ts');
+  const boot = read('js/app-shell-hooks.ts'), runtimeSource = read('js/navigation-views.ts');
   expect(boot).not.toContain("from './dashboard-view-composition.js'");
   expect(boot).toContain('configureProductionDashboard();');
   for (const file of ['main.ts', 'app-shell-hooks.ts', 'app-ui-shell-modules.ts', 'light-env-shell-hooks.ts',
     'light-channel-view-ui-hooks.ts', 'sun-session-ui-hooks.ts', 'light-tools-ui-hooks.ts', 'light-page-view-ui-hooks.ts']) {
     expect(read('js/' + file), file).not.toContain("'./views.js'");
-    expect(read('js/' + file), file).toContain("'./views-runtime.js'");
+    expect(read('js/' + file), file).toContain("'./navigation-views.js'");
   }
+
+  const compatibility = read('js/views-runtime.ts');
+  expect(compatibility).toContain("export * from './navigation-views.js'");
+  expect(compatibility).toContain("from './focus-card.js'");
+  expect(compatibility).toContain("from './category-page-view.js'");
+  expect(runtimeSource).not.toMatch(/^import .* from '\.\/(focus-card|category-page-view|category-view-renderers)\.js'/m);
   expect(runtimeSource).not.toMatch(/^import \{[^\n]*createLensPageHandlers/m);
   expect(runtimeSource).not.toMatch(/^import \{[^\n]*createRecommendationActions/m);
   expect(runtimeSource).not.toContain("from './dashboard-view-composition.js'");

@@ -66,6 +66,8 @@ describe('profile storage cleanup', () => {
       `labcharts-${profileId}-showAltUnits`,
       `labcharts-${profileId}-chat-threads`,
       `labcharts-${profileId}-chat-t_orphan`,
+      `labcharts-${profileId}-app-control-private-receipt`,
+      `labcharts-${profileId}-persona-transaction-pending`,
       `labcharts-${profileId}-ai-ctx-summary`,
       `labcharts-${profileId}-delta-last-sync`,
       `labcharts-${profileId}-sync-ts`,
@@ -90,6 +92,8 @@ describe('profile storage cleanup', () => {
     expect(encryptedRemoveItem.mock.calls.map(([key]) => key)).toEqual([
       `labcharts-${profileId}-imported`,
       `labcharts-${profileId}-imported-corrupt`,
+      `labcharts-${profileId}-agent-draft-claims`,
+      `labcharts-${profileId}-persona-transaction`,
     ]);
     expect(events.slice(0, 3).sort()).toEqual([
       `cycle:${profileId}`,
@@ -142,6 +146,8 @@ describe('profile storage cleanup', () => {
       getBlobKeys: async () => [
         'labcharts-idb-orphan-imported-corrupt',
         'labcharts-idb-regular-imported',
+        'labcharts-claims-orphan-agent-draft-claims',
+        'labcharts-persona-orphan-persona-transaction',
         'labcharts-invalid.profile-imported',
         'third-party-imported',
       ],
@@ -163,6 +169,8 @@ describe('profile storage cleanup', () => {
       'local-corrupt',
       'idb-orphan',
       'idb-regular',
+      'claims-orphan',
+      'persona-orphan',
       'wearable-orphan',
       'cycle-orphan',
       'nutrition-orphan',

@@ -2,15 +2,17 @@ import { requestChatLayoutSync } from './chat-layout-view.js';
 import { closePersonalityPickerView } from './chat-personality-picker-view.js';
 // chat-threads.js — Conversation-thread management for the chat panel
 import { state } from './state.js';
+import { isProfileChatIndexReady, markProfileChatIndexReady } from './profile-chat-state.js';
 import type { ChatThread } from '../types/chat-data.js';
 import type { ChatThreadDependencyMethods, ChatThreadDependencyRegistry } from '../types/chat-threads.js';
 import { showNotification, showConfirmDialog, showPromptDialog } from './utils.js';
 import { saveImportedData } from './data.js';
 import { deleteImportedArrayItems } from './data-merge.js';
-import { onChatSaved } from './sync.js';
+import { onChatSaved } from './sync-save-hooks.js';
 import { chatDeletedThreadsKey } from './sync-payload-collectors.js';
 import { renderChatThreadList, configureThreadNavigationActions } from './chat-thread-list-view.js';
 import { encryptedGetItem, encryptedSetItem } from './crypto.js';
+import { markNativeChatThreadIndexLoaded, ownsNativeChatThreadIndex, saveNativeChatThreadIndex } from './chat-thread-index-storage.js';
 import {
   configureChatThreadProjects, configureChatThreadSearch, createThreadProject,
   deleteThreadProject, deleteThreadProjectPrompt, filterThreadList,
@@ -124,8 +126,9 @@ function blockThreadIndexWrites(key: string) {
 }
 
 function isThreadIndexWriteBlocked(key = getChatThreadsKey()) {
-  return blockedThreadIndexKey === key;
+  return blockedThreadIndexKey === key || !isProfileChatIndexReady(state.currentProfile);
 }
+export function isChatThreadIndexBlocked() { return isThreadIndexWriteBlocked(); }
 
 function notifyThreadIndexBlocked() {
   if (blockedThreadIndexNoticeShown) return;
@@ -156,8 +159,16 @@ export async function loadChatThreads() {
     try {
       const threads = parseThreadIndex(raw);
       if (!threads) throw new Error('Invalid chat thread index');
+      // A repeated read of the generation already owned here must not retire
+      // live edits or saves queued against these conversation objects.
+      if (ownsNativeChatThreadIndex(state.currentProfile, state.chatThreads)) {
+        clearThreadIndexWriteBlock(key); markProfileChatIndexReady(state.currentProfile); return true;
+      }
+      if (localStorage.getItem(key) !== storedRaw) throw new Error('Chat thread index changed during loading');
       state.chatThreads = threads;
+      markNativeChatThreadIndexLoaded(state.currentProfile, threads, storedRaw);
       clearThreadIndexWriteBlock(key);
+      markProfileChatIndexReady(state.currentProfile);
       return true;
     } catch {
       blockThreadIndexWrites(key);
@@ -168,10 +179,11 @@ export async function loadChatThreads() {
 
   // Migration: convert legacy flat chat array to a thread.
   clearThreadIndexWriteBlock(key);
-  state.chatThreads = [];
   const legacyKey = `labcharts-${state.currentProfile}-chat`;
+  if (ownsNativeChatThreadIndex(state.currentProfile, state.chatThreads) && (state.chatThreads.length > 0 || localStorage.getItem(legacyKey) === null)) { markProfileChatIndexReady(state.currentProfile); return true; }
+  state.chatThreads = [];
   const legacyStoredRaw = localStorage.getItem(legacyKey);
-  if (legacyStoredRaw === null) return true;
+  if (legacyStoredRaw === null) { markProfileChatIndexReady(state.currentProfile); markNativeChatThreadIndexLoaded(state.currentProfile, state.chatThreads, null); return true; }
 
   let legacyRaw: string | null = null;
   try { legacyRaw = await encryptedGetItem(legacyKey); } catch { legacyRaw = null; }
@@ -196,9 +208,12 @@ export async function loadChatThreads() {
       }];
       await encryptedSetItem(getChatThreadKey(threadId), legacyRaw);
       if (!isCurrent()) return false;
+      markProfileChatIndexReady(state.currentProfile);
       await saveChatThreadIndex();
       // Leave legacy key in place for rollback safety
     }
+    markProfileChatIndexReady(state.currentProfile);
+    markNativeChatThreadIndexLoaded(state.currentProfile, state.chatThreads);
     return true;
   } catch {
     if (!isCurrent()) return false;
@@ -214,8 +229,8 @@ export function saveChatThreadIndex({ sync = true }: { sync?: boolean } = {}) {
     return false;
   }
   const key = getChatThreadsKey();
-  const value = JSON.stringify(state.chatThreads);
-  return encryptedSetItem(key, value)
+  const profile = state.currentProfile, threads = state.chatThreads, root = state.importedData;
+  return saveNativeChatThreadIndex(profile, threads, () => state.currentProfile === profile && state.chatThreads === threads && state.importedData === root && !isThreadIndexWriteBlocked(key))
     .then(() => {
       if (sync && key === getChatThreadsKey()) onChatSaved();
       return true;

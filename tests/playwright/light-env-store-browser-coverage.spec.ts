@@ -66,24 +66,29 @@ test('light environment store browser coverage persists room screen and tombston
         lightMeasurements: [],
       };
       const initialized = store.getEnvironment();
-      initialized!.rooms!.push({
+      outcomes.getEnvironmentDoesNotInitializeMissingData = Array.isArray(initialized!.rooms) && Array.isArray(initialized!.screens) && !state.importedData.lightEnvironment;
+      state.importedData.lightEnvironment = { rooms: [{
         id: 'legacy-room',
         name: 'Legacy Room',
         eveningUseAfterSunset: true,
-      });
-      initialized!.screens!.push({
+      }], screens: [{
         id: 'stale-screen',
         device: 'tablet',
         roomId: null,
         todayOverride: { date: '1999-01-01', active: false },
-      });
+      }] };
+      const legacy = store.getEnvironment(), beforeRead = clone(state.importedData.lightEnvironment);
+      const { getRoomEveningHoursAfterSunset } = await import('/js/light-env-evening.js');
       store.getEnvironment();
-      outcomes.getEnvironmentInitializesAndNormalizesLegacyEveningFields =
-        Array.isArray(initialized!.rooms)
-        && Array.isArray(initialized!.screens)
-        && initialized!.rooms[0]!.eveningHoursAfterSunset === 2
-        && !('eveningUseAfterSunset' in initialized!.rooms[0]!)
-        && store.isActiveToday(initialized!.screens[0]) === true;
+      outcomes.getEnvironmentPreservesLegacyDataAndEquivalentHours =
+        getRoomEveningHoursAfterSunset(legacy!.rooms![0]) === 2
+        && JSON.stringify(state.importedData.lightEnvironment) === JSON.stringify(beforeRead)
+        && legacy!.rooms![0]!.eveningUseAfterSunset === true
+        && store.isActiveToday(legacy!.screens![0]) === true;
+
+      // Native staged writes compare the actual committed profile baseline.
+      // Seed that baseline explicitly instead of relying on a read to save it.
+      if (!await (await import('/js/data.js')).saveImportedData()) throw new Error('Synthetic environment seed failed');
 
       const roomId = await store.addRoom('Bedroom');
       const env = store.getEnvironment();

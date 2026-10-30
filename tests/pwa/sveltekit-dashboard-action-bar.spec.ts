@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import {expect,test,type Page} from '@playwright/test';
-import {startKitServer} from './kit-server.js';
+import {startKitServer} from './kit-release-server.js';
 import {artifactInputs,cacheReceipt,profile,sha} from './kit-native-receipts.js';
 import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
 import {installOfflineStartupDiagnostics} from '../helpers/offline-launch-diagnostics.js';
@@ -81,7 +81,7 @@ test('Dashboard action bar first offline use and two zero-page cold launches pre
     expect(await artifactInputs(modules,sheets)).toEqual(artifact);expect(await fs.readFile('service-worker-assets.js','utf8')).toBe(sw);
     await info.attach('dashboard-action-bar-stopped-origin',{body:JSON.stringify({artifact,before,beforePrefs,onlineCache,boundaries,phases,traffic,errors,csp,external,denied,onlinePrefs,
       stoppedListener:true,browserOfflineEmulation:false,servedWorkerSHA256:sha(new Uint8Array(served)),coldLaunches:2,
-      boundary:'Actual public delegates/static Kit/SW/cache and committed native whole profiles. Returning-user synthetic preboot fixture and paused credential-free discussion. Existing kit-test-a/version/legacyProbe seam; no OS installation/provider/backend/import/export/destruction or hardware-browser claim.'},null,2),contentType:'application/json'});
+      boundary:'Actual public delegates/static Kit/SW/cache and committed native whole profiles. Returning-user synthetic preboot fixture and paused credential-free discussion. Existing aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/version/legacyProbe seam; no OS installation/provider/backend/import/export/destruction or hardware-browser claim.'},null,2),contentType:'application/json'});
   }catch(error){
     // Failure-only read: no navigation, module import, fetch, cache write or worker update.
     const workerCache=await page.evaluate(async paths=>{

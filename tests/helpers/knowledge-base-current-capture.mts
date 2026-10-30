@@ -39,8 +39,8 @@ function replaceExactly(source: string, needle: string, replacement: string): st
   return source.replace(needle, replacement);
 }
 
-// Original-only release gating cannot run against a migration. Keep the independent
-// domain byte guard; UI/library owner identities and the prerequisite are root AST gates.
+// Keep original dependency pins and explicit reviewed native-safety pins separate.
+// Public captures always run the actual current modules and immutable DOM/trace fixtures.
 const protectedCanonical = [
   'js/lens-local.ts', 'js/lens-local-protocol.ts', 'js/lens-local-worker.ts',
   'js/lens-local-library-registry.ts', 'js/lens-local-store.ts', 'js/lens-local-ingest.ts',
@@ -74,14 +74,42 @@ function protectedReadPath(file: string): string {
   return snapshot;
 }
 
+const reviewedDomainBytes = fs.readFileSync(path.join(directory, 'reviewed-domain-dependencies.json'));
+assert.equal(createHash('sha256').update(reviewedDomainBytes).digest('hex'), 'd9434581e3331f0bdbec3820874ec2a708f4c233beca420194d6b0df15276fd8', 'Reviewed native dependency receipt changed');
+const reviewedDomain = JSON.parse(reviewedDomainBytes.toString('utf8')) as {
+  version: number;
+  dependencies: Record<string, { reason: string; hashes: Record<string, { original: string; reviewed: string }> }>;
+};
+const reviewedCanonical = protectedCanonical.slice(0, 6).concat('js/lens-local-utils.ts');
+assert.equal(reviewedDomain.version, 1);
+assert.deepEqual(Object.keys(reviewedDomain.dependencies).sort(), [...reviewedCanonical].sort(), 'Exact reviewed native dependency inventory');
+function currentExpectedHash(file: string): string {
+  const baseline = readFrozen<{originalCanonicalHashes: Record<string, string>; originalRuntimeHashes: Record<string, string>}>('candidate-baseline.json');
+  const canonical = file.replace(/\.js$/, '.ts');
+  assert(protectedCanonical.includes(canonical), 'Known protected dependency: ' + file);
+  const original = file.endsWith('.ts') ? baseline.originalCanonicalHashes[file] : baseline.originalRuntimeHashes[file];
+  assert(original, 'Existing original dependency pin: ' + file);
+  const reviewed = reviewedDomain.dependencies[canonical];
+  if (!reviewed) return original;
+  assert(reviewed.reason.length > 0, 'Explicit native change reason');
+  assert.deepEqual(Object.keys(reviewed.hashes).sort(), [canonical, canonical.replace(/\.ts$/, '.js')].sort(), 'Exact canonical and runtime pins');
+  const pin = reviewed.hashes[file];
+  assert(pin, 'Reviewed dependency pin: ' + file);
+  assert.equal(pin.original, original, 'Original dependency provenance: ' + file);
+  assert.match(pin.reviewed, /^[0-9a-f]{64}$/, 'Reviewed SHA256 pin');
+  return pin.reviewed;
+}
+export function qualifyCurrentDomainDependency(file: string, bytes: Uint8Array): string {
+  const expected = currentExpectedHash(file);
+  const actual = createHash('sha256').update(bytes).digest('hex');
+  assert.equal(actual, expected, 'Protected domain source changed: ' + file);
+  return actual;
+}
+
 function currentProtectedGuard(): string {
-  const baseline = readFrozen<{
-    originalCanonicalHashes: Record<string, string>;
-    originalRuntimeHashes: Record<string, string>;
-  }>('candidate-baseline.json');
   const entries = protectedCanonical.flatMap(name => {
     const runtime = name.replace(/\.ts$/, '.js');
-    return [[name, baseline.originalCanonicalHashes[name], protectedReadPath(name)], [runtime, baseline.originalRuntimeHashes[runtime], protectedReadPath(runtime)]];
+    return [[name, currentExpectedHash(name), protectedReadPath(name)], [runtime, currentExpectedHash(runtime), protectedReadPath(runtime)]];
   });
   return `function verifyOriginal() {
     const observed = {};
@@ -128,6 +156,24 @@ function adaptDriver(name: string): string {
     assert(write >= 0 && next > write, 'Original capture output-only seam');
     const payload = name === 'candidate-capture' ? '{samples}' : '{receipts}';
     source = source.slice(0, write) + `console.log(${JSON.stringify(marker)} + JSON.stringify(${payload}));\n` + source.slice(next);
+  }
+  // Settings saves now settle after their native persistence promise. Preserve
+  // every original DOM/focus assertion, sampling only after that save completes.
+  if (name === 'candidate-capture') {
+    source = replaceExactly(source, ' ui.handleToggleLens(!cfg.enabled);', ' await ui.handleToggleLens(!cfg.enabled);');
+  }
+  if (name === 'candidate-status-edit') {
+    source = replaceExactly(source, "  toggle.dispatchEvent(new Event('change', { bubbles: true }));", "  toggle.dispatchEvent(new Event('change', { bubbles: true }));\n  await new Promise(resolve => setImmediate(resolve));");
+  }
+  if (name === 'candidate-ingest-branches') {
+    // A failed ingest no longer poisons the serialized request queue. The final
+    // stats read must succeed and still display the retained canonical corpus.
+    source = replaceExactly(source, 'terminal = await settle(true);', 'terminal = await settle(false);');
+    source = replaceExactly(source,
+      "assert.deepEqual(name === 'busy-selection' ? result.focusedBranchWire : result.wireDelta, specification.wireDelta, 'Original public wire branch differs from matrix');",
+      "assert.deepEqual(name === 'busy-selection' ? result.focusedBranchWire : result.wireDelta, name === 'worker-ingest-error' ? ['ingest', 'stats'] : specification.wireDelta, 'Reviewed public wire branch differs from matrix');",
+    );
+    source = replaceExactly(source, "assert(terminal.statsHTML.includes('Synthetic &lt;index&gt; &amp; failure'));", "assert.equal(terminal.statsHTML, result.setup.snapshot.statsHTML);\n        assert.equal(terminal.docListHTML, result.setup.snapshot.docListHTML);\n        assert.deepEqual(terminal.corpus, result.setup.snapshot.corpus);");
   }
   if (name === 'candidate-stats') {
     source = replaceExactly(source,

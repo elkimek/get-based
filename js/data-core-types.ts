@@ -3,14 +3,22 @@ import type { ActiveData } from './data-view-types.js';
 export type ProfileConversion = ReturnType<typeof import('./unit-profiles.js').resolveMarkerUnitProfile>['conversion'];
 export interface DataContextDependencies { invalidateLabContextCache: (() => void) | null | undefined }
 export interface ProfileFieldExpectation {
-  key: 'diagnoses' | 'sleepRest' | 'exercise' | 'stress' | 'loveLife' | 'diet' | 'environment' | 'lightCircadian' | 'healthGoals' | 'interpretiveLens' | 'nutritionTargets' | 'sunDefaults';
+  key: 'diagnoses' | 'sleepRest' | 'exercise' | 'stress' | 'loveLife' | 'diet' | 'environment' | 'lightCircadian' | 'healthGoals' | 'interpretiveLens' | 'menstrualCycle' | 'nutritionTargets' | 'nutritionMeals' | 'sunDefaults' | 'biometrics' | 'customMarkers'
+    | 'entries' | 'importSnapshots' | 'refOverrides' | 'manualValues' | 'markerValueNotes' | 'labPanelTombstones' | 'importBenchmarks' | '_deleted' | '_deletedAt' | '_deletedClearedAt' | 'markerLabels' | 'categoryLabels' | 'markerPlacements' | 'genetics' | 'geneticsSnpTombstones' | 'geneticsLifecycle' | 'lightEnvironment' | 'lightMeasurements' | 'lightDevices' | 'deviceSessions' | 'lightAudits' | 'sunSessions' | 'emfAssessment';
   value: unknown;
 }
 export interface ProfileSaveOptions {
+  /** Recheck approval/source ownership inside the locked commit, before storage changes. */
+  canCommit?: () => boolean;
   baseData?: Partial<ImportedDataRecord> | undefined;
   expectedData?: string | null | undefined;
   /** Background snapshot upgrades may retry a rejected CAS without a user-edit conflict toast. */
   notifyOnStaleSnapshot?: boolean;
+  expectedProfileRecords?: Array<{ key: 'notes' | 'supplements' | 'nutritionMeals'; id: string; value: unknown }>;
+  expectedProfileMapEntries?: Array<{ key: 'manualBodyReadings' | 'manualMetricTombstones' | 'manualValues' | 'markerNotes' | 'markerValueNotes' | 'markerLabels' | 'categoryLabels' | 'labPanelTombstones' | 'refOverrides' | 'labOrdering'; id: string; value: unknown }>;
+  expectedCustomMarkerStates?: Array<{ markerKey: string; value: unknown }>;
+  expectedLabDateRecords?: Array<{ date: string; value: unknown; deletion?: { deleted: boolean; deletedAt: unknown; clearedAt: unknown } }>;
+  expectedLabPanelRecords?: Array<{ panelId: string; value: unknown }>;
   expectedContextNotes?: string;
   expectedContextField?: ProfileFieldExpectation;
   expectedContextFields?: readonly ProfileFieldExpectation[];
@@ -41,6 +49,9 @@ export interface DrawPhase { cycleDay: number | null; phase: string; phaseName: 
 export type Guidance = {min?: number | null | undefined; max?: number | null | undefined; label: string} | null;
 
 export interface DataCorePorts {
+  readonly labSampleIdentityRows: typeof import('./lab-panel-identity.js').labSampleIdentityRows;
+  readonly labDateDeletionState: typeof import('./lab-panel-deletions.js').labDateDeletionState;
+  readonly getConfiguredArrayItemId: typeof import('./data-merge.js').getConfiguredArrayItemId;
   readonly profileDataValuesEqual: typeof import('./profile-data-writes.js').profileDataValuesEqual;
   readonly queueProfileDataWrite: typeof import('./profile-data-writes.js').queueProfileDataWrite;
   readonly profileDataBaseline: typeof import('./profile-data-writes.js').profileDataBaseline;

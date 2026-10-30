@@ -6,6 +6,7 @@ import { closeEMFInterpretation as closeLoadedEMFInterpretation } from './emf-in
 
 export interface EMFEditorOptions {
   returnLabel?: string;
+  assessmentId?: string;
   /** A caller can retire a pending lazy open without changing shared loader caching. */
   isCurrent?: () => boolean;
   onReturn?: (() => void) | null;

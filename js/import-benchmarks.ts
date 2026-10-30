@@ -10,7 +10,7 @@ interface BenchmarkPatch extends DiagnosticFields {
 export interface ImportBenchmarkRecord extends BenchmarkPatch {
   id?: unknown; referenceDiscrepancies?: Array<ReferenceGroup | null> | null;
 }
-interface BenchmarkProfile { importBenchmarks?: ImportBenchmarkRecord[] | undefined; deletedImportBenchmarkIds?: unknown[] | undefined }
+interface BenchmarkProfile { importBenchmarks?: ImportBenchmarkRecord[] | undefined; deletedImportBenchmarkIds?: unknown[] | undefined; [key: string]: unknown }
 interface BenchmarkMeta extends DiagnosticFields { provider?: string | null; modelId?: string | null }
 interface ImportReviewMarker { mappedKey?: unknown; suggestedKey?: unknown; _benchmarkValueEdited?: unknown; _benchmarkUnitEdited?: unknown }
 interface ImportUsageReader { inputTokens?: unknown; outputTokens?: unknown }
@@ -344,11 +344,20 @@ export function markImportBenchmarkConfirmed(id: string, result: ImportBenchmark
   return finishImportBenchmark(id, 'confirmed', importBenchmarkReviewPatch(result, excludedIndices), options);
 }
 
+/** The report owner stages diagnostics in the same private durable intent. */
+export function markImportBenchmarkConfirmedInData(data: BenchmarkProfile, id: string, result: ImportBenchmarkResult, excludedIndices: Iterable<number>, now: number) {
+  const record = data.importBenchmarks?.find(item => item.id === id);
+  if (!record) return null;
+  Object.assign(record, importBenchmarkReviewPatch(result, excludedIndices), { status: 'confirmed', finishedAt: now, updatedAt: now });
+  return record;
+}
+
 export function getImportBenchmarks() {
-  const benchmarks = ensureBenchmarks();
-  let repaired = false;
-  for (const record of benchmarks) repaired = repairEquivalentReferenceIssues(record) || repaired;
-  if (repaired) persistImportBenchmarks().catch(() => {});
+  // Settings reads a presentation copy. Opening a panel must not initialize or
+  // repair the saved benchmark history; explicit commands own its writes.
+  const source = (state.importedData as unknown as BenchmarkProfile).importBenchmarks;
+  const benchmarks = structuredClone(Array.isArray(source) ? source : []);
+  for (const record of benchmarks) repairEquivalentReferenceIssues(record);
   return benchmarks.slice().sort((a, b) => ((b.benchmarkAt || 0) as number) - ((a.benchmarkAt || 0) as number));
 }
 

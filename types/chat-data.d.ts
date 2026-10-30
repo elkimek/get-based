@@ -5,6 +5,7 @@ interface ChatMessageMetadata {
   personality?: string;
   lensSources?: Array<{ source: string; text: string; score?: number }>;
   agentDrafts?: Array<{ id: string; profileId: string; kind: string; status: string; summary?: string; payload: Record<string, unknown>; appliedAt?: string }>;
+  appControls?: import('../shared/agent-control-contract.js').AppControlRecord[];
 
   personalityName?: string;
   personalityIcon?: string;
@@ -57,6 +58,8 @@ export interface ChatThread {
   chatBackend?: string;
   agentThreadId?: string;
   agentModel?: string;
+  agentProvider?: string;
+  agentTarget?: string;
   forkedFromThreadId?: string;
   forkedFromMessageIndex?: number;
   [key: string]: unknown;

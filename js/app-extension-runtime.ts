@@ -29,9 +29,18 @@ export interface AppExtensionSettings extends ExtensionActionSurface {
   onTabChange?: Notification;
   onClose?: Notification;
 }
+/** Private native capability; never serialize it or its captured account state. */
+export interface ExtensionConnectionControls {
+  /** Stable recipient/account ownership, independent of the selected model. */
+  isCurrent(): boolean;
+  /** Cancellable metadata/auth readiness only: no inference, billing or settings writes. */
+  check(options: { model: string; signal: AbortSignal }): MaybePromise<boolean>;
+}
 export interface AppExtensionAI {
   isProviderActive?: (provider: string) => boolean;
   isCredentialOwned?: (provider: string) => boolean;
+  /** Captures opaque native ownership of an already configured connection. */
+  captureConnectionControls?: (provider: string) => ExtensionConnectionControls | null;
   shouldHideUsage?: (provider: string | null | undefined) => boolean;
   getModelPolicy?: ContextHook<ExtensionModelPolicy | null | undefined>;
   refresh?: (context?: ExtensionContext) => unknown;
@@ -187,6 +196,17 @@ export function isAppExtensionAIProviderActive(provider: string) {
 export function isAppExtensionAICredentialOwned(provider: string) {
   return activeExtension()?.ai?.isCredentialOwned?.(provider) === true;
 }
+/** Native-only ownership stamp. Never project the owner object into tool data. */
+export function getAppExtensionAIConnectionState(provider: string) {
+  const owner = configuredExtension;
+  try {
+    const active = isAppExtensionAIProviderActive(provider), credentialOwned = isAppExtensionAICredentialOwned(provider);
+    return { owner, managed: active || credentialOwned, configured: active, policy: getAppExtensionAIModelPolicy({ provider }) };
+  } catch {
+    // An unknown edition owner cannot authorize a stock-native route command.
+    return { owner, managed: true, configured: false, policy: null };
+  }
+}
 
 /** Missing approval hooks and ownership changes fail closed for edition-owned credentials. */
 export async function requestAppExtensionAIProcessingApproval(context: ExtensionContext & { provider: string }) {
@@ -223,6 +243,9 @@ export async function authorizeAppExtensionAIRequest(context: ExtensionContext) 
 
 /** The handled envelope distinguishes an absent hook from a valid undefined result. */
 export async function callAppExtensionAIProvider(context: ExtensionContext): Promise<AppExtensionProviderCall> {
+  const request = context.request as { signal?: AbortSignal; requestCurrent?: () => boolean } | undefined;
+  const assertCurrent = () => { request?.signal?.throwIfAborted(); if (request?.requestCurrent?.() === false) throw new DOMException('The AI request recipient or owner changed.', 'AbortError'); };
+  assertCurrent();
   const ai = activeExtension()?.ai;
   const callProvider = ai?.callProvider;
   if (typeof callProvider !== 'function' || ai?.isProviderCallOwned?.(context) !== true) {
@@ -231,7 +254,11 @@ export async function callAppExtensionAIProvider(context: ExtensionContext): Pro
   if (typeof ai.authorizeRequest !== 'function' || await ai.authorizeRequest(context) !== true) {
     throw new Error('This hosted AI request is not authorized. No data was sent.');
   }
-  return { handled: true, result: await callProvider(context) };
+  assertCurrent();
+  if (activeExtension()?.ai !== ai) throw new DOMException('The hosted AI connection owner changed.', 'AbortError');
+  const result = await callProvider(context);
+  assertCurrent();
+  return { handled: true, result };
 }
 
 export function getAppExtensionAIRequestOptions(context: ExtensionContext) {

@@ -1,5 +1,7 @@
 // api-openai-compatible.js - shared OpenAI-compatible provider transport.
 
+import { createAIToolCallAccumulator, normalizeAIToolCalls, AIToolsUnsupportedError } from '../shared/ai-tool-protocol.js';
+import type { AIChatMessage, AIFunctionTool } from '../shared/ai-tool-protocol.js';
 import { getErrorMessage, getErrorName } from './caught-error.js';
 import { isDebugMode } from './utils.js';
 import {
@@ -45,7 +47,9 @@ export function useCustomApiProxy() {
 const proxyFetch = createProxyFetch(useCustomApiProxy);
 
 export interface OpenAICompatibleOptions {
-  system?: unknown; messages: Array<{ role?: unknown; content?: unknown }>;
+  system?: unknown; messages: AIChatMessage[];
+  tools?: AIFunctionTool[] | undefined;
+  requestCurrent?: (() => boolean) | undefined;
   maxTokens?: number | undefined; onStream?: ((text: string) => unknown) | undefined;
   signal?: AbortSignal | undefined; requestTimeoutMs?: number | undefined; requestRetries?: number | undefined;
   jsonMode?: boolean | undefined; jsonSchema?: unknown; forceNonStream?: boolean | undefined;
@@ -60,8 +64,8 @@ export interface OpenAICompatibleTransportOptions {
   firstReadStallMs?: number;
 }
 interface RequestBody extends Record<string, unknown> { response_format?: ReturnType<typeof jsonResponseFormat> }
-interface CompletionChoice { delta?: { content?: string; reasoning_content?: string; reasoning?: string }; finish_reason?: unknown;
-  native_finish_reason?: unknown; message?: { content?: string; reasoning_content?: string; reasoning?: string } }
+interface CompletionChoice { delta?: { content?: string; reasoning_content?: string; reasoning?: string; tool_calls?: unknown; reasoning_details?: unknown[] }; finish_reason?: unknown;
+  native_finish_reason?: unknown; message?: { content?: string; reasoning_content?: string; reasoning?: string; tool_calls?: unknown; reasoning_details?: unknown[] } }
 interface CompletionResponse { choices?: CompletionChoice[]; error?: { type?: unknown; message?: unknown };
   usage?: { prompt_tokens?: number; completion_tokens?: number; completion_tokens_details?: { reasoning_tokens?: unknown } };
   stats?: Record<string, unknown> }
@@ -122,10 +126,15 @@ function temperatureControlRejected(res: Response, errorText: string) {
     && /temperature[^\n]{0,120}(?:not supported|unsupported|not permitted|not allowed|invalid|fixed)|(?:not supported|unsupported|invalid)[^\n]{0,120}temperature/i.test(errorText);
 }
 
-export async function callOpenAICompatibleAPI(endpoint: string, key: unknown, model: unknown, providerName: string, { system, messages, maxTokens, onStream, signal, requestTimeoutMs, requestRetries, jsonMode, jsonSchema, forceNonStream, temperature, reasoningEffort, strictTokenLimit }: OpenAICompatibleOptions, extraHeaders: Record<string, string> = {}, { useProxy = true, extraBody = {}, fetchImpl = null, firstReadStallMs = 0 } : OpenAICompatibleTransportOptions = {}) {
-  const apiMessages: Array<{ role: unknown; content: unknown }> = [];
+export async function callOpenAICompatibleAPI(endpoint: string, key: unknown, model: unknown, providerName: string, { system, messages, maxTokens, onStream, signal, requestTimeoutMs, requestRetries, jsonMode, jsonSchema, forceNonStream, temperature, reasoningEffort, strictTokenLimit, tools, requestCurrent }: OpenAICompatibleOptions, extraHeaders: Record<string, string> = {}, { useProxy = true, extraBody = {}, fetchImpl = null, firstReadStallMs = 0 } : OpenAICompatibleTransportOptions = {}) {
+  const apiMessages: AIChatMessage[] = [];
   if (system) apiMessages.push({ role: 'system', content: system });
-  for (const msg of messages) apiMessages.push({ role: msg.role, content: msg.content });
+  for (const msg of messages) apiMessages.push({ role: msg.role, content: msg.content,
+    ...(msg.tool_calls ? { tool_calls: normalizeAIToolCalls(msg.tool_calls) } : {}),
+    ...(msg.tool_call_id ? { tool_call_id: msg.tool_call_id } : {}),
+    ...(msg.reasoning_content ? { reasoning_content: msg.reasoning_content } : {}),
+    ...(msg.reasoning_details ? { reasoning_details: msg.reasoning_details } : {}),
+  });
 
   // Thinking models burn reasoning tokens against max_tokens, so low caps need
   // extra room while still constraining total output.
@@ -135,6 +144,7 @@ export async function callOpenAICompatibleAPI(endpoint: string, key: unknown, mo
     : (maxTokens || 4096);
   const tokenLimitField = needsMaxCompletionTokens(model) ? 'max_completion_tokens' : 'max_tokens';
   const body: RequestBody = { model, messages: apiMessages, [tokenLimitField]: effectiveMaxTokens || 4096, ...extraBody };
+  if (tools?.length) { body.tools = tools; body.tool_choice = 'auto'; }
   if (typeof reasoningEffort === 'string' && reasoningEffort) body.reasoning_effort = reasoningEffort;
   const requestedTemperature = Number(temperature);
   if (temperature !== undefined && Number.isFinite(requestedTemperature) && requestedTemperature >= 0 && requestedTemperature <= 2) {
@@ -150,6 +160,8 @@ export async function callOpenAICompatibleAPI(endpoint: string, key: unknown, mo
   }
 
   const fetchRequest = async (requestBody: RequestBody) => {
+    signal?.throwIfAborted();
+    if (requestCurrent && !requestCurrent()) throw new Error('The AI request recipient or owner changed.');
     const requestInit = {
       method: 'POST',
       headers: {
@@ -204,6 +216,12 @@ export async function callOpenAICompatibleAPI(endpoint: string, key: unknown, mo
   }
 
   if (!res.ok) {
+    if (tools?.length && [400, 422].includes(res.status)) {
+      const detail = await res.clone().text();
+      if (/tools?|tool_choice|function[_ -]?call/i.test(detail) && /not support|unsupported|not allowed|unknown (?:field|parameter)|unrecognized|not available/i.test(detail)) {
+        throw new AIToolsUnsupportedError(`${providerName} does not support native tools for this model.`);
+      }
+    }
     if (res.status === 401) {
       let errType: unknown = '';
       try { const b = await res.clone().json() as CompletionResponse; errType = b?.error?.type || ''; } catch {}
@@ -243,6 +261,8 @@ export async function callOpenAICompatibleAPI(endpoint: string, key: unknown, mo
     let outputTokens = 0;
     let performance: PerformanceDiagnostics | null = null;
     let receivedFirstToken = false;
+    const toolAccumulator = createAIToolCallAccumulator();
+    let reasoningDetails: unknown[] = [];
     const handleSSELine = (line: string, boundary: boolean) => {
       if (!line.startsWith('data: ')) return;
       const data = line.slice(6);
@@ -254,6 +274,11 @@ export async function callOpenAICompatibleAPI(endpoint: string, key: unknown, mo
         const delta = choice?.delta;
         if (choice?.finish_reason) finishReason = choice.finish_reason;
         else if (choice?.native_finish_reason) finishReason = choice.native_finish_reason;
+        if (delta?.tool_calls !== undefined) { receivedFirstToken = true; toolAccumulator.append(delta.tool_calls); }
+        if (delta?.reasoning_details) {
+          reasoningDetails = [...reasoningDetails, ...delta.reasoning_details];
+          if (JSON.stringify(reasoningDetails).length > 128000) throw new Error('AI reasoning metadata exceeded its size limit.');
+        }
         if (delta?.content) {
           receivedFirstToken = true;
           if (!hasContent) hasContent = true;
@@ -297,18 +322,22 @@ export async function callOpenAICompatibleAPI(endpoint: string, key: unknown, mo
       for (const line of lines) handleSSELine(line, true);
     }
     if (buffer.startsWith('data: ')) handleSSELine(buffer, false);
-    if (!fullText && reasoningBuf) {
+    const toolCalls = toolAccumulator.finish();
+    if (toolCalls.length && !tools?.length) throw new Error('The provider returned unrequested tool calls.');
+    if (!fullText && reasoningBuf && !toolCalls.length) {
       if (providerName === 'Local AI') {
         throw new Error('Local AI returned reasoning but no final answer. Reasoning used the output budget; disable thinking for this task or increase the model context/output limit.');
       }
       fullText = reasoningBuf;
       onStream!(fullText);
     }
-    if (!fullText.trim()) {
+    if (!fullText.trim() && !toolCalls.length) {
       throw new Error(`${providerName} stream ended without response content. No usage was reported by the app; check the provider account before retrying.`);
     }
     return {
       text: fullText,
+      ...(toolCalls.length ? { toolCalls, assistantMessage: { role: 'assistant', content: fullText || null, tool_calls: toolCalls,
+        ...(reasoningBuf ? { reasoning_content: reasoningBuf } : {}), ...(reasoningDetails.length ? { reasoning_details: reasoningDetails } : {}) } } : {}),
       usage: { inputTokens, outputTokens },
       finishReason,
       truncated: isTokenLimitFinish(finishReason),
@@ -320,15 +349,17 @@ export async function callOpenAICompatibleAPI(endpoint: string, key: unknown, mo
   const usage = data.usage || {};
   const choice = data.choices?.[0];
   const msg = choice?.message;
+  const toolCalls = normalizeAIToolCalls(msg?.tool_calls);
+  if (toolCalls.length && !tools?.length) throw new Error('The provider returned unrequested tool calls.');
   let text = msg?.content || '';
   const reasoningText = msg?.reasoning_content || msg?.reasoning || '';
-  if (!text && reasoningText) {
+  if (!text && reasoningText && !toolCalls.length) {
     if (providerName === 'Local AI') {
       throw new Error('Local AI returned reasoning but no final answer. Reasoning used the output budget; disable thinking for this task or increase the model context/output limit.');
     }
     text = reasoningText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
   }
-  if (!String(text).trim()) {
+  if (!String(text).trim() && !toolCalls.length) {
     throw new Error(`${providerName} returned no response content. No usage was reported by the app; check the provider account before retrying.`);
   }
   const finishReason = choice?.finish_reason || choice?.native_finish_reason || null;
@@ -341,6 +372,8 @@ export async function callOpenAICompatibleAPI(endpoint: string, key: unknown, mo
   } : null;
   return {
     text,
+    ...(toolCalls.length ? { toolCalls, assistantMessage: { role: 'assistant', content: text || null, tool_calls: toolCalls,
+      ...(msg?.reasoning_content ? { reasoning_content: msg.reasoning_content } : {}), ...(msg?.reasoning_details ? { reasoning_details: msg.reasoning_details } : {}) } } : {}),
     usage: { inputTokens: usage.prompt_tokens || 0, outputTokens: usage.completion_tokens || 0 },
     finishReason,
     truncated: isTokenLimitFinish(finishReason),

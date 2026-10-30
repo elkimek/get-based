@@ -77,7 +77,7 @@ it('retains data delegated-action source contracts', () => {
       && headerAdapterSrc.includes('export function renderHeaderRangeButtons(')
       && /import\s*\{[^}]*renderHTML\s+as\s+renderRange[^}]*\}\s*from\s*['"]\.\/components\/HeaderRangeButtons\.svelte\.html\.js['"]/.test(headerAdapterSrc)
       && dataSrc.includes("action === 'switch-range-mode'")
-      && /action === 'switch-range-mode'[\s\S]{0,220}switchRangeMode\(actionEl\.getAttribute\(DATA_RANGE_ATTR\) \|\| 'optimal'\);[\s\S]{0,60}return;/.test(dataSrc));
+      && /action === 'switch-range-mode'[\s\S]{0,220}switchRangeMode\(actionEl\.getAttribute\(DATA_RANGE_ATTR\) \|\| 'optimal'\)\.catch\([\s\S]{0,240}return;/.test(dataSrc));
   console.log(`\nData delegated actions tests: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed`);
 
   expect(legacyAssertions.fail).toBe(0);

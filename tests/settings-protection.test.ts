@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { configureCryptoUi, renderEncryptionSection, renderBackupSection, hydrateProtectionSettings,
   loadBackupSnapshots, disableEncryption, toggleBackupSnapshots, showEnableEncryptionModal } from '../js/crypto-ui.js';
-import { disposeSettingsProtection, refreshFolderBackupSettings } from '../js/settings-protection-component.js';
+import { disposeSettingsProtection, refreshFolderBackupSettings, prepareSettingsProtection } from '../js/settings-protection-component.js';
+import { preparePassphrasePresentation } from '../js/passphrase-component.js';
 import { getFolderBackupSnapshot, getBackupSnapshotRows } from '../js/settings-protection-view.js';
 import * as utils from '../js/utils.js';
 import { disposePassphraseDialog } from '../js/passphrase-component.js';
@@ -12,6 +13,7 @@ vi.mock('../js/backup.js', () => ({ exportEncryptedBackup: mocks.download, impor
   getAutoBackupSnapshots: mocks.snapshots, getFolderBackupState: mocks.folder, restoreAutoBackup: mocks.restore, MAX_SNAPSHOTS: 5 }));
 let enabled = false;
 let previous: ReturnType<typeof configureCryptoUi>;
+beforeAll(async () => { await Promise.all([prepareSettingsProtection(), preparePassphrasePresentation()]); });
 beforeEach(() => {
   vi.clearAllMocks(); localStorage.clear(); document.body.replaceChildren(); enabled = false;
   mocks.restore.mockResolvedValue(undefined); mocks.snapshots.mockResolvedValue([]); mocks.folder.mockReturnValue({ supported: false, folderName: null, permissionLost: false, lastBackup: null });

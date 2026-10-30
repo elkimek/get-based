@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import {expect, test, type Page} from '@playwright/test';
-import {startKitServer} from './kit-server.js';
+import {startKitServer} from './kit-release-server.js';
 import {activate, artifactInputs, profile} from './kit-native-receipts.js';
 import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
 import {installOfflineStartupDiagnostics} from '../helpers/offline-launch-diagnostics.js';
@@ -56,6 +56,67 @@ function protectedFields(value: Record<string, unknown>) {
   const allowed = new Set(['entries', 'manualValues', 'markerValueNotes', 'refOverrides', 'customMarkers', 'markerPlacements', 'markerLabels']);
   return Object.fromEntries(Object.entries(value).filter(([key]) => !allowed.has(key)));
 }
+
+test('sample cycle edits load offline and preserve independent draws, periods and unknown phase facts', async ({ page, context }, info) => {
+  const artifact = await artifactInputs([...modules, 'js/lab-sample-cycle.js', 'js/lab-sample-mutations.js', 'js/lab-sample-records.js', 'js/lab-sample-record-store.js', 'js/lab-sample-editor.js', 'js/components/LabSampleEditor.svelte.html.js'], sheets);
+  const seeded = JSON.parse(await fs.readFile(new URL('../fixtures/marker-detail-complete/pwa-profile.json', import.meta.url), 'utf8')) as Record<string, unknown>;
+  seeded.entries = [
+    { panelId: 'morning', date, markers: { 'biochemistry.glucose': 5 }, context: { sampleTime: '08:00', fasting: true, cycleDay: 14, cyclePhase: 'follicular', cyclePhaseSource: 'predicted' }, updatedAt: 100 },
+    { panelId: 'evening', date, markers: { 'biochemistry.glucose': 7 }, context: { sampleTime: '16:00', cycleDay: 14, cyclePhase: 'ovulatory', cyclePhaseSource: 'recorded' }, updatedAt: 100 },
+    { panelId: 'legacy', date: '2026-08-01', markers: { 'biochemistry.glucose': 6 }, context: { cycleDay: 'Legacy day unknown', cyclePhase: 'Late luteal', cyclePhaseDetail: 'Legacy detail' }, updatedAt: 100 },
+  ];
+  seeded.menstrualCycle = { periods: [{ startDate: '2026-07-20', endDate: '2026-07-24' }] };
+  const registry = JSON.parse(await fs.readFile(new URL('../fixtures/marker-detail-complete/pwa-registry.json', import.meta.url), 'utf8')) as Record<string, unknown>[]; registry[0]!.sex = 'female';
+  await installDiscussionFixture(context, { provider: 'openrouter', paused: true }); await installOfflineStartupDiagnostics(context);
+  await context.addInitScript(({ seeded, registry }) => {
+    if (!['http:', 'https:'].includes(location.protocol) || localStorage.getItem('cycle-sample-seeded')) return;
+    localStorage.setItem('cycle-sample-seeded', '1'); localStorage.setItem('labcharts-encryption-enabled', 'false');
+    localStorage.setItem('labcharts-profiles', JSON.stringify(registry)); localStorage.setItem('labcharts-active-profile', 'default'); localStorage.setItem('labcharts-default-imported', JSON.stringify(seeded));
+    localStorage.setItem('labcharts-analytics-disabled', 'true'); localStorage.setItem('labcharts-show-product-recs', 'false'); localStorage.setItem('labcharts-last-manual-backup', new Date().toISOString());
+  }, { seeded, registry });
+  await context.addInitScript({ path: 'node_modules/axe-core/axe.min.js' });
+  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message)); context.on('page', target => target.on('pageerror', error => errors.push(error.message)));
+  const server = await startKitServer(artifact.directory); let stopped = false;
+  const receipts: { before?: Receipt; saved?: Receipt; cleared?: Receipt; final?: Receipt; cold?: Receipt } = {};
+  const row = () => page.locator('.marker-history-row').filter({ has: page.locator('[data-marker-detail-action="edit-marker-value"][data-marker-detail-panel-id="morning"]') });
+  try {
+    await ready(page, server.origin); const before = await profile(page, artifact.state), minimum = await page.evaluate(() => Date.now()); receipts.before = before; server.state.offline = true;
+    await openMarker(page, 'biochemistry', glucose, 'Glucose'); await activate(page, row().getByRole('button', { name: 'Edit sample', exact: true }));
+    const form = page.locator('#lab-sample-form'); await expect(page.getByLabel('Cycle day', { exact: true })).toHaveValue('14');
+    await page.getByLabel('Cycle day', { exact: true }).fill('21'); await page.getByLabel('Cycle phase', { exact: true }).selectOption('luteal'); await page.getByLabel('Cycle phase detail', { exact: true }).selectOption('mid_luteal');
+    await page.setViewportSize({ width: 390, height: 844 }); expect(await form.evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
+    expect(await form.evaluate(async node => (await (window as unknown as { axe: typeof import('axe-core') }).axe.run(node, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } })).violations.map(value => value.id))).toEqual([]);
+    await page.screenshot({ path: info.outputPath('sample-cycle-mobile.png'), fullPage: true });
+    await page.getByLabel('Cycle phase detail', { exact: true }).scrollIntoViewIfNeeded(); await page.screenshot({ path: info.outputPath('sample-cycle-fields-mobile.png') });
+    await page.getByRole('button', { name: 'Save sample', exact: true }).focus(); await page.keyboard.press('Enter'); await expect(form).toHaveCount(0); await expect(row()).toContainText('Mid-luteal'); await expect(row()).toContainText('cycle day 21');
+    const saved = await profile(page, artifact.state), current = data(saved); receipts.saved = saved; expect(current.entries[0]!.context).toMatchObject({ cycleDay: 21, cyclePhase: 'luteal', cyclePhaseDetail: 'mid_luteal', cyclePhaseSource: 'recorded' });
+    expect(current.entries[1]).toEqual(data(before).entries[1]); expect(protectedFields(current)).toEqual(protectedFields(data(before)));
+    const maximum = await page.evaluate(() => Date.now()), originalRegistry = before.profiles as Record<string, unknown>[], savedRegistry = saved.profiles as Record<string, unknown>[];
+    expect(savedRegistry).toHaveLength(originalRegistry.length);
+    for (const original of originalRegistry) {
+      const record = savedRegistry.find(row => row.id === original.id)!;
+      if (record.id === 'default') { expect({ ...record, lastUpdated: original.lastUpdated }).toEqual(original); expect(record.lastUpdated).toBeGreaterThanOrEqual(minimum); expect(record.lastUpdated).toBeLessThanOrEqual(maximum); }
+      else expect(record).toEqual(original);
+    }
+    await page.reload(); await ready(page, server.origin); await openMarker(page, 'biochemistry', glucose, 'Glucose'); await activate(page, row().getByRole('button', { name: 'Edit sample', exact: true }));
+    await expect(page.getByLabel('Cycle phase detail', { exact: true })).toHaveValue('mid_luteal'); await page.getByLabel('Cycle phase', { exact: true }).selectOption(''); await activate(page, page.getByRole('button', { name: 'Save sample', exact: true }));
+    await expect(page.locator('#lab-sample-form')).toHaveCount(0); await expect(row()).toContainText('Cycle day 21'); await expect(row()).not.toContainText('Mid-luteal');
+    receipts.cleared = await profile(page, artifact.state); const cleared = data(receipts.cleared); expect(cleared.entries[0]!.context).toMatchObject({ cycleDay: 21, cyclePhase: null, cyclePhaseDetail: null, cyclePhaseSource: null }); expect(cleared.entries[1]).toEqual(current.entries[1]); expect(protectedFields(cleared)).toEqual(protectedFields(data(before)));
+    const legacy = page.locator('.marker-history-row').filter({ has: page.locator('[data-marker-detail-action="edit-marker-value"][data-marker-detail-panel-id="legacy"]') });
+    await activate(page, legacy.getByRole('button', { name: 'Edit sample', exact: true })); await expect(page.getByLabel('Cycle day', { exact: true })).toHaveValue('Legacy day unknown');
+    await page.getByLabel('Collection time', { exact: true }).fill('10:00'); await activate(page, page.getByRole('button', { name: 'Save sample', exact: true })); await expect(page.locator('#lab-sample-form')).toHaveCount(0);
+    receipts.final = await profile(page, artifact.state); const final = data(receipts.final); expect(final.entries[2]!.context).toEqual({ ...data(before).entries[2]!.context, sampleTime: '10:00' }); expect(final.entries.slice(0, 2)).toEqual(cleared.entries.slice(0, 2)); expect(protectedFields(final)).toEqual(protectedFields(data(before)));
+    await closeMarker(page); await server.close(); stopped = true; await expect(fetch(server.origin + '/index.html')).rejects.toThrow();
+    await page.close(); expect(context.pages()).toHaveLength(0); page = await context.newPage(); await ready(page, server.origin);
+    receipts.cold = await profile(page, artifact.state); expect(receipts.cold).toEqual(receipts.final);
+    await openMarker(page, 'biochemistry', glucose, 'Glucose'); await expect(row()).toContainText('Cycle day 21'); await expect(row()).not.toContainText('Mid-luteal');
+    expect(errors).toEqual([]); expect(await artifactInputs([...modules, 'js/lab-sample-cycle.js', 'js/lab-sample-mutations.js', 'js/lab-sample-records.js', 'js/lab-sample-record-store.js', 'js/lab-sample-editor.js', 'js/components/LabSampleEditor.svelte.html.js'], sheets)).toEqual(artifact);
+  } finally {
+    await info.attach('static-sample-cycle-receipt', { body: JSON.stringify({ artifact, receipts, errors, stopped,
+      boundary: 'Actual static public sample editor, mobile/axe/Enter Save, offline first use, whole live/committed profile receipts, legacy field preservation, and zero-page cold launch with stopped HTTP server. Synthetic profile and paused credential-free AI; no mutation-function calls or live inference.' }, null, 2), contentType: 'application/json' });
+    if (!stopped) await server.close();
+  }
+});
 
 test('static public marker actions persist manual values, custom edits, reference ranges and canonical placement through an offline cold launch', async ({page, context}, info) => {
   test.setTimeout(180000);
@@ -194,7 +255,7 @@ test('static public marker actions persist manual values, custom edits, referenc
     expect(await artifactInputs(modules, sheets)).toEqual(artifact);
   } finally {
     await info.attach('static-marker-mutation-receipt', {body: JSON.stringify({artifact, before, saved, events, errors, csp, external, stopped,
-      boundary: 'Actual static app, native delegated pointer/touch and Enter mutations, complete live/committed IDB profile, canonical source keys, unrelated registry/profile protection and zero-page offline cold launch with stopped HTTP listener. Synthetic prebootstrap unencrypted profile, paused credential-free AI and existing kit-test-a worker/version seam. No direct mutation-function calls, backend, provider, physical install or full-app acceptance.'}, null, 2), contentType: 'application/json'});
+      boundary: 'Actual static app, native delegated pointer/touch and Enter mutations, complete live/committed IDB profile, canonical source keys, unrelated registry/profile protection and zero-page offline cold launch with stopped HTTP listener. Synthetic prebootstrap unencrypted profile, paused credential-free AI and existing aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa worker/version seam. No direct mutation-function calls, backend, provider, physical install or full-app acceptance.'}, null, 2), contentType: 'application/json'});
     if (!stopped) await server.close();
   }
 });

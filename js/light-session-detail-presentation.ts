@@ -63,6 +63,7 @@ export function deviceDetailLightMetric(session: DeviceSessionRecord): SessionDe
 export function sessionCalculationNotice(status: unknown) {
   const messages: Record<string, string> = {
     pending: 'Estimates are being recalculated. Previous derived values are hidden until the new calculation finishes.',
+    'needs-inputs': 'Recorded exposure details are incomplete. Unknown inputs have not been replaced with model defaults, and no estimate is shown.',
     'needs-location': 'A location is needed to reconstruct conditions and calculate this session.',
     'atmosphere-unavailable': 'Conditions could not be loaded for this session. No dose or burn estimate is being shown.',
     'calculation-error': 'The session could not be calculated. No stale estimate is being shown.',

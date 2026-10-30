@@ -1,0 +1,43 @@
+import { expect, it } from 'vitest';
+import { captureDashboardPresentationModel, planDashboardPresentation, projectDashboardPresentation } from '../js/dashboard-presentation-model.js';
+import type { DashboardPresentationInventory } from '../js/dashboard-presentation-model.js';
+import type { DashboardPreferenceFootprint } from '../js/dashboard-preference-store.js';
+import { parseDashboardPresentationPatch, validateDashboardNavigation } from '../shared/dashboard-control-contract.js';
+const inventory = (): DashboardPresentationInventory => ({ fixed: [{ id: 'wearables', label: 'Biometrics Overview' }, { id: 'quick-markers', label: 'Quick Markers' }, { id: 'notes', label: 'Notes' }], knownFixedIds: ['wearables', 'quick-markers', 'notes', 'cycle'], markers: Array.from({ length: 5 }, (_, i) => ({ id: `category_marker${i}`, label: `Marker ${i}` })), biometrics: ['weight', 'waist', 'bp_systolic', 'bp_diastolic', 'rhr'].map(id => ({ id, label: id })), allowBody: true, allowCycle: true, defaults: { widgets: { order: ['wearables', 'quick-markers', 'notes'], hidden: ['notes'] }, biometrics: ['weight', 'waist'] } });
+const raw = (fields: Partial<DashboardPreferenceFootprint> = {}): DashboardPreferenceFootprint => ({ widgets: null, biometrics: null, pins: null, ...fields });
+const capture = (fields: Partial<DashboardPreferenceFootprint> = {}, choices = inventory()) => captureDashboardPresentationModel(raw(fields), choices);
+it('plans only stated preferences and preserves unmentioned hidden, inactive and undisclosed widget IDs', () => {
+  const initial = { order: ['cycle', 'marker_private_id', 'wearables', 'quick-markers', 'notes'], hidden: ['cycle', 'marker_private_id', 'wearables'] }, model = capture({ widgets: JSON.stringify(initial) });
+  const writes = planDashboardPresentation(model, { show: ['wearables'], order: ['quick-markers'], markerWidgets: { add: ['category_marker0'] } });
+  expect(Object.keys(writes)).toEqual(['widgets']); expect(JSON.parse(writes.widgets!)).toEqual({ order: ['quick-markers', 'cycle', 'marker_private_id', 'wearables', 'notes', 'marker_category_marker0'], hidden: ['cycle', 'marker_private_id'] }); expect(JSON.stringify(projectDashboardPresentation(model))).not.toMatch(/private_id|cycle/);
+});
+it('treats order as a prefix and marker widget removal as presentation, retaining all other choices', () => {
+  const model = capture({ widgets: JSON.stringify({ order: ['wearables', 'marker_category_marker0', 'marker_category_marker1', 'quick-markers', 'notes'], hidden: ['notes'] }) });
+  expect(JSON.parse(planDashboardPresentation(model, { markerWidgets: { remove: ['category_marker0'] }, order: ['marker_category_marker1'] }).widgets!)).toEqual({ order: ['marker_category_marker1', 'wearables', 'quick-markers', 'notes'], hidden: ['notes'] });
+});
+it.each(['{broken', '{"order":[],"hidden":[],"future":true}', '{"order":["future-widget"],"hidden":[]}', '{"order":["wearables","wearables"],"hidden":[]}', '{"order":[],"hidden":["marker___proto__"]}'])('rejects unfamiliar widget storage without blocking an independent biometric change: %s', widgets => {
+  const model = capture({ widgets }); expect(model.availability.widgets).toBe(false); expect(() => planDashboardPresentation(model, { show: ['wearables'] })).toThrow(); expect(planDashboardPresentation(model, { biometrics: { remove: ['waist'] } })).toEqual({ biometrics: '["weight"]' });
+});
+it('preserves the exact raw value for a semantic no-op so stale no-ops still participate in CAS', () => {
+  const pins = '[ "category_marker0" ]', model = capture({ pins }); expect(planDashboardPresentation(model, { pins: { add: ['category_marker0'] }, show: ['wearables'] })).toEqual({ pins, widgets: null });
+});
+it('rejects implicit eviction at four pins and accepts an explicitly requested replacement/order', () => {
+  const selected = ['category_marker0', 'category_marker1', 'category_marker2', 'category_marker3'], model = capture({ pins: JSON.stringify(selected) }); expect(() => planDashboardPresentation(model, { pins: { add: ['category_marker4'] } })).toThrow('four-pin limit'); expect(JSON.parse(planDashboardPresentation(model, { pins: { remove: ['category_marker2'], add: ['category_marker4'], order: ['category_marker4'] } }).pins!)).toEqual(['category_marker4', 'category_marker0', 'category_marker1', 'category_marker3']);
+});
+it('withholds unavailable/private pin selections and never normalizes them away', () => {
+  const model = capture({ pins: '["private_marker"]' }); expect(projectDashboardPresentation(model).pins).toEqual({ available: false }); expect(() => planDashboardPresentation(model, { pins: { add: ['category_marker0'] } })).toThrow(); expect(planDashboardPresentation(model, { hide: ['wearables'] })).not.toHaveProperty('pins');
+});
+it.each(['{"future":true}', '["future_metric"]', '["weight","weight"]', '["bp_systolic","bp_diastolic"]'])('rejects unfamiliar/normalization-losing biometric storage: %s', biometrics => { const model = capture({ biometrics }); expect(model.availability.biometrics).toBe(false); expect(() => planDashboardPresentation(model, { biometrics: { add: ['rhr'] } })).toThrow(); });
+it('does not silently remove a diastolic selection when changing the combined blood-pressure tile or its order', () => {
+  expect(() => planDashboardPresentation(capture(), { biometrics: { add: ['bp_systolic', 'bp_diastolic'] } })).toThrow('combined bp_systolic'); const model = capture({ biometrics: '["bp_diastolic","bp_systolic"]' }); expect(() => planDashboardPresentation(model, { biometrics: { order: ['bp_systolic'] } })).toThrow(); expect(planDashboardPresentation(model, { biometrics: { remove: ['bp_diastolic'] } })).toEqual({ biometrics: '["bp_systolic"]' });
+});
+it('withholds body selections when disclosure is off and preserves the stored body preference during widget changes', () => {
+  const choices = inventory(); choices.allowBody = false; choices.biometrics = []; const model = capture({ biometrics: '["weight"]' }, choices); expect(projectDashboardPresentation(model).biometrics).toEqual({ available: false }); expect(() => planDashboardPresentation(model, { biometrics: { remove: ['weight'] } })).toThrow(); expect(planDashboardPresentation(model, { hide: ['wearables'] })).not.toHaveProperty('biometrics');
+});
+it('resets widget and biometric layout only when the complete reset is available, preserving Quick Marker pins', () => {
+  expect(planDashboardPresentation(capture(), { resetLayout: true })).toEqual({ widgets: null, biometrics: null }); const choices = inventory(); choices.allowCycle = false; expect(() => planDashboardPresentation(capture({}, choices), { resetLayout: true })).toThrow(); expect(() => planDashboardPresentation(capture({ widgets: '{"order":["marker_private"],"hidden":[]}' }), { resetLayout: true })).toThrow();
+});
+it('paginates and searches permitted marker choices without inventing IDs', () => { const projected = projectDashboardPresentation(capture(), { offset: 1, limit: 2 }); expect(projected.markerOptions).toMatchObject({ choices: [{ id: 'category_marker1' }, { id: 'category_marker2' }], total: 5, nextOffset: 3 }); expect(projectDashboardPresentation(capture(), { query: 'Marker 4' }).markerOptions.choices.map(row => row.id)).toEqual(['category_marker4']); });
+it('does not expose mutable snapshot identities through its public projection', () => { const model = capture({ pins: '["category_marker0"]' }), projected = projectDashboardPresentation(model); projected.markerOptions.choices[0]!.id = 'forged'; if ('selected' in projected.pins) projected.pins.selected!.push('forged'); if ('selected' in projected.biometrics) projected.biometrics.selected!.push('forged'); expect(() => planDashboardPresentation(model, { pins: { add: ['forged'] } })).toThrow(); expect(model.pins).toEqual(['category_marker0']); expect(model.body.selected).toEqual(['weight', 'waist']); });
+it.each([{}, { show: [] }, { show: ['wearables', 'wearables'] }, { show: ['wearables'], hide: ['wearables'] }, { pins: { add: ['a'], remove: ['a'] } }, { markerWidgets: { order: ['a'] } }, { storageKey: 'raw' }, { resetLayout: false }, { resetLayout: true, show: ['wearables'] }, { show: ['<script>'] }])('rejects undeclared, contradictory or ambiguous commands: %j', patch => expect(() => parseDashboardPresentationPatch(JSON.stringify(patch))).toThrow());
+it.each([{ view: 'labs', snapshotId: 'x', dashboard: '{"show":["wearables"]}' }, { view: 'dashboard', dashboard: '{"show":["wearables"]}' }, { view: 'dashboard', snapshotId: 'x' }, { view: 'dashboard', snapshotId: 'x', dashboard: '{"show":["wearables"]}', undoId: 'undo' }])('requires a matching fresh snapshot and one command: %j', request => expect(() => validateDashboardNavigation(request)).toThrow());

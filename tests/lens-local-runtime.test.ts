@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const realWorker = globalThis.Worker;
 
-type HarnessOptions = {activeId?: string; throwOnMessageType?: string; errorMessageType?: string; errorEventType?: string};
+type HarnessOptions = {activeId?: string; throwOnMessageType?: string; errorMessageType?: string; errorEventType?: string; requiresReload?: boolean; deferMessageType?: string};
 type WorkerRequestFixture = {type: string; files?: {name: string; text: string}[]; text?: string; topK?: number; source?: string; libraryId?: string; name?: string; model?: string};
 type WorkerEventFixture = {data?: unknown; message?: string};
 
@@ -42,7 +42,7 @@ function makeWorkerHarness(options: HarnessOptions = {}) {
     postMessage(msg: WorkerRequestFixture) {
       this.messages.push(msg);
       if (options.throwOnMessageType === msg.type) throw new Error(`${msg.type} postMessage blocked`);
-      queueMicrotask(() => this.respond(msg));
+      if (options.deferMessageType !== msg.type) queueMicrotask(() => this.respond(msg));
     }
 
     terminate() {
@@ -74,7 +74,7 @@ function makeWorkerHarness(options: HarnessOptions = {}) {
 
     respond(msg: WorkerRequestFixture) {
       if (options.errorMessageType === msg.type) {
-        this.emitMessage({ type: 'error', message: `${msg.type} failed` });
+        this.emitMessage({ type: 'error', message: `${msg.type} failed`, ...(options.requiresReload ? { requiresReload: true } : {}) });
         return;
       }
       if (options.errorEventType === msg.type) {
@@ -84,6 +84,7 @@ function makeWorkerHarness(options: HarnessOptions = {}) {
 
       switch (msg.type) {
         case 'init':
+        case 'init_metadata':
           this.emitMessage(this.readyPayload());
           return;
         case 'ingest':
@@ -195,6 +196,7 @@ afterEach(() => {
   if (realWorker) globalThis.Worker = realWorker;
   else delete (globalThis as {Worker?: unknown}).Worker;
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe('lens-local main-thread runtime behavior', () => {
@@ -356,7 +358,36 @@ describe('lens-local main-thread runtime behavior', () => {
     await expect(mod.openLocalLens()).rejects.toThrow('init failed');
     await expect(mod.openLocalLens()).rejects.toThrow('init failed');
     expect(harness.workers).toHaveLength(1);
-    expect(harness.workers[0]!.messages).toEqual([{ type: 'init' }]);
+    expect(harness.workers[0]!.messages).toEqual([{ type: 'init' }, { type: 'init' }]);
+  });
+
+  it.each(['errorMessageType', 'throwOnMessageType'] as const)('recovers later requests after %s failure without poisoning the native queue', async field => {
+    const options: HarnessOptions = { [field]: 'create_library' }, { mod } = await loadLensLocal(options), lens = await mod.openLocalLens();
+    await expect(lens.createLibrary('Failed library')).rejects.toThrow(); delete options[field];
+    await expect(lens.listLibraries()).resolves.toMatchObject({ activeId: 'active-library' }); await expect(lens.createLibrary('Retried library')).resolves.toMatchObject({ name: 'Retried library' });
+  });
+
+  it('retries initialization after the failed dependency becomes available', async () => {
+    const options: HarnessOptions = { errorMessageType: 'init' }, { mod, harness } = await loadLensLocal(options); await expect(mod.openLocalLens()).rejects.toThrow('init failed'); delete options.errorMessageType;
+    await expect(mod.openLocalLens()).resolves.toMatchObject({ activeId: 'active-library' }); expect(harness.workers[0]!.messages).toEqual([{ type: 'init' }, { type: 'init' }]);
+  });
+
+  it('lets an already queued read proceed after a mutation rejects', async () => {
+    const { mod } = await loadLensLocal({ errorMessageType: 'create_library' }), lens = await mod.openLocalLens();
+    const failed = lens.createLibrary('Failed'), queued = lens.listLibraries(); await expect(failed).rejects.toThrow('create_library failed'); await expect(queued).resolves.toMatchObject({ activeId: 'active-library' });
+  });
+
+  it('restarts a crashed worker for existing handles and ignores its late replies', async () => {
+    const options: HarnessOptions = { errorEventType: 'stats' }, { mod, harness } = await loadLensLocal(options), lens = await mod.openLocalLens();
+    const retired = harness.workers[0]!; await expect(lens.getStats()).rejects.toThrow('stats worker error'); expect(retired.terminated).toBe(true); delete options.errorEventType;
+    await expect(lens.getStats()).resolves.toMatchObject({ total_chunks: 2 }); expect(harness.workers).toHaveLength(2); const replacement = harness.workers[1]!;
+    retired.emitMessage(retired.readyPayload({ numChunks: 999, activeId: 'retired-library' })); await expect(mod.openLocalLens()).resolves.toMatchObject({ activeId: 'active-library', numChunks: 2 });
+    expect(replacement.messages.map(message => message.type)).toEqual(['init', 'stats']); expect(localStorage.getItem('labcharts-lens-local-count')).toBe('2');
+  });
+  it('retires an unconfirmed-write worker and reloads storage before an existing handle proceeds', async () => {
+    const options: HarnessOptions = { errorMessageType: 'create_library', requiresReload: true }, { mod, harness } = await loadLensLocal(options), lens = await mod.openLocalLens();
+    await expect(lens.createLibrary('Unconfirmed')).rejects.toMatchObject({ requiresReload: true }); expect(harness.workers[0]!.terminated).toBe(true); delete options.errorMessageType;
+    await expect(lens.listLibraries()).resolves.toMatchObject({ activeId: 'active-library' }); expect(harness.workers[1]!.messages.map(message => message.type)).toEqual(['init', 'list_libraries']);
   });
 
   it('rejects queued requests when the worker itself errors', async () => {
@@ -371,4 +402,42 @@ describe('lens-local main-thread runtime behavior', () => {
 
     expect(() => lens.abort()).not.toThrow();
   });
+});
+
+
+describe('metadata-only library sessions', () => {
+  it('initializes only metadata and recovers after an ordinary rejected request', async () => {
+    vi.stubGlobal('navigator', { locks: { request: () => {} } });
+    const options: HarnessOptions = { errorMessageType: 'create_library' }, { harness } = await loadLensLocal(options);
+    const { openLocalLibrarySession } = await import('../js/lens-local-library-session.js'), session = await openLocalLibrarySession();
+    await expect(session.createLibrary('Synthetic')).rejects.toThrow('create_library failed'); delete options.errorMessageType;
+    await expect(session.listLibraries()).resolves.toMatchObject({ activeId: 'active-library' });
+    expect(harness.workers[0]!.messages.map(message => message.type)).toEqual(['init_metadata', 'create_library', 'list_libraries']); session.close(); expect(harness.workers[0]!.terminated).toBe(true);
+  });
+  it.each(['errorMessageType', 'errorEventType'] as const)('closes an unconfirmed session after %s without replay and requires an explicit new session', async fault => {
+    vi.stubGlobal('navigator', { locks: { request: () => {} } });
+    const options: HarnessOptions = { [fault]: 'create_library', requiresReload: true }, { harness } = await loadLensLocal(options);
+    const { openLocalLibrarySession } = await import('../js/lens-local-library-session.js'), session = await openLocalLibrarySession();
+    await expect(session.createLibrary('Unconfirmed')).rejects.toMatchObject({ requiresReload: true });
+    await expect(session.listLibraries()).rejects.toThrow('closed'); expect(harness.workers).toHaveLength(1); expect(harness.workers[0]!.terminated).toBe(true); expect(harness.workers[0]!.messages.filter(message => message.type === 'create_library')).toHaveLength(1);
+    delete options[fault]; const reopened = await openLocalLibrarySession(); await expect(reopened.listLibraries()).resolves.toMatchObject({ activeId: 'active-library' }); expect(harness.workers[1]!.messages[0]!.type).toBe('init_metadata'); reopened.close();
+  });
+  it('fails before creating a worker when browser-wide locking is unavailable', async () => {
+    vi.stubGlobal('navigator', {}); const { harness } = await loadLensLocal(); const { openLocalLibrarySession } = await import('../js/lens-local-library-session.js');
+    await expect(openLocalLibrarySession()).rejects.toThrow('browser-wide storage locking'); expect(harness.workers).toHaveLength(0);
+  });
+});
+
+it('closing a pending metadata mutation rejects it as unconfirmed and rejects queued reads without sending them', async () => {
+  vi.stubGlobal('navigator', { locks: { request: () => {} } });
+  const { harness } = await loadLensLocal({ deferMessageType: 'create_library' }); const { openLocalLibrarySession } = await import('../js/lens-local-library-session.js'); const session = await openLocalLibrarySession();
+  const mutation = session.createLibrary('Pending synthetic collection'), read = session.listLibraries();
+  const outcome = expect(mutation).rejects.toMatchObject({ requiresReload: true }), queued = expect(read).rejects.toThrow('closed');
+  await vi.waitFor(() => expect(harness.workers[0]!.messages.map(message => message.type)).toContain('create_library')); session.close(); await outcome; await queued;
+  expect(harness.workers[0]!.messages.map(message => message.type)).toEqual(['init_metadata', 'create_library']); expect(harness.workers[0]!.terminated).toBe(true);
+});
+it('a metadata initialization message failure retires the worker and leaves an explicit new-session retry available', async () => {
+  vi.stubGlobal('navigator', { locks: { request: () => {} } }); const options: HarnessOptions = { throwOnMessageType: 'init_metadata' }, { harness } = await loadLensLocal(options);
+  const { openLocalLibrarySession } = await import('../js/lens-local-library-session.js'); await expect(openLocalLibrarySession()).rejects.toThrow('init_metadata postMessage blocked'); expect(harness.workers[0]!.terminated).toBe(true);
+  delete options.throwOnMessageType; const session = await openLocalLibrarySession(); await expect(session.listLibraries()).resolves.toMatchObject({ activeId: 'active-library' }); session.close();
 });

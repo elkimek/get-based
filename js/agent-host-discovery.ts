@@ -8,6 +8,7 @@ import {
 
 export type DiscoveredAgent = ReturnType<typeof normalizeDiscoveredAgent>;
 export interface AgentDiscoveryOptions {
+  requiredToolContractVersion?: number | undefined;
   refresh?: boolean | undefined;
   signal?: AbortSignal | undefined;
   ports?: number[] | undefined;
@@ -15,6 +16,10 @@ export interface AgentDiscoveryOptions {
   requiredAgentId?: string | undefined;
 }
 export interface AgentConnectionOptions {
+  /** A bound feature may refresh a credential privately without changing chat settings. */
+  persistConnection?: boolean | undefined;
+  requiredEndpoint?: string | undefined;
+  requiredToolContractVersion?: number | undefined;
   /** Optional initiating-owner guard, checked before publishing a discovered credential. */
   isCurrent?: (() => boolean) | undefined;
   signal?: AbortSignal | undefined;
@@ -66,6 +71,7 @@ export function normalizeDiscoveredAgent(agent: Record<string, unknown> | null |
     paused: agent?.paused === true || agent?.status === 'paused',
     controlAuthorized: agent?.controlAuthorized !== false,
     protocolVersion: normalizeAgentHostProtocolVersion(agent?.protocolVersion),
+    ...(normalizeAgentHostProtocolVersion(agent?.toolContractVersion) ? { toolContractVersion: normalizeAgentHostProtocolVersion(agent?.toolContractVersion) } : {}),
     capabilities: normalizeAgentHostCapabilities(agent?.capabilities),
   };
 }
@@ -121,6 +127,7 @@ async function probeLoopbackAgentHost(endpoint: string, parentSignal: AbortSigna
       // older companions that omitted the explicit authority field.
       controlAuthorized: false,
       protocolVersion: row?.protocolVersion || protocolVersion,
+      toolContractVersion: row?.toolContractVersion || payload.toolContractVersion,
       capabilities: row?.capabilities || capabilities,
     })).filter(agent => agent.id);
   } catch { return []; }
@@ -149,6 +156,10 @@ export async function discoverLoopbackAgentHostsRuntime(options: AgentDiscoveryO
     const agents = await probeLoopbackAgentHost(endpoint, options.signal, options.normalizeEndpoint, options.refresh);
     const allowedAgents = agents.filter(agent => isAgentAllowedForDeployment(agent.id));
     if (!allowedAgents.length) continue;
+    if (options.requiredToolContractVersion && !allowedAgents.some(agent => (agent.toolContractVersion || 0) >= options.requiredToolContractVersion!)) {
+      if (!legacyCompanion.length) legacyCompanion = allowedAgents;
+      continue;
+    }
     if (options.requiredTextFeatureTarget) {
       const capable: DiscoveredAgent[] = [];
       for (const agent of allowedAgents.filter(agent => !options.requiredAgentId || agent.id === options.requiredAgentId)) {
@@ -167,13 +178,15 @@ export async function discoverLoopbackAgentHostsRuntime(options: AgentDiscoveryO
   return legacyCompanion;
 }
 
-export function mergeDiscoveredAgents(primary: DiscoveredAgent[], companions: DiscoveredAgent[]) {
+export function mergeDiscoveredAgents(primary: DiscoveredAgent[], companions: DiscoveredAgent[], requiredToolContractVersion = 0) {
   const merged = [...primary];
   for (const candidate of companions) {
     const index = merged.findIndex(agent => agent.id === candidate.id);
     if (index < 0) merged.push(candidate);
     else if (candidate.compatible && ['available', 'paused'].includes(candidate.status)) {
       const direct = merged[index]!;
+      if (requiredToolContractVersion && (direct.toolContractVersion || 0) >= requiredToolContractVersion
+        && (candidate.toolContractVersion || 0) < requiredToolContractVersion) continue;
       // A same-origin dev inventory may already hold this exact host's
       // installation credential. Do not replace it with lesser discovery
       // authority, and never carry it to a different companion endpoint.
@@ -210,6 +223,9 @@ export async function connectAgentHostCandidate(options: AgentConnectionOptions 
       if (status?.paused === true || status?.state === 'paused') throw new Error('The getbased Companion is paused. Resume it in AI settings.');
       if (!agentHostSupportsCapabilities(status, options.requiredCapabilities)) {
         throw agentHostUpgradeRequiredError(options.requiredCapabilities[0] || 'requested-feature');
+      }
+      if (options.requiredToolContractVersion && normalizeAgentHostProtocolVersion(status.toolContractVersion) < options.requiredToolContractVersion) {
+        throw agentHostUpgradeRequiredError('context-change-proposals');
       }
       if (options.requiredTextFeatureTarget) await requireTextFeatureTarget({ ...options.candidate, endpoint }, options.requiredTextFeatureTarget, options.signal);
       if (!current()) throw obsolete();

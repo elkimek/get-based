@@ -33,6 +33,7 @@ import { encodeMergedRoutstrSessions, ROUTSTR_SESSIONS_KEY } from './routstr-ses
 
 import { state } from './state.js';
 import { getSyncAppOwner } from './sync-runtime.js';
+import { configureSyncPullViewDeps, renderProfileButtonAfterSync, reconcileManualWearablesAfterSync } from './sync-pull-view-runtime.js';
 import { parseSyncPayload } from './sync-payload.js';
 import { applyChatData, chatDataNeedsRebroadcast, getChatDataLocalLockRemainingMs } from './sync-chat-apply.js';
 import { refreshActiveProfileAfterPull } from './sync-pull-active-refresh.js';
@@ -67,7 +68,7 @@ var _isSyncEnabled: SyncPullDeps["isSyncEnabled"] = _isSyncEnabled! || (() => tr
 var _pushProfile: SyncPullDeps["pushProfile"] = _pushProfile! || (async () => {});
 var _pushDirtyProfiles: SyncPullDeps["pushDirtyProfiles"] = _pushDirtyProfiles! || (async () => ({ total: 0, succeeded: 0, failed: 0, skipped: 0 }));
 var _pushProfilesById: SyncPullDeps["pushProfilesById"] = _pushProfilesById! || (async () => ({ total: 0, succeeded: 0, failed: 0, skipped: 0 }));
-var _renderProfileButton: SyncPullDeps["renderProfileButton"] = _renderProfileButton! || (() => {});
+const _renderProfileButton = renderProfileButtonAfterSync;
 var _getProfiles: SyncPullDeps["getProfiles"] = _getProfiles! || (() => []);
 var _deleteProfileFromRelay: SyncPullDeps["deleteProfileFromRelay"] = _deleteProfileFromRelay! || (async () => {});
 let syncApplyPromise: Promise<typeof import('./sync-apply.js')> | undefined;
@@ -76,7 +77,7 @@ function loadSyncApply() {
   syncApplyPromise ||= import('./sync-apply.js');
   return syncApplyPromise;
 }
-var _reconcilePulledManualWearables: SyncPullDeps["reconcilePulledManualWearables"] = _reconcilePulledManualWearables! || (async () => false);
+const _reconcilePulledManualWearables = reconcileManualWearablesAfterSync;
 var _debug: SyncPullDeps["debug"] = _debug! || (() => {});
 let _pulling = false;
 let _pullPromise: Promise<void> | null = null;
@@ -166,10 +167,9 @@ export function configureSyncPull({
   if (typeof pushProfile === 'function') _pushProfile = pushProfile;
   if (typeof pushDirtyProfiles === 'function') _pushDirtyProfiles = pushDirtyProfiles;
   if (typeof pushProfilesById === 'function') _pushProfilesById = pushProfilesById;
-  if (typeof renderProfileButton === 'function') _renderProfileButton = renderProfileButton;
+  configureSyncPullViewDeps({ renderProfileButton, reconcilePulledManualWearables });
   if (typeof getProfiles === 'function') _getProfiles = getProfiles;
   if (typeof deleteProfileFromRelay === 'function') _deleteProfileFromRelay = deleteProfileFromRelay;
-  if (typeof reconcilePulledManualWearables === 'function') _reconcilePulledManualWearables = reconcilePulledManualWearables;
   if (typeof debug === 'function') _debug = debug;
 }
 

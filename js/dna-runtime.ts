@@ -10,23 +10,27 @@ import type { SnpAnnotation } from './dna-evidence.js';
 export interface SnpSource { type?: string | null; label?: string | null; fileName?: string | null; rawText?: string | null; addedAt?: string | null }
 /** Persisted calls may predate the current catalog; consumers retain their original field fallbacks. */
 export interface StoredSnpCall extends SnpAnnotation {
+  genomeGeneration?: number | null | undefined;
   genotype?: string | null | undefined; normalizedGenotype?: string | null | undefined; category?: string | null | undefined;
   markers?: readonly string[] | null; source?: SnpSource | null;
 }
 export interface GeneticsData {
+  updatedAt?: number; genomeGeneration?: number;
   snps?: Record<string, StoredSnpCall> | null; apoe?: string | null; source?: string | null; importDate?: string | null;
   coverage?: { found?: number; total?: number } | null | undefined;
   effects?: Partial<Record<'significant' | 'moderate' | 'mild' | 'normal', number>>;
   catalogVersion?: { size: number; hash: string } | null;
+  /** Replaced maternal reports remain local evidence until maternal data is removed. */
+  mtdnaHistory?: unknown[];
   mtdna?: Partial<PendingMtDnaImport['resolved']> & {
     coupling?: PendingMtDnaImport['coupling']; origin?: string | null; details?: string | null;
-    source?: string | null; importDate?: string | null; mutations?: string[];
+    source?: string | null; importDate?: string | null; mutations?: string[]; updatedAt?: number; genomeGeneration?: number; maternalGeneration?: number;
   } | null;
 }
-export interface DnaProfileData { genetics?: GeneticsData | null }
+export interface DnaProfileData { genetics?: GeneticsData | null; geneticsSnpTombstones?: import('./genetics-snp-lifecycle.js').GeneticsSnpStates; geneticsLifecycle?: import('./genetics-lifecycle.js').GeneticsLifecycle; }
 export type PendingDnaImport = Omit<Awaited<ReturnType<typeof import('./dna-parser.js').parseDNAFileWithTable>>, 'matches'> & {
   matches: Record<string, StoredSnpCall>;
-  mergeSnps?: boolean; rawMatchedCount?: number; preservedOverrideCount?: number;
+  mergeSnps?: boolean; rawMatchedCount?: number; preservedOverrideCount?: number; suppressedRemovedCount?: number; restoresRemovedGenome?: boolean;
 };
 interface DnaRuntimeDeps {
   buildSidebar: (() => void) | null;
@@ -47,6 +51,7 @@ import { getLatitudeFromLocation } from './profile.js';
 import { isDebugMode, showConfirmDialog, showNotification } from './utils.js';
 import { triggerContextCardDNAFilePickerRuntime } from './context-cards-runtime.js';
 import { updateChatNudgeRuntime } from './chat-runtime.js';
+import { profileDataValuesEqual } from './profile-data-writes.js';
 
 const GENETICS_STYLESHEET_URL = new URL('../css/genetics.css', import.meta.url).href;
 const geneticsStylesheetPromiseCache = createRetryingStylesheetLoader({
@@ -202,11 +207,16 @@ export function captureDnaImportOrigin() {
     return !retired;
   } };
 }
-const pendingOrigins = new WeakMap<object, ReturnType<typeof captureDnaImportOrigin>>();
+export function captureDnaReviewOrigin() {
+  const origin = captureDnaImportOrigin(), genetics = structuredClone(origin.data.genetics ?? null), removals = structuredClone(origin.data.geneticsSnpTombstones ?? null), lifecycle = structuredClone(origin.data.geneticsLifecycle ?? null);
+  return { ...origin, ownsProfile: origin.current, current: () => origin.current() && profileDataValuesEqual(origin.data.genetics ?? null, genetics) && profileDataValuesEqual(origin.data.geneticsSnpTombstones ?? null, removals) && profileDataValuesEqual(origin.data.geneticsLifecycle ?? null, lifecycle) };
+}
+const pendingOrigins = new WeakMap<object, ReturnType<typeof captureDnaReviewOrigin>>();
 export function isPendingDnaImportCurrent(result: object): boolean { return pendingOrigins.get(result)?.current() === true; }
+export function isPendingDnaImportOwned(result: object): boolean { return pendingOrigins.get(result)?.ownsProfile() === true; }
 
 export function setPendingDnaImport(result: PendingDnaImport) {
-  pendingOrigins.set(result, captureDnaImportOrigin());
+  pendingOrigins.set(result, captureDnaReviewOrigin());
   getRuntimeWindow()._pendingDNAImport = result;
 }
 
@@ -219,7 +229,7 @@ export function clearPendingDnaImport() {
 }
 
 export function setPendingMtDnaImport(result: PendingMtDnaImport) {
-  pendingOrigins.set(result, captureDnaImportOrigin());
+  pendingOrigins.set(result, captureDnaReviewOrigin());
   getRuntimeWindow()._pendingMtDNA = result;
 }
 

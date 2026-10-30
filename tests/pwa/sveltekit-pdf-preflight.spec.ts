@@ -4,7 +4,7 @@ import {createHash} from 'node:crypto';
 import {expect, test, type Page} from '@playwright/test';
 import {createDefaultProfileData, migrateProfileData} from '../../js/profile.js';
 import type {ProfileData} from '../../types/app-state.js';
-import {startKitServer} from './kit-server.js';
+import {startKitServer} from './kit-release-server.js';
 import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
 import {installOfflineStartupDiagnostics} from '../helpers/offline-launch-diagnostics.js';
 import {readyLightArtifact as ready} from '../helpers/light-artifact-navigation.js';
@@ -140,9 +140,9 @@ async function readInputsAndArtifact() {
   }
   expect(new Set(requiredPdfCachePaths).size).toBe(requiredPdfCachePaths.length);
   for (const url of requiredPdfCachePaths) expect(files.some(file => '/' + file.path === url)).toBe(true);
-  const servedSw = sw.replace(/const BUILD_ID = '[^']*';/, "const BUILD_ID = 'kit-test-a';")
+  const servedSw = sw.replace(/const BUILD_ID = '[^']*';/, "const BUILD_ID = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';")
     .replace('const APP_SHELL = [', "const APP_SHELL = [\n  '/js/bundle-legacy-probe-AAA.js',");
-  const servedVersion = version.replace(/self.APP_BUILD_ID = '[^']*';/, "self.APP_BUILD_ID = 'kit-test-a';");
+  const servedVersion = version.replace(/self.APP_BUILD_ID = '[^']*';/, "self.APP_BUILD_ID = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';");
   const current: Artifact = {artifactDirectory: directory, files, requiredPdfCachePaths,
     servedFixture: {workerSha256: sha(servedSw), versionSha256: sha(servedVersion)}};
   return {current, original: original.records, parserAuthoritySHA256: sha(parserBytes), artifactSHA256: sha(JSON.stringify(files))};
@@ -429,7 +429,7 @@ test('fresh static PDF first offline use and two zero-page cold launches preserv
       artifactFileCount: authority.current.files.length,
       originalAuthoritySha, actualListenerClosed: closed, offlineLaunches: 3, zeroPageColdLaunches: 2, attemptCount,
       phases, clients, workers, consoles, requests, responses, errors, csp, external,
-      boundary: 'Fresh actual compiled static app, real native SW/cache/IDB and dedicated pdf.js worker; physical local PDF FileList via Playwright automation with raw trusted events; native trusted Cancel. Existing kit-test-a worker/version +legacyProbe seam disclosed; encryption disabled. No OS installation, actual Safari certification, real provider/AI/import completion or SW termination claim.'}, null, 2), contentType: 'application/json'});
+      boundary: 'Fresh actual compiled static app, real native SW/cache/IDB and dedicated pdf.js worker; physical local PDF FileList via Playwright automation with raw trusted events; native trusted Cancel. Existing aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa worker/version +legacyProbe seam disclosed; encryption disabled. No OS installation, actual Safari certification, real provider/AI/import completion or SW termination claim.'}, null, 2), contentType: 'application/json'});
     } finally {if (!closed) await server.close();}
   }
 });

@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { appendLabOrderMove, replaceLabOrder, mergeLabOrderRecords } from '../js/lab-ordering-core.js';
 import type {Mock} from 'vitest';
+import { installPersonaCommandTestLocks } from './helpers/persona-command-locks.js';
+import { configurePersonaJournalProtection } from '../js/persona-storage-transaction.js';
 
 type RawSupplementFixture = Record<string, unknown> & {id?: unknown};
 type ImportedRichFixture = Record<string, unknown> & {entries: {markers: unknown; sourceFiles?: unknown}[]; sleepRest: {issues?: unknown}; lightCircadian: {practices?: unknown}; menstrualCycle: {periods?: unknown}; emfAssessment: {assessments?: unknown}; biometrics: {weight?: unknown}; lightEnvironment: {rooms?: unknown}; lightDailyVerdicts: Record<string, unknown>; importSnapshots: {id?: unknown}[]};
@@ -51,6 +54,7 @@ vi.mock('../js/crypto.js', () => ({
   encryptedGetItem: runtime.encryptedGetItem,
   encryptedSetItem: runtime.encryptedSetItem,
   getEncryptionEnabled: runtime.getEncryptionEnabled,
+  prepareEncryptedLocalStorageValue: async (_key: string, value: string) => ({ value, isCurrent: () => true }),
 }));
 vi.mock('../js/data-merge.js', () => ({
   appendImportedArrayItem(data: Record<string, unknown[]>, field: string, item: unknown) {
@@ -92,7 +96,60 @@ vi.mock('../js/nostr-discovery.js', () => ({ setSelectedNodeUrl: runtime.setSele
 const { importDataJSON } = await import('../js/export-import.js');
 
 describe('JSON restore runtime', () => {
+  it.each(['profile', 'database'])('unions portable ordering moves without altering clinical records in a %s restore', async kind => {
+    const a = appendLabOrderMove(null, { item: 'A', after: 'C' }, 'local', 1), b = appendLabOrderMove(null, { item: 'D', before: 'B' }, 'backup', 1);
+    const current = { entries: [{ date: '2026-10-20', markers: { 'biochemistry.glucose': 5 } }], customMarkerLifecycle: {}, labOrdering: { markers: a, future: { version: 99, keep: true } } };
+    runtime.state.importedData = structuredClone(current); localStorage.setItem('profile-1:imported', JSON.stringify(current));
+    const incoming = { entries: [], labOrdering: { markers: b } }, backup = kind === 'profile' ? incoming : { type: 'database', profiles: [{ id: 'profile-1', data: incoming }] };
+    await importDataJSON(new File([JSON.stringify(backup)], 'order.json'));
+    const result = kind === 'profile' ? runtime.state.importedData : JSON.parse(localStorage.getItem('profile-1:imported')!);
+    expect(runtime.showNotification.mock.calls.some(([, status]) => status === 'success')).toBe(true);
+    expect(result).toEqual({ ...current, labOrdering: { ...current.labOrdering, markers: mergeLabOrderRecords(a, b) } });
+  });
+  it.each(['profile', 'database'])('keeps a newer explicit ordering reset when importing a stale %s backup', async kind => {
+    const old = appendLabOrderMove(null, { item: 'A', after: 'C' }, 'old', 1), reset = replaceLabOrder(old, null, 'reset', 10);
+    const current = { entries: [{ date: '2026-10-20', markers: { 'biochemistry.glucose': 5 } }], customMarkerLifecycle: {}, labOrdering: { markers: reset } };
+    runtime.state.importedData = structuredClone(current); localStorage.setItem('profile-1:imported', JSON.stringify(current));
+    const incoming = { entries: [], labOrdering: { markers: old } }, backup = kind === 'profile' ? incoming : { type: 'database', profiles: [{ id: 'profile-1', data: incoming }] };
+    await importDataJSON(new File([JSON.stringify(backup)], 'stale-order.json'));
+    const result = kind === 'profile' ? runtime.state.importedData : JSON.parse(localStorage.getItem('profile-1:imported')!);
+    expect(runtime.showNotification.mock.calls.some(([, status]) => status === 'success')).toBe(true);
+    expect(result.labOrdering).toEqual(current.labOrdering); expect(result.entries).toEqual(current.entries);
+  });
+  it.each(['profile', 'database'])('preflights conflicting ordering identities before a %s restore can write any clinical changes', async kind => {
+    const a = appendLabOrderMove(null, { item: 'A', after: 'C' }, 'same', 1), b = appendLabOrderMove(null, { item: 'D', before: 'B' }, 'same', 1);
+    const current = { entries: [{ date: '2026-10-20', markers: { 'biochemistry.glucose': 5 } }], customMarkerLifecycle: {}, labOrdering: { markers: a } };
+    runtime.state.importedData = structuredClone(current); localStorage.setItem('profile-1:imported', JSON.stringify(current));
+    const incoming = { entries: [{ date: '2026-10-20', markers: { 'biochemistry.glucose': 99 } }], customMarkerLifecycle: {}, labOrdering: { markers: b } }, backup = kind === 'profile' ? incoming : { type: 'database', profiles: [{ id: 'profile-1', data: incoming }] };
+    await importDataJSON(new File([JSON.stringify(backup)], 'conflicting-order.json'));
+    expect(runtime.state.importedData).toEqual(current); expect(JSON.parse(localStorage.getItem('profile-1:imported')!)).toEqual(current);
+    expect(runtime.saveImportedData).not.toHaveBeenCalled(); expect(runtime.saveImportedDataForProfile).not.toHaveBeenCalled(); expect(runtime.showNotification).toHaveBeenCalledWith(expect.stringContaining('identities'), 'error');
+  });
+
+  it.each(['profile', 'database'])('explicitly restores a removed custom marker from a %s backup', async kind => {
+    const markerKey = 'custom.fixture', markerId = 'custom:restore-fixture';
+    const current = { entries: [{ date: '2026-10-20', markers: { 'biochemistry.glucose': 5 }, deletedMarkers: { [markerKey]: 9e12 } }], customMarkers: {}, customMarkerLifecycle: { [markerId]: { markerKey, deletedAt: 9e12, restoredAt: 0 } } };
+    const imported = { entries: [{ date: '2026-10-20', markers: { [markerKey]: 4 } }], customMarkers: { [markerKey]: { markerId, name: 'Fixture', unit: '' } } };
+    runtime.state.importedData = structuredClone(current); localStorage.setItem('profile-1:imported', JSON.stringify(current));
+    const backup = kind === 'profile' ? imported : { type: 'database', profiles: [{ id: 'profile-1', data: imported }] };
+    await importDataJSON(new File([JSON.stringify(backup)], 'restore-marker.json'));
+    const result = kind === 'profile' ? runtime.state.importedData : JSON.parse(localStorage.getItem('profile-1:imported')!);
+    expect(result.customMarkers).toEqual(imported.customMarkers); expect(result.entries[0].markers).toEqual({ 'biochemistry.glucose': 5, [markerKey]: 4 });
+    expect(result.customMarkerLifecycle[markerId].restoredAt).toBeGreaterThan(9e12); expect(runtime.showNotification.mock.calls.some(([, status]) => status === 'success')).toBe(true);
+  });
+  it.each(['profile', 'database'])('preflights conflicting custom identities before changing data in a %s import', async kind => {
+    const markerKey = 'custom.fixture', current = { entries: [{ date: '2026-10-20', markers: { [markerKey]: 1 } }], customMarkers: { [markerKey]: { markerId: 'custom:local', name: 'Local', unit: '' } } };
+    runtime.state.importedData = structuredClone(current); localStorage.setItem('profile-1:imported', JSON.stringify(current));
+    const imported = { entries: [{ date: '2026-10-20', markers: { [markerKey]: 4 } }], customMarkers: { [markerKey]: { markerId: 'custom:foreign', name: 'Foreign', unit: '' } } };
+    const backup = kind === 'profile' ? imported : { type: 'database', profiles: [{ id: 'profile-1', data: imported }] };
+    await importDataJSON(new File([JSON.stringify(backup)], 'conflicting-marker.json'));
+    expect(runtime.state.importedData).toEqual(current); expect(JSON.parse(localStorage.getItem('profile-1:imported')!)).toEqual(current);
+    expect(runtime.saveImportedData).not.toHaveBeenCalled(); expect(runtime.saveImportedDataForProfile).not.toHaveBeenCalled();
+    expect(runtime.showNotification).toHaveBeenCalledWith(expect.stringContaining('different identity'), 'error');
+  });
   beforeEach(() => {
+    installPersonaCommandTestLocks();
+    configurePersonaJournalProtection({ enabled: () => false, seal: async value => value, open: async value => value });
     vi.clearAllMocks();
     runtime.saveImportedData.mockResolvedValue(true);
     runtime.showConfirmDialog.mockResolvedValue(true);

@@ -73,6 +73,107 @@ rolling estimated comparison windows for this editor and the Cycle overview.
 Forecast dates never create observed periods, change raw measurements or infer
 an adjustment to fat mass.
 
+`lab-panel-identity.ts` owns stable identities for separate same-day lab panels
+and their versioned date-row transport. Canonical profile data keeps individual
+panels; the delta planner emits one date carrier with an ordinary top panel and
+additional panels in `labPanelBundle`. The pull adapter expands that carrier
+before publishing canonical data. Blob reconciliation merges named panels and
+their marker clocks independently; legacy date-unique rows retain their additive
+merge. Different filenames alone do not establish different collections.
+Profile migrations assign deterministic IDs to old split-day panels and retain
+those IDs through later corrections. Locked profile rebasing uses those IDs,
+while exact reviewed date expectations still reject stale lab snapshots. Date
+projections and date-wide notes are not specimen-specific record selectors.
+
+`lab-sample-cycle.ts` validates explicit cycle day/phase/detail commands for one
+sample. These commands share the sample transaction and first-original provenance
+with other collection edits. They never create periods or infer a phase from a
+day or forecast. A reported phase/detail becomes recorded; a day-only correction
+preserves the existing phase source. Clearing a phase clears its detail/source
+with merge-stable nulls and allows ordinary profile predictions again. The sample
+editor uses the same owner. Exact chat reads/reviews require Insight disclosure
+for these fields in addition to lab-source access; ordinary local editing remains
+available independently. Version 1 pending sample reviews require a fresh read
+before applying against the expanded version 2 collection snapshot.
+
+`lab-panel-deletions.ts` owns monotonic removal and restore clocks per panel and
+date, independently of whole-date tombstones. Its registered keyed sync surface
+retains removal history when a peer omits a key; an explicit restore advances the
+restore clock. Both row arrival orders apply this history before exposing panels.
+`lab-panel-mutations.ts` selects one sample and owns panel-local original values;
+date-wide legacy originals are used only when their ownership is unambiguous.
+An explicit null original prevents a stale date map from reviving a cleared
+original after Revert or replacement of a report.
+`lab-report-samples.ts` resolves report ownership by stable sample identity and
+source ancestry. Re-review retains that collection, including after a sample
+date move; source removal and replacement restore only evidence belonging to the
+same collection. A new report on an occupied date requires an explicit existing
+sample or separate-collection choice in the ordinary import review. Extracted
+content and restored draft fields cannot grant an internal re-review target.
+`lab-report-store.ts` stages report changes against the captured profile baseline
+and checks affected lab/source/provenance/diagnostic fields and deletion history
+inside the locked commit. Failed or revoked writes publish no staged values;
+unrelated local edits survive adoption of a successful durable result. Report
+reference ranges use the captured profile sex and refuse a late owner change.
+`lab-marker-mutations.ts` applies pure value/remove/revert commands and preserves
+source links, aliases and dependent marker behavior. `lab-marker-record-store.ts`
+commits these through the captured profile's locked date, deletion-state and map
+expectations. Numeric marker-detail actions use that owner and publish accepted
+values only after persistence. Ambiguous date-only writes require a sample choice.
+
+`lab-display-core.ts` projects and changes display labels and category placement
+without re-keying marker evidence. `lab-display-store.ts` owns durable native
+commits with profile/editor leases and locked definition, label and placement
+expectations. Native rename/placement editors and provider-neutral chat reviews
+use that owner. Saved base category labels and `contextGroup` retain source
+identity independently of editable names; adding a marker after a category rename
+keeps those identities. Placement restoration preserves unrelated future metadata.
+The chat adapter refreshes only its still-owned surface after persistence.
+
+`lab-ordering-core.ts` owns portable presentation moves by stable item/anchor IDs.
+Concurrent moves merge deterministically; explicit reset/restoration creates a new
+generation so a stale peer cannot revive a superseded order. Unknown metadata is
+preserved, or conflicting/unsupported edits fail before persistence.
+`lab-ordering-native.ts` derives finite marker, specialty-category and sidebar
+group scopes from native definitions and placements. `lab-ordering-store.ts`
+guards their durable writes with profile/editor leases, exact scope expectations
+and registry dependencies. Its snapshots exclude observations and source files.
+Ordering saves invalidate presentation data and schedule sync without publishing
+a clinical-context change.
+`lab-ordering-view.ts` projects moves after calculations and each chart's default
+sort; unmodified items keep their relative order. `lab-ordering-sidebar.ts` moves
+existing whole static sidebar nodes, retaining group pairs, collapse controls and
+delegates. Portable exports and native restore/sync paths preserve ordering intent.
+`lab-ordering-delta.ts` merges per-row ordering carriers by semantic generation
+and operation identity, repairs regressed/tombstoned carriers, and respects the
+existing decompression budget. A missing scope never authorizes a transport delete.
+Single-move Undo adds a monotonic operation cancellation to the same generation,
+so later-arriving peer moves survive and a stale peer cannot revive the undone
+move. Whole-scope reset/restoration still creates a new generation.
+Legacy ordering review/receipt modules retain bounded native-owner safety checks,
+but ordering is excluded from chat discovery, preparation and execution. Saved
+historical cards are read-only; they cannot apply or undo ordering changes.
+`record-revision.ts` shares the existing stable digest without storage/UI imports.
+`lab-overlay-preferences.ts` owns the three durable profile chart-layer switches,
+shared by native Layers controls and chat. Multi-switch writes share a Web Lock,
+roll back failed storage before publishing cached modes, and preserve health data.
+`lab-overlay-controls.ts` binds permitted metadata snapshots to transient reviews;
+its policy module retains lab/insight/supplement disclosure and the native female
+cycle constraint without inspecting record availability. Execution uses the same
+native preference owner; private receipts authenticate completion and guarded Undo
+after reload. Pending reviews expire. Undo touches only reviewed switches and is
+attempted once; source withdrawal filters cards and later model metadata. Neither
+proof nor repaint failure can turn a durable preference save into a failed write.
+`context-preference-state.ts` projects source/group flags and native lookback
+windows without reading health content or data availability. The registry accepts
+explicit profile/data reads while retaining its existing active-profile defaults.
+Context Hub owns source/group/window changes, autosaves and retry drafts.
+Disclosure controls remain in the native UI. Chat cannot capture a new disclosure
+lease, apply a saved review or undo an imported historical control. Native changes
+preserve health records, source restrictions and Agent Access secrets and publish
+through the existing context-update path. Past shared messages are retained.
+`lab-display-import.ts` owns database-restore display metadata merging.
+
 Svelte components own first-party markup. Pure presentation modules project
 readonly data; feature controllers retain calculations, provider requests,
 storage, navigation and delegated actions. Projections preserve observable getter,
@@ -95,6 +196,16 @@ The synchronous browser serializer needs no rendering backend. Its build rejects
 static Node dependencies; Svelte's unused asynchronous renderer import must not
 become a browser dependency.
 
+Protection controllers load their passphrase, encryption and backup presentations
+on first use. A passphrase owner exists synchronously while its component loads;
+settings loads capture the profile, connected host and snapshot revision. Late
+loads cannot mount retired views, and folder updates received during a backup
+load stay with the current snapshot. Backup owners retain summary rows before
+mounting and across retries, independently of the encryption presentation.
+Loading failures expose a retry control
+using a fixed module alias. Preparation helpers are explicit readiness boundaries
+for callers that need the mounted view; secrets remain in the dialog owner.
+
 Every async view action captures its profile/data, root and request identity before
 awaiting work. Recheck the relevant provider, credential, thread, selection or draft
 before dispatch, publication and persistence. Retired controls cannot start new work
@@ -105,10 +216,684 @@ commit/rollback, not component mount lifetime. A save adopting into a replacemen
 object for the same profile uses that object's own read baseline, so stale loaded
 values cannot undo the committed edit and newer unsaved fields remain intact.
 
+Browser-wide Knowledge Base preferences use `knowledge-settings.ts` and its
+pure proposal projection. The shared `lens-config-store.ts` queue/Web Lock orders
+native and reviewed preference commits with raw-source expectations; it preserves
+private connection fields and blocks open native drafts. A committed IndexedDB
+receipt fences the synchronous configuration mirror across processes; Web Locks
+alone cannot make that mirror fresh. Native, restore and sync writes use the same
+acknowledged owner. Source reads and final inventory disclosure refresh the receipt,
+so a delayed Storage event cannot disclose a peer-disabled Knowledge Base.
+`knowledge-inventory.ts`
+reads existing OPFS handles and verifies native corpus generations within explicit
+size budgets. It never initializes the worker or creates, migrates or repairs a
+corpus. Library mutations share the native registry owner; document mutations
+and connection setup keep their dedicated workflows.
+The native local client recovers its serial queue after rejected requests and
+retires failed workers before reinitializing storage for existing handles. Registry
+writes preserve opaque fields. An acknowledged recovery copy can accept a change
+when the primary write fails only if a fresh read matches the complete intended
+registry. An unconfirmed write blocks further mutations, retires the worker and
+requires authoritative reload; the failed mutation is never replayed automatically.
+OPFS byte helpers complete short transfers and reject zero progress before flush.
+Unavailable registry reads fail explicitly; a lock or storage error is never
+treated as an absent store to initialize over existing data.
+Dedicated local workers serialize library and corpus operations with the same
+origin-wide Web Lock and reload saved registry state after acquiring it. Ordinary
+refreshes do not repair storage or recover removed directories; explicit native
+initialization retains migration and repair. Abort and ingest acknowledgement
+messages bypass the lock so an importer can stop or finish while it owns storage.
+Cancellation received while waiting for another tab remains effective.
+`lens-local-library-session.ts` offers a short-lived management client using
+`init_metadata`: it can initialize native storage, but never loads an embedding
+model and cannot run document/search operations. It requires Web Locks and must
+not serve read-only tool inventory or proposal preparation. Reviewed library
+commands use this client with initialization disabled. Reviewed content imports also
+use an uninitialized session; their explicit command can load an approved model. `knowledge-library-source.ts`
+proves bounded registry/corpus bytes without writes; `knowledge-library-proposals.ts`
+projects the public review. `knowledge-library-commit.ts` rechecks that exact source
+under the native storage lock and requests a parent authorization immediately before
+the first write. The parent checks fresh configuration, profile identity, disclosure
+and native drafts without reacquiring the storage lock. Creation with activation
+and removal with a final replacement are single registry commits. Private bounded
+command receipts allow positive read-only confirmation after a lost reply; absence
+does not authorize replay. The chat card's Check saved change action never retries
+a mutation or releases its durable claim.
+`knowledge-library-records.ts` owns browser review/commit and clean-view refresh;
+notifications contain invalidation only. `knowledge-library-query.ts` identifies
+the actual saved active corpus. Local search/cache generations include that source,
+and workers check the expected library/revision before embedding initialization.
+`knowledge-document-model.ts` defines stable library-scoped document identities and
+public review facts. `knowledge-document-source.ts` validates complete native corpus
+generations without exposing text/vectors. The document records owner reuses the
+same browser scope/configuration/draft gates. The Worker document commit owner
+renames indexed sources or deindexes exact document/vector rows through the existing
+manifest-last snapshot writer, without loading an embedder or changing the registry.
+Native replacement imports retain document identity and opaque metadata. Bounded
+private manifest receipts support read-only confirmation after a lost result; no
+receipt means unconfirmed. These changes retain native recovery generations, source
+files and backups and do not establish complete erasure. Shared Worker authorization
+and dispatch order library/document commands under the existing origin-wide lock.
+`knowledge-file-selection.ts` owns local chosen-content staging, while the pure
+`knowledge-file-descriptor.ts` validates its metadata contract. Descriptors bind
+source names, original-byte hashes, extracted-text hashes and excerpt counts;
+source text remains in page memory and cannot be read through a changed descriptor
+or retired owner. Abort/discard releases that input. Reload requires source
+reselection rather than persisting private selected-file contents in chat storage.
+Selection and retained-content limits are independent of embedding/model startup.
+`knowledge-file-review.ts` acquires files only from the user's native picker action,
+then publishes a separate metadata review. `knowledge-file-inputs.ts` retires source
+leases on owner changes, discard or completion; `knowledge-file-preview.ts` mounts
+the read-only paged Svelte preview and removes its text when that owner retires.
+Knowledge Base management is native UI only. Model catalogs expose document
+search, without inventory or import resources. Historical management proposals
+cannot execute or re-advertise actions in chat. The following internal transaction
+owners retain their typed storage/recovery contracts independently of chat.
+
+`knowledge-import-model.ts` projects pasted-text and chosen-file imports into a
+selected library, including explicit replacement identity, model download and
+shared-browser effects. Its source adapter reads metadata only. The retained internal
+preparation contract binds pasted text to the initiating source message. A file-choice request
+contains no source token; only the native picker can produce a selected-file review.
+Extracted file bodies are absent from model requests and saved chat history. The
+browser sends them directly to the Worker on Apply, which verifies their exact
+names, hashes, lengths and chunk counts against the reviewed descriptor. The import commit owner
+reuses `buildLocalIngestTransaction` and the native manifest-last snapshot writer,
+with a scope grant before model loading and immediately before any persistent
+corpus action. Failed/cancelled planning leaves the saved generation untouched;
+replacement retains document identity and opaque metadata. Transient import jobs
+own progress/Stop controls. Before the saving boundary Stop terminates the dedicated
+Worker; accepted saves finish and use bounded private receipts for read-only
+confirmation. The browser records owner retires revoked jobs and refreshes clean
+native views/caches. Batch imports commit one complete generation and validate the
+actual planned file sizes before opening writable handles, under the existing
+source-read limits. Chosen ZIP archives still require the dedicated native importer;
+these internal owners do not erase originals or reconstruct source documents from search excerpts.
+Tool-capable chat routes request document retrieval through the semantic search
+tool, including saved multi-query rewriting and Stop signals. Successful searches
+provide the response's source citations. Personal gateways without local tools,
+discussion and Current Focus retain their baseline retrieval paths. The native
+settings panel still initializes its full embedding client when opening local stats.
+Deleting the final library commits a fresh library identity. Failure to erase the
+old directory cannot make it the replacement's corpus; physical cleanup failure
+is returned separately and reported by the native UI.
+
+`hermes-agent-isolation.ts` owns the private Hermes ACP managed policy and
+bounded startup verification. The host preserves the native login source while
+excluding built-in execution/file tools, ambient MCP servers, optional plugins
+and external memory from the local chat process. A fresh random policy marker
+prevents an unchanged user preference from passing verification when the CLI
+ignores the process policy. Verification failure leaves the adapter unavailable;
+existing administrator policies are never replaced. The policy lives beneath
+the host's private temporary workspace and is removed with that owner. Personal
+gateway routes keep their separately selected native behavior. This is a
+verified CLI tool-configuration boundary, not an OS filesystem sandbox.
+
+Interactive local agent chat requires the application-context capability. Current
+enabled context and filtered proposal status/actions travel as a bounded JSON
+applicationContext field, separately from static instructions and original user
+text. Codex turns receive it as a current input item; ACP and Claude-style turns
+receive the same labeled private application data even on resumed sessions. The
+host rejects malformed or oversized snapshots instead of truncating their newest
+decisions. Browser tool evidence still uses only the original user message. Direct
+API providers retain fresh per-request system context; personal gateways retain
+their existing baseline-only route without local proposal state.
+
+Custom persona storage serializes native, import and sync writes per profile,
+using a shared Web Lock where available. Native deletion requires that lock and captures a private
+single-use review lease over the exact encrypted collection and deletion history.
+It prepares both encrypted values before its guarded commit, verifies persistence,
+and compensates only its own exact stored bytes on failure. A private IndexedDB
+journal, protected by the active encryption mode, and a local presence fence precede either record write; a durable
+commit marker distinguishes completed changes from interrupted ones. Reopening
+restores unconfirmed writes and retains committed changes, without overwriting
+newer replacements. Persona loaders, sync collection, full backups and encryption
+migrations resolve recovery before reading or transforming the pair. Sync, JSON
+export and full-backup collection hold the same native lock across their persona snapshot.
+Journal transitions and cleanup use a conditional IndexedDB transaction so a
+replaced recovery owner cannot be overwritten between a read and its write.
+Profile cleanup removes the journal backend and its local fence. An unproved recovery
+reports an uncertain outcome and preserves unrelated replacements. Unreadable,
+locked or unfamiliar collections cannot become empty deletion baselines; other
+personas and unknown retained fields survive. This storage command does not itself
+declare a chat action or accept a persona agreement on the user's behalf.
+Inbound sync and portable chat imports use `mergeCustomPersonalitiesFromReplica`
+to recover, strictly read and merge the latest pair under that native Web Lock.
+They publish both records through the same durable journal, rather than replacing
+a collection derived from an earlier sync snapshot. A native edit or deletion
+completed during collection survives; portable imports check their only-if-unset
+policy inside the lock. Replica merges preserve opaque record fields, including
+extension fields omitted by an older client, use stable
+key ordering to break equal timestamp ties, and reject invalid identities or a
+union above the 50-definition/200-deletion bounds instead of truncating data.
+Portable imports still normalize familiar display fields. Unchanged ciphertext
+is retained, verified pair commits update the optional cache, and write failures
+use the journal's exact ownership checks and recovery outcome. After a proved
+no-own-write conflict with a newly observed pair, import may re-evaluate its
+only-if-unset policy once under the same lock and protection identity. This
+handles late cross-process storage delivery; quota failures with restored bytes,
+uncertain outcomes and protection changes cannot authorize that retry. These guarantees
+apply to this sync/import owner; full raw-backup restore also needs coordination
+with its global protection transition before it can use a current-key journal.
+Delayed Dashboard Chat onboarding retains its originating profile and data object.
+A timer from a retired context cannot supersede an explicit Chat open in a new
+profile or consume a newer Dashboard's reservation, even when both views are empty.
+Native persona creation and editing use private, revocable single-record leases.
+The exact target fingerprint and deletion state reject unseen edits or removed
+personas, while a fresh collection read preserves unrelated records and opaque
+fields. Existing icons and agreements remain unchanged unless native editing
+supplies replacements. Saves preserve newer unsaved inputs and renew the same
+record's lease; uncertain outcomes disable another Save. Optional continuation or
+sync notification failures cannot negate a verified durable save. Native agreement
+acceptance is rechecked at the commit boundary. The shared recovery journal retains
+absent, unchanged keys without creating empty deletion history.
+Retired data ownership blocks persistence while the visible editor still retains
+its unsaved draft; dismissing that draft requires explicit native discard approval.
+Persona management is manual-only. The chat action catalog, read interface and
+navigation schema expose no persona listing, selection, creation, editing or
+deletion. Retired entry points reject cached requests without opening native UI.
+Historical persona controls remain read-only and cannot apply or undo changes.
+
+Native persona selection uses `chat-personality-selection.ts` to capture a private
+selection lease over the current profile, conversation, data and history owners.
+The native picker commits only after that owner and its saved selection remain
+current and streaming has ended. It prepares encrypted conversation metadata,
+checks the persona directory and protection identity, then publishes the index and
+selection preference before changing the visible state. Failure restores only its
+own exact stored bytes; a foreign replacement produces an unconfirmed outcome.
+Persona revisions and metadata clocks advance monotonically, including Undo, so
+an old request cannot become valid after switching away and back. Guarded native
+Undo restores only the previous selection metadata and preference, retaining
+message provenance and later changes to other conversation fields.
+Sync merges versioned persona fields independently of general thread metadata and
+message clocks. A later rename from an older replica cannot reverse that choice
+or revive labels removed by Undo. Persona revision ties use a deterministic
+selection projection; legacy-only records retain their prior conflict policy.
+AI prompt reads use only an exact selected, usable custom persona. Unknown,
+deleted, builtin and unresolved legacy IDs cannot substitute an unrelated private
+prompt through the compatibility helper. Selection notifications use the chat
+metadata save hook; they do not claim that the custom-persona catalog changed.
+`chat-thread-index-storage.ts` serializes native, sync and portable-import index
+writers with the same profile Web Lock where available; native persona selection
+requires it. Accepted native loads and writes acknowledge
+the exact stored generation; foreign publication retires the native view's write
+authority until a reload. A repeated read of the already owned saved generation
+retains current conversation objects and pending native edits, including an owned
+new conversation awaiting its first save. Legacy migration still runs for a
+restored flat chat when no local conversation draft exists. Native saves queued
+behind a current local publication
+serialize the current owned array, preserving a completed persona switch. Strict
+command, sync and import reads preserve unknown records and fields; unreadable
+indexes cannot become empty replacement baselines. Chat tools cannot prepare a persona lease or execute the native selection owner.
+
+`shared/chat-control-policy.ts` limits chat app controls independently of native
+UI capabilities. Discovery and both API/CLI schemas expose profile selection,
+units/alternate units/range display, chart layers, comparison/correlation/history
+views, and configured assistant model/connection/reasoning selection. Ordinary
+settings navigation is a handoff only. Layout, clock format, AI pause/search
+preferences, meal-model routing, disclosure settings and persona management stay
+in the native UI. Runtime and native execution reject stale or invented excluded
+commands; historical cards cannot Apply or Undo them. Native owners keep their
+manual controls and existing storage safeguards.
+
+Interactive chat tools may propose context updates when a user shares a new
+fact. Local Companion and direct-provider chat share the semantic tool catalog,
+browser bindings, proposal controls, and approval boundary. `agent-context-fields.ts` derives field identities and choices from the
+lifestyle form model. `agent-context-records.ts` validates individual Health Goal,
+personal-condition, family-history and period operations against their domain
+contracts; accepted record edits retain metadata and ordinary array identities
+and deletion tombstones. All nine Insight cards, the separate Cycle editor and
+Interpretive Lens participate in this boundary. The Environment read identifies
+whether EMF context uses self-reported quick choices, saved assessments or needs
+review. Quick choices are editable only before assessments exist; existing custom
+choices remain selectable. Room-specific reports use the assessment resources.
+Both native Environment saves and chat quick-choice Apply check the complete EMF
+container inside the canonical transaction, so a newly added assessment cannot
+leave a save writing hidden quick answers. Context tools retain their profile/root
+owner; a clean open lifestyle form refreshes from accepted chat changes and gets
+a fresh save session. An unsaved or busy form blocks Apply without discarding its
+draft. Period-start observations retain
+explicit unknown end-date/flow states; summaries exclude unknown durations and
+flow rather than converting a start to a completed one-day period. Browser
+bindings issue per-turn card snapshots; proposals
+contain only named field changes, the observed baseline, supporting user words,
+and a reason. The model cannot apply them. Existing chat proposal controls own
+Apply/Discard and durable duplicate-apply claims. `agent-drafts.ts` revalidates
+field choices and the captured profile, then commits through the existing locked
+context-field expectation and records context history. Stale cards fail without
+overwriting newer answers. Review status and available actions reach the next local
+or direct chat turn. A discarded card stays inactive; an explicitly renewed request
+needs a fresh source read and a new proposal, preserving the earlier decision.
+The ordinary Goals editor also changes saved priorities through its guarded
+session. It retains the goal's sync identity and extension metadata, records
+context history only after an accepted change, and rejects stale list baselines.
+Conversation save/load retires older pending context proposals whose fields
+overlap a newer proposal for the same profile and card. Retired proposals have
+no Apply action; this changes review metadata only, never health data.
+`agent-control-contract.ts` declares finite non-secret app actions separately from health-data drafts. `app-control-session.ts` grants read/prepare access only to an accepted interactive turn; discussion rounds, feature jobs and remote gateways have no execution authority. Preparing a display preference never writes it. Native review buttons use `app-control-commands.ts`, durable claims and `display-preferences.ts` to compare scoped baselines under shared browser/profile Web Locks. Native Display controls use the same preference owner. Units, alternate units and ranges are profile scoped. Browser-wide clock format is configured in native Display settings. Canonical measurements remain unchanged. Interrupted or unknown stored control states are inactive. Undo requires a private native receipt and matching current values, so conversation imports cannot fabricate execution proof. Review/receipt state reaches both direct and local agent chat.
+
+`assistant-selection.ts` owns model and reasoning changes shared by the native chat-header picker and reviewed app controls. It validates exact advertised choices, model-specific effort and confirmed photo support, and refuses a write during an active reply. Public review records contain only model/effort effects; opaque in-memory connection leases retain private recipient ownership without serializing credentials. Apply and Undo use the current lease, scoped selection keys and native preference services. Restored pending connection reviews expire; saved selections remain, but their old Undo authority is not restored. A new reviewed change is required after reload. `chat-send.ts` starts a new CLI backend session when the selected model differs from its recorded session model, sending the retained transcript and preserving earlier message attribution.
+
+`assistant-connections.ts` lists saved providers and targets on the paired Companion without exposing credentials, endpoint objects or health content. Explicit model reads can address another connection without changing the active route or overwriting its CLI catalog. CLI preflight and the sender share agentChatRequiredCapabilities, so a host missing chat, tool, context or required image transport cannot be published as the next route. Connection reviews bind both recipients in private leases, validate exact models and photo capability, retain native destination approval, then publish scoped settings under the assistant-selection lock. Apply and guarded Undo use the same native receipt/claim boundary; reloaded reviews expire. API catalogs are cached metadata, not a live availability guarantee. CLI metadata checks use the paired host and never adopt discovery credentials. Setup, sign-in and credential entry remain native. The sender resumes a backend session only for a matching adapter, target and model, and starts a fresh session after an intervening API reply.
+
+`assistant-connection-readiness.ts` checks native saved recipients through bounded, cancellable model-list GETs, without publishing caches or selecting defaults. It rejects HTTP, missing-model, non-chat, malformed, oversized, redirected and stale-owner responses before connection publication; it never probes an inference, lifecycle, account or payment endpoint. Metadata acceptance is not proof a future inference will succeed. Trusted editions may expose `captureConnectionControls` with an opaque account/recipient ownership predicate and a cancellable readiness check. `app-extension-connection-control.ts` binds that capability to the exact extension owner, aborts retired checks and never serializes credentials or account identity. Configured managed connections can then use the same reviewed model/route commands and guarded Undo. Editions without the capability retain a native Settings handoff. Private leases compare owner references and model-policy scalars, and model catalogs recheck enforced allowlists.
+
+`app-navigation-contract.ts` declares finite semantic destinations and parameter combinations for every chat transport. The shell registers `app-navigation-loader.ts`; chat reaches its cycle-safe `app-navigation-runtime.ts` port rather than importing native feature compositions. The lazy `app-native-navigation.ts` delegates to the actual Settings tabs, category routes, context editors, nutrition forms/history, light device/session/assessment controls, EMF editor and Knowledge Base. Opens bind the profile, thread, root, history and current surface across asynchronous preparation, reject an existing dialog or message editor, and report opening separately from saving. Exact record opens fail when the record is absent; they never fall back to creating a new record. Native Save/Cancel and permission/credential controls remain human owned. Device-session navigation skips preset hydration so opening cannot silently rewrite device data.
+
+`lab-view-controls.ts` prepares the native category/charts/styles before changing a lab range or category layout. Native range buttons and chat share `setDateRange`; native view tabs and chat share `setCategoryViewMode`. Both preferences retain their native session scope, preserve canonical records and use the actual navigation outcome in the receipt. Marker-history tool reads default to the selected native range, return honest empty ranges and scoped latest values, and allow explicit dates to override the view filter. Search remains a disclosure-filtered inventory of recorded markers; changing a timeline does not remove a record or its discoverability.
+
+`comparison-view-controls.ts` exposes permitted recorded collection dates through `labs.comparison`. A process-private, single-use snapshot binds the profile, chat, root, history, current date selection, available dates and source disclosure. `getbased_navigate` can select either side or swap the pair only against that snapshot. Chat validates exact dates before the shared session owner in `compare-date-selection.ts` publishes the pair; native selectors retain their public input contracts. The native Compare renderer and calculations remain authoritative. Receipts distinguish the committed session selection from a confirmed table and withhold dates after disclosure or ownership changes. No comparison command saves records or settings. Same-day specimens remain separate records; the native table uses its existing date-level projection.
+
+`correlation-view-state.ts` projects permission-filtered marker/treatment choices and native presets, and resolves only declared workspace fields. `correlation-view-controls.ts` binds single-use snapshots to the originating profile, chat, root, history, workspace footprint and relevant data/disclosure signature. Explicit `getbased_navigate` commands configure selections, presets, ranges, tabs, grouping, layout, active pairs, visible series, ingredients, analysis disclosure and the timeline inspector. They save native workspace preferences directly; health records and treatment periods are unchanged. The existing native renderer and calculation owners remain authoritative; tool metadata returns no numeric results or source files. `correlation-timeline-bounds.ts` shares the native inspector bounds without replacing the date calculation.
+
+`correlation-workspace-store.ts` serializes native saves and chat commands under the same per-profile queue and Web Lock. Commands compare exact durable and in-memory expectations, preserve unfamiliar preference shapes, verify writes and rollback, and publish only to the still-current owner after persistence. New writes invalidate an older pending restore. Optional repaint failure cannot turn a confirmed save into a false failure. Private, process-local Undo requires a fresh snapshot and the exact current footprint, permissions and relevant data; it expires on reload and cannot be fabricated by imported conversations. Navigation carries active-turn cancellation through both direct and CLI adapters. A profile switch after persistence retains a redacted confirmed-save receipt rather than claiming that nothing happened.
+
+`history-view-controls.ts` exposes metadata-only `history.views` discovery and explicit native history commands. Nutrition range/tab and wearable detail range are browser defaults. Dashboard widget visibility is a separate native Customize workflow; legacy strip keys do not grant a history command. Exact permitted metric IDs select the existing wearable detail renderer; history ranges do not expand assistant context. Nutrition opens load the full native feature and stylesheet before preference writes, retaining delegated controls. `history-view-preferences.ts` shares validated, serialized writes between chat and actual native UI handlers, compares touched raw keys, verifies writes/compensation and preserves unrelated preferences. Private Undo restores only its saved raw fields, including prior absence or unfamiliar values, against fresh ownership and disclosure. Saved preferences and confirmed presentation remain separate receipt outcomes. Clinical records are never written by these commands.
+
+`readonly-history-surfaces.ts` records authority only from first-party history constructors. An owned read-only history may update in place; manual measurement forms, protected suspended meal editors, other dialogs and arbitrary lookalikes cannot grant that authority. Closing or replacing the surface retires pending navigation. `history-native-controls.ts` guards the actual wearable range-button path. Wearable detail reads use their captured state profile rather than the cross-tab active-profile storage key. Legacy synchronous facade setters retain their return contracts; actual native UI uses the shared asynchronous preference owner.
+
+`dashboard-preference-store.ts` stages the native profile-scoped widget layout, biometric selection and Quick Marker pin keys under one Web Lock. Synchronous native semantic bodies read their staged values; verified writes and compensation precede presentation effects. It compares only touched keys, preserves unrelated newer settings, reports an uncertain rollback explicitly and withholds effects from a retired profile. A presentation failure does not erase a confirmed save. `dashboard-native-commands.ts` guards native buttons, drag/drop, lens actions and pin wiring against view/profile/modal retirement before persistence. Publication permits its own repaint while retaining profile/root ownership checks. Existing synchronous factory helpers keep their compatibility contracts; production delegates use the guarded path. Quick Marker normalization, identity and four-pin behavior remain in the independent native algorithm, with storage and presentation adapters around it. Visible marker edits block native pin changes; the hidden notes editor does not.
+
+`dashboard-control-runtime.ts` receives the resident Dashboard's private preparation port. Chat does not construct another feature owner or navigate merely to read settings. `dashboard-control-state.ts` projects permitted native marker and metric eligibility into identifiers and labels, withholding measurements and disabled sources. `dashboard-presentation-model.ts` plans incremental widget, tile and pin changes while retaining unmentioned and undisclosed saved identities. Unrecognized formats require native controls; a fifth pin never evicts an existing one implicitly. `dashboard-presentation-controls.ts` binds single-use chat snapshots and private field-scoped Undo to profile, conversation, root, disclosure, eligibility and native owner. Commands use the shared staged preference store and repaint only after confirmed persistence. Desktop widget layout and the native mobile composition remain distinct. No clinical records, source permissions or account connections are written.
+
+`assistant-preferences.ts` owns the browser-wide AI pause and app web-search flags. Native Settings, the chat chrome toggle and native resume share its validation and Web Lock. It preserves unrelated preferences, compensates partial writes and publishes presentation only after durable success. Pause blocks new chat/feature calls; native AI settings can resume them. Historical chat preference cards cannot apply or undo these flags. Resume does not grant processing approval. Search enablement requires current native support and does not control CLI search. Native preference helpers are asynchronous; callers await persistence before reading the saved result.
+
+`assistant-connection-configuration.ts` reads private connection identities for native command leases. These identities never enter prompts, saved reviews or receipts. The assistant-selection facade retains its existing public helpers while sharing this lower-layer read with feature-route commands.
+
+`nutrition-ai-route-store.ts` owns verified writes to the browser-wide meal-model preference under one Web Lock. It compares the captured raw preference, preserves exact previous values on failed writes, reports unproved rollback explicitly and publishes only after acknowledgement. `nutrition-ai-route-commands.ts` validates exact current vision choices, checks private destination configuration and managed-connection ownership before and inside the write boundary, and binds commands to the originating profile, conversation, data root and native selector. Settings and the meal editor use that owner; legacy synchronous setters keep their compatibility contract. Selecting a route does not start inference or grant processing approval.
+
+An explicit meal route is independent of the chat provider and model. An unavailable or unfamiliar saved route never silently falls back to a different recipient. Explicit CLI choices retain their agent and execution target; changed or unbound identities require a fresh native selection. Automatic mode deliberately follows a capable chat assistant or the configured feature fallback. Native pickers expose configured vision choices and retain unavailable saved values for explicit recovery. Metadata reads and route settings do not contain photos, health records or credentials.
+
+`nutrition-analysis-request.ts` binds each photo analysis to its profile, data root, selected route and private connection configuration before preparing images. It retires the request when that owner or recipient changes and supplies cancellation to API requests, Companion discovery, image uploads and inference. CLI execution captures the agent, target and Companion endpoint; discovery may renew credentials privately on that same endpoint without changing chat settings. Approval and every later transfer boundary recheck ownership. Completed results are checked again before returning a review, and request disposal cancels unfinished parallel transfers. These request proofs are transient and never become meal data, prompts or receipts.
+
+Meal-photo/label model routing remains in the native AI settings and meal editor.
+The native preference owner retains exact destination validation, shared locks
+and accurate persistence outcomes. Chat neither discovers nor saves this route;
+opening AI settings carries no route-change authority.
+
+`native-command-locks.ts` keeps native lock callbacks fulfilled with owned command outcomes and rethrows expected failures to their JavaScript callers. Display commands, assistant selection and durable proposal claims share this boundary, so handled storage/ownership failures do not become unhandled browser errors. App-control buttons also require an owned native message-action view; arbitrary matching attributes outside that view do not grant approval.
+
+The durable proposal-claim journal uses the encrypted IndexedDB key/value path
+inside its Web Lock. Cross-tab duplicate protection must read a committed journal,
+not a renderer's asynchronously replicated localStorage snapshot. Legacy journals
+migrate through the normal storage wrapper; profile deletion removes both copies.
+Companion status/discovery and the development inventory advertise the shared
+tool-contract version. Context-enabled local chat requires that contract before
+dispatch. Discovery preserves a capable development host when the installed host
+has an older catalog, and the authenticated handshake rechecks the version before
+publishing credentials. General tool support alone does not establish structured
+context support; missing tools must not be replaced with generic note proposals.
+
+`chat-tool-loop.ts` owns bounded native or structured-content tool rounds for
+interactive API chat, separately from background AI analysis and prose-only
+continuation. `ai-tool-protocol.ts` validates call identities, bounded JSON
+arguments and fragmented streaming calls. Tool-only responses are valid; truncated
+arguments cannot execute. An explicit native-tool incompatibility may select the
+validated structured-content protocol on the same provider and model. Venice E2EE
+uses that protocol inside encrypted message content. Tool results never require
+an unencrypted fallback. `direct-chat-tools.ts` binds each turn to its accepted
+profile, conversation, model and recipient, and returns ordinary pending drafts;
+it never applies them. Normal and discussion senders publish the same draft and
+context receipts for direct and local-agent routes. Shared tool instructions live
+in `shared/chat-tool-instructions.ts`; review receipts for all draft kinds obey
+their domain disclosure toggle. Native-compatible local requests budget tool
+schemas and transcripts and bypass text-only native fallback serializers.
+
 Keep credentials and private metadata in dedicated live-field/service ports,
 not general display snapshots or action attributes. Existing explicit Sync recovery
 and profile-share reveal/copy serializers retain their narrow sensitive display
 contracts; see [credential presentation boundaries](engineering/presentation-ownership.md#credentials-identities-and-payment-operations).
+`shared/chat-control-policy.ts` also separates current chat data reads and writes
+from the complete native/historical resource identities in `agent-data-contract.ts`.
+The frozen public catalogs exclude range/marker/category administration, Knowledge
+Base settings/library/document administration and whole-genome deletion. Report
+metadata remains readable, with no write operations; whole-sample removal is native
+UI only. Schemas, runtime, browser preparation and saved Apply enforce this scope.
+Historical payloads remain decodable and retained, while `nativeOnly` review views
+cannot apply, check, refresh or claim a saved result. Excluded payloads are withheld
+from model context. Native owners and their manual controls retain their full
+validation, confirmation, provenance, concurrency and recovery contracts.
+
+Semantic record tools use `agent-data-contract.ts` for bounded proposals and
+`agent-data-bindings.ts` for per-turn read snapshots. `agent-health-data-model.ts`
+and `supplement-record-commands.ts` project the same normalized change for review and
+Apply. Native-only management projections remain in the separate
+`agent-data-model.ts` facade and cannot enter the chat dependency graph. Dated
+notes and therapy records use the ordinary sync identities and
+array/tombstone helpers. Accepted record edits carry per-record expectations into
+the locked profile save: unrelated peer rows merge, changed targets and occupied
+replacement identities conflict. Nutrition targets and profile notes retain their
+existing setting/text expectations. Therapy operations retain dated periods;
+label metadata does not become a guessed dose or daily schedule. The shared tool
+contract is negotiated for all local interactive turns, independently of enabled
+disclosure sources. Record proposal outcomes persist through normal chat storage
+and supersession is scoped to the same resource and record identity.
+
+Profile detail proposals use `profile-record-commands.ts` to normalize their
+review, including explicit height conversion to stored centimetres. They commit
+through the profile metadata owner, independently of imported health records.
+`profile-list-store.ts` serializes every metadata read/merge/write with a shared
+Web Lock and rereads durable encrypted storage; reviewed writes compare the
+expected fields before committing. Unknown metadata and peer profiles survive.
+Avatars and profile lifecycle are separate application workflows.
+
+Genetics proposals use `genetics-proposals.ts` for bounded public records and
+frozen effects. Lazy `genetics-records.ts` reads durable genetics without
+adopting or migrating it, checks exact catalog identities, and hashes private
+source dependencies without exposing raw DNA, filenames or report history.
+Broad genetics model context also omits stored source labels, which may contain
+private filenames; ordinary UI and local evidence retain them.
+`geneticVariants` requires the full SNP-inventory disclosure source; priority
+findings alone do not authorize exact calls. `maternalHaplogroup` uses the genome
+summary source. An enabled summary permits reviewed dependent APOE effects;
+revocation withholds pending feedback. Catalog-backed strand/repeat resolution
+and summary recomputation live in pure `genetics-mutations.ts`, shared with the
+ordinary SNP and maternal editors. APOE resolution uses normalized catalog
+calls when present. Manual corrections preserve prior calls and source evidence;
+maternal removal explicitly clears maternal evidence/history while retaining
+SNP calls and original files. `genetics-record-store.ts` compares captured
+genetics inside the profile write lock and publishes only after durable success.
+Manual native SNP/maternal actions use that same staged store, including after
+catalog loading. Individual SNP removal clears that call and its local source
+history. `genetics-snp-lifecycle.ts` owns monotonic per-rsID removal/restore clocks
+in `geneticsSnpTombstones`, independently of the genetics metadata scalar. New
+assignments advance beyond observed call/source/removal clocks. Explicit reported
+updates can restore a removed identity; old raw/report imports cannot restore it
+implicitly. Blob and row merges retain those clocks, filter removed or older
+generation calls, preserve fresh assignments and reconcile deterministic summaries
+through `genetics-summary.ts`. Delta planning receives the same captured lifecycle
+state and only emits a SNP transport delete for a known semantic removal. Empty
+or partial call maps remain insufficient evidence for deletion. Carrier history
+cannot be erased by an absent map or a transport tombstone. Native raw imports
+exclude explicitly removed calls in preview, retain maternal history and check
+genetics/removal expectations inside the locked commit. Pending DNA reviews also
+capture their source state, so intervening genetics changes require a fresh review.
+`light-env-mutations.ts` owns pure room/screen commands, canonical option lists,
+validation and the room-removal cascade. Both the ordinary editor and
+`lightRooms`/`lightScreens` chat resources use it. Room removal unlinks saved
+screens, advances their freshness, and retains measurements with a historical
+room snapshot. `light-env-record-store.ts` serializes captured profile intents,
+stages writes and checks environment, measurement and deletion-state expectations
+inside canonical persistence before adopting visible values. Editor callbacks
+recheck their captured profile/root after dialogs and saves.
+`light-env-records.ts` exposes whitelisted records and private source digests;
+`light-env-proposals.ts` freezes their normalized changes and wider effects for
+approval. These resources require Light & Sun disclosure independently of Insight
+cards. Chat creation preserves unreported hours and filter status as unknown;
+native picker presets retain their explicit default workflow. Day overrides are
+local-date observations. Light context and analysis cache identities distinguish
+unknown timing/filter values from explicit zero/false, and model requests use
+known acquisition classes rather than arbitrary stored source labels.
+
+`sun-session-proposals.ts` owns session command vocabulary and readable
+reviews; `sun-session-commands.ts` normalizes explicitly reported fields through
+`sun-session-mutations.ts`. Unknown inputs in newly reported sessions remain
+unknown and prevent estimates until the required model inputs are recorded.
+`sun-session-records.ts` provides whitelisted exact reads, private source revisions
+and frozen effects for the `sunSessions` resource. Saved GPS and private source/
+analysis history remain local; location selection can deliberately use current
+app coordinates, clear the location or record explicitly supplied coordinates.
+Input corrections retain prior records, timed segments, calculations and
+interpretation privately. Recalculation uses the native weather/spectrum owner
+only after durable approval and never pairs changed inputs with a stale estimate.
+Reviewed timer starts and active pause/resume/stop, body coverage, sunscreen and side changes
+reuse the native store commands. `sun-session-lifecycle.ts` shares pure transition
+rules with their frozen review; dynamic timer boundaries are explicitly measured
+when Apply is processed. Prior input history and timed slices survive each action.
+`sun-live-runtime-setup.ts` supplies the native rate/slice wiring when chat is used
+before the Light facade loads. Controls join a current weather request, while
+changed inputs and retired requests can start a replacement. Unmeasured intervals
+retain their own inputs and model settings for native replay; unavailable weather
+cannot turn unknown exposure into zero dose or final-input whole-session estimates.
+Create snapshots expose bounded start prerequisites without coordinates. A start
+requires confirmed Fitzpatrick type, a specific chosen location and reported
+uncovered regions/preset; it uses the shared native record constructor and queue.
+Start/end/duration are timer-owned, and the start boundary is measured at Apply.
+Unreported inputs stay unknown and block live and replay estimates. A known eye
+mode tracks the interval without an invented tint. Reported-input markers persist
+on unmeasured intervals so replay cannot adopt later facts for an earlier unknown
+interval. Full live totals remain unavailable while any interval is uncalculated.
+Native start dialogs retain profile/setup/location ownership through approval and
+storage. Older receipts still render; stale pending baselines need a fresh read.
+
+`sun-session-record-store.ts` serializes short writes while weather requests remain
+outside the queue. Native lifecycle commands and reviewed chat commits share
+`commitSunDataWrite` in the existing `sun-setup-store.ts` URL; its setup alias stays
+stable. Captured fields and authorization are checked inside canonical persistence.
+Empty first-save profiles are distinguished from stale empty roots; missing saved
+state cannot overwrite an existing session collection. Publication preserves row
+identity and unrelated drafts. A computed result accepted while newer local inputs
+appear cannot become those inputs' live estimate. Native live slices and timer/DOM
+changes publish only after durable acceptance. Periodic ticker slices use the same
+queue and wait for outstanding writes. Existing source/request/owner/generation
+and shared-recovery guards remain. `sun-body-regions.ts` is the pure region catalog;
+the original picker and facade continue to re-export the same values. The native
+eye/lens catalogs also live in the pure session model with stable facade exports.
+Other active inputs and advanced setup commands have separate remaining workflows;
+completed-record edits do not silently stop active sessions.
+
+`sun-setup-proposals.ts` owns the bounded Light setup vocabulary and public
+review projection. `sun-setup-mutations.ts` preserves private prior setup evidence
+and applies explicitly reported fields, including individual unknown/answered
+habits. Partial changes do not complete onboarding or create a full survey score.
+`sun-setup-store.ts` stages native and chat writes, checks captured fields inside
+the canonical lock and publishes only accepted payloads. Native setup retains its
+original accepted profile ownership after modal retirement. `sun-setup-records.ts`
+provides whitelisted exact reads, private source revisions and frozen effects.
+The `sunSetup` singleton uses independent Light & Sun disclosure; changing skin
+type also requires Insight disclosure and reviews the mirrored context-card field.
+Safety-default changes require stopping active Sun sessions; recorded session
+inputs and calculations remain intact. Prior interpretation is retained privately
+and cleared from the current setup after a reported correction. Precise location,
+advanced overrides and live Sun actions have separate owners and are not arbitrary
+setup patch fields.
+
+`light-measurement-mutations.ts` owns portable current-reading replacement,
+source-history retention and immutable environment checkpoints. Native tools and
+`lightMeasurements`/`lightAudits` approvals share the Light queue and canonical
+staging owner through `light-measurement-store.ts` and the lazy exact-record owner.
+Legacy latest-per-room/tool compaction publishes only after storage succeeds;
+its display projection can show the latest row while a failed migration retains
+the original data. New readings retain replaced source inputs privately. A camera
+walkthrough saves its bulk evidence, new rooms and bound relative readings in one
+transaction; failure leaves the captured walkthrough available for retry.
+Camera facades and checkpoint prompt/delete callbacks retain their source owner.
+Successful-save hooks run only after durable acceptance. Frozen audit evidence is
+independent of later live reading corrections/removal, and remains visible when
+the last live room is removed. Audit metadata corrections retain previous labels,
+notes/dates and interpretation without rewriting the frozen environment.
+`light-measurement-fields.ts`/`light-measurement-proposals.ts` provide bounded pure
+vocabulary and effect reviews. Exact reads whitelist source facts, use private
+full-source revisions, and freeze replacement counts/records, snapshot contents
+and history/removal effects before the locked commit. Explicit units, actual
+timestamps, acquisition identity and unknown confidence are preserved. Camera
+estimates cannot be promoted to meter entries; confidence, calibration and derived
+sensor fields are not model patches. Interpretation/cache identities include
+reported notes and timing, and reported ratios do not imply camera exposure facts.
+Chosen camera/import/reanalysis workflows retain their dedicated owners.
+
+`light-device-mutations.ts` owns device specifications, device-session inputs,
+retained source snapshots and recomputation through `light-device-session-engine`.
+Native device mutations and the `lightDevices`/`lightDeviceSessions` chat resources
+share it. Completed-session corrections retain prior inputs and calculations;
+modeled device corrections update linked completed sessions, while active timers
+block specification edits/removal. Device-only history is removed with its library
+record; recorded session snapshots/history survive that removal. Catalog/file
+selection and live-timer controls retain their dedicated entry points.
+`light-device-fields.ts` and `light-device-proposals.ts` keep bounded schemas and
+pure effect reviews out of the lazy physics/storage path. `light-device-records.ts`
+projects whitelisted exact records and private source hashes, freezes wider effects
+and rechecks them inside canonical persistence. It never exposes arbitrary source
+labels, private metadata or retained raw history to the model. New completed
+sessions require reported time with an explicit offset, duration, distance, body
+area and eye-protection fact; missing inputs do not become native form defaults.
+New or corrected completion times cannot be in the future.
+The shared Light staging owner copies only its named payload fields onto the
+canonical baseline. After commit it rebases those fields against their captured
+source, adopting accepted repairs while retaining unrelated/newer drafts and
+inactive-owner identity. Calculation dependencies and global deletion metadata
+remain checked independently of payload ownership. Preset hydration advances
+record freshness when curated inputs change. Session duration/mode dialogs carry
+the original owner/source expectation into their queued commit.
+Device engine version 6 distinguishes an explicit unknown reference distance from
+the legacy omitted reference. It retains reported irradiance while withholding
+reference-based numerical estimates until the reference is known. Rehydration
+retains the previous calculation/source record before publishing a new estimate.
+
+`genetics-lifecycle.ts` owns independent whole-genome and maternal removal/restore
+state in `geneticsLifecycle`. Restored calls, metadata and maternal reports bind
+to the exact restored generation, so an older payload cannot rejoin it through
+a later timestamp. Maternal assignments carry their own timestamps; scalar merges
+compare those assignments rather than treating a transport tombstone as a domain
+deletion. Lifecycle carriers merge before calls/metadata and survive map omission
+or carrier transport deletes. An explicit whole-genome removal permits deletion
+of its known call rows; ordinary partial maps retain conservative storm guards.
+The legacy/native `genome` review reads a bounded summary, including opaque legacy-data counts,
+and supports only whole-genome removal. It is excluded from current chat tools;
+individual variant and maternal facts retain their separate reviewed chat workflows. Both inventory and summary sources are
+required. Review covers all saved calls, maternal records, derived summaries,
+metadata and local source/history, while retaining original files, conversations
+and identity-only guards. Newly reported facts restore only their reviewed data.
+Native chosen-file restoration previews explain the new generation and erased
+history; unreviewed raw imports cannot restore a removed genome implicitly.
+These guarantees apply to observed lifecycle state. Lost transport registers,
+unobserved operations and mixed-client convergence require separate qualification.
+Native maternal file confirmation uses the same staged store, checks both genetics
+and both lifecycle maps inside the locked save, and requires the pending review
+and profile to remain current. File replacements retain previous maternal reports;
+import events carry an independent pre-save snapshot plus a separate live owner
+reference for onboarding presentation. A failed storage write keeps
+the pending review retryable; a source conflict requires reopening the file.
+Chosen-file imports and raw-file reanalysis retain their workflow requirements;
+the semantic resource never accepts raw paths, model-supplied annotations or a
+guessed genotype/lineage.
+
+Meal commands use `nutrition-record-commands.ts` for shared projection, frozen
+timestamp normalization and compact review snapshots with full-record revisions.
+`nutrition-record-store.ts` owns exact durable reads and approved canonical
+commits with selected-record expectations. Legacy device-local records migrate
+only with the approved write and an expectation for their canonical array.
+`nutrition-operation-lock.ts` orders these commands with normal meal saves,
+deletions, hydration and archive restores across renderers. The committed
+canonical snapshot drives the existing encrypted meal cache and summary owner;
+uninitialized cache contents cannot override an approved commit. Source gating
+and ownership can be rechecked inside the profile commit through `canCommit`.
+Photo bytes and unknown provenance remain outside model-readable projections;
+ingredient edits retain their original metadata and use existing nutrient math.
+After an approved command, `agent-drafts.ts` asks the existing data-view owner
+to refresh the current route, sidebar and header with scroll/menu preservation.
+Open modal editors and inline forms retain their drafts instead of being
+destroyed by a route refresh. A presentation failure cannot undo the commit.
+
+Manual reading commands use `manual-record-commands.ts` for exact identities,
+explicit units, body methods and shared date-context review. Weight and pulse
+have individual date identities; blood pressure retains its two components;
+waist records retain only explicitly paired hips. `manual-record-store.ts` reads
+portable, legacy biometric and device-local records without migrating before
+approval. Compact snapshots fingerprint the selected fields and their opaque
+provenance. The locked profile commit compares selected mirror entries and
+deletion clocks, including absent destinations, and rechecks authorization.
+`manual-operation-lock.ts` orders reviewed commands with ordinary manual writes
+across renderers. Canonical corrections and tombstones commit before the existing
+manual cache/summary owners refresh; a cache failure reports a saved change.
+Date or method moves retain independent readings and their metadata. Notes and
+tags remain date-wide context, and their effects are shown in the review.
+
+Compatibility draft names prepare canonical `data` proposals through
+`agent-legacy-draft-tools.ts`; they have no separate persistence path. Appends
+resolve against a fresh note snapshot before review. Matching dated readings
+and unambiguous therapies use existing record identities. Unreported therapy
+schedules remain unknown. An explicitly reported BP and pulse may commit together
+through the manual owner, including shared date context, while an omitted pulse
+remains independent. Saved legacy cards use `agent-draft-upgrade.ts`: Refresh
+review reads current data and persists a replacement card without a mutation
+claim; a second, explicit Apply is required. Missing dates, units or the original
+user message require a new proposal. Old applying/uncertain claims are retained.
+Refreshed cards derive stable claim identities from the original card, and new
+meal/therapy records derive stable entity IDs as well. Stale renderers cannot
+turn one old addition into two records by refreshing it independently.
+
+`agent-profile-record-store.ts` supplies durable, non-adopting reads for context
+cards and ordinary profile records; a model retry can obtain a peer's new value
+without replacing an open editor. `marker-note-commands.ts` and
+`marker-note-records.ts` own exact marker-wide and dated-note reviews. Notes never
+modify lab evidence. Dated notes share the existing marker/date address across
+same-day panels, and the review states that scope. Their commit guards the map
+entry, target definition/labels and same-day lab records, then follows the
+ordinary map-deletion/null clearing rules. Category disclosure is checked during
+reads, commit and next-turn review feedback. Context, metadata and remaining
+generic record approvals recheck source/profile authorization in the locked write.
+`lab-tool-markers.ts` shares safe marker definitions and disclosure policy between
+notes and saved results. `lab-result-commands.ts` and `lab-result-records.ts` own
+compact exact-sample reviews for numeric correction, removal and Revert. Private
+source evidence remains in a local revision hash; the public review includes
+units, collection facts, known originals and changed linked calculations. Apply
+uses `lab-marker-record-store.ts`, guarding date rows, shared context, deletion
+state, definitions and labels under the profile lock. Same-day samples have
+separate ordinary history rows and delegated edit/remove/Revert identities.
+Ambiguous date-level ranges are not applied to those separate sample rows.
+Chart/score date projections, sample/date/collection edits, new results, report
+imports and range/marker management remain separate workflows.
+`lab-sample-mutations.ts`, `lab-sample-record-store.ts`, `lab-sample-proposals.ts`
+and `lab-sample-records.ts` now own the separate `labSamples` workflow: deliberate
+new samples, missing-result additions, collection corrections, whole-sample date
+moves and removal. Sample identity guards span dates; commits check both dates,
+definition/labels, shared note/original keys, removal state and authorization in
+the profile lock. Date moves retain numeric originals and source evidence,
+carry unshared dated notes, preserve sibling-owned notes and reject conflicting
+destination notes. First collection facts are retained privately when corrected.
+Compact frozen plans record actual before/after differences without exposing
+source paths or snapshot IDs. The internal sample form delegates to this owner
+and returns through an injected marker-detail callback. Marker history exposes
+no whole-sample form action; browser fixtures open that internal form directly
+through a test-owned helper. Per-sample chart/range/score selection, actively removed whole-date
+restoration, report import/review and marker/range management
+still require their own workflows.
+`lab-report-mutations.ts` owns pure report removal, same-collection restoration
+and range recomputation shared by the ordinary import adapter and `labReports`
+chat resource. `lab-report-records.ts` lazily reads exact reports and freezes an
+effect plan guarded by a digest of private source/lab/deletion data and captured
+sex. Public reads omit filenames, raw extraction metadata and private ancestry.
+`lab-report-proposals.ts` validates those bounded reviews and their current
+disclosure scope. Apply recomputes the effects and uses the captured-profile
+report store, with source/group authorization checked inside the lock. Reviews
+include result/calculation, collection, stored range, original and note effects
+and any linked sample removal. Diagnostic history remains separate and retained;
+report removal is not a claim of complete private-source erasure. Chosen files,
+original extraction revisions and import re-review still use the import workflow.
+The report draft response includes its bounded public effect review so the model
+can explain the same proposal the user sees. The portable runtime rechecks the
+originating browser's disclosure callback after draft publication, before
+returning effects; revoked disclosure yields only the pending-proposal receipt.
+The `sample` field describes current collection facts, not the source report's
+original collection metadata.
+Restoring a previous report value gives the applied value a fresh monotonic
+assignment clock while retaining its original report ID and immutable report
+upload timestamp. An older replica cannot reinstate the removed report's value
+by comparing that value against the older source upload time. Import re-review
+uses the same clock owner, including when an observed source clock is ahead.
+Marker definition discovery is an explicit option on the existing search tool;
+it reads the enabled canonical registry without returning personal result values.
+Recorded-result search retains its existing synchronous behavior. Explicit HOMA
+numbers use a reported-value provenance flag; calculation refresh preserves them
+and marker removals, and unknown inputs never become zero-valued calculations.
+`lab-context-disclosure.ts` projects AI-visible results through the same native
+marker groups as exact tools. Presentation labels and placement cannot grant
+source access. It filters notes, collection metadata, deletion state and automatic
+value dependencies before chat, lookup, Focus and Biology Score context builders
+consume them. Calculated-marker ownership annotates automatic inputs per date;
+reported ratios retain their independent evidence. Score fallback recipes respect
+withheld marker identities. Repeated same-date results are represented by exact
+sample rows in context; date-wide values and contextual ranges do not choose one
+of those results. This projection does not mutate the local UI or saved evidence.
+Context fingerprints include dated notes, custom definitions, placement and panel
+removal history. Sample-aware chart/score selection in the ordinary UI remains a
+separate workflow.
+`context-card-legacy.ts` shares the ordinary text-to-card migrations with exact
+reads and projections. Legacy medical, diet, exercise and sleep text remains a
+note, while the untouched raw value still guards the approved commit. Only the
+selected card is converted in the intent; unrelated peer data remains mergeable.
+
 Those owner views must not become diagnostic or analytics snapshots. Disposal
 scrubs retained fields. Preserve current
 input values, native reset defaults, selection, composition, focused-node identity,
@@ -143,7 +928,17 @@ instance on first use. Empty Welcome and marker pin operations stay synchronous;
 populated Dashboard, Lens and Light routes await the resident composition before
 reading preferences or projecting content. Public `views.ts` keeps its original
 synchronous injected factory and re-exports the same route/action functions from
-`views-runtime.ts`. Prepared widget controls, including picker projection and
+`views-runtime.ts`. First-party startup and navigation consumers import
+`navigation-views.ts`; the compatibility facade retains the original synchronous
+Focus and category exports. Category bodies load behind the route's existing
+profile/data/container ownership gate alongside their styles and charts. Focus
+ports are captured by the resident Dashboard body, after its import completes.
+Recommendation enablement is owned by `recommendation-preferences.ts`; Settings
+reads and writes that preference without importing product/catalog presentation.
+The public recommendation facades re-export the same functions. Theme changes
+refresh resident chart instances through `chart-theme-refresh.ts`; opening
+Settings does not prepare chart creation or plugin modules.
+Prepared widget controls, including picker projection and
 rendering, keep their synchronous path. Each visible-widget render owns a fresh
 Biology projection scope. It may reuse a successful calculation only across adjacent
 Biology widgets with eligible inputs and unchanged owners; any other feature
@@ -292,6 +1087,14 @@ the public `js/lens-page-shell.ts` facade retains synchronous compatibility
 rendering over the same state. An unused compatibility renderer does not make
 its full feature presentation part of startup.
 
+`sync-startup.ts` wires local save ordering, chat locks, Agent Access context and
+header status without loading the cross-device transport. Leaf save/settings
+consumers retain the same shared state. A configured identity prepares the full
+`sync.ts` composition before initialization; first-use actions load that same
+composition. Profile-specific actions recheck their captured profile and data root
+after loading. Pull view callbacks are owned by `sync-pull-view-runtime.ts`, so
+wiring shell refresh does not import the pull engine.
+
 Sync Diagnose configuration and clipboard actions stay available without loading
 the modal presentation. First use loads its implementation with an explicit retry
 URL; pending opens retire when their route, profile, main container or modal owner
@@ -318,6 +1121,14 @@ without caching a query copy. Network responses cannot supply trusted proof
 headers. Other query strings and qualified production raw module URLs retain
 their behavior. Development-only emitted modules outside the declared bootstrap
 and worker dependency closure are not a static-distribution module API.
+The Kit producer applies the same independent-query transport through
+`kit-retry-chunks.mts`. Its separate two-pass proof retains hidden source-map
+sidecars and compares every mapping/source body plus Vite CSS/asset ownership;
+it does not relax the native producer's unmapped-only policy. Rewrites and map
+composition happen before hashing, and a map-mode salt prevents reuse of older
+immutable filenames. The final artifact's canonical bytes are checked again
+before worker proof is injected. The worker accepts only native bundle roots or
+the closed Kit immutable-chunk namespace under the selected build's proof.
 
 Stable feature and root theme stylesheets follow the requesting document's reported
 build cache. The waiting worker requires direct build replies from every live
@@ -686,3 +1497,123 @@ destinations remain ordered behind acceptance.
 The browser check runs in the normal Chromium suite and therefore in CI. Lower
 the ceilings as route and feature lazy loading removes startup resources; do
 not raise them to absorb an unexplained regression.
+
+### Reviewed EMF records
+
+`emf-record-fields.ts` owns bounded assessment, room and reading identities and
+public projections. `emf-record-commands.ts` applies semantic commands to a staged
+profile copy. `emf-record-proposals.ts` projects the frozen review, while the lazy
+`emf-records.ts` adapter reads durable data and commits through
+`emf-record-store.ts` and the canonical profile save transaction. The chat
+resources are `emfAssessments`, `emfRooms` and `emfMeasurements`; all require
+Insight disclosure, matching the existing EMF context section. Raw photo bytes,
+source extensions, previous inputs and interpretation history stay local.
+
+Legacy room identities derive from their assessment and original position;
+accepted commands persist those identities before removing rooms. New ordinary
+rooms have unique IDs. A compact review hashes the complete EMF container,
+including hidden sources/history. Apply recomputes the plan, checks profile/root
+ownership and consent inside the save boundary, and refuses concurrent or unsaved
+EMF changes. Unrelated drafts remain outside the owned write. Whole-container
+conflicts are deliberate; finer concurrent merges are a separate contract.
+
+Assessment and comparison interpretation owners reject generation, streaming and
+completion after their source inputs change, including in-place chat adoption.
+Corrections retain a nonrecursive prior assessment snapshot and any current
+comparison interpretation in private assessment history, then invalidate stale
+interpretation. Ordinary reading edits preserve extensions and ordinary tag
+controls include saved custom tags. Current-photo/room/reading removal retains
+original evidence in assessment history; assessment removal removes its own
+local history as well. Original files, conversations, exports and backups remain.
+New assessments need an actual date, first room name and explicitly reported
+sleeping/daytime use. New readings require their type, exact room and canonical
+unit. An instrument may be recorded with a null reading; unknown values never
+become zero. Clearing a native reading preserves its instrument and source.
+
+`emf-native-records.ts` shares the serialized durable store with chat commands.
+`emf-editor-inputs.ts` captures only dirty controls against the rendered stable
+assessment/room identity. Native CRUD, chosen photos, confirmed parser output and
+generated interpretations publish after storage acknowledgement. Failed saves
+retain the form or preview; generated output offers Retry saving without another
+model request. Close and navigation await pending edits. Clean open editors
+refresh after accepted changes while preserving focus; chat refuses unsaved
+native drafts. Profile, root, view and source guards retire stale dialogs, file
+processing and generation, including aborting held model requests. Empty EMF
+reads do not materialize data. Imports retain the frozen parser output privately.
+
+Native acquisition and generation remain separate workflows, not chat tools.
+Import unit conversion, unreported room use, assessment-backed environment quick
+choices and remote/mixed-client convergence require further qualification.
+
+
+The manual persona editor owns drafts, Save/Cancel, generation and hosted
+agreement checks. Saving uses exact-record leases and preserves unrelated records.
+Its deletion action opens native irreversible confirmation, binds the originating
+profile/thread/data/history and editor, and rejects replaced dialogs or a running
+reply. Only human confirmation reaches the guarded catalog/tombstone transaction.
+Selected-persona fallback uses the native selection owner with original preference
+and view guards. Deletion and fallback outcomes stay separate; optional sync or
+presentation failure cannot negate a committed deletion. Conversation bodies and
+historical attribution are retained, and deletion creates no resurrection Undo.
+
+Native persona edit and deletion leases also capture the protection mode and
+session-key identity before reading decrypted records. Both capture completion
+and every guarded commit check that identity; a lock, rekey or mode transition retires the
+review even when stored bytes have not changed. The user must obtain fresh
+native authority after a protection change. Prepared encryption at commit does
+not by itself authorize reuse of an older decrypted review.
+
+A live persona transaction that has not attempted either data-key write may
+abandon only its exact owned prepared journal, using guarded journal cleanup.
+It preserves a newer data value and reports that this operation wrote nothing.
+This proof is local to the executing command: crash recovery still rejects a
+foreign replacement, and a newer journal/fence is never removed or rolled back
+by this cleanup. A stale cross-tab request therefore cannot leave its unused
+journal blocking a newer persona merely because localStorage delivery was late.
+
+
+Selected custom-persona definition saves use a separate private conversation
+metadata lease captured before the definition save. The verified native storage
+receipt supplies an in-memory current-publication proof; no model text or
+serialized receipt can authorize a label update. The metadata owner rechecks the
+origin, selected ID, exact prior persona metadata, preference, protection identity
+and native index ownership. It merges into the latest owned index and updates
+only name/icon and monotonic persona/general metadata clocks, preserving message
+bodies, provenance and unrelated fields. It never writes the persona preference
+or issues Undo for a definition edit. Title/message saves from the same view may
+advance independently without reviving an obsolete selection lease.
+
+The editor waits for this optional metadata result while retaining newer unsaved
+input and blocking duplicate saves. A saved definition, a saved conversation
+label and a refreshed view are separate outcomes; a secondary conflict cannot
+negate the verified definition. The human may save a reviewed definition during a reply; attribution already
+captured for that request remains unchanged. Conversation metadata publication
+requires an idle reply boundary or reports its separate unconfirmed outcome.
+Sync is notified once after both native write stages have settled.
+
+Message-body saves preserve established persona metadata and its independent
+revision. They may initialize a wholly absent persona projection for the same
+legacy thread, only if it is still absent after encryption; they never replace
+partial unknown metadata or a newer native selection. Selection, edit metadata
+and legacy initialization share the native index's monotonic persona clock.
+Body clocks advance independently and cannot lower a newer persona/general clock.
+Rollback owns only the fields actually written by that body save.
+
+Explicitly reselecting an already selected persona is a true no-op only when its
+stored labels and preference are current as well. Otherwise the guarded native
+selection owner can refresh that projection after the reply boundary, including
+a label left unconfirmed by an in-flight definition edit. This repair creates no
+Undo that could restore obsolete labels; actual persona changes retain their
+guarded Undo behavior. The native picker uses the same repair path.
+
+Requested native handoffs reuse `getbased_navigate`: `healthImport` opens the owned chat attachment menu without invoking the file picker; `reportBuilder` loads the native owner before a final navigation guard, with optional initial native template/date range; `profileShare` opens review for the current profile without creating a link or uploading; `lightTools` opens the native launcher without starting a sensor/camera. Receipts distinguish an opened handoff (`requiresUserAction`, `nextAction`) from completed work. Existing `dataSettings`, exact `nutritionEditor` and `emfAssessment` destinations retain native export/download, selected-media, analysis and final review controls. Human file choice, permissions, inclusion, import decisions, disclosure and final save/export/share remain with those owners.
+
+Native meal Save and reviewed chat meal changes share the canonical-first commit in `nutrition-record-store.ts`. Native edits retain an exact viewed record, reject newer/deleted targets at the atomic profile write, and refresh the encrypted cache only after persistence. Native creation assigns its identity inside that owner. The native form locks during accepted file preparation/save, and a saved/cache-pending outcome blocks replay while retaining explicit reload feedback. Chat handoffs read the canonical record before opening its editor. Reference-photo selection in the saved-meal editor performs local preparation without inference, appends within the four-photo limit, retains prior evidence and estimates, and persists thumbnail-only attachments with their purpose. The human still chooses files and Save; a retired form cannot accept delayed file preparation.
+
+`wearable-source-controls.ts` owns chat's `wearables.sources` metadata projection and single-use exact-source refresh leases. It returns only configured source IDs/names, status and recorded last-successful-sync times when wearable context is enabled. Private connection versions, the accepted interactive turn lifetime, profile/root/thread/history ownership and disclosure fingerprints guard the native handoff. `getbased_navigate(view:wearablesSettings,recordId,snapshotId)` loads the existing Wearables owner, opens the correct source and focuses its native Update now control. The receipt requires human action and never claims a completed refresh. Setup, reconnection, bulk backfill and credentials stay native.
+
+Optional wearable metric families retain their established independent fallbacks, while `wearable-fetch-scope.ts` prevents an entirely failed HTTP batch from becoming a successful empty result or advancing sync freshness. Authentication failures remain actionable. Oura's chunked heart-rate fetch uses the same rule. Polar acknowledges a source transaction only after every listed item was read with a usable date; a failed item leaves the transaction available for retry while preserving already fetched rows.
+
+`conversation-search.ts` implements the read-only `conversations.search` app action for an accepted interactive question. It uses the native thread-index owner and a fresh encrypted/plain storage read, normalized through the same pure message boundary as native history loading. Results include only bounded historical user/assistant excerpts: current-thread, hidden, automatic, joined, system/tool and attachment content are excluded. Recent-first thread pages have explicit thread/message/character/result limits and report truncation or skipped sources. Asynchronous reads revalidate the originating profile/root/thread/history/index and accepted-turn lifetime before returning any excerpts. They do not migrate, cache plaintext, save history or administer conversations.
+
+Conversation source links are finite same-profile fragments containing native IDs, message index/role and a SHA-256 digest of the exact quote. The Markdown renderer emits a native anchor only for this exact grammar; labels retain ordinary escaping and malformed links retain the existing safe-link behavior. A human click uses the native chat action delegate, waits until streaming has ended, respects open editors, rereads the source and validates its role/content digest. Native switching saves the departing conversation normally, then verifies the exact quote again before highlighting it. Links survive reloads without a persistent capability registry; changed, hidden, locked, missing or foreign-profile sources cannot open through a stale quote. The click sends no additional model request. Historical excerpts never authorize health changes, and their disclosure receipt remains visible even when a reply also reads broad health context.

@@ -307,6 +307,7 @@ const cliController = createCliAgentSettingsController({
   connection:() => ({ endpoint:getAgentHostEndpoint(),token:getAgentHostToken() }),
   companion:() => { const owner = getCliAgentSettingsView(); return owner ? presentedCompanions.get(owner) || null : null; },
   connect:connectDetectedAgent,models:listAgentModels,discover:discoverLocalChatAgents,save:saveAgentChatSettings,control:controlAgentHost,
+  target:getAgentHostTarget,cacheModels:cacheAgentModelCatalog,
   setBackend:setChatBackend,notify:showNotification,confirm:showConfirmDialog,clipboard:text => navigator.clipboard.writeText(text),
   refresh:refreshDetectedAgentList,resetModels:() => { ++selectionRequest; ++modelRequest; agentModels=[];agentTargets=[];agentModelsAgentId='';agentModelsTargetId='';hydratedAgentId='';agentProviderFilter=''; },
   busyChanged:busy => getCliAgentSettingsView()?.setBusy(busy),

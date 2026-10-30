@@ -35,6 +35,7 @@ function sanitizeMealImage(image: unknown): MealImage | null {
   // Allowlist metadata so a future/legacy full-image field cannot bypass this
   // boundary merely because it has a name this version does not recognize.
   const sanitized: MealImage = { thumbnailUrl };
+  if (fields.purpose === 'attachment' || fields.purpose === 'analysis') sanitized.purpose = fields.purpose;
   if (typeof fields.mediaType === 'string') sanitized.mediaType = (fields.mediaType as string).slice(0, 40);
   if (typeof fields.fileName === 'string') sanitized.fileName = (fields.fileName as string).slice(0, 160);
   for (const key of ['width', 'height', 'originalWidth', 'originalHeight'] as const) {

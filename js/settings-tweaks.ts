@@ -1,6 +1,6 @@
 // settings-tweaks.js - Theme, accent, visual-mode, and dashboard quick controls.
 
-import { refreshChartThemeColors } from './charts.js';
+import { refreshChartThemeColors } from './chart-theme-refresh.js';
 import {
   openModalOverlay,
   removeModalOverlay,

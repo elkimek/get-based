@@ -255,3 +255,17 @@ it('keeps saved Biology interpretation and summary payloads inert in rendered ca
     expect(root.textContent).toContain('<svg onload=alert(1)>Summary</svg>');
   } finally { (state as { importedData: unknown }).importedData = previous; }
 });
+
+describe('private native conversation source links', () => {
+  const href = '#getbased-chat-source-v1/profile-a/thread-b/12/user/' + 'a'.repeat(64);
+  it('renders only an exact opaque source hash as an inert native action link', () => {
+    const root = renderIntoDom(`[Historical <source>](${href})`), link = root.querySelector('a')!;
+    expect(link.getAttributeNames().sort()).toEqual(['data-chat-message-action', 'href']);
+    expect(link.getAttribute('href')).toBe(href); expect(link.dataset.chatMessageAction).toBe('open-conversation-result');
+    expect(link.textContent).toBe('Historical <source>'); expect(link.querySelector('source')).toBeNull();
+  });
+  it.each([href + '/delete', href + '?profile=other', href + '#extra', '#getbased-chat-source-v1/arbitrary', 'javascript:' + href, href + '" onclick="alert(1)'])('keeps malformed source URL inert: %s', url => {
+    const root = renderIntoDom(`[Source](${url})`), link = root.querySelector('a')!;
+    expect(link.dataset.chatMessageAction).toBeUndefined(); expect(link.getAttribute('href')).toBe('#'); expect(root.querySelector('[onclick]')).toBeNull();
+  });
+});

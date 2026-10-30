@@ -2,7 +2,7 @@ import { openStaticSettings } from './settings-entry.js';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { getDecodedToken } from '@cashu/cashu-ts';
-import { startKitServer } from './kit-server.js';
+import { startKitServer } from './kit-release-server.js';
 import { prepareStaticWithdraw } from './withdraw-static-fixture.js';
 import { seedStaticWalletMints } from './wallet-static-fixture.js';
 const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');

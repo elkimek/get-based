@@ -97,6 +97,9 @@ const pins: Record<string, string> = {
 // the exact pre-fix source for its original whole-file pin; candidate HTML stays
 // completely untouched and still compares byte for byte with the dispatcher.
 const reviewedLeafEdits: Readonly<Record<string, readonly (readonly [string, string])[]>> = {
+  "js/components/NutritionMealModelPicker.svelte": [
+    ["disabled={!(view.automaticAvailable ?? view.available)}>{view.automaticLabel}", "disabled={!view.available}>{view.automaticLabel}"]
+  ],
   "js/components/NutritionFuelCard.svelte": [
     [
       "  import { readableCopy as copy, fuelSummary, goalHead } from '../nutrition-view-classes.js';",

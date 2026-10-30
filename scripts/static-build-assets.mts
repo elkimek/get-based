@@ -18,6 +18,7 @@ const PRODUCTION_RAW_MODULE_ROOTS = new Set([
   '/js/voice-local-stt-worker.js',
   '/js/voice-local-tts-worker.js',
 ]);
+const sourceModuleURL = (url: string) => /^\/(?:js|shared)\/.*\.js$/.test(url);
 const FATAL_BUILD_WARNINGS = new Set(['INEFFECTIVE_DYNAMIC_IMPORT']);
 
 /** Online compatibility and license files are published without precaching a
@@ -62,7 +63,7 @@ export function pruneSourceModuleAppShell(source: string, rawAssets: ReadonlySet
       const element = array.elements[index]!;
       if (!ts.isStringLiteralLikeNode(element)) throw new Error('Unqualified APP_SHELL entry');
       const url = element.text;
-      if (!url.startsWith('/js/') || !url.endsWith('.js') || rawAssets.has(url)) continue;
+      if (!sourceModuleURL(url) || rawAssets.has(url)) continue;
       edits.push({start: element.getStart(file), end: element.getEnd()});
       const limit = array.elements[index + 1]?.getStart(file) ?? array.getEnd() - 1;
       let position = element.getEnd();
@@ -87,11 +88,29 @@ export function pruneSourceModuleAppShell(source: string, rawAssets: ReadonlySet
     for (const edit of edits.sort((left, right) => right.start - left.start)) {
       pruned = pruned.slice(0, edit.start) + pruned.slice(edit.end);
     }
-    const expected = [...declared].filter(url => !url.startsWith('/js/') || !url.endsWith('.js') || rawAssets.has(url));
+    const expected = [...declared].filter(url => !sourceModuleURL(url) || rawAssets.has(url));
     const actual = parseAppShellEntries(pruned);
     if (actual.length !== expected.length || actual.some((url, index) => url !== expected[index])) {
       throw new Error('Pruned APP_SHELL does not preserve the qualified URL order');
     }
     return pruned;
   });
+}
+
+/** Remove JSON whitespace only outside literals. Numeric spellings, duplicate
+ * keys, field order and every byte inside strings stay unchanged. */
+export async function compactStaticJson(directory: string, urls: readonly string[]) {
+  let before = 0, after = 0;
+  const dataRoot = path.resolve(directory, 'data') + path.sep;
+  for (const url of new Set(urls)) {
+    if (!url.startsWith('/data/') || !url.endsWith('.json')) continue;
+    const file = path.resolve(directory, '.' + url);
+    if (!file.startsWith(dataRoot)) throw new Error('JSON leaves copied data directory');
+    const source = await fs.readFile(file, 'utf8');
+    JSON.parse(source);
+    const output = source.replace(/"(?:\\.|[^"\\])*"|[ \t\r\n]+/g, token => token.startsWith('"') ? token : '');
+    before += Buffer.byteLength(source); after += Buffer.byteLength(output);
+    await fs.writeFile(file, output);
+  }
+  return {before, after, saved: before - after};
 }
