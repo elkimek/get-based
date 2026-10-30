@@ -329,11 +329,28 @@ or an unavailable owned stylesheet returns an uncached error instead of another
 build's CSS. Hashed modules, font/SQLite aliases and live requests retain their
 separate routing rules.
 
-The two Evolu vendor trees retain their public SQLite module and worker URLs.
-Builds qualify four complete, byte-identical payload pairs against pinned hashes
-and locked provenance before sharing their current-build cache entries. Fresh
-responses preserve each requested module or worker's URL base for relative WASM
-and proxy requests. Other Evolu assets and runtime identities stay distinct.
+The previous Evolu vendor graphs retain their public SQLite module and worker
+URLs for open tabs and retained builds. Builds qualify four complete, byte-identical
+legacy payload pairs against pinned bytes and historical package integrity before
+sharing cache entries. Fresh responses preserve each requested module or worker's
+URL base. The current Evolu 8 runtime uses a versioned vendor directory with its own
+worker graph and SQLite binary. Its lock, manifest, inventory and complete WASM bytes
+are qualified separately and never alias the legacy SQLite. The frozen previous
+Evolu 8 JavaScript remains public but is omitted from new precaches; old tabs and
+workers can use exact hash-qualified copies from retained build caches. Current
+runtime and legacy recovery assets count against the unchanged offline budget.
+
+The Evolu adapter projects owner replication status from its current runtime and
+keeps it separate from the signed owner-storage confirmation of a pushed profile.
+Device persistence is explicit: unknown evidence never implies durable storage,
+and memory-only storage has a visible notice. Retired runtimes cannot publish
+status or persistence results after an owner change. Database-held, build-conflict
+and version-refusal states require actionable recovery; upstream reload requests
+wait for an explicit user action so active drafts are not discarded. Restoring an
+identity preserves the existing generation and recovery-vault rules. A client
+downgrade is not a database rollback: previous web runtimes cannot open every
+new-format database. The v7 recovery path always retains its separate runtime and
+database identity.
 
 The static assembler externalizes Kit's classic bootstrap to satisfy the existing
 CSP without permitting inline executable scripts. It copies only declared public

@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { DevicePersistenceStatus, OwnerReplicationStatus } from '../js/sync-state.js';
+import { getSyncStatus, resetSyncStatus } from '../js/sync-state.js';
 
 import {
   EVOLU8_GENERATION_KEY,
@@ -11,8 +13,8 @@ import {
 
 type CandidateInput = Parameters<typeof createEvolu8Candidate>[0];
 type Modern = CandidateInput['modern'];
-type ActiveFixture = {config: Parameters<Modern['createEvolu']>[1]; queryUnsubscribers: ReturnType<typeof vi.fn<() => void>>[]; insert: ReturnType<typeof vi.fn<() => {id: string}>>; update: ReturnType<typeof vi.fn<() => {id: string}>>; loadQuery: ReturnType<typeof vi.fn<() => Promise<unknown[]>>>; subscribeQuery: ReturnType<typeof vi.fn<() => () => () => void>>; [Symbol.asyncDispose]: ReturnType<typeof vi.fn<() => Promise<void>>>};
-type DepsFixture = {evoluError: ReturnType<typeof createErrorStore>; [Symbol.dispose]: ReturnType<typeof vi.fn<() => void>>};
+type ActiveFixture = {config: Parameters<Modern['createEvolu']>[1]; devicePersistence: Promise<DevicePersistenceStatus>; queryUnsubscribers: ReturnType<typeof vi.fn<() => void>>[]; insert: ReturnType<typeof vi.fn<() => {id: string}>>; update: ReturnType<typeof vi.fn<() => {id: string}>>; loadQuery: ReturnType<typeof vi.fn<() => Promise<unknown[]>>>; subscribeQuery: ReturnType<typeof vi.fn<() => () => () => void>>; [Symbol.asyncDispose]: ReturnType<typeof vi.fn<() => Promise<void>>>};
+type DepsFixture = {evoluError: ReturnType<typeof createErrorStore>; syncState: ReturnType<typeof createStore<OwnerReplicationStatus | null>>; [Symbol.dispose]: ReturnType<typeof vi.fn<() => void>>};
 type RunFixture = {ok: ReturnType<typeof vi.fn<(task: unknown) => Promise<unknown>>>; [Symbol.asyncDispose]: ReturnType<typeof vi.fn<() => Promise<void>>>};
 type CandidateFixtureInput = Omit<CandidateInput, 'modern' | 'schema'> & {modern: Omit<Modern, 'id' | 'nullOr' | 'EvoluString' | 'createRun'> & {createRun: (deps: unknown) => RunFixture}; schema: {profileData: Record<string, unknown>}};
 
@@ -32,12 +34,12 @@ function createStorage(initial: Record<string, string> = {}) {
   };
 }
 
-function createErrorStore() {
+function createStore<Value>(initial: Value) {
   const listeners = new Set<() => void>();
-  let value: ReturnType<ReturnType<Modern['createEvoluDeps']>['evoluError']['get']> = null;
+  let value = initial;
   return {
     get: vi.fn(() => value),
-    set(next: ReturnType<ReturnType<Modern['createEvoluDeps']>['evoluError']['get']>) {
+    set(next: Value) {
       value = next;
       for (const listener of listeners) listener();
     },
@@ -47,6 +49,7 @@ function createErrorStore() {
     }),
   };
 }
+function createErrorStore() {return createStore<ReturnType<ReturnType<Modern['createEvoluDeps']>['evoluError']['get']>>(null);}
 
 function createHarness({ mnemonic = 'alpha words', ownerId = `owner:${mnemonic}` }: {mnemonic?: string; ownerId?: string} = {}) {
   const actives: ActiveFixture[] = [];
@@ -60,6 +63,7 @@ function createHarness({ mnemonic = 'alpha words', ownerId = `owner:${mnemonic}`
   };
 
   const modern = {
+    syncStateToOwnerSyncStatus: vi.fn((state: unknown): OwnerReplicationStatus => state as OwnerReplicationStatus ?? {type: 'NoRelays'}),
     Mnemonic: { orThrow: vi.fn((value: string) => {
       if (!value || value === 'invalid') throw new Error('invalid mnemonic');
       return value;
@@ -68,9 +72,10 @@ function createHarness({ mnemonic = 'alpha words', ownerId = `owner:${mnemonic}`
     mnemonicToOwnerSecret: vi.fn((value: string) => value),
     createAppOwner: vi.fn((value: string) => ({ id: `owner:${value}`, mnemonic: value })),
     createQueryBuilder: vi.fn(() => vi.fn(() => 'query')),
-    createEvoluDeps: vi.fn(() => {
+    createEvoluDeps: vi.fn((_options: Parameters<Modern['createEvoluDeps']>[0]) => {
       const deps = {
         evoluError: createErrorStore(),
+        syncState: createStore<OwnerReplicationStatus | null>(null),
         [Symbol.dispose]: vi.fn(),
       };
       depsList.push(deps);
@@ -91,10 +96,11 @@ function createHarness({ mnemonic = 'alpha words', ownerId = `owner:${mnemonic}`
       const active = {
         name: config.appName,
         appOwner: config.appOwner,
+        devicePersistence: Promise.resolve<DevicePersistenceStatus>('Unknown'),
         insert: vi.fn(() => ({ id: 'inserted' })),
         update: vi.fn(() => ({ id: 'updated' })),
         upsert: vi.fn(() => ({ id: 'upserted' })),
-        loadQuery: vi.fn(async () => []),
+        loadQuery: vi.fn(async (): Promise<unknown[]> => []),
         loadQueries: vi.fn(() => []),
         getQueryRows: vi.fn(() => []),
         exportDatabase: vi.fn(async () => new Uint8Array()),
@@ -114,6 +120,66 @@ function createHarness({ mnemonic = 'alpha words', ownerId = `owner:${mnemonic}`
 
   return { actives, depsList, events, legacyEvolu, modern, runs };
 }
+
+it('rebinds owner status on restore and ignores persistence results from a retired runtime', async () => {
+  const harness = createHarness();
+  const evolu = await (createEvolu8Candidate as unknown as (options: CandidateFixtureInput) => ReturnType<typeof createEvolu8Candidate>)({
+    legacyEvolu: harness.legacyEvolu, modern: harness.modern, schema: {profileData: {}}, relay: 'wss://relay.example', storage: createStorage(),
+  });
+  let resolveOld!: (value: DevicePersistenceStatus) => void;
+  harness.actives[0]!.devicePersistence = new Promise(resolve => {resolveOld = resolve;});
+  const persistence = vi.fn(); const status = vi.fn();
+  const unsubscribePersistence = evolu.subscribeDevicePersistence(persistence);
+  const unsubscribeStatus = evolu.subscribeOwnerSyncStatus(status);
+  harness.depsList[0]!.syncState.set({type: 'Offline'});
+  expect(status).toHaveBeenLastCalledWith({type: 'Offline'});
+  expect(harness.modern.syncStateToOwnerSyncStatus).toHaveBeenLastCalledWith({type: 'Offline'}, 'getbased8g1', 'owner:alpha words');
+  await evolu.restoreAppOwner('beta words', {reload: false});
+  await Promise.resolve();
+  expect(status).toHaveBeenLastCalledWith({type: 'NoRelays'});
+  expect(persistence).toHaveBeenLastCalledWith('Unknown');
+  const statusCalls = status.mock.calls.length; const persistenceCalls = persistence.mock.calls.length;
+  harness.depsList[0]!.syncState.set({type: 'Synced'}); resolveOld('NotPersisted'); await Promise.resolve();
+  expect(status).toHaveBeenCalledTimes(statusCalls); expect(persistence).toHaveBeenCalledTimes(persistenceCalls);
+  harness.depsList[1]!.syncState.set({type: 'Error', error: {type: 'ProtocolQuotaError', at: 100}});
+  expect(status).toHaveBeenLastCalledWith({type: 'Error', error: {type: 'ProtocolQuotaError', at: 100}});
+  unsubscribeStatus(); unsubscribePersistence(); const calls = status.mock.calls.length;
+  harness.depsList[1]!.syncState.set({type: 'Offline'}); expect(status).toHaveBeenCalledTimes(calls);
+  await evolu[Symbol.asyncDispose]?.();
+});
+
+it('surfaces a reload request without automatically navigating away from unsaved edits', async () => {
+  resetSyncStatus(); const harness = createHarness();
+  const evolu = await (createEvolu8Candidate as unknown as (options: CandidateFixtureInput) => ReturnType<typeof createEvolu8Candidate>)({
+    legacyEvolu: harness.legacyEvolu, modern: harness.modern, schema: {profileData: {}}, relay: 'wss://relay.example', storage: createStorage(),
+  });
+  harness.modern.createEvoluDeps.mock.calls[0]![0].reloadApp();
+  expect(getSyncStatus().databaseError).toBe('ReloadRequired');
+  expect(harness.legacyEvolu.resetAppOwner).not.toHaveBeenCalled();
+  expect(harness.actives).toHaveLength(1);
+  await evolu[Symbol.asyncDispose]?.(); resetSyncStatus();
+});
+
+it('reports a replacement database error before its first query can complete', async () => {
+  const harness = createHarness();
+  const evolu = await (createEvolu8Candidate as unknown as (options: CandidateFixtureInput) => ReturnType<typeof createEvolu8Candidate>)({
+    legacyEvolu: harness.legacyEvolu, modern: harness.modern, schema: {profileData: {}}, relay: 'wss://relay.example', storage: createStorage(),
+  });
+  const error = vi.fn(); evolu.subscribeError(error); evolu.subscribeQuery('profiles')(() => {});
+  let completeQuery!: (rows: unknown[]) => void;
+  const pending = new Promise<unknown[]>(resolve => {completeQuery = resolve;});
+  const create = harness.modern.createEvolu.getMockImplementation()!;
+  harness.modern.createEvolu.mockImplementationOnce((schema, config) => {
+    const client = create(schema, config); client.loadQuery.mockReturnValue(pending); return client;
+  });
+  const restoring = evolu.restoreAppOwner('beta words', {reload: false});
+  try {
+    await vi.waitFor(() => expect(error).toHaveBeenCalledTimes(2));
+    harness.depsList[1]!.evoluError.set({type: 'DatabaseHeldError'});
+    expect(error).toHaveBeenLastCalledWith({type: 'DatabaseHeldError'});
+    expect(harness.actives[1]!.queryUnsubscribers).toHaveLength(0);
+  } finally {completeQuery([]); await restoring; await evolu[Symbol.asyncDispose]?.();}
+});
 
 describe('Evolu 8 compatibility candidate', () => {
   it('invalidates the v8 vault before legacy restore and reset mutations', async () => {

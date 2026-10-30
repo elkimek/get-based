@@ -419,8 +419,10 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/vendor/ppq-private-tee.js', '/vendor/tinfoil-browser.js', '/vendor/ehbp-browser.js',
   '/vendor/evolu/evolu-bundle.js', '/vendor/evolu/Db.worker.js', // Both versions support offline identity handoff/rollback.
   '/vendor/evolu/sqlite3-bundler-friendly.mjs', '/vendor/evolu/sqlite3-opfs-async-proxy.js', '/vendor/evolu/sqlite3-worker1-bundler-friendly.mjs', '/vendor/evolu/sqlite3.wasm',
-  '/vendor/evolu8/evolu-bundle.js', '/vendor/evolu8/Db.worker.js', '/vendor/evolu8/Shared.worker.js', '/vendor/evolu8/sqlite3-bundler-friendly.mjs',
-  '/vendor/evolu8/sqlite3-opfs-async-proxy.js', '/vendor/evolu8/sqlite3-worker1-bundler-friendly.mjs', '/vendor/evolu8/sqlite3.wasm', '/vendor/fonts/fonts.css',
+  '/vendor/evolu8/sqlite3-bundler-friendly.mjs',
+  '/vendor/evolu8/sqlite3-opfs-async-proxy.js', '/vendor/evolu8/sqlite3-worker1-bundler-friendly.mjs', '/vendor/evolu8/sqlite3.wasm',
+  '/vendor/evolu8/v8.24.1-web3.6.5/evolu-bundle.js', '/vendor/evolu8/v8.24.1-web3.6.5/Db.worker.js', '/vendor/evolu8/v8.24.1-web3.6.5/Shared.worker.js',
+  '/vendor/evolu8/v8.24.1-web3.6.5/sqlite3.wasm', '/vendor/fonts/fonts.css',
   '/vendor/fonts/inter-400.woff2', '/vendor/fonts/inter-400-2.woff2', '/vendor/fonts/inter-400-3.woff2', '/vendor/fonts/inter-400-4.woff2',
   '/vendor/fonts/inter-400-5.woff2', '/vendor/fonts/inter-400-6.woff2', '/vendor/fonts/inter-400-7.woff2', '/vendor/fonts/inter-500.woff2',
   '/vendor/fonts/inter-500-2.woff2', '/vendor/fonts/inter-500-3.woff2', '/vendor/fonts/inter-500-4.woff2', '/vendor/fonts/inter-500-5.woff2',

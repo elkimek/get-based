@@ -11,6 +11,7 @@ import {
   getRecentSyncEvents,
   getSyncDisplayState as getSyncDisplayStateFromStatus,
   getSyncStatus,
+  getSyncStatusNotice,
   subscribeSyncStatus,
 } from './sync-state.js';
 
@@ -129,7 +130,7 @@ export function renderSyncIndicator() {
   if (!slot) return;
   if (!currentSyncEnabled()) { slot.innerHTML = ''; return; }
   const ds = getSyncDisplayState();
-  const titles: Partial<Record<ReturnType<typeof getSyncDisplayState>, string>> = { synced: 'Synced', syncing: 'Syncing\u2026', offline: 'Offline \u2014 changes saved locally', error: 'Sync error', disabled: '' };
+  const titles: Partial<Record<ReturnType<typeof getSyncDisplayState>, string>> = { synced: 'Synced', syncing: 'Syncing\u2026', offline: 'Offline \u2014 waiting to reconnect', error: 'Sync error', disabled: '' };
   slot.innerHTML = renderSyncIndicatorView({ state: ds, title: titles[ds] });
 }
 
@@ -138,7 +139,7 @@ export function updateSyncIndicator() {
   if (!dot) { renderSyncIndicator(); return; }
   const ds = getSyncDisplayState();
   dot.className = `sync-dot sync-dot-${ds}`;
-  const titles: Partial<Record<ReturnType<typeof getSyncDisplayState>, string>> = { synced: 'Synced', syncing: 'Syncing\u2026', offline: 'Offline \u2014 changes saved locally', error: 'Sync error' };
+  const titles: Partial<Record<ReturnType<typeof getSyncDisplayState>, string>> = { synced: 'Synced', syncing: 'Syncing\u2026', offline: 'Offline \u2014 waiting to reconnect', error: 'Sync error' };
   const button = dot.parentElement;
   if (button) button.title = titles[ds] || '';
 }
@@ -152,8 +153,10 @@ export function toggleSyncDetail() {
   if (!btn) return;
   const s = getSyncStatus();
   const relayUrl = getSyncRelay();
-  const relayDot = s.relay === 'connected' ? '#22c55e' : s.relay === 'unreachable' ? 'var(--red)' : 'var(--text-muted)';
-  const relayLabel = s.relay === 'connected' ? 'Connected to relay' : s.relay === 'unreachable' ? 'Relay unreachable' : 'Checking\u2026';
+  const replicationFailed = s.replication === 'Offline' || s.replication === 'Error';
+  const relayDot = replicationFailed ? 'var(--red)' : s.relay === 'connected' ? '#22c55e' : s.relay === 'unreachable' ? 'var(--red)' : 'var(--text-muted)';
+  const relayLabel = s.replication === 'Offline' ? 'Sync connection offline' : s.replication === 'Error' ? 'Sync needs attention'
+    : s.relay === 'connected' ? 'Connected to relay' : s.relay === 'unreachable' ? 'Relay unreachable' : 'Checking\u2026';
   // Detect a stuck push: pending > 15s usually means Evolu's worker can't
   // reach the relay (offline phone, relay down, OPFS lock). Surface it so
   // the user knows clicking Sync now won't help - they need network back.
@@ -197,6 +200,7 @@ export function toggleSyncDetail() {
     const dot = q.level === 'red' ? 'var(--red)' : q.level === 'amber' ? 'var(--orange)' : 'var(--green)';
     quotaLine = { dot, color, text: `Storage: ${mb} / ${capMb} MB · ${q.pct}%` };
   }
+  const syncEnabled = currentSyncEnabled();
   pop.innerHTML = renderSyncPopoverView({
     relayDot,
     relayLabel,
@@ -207,6 +211,8 @@ export function toggleSyncDetail() {
     error: debugMode ? errorLine : null,
     events: eventViews,
     stuckPush,
+    notice: syncEnabled ? getSyncStatusNotice(s) : null,
+    reloadRequired: syncEnabled && !!s.databaseError,
     // This is the original second debug read, after relay escaping and quota.
     debugControls: isDebugMode(),
   });

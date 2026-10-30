@@ -84,7 +84,7 @@ export function bindSyncRecoveryEvents({ win, doc, nav }: { win?: Pick<Window, '
 
     runtimeWindow.addEventListener('offline', () => {
       _lastNetState = false;
-      _notify('Offline — changes are saved locally and will sync when you reconnect.', 'info', 5000);
+      _notify('Offline — Sync will resume when you reconnect. Keep this tab open until then.', 'info', 5000);
     });
   }
 }

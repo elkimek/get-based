@@ -3,12 +3,20 @@ import type {DeltaItemRow} from "../../js/sync-delta-row-codec.js";
 import type { Browser } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
+import {readFileSync} from 'node:fs';
+import {stripTypeScriptTypes} from 'node:module';
 
 const TRANSPORT_E2E_ENABLED = process.env.SYNC_TRANSPORT_E2E === '1';
 const RELAY_URL = process.env.SYNC_TRANSPORT_RELAY || 'ws://127.0.0.1:4000';
 const SELF_URL = process.env.SYNC_TRANSPORT_SELF_URL || 'http://127.0.0.1:4003';
 const EVOLU_CLIENT = process.env.SYNC_TRANSPORT_EVOLU_CLIENT || 'v8';
 const APP_URL = EVOLU_CLIENT === 'v7' ? '/app?evolu-client=v7' : '/app';
+// Frozen canonical bridge from c1135b1fc04999cf76ffa854cfe6723e41d7068a.
+// This runs the actual previous web/common graph, without adapting its API to
+// the current client or mocking transport, owner proof, storage, or compaction.
+const previousBridge = EVOLU_CLIENT === 'v8-mixed' ? stripTypeScriptTypes(
+  readFileSync(new URL('../fixtures/evolu8-web-3.1-bridge.ts.txt', import.meta.url), 'utf8'),
+) : null;
 const BASELINE_CONTEXT = 'transport-e2e-baseline';
 const UPDATED_CONTEXT = 'transport-e2e-updated';
 const OFFLINE_CONTEXT = 'transport-e2e-offline-recovery';
@@ -30,6 +38,11 @@ function legalAcceptance() {
 
 async function createDevice(browser: Browser, label: string) {
   const context = await browser.newContext({ serviceWorkers: 'block' });
+  if (previousBridge && label.endsWith('device A')) {
+    await context.route(url => url.pathname === '/js/sync-evolu8-candidate.js', route => route.fulfill({
+      contentType: 'text/javascript', body: previousBridge,
+    }));
+  }
   await context.addInitScript(({ relayUrl, selfUrl, acceptance, debug }) => {
     if (!/^https?:$/.test(location.protocol)) return;
     localStorage.setItem('labcharts-sync-relay', relayUrl);

@@ -22,6 +22,10 @@ getbased is licensed under [AGPL-3.0-or-later](LICENSE). The vendored and runtim
 | `ehbp-browser.js` | [EHBP](https://github.com/tinfoilsh/encrypted-http-body-protocol) encrypted HTTP transport used by Tinfoil | 0.3.2 | MIT | https://github.com/tinfoilsh/encrypted-http-body-protocol/blob/main/LICENSE |
 | `evolu/evolu-bundle.js`, `evolu/Db.worker.js` | [Evolu](https://github.com/evoluhq/evolu) (`@evolu/common`) | 7.4.1 | MIT | https://github.com/evoluhq/evolu/blob/main/LICENSE |
 | `evolu/sqlite3.wasm`, `evolu/sqlite3-*` | [SQLite](https://www.sqlite.org/copyright.html) | 3.50.4 | Public Domain | https://www.sqlite.org/copyright.html |
+| `evolu8/evolu-bundle.js`, `evolu8/Db.worker.js`, `evolu8/Shared.worker.js` | Previous Evolu 8 graph retained for open tabs | common 8.7.0; web 3.1.0 | MIT | https://github.com/evoluhq/evolu/blob/main/LICENSE |
+| `evolu8/sqlite3.wasm`, `evolu8/sqlite3-*` | Previous SQLite WASM graph | 2.2.4 | Apache-2.0 | https://github.com/evoluhq/sqlite-wasm-cipher |
+| `evolu8/v8.24.1-web3.6.5/evolu-bundle.js`, `evolu8/v8.24.1-web3.6.5/*.worker.js` | Current Evolu 8 browser runtime | common 8.24.1; web 3.6.5 | MIT | [Retained license](vendor/evolu8/v8.24.1-web3.6.5/LICENSE) |
+| `evolu8/v8.24.1-web3.6.5/sqlite3.wasm` | Evolu SQLite WASM, including BearSSL, Emscripten and musl | 3.54.1-build3 | MIT; SQLite public domain | [Retained notices](vendor/evolu8/v8.24.1-web3.6.5/THIRD_PARTY_NOTICES.md) |
 | `fonts/inter-*.woff2` | [Inter](https://github.com/rsms/inter) (Rasmus Andersson) | — | SIL OFL 1.1 | [vendor/fonts/OFL.txt](vendor/fonts/OFL.txt) |
 | `fonts/outfit-*.woff2` | [Outfit](https://github.com/Outfit/Outfit-Fonts) (Rodrigo Fuenzalida, Smich Smich) | — | SIL OFL 1.1 | [vendor/fonts/OFL.txt](vendor/fonts/OFL.txt) |
 | `fonts/jetbrains-mono-*.woff2` | [JetBrains Mono](https://github.com/JetBrains/JetBrainsMono) (JetBrains s.r.o.) | — | SIL OFL 1.1 | [vendor/fonts/OFL.txt](vendor/fonts/OFL.txt) |

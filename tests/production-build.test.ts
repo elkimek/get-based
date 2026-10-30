@@ -349,12 +349,16 @@ describe('shipping SvelteKit production build', () => {
   it('keeps both Evolu runtimes beside their complete database workers in production', () => {
     const generatedSource = [...sources.values()].join('\n');
     expect(generatedSource).toContain('../vendor/evolu/evolu-bundle.js');
-    expect(generatedSource).toContain('../vendor/evolu8/evolu-bundle.js');
+    expect(generatedSource).toContain('../vendor/evolu8/v8.24.1-web3.6.5/evolu-bundle.js');
     expect(generatedSource).not.toContain('Db.worker.js');
     for (const url of [
       '/vendor/evolu/evolu-bundle.js', '/vendor/evolu/Db.worker.js',
-      '/vendor/evolu8/evolu-bundle.js', '/vendor/evolu8/Db.worker.js', '/vendor/evolu8/Shared.worker.js',
+      '/vendor/evolu8/v8.24.1-web3.6.5/evolu-bundle.js', '/vendor/evolu8/v8.24.1-web3.6.5/Db.worker.js', '/vendor/evolu8/v8.24.1-web3.6.5/Shared.worker.js',
+      '/vendor/evolu8/v8.24.1-web3.6.5/sqlite3.wasm',
     ]) expect(shell.filter(entry => entry === url), url).toHaveLength(1);
+    for (const file of ['evolu-bundle.js', 'Db.worker.js', 'Shared.worker.js']) {
+      expect(shell).not.toContain('/vendor/evolu8/' + file);
+    }
   });
 
   it('keeps the cold Latin body font from repainting the mobile LCP text', async () => {

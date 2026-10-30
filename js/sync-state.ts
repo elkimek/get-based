@@ -4,6 +4,10 @@
 // users can see push/pull payload counts without USB-debugging the console.
 // Each entry: { at: ms, kind: 'push'|'pull'|'skip'|'rebroadcast', text }.
 
+export type DevicePersistenceStatus = 'Persisted' | 'NotPersisted' | 'Unknown';
+export type OwnerReplicationStatus = {type: 'NoRelays' | 'Syncing' | 'Synced' | 'Offline'}
+  | {type: 'Error'; error: {type: string; at: number}};
+
 export interface SyncStatus {
   relay: 'unknown' | 'connected' | 'unreachable';
   relayCheckedAt: number | null;
@@ -13,6 +17,9 @@ export interface SyncStatus {
   pull: 'idle' | 'pulling' | 'received';
   pullReceivedAt: number | null;
   lastError: { type: string; message?: string; at: number } | null;
+  replication?: OwnerReplicationStatus['type'];
+  devicePersistence?: DevicePersistenceStatus;
+  databaseError?: string | null;
 }
 
 const _syncEvents: { at: number; kind: string; text: string }[] = [];
@@ -35,6 +42,7 @@ const DEFAULT_SYNC_STATUS = Object.freeze<SyncStatus>( ({
   pull: 'idle',            // 'idle' | 'pulling' | 'received'
   pullReceivedAt: null,
   lastError: null,
+  databaseError: null,
 }));
 
 const _syncStatus: SyncStatus & Record<string, unknown> = { ...DEFAULT_SYNC_STATUS };
@@ -70,6 +78,28 @@ export function getSyncStatus() {
   return { ..._syncStatus };
 }
 
+export function getSyncStatusNotice(status: SyncStatus): string | null {
+  switch (status.databaseError) {
+    case 'DatabaseHeldError': return 'Close other app tabs or restart the browser, then reload to reopen Sync.';
+    case 'OtherBuildRunningError': return 'Another app version is using Sync. Close its tabs, then reload.';
+    case 'UnsupportedDbVersionError': return 'This Sync database needs a newer app version. Update the app, close its other tabs, then reload.';
+    case 'ReloadRequired': return 'Finish your edits, close the other app tabs, then reload to continue Sync.';
+    case 'UnknownError': return 'Sync storage needs attention. Close the other app tabs, then reload. Keep your recovery phrase.';
+  }
+  const temporary = status.devicePersistence === 'NotPersisted'
+    ? 'Sync storage is temporary in this browser. Keep this tab open until changes have synced.' : null;
+  if (status.replication === 'Error') {
+    const failure = status.lastError?.type === 'ProtocolQuotaError'
+      ? 'Relay storage is full. Review storage in Sync settings, then try syncing again.'
+      : 'Sync needs attention. Open Sync status for details.';
+    return temporary ? `${temporary} ${failure}` : failure;
+  }
+  if (temporary) return temporary;
+  if (status.replication === 'Offline') return 'Offline. Changes will sync when the connection returns.';
+  if (status.devicePersistence === 'Unknown') return 'This browser may clear local Sync storage. Keep your recovery phrase.';
+  return null;
+}
+
 export function updateSyncStatus(partial: Partial<SyncStatus>) {
   Object.assign(_syncStatus, partial);
   _emitSyncStatus();
@@ -88,9 +118,11 @@ export function subscribeSyncStatus(fn: (status: SyncStatus) => void) {
 
 export function getSyncDisplayState(syncEnabled: boolean) {
   if (!syncEnabled) return 'disabled';
+  if (_syncStatus.databaseError || _syncStatus.replication === 'Error') return 'error';
   if (_syncStatus.lastError && _syncStatus.push === 'error') return 'error';
   if (_syncStatus.push === 'pending' && _syncStatus.pushStartedAt && Date.now() - _syncStatus.pushStartedAt > 8000) return 'error';
-  if (_syncStatus.relay === 'unreachable') return 'offline';
+  if (_syncStatus.relay === 'unreachable' || _syncStatus.replication === 'Offline') return 'offline';
+  if (_syncStatus.replication === 'Syncing' || _syncStatus.replication === 'NoRelays') return 'syncing';
   if (_syncStatus.relay === 'unknown') return 'syncing';
   if (_syncStatus.push === 'pending' || _syncStatus.pull === 'pulling') return 'syncing';
   return 'synced';

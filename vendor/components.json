@@ -222,6 +222,42 @@
       "files": [
         "vendor/routstr-crypto.js"
       ]
+    },
+    {
+      "name": "@evolu/common v8",
+      "version": "8.24.1",
+      "purl": "pkg:npm/%40evolu/common@8.24.1",
+      "license": "MIT",
+      "source": "https://github.com/evoluhq/evolu",
+      "monitoring": "github-advisory",
+      "files": [
+        "vendor/evolu8/v8.24.1-web3.6.5/evolu-bundle.js"
+      ]
+    },
+    {
+      "name": "@evolu/web v8",
+      "version": "3.6.5",
+      "purl": "pkg:npm/%40evolu/web@3.6.5",
+      "license": "MIT",
+      "source": "https://github.com/evoluhq/evolu",
+      "monitoring": "github-advisory",
+      "files": [
+        "vendor/evolu8/v8.24.1-web3.6.5/Db.worker.js",
+        "vendor/evolu8/v8.24.1-web3.6.5/Shared.worker.js"
+      ]
+    },
+    {
+      "name": "@evolu/sqlite-wasm v8",
+      "version": "3.54.1-build3",
+      "purl": "pkg:npm/%40evolu/sqlite-wasm@3.54.1-build3",
+      "license": "MIT",
+      "source": "https://github.com/evoluhq/evolu",
+      "monitoring": "github-advisory",
+      "files": [
+        "vendor/evolu8/v8.24.1-web3.6.5/sqlite3.wasm",
+        "vendor/evolu8/v8.24.1-web3.6.5/LICENSE",
+        "vendor/evolu8/v8.24.1-web3.6.5/THIRD_PARTY_NOTICES.md"
+      ]
     }
   ],
   "projectFiles": [
@@ -243,6 +279,7 @@
     "vendor/components.json",
     "vendor/evolu8/manifest.json",
     "vendor/fonts/fonts.css",
-    "vendor/fonts/OFL.txt"
+    "vendor/fonts/OFL.txt",
+    "vendor/evolu8/v8.24.1-web3.6.5/manifest.json"
   ]
 }

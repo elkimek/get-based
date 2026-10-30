@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 1865 |
-| Internal import edges | 5674 |
+| Internal import edges | 5675 |
 | Dynamic internal edges | 138 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -4691,7 +4691,7 @@ Native browser modules shipped with the static application.
 - [`js/sync-dirty-state.ts`](js/sync-dirty-state.ts) → no in-scope imports
 - [`js/sync-disable-cleanup.ts`](js/sync-disable-cleanup.ts) → no in-scope imports
 - [`js/sync-environment.ts`](js/sync-environment.ts) → [`js/utils-runtime.ts`](js/utils-runtime.ts)
-- [`js/sync-evolu8-candidate.ts`](js/sync-evolu8-candidate.ts) → [`js/sync-evolu8-identity-vault.ts`](js/sync-evolu8-identity-vault.ts), [`js/sync-runtime.ts`](js/sync-runtime.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/sync-evolu8-candidate.ts`](js/sync-evolu8-candidate.ts) → [`js/sync-evolu8-identity-vault.ts`](js/sync-evolu8-identity-vault.ts), [`js/sync-runtime.ts`](js/sync-runtime.ts), [`js/sync-state.ts`](js/sync-state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/sync-evolu8-identity-vault.ts`](js/sync-evolu8-identity-vault.ts) → no in-scope imports
 - [`js/sync-identity.ts`](js/sync-identity.ts) → [`js/clear-all-profile-reset.ts`](js/clear-all-profile-reset.ts) *(dynamic)*, [`js/sync-backup-restore-state.ts`](js/sync-backup-restore-state.ts), [`js/sync-disable-cleanup.ts`](js/sync-disable-cleanup.ts), [`js/sync-runtime.ts`](js/sync-runtime.ts), [`js/sync-settings-state.ts`](js/sync-settings-state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/sync-init.ts`](js/sync-init.ts) → [`js/sync-environment.ts`](js/sync-environment.ts), [`js/sync-evolu8-candidate.ts`](js/sync-evolu8-candidate.ts) *(dynamic)*, [`js/sync-identity.ts`](js/sync-identity.ts), [`js/sync-pull-rebroadcast.ts`](js/sync-pull-rebroadcast.ts), [`js/sync-recovery.ts`](js/sync-recovery.ts), [`js/sync-relay-health.ts`](js/sync-relay-health.ts), [`js/sync-runtime.ts`](js/sync-runtime.ts), [`js/sync-schema.ts`](js/sync-schema.ts), [`js/sync-settings-state.ts`](js/sync-settings-state.ts), [`js/sync-subscriptions.ts`](js/sync-subscriptions.ts), [`js/utils.ts`](js/utils.ts)

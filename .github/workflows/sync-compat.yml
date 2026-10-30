@@ -50,7 +50,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        evolu-client: [v7, v8]
+        evolu-client: [v7, v8, v8-mixed]
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -59,7 +59,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: elkimek/getbased-relay
-          ref: 6f237533344308a3032cfb996e3138216d8f454d
+          ref: 2e7979ea5c72d0e6e0652b241d845c3b77762a24
           path: .ci/getbased-relay
           persist-credentials: false
 

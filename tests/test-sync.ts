@@ -3590,6 +3590,10 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
     'vendor/evolu8/Db.worker.js',
     'vendor/evolu8/Shared.worker.js',
     'vendor/evolu8/sqlite3.wasm',
+    'vendor/evolu8/v8.24.1-web3.6.5/evolu-bundle.js',
+    'vendor/evolu8/v8.24.1-web3.6.5/Db.worker.js',
+    'vendor/evolu8/v8.24.1-web3.6.5/Shared.worker.js',
+    'vendor/evolu8/v8.24.1-web3.6.5/sqlite3.wasm',
   ];
   for (const f of vendorFiles) {
     // Node: existence check on disk. Browser would HTTP HEAD; same intent.

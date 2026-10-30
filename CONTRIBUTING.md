@@ -6,7 +6,7 @@ rules. Keep changes focused and preserve unrelated working changes.
 
 ## Run locally
 
-Use Node.js 24 and a modern browser:
+Use Node.js 24.20 or newer within Node.js 24 and a modern browser:
 
 ```bash
 git clone https://github.com/elkimek/get-based

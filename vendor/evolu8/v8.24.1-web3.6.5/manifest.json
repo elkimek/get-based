@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "packages": {
+    "@evolu/common": {
+      "version": "8.24.1",
+      "integrity": "sha512-pC8j8GPCNzW8xBvO9tivnh7cPJ6KgKIn0ClzWhkZVDtQVF1pmYACKnsL7jcUivPqsr/5vwlC4AQCmUs+HJBfnQ=="
+    },
+    "@evolu/web": {
+      "version": "3.6.5",
+      "integrity": "sha512-rW9D6lHuq4lUbdxXZ05oN8wMA70z9Q83zzm5UgVLe/Z4ABBlnbmQYDjJbdcllDO74amYER4hseNRMwFSRhrpmg=="
+    },
+    "@evolu/sqlite-wasm": {
+      "version": "3.54.1-build3",
+      "integrity": "sha512-Q/JPDKxsavAKSu2sUOVX3SF1V+jdbl+3mp3k89n4cKpiradciH53CtlLbG04ewDx/l55DK+RGzWQljNBa93NrA=="
+    },
+    "rolldown": {
+      "version": "1.2.12",
+      "integrity": "sha512-8wafseiaG80xmXSfqidUNqZcylTlhmPZZt+za2m+js2sFZ8dTNlhIOV2WcbIPx2hgwPBJpEUGFAMZ9bgBBLTSQ=="
+    }
+  },
+  "bundles": [
+    {
+      "entry": "scripts/vendor-entries/evolu8.js",
+      "output": "vendor/evolu8/v8.24.1-web3.6.5/evolu-bundle.js",
+      "sha256": "b434f325e5b9bbdb8e4bc07f8efb35866153bfd46bdae84382eb378d20637934"
+    },
+    {
+      "entry": "scripts/vendor-entries/evolu8-db-worker.js",
+      "output": "vendor/evolu8/v8.24.1-web3.6.5/Db.worker.js",
+      "sha256": "bfd99de94cbce3dc8a818fffc2ab75026a570483b8ae63cd190f085a12e6db8d"
+    },
+    {
+      "entry": "scripts/vendor-entries/evolu8-shared-worker.js",
+      "output": "vendor/evolu8/v8.24.1-web3.6.5/Shared.worker.js",
+      "sha256": "5e665907a95073ff06fe6db5ef59cf33e664d2fe85f1834f0cae25312f997ab8"
+    }
+  ],
+  "assets": [
+    {
+      "source": "node_modules/@evolu/sqlite-wasm/dist/wasm/sqlite3.wasm",
+      "output": "vendor/evolu8/v8.24.1-web3.6.5/sqlite3.wasm",
+      "sha256": "c620df45173a97416e2849a853e14320f24b3bb5f05c42313747f87e7eb6967a"
+    },
+    {
+      "source": "node_modules/@evolu/sqlite-wasm/LICENSE",
+      "output": "vendor/evolu8/v8.24.1-web3.6.5/LICENSE",
+      "sha256": "6c219a3b0dc98aa322bbf75f92784e4a88e5f7db86b10c02c4c84b5c729ede62"
+    },
+    {
+      "source": "node_modules/@evolu/sqlite-wasm/THIRD_PARTY_NOTICES.md",
+      "output": "vendor/evolu8/v8.24.1-web3.6.5/THIRD_PARTY_NOTICES.md",
+      "sha256": "2ae3045531b371df1357b6aa1547bde83c0ef0f417a298d017cfdcecddbe37a4"
+    }
+  ]
+}

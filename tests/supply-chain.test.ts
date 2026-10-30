@@ -36,6 +36,9 @@ describe('supply-chain inventory', () => {
       '@evolu/web v8 candidate',
       '@evolu/sqlite-wasm v8 candidate',
       '@noble/curves',
+      '@evolu/common v8',
+      '@evolu/web v8',
+      '@evolu/sqlite-wasm v8',
     ]);
   });
 
@@ -99,7 +102,7 @@ describe('supply-chain inventory', () => {
     });
     const resolved = snapshot.manifests['vendor/components.json'].resolved;
 
-    expect(Object.keys(resolved)).toHaveLength(14);
+    expect(Object.keys(resolved)).toHaveLength(17);
     expect((resolved['@noble/curves'] as { package_url?: unknown } | null | undefined)?.package_url).toBe('pkg:npm/%40noble/curves@2.2.0');
     expect(resolved['@phala/dcap-qvl']).toEqual({
       package_url: 'pkg:npm/%40phala/dcap-qvl@0.6.3',
@@ -117,6 +120,9 @@ describe('supply-chain inventory', () => {
       .toBe('pkg:npm/%40evolu/web@3.1.0');
     expect((resolved['@evolu/sqlite-wasm v8 candidate'] as { package_url?: unknown } | null | undefined)?.package_url)
       .toBe('pkg:npm/%40evolu/sqlite-wasm@2.2.4');
+    expect((resolved['@evolu/common v8'] as {package_url?: unknown})?.package_url).toBe('pkg:npm/%40evolu/common@8.24.1');
+    expect((resolved['@evolu/web v8'] as {package_url?: unknown})?.package_url).toBe('pkg:npm/%40evolu/web@3.6.5');
+    expect((resolved['@evolu/sqlite-wasm v8'] as {package_url?: unknown})?.package_url).toBe('pkg:npm/%40evolu/sqlite-wasm@3.54.1-build3');
     expect(resolved.SQLite).toBeUndefined();
     expect(resolved.Inter).toBeUndefined();
   });

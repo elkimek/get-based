@@ -1,5 +1,6 @@
 import type { SyncProfileRow } from './sync-payload.js';
 import type { DeltaItemRow } from './sync-delta-row-codec.js';
+import type { DevicePersistenceStatus, OwnerReplicationStatus } from './sync-state.js';
 
 interface SyncAppOwner extends Record<string, unknown> { id?: string; mnemonic?: string }
 /** Common runtime operations exposed by both supported Evolu adapters. */
@@ -13,6 +14,8 @@ export interface SyncRuntimeClient {
   restoreAppOwner(mnemonic: string, options?: { reload?: boolean }): unknown;
   subscribeQuery(query: unknown): (callback: () => void) => () => void;
   subscribeError(callback: (error: { type?: string } | null | undefined) => void): () => void;
+  subscribeOwnerSyncStatus?(callback: (status: OwnerReplicationStatus) => void): () => void;
+  subscribeDevicePersistence?(callback: (status: DevicePersistenceStatus) => void): () => void;
   prepareHistoryReset?(): unknown;
   prepareHistoryResetForDisable?(): unknown;
 }
