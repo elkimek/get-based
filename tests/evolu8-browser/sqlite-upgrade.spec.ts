@@ -3,6 +3,9 @@ import {readFileSync} from 'node:fs';
 import {stripTypeScriptTypes} from 'node:module';
 
 const mnemonic = 'oven federal awkward resist alter sound social version apart misery differ power buyer cloud avocado amount lady wedding silent nest fragile blanket oval fame';
+// A separate synthetic owner ensures preceding current-runtime smoke tests
+// cannot pre-create this fixture's old-format database.
+const heldMnemonic = [...Array<string>(23).fill('abandon'), 'art'].join(' ');
 const previousBridge = stripTypeScriptTypes(readFileSync(new URL('../fixtures/evolu8-web-3.1-bridge.ts.txt', import.meta.url), 'utf8'));
 
 test('upgrades an existing Evolu 8 database in place and preserves it across a reload', async ({browserName, context: defaultContext, page: defaultPage, playwright}, info) => {
@@ -58,6 +61,7 @@ test('upgrades an existing Evolu 8 database in place and preserves it across a r
 });
 
 test('refuses a database still held by the previous runtime and recovers its rows after an explicit reload', async ({browserName, context: defaultContext, playwright}, info) => {
+  const relay = String(info.project.use.baseURL).replace(/^http/, 'ws') + '/unavailable-relay';
   const persistent = browserName === 'webkit' ? await playwright.webkit.launchPersistentContext(info.outputPath('held-profile'), {
     ...devices['Desktop Safari'], baseURL: String(info.project.use.baseURL), serviceWorkers: 'block',
   }) : null;
@@ -68,28 +72,32 @@ test('refuses a database still held by the previous runtime and recovers its row
   await oldPage.route(url => url.pathname === '/js/sync-evolu8-candidate.js', route => route.fulfill({contentType: 'text/javascript', body: previousBridge}));
   try {
     await oldPage.goto('/evolu-held-database-fixture');
-    await oldPage.evaluate(async mnemonic => {
+    await oldPage.evaluate(async ({mnemonic, relay}) => {
       const [{createEvolu8SyncClient}, {createEvolu8IdentityVault}, {createSyncSchema, createSyncQueries}] = await Promise.all([
         import('/js/sync-evolu8-candidate.js'), import('/js/sync-evolu8-identity-vault.js'), import('/js/sync-schema.js'),
       ]);
-      await createEvolu8IdentityVault().write({ownerId: 'BSf-8mxNjgk72yD-D7rr1A', mnemonic});
-      const client = await createEvolu8SyncClient({createSyncSchema, relay: 'ws://127.0.0.1:9', reloadUrl: '/', enableLogging: false});
+      const previousBundle = '/vendor/evolu8/evolu-bundle.js';
+      const previous = await import(previousBundle) as typeof import('../../scripts/vendor-entries/evolu8.js');
+      const owner = previous.createAppOwner(previous.mnemonicToOwnerSecret(previous.Mnemonic.orThrow(mnemonic)));
+      await createEvolu8IdentityVault().write({ownerId: owner.id, mnemonic});
+      const client = await createEvolu8SyncClient({createSyncSchema, relay, reloadUrl: '/', enableLogging: false});
       const {profileQuery} = createSyncQueries(client);
       await client.loadQuery(profileQuery);
+      if (client.getQueryRows(profileQuery)?.length) throw new Error('Held-database fixture must start with an empty old database');
       client.subscribeQuery(profileQuery)(() => {});
       client.insert('profileData', {profileId: 'held-fixture', dataJson: '{"synthetic":"preserved"}', syncedAt: '100'});
       const read = async () => {await client.loadQuery(profileQuery); return client.getQueryRows(profileQuery)?.map(row => row.dataJson) ?? [];};
       Reflect.set(globalThis, '__readHeldFixture', read);
       Reflect.set(globalThis, '__heldClient', client);
-    }, mnemonic);
+    }, {mnemonic: heldMnemonic, relay});
     await expect.poll(() => oldPage.evaluate(() => (Reflect.get(globalThis, '__readHeldFixture') as () => Promise<unknown>)())).toEqual(['{"synthetic":"preserved"}']);
     // Initialize the previous runtime in the foreground before opening the
     // competitor; Safari suspends work in background pages during startup.
     page = await context.newPage();
     await page.goto('/evolu-held-database-fixture');
-    await page.evaluate(() => {
+    await page.evaluate(relay => {
       void Promise.all([import('/js/sync-evolu8-candidate.js'), import('/js/sync-schema.js'), import('/js/sync-subscriptions.js'), import('/js/sync-state.js')]).then(async ([factory, schema, subscriptions, state]) => {
-        const client = await factory.createEvolu8SyncClient({createSyncSchema: schema.createSyncSchema, relay: 'ws://127.0.0.1:9', reloadUrl: '/', enableLogging: false});
+        const client = await factory.createEvolu8SyncClient({createSyncSchema: schema.createSyncSchema, relay, reloadUrl: '/', enableLogging: false});
         // As in initSync, the facade can exist before its database is ready.
         // Bind the real error/status ports before awaiting the first query.
         const queries = schema.createSyncQueries(client);
@@ -98,7 +106,7 @@ test('refuses a database still held by the previous runtime and recovers its row
         Reflect.set(globalThis, '__heldClient', client);
         void client.loadQuery(queries.profileQuery).then(() => {Reflect.set(globalThis, '__heldQueryLoaded', true);}).catch(() => {});
       }).catch(() => {Reflect.set(globalThis, '__heldStartRejected', true);});
-    });
+    }, relay);
     await expect.poll(() => page.evaluate(async () => {
       const {getSyncStatus} = await import('/js/sync-state.js'); return getSyncStatus().databaseError;
     }), {timeout: 20_000}).toMatch(/^(DatabaseHeldError|OtherBuildRunningError)$/);
@@ -109,13 +117,13 @@ test('refuses a database still held by the previous runtime and recovers its row
     expect(await oldPage.evaluate(() => (Reflect.get(globalThis, '__readHeldFixture') as () => Promise<unknown>)())).toEqual(['{"synthetic":"preserved"}']);
     await oldPage.close();
     await page.reload();
-    const rows = await page.evaluate(async () => {
+    const rows = await page.evaluate(async relay => {
       const [{createEvolu8SyncClient}, {createSyncSchema, createSyncQueries}] = await Promise.all([import('/js/sync-evolu8-candidate.js'), import('/js/sync-schema.js')]);
-      const client = await createEvolu8SyncClient({createSyncSchema, relay: 'ws://127.0.0.1:9', reloadUrl: '/', enableLogging: false});
+      const client = await createEvolu8SyncClient({createSyncSchema, relay, reloadUrl: '/', enableLogging: false});
       const {profileQuery} = createSyncQueries(client); await client.loadQuery(profileQuery);
       const rows = client.getQueryRows(profileQuery)?.map(row => row.dataJson) ?? [];
       await client[Symbol.asyncDispose]?.(); return rows;
-    });
+    }, relay);
     expect(rows).toEqual(['{"synthetic":"preserved"}']);
   } finally {await page.close(); if (!oldPage.isClosed()) await oldPage.close(); await persistent?.close();}
 });
