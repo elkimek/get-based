@@ -324,8 +324,9 @@ const _origProfileSex = state ? state.profileSex : null;
       /addEventListener\('offline'/.test(syncRecoverySrc));
     assert('sync-recovery.js: listens for online event + kicks sync',
       /addEventListener\('online'[\s\S]{0,200}_kickSync\('online'\)/.test(syncRecoverySrc));
-    assert('sync-recovery.js: offline toast copy matches shipped em-dash wording',
-      syncRecoverySrc.includes('Offline — changes are saved locally and will sync when you reconnect.'));
+    assert('sync-recovery.js: offline toast gives reconnect guidance without an unverified persistence claim',
+      syncRecoverySrc.includes('Offline — Sync will resume when you reconnect. Keep this tab open until then.')
+        && !syncRecoverySrc.includes('changes are saved locally'));
     assert('sync-recovery.js: online toast copy matches shipped em-dash wording',
       syncRecoverySrc.includes('Back online — syncing your changes.'));
     assert('sync-recovery.js: toast guarded against double-firing',
