@@ -63,7 +63,8 @@ test('refuses a database still held by the previous runtime and recovers its row
   }) : null;
   const context = persistent ?? defaultContext;
   await context.route('**/evolu-held-database-fixture', route => route.fulfill({contentType: 'text/html', body: '<!doctype html><title>Synthetic held database</title>'}));
-  const oldPage = await context.newPage(); const page = await context.newPage();
+  const oldPage = persistent?.pages()[0] ?? await context.newPage();
+  let page = oldPage;
   await oldPage.route(url => url.pathname === '/js/sync-evolu8-candidate.js', route => route.fulfill({contentType: 'text/javascript', body: previousBridge}));
   try {
     await oldPage.goto('/evolu-held-database-fixture');
@@ -74,12 +75,17 @@ test('refuses a database still held by the previous runtime and recovers its row
       await createEvolu8IdentityVault().write({ownerId: 'BSf-8mxNjgk72yD-D7rr1A', mnemonic});
       const client = await createEvolu8SyncClient({createSyncSchema, relay: 'ws://127.0.0.1:9', reloadUrl: '/', enableLogging: false});
       const {profileQuery} = createSyncQueries(client);
+      await client.loadQuery(profileQuery);
+      client.subscribeQuery(profileQuery)(() => {});
       client.insert('profileData', {profileId: 'held-fixture', dataJson: '{"synthetic":"preserved"}', syncedAt: '100'});
       const read = async () => {await client.loadQuery(profileQuery); return client.getQueryRows(profileQuery)?.map(row => row.dataJson) ?? [];};
       Reflect.set(globalThis, '__readHeldFixture', read);
       Reflect.set(globalThis, '__heldClient', client);
     }, mnemonic);
     await expect.poll(() => oldPage.evaluate(() => (Reflect.get(globalThis, '__readHeldFixture') as () => Promise<unknown>)())).toEqual(['{"synthetic":"preserved"}']);
+    // Initialize the previous runtime in the foreground before opening the
+    // competitor; Safari suspends work in background pages during startup.
+    page = await context.newPage();
     await page.goto('/evolu-held-database-fixture');
     await page.evaluate(() => {
       void Promise.all([import('/js/sync-evolu8-candidate.js'), import('/js/sync-schema.js'), import('/js/sync-subscriptions.js'), import('/js/sync-state.js')]).then(async ([factory, schema, subscriptions, state]) => {

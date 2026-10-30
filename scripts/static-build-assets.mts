@@ -20,6 +20,16 @@ const PRODUCTION_RAW_MODULE_ROOTS = new Set([
 ]);
 const FATAL_BUILD_WARNINGS = new Set(['INEFFECTIVE_DYNAMIC_IMPORT']);
 
+/** Online compatibility and license files are published without precaching a
+ * second runtime. Existing tabs can still finish loading their frozen graph. */
+export const ONLINE_EVOLU_ASSETS = [
+  '/vendor/evolu8/evolu-bundle.js',
+  '/vendor/evolu8/Db.worker.js',
+  '/vendor/evolu8/Shared.worker.js',
+  '/vendor/evolu8/v8.24.1-web3.6.5/LICENSE',
+  '/vendor/evolu8/v8.24.1-web3.6.5/THIRD_PARTY_NOTICES.md',
+] as const;
+
 export function handleBuildLog<Level, Log>(level: Level, log: Log, defaultHandler: (level: Level, log: Log) => unknown) {
   if (FATAL_BUILD_WARNINGS.has((log as {code?: unknown} | null | undefined)?.code as string)) {
     throw new Error(`Production build rejected ${(log as {code?: unknown}).code}: ${(log as {message?: unknown}).message}`);

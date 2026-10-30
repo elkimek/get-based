@@ -8,7 +8,7 @@ import {staticKitOutputDirectory,copyStaticPublicMetadata} from './static-build-
 import {createStaticBuildFingerprint} from './static-build-inputs.mjs';
 import { buildStaticKit } from '../tooling/svelte/build-static.mjs';
 import { buildCompanionBundle } from './build-companion-bundle.mjs';
-import { pruneSourceModuleAppShell, productionRawModuleAssets } from './static-build-assets.mjs';
+import { ONLINE_EVOLU_ASSETS, pruneSourceModuleAppShell, productionRawModuleAssets } from './static-build-assets.mjs';
 import { inlineServiceWorkerAssets } from './service-worker-source.js';
 import { parseAppShellEntries, summarizeAppShell } from './app-shell-budget.mjs';
 import { staticKitTemplate, externalizeKitBootstrap } from './sveltekit-contracts.mjs';
@@ -47,7 +47,7 @@ export async function buildSvelteKit({ outputRoot = DEFAULT_OUTPUT, buildTag = '
     for (const url of rawAssets) {
       if (!rawUrls.includes(url)) throw new Error(`Raw worker dependency was lost while pruning APP_SHELL: ${url}`);
     }
-    for (const url of rawUrls) {
+    for (const url of new Set([...rawUrls, ...ONLINE_EVOLU_ASSETS])) {
       if (url === '/app' || url === '/index.html') continue;
       const relative = url.slice(1);
       const destination = path.join(staticRoot, relative);

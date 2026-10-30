@@ -10,7 +10,7 @@ import {parseModuleSpecifiers} from '../scripts/architecture-map.mjs';
 import {parseAppShellEntries} from '../scripts/app-shell-budget.mjs';
 import {buildSvelteKit} from '../scripts/build-sveltekit.mjs';
 import {createStaticBuildFingerprint} from '../scripts/static-build-inputs.mjs';
-import {handleBuildLog, productionRawModuleAssets, pruneSourceModuleAppShell} from '../scripts/static-build-assets.mjs';
+import {ONLINE_EVOLU_ASSETS, handleBuildLog, productionRawModuleAssets, pruneSourceModuleAppShell} from '../scripts/static-build-assets.mjs';
 import {inlineServiceWorkerAssets, readServiceWorkerSource} from '../scripts/service-worker-source.js';
 import {enforceSvelteKitResourceBudget, measureSvelteKitResources} from '../scripts/sveltekit-resource-budget.mjs';
 
@@ -358,6 +358,13 @@ describe('shipping SvelteKit production build', () => {
     ]) expect(shell.filter(entry => entry === url), url).toHaveLength(1);
     for (const file of ['evolu-bundle.js', 'Db.worker.js', 'Shared.worker.js']) {
       expect(shell).not.toContain('/vendor/evolu8/' + file);
+    }
+  });
+
+  it('publishes byte-identical previous workers and current licenses outside the new precache', async () => {
+    for (const url of ONLINE_EVOLU_ASSETS) {
+      expect(shell).not.toContain(url);
+      expect(await fs.readFile(path.join(outputRoot, url.slice(1))), url).toEqual(await fs.readFile(url.slice(1)));
     }
   });
 
