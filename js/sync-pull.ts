@@ -271,7 +271,7 @@ async function receiveSync() {
     const restoredProfileIds = getPendingBackupRestoreProfileIds();
     if (restoredProfileIds.length > 0) {
       dbg(`Restore preflight: republishing ${restoredProfileIds.length} restored profile(s)`);
-      const restored = await _pushProfilesById(restoredProfileIds, { force: true });
+      const restored = await _pushProfilesById(restoredProfileIds, { force: true, completeSnapshot: true });
       if (restored.failed > 0 || restored.skipped > 0 || restored.succeeded !== restoredProfileIds.length) {
         logSyncEvent('skip', `Pull deferred — ${restored.succeeded}/${restoredProfileIds.length} restored profiles were republished`);
         return;
@@ -397,7 +397,7 @@ async function receiveSync() {
         const committedPull = await persistPulledImportedData(localKey, profileId, merged, remoteUpdated);
         if (restoreJoinApplied) clearRestoreJoinPending();
 
-        if (await mergePulledProfile(profileId, profile)) {
+        if (await mergePulledProfile(profileId, profile, remoteUpdated)) {
           profilesChanged = true;
           dbg('Merged profile:', profileId, (profile as { name?: unknown }).name);
         }

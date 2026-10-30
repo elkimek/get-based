@@ -28,6 +28,7 @@ import {
 } from './sync-payload-codec.js';
 import { selectSyncedProfile } from './sync-profile-fields.js';
 import { sanitizeNutritionProfileData } from './nutrition-sync-sanitize.js';
+import { withoutDeltaScalarSnapshots } from './sync-scalar-snapshot.js';
 
 export {
   AI_SETTINGS_KEYS, DISPLAY_PREF_SUFFIXES, chatDeletedThreadsKey,
@@ -62,7 +63,7 @@ export function configureSyncPayload(deps: Partial<SyncPayloadDeps> = {}) {
 import { isPhase2CutoverEnabled } from './sync-delta-snapshot.js';
 export { isPhase2CutoverEnabled, enablePhase2CutoverFlag, disablePhase2CutoverFlag } from './sync-delta-snapshot.js';
 
-export async function buildSyncPayload(profileId: string, importedData: unknown, remoteChatData?: unknown) {
+export async function buildSyncPayload(profileId: string, importedData: unknown, remoteChatData?: unknown, options: { scalarRowsOnly?: boolean; scalarSnapshots?: readonly string[] } = {}) {
   const profiles = syncPayloadDeps.getProfiles();
   const profile = selectSyncedProfile(profiles.find(p => p.id === profileId));
   const aiSettings = await collectAISettings();
@@ -82,7 +83,7 @@ export async function buildSyncPayload(profileId: string, importedData: unknown,
   const cutover = isPhase2CutoverEnabled(profileId);
   const inner = JSON.stringify({
     _v: cutover ? 4 : 3,
-    importedData: cutover ? undefined : safeImported,
+    importedData: cutover ? undefined : options.scalarRowsOnly ? withoutDeltaScalarSnapshots(safeImported, options.scalarSnapshots) : safeImported,
     profile: profile || null,
     aiSettings: Object.keys(aiSettings).length > 0 ? aiSettings : undefined,
     chatData: chatData || undefined,

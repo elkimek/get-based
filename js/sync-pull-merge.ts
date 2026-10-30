@@ -37,14 +37,16 @@ import {
 import { encryptedSetItem, encryptedGetItem } from './crypto.js';
 import { mergeImportedData, localHasRowsRemoteLacks, preserveFreshLocalLabEntries } from './data-merge.js';
 import { parseSyncPayload } from './sync-payload.js';
-import { _mergeItemRowsIntoImported } from './sync-delta.js';
+import { _mergeItemRowsIntoImported, acknowledgePulledScalarSnapshots } from './sync-delta.js';
 import { isRestoreJoinPending } from './sync-identity.js';
 import { CONTEXT_REVIEW_RANGES } from './biology-score-context-contract.js';
 import { SYNC_PROFILE_FIELDS } from './sync-profile-fields.js';
 import { isDemoProfileRecord } from './profile-sync-policy.js';
+import { getSyncDirtyToken } from './sync-dirty-state.js';
+import { isSupersededProfileMetadata } from './sync-origin-state.js';
 import { sanitizeNutritionProfileData } from './nutrition-sync-sanitize.js';
 
-const pullBaselines = new WeakMap<object, { stored: MaybePulledData; live: MaybePulledData }>();
+const pullBaselines = new WeakMap<object, { stored: MaybePulledData; live: MaybePulledData; observedAt: number }>();
 
 export const PROFILE_ID_RE = /^[a-zA-Z0-9_-]+$/;
 
@@ -214,6 +216,7 @@ export function captureSyncPullBaseline(profileId: string): Promise<SyncPullBase
 }
 
 export async function mergePulledImportedData(profileId: string, importedData: PulledImportedData | null, options: { debug?: (...args: unknown[]) => unknown; remoteUpdated?: number; earlyBaseline?: SyncPullBaseline } = {}) {
+  const observedAt = Date.now();
   const { remoteUpdated = 0 } = options;
   const localKey = profileStorageKey(profileId, 'imported');
   // Public helper callers retain their existing capture behavior. The receive
@@ -287,7 +290,7 @@ export async function mergePulledImportedData(profileId: string, importedData: P
     && localHasRowsRemoteLacks(importedData, localImportedForMerge);
   const localDataChanged = !importedDataMatches(localImportedBeforeMerge, merged);
 
-  pullBaselines.set(merged, { stored, live });
+  pullBaselines.set(merged, { stored, live, observedAt });
   return {
     localKey,
     localImportedForMerge,
@@ -303,6 +306,7 @@ export async function mergePulledImportedData(profileId: string, importedData: P
 export async function persistPulledImportedData(localKey: string, profileId: string, merged: PulledImportedData, remoteUpdated: number) {
   return queueProfileDataWrite(profileId, async () => {
     const baseline = pullBaselines.get(merged);
+    const observedAt = baseline?.observedAt ?? Date.now();
     const raw = await encryptedGetItem(localKey, { throwOnDecryptError: true });
     const latest = raw ? JSON.parse(raw) as PulledImportedData : null;
     // Rebase edits committed while the row overlay was running, under the same
@@ -331,13 +335,15 @@ export async function persistPulledImportedData(localKey: string, profileId: str
       rememberProfileData(live, result.baseline);
       invalidateActiveDataCache();
     }
+    await acknowledgePulledScalarSnapshots(profileId, committed, observedAt);
     return { needsRebroadcast };
   });
 }
 
-export async function mergePulledProfile(profileId: string, profile: unknown) {
+export async function mergePulledProfile(profileId: string, profile: unknown, remoteUpdated = 0) {
   if (!profile || typeof profile !== 'object') return false;
   if (isDemoProfileRecord(profile)) return false;
+  if (getSyncDirtyToken(profileId) || isSupersededProfileMetadata(profileId, remoteUpdated, profile)) return false;
   const profiles = getProfiles();
   const idx = profiles.findIndex(p => p.id === profileId);
   if (idx >= 0) {

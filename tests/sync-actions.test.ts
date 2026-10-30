@@ -430,7 +430,7 @@ describe('sync action profile dependencies', () => {
       expect(pushProfile).toHaveBeenCalledWith(
         profileId,
         { entries: [], notes: [] },
-        { force: true },
+        { force: true, completeSnapshot: true },
       );
       expect(resetLocalSyncHistoryForRelayRebuild).toHaveBeenCalledOnce();
       expect(resetLocalSyncHistoryForRelayRebuild.mock.invocationCallOrder[0])

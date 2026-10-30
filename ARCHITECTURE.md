@@ -352,6 +352,20 @@ downgrade is not a database rollback: previous web runtimes cannot open every
 new-format database. The v7 recovery path always retains its separate runtime and
 database identity.
 
+Ordinary v3 profile updates omit unchanged scalar shadows and carry scalar fields
+in per-field delta rows. Edited scalars also retain their blob snapshot until
+query subscriptions expose the corresponding rows. Updates retain array, map
+and unknown extension snapshots in the profile envelope.
+An unrelated save must not assign a newer whole-profile clock to an unchanged
+scalar received from another device. Successful durable pulls acknowledge only
+matching scalar rows; pending local edits and newer committed plans remain
+eligible for publication. First publication and explicit resend, backup recovery
+or relay rebuild retain complete snapshots. Bypassing an in-flight push guard
+alone does not request a complete snapshot. Delta planning failures leave the
+local dirty marker intact and stop publication. Metadata pulls defer pending
+local edits and ignore only exact cached versions replaced by successful local
+pushes; different remote versions remain eligible regardless of clock skew.
+
 The static assembler externalizes Kit's classic bootstrap to satisfy the existing
 CSP without permitting inline executable scripts. It copies only declared public
 assets, retains `/`, `/index.html`, `/app` and `/app/`, and uses the existing

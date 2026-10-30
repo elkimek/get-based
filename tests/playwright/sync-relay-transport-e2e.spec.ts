@@ -567,6 +567,48 @@ test('real relay converges devices, resists no-op bloat, recovers offline, and r
   }
 });
 
+test('paused note edits do not overwrite context changed on another device', async ({ browser }) => {
+  test.setTimeout(150_000);
+  const devices: Array<Awaited<ReturnType<typeof createDevice>>> = [];
+  try {
+    const a = await createDevice(browser, 'device A'); devices.push(a);
+    await setSyntheticData(a.page, 'seed');
+    const identity = await enableNewIdentity(a.page);
+    const b = await createDevice(browser, 'device B'); devices.push(b);
+    await joinIdentity(b.page, identity.mnemonic, identity.ownerId);
+    await waitForContext(b.page, BASELINE_CONTEXT);
+    await setSyntheticData(b.page, 'update-a');
+    await syncNow(b.page); await waitForContext(a.page, UPDATED_CONTEXT);
+    expect(await b.page.evaluate(() => import('/js/sync.js').then(sync => sync.pauseSync()))).toBe(true);
+    await setSyntheticData(a.page, 'offline-context'); await syncNow(a.page);
+    await waitForStableRelayStorage(a.page);
+    await expect.poll(() => contextNotes(b.page)).toBe(UPDATED_CONTEXT);
+    await setSyntheticData(b.page, 'concurrent-b');
+    expect(await b.page.evaluate(() => import('/js/sync.js').then(sync => sync.enableSync()))).toBe(true);
+    for (const device of [a, b]) {
+      await waitForContext(device.page, OFFLINE_CONTEXT);
+      await waitForNotes(device.page, ['baseline-note', 'concurrent-b', 'from-device-a']);
+    }
+    await b.page.evaluate(async () => {
+      const { updateProfileMeta } = await import('/js/profile.js');
+      await updateProfileMeta('default', { name: 'Relay metadata edit', tags: ['transport-e2e'] });
+    });
+    await syncNow(b.page);
+    for (const device of [a, b]) {
+      await expect.poll(() => device.page.evaluate(async () => {
+        const { getProfiles } = await import('/js/profile.js');
+        return getProfiles().find(profile => profile.id === 'default');
+      }), { timeout: 30_000 }).toMatchObject({ name: 'Relay metadata edit', tags: ['transport-e2e'] });
+    }
+  } finally {
+    const first = devices[0]?.page;
+    if (first && !first.isClosed()) await first.evaluate(async () => {
+      try { await (await import('/js/sync.js')).compactOwnerSelfServe(); } catch {}
+    }).catch(() => {});
+    for (const device of devices.reverse()) await device.context.close();
+  }
+});
+
 test('restored profiles survive old tombstones and a new sync identity', async ({ browser }) => {
   test.setTimeout(300_000);
   const devices: Array<Awaited<ReturnType<typeof createDevice>>> = [];

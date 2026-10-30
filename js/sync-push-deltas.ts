@@ -15,6 +15,7 @@ import {
 export async function planProfileDeltas(profileId: string, importedData: DeltaImportedData | null | undefined) {
   const deltaPlans: NamedDeltaPlan[] = [];
   let deltaOpCount = 0;
+  const planningErrors: string[] = [];
   if (!importedData || typeof importedData !== 'object') {
     return { deltaPlans, deltaOpCount };
   }
@@ -38,6 +39,7 @@ export async function planProfileDeltas(profileId: string, importedData: DeltaIm
         deltaOpCount += plan.ops.length;
       }
     } catch (e) {
+      planningErrors.push(arrayName);
       console.warn(`[sync] delta-plan ${arrayName} failed:`, getErrorMessage(e, e));
     }
   }
@@ -54,6 +56,7 @@ export async function planProfileDeltas(profileId: string, importedData: DeltaIm
         deltaOpCount += plan.ops.length;
       }
     } catch (e) {
+      planningErrors.push(mapName);
       console.warn(`[sync] delta-plan map ${mapName} failed:`, getErrorMessage(e, e));
     }
   }
@@ -78,11 +81,12 @@ export async function planProfileDeltas(profileId: string, importedData: DeltaIm
         deltaOpCount += plan.ops.length;
       }
     } catch (e) {
+      planningErrors.push(scalarName);
       console.warn(`[sync] delta-plan scalar ${scalarName} failed:`, getErrorMessage(e, e));
     }
   }
 
-  return { deltaPlans, deltaOpCount };
+  return { deltaPlans, deltaOpCount, ...(planningErrors.length ? { planningErrors } : {}) };
 }
 
 export function applyCommittedDeltas(
@@ -90,12 +94,14 @@ export function applyCommittedDeltas(
   deltaPlans: readonly NamedDeltaPlan[], deltaOpCount: number, debug: unknown,
 ) {
   const _debug = typeof debug === 'function' ? debug : () => {};
+  let allCommitted = true;
   // Advance a surface snapshot only after all its row mutations succeed.
   if (deltaPlans.length > 0) {
     let snapshotsAdvanced = 0;
     for (const { arrayName, plan } of deltaPlans) {
       // A failed row must remain eligible for the next diff.
       const allOk = _applyArrayDelta(arrayName, plan);
+      if (!allOk) allCommitted = false;
       if (allOk) {
         // A delayed completion cannot overwrite a fresher committed snapshot.
         const wrote = _writeDeltaSnapshot(profileId, arrayName, plan.next, plan.plannedAt);
@@ -106,4 +112,5 @@ export function applyCommittedDeltas(
   }
   // Empty plans still measure the overhead of shipping an unchanged blob.
   _recordPushTelemetry(profileId, (dataJson || '').length, deltaPlans);
+  return allCommitted;
 }

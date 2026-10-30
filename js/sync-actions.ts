@@ -17,7 +17,7 @@ import { getProfileSyncBlockReason } from './profile-sync-policy.js';
 export { cleanStorage } from './sync-storage-cleanup.js';
 export { onChatSaved, onDataSaved, onProfileSaved } from './sync-save-hooks.js';
 
-export interface SyncPushOptions { force?: boolean; allowTombstoneResurrection?: boolean }
+export interface SyncPushOptions { force?: boolean; completeSnapshot?: boolean; allowTombstoneResurrection?: boolean }
 export interface SyncPushResult { ok?: boolean; skipped?: boolean; reason?: string; error?: unknown }
 type PushProfile = (profileId: string | null | undefined, data: unknown, options?: SyncPushOptions) => Promise<SyncPushResult | null | undefined | void>;
 
@@ -103,7 +103,7 @@ export async function forceResendCurrentProfile() {
     return;
   }
   logSyncEvent('forced', `Force resend ${state.currentProfile?.slice(0,8) || '?'}`);
-  await _pushProfile(state.currentProfile, state.importedData, { force: true });
+  await _pushProfile(state.currentProfile, state.importedData, { force: true, completeSnapshot: true });
   pushContextToGateway();
 }
 
@@ -289,7 +289,7 @@ export async function rebuildOwnerRelayState() {
   const summary = { total: snapshots.length, succeeded: 0, failed: 0, skipped: 0 };
   for (const { profile, importedData } of snapshots) {
     try {
-      const result = (await _pushProfile(profile.id, importedData, { force: true })) as SyncPushResult | null | undefined;
+      const result = (await _pushProfile(profile.id, importedData, { force: true, completeSnapshot: true })) as SyncPushResult | null | undefined;
       if (result?.skipped) summary.skipped++;
       else if (result?.ok === true) summary.succeeded++;
       else summary.failed++;

@@ -22,9 +22,10 @@ import { applyCommittedDeltas, planProfileDeltas } from './sync-push-deltas.js';
 import {
   clearSyncProfileDirty, discardSyncProfileDirty, getSyncDirtyToken,
 } from './sync-dirty-state.js';
-import { noteLocalSyncCommit } from './sync-origin-state.js';
+import { noteLocalSyncCommit, noteSupersededProfileMetadata } from './sync-origin-state.js';
 import { getProfileSyncBlockReason } from './profile-sync-policy.js';
 import { sanitizeNutritionProfileData } from './nutrition-sync-sanitize.js';
+import { equivalentSyncPayloadWithoutScalars } from './sync-scalar-snapshot.js';
 
 type SyncPushClient = Pick<SyncRuntimeClient, 'insert' | 'update'> & {
   getQueryRows(query: unknown): readonly SyncProfileRow[] | null | undefined;
@@ -160,27 +161,42 @@ export async function pushProfile(profileId: unknown, importedData: unknown, opt
     // Preserve chat from every available replica row before replacing the
     // profile blob, including duplicates left by a restore/create race.
     let remoteChatData: SyncChatData | null = null;
+    const supersededMetadata: { syncedAt?: unknown; profile?: unknown }[] = [];
     for (const row of rows || []) {
       if (row?.profileId !== profileId) continue;
       try {
         const parsed = await parseSyncPayload(row.dataJson);
+        supersededMetadata.push({ syncedAt: row.syncedAt, profile: parsed.profile });
         if (parsed.chatData) remoteChatData = (await import('./sync-chat-merge.js')).mergeChatData(remoteChatData, parsed.chatData as SyncChatData);
       } catch {
         logSyncEvent('skip', 'Invalid chat replica skipped');
       }
     }
-    const dataJson = await buildSyncPayload(profileId, outboundData, remoteChatData);
-
     const sunCount = Array.isArray(outboundData?.sunSessions) ? outboundData.sunSessions.length : 0;
     const devCount = Array.isArray(outboundData?.lightDevices) ? outboundData.lightDevices.length : 0;
-    const { deltaPlans, deltaOpCount } = await planProfileDeltas(profileId, outboundData);
+    const { deltaPlans, deltaOpCount, planningErrors } = await planProfileDeltas(profileId, outboundData);
+    if (planningErrors?.length) {
+      updateSyncStatus({ push: 'error', lastError: { type: 'DeltaPlanError', message: 'Sync could not prepare a complete update. Your local changes are still queued.', at: Date.now() } });
+      _syncing = false;
+      return { ok: false, skipped: true, reason: 'delta-plan-failed' };
+    }
+    // Dirty flushes also use force to bypass a stuck in-flight guard. That
+    // must not give unrelated stale scalars the profile blob's newer clock.
+    // Complete snapshots are reserved for explicit resend/recovery actions.
+    const dataJson = await buildSyncPayload(profileId, outboundData, remoteChatData, {
+      scalarRowsOnly: !!existing && !opts.completeSnapshot,
+      // Keep genuinely edited scalars in the blob too: query subscriptions
+      // can expose its commit before the corresponding item rows arrive.
+      scalarSnapshots: deltaPlans.map(({ arrayName }) => arrayName),
+    });
 
     // Evolu's relay quota measures append-only message history, not the size
     // of the current profile. Updating an identical row therefore consumes
     // storage even though the user added nothing. Compare the complete wire
     // payload and delta plan before assigning a new syncedAt clock. Explicit
     // force pushes bypass this guard for relay rebuild/recovery workflows.
-    if (!opts.force && existing?.dataJson === dataJson && deltaOpCount === 0) {
+    if (!opts.force && existing && deltaOpCount === 0
+        && (existing.dataJson === dataJson || await equivalentSyncPayloadWithoutScalars(existing.dataJson, dataJson))) {
       const skipMsg = `No changes to push ${profileId.slice(0,8)}`;
       _debug(skipMsg);
       logSyncEvent('skip', skipMsg);
@@ -209,6 +225,11 @@ export async function pushProfile(profileId: unknown, importedData: unknown, opt
       };
       const onComplete = () => {
         completed = true;
+        if (!applyCommittedDeltas(profileId, dataJson, deltaPlans, deltaOpCount, _debug)) {
+          updateSyncStatus({ push: 'error', pushStartedAt: null, lastError: { type: 'DeltaCommitError', message: 'Sync could not commit a complete update. Your local changes are still queued.', at: Date.now() } });
+          finish({ ok: false, reason: 'delta-commit-failed' });
+          return;
+        }
         const elapsed = Date.now() - queuedAt;
         updateSyncStatus({
           push: 'confirmed', pushStartedAt: null, pushConfirmedAt: Date.now(), lastError: null,
@@ -232,12 +253,12 @@ export async function pushProfile(profileId: unknown, importedData: unknown, opt
         const syncedAtMs = new Date(syncedAt).getTime();
         localStorage.setItem(`labcharts-${profileId}-sync-ts`, String(syncedAtMs));
         noteLocalSyncCommit(profileId, syncedAtMs);
+        noteSupersededProfileMetadata(profileId, supersededMetadata);
         // Track bytes immediately for the relay-storage estimate, then replace
         // it with authoritative storedBytes + configured quota via the
         // debounced self-service probe below.
         trackPushBytes((dataJson || '').length);
         scheduleOwnerStorageRefresh();
-        applyCommittedDeltas(profileId, dataJson, deltaPlans, deltaOpCount, _debug);
         clearSyncProfileDirty(profileId, dirtyToken);
         finish({ ok: true });
       };
