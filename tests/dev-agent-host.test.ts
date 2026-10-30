@@ -48,7 +48,7 @@ describe('development agent discovery', () => {
     child.stdout.emit('data', 'getbased Companion listening at http://127.0.0.1:8324\n');
     expect(controller.describe().agents[0]).toMatchObject({
       status: 'available', version: 'codex-cli 0.150.1', protocolVersion: 5,
-      toolContractVersion: 26,
+      toolContractVersion: 60,
       capabilities: expect.arrayContaining(['companion-control', 'execution-targets']),
       companionVersion: '1.3.2', runtimeMode: 'temporary',
     });

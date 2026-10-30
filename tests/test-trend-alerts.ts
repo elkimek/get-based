@@ -641,7 +641,8 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange: _getEffectiveR
   const dashboardRenderersSrc = read('js/dashboard-widget-renderers.js');
   const dashboardLabRenderersSrc = read('js/dashboard-lab-widget-renderers.js');
   const lensPagesSrc = read('js/lens-pages.js');
-  const viewsRuntimeSrc = read('js/views-runtime.js');
+  const viewsRuntimeSrc = read('js/navigation-views.js');
+  assert('Legacy view runtime forwards the canonical navigation namespace', read('js/views-runtime.js').includes("export * from './navigation-views.js';"));
   const markersViewSrc = read('js/components/DashboardLabMarkers.svelte');
   const keyTrendsViewSrc = read('js/components/DashboardKeyTrends.svelte');
   const pickerViewSrc = read('js/dashboard-picker-presentation.js');
@@ -766,7 +767,7 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange: _getEffectiveR
     dashboardWidgetsSrc.includes("title: 'Genetic Modifiers'") &&
     dashboardWidgetsSrc.includes("description: 'Curated SNP context relevant to labs and goals'"));
   assert('Dashboard adds biometrics inside the Biometrics Overview widget',
-    dashboardControlsSrc.includes('dashboardBiometricSelectionKey') &&
+    dashboardControlsSrc.includes('getDashboardBiometricSelection') && dashboardControlsSrc.includes('saveDashboardBiometricSelection') &&
     dashboardControlsSrc.includes('addDashboardBiometricMetric') &&
     dashboardControlsSrc.includes('removeDashboardBiometricMetric') &&
     dashboardWidgetsSrc.includes("'wearables',") &&

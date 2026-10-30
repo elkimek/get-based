@@ -21,7 +21,7 @@ it.each([
 });
 
 it.each([null, 'private text', [], { message: 'private text', codexErrorInfo: { unknown: 'secret-token' } }, { message: 'unsupported_value: private text' }])('keeps unclassified turn errors private: %j', error => {
-  expect(codexTurnErrorMessage(error)).toBe(cleanError(null));
+  expect(codexTurnErrorMessage(error)).toBe('The selected agent could not complete this response. Try again, or choose another model in AI settings.');
 });
 
 it('keeps existing application-owned errors and recognizes safe codes in RPC errors', () => {

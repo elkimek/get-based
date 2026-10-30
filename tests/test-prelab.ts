@@ -59,7 +59,7 @@ const reportBuilderAISrc = read('js/components/ReportBuilderAI.svelte');
   assert('No-data header includes profile context', labCtxSrc.includes("Profile context (sex:"),
     'No-data header should say "Profile context" not "Lab data"');
   assert('No-data NOTE recommends tests and respects Insight cards source',
-    labCtxSrc.includes('recommend which blood panels') &&
+    labCtxSrc.includes('discuss which blood panels and specific tests might be useful, explaining their relevance.') && labCtxSrc.includes('Do not assume that unavailable results have never been imported.') &&
       labCtxSrc.includes('The more Insight Context Cards') &&
       labCtxSrc.includes('Insight Context Cards are turned off by the user'),
     'NOTE should recommend panels, gently nudge enabled cards, and respect disabled cards');

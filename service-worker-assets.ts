@@ -420,7 +420,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/components/KnowledgeBaseLibraryOptions.svelte.html.js', '/js/components/KnowledgeBaseLibraryCreate.svelte.html.js', '/js/lens-url.js', '/js/lens.js',
   '/js/lens-local.js', '/js/lens-local-embedder-config.js', '/js/lens-local-ingest.js', '/js/lens-local-library-registry.js',
   '/js/lens-local-store.js', '/js/lens-local-worker.js', '/js/lens-local-worker-dispatch.js', '/js/lens-local-lock.js', '/js/lens-local-library-session.js',
-  '/js/knowledge-file-descriptor.js', '/js/knowledge-file-selection.js', '/js/knowledge-file-inputs.js', '/js/knowledge-file-review.js', '/js/knowledge-file-preview.js', '/js/components/KnowledgeFilePreview.svelte.native.js',
+  '/js/knowledge-file-descriptor.js', '/js/knowledge-file-selection.js', '/js/knowledge-file-inputs.js',
   '/js/knowledge-import-model.js', '/js/knowledge-import-source.js', '/js/knowledge-import-commit.js', '/js/knowledge-import-records.js', '/js/knowledge-import-jobs.js',
   '/js/knowledge-document-model.js', '/js/knowledge-document-source.js', '/js/knowledge-document-commit.js', '/js/knowledge-document-records.js', '/js/knowledge-change-authorization.js', '/js/knowledge-reviewed-changes.js',
   '/js/knowledge-library-source.js', '/js/knowledge-library-proposals.js', '/js/knowledge-library-commit.js', '/js/knowledge-library-records.js', '/js/knowledge-library-query.js', '/js/knowledge-library-metadata.js',

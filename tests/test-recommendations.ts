@@ -32,12 +32,15 @@ const _realFetch = globalThis.fetch;
   globalThis.fetch = createSourceFetch(read, _realFetch);
   const recSrc = await fetchWithRetry('js/recommendations.js');
   const recProductsSrc = await fetchWithRetry('js/recommendations-products.ts');
+  const recPreferencesSrc = await fetchWithRetry('js/recommendation-preferences.ts');
+  const productsApi = await import('../js/recommendations-products.js');
+  const viewsApi = await import('../js/views.js');
+  const viewsRuntimeApi = await import('../js/views-runtime.js');
   const recRuntimeSrc = await fetchWithRetry('js/recommendations-runtime.js');
   const recRegionSrc = await fetchWithRetry('js/recommendations-region.js');
   const mainSrc = await fetchWithRetry('js/main.js');
   const chatSendSrc = await fetchWithRetry('js/chat-send.js');
-  const viewsSrc = await fetchWithRetry('js/views.js');
-  const viewsRuntimeSrc = await fetchWithRetry('js/views-runtime.js');
+  const viewsSrc = await fetchWithRetry('js/navigation-views.js');
   const chartCardSrc = read('js/components/CategoryChartCard.svelte');
   const sidebarPagesSrc = read('js/components/SidebarNavigation.svelte');
   const recommendationDelegatesSrc = read('js/recommendation-action-delegates.js');
@@ -66,8 +69,8 @@ const _realFetch = globalThis.fetch;
 
   assert('recommendations.js exports loadCatalog', recSrc.includes('export async function loadCatalog'));
   assert('recommendations.js re-exports product helper facade', recSrc.includes("from './recommendations-products.js'"));
-  assert('recommendations-products.js exports isProductRecsEnabled', recProductsSrc.includes('export function isProductRecsEnabled'));
-  assert('recommendations-products.js exports setProductRecsEnabled', recProductsSrc.includes('export function setProductRecsEnabled'));
+  assert('recommendations-products.js exports isProductRecsEnabled', typeof productsApi.isProductRecsEnabled === 'function' && recPreferencesSrc.includes('export function isProductRecsEnabled'));
+  assert('recommendations-products.js exports setProductRecsEnabled', typeof productsApi.setProductRecsEnabled === 'function' && recPreferencesSrc.includes('export function setProductRecsEnabled'));
   assert('recommendations-products.js exports hasSeenDisclosure', recProductsSrc.includes('export function hasSeenDisclosure'));
   assert('recommendations-products.js exports markDisclosureSeen', recProductsSrc.includes('export function markDisclosureSeen'));
   assert('recommendations-products.js exports getUserRegion', recProductsSrc.includes('export function getUserRegion'));
@@ -273,10 +276,10 @@ const _realFetch = globalThis.fetch;
     navSrc.includes("return _navActionAttrs('navigate', { route })") &&
     recNavMarkup.includes('nav-item-label">Tips'));
   assert('Recommendations sidebar item does not open Settings', !recNavMarkup.includes('openSettingsModal'));
-  assert('views.js exposes dedicated Recommendations page', viewsSrc.includes('showRecommendations,') && viewsSrc.includes('openRecommendationDetail,') && viewsRuntimeSrc.includes('export function showRecommendations') && viewsRuntimeSrc.includes('export function openRecommendationDetail'));
+  assert('views.js exposes dedicated Recommendations page', typeof viewsApi.showRecommendations === 'function' && typeof viewsApi.openRecommendationDetail === 'function' && viewsApi.showRecommendations === viewsRuntimeApi.showRecommendations && viewsApi.openRecommendationDetail === viewsRuntimeApi.openRecommendationDetail);
   assert('views.js delegates recommendation actions to recommendation-actions.js',
-    viewsSrc.includes("from './recommendation-actions.js'") &&
-    recommendationActionsSrc.includes('export function createRecommendationActions'));
+    viewsSrc.includes('const module = await loadDashboardRecommendations();') &&
+    viewsSrc.includes('module.createRecommendationActions') && recommendationActionsSrc.includes('export function createRecommendationActions'));
   assert('recommendation-actions.js delegates browser globals through recommendations runtime',
     recommendationActionsSrc.includes("from './recommendations-runtime.js'")
       && recommendationActionsSrc.includes('initRecommendationDetailDelegates') && recommendationDelegatesSrc.includes("from './recommendations-runtime.js'") && recommendationDelegatesSrc.includes('closeRecommendationsModal()') && !/\bwindow(\.|\s*\[)/.test(recommendationDelegatesSrc)

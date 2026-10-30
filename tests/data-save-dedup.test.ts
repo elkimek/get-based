@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { encryptedGetItem, encryptedRemoveItem } from '../js/crypto.js';
+import { encryptedGetItem, encryptedRemoveItem, encryptedSetItem } from '../js/crypto.js';
 import { saveImportedData, saveImportedDataForProfile } from '../js/data.js';
 import { profileStorageKey } from '../js/profile.js';
 import { state } from '../js/state.js';
@@ -12,6 +12,7 @@ describe('profile data persistence deduplication', () => {
   afterEach(async () => {
     vi.restoreAllMocks();
     await encryptedRemoveItem(IMPORTED_KEY);
+    await encryptedRemoveItem('labcharts-profiles');
     localStorage.clear();
   });
 
@@ -33,6 +34,7 @@ describe('profile data persistence deduplication', () => {
     }];
 
     try {
+      await encryptedSetItem('labcharts-profiles', JSON.stringify(state.profiles));
       const now = vi.spyOn(Date, 'now').mockReturnValue(new Date('2026-08-06T10:00:00Z').getTime());
       await expect(saveImportedData({ skipSync: true })).resolves.toBe(true);
       const firstTimestamp = state.profiles[0].lastUpdated;

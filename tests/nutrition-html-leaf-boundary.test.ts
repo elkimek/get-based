@@ -111,6 +111,7 @@ const reviewedLeafEdits: Readonly<Record<string, readonly (readonly [string, str
     ]
   ],
   "js/components/NutritionMealEditor.svelte": [
+    ["      {#if view.canAttachReferencePhotos}\n        <button type=\"button\" class={button} data-nutrition-action=\"choose-reference-photos\">Add reference photos</button>\n        <input id=\"nutrition-reference-photo-input\" type=\"file\" accept=\"image/jpeg,image/png,image/webp,image/gif\" multiple hidden aria-label=\"Add reference photos to this saved meal\"/>\n        <p class={copy}>Reference photos keep the existing meal and photos. No analysis runs. Choosing photos for a new analysis replaces the estimate and photo set when you Save.</p>\n      {/if}\n", ""],
     [
       "  import { button, readableCopy as copy, field, input, editorSummary as summary, focus , textAction } from '../nutrition-view-classes.js';",
       "  import { button, copy, field, input, editorSummary as summary, focus , textAction } from '../nutrition-view-classes.js';"

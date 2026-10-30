@@ -357,7 +357,7 @@ type FixtureMeasurementStream = Omit<NonNullable<Parameters<typeof lockCameraFor
       lightAiSaveHooksSrc.includes('suggestRoomSourceFromSpectrum') &&
       lightAiSaveHooksSrc.includes('refreshLightEnvironmentAssessment') &&
       lightAiSaveHooksSrc.includes('solarZenithAngle') &&
-      lightToolsUiHooksSrc.includes("import { navigate } from './views-runtime.js';") &&
+      lightToolsUiHooksSrc.includes("import { navigate } from './navigation-views.js';") &&
       lightToolsUiHooksSrc.includes('configureLightTools({ navigate })') &&
       appLightSunSrc.includes('configureLightTools({ navigate });') &&
       !appUiShellSrc.includes("import './light-tools-ui-hooks.js';") &&

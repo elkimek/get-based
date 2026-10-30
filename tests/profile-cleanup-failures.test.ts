@@ -20,7 +20,7 @@ it.each(['deleteWearablesDB','deleteCycleDB','deleteNutritionDB'])('does not era
 });
 it.each(['deleteWearablesDB','deleteCycleDB','deleteNutritionDB'])('waits for %s before erasing canonical data',async key=>{
  let release: (() => void) | undefined;deps[key as keyof MockCleanupDependencies].mockImplementation(()=>new Promise<void>(r=>{release=r;}));const pending=clearProfileStorage('target');await Promise.resolve();expect(deps.encryptedRemoveItem).not.toHaveBeenCalled();
- release!();await pending;expect(deps.encryptedRemoveItem).toHaveBeenCalledTimes(2);expect(localStorage.getItem('labcharts-target-chat-orphan')).toBeNull();
+ release!();await pending;expect(deps.encryptedRemoveItem.mock.calls).toEqual(['imported', 'imported-corrupt', 'agent-draft-claims', 'persona-transaction'].map(suffix => [`labcharts-target-${suffix}`, { throwOnBlobError: true }]));expect(localStorage.getItem('labcharts-target-chat-orphan')).toBeNull();
 });
 it.each(['imported','imported-corrupt'])('retains ancillary keys when %s blob deletion fails',async suffix=>{
  deps.encryptedRemoveItem.mockImplementation(async key=>{if(key===`labcharts-target-${suffix}`) throw Error('blob');});

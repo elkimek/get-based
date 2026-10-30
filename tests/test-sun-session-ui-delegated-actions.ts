@@ -91,7 +91,7 @@ assert('sun-session-ui runtime render and navigate callbacks are startup-wired',
     aiHookSrc.includes("configureSunSessionUI({ getSessionAIDetailView: (session) => getSunSessionAIView(session, 'detail') })") &&
     lightSunAiHooksSrc.includes("import { maybeAnalyzeSessionAfterFinish } from './sun-ai-analysis.js';") &&
     lightSunAiHooksSrc.includes('configureSunSessionsStore({ maybeAnalyzeSessionAfterFinish })') &&
-    uiHookSrc.includes("import { navigate } from './views-runtime.js';") &&
+    uiHookSrc.includes("import { navigate } from './navigation-views.js';") &&
     uiHookSrc.includes('configureSunSessionUI({ navigate })') &&
     appLightSunSrc.includes("import './sun-session-ai-render-hooks.js';") &&
     appLightSunSrc.includes('configureSunSessionUI({ navigate });') &&

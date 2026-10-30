@@ -336,7 +336,10 @@ export function createDataCore(ports: DataCorePorts) {
         if (options.activeSave && ports.state.currentProfile === profileId) {
           dataContextDeps.invalidateLabContextCache?.();
           (0, ports.onDataSaved)(options);
-        } else if (!options?.skipSync) (0, ports.onProfileSaved)(profileId, persisted);
+        } else if (!options?.skipSync) {
+          if (options.immediate) (0, ports.onProfileSaved)(profileId, persisted, { immediate: true });
+          else (0, ports.onProfileSaved)(profileId, persisted);
+        }
       } catch (e) {
         if ((0, ports.isDebugMode)()) console.warn('Post-save hook failed after data was persisted:', e);
       }

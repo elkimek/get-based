@@ -182,11 +182,11 @@ assert('history note toggle no longer depends on brittle parentElement chaining'
   actionSrc.includes("actionEl.closest('.marker-history-row')?.querySelector('.mv-note-text')?.classList.toggle('show')") &&
     !modalSrc.includes("this.parentElement.parentElement.querySelector('.mv-note-text')"));
 assert('dashboard passes the quick-marker pin dependency instead of relying on an inline window handler',
-  dashboardSrc.includes('toggleDashboardQuickMarkerPin, showEmojiPicker') &&
+  dashboardSrc.includes('toggleDashboardQuickMarkerPin: toggleNativeQuickMarkerPin, showEmojiPicker') &&
     modalSrc.includes("projectMarkerDetailAction('quick-pin', { id })") && hasActionElement(projectedOwners.chrome, 'node.pinActions.action', {id: 'node.pinActions.id??undefined'}, 'header'));
 assert('dashboard composition injects marker detail UI callbacks without runtime lookups',
   dashboardSrc.includes('configureMarkerDetailRuntime({') &&
-    /configureMarkerDetailRuntime\(\{\s*isDashboardQuickMarkerPinned,\s*navigate,\s*showEmojiPicker,\s*toggleDashboardQuickMarkerPin,\s*\}\)/.test(dashboardSrc));
+    /configureMarkerDetailRuntime\(\{\s*isDashboardQuickMarkerPinned,\s*navigate,\s*showEmojiPicker,\s*toggleDashboardQuickMarkerPin: toggleNativeQuickMarkerPin,\s*\}\)/.test(dashboardSrc));
 assert('service worker precaches marker-detail-actions.js',
   swSrc.includes("'/js/marker-detail-actions.js'"));
 assert('service worker precaches marker-detail-runtime.js',

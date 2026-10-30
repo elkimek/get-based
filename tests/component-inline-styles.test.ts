@@ -32,6 +32,20 @@ const customMarkerHandoffFixed = `  } else if (action === 'open-custom-marker') 
     openCreateMarkerFromNavRuntime();
   } else if (action === 'toggle-group') {`;
 function restoreReviewedComponentSource(file:string,source:string){
+ if(file==='js/components/MarkerDetailHistory.svelte'){
+  for(const [current,previous,count] of [
+   ['data-marker-detail-date={node.actions.date??undefined} data-marker-detail-panel-id={node.actions.panelId??undefined}','data-marker-detail-date={node.actions.date??undefined}',4],
+   ['data-marker-detail-date={node.editAttributes?.date??undefined} data-marker-detail-panel-id={node.editAttributes?.panelId??undefined}','data-marker-detail-date={node.editAttributes?.date??undefined}',1],
+  ] as const){expect(source.split(current).length-1).toBe(count);source=source.split(current).join(previous);}
+ }
+ if(file==='js/nav.ts'){
+  const orderingEdits=[
+   ["import { orderSidebarLabNodes } from './lab-ordering-sidebar.js';\n",''],
+   ['getLabCategoryEntriesInSidebarOrder((data as ActiveData).categories, state.importedData?.labOrdering)','getLabCategoryEntriesInSidebarOrder((data as ActiveData).categories)'],
+   ['  orderSidebarLabNodes(nav, categories, groups, state.importedData?.labOrdering);\n',''],
+  ] as const;
+  for(const [current,previous] of orderingEdits){expect(source.split(current)).toHaveLength(2);source=source.replace(current,previous);}
+ }
  if(file==='js/components/AppShell.svelte'){
   // The reviewed runes-mode repair is independent of the earlier style port.
   // Require all current bytes before restoring that one compiler option.

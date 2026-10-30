@@ -352,6 +352,8 @@ const {
   assert('Empty env → tier 0 light load with mapping hint',
     burden.tier === 0 && burden.color === 'green' &&
     /add a room|add a screen/i.test(burden.interp));
+  assert('Reading an unmapped environment did not initialize a profile record', state.importedData.lightEnvironment == null);
+  state.importedData.lightEnvironment = {rooms: [], screens: []};
   state.importedData.lightEnvironment!.burdenAI = {
     status: 'ok',
     dot: 'yellow',
@@ -794,7 +796,7 @@ const {
     lightEnvShellHooksSrc.includes('loadLightSunUI,') &&
     !lightEnvShellHooksSrc.includes("from './light-tools.js'") &&
     lightEnvShellHooksSrc.includes("import { closeModalOverlay } from './modal-lifecycle.js';") &&
-    lightEnvShellHooksSrc.includes("import { navigate } from './views-runtime.js';") &&
+    lightEnvShellHooksSrc.includes("import { navigate } from './navigation-views.js';") &&
     lightEnvShellHooksSrc.includes('configureLightEnvironmentLoaderDeps({ navigate });') &&
     lightEnvShellHooksSrc.includes('.then(module => module.openLightEnvironmentAssessment())') &&
     lightEnvShellHooksSrc.includes('loadLightSunUI()') &&

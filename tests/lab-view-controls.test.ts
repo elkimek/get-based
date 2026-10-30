@@ -16,12 +16,12 @@ beforeEach(() => {
 });
 afterEach(() => { state.dateRangeFilter = before.range; state.categoryView = before.layout; state.currentView = before.view; });
 it('rejects a missing category before publishing a range or loading its view', async () => {
-  expect(await openLabView({ view: 'category', category: 'missing', marker: '', range: '3m', layout: 'table' }, () => true)).toMatchObject({ changed: false });
+  expect(await openLabView({ view: 'category', category: 'missing', marker: '', range: '3m' }, () => true)).toMatchObject({ changed: false });
   expect(native.range).not.toHaveBeenCalled(); expect(native.layout).not.toHaveBeenCalled(); expect(native.stylesheet).not.toHaveBeenCalled();
 });
 it('rechecks ownership after native preparation before publishing any session preference', async () => {
   let release!: () => void, owned = true; native.stylesheet.mockImplementationOnce(() => new Promise<void>(resolve => { release = resolve; }));
-  const pending = openLabView({ view: 'category', category: 'biochemistry', marker: '', range: '3m', layout: 'table' }, () => owned);
+  const pending = openLabView({ view: 'category', category: 'biochemistry', marker: '', range: '3m' }, () => owned);
   await vi.waitFor(() => expect(native.stylesheet).toHaveBeenCalledOnce()); owned = false; release();
   expect(await pending).toMatchObject({ changed: false }); expect(native.range).not.toHaveBeenCalled(); expect(native.layout).not.toHaveBeenCalled(); expect(native.navigate).not.toHaveBeenCalled();
 });
@@ -33,4 +33,10 @@ it('does not claim a selection changed when an unavailable native view made no c
   native.navigate.mockResolvedValueOnce(false);
   const result = await openLabView({ view: 'labs', marker: '', range: 'all' }, () => true);
   expect(result).toMatchObject({ changed: false, opened: null }); expect(result.reason).not.toContain('selection changed');
+});
+
+it.each(['charts', 'table', 'heatmap'])('rejects the retired %s layout command before native preparation or session changes', async layout => {
+  await expect(openLabView({ view: 'category', category: 'biochemistry', marker: '', range: '3m', layout }, () => true)).rejects.toThrow('native settings');
+  expect(native.range).not.toHaveBeenCalled(); expect(native.layout).not.toHaveBeenCalled(); expect(native.stylesheet).not.toHaveBeenCalled(); expect(native.navigate).not.toHaveBeenCalled();
+  expect({ range: state.dateRangeFilter, layout: state.categoryView, view: state.currentView }).toEqual({ range: 'all', layout: 'charts', view: 'dashboard' });
 });

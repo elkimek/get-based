@@ -22,7 +22,7 @@ beforeEach(() => {
 afterEach(() => { Object.assign(state, { currentProfile: original.profile, currentThreadId: original.thread, importedData: original.root, chatHistory: original.history, currentChatPersonality: original.persona }); localStorage.clear(); vi.restoreAllMocks(); });
 
 it('omits persona controls from shared API and CLI tool discovery and explains the manual workflow', () => {
-  expect(AGENT_TOOL_CONTRACT_VERSION).toBe(59);
+  expect(AGENT_TOOL_CONTRACT_VERSION).toBe(60);
   const advertised = JSON.stringify({ actions: APP_CONTROL_ACTIONS, views: APP_NAVIGATION_VIEWS, tools: getAgentToolCatalog(), codex: getCodexDynamicTools() });
   expect(advertised).not.toMatch(/assistant\.personas|personaEditor|personaDelete|chatPersona|personaDraft/);
   expect(CHAT_TOOL_INSTRUCTIONS).toContain('Persona management is manual-only');

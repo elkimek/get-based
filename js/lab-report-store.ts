@@ -19,7 +19,7 @@ export async function commitLabReportWrite(profileId: string, observed: ProfileD
     if (!same) onConflict(); return same;
   };
   if (!current()) return false;
-  const saved = await saveImportedDataForProfile(profileId, next, { forceProfileScope: true, baseData: base, canCommit: current,
+  const saved = await saveImportedDataForProfile(profileId, next, { immediate: true, forceProfileScope: true, baseData: base, canCommit: current,
     expectedContextFields: fields.map(key => ({ key, value: base[key] ?? null })), onContextFieldConflict: onConflict });
   if (!saved) return false;
   try {

@@ -130,7 +130,7 @@ export function buildBiologyScoresAIContext(data: Parameters<typeof computeBiolo
     '[section:biologyScores]',
     '## Biology Scores',
     'Deterministic 0-100 derived lab pattern scores; not diagnoses.',
-    'Uses enabled results and context only; this can differ from the full local Biology Scores view.',
+    'Enabled results/context only; may differ from local Biology Scores.',
   ];
   if (coherenceLine) lines.push(coherenceLine);
   const limit = Number.isFinite(options.limit) ? Math.max(1, Number(options.limit)) : 5;

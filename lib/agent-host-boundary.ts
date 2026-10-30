@@ -86,7 +86,11 @@ export function codexTurnErrorMessage(value: unknown): string {
     case 'rateLimitExceeded': return 'Codex reached a rate limit. Wait before retrying.';
     case 'usageLimitExceeded': return 'Codex reached its usage limit. Check your Codex account before retrying.';
     case 'contextWindowExceeded': return 'This request exceeds the Codex model’s context limit. Split it into smaller requests.';
-    default: return cleanError(value);
+    default: {
+      const safe = cleanError(value);
+      return safe === 'The agent request failed. Check the Companion and selected agent, then try again.'
+        ? 'The selected agent could not complete this response. Try again, or choose another model in AI settings.' : safe;
+    }
   }
 }
 

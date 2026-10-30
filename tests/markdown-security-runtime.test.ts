@@ -234,7 +234,9 @@ describe('AI Markdown rendering paths', () => {
     expect(biologyAnswer).toContain('{@html renderMarkdown(view.text)}');
     expect(biologyScores).toContain('replaceScoreMarkup(panel, renderScoreAIAnswer(current))');
     expect(emfInterpretation).toContain('body.innerHTML = renderMarkdown(clean)');
-    expect(emfInterpretation).toContain('body.innerHTML = finalText ? renderMarkdown(finalText)');
+    expect(emfInterpretation).toContain("const finalHTML = finalText ? renderMarkdown(finalText) : renderEMFInterpretationStatus('No response received.');");
+    expect(emfInterpretation.split('body.innerHTML = finalHTML;')).toHaveLength(3);
+    expect(emfInterpretation).not.toContain('body.innerHTML = finalText;');
   });
 });
 
