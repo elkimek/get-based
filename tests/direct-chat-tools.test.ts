@@ -38,7 +38,13 @@ it.each(['openrouter', 'venice', 'ppq', 'routstr', 'ollama', 'custom'])('returns
   for (const [round, recipient] of mocks.complete.mock.calls) {
     expect(recipient).toBe(provider);
     expect(round).toMatchObject({ modelOverride: 'synthetic', system: expect.stringContaining('proactively offer a reviewable update') });
-    expect(round.tools).toHaveLength(20);
+    expect(round.tools?.map((tool: { function: { name: string } }) => tool.function.name)).toEqual([
+      'getbased_lab_context', 'getbased_section', 'getbased_search_markers', 'getbased_marker_history',
+      'getbased_nutrition_summary', 'getbased_wearable_series', 'getbased_search_knowledge',
+      'getbased_read_context_card', 'getbased_read_data', 'getbased_draft_data', 'getbased_navigate',
+      'getbased_draft_note', 'getbased_draft_context', 'getbased_draft_meal', 'getbased_draft_biometric',
+      'getbased_draft_supplement', 'getbased_app_actions', 'getbased_read_app', 'getbased_request_app',
+    ]);
     expect(round.requestCurrent()).toBe(true);
     expect(JSON.stringify(round)).not.toContain('synthetic-key');
   }
