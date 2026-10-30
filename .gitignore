@@ -3940,11 +3940,7 @@ tests/pwa/sveltekit-island-ownership.spec.js.map
 /js/knowledge-file-inputs.js
 /js/knowledge-file-inputs.js.map
 
-/js/knowledge-file-review.js
-/js/knowledge-file-review.js.map
 
-/js/knowledge-file-preview.js
-/js/knowledge-file-preview.js.map
 
 /tests/playwright/direct-chat-knowledge-files.spec.js
 /tests/playwright/direct-chat-knowledge-files.spec.js.map
