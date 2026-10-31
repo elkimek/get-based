@@ -12,6 +12,21 @@ const CHAT_PRESENTATION_PATHS = [
   '/css/chat-redesign-open.css',
 ];
 
+test('a profile handoff cancels Chat opening while presentation is loading', async ({ page }) => {
+  let stylesheetRoute: import('@playwright/test').Route | undefined;
+  await page.route('**/css/chat-onboarding.css*', route => { stylesheetRoute = route; });
+  await page.goto('/app', {waitUntil: 'load'});
+  await page.evaluate(async () => {
+    (window as Window & {__chatOpenResult?: ReturnType<typeof import('../../js/chat-panel.js').openChatPanel>}).__chatOpenResult = (await import('/js/chat-panel.js')).openChatPanel();
+  });
+  await expect.poll(() => !!stylesheetRoute).toBe(true);
+  await page.evaluate(async () => { (await import('/js/state.js')).state.currentProfile = 'replacement-profile'; });
+  await stylesheetRoute!.fulfill({status: 200, contentType: 'text/css', body: ''});
+  expect(await page.evaluate(() => (window as Window & {__chatOpenResult?: ReturnType<typeof import('../../js/chat-panel.js').openChatPanel>}).__chatOpenResult)).toBe(false);
+  await expect(page.locator('#chat-panel')).not.toHaveClass(/open/);
+  expect(await page.evaluate(() => Object.keys(localStorage).filter(key => key.startsWith('labcharts-replacement-profile-')))).toEqual([]);
+});
+
 test('Chat presentation stays cold until the panel opens and preserves cascade order', async ({ page }) => {
   let stylesheetRoute: import("@playwright/test").Route | undefined;
   let stylesheetRequests = 0;

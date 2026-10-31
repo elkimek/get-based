@@ -50,6 +50,10 @@ checks use the fixed inventory in
 Optional empty-Dashboard Chat startup owns its reservation by render generation
 and profile. Failed loads or a narrower viewport release it; completion from a
 retired render cannot clear a newer reservation.
+Lazy Chat open/toggle requests retain their initiating profile through module
+loading. Panel opening checks that profile and its open intent after each
+asynchronous load, so a deleted profile's pending request cannot initialize a
+conversation on its temporary sync fallback or another selected profile.
 
 `body-measurement-model.ts` owns method-specific waist/hip/SAD field identities
 and validated portable-mirror projection. `wearables-manual.ts` owns their paired
