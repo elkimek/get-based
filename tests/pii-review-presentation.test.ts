@@ -1,6 +1,6 @@
 import {beforeEach, afterEach, describe, expect, it, vi} from 'vitest';
 import {JSDOM} from 'jsdom';
-import {buildPIIDiffHTML, projectPIIDiff, reviewPIIBeforeSend, showPIIDiffViewer} from '../js/pii-review.js';
+import {buildPIIDiffHTML, projectPIIDiff, reviewPIIBeforeSend, showPIIDiffViewer, PII_REVIEW_UNAVAILABLE} from '../js/pii-review.js';
 import {renderPIIReviewModal, renderPIIDiffViewer, renderPIIPanel} from '../js/pii-review-presentation.js';
 
 vi.mock('../js/modal-lifecycle.js', () => ({
@@ -113,6 +113,38 @@ describe('genuine PII children and retained controller',()=>{
     expect(window.document.querySelector<HTMLButtonElement>('#pii-stream-retry')!.hidden).toBe(false);
     expect(unload).not.toHaveBeenCalled();click('#pii-stream-retry');expect(attempts).toBe(2);
     await Promise.resolve();await Promise.resolve();click('#pii-review-cancel');expect(await done).toBe('cancel');expect(unload).toHaveBeenCalledTimes(1);
+  });
+  it('reports a cancelled review after a local model failure as unavailable only when asked',async()=>{
+    const deps={obfuscatePDFText:()=>({original:'Alice',obfuscated:'Bob',replacements:1}),unloadOllamaPIIModel:vi.fn()};
+    const failing=()=>Promise.reject(new Error('connection refused'));
+    const done=reviewPIIBeforeSend('Alice',{streamFn:failing,reportUnavailable:true},deps);
+    await Promise.resolve();await Promise.resolve();
+    click('#pii-review-cancel');expect(await done).toBe(PII_REVIEW_UNAVAILABLE);
+    const optedOut=reviewPIIBeforeSend('Alice',{streamFn:failing},deps);
+    await Promise.resolve();await Promise.resolve();
+    click('#pii-review-cancel');expect(await optedOut).toBe('cancel');
+  });
+  it('treats cancel as an explicit skip once regex fallback replaced a failed local model',async()=>{
+    const deps={obfuscatePDFText:()=>({original:'Alice',obfuscated:'Bob',replacements:1}),unloadOllamaPIIModel:vi.fn()};
+    const done=reviewPIIBeforeSend('Alice',{streamFn:()=>Promise.reject(new Error('down')),reportUnavailable:true},deps);
+    await Promise.resolve();await Promise.resolve();
+    click('#pii-review-regex');click('#pii-review-cancel');expect(await done).toBe('cancel');
+  });
+  it('ignores a delayed failure from a stream the regex fallback replaced',async()=>{
+    const deps={obfuscatePDFText:()=>({original:'Alice',obfuscated:'Bob',replacements:1}),unloadOllamaPIIModel:vi.fn()};
+    // Like the reachability probe: an abort surfaces later as a plain Error.
+    const pending=(_:unknown,signal:AbortSignal)=>new Promise((_resolve,reject)=>signal.addEventListener('abort',()=>reject(new Error('unreachable')),{once:true}));
+    const done=reviewPIIBeforeSend('Alice',{streamFn:pending,reportUnavailable:true},deps);
+    click('#pii-review-regex');
+    await Promise.resolve();await Promise.resolve();await Promise.resolve();
+    expect(window.document.querySelector('#pii-stream-status')!.textContent).not.toContain('Error:');
+    click('#pii-review-cancel');expect(await done).toBe('cancel');
+  });
+  it('treats cancel after a successful stream as an explicit skip',async()=>{
+    const deps={obfuscatePDFText:()=>({original:'Alice',obfuscated:'Bob',replacements:1}),unloadOllamaPIIModel:vi.fn()};
+    const done=reviewPIIBeforeSend('Alice',{streamFn:onChunk=>{onChunk('Bob');return Promise.resolve();},reportUnavailable:true},deps);
+    await Promise.resolve();await Promise.resolve();
+    click('#pii-review-cancel');expect(await done).toBe('cancel');
   });
   it('retains independent viewer close controls and modal removal', () => {
     showPIIDiffViewer('Alice','Bob');expect(window.document.querySelectorAll('.pii-warning-overlay')).toHaveLength(1);

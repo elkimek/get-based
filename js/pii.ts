@@ -29,7 +29,10 @@ import {
   buildPIIDiffHTML,
   reviewPIIBeforeSend as reviewPIIBeforeSendUI,
   showPIIDiffViewer,
+  PII_REVIEW_UNAVAILABLE,
 } from './pii-review.js';
+
+export { PII_REVIEW_UNAVAILABLE };
 
 export { checkOllama, checkOpenAICompatible };
 export { buildPIIDiffHTML, showPIIDiffViewer };
@@ -539,8 +542,8 @@ export function obfuscatePDFText(pdfText: string) {
 
 // extractPatientName dropped — too unreliable across PDF layouts
 
-export function reviewPIIBeforeSend(originalText: string, { obfuscatedText = '', streamFn = null }: PIIReviewOptions = {}) {
-  return reviewPIIBeforeSendUI(originalText, { obfuscatedText, streamFn }, {
+export function reviewPIIBeforeSend(originalText: string, { obfuscatedText = '', streamFn = null, reportUnavailable = false }: PIIReviewOptions = {}) {
+  return reviewPIIBeforeSendUI(originalText, { obfuscatedText, streamFn, reportUnavailable }, {
     obfuscatePDFText,
     unloadOllamaPIIModel,
   });
