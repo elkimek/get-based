@@ -78,7 +78,9 @@ export async function captureOfflineLaunchDiagnostics(page: Page, info: TestInfo
       const registrations = await bounded(navigator.serviceWorker.getRegistrations(), 'worker registrations');
       return { startupErrors: (window as unknown as { __getbasedOfflineStartupErrors?: unknown }).__getbasedOfflineStartupErrors, path: location.pathname, readyState: document.readyState, shellFramework: document.documentElement.dataset.shellFramework, appReady: document.documentElement.dataset.appReady,
         controller: navigator.serviceWorker.controller && { scriptURL: navigator.serviceWorker.controller.scriptURL, state: navigator.serviceWorker.controller.state },
-        registrations: Array.isArray(registrations) ? registrations.map(registration => ({ scope: registration.scope, active: registration.active?.scriptURL, state: registration.active?.state })) : registrations, caches: snapshots };
+        registrations: Array.isArray(registrations) ? registrations.map(registration => ({ scope: registration.scope, active: registration.active?.scriptURL, state: registration.active?.state,
+          installing: registration.installing && {scriptURL: registration.installing.scriptURL, state: registration.installing.state},
+          waiting: registration.waiting && {scriptURL: registration.waiting.scriptURL, state: registration.waiting.state} })) : registrations, caches: snapshots };
     });
     await info.attach('offline-launch-cache-state', { body: JSON.stringify(state, null, 2), contentType: 'application/json' });
   } catch (error) {

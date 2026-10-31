@@ -41,18 +41,15 @@ console.log('=== Cross-Device Sync Tests ===\n');
 
 // Load the module-only Sync surfaces and Settings Sync panel.
 const { state } = await import('../js/state.js');
-const syncActions = await import('../js/sync-actions.js');
-const syncSaveHooks = await import('../js/sync-save-hooks.js');
-const syncApply = await import('../js/sync-apply.js');
-const syncChatApply = await import('../js/sync-chat-apply.js');
-const syncChatMerge = await import('../js/sync-chat-merge.js');
-const syncDelta = await import('../js/sync-delta.js');
-const syncCutover = await import('../js/sync-cutover.js');
-const dataMerge = await import('../js/data-merge.js');
-const syncSubscriptions = await import('../js/sync-subscriptions.js');
-await import('../js/sync-payload.js');
-const syncPayloadCollectors = await import('../js/sync-payload-collectors.js');
-const syncStorageCleanup = await import('../js/sync-storage-cleanup.js');
+// These independent surfaces are all ready before the root wiring below.
+// Avoid serial cold transform round trips inside the unchanged case deadline.
+const [syncActions, syncSaveHooks, syncApply, syncChatApply, syncChatMerge, syncDelta,
+  syncCutover, dataMerge, syncSubscriptions, , syncPayloadCollectors, syncStorageCleanup] = await Promise.all([
+  import('../js/sync-actions.js'), import('../js/sync-save-hooks.js'), import('../js/sync-apply.js'),
+  import('../js/sync-chat-apply.js'), import('../js/sync-chat-merge.js'), import('../js/sync-delta.js'),
+  import('../js/sync-cutover.js'), import('../js/data-merge.js'), import('../js/sync-subscriptions.js'),
+  import('../js/sync-payload.js'), import('../js/sync-payload-collectors.js'), import('../js/sync-storage-cleanup.js'),
+]);
 await import('../js/sync.js');
 const settingsSyncPanel = await import('../js/settings-sync-panel.js');
 await import('../js/settings.js');

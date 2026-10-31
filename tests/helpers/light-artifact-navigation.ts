@@ -9,9 +9,12 @@ export async function readyLightArtifact(page: Page, origin: string) {
   await navigateWithOfflineLaunchDiagnostics(page, origin + '/app?dev-sw=1', test.info());
   try {
     await expect(page.locator('html[data-app-ready][data-shell-framework="sveltekit"]')).toBeAttached({ timeout: 30000 });
+    // A failed install leaves navigator.serviceWorker.ready pending forever.
+    // Preserve activation/control requirements and capture its state promptly.
+    await expect.poll(() => page.evaluate(async () => (await navigator.serviceWorker.getRegistration())?.active?.state), {timeout: 30000}).toBe('activated');
+    await page.evaluate(() => navigator.serviceWorker.ready.then(() => true));
+    await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
   } catch (error) { await captureOfflineLaunchDiagnostics(page, test.info()); throw error; }
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => true));
-  await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
   return Math.round(hostPerformance.now() - startedAt);
 }
 export async function openLightArtifact(page: Page) {

@@ -212,7 +212,7 @@ test('dashboard widgets browser coverage exercises registry persistence and visi
       outcomes.resetPrefsRemovesProfileScopedStorage =
         localStorage.getItem(widgetKey) === null
         && widgetsModule.DASHBOARD_WIDGET_SOURCE_ORDER.join('|') === 'Labs|Biology Scores|Genome|Body|Light|Insight|Tools'
-        && widgetsModule.DASHBOARD_MANUAL_BIOMETRIC_METRICS.join('|') === 'weight|bp_systolic|rhr';
+        && widgetsModule.DASHBOARD_MANUAL_BIOMETRIC_METRICS.join('|') === 'weight|waist|bp_systolic|rhr';
     } finally {
       removeWidgetKeys();
       localStorage.removeItem(biometricKey);
@@ -374,7 +374,7 @@ test('dashboard widget renderers browser coverage uses default wearable priority
         && order.indexOf('steps') < order.indexOf('bp_systolic');
 
       outcomes.emptyMobileTilesFallBackToManualDefaultSelection =
-        renderers.getDashboardBiometricSelection().join('|') === 'weight|bp_systolic|rhr';
+        renderers.getDashboardBiometricSelection().join('|') === 'weight|waist|bp_systolic|rhr';
 
       renderers.saveDashboardBiometricSelection(['weight']);
       const weightHtml = renderers.renderDashboardWearableTilesWidget();

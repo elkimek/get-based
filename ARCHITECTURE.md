@@ -47,6 +47,10 @@ checks use the fixed inventory in
 
 ## Presentation and lifecycle contract
 
+Optional empty-Dashboard Chat startup owns its reservation by render generation
+and profile. Failed loads or a narrower viewport release it; completion from a
+retired render cannot clear a newer reservation.
+
 `body-measurement-model.ts` owns method-specific waist/hip/SAD field identities
 and validated portable-mirror projection. `wearables-manual.ts` owns their paired
 numeric writes and deletion clocks through the existing encrypted manual-reading

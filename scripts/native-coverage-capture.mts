@@ -55,7 +55,8 @@ export class NativeCaptureMapper {
       const canonical = readNativeRegular(path.join(config.root, relative)).toString('utf8');
       const cacheKey = JSON.stringify([relative, snapshot.source.sha256, capture.environment]);
       const entries = this.#mapped.get(cacheKey) ?? new Map<string, {start: number; end: number} | {reason: string}>();
-      if (script.functions.some(fn => !entries.has(`${fn.ranges[0]!.startOffset}:${fn.ranges[0]!.endOffset}`))) {
+      const unseen = script.functions.filter(fn => !entries.has(`${fn.ranges[0]!.startOffset}:${fn.ranges[0]!.endOffset}`));
+      if (unseen.length) {
           let transform: NativeTransform;
           if (runtime === canonical) transform = {file: path.join(config.root, relative), canonical, runtime, code: runtime, map: null, offset: 0};
           else {
@@ -65,7 +66,7 @@ export class NativeCaptureMapper {
             transform = await replayNativeTransform(config.root, relative, canonical, runtime, snapshot, info[0]![1].startOffset, unique<NativeGeometry>('geometry'), unique<NativeObservation>('observation'), capture.environment);
           }
           const mapper = nativeFunctionMapper(transform);
-          for (const native of script.functions) {
+          for (const native of unseen) {
             const first = native.ranges[0]!, key = `${first.startOffset}:${first.endOffset}`;
             try {const mapped = mapper(native); entries.set(key, {start: mapped.start, end: mapped.end});}
             catch (error) {if (!(error instanceof UnmappedNativeFunction)) throw error; entries.set(key, {reason: error.message});}

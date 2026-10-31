@@ -33,8 +33,10 @@ async function keyboardActivate(page:Page,control:Locator){await control.scrollI
  * deliberately suspends title and adds aria-describedby while hovered. Let its
  * real pointerout/RAF lifecycle restore the original ordered attributes. */
 async function neutralBiometricPointer(page: Page, widget: Locator) {
-  if (!await page.evaluate(() => matchMedia('(pointer: fine)').matches)) return;
-  await page.mouse.move(0, 0);
+  // Keyboard focus can expose the shared tooltip on coarse pointers too.
+  // Dismiss it through its real public key handler before exact body receipts.
+  await page.keyboard.press('Escape');
+  if (await page.evaluate(() => matchMedia('(pointer: fine)').matches)) await page.mouse.move(0, 0);
   for (const control of await widget.locator('.db-biometric-remove').all()) {
     await expect(control).toHaveAttribute('title', 'Remove metric');
     await expect(control).not.toHaveAttribute('aria-describedby');
