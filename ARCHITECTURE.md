@@ -101,7 +101,9 @@ before dispatch, publication and persistence. Retired controls cannot start new 
 or update replacement views. Accepted domain writes can finish for their original
 owner after closure; they must not publish into a new owner's UI or adopt unrelated
 unsaved fields. Domain transactions, locks and explicit field baselines decide
-commit/rollback, not component mount lifetime.
+commit/rollback, not component mount lifetime. A save adopting into a replacement
+object for the same profile uses that object's own read baseline, so stale loaded
+values cannot undo the committed edit and newer unsaved fields remain intact.
 
 Keep credentials and private metadata in dedicated live-field/service ports,
 not general display snapshots or action attributes. Existing explicit Sync recovery

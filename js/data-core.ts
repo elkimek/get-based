@@ -263,7 +263,13 @@ export function createDataCore(ports: DataCorePorts) {
       try {
         const live = ports.state.currentProfile === profileId ? ports.state.importedData : null;
         if (live && (options.activeSave || base)) {
-          const result = (0, ports.rebaseLiveProfileData)(options.activeSave ? intent : (0, ports.profileDataBaseline)(live) || base, live, persisted);
+          // A reload may install another object for this same profile while
+          // the save awaits storage. Its own origin distinguishes a stale
+          // loaded value from a new unsaved edit; this save's intent belongs
+          // only to the object it captured.
+          const liveBase = options.activeSave && live === source
+            ? intent : (0, ports.profileDataBaseline)(live) || base;
+          const result = (0, ports.rebaseLiveProfileData)(liveBase, live, persisted);
           if (persisted.biologyScoreAI) result.data.biologyScoreAI = persisted.biologyScoreAI;
           (0, ports.adoptProfileData)(live, result.data);
           (0, ports.rememberProfileData)(live, result.baseline);

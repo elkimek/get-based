@@ -1022,3 +1022,50 @@ test('deleting an unavailable recovery profile unblocks incoming changes without
     for (const device of devices) expect(device.errors).toEqual([]);
   } finally {for (const device of devices.reverse()) await device.context.close();}
 });
+
+
+test('a profile reload during a queued local save retains the edit and newer draft across devices', async ({browser}) => {
+  test.setTimeout(120_000);
+  const a = await createDevice(browser, 'save reload device A');
+  const devices = [a];
+  try {
+    await setSyntheticData(a.page, 'seed'); const identity = await enableNewIdentity(a.page);
+    const b = await createDevice(browser, 'save reload device B'); devices.push(b);
+    await joinIdentity(b.page, identity.mnemonic, identity.ownerId); await waitForContext(b.page, BASELINE_CONTEXT);
+    expect(await a.page.evaluate(async () => (await import('/js/sync.js')).pauseSync())).toBe(true);
+    await a.page.evaluate(async text => {
+      const {state} = await import('/js/state.js'); const data = await import('/js/data.js');
+      const probe = window as Window & {__releaseSaveLock?: () => void; __pendingProfileSave?: Promise<boolean>; __originalImported?: unknown};
+      let entered!: () => void, release!: () => void;
+      const ready = new Promise<void>(resolve => { entered = resolve; });
+      const gate = new Promise<void>(resolve => { release = resolve; });
+      void navigator.locks.request('getbased-profile-data:default', async () => { entered(); await gate; });
+      await ready; probe.__releaseSaveLock = release;
+      probe.__originalImported = state.importedData; state.importedData.contextNotes = text;
+      probe.__pendingProfileSave = data.saveImportedData();
+    }, OFFLINE_CONTEXT);
+    await a.page.evaluate(async () => (await import('/js/profile.js')).loadProfile('default'));
+    expect(await a.page.evaluate(async () => {
+      const {state} = await import('/js/state.js');
+      return {replaced: state.importedData !== (window as Window & {__originalImported?: unknown}).__originalImported,
+        profile: state.currentProfile, context: state.importedData.contextNotes};
+    })).toEqual({replaced: true, profile: 'default', context: BASELINE_CONTEXT});
+    await a.page.evaluate(async () => {
+      const {state} = await import('/js/state.js');
+      state.importedData.notes.push({date: '2026-08-06T10:00:00.000Z', text: 'concurrent-a', updatedAt: '2026-08-06T10:00:00.000Z'});
+    });
+    expect(await a.page.evaluate(async () => {
+      const probe = window as Window & {__releaseSaveLock?: () => void; __pendingProfileSave?: Promise<boolean>};
+      probe.__releaseSaveLock!(); return probe.__pendingProfileSave;
+    })).toBe(true);
+    expect(await contextNotes(a.page)).toBe(OFFLINE_CONTEXT);
+    await waitForNotes(a.page, ['baseline-note', 'concurrent-a']);
+    expect(await a.page.evaluate(async () => (await import('/js/data.js')).saveImportedData())).toBe(true);
+    expect(await a.page.evaluate(async () => (await import('/js/sync.js')).enableSync())).toBe(true);
+    await waitForContext(b.page, OFFLINE_CONTEXT); await waitForNotes(b.page, ['baseline-note', 'concurrent-a']);
+    for (const device of devices) expect(device.errors).toEqual([]);
+  } finally {
+    await a.page.evaluate(() => (window as Window & {__releaseSaveLock?: () => void}).__releaseSaveLock?.()).catch(() => {});
+    for (const device of devices.reverse()) await device.context.close();
+  }
+});
