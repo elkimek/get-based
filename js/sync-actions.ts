@@ -89,7 +89,7 @@ async function pushCurrentProfileWhenIdle() {
       await new Promise(resolve => setTimeout(resolve, 50));
     }
     result = await pushCurrentProfile();
-    if (result?.reason !== 'in-flight') return result;
+    if (result?.reason !== 'in-flight' && result?.reason !== 'superseded') return result;
     // A pull can schedule a union rebroadcast just before it resolves. If
     // that timer wins the race with this manual push, wait for it instead of
     // reporting a false failure (or asking the user to press Sync again).

@@ -367,6 +367,12 @@ downgrade is not a database rollback: previous web runtimes cannot open every
 new-format database. The v7 recovery path always retains its separate runtime and
 database identity.
 
+Overlapping forced pushes retain per-profile generations. A newer push supersedes
+older asynchronous planning and completion; a newer saved edit invalidates an
+older plan before its SDK write. Superseded snapshots cannot write stale deltas,
+acknowledge a newer dirty marker or release another push's in-flight guard. Manual sync retries the current snapshot within its
+existing deadline.
+
 V3 profile snapshots retain scalar values with per-field edit clocks, so an
 unrelated save cannot give an unchanged scalar a newer clock. Full snapshots
 protect peers whose profile and item-row query updates arrive separately.

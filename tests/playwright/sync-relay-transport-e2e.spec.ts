@@ -1083,3 +1083,58 @@ test('a profile reload during a queued local save retains the edit and newer dra
     for (const device of devices.reverse()) await device.context.close();
   }
 });
+
+test('a delayed Force resend cannot roll back a newer committed edit', async ({browser}) => {
+  test.setTimeout(120_000);
+  const a = await createDevice(browser, 'ordered push device A'); const devices = [a];
+  try {
+    await setSyntheticData(a.page, 'seed'); const identity = await enableNewIdentity(a.page);
+    const b = await createDevice(browser, 'ordered push device B'); devices.push(b);
+    await joinIdentity(b.page, identity.mnemonic, identity.ownerId); await waitForContext(b.page, BASELINE_CONTEXT);
+    await a.page.evaluate(async () => {
+      const {state} = await import('/js/state.js'); const data = await import('/js/data.js');
+      state.importedData.contextNotes = 'older forced snapshot ' + 'x'.repeat(1024);
+      if (!await data.saveImportedData()) throw new Error('Could not save synthetic older edit');
+      const NativeCompressionStream = CompressionStream;
+      let release!: () => void; const gate = new Promise<void>(resolve => {release = resolve;});
+      const probe = {entered: false, release, older: null as Promise<void> | null,
+        restore: () => {globalThis.CompressionStream = NativeCompressionStream;}};
+      (window as Window & {__orderedPush?: typeof probe}).__orderedPush = probe;
+      let armed = true;
+      // Keep the browser's real gzip bytes; delay just one stream completion.
+      // SQLite, SDK queries, owner proof and relay transport remain untouched.
+      globalThis.CompressionStream = new Proxy(NativeCompressionStream, {construct(target, args) {
+        const actual = Reflect.construct(target, args) as CompressionStream;
+        if (!armed) return actual;
+        armed = false; probe.entered = true;
+        return {writable: actual.writable, readable: actual.readable.pipeThrough(new TransformStream({
+          transform(chunk, controller) {controller.enqueue(chunk);}, async flush() {await gate;},
+        }))};
+      }});
+      probe.older = (await import('/js/sync.js')).forceResendCurrentProfile();
+    });
+    await expect.poll(() => a.page.evaluate(() => (window as Window & {__orderedPush?: {entered: boolean}}).__orderedPush?.entered)).toBe(true);
+    expect(await setSyntheticData(a.page, 'offline-context')).toBe(true);
+    await a.page.evaluate(async () => (await import('/js/sync.js')).forceResendCurrentProfile());
+    await waitForContext(b.page, OFFLINE_CONTEXT);
+    expect(await b.page.evaluate(async () => (await import('/js/sync.js')).pauseSync())).toBe(true);
+    await a.page.evaluate(async () => {
+      const probe = (window as Window & {__orderedPush?: {release(): void; older: Promise<void>; restore(): void}}).__orderedPush;
+      if (!probe) throw new Error('Missing ordered push fixture');
+      probe.release(); await probe.older; probe.restore();
+    });
+    await expect.poll(async () => {
+      const diagnostics = await syncDiagnostics(a.page);
+      return (diagnostics.rows as {arrayName: string; syncedAt: string; value: unknown}[])
+        .filter(row => row.arrayName === 'contextNotes').sort((x,y) => y.syncedAt.localeCompare(x.syncedAt))[0]?.value;
+    }).toBe(OFFLINE_CONTEXT);
+    expect(await contextNotes(a.page)).toBe(OFFLINE_CONTEXT);
+    for (const device of devices) expect(device.errors).toEqual([]);
+  } finally {
+    await a.page.evaluate(async () => {
+      const probe = (window as Window & {__orderedPush?: {release(): void; older: Promise<void>; restore(): void}}).__orderedPush;
+      if (probe) {probe.release(); await probe.older.catch(() => {}); probe.restore();}
+    }).catch(() => {});
+    for (const device of devices.reverse()) await device.context.close();
+  }
+});
