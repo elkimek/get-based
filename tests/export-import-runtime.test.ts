@@ -240,6 +240,15 @@ describe('JSON restore runtime', () => {
       .toMatchObject({ diet: { type: 'whole-food' } });
   });
 
+  it.each([false, true])('preserves global settings only when requested for a client bundle (%s)', async preserveGlobalSettings => {
+    const nodeUrl = 'https://source-node.example/v1';
+    const bundle = { version: 2, type: 'database', profiles: [{ id: 'profile-1', name: 'Primary', data: { diet: { type: 'restored' } } }], wallet: { nodeUrl } };
+    await importDataJSON(new File([JSON.stringify(bundle)], 'clients.json'), preserveGlobalSettings ? { preserveGlobalSettings: true } : undefined);
+    expect(JSON.parse(localStorage.getItem('profile-1:imported')!)).toMatchObject({ diet: { type: 'restored' } });
+    if (preserveGlobalSettings) expect(runtime.setSelectedNodeUrl).not.toHaveBeenCalled();
+    else expect(runtime.setSelectedNodeUrl).toHaveBeenCalledExactlyOnceWith(nodeUrl);
+  });
+
   it('stops before overwriting a later profile changed after bundle preflight', async () => {
     const profiles = [{ id: 'profile-1', name: 'Primary' }, { id: 'profile-2', name: 'Second' }];
     runtime.getProfiles.mockReturnValueOnce(profiles);

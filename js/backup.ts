@@ -21,6 +21,7 @@ export interface BackupRuntimeDeps {
   encryptedSetItem(key: string, value: string): Promise<void>;
   getEncryptionEnabled(): boolean;
   isCredentialKey(key: string): boolean;
+  importClientBundle(serialized: string): Promise<unknown>;
 }
 interface PermissionOptions { mode?: 'read' | 'readwrite' }
 interface BackupDirectory extends AsyncIterable<[string, unknown]> {
@@ -69,6 +70,7 @@ var backupRuntimeDeps: BackupRuntimeDeps | undefined;
 function getBackupRuntimeDeps() {
   if (!backupRuntimeDeps) {
     backupRuntimeDeps = { encryptedGetItem: async () => null, getEncryptionEnabled: () => false, isCredentialKey: () => false,
+      importClientBundle: async () => { throw new Error('Client import is not configured. Reload the app and try again.'); },
       encryptedSetItem: async () => { throw new Error('Credential storage is not configured.'); } };
   }
   return backupRuntimeDeps;
@@ -76,7 +78,7 @@ function getBackupRuntimeDeps() {
 
 export function configureBackupRuntimeDeps(deps: Partial<BackupRuntimeDeps> = {}) {
   const runtimeDeps = getBackupRuntimeDeps();
-  return configureRuntimeFunctions(runtimeDeps, deps, ["encryptedGetItem","encryptedSetItem","getEncryptionEnabled","isCredentialKey"]);
+  return configureRuntimeFunctions(runtimeDeps, deps, ["encryptedGetItem","encryptedSetItem","getEncryptionEnabled","isCredentialKey","importClientBundle"]);
 }
 const getEncryptionEnabled = () => Boolean(getBackupRuntimeDeps().getEncryptionEnabled());
 const isEncryptedValue = (v: unknown) => typeof v === 'string' && v.startsWith('v1:');
@@ -140,6 +142,7 @@ async function writeRawStoredItem(key: string, value: unknown) {
 // BACKUP / RESTORE
 // ═══════════════════════════════════════════════
 const GLOBAL_SETTINGS_KEYS = [
+  'labcharts-api-key', 'labcharts-lens-key',
   'labcharts-venice-key', 'labcharts-openrouter-key', 'labcharts-routstr-key', 'labcharts-routstr-sessions', 'labcharts-ppq-key',
   'labcharts-custom-key', 'labcharts-custom-url', 'labcharts-custom-model', 'labcharts-custom-models',
   'labcharts-ai-provider',
@@ -390,59 +393,72 @@ export async function exportEncryptedBackup() {
   showNotification('Backup exported successfully', 'success');
 }
 
-export function importEncryptedBackup(file: Blob) {
-  const reader = new FileReader();
-  reader.onload = async (e) => {
-    try {
-      const result = e.target?.result;
-      if (typeof result !== 'string') {
-        showNotification('Invalid backup file format', 'error');
-        return;
-      }
-      // Decoding restores byte arrays, not a validated backup schema. Keep the
-      // legacy field reads and coercions explicit at this import boundary.
-      const backup = parseBackupSnapshot(result) as BackupRestoreView;
-      if (backup.format !== 'labcharts-backup' || !backup.profileList) {
-        showNotification('Invalid backup file format', 'error');
-        return;
-      }
+export function importEncryptedBackup(file: Blob): Promise<void> {
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const result = e.target?.result;
+        if (typeof result !== 'string') {
+          showNotification('Invalid backup file format', 'error');
+          return;
+        }
+        // Decoding restores byte arrays, not a validated backup schema. Keep the
+        // legacy field reads and coercions explicit at this import boundary.
+        const backup = parseBackupSnapshot(result) as BackupRestoreView;
+        if (backup.type === 'database' && backup.version === 2 && Array.isArray(backup.profiles)) {
+          if (await showConfirmDialog(
+            `Import ${backup.profiles.length} exported client(s)? Matching clients will be merged and new clients added. App settings and API keys will stay unchanged.`,
+            { confirmLabel: 'Import clients', ariaLabel: 'Import exported clients' }
+          )) await getBackupRuntimeDeps().importClientBundle(result);
+          return;
+        }
+        if (backup.format !== 'labcharts-backup' || !backup.profileList) {
+          showNotification('Invalid backup file format', 'error');
+          return;
+        }
 
-      const profileCount = backup.profiles ? (backup.profiles as { length: number }).length : 0;
-      const encMsg = backup.encrypted ? ' This backup is encrypted \u2014 you\'ll need the same passphrase.' : '';
+        const profileCount = backup.profiles ? (backup.profiles as { length: number }).length : 0;
+        const encMsg = backup.encrypted ? ' This backup is encrypted \u2014 you\'ll need the same passphrase.' : '';
 
-      if (await showConfirmDialog(
-        `Restore backup from ${new Date((backup.createdAt as string | number)).toLocaleDateString()}? This will overwrite ${profileCount} profile(s).${encMsg}`
-      )) {
-        restoreBackupEncryptionSettings(backup);
+        if (await showConfirmDialog(
+          `Restore backup from ${new Date((backup.createdAt as string | number)).toLocaleDateString()}? This will overwrite ${profileCount} profile(s).${encMsg}`
+        )) {
+          restoreBackupEncryptionSettings(backup);
 
-        await restoreBackupSettings(backup);
+          await restoreBackupSettings(backup);
 
-        localStorage.setItem('labcharts-profiles', (backup.profileList as string));
+          localStorage.setItem('labcharts-profiles', (backup.profileList as string));
 
-        // Restore each profile's keys. Big-blob keys (`-imported`)
-        // route to IndexedDB; everything else stays in localStorage.
-        // writeRawStoredItem is async because of the IDB path \u2014 await
-        // each so the wearable restore + reload only fires after all
-        // profile keys are actually written.
-        if (backup.profiles) {
-          for (const p of (backup.profiles as Array<{ profileId: unknown; keys: Record<string, unknown> }>)) {
-            for (const [suffix, value] of Object.entries(p.keys)) {
-              const key = `labcharts-${p.profileId}-${suffix}`;
-              await writeRawStoredItem(key, value);
+          // Restore each profile's keys. Big-blob keys (`-imported`)
+          // route to IndexedDB; everything else stays in localStorage.
+          // writeRawStoredItem is async because of the IDB path \u2014 await
+          // each so the wearable restore + reload only fires after all
+          // profile keys are actually written.
+          if (backup.profiles) {
+            for (const p of (backup.profiles as Array<{ profileId: unknown; keys: Record<string, unknown> }>)) {
+              for (const [suffix, value] of Object.entries(p.keys)) {
+                const key = `labcharts-${p.profileId}-${suffix}`;
+                await writeRawStoredItem(key, value);
+              }
             }
           }
-        }
-        prepareRestoredProfilesForSync(backup);
+          prepareRestoredProfilesForSync(backup);
 
-        await restoreBackupSideStores(backup);
-        showNotification('Backup restored \u2014 reloading...', 'success');
-        setTimeout(() => location.reload(), 1000);
-      }
-    } catch (err) {
-      showNotification('Error reading backup: ' + getErrorMessage(err), 'error');
-    }
-  };
-  reader.readAsText(file);
+          await restoreBackupSideStores(backup);
+          showNotification('Backup restored \u2014 reloading...', 'success');
+          setTimeout(() => location.reload(), 1000);
+        }
+      } catch (err) {
+        showNotification('Error reading backup: ' + getErrorMessage(err), 'error');
+      } finally { resolve(); }
+    };
+    reader.onerror = () => {
+      showNotification('Error reading backup file. Try selecting the file again.', 'error');
+      resolve();
+    };
+    reader.readAsText(file);
+  });
 }
 
 // ═══════════════════════════════════════════════
