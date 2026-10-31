@@ -1,4 +1,5 @@
 import type { ClientExportObject, BundleProfile, ExportBundle, ClientDataReader, ChatThreadReader } from '../types/export.js';
+import type { JSONImportOptions } from '../types/export-import.js';
 import { configureValidRuntimeCallbacks } from './runtime-callbacks.js';
 // export.js — JSON export/import, report facade, clear all data
 
@@ -80,10 +81,10 @@ export function loadExportImportModule(): Promise<ExportImportModule> {
 }
 
 
-export async function importDataJSON(file: File) {
+export async function importDataJSON(file: File, options: JSONImportOptions = {}) {
   try {
     const module = exportImportModuleLoader.module || await loadExportImportModule();
-    return await module.importDataJSON(file);
+    return await module.importDataJSON(file, options);
   } catch (err) {
     console.error('[export] Could not load the JSON import flow:', err);
     showNotification('JSON import could not be loaded. Try again.', 'error');

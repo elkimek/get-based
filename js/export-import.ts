@@ -1,4 +1,5 @@
 // export-import.js — JSON import/restore helpers for the export facade.
+import type { JSONImportOptions } from '../types/export-import.js';
 
 import type { ImportBodyOperations, ImportedDataOperations, ImportProfileOperations, ImportRowOperations, RawReplace, RawClear, RawTrim, RawFindLab, RawRestoreLab, RawCreateProfile, RawSaveProfile, RawMigrateProfile } from '../types/export-import.js';
 import { mergeBiologyScoreAIRecords } from './biology-score-persistence.js';
@@ -116,7 +117,7 @@ async function _importChatData(profileId: string, chat: unknown) {
   }
 }
 
-export function importDataJSON(file: File) {
+export function importDataJSON(file: File, options: JSONImportOptions = {}) {
   if (Number(file?.size || 0) > MAX_PORTABLE_JSON_BYTES) {
     showNotification('This backup is too large to import safely in the browser.', 'error');
     return Promise.resolve();
@@ -125,13 +126,21 @@ export function importDataJSON(file: File) {
   // (success OR error). Existing fire-and-forget callers (`importDataJSON(file)`)
   // ignore the return value and behave identically; the demo loader awaits
   // it to compute fingerprints against the imported state.
-  return new Promise<void>((resolve) => {
+  return new Promise<void | 'full-backup'>((resolve) => {
     const reader = new FileReader();
     reader.onerror = () => resolve();
     reader.onload = async () => {
       let rollback: string | null | undefined = null, rollbackProfile: string | null = null, rollbackData: unknown = null;
       try {
         const json = JSON.parse((reader.result as string)) as ImportBodyOperations;
+        // Full manual/folder backups use the restore pipeline, including its
+        // overwrite confirmation, encryption settings and IndexedDB side stores.
+        if (json.format === 'labcharts-backup') {
+          const { importEncryptedBackup } = await import('./backup.js');
+          await importEncryptedBackup(file);
+          resolve('full-backup');
+          return;
+        }
         // Guard: demo data should never be silently imported into a non-demo profile
         if (json._source === 'demo') {
           const profiles = getProfiles();
@@ -143,7 +152,7 @@ export function importDataJSON(file: File) {
         }
         // Database bundle — multi-profile import
         if (json.type === 'database' && Array.isArray(json.profiles)) {
-          await _importDatabaseBundle(json);
+          await _importDatabaseBundle(json, options);
           return;
         }
         const hasNutrition = json.nutrition?.version === 1 && Array.isArray(json.nutrition?.meals);
@@ -610,7 +619,7 @@ export function importDataJSON(file: File) {
   });
 }
 
-async function _importDatabaseBundle(json: ImportBodyOperations) {
+async function _importDatabaseBundle(json: ImportBodyOperations, options: JSONImportOptions) {
   const profiles = getProfiles();
   let created = 0, merged = 0, firstImportedId: string | null = null;
   const plans: Array<{bp: ImportProfileOperations; existing: ReturnType<typeof getProfiles>[number] | undefined; importData: ImportedDataOperations; key: string; raw: string | null; current: ImportedDataOperations; replaceRegimens: boolean}> = [];
@@ -777,7 +786,7 @@ async function _importDatabaseBundle(json: ImportBodyOperations) {
   // Legacy bundles may include wallet identity fields. Deliberately restore
   // only the Routstr node: a seed or mint without proofs/counters/recovery
   // state is not a safe wallet backup.
-  if (json.wallet) {
+  if (json.wallet && !options.preserveGlobalSettings) {
     try {
       if (json.wallet.nodeUrl) (setSelectedNodeUrl as (url: unknown) => ReturnType<typeof setSelectedNodeUrl>)(json.wallet.nodeUrl);
     } catch (e) {

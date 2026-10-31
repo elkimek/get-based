@@ -45,7 +45,12 @@ export async function dispatchImportFiles(files: File[], loadImportUI: () => Pro
 
     if (!await importMod.confirmImportSelection(buckets, source === 'page') || !isCurrent()) return;
 
-    for (const f of jsonFiles) { if (!ownsSelection()) return; await importJSON(f); }
+    for (const f of jsonFiles) {
+      if (!ownsSelection()) return;
+      // A full restore owns the whole selection, including cancellation or
+      // failure. Never merge later files into the old profile before reload.
+      if (await importJSON(f) === 'full-backup') return;
+    }
     for (const f of cycleFiles) { if (!ownsSelection()) return; await importMod.handleCycleImportFile(f); }
     if (dnaFiles.length > 0) {
       for (const f of dnaFiles) {
