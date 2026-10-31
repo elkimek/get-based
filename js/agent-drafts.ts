@@ -1,5 +1,5 @@
 import { captureChatControlAuthorization } from './chat-control-settings.js';
-import { chatDataChangeAllowed, CHAT_NATIVE_UI_NOTICE } from '../shared/chat-control-policy.js';
+import { chatDataPatchAllowed, CHAT_NATIVE_UI_NOTICE } from '../shared/chat-control-policy.js';
 import { applyAgentDataProposal } from './agent-data-apply.js';
 import { isLegacyAgentDraft } from './agent-draft-upgrade.js';
 import { readAgentProfileRecords } from './agent-profile-record-store.js';
@@ -8,7 +8,7 @@ import { readAgentProfileRecords } from './agent-profile-record-store.js';
 import { state } from './state.js';
 import { saveImportedDataForProfile, notifyProfileDataContextChanged, refreshDataViewRuntime } from './data.js';
 import { normalizeAgentContextProposal } from '../shared/agent-tool-contract.js';
-import { normalizeAgentDataProposal } from '../shared/agent-data-contract.js';
+import { normalizeAgentDataProposal, parseAgentDataPatch } from '../shared/agent-data-contract.js';
 import { agentContextCardModel, applyAgentContextChanges, environmentEMFMode, usesEnvironmentEMFQuickFields } from './agent-context-fields.js';
 import { profileDataValuesEqual } from './profile-data-writes.js';
 import { recordContextCardChange } from './context-cards-runtime.js';
@@ -23,7 +23,7 @@ export async function confirmAgentDraftSaved(draft: DraftReader | null | undefin
   const profile = getActiveProfileId();
   if (!draft || draft.kind !== 'data' || !['failed', 'applying'].includes(String(draft.status)) || draft.profileId !== profile || state.currentProfile !== profile) throw new Error('Switch back to the originating profile and select an unconfirmed library proposal.');
   const proposal = normalizeAgentDataProposal(draft.payload);
-  if (proposal && !chatDataChangeAllowed(proposal.resource, proposal.operation)) throw new Error(CHAT_NATIVE_UI_NOTICE);
+  if (proposal && !chatDataPatchAllowed(proposal.resource, proposal.operation, parseAgentDataPatch(proposal.patch))) throw new Error(CHAT_NATIVE_UI_NOTICE);
   throw new Error('This proposal has no Knowledge Base receipt to check.');
 }
 

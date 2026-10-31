@@ -8,7 +8,6 @@ import { configureAppExtension } from '../js/app-extension-runtime.js';
 import { captureManagedConnection } from '../js/app-extension-connection-control.js';
 import { captureAssistantConnection, commitAssistantConnection, readAssistantConnections } from '../js/assistant-connections.js';
 import { captureAssistantSelection, commitAssistantSelection, readAssistantSelection } from '../js/assistant-selection.js';
-import { createAppControlSession } from '../js/app-control-session.js';
 import { createAgentToolRuntime } from '../js/agent-tool-runtime.js';
 import { setAIProvider, setCustomApiModel, setOpenRouterModel, saveCustomApiConnection } from '../js/api.js';
 import { configureApiProviderStorageRuntimeDeps } from '../js/api-provider-storage-runtime.js';
@@ -39,15 +38,16 @@ beforeEach(async () => {
   vi.stubGlobal('fetch', vi.fn(async () => Response.json({ data: [{ id: 'source-model' }] }))); edition();
 });
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); configureAppExtension(null); if (lockDescriptor) Object.defineProperty(navigator, 'locks', lockDescriptor); else Reflect.deleteProperty(navigator, 'locks'); state.currentProfile = initial.profile; state.currentThreadId = initial.thread; state.chatHistory = initial.history; state.importedData = initial.data; });
-it('prepares a configured managed connection through the real tools without exposing its account, native key or ownership functions', async () => {
-  const userMessage = 'Switch to the configured managed connection using managed-b.', session = createAppControlSession(userMessage, () => true, new AbortController().signal);
-  const tools = createAgentToolRuntime({ readContext: () => '', userMessage, ...session.tools });
-  const read = await tools.execute({ tool: 'getbased_read_app', arguments: { action: 'assistant.connection', connectionId: 'direct:openrouter' } }); expect(read.success).toBe(true);
-  expect(read.contentItems[0]!.text).not.toMatch(/PRIVATE_|native-source|leaseId|isCurrent|captureConnection/);
-  const snapshot = JSON.parse(read.contentItems[0]!.text) as { snapshotId: string };
-  const result = await tools.execute({ tool: 'getbased_request_app', arguments: { action: 'assistant.connection', snapshotId: snapshot.snapshotId, parameters: '{"connectionId":"direct:openrouter","model":"managed-b"}', reason: 'Explicit route request', evidence: userMessage } });
-  expect(result.success).toBe(true); expect(result.contentItems[0]!.text).toContain('pending_user_approval'); expect(check).not.toHaveBeenCalled(); expect(readAssistantSelection().provider).toBe('custom');
-  expect(JSON.stringify(session.finish())).not.toMatch(/PRIVATE_|isCurrent|native-source/);
+it('keeps assistant.connection in native UI without exposing saved data or invoking its owner', async () => {
+  const before = structuredClone(state.importedData), settings = Object.keys(localStorage).sort().map(key => [key, localStorage.getItem(key)]);
+  const native = vi.fn(() => ({ secret: 'PRIVATE_NATIVE_DATA' }));
+  const tools = createAgentToolRuntime({ readContext: () => '', listAppActions: native, readAppState: native, prepareAppControl: native, navigate: native });
+  for (const tool of ['getbased_app_actions','getbased_read_app','getbased_request_app']) {
+    const result = await tools.execute({ tool, arguments: { action: 'assistant.connection', snapshotId: 'previous', parameters: '{}', evidence: 'Requested', reason: 'Requested' } });
+    expect(result.success).toBe(false); expect(JSON.stringify(result)).not.toContain('PRIVATE_');
+  }
+  expect(native).not.toHaveBeenCalled(); expect(tools.getDrafts()).toEqual([]); expect(tools.getOutcome().reviews).toEqual([]);
+  expect(state.importedData).toEqual(before); expect(Object.keys(localStorage).sort().map(key => [key, localStorage.getItem(key)])).toEqual(settings);
 });
 it('applies and undoes a managed route with native validation and consent, preserving all health data and hidden credentials', async () => {
   const profile = structuredClone(state.importedData), snapshot = await captureAssistantConnection('direct:openrouter');

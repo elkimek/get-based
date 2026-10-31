@@ -10,7 +10,6 @@ import { configureDashboardControlPreparation } from '../js/dashboard-control-ru
 import type { DashboardControlPorts } from '../js/dashboard-control-runtime.js';
 import { readDashboardPresentation, openDashboardPresentation } from '../js/dashboard-presentation-controls.js';
 import { dashboardPreferenceKey, readDashboardPreferenceFootprint, readDashboardPreferenceRaw } from '../js/dashboard-preference-store.js';
-import { createAppControlSession } from '../js/app-control-session.js';
 import { createAgentToolRuntime } from '../js/agent-tool-runtime.js';
 const renderer = vi.hoisted(() => ({ navigate: vi.fn<() => Promise<boolean>>(async () => false) }));
 vi.mock('../js/data-view-controls.js', async importOriginal => ({ ...await importOriginal<typeof import('../js/data-view-controls.js')>(), navigateDataViewOutcomeRuntime: renderer.navigate }));
@@ -69,12 +68,15 @@ it('retains a redacted confirmed-save receipt after the origin retires during op
 it('does not lose an acknowledged save when an optional post-save proof read fails', async () => {
   renderer.navigate.mockImplementationOnce(async () => { const get = Storage.prototype.getItem; vi.spyOn(Storage.prototype, 'getItem').mockImplementation(function (this: Storage, key) { if (key === dashboardPreferenceKey('widgets')) throw new Error('Synthetic optional read failure'); return get.call(this, key); }); return false; }); const result = await command({ hide: ['wearables'] }); expect(result).toMatchObject({ settingsSaved: true, dataSaved: false }); expect(result).not.toHaveProperty('undoId');
 });
-it('keeps Dashboard customization in native UI and rejects retired tool requests without writes', async () => {
-  const message = 'Hide Biometrics Overview on my Dashboard.', session = createAppControlSession(message, () => true, new AbortController().signal), navigate = vi.fn();
-  const tools = createAgentToolRuntime({ readContext: () => '', userMessage: message, ...session.tools, navigate }), before = readDashboardPreferenceFootprint(), health = await crypto.encryptedGetItem(healthKey);
-  const directory = await tools.execute({ tool: 'getbased_app_actions', arguments: {} }); expect(directory.success).toBe(true); expect(directory.contentItems[0]!.text).not.toContain('dashboard.presentation');
-  expect((await tools.execute({ tool: 'getbased_read_app', arguments: { action: 'dashboard.presentation' } })).success).toBe(false);
-  expect((await tools.execute({ tool: 'getbased_navigate', arguments: { view: 'dashboard', snapshotId: 'old', dashboard: '{"hide":["wearables"]}' } })).success).toBe(false);
-  expect(navigate).not.toHaveBeenCalled(); expect(readDashboardPreferenceFootprint()).toEqual(before); expect(await crypto.encryptedGetItem(healthKey)).toBe(health); expect(session.finish()).toEqual([]); expect(tools.getDrafts()).toEqual([]);
+it('keeps dashboard.presentation in native UI without exposing saved data or invoking its owner', async () => {
+  const before = structuredClone(state.importedData), settings = Object.keys(localStorage).sort().map(key => [key, localStorage.getItem(key)]);
+  const native = vi.fn(() => ({ secret: 'PRIVATE_NATIVE_DATA' }));
+  const tools = createAgentToolRuntime({ readContext: () => '', listAppActions: native, readAppState: native, prepareAppControl: native, navigate: native });
+  for (const tool of ['getbased_app_actions','getbased_read_app','getbased_request_app']) {
+    const result = await tools.execute({ tool, arguments: { action: 'dashboard.presentation', snapshotId: 'previous', parameters: '{}', evidence: 'Requested', reason: 'Requested' } });
+    expect(result.success).toBe(false); expect(JSON.stringify(result)).not.toContain('PRIVATE_');
+  }
+  expect(native).not.toHaveBeenCalled(); expect(tools.getDrafts()).toEqual([]); expect(tools.getOutcome().reviews).toEqual([]);
+  expect(state.importedData).toEqual(before); expect(Object.keys(localStorage).sort().map(key => [key, localStorage.getItem(key)])).toEqual(settings);
 });
 it('returns an accurate native handoff when the resident Dashboard control owner is unavailable', async () => { configureDashboardControlPreparation(null); const before = readDashboardPreferenceFootprint(), health = await crypto.encryptedGetItem(healthKey); expect(await readDashboardPresentation(profile)).toMatchObject({ action: 'dashboard.presentation', available: false }); expect(readDashboardPreferenceFootprint()).toEqual(before); expect(await crypto.encryptedGetItem(healthKey)).toBe(health); expect(renderer.navigate).not.toHaveBeenCalled(); });

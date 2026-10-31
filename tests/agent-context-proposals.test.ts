@@ -364,7 +364,7 @@ describe('corrected pending proposals', () => {
 import { setChatControlsEnabled } from '../js/chat-control-settings.js';
 it('expires context review across off/on, excludes it from prompts and permits a fresh review', async () => {
   const { runtime } = await propose(); const draft = { ...runtime.getDrafts()[0]!, profileId: 'a' };
-  await setChatControlsEnabled(false); await expect(applyAgentDraft(draft)).rejects.toThrow('Chat controls');
+  await setChatControlsEnabled(false); await expect(applyAgentDraft(draft)).rejects.toThrow('Health updates through chat');
   expect(buildAgentDraftReviewContext([{ agentDrafts: [draft] }])).toBe('');
   await setChatControlsEnabled(true); await expect(applyAgentDraft(draft)).rejects.toThrow('expired');
   expect(buildAgentDraftReviewContext([{ agentDrafts: [draft] }])).toBe(''); expect(mocks.save).not.toHaveBeenCalled();

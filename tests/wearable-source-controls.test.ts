@@ -9,7 +9,6 @@ vi.mock('../js/settings-runtime-bridge.js', () => ({ getSettingsModuleFunction: 
 vi.mock('../js/wearables-settings-component.js', () => ({ focusWearableRefreshControl: native.focus }));
 import { state } from '../js/state.js';
 import { readConfiguredWearableSources, openConfiguredWearableRefresh } from '../js/wearable-source-controls.js';
-import { createAppControlSession } from '../js/app-control-session.js';
 import { createAgentToolRuntime, summarizeAgentToolReceipts } from '../js/agent-tool-runtime.js';
 const original = { currentProfile: state.currentProfile, currentThreadId: state.currentThreadId, importedData: state.importedData, chatHistory: state.chatHistory };
 beforeEach(() => {
@@ -25,16 +24,16 @@ beforeEach(() => {
 });
 afterEach(() => { Object.assign(state, original); document.body.replaceChildren(); vi.restoreAllMocks(); });
 const read = () => { const value = readConfiguredWearableSources('source-controls'); if (!value.snapshotId) throw new Error('Expected enabled source snapshot'); return { ...value, snapshotId: value.snapshotId }; };
-it('returns only allowlisted freshness metadata through the real interactive tool session', async () => {
-  const before = structuredClone(state.importedData);
-  const session = createAppControlSession('How fresh is my configured wearable data?', () => true, new AbortController().signal);
-  const tools = createAgentToolRuntime({ readContext: () => '', ...session.tools });
-  const result = await tools.execute({ tool: 'getbased_read_app', arguments: { action: 'wearables.sources' } });
-  expect(result.success).toBe(true); const raw = result.contentItems[0]!.text; expect(raw).not.toContain('PRIVATE_');
-  const value = JSON.parse(raw); expect(value.sources).toHaveLength(3); expect(value.sources[0]).toEqual({ id: 'oura', name: 'Oura', kind: 'oauth2', status: 'configured', lastSuccessfulSyncAt: '2026-10-29T18:53:20.000Z', refreshAvailable: true });
-  expect(value.sources[1]).toMatchObject({ id: 'apple_health', lastSuccessfulSyncAt: null, refreshAvailable: false });
-  expect(value.sources[2]).toMatchObject({ id: 'withings', status: 'needs_reauthentication', refreshAvailable: false });
-  expect(state.importedData).toEqual(before); expect(localStorage.length).toBe(0); expect(native.open).not.toHaveBeenCalled(); expect(session.finish()).toEqual([]);
+it('keeps wearables.sources in native UI without exposing saved data or invoking its owner', async () => {
+  const before = structuredClone(state.importedData), settings = Object.keys(localStorage).sort().map(key => [key, localStorage.getItem(key)]);
+  const native = vi.fn(() => ({ secret: 'PRIVATE_NATIVE_DATA' }));
+  const tools = createAgentToolRuntime({ readContext: () => '', listAppActions: native, readAppState: native, prepareAppControl: native, navigate: native });
+  for (const tool of ['getbased_app_actions','getbased_read_app','getbased_request_app']) {
+    const result = await tools.execute({ tool, arguments: { action: 'wearables.sources', snapshotId: 'previous', parameters: '{}', evidence: 'Requested', reason: 'Requested' } });
+    expect(result.success).toBe(false); expect(JSON.stringify(result)).not.toContain('PRIVATE_');
+  }
+  expect(native).not.toHaveBeenCalled(); expect(tools.getDrafts()).toEqual([]); expect(tools.getOutcome().reviews).toEqual([]);
+  expect(state.importedData).toEqual(before); expect(Object.keys(localStorage).sort().map(key => [key, localStorage.getItem(key)])).toEqual(settings);
 });
 it('does not initialize missing connections or reveal availability when wearable context is disabled', () => {
   delete state.importedData.wearableConnections; const before = structuredClone(state.importedData); expect(read()).toMatchObject({ sources: [] }); expect(state.importedData).toEqual(before);
@@ -77,10 +76,14 @@ it('records a bounded source-disclosure receipt without source identities or cre
   expect(summarizeAgentToolReceipts([{ tool: 'getbased_read_app', arguments: { action: 'wearables.sources' }, success: false }])).toEqual([]);
 });
 
-it('expires the refresh lease when its accepted interactive turn finishes', async () => {
-  const session = createAppControlSession('Open my Oura refresh control.', () => true, new AbortController().signal);
-  const snapshot = await session.tools.readAppState({ action: 'wearables.sources' }) as { snapshotId: string };
-  expect(session.finish()).toEqual([]);
-  expect(await openConfiguredWearableRefresh({ view: 'wearablesSettings', marker: '', recordId: 'oura', snapshotId: snapshot.snapshotId }, () => true)).toMatchObject({ changed: false, dataSaved: false });
-  expect(native.open).not.toHaveBeenCalled();
+it('keeps wearables.sources in native UI without exposing saved data or invoking its owner after an interactive turn', async () => {
+  const before = structuredClone(state.importedData), settings = Object.keys(localStorage).sort().map(key => [key, localStorage.getItem(key)]);
+  const native = vi.fn(() => ({ secret: 'PRIVATE_NATIVE_DATA' }));
+  const tools = createAgentToolRuntime({ readContext: () => '', listAppActions: native, readAppState: native, prepareAppControl: native, navigate: native });
+  for (const tool of ['getbased_app_actions','getbased_read_app','getbased_request_app']) {
+    const result = await tools.execute({ tool, arguments: { action: 'wearables.sources', snapshotId: 'previous', parameters: '{}', evidence: 'Requested', reason: 'Requested' } });
+    expect(result.success).toBe(false); expect(JSON.stringify(result)).not.toContain('PRIVATE_');
+  }
+  expect(native).not.toHaveBeenCalled(); expect(tools.getDrafts()).toEqual([]); expect(tools.getOutcome().reviews).toEqual([]);
+  expect(state.importedData).toEqual(before); expect(Object.keys(localStorage).sort().map(key => [key, localStorage.getItem(key)])).toEqual(settings);
 });

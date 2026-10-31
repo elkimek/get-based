@@ -1,3 +1,4 @@
+import { parseAgentDataPatch } from '../shared/agent-data-contract.js';
 import { captureChatControlAuthorization, isChatControlEnabled, CHAT_CONTROLS_OFF_INSTRUCTIONS } from './chat-control-settings.js';
 import { canDiscloseLabOverlays } from './lab-overlay-policy.js';
 import { canDiscloseLabOrdering } from './lab-ordering-policy.js';
@@ -7,7 +8,7 @@ import { normalizeAgentDataProposal, LEGACY_AGENT_DRAFT_KINDS } from '../shared/
 // personal gateways cannot because no local tool credential crosses them.
 import { normalizeAgentContextProposal } from '../shared/agent-tool-contract.js';
 import { normalizeAppControls } from '../shared/agent-control-contract.js';
-import { chatAppControlAllowed, chatDataChangeAllowed } from '../shared/chat-control-policy.js';
+import { chatAppControlAllowed, chatDataPatchAllowed } from '../shared/chat-control-policy.js';
 import { state } from './state.js';
 
 export function isPersonalAgentTarget(target: unknown): boolean {
@@ -26,7 +27,7 @@ function agentDraftReviewState(messages: readonly { agentDrafts?: unknown }[], i
     .filter(draft => {
       if (draft.kind !== 'data') return true;
       const proposal = normalizeAgentDataProposal(draft.payload);
-      return !!proposal && chatDataChangeAllowed(proposal.resource, proposal.operation);
+      return !!proposal && chatDataPatchAllowed(proposal.resource, proposal.operation, parseAgentDataPatch(proposal.patch));
     })
     .slice(-20).map(draft => ({
       id: String(draft.id || '').slice(0, 128),

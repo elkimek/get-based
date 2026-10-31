@@ -61,28 +61,9 @@ it('a failed native session correction cannot change the visible record or annou
   vi.spyOn(storage, 'encryptedSetItem').mockImplementation(async (...args) => { if (args[0] === key) throw new Error('Synthetic disk failure'); return write(...args); });
   expect(await updateDeviceSession(id, { durationMin: 20 })).toBeNull(); expect(state.importedData).toEqual(before); expect(await stored()).toEqual(before); expect(analysis.requestDeviceSessionAnalysis).not.toHaveBeenCalled();
 });
-it('creates a reported custom device without inventing its type, irradiance or reference distance', async () => {
-  const { current, draft } = await propose('lightDevices', '', '{"brand":"Reported","model":"New Panel"}', 'add', true);
-  await applyAgentDraft(draft); const device = (await stored()).lightDevices!.find(row => row.id === current.recordId)!;
-  expect(device).toMatchObject({ brand: 'Reported', model: 'New Panel', type: null, peakWavelengths: [], mwPerCm2At15cm: null, recommendedDistanceCm: null });
-});
-it('recalculates linked completed sessions after a reviewed specification correction and retains old evidence', async () => {
-  const before = await stored(), { draft, result } = await propose('lightDevices', 'dev-panel', '{"mwPerCm2At15cm":40}');
-  expect(JSON.stringify(result)).not.toMatch(/private|device-sentinel/);
-  const review = JSON.parse(result.contentItems[0].text).review; expect(review.effects.recalculatedSessions).toHaveLength(1);
-  await applyAgentDraft(draft); const saved = await stored(), session = saved.deviceSessions![0]!;
-  expect(session.doses!.pbm_red).toBeCloseTo(before.deviceSessions![0]!.doses!.pbm_red! * 2, 8);
-  expect(session.editHistory).toEqual([expect.objectContaining({ record: expect.objectContaining({ doses: before.deviceSessions![0]!.doses, deviceSnapshot: before.deviceSessions![0]!.deviceSnapshot }) })]);
-  expect(saved.lightDevices![0].specHistory).toEqual([expect.objectContaining({ record: expect.objectContaining({ annotation: '/private/device-sentinel', mwPerCm2At15cm: 20 }) })]);
-  expect(session.deviceSnapshot!.mwPerCm2At15cm).toBe(40); expect(saved.contextNotes).toBe(before.contextNotes);
-});
-it('removes a device while retaining its recorded sessions and usable specification snapshots', async () => {
-  const before = await stored(), { draft, result } = await propose('lightDevices', 'dev-panel', '{}', 'remove');
-  expect(JSON.parse(result.contentItems[0].text).review.effects.retainedSessionCount).toBe(1); await applyAgentDraft(draft);
-  let saved = await stored(); expect(saved.lightDevices).toEqual([]); expect(saved.deviceSessions).toEqual(before.deviceSessions); expect(saved._deleted.lightDevices).toContain('dev-panel');
-  await applyAgentDraft((await propose('lightDeviceSessions', saved.deviceSessions![0]!.id, '{"durationMin":20}')).draft);
-  saved = await stored(); expect(saved.deviceSessions![0]!.durationMin).toBe(20); expect(saved.deviceSessions![0]!.deviceSnapshot).toEqual(before.deviceSessions![0]!.deviceSnapshot); expect(saved.deviceSessions![0]!.doses!.pbm_red).toBeCloseTo(before.deviceSessions![0]!.doses!.pbm_red! * 2, 8);
-});
+
+
+
 it('records a fully reported historical session with exact time, mode-independent settings and protected fields', async () => {
   const before = await stored(), patch = { deviceId: 'dev-panel', startedAt: '2026-10-23T10:00:00+02:00', durationMin: 12, distanceCm: 15, bodyArea: 'torso', eyesProtected: true, notes: 'Reported earlier session' };
   const { current, draft } = await propose('lightDeviceSessions', '', JSON.stringify(patch), 'add', true); await applyAgentDraft(draft);
@@ -95,15 +76,8 @@ it('removes only the selected completed session with its canonical deletion iden
   await applyAgentDraft((await propose('lightDeviceSessions', id, '{}', 'remove')).draft);
   const saved = await stored(); expect(saved.deviceSessions).toEqual([]); expect(saved.lightDevices).toEqual(before.lightDevices); expect(saved._deleted.deviceSessions).toContain(id);
 });
-it('preserves explicit unknown specification values rather than filling native form defaults', async () => {
-  await applyAgentDraft((await propose('lightDevices', 'dev-panel', '{"recommendedDistanceCm":null,"mwPerCm2At15cm":null,"type":null}')).draft);
-  const saved = await stored(); expect(saved.lightDevices![0]).toMatchObject({ recommendedDistanceCm: null, mwPerCm2At15cm: null, type: null }); expect(saved.deviceSessions![0]!.doses!.pbm_red).toBeUndefined();
-});
-it('retains reported irradiance when clearing its reference distance and withholds numerical estimates', async () => {
-  await applyAgentDraft((await propose('lightDevices', 'dev-panel', '{"recommendedDistanceCm":null}')).draft);
-  const saved = await stored(); expect(saved.lightDevices![0]).toMatchObject({ recommendedDistanceCm: null, mwPerCm2At15cm: 20 });
-  expect(saved.deviceSessions![0]!.doses).toEqual({}); expect(saved.deviceSessions![0]!.calculationStatus).toBe('partial');
-});
+
+
 it('refuses device removal and completed-record edits while a related timer is active', async () => {
   const active = await startDeviceSession({ deviceId: 'dev-panel', distanceCm: 15, eyesProtected: true }); expect(active).toBeTruthy(); const before = await stored(), runtime = tools();
   for (const [resource, recordId] of [['lightDevices', 'dev-panel'], ['lightDeviceSessions', active!]]) {
@@ -152,7 +126,7 @@ it('rechecks private specification changes inside the locked canonical save', as
   await expect(applyAgentDraft(draft)).rejects.toThrow('changed'); expect(await stored()).toEqual(peer); expect(state.importedData).toEqual(before);
 });
 it('rechecks revoked Light consent in the locked commit', async () => {
-  const before = await stored(), { draft } = await propose('lightDevices', 'dev-panel', '{"model":"Corrected Panel"}'), read = storage.encryptedGetItem; let reads = 0;
+  const before = await stored(), { draft } = await propose('lightDeviceSessions', state.importedData.deviceSessions![0]!.id, '{"durationMin":12}'), read = storage.encryptedGetItem; let reads = 0;
   vi.spyOn(storage, 'encryptedGetItem').mockImplementation(async (...args) => { if (args[0] === key && ++reads === 2) setContextSourceEnabled(CONTEXT_SOURCE_IDS.LIGHT_SUN, false); return read(...args); });
   await expect(applyAgentDraft(draft)).rejects.toThrow(/authorization|authorized/); expect(await stored()).toEqual(before);
 });
@@ -202,3 +176,6 @@ it('preset hydration adopts its accepted fields over their unsaved deletion and 
   expect(await hydrateDevicesFromPresetRecords([preset])).toBe(true); expect(device!.modes).toEqual(preset.modes); expect(device!.channelGroups).toEqual(preset.channelGroups);
   expect(await hydrateDevicesFromPresetRecords([preset])).toBe(false);
 });
+
+import { retiredRecordActions } from './helpers/retired-health-record-actions.js';
+retiredRecordActions('lightDevices',['add','update','remove']);

@@ -36,9 +36,10 @@ it('converts height, preserves a partial location and writes through profile met
   const { result, snapshot, proposal } = await draft({ height: { value: 70, unit: 'in' }, location: { country: 'Czechia' } });
   expect(result.success).toBe(true); expect(writes).not.toHaveBeenCalled();
   expect(snapshot.current).not.toHaveProperty('avatar'); expect(snapshot.current).not.toHaveProperty('extra');
+  for (const field of ['heightUnit', 'tags', 'notes', 'status', 'pinned']) expect(snapshot.current).not.toHaveProperty(field);
   expect(JSON.stringify(projectAgentDraftCards({ agentDrafts: [proposal] }))).toContain('177.8');
   await applyAgentDraft(proposal);
-  expect(durable[0]).toMatchObject({ height: 177.8, heightUnit: 'in', location: { country: 'Czechia', zip: '12345' }, tags: ['keep'], extra: { retained: true }, avatar: 'data:image/png;base64,opaque' });
+  expect(durable[0]).toMatchObject({ height: 177.8, heightUnit: 'cm', location: { country: 'Czechia', zip: '12345' }, tags: ['keep'], extra: { retained: true }, avatar: 'data:image/png;base64,opaque' });
   expect(mocks.sync).toHaveBeenCalled(); expect(mocks.notify).toHaveBeenCalled();
 });
 it('rejects a durable peer correction even when the local profile cache is stale', async () => {
@@ -65,7 +66,7 @@ it('does not overwrite a field that was absent in the reviewed legacy profile', 
   expect(writes).not.toHaveBeenCalled();
 });
 it('rejects deleted profiles, disabled sources and cross-profile baselines', async () => {
-  const { proposal } = await draft({ pinned: true });
+  const { proposal } = await draft({ height: { value: 175, unit: 'cm' } });
   durable = []; await expect(applyAgentDraft(proposal)).rejects.toMatchObject({ noChangeApplied: true });
   mocks.enabled.mockReturnValue(false); await expect(applyAgentDraft(proposal)).rejects.toThrow('disabled');
   mocks.enabled.mockReturnValue(true);
@@ -85,4 +86,14 @@ it('fails closed when durable metadata cannot be read without publishing an empt
 });
 it.each([{ name: '' }, { sex: 'guess' }, { dob: '2026-02-30' }, { dob: '2027-01-01' }, { height: 70 }, { height: { value: 200, unit: 'in' } }, { heightUnit: 'ft' }, { status: 'deleted' }, { avatar: 'invented' }, { id: 'other' }, { tags: [''] }, { pinned: 'true' }])('rejects invalid or unsupported profile fields %j', async patch => {
   expect((await draft(patch)).result.success).toBe(false); expect(writes).not.toHaveBeenCalled();
+});
+
+it.each([{ heightUnit: 'in' }, { pinned: true }, { status: 'archived' }, { notes: 'Management note' }, { tags: ['new'] }])('keeps administrative profile patch %j out of both proposal and replay paths', async patch => {
+  const before = structuredClone(durable);
+  const rejected = await draft(patch); expect(rejected.result.success).toBe(false); expect(writes).not.toHaveBeenCalled();
+  const { proposal } = await draft({ height: { value: 175, unit: 'cm' } });
+  await expect(applyAgentDraft({ ...proposal, payload: { ...proposal.payload, patch: JSON.stringify(patch) } })).rejects.toThrow('native settings');
+  expect(durable).toEqual(before); expect(writes).not.toHaveBeenCalled();
+  const cards = projectAgentDraftCards({ agentDrafts: [{ ...proposal, payload: { ...proposal.payload, patch: JSON.stringify(patch) } }] });
+  expect(cards[0]).toMatchObject({ nativeOnly: true, status: 'failed' });
 });

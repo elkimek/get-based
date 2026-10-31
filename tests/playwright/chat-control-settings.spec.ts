@@ -12,15 +12,15 @@ test('chat controls persist, preserve conversation, expire old proposals and all
   await page.route('https://toggle-fixture.example/v1/chat/completions', async route => {
     const body = route.request().postDataJSON();
     const system = String(body.messages[0]?.content || '');
-    if (!body.tools && !system.includes('Chat controls are disabled') && !system.includes('You are the AI assistant inside getbased')) {
+    if (!body.tools && !system.includes('Health tools are disabled') && !system.includes('You are the assistant inside getbased')) {
       await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: 'No additional insight.' }, finish_reason: 'stop' }] }) }); return;
     }
     let call: { id: string; type: string; function: { name: string; arguments: string } } | undefined;
     if (off) {
       expect(body.tools).toBeUndefined(); expect(body.response_format).toBeUndefined();
-      expect(body.messages[0].content).toContain('Chat controls are disabled'); ordinary = true;
+      expect(body.messages[0].content).toContain('Health tools are disabled'); ordinary = true;
     } else {
-      expect(body.tools).toHaveLength(19);
+      expect(body.tools).toHaveLength(13);
       if (round === 0) call = { id: 'read', type: 'function', function: { name: 'getbased_read_context_card', arguments: '{"card":"healthGoals"}' } };
       if (round === 1) {
         const result = JSON.parse(body.messages.at(-1).content); expect(result.success).toBe(true);

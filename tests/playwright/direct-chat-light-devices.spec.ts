@@ -51,23 +51,23 @@ for (const provider of ['custom', 'venice'] as const) for (const protocol of ['n
     }, provider);
     const receipt = () => page.evaluate(async () => { const { state } = await import('/js/state.js'); return JSON.parse((await (await import('/js/crypto.js')).encryptedGetItem((await import('/js/profile.js')).profileStorageKey(state.currentProfile, 'imported')))!); });
     const before = await receipt();
-    for (const [index, next] of (['duration', 'specification', 'removeDevice'] as const).entries()) {
+    for (const [index, next] of (['duration'] as const).entries()) {
       stage = next; round = 0; const previous = await receipt(); await page.locator('#chat-input').fill(statements[stage]); await page.locator('#chat-send-btn').click();
       const pending = page.locator('.chat-agent-draft-pending'); await expect(pending).toContainText(stage === 'duration' ? 'Light Device Sessions' : 'Light Devices');
-      await expect(pending).toContainText(stage === 'removeDevice' ? 'Preserved sessions' : 'Recalculated sessions'); expect(await receipt()).toEqual(previous);
+      await expect(pending).toContainText('Recalculated sessions'); expect(await receipt()).toEqual(previous);
       await pending.getByRole('button', { name: decision === 'apply' ? 'Apply' : 'Discard', exact: true }).click(); await expect(page.locator(`.chat-agent-draft-${decision === 'apply' ? 'applied' : 'discarded'}`)).toHaveCount(index + 1);
     }
     const saved = await receipt();
     if (decision === 'discard') expect(saved).toEqual(before);
     else {
-      expect(saved.lightDevices).toEqual([]); expect(saved.deviceSessions).toHaveLength(1); const session = saved.deviceSessions[0];
-      expect(session.durationMin).toBe(20); expect(session.endedAt).toBe(session.startedAt + 20 * 60000); expect(session.deviceSnapshot.mwPerCm2At15cm).toBe(40); expect(session.doses.pbm_red).toBeCloseTo(before.deviceSessions[0].doses.pbm_red * 4, 8); expect(session.editHistory).toHaveLength(2); expect(session.editHistory[0].record.durationMin).toBe(10); expect(session.editHistory[1].record.deviceSnapshot.mwPerCm2At15cm).toBe(20);
+      expect(saved.lightDevices).toEqual(before.lightDevices); expect(saved.deviceSessions).toHaveLength(1); const session = saved.deviceSessions[0];
+      expect(session.durationMin).toBe(20); expect(session.endedAt).toBe(session.startedAt + 20 * 60000); expect(session.deviceSnapshot.mwPerCm2At15cm).toBe(20); expect(session.doses.pbm_red).toBeCloseTo(before.deviceSessions[0].doses.pbm_red * 2, 8); expect(session.editHistory).toHaveLength(1); expect(session.editHistory[0].record.durationMin).toBe(10);
       const protectedFields = (value: Record<string, unknown>) => Object.fromEntries(Object.entries(value).filter(([key]) => !['lightDevices', 'deviceSessions', '_deleted', '_deletedAt', '_deletedClearedAt'].includes(key)));
       expect(protectedFields(saved)).toEqual(protectedFields(before));
     }
     await page.reload(); await page.waitForFunction(async () => !!(await import('/js/state.js')).state.currentProfile); expect(await receipt()).toEqual(saved);
     await page.evaluate(async () => { const runtime = (await import('/js/agent-tool-runtime.js')).createAgentToolRuntime({ readContext: () => '', ...(await import('/js/agent-tool-bindings.js')).createBrowserAgentToolDependencies((await import('/js/state.js')).state.currentProfile) }); const result = await runtime.execute({ tool: 'getbased_navigate', arguments: { view: 'light' } }); if (!result.success) throw new Error(result.contentItems[0].text); });
     const row = page.locator(`[data-light-history-row][data-id="${sessionId}"]`); await expect(row).toContainText('Synthetic Panel'); await expect(row).toContainText(decision === 'apply' ? '20 min' : '10 min');
-    await expect(page.locator('.light-device-card')).toHaveCount(decision === 'apply' ? 0 : 1); expect(errors).toEqual([]);
+    await expect(page.locator('.light-device-card')).toHaveCount(1); expect(errors).toEqual([]);
   });
 }

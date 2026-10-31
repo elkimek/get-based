@@ -86,7 +86,7 @@ it.each(['openrouter', 'venice', 'ppq', 'routstr', 'ollama', 'custom'])('keeps %
   expect(result).toMatchObject({ text: 'Ordinary answer.', drafts: [], toolCalls: [] });
   const request = mocks.complete.mock.calls[0]![0];
   expect(request.tools).toBeUndefined(); expect(request.jsonMode).toBeUndefined(); expect(request.jsonSchema).toBeUndefined();
-  expect(request.system).toContain('Chat controls are disabled'); expect(request.system).not.toContain('proactively offer');
+  expect(request.system).toContain('Health tools are disabled'); expect(request.system).not.toContain('proactively offer');
   expect(mocks.read).not.toHaveBeenCalled(); expect(mocks.prepare).not.toHaveBeenCalled();
 });
 it('refuses unexpected provider tool calls with controls off', async () => {
@@ -132,7 +132,7 @@ it.each(['openrouter','venice','ppq','routstr','ollama','custom'])('uses the exp
 it('returns an actionable local notice for an explicit review when controls are off without calling the provider', async () => {
   localStorage.setItem('getbased-chat-controls', '0:11111111-1111-4111-8111-111111111111');
   try { const request = 'Please create actual proposal cards for my current profile.'; const result = await callDirectChatWithTools({ ...options(), prompt: request, messages: [{ role: 'user', content: request }] });
-    expect(result.text).toContain('Chat controls are off'); expect(result.drafts).toEqual([]); expect(mocks.complete).not.toHaveBeenCalled();
+    expect(result.text).toContain('Health updates through chat are off'); expect(result.drafts).toEqual([]); expect(mocks.complete).not.toHaveBeenCalled();
   } finally { localStorage.removeItem('getbased-chat-controls'); }
 });
 

@@ -75,13 +75,13 @@ it.each([undefined, null, '', 'unrecognized'])('does not invent pending status o
   expect(encoded).toBeDefined(); expect(JSON.parse(encoded!)).toEqual(result.proposalReviewStatus);
 });
 
-it('retains exact pending actions for a supported preference and omits historical UI-only fields', () => {
+it('omits all historical management actions from model context', () => {
   const profile = state.currentProfile, thread = state.currentThreadId;
   try {
     state.currentProfile = 'retained-control'; state.currentThreadId = 'thread';
     const record = { version: 1, id: 'units', profileId: 'retained-control', threadId: 'thread', action: 'display.preferences', parameters: { unitSystem: 'US' }, baseline: { unitSystem: 'EU' }, reason: 'Requested units', evidence: 'Use US units.', status: 'pending' };
     const current = JSON.parse(buildAgentApplicationContext('', [{ appControls: [record] }]));
-    expect(current.appControlReviewStatus).toEqual([{ id: 'units', action: 'display.preferences', parameters: { unitSystem: 'US' }, status: 'pending', saved: false, reviewActions: ['Apply', 'Discard'] }]);
+    expect(current.appControlReviewStatus).toBeUndefined(); expect(buildAgentDraftReviewContext([{ appControls: [record] }])).toBe('');
     const retired = { ...record, parameters: { ...record.parameters, timeFormat: '12h' } };
     expect(JSON.parse(buildAgentApplicationContext('', [{ appControls: [retired] }])).appControlReviewStatus).toBeUndefined();
     expect(buildAgentDraftReviewContext([{ appControls: [retired] }])).toBe('');

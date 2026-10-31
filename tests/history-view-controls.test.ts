@@ -7,8 +7,6 @@ import * as crypto from '../js/crypto.js';
 import { clearSyncSaveTimers } from '../js/sync-save-hooks.js';
 import { setContextSourceEnabled } from '../js/context-source-registry.js';
 import { readHistoryViews, openHistoryView } from '../js/history-view-controls.js';
-import { readHistoryViewPreferences } from '../js/history-view-preferences.js';
-import { createAppControlSession } from '../js/app-control-session.js';
 import { createAgentToolRuntime } from '../js/agent-tool-runtime.js';
 import { NUTRITION_VIEW_RANGES, WEARABLE_VIEW_RANGES } from '../shared/history-view-contract.js';
 const renderer = vi.hoisted(() => ({ nutrition: vi.fn(async () => false), load: vi.fn(async () => ({})), styles: vi.fn(async () => true), nutritionStyles: vi.fn<() => Promise<Event | void>>(async () => undefined) }));
@@ -47,8 +45,16 @@ it.each(WEARABLE_VIEW_RANGES)('commits supported wearable range %s using an exac
 it('rejects unavailable metric IDs before loading the feature or touching preferences', async () => {
   expect(await command('wearableDetail', { metricId: 'unknown_private', wearableRange: 'all' })).toMatchObject({ changed: false }); expect(renderer.load).not.toHaveBeenCalled(); expect(localStorage.getItem('wearable-detail-range')).toBeNull();
 });
-it('returns exact field guidance for a malformed model call and permits a corrected retry without consuming its snapshot', async () => {
-  const snapshot = read(), tools = createAgentToolRuntime({ readContext: () => '', navigate: request => openHistoryView(request, () => true) }); expect(snapshot.historyFields.wearableDetail.required).toEqual(['metricId']); const bad = await tools.execute({ tool: 'getbased_navigate', arguments: { view: 'wearableDetail', snapshotId: snapshot.snapshotId, history: '{"wearableMetricId":"weight","wearableRange":"all"}' } }); expect(bad.success).toBe(false); expect(bad.contentItems[0].text).toContain('metricId (required)'); expect(localStorage.getItem('wearable-detail-range')).toBeNull(); expect(renderer.load).not.toHaveBeenCalled(); const corrected = await tools.execute({ tool: 'getbased_navigate', arguments: { view: 'wearableDetail', snapshotId: snapshot.snapshotId, history: '{"metricId":"weight","wearableRange":"all"}' } }); expect(corrected.success).toBe(true); expect(JSON.parse(corrected.contentItems[0].text)).toMatchObject({ settingsSaved: true, dataSaved: false });
+it('keeps history.views in native UI without exposing saved data or invoking its owner for model calls', async () => {
+  const before = structuredClone(state.importedData), settings = Object.keys(localStorage).sort().map(key => [key, localStorage.getItem(key)]);
+  const native = vi.fn(() => ({ secret: 'PRIVATE_NATIVE_DATA' }));
+  const tools = createAgentToolRuntime({ readContext: () => '', listAppActions: native, readAppState: native, prepareAppControl: native, navigate: native });
+  for (const tool of ['getbased_app_actions','getbased_read_app','getbased_request_app']) {
+    const result = await tools.execute({ tool, arguments: { action: 'history.views', snapshotId: 'previous', parameters: '{}', evidence: 'Requested', reason: 'Requested' } });
+    expect(result.success).toBe(false); expect(JSON.stringify(result)).not.toContain('PRIVATE_');
+  }
+  expect(native).not.toHaveBeenCalled(); expect(tools.getDrafts()).toEqual([]); expect(tools.getOutcome().reviews).toEqual([]);
+  expect(state.importedData).toEqual(before); expect(Object.keys(localStorage).sort().map(key => [key, localStorage.getItem(key)])).toEqual(settings);
 });
 it('preserves exact absent and unfamiliar raw values with one-use, field-scoped Undo', async () => {
   localStorage.setItem('nutrition-history-range', 'future-range'); const first = read(), result = await command('nutritionHistory', { nutritionRange: 'all' }, first); expect(result.undoId).toBeTypeOf('string'); expect(await command('nutritionHistory', { nutritionView: 'trends' }, first)).toMatchObject({ changed: false }); localStorage.setItem('wearable-detail-range', '1y'); expect(await undo('nutritionHistory', result.undoId!)).toMatchObject({ undone: true, settingsSaved: true }); expect(localStorage.getItem('nutrition-history-range')).toBe('future-range'); expect(localStorage.getItem('wearable-detail-range')).toBe('1y'); expect(await undo('nutritionHistory', result.undoId!)).toMatchObject({ changed: false });
@@ -78,6 +84,14 @@ it('retains the confirmed save receipt and withholds old details after ownership
 it('does not erase a confirmed save when the optional Undo proof read fails', async () => {
   renderer.nutrition.mockImplementationOnce(async () => { const get = Storage.prototype.getItem; vi.spyOn(Storage.prototype, 'getItem').mockImplementation(function (this: Storage, key) { if (key === 'nutrition-history-range') throw new Error('Synthetic post-save read failure'); return get.call(this, key); }); return false; }); const result = await command('nutritionHistory', { nutritionRange: 'all' }); expect(result).toMatchObject({ settingsSaved: true, dataSaved: false, opened: null }); expect(result).not.toHaveProperty('undoId');
 });
-it('uses the same provider-neutral action tools without creating clinical proposals', async () => {
-  const message = 'Show my nutrition history as Trends for the last year.', session = createAppControlSession(message, () => true, new AbortController().signal), tools = createAgentToolRuntime({ readContext: () => '', userMessage: message, ...session.tools, navigate: request => openHistoryView(request, () => true) }); const result = await tools.execute({ tool: 'getbased_read_app', arguments: { action: 'history.views' } }); expect(result.success).toBe(true); const current = JSON.parse(result.contentItems[0].text), moved = await tools.execute({ tool: 'getbased_navigate', arguments: { view: 'nutritionHistory', snapshotId: current.snapshotId, history: '{"nutritionRange":"1y","nutritionView":"trends"}' } }); expect(moved.success).toBe(true); expect(JSON.parse(moved.contentItems[0].text)).toMatchObject({ settingsSaved: true, dataSaved: false }); expect(session.finish()).toEqual([]); expect(tools.getDrafts()).toEqual([]); expect(readHistoryViewPreferences(profile).values).toMatchObject({ nutritionRange: '1y', nutritionView: 'trends' });
+it('keeps history.views in native UI without exposing saved data or invoking its owner', async () => {
+  const before = structuredClone(state.importedData), settings = Object.keys(localStorage).sort().map(key => [key, localStorage.getItem(key)]);
+  const native = vi.fn(() => ({ secret: 'PRIVATE_NATIVE_DATA' }));
+  const tools = createAgentToolRuntime({ readContext: () => '', listAppActions: native, readAppState: native, prepareAppControl: native, navigate: native });
+  for (const tool of ['getbased_app_actions','getbased_read_app','getbased_request_app']) {
+    const result = await tools.execute({ tool, arguments: { action: 'history.views', snapshotId: 'previous', parameters: '{}', evidence: 'Requested', reason: 'Requested' } });
+    expect(result.success).toBe(false); expect(JSON.stringify(result)).not.toContain('PRIVATE_');
+  }
+  expect(native).not.toHaveBeenCalled(); expect(tools.getDrafts()).toEqual([]); expect(tools.getOutcome().reviews).toEqual([]);
+  expect(state.importedData).toEqual(before); expect(Object.keys(localStorage).sort().map(key => [key, localStorage.getItem(key)])).toEqual(settings);
 });

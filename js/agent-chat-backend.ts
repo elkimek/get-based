@@ -22,7 +22,6 @@ interface AgentChatOptions extends Pick<AgentTurnOptions, 'prompt' | 'target' | 
   instructions: string; labContext: string; profileId?: string;
   images?: Array<{ base64: string; mediaType: string }>;
   isCurrent?: () => boolean;
-  appControlSession?: import('./app-control-session.js').AppControlSession | undefined;
 }
 
 export async function callCodexAgent(options: AgentChatOptions) {
@@ -35,14 +34,13 @@ export async function callCodexAgent(options: AgentChatOptions) {
   const effort = getAgentHostEffort();
   const authorization = captureChatControlAuthorization();
   const runtime = createAgentToolRuntime({
-    catalogMode: 'current', userMessage: options.prompt,
+    userMessage: options.prompt,
     readContext: async () => ({
       context: options.labContext,
       profileId: options.profileId || '',
       updatedAt: new Date().toISOString(),
     }),
-    ...createBrowserAgentToolDependencies(options.profileId || '', { signal: options.signal, isCurrent: () => { try { assertCurrent(); return true; } catch { return false; } }, onKnowledgeResult: options.onKnowledgeResult,
-      appControlSession: !isPersonalAgentTarget(target) ? options.appControlSession : undefined }),
+    ...createBrowserAgentToolDependencies(options.profileId || '', { signal: options.signal, isCurrent: () => { try { assertCurrent(); return true; } catch { return false; } }, onKnowledgeResult: options.onKnowledgeResult }),
     canUseTools: authorization.current, createId: authorization.createId, onToolActivity: options.onToolActivity,
   });
   const local = !isPersonalAgentTarget(target);

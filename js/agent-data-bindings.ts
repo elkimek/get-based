@@ -1,4 +1,4 @@
-import { chatDataReadAllowed, chatDataChangeAllowed, CHAT_NATIVE_UI_NOTICE } from '../shared/chat-control-policy.js';
+import { chatDataReadAllowed, chatDataChangeAllowed, chatDataPatchAllowed, chatDataFieldAllowed, CHAT_NATIVE_UI_NOTICE } from '../shared/chat-control-policy.js';
 import { isLabDisplayResource } from './lab-display-core.js';
 import { readCurrentLabDisplay, listCurrentLabDisplay } from './lab-display-records.js';
 import { readCurrentCustomMarkerCreation, readCurrentCustomMarker, listCurrentCustomMarkers, prepareReviewedCustomMarker } from './custom-marker-records.js';
@@ -84,8 +84,12 @@ export function createAgentDataTools() {
   const snapshots = new Map<string, { resource: AgentDataResource; recordId: string; baseline: string; create: boolean }>();
   const capabilities = (resource: AgentDataResource) => {
     const native = agentDataCapabilities(resource, isContextSourceEnabled(CONTEXT_SOURCE_IDS.INSIGHT_CARDS));
-    return resource === 'labReports' ? { operations: [], fields: {}, rules: 'Metadata only. Source changes and removal use the native report review.' }
-      : { ...native, operations: native.operations.filter(operation => chatDataChangeAllowed(resource, operation)), ...(resource === 'labSamples' ? { chatScope: 'Whole-sample removal uses the native sample/history UI.' } : {}) };
+    const operations = native.operations.filter(operation => chatDataChangeAllowed(resource, operation));
+    const fields = operations.length ? Object.fromEntries(Object.entries(native.fields).filter(([field]) => chatDataFieldAllowed(resource, field))) : {};
+    return { ...native, operations, fields, readOnly: !operations.length,
+      ...(!operations.length ? { rules: { scope: 'Read-only health/source information. Changes use the native editor.' } } : {}),
+      ...(resource === 'sunSessions' ? { rules: { scope: 'Completed Sun sessions only. Read the exact record or a create snapshot. Report actual start time with UTC offset and duration/end, preserving unknown exposure details as unknown. Correct only explicitly reported inputs. Completed corrections retain source/history and recalculate after Apply; private coordinates/history stay local. Live timers and device administration use native UI.' } } : {}),
+      ...(resource === 'labSamples' ? { chatScope: 'Whole-sample removal uses the native sample/history UI.' } : {}) };
   };
   const tools = {
     async readData(input: AgentToolReadOptions['readData']) {
@@ -98,6 +102,7 @@ export function createAgentDataTools() {
       const scopeCurrent = () => state.currentProfile === profileId && getContextDisclosureFingerprint() === disclosure && isAgentDataEnabled(resource)
         && (!['labSamples', 'labReports'].includes(resource) || insightEnabled === isContextSourceEnabled(CONTEXT_SOURCE_IDS.INSIGHT_CARDS));
       if (!isAgentDataEnabled(resource)) return unavailable('This data source is disabled.');
+      if (input.create && !chatDataChangeAllowed(resource, 'add')) return unavailable(CHAT_NATIVE_UI_NOTICE);
       const singleton = resource === 'sunSetup' || resource === 'profileNotes' || resource === 'nutritionTargets' || resource === 'profile';
       if (singleton && input.recordId) return unavailable('This resource uses the current profile and needs no record ID.');
       if (input.create && (singleton || input.recordId)) return unavailable('Use create only for a new collection record.');
@@ -136,13 +141,12 @@ export function createAgentDataTools() {
         ...(isLabDisplayResource(resource) ? { choices: JSON.parse(baseline).choices } : {}),
         ...(resource === 'customMarkers' && input.create ? { choices: { categories: JSON.parse(baseline).categories } } : {}),
         ...({}),
-        ...(resource === 'sunSessions' ? { requirements: { start: JSON.parse(baseline).start } } : {}),
         ...(deviceChoices ? { choices: deviceChoices } : {}),
         ...(resource === 'manualReadings' && (current as ManualRecordSnapshot | null)?.record?.kind === 'bloodPressure' ? { related: { manualPulseBpm: (current as ManualRecordSnapshot).relatedPulse ?? null } } : {}),
         ...(resource === 'supplements' && current ? { status: getSupplementStatus(agentDataObject(current)) } : {}) };
     },
     async prepareDataChange(input: AgentToolReadOptions['prepareDataChange']) {
-      if (!chatDataChangeAllowed(input.resource, input.operation)) return unavailable(CHAT_NATIVE_UI_NOTICE);
+      if (!chatDataPatchAllowed(input.resource, input.operation, parseAgentDataPatch(input.patch))) return unavailable(CHAT_NATIVE_UI_NOTICE);
       const disclosure = getContextDisclosureFingerprint();
       const insightEnabled = isContextSourceEnabled(CONTEXT_SOURCE_IDS.INSIGHT_CARDS);
       if (state.currentProfile !== profileId) return unavailable('Switch back to the originating profile.');

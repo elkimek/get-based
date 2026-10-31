@@ -109,13 +109,15 @@ it('updates nutrition targets with an effective per-kg basis and preserves unrel
   expect((mocks.save.mock.calls[0]![1] as ProfileData).nutritionTargets).toMatchObject({ energyKcal: 2100, proteinBasis: 'custom', proteinGPerKg: 1.6, configured: true, extension: 'keep' });
   for (const patch of [{ energyKcal: -1 }, { proteinGPerKg: 2, proteinBasis: 'general' }, { sodiumMg: '100' }, { unknown: 1 }]) expect((await proposal('nutritionTargets', 'update', patch)).result.success).toBe(false);
 });
-it('supports explicit target reset and profile-note removal', async () => {
+it('leaves target reset in native UI while supporting explicit profile-note removal', async () => {
   state.importedData.nutritionTargets = { energyKcal: 2200 };
-  for (const [resource, operation, field, expected] of [['nutritionTargets', 'reset', 'nutritionTargets', null], ['profileNotes', 'remove', 'contextNotes', '']] as const) {
-    const { draft, result } = await proposal(resource, operation, {}); expect(result.success).toBe(true);
-    await applyAgentDraft(draft); expect((mocks.save.mock.calls.at(-1)![1] as ProfileData)[field]).toBe(expected);
-  }
+  const before = structuredClone(state.importedData);
+  const reset = await proposal('nutritionTargets', 'reset', {});
+  expect(reset.result.success).toBe(false); expect(mocks.save).not.toHaveBeenCalled(); expect(state.importedData).toEqual(before);
+  const { draft, result } = await proposal('profileNotes', 'remove', {}); expect(result.success).toBe(true);
+  await applyAgentDraft(draft); expect((mocks.save.mock.calls.at(-1)![1] as ProfileData).contextNotes).toBe('');
 });
+
 it('edits and removes dated notes with tombstones and retained metadata', async () => {
   const id = getConfiguredArrayItemId('notes', state.importedData.notes[0])!;
   const { result, draft } = await proposal('datedNotes', 'update', { text: 'Corrected' }, id);
@@ -200,4 +202,19 @@ it('adds a dated note using its canonical identity and rejects invalid calendar 
   expect(saved.notes).toHaveLength(2); expect(saved.notes[1]).toMatchObject({ date: '2026-10-23', text: 'New observation' });
   expect(mocks.save.mock.calls[0]![2].expectedProfileRecords).toEqual([{ key: 'notes', id: getConfiguredArrayItemId('notes', saved.notes[1]), value: null }]);
   expect((await proposal('datedNotes', 'add', { date: '2026-02-30', text: 'Invalid' })).result.success).toBe(false);
+});
+
+it('appends a profile note natively without rewriting the existing text or losing unrelated fields', async () => {
+  state.importedData.contextNotes = '  Keep exact old wording.\nOriginal ending  ';
+  const before = structuredClone(state.importedData), old = state.importedData.contextNotes;
+  const { result, draft } = await proposal('profileNotes','update',{appendText:'New reported fact.'});
+  expect(result.success).toBe(true); expect(mocks.save).not.toHaveBeenCalled(); expect(state.importedData).toEqual(before);
+  await applyAgentDraft(draft); const after = mocks.save.mock.calls.at(-1)![1] as ProfileData;
+  expect(after.contextNotes).toBe(old+'\n\nNew reported fact.');
+  expect(after.diet).toEqual(before.diet); expect(after.healthGoals).toEqual(before.healthGoals);
+});
+it('rejects ambiguous or overlong note appends rather than truncating saved text', async () => {
+  state.importedData.contextNotes = 'x'.repeat(3999); const before = structuredClone(state.importedData);
+  for(const patch of [{appendText:'More'}, {appendText:'More',text:'Replacement'}]) expect((await proposal('profileNotes','update',patch)).result.success).toBe(false);
+  expect(mocks.save).not.toHaveBeenCalled(); expect(state.importedData).toEqual(before);
 });

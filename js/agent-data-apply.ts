@@ -1,15 +1,14 @@
 import { captureChatControlAuthorization } from './chat-control-settings.js';
-import { chatDataChangeAllowed, CHAT_NATIVE_UI_NOTICE } from '../shared/chat-control-policy.js';
+import { chatDataPatchAllowed, CHAT_NATIVE_UI_NOTICE } from '../shared/chat-control-policy.js';
 import { isEMFResource } from './emf-record-fields.js';
 import { normalizeAgentDataProposal } from '../shared/agent-data-contract.js';
 import { state } from './state.js';
 import { saveImportedDataForProfile, notifyProfileDataContextChanged } from './data.js';
 import { profileDataValuesEqual } from './profile-data-writes.js';
 import { isAgentDataEnabled } from './agent-data-bindings.js';
-import { AGENT_DATA_LABELS, agentDataIdentity, findAgentDataRecord, projectAgentDataChange, applyAgentDataChange } from './agent-health-data-model.js';
+import { AGENT_DATA_LABELS, agentDataIdentity, findAgentDataRecord, projectAgentDataChange, applyAgentDataChange, projectChatProfileRecord } from './agent-health-data-model.js';
 import type { ProfileSaveOptions } from './data-core-types.js';
 import { updateProfileMeta, refreshProfileMetaRuntime } from './profile.js';
-import { projectProfileRecord } from './profile-record-commands.js';
 import { parseAgentDataPatch } from '../shared/agent-data-contract.js';
 import type { StoredProfileRecord } from './profile-list-store.js';
 import { commitReviewedNutritionRecord } from './nutrition-record-store.js';
@@ -28,7 +27,7 @@ export async function applyAgentDataProposal(value: unknown, profileId: string, 
   const authorization = captureChatControlAuthorization(); authorization.assert();
   const proposal = normalizeAgentDataProposal(value);
   if (!proposal) throw new Error('Invalid data proposal.');
-  if (!chatDataChangeAllowed(proposal.resource, proposal.operation)) throw Object.assign(new Error(CHAT_NATIVE_UI_NOTICE), { noChangeApplied: true });
+  if (!chatDataPatchAllowed(proposal.resource, proposal.operation, parseAgentDataPatch(proposal.patch))) throw Object.assign(new Error(CHAT_NATIVE_UI_NOTICE), { noChangeApplied: true });
   const authorized = () => authorization.current() && controlsCurrent() && state.currentProfile === profileId && isAgentDataEnabled(proposal.resource);
   const denied = (): never => { throw Object.assign(new Error('This profile or data source is disabled or no longer authorized. No change was applied.'), { noChangeApplied: true }); };
   if (!authorized()) denied();
@@ -49,7 +48,7 @@ export async function applyAgentDataProposal(value: unknown, profileId: string, 
     projectAgentDataChange(proposal);
     const before: unknown = JSON.parse(proposal.baseline);
     if ((before as { id?: unknown })?.id !== profileId) conflict();
-    const { updates } = projectProfileRecord(before, parseAgentDataPatch(proposal.patch), proposal.effectiveDate);
+    const { updates } = projectChatProfileRecord(before, parseAgentDataPatch(proposal.patch), proposal.effectiveDate);
     if (!await updateProfileMeta(profileId, updates, { expected: before as StoredProfileRecord, canCommit: authorized })) conflict();
     try { await refreshProfileMetaRuntime(profileId); notifyProfileDataContextChanged(profileId); } catch { /* Metadata is committed. */ }
     return 'Profile details updated.';

@@ -23,10 +23,12 @@ const current = async (page: import('@playwright/test').Page) => page.evaluate(a
     saved: await (await import('/js/crypto.js')).encryptedGetItem((await import('/js/profile.js')).profileStorageKey(state.currentProfile, 'imported')) };
 });
 const navigate = async (page: import('@playwright/test').Page, request: Omit<AppNavigationRequest, 'marker'>) => page.evaluate(async request => {
-  const { state } = await import('/js/state.js'); return (await import('/js/agent-tool-runtime.js')).createAgentToolRuntime({ readContext: () => '', ...(await import('/js/agent-tool-bindings.js')).createBrowserAgentToolDependencies(state.currentProfile) }).execute({ tool: 'getbased_navigate', arguments: request });
+  const {range,...healthRequest}=request;
+  if(range) (await import('/js/data-view-controls.js')).setDateRange(range,{navigate:false});
+  const { state } = await import('/js/state.js'); return (await import('/js/agent-tool-runtime.js')).createAgentToolRuntime({ readContext: () => '', ...(await import('/js/agent-tool-bindings.js')).createBrowserAgentToolDependencies(state.currentProfile) }).execute({ tool: 'getbased_navigate', arguments: healthRequest });
 }, request);
 
-for (const { range, count, label } of ranges) for (const layout of ['charts', 'table', 'heatmap']) test(`category ${layout} ${range} matches native tabs and history without altering records`, async ({ page }) => {
+for (const { range, count, label } of ranges) for (const layout of ['charts', 'table', 'heatmap']) test(`native category ${layout} ${range} matches native tabs and history without altering records`, async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message)); const before = await current(page);
   const result = await navigate(page, { view: 'category', category: 'biochemistry', range });
   expect(result.success).toBe(true); expect(JSON.parse(result.contentItems[0]!.text)).toMatchObject({ changed: true, opened: 'category', labRange: range, dataSaved: false, settingsSaved: false });
@@ -41,13 +43,13 @@ for (const { range, count, label } of ranges) for (const layout of ['charts', 't
   await page.reload(); expect((await current(page)).saved).toBe(before.saved); expect(errors).toEqual([]);
 });
 
-for (const { range, count } of ranges) test(`Labs selects ${range} and permits explicit older-history reads`, async ({ page }) => {
+for (const { range, count } of ranges) test(`native Labs selects ${range} and permits explicit older-history reads`, async ({ page }) => {
   const before = await current(page), result = await navigate(page, { view: 'labs', range });
-  expect(result.success).toBe(true); expect(JSON.parse(result.contentItems[0]!.text)).toMatchObject({ opened: 'labs', labRange: range, dataSaved: false });
+  expect(result.success).toBe(true); expect(JSON.parse(result.contentItems[0]!.text)).toMatchObject({ opened: 'labs' });
   const history = await page.evaluate(async () => {
     const api = await import('/js/agent-tool-bindings.js'); return { visible: api.readAgentMarkerHistory({ marker: 'biochemistry.glucose', limit: 100 }), explicit: api.readAgentMarkerHistory({ marker: 'biochemistry.glucose', from: '2000-01-01', to: '2100-01-01', limit: 100 }) };
   });
-  expect(history.visible).toMatchObject({ totalValuesInRange: count }); expect(history.explicit).toMatchObject({ totalValuesInRange: 4, historyScope: 'explicit dates' }); expect((await current(page)).saved).toBe(before.saved);
+  expect((await current(page)).range).toBe(range); expect(history.visible).toMatchObject({ totalValuesInRange: count }); expect(history.explicit).toMatchObject({ totalValuesInRange: 4, historyScope: 'explicit dates' }); expect((await current(page)).saved).toBe(before.saved);
 });
 
 test('a category with only older results stays empty in a recent range and All recovers them', async ({ page }) => {
@@ -58,22 +60,23 @@ test('a category with only older results stays empty in a recent range and All r
 });
 
 test('unknown categories and retired lazy opens cannot publish session filters', async ({ page }) => {
-  const before = await current(page), result = await navigate(page, { view: 'category', category: 'missing', range: '3m' });
+  const before = await current(page), result = await navigate(page, { view: 'category', category: 'missing' });
   expect(JSON.parse(result.contentItems[0]!.text)).toMatchObject({ changed: false }); expect(await current(page)).toEqual(before);
   let reached!: () => void, release!: () => void; const started = new Promise<void>(resolve => { reached = resolve; }), blocked = new Promise<void>(resolve => { release = resolve; });
   await page.route('**/js/category-page-view.js', async route => { reached(); await blocked; await route.continue(); });
-  await page.evaluate(() => { void import('/js/agent-tool-bindings.js').then(async tools => { const result = await tools.navigateFromAgent({ view: 'category', marker: '', category: 'biochemistry', range: '3m' }); (globalThis as typeof globalThis & { heldLabView?: unknown }).heldLabView = result; }); });
+  await page.evaluate(() => { void import('/js/agent-tool-bindings.js').then(async tools => { const result = await tools.navigateFromAgent({ view: 'category', marker: '', category: 'biochemistry' }); (globalThis as typeof globalThis & { heldLabView?: unknown }).heldLabView = result; }); });
   await started; await page.evaluate(async () => { (await import('/js/state.js')).state.currentThreadId = 'different-lab-thread'; }); release();
   await expect.poll(() => page.evaluate(() => (globalThis as typeof globalThis & { heldLabView?: unknown }).heldLabView)).toMatchObject({ changed: false });
   const after = await current(page); expect(after.range).toBe(before.range); expect(after.layout).toBe(before.layout); expect(after.saved).toBe(before.saved);
 });
 
-for (const protocol of ['native', 'structured'] as const) test(`${protocol} real chat selects the native lab view and reads matching history`, async ({ page }) => {
+for (const protocol of ['native', 'structured'] as const) test(`${protocol} real chat opens the health view with a manually selected native range and reads matching history`, async ({ page }) => {
+  await page.evaluate(async () => (await import('/js/data-view-controls.js')).setDateRange('6m', {navigate:false}));
   let round = 0; const before = await current(page);
   await page.route('https://lab-view-provider.example/v1/chat/completions', async route => {
     const body = route.request().postDataJSON(); if (protocol === 'structured' && body.tools) { await route.fulfill({ status: 400, json: { error: { message: 'tools not supported by this model' } } }); return; }
     let call: AIToolCall | undefined;
-    if (round === 0) call = { id: 'view', type: 'function', function: { name: 'getbased_navigate', arguments: '{"view":"category","category":"biochemistry","range":"6m"}' } };
+    if (round === 0) call = { id: 'view', type: 'function', function: { name: 'getbased_navigate', arguments: '{"view":"category","category":"biochemistry"}' } };
     if (round === 1) call = { id: 'history', type: 'function', function: { name: 'getbased_marker_history', arguments: '{"marker":"biochemistry.glucose"}' } };
     if (round === 2) { const text = body.messages.at(-1).content, feedback = protocol === 'native' ? JSON.parse(text) : JSON.parse(text.slice(text.indexOf('{"id":'))).output; expect(feedback.success).toBe(true); expect(JSON.parse(feedback.contentItems[0].text)).toMatchObject({ historyScope: '6m', totalValuesInRange: 2, marker: { latestValue: 6.3 } }); }
     round++;
@@ -87,7 +90,7 @@ for (const protocol of ['native', 'structured'] as const) test(`${protocol} real
     localStorage.setItem(consent.AI_TRANSPARENCY_KEY, JSON.stringify({ version: consent.AI_TRANSPARENCY_VERSION, acknowledged: true })); localStorage.setItem(consent.CLOUD_AI_CONSENT_KEY, JSON.stringify({ version: consent.CLOUD_AI_CONSENT_VERSION, approvals: { [scope]: { accepted: true } } }));
     (await import('/js/agent-chat-settings.js')).setChatBackend('direct'); await (await import('/js/chat-loader.js')).openChatPanel();
   });
-  await page.locator('#chat-input').fill('Show Biochemistry for the last six months and read my glucose in that view.'); await page.locator('#chat-send-btn').click();
+  await page.locator('#chat-input').fill('Open Biochemistry and read my glucose using the range I selected.'); await page.locator('#chat-send-btn').click();
   await expect(page.locator('#chat-messages')).toContainText('The six month lab view is open.'); await expect(page.getByRole('tab', { name: 'Charts', exact: true })).toHaveAttribute('aria-selected', 'true');
   expect((await current(page)).saved).toBe(before.saved); expect(round).toBe(3);
 });

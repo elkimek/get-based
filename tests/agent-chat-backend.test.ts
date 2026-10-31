@@ -105,7 +105,7 @@ it('uses explicit plain chat with enabled baseline context and denies forged cal
   expect(preflight.requiredToolContractVersion).toBeUndefined();
   const turn = mocks.stream.mock.calls[0]![0];
   expect(turn.tools).toEqual([]); expect(turn.chatControlsEnabled).toBe(false);
-  expect(turn.instructions).toContain('Chat controls are disabled'); expect(turn.instructions).not.toContain('proactively draft');
+  expect(turn.instructions).toContain('Health tools are disabled'); expect(turn.instructions).not.toContain('proactively draft');
   expect(JSON.parse(turn.applicationContext!)).toEqual({ enabledContext: options.labContext, proposalReviewStatus: [] });
   expect(await turn.toolRuntime!.execute({ tool: 'getbased_lab_context', arguments: '{}' })).toMatchObject({ success: false });
 });
@@ -128,24 +128,18 @@ it('does not repeat a potentially billable corrective turn after a provider erro
   await expect(callCodexAgent(options)).rejects.toThrow('Network error'); expect(mocks.stream).toHaveBeenCalledTimes(2);
 });
 
-import { createAppControlSession } from '../js/app-control-session.js';
-it('accepts a real app-review receipt created during corrective CLI tool calls without saving settings', async () => {
+it('rejects management tool requests in a corrective CLI turn without changing settings', async () => {
   const prompt = 'Use US units from now on.';
-  const session = createAppControlSession(prompt, () => true, new AbortController().signal);
   mocks.stream.mockResolvedValueOnce({ text: "I've prepared a draft for your getbased card. Apply it.", threadId: 'signed-session', toolCalls: [], webSearches: [] });
   mocks.stream.mockImplementationOnce(async turn => {
-    const read = await turn.toolRuntime!.execute({ tool: 'getbased_read_app', arguments: '{"action":"display.preferences"}' }) as { success: boolean; contentItems: { text: string }[] };
-    expect(read.success).toBe(true); const snapshot = JSON.parse(read.contentItems[0]!.text);
-    const draft = await turn.toolRuntime!.execute({ tool: 'getbased_request_app', arguments: JSON.stringify({ action: 'display.preferences', snapshotId: snapshot.snapshotId, parameters: '{"unitSystem":"US"}', reason: 'Explicit request.', evidence: prompt }) }) as { success: boolean };
-    expect(draft.success).toBe(true);
-    return { text: "I've prepared a proposal for getbased. Apply it when ready.", threadId: 'signed-session', toolCalls: [], webSearches: [] };
+    for (const tool of ['getbased_read_app', 'getbased_request_app']) expect(await turn.toolRuntime!.execute({ tool, arguments: '{}' })).toMatchObject({ success: false });
+    expect((turn.tools as Array<{ name: string }>).map(tool => tool.name)).not.toContain('getbased_read_app');
+    return { text: 'Use the native Display settings.', threadId: 'signed-session', toolCalls: [], webSearches: [] };
   });
-  const before = localStorage.getItem('labcharts-profile-a-unitSystem'), activity: unknown[] = [];
-  const result = await callCodexAgent({ ...options, prompt, appControlSession: session, onToolActivity: event => activity.push(event) });
-  expect(activity).toEqual([expect.objectContaining({ tool: 'getbased_read_app', status: 'running' }), expect.objectContaining({ tool: 'getbased_read_app', status: 'completed' }), expect.objectContaining({ tool: 'getbased_request_app', status: 'running' }), expect.objectContaining({ tool: 'getbased_request_app', status: 'completed' })]);
-  expect(result.text).toContain("I've prepared"); expect(mocks.stream).toHaveBeenCalledTimes(2);
-  expect(session.finish()).toEqual([expect.objectContaining({ action: 'display.preferences', status: 'pending' })]);
-  expect(localStorage.getItem('labcharts-profile-a-unitSystem')).toBe(before);
+  const before = Object.keys(localStorage).sort().map(key => [key, localStorage.getItem(key)]);
+  const result = await callCodexAgent({ ...options, prompt });
+  expect(result.drafts).toEqual([]); expect(result.turnOutcome.reviews).toEqual([]); expect(mocks.stream).toHaveBeenCalledTimes(2);
+  expect(Object.keys(localStorage).sort().map(key => [key, localStorage.getItem(key)])).toEqual(before);
 });
 
 it('does not spend another CLI turn when the existing tool budget is already exhausted', async () => {
@@ -168,26 +162,15 @@ it('repairs an explicit local review request even when the first answer makes no
   expect(mocks.stream.mock.calls[1]![0].threadId).toBe('signed-session');
 });
 
-it.each(['failure', 'stop', 'retired'] as const)('retains real CLI app reviews after %s only for the accepted conversation', async mode => {
+it.each(['failure', 'stop', 'retired'] as const)('retired management calls cannot leave a review after CLI %s', async mode => {
   const { getChatTurnRecovery } = await import('../js/chat-turn-recovery.js');
-  const prompt = 'Use US units from now on.', controller = new AbortController();
-  const session = createAppControlSession(prompt, () => true, controller.signal);
+  const controller = new AbortController(), before = Object.keys(localStorage).sort().map(key => [key, localStorage.getItem(key)]);
   mocks.stream.mockImplementationOnce(async turn => {
-    const read = await turn.toolRuntime!.execute({ tool: 'getbased_read_app', arguments: '{"action":"display.preferences"}' }) as { success: boolean; contentItems: { text: string }[] };
-    expect(read.success).toBe(true); const snapshot = JSON.parse(read.contentItems[0]!.text);
-    expect(await turn.toolRuntime!.execute({ tool: 'getbased_request_app', arguments: JSON.stringify({ action: 'display.preferences', snapshotId: snapshot.snapshotId, parameters: '{"unitSystem":"US"}', reason: 'Explicit request.', evidence: prompt }) })).toMatchObject({ success: true });
+    for (const tool of ['getbased_read_app', 'getbased_request_app']) expect(await turn.toolRuntime!.execute({ tool, arguments: '{}' })).toMatchObject({ success: false });
     if (mode === 'stop') { controller.abort('Owned stop'); controller.signal.throwIfAborted(); }
     if (mode === 'retired') state.currentThreadId = 'other';
-    throw new Error('Provider failed after app review');
+    throw new Error('Provider failed after a rejected management call');
   });
-  const before = localStorage.getItem('labcharts-profile-a-unitSystem');
-  const error: unknown = await callCodexAgent({ ...options, prompt, signal: controller.signal, appControlSession: session }).catch(error => error);
-  const recovery = getChatTurnRecovery(error);
-  if (mode === 'retired') expect(recovery).toBeUndefined();
-  else {
-    expect(recovery?.content).toContain('1 proposal remains available'); expect(recovery?.agentDrafts).toEqual([]);
-    expect(recovery?.stopped === true).toBe(mode === 'stop');
-    expect(session.finish()).toEqual([expect.objectContaining({ action: 'display.preferences', status: 'pending' })]);
-  }
-  expect(localStorage.getItem('labcharts-profile-a-unitSystem')).toBe(before);
+  const error: unknown = await callCodexAgent({ ...options, prompt: 'Use US units.', signal: controller.signal }).catch(error => error);
+  expect(getChatTurnRecovery(error)).toBeUndefined(); expect(Object.keys(localStorage).sort().map(key => [key, localStorage.getItem(key)])).toEqual(before);
 });

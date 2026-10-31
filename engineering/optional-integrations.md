@@ -153,7 +153,7 @@ review the text. Image imports cannot be scrubbed and show a separate warning.
 
 ### Companion and CLI agents
 
-Settings → AI → **Chat controls** lets you turn **Control getbased through chat**
+Settings → AI → **Health updates through chat** lets you turn health tools
 on or off for this browser. It applies to direct providers and CLI agents. Turning
 it off keeps ordinary chat and its enabled context, removes app tools and expires
 pending reviews. Turning it back on requires fresh proposals. The assistant cannot
@@ -161,11 +161,11 @@ change this setting. CLI plain chat requires a Companion advertising `plain-chat
 older Companions need an update. Manual editing is unaffected.
 
 Chat app controls follow [the shared scope policy](../shared/chat-control-policy.ts).
-Useful health workflows and explicit unit/model/provider/profile commands remain
-available; routine layout, clock format, setup, privacy, personas and saved AI or
-search preferences use the native UI. Excluded controls are absent from shared
-API/CLI discovery and cannot execute through stale cards or invented calls. Each turn advertises only tools with bound handlers. Discussion rounds retain their health tools but omit interactive app-setting review tools. A changed Codex tool set starts a fresh backend session with visible history replay; matching sets can resume.
-Actual app-tool progress appears in a separate row outside the response bubble during generation, with a compact expandable summary afterward. This works through API and CLI chat, including discussion rounds. Completed, failed and interrupted steps contain tool and card labels, not raw arguments or health values. Ordinary replies without app-tool calls add no activity UI; older replies may have no recorded trace. Prepared proposals still require their own review card and Apply. If a response fails or is stopped after preparing a review, the current conversation retains that review for Apply or Discard. Completed view/preference effects and unconfirmed command outcomes are reported separately from proposed health changes; a failed reply does not imply rollback. Changing the originating profile, thread, data root, disclosure or provider prevents recovery into another owner. Explicit opening requests to update a profile or prepare its reviews use structured tool execution from the first API response, requiring an initial tool step. Markdown card lists are not executable reviews. If no real review is prepared, the app reports that outcome rather than asking the user to apply prose.
+Health reads, personal-context/record proposals and requested health-view opens
+remain available. Models, providers, profile switching, saved units/ranges/layout,
+setup, privacy, personas and saved AI/search preferences use the native UI. Excluded controls are absent from shared
+API/CLI discovery and cannot execute through stale cards or invented calls. Each turn advertises only tools with bound handlers. Discussion rounds use the same health-only scope. A changed Codex tool set starts a fresh backend session with visible history replay; matching sets can resume.
+Actual app-tool progress appears in a separate row outside the response bubble during generation, with a compact expandable summary afterward. This works through API and CLI chat, including discussion rounds. Completed, failed and interrupted steps contain tool and card labels, not raw arguments or health values. Ordinary replies without app-tool calls add no activity UI; older replies may have no recorded trace. Prepared proposals still require their own review card and Apply. If a response fails or is stopped after preparing a review, the current conversation retains that review for Apply or Discard. Completed health-view opens and unconfirmed command outcomes are reported separately from proposed health changes; a failed reply does not imply rollback. Changing the originating profile, thread, data root, disclosure or provider prevents recovery into another owner. Explicit opening requests to update a profile or prepare its reviews use structured tool execution from the first API response, requiring an initial tool step. Markdown card lists are not executable reviews. If no real review is prepared, the app reports that outcome rather than asking the user to apply prose.
 
 The same scope policy limits data-resource exposure. Historical proposal payloads
 are retained and shown read-only, with no saved-outcome claim or execution controls.
@@ -200,22 +200,17 @@ lookups disclose no card data and are not listed as provided context. Newer
 overlapping proposals replace older pending cards, so an earlier answer cannot
 be applied after its corrected proposal arrives. Disabled context
 sources remain inaccessible. Direct API chat uses browser-owned tools without requiring a Companion.
-Interactive local and direct chat also shares `getbased_app_actions`, `getbased_read_app` and `getbased_request_app` for saved display preferences: International (SI), Australia / NZ or US units, alternate units, range display. A read returns a fresh scoped snapshot; a request creates a separate review card and saves no setting. Apply uses the same native preference owner as Settings → Display, compares the reviewed values and rejects stale changes. These chat display preferences apply to the active profile; clock format is changed in native Display settings. Undo uses a private execution receipt and refuses to overwrite an intervening change. All ordinary conversations can continue while a review is pending. Unsupported settings still need their native controls; this catalog does not imply general app administration.
+The current version61 catalog contains 13 tools: seven health-context readers,
+context-card read/draft, record read/draft, health-view navigation and bounded prior
+conversation search. The exact version60 catalog remains a compatibility fixture,
+not an executable legacy mode. Older Companions require an update. Both API tool
+protocols and local agents use the same policy and review boundary.
 
-The same app-control tools support `assistant.selection` for the exact model and reasoning effort on the current configured connection. Read it to obtain a fresh review snapshot and a bounded catalog with declared model capabilities; cached availability is not a live availability guarantee, and undeclared tool support remains unknown. Prepare the named model and/or a supported effort, then choose Apply. The next request uses that selection. Existing conversations and prior model attribution remain intact; a changed CLI model starts a new backend session with the retained transcript. Active replies and incompatible attached photos block selection changes. Undo requires the private native receipt and the unchanged connection; a reloaded pending model review expires and must be read again. Provider/connection setup still uses its native controls. Before applying a native API/Local AI route change, getbased checks its model metadata directly with a bounded cancellable GET. A rejected credential, missing/non-chat model, unavailable endpoint or changed owner leaves the working route selected. Metadata is not a paid inference test or a guarantee of future availability. Hidden edition-owned credentials use the edition’s native controls; they are correctly reported as configured without exposing credentials or inventing a stock ownership lease. `assistant.connections` lists configured providers and paired CLI targets; `assistant.models` accepts an exact connectionId to read another catalog without selecting it. Read `assistant.connection` with that ID for a fresh snapshot, then request it with the exact connectionId, model and optional effort. Apply preserves native destination approval and takes effect for the next request. No conversation content is sent by selecting a route. Pending reviews expire on reload; Undo requires the private current receipt and unchanged recipient identities. A different CLI adapter or target starts a fresh backend session with retained history, even when model names match. Returning to a CLI after an API reply also starts a fresh session so that reply is retained.
-
-`profiles` lists bounded saved profile names and IDs without reading their health
-data. Read `profile.selection` for an exact destination ID, then prepare that
-selection for native review. Duplicate names require the user's exact ID. Apply
-runs after the reply is saved and rejects a changed profile directory, unsaved
-profile edits, open editors, chat drafts, or attached/preparing photos. It uses
-the native profile loader and keeps each profile's health data and conversation
-history separate. A destination rebuild failure pauses chat and new conversation
-creation until recovery, protecting its saved conversation list. Selecting the
-same profile again can retry an incomplete load. Pending reviews expire on
-reload; a completed historical label requires its private native receipt.
-Switching back requires a fresh review or the native profile picker. Profile
-selection cannot be combined with another application change in the same turn.
+Application management belongs in native UI: model/provider/reasoning selection,
+profile switching, saved display and chart preferences, privacy/source permissions,
+backup/import/export/sharing/reports, device-library/checkpoint administration and
+live timers. Chat provides ordinary instructions for those controls. Historical
+management cards remain readable but cannot Apply or Undo.
 
 The next turn receives each card's current status and available review actions.
 Local agent chat requires the Companion's application-context capability: the
@@ -233,12 +228,9 @@ unrelated setup questions. Clearly reported recordable events and current health
 goals still create their supported reviewable drafts. A read result is not a draft;
 the assistant must receive a successful draft-tool result before claiming a card
 was created.
-A reviewable `getbased_read_app` snapshot reports `reviewPrepared: false` and
-`nextToolForReview: getbased_request_app`. Reading settings never creates a
-card. Only a successful request result with `controlId` and
-`pending_user_approval` means the native review was prepared. Retired app
-controls are omitted from the next turn's action state; missing or unrecognized
-stored draft statuses are reported as unknown with no execution actions.
+Only a successful draft-tool result creates a review. Reads and Markdown card
+lists do not. Retired management actions are omitted from the next turn's state;
+missing or unrecognized stored statuses grant no execution authority.
 An unsupported setting request must report its limit and native UI path, without
 substituting a narrower field. For example, a global US-unit preference must not
 be replaced by a height-only display proposal. A one-answer conversion does not
@@ -290,16 +282,17 @@ writable profile fields through these tools.
 `getbased_read_data` lists the supported resources and bounded record IDs, then
 reads a selected record (or a create snapshot). `getbased_draft_data` proposes
 validated changes to Supplements & Medications, Nutrition Targets, dated notes,
-the profile context note and current-profile details. Profile detail proposals can
-edit name, sex, date of birth, height, country/postal code, tags, profile-list notes,
-status and pinning. Height converts an explicit cm/in value to the ordinary stored
-centimetres; its display unit remains separate. Avatars and profile creation,
+the profile context note and current-profile details. Notes support appendText,
+which preserves the exact existing text; replacing text requires an explicit request. Profile detail proposals can
+edit name, sex, date of birth, height and country/postal code. Tags, profile-list
+notes, status and pinning stay in the native profile editor. Height converts an explicit cm/in value to the ordinary stored
+centimetres; its existing display unit is preserved. Avatars and profile creation,
 switching and deletion require their existing application flows. Metadata reads
 refresh from durable storage, and Apply checks the reviewed metadata inside the
 serialized, cross-tab locked profile-list store. Therapy edits include pause, stop, restart and dated
 dose/schedule changes; original periods and unrelated product metadata survive.
-New therapies leave unreported schedules unknown. Nutrition target proposals show
-the effective protein basis and all normalized settings. Apply checks the reviewed
+New therapies leave unreported schedules unknown. Nutrition target proposals use
+reported amounts; saved widget/preset configuration remains native. Apply checks the reviewed
 record inside the locked save and rejects stale targets while merging unrelated
 peer additions.
 
@@ -351,8 +344,8 @@ definition or reviewed lab date requires a new review. Derived-only marker
 results without a stored result column are not yet dated-note targets.
 
 Actual reference and optimal limit edits use the native marker editor.
-Chat can still select reference/optimal/both display through `display.preferences`;
-that changes presentation and preserves the recorded limits and canonical values.
+Reference/optimal/both display is selected in native Display settings; chat cannot
+change the saved preference.
 Native edits retain supported unit conversion, original provenance, guarded
 restoration, opaque fields and conflict checks.
 
@@ -368,63 +361,15 @@ source evidence, notes and disclosure groups. Failed native edits retain typed
 candidates and require a fresh human confirmation. Chat cannot prepare these
 administration changes or replay old cards.
 
-Apply is required after the reply. Native chart/status defaults remain the basis;
-only explicit moves change relative positions. Measurements, samples, notes and
-source links retain their canonical identities. Single-move Undo cancels exactly
-that operation and retains later-arriving peer moves. Whole-scope reset and its
-restoration supersede older sync generations. Every Undo checks the saved native
-proof, current profile/chat, source permissions and unchanged ordering footprint.
-Pending reviews expire on reload. A restored saved/undone label requires private
-native completion proof; importing conversation metadata cannot grant execution
-or Undo authority. Proof or repaint failure cannot turn a durable save into a
-failed data-write claim. Ordinary discussion and answer-only sorting do not
-request a saved ordering change. No sample-history editing button is added.
-Saving presentation order schedules normal sync without republishing clinical
-context to the personal gateway.
+Lab ranges and category layouts use native buttons and tabs. Chat can open a
+health view and read marker history using its current native range, or use explicit
+read dates for one answer. Read dates never change the saved/session view.
 
-`labs.comparison` reads permitted recorded collection dates, current selections
-and the latest two dates. It returns no measurements, source files or notes.
-After an explicit comparison request, `getbased_navigate` accepts `view:compare`,
-the fresh `snapshotId`, and `firstDate` and/or `secondDate`, or `swapDates:true`.
-Swap is separate from selecting dates. A hidden current side is returned as null;
-choose both permitted dates rather than guessing the hidden selection. Fewer
-than two permitted dates cannot create a comparison snapshot.
-
-These are session-only view commands, with no Apply card or saved-data change.
-Snapshots expire when the originating profile/chat, source permissions, dates or
-selection change, and cannot be replayed. Existing dialogs and editors block
-navigation. The receipt reports opening separately from a committed selection:
-optional rendering failure can leave a selected pair without a confirmed table.
-The existing native table compares date-level data; selecting dates does not
-merge or edit same-day specimen records. Ordinary discussion does not authorize
-navigation. Opening Compare alone retains the normal native defaults.
-
-`labs.correlations` discovers permitted recorded marker/treatment IDs, native
-presets, current selections, exact pair IDs and supported view controls. Search
-and pagination bound the item list. It exposes no numeric results, dose schedules,
-source files or disabled selections. An unavailable snapshot requires the native
-controls; the assistant must not enable sources or guess private IDs.
-
-An explicit workspace request uses `getbased_navigate` with `view:correlations`,
-the fresh `snapshotId`, and a `correlation` JSON patch containing `markers`,
-`therapies`, `preset` and/or `view`. Replacing markers keeps treatments; a native
-preset replaces markers and retains treatments within the combined eight-item
-limit. View fields include ranges, custom dates, grouping, layout, tabs, exact
-pairs, visible series, ingredient choices, analysis disclosure and inspector
-pinning. These direct commands save the native workspace preferences without an
-Apply card. They never edit measurements, doses, treatment periods or source
-permissions. The native UI shows the existing calculation and available data.
-
-Receipts distinguish saved preferences from a confirmed view. A rendering failure
-does not undo a durable save. Guarded Undo requires a fresh read and a returned
-current `undoId`, supplied instead of a patch; reload, newer workspace edits,
-relevant data changes or withdrawn permissions retire that authority. Imported
-IDs cannot authorize Undo. Native controls and chat share write serialization;
-stale footprints and unsupported saved shapes fail before a write. Failed writes
-verify rollback, and an unconfirmed persistence outcome requires checking the
-native workspace. Cancellation blocks a command before its commit starts; an owner change after
-a completed save preserves a redacted truthful receipt. Ordinary discussion does
-not authorize workspace configuration.
+Chat can open Compare and Correlations with their normal native selections.
+Choosing comparison dates and configuring correlation markers, treatments,
+presets, ranges, tabs, grouping, layout or inspector preferences use those native
+views. These choices do not edit health records. Historical chat commands and Undo
+identifiers cannot apply or restore these settings.
 
 The native meal-photo model preference is independent of the chat model. Both
 Settings and the meal editor list configured models with confirmed image input
@@ -438,8 +383,8 @@ configured fallback. Selecting a model saves no meal and starts no inference;
 Analyze and any required processing approval remain separate actions.
 
 Meal-photo and label model routing is configured in native AI settings or the
-meal editor. Chat can open AI settings but cannot change the saved analysis route.
-Opening settings starts no inference and grants no processing approval.
+meal editor. Chat explains the native UI path; it cannot open AI settings or change the saved
+analysis route. Selecting a route starts no inference or processing approval.
 
 Photo analysis captures its destination before preparing images. A change to the
 profile, saved route or destination configuration cancels the request; it does not
@@ -450,79 +395,23 @@ Required processing approval still precedes image uploads, and analysis returns 
 review without saving a meal.
 
 
-`history.views` reads native display preferences, their scopes, supported ranges
-and tabs, and permitted wearable metric IDs. It returns no measurements, dates,
-source identities or notes; disabled wearable disclosure also hides metric
-presence. An explicit `getbased_navigate` uses a fresh `snapshotId` and `history`
-JSON. `nutritionHistory` accepts `nutritionRange` (`30d`, `3m`, `6m`, `1y`, `all`)
-and `nutritionView` (`meals`, `trends`). `wearableDetail` requires an exact returned
-`metricId` and optionally `wearableRange` (`90d`, `6m`, `1y`, `all`).
-
-These display defaults are browser wide. Current Dashboard widget visibility
-uses native Customize and is not a history command. Legacy strip
-visibility/collapse keys are not advertised as functional dashboard controls.
-
-Dashboard widgets, visibility, order, biometric tiles and pins are managed
-through native Customize. Chat can open the Dashboard, but cannot change layout
-or reset these preferences. Native storage and rollback safeguards still apply.
-
-These explicit presentation commands save directly without an Apply card. Native
-controls and chat share the same profile lock and verified storage boundary.
-Receipts distinguish a saved preference from a confirmed opened Dashboard; a paint
-failure does not erase a confirmed save. Undo needs a fresh read and a current
-`undoId` instead of `dashboard` JSON. It restores only affected raw preferences,
-including prior absence, and rejects newer effects or retired ownership. Reload
-and imported IDs cannot recreate Undo authority. Clinical data, context access,
-sources and account connections remain outside this command. Ordinary discussion
-does not authorize saving a layout or changing pins.
-
-These explicit presentation commands save only stated fields directly, without
-an Apply card, and leave meals, readings, source access and assistant lookback
-unchanged. Native handlers and chat share serialization and verified writes.
-Receipts distinguish saved preferences from a successfully rendered view and
-retain a confirmed save if presentation fails. Undo needs a fresh read, a current
-private `undoChoices` ID and its declared destination, without a history patch.
-It restores only saved fields, preserves newer unrelated preferences and rejects
-changed effects or retired ownership/disclosure. Reload removes Undo authority.
-Owned read-only histories can update; manual-entry forms, protected meal drafts
-and other dialogs block commands. Ordinary conversation about health or meals
-does not authorize presentation changes.
-
-`labs.overlays` reads permitted chart-layer switch settings and prepares explicit
-`notes`, `supplements` and/or `cycle` booleans. It returns no health content or
-record-availability information. Apply saves profile-scoped display preferences
-through the same durable owner as native Layers controls; it never changes source
-permissions, notes, therapies, periods or samples. Layers render when matching
-records exist. Cycle phase at blood draw also requires a female profile and
-recorded period or draw-phase context. Disabled lab/insight/supplement context
-restricts the corresponding tool fields and filters past cards/model metadata;
-the assistant must not enable access to operate a layer.
-
-Native controls and chat share preference-write locks. Storage failure rolls
-back attempted keys before publishing cached modes. A pending review expires
-after reload. Saved/undone labels require private native proof; guarded Undo
-changes only the reviewed switches and rejects newer manual changes. An Undo
-attempt is recorded before changing switches, and cannot be replayed. Proof or
-repaint failure preserves truthful saved outcomes. Ordinary conversation and
-chart explanations do not authorize saved overlay changes.
+Nutrition History and wearable details open with their current native defaults.
+Ranges and tabs are changed in the native view. Opening through chat preserves
+saved history preferences. Dashboard widgets, visibility, ordering, biometric tiles
+and pins use native Customize. Native preference owners retain serialization,
+verified writes, compensation and ownership safeguards. Chat cannot configure
+these controls or replay old preference cards. Chart notes, supplement and cycle
+layers use the native Layers controls; no chat layer tools are advertised.
 
 Context sources, lab-group restrictions and lookback windows are managed in
 the native Context Hub. Chat cannot enable disclosure or apply/undo old source
 reviews. Changes there preserve saved health data and messages already shared.
 
-Native Apply is required for every disclosure change, including enabling or
-extending access. It uses the Context Hub atomic profile save and checks the
-originating profile, chat, saved settings and current authority inside the commit.
-The next context build and tool reads follow saved preferences; records and past
-messages are preserved. This cannot withdraw content already sent to a provider.
-Private native proof authenticates historical saved labels after reload; pending
-reviews expire. Further changes require fresh explicit review, with no reusable
-Undo that could re-enable disclosure. Ordinary health discussion and a one-answer
-omission do not authorize a saved preference change. Destination approvals remain
-independent of source preferences.
-Unsupported future source metadata or lookback values block this action before
-native profile normalization can discard them; no migration is performed by a
-settings read.
+The native Context Hub owns guarded autosave, failed-intent recovery and peer
+conflict handling for disclosure changes. The next context build and tool reads
+follow its saved preferences; records and past messages are preserved. This cannot
+withdraw content already sent to a provider. Destination approval remains
+independent of source permissions, and chat cannot re-enable disclosure.
 Legacy wearable-series preferences also use the current tab’s profile owner;
 another tab changing the shared profile selection cannot change this tab’s window.
 Agent Access refresh mirrors only an authoritative saved window. Its read API's
@@ -603,8 +492,8 @@ Device/session and measurement/checkpoint operations use the separate resources
 below. Sun, EMF, camera/import/reanalysis workflows still require their own
 capabilities; room/screen changes cannot replace those workflows.
 
-`sunSessions` supports reviewed completed-session add/update/remove and active
-session note correction. List exact IDs, then read the intended record; new rows
+`sunSessions` supports reviewed completed-session add/update/remove; active timer
+control remains native. List exact IDs, then read the intended record; new rows
 need a create snapshot. Actual start time with a UTC offset and duration/end are
 required. Exposure preset or anatomical regions, sunscreen, glass, eye mode/time,
 posture, ground, notes and reported coordinates can be corrected. Missing facts in
@@ -617,24 +506,9 @@ location selection, cleared estimates, native post-approval weather/spectrum
 recalculation and retained prior inputs/segments/calculations. Weather failure cannot
 turn a committed input edit into a failed write or restore old estimates.
 Removal explains the loss of this record and its local histories. Other sessions,
-original files, backups and conversations remain. Existing active timers also
-support reviewed `pause`, `resume`, `stop` and `rotateSides` with an empty patch,
-`setCoverage` with anatomical `regions`, and `setSunscreen` with a reported SPF
-(zero explicitly means none). These reuse native controls and require fresh
-source/permission checks inside the write queue. The review states that the action
-takes effect when Apply is processed, after pending writes, rather than backdating
-it to the message. New live timers use `start` with a create snapshot. Its
-`requirements.start` reports whether Fitzpatrick type is configured, a specific
-saved location is available, and a timer is already active. Choose reported
-uncovered regions/preset and an explicitly selected saved location or reported
-coordinates. Country-only location and missing skin type do not meet the native
-prerequisites. Start/end/duration and eye duration cannot be supplied for a live
-start: its boundary is measured when Apply is processed. A known eye mode tracks
-that interval; unreported SPF, glass, eye/lens, posture and ground remain unknown.
-The timer records elapsed time while estimates wait for sufficient inputs. Native
-start dialogs recheck their originating profile, setup and location before saving.
-Other active inputs retain their native flows. A recorded-input correction cannot
-silently stop an active timer.
+original files, backups and conversations remain. Live start/pause/resume/stop,
+coverage, sunscreen and side changes stay in the native timer UI. A recorded-input
+correction cannot silently stop or control an active timer.
 All native lifecycle writes and periodic slices stage their changes and publish
 only after canonical storage accepts them. Live changes retain prior input history
 and close the old timed slice first; changing inputs while paused adds no exposure.
@@ -667,27 +541,16 @@ calibration, confidence, frames or arbitrary source metadata. New current
 room/tool readings review replaced rows and retain their source history privately;
 an older report cannot silently displace a newer reading. Frozen checkpoints
 retain their original evidence when live readings are corrected or removed.
-Checkpoint add copies the current rooms, screens and mapped readings today.
-Existing date/label/notes corrections retain metadata history; removal reviews the
-checkpoint/source/history being erased. The live environment is independent.
-Saved checkpoints remain visible after the final live room is removed. Native
-camera walkthrough saving is atomic across evidence, room creation and mapped
-relative readings, with retry after storage failure. Native and chat saves publish
-only after canonical acceptance and guard stale/retired owners. Selected camera,
-file/import/reanalysis and comprehensive source erasure flows remain separate.
+Checkpoints are read-only through chat. Creating, renaming or removing them uses
+the native Light assessment UI. Saved checkpoints remain visible after the last
+live room is removed. Native camera walkthrough saving remains atomic across
+evidence, room creation and relative readings, with retry after storage failure.
+Camera, file/import and reanalysis workflows remain native.
 
 `lightDevices` and `lightDeviceSessions` list and read exact saved device and
-completed-session records under Light & Sun disclosure. They support reviewed
-add/update/remove. Custom device adds require a reported brand/model and retain
-unreported specifications as unknown. Corrections validate wavelength/share
-pairing, group/mode identities and coupling; no invalid requested mode silently
-becomes the device default. Device specification corrections review recalculated
-linked sessions and retain previous inputs/calculations. An explicit unknown
-reference distance retains the reported intensity but withholds reference-based
-numerical estimates. Device removal is blocked by active timers and preserves
-recorded sessions with their saved specifications; review also states which
-device-only prior-spec history is removed. Session removal clears only that
-session and its local history.
+completed-session records under Light & Sun disclosure. Device library entries are read-only through chat; specification, preset and
+library changes use the native device editor. Completed-session records support
+reviewed add/update/remove, retaining original inputs and calculated history.
 New completed sessions require the actual start time with an explicit UTC offset,
 duration, distance, body area and eye-protection fact, plus a saved device and its
 reported valid mode when applicable. A date alone never supplies a clock time.
@@ -699,14 +562,8 @@ extraction and live-timer workflows still need their dedicated application flow.
 Staged commits preserve unrelated drafts and reject revoked, stale or retired
 owners. Source metadata and raw history stay local.
 
-`genome` reads recordId `genome` for an explicit request to remove all saved genome
-data. It supports only `remove` with an empty patch, and requires both genome
-summary and full SNP-inventory sources for a complete review. The bounded summary
-counts calls and histories without exposing source files; unknown legacy layouts
-are identified rather than interpreted as supported calls. Apply clears all saved
-SNPs, maternal records, derived summaries, genome metadata and local source/history.
-Original files, conversations and identity-only removal guards remain. Use the
-individual resources for one SNP or only maternal data.
+Whole-genome removal uses the native Genome UI. Chat cannot read a deletion
+snapshot, prepare a removal card or replay an older genome-deletion proposal.
 
 Whole-genome and maternal removal generations are independent of individual SNP
 guards. Newly reported facts and explicit native file-restoration previews create
@@ -728,7 +585,7 @@ checks, without erasing unrelated samples or diagnostic history.
 
 `labSamples` supports adding a deliberately separate sample, adding missing
 results to an exact existing sample, correcting collection date/specimen/time/
-fasting and removing the whole sample. A new sample requires `newSample: true`,
+and fasting. Whole-sample removal uses the native UI. A new sample requires `newSample: true`,
 an explicit date and reported numeric results with explicit units. Unreported
 collection facts remain unknown. To find a marker never saved before, call
 `getbased_search_markers` with `includeUnrecorded: true`; this returns enabled
@@ -1022,6 +879,9 @@ Chat can open native handoffs for health-file selection, report review, active-p
 
 For an existing meal, the native Photo tab offers **Add reference photos**. This keeps its current photos and estimate and sends no AI request. Review and Save completes attachment; the existing four-photo limit applies. Choosing photos for a new analysis replaces the estimate and photo set only after native review and Save. Native saves use the exact current record and refuse stale/deleted targets; if persistence succeeds but local refresh fails, the form reports Saved and requires reload instead of inviting a duplicate save.
 
-For a requested source freshness check, chat can read the limited `wearables.sources` metadata projection. A matching source ID and fresh snapshot can open that configured source's native Update now control. The user starts refresh there and native progress, completion or failure supplies the actual outcome. Opening the control performs no refresh, and reading freshness does not verify live availability. Disabled wearable context blocks this metadata read; chat cannot enable it, reconnect sources or start a bulk backfill. Entirely failed vendor fetches do not advance the recorded successful sync time.
+Wearable setup and source refresh use native Settings → Wearables → Update now.
+Chat can explain that path but cannot read connection metadata or open source
+management. Native progress and completion report the actual refresh; entirely
+failed vendor fetches do not advance recorded successful sync time.
 
-When explicitly asked about an earlier conversation, chat can use `getbased_read_app` with `conversations.search` and a literal phrase. It searches a bounded page of prior conversations in the current profile and returns short historical quotes with native source links. These quotes are sent to the assistant selected for the current question, so earlier conversation content can reach that selected provider; they are not new health observations or instructions. No result in a bounded page proves that a topic was never discussed. Hidden/automatic/system/tool messages and attachments are excluded. Clicking a source after the reply opens and highlights the unchanged native quote without another inference. Source links survive reloads in the same profile; locked, edited, removed or foreign-profile sources require native history access or a new search. Search does not edit health records, projects, pins, saved summaries or discussions.
+When explicitly asked about an earlier conversation, chat can use `getbased_search_conversations` with a literal phrase. It searches a bounded page of prior conversations in the current profile and returns short historical quotes with native source links. These quotes are sent to the assistant selected for the current question, so earlier conversation content can reach that selected provider; they are not new health observations or instructions. No result in a bounded page proves that a topic was never discussed. Hidden/automatic/system/tool messages and attachments are excluded. Clicking a source after the reply opens and highlights the unchanged native quote without another inference. Source links survive reloads in the same profile; locked, edited, removed or foreign-profile sources require native history access or a new search. Search does not edit health records, projects, pins, saved summaries or discussions.

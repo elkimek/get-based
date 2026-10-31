@@ -1,4 +1,4 @@
-import { chatDataReadAllowed, CHAT_NATIVE_UI_NOTICE } from '../shared/chat-control-policy.js';
+import { chatDataReadAllowed, chatDataPatchAllowed, chatDataFieldAllowed, CHAT_NATIVE_UI_NOTICE } from '../shared/chat-control-policy.js';
 import { isEMFResource, emfFields, emfChoices, displayEMFRecord } from './emf-record-fields.js';
 import { projectEMFRecord } from './emf-record-proposals.js';
 // Typed resource projections and mutations shared by tool preparation and Apply.
@@ -11,7 +11,7 @@ import { displayProfileRecord, profileEditableFields, projectProfileRecord } fro
 import { displayMealRecord, mealEditableFields, parseMealRecordSnapshot, projectMealCommand } from './nutrition-record-commands.js';
 import type { ProfileData } from '../types/app-state.js';
 import { displayManualRecord, manualEditableFields, manualRecordRules, parseManualRecordSnapshot, projectManualRecord } from './manual-record-commands.js';
-import { displayMarkerNote, markerNoteFields, projectMarkerNote } from './marker-note-commands.js';
+import { displayMarkerNote, markerNoteFields, projectMarkerNote, reviewedNoteText } from './marker-note-commands.js';
 
 import { displayLabResult, projectLabResult, labResultFields } from './lab-result-commands.js';
 
@@ -35,6 +35,13 @@ import { sunSetupFields, sunSetupChoices, displaySunSetupRecord, projectSunSetup
 import { sunSessionFields, sunSessionChoices, displaySunSessionRecord, projectSunSessionRecord } from './sun-session-proposals.js';
 
 export { AGENT_DATA_LABELS } from '../shared/agent-data-contract.js';
+export function projectChatProfileRecord(before: unknown, patch: Record<string, unknown>, date: string) {
+  if (!chatDataPatchAllowed('profile', 'update', patch)) throw new Error(CHAT_NATIVE_UI_NOTICE);
+  const { updates } = projectProfileRecord(before, patch, date);
+  // A reported height changes the measurement, preserving the saved display unit.
+  delete updates.heightUnit;
+  return { after: { ...agentDataObject(before), ...updates }, updates };
+}
 export const agentDataField = (resource: AgentDataResource) => resource === 'lightDeviceSessions' ? 'deviceSessions' : resource === 'labReports' ? 'importSnapshots' : resource === 'datedNotes' ? 'notes' : resource === 'profileNotes' ? 'contextNotes' : resource === 'meals' ? 'nutritionMeals' : resource === 'manualReadings' ? 'manualBodyReadings' : resource;
 export function agentDataRows(data: Partial<ProfileData>, resource: AgentDataResource): unknown[] {
   const value: unknown = data[agentDataField(resource)];
@@ -82,7 +89,7 @@ export function agentDataCapabilities(resource: AgentDataResource, sampleCycleEn
   if (resource === 'profile') return { operations: ['update'], fields: profileEditableFields };
   if (resource === 'supplements') return { operations: ['add', 'update', 'remove', 'pause', 'stop', 'restart', 'changeDose'], fields: supplementEditableFields };
   if (resource === 'nutritionTargets') return { operations: ['update', 'reset'], fields: { ...targetBounds, proteinBasis: ['general', 'active', 'high', 'custom', 'fixed'], widgetNutrients: NUTRITION_WIDGET_NUTRIENTS } };
-  return { operations: resource === 'datedNotes' ? ['add', 'update', 'remove'] : ['update', 'remove'], fields: resource === 'datedNotes' ? { date: 'YYYY-MM-DD', text: 'Required text (max 4000 characters)' } : { text: 'Replacement text (max 4000 characters)' } };
+  return { operations: resource === 'datedNotes' ? ['add', 'update', 'remove'] : ['update', 'remove'], fields: resource === 'datedNotes' ? { date: 'YYYY-MM-DD', text: 'Required text (max 4000 characters)' } : { text: 'Explicit replacement text (max 4000 characters)', appendText: 'Only the new text to append; native code preserves the existing note. Final note must fit 4000 characters.' } };
 }
 export function agentDataDisplay(resource: AgentDataResource, value: unknown): unknown {
   if (!chatDataReadAllowed(resource)) throw new Error(CHAT_NATIVE_UI_NOTICE);
@@ -100,7 +107,7 @@ export function agentDataDisplay(resource: AgentDataResource, value: unknown): u
   if (resource === 'meals') return displayMealRecord(value);
   if (resource === 'manualReadings') return displayManualRecord(value);
   if (resource === 'markerNotes' || resource === 'markerValueNotes') return displayMarkerNote(value);
-  if (resource === 'profile') return displayProfileRecord(value);
+  if (resource === 'profile') return Object.fromEntries(Object.entries(displayProfileRecord(value)).filter(([field]) => field === 'id' || chatDataFieldAllowed(resource, field)));
   const allowed = Object.keys(agentDataCapabilities(resource).fields);
   if (resource === 'supplements') allowed.push('endDate', 'currentDose', 'lifecycle');
   if (resource === 'nutritionTargets') return normalizeNutritionTargets(value);
@@ -126,6 +133,7 @@ export function agentDataDisplay(resource: AgentDataResource, value: unknown): u
 }
 export function projectAgentDataChange(proposal: AgentDataProposal): { before: unknown; after: unknown } {
   const before: unknown = JSON.parse(proposal.baseline), patch = parseAgentDataPatch(proposal.patch);
+  if (!chatDataPatchAllowed(proposal.resource, proposal.operation, patch)) throw new Error(CHAT_NATIVE_UI_NOTICE);
   if (!validAgentDate(proposal.effectiveDate) || !agentDataCapabilities(proposal.resource).operations.includes(proposal.operation)) throw new Error('Unsupported data operation or date.');
   if (isEMFResource(proposal.resource)) return projectEMFRecord(proposal);
   if (proposal.resource === 'sunSessions') return projectSunSessionRecord(proposal);
@@ -145,7 +153,7 @@ export function projectAgentDataChange(proposal: AgentDataProposal): { before: u
   if (proposal.resource === 'markerNotes' || proposal.resource === 'markerValueNotes') return projectMarkerNote(proposal, patch);
   if (proposal.resource === 'profile') {
     if (proposal.recordId !== '') throw new Error('Profile details are a single setting for the current profile.');
-    return { before, after: projectProfileRecord(before, patch, proposal.effectiveDate).after };
+    return { before, after: projectChatProfileRecord(before, patch, proposal.effectiveDate).after };
   }
   if (proposal.resource === 'supplements') return { before, after: projectSupplementCommand(before, proposal, patch) };
   if (proposal.resource === 'nutritionTargets') {
@@ -167,10 +175,9 @@ export function projectAgentDataChange(proposal: AgentDataProposal): { before: u
   }
   if (proposal.resource === 'profileNotes') {
     if (proposal.recordId !== '') throw new Error('Profile context notes are a single setting.');
-    validateFieldNames(patch, proposal.operation === 'remove' ? [] : ['text']);
+    validateFieldNames(patch, proposal.operation === 'remove' ? [] : ['text', 'appendText']);
     if (proposal.operation === 'remove') return { before, after: '' };
-    if (typeof patch.text !== 'string' || !patch.text.trim()) throw new Error('Supply the replacement text or use remove to clear it.');
-    return { before, after: patch.text.trim() };
+    return { before, after: reviewedNoteText(before, patch, 4000) };
   }
   validateFieldNames(patch, proposal.operation === 'remove' ? [] : ['date', 'text']);
   if (proposal.operation === 'remove') { if (!before) throw new Error('This note is no longer available.'); return { before, after: null }; }

@@ -47,8 +47,16 @@ for (const provider of ['custom', 'venice'] as const) for (const protocol of ['n
     return { key, deleted, profile: state.currentProfile, catalog: localStorage.getItem(key), tombstones: localStorage.getItem(deleted), selected: state.currentChatPersonality, preference: localStorage.getItem('labcharts-' + state.currentProfile + '-chatPersonality') };
   }, provider);
   await page.locator('#chat-input').fill('Manage my settings for me.'); await page.locator('#chat-send-btn').click();
-  await expect.poll(() => rejected).toBe(true);
-  await expect(page.locator('#chat-messages')).toContainText('Use native Settings and editors');
+  await expect(page.locator('#chat-send-btn.streaming')).toHaveCount(0);
+  if(request.tool === 'getbased_navigate') {
+    await expect.poll(() => rejected).toBe(true);
+    await expect(page.locator('#chat-messages')).toContainText('Use native Settings and editors');
+    expect(round).toBe(2);
+  } else {
+    await expect(page.locator('#chat-messages')).toContainText("I couldn't complete this response. Check your provider connection and try again.");
+    expect(await page.evaluate(async () => (await import('/js/state.js')).state.chatHistory.at(-1))).toMatchObject({error:true,errorDetail:'The model returned a duplicate or unavailable tool call.'});
+    expect(round).toBe(1); expect(rejected).toBe(false);
+  }
   await expect(page.locator('.chat-app-control,#chat-personality-editor-overlay,#confirm-dialog-overlay')).toHaveCount(0);
   const after = await page.evaluate(async before => { const { state } = await import('/js/state.js'); return { catalog: localStorage.getItem(before.key), tombstones: localStorage.getItem(before.deleted), selected: state.currentChatPersonality, preference: localStorage.getItem('labcharts-' + before.profile + '-chatPersonality') }; }, before);
   expect(after).toEqual({ catalog: before.catalog, tombstones: before.tombstones, selected: before.selected, preference: before.preference });

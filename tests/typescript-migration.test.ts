@@ -8,7 +8,7 @@ import { countLines, migrationSourceFiles, buildMigrationProgress } from '../scr
 import { productionSources } from '../scripts/coverage-source.mjs';
 import { parseModuleSpecifiers } from '../scripts/architecture-map.mjs';
 import { createTestPlan } from '../scripts/pr-test-scope.mjs';
-import { getAgentToolCatalog, getCodexDynamicTools, AGENT_TOOL_CONTRACT_VERSION } from '../shared/agent-tool-contract.js';
+import { getAgentToolCatalog, getCodexDynamicTools, AGENT_TOOL_CONTRACT_VERSION, AGENT_TOOL_COMPATIBILITY_VERSION } from '../shared/agent-tool-contract.js';
 
 describe('TypeScript migration boundaries', () => {
   it('counts each authored module once while resolving unchanged runtime URLs', () => {
@@ -106,14 +106,16 @@ describe('TypeScript migration boundaries', () => {
     const original = JSON.parse(fs.readFileSync('tests/fixtures/typescript-migration-agent-tools.original.json', 'utf8')) as { catalog: {name: string}[]; codex: unknown[] };
     expect(createHash('sha256').update(JSON.stringify(original)).digest('hex')).toBe('91d5ca6b12033a5b2838397b958c9200d25ac95125154295ea6db33f9ca287fa');
     expect(original.catalog.map(tool => tool.name)).toEqual(['getbased_lab_context', 'getbased_section', 'getbased_search_markers', 'getbased_marker_history', 'getbased_nutrition_summary', 'getbased_wearable_series', 'getbased_search_knowledge', 'getbased_navigate', 'getbased_draft_note', 'getbased_draft_meal', 'getbased_draft_biometric', 'getbased_draft_supplement']);
-    expect(getAgentToolCatalog().map(tool => tool.name)).toEqual(expect.arrayContaining(original.catalog.map(tool => tool.name)));
+    expect(getAgentToolCatalog(undefined,'compatibility').map(tool => tool.name)).toEqual(expect.arrayContaining(original.catalog.map(tool => tool.name)));
   });
 
   it('pins every field of the reviewed version60 API and CLI tool contracts and keeps caller copies isolated', () => {
     const expected = JSON.parse(fs.readFileSync('tests/fixtures/agent-tool-contract-v60.json', 'utf8'));
     expect(createHash('sha256').update(JSON.stringify(expected)).digest('hex')).toBe('e0d7d4772d2a66a36d3ade88c834e01c2fa75a3d1a8858def85622195fbb4171');
-    expect(AGENT_TOOL_CONTRACT_VERSION).toBe(60);
-    const contract = { catalog: getAgentToolCatalog(), codex: getCodexDynamicTools() };
+    expect(AGENT_TOOL_COMPATIBILITY_VERSION).toBe(60);
+    expect(AGENT_TOOL_CONTRACT_VERSION).toBe(61);
+    const catalog = getAgentToolCatalog(undefined,'compatibility');
+    const contract = { catalog, codex: getCodexDynamicTools(catalog) };
     expect(contract).toEqual(expected);
     contract.catalog[0]!.name = 'caller mutation';
     expect(getAgentToolCatalog()[0]!.name).toBe('getbased_lab_context');

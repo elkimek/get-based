@@ -22,7 +22,7 @@ beforeEach(() => {
 afterEach(() => { Object.assign(state, { currentProfile: original.profile, currentThreadId: original.thread, importedData: original.root, chatHistory: original.history, currentChatPersonality: original.persona }); localStorage.clear(); vi.restoreAllMocks(); });
 
 it('omits persona controls from shared API and CLI tool discovery and explains the manual workflow', () => {
-  expect(AGENT_TOOL_CONTRACT_VERSION).toBe(60);
+  expect(AGENT_TOOL_CONTRACT_VERSION).toBe(61);
   const advertised = JSON.stringify({ actions: APP_CONTROL_ACTIONS, views: APP_NAVIGATION_VIEWS, tools: getAgentToolCatalog(), codex: getCodexDynamicTools() });
   expect(advertised).not.toMatch(/assistant\.personas|personaEditor|personaDelete|chatPersona|personaDraft/);
   expect(CHAT_TOOL_INSTRUCTIONS).toContain('Persona management is manual-only');
@@ -31,7 +31,7 @@ it('omits persona controls from shared API and CLI tool discovery and explains t
 it('rejects a hallucinated persona read before invoking any native reader', async () => {
   const read = vi.fn(), runtime = createAgentToolRuntime({ readContext: () => '', readAppState: read }), before = footprint();
   const result = await runtime.execute({ tool: 'getbased_read_app', arguments: { action: 'assistant.personas' } });
-  expect(result.success).toBe(false); expect(result.contentItems[0].text).toContain('manual persona'); expect(JSON.stringify(result)).not.toContain('PRIVATE_');
+  expect(result.success).toBe(false); expect(result.contentItems[0].text).toBe('Error: Unknown tool: getbased_read_app.'); expect(JSON.stringify(result)).not.toContain('PRIVATE_');
   expect(read).not.toHaveBeenCalled(); expect(footprint()).toEqual(before);
 });
 it.each(['personaEditor', 'personaDelete', 'chatPersona'])('rejects the retired %s tool view before native navigation', async view => {

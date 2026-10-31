@@ -1,5 +1,5 @@
 import { captureChatControlAuthorization } from './chat-control-settings.js';
-import { chatDataChangeAllowed } from '../shared/chat-control-policy.js';
+import { chatDataPatchAllowed } from '../shared/chat-control-policy.js';
 import { isLabDisplayResource } from './lab-display-core.js';
 import { canDiscloseLabDisplayReview } from './lab-display-records.js';
 import { canDiscloseCustomMarkerReview } from './custom-marker-records.js';
@@ -9,7 +9,7 @@ import { ownsReadonlyHistorySurface } from './readonly-history-surfaces.js';
 import { routeRevision } from './route-lifecycle.js';
 import { getLabDateRangeBounds } from './lab-date-range.js';
 import { createAgentDataTools, isAgentDataEnabled } from './agent-data-bindings.js';
-import { normalizeAgentDataProposal } from '../shared/agent-data-contract.js';
+import { parseAgentDataPatch, normalizeAgentDataProposal } from '../shared/agent-data-contract.js';
 // Browser-side bindings for the narrow, versioned agent tool contract.
 
 import { isGeneticsResource, canDiscloseGeneticsReview } from './genetics-proposals.js';
@@ -48,7 +48,7 @@ type BrowserToolOptions = {
   readData: AgentToolReadOptions['readData']; prepareDataChange: AgentToolReadOptions['prepareDataChange'];
   prepareLegacyDraft: AgentToolReadOptions['prepareLegacyDraft'];
   searchMarkers: MarkerSearchQuery; readMarkerHistory: MarkerHistoryQuery; readNutritionSummary: { range: string };
-  readWearableSeries: { days: number }; searchKnowledge: AgentToolReadOptions['searchKnowledge']; navigate: AgentToolReadOptions['navigate'];
+  readWearableSeries: { days: number }; searchKnowledge: AgentToolReadOptions['searchKnowledge']; searchConversations: AgentToolReadOptions['searchConversations']; navigate: AgentToolReadOptions['navigate'];
   readKnowledge: AgentToolReadOptions['readKnowledge'];
   readContextCard: AgentToolReadOptions['readContextCard']; prepareContextChange: AgentToolReadOptions['prepareContextChange'];
 };
@@ -362,6 +362,7 @@ export function bindAgentToolDependenciesToProfile(dependencies: BrowserToolDepe
     readNutritionSummary: bind(dependencies.readNutritionSummary),
     readWearableSeries: bind(dependencies.readWearableSeries),
     searchKnowledge: bind(dependencies.searchKnowledge),
+    searchConversations: bind(dependencies.searchConversations),
     readKnowledge: bind(dependencies.readKnowledge),
     navigate: bind(dependencies.navigate, true),
     readContextCard: bind(dependencies.readContextCard),
@@ -369,7 +370,7 @@ export function bindAgentToolDependenciesToProfile(dependencies: BrowserToolDepe
   };
 }
 
-export function createBrowserAgentToolDependencies(profileId = state.currentProfile || '', options: BrowserKnowledgeSearchOptions & { appControlSession?: import('./app-control-session.js').AppControlSession | undefined } = {}) {
+export function createBrowserAgentToolDependencies(profileId = state.currentProfile || '', options: BrowserKnowledgeSearchOptions = {}) {
   const authorization = captureChatControlAuthorization();
   const guarded = { ...options, isCurrent: () => authorization.current() && options.isCurrent?.() !== false };
   return { canUseTools: authorization.current, createId: authorization.createId, ...bindAgentToolDependenciesToProfile({
@@ -379,6 +380,11 @@ export function createBrowserAgentToolDependencies(profileId = state.currentProf
     readNutritionSummary: readAgentNutritionSummary,
     readWearableSeries: readAgentWearableSeries,
     searchKnowledge: query => searchAgentKnowledge(query, guarded),
+    searchConversations: async query => {
+      const owner = await import('./conversation-search.js');
+      if (options.signal?.aborted || !guarded.isCurrent()) return unavailable('The originating chat changed.');
+      return owner.searchPriorConversations(profileId, query, () => !options.signal?.aborted && guarded.isCurrent());
+    },
     readKnowledge: async options => {
       const profile = state.currentProfile, root = state.importedData, config = localStorage.getItem(LENS_CONFIG_STORAGE_KEY);
       const module = await import('./knowledge-inventory.js');
@@ -388,13 +394,13 @@ export function createBrowserAgentToolDependencies(profileId = state.currentProf
       return result;
     },
     navigate: request => navigateFromAgent(request, () => !options.signal?.aborted && guarded.isCurrent()),
-  }, profileId), ...options.appControlSession?.tools, canDiscloseDraftReview: (draft: import('./agent-tool-runtime.js').AgentDraft) => state.currentProfile === profileId && canDiscloseAgentDraftReview({ ...draft, profileId }) };
+  }, profileId), canDiscloseDraftReview: (draft: import('./agent-tool-runtime.js').AgentDraft) => state.currentProfile === profileId && canDiscloseAgentDraftReview({ ...draft, profileId }) };
 }
 
 /** Review receipts obey the same disclosure toggles as fresh domain reads. */
 export function canDiscloseAgentDraftReview(draft: Record<string, unknown>): boolean {
   if (draft.profileId && draft.profileId !== state.currentProfile) return false;
-  if (draft.kind === 'data') { const proposal = normalizeAgentDataProposal(draft.payload); return !!proposal && chatDataChangeAllowed(proposal.resource, proposal.operation) && isAgentDataEnabled(proposal.resource)
+  if (draft.kind === 'data') { const proposal = normalizeAgentDataProposal(draft.payload); return !!proposal && chatDataPatchAllowed(proposal.resource, proposal.operation, parseAgentDataPatch(proposal.patch)) && isAgentDataEnabled(proposal.resource)
     && (!isGeneticsResource(proposal.resource) || canDiscloseGeneticsReview(proposal))
     && (proposal.resource !== 'labReports' || canDiscloseLabReportReview(state.importedData, proposal))
     && (proposal.resource !== 'labSamples' || canDiscloseLabSampleReview(state.importedData, proposal))

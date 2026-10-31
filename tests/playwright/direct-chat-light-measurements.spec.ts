@@ -26,7 +26,7 @@ for (const provider of ['custom', 'venice'] as const) for (const protocol of ['n
       if (round === 2) {
         const response = result(); expect(response.success).toBe(true); const review = JSON.parse(response.contentItems[0].text).review; expect(review.applied).toBe(false);
         if (stage === 'checkpoint') expect(review.effects.capturedCounts).toEqual({ rooms: 1, screens: 0, measurements: 1 });
-        if (stage === 'value' || stage === 'remove') expect(review.effects.preservedAuditCount).toBe(decision === 'apply' && stage === 'remove' ? 2 : 1);
+        if (stage === 'value' || stage === 'remove') expect(review.effects.preservedAuditCount).toBe(1);
       }
       round++; const reply = 'Review the reading or frozen checkpoint before applying.';
       if (protocol === 'structured') await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: JSON.stringify({ reply: call ? '' : reply, calls: call ? [{ id: call.id, name: call.function.name, arguments: call.function.arguments }] : [] }) }, finish_reason: 'stop' }] }) });
@@ -50,18 +50,16 @@ for (const provider of ['custom', 'venice'] as const) for (const protocol of ['n
     }, provider);
     const receipt = () => page.evaluate(async () => { const { state } = await import('/js/state.js'); return JSON.parse((await (await import('/js/crypto.js')).encryptedGetItem((await import('/js/profile.js')).profileStorageKey(state.currentProfile, 'imported')))!); });
     const before = await receipt();
-    for (const [index, next] of (['value', 'checkpoint', 'label', 'remove', 'removeRoom'] as const).entries()) {
+    for (const [index, next] of (['value', 'remove', 'removeRoom'] as const).entries()) {
       stage = next; round = 0; const previous = await receipt(); await page.locator('#chat-input').fill(statements[stage]); await page.locator('#chat-send-btn').click();
-      const pending = page.locator('.chat-agent-draft-pending'); await expect(pending).toContainText(stage === 'checkpoint' || stage === 'label' ? 'Light Audits' : stage === 'removeRoom' ? 'Light Rooms' : 'Light Measurements'); expect(await receipt()).toEqual(previous);
-      if (stage === 'checkpoint') await expect(pending).toContainText('Frozen checkpoint'); else if (stage === 'value' || stage === 'remove') await expect(pending).toContainText('Preserved checkpoints');
+      const pending = page.locator('.chat-agent-draft-pending'); await expect(pending).toContainText(stage === 'removeRoom' ? 'Light Rooms' : 'Light Measurements'); expect(await receipt()).toEqual(previous);
+      if (stage === 'value' || stage === 'remove') await expect(pending).toContainText('Preserved checkpoints');
       await pending.getByRole('button', { name: decision === 'apply' ? 'Apply' : 'Discard', exact: true }).click(); await expect(page.locator(`.chat-agent-draft-${decision === 'apply' ? 'applied' : 'discarded'}`)).toHaveCount(index + 1);
-      if (stage === 'checkpoint' && decision === 'apply') await expect.poll(async () => (await receipt()).lightAudits.find((row: { id: string }) => row.id === checkpointId)?.aiAnalysis?.status).toBe('ok');
     }
     const saved = await receipt();
     if (decision === 'discard') expect(saved).toEqual(before);
     else {
-      expect(saved.lightMeasurements).toEqual([]); expect(saved.lightEnvironment.rooms).toEqual([]); expect(saved.lightAudits).toHaveLength(2); expect(saved.lightAudits[0]).toEqual(before.lightAudits[0]);
-      const checkpoint = saved.lightAudits.find((row: { id: string }) => row.id === checkpointId); expect(checkpoint.label).toBe('After correction'); expect(checkpoint.measurements[0].value).toBe(250); expect(checkpoint.measurements[0].readingHistory[0].record.value).toBe(100); expect(checkpoint.metadataHistory).toHaveLength(1);
+      expect(saved.lightMeasurements).toEqual([]); expect(saved.lightEnvironment.rooms).toEqual([]); expect(saved.lightAudits).toEqual(before.lightAudits);
       const protectedFields = (value: Record<string, unknown>) => Object.fromEntries(Object.entries(value).filter(([key]) => !['lightMeasurements', 'lightAudits', 'lightEnvironment', '_deleted', '_deletedAt', '_deletedClearedAt'].includes(key)));
       expect(saved.lightEnvironment).toEqual({ ...before.lightEnvironment, rooms: [] }); expect(protectedFields(saved)).toEqual(protectedFields(before));
     }
@@ -70,6 +68,6 @@ for (const provider of ['custom', 'venice'] as const) for (const protocol of ['n
     const closeChat = page.getByRole('button', { name: 'Close chat', exact: true }); if (await closeChat.isVisible()) await closeChat.click();
     await page.locator('#sidebar-nav').getByRole('button', { name: /^Light assessment/ }).click();
     await page.locator('[data-light-env-action="toggle-audits-block"]').click();
-    await expect(page.locator('.light-audit-card').filter({ hasText: decision === 'apply' ? 'After correction' : 'Original' })).toBeVisible(); expect(errors).toEqual([]);
+    await expect(page.locator('.light-audit-card').filter({ hasText: 'Original' })).toBeVisible(); expect(errors).toEqual([]);
   });
 }

@@ -17,10 +17,6 @@ import { getActivePersonality, updateChatHeaderTitle } from './chat-personalitie
 import { renderChatMessagesRuntime, updateDiscussButtonRuntime } from './chat-runtime.js';
 import { normalizeChatMessages } from './chat-storage-safety.js';
 import { nextPersonaMetadataStamp } from './chat-thread-index-storage.js';
-import { restoreProfileControlReceipts } from './profile-control-receipts.js';
-import { restoreLabOrderingReceipts } from './lab-ordering-control-receipts.js';
-import { restoreContextPreferenceReceipts } from './context-preference-receipts.js';
-import { restoreLabOverlayReceipts } from './lab-overlay-receipts.js';
 import { supersedePendingContextProposals } from '../shared/agent-tool-contract.js';
 
 const blockedChatHistoryKeys = new Set<string>();
@@ -90,10 +86,6 @@ export async function loadChatHistory() {
     const parsed: unknown = JSON.parse(stored);
     if (!Array.isArray(parsed)) throw new Error();
     const history = normalizeChatMessages(parsed);
-    if (threadId) await restoreProfileControlReceipts(history, profile, threadId, isCurrent);
-    if (threadId) await restoreLabOrderingReceipts(history, profile, threadId, isCurrent);
-    if (threadId) await restoreContextPreferenceReceipts(history, profile, threadId, isCurrent);
-    if (threadId) await restoreLabOverlayReceipts(history, profile, threadId, isCurrent);
     if (!isCurrent()) return false;
     state.chatHistory = history;
     clearChatHistoryWriteBlock(key);

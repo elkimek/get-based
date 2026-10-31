@@ -21,7 +21,6 @@ import {
   configureChatComposer, initChatComposer, resetChatComposer,
 } from './chat-composer.js';
 import { autoNameThread, createNewThread } from './chat-threads.js';
-import { createAppControlSession } from './app-control-session.js';
 import { injectLensChunks } from './lab-context-output.js';
 import { canQueryLens, queryLensMulti } from './lens.js';
 import { createChatLiveMessage, completeChatLiveMessage, publishChatLiveText } from './chat-live-message-component.js';
@@ -353,7 +352,6 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
 
   // Switch to stop mode
   const controller = new AbortController();
-  const appControlSession = createAppControlSession(text, scopeIsCurrent, controller.signal);
   _chatAbortController = controller;
   const generationUI: ActiveChatGenerationUI = {
     container,
@@ -483,7 +481,6 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
         signal: getStreamSignal(),
         onStream, onToolActivity,
         onKnowledgeResult,
-        appControlSession,
       });
       if (!scopeIsCurrent()) return;
       controller.signal.throwIfAborted();
@@ -509,7 +506,6 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
         webSearch: webSearchEnabled,
         provider: _msgProvider,
         reasoningEffort: _msgReasoningEffort,
-        appControlSession,
       });
     }
     if (!scopeIsCurrent()) return;
@@ -537,8 +533,6 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
     const assistantMsg: ChatSendMessage = { role: 'assistant', content: fullText, context: contextSnapshot, personalityName: personality.name, personalityIcon: personality.icon, provider: _msgProvider, agentId: _msgAgentId, modelId: _msgModelId, modelDisplay: _msgModelDisplay };
     assistantMsg.toolActivity = normalizeChatToolActivity(toolActivity);
     if (Array.isArray(aiResult.drafts) && aiResult.drafts.length) assistantMsg.agentDrafts = aiResult.drafts;
-    const appControls = appControlSession.finish();
-    if (appControls.length) assistantMsg.appControls = appControls;
     if (responseTruncated) {
       assistantMsg.truncated = true;
       assistantMsg.finishReason = aiResult.finishReason || 'length';
@@ -616,10 +610,8 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
     const recovery = getChatTurnRecovery(err);
     if (recovery) {
       streamOutcome = recovery.stopped ? 'stopped' : 'failed';
-      const appControls = appControlSession.finish();
       (state.chatHistory.push as (...messages: unknown[]) => number)({
         role: 'assistant', ...recovery,
-        ...(appControls.length ? { appControls } : {}),
         ...(toolActivity.length ? { toolActivity: normalizeChatToolActivity(toolActivity) } : {}),
         personalityName: pendingPersonality.name, personalityIcon: pendingPersonality.icon,
         provider: _msgProvider, agentId: _msgAgentId, modelId: _msgModelId, modelDisplay: _msgModelDisplay,
@@ -676,7 +668,6 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
       }
     }
   } finally {
-    appControlSession.cancel();
     typewriter?.stop();
     stopChatThinkingStatus(typingEl);
     typingEl.remove();

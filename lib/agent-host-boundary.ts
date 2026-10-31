@@ -3,7 +3,7 @@ import { CHAT_TOOL_INSTRUCTIONS } from '../shared/chat-tool-instructions.js';
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { AgentToolDefinition } from '../shared/agent-tool-contract.js';
-import { getCodexDynamicTools } from '../shared/agent-tool-contract.js';
+import { getCodexDynamicTools, getAgentToolCatalog } from '../shared/agent-tool-contract.js';
 
 const JSON_HEADERS = { 'Content-Type': 'application/json; charset=utf-8' };
 const MAX_BODY_BYTES = 1_100_000;
@@ -26,7 +26,7 @@ export const IMAGE_EXTENSIONS = Object.freeze({
   'image/webp': 'webp',
   'image/gif': 'gif',
 });
-const HOST_TOOL_SPECS = Object.freeze(Object.fromEntries(getCodexDynamicTools().map(spec => [spec.name, Object.freeze(spec)])));
+const HOST_TOOL_SPECS = Object.freeze(Object.fromEntries(getCodexDynamicTools(getAgentToolCatalog(undefined, 'current')).map(spec => [spec.name, Object.freeze(spec)])));
 const ALLOWED_TOOLS = new Set(Object.keys(HOST_TOOL_SPECS));
 const OFFICIAL_AGENT_HOSTS = new Set([
   'getbased.health',

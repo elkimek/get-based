@@ -14,17 +14,15 @@ const retired = ['labs.ordering', 'context.preferences', 'assistant.preferences'
 const footprint = () => Object.keys(localStorage).sort().map(key => [key, localStorage.getItem(key)]);
 beforeEach(() => { localStorage.clear(); state.currentProfile = 'curated-policy'; state.currentThreadId = 'origin'; state.importedData = structuredClone(original.root); state.importedData.contextNotes = 'PRIVATE_HEALTH'; state.chatHistory = []; });
 afterEach(() => { Object.assign(state, { currentProfile: original.profile, currentThreadId: original.thread, importedData: original.root, chatHistory: original.history }); localStorage.clear(); vi.restoreAllMocks(); });
-it('advertises the same smaller app controls through API and CLI schemas', () => {
-  expect(new Set(APP_CONTROL_ACTIONS.map(action => action.id))).toEqual(new Set(CHAT_APP_READ_ACTIONS));
-  for (const tools of [getAgentToolCatalog(), getCodexDynamicTools()]) {
-    expect(tools.find(tool => tool.name === 'getbased_read_app')!.inputSchema.properties?.action?.enum).toEqual(CHAT_APP_READ_ACTIONS);
-    expect(tools.find(tool => tool.name === 'getbased_request_app')!.inputSchema.properties?.action?.enum).toEqual(CHAT_APP_REVIEW_ACTIONS);
+it('advertises the same health-only scope through API and CLI schemas', () => {
+  expect(APP_CONTROL_ACTIONS).toEqual([]); expect(CHAT_APP_READ_ACTIONS).toEqual([]); expect(CHAT_APP_REVIEW_ACTIONS).toEqual([]);
+  const current = getAgentToolCatalog(undefined, 'current');
+  for (const tools of [current, getCodexDynamicTools(current)]) {
+    for (const name of ['getbased_app_actions','getbased_read_app','getbased_request_app','getbased_draft_note']) expect(tools.some(tool => tool.name === name)).toBe(false);
     expect(tools.find(tool => tool.name === 'getbased_navigate')!.inputSchema.properties).not.toHaveProperty('layout');
     expect(JSON.stringify(tools)).not.toMatch(/labs\.ordering|context\.preferences|assistant\.preferences|dashboard\.presentation|nutrition\.route/);
   }
   expect(CHAT_TOOL_INSTRUCTIONS).not.toMatch(/labs\.ordering|context\.preferences|assistant\.preferences|dashboard\.presentation|nutrition\.route/);
-  const display = APP_CONTROL_ACTIONS.find(action => action.id === 'display.preferences')!;
-  expect(display.parameters).not.toHaveProperty('timeFormat');
 });
 it.each(retired)('rejects retired %s reads and reviews before any native dependency or state change', async action => {
   const readAppState = vi.fn(), prepareAppControl = vi.fn(), before = footprint(), health = JSON.stringify(state.importedData);
@@ -45,9 +43,9 @@ it.each([
   expect((await runtime.execute({ tool: 'getbased_navigate', arguments: args })).success).toBe(false); expect(navigate).not.toHaveBeenCalled();
   expect(await openAppDestination({ marker: '', ...args }, () => true)).toMatchObject({ changed: false, dataSaved: false }); expect(footprint()).toEqual(before);
 });
-it('keeps units reviewable but makes a historical clock change inert and rejects direct replay', async () => {
-  const session = createAppControlSession('Use US units.', () => true, new AbortController().signal), read = session.tools.readAppState({ action: 'display.preferences' });
-  expect(read.values).not.toHaveProperty('timeFormat');
+it('keeps saved units and clock changes in native UI and rejects historical replay', async () => {
+  const session = createAppControlSession('Use US units.', () => true, new AbortController().signal), read = { snapshotId: 'historical' };
+  expect(() => session.tools.readAppState({ action: 'display.preferences' })).toThrow('native settings');
   expect(() => session.tools.prepareAppControl({ action: 'display.preferences', snapshotId: read.snapshotId, parameters: '{"timeFormat":"12h","unitSystem":"US"}', reason: 'Requested clock', evidence: 'Use US units.' })).toThrow('native settings');
   expect(session.finish()).toEqual([]);
   const prepareAppControl = vi.fn(), runtime = createAgentToolRuntime({ userMessage: 'Use US units.', readContext: () => '', prepareAppControl });

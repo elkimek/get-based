@@ -19,7 +19,6 @@ export interface DirectChatToolOptions extends ProviderRequestOptions, Pick<Brow
   onToolActivity?: ((activity: ChatToolActivity) => void) | undefined;
   provider: string; prompt: string; labContext: string; profileId: string;
   isCurrent?: () => boolean;
-  appControlSession?: import('./app-control-session.js').AppControlSession | undefined;
 }
 /** Compared only in memory; credentials never enter a tool, prompt or persisted receipt. */
 function recipientIdentity(provider: string) {
@@ -33,16 +32,16 @@ function recipientIdentity(provider: string) {
 }
 
 export async function callDirectChatWithTools(options: DirectChatToolOptions) {
-  const { provider, prompt, labContext, profileId, isCurrent: ownerCurrent, onKnowledgeResult, appControlSession, onToolActivity: _activity, ...request } = options;
+  const { provider, prompt, labContext, profileId, isCurrent: ownerCurrent, onKnowledgeResult, onToolActivity: _activity, ...request } = options;
   const model = String(options.modelOverride || getActiveModelId(provider));
   const selectedModel = getActiveModelId(provider), recipient = recipientIdentity(provider);
   const { history, current } = captureChatTurnScope(profileId, () => getAIProvider() === provider && getActiveModelId(provider) === selectedModel && recipientIdentity(provider) === recipient && (!ownerCurrent || ownerCurrent()));
   const authorization = captureChatControlAuthorization();
   const reviewRequested = requestsChatProposal(prompt);
   if (reviewRequested && !authorization.current()) return { text: CHAT_CONTROLS_NOTICE, drafts: [], toolCalls: [], usage: { inputTokens: 0, outputTokens: 0 }, truncated: false, finishReason: 'stop' };
-  const runtime = createAgentToolRuntime({ catalogMode: 'current', userMessage: prompt,
+  const runtime = createAgentToolRuntime({ userMessage: prompt,
     readContext: () => ({ context: labContext, profileId }),
-    ...createBrowserAgentToolDependencies(profileId, { signal: options.signal, isCurrent: current, onKnowledgeResult, appControlSession }),
+    ...createBrowserAgentToolDependencies(profileId, { signal: options.signal, isCurrent: current, onKnowledgeResult }),
     canUseTools: authorization.current, createId: authorization.createId, onToolActivity: options.onToolActivity,
   });
   try {

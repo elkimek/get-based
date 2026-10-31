@@ -7,7 +7,16 @@ export interface MarkerNoteRecord {
   text: string; date?: string; values?: number[]; unit?: string; scope: string;
 }
 export interface MarkerNoteSnapshot { version: 1; record: MarkerNoteRecord; revision: string; }
-export const markerNoteFields = { text: 'Replacement text; remove clears the note. Marker notes: up to 4000 characters; dated value notes: up to 500 characters.' };
+export const markerNoteFields = { text: 'Explicit replacement text; remove clears the note. Marker notes: up to 4000 characters; dated value notes: up to 500 characters.', appendText: 'Only the new text to append. Native code preserves the existing note exactly; the same final length limits apply.' };
+export function reviewedNoteText(before: unknown, patch: Record<string, unknown>, maximum: number): string {
+  validateFieldNames(patch, ['text', 'appendText']);
+  if (Object.keys(patch).length !== 1) throw new Error('Choose replacement text or appendText, never both.');
+  const append = Object.hasOwn(patch, 'appendText'), value = append ? patch.appendText : patch.text;
+  if (typeof before !== 'string' || typeof value !== 'string' || !value.trim()) throw new Error('Supply bounded note text, or use remove to clear it.');
+  const after = append && before.length ? `${before}\n\n${value.trim()}` : value.trim();
+  if (after.length > maximum) throw new Error('The resulting note exceeds its length limit. Use the native editor.');
+  return after;
+}
 export function markerNoteAddress(resource: MarkerNoteResource, id: string) {
   const date = resource === 'markerValueNotes' ? id.slice(0, 10) : undefined;
   const markerKey = resource === 'markerValueNotes' ? id.slice(11) : id;
@@ -26,10 +35,9 @@ export function projectMarkerNote(proposal: AgentDataProposal, patch: Record<str
   const resource = proposal.resource as MarkerNoteResource, address = markerNoteAddress(resource, proposal.recordId);
   if (before.id !== proposal.recordId || before.markerKey !== address.markerKey || before.date !== address.date) throw new Error('The marker note identity changed.');
   if (!['update', 'remove'].includes(proposal.operation)) throw new Error('A marker note supports update or remove.');
-  validateFieldNames(patch, proposal.operation === 'remove' ? [] : ['text']);
+  validateFieldNames(patch, proposal.operation === 'remove' ? [] : ['text', 'appendText']);
   if (proposal.operation === 'remove') return { before, after: { ...before, text: '' } };
-  if (typeof patch.text !== 'string' || !patch.text.trim() || patch.text.trim().length > (resource === 'markerValueNotes' ? 500 : 4000)) throw new Error('Supply bounded note text, or use remove to clear it.');
-  return { before, after: { ...before, text: patch.text.trim() } };
+  return { before, after: { ...before, text: reviewedNoteText(before.text, patch, resource === 'markerValueNotes' ? 500 : 4000) } };
 }
 export function displayMarkerNote(value: unknown): MarkerNoteRecord {
   const source = agentDataObject(value);

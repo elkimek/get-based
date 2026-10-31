@@ -43,7 +43,6 @@ const cases: { resource: AgentDataResource; operation: AgentDataOperation; patch
   { resource: 'supplements', operation: 'restart', patch: { date: '2026-10-23' } },
   { resource: 'supplements', operation: 'changeDose', patch: { date: '2026-10-23', dosage: 'two capsules' } },
   { resource: 'nutritionTargets', operation: 'update', patch: { fiberG: 35 } },
-  { resource: 'nutritionTargets', operation: 'reset', patch: {} },
   { resource: 'datedNotes', operation: 'add', patch: { date: '2026-10-23', text: 'New note' } },
   { resource: 'datedNotes', operation: 'update', patch: { text: 'Corrected note' } },
   { resource: 'datedNotes', operation: 'remove', patch: {} },

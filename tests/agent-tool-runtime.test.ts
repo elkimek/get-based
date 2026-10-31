@@ -55,7 +55,7 @@ describe('agent tool catalog', () => {
     ]);
   });
   it('exports versioned least-authority tools using Codex dynamic-tool schemas', () => {
-    expect(AGENT_TOOL_CONTRACT_VERSION).toBe(60);
+    expect(AGENT_TOOL_CONTRACT_VERSION).toBe(61);
     expect(getAgentToolCatalog().map(tool => [tool.name, tool.access])).toEqual([
       ['getbased_lab_context', 'read'],
       ['getbased_section', 'read'],
@@ -68,14 +68,8 @@ describe('agent tool catalog', () => {
       ['getbased_read_data', 'read'],
       ['getbased_draft_data', 'draft'],
       ['getbased_navigate', 'navigate'],
-      ['getbased_draft_note', 'draft'],
       ['getbased_draft_context', 'draft'],
-      ['getbased_draft_meal', 'draft'],
-      ['getbased_draft_biometric', 'draft'],
-      ['getbased_draft_supplement', 'draft'],
-      ['getbased_app_actions', 'read'],
-      ['getbased_read_app', 'read'],
-      ['getbased_request_app', 'draft'],
+      ['getbased_search_conversations', 'read'],
     ]);
 
     expect(getCodexDynamicTools()).toEqual(getAgentToolCatalog().map(({ access: _access, ...tool }) => ({
@@ -249,14 +243,14 @@ describe('agent tool runtime', () => {
     const runtime = createAgentToolRuntime({
       readContext: () => CONTEXT,
       userMessage: 'My blood pressure was 120/80 on 3 September 2026.',
-      prepareLegacyDraft: async input => ({ available: true, proposals: [{ resource: 'manualReadings', operation: 'add', recordId: 'bp.2026-09-03', baseline: 'null', patch: JSON.stringify(input.payload), evidence: input.evidence, reason: 'An explicit report.', effectiveDate: '2026-09-03', recordedAt: 1 }] }),
+      prepareDataChange: async input => ({ available: true, payload: { resource: 'manualReadings', operation: 'add', recordId: 'bp.2026-09-03', baseline: 'null', patch: input.patch, evidence: input.evidence, reason: 'An explicit report.', effectiveDate: '2026-09-03', recordedAt: 1 } }),
       createId: () => `draft-${++nextId}`,
       onDraftCreated,
     });
 
     const result = await runtime.execute({
-      tool: 'getbased_draft_biometric',
-      arguments: { metric: 'bp', date: '2026-09-03', systolic: 120, diastolic: 80 },
+      tool: 'getbased_draft_data',
+      arguments: { resource: 'manualReadings', operation: 'add', snapshotId: 'current', patch: JSON.stringify({ kind: 'bloodPressure', date: '2026-09-03', systolic: 120, diastolic: 80, unit: 'mmHg' }), evidence: 'My blood pressure was 120/80 on 3 September 2026.', reason: 'Reported measurement.' },
     });
 
     expect(result.success).toBe(true);
@@ -290,7 +284,7 @@ describe('agent tool runtime', () => {
   });
 });
 
-it('freezes implicit dates at turn creation instead of at approval or a later tool round', async () => {
+it('does not revive retired implicit-date shortcuts after a later tool round', async () => {
   vi.useFakeTimers();
   try {
     vi.setSystemTime(new Date('2026-10-23T12:00:00Z'));
@@ -306,10 +300,8 @@ it('freezes implicit dates at turn creation instead of at approval or a later to
       ['getbased_draft_biometric', { metric: 'weight', value: 80, unit: 'kg' }],
       ['getbased_draft_supplement', { name: 'Example', type: 'supplement' }],
       ['getbased_draft_meal', { name: 'Lunch' }],
-    ] as const) expect((await runtime.execute({ tool, arguments: args })).success).toBe(true);
-    expect(prepared).toMatchObject([
-      { date }, { startDate: date }, { eatenAt: before.toISOString() },
-    ]);
+    ] as const) expect((await runtime.execute({ tool, arguments: args })).success).toBe(false);
+    expect(prepared).toEqual([]); expect(runtime.getDrafts()).toEqual([]);
   } finally { vi.useRealTimers(); }
 });
 
@@ -328,11 +320,11 @@ it('advertises only tool handlers bound to this turn, with the same subset for C
   expect(getCodexDynamicTools(runtime.tools).map(tool => tool.name)).toEqual(['getbased_lab_context', 'getbased_section']);
   const unavailable = await runtime.execute({ tool: 'getbased_app_actions', arguments: '{}' });
   expect(unavailable.success).toBe(false);
-  const readAppState = vi.fn(() => ({ available: true }));
-  const bound = createAgentToolRuntime({ readContext: () => CONTEXT, readAppState });
-  expect(bound.tools.map(tool => tool.name)).toEqual(['getbased_lab_context', 'getbased_section', 'getbased_read_app']);
-  expect((await bound.execute({ tool: 'getbased_read_app', arguments: '{"action":"assistant.models"}' })).success).toBe(true);
-  expect(readAppState).toHaveBeenCalledExactlyOnceWith({ action: 'assistant.models' });
+  const searchConversations = vi.fn(() => ({ status: 'read_only', results: [] }));
+  const bound = createAgentToolRuntime({ readContext: () => CONTEXT, searchConversations });
+  expect(bound.tools.map(tool => tool.name)).toEqual(['getbased_lab_context', 'getbased_section', 'getbased_search_conversations']);
+  expect((await bound.execute({ tool: 'getbased_search_conversations', arguments: '{"query":"sleep"}' })).success).toBe(true);
+  expect(searchConversations).toHaveBeenCalledExactlyOnceWith({ query: 'sleep', offset: 0, limit: 5 });
 });
 
 it('records navigation persistence before a later response fails and withholds unrelated read contents', async () => {

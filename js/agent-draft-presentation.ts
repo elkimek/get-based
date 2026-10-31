@@ -1,4 +1,4 @@
-import { chatDataChangeAllowed, CHAT_NATIVE_UI_NOTICE } from '../shared/chat-control-policy.js';
+import { chatDataPatchAllowed, CHAT_NATIVE_UI_NOTICE } from '../shared/chat-control-policy.js';
 
 import { isEMFResource, describeEMFRecord } from './emf-record-fields.js';
 import { projectEMFRecord } from './emf-record-proposals.js';
@@ -246,7 +246,7 @@ export function projectAgentDraftCards(message: { agentDrafts?: unknown } | null
   const drafts = (Array.isArray(message?.agentDrafts) ? message.agentDrafts : []) as DraftReader[];
   return drafts.map(draft => {
     const proposal = draft.kind === 'data' ? normalizeAgentDataProposal(draft.payload) : null;
-    if (proposal && !chatDataChangeAllowed(proposal.resource, proposal.operation)) return { nativeOnly: true, requiresRefresh: false, id: undefined, status: 'failed' as const, summary: String(draft.summary || 'Previous proposal'), rows: [{ label: 'Native editor', value: CHAT_NATIVE_UI_NOTICE }] };
+    if (proposal && !chatDataPatchAllowed(proposal.resource, proposal.operation, parseAgentDataPatch(proposal.patch))) return { nativeOnly: true, requiresRefresh: false, id: undefined, status: 'failed' as const, summary: String(draft.summary || 'Previous proposal'), rows: [{ label: 'Native editor', value: CHAT_NATIVE_UI_NOTICE }] };
     return {
     requiresRefresh: draft.status === 'pending' && LEGACY_AGENT_DRAFT_KINDS.includes(draft.kind as AgentLegacyDraftKind),
     id: draft.id == null || draft.id === false ? undefined : String(draft.id),

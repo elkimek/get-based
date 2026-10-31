@@ -16,12 +16,10 @@ it('retains a confirmed save without private presentation details after thread r
   native.open.mockImplementationOnce(async () => { state.currentThreadId = 'replacement'; return { changed: true, settingsSaved: true, opened: 'PRIVATE_VIEW', undoId: 'PRIVATE_PROOF' }; }); expect(await navigateFromAgent({ view: 'nutritionHistory', marker: '' })).toEqual({ changed: true, settingsSaved: true, dataSaved: false, reason: expect.any(String) });
 });
 
-it('opens native AI Settings without changing the saved meal route', async () => {
-  native.open.mockImplementationOnce(async (_request, canOpen, currentOwner) => {
-    expect(canOpen()).toBe(true);
-    const overlay = document.createElement('div'); overlay.className = 'modal-overlay show'; overlay.id = 'settings-modal-overlay'; document.body.append(overlay);
-    expect(canOpen()).toBe(false); expect(currentOwner()).toBe(false);
-    return { changed: true, settingsSaved: false, dataSaved: false, opened: 'aiSettings' };
-  });
-  expect(await navigateFromAgent({ view: 'aiSettings', marker: '' })).toMatchObject({ settingsSaved: false, opened: 'aiSettings', dataSaved: false });
+it('leaves AI Settings to native UI without dispatching navigation', async () => {
+  const before = structuredClone(state.importedData);
+  await expect(navigateFromAgent({ view: 'aiSettings', marker: '' })).rejects.toThrow('native settings');
+  expect(native.open).not.toHaveBeenCalled();
+  expect(state.importedData).toEqual(before);
+  expect(document.querySelector('#settings-modal-overlay')).toBeNull();
 });

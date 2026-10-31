@@ -6,7 +6,7 @@ import { saveImportedData } from '../js/data.js';
 import * as storage from '../js/crypto.js';
 import { clearSyncSaveTimers } from '../js/sync-save-hooks.js';
 import { configureLightTools, saveMeasurement, getMeasurements, normalizeLightMeasurements } from '../js/light-tools.js';
-import { configureLightEnvAudits, saveLightAudit } from '../js/light-env-audits.js';
+import { configureLightEnvAudits } from '../js/light-env-audits.js';
 import { createAgentToolRuntime } from '../js/agent-tool-runtime.js';
 import { createBrowserAgentToolDependencies } from '../js/agent-tool-bindings.js';
 import { applyAgentDraft } from '../js/agent-drafts.js';
@@ -48,24 +48,14 @@ it('reviews and persists an exact meter correction without rewriting its frozen 
   await applyAgentDraft(draft); const saved = await stored();
   expect(saved.lightMeasurements![0].value).toBe(250); expect(saved.lightAudits).toEqual(before.lightAudits); expect(saved.contextNotes).toBe(before.contextNotes);
 });
-it('captures a reviewed current-environment checkpoint without changing the live environment', async () => {
-  const before = await stored(), { draft, current } = await propose('lightAudits', '', '{"label":"Baseline"}', 'add', true);
-  expect(await stored()).toEqual(before); await applyAgentDraft(draft); const saved = await stored();
-  if (!before.lightEnvironment) throw new Error('The seeded environment is missing.');
-  expect(saved.lightAudits).toHaveLength(2); expect(saved.lightAudits!.find(row => row.id === current.recordId)).toMatchObject({ label: 'Baseline', rooms: before.lightEnvironment.rooms, measurements: before.lightMeasurements });
-  expect(saved.lightEnvironment).toEqual(before.lightEnvironment);
-});
+
 it('does not publish a native replacement or start analysis after storage failure', async () => {
   const before = await stored(), write = storage.encryptedSetItem;
   vi.spyOn(storage, 'encryptedSetItem').mockImplementation(async (...args) => { if (args[0] === key) throw new Error('Synthetic disk failure'); return write(...args); });
   expect(await saveMeasurement('lux', 200, { roomId: 'room-office', extra: { source: 'manual-entry' } })).toBeNull();
   expect(state.importedData).toEqual(before); expect(await stored()).toEqual(before); expect(analyzeMeasurement).not.toHaveBeenCalled();
 });
-it('does not publish a native checkpoint or start analysis after storage failure', async () => {
-  const before = await stored(), write = storage.encryptedSetItem;
-  vi.spyOn(storage, 'encryptedSetItem').mockImplementation(async (...args) => { if (args[0] === key) throw new Error('Synthetic disk failure'); return write(...args); });
-  expect(await saveLightAudit('Not saved')).toBeNull(); expect(state.importedData).toEqual(before); expect(await stored()).toEqual(before); expect(analyzeAudit).not.toHaveBeenCalled();
-});
+
 
 it('reviews latest-key replacement and retains original acquisition privately', async () => {
   const before = await stored(), at = new Date(Date.now() - 60000).toISOString();
@@ -122,17 +112,8 @@ it('preserves an unrelated visible draft without writing it during Apply', async
   const before = await stored(), { draft } = await propose(); state.importedData.contextNotes = 'Unsubmitted note draft';
   await applyAgentDraft(draft); expect(state.importedData.contextNotes).toBe('Unsubmitted note draft'); expect((await stored()).contextNotes).toBe(before.contextNotes);
 });
-it('corrects checkpoint metadata while preserving its frozen source snapshot', async () => {
-  const before = await stored(), { draft } = await propose('lightAudits', 'audit-before', '{"label":"Corrected","notes":"Reported glare","date":"2026-10-22"}');
-  await applyAgentDraft(draft); const row = (await stored()).lightAudits![0];
-  expect(row).toMatchObject({ label: 'Corrected', notes: 'Reported glare', date: '2026-10-22', rooms: before.lightAudits![0].rooms, measurements: before.lightAudits![0].measurements });
-  expect(row.metadataHistory[0].record).toMatchObject({ label: 'Original', date: '2026-10-23' });
-});
-it('reviews checkpoint source removal and preserves all live environment inputs', async () => {
-  const before = await stored(), { draft, result } = await propose('lightAudits', 'audit-before', '{}', 'remove');
-  expect(JSON.parse(result.contentItems[0].text).review.effects.removedSnapshot).toBe(true); await applyAgentDraft(draft); const saved = await stored();
-  expect(saved.lightAudits).toEqual([]); expect(saved.lightMeasurements).toEqual(before.lightMeasurements); expect(saved.lightEnvironment).toEqual(before.lightEnvironment); expect(saved._deleted?.lightAudits).toContain('audit-before');
-});
+
+
 it('publishes legacy normalization only after durable success and retains superseded sources', async () => {
   const prior = { ...structuredClone(state.importedData.lightMeasurements![0]), id: 'older', capturedAt: Date.now() - 7200000, value: 20 };
   state.importedData.lightMeasurements!.push(prior); expect(await saveImportedData()).toBe(true); const before = await stored(), write = storage.encryptedSetItem;
@@ -162,3 +143,6 @@ it('keeps saved checkpoint history visible after the final live room is removed'
   state.importedData.lightEnvironment = { rooms: [], screens: [] }; expect(await saveImportedData()).toBe(true);
   const { renderEnvironmentSection } = await import('../js/light-env.js'); expect(renderEnvironmentSection()).toContain('Light audits');
 });
+
+import { retiredRecordActions } from './helpers/retired-health-record-actions.js';
+retiredRecordActions('lightAudits',['add','update','remove']);

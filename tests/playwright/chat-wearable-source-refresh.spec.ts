@@ -1,6 +1,6 @@
 import { expect, test } from './coverage-fixture.js';
 import { seedDashboardControlProfile, dashboardHealth } from '../helpers/dashboard-control-fixture.js';
-for (const failed of [false, true]) test(`an exact source refresh handoff reports native ${failed ? 'failure' : 'completion'} only after human Update now`, async ({ page, context }) => {
+for (const failed of [false, true]) test(`native source refresh reports native ${failed ? 'failure' : 'completion'} only after human Update now`, async ({ page, context }) => {
   await context.route('https://**/*', route => route.abort());
   let calls = 0, release!: () => void; const pending = new Promise<void>(resolve => { release = resolve; });
   await page.route('**/api/proxy', async route => {
@@ -18,14 +18,13 @@ for (const failed of [false, true]) test(`an exact source refresh handoff report
     vault.markLocalWearableCredential(state.currentProfile, 'oura', generation);
     state.importedData.wearableConnections = { ...(state.importedData.wearableConnections || {}), oura: { connectedAt: Date.now() - 86400000, lastSyncAt: Date.now() - 3600000, expiresAt: Date.now() + 86400000, hasStoredCredentials: true, credentialGeneration: generation, account: { email: 'PRIVATE_SOURCE_ACCOUNT' } } };
     if (!await (await import('/js/data.js')).saveImportedData()) throw new Error('Source fixture persistence failed');
-    const { createAppControlSession } = await import('/js/app-control-session.js'); const session = createAppControlSession('Check my Oura freshness and open its refresh control.', () => true, new AbortController().signal);
-    const read = await session.tools.readAppState({ action: 'wearables.sources' });
+    const read = (await import('/js/wearable-source-controls.js')).readConfiguredWearableSources(state.currentProfile);
     return { read, source: structuredClone(state.importedData.wearableConnections.oura), notes: state.importedData.contextNotes, entries: structuredClone(state.importedData.entries) };
   });
   const read = seeded.read as { snapshotId: string; sources: { id: string; refreshAvailable: boolean }[] };
   expect(read.sources.find(source => source.id === 'oura')).toMatchObject({ refreshAvailable: true }); expect(JSON.stringify(read)).not.toMatch(/PRIVATE_SOURCE_ACCOUNT|SYNTHETIC_SOURCE_ACCESS|SYNTHETIC_SOURCE_REFRESH/);
   const before = await dashboardHealth(page); expect(calls).toBe(0);
-  const receipt = await page.evaluate(async snapshotId => (await import('/js/agent-tool-bindings.js')).navigateFromAgent({ view: 'wearablesSettings', marker: '', recordId: 'oura', snapshotId }), read.snapshotId);
+  const receipt = await page.evaluate(async snapshotId => (await import('/js/wearable-source-controls.js')).openConfiguredWearableRefresh({ view: 'wearablesSettings', marker: '', recordId: 'oura', snapshotId }, () => true), read.snapshotId);
   expect(receipt, JSON.stringify(receipt)).toMatchObject({ changed: true, opened: 'wearablesSettings', requiresUserAction: true, dataSaved: false, settingsSaved: false }); expect(calls).toBe(0); expect(await dashboardHealth(page)).toBe(before);
   const button = page.locator('[data-adapter="oura"] [data-wearable-settings-action="sync-now"]'); await expect(button).toBeVisible(); await expect(button).toBeFocused();
   try {
@@ -49,7 +48,7 @@ test('stale or disabled source snapshots never open Settings or alter health dat
     const { state } = await import('/js/state.js'); (await import('/js/chat-threads.js')).ensureActiveThread(); const owner = await import('/js/wearable-source-controls.js');
     state.importedData.wearableConnections = { oura: { connectedAt: Date.now(), accessToken: 'SYNTHETIC_LEGACY', expiresAt: Date.now() + 86400000 } };
     const read = owner.readConfiguredWearableSources(state.currentProfile); if (!read.snapshotId) throw new Error('Expected source snapshot'); state.importedData.wearableConnections.oura = { connectedAt: Date.now(), accessToken: 'NEWER_SYNTHETIC' };
-    const before = JSON.stringify(state.importedData), receipt = await (await import('/js/agent-tool-bindings.js')).navigateFromAgent({ view: 'wearablesSettings', marker: '', recordId: 'oura', snapshotId: read.snapshotId });
+    const before = JSON.stringify(state.importedData), receipt = await owner.openConfiguredWearableRefresh({ view: 'wearablesSettings', marker: '', recordId: 'oura', snapshotId: read.snapshotId }, () => true);
     const after = JSON.stringify(state.importedData); (await import('/js/lab-context-settings.js')).setWearableContextEnabled(false); const beforeDisabledRead = JSON.stringify(state.importedData), hidden = owner.readConfiguredWearableSources(state.currentProfile);
     return { before, after, receipt, hidden, beforeDisabledRead, afterDisabledRead: JSON.stringify(state.importedData) };
   });

@@ -38,7 +38,7 @@ for (const provider of ['custom', 'venice'] as const) for (const protocol of ['n
       expect(result).toMatchObject({ action: 'conversations.search', dataSaved: false, settingsSaved: false }); expect(result.results).toHaveLength(1); expect(result.results[0].excerpt).toContain(historical);
       expect(JSON.stringify(result)).not.toContain('PRIVATE_HIDDEN_SLEEP'); sourceLink = result.results[0].sourceLink;
     }
-    const call = round++ === 0 ? { id: 'search-prior', type: 'function', function: { name: 'getbased_read_app', arguments: '{"action":"conversations.search","query":"sleep"}' } } : null;
+    const call = round++ === 0 ? { id: 'search-prior', type: 'function', function: { name: 'getbased_search_conversations', arguments: '{"query":"sleep"}' } } : null;
     const reply = `You previously discussed moving bedtime earlier. [Open the earlier conversation](${sourceLink}). This is a historical quote, with no goal change.`;
     if (protocol === 'structured') await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: JSON.stringify({ reply: call ? '' : reply, calls: call ? [{ id: call.id, name: call.function.name, arguments: call.function.arguments }] : [] }) }, finish_reason: call ? 'tool_calls' : 'stop' }] }) });
     else await route.fulfill({ contentType: 'text/event-stream', body: 'data: ' + JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: reply }, finish_reason: call ? 'tool_calls' : 'stop' }] }) + '\n\ndata: [DONE]\n\n' });
@@ -57,8 +57,8 @@ for (const provider of ['custom', 'venice'] as const) for (const protocol of ['n
 for (const boundary of ['changed-source', 'forged-link'] as const) test(`native conversation source links refuse ${boundary} without switching or changing health`, async ({ page, context }) => {
   await context.route('https://**/*', route => route.abort()); const fixture = await seedConversations(page), health = await dashboardHealth(page);
   const href = await page.evaluate(async boundary => {
-    const { state } = await import('/js/state.js'); const session = (await import('/js/app-control-session.js')).createAppControlSession('Find my earlier sleep conversation.', () => true, new AbortController().signal);
-    const result = await session.tools.readAppState({ action: 'conversations.search', query: 'sleep' }) as { results: { sourceLink: string }[] }; session.finish();
+    const { state } = await import('/js/state.js'); const tools = (await import('/js/agent-tool-runtime.js')).createAgentToolRuntime({ readContext: () => '', userMessage: 'Find my earlier sleep conversation.', ...(await import('/js/agent-tool-bindings.js')).createBrowserAgentToolDependencies(state.currentProfile) });
+    const response = await tools.execute({ tool: 'getbased_search_conversations', arguments: { query: 'sleep' } }); if (!response.success) throw new Error(response.contentItems[0]!.text); const result = JSON.parse(response.contentItems[0]!.text) as { results: { sourceLink: string }[] };
     const href = boundary === 'forged-link' ? '#getbased-chat-source-v1/' + state.currentProfile + '/missing/0/user/' + '0'.repeat(64) : result.results[0]!.sourceLink;
     state.chatHistory.push({ role: 'assistant', content: `[Open historical source](${href})` }); await (await import('/js/chat-history.js')).saveChatHistory(); (await import('/js/chat-render.js')).renderChatMessages(); return href;
   }, boundary);
@@ -87,8 +87,8 @@ test('a source link waits for a real active reply to finish before native conver
   await routeJavaScript(page, '**/js/cloud-ai-consent.js', `export * from '/js/cloud-ai-consent.js?conversation-search-stream-original'; export async function requestAIProcessingApproval(){return true;} export async function requireAIProcessingApproval(){}`);
   const fixture = await seedConversations(page), health = await dashboardHealth(page);
   await page.evaluate(async () => {
-    const { state } = await import('/js/state.js'); const session = (await import('/js/app-control-session.js')).createAppControlSession('Find my earlier sleep conversation.', () => true, new AbortController().signal);
-    const result = await session.tools.readAppState({ action: 'conversations.search', query: 'sleep' }) as { results: { sourceLink: string }[] }; session.finish();
+    const { state } = await import('/js/state.js'); const tools = (await import('/js/agent-tool-runtime.js')).createAgentToolRuntime({ readContext: () => '', userMessage: 'Find my earlier sleep conversation.', ...(await import('/js/agent-tool-bindings.js')).createBrowserAgentToolDependencies(state.currentProfile) });
+    const response = await tools.execute({ tool: 'getbased_search_conversations', arguments: { query: 'sleep' } }); if (!response.success) throw new Error(response.contentItems[0]!.text); const result = JSON.parse(response.contentItems[0]!.text) as { results: { sourceLink: string }[] };
     state.chatHistory.push({ role: 'assistant', content: `[Earlier source](${result.results[0]!.sourceLink})` }); await (await import('/js/chat-history.js')).saveChatHistory();
     const api = await import('/js/api.js'); await api.saveCustomApiConnection('https://conversation-stream.example/v1', 'synthetic-stream-key'); api.setCustomApiModel('fixture'); api.setAIProvider('custom'); api.setAIPaused(false); (await import('/js/agent-chat-settings.js')).setChatBackend('direct'); await (await import('/js/chat-loader.js')).openChatPanel(); (await import('/js/chat-render.js')).renderChatMessages();
   });
@@ -106,8 +106,8 @@ test('a source link waits for a real active reply to finish before native conver
 test('saved native conversation source links survive a full reload within the same profile', async ({ page, context }) => {
   await context.route('https://**/*', route => route.abort()); const fixture = await seedConversations(page), health = await dashboardHealth(page);
   await page.evaluate(async () => {
-    const { state } = await import('/js/state.js'), session = (await import('/js/app-control-session.js')).createAppControlSession('Find my earlier sleep conversation.', () => true, new AbortController().signal);
-    const result = await session.tools.readAppState({ action: 'conversations.search', query: 'sleep' }) as { results: { sourceLink: string }[] }; session.finish();
+    const { state } = await import('/js/state.js'); const tools = (await import('/js/agent-tool-runtime.js')).createAgentToolRuntime({ readContext: () => '', userMessage: 'Find my earlier sleep conversation.', ...(await import('/js/agent-tool-bindings.js')).createBrowserAgentToolDependencies(state.currentProfile) });
+    const response = await tools.execute({ tool: 'getbased_search_conversations', arguments: { query: 'sleep' } }); if (!response.success) throw new Error(response.contentItems[0]!.text); const result = JSON.parse(response.contentItems[0]!.text) as { results: { sourceLink: string }[] };
     state.chatHistory.push({ role: 'assistant', content: `[Saved historical source](${result.results[0]!.sourceLink})` }); if (!await (await import('/js/chat-history.js')).saveChatHistory()) throw new Error('Synthetic source link did not save');
   });
   await page.reload(); await page.locator('html[data-app-ready]').waitFor(); await page.evaluate(async () => (await import('/js/chat-loader.js')).openChatPanel());

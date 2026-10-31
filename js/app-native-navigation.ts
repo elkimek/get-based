@@ -3,7 +3,6 @@ import { chatNavigationAllowed, CHAT_NATIVE_UI_NOTICE } from '../shared/chat-con
 import type { AppNavigationRequest } from '../shared/app-navigation-contract.js';
 import type { AppNavigationReceipt } from './app-navigation-runtime.js';
 import { state } from './state.js';
-const settingsTabs: Record<string, string | undefined> = { aiSettings: 'ai', displaySettings: 'display', voiceSettings: 'voice', privacySettings: 'privacy', dataSettings: 'data', wearablesSettings: 'wearables', agentSettings: 'agent' };
 const denied = (reason = 'The view or record is no longer available.'): AppNavigationReceipt => ({ changed: false, reason, dataSaved: false });
 const receipt = (view: string, opened: boolean): AppNavigationReceipt => ({ changed: opened, opened: opened ? view : null, dataSaved: false, settingsSaved: false, credentialsEntered: false });
 const detailOpen = () => !!document.querySelector('#modal-overlay.show #detail-modal');
@@ -11,30 +10,14 @@ export async function openAppDestination(request: AppNavigationRequest, current:
   const { view, card, recordId } = request;
   if (!current()) return denied('The navigation request expired.');
   if (!chatNavigationAllowed(request)) return denied(CHAT_NATIVE_UI_NOTICE);
-  if (['personaEditor', 'personaDelete', 'chatPersona'].includes(view) || request.personaDraft !== undefined) return denied('Persona management is available only in the manual persona picker and editor.');
-  if (request.history || request.undoId && ['nutritionHistory', 'wearableDetail'].includes(view)) {
-    const owner = await import('./history-view-controls.js'); return owner.openHistoryView(request, current, isOwnerCurrent);
-  }
-  if (view === 'compare' && request.snapshotId) {
-    const owner = await import('./comparison-view-controls.js'); return owner.openLabComparison(request, current, isOwnerCurrent);
-  }
   if (view === 'correlations') {
-    if (request.snapshotId) { const owner = await import('./correlation-view-controls.js'); return owner.openLabCorrelations(request, current, isOwnerCurrent); }
     await import('./compare-correlations.js'); if (!current()) return denied('The correlation view request expired.');
     const runtime = await import('./data-view-controls.js'); if (!current()) return denied();
     const rendered = await runtime.navigateDataViewOutcomeRuntime('correlations');
     const opened = rendered && isOwnerCurrent() && state.currentView === 'correlations' && !!document.querySelector('#corr-search');
     return { changed: opened, opened: opened ? 'correlations' : null, dataSaved: false };
   }
-  if (view === 'wearablesSettings' && request.snapshotId) { const owner = await import('./wearable-source-controls.js'); return owner.openConfiguredWearableRefresh(request, current, isOwnerCurrent); }
-  const tab = settingsTabs[view];
-  if (tab) {
-    const { getSettingsModuleFunction } = await import('./settings-runtime-bridge.js'), open = getSettingsModuleFunction('openSettingsForOwner');
-    if (!open || !current()) return denied('Native Settings are not available yet.');
-    await open(tab, current);
-    return receipt(view, !!document.querySelector(`#settings-modal-overlay.show #settings-tab-${tab}.active`));
-  }
-  if (view === 'category' || view === 'labs' && request.range) {
+  if (view === 'category') {
     const { openLabView } = await import('./lab-view-controls.js');
     return openLabView(request, current);
   }
@@ -58,48 +41,13 @@ export async function openAppDestination(request: AppNavigationRequest, current:
     const open = card ? opens[card] : null; if (!open) return denied('Choose a declared context card.');
     await open(); return receipt(view, detailOpen());
   }
-  if (view === 'knowledgeBase') {
-    const lens = await import('./lens.js'); if (!current()) return denied();
-    await lens.openKnowledgeBaseModal({ source: 'sidebar', isCurrent: current });
-    return receipt(view, !!document.querySelector('#kb-modal-overlay.show #kb-modal'));
-  }
-  if (view === 'healthImport') {
-    const attachments = await import('./chat-attachment-view.js'); if (!current()) return denied();
-    const opened = attachments.openOwnedHealthImport();
-    return { ...receipt(view, opened), ...(opened ? { requiresUserAction: true as const, nextAction: 'Choose Import health file, select your files, and complete native import review. No file was selected or imported.' } : {}) };
-  }
-  if (view === 'reportBuilder') {
-    const owner = await import('./export.js'), builder = await owner.loadReportBuilderModule();
-    if (!current()) return denied();
-    builder.openReportBuilder(request.subview, request.range);
-    const opened = !!document.querySelector('#report-builder-overlay.show');
-    return { ...receipt(view, opened), ...(opened ? { requiresUserAction: true as const, nextAction: 'Review the report template, dates and included sections, then create the report in the native builder. No report was generated or downloaded.' } : {}) };
-  }
-  if (view === 'profileShare') {
-    const owner = await import('./profile-share.js'), profiles = await import('./profile.js');
-    if (!current() || recordId && recordId !== state.currentProfile || !profiles.getProfiles().some(profile => profile.id === state.currentProfile)) return denied('Sharing review is limited to the active profile. Switch profiles and ask again if needed.');
-    owner.openProfileShareModal(state.currentProfile);
-    const opened = !!document.querySelector('#profile-share-overlay.show');
-    return { ...receipt(view, opened), ...(opened ? { requiresUserAction: true as const, nextAction: 'Review the active profile and native sharing options. Only you can create or send a share. No upload or sharing link was created.' } : {}) };
-  }
-  if (view === 'lightTools') {
-    const [runtime, page] = await Promise.all([import('./data-view-controls.js'), import('./light-page-view.js')]);
-    if (!current()) return denied();
-    const rendered = await runtime.navigateDataViewOutcomeRuntime('light');
-    if (!rendered || !isOwnerCurrent() || state.currentView !== 'light') return denied('The native Light tools did not open.');
-    page._expandLightToolsSection();
-    const tools = document.querySelector<HTMLElement>('#main-content [data-light-tool-view]');
-    tools?.scrollIntoView({ block: 'center' });
-    return { ...receipt(view, !!tools), ...(tools ? { requiresUserAction: true as const, nextAction: 'Choose the native measurement tool or guide. Grant permissions and capture or enter real readings there; no measurement was captured or saved.' } : {}) };
-  }
   if (['nutritionHistory', 'nutritionEditor', 'nutritionTargets', 'fluidLog'].includes(view)) {
     const loader = await import('./nutrition-context.js'), nutrition = await loader.loadNutritionFeature();
     if (!current()) return denied();
     if (view === 'nutritionHistory') {
       const history = await import('./nutrition-history.js'); if (!current()) return denied();
-      let saved = false;
-      const opened = await history.openNutritionHistory(history.getNutritionHistoryRange(), { view: request.subview || 'meals', onPreferencesCommitted: outcome => { saved = outcome.changed.length > 0; } }, current);
-      return { changed: opened || saved, opened: opened ? view : null, settingsSaved: saved, dataSaved: false };
+      const opened = await history.openNutritionHistory(undefined, { persistPreferences: false }, current);
+      return receipt(view, opened);
     }
     if (view === 'nutritionTargets') return receipt(view, await nutrition.openNutritionTargets({}, current));
     if (view === 'fluidLog') return receipt(view, await nutrition.openFluidLog(current));
@@ -118,13 +66,9 @@ export async function openAppDestination(request: AppNavigationRequest, current:
     await runtime.openEMFAssessmentEditor({ isCurrent: () => current() && exists(), ...(recordId ? { assessmentId: recordId } : {}) });
     return receipt(view, detailOpen());
   }
-  if (['lightDevices', 'lightDevice', 'sunSession', 'deviceSession', 'lightAssessment'].includes(view)) {
+  if (['lightDevice', 'sunSession', 'deviceSession', 'lightAssessment'].includes(view)) {
     const loader = await import('./light-sun-loader.js'); await loader.loadLightSunUI();
     if (!current()) return denied();
-    if (view === 'lightDevices') {
-      const devices = await import('./light-device-modal-loader.js'); if (!current()) return denied();
-      return receipt(view, await devices.openAddDeviceDialog({ isCurrent: current }) !== false);
-    }
     if (view === 'lightDevice') {
       const devices = await import('./light-device-modal-loader.js'); if (!current()) return denied();
       if (!state.importedData.lightDevices?.some((row: { id: string }) => row.id === recordId)) return denied('That exact light device no longer exists.');

@@ -15,31 +15,31 @@ it('expires restored disclosure reviews and never accepts imported saved labels 
   expect(renderHTML({ controls: normalizeAppControls([context]), index: 0 })).toContain('Use the native settings or editor');
   const imported = renderHTML({ controls: normalizeAppControls([{ ...context, status: 'changed', undoAvailable: true }]), index: 0 }); expect(imported).toContain('Use the native settings or editor'); expect(imported).not.toContain('Context preferences saved'); expect(imported).not.toMatch(/(?:apply|undo)-app-control/);
 });
-it('shows exact reviewed values and scopes, and exposes Undo only for a saved native receipt', () => {
-  const pending = renderHTML({ controls: normalizeAppControls([record]), index: 0 });
-  expect(pending).toContain('International (SI)'); expect(pending).toContain('Applies to this profile');
-  expect(pending).toContain('apply-app-control'); expect(pending).not.toContain('undo-app-control');
-  const saved = renderHTML({ controls: normalizeAppControls([{ ...record, status: 'changed', undoAvailable: true }]), index: 0 });
-  expect(saved).toContain('Display preference saved'); expect(saved).toContain('undo-app-control'); expect(saved).not.toContain('apply-app-control');
-  const missingReceipt = renderHTML({ controls: normalizeAppControls([{ ...record, status: 'changed', undoAvailable: false }]), index: 0 });
-  expect(missingReceipt).toContain('Display preference saved'); expect(missingReceipt).toContain('Undo receipt unavailable'); expect(missingReceipt).not.toContain('undo-app-control');
+it('retains historical unit values without asserting a save or exposing Apply/Undo authority', () => {
+  for (const status of ['pending','changed','undone','expired']) {
+    const html = renderHTML({ controls: normalizeAppControls([{ ...record, status, undoAvailable: true }],true), index: 0 });
+    expect(html).toContain('International (SI)'); expect(html).toContain('Previous app-management request');
+    expect(html).not.toMatch(/(?:apply|undo|discard)-app-control/); expect(html).not.toContain('Display preference saved');
+  }
 });
 it.each(['applying', 'queued', 'unknown', 'failed', 'conflict', 'discarded', 'undone', undefined])('restored %s controls have no Apply or Undo button', status => {
   const html = renderHTML({ controls: normalizeAppControls([{ ...record, status, undoAvailable: true }]), index: 0 });
   expect(html).not.toMatch(/(?:apply|undo)-app-control/);
 });
-it('shows an exact profile review and keeps restored transitions inactive until native receipt verification', () => {
+it('retains literal profile names while keeping every historical transition inactive', () => {
   const profile = { ...record, action: 'profile.selection', leaseId: 'profile-lease', parameters: { profileId: 'target' }, baseline: { id: 'profile-test', name: '<Origin>' }, proposed: { id: 'target', name: '<Destination>' } };
-  const review = renderHTML({ controls: normalizeAppControls([profile], true), index: 0 }); expect(review).toContain('apply-app-control'); expect(review).toContain('&lt;Destination>'); expect(review).not.toContain('<Destination>'); expect(review).toContain('Destination profile ID'); expect(review).toContain('target'); expect(review).toContain('conversation stays');
-  expect(renderHTML({ controls: normalizeAppControls([profile]), index: 0 })).toContain('Profile review expired');
-  const verified = renderHTML({ controls: normalizeAppControls([{ ...profile, status: 'changed', undoAvailable: true }], true), index: 0 }); expect(verified).toContain('Profile switch completed'); expect(verified).not.toMatch(/(?:apply|undo)-app-control/);
+  for (const status of ['pending','changed','undone','expired']) {
+    const html = renderHTML({ controls: normalizeAppControls([{...profile,status,undoAvailable:true}],true), index:0 });
+    expect(html).toContain('&lt;Destination>'); expect(html).not.toContain('<Destination>'); expect(html).toContain('Previous app-management request');
+    expect(html).not.toMatch(/(?:apply|undo|discard)-app-control/); expect(html).not.toContain('Profile switch completed');
+  }
 });
 
 it('renders ordering labels as text with explicit whole-scope reset and selective Undo wording', () => {
   const common = { version: 1, id: 'ordering-review', profileId: 'profile-test', threadId: 'thread', reason: 'Requested order', evidence: 'Move it', status: 'pending', action: 'labs.ordering', leaseId: 'ordering-lease' };
   const baseline = { scopeId: 'markers.biochemistry', label: '<Scope>', kind: 'markers', revision: 'a'.repeat(64), move: { item: { id: 'biochemistry.urea', label: '<Urea>' }, anchor: { id: 'biochemistry.glucose', label: '<Glucose>' }, position: 'before' } };
   const controls = normalizeAppControls([{ ...common, parameters: { scopeId: baseline.scopeId, move: { item: baseline.move.item.id, before: baseline.move.anchor.id } }, baseline }], true);
-  const html = renderHTML({ controls, index: 0 }); expect(html).toContain('Lab presentation order'); expect(html).toContain('Historical app control'); expect(html).not.toContain('<Urea>'); expect(html).toContain('Use the native settings or editor'); expect(html).not.toMatch(/(?:apply|undo|discard)-app-control/); expect(html).not.toContain('Assistant selection');
+  const html = renderHTML({ controls, index: 0 }); expect(html).toContain('Lab presentation order'); expect(html).toContain('Previous app-management request'); expect(html).not.toContain('<Urea>'); expect(html).toContain('Use the native settings or editor'); expect(html).not.toMatch(/(?:apply|undo|discard)-app-control/); expect(html).not.toContain('Assistant selection');
   const reset = renderHTML({ controls: normalizeAppControls([{ ...common, parameters: { scopeId: baseline.scopeId, reset: true }, baseline: { ...baseline, move: null } }], true), index: 0 });
   expect(reset).toContain('Use the native settings or editor'); expect(reset).not.toMatch(/(?:apply|undo|discard)-app-control/); expect(reset).not.toContain('Other items retain their relative order');
 });
@@ -48,7 +48,7 @@ it('renders historical persona controls as read-only across all statuses', () =>
   for (const status of ['pending', 'applying', 'changed', 'undone', 'failed']) {
     for (const allowInFlight of [false, true]) {
       const html = renderHTML({ controls: normalizeAppControls([{ ...input, status, undoAvailable: true }], allowInFlight), index: 0 });
-      expect(html).toContain('Persona management is manual-only');
+      expect(html).toContain('Previous app-management request');
       expect(html).toContain('&lt;Persona>'); expect(html).not.toContain('<Persona>');
       expect(html).not.toMatch(/(?:apply|undo|discard)-app-control/);
       expect(html).not.toContain('Persona selection saved');

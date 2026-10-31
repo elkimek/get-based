@@ -1,8 +1,8 @@
 // Browser-wide, UI-only permission. A new epoch permanently expires older reviews.
 import { runNativeCommandWithLocks } from './native-command-locks.js';
 export const CHAT_CONTROLS_KEY = 'getbased-chat-controls';
-export const CHAT_CONTROLS_NOTICE = 'Chat controls are off or this review has expired. Enable chat controls in Settings → AI and request a fresh review.';
-export const CHAT_CONTROLS_OFF_INSTRUCTIONS = 'Chat controls are disabled in Settings → AI. Answer normally using the supplied context. Do not call getbased tools or propose app changes. Only if the user asks to change the app, explain that they can enable Chat controls in Settings → AI. You cannot enable it yourself.';
+export const CHAT_CONTROLS_NOTICE = 'Health updates through chat are off, or this review has expired. Enable Health updates through chat in Settings → AI and request a fresh health proposal.';
+export const CHAT_CONTROLS_OFF_INSTRUCTIONS = 'Health tools are disabled in Settings → AI. Answer normally using the supplied context. Do not call getbased tools or propose changes. If the user asks for a supported health update, explain the Health updates through chat setting. Application management stays in native UI regardless of this setting. You cannot enable it yourself.';
 function stored(): string | null {
   try { return typeof localStorage === 'undefined' ? null : localStorage.getItem(CHAT_CONTROLS_KEY); }
   catch { return 'unavailable'; }

@@ -8,7 +8,6 @@ import { clearSyncSaveTimers } from '../js/sync-save-hooks.js';
 import { configureDataRuntimeDeps } from '../js/data-view-controls.js';
 import { showCompare, setCompareDate1, setCompareDate2, swapCompareDates } from '../js/compare-correlations.js';
 import { readLabComparison, openLabComparison } from '../js/comparison-view-controls.js';
-import { createAppControlSession } from '../js/app-control-session.js';
 import { createAgentToolRuntime } from '../js/agent-tool-runtime.js';
 import { setContextSourceEnabled } from '../js/context-source-registry.js';
 import { setGroupInAIContext } from '../js/lab-context-settings.js';
@@ -81,8 +80,14 @@ it('reports committed session selection truthfully when the optional renderer fa
 it('withholds dates if disclosure changes while the native view is rendering', async () => {
   configureDataRuntimeDeps({ navigate: async () => { setContextSourceEnabled('lab-markers', false); return false; } }); const result = await open({ firstDate: dates[1], secondDate: dates[2] }); expect(result).toMatchObject({ changed: true, opened: null, dataSaved: false }); expect(result).not.toHaveProperty('firstDate'); expect(result).not.toHaveProperty('secondDate');
 });
-it('uses the shared tool runtime for discovery and direct selection without creating a review or health proposal', async () => {
-  const message = 'Compare my latest labs with the previous collection date.', session = createAppControlSession(message, () => true, new AbortController().signal), tools = createAgentToolRuntime({ readContext: () => '', userMessage: message, ...session.tools, navigate: request => openLabComparison(request, () => true) });
-  const result = await tools.execute({ tool: 'getbased_read_app', arguments: { action: 'labs.comparison' } }); expect(result.success).toBe(true); const snapshot = JSON.parse(result.contentItems[0].text);
-  const selected = await tools.execute({ tool: 'getbased_navigate', arguments: { view: 'compare', snapshotId: snapshot.snapshotId, ...snapshot.latestPair } }); expect(selected.success).toBe(true); expect(JSON.parse(selected.contentItems[0].text)).toMatchObject({ opened: 'compare', dataSaved: false }); expect(session.finish()).toEqual([]); expect(tools.getDrafts()).toEqual([]);
+it('keeps labs.comparison in native UI without exposing saved data or invoking its owner', async () => {
+  const before = structuredClone(state.importedData), settings = Object.keys(localStorage).sort().map(key => [key, localStorage.getItem(key)]);
+  const native = vi.fn(() => ({ secret: 'PRIVATE_NATIVE_DATA' }));
+  const tools = createAgentToolRuntime({ readContext: () => '', listAppActions: native, readAppState: native, prepareAppControl: native, navigate: native });
+  for (const tool of ['getbased_app_actions','getbased_read_app','getbased_request_app']) {
+    const result = await tools.execute({ tool, arguments: { action: 'labs.comparison', snapshotId: 'previous', parameters: '{}', evidence: 'Requested', reason: 'Requested' } });
+    expect(result.success).toBe(false); expect(JSON.stringify(result)).not.toContain('PRIVATE_');
+  }
+  expect(native).not.toHaveBeenCalled(); expect(tools.getDrafts()).toEqual([]); expect(tools.getOutcome().reviews).toEqual([]);
+  expect(state.importedData).toEqual(before); expect(Object.keys(localStorage).sort().map(key => [key, localStorage.getItem(key)])).toEqual(settings);
 });

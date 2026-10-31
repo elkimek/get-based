@@ -154,16 +154,11 @@ Legacy ordering review/receipt modules retain bounded native-owner safety checks
 but ordering is excluded from chat discovery, preparation and execution. Saved
 historical cards are read-only; they cannot apply or undo ordering changes.
 `record-revision.ts` shares the existing stable digest without storage/UI imports.
-`lab-overlay-preferences.ts` owns the three durable profile chart-layer switches,
-shared by native Layers controls and chat. Multi-switch writes share a Web Lock,
-roll back failed storage before publishing cached modes, and preserve health data.
-`lab-overlay-controls.ts` binds permitted metadata snapshots to transient reviews;
-its policy module retains lab/insight/supplement disclosure and the native female
-cycle constraint without inspecting record availability. Execution uses the same
-native preference owner; private receipts authenticate completion and guarded Undo
-after reload. Pending reviews expire. Undo touches only reviewed switches and is
-attempted once; source withdrawal filters cards and later model metadata. Neither
-proof nor repaint failure can turn a durable preference save into a failed write.
+`lab-overlay-preferences.ts` owns native profile chart-layer switches. Writes
+share a Web Lock, roll back failed storage before publishing cached modes and
+preserve health data. Legacy `lab-overlay-controls.ts` snapshots and receipt
+helpers remain decodable, but chat discovery and execution cannot reach them.
+Historical overlay cards cannot apply or undo a switch.
 `context-preference-state.ts` projects source/group flags and native lookback
 windows without reading health content or data availability. The registry accepts
 explicit profile/data reads while retaining its existing active-profile defaults.
@@ -426,17 +421,17 @@ serialize the current owned array, preserving a completed persona switch. Strict
 command, sync and import reads preserve unknown records and fields; unreadable
 indexes cannot become empty replacement baselines. Chat tools cannot prepare a persona lease or execute the native selection owner.
 
-`shared/chat-control-policy.ts` limits chat app controls independently of native
-UI capabilities. Discovery and both API/CLI schemas expose profile selection,
-units/alternate units/range display, chart layers, comparison/correlation/history
-views, and configured assistant model/connection/reasoning selection. Ordinary
-settings navigation is a handoff only. Layout, clock format, AI pause/search
-preferences, meal-model routing, disclosure settings and persona management stay
-in the native UI. Runtime and native execution reject stale or invented excluded
-commands; historical cards cannot Apply or Undo them. Native owners keep their
-manual controls and existing storage safeguards.
+`shared/chat-control-policy.ts` limits both API and CLI chat to health reads,
+reviewable personal-context and record changes, and requested health-view opens.
+The current catalog has no app-management actions. Models, providers, profiles,
+saved display preferences, chart configuration, backups, sharing, credentials,
+personas and Knowledge Base administration use native controls. Navigation accepts
+only a health view and optional marker/category/card/record identity; it cannot
+carry preference commands. Schemas, execution, proposal preparation and Apply share
+this policy. Retired management cards remain readable without Apply or Undo.
+Native owners keep their manual controls and existing storage safeguards.
 
-Settings → AI owns the browser-wide, UI-only Chat controls permission in
+Settings → AI owns the browser-wide, UI-only Health updates through chat permission in
 `chat-control-settings.ts`. It defaults on for existing installations. Disabling
 it leaves ordinary chat and enabled baseline context available, removes the
 API/CLI tool catalog and revokes in-flight tool and commit authorization. Each
@@ -467,7 +462,7 @@ flow rather than converting a start to a completed one-day period. Browser
 bindings issue per-turn card snapshots; proposals
 contain only named field changes, the observed baseline, supporting user words,
 and a reason. The model cannot apply them. Prepared-review claims are checked against actual
-turn-local drafts or app-control records. An unbacked affirmative claim gets at
+turn-local health drafts. An unbacked affirmative claim gets at
 most one corrective attempt on the same provider and permission lease, within
 the existing tool bounds. Direct-provider correction uses the validated structured
 tool protocol, preserving earlier receipts without replaying them; repeated claims become an explicit no-proposal result.
@@ -490,31 +485,72 @@ context history only after an accepted change, and rejects stale list baselines.
 Conversation save/load retires older pending context proposals whose fields
 overlap a newer proposal for the same profile and card. Retired proposals have
 no Apply action; this changes review metadata only, never health data.
-`agent-control-contract.ts` declares finite non-secret app actions separately from health-data drafts. `app-control-session.ts` grants read/prepare access only to an accepted interactive turn; discussion rounds, feature jobs and remote gateways have no execution authority. Preparing a display preference never writes it. Native review buttons use `app-control-commands.ts`, durable claims and `display-preferences.ts` to compare scoped baselines under shared browser/profile Web Locks. Native Display controls use the same preference owner. Units, alternate units and ranges are profile scoped. Browser-wide clock format is configured in native Display settings. Canonical measurements remain unchanged. Interrupted or unknown stored control states are inactive. Undo requires a private native receipt and matching current values, so conversation imports cannot fabricate execution proof. Review/receipt state reaches both direct and local agent chat.
+`agent-control-contract.ts` retains the historical app-control serialization contract.
+`app-control-session.ts`, `app-control-commands.ts` and old delegated handlers are
+inert compatibility boundaries: they cannot read settings, prepare a review,
+execute a change or restore Undo authority. Active chat no longer creates these
+sessions or restores their receipts from conversation history.
 
-`assistant-selection.ts` owns model and reasoning changes shared by the native chat-header picker and reviewed app controls. It validates exact advertised choices, model-specific effort and confirmed photo support, and refuses a write during an active reply. Public review records contain only model/effort effects; opaque in-memory connection leases retain private recipient ownership without serializing credentials. Apply and Undo use the current lease, scoped selection keys and native preference services. Restored pending connection reviews expire; saved selections remain, but their old Undo authority is not restored. A new reviewed change is required after reload. `chat-send.ts` starts a new CLI backend session when the selected model differs from its recorded session model, sending the retained transcript and preserving earlier message attribution.
+`assistant-selection.ts` owns native model and reasoning changes. It validates
+advertised choices, model-specific effort and confirmed photo support, refuses a
+write during an active reply and preserves private recipient ownership. Chat tools
+cannot read or invoke this owner. `chat-send.ts` starts a fresh CLI session after
+manual model/adapter/target changes or an intervening API reply, retaining visible
+history and earlier message attribution.
 
-`assistant-connections.ts` lists saved providers and targets on the paired Companion without exposing credentials, endpoint objects or health content. Explicit model reads can address another connection without changing the active route or overwriting its CLI catalog. CLI preflight and the sender share agentChatRequiredCapabilities, so a host missing chat, tool, context or required image transport cannot be published as the next route. Connection reviews bind both recipients in private leases, validate exact models and photo capability, retain native destination approval, then publish scoped settings under the assistant-selection lock. Apply and guarded Undo use the same native receipt/claim boundary; reloaded reviews expire. API catalogs are cached metadata, not a live availability guarantee. CLI metadata checks use the paired host and never adopt discovery credentials. Setup, sign-in and credential entry remain native. The sender resumes a backend session only for a matching adapter, target and model, and starts a fresh session after an intervening API reply.
+`assistant-connections.ts` supports native configured-provider and paired-Companion
+selection without serializing credentials. CLI selection and sending share required
+chat, context, tool and image capabilities. Setup, sign-in and connection changes
+stay native; API catalog metadata is not a live inference guarantee.
 
-`assistant-connection-readiness.ts` checks native saved recipients through bounded, cancellable model-list GETs, without publishing caches or selecting defaults. It rejects HTTP, missing-model, non-chat, malformed, oversized, redirected and stale-owner responses before connection publication; it never probes an inference, lifecycle, account or payment endpoint. Metadata acceptance is not proof a future inference will succeed. Trusted editions may expose `captureConnectionControls` with an opaque account/recipient ownership predicate and a cancellable readiness check. `app-extension-connection-control.ts` binds that capability to the exact extension owner, aborts retired checks and never serializes credentials or account identity. Configured managed connections can then use the same reviewed model/route commands and guarded Undo. Editions without the capability retain a native Settings handoff. Private leases compare owner references and model-policy scalars, and model catalogs recheck enforced allowlists.
+`assistant-connection-readiness.ts` checks native saved recipients with bounded,
+cancellable model-list GETs before publication. Invalid credentials, missing models,
+redirects and retired owners leave the working route selected. Trusted editions
+may bind readiness to their private account owner through
+`app-extension-connection-control.ts`; these native capabilities grant no chat tool
+authority and never serialize credentials.
 
-`app-navigation-contract.ts` declares finite semantic destinations and parameter combinations for every chat transport. The shell registers `app-navigation-loader.ts`; chat reaches its cycle-safe `app-navigation-runtime.ts` port rather than importing native feature compositions. The lazy `app-native-navigation.ts` delegates to the actual Settings tabs, category routes, context editors, nutrition forms/history, light device/session/assessment controls, EMF editor and Knowledge Base. Opens bind the profile, thread, root, history and current surface across asynchronous preparation, reject an existing dialog or message editor, and report opening separately from saving. Exact record opens fail when the record is absent; they never fall back to creating a new record. Native Save/Cancel and permission/credential controls remain human owned. Device-session navigation skips preset hydration so opening cannot silently rewrite device data.
+`app-navigation-contract.ts` validates semantic destinations against the shared
+health-only policy. The shell registers the lazy `app-navigation-loader.ts`; chat
+uses its cycle-safe `app-navigation-runtime.ts` port. Opens capture profile, thread,
+root, history and surface ownership, reject unsaved dialogs, and distinguish opening
+from saving. Exact missing records cannot fall back to creating a new record.
+Nutrition History preserves its saved view/range preferences. Device-session opens
+skip preset hydration. Native Save/Cancel remain human owned.
 
-`lab-view-controls.ts` prepares the native category/charts/styles before changing a lab range or category layout. Native range buttons and chat share `setDateRange`; native view tabs and chat share `setCategoryViewMode`. Both preferences retain their native session scope, preserve canonical records and use the actual navigation outcome in the receipt. Marker-history tool reads default to the selected native range, return honest empty ranges and scoped latest values, and allow explicit dates to override the view filter. Search remains a disclosure-filtered inventory of recorded markers; changing a timeline does not remove a record or its discoverability.
+`lab-view-controls.ts` and native category controls own session lab ranges/layouts;
+chat cannot set those preferences. Marker-history reads default to the selected
+native range and allow explicit read dates without altering it. Search remains a
+disclosure-filtered inventory of recorded markers.
 
-`comparison-view-controls.ts` exposes permitted recorded collection dates through `labs.comparison`. A process-private, single-use snapshot binds the profile, chat, root, history, current date selection, available dates and source disclosure. `getbased_navigate` can select either side or swap the pair only against that snapshot. Chat validates exact dates before the shared session owner in `compare-date-selection.ts` publishes the pair; native selectors retain their public input contracts. The native Compare renderer and calculations remain authoritative. Receipts distinguish the committed session selection from a confirmed table and withhold dates after disclosure or ownership changes. No comparison command saves records or settings. Same-day specimens remain separate records; the native table uses its existing date-level projection.
+`comparison-view-controls.ts` retains native date-selection helpers and guarded
+legacy snapshots. Chat can open Compare but cannot select or swap dates. Native
+Compare calculations, selectors and same-day record handling remain authoritative.
 
-`correlation-view-state.ts` projects permission-filtered marker/treatment choices and native presets, and resolves only declared workspace fields. `correlation-view-controls.ts` binds single-use snapshots to the originating profile, chat, root, history, workspace footprint and relevant data/disclosure signature. Explicit `getbased_navigate` commands configure selections, presets, ranges, tabs, grouping, layout, active pairs, visible series, ingredients, analysis disclosure and the timeline inspector. They save native workspace preferences directly; health records and treatment periods are unchanged. The existing native renderer and calculation owners remain authoritative; tool metadata returns no numeric results or source files. `correlation-timeline-bounds.ts` shares the native inspector bounds without replacing the date calculation.
+`correlation-view-state.ts` and `correlation-view-controls.ts` retain native
+workspace discovery and guarded commands. Chat can open Correlations but cannot
+configure saved selections, presets, ranges, tabs, layout or analysis disclosure.
+`correlation-timeline-bounds.ts` shares the existing native inspector bounds.
 
-`correlation-workspace-store.ts` serializes native saves and chat commands under the same per-profile queue and Web Lock. Commands compare exact durable and in-memory expectations, preserve unfamiliar preference shapes, verify writes and rollback, and publish only to the still-current owner after persistence. New writes invalidate an older pending restore. Optional repaint failure cannot turn a confirmed save into a false failure. Private, process-local Undo requires a fresh snapshot and the exact current footprint, permissions and relevant data; it expires on reload and cannot be fabricated by imported conversations. Navigation carries active-turn cancellation through both direct and CLI adapters. A profile switch after persistence retains a redacted confirmed-save receipt rather than claiming that nothing happened.
+`correlation-workspace-store.ts` serializes native workspace saves with profile
+ownership, exact durable/in-memory expectations, verified writes and compensation.
+A repaint failure cannot erase a confirmed save. Historical chat controls cannot
+reach these commands or revive their private, process-local Undo proofs.
 
-`history-view-controls.ts` exposes metadata-only `history.views` discovery and explicit native history commands. Nutrition range/tab and wearable detail range are browser defaults. Dashboard widget visibility is a separate native Customize workflow; legacy strip keys do not grant a history command. Exact permitted metric IDs select the existing wearable detail renderer; history ranges do not expand assistant context. Nutrition opens load the full native feature and stylesheet before preference writes, retaining delegated controls. `history-view-preferences.ts` shares validated, serialized writes between chat and actual native UI handlers, compares touched raw keys, verifies writes/compensation and preserves unrelated preferences. Private Undo restores only its saved raw fields, including prior absence or unfamiliar values, against fresh ownership and disclosure. Saved preferences and confirmed presentation remain separate receipt outcomes. Clinical records are never written by these commands.
+`history-view-controls.ts` and `history-view-preferences.ts` retain native history
+settings and verified, serialized writes. Chat opens use the current saved defaults
+without changing ranges or tabs. Dashboard Customize remains a separate native
+workflow. Opening a health history never writes clinical records.
 
 `readonly-history-surfaces.ts` records authority only from first-party history constructors. An owned read-only history may update in place; manual measurement forms, protected suspended meal editors, other dialogs and arbitrary lookalikes cannot grant that authority. Closing or replacing the surface retires pending navigation. `history-native-controls.ts` guards the actual wearable range-button path. Wearable detail reads use their captured state profile rather than the cross-tab active-profile storage key. Legacy synchronous facade setters retain their return contracts; actual native UI uses the shared asynchronous preference owner.
 
 `dashboard-preference-store.ts` stages the native profile-scoped widget layout, biometric selection and Quick Marker pin keys under one Web Lock. Synchronous native semantic bodies read their staged values; verified writes and compensation precede presentation effects. It compares only touched keys, preserves unrelated newer settings, reports an uncertain rollback explicitly and withholds effects from a retired profile. A presentation failure does not erase a confirmed save. `dashboard-native-commands.ts` guards native buttons, drag/drop, lens actions and pin wiring against view/profile/modal retirement before persistence. Publication permits its own repaint while retaining profile/root ownership checks. Existing synchronous factory helpers keep their compatibility contracts; production delegates use the guarded path. Quick Marker normalization, identity and four-pin behavior remain in the independent native algorithm, with storage and presentation adapters around it. Visible marker edits block native pin changes; the hidden notes editor does not.
 
-`dashboard-control-runtime.ts` receives the resident Dashboard's private preparation port. Chat does not construct another feature owner or navigate merely to read settings. `dashboard-control-state.ts` projects permitted native marker and metric eligibility into identifiers and labels, withholding measurements and disabled sources. `dashboard-presentation-model.ts` plans incremental widget, tile and pin changes while retaining unmentioned and undisclosed saved identities. Unrecognized formats require native controls; a fifth pin never evicts an existing one implicitly. `dashboard-presentation-controls.ts` binds single-use chat snapshots and private field-scoped Undo to profile, conversation, root, disclosure, eligibility and native owner. Commands use the shared staged preference store and repaint only after confirmed persistence. Desktop widget layout and the native mobile composition remain distinct. No clinical records, source permissions or account connections are written.
+`dashboard-control-runtime.ts`, `dashboard-control-state.ts` and
+`dashboard-presentation-model.ts` retain native preparation and incremental layout
+helpers. `dashboard-presentation-controls.ts` is unavailable through chat. Native
+Customize, tiles and Quick Marker pins use the staged preference store and preserve
+unmentioned settings and health records.
 
 `assistant-preferences.ts` owns the browser-wide AI pause and app web-search flags. Native Settings, the chat chrome toggle and native resume share its validation and Web Lock. It preserves unrelated preferences, compensates partial writes and publishes presentation only after durable success. Pause blocks new chat/feature calls; native AI settings can resume them. Historical chat preference cards cannot apply or undo these flags. Resume does not grant processing approval. Search enablement requires current native support and does not control CLI search. Native preference helpers are asynchronous; callers await persistence before reading the saved result.
 
@@ -569,7 +605,7 @@ and stored-history normalization share the existing limits of 20 data reviews an
 reviews; an oversized turn receives an explicit limit result instead of preparing
 reviews which storage would drop. Already prepared app reviews can close after
 cancellation but cannot execute further tools, and Apply retains its native
-authorization and conflict checks. Current chat advertises 16 primary tool definitions when all handlers are bound; the three old meal/measurement/supplement shortcuts remain only in the version60 compatibility catalog and historical-review path. Their health workflows use the current record tools. Tool registrations own their schema, dependency
+authorization and conflict checks. Current chat advertises 13 primary tool definitions at version61 when all handlers are bound. The exact version60 catalog is retained explicitly for compatibility checks; management tools and old note/meal/measurement/supplement shortcuts never execute in current chat. Health notes use the current record tools, including appendText to preserve existing text exactly. Historical health cards require a fresh native review before Apply. Tool registrations own their schema, dependency
 binding and activity label; API and CLI discovery use the actual injected turn
 capabilities. Discussion turns omit interactive app-review tools when no owning session
 exists. The Companion resumes Codex only for the same native tool scope; changed or
@@ -1654,14 +1690,21 @@ a label left unconfirmed by an in-flight definition edit. This repair creates no
 Undo that could restore obsolete labels; actual persona changes retain their
 guarded Undo behavior. The native picker uses the same repair path.
 
-Requested native handoffs reuse `getbased_navigate`: `healthImport` opens the owned chat attachment menu without invoking the file picker; `reportBuilder` loads the native owner before a final navigation guard, with optional initial native template/date range; `profileShare` opens review for the current profile without creating a link or uploading; `lightTools` opens the native launcher without starting a sensor/camera. Receipts distinguish an opened handoff (`requiresUserAction`, `nextAction`) from completed work. Existing `dataSettings`, exact `nutritionEditor` and `emfAssessment` destinations retain native export/download, selected-media, analysis and final review controls. Human file choice, permissions, inclusion, import decisions, disclosure and final save/export/share remain with those owners.
+Chat navigation opens requested health views and exact health-record editors.
+Import menus, report builders, profile sharing, Settings and sensor launchers use
+the native application UI. Old requests cannot open those management destinations.
+Human file selection, processing approvals and native Save remain independent.
 
 Native meal Save and reviewed chat meal changes share the canonical-first commit in `nutrition-record-store.ts`. Native edits retain an exact viewed record, reject newer/deleted targets at the atomic profile write, and refresh the encrypted cache only after persistence. Native creation assigns its identity inside that owner. The native form locks during accepted file preparation/save, and a saved/cache-pending outcome blocks replay while retaining explicit reload feedback. Chat handoffs read the canonical record before opening its editor. Reference-photo selection in the saved-meal editor performs local preparation without inference, appends within the four-photo limit, retains prior evidence and estimates, and persists thumbnail-only attachments with their purpose. The human still chooses files and Save; a retired form cannot accept delayed file preparation.
 
-`wearable-source-controls.ts` owns chat's `wearables.sources` metadata projection and single-use exact-source refresh leases. It returns only configured source IDs/names, status and recorded last-successful-sync times when wearable context is enabled. Private connection versions, the accepted interactive turn lifetime, profile/root/thread/history ownership and disclosure fingerprints guard the native handoff. `getbased_navigate(view:wearablesSettings,recordId,snapshotId)` loads the existing Wearables owner, opens the correct source and focuses its native Update now control. The receipt requires human action and never claims a completed refresh. Setup, reconnection, bulk backfill and credentials stay native.
+`wearable-source-controls.ts` retains metadata and exact-source refresh helpers
+for native owners and compatibility tests. No chat schema, runtime or navigation
+path exposes source setup/refresh. Actual native Update now retains duplicate
+suppression, progress, durable freshness and failure reporting; credentials stay
+in private native storage.
 
 Optional wearable metric families retain their established independent fallbacks, while `wearable-fetch-scope.ts` prevents an entirely failed HTTP batch from becoming a successful empty result or advancing sync freshness. Authentication failures remain actionable. Oura's chunked heart-rate fetch uses the same rule. Polar acknowledges a source transaction only after every listed item was read with a usable date; a failed item leaves the transaction available for retry while preserving already fetched rows.
 
-`conversation-search.ts` implements the read-only `conversations.search` app action for an accepted interactive question. It uses the native thread-index owner and a fresh encrypted/plain storage read, normalized through the same pure message boundary as native history loading. Results include only bounded historical user/assistant excerpts: current-thread, hidden, automatic, joined, system/tool and attachment content are excluded. Recent-first thread pages have explicit thread/message/character/result limits and report truncation or skipped sources. Asynchronous reads revalidate the originating profile/root/thread/history/index and accepted-turn lifetime before returning any excerpts. They do not migrate, cache plaintext, save history or administer conversations.
+`conversation-search.ts` implements the read-only `getbased_search_conversations` tool for an accepted interactive question. It uses the native thread-index owner and a fresh encrypted/plain storage read, normalized through the same pure message boundary as native history loading. Results include only bounded historical user/assistant excerpts: current-thread, hidden, automatic, joined, system/tool and attachment content are excluded. Recent-first thread pages have explicit thread/message/character/result limits and report truncation or skipped sources. Asynchronous reads revalidate the originating profile/root/thread/history/index and accepted-turn lifetime before returning any excerpts. They do not migrate, cache plaintext, save history or administer conversations.
 
 Conversation source links are finite same-profile fragments containing native IDs, message index/role and a SHA-256 digest of the exact quote. The Markdown renderer emits a native anchor only for this exact grammar; labels retain ordinary escaping and malformed links retain the existing safe-link behavior. A human click uses the native chat action delegate, waits until streaming has ended, respects open editors, rereads the source and validates its role/content digest. Native switching saves the departing conversation normally, then verifies the exact quote again before highlighting it. Links survive reloads without a persistent capability registry; changed, hidden, locked, missing or foreign-profile sources cannot open through a stale quote. The click sends no additional model request. Historical excerpts never authorize health changes, and their disclosure receipt remains visible even when a reply also reads broad health context.

@@ -55,7 +55,7 @@ it.each(['__proto__', '', 'bad/id'])('rejects unsafe proposal identifiers: %s', 
 import { setChatControlsEnabled, captureChatControlAuthorization } from '../js/chat-control-settings.js';
 it('refuses off and expired claims, but admits a fresh review after re-enabling', async () => {
   await setChatControlsEnabled(false);
-  await expect(claimAgentDraft('a', 'old')).rejects.toThrow('Chat controls');
+  await expect(claimAgentDraft('a', 'old')).rejects.toThrow('Health updates through chat');
   await setChatControlsEnabled(true);
   await expect(claimAgentDraft('a', 'old')).rejects.toThrow('expired');
   expect(mocks.get).not.toHaveBeenCalled(); expect(mocks.set).not.toHaveBeenCalled();
@@ -68,5 +68,5 @@ it('does not persist a queued claim after controls change', async () => {
   const pending = claimAgentDraft('a', 'old'); await vi.waitFor(() => expect(mocks.get).toHaveBeenCalled());
   // Simulates the synchronous cross-tab storage change without queuing on the fake global lock.
   localStorage.setItem('getbased-chat-controls', '0:' + crypto.randomUUID()); release(null);
-  await expect(pending).rejects.toThrow('Chat controls'); expect(mocks.set).not.toHaveBeenCalled();
+  await expect(pending).rejects.toThrow('Health updates through chat'); expect(mocks.set).not.toHaveBeenCalled();
 });

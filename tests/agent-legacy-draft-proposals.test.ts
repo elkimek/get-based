@@ -4,8 +4,6 @@ import { state } from '../js/state.js';
 import { createDefaultProfileData, profileStorageKey } from '../js/profile.js';
 import { saveImportedData } from '../js/data.js';
 import * as storage from '../js/crypto.js';
-import { createBrowserAgentToolDependencies } from '../js/agent-tool-bindings.js';
-import { createAgentToolRuntime } from '../js/agent-tool-runtime.js';
 import { applyAgentDraft } from '../js/agent-drafts.js';
 import { prepareLegacyAgentDraftReview } from '../js/agent-draft-upgrade.js';
 import { CONTEXT_SOURCE_IDS, setContextSourceEnabled } from '../js/context-source-registry.js';
@@ -22,10 +20,16 @@ const markerKey = `${Object.keys(MARKER_SCHEMA).find(key => MARKER_SCHEMA[key]!.
 const initial = { profile: state.currentProfile, data: state.importedData };
 let profile: string, key: string;
 async function stored() { return JSON.parse((await storage.encryptedGetItem(key))!) as ProfileData; }
-function runtime() { return createAgentToolRuntime({ readContext: () => '', userMessage: evidence, ...createBrowserAgentToolDependencies(profile) }); }
+let legacySequence=0;
 async function propose(tool: string, args: object) {
-  const tools = runtime(), result = await tools.execute({ tool, arguments: args });
-  return { result, drafts: tools.getDrafts().map(draft => ({ ...draft, profileId: profile })) };
+  const kinds: Record<string, AgentLegacyDraftKind> = {getbased_draft_note:'note',getbased_draft_meal:'meal',getbased_draft_biometric:'biometric',getbased_draft_supplement:'supplement'};
+  const kind=kinds[tool]!;
+  const raw=args as Record<string,unknown>;
+  const payload=kind==='meal'?{name:raw.name,eatenAt:raw.eatenAt,mealType:raw.mealType||'other',note:raw.note||'',nutrients:Object.fromEntries(['energyKcal','proteinG','carbohydrateG','fatG','fiberG','fluidMl'].filter(key=>raw[key]!==undefined).map(key=>[key,raw[key]]))}:raw;
+  try {
+    const drafts=await prepareLegacyAgentDraftReview({id:`old-${++legacySequence}`,profileId:profile,kind,status:'pending',payload},evidence);
+    return {result:{success:true,contentItems:[{text:'Native refreshed review prepared'}] as [{text:string}]},drafts};
+  } catch(error) { return {result:{success:false,contentItems:[{text:error instanceof Error?error.message:'Native refresh failed'}] as [{text:string}]},drafts:[]}; }
 }
 beforeEach(async () => {
   profile = `legacy-proposal-${crypto.randomUUID()}`; key = profileStorageKey(profile, 'imported'); state.currentProfile = profile; state.importedData = createDefaultProfileData();

@@ -1,3 +1,4 @@
+import { parseAgentDataPatch } from '../shared/agent-data-contract.js';
 import { captureChatControlAuthorization } from './chat-control-settings.js';
 import { releaseKnowledgeImportFiles } from './knowledge-file-inputs.js';
 // chat-actions.js — message action bar rendering and handlers
@@ -19,7 +20,7 @@ import { openEMFAssessmentEditor } from './emf-runtime.js';
 import { getMessageAttachments } from './chat-images.js';
 import { stopKnowledgeImport, subscribeKnowledgeImports } from './knowledge-import-jobs.js';
 import { normalizeAgentDataProposal } from '../shared/agent-data-contract.js';
-import { chatDataChangeAllowed, CHAT_NATIVE_UI_NOTICE } from '../shared/chat-control-policy.js';
+import { chatDataPatchAllowed, CHAT_NATIVE_UI_NOTICE } from '../shared/chat-control-policy.js';
 import { applyAgentDraft } from './agent-drafts.js';
 import { isLegacyAgentDraft, prepareLegacyAgentDraftReview } from './agent-draft-upgrade.js';
 import { claimAgentDraft } from './agent-draft-claims.js';
@@ -116,7 +117,7 @@ async function updateAgentDraft(actionEl: HTMLElement, apply: boolean) {
   let mutationCompleted = false;
   try {
     const fileProposal=draft.kind==='data'?normalizeAgentDataProposal(draft.payload):null;
-    if (apply && fileProposal && !chatDataChangeAllowed(fileProposal.resource, fileProposal.operation)) throw Object.assign(new Error(CHAT_NATIVE_UI_NOTICE), { noChangeApplied: true });
+    if (apply && fileProposal && !chatDataPatchAllowed(fileProposal.resource, fileProposal.operation, parseAgentDataPatch(fileProposal.patch))) throw Object.assign(new Error(CHAT_NATIVE_UI_NOTICE), { noChangeApplied: true });
     if (apply && isLegacyAgentDraft(draft)) {
       const original = history.slice(0, index!).findLast(item => item.role === 'user' && !item.auto && !item.hidden && !item.discussionPersonaId);
       const replacements = await prepareLegacyAgentDraftReview(draft, original?.content || '');
