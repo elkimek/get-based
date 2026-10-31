@@ -760,6 +760,11 @@ test('identity rotation with partial backup recovery stops repeat uploads and la
   const a = await createDevice(browser, 'recovery device A'); devices.push(a);
   try {
     await setSyntheticData(a.page, 'seed');
+    await a.page.evaluate(async () => {
+      const {state} = await import('/js/state.js');
+      state.importedData.customMarkers = {'custom.synthetic': {name: 'Synthetic marker', unit: 'u', group: null}};
+      await (await import('/js/data.js')).saveImportedData();
+    });
     const previous = await enableNewIdentity(a.page);
     await a.page.evaluate(async () => { (await import('/js/sync.js')).pauseSync(); });
     const ids = await a.page.evaluate(async () => {
@@ -790,6 +795,13 @@ test('identity rotation with partial backup recovery stops repeat uploads and la
     const after = await waitForStableRelayStorage(a.page);
     expect(after?.messageCount).toBe(before?.messageCount);
     expect(after?.storedBytes).toBe(before?.storedBytes);
+    const recoveredOwner = await waitForOwner(a.page);
+    for (let reload = 0; reload < 2; reload++) {
+      await a.page.reload({waitUntil: 'domcontentloaded'}); await waitForOwner(a.page, recoveredOwner.ownerId);
+      await expect.poll(pending).toEqual([ids.unavailable]);
+      const quiet = await waitForStableRelayStorage(a.page);
+      expect(quiet?.messageCount).toBe(before?.messageCount); expect(quiet?.storedBytes).toBe(before?.storedBytes);
+    }
     expect((await profileIds(a.page)).sort()).toEqual(['default', ids.demo, ids.unavailable].sort());
     await waitForContext(a.page, BASELINE_CONTEXT);
     await waitForNotes(a.page, ['baseline-note']);
@@ -935,4 +947,43 @@ test('same-browser old-owner tab cannot acknowledge an in-flight identity handof
   const peer=await createDevice(browser,'multi-tab fresh peer');
   try{const identity=await waitForOwner(a.page);await joinIdentity(peer.page,identity.mnemonic,identity.ownerId);await waitForContext(peer.page,BASELINE_CONTEXT);await waitForNotes(peer.page,['baseline-note']);}finally{await peer.context.close();}
  }finally{await a.context.close();}
+});
+
+
+test('pending recovery follows an explicit join and normal incoming edits resume', async ({browser}) => {
+  test.setTimeout(180_000);
+  const a = await createDevice(browser, 'switch-pending device A');
+  const devices = [a];
+  try {
+    await setSyntheticData(a.page, 'seed'); await enableNewIdentity(a.page);
+    await a.page.evaluate(async () => (await import('/js/sync.js')).pauseSync());
+    const inactive = await a.page.evaluate(async () => {
+      const profiles = await import('/js/profile.js');
+      const id = await profiles.createProfile('Synthetic pending identity switch', {skipInitialSync: true});
+      await profiles.switchProfile('default');
+      await (await import('/js/crypto.js')).encryptedRemoveItem(profiles.profileStorageKey(id, 'imported'));
+      return id;
+    });
+    await rotateIdentityWithLocalData(a.page);
+    const pending = () => a.page.evaluate(async () => (await import('/js/sync-backup-restore-state.js')).getPendingBackupRestoreProfileIds());
+    await expect.poll(pending).toEqual([inactive]);
+    const b = await createDevice(browser, 'switch-pending device B'); devices.push(b);
+    await setSyntheticData(b.page, 'seed'); const target = await enableNewIdentity(b.page);
+    await setSyntheticData(b.page, 'update-a'); await syncNow(b.page);
+    await a.page.evaluate(async id => {
+      const profiles = await import('/js/profile.js');
+      const data = profiles.createDefaultProfileData(); data.contextNotes = 'synthetic pending data retained through join';
+      await (await import('/js/crypto.js')).encryptedSetItem(profiles.profileStorageKey(id, 'imported'), JSON.stringify(data));
+      (await import('/js/sync-dirty-state.js')).markSyncProfileDirty(id);
+    }, inactive);
+    await joinIdentity(a.page, target.mnemonic, target.ownerId);
+    await expect.poll(pending).toEqual([]);
+    await waitForContext(a.page, UPDATED_CONTEXT);
+    await waitForProfilePresence(b.page, inactive, true);
+    await activateProfile(a.page, inactive); await waitForContext(a.page, 'synthetic pending data retained through join');
+    await activateProfile(a.page, 'default');
+    await setSyntheticData(b.page, 'offline-context'); expect((await syncNow(b.page))?.ok).toBe(true);
+    await waitForContext(a.page, OFFLINE_CONTEXT);
+    for (const device of devices) expect(device.errors).toEqual([]);
+  } finally {for (const device of devices.reverse()) await device.context.close();}
 });

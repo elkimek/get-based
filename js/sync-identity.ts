@@ -6,7 +6,7 @@ import { loadScriptOnce, showNotification } from './utils.js';
 import {
   clearSyncDisableStorage,
 } from './sync-disable-cleanup.js';
-import { fingerprintBackupRestoreOwner, getPendingBackupRestoreProfileIds, type BackupRestoreStage } from './sync-backup-restore-state.js';
+import { fingerprintBackupRestoreOwner, getPendingBackupRestoreProfileIds, stageBackupRestorePending, type BackupRestoreStage } from './sync-backup-restore-state.js';
 import { scheduleSyncRuntimeReload } from './sync-runtime.js';
 import { setSyncEnabled, setSyncPublishingSuspended } from './sync-settings-state.js';
 
@@ -205,13 +205,16 @@ export async function restoreFromMnemonic(mnemonic: string, options: { seedLocal
   setRestoreNotice(options?.seedLocal ? 'seed-local' : 'join');
   let recovery: BackupRestoreStage | void = undefined;
   let ownerRestored = false;
-  if (options?.seedLocal) {
+  const shouldStageRecovery = !!options?.seedLocal || getPendingBackupRestoreProfileIds().length > 0;
+  if (shouldStageRecovery) {
     if (setSyncPublishingSuspended(true)) return false;
     try {
       // Confirm durable recovery before resetting the owner or its database.
       const ownerFingerprint = await fingerprintBackupRestoreOwner(normalizedMnemonic);
       if (currentEvolu() !== evolu) return false;
-      recovery = await _seedLocalProfiles({ownerFingerprint});
+      recovery = options?.seedLocal
+        ? await _seedLocalProfiles({ownerFingerprint})
+        : stageBackupRestorePending(getPendingBackupRestoreProfileIds(), {ownerFingerprint});
     } catch {
       if (currentEvolu() !== evolu) return false;
       setSyncPublishingSuspended(false);
@@ -284,12 +287,12 @@ export async function restoreFromMnemonic(mnemonic: string, options: { seedLocal
         return false;
       }
     }
-    if (options?.seedLocal && ownerRestored) {
+    if (shouldStageRecovery && ownerRestored) {
       clearRestoreNotice();
       showNotification('Sync identity startup did not finish. Your local data is retained. Reload to finish recovery.', 'error');
       return false;
     }
-    if (options?.seedLocal) setSyncPublishingSuspended(false);
+    if (shouldStageRecovery) setSyncPublishingSuspended(false);
     clearRestoreNotice();
     console.error('[sync] Restore failed: invalid or unavailable identity');
     showNotification('Invalid mnemonic', 'error');

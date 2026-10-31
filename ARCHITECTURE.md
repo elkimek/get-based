@@ -393,7 +393,12 @@ acknowledgement preserves that binding. A second tab with an older identity
 defers recovery even while the originating tab is awaiting SDK reset.
 Publishing stays suspended in the retiring runtime until replacement; the
 reloaded owner publishes complete recovery. The old owner/query cache cannot
-acknowledge the new owner's recovery.
+acknowledge the new owner's recovery. A deliberate join retargets existing
+pending recovery before SDK reset, with the same owned rollback on failure.
+Startup reconciliation may bypass the in-flight guard but retains the canonical
+payload no-op check; an unchanged startup must not append relay history.
+AI-setting retries stop after a successful unchanged receipt; unavailable
+dirty-marker storage must not silently discard the requested check.
 Profile metadata carries its own item row and durable edit clock; unrelated data rebroadcasts
 retain it. Legacy metadata uses the envelope clock, and equal-clock metadata
 conflicts resolve deterministically. Pulls defer pending local metadata edits

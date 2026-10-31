@@ -197,7 +197,9 @@ export async function pushProfile(profileId: unknown, importedData: unknown, opt
     // storage even though the user added nothing. Compare the complete wire
     // payload and delta plan before assigning a new syncedAt clock. Explicit
     // force pushes bypass this guard for relay rebuild/recovery workflows.
-    if (!opts.force && existing && deltaOpCount === 0
+    // Startup may bypass the in-flight guard while still skipping an identical
+    // canonical wire payload; its local divergence check can be conservative.
+    if ((!opts.force || opts.skipUnchanged) && existing && deltaOpCount === 0
         && (existing.dataJson === dataJson || await equivalentSyncPayload(existing.dataJson, dataJson))) {
       if (!await commitProfileMetadataClock(profileId, metadataSource, metadata.profile)) throw new Error('Could not retain the metadata edit clock');
       const skipMsg = `No changes to push ${profileId.slice(0,8)}`;

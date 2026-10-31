@@ -1637,7 +1637,7 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
     syncActionsSrc.includes('createDefaultProfileData()')
       && /pushAllProfiles[\s\S]{0,1200}readProfileImportedData\(p\.id\)/.test(syncActionsSrc)
       && /pushAllProfiles[\s\S]{0,1200}if \(!dataJson\)/.test(syncActionsSrc));
-  const sourceRestoreStart = syncIdentitySrc.indexOf('if (options?.seedLocal)');
+  const sourceRestoreStart = syncIdentitySrc.indexOf('if (shouldStageRecovery)');
   const sourceRestoreBranch = syncIdentitySrc.slice(sourceRestoreStart, syncIdentitySrc.indexOf('await evolu.restoreAppOwner', sourceRestoreStart));
   assert('restore-as-source confirms recovery with retiring runtime suspended before changing owner',
     /restoreFromMnemonic\(mnemonic,\s*options = \{\}\)/.test(syncIdentitySrc)
@@ -3527,7 +3527,7 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
   assert('Reconciliation routes through localHasRowsRemoteLacks (catches same-id timestamp drift)',
     /reconcileLocalStorageWithEvolu[\s\S]{0,2500}localHasRowsRemoteLacks\(state\.importedData,\s*remoteImported\)/.test(syncReconcileSrc));
   assert('Reconciliation force-pushes when local has unsynced rows',
-    /reconcileLocalStorageWithEvolu[\s\S]{0,4000}_pushProfile\(state\.currentProfile,\s*state\.importedData,\s*\{\s*force:\s*true\s*\}\)/.test(syncReconcileSrc));
+    /reconcileLocalStorageWithEvolu[\s\S]{0,4000}_pushProfile\(state\.currentProfile,\s*state\.importedData,\s*\{\s*force:\s*true,\s*skipUnchanged:\s*true\s*\}\)/.test(syncReconcileSrc));
   // Defence-in-depth: the regression we're guarding against was id-only
   // comparison, so explicitly assert the OLD shape is gone. Hard to write
   // without false-positives — this regex matches the v1.7.x id-set diff

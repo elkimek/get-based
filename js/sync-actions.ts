@@ -20,7 +20,7 @@ import { getProfileSyncBlockReason } from './profile-sync-policy.js';
 export { cleanStorage } from './sync-storage-cleanup.js';
 export { onChatSaved, onDataSaved, onProfileSaved } from './sync-save-hooks.js';
 
-export interface SyncPushOptions { force?: boolean; completeSnapshot?: boolean; allowTombstoneResurrection?: boolean }
+export interface SyncPushOptions { force?: boolean; skipUnchanged?: boolean; completeSnapshot?: boolean; allowTombstoneResurrection?: boolean }
 export interface SyncPushResult { ok?: boolean; skipped?: boolean; reason?: string; error?: unknown }
 type PushProfile = (profileId: string | null | undefined, data: unknown, options?: SyncPushOptions) => Promise<SyncPushResult | null | undefined | void>;
 

@@ -3,10 +3,47 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { webcrypto } from 'node:crypto';
 import { configureSyncIdentity, restoreFromMnemonic, RESTORE_NOTICE_KEY } from '../js/sync-identity.js';
 import { isSyncEnabled, isSyncPaused, setSyncEnabled, setSyncPaused, setSyncPublishingSuspended, SYNC_STORAGE_KEY } from '../js/sync-settings-state.js';
-import { fingerprintBackupRestoreOwner, getPendingBackupRestoreProfileIds, stageBackupRestorePending, SYNC_BACKUP_RESTORE_PENDING_KEY } from '../js/sync-backup-restore-state.js';
+import { fingerprintBackupRestoreOwner, getPendingBackupRestoreProfileIds, republishPendingBackupRestore, stageBackupRestorePending, SYNC_BACKUP_RESTORE_PENDING_KEY } from '../js/sync-backup-restore-state.js';
 import {setSyncEvolu} from '../js/sync-runtime.js';
 beforeEach(() => { vi.stubGlobal('crypto', webcrypto); localStorage.clear(); sessionStorage.clear(); setSyncPublishingSuspended(false); document.body.innerHTML = '<div id="notification-container"></div>'; });
 afterEach(() => { configureSyncIdentity({ getAppOwner: () => null, getEvolu: () => null, seedLocalProfiles: async () => {} }); setSyncEvolu(null); setSyncPublishingSuspended(false); localStorage.clear(); sessionStorage.clear(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+
+it('carries pending recovery to a deliberately joined identity before resetting the SDK', async () => {
+  vi.useFakeTimers();
+  try {
+    setSyncEnabled(true);
+    let owner = {id: 'prior-recovered-owner', mnemonic: 'synthetic prior recovery identity'};
+    const next = {id: 'explicitly-joined-owner', mnemonic: 'synthetic next recovery identity'};
+    stageBackupRestorePending(['retained'], {ownerFingerprint: await fingerprintBackupRestoreOwner(owner.mnemonic)});
+    let atReset = ''; let suspended = false;
+    const engine = {get appOwner() {return Promise.resolve(owner);}, restoreAppOwner: vi.fn(async () => {
+      atReset = localStorage.getItem(SYNC_BACKUP_RESTORE_PENDING_KEY)!;
+      suspended = !isSyncEnabled(); owner = next;
+    })};
+    const seed = vi.fn(); setSyncEvolu(engine);
+    configureSyncIdentity({getEvolu: () => engine, getAppOwner: () => owner, seedLocalProfiles: seed});
+    expect(await restoreFromMnemonic(next.mnemonic)).toBe(true);
+    expect(JSON.parse(atReset).at(-1).ownerFingerprint).toBe(await fingerprintBackupRestoreOwner(next.mnemonic));
+    expect(suspended).toBe(true); expect(seed).not.toHaveBeenCalled();
+    const publish = vi.fn(async () => ({succeeded: 1, failed: 0, skipped: 0}));
+    expect((await republishPendingBackupRestore({runtime: {}, ownerId: next.id, ownerMnemonic: next.mnemonic,
+      isCurrent: () => true, getProfiles: () => [{id: 'retained'}], pushProfilesById: publish})).complete).toBe(true);
+    expect(publish).toHaveBeenCalledOnce();
+  } finally {vi.clearAllTimers(); vi.useRealTimers();}
+});
+
+it('restores the prior bound journal when a deliberate join rejects without changing its owner', async () => {
+  setSyncEnabled(true);
+  const owner = {id: 'retained-recovery-owner', mnemonic: 'synthetic prior recovery identity'};
+  stageBackupRestorePending(['retained'], {ownerFingerprint: await fingerprintBackupRestoreOwner(owner.mnemonic)});
+  const prior = localStorage.getItem(SYNC_BACKUP_RESTORE_PENDING_KEY);
+  let suspended = false;
+  const engine = {appOwner: Promise.resolve(owner), restoreAppOwner: vi.fn(async () => {suspended = !isSyncEnabled(); throw new Error('Synthetic join rejection');})};
+  configureSyncIdentity({getEvolu: () => engine, getAppOwner: () => owner});
+  expect(await restoreFromMnemonic('synthetic different identity')).toBe(false);
+  expect(suspended).toBe(true); expect(localStorage.getItem(SYNC_BACKUP_RESTORE_PENDING_KEY)).toBe(prior);
+  expect(isSyncEnabled()).toBe(true);
+});
 for (const failed of [false, true]) {
   it(`does not mutate a replaced runtime after an old restore ${failed ? 'fails' : 'succeeds'}`, async () => {
     let finish!: () => void; let reject!: (error: Error) => void;
