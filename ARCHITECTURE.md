@@ -378,6 +378,8 @@ Backup recovery acknowledges each committed profile independently before relay
 tombstones can apply. Its journal stays readable by older tabs; generation,
 owner and dirty-token checks prevent an old completion from acknowledging a
 newer restore. Demo and explicitly deleted profiles are not republished.
+Explicit local delete intent acknowledges recovery even after the profile leaves
+the saved list; absence alone never discards a recovery entry.
 Unavailable profiles retain their recovery protection without re-uploading
 completed profiles. A failed progress write retains an in-memory commit receipt;
 automatic failed publishes have a bounded retry budget, reset by an explicit

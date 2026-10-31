@@ -987,3 +987,38 @@ test('pending recovery follows an explicit join and normal incoming edits resume
     for (const device of devices) expect(device.errors).toEqual([]);
   } finally {for (const device of devices.reverse()) await device.context.close();}
 });
+
+
+test('deleting an unavailable recovery profile unblocks incoming changes without reviving it', async ({browser}) => {
+  test.setTimeout(120_000);
+  const a = await createDevice(browser, 'deleted recovery device A');
+  const devices = [a];
+  try {
+    await setSyntheticData(a.page, 'seed'); await enableNewIdentity(a.page);
+    await a.page.evaluate(async () => (await import('/js/sync.js')).pauseSync());
+    const inactive = await a.page.evaluate(async () => {
+      const profiles = await import('/js/profile.js');
+      const id = await profiles.createProfile('Synthetic deleted pending recovery', {skipInitialSync: true});
+      await profiles.switchProfile('default');
+      await (await import('/js/crypto.js')).encryptedRemoveItem(profiles.profileStorageKey(id, 'imported'));
+      return id;
+    });
+    await rotateIdentityWithLocalData(a.page);
+    const pending = () => a.page.evaluate(async () => (await import('/js/sync-backup-restore-state.js')).getPendingBackupRestoreProfileIds());
+    await expect.poll(pending).toEqual([inactive]);
+    const identity = await waitForOwner(a.page);
+    const b = await createDevice(browser, 'deleted recovery device B'); devices.push(b);
+    await joinIdentity(b.page, identity.mnemonic, identity.ownerId);
+    const deleting = a.page.evaluate(async id => (await import('/js/profile.js')).deleteProfile(id), inactive);
+    await a.page.locator('#confirm-ok').click(); await deleting;
+    expect(await profileIds(a.page)).toEqual(['default']);
+    await syncNow(a.page); await expect.poll(pending).toEqual([]);
+    await a.page.reload({waitUntil: 'domcontentloaded'}); await waitForOwner(a.page, identity.ownerId);
+    expect(await pending()).toEqual([]); expect(await profileIds(a.page)).toEqual(['default']);
+    await waitForContext(a.page, BASELINE_CONTEXT); await waitForNotes(a.page, ['baseline-note']);
+    await setSyntheticData(b.page, 'update-a'); expect((await syncNow(b.page))?.ok).toBe(true);
+    await waitForContext(a.page, UPDATED_CONTEXT);
+    expect(await profileIds(a.page)).toEqual(['default']); expect(await profileIds(b.page)).toEqual(['default']);
+    for (const device of devices) expect(device.errors).toEqual([]);
+  } finally {for (const device of devices.reverse()) await device.context.close();}
+});

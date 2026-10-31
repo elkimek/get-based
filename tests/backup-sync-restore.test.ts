@@ -95,6 +95,21 @@ describe('backup restore sync handoff', () => {
     expect(getPendingBackupRestoreProfileIds()).toEqual(['missing']);
   });
 
+  it.each([false, true])('acknowledges an explicitly deleted absent profile with bound journal %s', async bound => {
+    const mnemonic = 'synthetic intended recovery identity';
+    if (bound) stageBackupRestorePending(['deleted'], {ownerFingerprint: await fingerprintBackupRestoreOwner(mnemonic)});
+    else markBackupRestorePending(['deleted']);
+    markSyncProfileDirty('deleted');
+    const {markLocalProfileDeleteIntent} = await import('../js/profile-sync-policy.js');
+    expect(markLocalProfileDeleteIntent('deleted')).toBe(true);
+    const deps = {...publisher([]), ownerMnemonic: mnemonic};
+    expect((await republishPendingBackupRestore(deps)).complete).toBe(true);
+    expect(getPendingBackupRestoreProfileIds()).toEqual([]);
+    expect(getSyncDirtyToken('deleted')).toBeNull();
+    expect(deps.pushProfilesById).not.toHaveBeenCalled();
+    expect(localStorage.getItem('labcharts-profile-delete-intent-deleted')).not.toBeNull();
+  });
+
   it('reads old array journals and keeps new journals readable by old tabs', async () => {
     localStorage.setItem(SYNC_BACKUP_RESTORE_PENDING_KEY, JSON.stringify(['first', 'second']));
     expect((await republishPendingBackupRestore(publisher([{id: 'first'}, {id: 'second'}]))).complete).toBe(true);

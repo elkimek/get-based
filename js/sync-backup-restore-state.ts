@@ -131,14 +131,13 @@ export async function republishPendingBackupRestore(deps: RestorePublisher) {
   for (const profileId of journal.profileIds) {
     if (!current()) return deferred('identity-changed');
     const profiles = deps.getProfiles();
-    if (!profiles.some(profile => profile.id === profileId)) continue;
     const blocked = getProfileSyncBlockReason(profileId, profiles);
     if (blocked === 'demo' || blocked === 'delete-intent') {
       discardSyncProfileDirty(profileId);
       if (!acknowledgeProfile(profileId, journal.generation)) return deferred('progress-unavailable');
       continue;
     }
-    if (blocked) continue;
+    if (blocked || !profiles.some(profile => profile.id === profileId)) continue;
     const dirtyToken = getSyncDirtyToken(profileId);
     if (owned.committed.has(profileId) && (dirtyToken === null || dirtyToken === owned.committed.get(profileId))) {
       if (!acknowledgeProfile(profileId, journal.generation)) return deferred('progress-unavailable');
