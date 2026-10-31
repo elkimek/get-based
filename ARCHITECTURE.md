@@ -384,6 +384,9 @@ automatic failed publishes have a bounded retry budget, reset by an explicit
 Sync now/resume or a newer local edit.
 Identity rotation confirms a durable local recovery journal before changing the
 owner. Failed writes/readback retain the original identity and saved Sync state.
+If the SDK rejects a reset while its actual owner is unchanged, restore the exact
+prior journal only while this operation still owns the staged generation. A
+newer journal or an identity changed before startup failed retains its recovery.
 Publishing stays suspended in the retiring runtime until replacement; the
 reloaded owner publishes complete recovery. The old owner/query cache cannot
 acknowledge the new owner's recovery.

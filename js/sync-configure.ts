@@ -27,7 +27,7 @@ import {
 import { bindSyncSaveHookEvents, configureSyncSaveHooks } from './sync-save-hooks.js';
 import { configureSyncPush, isSyncPushInFlight, pushProfile } from './sync-push.js';
 import { configureSyncPayload } from './sync-payload.js';
-import { markBackupRestorePending } from './sync-backup-restore-state.js';
+import { stageBackupRestorePending } from './sync-backup-restore-state.js';
 import { configureSyncRecovery } from './sync-recovery.js';
 import { configureSyncInit } from './sync-init.js';
 import { isSyncRebroadcastSettling } from './sync-pull-rebroadcast.js';
@@ -135,7 +135,7 @@ export function configureSyncModules({ enableSync }: {
     getAppOwner: getSyncAppOwner,
     getAppOwnerError: getSyncAppOwnerError,
     getEvolu: getSyncEvolu,
-    seedLocalProfiles: async () => markBackupRestorePending(getProfiles().map(profile => profile.id), {required: true}),
+    seedLocalProfiles: async () => stageBackupRestorePending(getProfiles().map(profile => profile.id)),
   });
 
   configureSyncDiagnostics({

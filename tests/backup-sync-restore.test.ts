@@ -6,6 +6,7 @@ import {
   getPendingBackupRestoreProfileIds,
   prepareRestoredProfilesForSync, markBackupRestorePending, republishPendingBackupRestore,
   resetBackupRestoreRetryBudget, SYNC_BACKUP_RESTORE_PENDING_KEY,
+  stageBackupRestorePending,
 } from '../js/sync-backup-restore-state.js';
 
 describe('backup restore sync handoff', () => {
@@ -21,6 +22,16 @@ describe('backup restore sync handoff', () => {
         return {succeeded: 1, failed: 0, skipped: 0};
       })};
   }
+
+  it('does not roll back a newer journal when a staged owner operation fails', () => {
+    markBackupRestorePending(['previous']);
+    const staged = stageBackupRestorePending(['candidate']);
+    markBackupRestorePending(['newer']);
+    const newer = localStorage.getItem(SYNC_BACKUP_RESTORE_PENDING_KEY);
+    expect(staged.rollback()).toBe(true);
+    expect(localStorage.getItem(SYNC_BACKUP_RESTORE_PENDING_KEY)).toBe(newer);
+    expect(getPendingBackupRestoreProfileIds()).toEqual(['newer']);
+  });
 
   it('acknowledges each committed profile while retaining an unavailable recovery', async () => {
     prepareRestoredProfilesForSync({profiles: [{profileId: 'good'}, {profileId: 'demo'}, {profileId: 'missing'}]});

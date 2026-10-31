@@ -858,3 +858,39 @@ test('native identity rotation retains its owner and data when recovery storage 
     await a.context.close();
   }
 });
+
+test('rejected identity rotation restores normal incoming sync with an unavailable local profile', async ({browser}) => {
+  const a = await createDevice(browser, 'rejected rotation device A');
+  const devices = [a];
+  try {
+    await setSyntheticData(a.page, 'seed');
+    const previous = await enableNewIdentity(a.page);
+    const b = await createDevice(browser, 'rejected rotation device B'); devices.push(b);
+    await joinIdentity(b.page, previous.mnemonic, previous.ownerId);
+    await waitForContext(b.page, BASELINE_CONTEXT);
+    await a.page.evaluate(async () => {
+      (await import('/js/sync.js')).pauseSync();
+      await (await import('/js/profile.js')).createProfile('Synthetic unavailable local profile', {skipInitialSync: true});
+      const evolu = (await import('/js/sync-runtime.js')).getSyncEvolu();
+      if (!evolu) throw new Error('Missing actual fixture SDK');
+      // Fail only the owner reset; existing SDK queries and transport remain real.
+      const rejected = new Proxy(evolu, {get(target, property, receiver) {
+        if (property === 'restoreAppOwner') return async () => { throw new Error('Synthetic owner reset rejection'); };
+        return Reflect.get(target, property, receiver);
+      }});
+      (await import('/js/sync-identity.js')).configureSyncIdentity({getEvolu: () => rejected});
+    });
+    const rotating = a.page.evaluate(async () => (await import('/js/sync-diagnose-identity-actions.js')).confirmRotateIdentity());
+    await a.page.locator('#confirm-ok').click(); await rotating;
+    await a.page.locator('#rotate-saved-check').check();
+    await a.page.locator('#rotate-apply-btn').click();
+    await expect(a.page.getByRole('alert').filter({hasText: 'Invalid mnemonic'})).toBeVisible();
+    expect((await waitForOwner(a.page)).ownerId).toBe(previous.ownerId);
+    expect(await a.page.evaluate(async () => (await import('/js/sync-backup-restore-state.js')).getPendingBackupRestoreProfileIds())).toEqual([]);
+    await setSyntheticData(b.page, 'update-a'); await syncNow(b.page);
+    await waitForContext(a.page, UPDATED_CONTEXT); await waitForNotes(a.page, ['baseline-note', 'from-device-a']);
+    for (const device of devices) expect(device.errors).toEqual([]);
+  } finally {
+    for (const device of devices.reverse()) await device.context.close();
+  }
+});

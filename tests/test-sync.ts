@@ -515,7 +515,7 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
       && syncIdentitySrc.includes('export function getMnemonicResolutionError')
       && syncIdentitySrc.includes('export async function restoreFromMnemonic')
       && syncIdentitySrc.includes('RESTORE_JOIN_PENDING_KEY')
-      && /seedLocalProfiles: async \(\) => markBackupRestorePending\(getProfiles\(\)\.map\(profile => profile.id\),\s*\{\s*required: true\s*\}\)/.test(syncConfigureSrc)
+      && syncConfigureSrc.includes('seedLocalProfiles: async () => stageBackupRestorePending(getProfiles().map(profile => profile.id))')
       && exportBlockIncludes(syncSrc, ['getMnemonic', 'getMnemonicResolutionError', 'restoreFromMnemonic']));
   assert('service worker precaches sync-identity.js',
     serviceWorkerSrc.includes("'/js/sync-identity.js'"));

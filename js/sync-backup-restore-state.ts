@@ -29,17 +29,40 @@ function journalValue(profileIds: readonly string[], generation: string) {
   return JSON.stringify([...profileIds, {kind: 'restore-generation', generation}]);
 }
 
-export function markBackupRestorePending(profileIds: readonly unknown[], options: {required?: boolean} = {}) {
+export interface BackupRestoreStage { rollback(): boolean }
+
+function writePendingBackupRestore(profileIds: readonly unknown[], required: boolean) {
   const safeIds = [...new Set((Array.isArray(profileIds) ? profileIds : []).filter(isSafeProfileId))];
-  if (safeIds.length === 0) return [];
+  let previous: string | null = null;
+  let value: string | undefined;
+  const rollback = () => {
+    try {
+      // A later restore owns its journal even if this owner operation fails.
+      if (value === undefined || localStorage.getItem(SYNC_BACKUP_RESTORE_PENDING_KEY) !== value) return true;
+      if (previous === null) localStorage.removeItem(SYNC_BACKUP_RESTORE_PENDING_KEY);
+      else localStorage.setItem(SYNC_BACKUP_RESTORE_PENDING_KEY, previous);
+      return true;
+    } catch { return false; }
+  };
+  if (safeIds.length === 0) return {profileIds: safeIds, rollback};
   try {
-    const value = journalValue(safeIds, createUniqueId('restore_'));
+    if (required) previous = localStorage.getItem(SYNC_BACKUP_RESTORE_PENDING_KEY);
+    value = journalValue(safeIds, createUniqueId('restore_'));
     localStorage.setItem(SYNC_BACKUP_RESTORE_PENDING_KEY, value);
-    if (options.required && localStorage.getItem(SYNC_BACKUP_RESTORE_PENDING_KEY) !== value) throw new Error('Recovery journal was not retained');
+    if (required && localStorage.getItem(SYNC_BACKUP_RESTORE_PENDING_KEY) !== value) throw new Error('Recovery journal was not retained');
   } catch {
-    if (options.required) throw new Error('Could not save sync recovery progress');
+    if (required) { rollback(); throw new Error('Could not save sync recovery progress'); }
   }
-  return safeIds;
+  return {profileIds: safeIds, rollback};
+}
+
+export function markBackupRestorePending(profileIds: readonly unknown[], options: {required?: boolean} = {}) {
+  return writePendingBackupRestore(profileIds, !!options.required).profileIds;
+}
+
+/** Confirm durable intent and retain an owned rollback for a rejected owner reset. */
+export function stageBackupRestorePending(profileIds: readonly unknown[]): BackupRestoreStage {
+  return writePendingBackupRestore(profileIds, true);
 }
 
 export function getPendingBackupRestoreProfileIds() {
