@@ -24,11 +24,11 @@ async function savedContextNotes(page: Page): Promise<string | undefined> {
     });
     try {
       const request = db.transaction('kv', 'readonly').objectStore('kv').get('labcharts-default-imported');
-      const value = await new Promise<string>((resolve, reject) => {
+      const value = await new Promise<string | undefined>((resolve, reject) => {
         request.onsuccess = () => resolve(request.result as string);
         request.onerror = () => reject(request.error);
       });
-      return (JSON.parse(value) as { contextNotes?: string }).contextNotes;
+      return value === undefined ? undefined : (JSON.parse(value) as { contextNotes?: string }).contextNotes;
     } finally { db.close(); }
   });
 }
@@ -68,8 +68,15 @@ test('static message actions and editing persist through two offline cold launch
     expect(await cold.evaluate(() => (window as unknown as { cachedMessageCopies: string[] }).cachedMessageCopies)).toEqual(['Stored answer.\n\nAI-generated']);
     await expect(cold.locator('.chat-agent-draft')).toContainText('Cached literal <script>note</script>.');
     await expect(cold.locator('.chat-agent-draft script')).toHaveCount(0);
+    const notesBeforeReview = await savedContextNotes(cold);
+    await expect(cold.getByRole('button', { name: 'Apply', exact: true })).toHaveCount(0);
+    await cold.getByRole('button', { name: 'Refresh review', exact: true }).click();
+    await expect(cold.locator('.chat-agent-draft-superseded')).toHaveCount(1);
+    await expect(cold.locator('.chat-agent-draft-pending')).toHaveCount(1);
+    await expect(cold.locator('.chat-agent-draft-pending')).toContainText('Refreshed proposal');
+    expect(await savedContextNotes(cold)).toBe(notesBeforeReview);
     await cold.getByRole('button', { name: 'Apply', exact: true }).click();
-    await expect(cold.locator('.chat-agent-draft')).toContainText('Applied to getbased');
+    await expect(cold.locator('.chat-agent-draft-applied')).toContainText('Applied to getbased');
     await expect(cold.getByRole('button', { name: 'Apply', exact: true })).toHaveCount(0);
     expect(await savedContextNotes(cold)).toBe('Cached literal <script>note</script>.');
     await cold.locator('#chat-input').fill('Preserve my separate draft');
