@@ -34,8 +34,8 @@ it('releases reserved Dashboard space and cancels delayed guided Chat when the u
   }
 });
 
-it.each(['reject', 'throw', 'resize', 'new-render', 'profile-change'] as const)('owns optional Chat startup cleanup through %s', async scenario => {
-  vi.useFakeTimers(); vi.stubGlobal('innerWidth', 1280);
+it.each(['reject', 'throw', 'resize', 'mobile', 'new-render', 'profile-change'] as const)('owns optional Chat startup cleanup through %s', async scenario => {
+  vi.useFakeTimers(); vi.stubGlobal('innerWidth', scenario === 'mobile' ? 390 : 1280);
   const previous = {currentView: state.currentView, currentProfile: state.currentProfile, importedData: state.importedData, chatHistory: state.chatHistory, nutritionSummary: state.nutritionSummary};
   let reject!: (error: Error) => void;
   const pending = new Promise<void>((_resolve, fail) => { reject = fail; });
@@ -50,9 +50,9 @@ it.each(['reject', 'throw', 'resize', 'new-render', 'profile-change'] as const)(
     await vi.advanceTimersByTimeAsync(800);
     if (scenario === 'new-render') showDashboard({dates: [], categories: {}});
     if (scenario === 'profile-change') state.currentProfile = 'another-profile';
-    if (scenario !== 'throw' && scenario !== 'resize') { reject(new Error('Synthetic optional module failure')); await Promise.resolve(); }
+    if (scenario !== 'throw' && scenario !== 'resize' && scenario !== 'mobile') { reject(new Error('Synthetic optional module failure')); await Promise.resolve(); }
     expect(document.body.classList.contains('chat-autostart-reserved')).toBe(scenario === 'new-render' || scenario === 'profile-change');
-    expect(open).toHaveBeenCalledTimes(scenario === 'resize' ? 0 : 1);
+    expect(open).toHaveBeenCalledTimes(scenario === 'resize' || scenario === 'mobile' ? 0 : 1);
   } finally {
     configureDashboardPageRuntimeDeps(previousRuntime); Object.assign(state, previous);
     document.body.replaceChildren(); document.body.className = ''; localStorage.clear(); vi.clearAllTimers(); vi.unstubAllGlobals(); vi.useRealTimers();

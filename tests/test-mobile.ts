@@ -91,7 +91,9 @@ ${await fetchWithRetry('css/chat-redesign-open.css')}`;
     css.includes('position: fixed') &&
     css.includes('z-index: 360'));
   const dashboardPageViewSrc = (await fetchWithRetry('js/dashboard-page-view.js'))
-    .replace(/if \(!isDesktopChatOnboardingViewport \|\| getDashboardPageRuntimeValue\('innerWidth'\) <= 768\)\s+return/, "if (!isDesktopChatOnboardingViewport || getDashboardPageRuntimeValue('innerWidth') <= 768) return");
+    // The owned early return now releases its reservation first. Require that
+    // exact guarded sequence before comparing the existing mobile contract.
+    .replace(/if \(!isDesktopChatOnboardingViewport \|\| getDashboardPageRuntimeValue\('innerWidth'\) <= 768\)\s*\{\s*releaseReservation\(\);\s*return;\s*\}/, "if (!isDesktopChatOnboardingViewport || getDashboardPageRuntimeValue('innerWidth') <= 768) return");
   const mobileDashboardSrc = await fetchWithRetry('js/mobile-dashboard.js');
   const mobileDashboardPresentationSrc = await fetchWithRetry('js/components/MobileDashboardPage.svelte.html.js');
   const dashboardControlsSrc = await fetchWithRetry('js/dashboard-widget-controls.js');
