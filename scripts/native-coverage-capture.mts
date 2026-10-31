@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {productionFunctionIndex} from './coverage-source.mjs';
 import {nativeDigest, nativeSelected, readNativeBlob, readNativeCapture, readNativeRegular} from './native-coverage-storage.mjs';
-import {nativeFunctionMapper, UnmappedNativeFunction} from './native-coverage-functions.mjs';
+import {nativeFunctionMappers, UnmappedNativeFunction} from './native-coverage-functions.mjs';
 import {replayNativeTransform, NATIVE_WRAPPER_PREFIX} from './native-coverage-transform.mjs';
 import type {NativeCapture, NativeContext, NativeGeometry, NativeMappedCapture, NativeObservation, NativeRaw, NativeSuiteCapture, NativeTransform} from './native-coverage-types.mjs';
 export function validateNativeEnvironment(capture: NativeCapture, independent: string): void {
@@ -34,8 +34,16 @@ export class NativeCaptureMapper {
     const raw = JSON.parse(readNativeBlob(config.directory, capture.raw).toString('utf8')) as NativeRaw;
     assert(Array.isArray(raw.result) && Number.isFinite(raw.timestamp) && Array.isArray(capture.snapshots) && Array.isArray(capture.moduleExecutionInfo));
     assert.equal(raw.result.length, capture.snapshots.length, 'Missing native script snapshot');
-    const scriptIds = new Set<string>(), result: NativeMappedCapture = {called: [], unmapped: [], unattributed: []};
+    const scriptIds = new Set<string>(), results: NativeMappedCapture[] = [];
+    const pending: Array<{transform: NativeTransform; complete: (mapper: ReturnType<typeof nativeFunctionMappers>[number]) => void}> = [];
+    const flush = () => {
+      if (!pending.length) return;
+      const mappers = nativeFunctionMappers(pending.map(item => item.transform));
+      for (const [index, item] of pending.entries()) item.complete(mappers[index]!);
+      pending.length = 0;
+    };
     for (const script of raw.result) {
+      const result: NativeMappedCapture = {called: [], unmapped: [], unattributed: []}; results.push(result);
       assert(typeof script.scriptId === 'string' && typeof script.url === 'string' && !scriptIds.has(script.scriptId)); scriptIds.add(script.scriptId);
       const matches = capture.snapshots.filter(snapshot => snapshot.scriptId === script.scriptId); assert.equal(matches.length, 1, 'Ambiguous native script snapshot'); const snapshot = matches[0]!;
       assert.equal(snapshot.url, script.url); assert(snapshot.metadata && snapshot.metadata.scriptId === script.scriptId && snapshot.metadata.url === script.url);
@@ -55,7 +63,16 @@ export class NativeCaptureMapper {
       const canonical = readNativeRegular(path.join(config.root, relative)).toString('utf8');
       const cacheKey = JSON.stringify([relative, snapshot.source.sha256, capture.environment]);
       const entries = this.#mapped.get(cacheKey) ?? new Map<string, {start: number; end: number} | {reason: string}>();
+      this.#mapped.set(cacheKey, entries);
       const unseen = script.functions.filter(fn => !entries.has(`${fn.ranges[0]!.startOffset}:${fn.ranges[0]!.endOffset}`));
+      const finish = () => {
+        let owned = this.#ownership.get(relative); if (!owned) {owned = new Set(productionFunctionIndex(canonical, relative, config.root).owned.map(fn => `${fn.start}:${fn.end}`)); this.#ownership.set(relative, owned);}
+        for (const native of script.functions) {
+          const first = native.ranges[0]!, identity = entries.get(`${first.startOffset}:${first.endOffset}`); assert(identity);
+          if ('reason' in identity) result.unmapped.push({file: relative, start: first.startOffset, end: first.endOffset, count: first.count, runtimeLength: runtime.length, reason: identity.reason});
+          else if (first.count > 0 && owned.has(`${identity.start}:${identity.end}`)) result.called.push({file: relative, ...identity, count: first.count});
+        }
+      };
       if (unseen.length) {
           let transform: NativeTransform;
           if (runtime === canonical) transform = {file: path.join(config.root, relative), canonical, runtime, code: runtime, map: null, offset: 0};
@@ -65,22 +82,20 @@ export class NativeCaptureMapper {
             const info = capture.moduleExecutionInfo.filter(([file]) => file === path.join(config.root, relative)); assert.equal(info.length, 1, 'Missing public module execution offset');
             transform = await replayNativeTransform(config.root, relative, canonical, runtime, snapshot, info[0]![1].startOffset, unique<NativeGeometry>('geometry'), unique<NativeObservation>('observation'), capture.environment);
           }
-          const mapper = nativeFunctionMapper(transform);
-          for (const native of unseen) {
-            const first = native.ranges[0]!, key = `${first.startOffset}:${first.endOffset}`;
-            try {const mapped = mapper(native); entries.set(key, {start: mapped.start, end: mapped.end});}
-            catch (error) {if (!(error instanceof UnmappedNativeFunction)) throw error; entries.set(key, {reason: error.message});}
-          }
-          // Only compact identity facts survive a script. AST facts, decoded maps and token closures are released.
-          this.#mapped.set(cacheKey, entries);
-      }
-      let owned = this.#ownership.get(relative); if (!owned) {owned = new Set(productionFunctionIndex(canonical, relative, config.root).owned.map(fn => `${fn.start}:${fn.end}`)); this.#ownership.set(relative, owned);}
-      for (const native of script.functions) {
-        const first = native.ranges[0]!, identity = entries.get(`${first.startOffset}:${first.endOffset}`); assert(identity);
-        if ('reason' in identity) result.unmapped.push({file: relative, start: first.startOffset, end: first.endOffset, count: first.count, runtimeLength: runtime.length, reason: identity.reason});
-        else if (first.count > 0 && owned.has(`${identity.start}:${identity.end}`)) result.called.push({file: relative, ...identity, count: first.count});
-      }
+          pending.push({transform, complete: mapper => {
+            for (const native of unseen) {
+              const first = native.ranges[0]!, key = `${first.startOffset}:${first.endOffset}`;
+              try {const mapped = mapper(native); entries.set(key, {start: mapped.start, end: mapped.end});}
+              catch (error) {if (!(error instanceof UnmappedNativeFunction)) throw error; entries.set(key, {reason: error.message});}
+            }
+            finish();
+          }});
+          // Release compiler projects and token/map closures after each bounded
+          // batch; only scalar identity facts are cached between captures.
+          if (pending.length === 16) flush();
+      } else finish();
     }
-    return result;
+    flush();
+    return {called: results.flatMap(result => result.called), unmapped: results.flatMap(result => result.unmapped), unattributed: results.flatMap(result => result.unattributed)};
   }
 }

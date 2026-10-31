@@ -3,6 +3,7 @@ import { dataModuleSource } from './helpers/data-module-source.js';
 import { syncPushSourceContracts, syncCommittedDeltaSourceContracts, syncChatSaveSourceContracts, syncHealthGoalsSourceContracts, syncPullEncryptionSourceContract } from './helpers/sync-push-source-contracts.js';
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
+import {syncLegacyDiagnoseContracts} from './helpers/sync-legacy-diagnose-contracts.js';
 // test-sync.js — Verify sync module exports, payload format, settings UI
 //
 // Run: node tests/test-sync.js  (or via npm test)
@@ -50,10 +51,11 @@ const [syncActions, syncSaveHooks, syncApply, syncChatApply, syncChatMerge, sync
   import('../js/sync-cutover.js'), import('../js/data-merge.js'), import('../js/sync-subscriptions.js'),
   import('../js/sync-payload.js'), import('../js/sync-payload-collectors.js'), import('../js/sync-storage-cleanup.js'),
 ]);
-await import('../js/sync.js');
-const settingsSyncPanel = await import('../js/settings-sync-panel.js');
-await import('../js/settings.js');
-const {syncLegacyDiagnoseContracts} = await import('./helpers/sync-legacy-diagnose-contracts.js');
+// Settings statically depends on the Sync facade, so the module loader retains
+// initialization order while independent graph fetching/compilation overlaps.
+const [, settingsSyncPanel] = await Promise.all([
+  import('../js/sync.js'), import('../js/settings-sync-panel.js'), import('../js/settings.js'),
+]);
 const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
 
   const syncSrc = await fetchWithRetry('js/sync.js');
@@ -825,16 +827,17 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
       && syncHealthGoalsSourceContracts(healthGoalsViewSrc)
       && healthGoalsViewSrc.includes("modal.dataset.syncRefreshKind = 'healthGoals'")
       && /export function refresh\(value: unknown\): void\s*\{\s*goals = value;\s*\}/.test(healthGoalsPresentationSrc));
+  const jsSourceCorpus = new Map(listJsFiles(path.join(ROOT, 'js')).map(abs => [abs, fs.readFileSync(abs, 'utf-8')]));
   {
     const syncedArraySurfaces = ['entries', 'notes', 'supplements', 'healthGoals', 'chatSummaries', 'changeHistory'];
     const helperOwnedFiles = new Set(['js/data-merge.js']);
     const ownerExpr = '(?:state\\.importedData|current|imp)';
     const mutationExpr = new RegExp(`${ownerExpr}\\.(${syncedArraySurfaces.join('|')})(?:\\s*=|\\.(?:push|splice|filter|sort|unshift|shift|pop|reverse)\\b)`);
     const violations: string[] = [];
-    for (const abs of listJsFiles(path.join(ROOT, 'js'))) {
+    for (const [abs, src] of jsSourceCorpus) {
       const rel = path.relative(ROOT, abs).replace(/\\/g, '/');
       if (helperOwnedFiles.has(rel)) continue;
-      const lines = fs.readFileSync(abs, 'utf-8').split('\n');
+      const lines = src.split('\n');
       lines.forEach((line, i) => {
         if (mutationExpr.test(line)) violations.push(`${rel}:${i + 1}: ${line.trim()}`);
       });
@@ -854,10 +857,9 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
       && !chatSummariesSrc.includes("window.addEventListener('labcharts-sync-applied', refreshOpenSummaryModalOnSync)"));
   {
     const violations: string[] = [];
-    for (const abs of listJsFiles(path.join(ROOT, 'js'))) {
+    for (const [abs, src] of jsSourceCorpus) {
       const rel = path.relative(ROOT, abs).replace(/\\/g, '/');
       if (rel === 'js/utils.js') continue;
-      const src = fs.readFileSync(abs, 'utf-8');
       if (src.includes("window.addEventListener('labcharts-sync-applied'")) violations.push(rel);
     }
     assert('sync-applied modal listeners are centralized in utils helpers',
@@ -1581,7 +1583,7 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
       && syncPushSrc.includes('_syncing = true')
       && syncPushSrc.includes('export function isSyncPushInFlight'));
   assert('pushProfile await resolves only from onComplete/watchdog paths',
-    syncPushSourceContracts(syncPushSrc).successOwnedByComplete
+    syncPushContracts.successOwnedByComplete
       && /Push NOT committed after 30s[\s\S]{0,800}finish\(\{ ok: false, reason: 'timeout' \}\)/.test(syncPushSrc));
   assert('pushProfile uses insert/update pattern', syncPushSrc.includes('evolu.insert(') && syncPushSrc.includes('evolu.update('));
   // v1.6.3: debounce bumped 2s → 10s. Each push is the full importedData

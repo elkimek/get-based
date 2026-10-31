@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import path from 'node:path';
 import * as ts from 'typescript/unstable/ast';
 import {skipTrivia, createScanner} from 'typescript/unstable/ast/scanner';
 import {decode} from '@jridgewell/sourcemap-codec';
@@ -65,13 +66,28 @@ function position(source: string, lines: number[], line: number, column: number)
 }
 /** Exact scalar own-entry mapping. No byte-overlap, nearest point, name, or body-hash credit. */
 export function nativeFunctionMapper(transform: NativeTransform): (native: Profiler.FunctionCoverage) => {start: number; end: number; count: number} {
-  const {runtime, canonical, map, offset, code, file} = transform;
-  // One syntax project retains both exact inputs. Only scalar facts escape;
-  // diagnostics and every identity/token check remain unchanged.
-  const [canonicalFacts, runtimeFacts] = withParsedSources(new Map([[file, canonical], [file + '.runtime.js', runtime]]), (files, project) => {
-    assert.equal(project.program.getSyntacticDiagnostics().length, 0, 'Malformed native source syntax');
-    return [facts(canonical, files.get(file)!), facts(runtime, files.get(file + '.runtime.js')!)] as const;
+  return nativeFunctionMappers([transform])[0]!;
+}
+/** Bounded syntax batching shares compiler setup, never execution counters. */
+export function nativeFunctionMappers(transforms: readonly NativeTransform[]): Array<(native: Profiler.FunctionCoverage) => {start: number; end: number; count: number}> {
+  assert(transforms.length > 0 && transforms.length <= 16, 'Native mapping batch must contain 1–16 transforms');
+  const sources = new Map<string, string>();
+  const names = transforms.map(({file, canonical, runtime}, index) => {
+    const extension = path.extname(file);
+    const canonicalName = `${file}.canonical-batch-${index}${extension}`, runtimeName = `${file}.runtime-batch-${index}.js`;
+    sources.set(canonicalName, canonical); sources.set(runtimeName, runtime);
+    return [canonicalName, runtimeName] as const;
   });
+  // Only scalar token facts escape the bounded project. Every transform still
+  // owns its exact source-map, identity, ambiguity and native range checks.
+  const parsed = withParsedSources(sources, (files, project) => {
+    assert.equal(project.program.getSyntacticDiagnostics().length, 0, 'Malformed native source syntax');
+    return names.map(([canonicalName, runtimeName], index) => [facts(transforms[index]!.canonical, files.get(canonicalName)!), facts(transforms[index]!.runtime, files.get(runtimeName)!)] as const);
+  });
+  return transforms.map((transform, index) => createNativeFunctionMapper(transform, ...parsed[index]!));
+}
+function createNativeFunctionMapper(transform: NativeTransform, canonicalFacts: FunctionFact[], runtimeFacts: FunctionFact[]): (native: Profiler.FunctionCoverage) => {start: number; end: number; count: number} {
+  const {runtime, canonical, map, offset, code, file} = transform;
   const runtimeIndex = new Map<string, FunctionFact[]>(), canonicalIndex = new Map<string, FunctionFact[]>();
   for (const fact of runtimeFacts) { const key = `${fact.logicalStart}:${fact.end}`; const rows = runtimeIndex.get(key) ?? []; rows.push(fact); runtimeIndex.set(key, rows); }
   for (const fact of canonicalFacts) { const key = `${fact.logicalStart}:${fact.bodyStart}`; const rows = canonicalIndex.get(key) ?? []; rows.push(fact); canonicalIndex.set(key, rows); }
