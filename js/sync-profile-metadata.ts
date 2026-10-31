@@ -3,6 +3,8 @@ import {createDeltaWrite, decodeRowPayload} from './sync-delta-row-codec.js';
 import type {DeltaItemRow, DeltaPlan} from './sync-delta-row-codec.js';
 import {selectSyncedProfile, syncedProfileMetadataClock, SYNC_PROFILE_FIELDS} from './sync-profile-fields.js';
 import {_djb2} from './sync-delta-id.js';
+import {mutateProfiles} from './profile-list-store.js';
+import {markSyncProfileDirty} from './sync-dirty-state.js';
 export const PROFILE_METADATA_SURFACE = '_profileMetadata';
 const hasMetadata = (profile: Record<string, unknown>) => SYNC_PROFILE_FIELDS.some(field => Object.hasOwn(profile, field));
 async function metadataRows(profileId: string) {
@@ -49,4 +51,29 @@ export async function resolveProfileMetadata(profileId: string, envelope: unknow
     }
   }
   return {profile, clock};
+}
+
+function metadataValues(profile: unknown) {
+  const selected = selectSyncedProfile(profile);
+  if (selected) delete selected._syncMetadataAt;
+  return JSON.stringify(selected);
+}
+/** Commit the successful edit-clock floor without replacing a newer draft.
+ * A draft made while recovery was pending must advance past that recovery. */
+export async function commitProfileMetadataClock(profileId: string, source: unknown, outgoing: unknown): Promise<boolean> {
+  const clock = syncedProfileMetadataClock(outgoing);
+  if (!clock || metadataValues(source) !== metadataValues(outgoing)) return true;
+  try {
+    await mutateProfiles(profiles => {
+      const current = profiles.find(profile => profile.id === profileId);
+      if (!current) return {changed: false, value: undefined};
+      const edited = metadataValues(current) !== metadataValues(source);
+      const next = Math.max(syncedProfileMetadataClock(current), clock + (edited ? 1 : 0));
+      if (next === syncedProfileMetadataClock(current)) return {changed: false, value: undefined};
+      current._syncMetadataAt = next;
+      if (edited) markSyncProfileDirty(profileId);
+      return {changed: true, value: undefined};
+    });
+    return true;
+  } catch {return false;}
 }

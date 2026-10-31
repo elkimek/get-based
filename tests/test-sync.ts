@@ -9,6 +9,8 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 
 import './_node-shim.js';
 import {mergeScalarRowsIntoImported} from '../js/sync-delta-scalar-merge.js';
+import {_planScalarDelta} from '../js/sync-delta-scalar-planner.js';
+import {writeScalarVersion, scalarValueHash} from '../js/sync-scalar-snapshot.js';
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -1582,7 +1584,7 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
       && syncPushSrc.includes('_syncing = true')
       && syncPushSrc.includes('export function isSyncPushInFlight'));
   assert('pushProfile await resolves only from onComplete/watchdog paths',
-    /return await new Promise\(\(resolve\)[\s\S]{0,1200}const onComplete[\s\S]{0,2400}finish\(\{ ok: true \}\)/.test(syncPushSrc)
+    syncPushSourceContracts(syncPushSrc).successOwnedByComplete
       && /Push NOT committed after 30s[\s\S]{0,800}finish\(\{ ok: false, reason: 'timeout' \}\)/.test(syncPushSrc));
   assert('pushProfile uses insert/update pattern', syncPushSrc.includes('evolu.insert(') && syncPushSrc.includes('evolu.update('));
   // v1.6.3: debounce bumped 2s → 10s. Each push is the full importedData
@@ -2366,8 +2368,13 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
     /_planScalarDelta[\s\S]{0,1500}payloadObj\s*=\s*\{\s*v:\s*scalarValue\s*\}/.test(deltaSearchSrc));
   assert('_planScalarDelta picks most-recently-synced when multiple rows exist',
     /_planScalarDelta[\s\S]{0,800}sort\(\(a,\s*b\)\s*=>\s*String\(b\.syncedAt[\s\S]{0,200}\.localeCompare\(String\(a\.syncedAt/.test(deltaSearchSrc));
-  assert('_planScalarDelta requires a real canonical row for clears, including explicit recovery',
-    /else if \(\(options\.force \|\| prev\[scalarName\]\) && canonical && \(options\.force \|\| !canonical\.isDeleted\)\)[\s\S]{0,800}kind:\s*'tombstone'/.test(deltaSearchSrc));
+  writeScalarVersion('legacy-blob-clear', 'contextNotes', {clock: 200, hash: scalarValueHash('contextNotes', 'observed')});
+  const blobOnlyClear = await _planScalarDelta('legacy-blob-clear', 'contextNotes', null);
+  const neverSetClear = await _planScalarDelta('legacy-unset-clear', 'contextNotes', null, {force: true});
+  assert('_planScalarDelta publishes a confirmed blob-only clear without inserting absent default fields',
+    blobOnlyClear.ops.length === 1 && blobOnlyClear.ops[0]?.kind === 'insert'
+      && blobOnlyClear.ops[0].args.isDeleted === 1 && Date.parse(String(blobOnlyClear.ops[0].args.syncedAt)) > 200
+      && neverSetClear.ops.length === 0);
   assert('_planScalarDelta treats empty-string + null + undefined as absence (parity with blob)',
     /_planScalarDelta[\s\S]{0,2000}hasValue\s*=\s*scalarValue\s*!==\s*null[\s\S]{0,200}!==\s*undefined[\s\S]{0,200}length\s*===\s*0/.test(deltaSearchSrc));
   assert('pushProfile loops DELTA_SCALARS after DELTA_MAPS',

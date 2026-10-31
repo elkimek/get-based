@@ -130,3 +130,33 @@ it('a later scalar edit advances beyond an observed future clock without inventi
     expect((await _planScalarDelta('clock-skew', 'contextNotes', 'after')).ops).toEqual([]);
   } finally {clock.mockRestore(); configureSyncDelta({getEvolu: () => null, getItemRowQuery: () => null});}
 });
+
+it.each([null, ''])('publishes a clocked clear of a blob-only confirmed value (%s) before its delayed row arrives', async cleared => {
+  localStorage.clear();
+  const id = 'clear-before-row', oldClock = 2000;
+  const old = {id: 'delayed-live', profileId: id, arrayName: 'contextNotes', itemId: 'contextNotes',
+    payload: JSON.stringify({v: 'received in blob'}), syncedAt: new Date(oldClock).toISOString()};
+  const fake = makeEvolu();
+  configureSyncDelta({getEvolu: () => fake.evolu, getItemRowQuery: () => ITEM_ROW_QUERY});
+  configureSyncPush({getEvolu: () => fake.evolu, getProfileQuery: () => PROFILE_QUERY, isSyncEnabled: () => true, getProfiles: () => [{id}]});
+  writeScalarVersion(id, 'contextNotes', {clock: oldClock, hash: scalarValueHash('contextNotes', 'received in blob')});
+  const clock = vi.spyOn(Date, 'now').mockReturnValue(1000);
+  try {
+    expect(await pushProfile(id, {contextNotes: cleared})).toEqual({ok: true});
+    const clear = await parseSyncPayload(fake.profileRows[0]!.dataJson);
+    expect(clear.scalarClocks!.contextNotes).toBe(oldClock + 1);
+    expect(fake.itemRows).toContainEqual(expect.objectContaining({profileId: id, arrayName: 'contextNotes', isDeleted: 1, syncedAt: new Date(oldClock + 1).toISOString()}));
+    expect(await pushProfile(id, {contextNotes: cleared, notes: [{date: '2026-10-30', text: 'later'}]})).toEqual({ok: true});
+    const later = await parseSyncPayload(fake.profileRows[0]!.dataJson);
+    expect(later.scalarClocks!.contextNotes).toBe(oldClock + 1);
+    localStorage.clear();
+    configureSyncDeltaMerge({getEvolu: () => ({getQueryRows: () => [old]}), getItemRowQuery: () => 'items'});
+    const received = await _mergeItemRowsIntoImported(id, {contextNotes: 'received in blob'}, {baselineImported: later.importedData, scalarClocks: later.scalarClocks});
+    expect(received.contextNotes).toBe(cleared);
+    configureSyncDeltaMerge({getEvolu: () => ({getQueryRows: () => [old, ...fake.itemRows] as DeltaItemRow[]}), getItemRowQuery: () => 'items'});
+    expect((await _mergeItemRowsIntoImported(id, {contextNotes: 'received in blob'})).contextNotes).toBeNull();
+  } finally {
+    clock.mockRestore(); configureSyncDelta({getEvolu: () => null, getItemRowQuery: () => null});
+    configureSyncPush({getEvolu: () => null, isSyncEnabled: () => false});
+  }
+});

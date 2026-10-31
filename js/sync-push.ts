@@ -1,4 +1,4 @@
-import {planProfileMetadata, PROFILE_METADATA_SURFACE} from './sync-profile-metadata.js';
+import {planProfileMetadata, commitProfileMetadataClock, PROFILE_METADATA_SURFACE} from './sync-profile-metadata.js';
 import type { ProfileData } from '../types/app-state.js';
 import type { StoredProfileRecord } from './profile-list-store.js';
 import type { SyncProfileRow } from './sync-payload.js';
@@ -181,7 +181,8 @@ export async function pushProfile(profileId: unknown, importedData: unknown, opt
       _syncing = false;
       return { ok: false, skipped: true, reason: 'delta-plan-failed' };
     }
-    const metadata = await planProfileMetadata(profileId, _getProfiles().find(profile => profile.id === profileId), opts.completeSnapshot === true);
+    const metadataSource = _getProfiles().find(profile => profile.id === profileId);
+    const metadata = await planProfileMetadata(profileId, metadataSource, opts.completeSnapshot === true);
     if (metadata.plan.ops.length) deltaPlans.push({arrayName: PROFILE_METADATA_SURFACE, plan: metadata.plan});
     const deltaOpCount = dataDeltaOpCount + metadata.plan.ops.length;
     const scalarClocks = scalarPayloadClocks(profileId, outboundData, deltaPlans, opts.completeSnapshot === true);
@@ -198,6 +199,7 @@ export async function pushProfile(profileId: unknown, importedData: unknown, opt
     // force pushes bypass this guard for relay rebuild/recovery workflows.
     if (!opts.force && existing && deltaOpCount === 0
         && (existing.dataJson === dataJson || await equivalentSyncPayload(existing.dataJson, dataJson))) {
+      if (!await commitProfileMetadataClock(profileId, metadataSource, metadata.profile)) throw new Error('Could not retain the metadata edit clock');
       const skipMsg = `No changes to push ${profileId.slice(0,8)}`;
       _debug(skipMsg);
       logSyncEvent('skip', skipMsg);
@@ -224,10 +226,11 @@ export async function pushProfile(profileId: unknown, importedData: unknown, opt
         if (watchdogId !== null) { clearTimeout(watchdogId); watchdogId = null; }
         resolve(result);
       };
-      const onComplete = () => {
+      const onComplete = async () => {
         completed = true;
         if (!applyCommittedDeltas(profileId, dataJson, deltaPlans, deltaOpCount, _debug)
-            || !commitScalarPayloadClocks(profileId, outboundData, scalarClocks)) {
+            || !commitScalarPayloadClocks(profileId, outboundData, scalarClocks)
+            || !await commitProfileMetadataClock(profileId, metadataSource, metadata.profile)) {
           updateSyncStatus({ push: 'error', pushStartedAt: null, lastError: { type: 'DeltaCommitError', message: 'Sync could not commit a complete update. Your local changes are still queued.', at: Date.now() } });
           finish({ ok: false, reason: 'delta-commit-failed' });
           return;

@@ -12,9 +12,13 @@ function descendants<Node extends ts.Node>(root: ts.Node, match: (node: ts.Node)
 export function syncPushSourceContracts(source: string) {
   return withParsedSource(source, 'sync-push.js', file => {
     const push = file.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'pushProfile');
-    if (!push) return { commitTracksBytes: false, plansBeforeProfileUpdate: false, commitOwnsDeltas: false };
+    if (!push) return { commitTracksBytes: false, plansBeforeProfileUpdate: false, commitOwnsDeltas: false, successOwnedByComplete: false };
     const variables = descendants(push, ts.isVariableDeclaration);
     const complete = variables.find(node => node.name.getText(file) === 'onComplete')?.initializer;
+    const success = descendants(push, ts.isCallExpression).filter(call => call.expression.getText(file) === 'finish'
+      && call.arguments.length === 1 && call.arguments[0]!.getText(file).replace(/\s/g, '') === '{ok:true}');
+    const successOwnedByComplete = success.length === 1 && !!complete && ts.isArrowFunction(complete)
+      && complete.getStart(file) < success[0]!.getStart(file) && success[0]!.getEnd() < complete.getEnd();
     const committed = complete && ts.isArrowFunction(complete)
       ? descendants(complete.body, ts.isTemplateExpression).find(node => node.head.text.startsWith('Push committed ')) : undefined;
     const tracked = complete && ts.isArrowFunction(complete)
@@ -32,7 +36,7 @@ export function syncPushSourceContracts(source: string) {
     const applied = descendants(push, ts.isCallExpression).filter(call => call.expression.getText(file) === 'applyCommittedDeltas');
     const owned = !!complete && ts.isArrowFunction(complete) && applied.length === 1
       && applied[0]!.getStart(file) > complete.body.getStart(file) && applied[0]!.getEnd() < complete.body.getEnd();
-    return { commitTracksBytes: tracked, commitOwnsDeltas: owned,
+    return { commitTracksBytes: tracked, commitOwnsDeltas: owned, successOwnedByComplete,
       plansBeforeProfileUpdate: !!plan && updates.length > 0 && updates.every(update => plan.getStart(file) < update.getStart(file)) };
   });
 }

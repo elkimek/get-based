@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 1867 |
-| Internal import edges | 5707 |
+| Internal import edges | 5709 |
 | Dynamic internal edges | 138 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -4702,7 +4702,7 @@ Native browser modules shipped with the static application.
 - [`js/sync-payload-collectors.ts`](js/sync-payload-collectors.ts) → [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/crypto.ts`](js/crypto.ts), [`js/voice-settings-schema.ts`](js/voice-settings-schema.ts)
 - [`js/sync-payload.ts`](js/sync-payload.ts) → [`js/data-merge.ts`](js/data-merge.ts), [`js/nutrition-sync-sanitize.ts`](js/nutrition-sync-sanitize.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/sync-chat-merge.ts`](js/sync-chat-merge.ts) *(dynamic)*, [`js/sync-delta-snapshot.ts`](js/sync-delta-snapshot.ts), [`js/sync-delta-surfaces.ts`](js/sync-delta-surfaces.ts), [`js/sync-payload-codec.ts`](js/sync-payload-codec.ts), [`js/sync-payload-collectors.ts`](js/sync-payload-collectors.ts), [`js/sync-profile-fields.ts`](js/sync-profile-fields.ts), [`js/sync-scalar-snapshot.ts`](js/sync-scalar-snapshot.ts)
 - [`js/sync-profile-fields.ts`](js/sync-profile-fields.ts) → no in-scope imports
-- [`js/sync-profile-metadata.ts`](js/sync-profile-metadata.ts) → [`js/sync-delta-id.ts`](js/sync-delta-id.ts), [`js/sync-delta-planner-context.ts`](js/sync-delta-planner-context.ts), [`js/sync-delta-row-codec.ts`](js/sync-delta-row-codec.ts), [`js/sync-profile-fields.ts`](js/sync-profile-fields.ts)
+- [`js/sync-profile-metadata.ts`](js/sync-profile-metadata.ts) → [`js/profile-list-store.ts`](js/profile-list-store.ts), [`js/sync-delta-id.ts`](js/sync-delta-id.ts), [`js/sync-delta-planner-context.ts`](js/sync-delta-planner-context.ts), [`js/sync-delta-row-codec.ts`](js/sync-delta-row-codec.ts), [`js/sync-dirty-state.ts`](js/sync-dirty-state.ts), [`js/sync-profile-fields.ts`](js/sync-profile-fields.ts)
 - [`js/sync-pull-active-refresh-runtime.ts`](js/sync-pull-active-refresh-runtime.ts) → [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts)
 - [`js/sync-pull-active-refresh.ts`](js/sync-pull-active-refresh.ts) → [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/sync-pull-active-refresh-runtime.ts`](js/sync-pull-active-refresh-runtime.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/sync-pull-maintenance.ts`](js/sync-pull-maintenance.ts) → no in-scope imports

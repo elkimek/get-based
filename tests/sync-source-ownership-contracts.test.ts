@@ -92,8 +92,12 @@ it.each(['capture','commit','write'] as const)('rejects an uncalled nested %s en
 
 it('requires one delta application owned by onComplete and an awaited plan before profile writes', () => {
  const push = readFileSync('js/sync-push.js', 'utf8');
- expect(syncPushSourceContracts(push)).toMatchObject({commitOwnsDeltas: true, plansBeforeProfileUpdate: true});
- const outside = change(push, 'const onComplete = () => {', 'applyCommittedDeltas(profileId, dataJson, deltaPlans, deltaOpCount, _debug);\n      const onComplete = () => {');
+ expect(syncPushSourceContracts(push)).toMatchObject({commitOwnsDeltas: true, plansBeforeProfileUpdate: true, successOwnedByComplete: true});
+ const earlySuccess = change(push, 'const onComplete = async () => {', 'finish({ok: true});\n      const onComplete = async () => {');
+ expect(syncPushSourceContracts(earlySuccess).successOwnedByComplete).toBe(false);
+ const missingSuccess = change(push, 'finish({ ok: true });', 'finish({ ok: false });');
+ expect(syncPushSourceContracts(missingSuccess).successOwnedByComplete).toBe(false);
+ const outside = change(push, 'const onComplete = async () => {', 'applyCommittedDeltas(profileId, dataJson, deltaPlans, deltaOpCount, _debug);\n      const onComplete = async () => {');
  expect(syncPushSourceContracts(outside).commitOwnsDeltas).toBe(false);
  const missing = push.replace(/if \(!applyCommittedDeltas\(/, 'if (!skippedDeltas(');
  expect(missing).not.toBe(push);

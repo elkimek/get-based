@@ -24,9 +24,8 @@ export async function _planScalarDelta(profileId: string, scalarName: string, sc
     : matching.slice().sort((a, b) => String(b.syncedAt || '').localeCompare(String(a.syncedAt || '')))[0];
   const editTimestamp = () => new Date(Math.max(Date.now(), (committed?.clock || 0) + 1,
     (Date.parse(String(canonical?.syncedAt || '')) || 0) + 1)).toISOString();
-  // Empty / null / undefined treated as absence - same posture as the
-  // existing blob path, where buildSyncPayload sends null and the merger
-  // treats it as "no opinion this push".
+  // Empty / null / undefined are absence. Clearing a confirmed value is
+  // an edit even when its item-row query has not arrived yet.
   const hasValue = scalarValue !== null && scalarValue !== undefined
     && !(typeof scalarValue === 'string' && scalarValue.length === 0);
 
@@ -45,11 +44,11 @@ export async function _planScalarDelta(profileId: string, scalarName: string, sc
       const resurrect = canonical?.isDeleted ? { isDeleted: null } : {};
       ops.push(createDeltaWrite(canonical, { profileId, arrayName: scalarName, itemId: scalarName, payload, syncedAt }, resurrect));
     }
-  } else if ((options.force || prev[scalarName]) && canonical && (options.force || !canonical.isDeleted)) {
-    // non-null -> null transition. Conservative tombstone - only emit if
-    // we previously pushed a value (prev hash exists) AND a row actually
-    // exists for it. Skips the boot-with-default-null case.
-    ops.push({ kind: 'tombstone', args: { id: canonical.id, isDeleted: 1, syncedAt: editTimestamp() } });
+  } else if (prev[scalarName] || (options.force && canonical)) {
+    const syncedAt = editTimestamp();
+    if (canonical) ops.push({ kind: 'tombstone', args: { id: canonical.id, isDeleted: 1, syncedAt } });
+    else ops.push({kind: 'insert', args: {profileId, arrayName: scalarName, itemId: scalarName,
+      payload: JSON.stringify({v: null}), isDeleted: 1, syncedAt}});
   }
   return { ops, next, plannedAt };
 }

@@ -357,13 +357,17 @@ unrelated save cannot give an unchanged scalar a newer clock. Full snapshots
 protect peers whose profile and item-row query updates arrive separately.
 Durable scalar version/hash receipts preserve a just-committed local value while
 queries catch up; only matching values are acknowledged after profile persistence.
+Clearing a confirmed value publishes a newer tombstone even before its item row
+is visible; never-configured absent fields do not create tombstones.
 Legacy envelopes retain their profile-clock fallback. Explicit recovery also
 re-emits scalar rows, including clears. Planning or row-mutation failures keep
 local dirty markers queued and stop success confirmation.
 Profile metadata carries its own item row and durable edit clock; unrelated data rebroadcasts
 retain it. Legacy metadata uses the envelope clock, and equal-clock metadata
 conflicts resolve deterministically. Pulls defer pending local metadata edits
-and ignore exact cached versions replaced by successful local pushes.
+and ignore exact cached versions replaced by successful local pushes. Successful
+recovery durably advances the local metadata clock; metadata edited while the
+push is pending stays queued with a clock beyond that recovery.
 
 The static assembler externalizes Kit's classic bootstrap to satisfy the existing
 CSP without permitting inline executable scripts. It copies only declared public

@@ -1,6 +1,7 @@
 import {planProfileMetadata, resolveProfileMetadata, PROFILE_METADATA_SURFACE} from '../js/sync-profile-metadata.js';
 import {configureSyncDelta, _applyArrayDelta} from '../js/sync-delta.js';
-import {makeEvolu, ITEM_ROW_QUERY} from './helpers/sync-runtime-fixture.js';
+import {makeEvolu, ITEM_ROW_QUERY, PROFILE_QUERY} from './helpers/sync-runtime-fixture.js';
+import {configureSyncPush, pushProfile} from '../js/sync-push.js';
 import {afterEach, beforeEach, expect, it, vi} from 'vitest';
 import {state} from '../js/state.js';
 import {configureProfileDeps, createProfile, getProfiles, touchProfileTimestamp, updateProfileMeta} from '../js/profile.js';
@@ -20,6 +21,7 @@ beforeEach(() => {
 afterEach(() => {
   configureProfileDeps(previousDeps); state.profiles = previousProfiles;
   configureSyncDelta({getEvolu: () => null, getItemRowQuery: () => null});
+  configureSyncPush({getEvolu: () => null, isSyncEnabled: () => false});
   clearLocalSyncCommits(); localStorage.removeItem(`labcharts-${id}-sync-dirty`); vi.restoreAllMocks();
 });
 it('stamps actual metadata edits monotonically while ordinary profile activity keeps the edit clock', async () => {
@@ -93,4 +95,61 @@ it('uses the same deterministic Unicode tie-break regardless of duplicate-row de
  expect((await resolveProfileMetadata(id, null, 0)).profile?.name).toBe('ä');
  fake.itemRows.reverse();
  expect((await resolveProfileMetadata(id, null, 0)).profile?.name).toBe('ä');
+});
+
+it('retains a successful recovery clock ahead of a skewed peer so the next rename is a newer edit', async () => {
+ const fake = makeEvolu({itemRows: [{profileId: id, arrayName: PROFILE_METADATA_SURFACE, itemId: PROFILE_METADATA_SURFACE,
+  payload: JSON.stringify({v: {id, name: 'skewed peer', _syncMetadataAt: 9000}}), syncedAt: new Date(9000).toISOString()}]});
+ const previous = configureSyncPayload({getProfiles});
+ configureSyncDelta({getEvolu: () => fake.evolu, getItemRowQuery: () => ITEM_ROW_QUERY});
+ configureSyncPush({getEvolu: () => fake.evolu, getProfileQuery: () => PROFILE_QUERY, isSyncEnabled: () => true, getProfiles});
+ try {
+  expect(await pushProfile(id, {}, {completeSnapshot: true, force: true})).toEqual({ok: true});
+  expect(getProfiles()[0]).toMatchObject({name: 'A', _syncMetadataAt: 9001});
+  await updateProfileMeta(id, {name: 'After recovery'});
+  expect(getProfiles()[0]!._syncMetadataAt).toBe(9002);
+  expect(await pushProfile(id, {})).toEqual({ok: true});
+  expect((await parseSyncPayload(fake.profileRows[0]!.dataJson)).profile).toMatchObject({name: 'After recovery', _syncMetadataAt: 9002});
+  expect(await resolveProfileMetadata(id, null, 0)).toMatchObject({profile: {name: 'After recovery'}, clock: 9002});
+ } finally {configureSyncPayload(previous);}
+});
+
+it('keeps a rename made during pending recovery and queues it above the successful recovery clock', async () => {
+ const fake = makeEvolu({itemRows: [{profileId: id, arrayName: PROFILE_METADATA_SURFACE, itemId: PROFILE_METADATA_SURFACE,
+  payload: JSON.stringify({v: {id, name: 'skewed peer', _syncMetadataAt: 9000}}), syncedAt: new Date(9000).toISOString()}]});
+ let complete: (() => void) | undefined;
+ const original = fake.evolu.insert;
+ fake.evolu.insert = (table, args, options = {}) => {
+  if (table === 'profileData') {complete = options.onComplete; original(table, args);}
+  else original(table, args, options);
+ };
+ const previous = configureSyncPayload({getProfiles});
+ configureSyncDelta({getEvolu: () => fake.evolu, getItemRowQuery: () => ITEM_ROW_QUERY});
+ configureSyncPush({getEvolu: () => fake.evolu, getProfileQuery: () => PROFILE_QUERY, isSyncEnabled: () => true, getProfiles});
+ try {
+  markSyncProfileDirty(id);
+  const pending = pushProfile(id, {}, {completeSnapshot: true, force: true});
+  await vi.waitFor(() => expect(complete).toBeTypeOf('function'));
+  await updateProfileMeta(id, {name: 'Concurrent rename', tags: ['keep']});
+  complete!();
+  expect(await pending).toEqual({ok: true});
+  expect(getProfiles()[0]).toMatchObject({name: 'Concurrent rename', tags: ['keep'], _syncMetadataAt: 9002});
+  expect(localStorage.getItem(`labcharts-${id}-sync-dirty`)).not.toBeNull();
+  expect(await pushProfile(id, {})).toEqual({ok: true});
+  expect((await parseSyncPayload(fake.profileRows[0]!.dataJson)).profile).toMatchObject({name: 'Concurrent rename', _syncMetadataAt: 9002});
+ } finally {configureSyncPayload(previous);}
+});
+
+it('keeps recovery dirty when its successful metadata clock cannot be persisted locally', async () => {
+ const fake = makeEvolu();
+ const previous = configureSyncPayload({getProfiles});
+ configureProfileDeps({encryptedSetItem: async () => {throw new Error('storage unavailable');}});
+ configureSyncDelta({getEvolu: () => fake.evolu, getItemRowQuery: () => ITEM_ROW_QUERY});
+ configureSyncPush({getEvolu: () => fake.evolu, getProfileQuery: () => PROFILE_QUERY, isSyncEnabled: () => true, getProfiles});
+ try {
+  const token = markSyncProfileDirty(id);
+  expect(await pushProfile(id, {}, {completeSnapshot: true, force: true})).toEqual({ok: false, reason: 'delta-commit-failed'});
+  expect(getProfiles()[0]!._syncMetadataAt).toBe(200);
+  expect(localStorage.getItem(`labcharts-${id}-sync-dirty`)).toBe(token);
+ } finally {configureSyncPayload(previous);}
 });

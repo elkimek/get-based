@@ -567,6 +567,51 @@ test('real relay converges devices, resists no-op bloat, recovers offline, and r
   }
 });
 
+test('a blob-only scalar clear survives a delayed live row through the real SDK and relay', async ({ browser }) => {
+  test.setTimeout(120_000);
+  const devices: Array<Awaited<ReturnType<typeof createDevice>>> = [];
+  try {
+    const a = await createDevice(browser, 'clear device A'); devices.push(a);
+    const identity = await enableNewIdentity(a.page);
+    const b = await createDevice(browser, 'clear device B'); devices.push(b);
+    await joinIdentity(b.page, identity.mnemonic, identity.ownerId);
+    // A durable blob receipt can precede its item-row subscription. Exercise
+    // the resulting native planner/mutation path with both actual SDK graphs.
+    const clocks = await a.page.evaluate(async () => {
+      const [{writeScalarVersion, scalarValueHash}, delta] = await Promise.all([
+        import('/js/sync-scalar-snapshot.js'), import('/js/sync-delta.js'),
+      ]);
+      const before = Date.now();
+      if (!writeScalarVersion('default', 'interpretiveLens', {clock: before, hash: scalarValueHash('interpretiveLens', 'delayed value')})) throw new Error('Receipt not saved');
+      const plan = await delta._planScalarDelta('default', 'interpretiveLens', null);
+      if (plan.ops.length !== 1 || plan.ops[0]!.kind !== 'insert' || !delta._applyArrayDelta('interpretiveLens', plan)) throw new Error('Clear not queued');
+      return {before, clear: Date.parse(String(plan.ops[0]!.args.syncedAt))};
+    });
+    expect(clocks.clear).toBeGreaterThan(clocks.before);
+    const rows = (page: Page) => page.evaluate(async () => {
+      const runtime = await import('/js/sync-runtime.js');
+      const rows = runtime.getSyncEvolu()!.getQueryRows(runtime.getSyncItemRowQuery()) as readonly DeltaItemRow[] | null | undefined;
+      return (rows || []).filter(row => row.profileId === 'default' && row.arrayName === 'interpretiveLens');
+    });
+    await expect.poll(async () => (await rows(b.page)).some(row => row.isDeleted && Date.parse(String(row.syncedAt)) === clocks.clear)).toBe(true);
+    await a.page.evaluate(async before => {
+      const runtime = await import('/js/sync-runtime.js');
+      runtime.getSyncEvolu()!.insert('itemRow', {profileId: 'default', arrayName: 'interpretiveLens', itemId: 'interpretiveLens',
+        payload: JSON.stringify({v: 'delayed value'}), syncedAt: new Date(before).toISOString()});
+    }, clocks.before);
+    await expect.poll(async () => (await rows(b.page)).length).toBe(2);
+    for (const device of devices) {
+      await expect.poll(() => device.page.evaluate(async () => {
+        const { _mergeItemRowsIntoImported } = await import('/js/sync-delta.js');
+        return (await _mergeItemRowsIntoImported('default', {interpretiveLens: 'delayed value'})).interpretiveLens;
+      })).toBeNull();
+      expect(device.errors).toEqual([]);
+    }
+  } finally {
+    for (const device of devices.reverse()) await device.context.close().catch(() => {});
+  }
+});
+
 test('paused note edits do not overwrite context changed on another device', async ({ browser }) => {
   test.setTimeout(150_000);
   const devices: Array<Awaited<ReturnType<typeof createDevice>>> = [];
