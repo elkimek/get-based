@@ -47,6 +47,16 @@ checks use the fixed inventory in
 
 ## Presentation and lifecycle contract
 
+Optional empty-Dashboard Chat startup owns its reservation by render generation
+and profile. Failed loads or a narrower viewport release it; completion from a
+retired render cannot clear a newer reservation.
+Lazy Chat open/toggle requests retain their initiating profile through module
+loading. Panel opening checks that profile and its open intent after each
+asynchronous load, so a deleted profile's pending request cannot initialize a
+conversation on its temporary sync fallback or another selected profile.
+An interrupted visible opening closes only while it still owns the latest open
+intent, leaving a newer opening intact.
+
 `body-measurement-model.ts` owns method-specific waist/hip/SAD field identities
 and validated portable-mirror projection. `wearables-manual.ts` owns their paired
 numeric writes and deletion clocks through the existing encrypted manual-reading
@@ -363,12 +373,37 @@ insert contract. Never-configured absent fields do not create clear rows.
 Legacy envelopes retain their profile-clock fallback. Explicit recovery also
 re-emits scalar rows, including clears. Planning or row-mutation failures keep
 local dirty markers queued and stop success confirmation.
+
+Backup recovery acknowledges each committed profile independently before relay
+tombstones can apply. Its journal stays readable by older tabs; generation,
+owner and dirty-token checks prevent an old completion from acknowledging a
+newer restore. Demo and explicitly deleted profiles are not republished.
+Unavailable profiles retain their recovery protection without re-uploading
+completed profiles. A failed progress write retains an in-memory commit receipt;
+automatic failed publishes have a bounded retry budget, reset by an explicit
+Sync now/resume or a newer local edit.
+Identity rotation confirms a durable local recovery journal before changing the
+owner. Failed writes/readback retain the original identity and saved Sync state.
+If the SDK rejects a reset while its actual owner is unchanged, restore the exact
+prior journal only while this operation still owns the staged generation. A
+newer journal or an identity changed before startup failed retains its recovery.
+The staged journal also binds to a domain-separated SHA-256 fingerprint of the
+intended mnemonic; recovery words are never stored in the journal. Every
+acknowledgement preserves that binding. A second tab with an older identity
+defers recovery even while the originating tab is awaiting SDK reset.
+Publishing stays suspended in the retiring runtime until replacement; the
+reloaded owner publishes complete recovery. The old owner/query cache cannot
+acknowledge the new owner's recovery.
 Profile metadata carries its own item row and durable edit clock; unrelated data rebroadcasts
 retain it. Legacy metadata uses the envelope clock, and equal-clock metadata
 conflicts resolve deterministically. Pulls defer pending local metadata edits
 and ignore exact cached versions replaced by successful local pushes. Successful
 recovery durably advances the local metadata clock; metadata edited while the
 push is pending stays queued with a clock beyond that recovery.
+
+Sync status emits only changed fields. An open status popover updates its
+information in place, retaining action-button identity and keyboard focus so
+replication activity cannot interrupt hover or a click in progress.
 
 The static assembler externalizes Kit's classic bootstrap to satisfy the existing
 CSP without permitting inline executable scripts. It copies only declared public

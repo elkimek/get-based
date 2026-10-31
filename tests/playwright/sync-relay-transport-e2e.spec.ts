@@ -554,6 +554,12 @@ test('real relay converges devices, resists no-op bloat, recovers offline, and r
     expect(afterRepeatedReconnect!.messageCount).toBe(afterOldDeviceReconnect!.messageCount);
     expect(afterRepeatedReconnect!.storedBytes).toBe(afterOldDeviceReconnect!.storedBytes);
 
+    if (EVOLU_CLIENT !== 'v7') {
+      await expect.poll(() => deviceB.page.evaluate(async () => (
+        (await import('/js/sync-state.js')).getSyncStatus().replication
+      )), {timeout: 30_000}).toBe('Synced');
+    }
+
     for (const device of devices) expect(device.errors).toEqual([]);
   } finally {
     if (cleanupPage && !cleanupPage.isClosed()) {
@@ -746,4 +752,187 @@ test('restored profiles survive old tombstones and a new sync identity', async (
   } finally {
     await Promise.all(devices.map(device => device.context.close().catch(() => {})));
   }
+});
+
+test('identity rotation with partial backup recovery stops repeat uploads and later completes', async ({browser}) => {
+  test.setTimeout(120_000);
+  const devices: Array<Awaited<ReturnType<typeof createDevice>>> = [];
+  const a = await createDevice(browser, 'recovery device A'); devices.push(a);
+  try {
+    await setSyntheticData(a.page, 'seed');
+    const previous = await enableNewIdentity(a.page);
+    await a.page.evaluate(async () => { (await import('/js/sync.js')).pauseSync(); });
+    const ids = await a.page.evaluate(async () => {
+      const profile = await import('/js/profile.js');
+      const demo = await profile.createProfile('Synthetic recovery demo', {tags: ['demo'], skipInitialSync: true});
+      const unavailable = await profile.createProfile('Synthetic unavailable recovery', {skipInitialSync: true});
+      await profile.switchProfile('default');
+      await (await import('/js/crypto.js')).encryptedRemoveItem(profile.profileStorageKey(unavailable, 'imported'));
+      (await import('/js/sync-backup-restore-state.js')).prepareRestoredProfilesForSync({profiles: [
+        {profileId: 'default'}, {profileId: demo}, {profileId: unavailable},
+      ]});
+      return {demo, unavailable};
+    });
+    const reloaded = a.page.waitForEvent('load', {timeout: 30_000});
+    const rotating = a.page.evaluate(async () => (await import('/js/sync-diagnose-identity-actions.js')).confirmRotateIdentity());
+    await a.page.locator('#confirm-ok').click(); await rotating;
+    await a.page.locator('#rotate-saved-check').check();
+    await a.page.locator('#rotate-apply-btn').click();
+    await reloaded;
+    await expect.poll(() => a.page.evaluate(async oldOwner => {
+      const owner = (await import('/js/sync-runtime.js')).getSyncAppOwner();
+      return !!owner?.id && owner.id !== oldOwner;
+    }, previous.ownerId), {timeout: 30_000}).toBe(true);
+    const pending = () => a.page.evaluate(async () => (await import('/js/sync-backup-restore-state.js')).getPendingBackupRestoreProfileIds());
+    await expect.poll(pending, {timeout: 10_000}).toEqual([ids.unavailable]);
+    const before = await waitForStableRelayStorage(a.page);
+    await a.page.waitForTimeout(2000);
+    const after = await waitForStableRelayStorage(a.page);
+    expect(after?.messageCount).toBe(before?.messageCount);
+    expect(after?.storedBytes).toBe(before?.storedBytes);
+    expect((await profileIds(a.page)).sort()).toEqual(['default', ids.demo, ids.unavailable].sort());
+    await waitForContext(a.page, BASELINE_CONTEXT);
+    await waitForNotes(a.page, ['baseline-note']);
+
+    // Restore only this fixture's deliberately unavailable local snapshot, then
+    // use the real manual retry path. Existing committed data must stay intact.
+    await a.page.evaluate(async profileId => {
+      const profile = await import('/js/profile.js');
+      const data = profile.createDefaultProfileData(); data.contextNotes = 'transport-recovered-inactive';
+      await (await import('/js/crypto.js')).encryptedSetItem(profile.profileStorageKey(profileId, 'imported'), JSON.stringify(data));
+      (await import('/js/sync-dirty-state.js')).markSyncProfileDirty(profileId);
+    }, ids.unavailable);
+    expect((await syncNow(a.page))?.ok).toBe(true);
+    await expect.poll(pending).toEqual([]);
+    const identity = await waitForOwner(a.page);
+    const b = await createDevice(browser, 'recovery device B'); devices.push(b);
+    await joinIdentity(b.page, identity.mnemonic, identity.ownerId);
+    await activateProfile(b.page, 'default'); await waitForContext(b.page, BASELINE_CONTEXT); await waitForNotes(b.page, ['baseline-note']);
+    await activateProfile(b.page, ids.unavailable); await waitForContext(b.page, 'transport-recovered-inactive');
+    expect((await profileIds(b.page)).sort()).toEqual(['default', ids.unavailable].sort());
+    if (EVOLU_CLIENT === 'v8') for (const device of devices) {
+      await expect.poll(() => device.page.evaluate(async () => {
+        const evolu = (await import('/js/sync-runtime.js')).getSyncEvolu();
+        if (!evolu?.subscribeOwnerSyncStatus) throw new Error('Missing actual modern SDK sync status');
+        let phase = ''; const stop = evolu.subscribeOwnerSyncStatus(status => { phase = status.type; }); stop(); return phase;
+      }), {timeout: 30_000}).toBe('Synced');
+    }
+    for (const device of devices) expect(device.errors).toEqual([]);
+  } finally {
+    await a.page.evaluate(async () => (await import('/js/sync.js')).pauseSync()).catch(() => {});
+    for (const device of devices.reverse()) await device.context.close();
+  }
+});
+
+test('native identity rotation retains its owner and data when recovery storage is full', async ({browser}) => {
+  const a = await createDevice(browser, 'journal failure device A');
+  try {
+    await setSyntheticData(a.page, 'seed');
+    const previous = await enableNewIdentity(a.page);
+    await a.page.evaluate(async () => (await import('/js/sync.js')).pauseSync());
+    await a.page.evaluate(() => {
+      const original = Storage.prototype.setItem;
+      Storage.prototype.setItem = function(key, value) {
+        if (key === 'labcharts-sync-backup-restore-pending') throw new DOMException('Synthetic full storage', 'QuotaExceededError');
+        return original.call(this, key, value);
+      };
+    });
+    const rotating = a.page.evaluate(async () => (await import('/js/sync-diagnose-identity-actions.js')).confirmRotateIdentity());
+    await a.page.locator('#confirm-ok').click(); await rotating;
+    await a.page.locator('#rotate-saved-check').check();
+    await a.page.locator('#rotate-apply-btn').click();
+    const message = 'Could not save sync recovery progress. Your identity and local data are unchanged. Free browser storage, then retry.';
+    const error = a.page.getByRole('alert').filter({hasText: message});
+    await expect(error).toBeVisible();
+    await expect(error).toHaveText('✗ ' + message);
+    await expect(a.page.locator('#rotate-apply-btn')).toBeEnabled();
+    // Successful rotation schedules a reload after 500ms. A failed durable
+    // preflight must leave the existing owner and snapshot intact instead.
+    await a.page.waitForTimeout(1000);
+    expect((await waitForOwner(a.page)).ownerId).toBe(previous.ownerId);
+    await waitForContext(a.page, BASELINE_CONTEXT);
+    await waitForNotes(a.page, ['baseline-note']);
+    expect(a.errors).toEqual([]);
+  } finally {
+    await a.page.evaluate(async () => (await import('/js/sync.js')).pauseSync()).catch(() => {});
+    await a.context.close();
+  }
+});
+
+test('rejected identity rotation restores normal incoming sync with an unavailable local profile', async ({browser}) => {
+  const a = await createDevice(browser, 'rejected rotation device A');
+  const devices = [a];
+  try {
+    await setSyntheticData(a.page, 'seed');
+    const previous = await enableNewIdentity(a.page);
+    const b = await createDevice(browser, 'rejected rotation device B'); devices.push(b);
+    await joinIdentity(b.page, previous.mnemonic, previous.ownerId);
+    await waitForContext(b.page, BASELINE_CONTEXT);
+    await a.page.evaluate(async () => {
+      (await import('/js/sync.js')).pauseSync();
+      await (await import('/js/profile.js')).createProfile('Synthetic unavailable local profile', {skipInitialSync: true});
+      const evolu = (await import('/js/sync-runtime.js')).getSyncEvolu();
+      if (!evolu) throw new Error('Missing actual fixture SDK');
+      // Fail only the owner reset; existing SDK queries and transport remain real.
+      const rejected = new Proxy(evolu, {get(target, property, receiver) {
+        if (property === 'restoreAppOwner') return async () => { throw new Error('Synthetic owner reset rejection'); };
+        return Reflect.get(target, property, receiver);
+      }});
+      (await import('/js/sync-identity.js')).configureSyncIdentity({getEvolu: () => rejected});
+    });
+    const rotating = a.page.evaluate(async () => (await import('/js/sync-diagnose-identity-actions.js')).confirmRotateIdentity());
+    await a.page.locator('#confirm-ok').click(); await rotating;
+    await a.page.locator('#rotate-saved-check').check();
+    await a.page.locator('#rotate-apply-btn').click();
+    await expect(a.page.getByRole('alert').filter({hasText: 'Invalid mnemonic'})).toBeVisible();
+    expect((await waitForOwner(a.page)).ownerId).toBe(previous.ownerId);
+    expect(await a.page.evaluate(async () => (await import('/js/sync-backup-restore-state.js')).getPendingBackupRestoreProfileIds())).toEqual([]);
+    await setSyntheticData(b.page, 'update-a'); await syncNow(b.page);
+    await waitForContext(a.page, UPDATED_CONTEXT); await waitForNotes(a.page, ['baseline-note', 'from-device-a']);
+    for (const device of devices) expect(device.errors).toEqual([]);
+  } finally {
+    for (const device of devices.reverse()) await device.context.close();
+  }
+});
+
+test('same-browser old-owner tab cannot acknowledge an in-flight identity handoff', async ({browser}) => {
+ test.setTimeout(120_000);
+ const a = await createDevice(browser, 'multi-tab handoff device A');
+ try {
+  await setSyntheticData(a.page, 'seed');
+  const previous = await enableNewIdentity(a.page);
+  const other = await a.context.newPage();
+  await other.goto(APP_URL);
+  await waitForOwner(other, previous.ownerId);
+  await a.page.evaluate(async () => {
+   const runtime = await import('/js/sync-runtime.js');
+   const actual = runtime.getSyncEvolu();
+   if (!actual) throw new Error('Missing real SDK');
+   let release!: () => void;
+   const gate = new Promise<void>(resolve => {release=resolve;});
+   const probe=window as unknown as {__handoffRelease:()=>void;__handoffStarted:boolean};
+   probe.__handoffRelease=release; probe.__handoffStarted=false;
+   const held=new Proxy(actual,{get(target,property,receiver){
+    if(property==='restoreAppOwner')return async (mnemonic:string,options?:{reload?:boolean})=>{probe.__handoffStarted=true;await gate;return target.restoreAppOwner(mnemonic,options);};
+    return Reflect.get(target,property,receiver);
+   }});
+   (await import('/js/sync-identity.js')).configureSyncIdentity({getEvolu:()=>held});
+  });
+  const rotating=a.page.evaluate(async () => (await import('/js/sync-diagnose-identity-actions.js')).confirmRotateIdentity());
+  await a.page.locator('#confirm-ok').click();await rotating;
+  await a.page.locator('#rotate-saved-check').check();await a.page.locator('#rotate-apply-btn').click();
+  await expect.poll(()=>a.page.evaluate(()=>(window as unknown as {__handoffStarted:boolean}).__handoffStarted)).toBe(true);
+  const queued=()=>other.evaluate(async()=>(await import('/js/sync-backup-restore-state.js')).getPendingBackupRestoreProfileIds());
+  expect(await queued()).toEqual(['default']);
+  expect((await other.evaluate(async()=>(await import('/js/sync-runtime.js')).getSyncAppOwner()))?.id).toBe(previous.ownerId);
+  await other.evaluate(async()=>(await import('/js/sync.js')).syncNow());
+  expect(await queued()).toEqual(['default']);
+  await other.close();
+  const reloaded=a.page.waitForEvent('load');await a.page.evaluate(()=>(window as unknown as {__handoffRelease:()=>void}).__handoffRelease());await reloaded;
+  await expect.poll(()=>a.page.evaluate(async old=>(await import('/js/sync-runtime.js')).getSyncAppOwner()?.id!==old,previous.ownerId)).toBe(true);
+  await waitForContext(a.page,BASELINE_CONTEXT);
+  await waitForNotes(a.page,['baseline-note']);
+  const peer=await createDevice(browser,'multi-tab fresh peer');
+  try{const identity=await waitForOwner(a.page);await joinIdentity(peer.page,identity.mnemonic,identity.ownerId);await waitForContext(peer.page,BASELINE_CONTEXT);await waitForNotes(peer.page,['baseline-note']);}finally{await peer.context.close();}
+ }finally{await a.context.close();}
 });

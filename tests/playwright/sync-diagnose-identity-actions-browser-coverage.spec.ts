@@ -174,7 +174,7 @@ test('sync diagnose identity actions cover rotate modal and apply paths', async 
       outcomes.restoreFalseOmitsQrWhenQrGenerationFails = failureOverlay?.querySelector<HTMLButtonElement>('svg') === null;
       outcomes.restoreFalseResetsApplyButton = failureApply?.disabled === false
         && failureApply?.textContent === 'Apply on this device';
-      outcomes.restoreFalseNotifies = notifications().includes('Restore returned false');
+      outcomes.restoreFalseNotifies = notifications().includes('Could not apply sync identity. Resolve the error above, then retry.');
     } finally {
       context.configureSyncDiagnoseActionContext({
         enableSync: async () => false,

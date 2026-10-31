@@ -167,7 +167,9 @@ export function createDashboardPageView(deps: unknown) {
     return {greeting, dateRange, onboarding, reminder, stickyControls, organizing, widgets, empty, footerControls};
   }
 
+  let onboardingGeneration = 0;
   function showDashboard(data?: unknown) {
+    const generation = ++onboardingGeneration;
     retireDashboardRenderRequests();
     const main = document.getElementById("main-content");
     if (!main) return;
@@ -233,11 +235,16 @@ export function createDashboardPageView(deps: unknown) {
       // welcome hero. Mobile keeps the welcome/import controls unobscured.
       const isDesktopChatOnboardingViewport = (getDashboardPageRuntimeValue('innerWidth') as number) > 768;
       if (!shouldAutoStartEmptyTour && state.chatHistory.length === 0) {
+        const profile = state.currentProfile;
+        const ownsReservation = () => generation === onboardingGeneration && state.currentProfile === profile
+          && main.isConnected && document.getElementById('main-content') === main;
+        const releaseReservation = () => { if (ownsReservation()) document.body.classList.remove('chat-autostart-reserved'); };
         if (isDesktopChatOnboardingViewport && !document.getElementById('chat-panel')?.classList.contains('open')) {
           document.body.classList.add('chat-autostart-reserved');
         }
         setTimeout(() => {
-          if (!isDesktopChatOnboardingViewport || (getDashboardPageRuntimeValue('innerWidth') as number) <= 768) return;
+          if (!ownsReservation()) return;
+          if (!isDesktopChatOnboardingViewport || (getDashboardPageRuntimeValue('innerWidth') as number) <= 768) { releaseReservation(); return; }
           // Rendering real data or an explicit chat close removes this
           // reservation. Treat that as cancellation so a stale onboarding
           // timer cannot reopen chat after the user has dismissed it.
@@ -247,8 +254,13 @@ export function createDashboardPageView(deps: unknown) {
             document.body.classList.remove('chat-autostart-reserved');
             return;
           }
-          if (dashboardPageRuntimeDeps.openChatPanel) (dashboardPageRuntimeDeps.openChatPanel as () => unknown)();
-          else document.body.classList.remove('chat-autostart-reserved');
+          // This optional background load may fail if the origin disappears
+          // before the worker controls its in-flight imports. Keep Welcome
+          // usable and never let an old request clear a newer reservation.
+          try {
+            const opened = (dashboardPageRuntimeDeps.openChatPanel as (() => unknown) | null)?.();
+            void Promise.resolve(opened).then(releaseReservation, releaseReservation);
+          } catch { releaseReservation(); }
         }, 800);
       }
       return;

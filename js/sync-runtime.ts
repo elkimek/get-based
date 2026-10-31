@@ -26,6 +26,7 @@ import {
   refreshChatWebSearchToggleRuntime,
   updateChatHeaderModelRuntime,
 } from './chat-runtime.js';
+import { setSyncPublishingSuspended } from './sync-settings-state.js';
 
 let _evolu: SyncRuntimeClient | null = null;
 let _profileQuery: unknown = null;
@@ -73,6 +74,7 @@ export function getSyncQueryLoadedPromise() { return _queryLoadedPromise; }
 export function isSyncEvoluReady() { return !!_evolu; }
 
 export function setSyncEvolu(evolu: unknown) {
+  if (_evolu !== evolu) setSyncPublishingSuspended(false);
   _evolu = evolu as SyncRuntimeClient | null;
 }
 

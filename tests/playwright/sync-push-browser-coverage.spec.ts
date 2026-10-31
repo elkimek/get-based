@@ -181,7 +181,14 @@ test('sync push covers browser commit guards cutover drift and watchdog paths', 
       const drifted = await syncPush.pushProfile(profileId, driftImported);
       const driftUpdates = fake.calls.update.slice(updatesBeforeDrift)
         .filter(call => call.table === 'profileData');
-      const driftPayload = JSON.parse((driftUpdates[0]?.args?.dataJson || '{}') as string) as unknown as {_v?:unknown;importedData?:{entries?:{id?:unknown}[]}|null};
+      const driftWire = driftUpdates[0]?.args?.dataJson;
+      if (typeof driftWire !== 'string') throw new Error('Expected a committed cutover-repair payload');
+      // Inspect the actual envelope with the platform decoder, independently
+      // of the app codec; clock metadata can make this fixture compressed.
+      const driftJSON = driftWire.startsWith('GZ|v1|')
+        ? await new Response(new Blob([Uint8Array.from(atob(driftWire.slice(6)), char => char.charCodeAt(0))]).stream().pipeThrough(new DecompressionStream('gzip'))).text()
+        : driftWire;
+      const driftPayload = JSON.parse(driftJSON) as {_v?:unknown;importedData?:{entries?:{id?:unknown}[]}|null};
       outcomes.cutoverDriftWarnsAndStillCommits =
         drifted?.ok === true
         && warnings.some(message => message.includes('Phase 2 cutover drift detected'))

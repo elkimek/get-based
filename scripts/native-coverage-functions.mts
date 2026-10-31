@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
+import path from 'node:path';
 import * as ts from 'typescript/unstable/ast';
 import {skipTrivia, createScanner} from 'typescript/unstable/ast/scanner';
 import {decode} from '@jridgewell/sourcemap-codec';
 import type {Profiler} from 'node:inspector';
-import {withParsedSource} from './native-typescript-ast.js';
+import {withParsedSources} from './native-typescript-ast.js';
 import type {NativeTransform} from './native-coverage-types.mjs';
 interface Token {start: number; end: number; kind: string; text: string;}
 interface FunctionFact {
@@ -31,9 +32,8 @@ function tail(node: ts.Node, ast: ts.SourceFile, source: string): Token {
   const ending: ts.Node[] = []; node.forEachChild(child => {if (child.end === end) ending.push(child);});
   supported(ending.length === 1, 'TAIL_UNSUPPORTED'); return tail(ending[0]!, ast, source);
 }
-function facts(source: string, file: string): FunctionFact[] {
-  return withParsedSource(source, file, (ast, project) => {
-    assert.equal(project.program.getSyntacticDiagnostics().length, 0, 'Malformed native source syntax'); const result: FunctionFact[] = [];
+function facts(source: string, ast: ts.SourceFile): FunctionFact[] {
+    const result: FunctionFact[] = [];
     function visit(node: ts.Node): void {
       if (ts.isFunctionLikeDeclaration(node) && node.body) {
         let body = node.body; while (ts.isParenthesizedExpression(body)) body = body.expression;
@@ -58,7 +58,6 @@ function facts(source: string, file: string): FunctionFact[] {
       node.forEachChild(visit);
     }
     visit(ast); return result;
-  });
 }
 const lineStarts = (source: string): number[] => {const out = [0]; for (let i = 0; i < source.length; i++) if (source[i] === '\n') out.push(i + 1); return out;};
 function position(source: string, lines: number[], line: number, column: number): number {
@@ -67,7 +66,31 @@ function position(source: string, lines: number[], line: number, column: number)
 }
 /** Exact scalar own-entry mapping. No byte-overlap, nearest point, name, or body-hash credit. */
 export function nativeFunctionMapper(transform: NativeTransform): (native: Profiler.FunctionCoverage) => {start: number; end: number; count: number} {
-  const {runtime, canonical, map, offset, code, file} = transform, canonicalFacts = facts(canonical, file), runtimeFacts = facts(runtime, file + '.runtime.js');
+  return nativeFunctionMappers([transform])[0]!;
+}
+/** Bounded syntax batching shares compiler setup, never execution counters. */
+export function nativeFunctionMappers(transforms: readonly NativeTransform[]): Array<(native: Profiler.FunctionCoverage) => {start: number; end: number; count: number}> {
+  assert(transforms.length > 0 && transforms.length <= 16, 'Native mapping batch must contain 1–16 transforms');
+  const sources = new Map<string, string>();
+  const names = transforms.map(({file, canonical, runtime}, index) => {
+    const extension = path.extname(file);
+    const canonicalName = `${file}.canonical-batch-${index}${extension}`, runtimeName = `${file}.runtime-batch-${index}.js`;
+    sources.set(canonicalName, canonical); sources.set(runtimeName, runtime);
+    return [canonicalName, runtimeName] as const;
+  });
+  // Only scalar token facts escape the bounded project. Every transform still
+  // owns its exact source-map, identity, ambiguity and native range checks.
+  const parsed = withParsedSources(sources, (files, project) => {
+    assert.equal(project.program.getSyntacticDiagnostics().length, 0, 'Malformed native source syntax');
+    return names.map(([canonicalName, runtimeName], index) => [facts(transforms[index]!.canonical, files.get(canonicalName)!), facts(transforms[index]!.runtime, files.get(runtimeName)!)] as const);
+  });
+  return transforms.map((transform, index) => createNativeFunctionMapper(transform, ...parsed[index]!));
+}
+function createNativeFunctionMapper(transform: NativeTransform, canonicalFacts: FunctionFact[], runtimeFacts: FunctionFact[]): (native: Profiler.FunctionCoverage) => {start: number; end: number; count: number} {
+  const {runtime, canonical, map, offset, code, file} = transform;
+  const runtimeIndex = new Map<string, FunctionFact[]>(), canonicalIndex = new Map<string, FunctionFact[]>();
+  for (const fact of runtimeFacts) { const key = `${fact.logicalStart}:${fact.end}`; const rows = runtimeIndex.get(key) ?? []; rows.push(fact); runtimeIndex.set(key, rows); }
+  for (const fact of canonicalFacts) { const key = `${fact.logicalStart}:${fact.bodyStart}`; const rows = canonicalIndex.get(key) ?? []; rows.push(fact); canonicalIndex.set(key, rows); }
   const forward = new Map<number, number[]>(), reverse = new Map<number, Set<number>>();
   if (map) {
     assert(map.version === 3 && map.sources.length === 1 && map.sources[0] === file && map.sourcesContent?.[0] === canonical, 'Source map does not bind canonical source');
@@ -93,9 +116,9 @@ export function nativeFunctionMapper(transform: NativeTransform): (native: Profi
   return native => {
     assert(native.ranges.length > 0, 'Missing native own entry'); const entry = native.ranges[0]!;
     for (const range of native.ranges) assert(Number.isSafeInteger(range.startOffset) && Number.isSafeInteger(range.endOffset) && Number.isSafeInteger(range.count) && range.count >= 0 && range.startOffset >= 0 && range.endOffset > range.startOffset && range.endOffset <= runtime.length, 'Malformed native own range');
-    const matches = runtimeFacts.filter(fn => fn.logicalStart === entry.startOffset && fn.end === entry.endOffset); supported(matches.length === 1, 'RUNTIME_IDENTITY'); const fn = matches[0]!;
+    const matches = runtimeIndex.get(`${entry.startOffset}:${entry.endOffset}`) ?? []; supported(matches.length === 1, 'RUNTIME_IDENTITY'); const fn = matches[0]!;
     supported(!fn.unsupported && fn.entry && fn.body && fn.tail, fn.unsupported ?? 'TOKEN_UNSUPPORTED');
-    const logical = anchor(fn.logicalStart), body = anchor(fn.bodyStart), candidates = canonicalFacts.filter(candidate => candidate.logicalStart === logical && candidate.bodyStart === body);
+    const logical = anchor(fn.logicalStart), body = anchor(fn.bodyStart), candidates = canonicalIndex.get(`${logical}:${body}`) ?? [];
     supported(candidates.length === 1, 'CANONICAL_IDENTITY'); const original = candidates[0]!;
     supported(!original.unsupported && original.entry && original.body && original.tail, original.unsupported ?? 'TOKEN_UNSUPPORTED');
     supported(fn.form === original.form && fn.async === original.async && fn.generator === original.generator, 'FUNCTION_SYNTAX');

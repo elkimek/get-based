@@ -21,12 +21,13 @@ import { configureSyncDiagnostics } from './sync-diagnostics-context.js';
 import { bindSyncUIStatusUpdates, configureSyncUI, initSyncUIDelegates } from './sync-ui.js';
 import { configureSyncDiagnoseUI, showSyncDiagnose } from './sync-diagnose-ui.js';
 import {
-  configureSyncActions, forceResendCurrentProfile, pushAllProfiles,
+  configureSyncActions, forceResendCurrentProfile,
   pushDirtyProfiles, pushProfilesById, syncNow,
 } from './sync-actions.js';
 import { bindSyncSaveHookEvents, configureSyncSaveHooks } from './sync-save-hooks.js';
 import { configureSyncPush, isSyncPushInFlight, pushProfile } from './sync-push.js';
 import { configureSyncPayload } from './sync-payload.js';
+import { stageBackupRestorePending } from './sync-backup-restore-state.js';
 import { configureSyncRecovery } from './sync-recovery.js';
 import { configureSyncInit } from './sync-init.js';
 import { isSyncRebroadcastSettling } from './sync-pull-rebroadcast.js';
@@ -134,7 +135,7 @@ export function configureSyncModules({ enableSync }: {
     getAppOwner: getSyncAppOwner,
     getAppOwnerError: getSyncAppOwnerError,
     getEvolu: getSyncEvolu,
-    seedLocalProfiles: () => pushAllProfiles({ force: true }),
+    seedLocalProfiles: async options => stageBackupRestorePending(getProfiles().map(profile => profile.id), options),
   });
 
   configureSyncDiagnostics({
