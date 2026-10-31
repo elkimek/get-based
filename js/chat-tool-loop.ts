@@ -1,3 +1,4 @@
+import { claimsPreparedChatProposal, CHAT_PROPOSAL_REPAIR, CHAT_PROPOSAL_MISSING } from '../shared/chat-tool-instructions.js';
 // Bounded provider-neutral orchestration. Tools can read or prepare drafts, never Apply.
 import { normalizeAIToolCalls, AIToolsUnsupportedError } from '../shared/ai-tool-protocol.js';
 import type { AIToolCall, AIChatMessage, AIFunctionTool } from '../shared/ai-tool-protocol.js';
@@ -16,6 +17,8 @@ interface ToolLoopOptions extends OpenAICompatibleOptions {
   execute(call: { tool: string; arguments: string }): Promise<unknown>;
   isCurrent(): boolean;
   protocol?: 'native' | 'structured';
+  hasPreparedReview?: () => boolean;
+  canRepair?: () => boolean;
 }
 export const STRUCTURED_CHAT_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['reply', 'calls'], properties: {
@@ -44,10 +47,10 @@ function parseStructuredCompletion(text: string) {
 }
 
 export async function runChatToolLoop(options: ToolLoopOptions) {
-  const { complete, execute, isCurrent, tools, system, messages: input, protocol: initialProtocol = 'native', onStream, ...request } = options;
+  const { complete, execute, isCurrent, tools, system, messages: input, protocol: initialProtocol = 'native', onStream, hasPreparedReview, canRepair, ...request } = options;
   const messages = structuredClone(input), seen = new Set<string>(), toolCalls: AgentToolReceipt[] = [];
   const usage = { inputTokens: 0, outputTokens: 0 };
-  let protocol = initialProtocol, responseChars = 0, answerPrefix = '', continuations = 0;
+  let protocol = initialProtocol, responseChars = 0, answerPrefix = '', continuations = 0, repairedClaim = false;
   const deadline = AbortSignal.timeout(600000);
   const signal = options.signal ? AbortSignal.any([options.signal, deadline]) : deadline;
   const check = () => {
@@ -85,7 +88,15 @@ export async function runChatToolLoop(options: ToolLoopOptions) {
     const envelope = structured ? parseStructuredCompletion(result.text) : null;
     const calls = envelope?.calls || normalizeAIToolCalls(result.toolCalls);
     if (!calls.length) {
-      const text = answerPrefix + (envelope?.reply ?? result.text);
+      let text = answerPrefix + (envelope?.reply ?? result.text);
+      if (hasPreparedReview && !hasPreparedReview() && claimsPreparedChatProposal(text)) {
+        if (tools.length && canRepair?.() !== false && !repairedClaim && round < 9) {
+          repairedClaim = true; answerPrefix = '';
+          messages.push({ role: 'assistant', content: result.text }, { role: 'system', content: CHAT_PROPOSAL_REPAIR });
+          continue;
+        }
+        text = CHAT_PROPOSAL_MISSING;
+      }
       if (!text.trim()) throw new Error('The model returned no final chat answer.');
       if (!structured && shouldAutoContinueResponse({ truncated: result.truncated, finishReason: result.finishReason }, text) && continuations < 2) {
         continuations++;

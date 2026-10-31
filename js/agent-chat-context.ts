@@ -59,7 +59,7 @@ export function buildAgentChatInstructions(instructions: string, labContext: str
   const context = String(labContext || '').trim();
   const routeNote = !controls ? CHAT_CONTROLS_OFF_INSTRUCTIONS : isPersonalAgentTarget(target)
     ? 'The local getbased tool bridge is not attached to this personal gateway. Use this snapshot and say when more exact getbased data is needed.'
-    : 'Use the bounded getbased tools when the question needs exact detail, longer history, navigation, or a reviewable data-change draft. When the user clearly shares new or changed personal context, read the relevant context card and proactively draft an accurate update for their review, even without an explicit save request. This includes Health Goals, personal and family Medical History, Light & Circadian, and menstrual-cycle observations. A wish to improve something is a goal, not evidence of a symptom. A relative’s condition is family history, not the user’s diagnosis; age at death is not age at onset. For a period start, record only the actual start date; leave unreported end date and flow unknown. Use the local date from the card read for today. Ask for clarification before mapping vague, ambiguous, or temporary statements to lasting context. A proposal is saved only after the user applies it in getbased.';
+    : 'Use the bounded getbased tools when the question needs exact detail, longer history, navigation, or a reviewable data-change draft. The shared tool instructions below govern reported context and review.';
   return `${String(instructions || '').trim()}
 
 ## Current User Health and Lab Context

@@ -135,6 +135,7 @@ export function createAppControlSession(userMessage: string, isCurrent: () => bo
         return { controlId: record.id, status: 'pending_user_approval', before: baseline, proposed: patch, saved: false };
       },
     },
+    hasPreparedReview: () => current() && records.length > 0,
     finish() { if (!authorization.current()) { closed = true; records.length = 0; return []; } assertCurrent(); closed = true; finished = true; return structuredClone(records); },
     admitDeferredAfterSavedReply() { if (!finished || !ownsOrigin()) throw new Error('The originating reply cannot admit deferred actions.'); },
     cancel(_options: { preserveDeferred?: boolean } = {}) { closed = true; records.length = 0; snapshots.clear(); overlaySnapshots.clear(); assistantSnapshots.clear(); connectionSnapshots.clear(); profileSnapshots.clear(); },

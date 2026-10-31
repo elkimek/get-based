@@ -109,3 +109,52 @@ it('uses explicit plain chat with enabled baseline context and denies forged cal
   expect(JSON.parse(turn.applicationContext!)).toEqual({ enabledContext: options.labContext, proposalReviewStatus: [] });
   expect(await turn.toolRuntime!.execute({ tool: 'getbased_lab_context', arguments: '{}' })).toMatchObject({ success: false });
 });
+
+it('bounds repeated phantom CLI claims to one corrective turn and reports no change', async () => {
+  mocks.stream.mockResolvedValue({ text: "I've prepared a draft for your getbased card. Apply it.", threadId: 'signed-session', toolCalls: [], webSearches: [], usage: { inputTokens: 5, outputTokens: 2 } });
+  const result = await callCodexAgent(options);
+  expect(result.text).toContain('No proposal card was created'); expect(result.drafts).toEqual([]);
+  expect(result.usage).toEqual({ inputTokens: 10, outputTokens: 4 }); expect(mocks.stream).toHaveBeenCalledTimes(2);
+  const repair = mocks.stream.mock.calls[1]![0]; expect(repair.threadId).toBe('signed-session'); expect(repair.prompt).toContain('Application verification');
+  expect(repair.toolRuntime).toBe(mocks.stream.mock.calls[0]![0].toolRuntime); expect(mocks.connect).toHaveBeenCalledOnce();
+});
+it('does not start a corrective CLI turn while chat controls are disabled', async () => {
+  await setChatControlsEnabled(false); mocks.stream.mockResolvedValue({ text: "I've prepared a draft for your getbased card. Apply it." });
+  const result = await callCodexAgent(options); expect(result.text).toContain('No proposal card was created'); expect(result.drafts).toEqual([]);
+  expect(mocks.stream).toHaveBeenCalledOnce();
+});
+it('does not repeat a potentially billable corrective turn after a provider error', async () => {
+  mocks.stream.mockResolvedValueOnce({ text: "I've prepared a draft for your getbased card. Apply it.", threadId: 'signed-session' }).mockRejectedValueOnce(new Error('Network error'));
+  await expect(callCodexAgent(options)).rejects.toThrow('Network error'); expect(mocks.stream).toHaveBeenCalledTimes(2);
+});
+
+import { createAppControlSession } from '../js/app-control-session.js';
+it('accepts a real app-review receipt created during corrective CLI tool calls without saving settings', async () => {
+  const prompt = 'Use US units from now on.';
+  const session = createAppControlSession(prompt, () => true, new AbortController().signal);
+  mocks.stream.mockResolvedValueOnce({ text: "I've prepared a draft for your getbased card. Apply it.", threadId: 'signed-session', toolCalls: [], webSearches: [] });
+  mocks.stream.mockImplementationOnce(async turn => {
+    const read = await turn.toolRuntime!.execute({ tool: 'getbased_read_app', arguments: '{"action":"display.preferences"}' }) as { success: boolean; contentItems: { text: string }[] };
+    expect(read.success).toBe(true); const snapshot = JSON.parse(read.contentItems[0]!.text);
+    const draft = await turn.toolRuntime!.execute({ tool: 'getbased_request_app', arguments: JSON.stringify({ action: 'display.preferences', snapshotId: snapshot.snapshotId, parameters: '{"unitSystem":"US"}', reason: 'Explicit request.', evidence: prompt }) }) as { success: boolean };
+    expect(draft.success).toBe(true);
+    return { text: "I've prepared a proposal for getbased. Apply it when ready.", threadId: 'signed-session', toolCalls: [], webSearches: [] };
+  });
+  const before = localStorage.getItem('labcharts-profile-a-unitSystem');
+  const result = await callCodexAgent({ ...options, prompt, appControlSession: session });
+  expect(result.text).toContain("I've prepared"); expect(mocks.stream).toHaveBeenCalledTimes(2);
+  expect(session.finish()).toEqual([expect.objectContaining({ action: 'display.preferences', status: 'pending' })]);
+  expect(localStorage.getItem('labcharts-profile-a-unitSystem')).toBe(before);
+});
+
+it('does not spend another CLI turn when the existing tool budget is already exhausted', async () => {
+  mocks.stream.mockImplementationOnce(async turn => {
+    for (let count = 0; count < 32; count++) expect(await turn.toolRuntime!.execute({ tool: 'getbased_lab_context', arguments: '{}' })).toMatchObject({ success: true });
+    return { text: "I've prepared a draft for your getbased card.", toolCalls: [], webSearches: [] };
+  });
+  const result = await callCodexAgent(options); expect(result.text).toContain('No proposal card was created'); expect(mocks.stream).toHaveBeenCalledOnce();
+});
+it('does not repair a CLI claim after the user disables controls during the response', async () => {
+  mocks.stream.mockImplementationOnce(async () => { await setChatControlsEnabled(false); return { text: "I've prepared a draft for your getbased card." }; });
+  const result = await callCodexAgent(options); expect(result.text).toContain('No proposal card was created'); expect(mocks.stream).toHaveBeenCalledOnce();
+});

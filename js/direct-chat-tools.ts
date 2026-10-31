@@ -49,6 +49,8 @@ export async function callDirectChatWithTools(options: DirectChatToolOptions) {
     system: `${String(options.system || '')}\n\n${authorization.current() ? CHAT_TOOL_INSTRUCTIONS + buildAgentDraftReviewContext(history, canDiscloseAgentDraftReview) : CHAT_CONTROLS_OFF_INSTRUCTIONS}`,
     // Venice's encrypted route carries actions inside encrypted message content.
     protocol: provider === 'venice' && (getVeniceE2EE() || isE2EEModel(model)) ? 'structured' : 'native',
+    canRepair: authorization.current,
+    hasPreparedReview: () => authorization.current() && (runtime.getDrafts().length > 0 || appControlSession?.hasPreparedReview() === true),
     isCurrent: current, execute: call => runtime.execute(call),
     complete: async round => {
       const response: unknown = await callClaudeAPI({ ...round, requestCurrent: current, modelOverride: model }, provider);

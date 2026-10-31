@@ -82,3 +82,60 @@ it('continues a truncated prose answer with the complete tool transcript and acc
   ]) });
   expect(onStream).toHaveBeenLastCalledWith('First part, completed.');
 });
+
+
+it('repairs a claimed Environment draft that has no actual review card', async () => {
+  const options = setup(); let prepared = false;
+  options.complete.mockResolvedValueOnce({ text: "I've prepared a draft update to your Environment & Exposures card; check the proposal in getbased and Apply." })
+    .mockResolvedValueOnce({ text: '', toolCalls: [call('actual-read')] })
+    .mockResolvedValueOnce({ text: 'No proposal could be created.' });
+  options.execute.mockImplementation(async () => { prepared = false; return { success: true, contentItems: [{ type: 'inputText', text: 'Read only. No draft.' }] }; });
+  const result = await runChatToolLoop({ ...options, hasPreparedReview: () => prepared });
+  expect(result.text).toBe('No proposal could be created.');
+  expect(options.complete).toHaveBeenCalledTimes(3);
+  expect(options.execute).toHaveBeenCalledExactlyOnceWith({ tool: 'getbased_read_context_card', arguments: '{}' });
+});
+
+import { claimsPreparedChatProposal, CHAT_PROPOSAL_MISSING, CHAT_PROPOSAL_REPAIR } from '../shared/chat-tool-instructions.js';
+it.each([
+  "I've prepared a draft update to your Environment card; Apply in getbased.",
+  "I have created a proposal for your health card.",
+  "Your proposal card is ready to Apply.",
+])('replaces a repeated unbacked claim with an honest no-change result: %s', async text => {
+  const options = setup(); options.complete.mockResolvedValue({ text, usage: { inputTokens: 4, outputTokens: 2 } });
+  const result = await runChatToolLoop({ ...options, hasPreparedReview: () => false });
+  expect(result.text).toBe(CHAT_PROPOSAL_MISSING); expect(result.usage).toEqual({ inputTokens: 8, outputTokens: 4 });
+  expect(options.complete).toHaveBeenCalledTimes(2); expect(options.execute).not.toHaveBeenCalled();
+  expect(options.complete.mock.calls[1]![0]).toMatchObject({ messages: expect.arrayContaining([{ role: 'system', content: CHAT_PROPOSAL_REPAIR }]) });
+});
+it.each([
+  'I can prepare a draft for your card if you want.',
+  "I haven't prepared a proposal card.",
+  'No proposal card was created.',
+  'The example says I prepared a draft for the card.',
+  'Translation: "I have prepared a draft for your getbased card."',
+  '> I have prepared a draft for your getbased card.',
+  '```text\nI have prepared a draft for your getbased card.\n```',
+  'I have prepared a draft email for you.',
+])('does not interrupt ordinary writing, quotations or honest limitations: %s', async text => {
+  expect(claimsPreparedChatProposal(text)).toBe(false);
+  const options = setup(); options.complete.mockResolvedValue({ text });
+  expect((await runChatToolLoop({ ...options, hasPreparedReview: () => false })).text).toBe(text);
+  expect(options.complete).toHaveBeenCalledOnce(); expect(options.execute).not.toHaveBeenCalled();
+});
+it('never repairs through unavailable tools when controls are off', async () => {
+  const options = setup(); options.complete.mockResolvedValue({ text: 'I have prepared a draft for your getbased card.' });
+  expect((await runChatToolLoop({ ...options, tools: [], hasPreparedReview: () => false })).text).toBe(CHAT_PROPOSAL_MISSING);
+  expect(options.complete).toHaveBeenCalledOnce(); expect(options.execute).not.toHaveBeenCalled();
+});
+it('accepts a receipt-backed acknowledgment without another provider call', async () => {
+  const options = setup(); options.complete.mockResolvedValue({ text: 'I have prepared a draft for your getbased card.' });
+  expect((await runChatToolLoop({ ...options, hasPreparedReview: () => true })).text).toContain('prepared');
+  expect(options.complete).toHaveBeenCalledOnce();
+});
+
+it('does not start a corrective request after the captured tool permission is revoked', async () => {
+  const options = setup(); options.complete.mockResolvedValue({ text: "I've prepared a draft for your getbased card." });
+  const result = await runChatToolLoop({ ...options, hasPreparedReview: () => false, canRepair: () => false });
+  expect(result.text).toBe(CHAT_PROPOSAL_MISSING); expect(options.complete).toHaveBeenCalledOnce(); expect(options.execute).not.toHaveBeenCalled();
+});

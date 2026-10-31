@@ -63,3 +63,65 @@ for (const dirty of [false, true]) test(`chat preserves an open ${dirty ? 'dirty
   else { await expect(note).toBeFocused(); await expect(note).toHaveValue('Keep this note'); const draft = await page.evaluate(async () => (await import('/js/context-lifestyle-form-view.js')).hasLifestyleFormDraft('environment')); expect(draft).toBe(false); await note.fill('Native save after chat'); }
   await page.locator('#detail-modal').getByRole('button', { name: 'Save', exact: true }).click(); await expect(page.locator('#modal-overlay')).not.toHaveClass(/show/); const saved = await stored(page); expect(saved.environment.note).toBe(dirty ? 'Uncommitted native note' : 'Native save after chat'); expect(saved.environment.emfMitigation).toEqual(dirty ? ['minimal Bluetooth'] : ['WiFi off at night', 'minimal Bluetooth']); expect(errors).toEqual([]);
 });
+
+
+for (const protocol of ['native', 'structured'] as const) for (const decision of ['apply', 'discard'] as const) test(`Venice ${protocol} repairs an unbacked relocation claim with a real ${decision} review`, async ({ page, context }) => {
+  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+  await context.route('https://**/*', route => route.abort());
+  await routeJavaScript(page, '**/js/cloud-ai-consent.js', `export * from '/js/cloud-ai-consent.js?relocation-original'; export async function requestAIProcessingApproval(){return true;} export async function requireAIProcessingApproval(){}`);
+  const evidence = 'I just moved from Sweden to El Salvador.';
+  let round = 0, repaired = false;
+  await page.route('https://api.venice.ai/api/v1/chat/completions', async route => {
+    const body = route.request().postDataJSON();
+    if (protocol === 'structured' && body.tools) { await route.fulfill({ status: 400, contentType: 'application/json', body: '{"error":{"message":"tools not supported"}}' }); return; }
+    const isChat = body.tools || body.response_format || body.messages.some((message: { content?: unknown }) => String(message.content).includes('You are the AI assistant inside getbased'));
+    if (!isChat) { await route.fulfill({ contentType: 'application/json', body: '{"choices":[{"message":{"content":"No additional insight."},"finish_reason":"stop"}]}' }); return; }
+    let call: AIToolCall | undefined;
+    if (round === 1) { repaired = body.messages.some((message: { role: string; content: string }) => message.role === 'system' && message.content.includes('Application verification')); call = { id: 'read-relocation', type: 'function', function: { name: 'getbased_read_context_card', arguments: '{"card":"environment"}' } }; }
+    if (round === 2) {
+      const last = body.messages.at(-1), output = protocol === 'native' ? JSON.parse(last.content) : JSON.parse(last.content.slice(last.content.indexOf('{"id":'))).output;
+      expect(output.success).toBe(true); const snapshot = JSON.parse(output.contentItems[0].text);
+      call = { id: 'draft-relocation', type: 'function', function: { name: 'getbased_draft_context', arguments: JSON.stringify({ card: 'environment', snapshotId: snapshot.snapshotId, changes: [{ field: 'note', value: 'Keep this note\nReported move from Sweden to El Salvador.' }], reason: 'Explicit relocation report.', evidence }) } };
+    }
+    const reply = round === 0 ? "What a change. I've prepared a draft update to your Environment & Exposures card; check the proposal in getbased and Apply." : 'Please review the relocation proposal below.';
+    round++;
+    if (protocol === 'structured') await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: JSON.stringify({ reply: call ? '' : reply, calls: call ? [{ id: call.id, name: call.function.name, arguments: call.function.arguments }] : [] }) }, finish_reason: 'stop' }] }) });
+    else await route.fulfill({ contentType: 'text/event-stream', body: 'data: ' + JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: reply }, finish_reason: call ? 'tool_calls' : 'stop' }] }) + '\n\ndata: [DONE]\n\n' });
+  });
+  await seed(page, 'venice'); const before = await stored(page);
+  await page.locator('#chat-input').fill(evidence); await page.locator('#chat-send-btn').click();
+  const proposal = page.locator('.chat-agent-draft-pending'); await expect(proposal).toHaveCount(1);
+  await expect(page.locator('#chat-messages')).toContainText('Please review the relocation proposal below.');
+  await expect(page.locator('#chat-messages')).not.toContainText('What a change.');
+  expect(repaired).toBe(true); expect(round).toBe(4); expect(await stored(page)).toEqual(before);
+  await expect(proposal).toContainText('Environment & Exposures'); await expect(proposal).toContainText('Sweden to El Salvador');
+  await proposal.locator(`[data-chat-message-action="${decision}-agent-draft"]`).click();
+  await expect(page.locator('.chat-agent-draft-' + (decision === 'apply' ? 'applied' : 'discarded'))).toHaveCount(1);
+  const after = await stored(page);
+  if (decision === 'discard') expect(after).toEqual(before);
+  else {
+    expect(after.environment).toEqual({ ...before.environment, note: 'Keep this note\nReported move from Sweden to El Salvador.' });
+    const retained = (data: Record<string, unknown>) => Object.fromEntries(Object.entries(data).filter(([key]) => !['environment', 'changeHistory'].includes(key)));
+    expect(retained(after)).toEqual(retained(before));
+  }
+  await page.reload(); await page.locator('html[data-app-ready]').waitFor(); expect(await stored(page)).toEqual(after); expect(errors).toEqual([]);
+});
+
+test('Venice cannot display or persist repeated phantom review claims without a card', async ({ page, context }) => {
+  await context.route('https://**/*', route => route.abort());
+  await routeJavaScript(page, '**/js/cloud-ai-consent.js', `export * from '/js/cloud-ai-consent.js?missing-card-original'; export async function requestAIProcessingApproval(){return true;} export async function requireAIProcessingApproval(){}`);
+  let requests = 0;
+  await page.route('https://api.venice.ai/api/v1/chat/completions', async route => {
+    requests++;
+    await route.fulfill({ contentType: 'text/event-stream', body: 'data: ' + JSON.stringify({ choices: [{ delta: { content: "I've prepared a draft update for your Environment card in getbased. Apply it." }, finish_reason: 'stop' }] }) + '\n\ndata: [DONE]\n\n' });
+  });
+  await seed(page, 'venice'); const before = await stored(page);
+  await page.locator('#chat-input').fill('I just moved from Sweden to El Salvador.'); await page.locator('#chat-send-btn').click();
+  await expect(page.locator('#chat-messages')).toContainText('No proposal card was created for this reply.');
+  await expect(page.locator('#chat-messages')).not.toContainText("I've prepared"); await expect(page.locator('.chat-agent-draft')).toHaveCount(0);
+  expect(requests).toBe(2); expect(await stored(page)).toEqual(before);
+  await page.reload(); await page.locator('html[data-app-ready]').waitFor();
+  await page.evaluate(async () => (await import('/js/chat-loader.js')).openChatPanel());
+  await expect(page.locator('#chat-messages')).toContainText('No proposal card was created for this reply.');
+  await expect(page.locator('#chat-messages')).not.toContainText("I've prepared"); expect(await stored(page)).toEqual(before);
+});

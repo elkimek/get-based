@@ -1,3 +1,4 @@
+import { claimsPreparedChatProposal, CHAT_PROPOSAL_REPAIR, CHAT_PROPOSAL_MISSING } from '../shared/chat-tool-instructions.js';
 import { captureChatControlAuthorization } from './chat-control-settings.js';
 import { createAgentToolRuntime, getCodexDynamicTools, AGENT_TOOL_CONTRACT_VERSION } from './agent-tool-runtime.js';
 import { streamAgentTurn, uploadAgentImage } from './agent-chat-client.js';
@@ -65,15 +66,16 @@ export async function callCodexAgent(options: AgentChatOptions) {
     });
   }));
   const imageUploadIds = await uploadImages();
-  const toolRuntime = { execute: async (call: Parameters<typeof runtime.execute>[0]) => { assertCurrent(); const result = await runtime.execute(call); assertCurrent(); return result; } };
-  const run = (threadId: string | undefined) => { assertCurrent(); return streamAgentTurn({
+  let toolCount = 0;
+  const toolRuntime = { execute: async (call: Parameters<typeof runtime.execute>[0]) => { assertCurrent(); if (++toolCount > 32) throw new Error('This chat exceeded its tool-call limit.'); const result = await runtime.execute(call); assertCurrent(); return result; } };
+  const run = (threadId: string | undefined, repair = false) => { assertCurrent(); return streamAgentTurn({
     endpoint,
     token,
     agent,
     target,
     model,
     effort,
-    prompt: options.prompt,
+    prompt: repair ? CHAT_PROPOSAL_REPAIR : options.prompt,
     instructions: buildAgentChatInstructions(options.instructions, local ? '' : options.labContext, target, local, authorization.current()),
     applicationContext,
     threadId,
@@ -86,14 +88,24 @@ export async function callCodexAgent(options: AgentChatOptions) {
     onStream: options.onStream,
   }); };
   const withDrafts = (result: Awaited<ReturnType<typeof streamAgentTurn>>) => { assertCurrent(); return { ...result, drafts: runtime.getDrafts().map(draft => ({ ...draft, profileId: options.profileId || '' })) }; };
-  try {
-    const result = await run(options.threadId);
-    return withDrafts(result);
-  } catch (error) {
+  let result: Awaited<ReturnType<typeof streamAgentTurn>>;
+  try { result = await run(options.threadId); }
+  catch (error) {
     if (!options.threadId || !(error instanceof Error)
       || (!error.message.includes('invalid thread session') && !error.message.includes('thread agent mismatch')
         && !error.message.includes('thread target mismatch'))) throw error;
-    const result = await run(undefined);
-    return withDrafts(result);
+    result = await run(undefined);
   }
+  const hasReview = () => authorization.current() && (runtime.getDrafts().length > 0 || options.appControlSession?.hasPreparedReview() === true);
+  assertCurrent();
+  if (!hasReview() && claimsPreparedChatProposal(result.text)) {
+    if (local && authorization.current() && toolCount < 32) {
+      const repaired = await run(result.threadId, true); assertCurrent();
+      result = { ...repaired, toolCalls: [...result.toolCalls, ...repaired.toolCalls], webSearches: [...result.webSearches, ...repaired.webSearches],
+        usage: { inputTokens: (result.usage?.inputTokens || 0) + (repaired.usage?.inputTokens || 0), outputTokens: (result.usage?.outputTokens || 0) + (repaired.usage?.outputTokens || 0) } };
+    }
+    if (!hasReview() && claimsPreparedChatProposal(result.text)) result = { ...result, text: CHAT_PROPOSAL_MISSING };
+    options.onStream?.(result.text);
+  }
+  return withDrafts(result);
 }

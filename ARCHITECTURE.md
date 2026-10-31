@@ -466,7 +466,12 @@ explicit unknown end-date/flow states; summaries exclude unknown durations and
 flow rather than converting a start to a completed one-day period. Browser
 bindings issue per-turn card snapshots; proposals
 contain only named field changes, the observed baseline, supporting user words,
-and a reason. The model cannot apply them. Existing chat proposal controls own
+and a reason. The model cannot apply them. Prepared-review claims are checked against actual
+turn-local drafts or app-control records. An unbacked affirmative claim gets at
+most one corrective attempt on the same provider and permission lease, within
+the existing tool bounds; repeated claims become an explicit no-proposal result.
+Quoted writing tasks and ordinary conversation do not initiate this repair.
+Existing chat proposal controls own
 Apply/Discard and durable duplicate-apply claims. `agent-drafts.ts` revalidates
 field choices and the captured profile, then commits through the existing locked
 context-field expectation and records context history. Stale cards fail without
