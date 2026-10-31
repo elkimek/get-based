@@ -1,4 +1,5 @@
 // export-loader.js - cold-safe lazy facade for export, import, demo, and report actions
+import type { JSONImportOptions } from '../types/export-import.js';
 
 import { createRetryingModuleLoader, invokeCachedModule } from './retrying-module-loader.js';
 import { showNotification } from './utils.js';
@@ -12,7 +13,7 @@ interface ExportFacadeActions {
   closeReportBuilder(): unknown;
   exportAllDataJSON(): unknown;
   exportClientJSON(profileId: string, includeChat?: boolean): unknown;
-  importDataJSON(file: File): unknown;
+  importDataJSON(file: File, options?: JSONImportOptions): unknown;
   loadDemoData(sex?: string): unknown;
   openReportBuilder(presetId?: string): unknown;
 }
@@ -95,8 +96,8 @@ export function exportClientJSON(profileId: string, includeChat = false) {
   return runExportFacadeAction('exportClientJSON', [profileId, includeChat]);
 }
 
-export function importDataJSON(file: File) {
-  return runExportFacadeAction('importDataJSON', [file]);
+export function importDataJSON(file: File, options?: JSONImportOptions) {
+  return runExportFacadeAction('importDataJSON', options ? [file, options] : [file]);
 }
 
 export function loadDemoData(sex = 'male') {

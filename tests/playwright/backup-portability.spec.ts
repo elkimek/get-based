@@ -162,6 +162,7 @@ test('Export All Clients download restores through Settings in a fresh window wi
     }
     await profile.loadProfile(first);
     await (await import('/js/crypto.js')).encryptedSetCredentialItem('labcharts-openrouter-key', 'synthetic-source-credential');
+    localStorage.setItem('labcharts-routstr-node', 'https://source-node.example/v1');
   });
   await openBackup(page);
   await expect(page.locator('#data-entries-section')).toContainText('Client exports exclude app settings and API keys');
@@ -169,9 +170,10 @@ test('Export All Clients download restores through Settings in a fresh window wi
   await page.locator('[data-settings-action="export-all-clients"]').click();
   const download = await downloading;
   const bytes = await fs.readFile((await download.path())!);
-  const bundle = JSON.parse(bytes.toString()) as { version: number; type: string; profiles: Array<{ name: string; data: { entries: Array<{ date: string; markers: Record<string, number> }>; notes: Array<{ date: string; text: string }>; contextNotes: string } }> };
+  const bundle = JSON.parse(bytes.toString()) as { version: number; type: string; wallet: { nodeUrl: string }; profiles: Array<{ name: string; data: { entries: Array<{ date: string; markers: Record<string, number> }>; notes: Array<{ date: string; text: string }>; contextNotes: string } }> };
   expect(bundle).toMatchObject({ version: 2, type: 'database' });
   expect(bundle.profiles.map(profile => profile.name)).toEqual(['Exported first client', 'Exported second client']);
+  expect(bundle.wallet.nodeUrl).toBe('https://source-node.example/v1');
   expect(bytes.toString()).not.toContain('synthetic-source-credential');
   const fresh = await browser.newContext({ serviceWorkers: 'block' });
   try {
@@ -187,6 +189,7 @@ test('Export All Clients download restores through Settings in a fresh window wi
       if (!await saveImportedDataForProfile(id, data, { forceProfileScope: true })) throw new Error('Destination fixture save failed');
       await profile.loadProfile(id);
       await crypto.encryptedSetCredentialItem('labcharts-openrouter-key', 'synthetic-destination-credential');
+      localStorage.setItem('labcharts-routstr-node', 'https://destination-node.example/v1');
       return { id, profiles: await crypto.encryptedGetItem('labcharts-profiles'), data: await crypto.encryptedGetItem(profile.profileStorageKey(id, 'imported')), credential: localStorage.getItem('labcharts-openrouter-key') };
     });
     await openBackup(target);
@@ -214,6 +217,7 @@ test('Export All Clients download restores through Settings in a fresh window wi
         clients: await Promise.all(profile.getProfiles().map(async client => ({ id: client.id, name: client.name, data: JSON.parse((await crypto.encryptedGetItem(profile.profileStorageKey(client.id, 'imported')))! ) }))),
         credential: localStorage.getItem('labcharts-openrouter-key'),
         readableCredential: await crypto.encryptedGetItem('labcharts-openrouter-key'),
+        node: localStorage.getItem('labcharts-routstr-node'),
         encrypted: localStorage.getItem('labcharts-encryption-enabled'), salt: localStorage.getItem('labcharts-encryption-salt'),
       };
     });
@@ -231,6 +235,7 @@ test('Export All Clients download restores through Settings in a fresh window wi
     expect(merged.data.notes).toContainEqual(expect.objectContaining({ date: '2025-12-01', text: 'Keep destination note' }));
     expect(restored.credential).toBe(before.credential);
     expect(restored.readableCredential).toBe('synthetic-destination-credential');
+    expect(restored.node).toBe('https://destination-node.example/v1');
     expect(restored.encrypted).toBeNull(); expect(restored.salt).toBeNull();
   } finally { await fresh.close(); }
 });

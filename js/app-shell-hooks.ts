@@ -202,7 +202,7 @@ configureApiProviderStorageRuntimeDeps({ encryptedSetItem: encryptedSetCredentia
 configureBackupRuntimeDeps({
   importClientBundle: async serialized => {
     closeSettingsModal();
-    return importDataJSON(new File([serialized], 'exported-clients.json', { type: 'application/json' }));
+    return importDataJSON(new File([serialized], 'exported-clients.json', { type: 'application/json' }), { preserveGlobalSettings: true });
   },
 });
 configureStartupOAuthCallbackDeps({ showInsufficientBalanceDialog });
