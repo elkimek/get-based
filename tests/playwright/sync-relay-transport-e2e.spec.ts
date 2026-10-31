@@ -788,7 +788,7 @@ test('identity rotation with partial backup recovery stops repeat uploads and la
     await expect.poll(pending, {timeout: 10_000}).toEqual([ids.unavailable]);
     const before = await waitForStableRelayStorage(a.page);
     await a.page.waitForTimeout(2000);
-    const after = await relayStorage(a.page);
+    const after = await waitForStableRelayStorage(a.page);
     expect(after?.messageCount).toBe(before?.messageCount);
     expect(after?.storedBytes).toBe(before?.storedBytes);
     expect((await profileIds(a.page)).sort()).toEqual(['default', ids.demo, ids.unavailable].sort());
