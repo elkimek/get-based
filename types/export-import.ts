@@ -1,4 +1,5 @@
 // Private consumed restore operations; these views do not validate JSON or widen canonical models.
+export interface JSONImportOptions { preserveGlobalSettings?: boolean }
 export interface ImportRowOperations extends Record<string, unknown> {
   date?: unknown; id?: unknown; name?: unknown; startDate?: unknown; text?: unknown;
   field?: unknown; severity?: unknown; threadId?: unknown; importedAt?: unknown;
