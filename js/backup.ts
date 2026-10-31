@@ -21,6 +21,7 @@ export interface BackupRuntimeDeps {
   encryptedSetItem(key: string, value: string): Promise<void>;
   getEncryptionEnabled(): boolean;
   isCredentialKey(key: string): boolean;
+  importClientBundle(serialized: string): Promise<unknown>;
 }
 interface PermissionOptions { mode?: 'read' | 'readwrite' }
 interface BackupDirectory extends AsyncIterable<[string, unknown]> {
@@ -69,6 +70,7 @@ var backupRuntimeDeps: BackupRuntimeDeps | undefined;
 function getBackupRuntimeDeps() {
   if (!backupRuntimeDeps) {
     backupRuntimeDeps = { encryptedGetItem: async () => null, getEncryptionEnabled: () => false, isCredentialKey: () => false,
+      importClientBundle: async () => { throw new Error('Client import is not configured. Reload the app and try again.'); },
       encryptedSetItem: async () => { throw new Error('Credential storage is not configured.'); } };
   }
   return backupRuntimeDeps;
@@ -76,7 +78,7 @@ function getBackupRuntimeDeps() {
 
 export function configureBackupRuntimeDeps(deps: Partial<BackupRuntimeDeps> = {}) {
   const runtimeDeps = getBackupRuntimeDeps();
-  return configureRuntimeFunctions(runtimeDeps, deps, ["encryptedGetItem","encryptedSetItem","getEncryptionEnabled","isCredentialKey"]);
+  return configureRuntimeFunctions(runtimeDeps, deps, ["encryptedGetItem","encryptedSetItem","getEncryptionEnabled","isCredentialKey","importClientBundle"]);
 }
 const getEncryptionEnabled = () => Boolean(getBackupRuntimeDeps().getEncryptionEnabled());
 const isEncryptedValue = (v: unknown) => typeof v === 'string' && v.startsWith('v1:');
@@ -404,6 +406,13 @@ export function importEncryptedBackup(file: Blob): Promise<void> {
         // Decoding restores byte arrays, not a validated backup schema. Keep the
         // legacy field reads and coercions explicit at this import boundary.
         const backup = parseBackupSnapshot(result) as BackupRestoreView;
+        if (backup.type === 'database' && backup.version === 2 && Array.isArray(backup.profiles)) {
+          if (await showConfirmDialog(
+            `Import ${backup.profiles.length} exported client(s)? Matching clients will be merged and new clients added. App settings and API keys will stay unchanged.`,
+            { confirmLabel: 'Import clients', ariaLabel: 'Import exported clients' }
+          )) await getBackupRuntimeDeps().importClientBundle(result);
+          return;
+        }
         if (backup.format !== 'labcharts-backup' || !backup.profileList) {
           showNotification('Invalid backup file format', 'error');
           return;

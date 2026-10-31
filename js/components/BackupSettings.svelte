@@ -17,6 +17,7 @@
   <div class="ai-provider-desc gb:protection:text-[12px] gb:protection:text-secondary gb:protection:leading-[1.5] gb:protection:mb-2.5">Create a full backup of all profiles, data, and chat history.
     {#if snapshot.encrypted}Backups inherit encryption — same passphrase required to restore.
     {:else}Backups are unencrypted and omit provider credentials. To include API keys, enable passphrase encryption in Security before downloading.{/if}
+    Restore Backup also accepts Export All Clients files and merges their client data.
   </div>
   <div class={PROTECTION_ACTIONS}>
     <button type="button" class={PROTECTION_PRIMARY} data-crypto-action="export-backup">Download Backup</button>

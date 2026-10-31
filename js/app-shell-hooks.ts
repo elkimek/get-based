@@ -5,6 +5,7 @@ import { configureAppEventListeners } from './app-event-listeners.js';
 import { configureApiProviderStorageRuntimeDeps } from './api-provider-storage-runtime.js';
 import { startOpenRouterOAuth } from './api.js';
 import { configureApiRuntimeCallbacks } from './api-runtime.js';
+import { configureBackupRuntimeDeps } from './backup.js';
 import { buildBiologyScoresAIContext } from './biology-score-ai-context.js';
 import { configureBiologyScoresRuntimeDeps } from './biology-scores-runtime.js';
 import { configureBiologyScoreContextAIDeps } from './biology-score-context-runtime.js';
@@ -198,6 +199,12 @@ function showInsufficientBalanceDialog() {
 
 configureApiRuntimeCallbacks({ showInsufficientBalanceDialog });
 configureApiProviderStorageRuntimeDeps({ encryptedSetItem: encryptedSetCredentialItem });
+configureBackupRuntimeDeps({
+  importClientBundle: async serialized => {
+    closeSettingsModal();
+    return importDataJSON(new File([serialized], 'exported-clients.json', { type: 'application/json' }));
+  },
+});
 configureStartupOAuthCallbackDeps({ showInsufficientBalanceDialog });
 configureStartupProfileDeps({
   hydrateNutritionSummary: hydrateNutritionSummary,

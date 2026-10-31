@@ -545,6 +545,10 @@ the higher-layer behavior through a narrow runtime seam.
   full-restore pipeline, including side stores and the publish-before-pull
   Sync handoff. A full-backup selection ends the import batch, including after
   cancellation or failure, so later files cannot mutate the pre-reload profile.
+  Restore Backup also recognizes version 2 Export All Clients bundles and asks
+  before delegating to the existing client merge importer through a shell-wired
+  service port. Client bundles exclude app settings and credentials; only full
+  passphrase-protected snapshots include supported API keys.
 - Raw vendor wearable and cycle stores remain device-local. Explicit user-entered
   weight, blood pressure and pulse use the encrypted `manualBodyReadings` Sync
   map, keyed by metric and date; source histories from vendors or file imports
