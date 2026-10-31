@@ -239,7 +239,10 @@ export function createDashboardPageView(deps: unknown) {
         const ownsReservation = () => generation === onboardingGeneration && state.currentProfile === profile
           && main.isConnected && document.getElementById('main-content') === main;
         const releaseReservation = () => { if (ownsReservation()) document.body.classList.remove('chat-autostart-reserved'); };
-        if (isDesktopChatOnboardingViewport && !document.getElementById('chat-panel')?.classList.contains('open')) {
+        const hasForegroundOverlay = () => !!document.querySelector('.modal-overlay.show,.confirm-overlay.show,#sync-popover');
+        const canOpen = () => ownsReservation() && document.body.classList.contains('chat-autostart-reserved')
+          && (getDashboardPageRuntimeValue('innerWidth') as number) > 768 && !hasForegroundOverlay();
+        if (isDesktopChatOnboardingViewport && !hasForegroundOverlay() && !document.getElementById('chat-panel')?.classList.contains('open')) {
           document.body.classList.add('chat-autostart-reserved');
         }
         setTimeout(() => {
@@ -254,11 +257,12 @@ export function createDashboardPageView(deps: unknown) {
             document.body.classList.remove('chat-autostart-reserved');
             return;
           }
+          if (!canOpen()) { releaseReservation(); return; }
           // This optional background load may fail if the origin disappears
           // before the worker controls its in-flight imports. Keep Welcome
           // usable and never let an old request clear a newer reservation.
           try {
-            const opened = (dashboardPageRuntimeDeps.openChatPanel as (() => unknown) | null)?.();
+            const opened = (dashboardPageRuntimeDeps.openChatPanel as ((message: undefined, options: {canOpen: () => boolean}) => unknown) | null)?.(undefined, {canOpen});
             void Promise.resolve(opened).then(releaseReservation, releaseReservation);
           } catch { releaseReservation(); }
         }, 800);

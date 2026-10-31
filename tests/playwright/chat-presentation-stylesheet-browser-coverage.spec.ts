@@ -27,6 +27,37 @@ test('a profile handoff cancels Chat opening while presentation is loading', asy
   expect(await page.evaluate(() => Object.keys(localStorage).filter(key => key.startsWith('labcharts-replacement-profile-')))).toEqual([]);
 });
 
+test('an already withdrawn background Chat request stays cold and preserves its caller reservation', async ({page}) => {
+  await page.goto('/app', {waitUntil: 'load'});
+  const opened = await page.evaluate(async () => {
+    document.body.classList.add('chat-autostart-reserved');
+    return (await import('/js/chat-panel.js')).openChatPanel(undefined, {canOpen: () => false});
+  });
+  expect(opened).toBe(false);
+  await expect(page.locator('link[data-chat-presentation-stylesheet]')).toHaveCount(0);
+  await expect(page.locator('#chat-panel')).not.toHaveClass(/open/);
+  await expect(page.locator('body')).toHaveClass(/chat-autostart-reserved/);
+});
+
+test('a foreground Sync popover cancels background Chat during presentation loading', async ({page}) => {
+  let stylesheetRoute: import('@playwright/test').Route | undefined;
+  await page.route('**/css/chat-onboarding.css*', route => { stylesheetRoute = route; });
+  await page.goto('/app', {waitUntil: 'load'});
+  await page.evaluate(async () => {
+    const panel = await import('/js/chat-panel.js');
+    (window as Window & {__chatOpenResult?: ReturnType<typeof panel.openChatPanel>}).__chatOpenResult = panel.openChatPanel(undefined, {canOpen: () => !document.getElementById('sync-popover')});
+  });
+  await expect.poll(() => !!stylesheetRoute).toBe(true);
+  await page.evaluate(() => { const popover=document.createElement('div');popover.id='sync-popover';document.body.append(popover);document.body.classList.add('chat-autostart-reserved'); });
+  await stylesheetRoute!.fulfill({status: 200, contentType: 'text/css', body: ''});
+  expect(await page.evaluate(() => (window as Window & {__chatOpenResult?: Promise<boolean>}).__chatOpenResult)).toBe(false);
+  await expect(page.locator('#chat-panel')).not.toHaveClass(/open/);
+  await expect(page.locator('body')).toHaveClass(/chat-autostart-reserved/);
+  await page.evaluate(() => {document.getElementById('sync-popover')!.remove();document.body.classList.remove('chat-autostart-reserved');});
+  expect(await page.evaluate(async () => (await import('/js/chat-panel.js')).openChatPanel())).toBe(true);
+  await expect(page.locator('#chat-panel')).toHaveClass(/open/);
+});
+
 for (const newerOpen of [false, true]) {
   test(`profile handoff after Chat becomes visible retires only its own opening (newer open: ${newerOpen})`, async ({ page }) => {
     await page.goto('/app', {waitUntil: 'load'});

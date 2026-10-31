@@ -47,6 +47,9 @@ checks use the fixed inventory in
 
 ## Presentation and lifecycle contract
 
+Foreground modals and the Sync popover cancel optional Dashboard Chat startup,
+including a request still awaiting module or presentation loading; explicit Chat
+actions retain their normal behavior.
 Optional empty-Dashboard Chat startup owns its reservation by render generation
 and profile. Failed loads or a narrower viewport release it; completion from a
 retired render cannot clear a newer reservation.

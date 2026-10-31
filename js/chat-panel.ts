@@ -262,7 +262,8 @@ export function toggleChatFullscreen() {
   syncChatLayout();
 }
 
-export async function openChatPanel(prefillMessage?: Parameters<typeof setChatInputValue>[0]) {
+export async function openChatPanel(prefillMessage?: Parameters<typeof setChatInputValue>[0], options: {canOpen?: () => boolean} = {}) {
+  if (options.canOpen && !options.canOpen()) return false;
   const openIntent = ++chatPanelIntent;
   const profileId = state.currentProfile;
   const isCurrent = () => openIntent === chatPanelIntent && state.currentProfile === profileId;
@@ -276,6 +277,7 @@ export async function openChatPanel(prefillMessage?: Parameters<typeof setChatIn
   const returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   if (!(await loadChatPresentationStylesheetsForAction())) return false;
   if (!isCurrent()) return cancelOpening();
+  if (options.canOpen && !options.canOpen()) return false;
   chatPanelReturnFocus = returnFocus;
   panel.classList.add('open');
   updateChatPanelAccessibility(panel, true);
