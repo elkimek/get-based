@@ -6,7 +6,7 @@ import { createBuilder, defineConfig } from 'vite';
 import { sveltekit } from '@sveltejs/kit/vite';
 import adapter from '@sveltejs/adapter-static';
 import {createKitVendorExternals} from './kit-vendor-externals.mjs';
-import { rewriteNativeAssetBase } from '../../scripts/sveltekit-contracts.mjs';
+import { packStaticChatInstructions, rewriteNativeAssetBase } from '../../scripts/sveltekit-contracts.mjs';
 import { handleBuildLog } from '../../scripts/static-build-assets.mjs';
 import { createSvelteFacadePlugin, compiledSvelteModulePattern } from '../../scripts/svelte-facade-plugin.mjs';
 import {createKitRetryChunksPlugin, readKitRetrySummary, type KitRetrySummary} from '../../scripts/kit-retry-chunks.mjs';
@@ -21,7 +21,7 @@ export function staticKitConfig({ root, temporary, version }: StaticKitOptions, 
     build: { sourcemap: 'hidden', ...(retry ? {modulePreload: {resolveDependencies: retry.resolveDependencies}} : {}), rolldownOptions: { onLog: handleBuildLog } },
     plugins: [createKitVendorExternals({root}), {
       name: 'getbased-native-contracts', enforce: 'pre',
-      transform(code, id) { return rewriteNativeAssetBase(code, id.split('?')[0]!, root); },
+      transform(code, id) { return packStaticChatInstructions(code, id.split('?')[0]!, root) ?? rewriteNativeAssetBase(code, id.split('?')[0]!, root); },
     }, {...createSvelteFacadePlugin({root, client: 'kit'}), enforce: 'pre'},
     ...(retry ? [retry.plugin] : []), sveltekit({
       // Kit owns the full AppShell inside #kit-root. Native form delegates must

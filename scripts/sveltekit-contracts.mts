@@ -27,6 +27,44 @@ export function rewriteNativeAssetBase(code: string, file: string, root: string)
   return changed ? { code: rewritten.toString(), map: rewritten.generateMap({ hires: true, source: file, includeContent: true }) } : null;
 }
 
+/** Lossless build-only packing keeps the maintained prompt readable in source.
+ * Static ASCII dictionary markers expand synchronously; there is no evaluation,
+ * network dependency, or change to the exported instruction text. */
+export function packStaticChatInstructions(code: string, file: string, root: string) {
+  if (path.relative(root, file).replaceAll(path.sep, '/') !== 'shared/chat-tool-instructions.js') return null;
+  const rewritten = new MagicString(code); let changed = false;
+  withParsedSource(code, file, source => {
+    for (const statement of source.statements) {
+      if (!ts.isVariableStatement(statement)) continue;
+      for (const declaration of statement.declarationList.declarations) {
+        if (!ts.isIdentifier(declaration.name) || declaration.name.text !== 'CHAT_TOOL_INSTRUCTIONS') continue;
+        const literal = declaration.initializer;
+        if (!literal || !(ts.isStringLiteral(literal) || ts.isNoSubstitutionTemplateLiteral(literal))) throw new Error('Chat instructions must be a static literal for lossless packing.');
+        const text = literal.text;
+        if (text.includes('~')) continue; // Never collide with authored text.
+        const candidates = [...new Set(text.match(/[A-Za-z_][A-Za-z0-9_.-]{3,}/g) || [])]
+          .map(word => ({ word, gain: (word.length - 3) * (text.split(word).length - 1) - JSON.stringify(word).length - 1 }))
+          .sort((a, b) => b.gain - a.gain || (a.word < b.word ? -1 : a.word > b.word ? 1 : 0));
+        let packed = text; const words: string[] = [];
+        const marker = (index: number) => index < 36 ? '~' + index.toString(36)
+          : '~' + String.fromCharCode(65 + Math.floor((index - 36) / 36)) + ((index - 36) % 36).toString(36);
+        for (const { word } of candidates) {
+          if (words.length === 972) break;
+          const token = marker(words.length);
+          if ((word.length - token.length) * (packed.split(word).length - 1) <= JSON.stringify(word).length + 1) continue;
+          packed = packed.split(word).join(token); words.push(word);
+        }
+        const expand = (token: string) => words[token.length === 1 ? parseInt(token, 36) : 36 + (token.charCodeAt(0) - 65) * 36 + parseInt(token[1]!, 36)]!;
+        if (packed.replace(/~([A-Z][0-9a-z]|[0-9a-z])/g, (_, token: string) => expand(token)) !== text) throw new Error('Chat instruction packing changed the prompt.');
+        const expression = `((d)=>${JSON.stringify(packed)}.replace(/~([A-Z][0-9a-z]|[0-9a-z])/g,(_,c)=>d[c.length===1?parseInt(c,36):36+(c.charCodeAt(0)-65)*36+parseInt(c[1],36)]))(${JSON.stringify(words)})`;
+        if (Buffer.byteLength(expression) + 256 >= Buffer.byteLength(code.slice(literal.getStart(source), literal.end))) continue;
+        rewritten.overwrite(literal.getStart(source), literal.end, expression); changed = true;
+      }
+    }
+  });
+  return changed ? { code: rewritten.toString(), map: rewritten.generateMap({ hires: true, source: file, includeContent: true }) } : null;
+}
+
 /** The complete authored AppShell belongs to the Kit route; early document bootstraps remain external. */
 export function staticKitTemplate(index: string): string {
   const marker = /<!-- PRODUCTION_MAIN_SCRIPT_START -->[\s\S]*?<!-- PRODUCTION_MAIN_SCRIPT_END -->/g;

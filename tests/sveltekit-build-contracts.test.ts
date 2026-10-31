@@ -1,7 +1,9 @@
 import path from 'node:path';
 import vm from 'node:vm';
+import fs from 'node:fs';
+import { CHAT_TOOL_INSTRUCTIONS } from '../shared/chat-tool-instructions.js';
 import { describe, expect, it } from 'vitest';
-import { rewriteNativeAssetBase, staticKitTemplate, externalizeKitBootstrap } from '../scripts/sveltekit-contracts.mjs';
+import { packStaticChatInstructions, rewriteNativeAssetBase, staticKitTemplate, externalizeKitBootstrap } from '../scripts/sveltekit-contracts.mjs';
 
 const root = path.resolve('/tmp/getbased-contract-fixture');
 describe('shared SvelteKit build contracts', () => {
@@ -85,4 +87,20 @@ const mode = import.meta.env.MODE;`;
     expect(() => externalizeKitBootstrap('<script>alert(1)</script>')).toThrow('Unexpected inline');
     expect(() => externalizeKitBootstrap('<script src="/version.js"></script>')).toThrow('Expected one');
   });
+});
+
+it('packs the real maintained prompt losslessly with its original source map', () => {
+  const file = path.resolve('shared/chat-tool-instructions.js'), source = fs.readFileSync(file, 'utf8');
+  const result = packStaticChatInstructions(source, file, path.resolve('.'))!;
+  expect(result).not.toBeNull(); expect(Buffer.byteLength(source) - Buffer.byteLength(result.code)).toBeGreaterThan(7000);
+  const context = { globalThis: { prompt: '' } };
+  vm.runInNewContext(result.code.replace(/^export /gm, '') + '\nglobalThis.prompt = CHAT_TOOL_INSTRUCTIONS;', context);
+  expect(context.globalThis.prompt).toBe(CHAT_TOOL_INSTRUCTIONS);
+  expect(result.map.sourcesContent).toEqual([source]);
+  expect(packStaticChatInstructions(source, file, path.resolve('.'))!.code).toBe(result.code);
+});
+it('does not pack unrelated modules or collide with authored marker text', () => {
+  const source = `export const CHAT_TOOL_INSTRUCTIONS = ${JSON.stringify(('Health context review. ').repeat(1000) + '~a')};`;
+  expect(packStaticChatInstructions(source, path.join(root, 'shared/chat-tool-instructions.js'), root)).toBeNull();
+  expect(packStaticChatInstructions(source, path.join(root, 'js/feature.js'), root)).toBeNull();
 });
