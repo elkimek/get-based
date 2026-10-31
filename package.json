@@ -88,7 +88,7 @@
     "@types/istanbul-lib-instrument": "1.7.8",
     "@types/jsdom": "30.0.0",
     "@types/node": "26.1.0",
-    "@vitest/coverage-istanbul": "4.1.11",
+    "@vitest/coverage-istanbul": "4.1.12",
     "axe-core": "4.13.0",
     "elliptic": "file:scripts/vendor-packages/elliptic-verify-only",
     "fake-indexeddb": "^6.2.5",
@@ -99,7 +99,7 @@
     "tailwindcss": "4.3.3",
     "typescript": "7.0.2",
     "venice-e2ee": "https://github.com/elkimek/venice-e2ee/archive/7da6228c0cef3ad516196129eea2f9d64760e6b3.tar.gz",
-    "vitest": "^4.1.11",
+    "vitest": "^4.1.12",
     "magic-string": "0.30.21",
     "@tailwindcss/node": "4.3.3",
     "postcss": "8.5.26"
