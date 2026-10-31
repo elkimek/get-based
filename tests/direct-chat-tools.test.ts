@@ -135,3 +135,25 @@ it('returns an actionable local notice for an explicit review when controls are 
     expect(result.text).toContain('Chat controls are off'); expect(result.drafts).toEqual([]); expect(mocks.complete).not.toHaveBeenCalled();
   } finally { localStorage.removeItem('getbased-chat-controls'); }
 });
+
+it.each(['failure', 'stop', 'retired'] as const)('retains a real context proposal after %s only for the accepted owner', async mode => {
+  const controller = new AbortController();
+  mocks.complete.mockResolvedValueOnce({ text: '', toolCalls: [{ id: 'read', type: 'function', function: { name: 'getbased_read_context_card', arguments: '{"card":"healthGoals"}' } }] })
+    .mockResolvedValueOnce({ text: '', toolCalls: [{ id: 'draft', type: 'function', function: { name: 'getbased_draft_context', arguments: JSON.stringify({ ...payload, baseline: undefined, snapshotId: 'snapshot' }) } }] })
+    .mockImplementationOnce(async () => {
+      if (mode === 'stop') { controller.abort(); controller.signal.throwIfAborted(); }
+      if (mode === 'retired') state.currentThreadId = 'new-thread';
+      throw new Error('Network after proposal');
+    });
+  const before = structuredClone(state.importedData);
+  const error: unknown = await callDirectChatWithTools({ ...options(), signal: controller.signal }).catch(error => error);
+  const { getChatTurnRecovery } = await import('../js/chat-turn-recovery.js');
+  const recovery = getChatTurnRecovery(error);
+  if (mode === 'retired') expect(recovery).toBeUndefined();
+  else {
+    expect(recovery?.agentDrafts).toEqual([expect.objectContaining({ profileId: 'synthetic-profile', payload, status: 'pending' })]);
+    expect(recovery?.content).toContain('1 proposal remains available');
+    expect(recovery?.stopped === true).toBe(mode === 'stop');
+  }
+  expect(state.importedData).toEqual(before);
+});

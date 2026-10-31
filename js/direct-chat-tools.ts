@@ -1,11 +1,11 @@
+import { captureChatTurnScope } from './chat-turn-scope.js';
+import { captureChatTurnFailure, projectChatTurnReviews } from './chat-turn-recovery.js';
 import type { ChatToolActivity } from '../shared/chat-tool-activity.js';
 import { captureChatControlAuthorization, CHAT_CONTROLS_OFF_INSTRUCTIONS, CHAT_CONTROLS_NOTICE } from './chat-control-settings.js';
-import { getContextDisclosureFingerprint } from './lab-context-settings.js';
 // Direct providers share the browser's semantic tool runtime and approval cards.
 import { callClaudeAPI, getAIProvider, getActiveModelId, getVeniceE2EE, isE2EEModel,
   getVeniceKey, getOpenRouterKey, getPpqKey, getRoutstrKey, getRoutstrNodeUrl,
   getCustomApiUrl, getCustomApiKey, getOllamaConfig } from './api.js';
-import { state } from './state.js';
 import { createAgentToolRuntime } from './agent-tool-runtime.js';
 import { createBrowserAgentToolDependencies, canDiscloseAgentDraftReview } from './agent-tool-bindings.js';
 import type { BrowserKnowledgeSearchOptions } from './agent-tool-bindings.js';
@@ -36,9 +36,7 @@ export async function callDirectChatWithTools(options: DirectChatToolOptions) {
   const { provider, prompt, labContext, profileId, isCurrent: ownerCurrent, onKnowledgeResult, appControlSession, onToolActivity: _activity, ...request } = options;
   const model = String(options.modelOverride || getActiveModelId(provider));
   const selectedModel = getActiveModelId(provider), recipient = recipientIdentity(provider);
-  const history = state.chatHistory, thread = state.currentThreadId, disclosure = getContextDisclosureFingerprint();
-  const current = () => state.currentProfile === profileId && state.chatHistory === history && state.currentThreadId === thread
-    && getContextDisclosureFingerprint() === disclosure && getAIProvider() === provider && getActiveModelId(provider) === selectedModel && recipientIdentity(provider) === recipient && (!ownerCurrent || ownerCurrent());
+  const { history, current } = captureChatTurnScope(profileId, () => getAIProvider() === provider && getActiveModelId(provider) === selectedModel && recipientIdentity(provider) === recipient && (!ownerCurrent || ownerCurrent()));
   const authorization = captureChatControlAuthorization();
   const reviewRequested = requestsChatProposal(prompt);
   if (reviewRequested && !authorization.current()) return { text: CHAT_CONTROLS_NOTICE, drafts: [], toolCalls: [], usage: { inputTokens: 0, outputTokens: 0 }, truncated: false, finishReason: 'stop' };
@@ -47,21 +45,24 @@ export async function callDirectChatWithTools(options: DirectChatToolOptions) {
     ...createBrowserAgentToolDependencies(profileId, { signal: options.signal, isCurrent: current, onKnowledgeResult, appControlSession }),
     canUseTools: authorization.current, createId: authorization.createId, onToolActivity: options.onToolActivity,
   });
-  const result = await runChatToolLoop({ ...request, tools: runtime.tools.map(tool => ({ type: 'function', function: {
-    name: tool.name, description: tool.description, parameters: tool.inputSchema,
-  } })),
-    system: `${String(options.system || '')}\n\n${authorization.current() ? CHAT_TOOL_INSTRUCTIONS + buildAgentDraftReviewContext(history, canDiscloseAgentDraftReview) : CHAT_CONTROLS_OFF_INSTRUCTIONS}`,
-    // Venice's encrypted route carries actions inside encrypted message content.
-    protocol: provider === 'venice' && (getVeniceE2EE() || isE2EEModel(model)) ? 'structured' : 'native',
-    canRepair: authorization.current,
-    reviewRequested,
-    hasPreparedReview: () => authorization.current() && (runtime.getDrafts().length > 0 || appControlSession?.hasPreparedReview() === true),
-    isCurrent: current, execute: call => runtime.execute(call),
-    complete: async round => {
-      const response: unknown = await callClaudeAPI({ ...round, requestCurrent: current, modelOverride: model }, provider);
-      if (!response || typeof response !== 'object' || !('text' in response) || typeof response.text !== 'string') throw new Error('The provider returned an invalid chat response.');
-      return response as ToolCompletion;
-    },
-  });
-  return { ...result, drafts: runtime.getDrafts().map(draft => ({ ...draft, profileId })) };
+  try {
+    const result = await runChatToolLoop({ ...request, tools: runtime.tools.map(tool => ({ type: 'function', function: {
+      name: tool.name, description: tool.description, parameters: tool.inputSchema,
+    } })),
+      system: `${String(options.system || '')}\n\n${authorization.current() ? CHAT_TOOL_INSTRUCTIONS + buildAgentDraftReviewContext(history, canDiscloseAgentDraftReview) : CHAT_CONTROLS_OFF_INSTRUCTIONS}`,
+      // Venice's encrypted route carries actions inside encrypted message content.
+      protocol: provider === 'venice' && (getVeniceE2EE() || isE2EEModel(model)) ? 'structured' : 'native',
+      canRepair: authorization.current,
+      reviewRequested,
+      hasPreparedReview: () => authorization.current() && (runtime.getDrafts().length > 0 || appControlSession?.hasPreparedReview() === true),
+      isCurrent: current, execute: call => runtime.execute(call),
+      complete: async round => {
+        const response: unknown = await callClaudeAPI({ ...round, requestCurrent: current, modelOverride: model }, provider);
+        if (!response || typeof response !== 'object' || !('text' in response) || typeof response.text !== 'string') throw new Error('The provider returned an invalid chat response.');
+        return response as ToolCompletion;
+      },
+    });
+    const reviews = projectChatTurnReviews(runtime, profileId);
+    return { ...result, drafts: reviews.agentDrafts, turnOutcome: reviews.outcome };
+  } catch (error) { throw captureChatTurnFailure(error, runtime, profileId, current, options.signal); }
 }

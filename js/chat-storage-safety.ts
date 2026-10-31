@@ -1,3 +1,4 @@
+import { MAX_CHAT_DATA_REVIEWS } from '../shared/chat-turn-outcome.js';
 import { normalizeChatToolActivity } from '../shared/chat-tool-activity.js';
 import { normalizeAgentDataProposal, supersedePendingDataProposals } from '../shared/agent-data-contract.js';
 import { normalizeAppControls } from '../shared/agent-control-contract.js';
@@ -228,7 +229,7 @@ function normalizeAgentDraftPayload(kind: unknown, value: unknown) {
 function normalizeAgentDrafts(value: unknown) {
   if (!Array.isArray(value)) return undefined;
   const drafts: StoredAgentDraft[] = [];
-  for (const draft of value.slice(0, 20)) {
+  for (const draft of value.slice(0, MAX_CHAT_DATA_REVIEWS)) {
     if (!isRecord(draft)) continue;
     const id = normalizeChatRecordId(draft.id);
     const profileId = normalizeChatRecordId(draft.profileId);

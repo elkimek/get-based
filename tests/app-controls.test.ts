@@ -164,3 +164,13 @@ it('does not publish unfinished controls when the turn permission was revoked', 
   await setChatControlsEnabled(false); await setChatControlsEnabled(true); expect(session.finish()).toEqual([]);
   expect(readDisplayPreferences('controls-test').unitSystem).toBe('EU'); expect(native.claims.size).toBe(0);
 });
+
+it('can close and retain a prepared review after stopping its request, while stopping further tool execution', () => {
+  const controller = new AbortController(), session = createAppControlSession(message, () => true, controller.signal);
+  const snapshot = session.tools.readAppState({ action: 'display.preferences' });
+  session.tools.prepareAppControl({ action: 'display.preferences', snapshotId: snapshot.snapshotId, parameters: '{"unitSystem":"US"}', reason: 'Explicit request.', evidence: message });
+  controller.abort();
+  expect(() => session.tools.readAppState({ action: 'display.preferences' })).toThrow('no longer current');
+  expect(session.finish()).toEqual([expect.objectContaining({ action: 'display.preferences', status: 'pending', parameters: { unitSystem: 'US' } })]);
+  expect(native.claims.size).toBe(0); expect(readDisplayPreferences().unitSystem).toBe('EU');
+});

@@ -167,3 +167,27 @@ it('repairs an explicit local review request even when the first answer makes no
   expect(mocks.stream).toHaveBeenCalledTimes(2); expect(result.text).toContain('No proposal card was created'); expect(result.drafts).toEqual([]);
   expect(mocks.stream.mock.calls[1]![0].threadId).toBe('signed-session');
 });
+
+it.each(['failure', 'stop', 'retired'] as const)('retains real CLI app reviews after %s only for the accepted conversation', async mode => {
+  const { getChatTurnRecovery } = await import('../js/chat-turn-recovery.js');
+  const prompt = 'Use US units from now on.', controller = new AbortController();
+  const session = createAppControlSession(prompt, () => true, controller.signal);
+  mocks.stream.mockImplementationOnce(async turn => {
+    const read = await turn.toolRuntime!.execute({ tool: 'getbased_read_app', arguments: '{"action":"display.preferences"}' }) as { success: boolean; contentItems: { text: string }[] };
+    expect(read.success).toBe(true); const snapshot = JSON.parse(read.contentItems[0]!.text);
+    expect(await turn.toolRuntime!.execute({ tool: 'getbased_request_app', arguments: JSON.stringify({ action: 'display.preferences', snapshotId: snapshot.snapshotId, parameters: '{"unitSystem":"US"}', reason: 'Explicit request.', evidence: prompt }) })).toMatchObject({ success: true });
+    if (mode === 'stop') { controller.abort('Owned stop'); controller.signal.throwIfAborted(); }
+    if (mode === 'retired') state.currentThreadId = 'other';
+    throw new Error('Provider failed after app review');
+  });
+  const before = localStorage.getItem('labcharts-profile-a-unitSystem');
+  const error: unknown = await callCodexAgent({ ...options, prompt, signal: controller.signal, appControlSession: session }).catch(error => error);
+  const recovery = getChatTurnRecovery(error);
+  if (mode === 'retired') expect(recovery).toBeUndefined();
+  else {
+    expect(recovery?.content).toContain('1 proposal remains available'); expect(recovery?.agentDrafts).toEqual([]);
+    expect(recovery?.stopped === true).toBe(mode === 'stop');
+    expect(session.finish()).toEqual([expect.objectContaining({ action: 'display.preferences', status: 'pending' })]);
+  }
+  expect(localStorage.getItem('labcharts-profile-a-unitSystem')).toBe(before);
+});

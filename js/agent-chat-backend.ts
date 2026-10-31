@@ -1,3 +1,5 @@
+import { captureChatTurnScope } from './chat-turn-scope.js';
+import { captureChatTurnFailure, projectChatTurnReviews } from './chat-turn-recovery.js';
 import type { ChatToolActivity } from '../shared/chat-tool-activity.js';
 import { claimsPreparedChatProposal, requestsChatProposal, CHAT_PROPOSAL_REPAIR, CHAT_PROPOSAL_MISSING, CHAT_PROPOSAL_NONE } from '../shared/chat-tool-instructions.js';
 import { captureChatControlAuthorization } from './chat-control-settings.js';
@@ -12,7 +14,6 @@ import { createBrowserAgentToolDependencies, canDiscloseAgentDraftReview } from 
 import type { BrowserKnowledgeSearchOptions } from './agent-tool-bindings.js';
 import { buildAgentChatInstructions, buildAgentApplicationContext, isPersonalAgentTarget } from './agent-chat-context.js';
 import { state } from './state.js';
-import { getContextDisclosureFingerprint } from './lab-context-settings.js';
 
 import type { AgentTurnOptions } from './agent-chat-client.js';
 interface AgentChatOptions extends Pick<AgentTurnOptions, 'prompt' | 'target' | 'threadId' | 'history' | 'signal' | 'onStream'>, Pick<BrowserKnowledgeSearchOptions, 'onKnowledgeResult'> {
@@ -24,11 +25,8 @@ interface AgentChatOptions extends Pick<AgentTurnOptions, 'prompt' | 'target' | 
 }
 
 export async function callCodexAgent(options: AgentChatOptions) {
-  const owner = { profile: state.currentProfile, root: state.importedData, history: state.chatHistory, thread: state.currentThreadId, disclosure: getContextDisclosureFingerprint() };
-  const assertCurrent = () => {
-    options.signal?.throwIfAborted();
-    if (state.currentProfile !== owner.profile || state.importedData !== owner.root || state.chatHistory !== owner.history || state.currentThreadId !== owner.thread || getContextDisclosureFingerprint() !== owner.disclosure || options.isCurrent?.() === false) throw new DOMException('The chat request is no longer current.', 'AbortError');
-  };
+  const scope = captureChatTurnScope(state.currentProfile, () => options.isCurrent?.() !== false);
+  const assertCurrent = () => scope.assert(options.signal);
   assertCurrent();
   const agent = getAgentHostAgent();
   const target = options.target || getAgentHostTarget(agent);
@@ -89,27 +87,29 @@ export async function callCodexAgent(options: AgentChatOptions) {
     signal: options.signal,
     onStream: options.onStream,
   }); };
-  const withDrafts = (result: Awaited<ReturnType<typeof streamAgentTurn>>) => { assertCurrent(); return { ...result, drafts: runtime.getDrafts().map(draft => ({ ...draft, profileId: options.profileId || '' })) }; };
-  let result: Awaited<ReturnType<typeof streamAgentTurn>>;
-  try { result = await run(options.threadId); }
-  catch (error) {
-    if (!options.threadId || !(error instanceof Error)
-      || (!error.message.includes('invalid thread session') && !error.message.includes('thread agent mismatch')
-        && !error.message.includes('thread target mismatch'))) throw error;
-    result = await run(undefined);
-  }
-  const hasReview = () => authorization.current() && (runtime.getDrafts().length > 0 || options.appControlSession?.hasPreparedReview() === true);
-  assertCurrent();
-  const reviewRequested = local && requestsChatProposal(options.prompt);
-  if (!hasReview() && (reviewRequested || claimsPreparedChatProposal(result.text))) {
-    if (local && authorization.current() && toolCount < 32) {
-      options.onStream?.('');
-      const repaired = await run(result.threadId, true); assertCurrent();
-      result = { ...repaired, toolCalls: [...result.toolCalls, ...repaired.toolCalls], webSearches: [...result.webSearches, ...repaired.webSearches],
-        usage: { inputTokens: (result.usage?.inputTokens || 0) + (repaired.usage?.inputTokens || 0), outputTokens: (result.usage?.outputTokens || 0) + (repaired.usage?.outputTokens || 0) } };
+  const withDrafts = (result: Awaited<ReturnType<typeof streamAgentTurn>>) => { assertCurrent(); const reviews = projectChatTurnReviews(runtime, options.profileId || ''); return { ...result, drafts: reviews.agentDrafts, turnOutcome: reviews.outcome }; };
+  try {
+    let result: Awaited<ReturnType<typeof streamAgentTurn>>;
+    try { result = await run(options.threadId); }
+    catch (error) {
+      if (!options.threadId || !(error instanceof Error)
+        || (!error.message.includes('invalid thread session') && !error.message.includes('thread agent mismatch')
+          && !error.message.includes('thread target mismatch'))) throw error;
+      result = await run(undefined);
     }
-    if (!hasReview()) result = { ...result, text: claimsPreparedChatProposal(result.text, reviewRequested) || !toolCount ? CHAT_PROPOSAL_MISSING : `${CHAT_PROPOSAL_NONE}\n\n${result.text}` };
-    options.onStream?.(result.text);
-  }
-  return withDrafts(result);
+    const hasReview = () => authorization.current() && (runtime.getDrafts().length > 0 || options.appControlSession?.hasPreparedReview() === true);
+    assertCurrent();
+    const reviewRequested = local && requestsChatProposal(options.prompt);
+    if (!hasReview() && (reviewRequested || claimsPreparedChatProposal(result.text))) {
+      if (local && authorization.current() && toolCount < 32) {
+        options.onStream?.('');
+        const repaired = await run(result.threadId, true); assertCurrent();
+        result = { ...repaired, toolCalls: [...result.toolCalls, ...repaired.toolCalls], webSearches: [...result.webSearches, ...repaired.webSearches],
+          usage: { inputTokens: (result.usage?.inputTokens || 0) + (repaired.usage?.inputTokens || 0), outputTokens: (result.usage?.outputTokens || 0) + (repaired.usage?.outputTokens || 0) } };
+      }
+      if (!hasReview()) result = { ...result, text: claimsPreparedChatProposal(result.text, reviewRequested) || !toolCount ? CHAT_PROPOSAL_MISSING : `${CHAT_PROPOSAL_NONE}\n\n${result.text}` };
+      options.onStream?.(result.text);
+    }
+    return withDrafts(result);
+  } catch (error) { throw captureChatTurnFailure(error, runtime, options.profileId || '', scope.current, options.signal); }
 }

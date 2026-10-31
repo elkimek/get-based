@@ -1,3 +1,4 @@
+import { MAX_CHAT_APP_REVIEWS } from './chat-turn-outcome.js';
 // Portable app controls contain semantic actions only: never code, paths or secrets.
 import { chatAppActionAllowed, chatAppControlAllowed } from './chat-control-policy.js';
 import { parsePersonaSelectionMetadata } from './persona-control-contract.js';
@@ -167,7 +168,7 @@ function id(value: unknown): value is string { return typeof value === 'string' 
 export function normalizeAppControls(value: unknown, allowInFlight = false): AppControlRecord[] {
   if (!Array.isArray(value)) return [];
   const seen = new Set<string>();
-  return value.slice(0, 10).flatMap<AppControlRecord>(raw => {
+  return value.slice(0, MAX_CHAT_APP_REVIEWS).flatMap<AppControlRecord>(raw => {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return [];
     const item = raw as Record<string, unknown>;
     if (item.version !== 1 || !id(item.id) || seen.has(item.id) || !profileId(item.profileId) || !id(item.threadId)

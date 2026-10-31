@@ -553,10 +553,32 @@ validated structured-content protocol on the same provider and model. Venice E2E
 uses that protocol inside encrypted message content. Tool results never require
 an unencrypted fallback. `direct-chat-tools.ts` binds each turn to its accepted
 profile, conversation, model and recipient, and returns ordinary pending drafts;
-it never applies them. Explicit opening profile-update/review commands start with a structured first-tool contract rather than optional native calling. A missing actual review permits one bounded corrective attempt; fabricated card prose is not retained as evidence. Empty review outcomes are reported from local receipts, while genuine clarification after a read remains visible. Normal and discussion senders publish the same draft and
-context receipts for direct and local-agent routes. Tool registrations own their schema, dependency binding and activity label; API and CLI discovery use the actual injected turn capabilities. Discussion turns omit interactive app-review tools when no owning session exists. The Companion resumes Codex only for the same native tool scope; changed or evicted scopes start a fresh backend session with visible history replay. Shared tool instructions live
-in `shared/chat-tool-instructions.ts`. Direct API chat supplies them once; the trusted Companion supplies the single CLI base policy, while browser CLI instructions carry persona and per-turn context boundaries. Retired persona controls remain historical data without deferred sender execution; review receipts for all draft kinds obey
-their domain disclosure toggle. Native-compatible local requests budget tool
+it never applies them. Explicit opening profile-update/review commands start with a
+structured first-tool contract rather than optional native calling. A missing actual
+review permits one bounded corrective attempt; fabricated card prose is not retained as
+evidence. Empty review outcomes are reported from local receipts, while genuine
+clarification after a read remains visible. Normal and discussion senders publish the
+same draft and context receipts for direct and local-agent routes. `chat-turn-scope.ts`
+captures their common conversation/root/disclosure owner independently of cancellation.
+The native runtime records actual review IDs and navigation effects in
+`chat-turn-outcome.ts`; a live, owner-checked recovery attachment retains pending
+reviews after API or CLI interruption. Normal and discussion senders publish that
+verified partial result without interpreting provider prose as a receipt. Stopping
+cancels execution; the owning sender settles its controller and UI. Runtime preparation
+and stored-history normalization share the existing limits of 20 data reviews and 10 app
+reviews; an oversized turn receives an explicit limit result instead of preparing
+reviews which storage would drop. Already prepared app reviews can close after
+cancellation but cannot execute further tools, and Apply retains its native
+authorization and conflict checks. Tool registrations own their schema, dependency
+binding and activity label; API and CLI discovery use the actual injected turn
+capabilities. Discussion turns omit interactive app-review tools when no owning session
+exists. The Companion resumes Codex only for the same native tool scope; changed or
+evicted scopes start a fresh backend session with visible history replay. Shared tool
+instructions live in `shared/chat-tool-instructions.ts`. Direct API chat supplies them
+once; the trusted Companion supplies the single CLI base policy, while browser CLI
+instructions carry persona and per-turn context boundaries. Retired persona controls
+remain historical data without deferred sender execution; review receipts for all draft
+kinds obey their domain disclosure toggle. Native-compatible local requests budget tool
 schemas and transcripts and bypass text-only native fallback serializers.
 
 Keep credentials and private metadata in dedicated live-field/service ports,

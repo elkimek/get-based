@@ -34,7 +34,7 @@ export const STRUCTURED_CHAT_SCHEMA = {
 function parseStructuredCompletion(text: string) {
   if (text.length > 256000) throw new Error('The structured chat response exceeded its size limit.');
   let parsed: unknown;
-  try { parsed = JSON.parse(text); } catch { throw new Error('This model did not return a valid structured chat response. No change was applied.'); }
+  try { parsed = JSON.parse(text); } catch { throw new Error('This model did not return a valid structured chat response. No calls from this response were executed.'); }
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Invalid structured chat response.');
   const value = parsed as Record<string, unknown>;
   if (Object.keys(value).some(key => !['reply', 'calls'].includes(key)) || typeof value.reply !== 'string' || !Array.isArray(value.calls)) throw new Error('Invalid structured chat response.');
@@ -150,5 +150,5 @@ export async function runChatToolLoop(options: ToolLoopOptions) {
         : { role: 'tool', tool_call_id: call.id, content });
     }
   }
-  throw new Error('This chat exceeded its tool-round limit. No change was applied.');
+  throw new Error('This chat exceeded its tool-round limit.');
 }

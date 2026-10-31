@@ -1,3 +1,4 @@
+import { getChatTurnRecovery } from './chat-turn-recovery.js';
 import { normalizeChatToolActivity, type ChatToolActivity } from '../shared/chat-tool-activity.js';
 // Sequential discussion requests use one origin lifetime and the shared authored message view.
 import { state } from './state.js';
@@ -154,7 +155,16 @@ export async function runDiscussionRound(personas: unknown, steerPrompt: unknown
     const interrupted = activeRound;
     interrupted?.typewriter?.stop();
     if (interrupted) { stopChatThinkingStatus(interrupted.typingEl); interrupted.typingEl.remove(); }
-    if (failure?.name === 'AbortError' || !origin.isValid()) {
+    const recovery = getChatTurnRecovery(error);
+    if (recovery && origin.isValid() && interrupted?.request) {
+      outcome = recovery.stopped ? 'stopped' : 'error';
+      const message = buildDiscussionAssistantMessage({ fullText: recovery.content, request: interrupted.request, aiResult: { drafts: recovery.agentDrafts }, responseTruncated: false, attestation: getChatProviderAttestation(interrupted.request.provider) });
+      Object.assign(message, recovery, { toolActivity: normalizeChatToolActivity(interrupted.activity) });
+      roundHistory.push(message as ChatMessage);
+      if (recovery.stopped) completedCount = interrupted.index + 1;
+      remainingPersonas = participants.slice(interrupted.index + (recovery.stopped ? 1 : 0));
+      await save(); render();
+    } else if (failure?.name === 'AbortError' || !origin.isValid()) {
       outcome = 'stopped';
       const partial = origin.isValid() ? interrupted?.live?.getText().trim() || '' : '';
       if ((partial || interrupted?.activity.length) && interrupted?.request) {

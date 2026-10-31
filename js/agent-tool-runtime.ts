@@ -1,3 +1,4 @@
+import { createChatTurnOutcome, MAX_CHAT_DATA_REVIEWS, CHAT_REVIEW_LIMIT_NOTICE } from '../shared/chat-turn-outcome.js';
 import { normalizeChatToolActivity, type ChatToolActivity } from '../shared/chat-tool-activity.js';
 import { validateAppNavigation, LAB_VIEW_RANGES } from '../shared/app-navigation-contract.js';
 import type { AppNavigationRequest } from '../shared/app-navigation-contract.js';
@@ -280,6 +281,7 @@ export function createAgentToolRuntime(dependencies: AgentToolDependencies) {
   const tools = getAgentToolCatalog(binding => typeof dependencies[binding] === 'function');
   const supported = new Set(tools.map(tool => tool.name));
   const drafts: AgentDraft[] = [];
+  const outcome = createChatTurnOutcome();
   const turnTime = new Date();
   const turnLocalDate = `${turnTime.getFullYear()}-${String(turnTime.getMonth() + 1).padStart(2, '0')}-${String(turnTime.getDate()).padStart(2, '0')}`;
 
@@ -291,6 +293,8 @@ export function createAgentToolRuntime(dependencies: AgentToolDependencies) {
   };
 
   const createDraft = async (kind: AgentDraft['kind'], payload: Record<string, unknown>, summary: string, publicReview?: unknown) => {
+    assertPermitted();
+    if (drafts.length >= MAX_CHAT_DATA_REVIEWS) return failure(CHAT_REVIEW_LIMIT_NOTICE);
     const generated = typeof dependencies.createId === 'function'
       ? dependencies.createId()
       : globalThis.crypto?.randomUUID?.() || `draft-${Date.now()}-${drafts.length + 1}`;
@@ -302,6 +306,7 @@ export function createAgentToolRuntime(dependencies: AgentToolDependencies) {
       status: 'pending',
     });
     assertPermitted(); drafts.push(draft);
+    if (kind === 'context' || kind === 'data') outcome.review(draft.id, kind, kind === 'context' ? payload.card : payload.resource);
     await dependencies.onDraftCreated?.(draft); assertPermitted();
     if (publicReview !== undefined && dependencies.canDiscloseDraftReview?.(draft)) {
       const response = { draftId: draft.id, status: 'pending_user_approval', summary, review: publicReview };
@@ -317,6 +322,7 @@ export function createAgentToolRuntime(dependencies: AgentToolDependencies) {
     const result = await runDependency('prepareLegacyDraft', { kind, payload, evidence }) as { available?: boolean; reason?: string; proposals?: unknown[] } | null;
     const proposals = result?.proposals?.map(normalizeAgentDataProposal);
     if (!result?.available || !proposals?.length || proposals.some(proposal => !proposal)) return failure(result?.reason || 'This change needs an exact record review.');
+    if (drafts.length + proposals.length > MAX_CHAT_DATA_REVIEWS) return failure(CHAT_REVIEW_LIMIT_NOTICE);
     const ids: string[] = [];
     for (const proposal of proposals) { await createDraft('data', { ...proposal! }, `${AGENT_DATA_LABELS[proposal!.resource]} · ${proposal!.operation}`); ids.push(drafts.at(-1)!.id); }
     return successJson({ draftIds: ids, status: 'pending_user_approval', separateApprovals: ids.length > 1 });
@@ -325,6 +331,7 @@ export function createAgentToolRuntime(dependencies: AgentToolDependencies) {
   const runtime = Object.freeze({
     tools: permitted() ? tools : [],
     getDrafts: () => permitted() ? drafts.map(draft => ({ ...draft, payload: { ...draft.payload } })) : [],
+    getOutcome: () => { const result = outcome.snapshot(); return permitted() ? result : { ...result, reviews: [] }; },
 
     /**
  * Execute the shape emitted by Codex app-server `item/tool/call`. Other
@@ -466,10 +473,15 @@ export function createAgentToolRuntime(dependencies: AgentToolDependencies) {
           const action = enumValue(args, 'action', [...CHAT_APP_REVIEW_ACTIONS]);
           if (!chatAppControlAllowed(action, JSON.parse(requiredString(args, 'parameters', 9000)))) return failure(CHAT_NATIVE_UI_NOTICE);
           if (typeof dependencies.userMessage !== 'string' || !dependencies.userMessage.includes(evidence)) throw new Error('Evidence must quote the accepted human message exactly.');
-          return successJson(await runDependency('prepareAppControl', {
+          const prepared = await runDependency('prepareAppControl', {
             action: requiredString(args, 'action', 80), snapshotId: requiredString(args, 'snapshotId', 128),
             parameters: requiredString(args, 'parameters', 9000), reason: requiredString(args, 'reason', 500), evidence,
-          }));
+          });
+          if (prepared && typeof prepared === 'object' && 'available' in prepared && prepared.available === false) return successJson(prepared);
+          if (!prepared || typeof prepared !== 'object' || !('status' in prepared) || prepared.status !== 'pending_user_approval'
+            || !('controlId' in prepared) || typeof prepared.controlId !== 'string' || !('saved' in prepared) || prepared.saved !== false) return failure('The app review could not be confirmed.');
+          outcome.review(prepared.controlId, 'app', action);
+          return successJson(prepared);
         }
         if (tool === 'getbased_read_data') {
           rejectUnknownArguments(args, ['resource', 'recordId', 'create', 'query', 'offset', 'limit']);
@@ -514,7 +526,13 @@ export function createAgentToolRuntime(dependencies: AgentToolDependencies) {
           if (Object.hasOwn(args, 'undoId')) request.undoId = requiredString(args, 'undoId', 128);
           if (Object.hasOwn(args, 'swapDates')) { if (args.swapDates !== true) throw new Error('swapDates must be true.'); request.swapDates = true; }
           validateAppNavigation(request);
-          return successJson(await runDependency('navigate', request));
+          try {
+            const receipt = await runDependency('navigate', request);
+            outcome.navigation(receipt); return successJson(receipt);
+          } catch (error) {
+            if (!error || typeof error !== 'object' || !('noChangeApplied' in error) || error.noChangeApplied !== true) outcome.unconfirmed();
+            throw error;
+          }
         }
 
         if (tool === 'getbased_draft_note') {
@@ -579,7 +597,10 @@ export function createAgentToolRuntime(dependencies: AgentToolDependencies) {
     const record = normalizeChatToolActivity([{ id: String(++sequence), tool: call?.tool, card, status: 'running' }], true)[0];
     const publish = (status: ChatToolActivity['status']) => { if (record) try { dependencies.onToolActivity?.({ ...record, status }); } catch { /* UI must not alter execution. */ } };
     publish('running');
-    try { const result = await runtime.execute(call); publish(result.success ? 'completed' : 'failed'); return result; }
+    try {
+      const result = await runtime.execute(call);
+      publish(result.success ? 'completed' : 'failed'); return result;
+    }
     catch (error) { publish('failed'); throw error; }
   } });
 

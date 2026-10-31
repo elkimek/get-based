@@ -1,3 +1,4 @@
+import { getChatTurnRecovery } from './chat-turn-recovery.js';
 import { normalizeChatToolActivity, type ChatToolActivity } from '../shared/chat-tool-activity.js';
 import { callDirectChatWithTools } from './direct-chat-tools.js';
 // chat-send.js — direct chat send, streaming, stop button, and typewriter state
@@ -238,8 +239,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
   }
   // If currently streaming, abort and return (toggle behavior)
   if (isChatStreaming()) {
-    _chatAbortController?.abort();
-    _chatAbortController = null;
+    stopChatGeneration();
     return;
   }
   if (chatSavePending || isChatThreadInputBlocked()) return;
@@ -612,6 +612,22 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
     const error = err as RawSendError;
     stopChatThinkingStatus(typingEl);
     if (typingEl.parentNode) typingEl.remove();
+
+    const recovery = getChatTurnRecovery(err);
+    if (recovery) {
+      streamOutcome = recovery.stopped ? 'stopped' : 'failed';
+      const appControls = appControlSession.finish();
+      (state.chatHistory.push as (...messages: unknown[]) => number)({
+        role: 'assistant', ...recovery,
+        ...(appControls.length ? { appControls } : {}),
+        ...(toolActivity.length ? { toolActivity: normalizeChatToolActivity(toolActivity) } : {}),
+        personalityName: pendingPersonality.name, personalityIcon: pendingPersonality.icon,
+        provider: _msgProvider, agentId: _msgAgentId, modelId: _msgModelId, modelDisplay: _msgModelDisplay,
+      });
+      await saveChatHistory();
+      if (scopeIsCurrent()) renderChatMessages({ preserveScroll: true });
+      return;
+    }
 
     // Abort: save partial streamed text as a normal message
     if (error.name === 'AbortError') {

@@ -4081,3 +4081,8 @@ tests/pwa/sveltekit-island-ownership.spec.js.map
 /shared/chat-tool-activity.js
 /js/components/ChatToolActivity.svelte.native.js
 /js/components/ChatToolActivity.svelte.html.js
+
+# Chat turn outcome and recovery runtime output
+/shared/chat-turn-outcome.js
+/js/chat-turn-scope.js
+/js/chat-turn-recovery.js

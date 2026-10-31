@@ -1,3 +1,4 @@
+import { MAX_CHAT_APP_REVIEWS } from '../shared/chat-turn-outcome.js';
 import { captureChatControlAuthorization } from './chat-control-settings.js';
 import { chatAppActionAllowed, chatAppControlAllowed, CHAT_NATIVE_UI_NOTICE } from '../shared/chat-control-policy.js';
 import { APP_CONTROL_ACTIONS, parseDisplayControlPatch, parseAssistantSelectionPatch, parseAssistantConnectionPatch, parseProfileSelectionPatch } from '../shared/agent-control-contract.js';
@@ -17,8 +18,9 @@ export function createAppControlSession(userMessage: string, isCurrent: () => bo
   const records: AppControlRecord[] = [];
   const overlaySnapshots = new Map<string, string>();
   let closed = false;
-  const current = () => authorization.current() && !closed && !signal.aborted && isCurrent() && state.currentProfile === profileId
+  const owned = () => authorization.current() && !closed && isCurrent() && state.currentProfile === profileId
     && state.currentThreadId === threadId && state.importedData === root && state.chatHistory === history;
+  const current = () => !signal.aborted && owned();
   const assertCurrent = () => { if (!profileId || !threadId || !current()) throw new Error('The originating interactive chat is no longer current. No app setting was changed.'); };
   function readAppState(options: { action: 'display.preferences' }): { action: string; snapshotId: string; values: Omit<ReturnType<typeof readDisplayPreferences>, 'timeFormat'>; scope: string; approval: string; canonicalDataUnchanged: boolean };
   function readAppState(options: { action: string; query?: string; offset?: number; limit?: number; connectionId?: string; profileId?: string; scopeId?: string }): unknown;
@@ -81,7 +83,7 @@ export function createAppControlSession(userMessage: string, isCurrent: () => bo
         assertCurrent();
         if (!chatAppControlAllowed(action, JSON.parse(parameters))) throw new Error(CHAT_NATIVE_UI_NOTICE);
         if (!evidence.trim() || !userMessage.includes(evidence)) throw new Error('Evidence must quote the accepted human message exactly.');
-        if (records.length >= 10) throw new Error('Too many app controls in one reply.');
+        if (records.length >= MAX_CHAT_APP_REVIEWS) throw new Error('Too many app controls in one reply.');
         if (records.some(record => record.action === 'profile.selection')) throw new Error('Finish the profile switch before requesting another app change in its new context.');
         if (action === 'labs.overlays') return import('./lab-overlay-controls.js').then(owner => {
           assertCurrent(); const leaseId = overlaySnapshots.get(snapshotId); if (!leaseId || records.some(record => record.action === action)) throw new Error('Read fresh labs.overlays and request at most one chart-layer review per reply.');
@@ -130,7 +132,7 @@ export function createAppControlSession(userMessage: string, isCurrent: () => bo
       },
     },
     hasPreparedReview: () => current() && records.length > 0,
-    finish() { if (!authorization.current()) { closed = true; records.length = 0; return []; } assertCurrent(); closed = true; return structuredClone(records); },
+    finish() { if (!authorization.current()) { closed = true; records.length = 0; return []; } if (!profileId || !threadId || !owned()) throw new Error('The originating interactive chat is no longer current.'); closed = true; return structuredClone(records); },
     cancel() { closed = true; records.length = 0; snapshots.clear(); overlaySnapshots.clear(); assistantSnapshots.clear(); connectionSnapshots.clear(); profileSnapshots.clear(); },
   };
 }
