@@ -54,6 +54,8 @@ Lazy Chat open/toggle requests retain their initiating profile through module
 loading. Panel opening checks that profile and its open intent after each
 asynchronous load, so a deleted profile's pending request cannot initialize a
 conversation on its temporary sync fallback or another selected profile.
+An interrupted visible opening closes only while it still owns the latest open
+intent, leaving a newer opening intact.
 
 `body-measurement-model.ts` owns method-specific waist/hip/SAD field identities
 and validated portable-mirror projection. `wearables-manual.ts` owns their paired

@@ -266,12 +266,16 @@ export async function openChatPanel(prefillMessage?: Parameters<typeof setChatIn
   const openIntent = ++chatPanelIntent;
   const profileId = state.currentProfile;
   const isCurrent = () => openIntent === chatPanelIntent && state.currentProfile === profileId;
+  const cancelOpening = () => {
+    if (openIntent === chatPanelIntent) closeChatPanel();
+    return false;
+  };
   const panel = document.getElementById('chat-panel');
   const backdrop = document.getElementById('chat-backdrop');
   if (!panel || !backdrop) return false;
   const returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   if (!(await loadChatPresentationStylesheetsForAction())) return false;
-  if (!isCurrent()) return false;
+  if (!isCurrent()) return cancelOpening();
   chatPanelReturnFocus = returnFocus;
   panel.classList.add('open');
   updateChatPanelAccessibility(panel, true);
@@ -297,7 +301,7 @@ export async function openChatPanel(prefillMessage?: Parameters<typeof setChatIn
   if (fab) fab.classList.add('hidden');
   dismissCurrentChatNudge();
   await loadCustomPersonalities();
-  if (!isCurrent()) return false;
+  if (!isCurrent()) return cancelOpening();
   loadChatPersonality();
   refreshChatBackendControl();
   updateChatHeaderTitle();
@@ -316,7 +320,7 @@ export async function openChatPanel(prefillMessage?: Parameters<typeof setChatIn
   let threadsLoaded = true;
   if (!liveSessionInProgress) {
     threadsLoaded = await loadChatThreads();
-    if (!isCurrent()) return false;
+    if (!isCurrent()) return cancelOpening();
     chatThreadInputBlocked = threadsLoaded === false;
     if (threadsLoaded !== false) ensureActiveThread();
   }
@@ -325,7 +329,7 @@ export async function openChatPanel(prefillMessage?: Parameters<typeof setChatIn
   renderThreadList();
   renderSavedSummaries();
   if (!liveSessionInProgress && threadsLoaded !== false) await loadChatHistory();
-  if (!isCurrent()) return false;
+  if (!isCurrent()) return cancelOpening();
   if (!generationInProgress) (panelCallbacks as PanelCallbackOperations).restoreDiscussionContinuePrompt?.();
   updateChatInputState();
   initChatComposer();

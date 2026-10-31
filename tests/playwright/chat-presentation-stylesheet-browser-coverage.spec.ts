@@ -27,6 +27,34 @@ test('a profile handoff cancels Chat opening while presentation is loading', asy
   expect(await page.evaluate(() => Object.keys(localStorage).filter(key => key.startsWith('labcharts-replacement-profile-')))).toEqual([]);
 });
 
+for (const newerOpen of [false, true]) {
+  test(`profile handoff after Chat becomes visible retires only its own opening (newer open: ${newerOpen})`, async ({ page }) => {
+    await page.goto('/app', {waitUntil: 'load'});
+    const result = await page.evaluate(async newerOpen => {
+      const panel = await import('/js/chat-panel.js');
+      const {state} = await import('/js/state.js');
+      const originalProfile = state.currentProfile;
+      const read = Storage.prototype.getItem;
+      let switched = false;
+      let next: ReturnType<typeof panel.openChatPanel> | undefined;
+      Storage.prototype.getItem = function(key) {
+        if (!switched && key === `labcharts-${originalProfile}-chatPersonalityCustom`) {
+          switched = true;
+          state.currentProfile = 'replacement-profile';
+          if (newerOpen) next = panel.openChatPanel();
+        }
+        return read.call(this, key);
+      };
+      try {
+        const first = await panel.openChatPanel();
+        const second = next ? await next : null;
+        return {switched, first, second, visible: document.getElementById('chat-panel')!.classList.contains('open')};
+      } finally { Storage.prototype.getItem = read; }
+    }, newerOpen);
+    expect(result).toEqual({switched: true, first: false, second: newerOpen ? true : null, visible: newerOpen});
+  });
+}
+
 test('Chat presentation stays cold until the panel opens and preserves cascade order', async ({ page }) => {
   let stylesheetRoute: import("@playwright/test").Route | undefined;
   let stylesheetRequests = 0;
