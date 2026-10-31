@@ -16,6 +16,7 @@ import {writeScalarVersion, scalarValueHash} from '../js/sync-scalar-snapshot.js
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { mock } from 'node:test';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
@@ -1047,18 +1048,26 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
       onSyncReceived: () => { received++; },
     });
     (syncSubscriptions.bindSyncSubscriptions as unknown as (options: Omit<NonNullable<Parameters<typeof syncSubscriptions.bindSyncSubscriptions>[0]>, "evolu"> & {evolu: {subscribeQuery(query: unknown): (callback: () => void) => unknown; subscribeError(): void; getQueryRows(): unknown[]}}) => ReturnType<typeof syncSubscriptions.bindSyncSubscriptions>)({ evolu: fakeEvolu, profileQuery, tombstoneQuery, itemRowQuery });
-    callbacks.get(profileQuery)?.();
-    assert('subscription receive is not dropped while syncing', received === 0);
-    syncing = false;
-    await new Promise(r => setTimeout(r, 650));
-    assert('deferred subscription receive runs after syncing clears', received === 1);
-    pulling = true;
-    callbacks.get(itemRowQuery)?.();
-    assert('itemRow receive is deferred while pulling', received === 1);
-    pulling = false;
-    await new Promise(r => setTimeout(r, 650));
-    assert('deferred itemRow receive runs after pulling clears', received === 2);
-    syncSubscriptions.clearSyncSubscriptionTimers();
+    // Run the actual production retry callbacks through the same 650ms
+    // boundaries without spending 1.3s of the unchanged cold-case deadline.
+    // No asynchronous work runs while the scoped timer replacement is active.
+    mock.timers.enable({apis: ['setTimeout']});
+    try {
+      callbacks.get(profileQuery)?.();
+      assert('subscription receive is not dropped while syncing', received === 0);
+      syncing = false;
+      mock.timers.tick(650);
+      assert('deferred subscription receive runs after syncing clears', received === 1);
+      pulling = true;
+      callbacks.get(itemRowQuery)?.();
+      assert('itemRow receive is deferred while pulling', received === 1);
+      pulling = false;
+      mock.timers.tick(650);
+      assert('deferred itemRow receive runs after pulling clears', received === 2);
+    } finally {
+      syncSubscriptions.clearSyncSubscriptionTimers();
+      mock.timers.reset();
+    }
   }
   assert('Sync diagnose includes tombstone rows and deleted-state column',
     /tombstoneRows[\s\S]{0,300}isDeleted:\s*true/.test(syncDiagnosticsSnapshotSrc)
