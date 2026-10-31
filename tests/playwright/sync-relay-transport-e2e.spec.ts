@@ -308,7 +308,17 @@ async function setSyntheticData(page: Page, action: unknown) {
     } else {
       throw new Error(`Unknown synthetic mutation: ${requestedAction}`);
     }
-    return dataModule.saveImportedData();
+    const saved = await dataModule.saveImportedData();
+    if (requestedAction === 'offline-context' && state.importedData.contextNotes !== 'transport-e2e-offline-recovery') {
+      const [writes, crypto, profile, dirty] = await Promise.all([
+        import('/js/profile-data-writes.js'), import('/js/crypto.js'), import('/js/profile.js'), import('/js/sync-dirty-state.js'),
+      ]);
+      const raw = await crypto.encryptedGetItem(profile.profileStorageKey(state.currentProfile, 'imported'));
+      throw new Error('Offline edit lost before save returned: ' + JSON.stringify({saved,
+        live: state.importedData.contextNotes, baseline: writes.profileDataBaseline(state.importedData)?.contextNotes,
+        stored: raw ? JSON.parse(raw).contextNotes : null, dirty: !!dirty.getSyncDirtyToken(state.currentProfile)}));
+    }
+    return saved;
   }, action);
 }
 
@@ -631,7 +641,11 @@ test('paused note edits do not overwrite context changed on another device', asy
     await setSyntheticData(b.page, 'update-a');
     await syncNow(b.page); await waitForContext(a.page, UPDATED_CONTEXT);
     expect(await b.page.evaluate(() => import('/js/sync.js').then(sync => sync.pauseSync()))).toBe(true);
-    await setSyntheticData(a.page, 'offline-context'); await syncNow(a.page);
+    expect(await setSyntheticData(a.page, 'offline-context')).toBe(true);
+    await syncNow(a.page);
+    const afterManualSync = await contextNotes(a.page);
+    if (afterManualSync !== OFFLINE_CONTEXT) console.error('Offline edit lost during manual sync:', JSON.stringify(await syncDiagnostics(a.page)));
+    expect(afterManualSync).toBe(OFFLINE_CONTEXT);
     await waitForStableRelayStorage(a.page);
     await expect.poll(() => contextNotes(b.page)).toBe(UPDATED_CONTEXT);
     await setSyntheticData(b.page, 'concurrent-b');
