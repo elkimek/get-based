@@ -601,14 +601,12 @@ The native runtime records actual review IDs and navigation effects in
 reviews after API or CLI interruption. Normal and discussion senders publish that
 verified partial result without interpreting provider prose as a receipt. Stopping
 cancels execution; the owning sender settles its controller and UI. Runtime preparation
-and stored-history normalization share the existing limits of 20 data reviews and 10 app
-reviews; an oversized turn receives an explicit limit result instead of preparing
-reviews which storage would drop. Already prepared app reviews can close after
-cancellation but cannot execute further tools, and Apply retains its native
-authorization and conflict checks. Current chat advertises 13 primary tool definitions at version61 when all handlers are bound. The exact version60 catalog is retained explicitly for compatibility checks; management tools and old note/meal/measurement/supplement shortcuts never execute in current chat. Health notes use the current record tools, including appendText to preserve existing text exactly. Historical health cards require a fresh native review before Apply. Tool registrations own their schema, dependency
+and stored-history normalization share the existing limit of 20 health reviews;
+oversized turns report that limit instead of preparing reviews storage would drop.
+Historical app-control normalization retains its bounded record limit, without
+execution authority. Health Apply retains native authorization and conflict checks. Current chat advertises 13 primary tool definitions at version61 when all handlers are bound. The exact version60 catalog is retained explicitly for compatibility checks; management tools and old note/meal/measurement/supplement shortcuts never execute in current chat. Health notes use the current record tools, including appendText to preserve existing text exactly. Historical health cards require a fresh native review before Apply. Tool registrations own their schema, dependency
 binding and activity label; API and CLI discovery use the actual injected turn
-capabilities. Discussion turns omit interactive app-review tools when no owning session
-exists. The Companion resumes Codex only for the same native tool scope; changed or
+capabilities. Discussion turns use the same health-only policy. The Companion resumes Codex only for the same native tool scope; changed or
 evicted scopes start a fresh backend session with visible history replay. Shared tool
 instructions live in `shared/chat-tool-instructions.ts`. Direct API chat supplies them
 once; the trusted Companion supplies the single CLI base policy, while browser CLI
