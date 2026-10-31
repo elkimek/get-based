@@ -146,11 +146,7 @@ export function updateSyncIndicator() {
 
 const syncText = (value: unknown): string => value == null ? '' : String(value);
 
-export function toggleSyncDetail() {
-  let pop = document.getElementById('sync-popover');
-  if (pop) { pop.remove(); return; }
-  const btn = document.getElementById('sync-indicator-btn');
-  if (!btn) return;
+function createSyncDetail() {
   const s = getSyncStatus();
   const relayUrl = getSyncRelay();
   const replicationFailed = s.replication === 'Offline' || s.replication === 'Error';
@@ -173,7 +169,7 @@ export function toggleSyncDetail() {
   const pullLabel = s.pullReceivedAt ? `Checked ${_timeAgo(s.pullReceivedAt)}` : '\u2014';
   const errorLine = s.lastError ? { type: syncText(s.lastError.type), age: _timeAgo(s.lastError.at) } : null;
 
-  pop = document.createElement('div');
+  const pop = document.createElement('div');
   pop.id = 'sync-popover';
   pop.className = 'sync-popover';
   // Recent sync events list - debug-only. Useful when phone vs desktop
@@ -216,6 +212,56 @@ export function toggleSyncDetail() {
     // This is the original second debug read, after relay escaping and quota.
     debugControls: isDebugMode(),
   });
+  return pop;
+}
+
+// Preserve the actual controls while status text changes. Replacing a hovered
+// button between pointerdown and click loses the action and keyboard focus.
+function syncNodeKey(node: Node): string | null {
+  if (!(node instanceof Element)) return null;
+  const action = node.getAttribute('data-sync-ui-action');
+  if (action) return `action:${action}`;
+  if (node.querySelector('[data-sync-ui-action="sync-now"]')) return 'actions';
+  if (node.querySelector('[data-sync-ui-action="copy-events"]')) return 'events';
+  return null;
+}
+function patchSyncChildren(current: Node, next: Node) {
+  let cursor = current.firstChild;
+  const desiredKeys = new Set(Array.from(next.childNodes).map(syncNodeKey).filter(Boolean));
+  const keyed = new Map(Array.from(current.childNodes).flatMap(node => {
+    const key = syncNodeKey(node); return key ? [[key, node] as const] : [];
+  }));
+  for (const desired of Array.from(next.childNodes)) {
+    const key = syncNodeKey(desired);
+    const candidate = key ? keyed.get(key) : cursor && !syncNodeKey(cursor) ? cursor : null;
+    const compatible = candidate && candidate.nodeType === desired.nodeType
+      && (!(candidate instanceof Element) || desired instanceof Element && candidate.tagName === desired.tagName);
+    if (!compatible) {
+      current.insertBefore(desired.cloneNode(true), cursor);
+      continue;
+    }
+    // Remove obsolete status nodes before an existing control group instead
+    // of moving that group: even a synchronous DOM move drops its focus.
+    while (candidate !== cursor && cursor && (!syncNodeKey(cursor) || !desiredKeys.has(syncNodeKey(cursor)))) {
+      const nextSibling = cursor.nextSibling; current.removeChild(cursor); cursor = nextSibling;
+    }
+    if (candidate !== cursor) current.insertBefore(candidate, cursor);
+    if (candidate instanceof Element && desired instanceof Element) {
+      for (const attr of Array.from(candidate.attributes)) if (!desired.hasAttribute(attr.name)) candidate.removeAttribute(attr.name);
+      for (const attr of Array.from(desired.attributes)) if (candidate.getAttribute(attr.name) !== attr.value) candidate.setAttribute(attr.name, attr.value);
+      patchSyncChildren(candidate, desired);
+    } else if (candidate.nodeValue !== desired.nodeValue) candidate.nodeValue = desired.nodeValue;
+    cursor = candidate.nextSibling;
+  }
+  while (cursor) { const nextSibling = cursor.nextSibling; current.removeChild(cursor); cursor = nextSibling; }
+}
+
+export function toggleSyncDetail() {
+  const existing = document.getElementById('sync-popover');
+  if (existing) { existing.remove(); return; }
+  const btn = document.getElementById('sync-indicator-btn');
+  if (!btn) return;
+  const pop = createSyncDetail();
   const parent = btn.parentElement;
   if (!parent) return;
   parent.style.position = tsStaticStyles.syncPopoverAnchor;
@@ -228,14 +274,11 @@ export function toggleSyncDetail() {
 export function bindSyncUIStatusUpdates() {
   if (_statusBound) return;
   _statusBound = true;
-  // Subscribe to status changes -> repaint indicator + re-render the popover
-  // in place so a watchdog flip (e.g. 30s push-stuck) updates the labels and
-  // the Reload button styling without the user closing / reopening the panel.
+  // Update status in place while retaining open controls and their focus.
   subscribeSyncStatus(() => {
     updateSyncIndicator();
-    if (document.getElementById('sync-popover')) {
-      toggleSyncDetail(); toggleSyncDetail();
-    }
+    const pop = document.getElementById('sync-popover');
+    if (pop) patchSyncChildren(pop, createSyncDetail());
   });
 }
 

@@ -168,6 +168,41 @@ it.each(['Offline', 'Error'] as const)('does not describe replication %s as conn
   expect(popover.textContent).toContain(replication === 'Offline' ? 'Sync connection offline' : 'Sync needs attention');
   expect(popover.querySelector('[role="status"]')?.textContent).toContain(replication === 'Offline' ? 'Offline.' : 'Relay storage is full');
 });
+
+it('retains open action buttons, keyboard focus and clicks during repeated and changing sync status', async () => {
+  const {ui, status} = await controller([true, true]);
+  const diagnose = vi.fn();
+  ui.configureSyncUI({isSyncEnabled: () => true, showSyncDiagnose: diagnose});
+  status.updateSyncStatus({relay: 'connected', replication: 'Syncing', devicePersistence: 'Persisted'});
+  status.logSyncEvent('skip', 'No changes to push');
+  document.body.innerHTML = '<div id="sync-indicator-slot"></div>';
+  ui.renderSyncIndicator(); ui.toggleSyncDetail(); ui.initSyncUIDelegates(); ui.bindSyncUIStatusUpdates();
+  const popover = document.getElementById('sync-popover')!;
+  const buttons = Array.from(popover.querySelectorAll<HTMLButtonElement>('[data-sync-ui-action]'));
+  const button = popover.querySelector<HTMLButtonElement>('[data-sync-ui-action="show-diagnose"]')!;
+  button.focus(); button.dispatchEvent(new MouseEvent('mousedown', {bubbles: true}));
+  for (let i = 0; i < 40; i++) status.updateSyncStatus({replication: 'Syncing'});
+  status.updateSyncStatus({push: 'error', lastError: {type: 'PushStuck', at: Date.now()}});
+  expect(popover.querySelector('[data-sync-ui-action="reload"]')).not.toBeNull();
+  status.logSyncEvent('pull', 'Checked latest data');
+  status.updateSyncStatus({push: 'confirmed', pushConfirmedAt: Date.now(), replication: 'Synced', lastError: null});
+  expect(document.getElementById('sync-popover')).toBe(popover);
+  for (const original of buttons) expect(popover.querySelector(`[data-sync-ui-action="${original.dataset.syncUiAction}"]`)).toBe(original);
+  expect(document.activeElement).toBe(button);
+  expect(popover.querySelector('[data-sync-ui-action="reload"]')).toBeNull();
+  expect(popover.textContent).toContain('Confirmed');
+  button.click(); expect(diagnose).toHaveBeenCalledOnce();
+});
+
+it('does not emit a new status event when every supplied field is unchanged', async () => {
+  const {status} = await controller();
+  status.updateSyncStatus({replication: 'Syncing'});
+  const listener = vi.fn(), unsubscribe = status.subscribeSyncStatus(listener);
+  for (let i = 0; i < 40; i++) status.updateSyncStatus({replication: 'Syncing'});
+  expect(listener).not.toHaveBeenCalled();
+  status.updateSyncStatus({replication: 'Synced'});
+  expect(listener).toHaveBeenCalledOnce(); unsubscribe();
+});
 describe('public Sync indicator lifetime and original no-render boundaries', () => {
   it.each(fixture.indicators)('retains original public indicator case: $original.name', async ({ original }) => {
     // Unknown persistence no longer claims durable local storage. Preserve the
