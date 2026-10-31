@@ -370,6 +370,10 @@ and ignore exact cached versions replaced by successful local pushes. Successful
 recovery durably advances the local metadata clock; metadata edited while the
 push is pending stays queued with a clock beyond that recovery.
 
+Sync status emits only changed fields. An open status popover updates its
+information in place, retaining action-button identity and keyboard focus so
+replication activity cannot interrupt hover or a click in progress.
+
 The static assembler externalizes Kit's classic bootstrap to satisfy the existing
 CSP without permitting inline executable scripts. It copies only declared public
 assets, retains `/`, `/index.html`, `/app` and `/app/`, and uses the existing
