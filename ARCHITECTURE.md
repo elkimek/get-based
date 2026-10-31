@@ -373,6 +373,15 @@ insert contract. Never-configured absent fields do not create clear rows.
 Legacy envelopes retain their profile-clock fallback. Explicit recovery also
 re-emits scalar rows, including clears. Planning or row-mutation failures keep
 local dirty markers queued and stop success confirmation.
+
+Backup recovery acknowledges each committed profile independently before relay
+tombstones can apply. Its journal stays readable by older tabs; generation,
+owner and dirty-token checks prevent an old completion from acknowledging a
+newer restore. Demo and explicitly deleted profiles are not republished.
+Unavailable profiles retain their recovery protection without re-uploading
+completed profiles. A failed progress write retains an in-memory commit receipt;
+automatic failed publishes have a bounded retry budget, reset by an explicit
+Sync now/resume or a newer local edit.
 Profile metadata carries its own item row and durable edit clock; unrelated data rebroadcasts
 retain it. Legacy metadata uses the envelope clock, and equal-clock metadata
 conflicts resolve deterministically. Pulls defer pending local metadata edits

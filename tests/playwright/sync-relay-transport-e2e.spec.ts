@@ -753,3 +753,74 @@ test('restored profiles survive old tombstones and a new sync identity', async (
     await Promise.all(devices.map(device => device.context.close().catch(() => {})));
   }
 });
+
+test('identity rotation with partial backup recovery stops repeat uploads and later completes', async ({browser}) => {
+  test.setTimeout(120_000);
+  const devices: Array<Awaited<ReturnType<typeof createDevice>>> = [];
+  const a = await createDevice(browser, 'recovery device A'); devices.push(a);
+  try {
+    await setSyntheticData(a.page, 'seed');
+    const previous = await enableNewIdentity(a.page);
+    await a.page.evaluate(async () => { (await import('/js/sync.js')).pauseSync(); });
+    const ids = await a.page.evaluate(async () => {
+      const profile = await import('/js/profile.js');
+      const demo = await profile.createProfile('Synthetic recovery demo', {tags: ['demo'], skipInitialSync: true});
+      const unavailable = await profile.createProfile('Synthetic unavailable recovery', {skipInitialSync: true});
+      await profile.switchProfile('default');
+      await (await import('/js/crypto.js')).encryptedRemoveItem(profile.profileStorageKey(unavailable, 'imported'));
+      (await import('/js/sync-backup-restore-state.js')).prepareRestoredProfilesForSync({profiles: [
+        {profileId: 'default'}, {profileId: demo}, {profileId: unavailable},
+      ]});
+      return {demo, unavailable};
+    });
+    const reloaded = a.page.waitForEvent('load', {timeout: 30_000});
+    await a.page.evaluate(async () => {
+      const identity = await import('/js/sync-identity.js');
+      const mnemonic = await (await identity.ensureBip39()).generateMnemonic(256);
+      if (!await identity.restoreFromMnemonic(mnemonic, {seedLocal: true})) throw new Error('Synthetic identity rotation failed');
+    });
+    await reloaded;
+    await expect.poll(() => a.page.evaluate(async oldOwner => {
+      const owner = (await import('/js/sync-runtime.js')).getSyncAppOwner();
+      return !!owner?.id && owner.id !== oldOwner;
+    }, previous.ownerId), {timeout: 30_000}).toBe(true);
+    const pending = () => a.page.evaluate(async () => (await import('/js/sync-backup-restore-state.js')).getPendingBackupRestoreProfileIds());
+    await expect.poll(pending, {timeout: 10_000}).toEqual([ids.unavailable]);
+    const before = await waitForStableRelayStorage(a.page);
+    await a.page.waitForTimeout(2000);
+    const after = await relayStorage(a.page);
+    expect(after?.messageCount).toBe(before?.messageCount);
+    expect(after?.storedBytes).toBe(before?.storedBytes);
+    expect((await profileIds(a.page)).sort()).toEqual(['default', ids.demo, ids.unavailable].sort());
+    await waitForContext(a.page, BASELINE_CONTEXT);
+    await waitForNotes(a.page, ['baseline-note']);
+
+    // Restore only this fixture's deliberately unavailable local snapshot, then
+    // use the real manual retry path. Existing committed data must stay intact.
+    await a.page.evaluate(async profileId => {
+      const profile = await import('/js/profile.js');
+      const data = profile.createDefaultProfileData(); data.contextNotes = 'transport-recovered-inactive';
+      await (await import('/js/crypto.js')).encryptedSetItem(profile.profileStorageKey(profileId, 'imported'), JSON.stringify(data));
+      (await import('/js/sync-dirty-state.js')).markSyncProfileDirty(profileId);
+    }, ids.unavailable);
+    expect((await syncNow(a.page))?.ok).toBe(true);
+    await expect.poll(pending).toEqual([]);
+    const identity = await waitForOwner(a.page);
+    const b = await createDevice(browser, 'recovery device B'); devices.push(b);
+    await joinIdentity(b.page, identity.mnemonic, identity.ownerId);
+    await activateProfile(b.page, 'default'); await waitForContext(b.page, BASELINE_CONTEXT); await waitForNotes(b.page, ['baseline-note']);
+    await activateProfile(b.page, ids.unavailable); await waitForContext(b.page, 'transport-recovered-inactive');
+    expect((await profileIds(b.page)).sort()).toEqual(['default', ids.unavailable].sort());
+    if (EVOLU_CLIENT === 'v8') for (const device of devices) {
+      await expect.poll(() => device.page.evaluate(async () => {
+        const evolu = (await import('/js/sync-runtime.js')).getSyncEvolu();
+        if (!evolu?.subscribeOwnerSyncStatus) throw new Error('Missing actual modern SDK sync status');
+        let phase = ''; const stop = evolu.subscribeOwnerSyncStatus(status => { phase = status.type; }); stop(); return phase;
+      }), {timeout: 30_000}).toBe('Synced');
+    }
+    for (const device of devices) expect(device.errors).toEqual([]);
+  } finally {
+    await a.page.evaluate(async () => (await import('/js/sync.js')).pauseSync()).catch(() => {});
+    for (const device of devices.reverse()) await device.context.close();
+  }
+});

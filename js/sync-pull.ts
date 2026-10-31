@@ -32,6 +32,7 @@ interface SyncPullDeps {
 import { encodeMergedRoutstrSessions, ROUTSTR_SESSIONS_KEY } from './routstr-session.js';
 
 import { state } from './state.js';
+import { getSyncAppOwner } from './sync-runtime.js';
 import { parseSyncPayload } from './sync-payload.js';
 import { applyChatData, chatDataNeedsRebroadcast, getChatDataLocalLockRemainingMs } from './sync-chat-apply.js';
 import { refreshActiveProfileAfterPull } from './sync-pull-active-refresh.js';
@@ -48,7 +49,7 @@ import {
 } from './sync-state.js';
 import { isLocalSyncCommitEcho } from './sync-origin-state.js';
 import {
-  clearBackupRestorePending, getPendingBackupRestoreProfileIds,
+  getPendingBackupRestoreProfileIds, republishPendingBackupRestore, resetBackupRestoreRetryBudget,
 } from './sync-backup-restore-state.js';
 import {
   getProfileSyncBlockReason, isDemoProfileRecord,
@@ -198,6 +199,7 @@ export function clearSyncPullTimers() {
 }
 
 export function forcePull() {
+  resetBackupRestoreRetryBudget();
   if (!currentEvolu() || !currentProfileQuery()) {
     console.warn('[sync] Cannot force pull — Evolu not initialized');
     return undefined;
@@ -272,12 +274,18 @@ async function receiveSync() {
     const restoredProfileIds = getPendingBackupRestoreProfileIds();
     if (restoredProfileIds.length > 0) {
       dbg(`Restore preflight: republishing ${restoredProfileIds.length} restored profile(s)`);
-      const restored = await _pushProfilesById(restoredProfileIds, { force: true, completeSnapshot: true });
-      if (restored.failed > 0 || restored.skipped > 0 || restored.succeeded !== restoredProfileIds.length) {
-        logSyncEvent('skip', `Pull deferred — ${restored.succeeded}/${restoredProfileIds.length} restored profiles were republished`);
+      const ownerId = getSyncAppOwner()?.id || '';
+      const restored = await republishPendingBackupRestore({
+        runtime: evolu, ownerId, getProfiles: _getProfiles, pushProfilesById: _pushProfilesById,
+        isCurrent: () => currentEvolu() === evolu && getSyncAppOwner()?.id === ownerId && _isSyncEnabled(),
+      });
+      if (!restored.complete) {
+        logSyncEvent('skip', `Pull deferred — ${restored.remaining} restored profile(s) still need recovery`);
+        if (restored.reason !== 'identity-changed' && restored.reason !== 'identity-unavailable') {
+          updateSyncStatus({lastError: {type: 'BackupRestorePending', message: 'Some restored profiles could not be committed. Local data is retained. Make those profiles available, then retry Sync now.', at: Date.now()}});
+        }
         return;
       }
-      clearBackupRestorePending();
     }
 
     // Resolve remote tombstones before processing live rows. The tombstone
