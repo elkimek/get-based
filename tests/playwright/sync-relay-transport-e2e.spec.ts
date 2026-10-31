@@ -554,6 +554,12 @@ test('real relay converges devices, resists no-op bloat, recovers offline, and r
     expect(afterRepeatedReconnect!.messageCount).toBe(afterOldDeviceReconnect!.messageCount);
     expect(afterRepeatedReconnect!.storedBytes).toBe(afterOldDeviceReconnect!.storedBytes);
 
+    if (EVOLU_CLIENT !== 'v7') {
+      await expect.poll(() => deviceB.page.evaluate(async () => (
+        (await import('/js/sync-state.js')).getSyncStatus().replication
+      )), {timeout: 30_000}).toBe('Synced');
+    }
+
     for (const device of devices) expect(device.errors).toEqual([]);
   } finally {
     if (cleanupPage && !cleanupPage.isClosed()) {

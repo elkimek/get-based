@@ -59,7 +59,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: elkimek/getbased-relay
-          ref: 2e7979ea5c72d0e6e0652b241d845c3b77762a24
+          ref: 4f44ebb32d8c44d29503cb075d57ce48a7519b28
           path: .ci/getbased-relay
           persist-credentials: false
 
