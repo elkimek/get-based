@@ -774,11 +774,10 @@ test('identity rotation with partial backup recovery stops repeat uploads and la
       return {demo, unavailable};
     });
     const reloaded = a.page.waitForEvent('load', {timeout: 30_000});
-    await a.page.evaluate(async () => {
-      const identity = await import('/js/sync-identity.js');
-      const mnemonic = await (await identity.ensureBip39()).generateMnemonic(256);
-      if (!await identity.restoreFromMnemonic(mnemonic, {seedLocal: true})) throw new Error('Synthetic identity rotation failed');
-    });
+    const rotating = a.page.evaluate(async () => (await import('/js/sync-diagnose-identity-actions.js')).confirmRotateIdentity());
+    await a.page.locator('#confirm-ok').click(); await rotating;
+    await a.page.locator('#rotate-saved-check').check();
+    await a.page.locator('#rotate-apply-btn').click();
     await reloaded;
     await expect.poll(() => a.page.evaluate(async oldOwner => {
       const owner = (await import('/js/sync-runtime.js')).getSyncAppOwner();

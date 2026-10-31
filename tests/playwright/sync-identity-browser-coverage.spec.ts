@@ -111,8 +111,8 @@ test('sync identity browser coverage handles libraries getters pending restore a
       outcomes.defaultSeedLocalDependencyIsCallable = defaultSeedResult === true
         && identity.isRestoreJoinPending() === false
         && scheduledDelays.includes(500)
-        && notifications().includes('seeded this device')
-        && identity.consumeSyncRestoreNotice()?.includes('data was republished') === true;
+        && notifications().includes('reloading to publish this device')
+        && identity.consumeSyncRestoreNotice() === 'Sync identity restored. Publishing this device’s data…';
 
       (window as unknown as {bip39?: unknown}).bip39 = { existing: true };
       outcomes.ensureBip39UsesExistingGlobal = await identity.ensureBip39() === (window as unknown as {bip39?: unknown}).bip39;
@@ -227,8 +227,8 @@ test('sync identity browser coverage handles libraries getters pending restore a
         && identityDeleteKeys.every(key => localStorage.getItem(key) === null)
         && identity.isRestoreJoinPending() === false
         && scheduledDelays.includes(500)
-        && notifications().includes('seeded this device')
-        && identity.consumeSyncRestoreNotice()?.includes('data was republished') === true;
+        && notifications().includes('reloading to publish this device')
+        && identity.consumeSyncRestoreNotice() === 'Sync identity restored. Publishing this device’s data…';
 
       identity.configureSyncIdentity({
         getAppOwner: () => ({ id: 'same-owner', mnemonic: 'same owner mnemonic' }),

@@ -382,6 +382,9 @@ Unavailable profiles retain their recovery protection without re-uploading
 completed profiles. A failed progress write retains an in-memory commit receipt;
 automatic failed publishes have a bounded retry budget, reset by an explicit
 Sync now/resume or a newer local edit.
+Identity rotation queues complete local recovery for the reloaded owner and
+disables publishing in the retiring runtime while preserving enabled Sync in
+storage. Its old owner/query cache cannot acknowledge the new owner's recovery.
 Profile metadata carries its own item row and durable edit clock; unrelated data rebroadcasts
 retain it. Legacy metadata uses the envelope clock, and equal-clock metadata
 conflicts resolve deterministically. Pulls defer pending local metadata edits

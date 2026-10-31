@@ -39,7 +39,7 @@ export function consumeSyncRestoreNotice() {
     kind = sessionStorage.getItem(RESTORE_NOTICE_KEY) || '';
     sessionStorage.removeItem(RESTORE_NOTICE_KEY);
   } catch {}
-  if (kind === 'seed-local') return 'Sync identity restored and this device’s data was republished.';
+  if (kind === 'seed-local') return 'Sync identity restored. Publishing this device’s data…';
   if (kind === 'join') return 'Joined existing sync identity. Syncing data from your other device…';
   return null;
 }
@@ -219,10 +219,14 @@ export async function restoreFromMnemonic(mnemonic: string, options: { seedLocal
       clearSyncDisableStorage();
     }
     if (options?.seedLocal) {
+      // Persisted Sync stays enabled for the controlled reload. The retiring
+      // runtime must not consume the new owner's recovery journal: Evolu 7 can
+      // still expose its old owner/query cache until that reload completes.
+      setSyncEnabled(false, {persist: false});
       setRestoreJoinPending(false);
       await _seedLocalProfiles();
       if (currentEvolu() !== evolu) return false;
-      showNotification('Restored mnemonic and seeded this device — reloading…', 'success');
+      showNotification('Restored mnemonic — reloading to publish this device’s data…', 'success');
     } else {
       // This device is joining an existing owner. On first pull, old local
       // tombstones from the previous owner must not veto the source device's

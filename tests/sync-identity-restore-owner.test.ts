@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { configureSyncIdentity, restoreFromMnemonic, RESTORE_NOTICE_KEY } from '../js/sync-identity.js';
-import { SYNC_STORAGE_KEY } from '../js/sync-settings-state.js';
+import { isSyncEnabled, SYNC_STORAGE_KEY } from '../js/sync-settings-state.js';
+import { getPendingBackupRestoreProfileIds, markBackupRestorePending } from '../js/sync-backup-restore-state.js';
 beforeEach(() => { localStorage.clear(); sessionStorage.clear(); });
 afterEach(() => { configureSyncIdentity({ getAppOwner: () => null, getEvolu: () => null, seedLocalProfiles: async () => {} }); localStorage.clear(); sessionStorage.clear(); vi.restoreAllMocks(); });
 for (const failed of [false, true]) {
@@ -44,4 +45,23 @@ it('does not finalize an old seed operation after the runtime changes during per
   expect(await task).toBe(false); expect(localStorage.getItem(SYNC_STORAGE_KEY)).toBe('false');
   expect(sessionStorage.getItem(RESTORE_NOTICE_KEY)).toBe('replacement-notice');
   expect(document.body.textContent).not.toContain('republished');
+});
+
+it('persists recovery for the new owner while preventing the retiring runtime from publishing it', async () => {
+  vi.useFakeTimers();
+  try {
+    const engine = {restoreAppOwner: vi.fn(async () => {})};
+    const seed = vi.fn(async () => {
+      expect(engine.restoreAppOwner).toHaveBeenCalledOnce();
+      expect(localStorage.getItem(SYNC_STORAGE_KEY)).toBe('true');
+      expect(isSyncEnabled()).toBe(false);
+      markBackupRestorePending(['first', 'second']);
+    });
+    configureSyncIdentity({getEvolu: () => engine, getAppOwner: () => ({id: 'retiring-owner', mnemonic: 'old fixture identity'}), seedLocalProfiles: seed});
+    expect(await restoreFromMnemonic('new fixture identity', {seedLocal: true})).toBe(true);
+    expect(seed).toHaveBeenCalledOnce();
+    expect(getPendingBackupRestoreProfileIds()).toEqual(['first', 'second']);
+    expect(isSyncEnabled()).toBe(false);
+    expect(localStorage.getItem(SYNC_STORAGE_KEY)).toBe('true');
+  } finally { vi.clearAllTimers(); vi.useRealTimers(); }
 });

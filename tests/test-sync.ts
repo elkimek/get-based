@@ -515,7 +515,7 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
       && syncIdentitySrc.includes('export function getMnemonicResolutionError')
       && syncIdentitySrc.includes('export async function restoreFromMnemonic')
       && syncIdentitySrc.includes('RESTORE_JOIN_PENDING_KEY')
-      && syncConfigureSrc.includes('seedLocalProfiles: () => pushAllProfiles({ force: true })')
+      && syncConfigureSrc.includes('seedLocalProfiles: async () => markBackupRestorePending(getProfiles().map(profile => profile.id))')
       && exportBlockIncludes(syncSrc, ['getMnemonic', 'getMnemonicResolutionError', 'restoreFromMnemonic']));
   assert('service worker precaches sync-identity.js',
     serviceWorkerSrc.includes("'/js/sync-identity.js'"));
@@ -1627,9 +1627,13 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
     syncActionsSrc.includes('createDefaultProfileData()')
       && /pushAllProfiles[\s\S]{0,1200}readProfileImportedData\(p\.id\)/.test(syncActionsSrc)
       && /pushAllProfiles[\s\S]{0,1200}if \(!dataJson\)/.test(syncActionsSrc));
-  assert('restore-as-source seeds the new owner before reload',
+  const sourceRestoreStart = syncIdentitySrc.indexOf('if (options?.seedLocal)');
+  const sourceRestoreBranch = syncIdentitySrc.slice(sourceRestoreStart, syncIdentitySrc.indexOf('} else {', sourceRestoreStart));
+  assert('restore-as-source queues recovery with retiring runtime disabled before reload',
     /restoreFromMnemonic\(mnemonic,\s*options = \{\}\)/.test(syncIdentitySrc)
-      && /options\?\.seedLocal[\s\S]{0,400}await _seedLocalProfiles\(\)/.test(syncIdentitySrc)
+      && /setSyncEnabled\(false,\s*\{\s*persist: false\s*\}\)/.test(sourceRestoreBranch)
+      && sourceRestoreBranch.indexOf('setSyncEnabled(false') < sourceRestoreBranch.indexOf('await _seedLocalProfiles()')
+      && sourceRestoreBranch.includes('await _seedLocalProfiles()')
       && /restoreMnemonicForDiagnose\(words\.join\(' '\),\s*\{ seedLocal: true \}\)/.test(syncDiagnoseIdentityActionsSrc));
   assert('restore-as-joiner marks first pull to ignore old local tombstones',
     /setRestoreJoinPending\(true\)/.test(syncIdentitySrc)
