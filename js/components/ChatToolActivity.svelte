@@ -5,15 +5,14 @@
   let details = $state<HTMLDetailsElement>();
   $effect(() => { if (!live && details) details.open = false; });
   const active = $derived(activity?.findLast(step => step.status === 'running'));
-  const failed = $derived(activity?.some(step => step.status === 'failed'));
-  const interrupted = $derived(activity?.some(step => step.status === 'interrupted'));
+  const issue = $derived(activity?.find(step => step.status === 'failed') || activity?.find(step => step.status === 'interrupted'));
   const summary = $derived(active ? chatToolActivityLabel(active).replace(/^(Read|Prepare|Find|Search|Open|Check) /, word => ({ 'Read ': 'Reading ', 'Prepare ': 'Preparing ', 'Find ': 'Finding ', 'Search ': 'Searching ', 'Open ': 'Opening ', 'Check ': 'Checking ' } as Record<string, string>)[word] || word) + '…'
-    : live ? 'Preparing response…' : failed ? 'Action needs attention' : interrupted ? 'Action interrupted' : `${activity?.length} ${activity?.length === 1 ? 'action' : 'actions'} completed`);
+    : live ? 'Preparing response…' : issue ? issue.status === 'failed' ? 'Action needs attention' : 'Action interrupted' : `${activity?.length} ${activity?.length === 1 ? 'action' : 'actions'} completed`);
 </script>
 {#if activity?.length}
-  <details class="chat-tool-activity" data-chat-tool-activity data-live={live ? 'true' : undefined} aria-label="App activity" bind:this={details}>
+  <details class="chat-tool-activity" data-chat-tool-activity aria-label="App activity" bind:this={details}>
     <summary>
-      <span class="chat-tool-glyph" class:chat-tool-running={live} aria-hidden="true"><ChatMessageIcon name={live ? 'refresh' : failed || interrupted ? 'x' : 'check'} /></span>
+      <span class="chat-tool-glyph" class:chat-tool-running={live} aria-hidden="true"><ChatMessageIcon name={live ? 'refresh' : issue ? 'x' : 'check'} /></span>
       <span class="chat-tool-summary" role={live ? 'status' : undefined} aria-live={live ? 'polite' : undefined}>{summary}</span>
       <span class="chat-tool-chevron" aria-hidden="true">›</span>
     </summary>
