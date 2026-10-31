@@ -125,13 +125,21 @@ export function importDataJSON(file: File) {
   // (success OR error). Existing fire-and-forget callers (`importDataJSON(file)`)
   // ignore the return value and behave identically; the demo loader awaits
   // it to compute fingerprints against the imported state.
-  return new Promise<void>((resolve) => {
+  return new Promise<void | 'full-backup'>((resolve) => {
     const reader = new FileReader();
     reader.onerror = () => resolve();
     reader.onload = async () => {
       let rollback: string | null | undefined = null, rollbackProfile: string | null = null, rollbackData: unknown = null;
       try {
         const json = JSON.parse((reader.result as string)) as ImportBodyOperations;
+        // Full manual/folder backups use the restore pipeline, including its
+        // overwrite confirmation, encryption settings and IndexedDB side stores.
+        if (json.format === 'labcharts-backup') {
+          const { importEncryptedBackup } = await import('./backup.js');
+          await importEncryptedBackup(file);
+          resolve('full-backup');
+          return;
+        }
         // Guard: demo data should never be silently imported into a non-demo profile
         if (json._source === 'demo') {
           const profiles = getProfiles();

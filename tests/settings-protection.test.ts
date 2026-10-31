@@ -37,7 +37,7 @@ describe('owned Security and Backup settings', () => {
     expect(actions).toEqual(value ? ['change-passphrase', 'disable-encryption'] : ['enable-encryption']);
     expect(section.textContent).toContain(value ? 'API keys are encrypted' : 'device-local key');
     expect(section.innerHTML).not.toMatch(/on(click|change)=/);
-    expect(document.getElementById('backup-section')!.textContent).toContain(value ? 'same passphrase required' : 'omit provider credentials');
+    expect(document.getElementById('backup-section')!.textContent).toContain(value ? 'same passphrase required' : 'To include API keys, enable passphrase encryption');
   });
 
   it('refreshes encryption and backup explanations together after confirmed disable', async () => {

@@ -10,8 +10,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 1867 |
-| Internal import edges | 5709 |
-| Dynamic internal edges | 138 |
+| Internal import edges | 5710 |
+| Dynamic internal edges | 139 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
 | Largest cyclic component | 0 |
@@ -2160,7 +2160,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>export</code> family — 12 modules</summary>
 
-- [`js/export-import.ts`](js/export-import.ts) → [`js/biology-score-persistence.ts`](js/biology-score-persistence.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/chat-personality-storage.ts`](js/chat-personality-storage.ts), [`js/chat-storage-safety.ts`](js/chat-storage-safety.ts), [`js/crypto.ts`](js/crypto.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/export-runtime.ts`](js/export-runtime.ts), [`js/lab-entry-mutations.ts`](js/lab-entry-mutations.ts), [`js/lab-entry-restore.ts`](js/lab-entry-restore.ts), [`js/nostr-discovery.ts`](js/nostr-discovery.ts), [`js/nutrition-store.ts`](js/nutrition-store.ts) *(dynamic)*, [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/sync-save-hooks.ts`](js/sync-save-hooks.ts), [`js/utils.ts`](js/utils.ts), [`js/wearables-manual-sync.ts`](js/wearables-manual-sync.ts) *(dynamic)*, [`js/wearables-manual.ts`](js/wearables-manual.ts) *(dynamic)*
+- [`js/export-import.ts`](js/export-import.ts) → [`js/backup.ts`](js/backup.ts) *(dynamic)*, [`js/biology-score-persistence.ts`](js/biology-score-persistence.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/chat-personality-storage.ts`](js/chat-personality-storage.ts), [`js/chat-storage-safety.ts`](js/chat-storage-safety.ts), [`js/crypto.ts`](js/crypto.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/export-runtime.ts`](js/export-runtime.ts), [`js/lab-entry-mutations.ts`](js/lab-entry-mutations.ts), [`js/lab-entry-restore.ts`](js/lab-entry-restore.ts), [`js/nostr-discovery.ts`](js/nostr-discovery.ts), [`js/nutrition-store.ts`](js/nutrition-store.ts) *(dynamic)*, [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/sync-save-hooks.ts`](js/sync-save-hooks.ts), [`js/utils.ts`](js/utils.ts), [`js/wearables-manual-sync.ts`](js/wearables-manual-sync.ts) *(dynamic)*, [`js/wearables-manual.ts`](js/wearables-manual.ts) *(dynamic)*
 - [`js/export-loader.ts`](js/export-loader.ts) → [`js/export.ts`](js/export.ts) *(dynamic)*, [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/export-report-aggregates.ts`](js/export-report-aggregates.ts) → [`js/nutrition-nutrient-registry.ts`](js/nutrition-nutrient-registry.ts), [`js/nutrition-summary.ts`](js/nutrition-summary.ts), [`js/utils.ts`](js/utils.ts), [`js/wearable-adapters.ts`](js/wearable-adapters.ts), [`js/wearables-formatters.ts`](js/wearables-formatters.ts)
 - [`js/export-report-builder.ts`](js/export-report-builder.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/components/ReportBuilderPresentation.svelte`](js/components/ReportBuilderPresentation.svelte), [`js/data.ts`](js/data.ts), [`js/export-report-html.ts`](js/export-report-html.ts), [`js/export-report-progress.ts`](js/export-report-progress.ts), [`js/export-report.ts`](js/export-report.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/notes.ts`](js/notes.ts) *(dynamic)*, [`js/report-builder-presentation.ts`](js/report-builder-presentation.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
