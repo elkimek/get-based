@@ -593,7 +593,7 @@ test('a blob-only scalar clear survives a delayed live row through the real SDK 
       const rows = runtime.getSyncEvolu()!.getQueryRows(runtime.getSyncItemRowQuery()) as readonly DeltaItemRow[] | null | undefined;
       return (rows || []).filter(row => row.profileId === 'default' && row.arrayName === 'interpretiveLens');
     });
-    await expect.poll(async () => (await rows(b.page)).some(row => row.isDeleted && Date.parse(String(row.syncedAt)) === clocks.clear)).toBe(true);
+    await expect.poll(async () => (await rows(b.page)).some(row => row.payload === JSON.stringify({v: null}) && Date.parse(String(row.syncedAt)) === clocks.clear)).toBe(true);
     await a.page.evaluate(async before => {
       const runtime = await import('/js/sync-runtime.js');
       runtime.getSyncEvolu()!.insert('itemRow', {profileId: 'default', arrayName: 'interpretiveLens', itemId: 'interpretiveLens',

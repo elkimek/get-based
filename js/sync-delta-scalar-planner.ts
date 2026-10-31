@@ -47,8 +47,10 @@ export async function _planScalarDelta(profileId: string, scalarName: string, sc
   } else if (prev[scalarName] || (options.force && canonical)) {
     const syncedAt = editTimestamp();
     if (canonical) ops.push({ kind: 'tombstone', args: { id: canonical.id, isDeleted: 1, syncedAt } });
+    // v7 only accepts isDeleted on updates. A normal clocked null-value row
+    // carries the same clear when the prior row is not yet visible.
     else ops.push({kind: 'insert', args: {profileId, arrayName: scalarName, itemId: scalarName,
-      payload: JSON.stringify({v: null}), isDeleted: 1, syncedAt}});
+      payload: JSON.stringify({v: null}), syncedAt}});
   }
   return { ops, next, plannedAt };
 }

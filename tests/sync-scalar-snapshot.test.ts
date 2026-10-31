@@ -145,7 +145,8 @@ it.each([null, ''])('publishes a clocked clear of a blob-only confirmed value (%
     expect(await pushProfile(id, {contextNotes: cleared})).toEqual({ok: true});
     const clear = await parseSyncPayload(fake.profileRows[0]!.dataJson);
     expect(clear.scalarClocks!.contextNotes).toBe(oldClock + 1);
-    expect(fake.itemRows).toContainEqual(expect.objectContaining({profileId: id, arrayName: 'contextNotes', isDeleted: 1, syncedAt: new Date(oldClock + 1).toISOString()}));
+    expect(fake.itemRows).toContainEqual(expect.objectContaining({profileId: id, arrayName: 'contextNotes', payload: JSON.stringify({v: null}), syncedAt: new Date(oldClock + 1).toISOString()}));
+    expect(fake.calls.insert.find(call => call.args.arrayName === 'contextNotes')!.args).not.toHaveProperty('isDeleted');
     expect(await pushProfile(id, {contextNotes: cleared, notes: [{date: '2026-10-30', text: 'later'}]})).toEqual({ok: true});
     const later = await parseSyncPayload(fake.profileRows[0]!.dataJson);
     expect(later.scalarClocks!.contextNotes).toBe(oldClock + 1);

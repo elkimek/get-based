@@ -2373,7 +2373,8 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
   const neverSetClear = await _planScalarDelta('legacy-unset-clear', 'contextNotes', null, {force: true});
   assert('_planScalarDelta publishes a confirmed blob-only clear without inserting absent default fields',
     blobOnlyClear.ops.length === 1 && blobOnlyClear.ops[0]?.kind === 'insert'
-      && blobOnlyClear.ops[0].args.isDeleted === 1 && Date.parse(String(blobOnlyClear.ops[0].args.syncedAt)) > 200
+      && blobOnlyClear.ops[0].args.payload === JSON.stringify({v: null}) && !Object.hasOwn(blobOnlyClear.ops[0].args, 'isDeleted')
+      && Date.parse(String(blobOnlyClear.ops[0].args.syncedAt)) > 200
       && neverSetClear.ops.length === 0);
   assert('_planScalarDelta treats empty-string + null + undefined as absence (parity with blob)',
     /_planScalarDelta[\s\S]{0,2000}hasValue\s*=\s*scalarValue\s*!==\s*null[\s\S]{0,200}!==\s*undefined[\s\S]{0,200}length\s*===\s*0/.test(deltaSearchSrc));
