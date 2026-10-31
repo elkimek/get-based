@@ -307,7 +307,7 @@ return (async function() {
 
   // Database bundle detection
   assert('Import detects database bundle', exportImportSrc.includes("json.type === 'database' && Array.isArray(json.profiles)"));
-  assert('Import routes to _importDatabaseBundle', exportImportSrc.includes('_importDatabaseBundle(json)'));
+  assert('Import routes database bundles with the selected import options', exportImportSrc.includes('_importDatabaseBundle(json, options)'));
 
   // Client export detection (v2 with profile metadata)
   assert('Import detects client profile.name', exportImportSrc.includes('json.profile?.name'));
