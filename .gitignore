@@ -1,6 +1,15 @@
 # Local task progress, checkpoints, and audit logs
 /.local-notes/
 
+# Generated consistent privacy redaction runtime
+/js/pii-pseudonym.js
+/js/pii-redaction.js
+/js/pii-scroll-sync.js
+/tests/pii-redaction.test.js
+/tests/pii-redaction.test.js.map
+/tests/pii-scroll-sync.test.js
+/tests/pii-scroll-sync.test.js.map
+
 # Generated optional auto-import source runtime
 /js/auto-import-feed.js
 /js/auto-import-feed-runtime.js

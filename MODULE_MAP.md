@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1867 |
-| Internal import edges | 5709 |
+| Modules | 1870 |
+| Internal import edges | 5713 |
 | Dynamic internal edges | 138 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -3961,11 +3961,14 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>pii</code> family — 3 modules</summary>
+<details><summary><code>pii</code> family — 6 modules</summary>
 
+- [`js/pii-pseudonym.ts`](js/pii-pseudonym.ts) → no in-scope imports
+- [`js/pii-redaction.ts`](js/pii-redaction.ts) → [`js/pii-pseudonym.ts`](js/pii-pseudonym.ts)
 - [`js/pii-review-presentation.ts`](js/pii-review-presentation.ts) → [`js/components/PIIDiffFragment.svelte`](js/components/PIIDiffFragment.svelte), [`js/components/PIIDiffViewer.svelte`](js/components/PIIDiffViewer.svelte), [`js/components/PIIReviewModal.svelte`](js/components/PIIReviewModal.svelte)
-- [`js/pii-review.ts`](js/pii-review.ts) → [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/pii-review-presentation.ts`](js/pii-review-presentation.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/pii.ts`](js/pii.ts) → [`js/api-transport.ts`](js/api-transport.ts), [`js/api.ts`](js/api.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/local-ai-discovery.ts`](js/local-ai-discovery.ts), [`js/local-ai-provider-registry.ts`](js/local-ai-provider-registry.ts), [`js/pii-review.ts`](js/pii-review.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/pii-review.ts`](js/pii-review.ts) → [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/pii-review-presentation.ts`](js/pii-review-presentation.ts), [`js/pii-scroll-sync.ts`](js/pii-scroll-sync.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/pii-scroll-sync.ts`](js/pii-scroll-sync.ts) → no in-scope imports
+- [`js/pii.ts`](js/pii.ts) → [`js/api-transport.ts`](js/api-transport.ts), [`js/api.ts`](js/api.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/local-ai-discovery.ts`](js/local-ai-discovery.ts), [`js/local-ai-provider-registry.ts`](js/local-ai-provider-registry.ts), [`js/pii-redaction.ts`](js/pii-redaction.ts), [`js/pii-review.ts`](js/pii-review.ts), [`js/profile-storage-key.ts`](js/profile-storage-key.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 
 </details>
 

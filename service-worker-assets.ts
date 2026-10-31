@@ -78,6 +78,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/import-benchmarks.js', '/js/import-reference-benchmark.js', '/js/data-merge-lab-entries.js', '/js/data-merge.js',
   '/js/pii-review.js', '/js/pii-review-presentation.js', '/js/components/PIIDiffViewer.svelte.html.js', '/js/components/PIIReviewModal.svelte.html.js',
   '/js/components/PIIDiffFragment.svelte.html.js', '/js/privacy-safe-diagnostics.js', '/js/pii.js', '/js/charts-runtime.js',
+  '/js/pii-redaction.js', '/js/pii-pseudonym.js', '/js/pii-scroll-sync.js',
   '/js/charts.js', '/js/notes-runtime.js', '/js/runtime-callbacks.js', '/js/retrying-module-loader.js',
   '/js/notes.js', '/js/notes-presentation.js', '/js/notes-rendering.js', '/js/note-editor-classes.js',
   '/js/components/NoteEditorPresentation.svelte.html.js', '/js/supplement-action-delegates.js', '/js/supplement-dashboard.js', '/js/supplement-dashboard-presentation.js',
