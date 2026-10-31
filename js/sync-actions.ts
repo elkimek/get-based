@@ -1,3 +1,6 @@
+import type {ScalarVersions} from './sync-scalar-snapshot.js';
+import {readScalarVersion, writeScalarVersion} from './sync-scalar-snapshot.js';
+import {DELTA_SCALARS} from './sync-delta-surfaces.js';
 import type { StoredProfileRecord } from './profile-list-store.js';
 import type { RuntimeDependencyUpdates } from './runtime-callbacks.js';
 // sync-actions.js - user-triggered sync actions.
@@ -273,7 +276,7 @@ export async function rebuildOwnerRelayState() {
   // synchronously fire empty/new-database subscriptions; reading
   // state.importedData afterward lets those callbacks replace the canonical
   // compaction source while the rebuild is in progress.
-  const snapshots: Array<{ profile: StoredProfileRecord; importedData: unknown }> = [];
+  const snapshots: Array<{ profile: StoredProfileRecord; importedData: unknown; scalarVersions: ScalarVersions }> = [];
   for (const profile of profiles) {
     const importedData = profile.id === state.currentProfile
       ? (state.importedData || _createDefaultProfileData())
@@ -281,13 +284,16 @@ export async function rebuildOwnerRelayState() {
     if (!importedData) {
       throw new Error(`Could not capture local data for profile ${String(profile?.id || '').slice(0, 8)}; relay rebuild stopped safely`);
     }
-    snapshots.push({ profile, importedData: cloneRelayRebuildData(importedData) });
+    const scalarVersions: ScalarVersions = Object.create(null);
+    for (const field of DELTA_SCALARS) {const version = readScalarVersion(profile.id, field); if (version) scalarVersions[field] = version;}
+    snapshots.push({ profile, importedData: cloneRelayRebuildData(importedData), scalarVersions });
   }
 
   await _resetLocalSyncHistoryForRelayRebuild();
   for (const profile of profiles) prepareProfileForRelayRebuild(profile?.id);
   const summary = { total: snapshots.length, succeeded: 0, failed: 0, skipped: 0 };
-  for (const { profile, importedData } of snapshots) {
+  for (const { profile, importedData, scalarVersions } of snapshots) {
+    for (const [field, version] of Object.entries(scalarVersions)) if (!writeScalarVersion(profile.id, field, version)) throw new Error('Could not preserve scalar edit clocks for relay rebuild');
     try {
       const result = (await _pushProfile(profile.id, importedData, { force: true, completeSnapshot: true })) as SyncPushResult | null | undefined;
       if (result?.skipped) summary.skipped++;

@@ -652,7 +652,7 @@ describe('sync push runtime behavior', () => {
     expect(fake.calls.insert.length + fake.calls.update.length).toBeGreaterThan(writesAfterFirstPush);
   });
 
-  it('keeps ordinary forced reconnects on scalar rows and reserves full snapshots for recovery', async () => {
+  it('retains scalar snapshots and their original clocks during ordinary forced reconnects', async () => {
     const fake = makeEvolu();
     configureRuntimeDeps(fake);
     const data = { entries: [], contextNotes: 'remote context', notes: [] };
@@ -663,7 +663,9 @@ describe('sync push runtime behavior', () => {
     await expect(pushProfile(PROFILE_ID, { ...data, notes: [{ id: 'local-note', text: 'queued' }] }, { force: true }))
       .resolves.toEqual({ ok: true });
     const ordinary = (await parseSyncPayload(fake.profileRows[0]!.dataJson)).importedData as ProfileData;
-    expect(ordinary.contextNotes).toBeUndefined();
+    expect(ordinary.contextNotes).toBe('remote context');
+    const clocks = (await parseSyncPayload(fake.profileRows[0]!.dataJson)).scalarClocks;
+    expect(clocks?.contextNotes).toBeGreaterThan(0);
     expect(ordinary.notes).toEqual([{ id: 'local-note', text: 'queued' }]);
     const scalarWrites = [...fake.calls.insert, ...fake.calls.update]
       .filter(call => call.table === 'itemRow' && call.args.arrayName === 'contextNotes');
@@ -713,7 +715,7 @@ describe('sync push runtime behavior', () => {
   });
 
   it('skips concurrent pushes and releases the in-flight flag through the watchdog', async () => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({toFake: ['Date', 'setTimeout', 'clearTimeout']});
     const fake = makeEvolu({ completeProfileWrites: false });
     configureRuntimeDeps(fake);
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -729,6 +731,7 @@ describe('sync push runtime behavior', () => {
     });
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('another push is in-flight'));
 
+    await vi.waitFor(() => expect(fake.calls.insert.some(call => call.table === 'profileData')).toBe(true));
     await vi.advanceTimersByTimeAsync(30_000);
     await expect(firstPush).resolves.toEqual({ ok: false, reason: 'timeout' });
     expect(isSyncPushInFlight()).toBe(false);

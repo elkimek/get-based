@@ -1,4 +1,6 @@
 // sync-delta-snapshot.js — Delta snapshot storage keys and advancement gates.
+import {clearScalarVersion} from './sync-scalar-snapshot.js';
+import {DELTA_SCALARS} from './sync-delta-surfaces.js';
 
 // Returns the localStorage key holding the last-pushed snapshot
 // (`{itemId: contentHash}`) for one (profileId, arrayName). Snapshot is
@@ -42,6 +44,7 @@ export function clearDeltaSnapshot(profileId: unknown, arrayName: unknown) {
   try {
     localStorage.removeItem(_deltaSnapshotKey(profileId, arrayName));
     localStorage.removeItem(`${_deltaSnapshotKey(profileId, arrayName)}-meta`);
+    if (typeof profileId === 'string' && typeof arrayName === 'string' && DELTA_SCALARS.includes(arrayName)) return clearScalarVersion(profileId, arrayName);
     return true;
   } catch { return false; }
 }

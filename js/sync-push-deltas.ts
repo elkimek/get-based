@@ -4,6 +4,7 @@ import type { DeltaImportedData, DeltaPlan } from './sync-delta-row-codec.js';
 
 export interface NamedDeltaPlan { arrayName: string; plan: DeltaPlan }
 
+import {writeScalarVersion} from './sync-scalar-snapshot.js';
 import { getErrorMessage } from './caught-error.js';
 import { getAt } from './data-merge.js';
 import {
@@ -12,7 +13,7 @@ import {
   _planScalarDelta, _recordPushTelemetry, _writeDeltaSnapshot,
 } from './sync-delta.js';
 
-export async function planProfileDeltas(profileId: string, importedData: DeltaImportedData | null | undefined) {
+export async function planProfileDeltas(profileId: string, importedData: DeltaImportedData | null | undefined, options: {forceScalars?: boolean} = {}) {
   const deltaPlans: NamedDeltaPlan[] = [];
   let deltaOpCount = 0;
   const planningErrors: string[] = [];
@@ -75,7 +76,7 @@ export async function planProfileDeltas(profileId: string, importedData: DeltaIm
       value = metadata;
     }
     try {
-      const plan = await _planScalarDelta(profileId, scalarName, value);
+      const plan = await _planScalarDelta(profileId, scalarName, value, {force: options.forceScalars === true});
       if (plan.ops.length > 0) {
         deltaPlans.push({ arrayName: scalarName, plan });
         deltaOpCount += plan.ops.length;
@@ -103,6 +104,10 @@ export function applyCommittedDeltas(
       const allOk = _applyArrayDelta(arrayName, plan);
       if (!allOk) allCommitted = false;
       if (allOk) {
+        if (DELTA_SCALARS.includes(arrayName)) {
+          const clock = Math.max(...plan.ops.map(op => Date.parse(String(op.args.syncedAt || '')) || 0));
+          if (!writeScalarVersion(profileId, arrayName, {clock, hash: typeof plan.next[arrayName] === 'string' ? plan.next[arrayName] as string : null})) {allCommitted = false; continue;}
+        }
         // A delayed completion cannot overwrite a fresher committed snapshot.
         const wrote = _writeDeltaSnapshot(profileId, arrayName, plan.next, plan.plannedAt);
         if (wrote) snapshotsAdvanced++;

@@ -8,6 +8,7 @@ export interface ParsedSyncPayload {
   aiSettings: unknown;
   chatData: unknown;
   displayPrefs: unknown;
+  scalarClocks?: Record<string, number> | undefined;
 }
 
 export async function _gzipString(str: string) {
@@ -79,11 +80,17 @@ export async function parseSyncPayload(dataJson: unknown): Promise<ParsedSyncPay
     }
     return imp;
   }
+  const scalarClocks: Record<string, number> | undefined = Object.hasOwn(parsed, 'scalarClocks') ? Object.create(null) : undefined;
+  if (scalarClocks && parsed.scalarClocks && typeof parsed.scalarClocks === 'object' && !Array.isArray(parsed.scalarClocks)) {
+    for (const [key, value] of Object.entries(parsed.scalarClocks)) {
+      if (key !== '__proto__' && key !== 'constructor' && key !== 'prototype' && typeof value === 'number' && Number.isSafeInteger(value) && value >= 0) scalarClocks[key] = value;
+    }
+  }
   if (parsed._v === 4) {
-    return { importedData: null, profile: parsed.profile, aiSettings: parsed.aiSettings, chatData: parsed.chatData, displayPrefs: parsed.displayPrefs };
+    return { importedData: null, profile: parsed.profile, aiSettings: parsed.aiSettings, chatData: parsed.chatData, displayPrefs: parsed.displayPrefs, ...(scalarClocks ? {scalarClocks} : {}) };
   }
   if (parsed._v === 3) {
-    return { importedData: safe(parsed.importedData), profile: parsed.profile, aiSettings: parsed.aiSettings, chatData: parsed.chatData, displayPrefs: parsed.displayPrefs };
+    return { importedData: safe(parsed.importedData), profile: parsed.profile, aiSettings: parsed.aiSettings, chatData: parsed.chatData, displayPrefs: parsed.displayPrefs, ...(scalarClocks ? {scalarClocks} : {}) };
   }
   if (parsed._v === 2) {
     return { importedData: safe(parsed.importedData), profile: parsed.profile, aiSettings: parsed.aiSettings, chatData: null, displayPrefs: null };

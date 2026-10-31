@@ -1,36 +1,68 @@
-import { DELTA_SCALARS } from './sync-delta-surfaces.js';
-import { parseSyncPayload } from './sync-payload-codec.js';
-import { profileDataValuesEqual } from './profile-data-writes.js';
-
-/** Ordinary v3 updates omit unchanged scalar shadows while retaining edited
- * scalars and non-scalar/extension snapshots. Rows carry field-level clocks. Repeating an untouched scalar in a newer
- * whole-profile blob would turn another device's note save into a scalar edit.
- * Complete first-publish, forced recovery and rebuild snapshots remain intact. */
-export function withoutDeltaScalarSnapshots(value: unknown, keepScalars: readonly string[] = []): unknown {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
-  const result = structuredClone(value) as Record<string, unknown>;
-  for (const path of DELTA_SCALARS) {
-    if (keepScalars.includes(path)) continue;
-    const parts = path.split('.');
-    let parent: Record<string, unknown> | undefined = result;
-    for (const part of parts.slice(0, -1)) {
-      const next: unknown = parent?.[part];
-      parent = next && typeof next === 'object' && !Array.isArray(next) ? next as Record<string, unknown> : undefined;
-    }
-    if (parent) delete parent[parts.at(-1)!];
+import {DELTA_SCALARS} from './sync-delta-surfaces.js';
+import {_djb2} from './sync-delta-id.js';
+import {getAt} from './data-merge.js';
+import {parseSyncPayload} from './sync-payload-codec.js';
+import {profileDataValuesEqual} from './profile-data-writes.js';
+import type {DeltaPlan} from './sync-delta-row-codec.js';
+export interface ScalarVersion {clock: number; hash: string | null}
+export type ScalarVersions = Record<string, ScalarVersion>;
+const versionKey = (profileId: string) => `labcharts-${profileId}-delta-scalarVersions`;
+export function scalarValue(field: string, value: unknown): unknown {
+  if (field === 'genetics' && value && typeof value === 'object' && !Array.isArray(value)) {
+    const {snps: _snps, ...metadata} = value as Record<string, unknown>; return metadata;
   }
-  return result;
+  return value;
 }
-
-/** Used only with an empty delta plan: all scalar values are already
- * acknowledged. Compare every remaining payload channel, rather than emitting
- * a write merely because an older full snapshot included those scalar fields. */
-export async function equivalentSyncPayloadWithoutScalars(previous: unknown, next: unknown): Promise<boolean> {
+export function scalarValueHash(field: string, value: unknown): string | null {
+  value = scalarValue(field, value);
+  return value === null || value === undefined || value === '' ? null : _djb2(JSON.stringify({v: value}));
+}
+export function readScalarVersion(profileId: string, field: string): ScalarVersion | null {
   try {
-    const [left, right] = await Promise.all([parseSyncPayload(previous), parseSyncPayload(next)]);
-    return profileDataValuesEqual(
-      { ...left, importedData: withoutDeltaScalarSnapshots(left.importedData) },
-      { ...right, importedData: withoutDeltaScalarSnapshots(right.importedData) },
-    );
-  } catch { return false; }
+    const value = JSON.parse(localStorage.getItem(versionKey(profileId)) || '{}')?.[field];
+    return value && Number.isSafeInteger(value.clock) && value.clock > 0 && (value.hash === null || typeof value.hash === 'string') ? value : null;
+  } catch {return null;}
+}
+export function writeScalarVersion(profileId: string, field: string, version: ScalarVersion): boolean {
+  if (!DELTA_SCALARS.includes(field) || !Number.isSafeInteger(version.clock) || version.clock <= 0) return false;
+  try {
+    const versions: ScalarVersions = Object.create(null);
+    for (const name of DELTA_SCALARS) {const prior = readScalarVersion(profileId, name); if (prior) versions[name] = prior;}
+    if ((versions[field]?.clock || 0) > version.clock) return true;
+    if (versions[field]?.clock === version.clock && versions[field]?.hash === version.hash) return true;
+    versions[field] = version;
+    localStorage.setItem(versionKey(profileId), JSON.stringify(versions)); return true;
+  } catch {return false;}
+}
+export function clearScalarVersion(profileId: string, field: string): boolean {
+  try {
+    const versions: ScalarVersions = Object.create(null);
+    for (const name of DELTA_SCALARS) {const prior = readScalarVersion(profileId, name); if (prior && name !== field) versions[name] = prior;}
+    if (Object.keys(versions).length) localStorage.setItem(versionKey(profileId), JSON.stringify(versions));
+    else localStorage.removeItem(versionKey(profileId));
+    return true;
+  } catch {return false;}
+}
+/** Full scalar snapshots retain their field edit clocks across unrelated saves.
+ * This protects peers whose profile and item-row queries arrive separately. */
+export function scalarPayloadClocks(profileId: string, imported: unknown, plans: readonly {arrayName: string; plan: DeltaPlan}[], completeSnapshot = false) {
+  const clocks: Record<string, number> = Object.create(null);
+  for (const field of DELTA_SCALARS) {
+    const version = readScalarVersion(profileId, field);
+    clocks[field] = version && version.hash === scalarValueHash(field, getAt(imported, field)) ? version.clock : 0;
+    const plan = plans.find(item => item.arrayName === field)?.plan;
+    if (plan?.ops.length) clocks[field] = Math.max(...plan.ops.map(op => Date.parse(String(op.args.syncedAt || '')) || 0));
+    else if (completeSnapshot) clocks[field] = Math.max(Date.now(), (version?.clock || 0) + 1);
+  }
+  return clocks;
+}
+export function commitScalarPayloadClocks(profileId: string, imported: unknown, clocks: Record<string, number>): boolean {
+  let ok = true;
+  for (const field of DELTA_SCALARS) if ((clocks[field] || 0) > 0) {
+    if (!writeScalarVersion(profileId, field, {clock: clocks[field]!, hash: scalarValueHash(field, getAt(imported, field))})) ok = false;
+  }
+  return ok;
+}
+export async function equivalentSyncPayload(previous: unknown, next: unknown): Promise<boolean> {
+  try {return profileDataValuesEqual(await parseSyncPayload(previous), await parseSyncPayload(next));} catch {return false;}
 }

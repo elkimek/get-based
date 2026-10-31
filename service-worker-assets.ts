@@ -307,7 +307,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/sync-pull-maintenance.js', '/js/sync-pull-active-refresh-runtime.js', '/js/sync-pull-active-refresh.js', '/js/sync-pull-rebroadcast.js',
   '/js/sync-pull.js', '/js/sync-subscriptions.js', '/js/sync-cutover.js', '/js/sync-ui.js',
   '/js/sync-inline-style-map.generated.js', '/js/sync-status-rendering.js', '/js/components/SyncIndicatorPresentation.svelte.html.js', '/js/components/SyncPopoverPresentation.svelte.html.js', '/js/sync-payload-collectors.js',
-  '/js/sync-payload-codec.js', '/js/sync-payload.js', '/js/sync-profile-fields.js', '/js/sync-relay-health.js', '/js/sync-relay-self-service.js',
+  '/js/sync-payload-codec.js', '/js/sync-payload.js', '/js/sync-scalar-snapshot.js', '/js/sync-profile-metadata.js', '/js/sync-profile-fields.js', '/js/sync-relay-health.js', '/js/sync-relay-self-service.js',
   '/js/sync-state.js', '/js/adapters.js', '/js/specialty-marker-catalog.js', '/js/supplement-warnings.js',
   '/js/food-contaminants.js', '/js/cashu-wallet.js', '/js/cashu-wallet-transfers.js', '/js/cashu-wallet-funding-accounting.js',
   '/js/cashu-wallet-store.js', '/js/cashu-wallet-mint-requests.js', '/js/cashu-funding-coordinator.js', '/js/nostr-discovery.js',

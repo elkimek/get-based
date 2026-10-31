@@ -521,6 +521,7 @@ deploy/profile-share/data/
 
 /js/sync-payload.js
 /js/sync-scalar-snapshot.js
+/js/sync-profile-metadata.js
 /js/sync-apply.js
 /js/sync-chat-apply.js
 /js/sync-tombstones.js

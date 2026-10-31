@@ -1,3 +1,4 @@
+import {planProfileMetadata, PROFILE_METADATA_SURFACE} from './sync-profile-metadata.js';
 import type { ProfileData } from '../types/app-state.js';
 import type { StoredProfileRecord } from './profile-list-store.js';
 import type { SyncProfileRow } from './sync-payload.js';
@@ -25,7 +26,7 @@ import {
 import { noteLocalSyncCommit, noteSupersededProfileMetadata } from './sync-origin-state.js';
 import { getProfileSyncBlockReason } from './profile-sync-policy.js';
 import { sanitizeNutritionProfileData } from './nutrition-sync-sanitize.js';
-import { equivalentSyncPayloadWithoutScalars } from './sync-scalar-snapshot.js';
+import { equivalentSyncPayload, scalarPayloadClocks, commitScalarPayloadClocks } from './sync-scalar-snapshot.js';
 
 type SyncPushClient = Pick<SyncRuntimeClient, 'insert' | 'update'> & {
   getQueryRows(query: unknown): readonly SyncProfileRow[] | null | undefined;
@@ -174,20 +175,20 @@ export async function pushProfile(profileId: unknown, importedData: unknown, opt
     }
     const sunCount = Array.isArray(outboundData?.sunSessions) ? outboundData.sunSessions.length : 0;
     const devCount = Array.isArray(outboundData?.lightDevices) ? outboundData.lightDevices.length : 0;
-    const { deltaPlans, deltaOpCount, planningErrors } = await planProfileDeltas(profileId, outboundData);
+    const { deltaPlans, deltaOpCount: dataDeltaOpCount, planningErrors } = await planProfileDeltas(profileId, outboundData, {forceScalars: opts.completeSnapshot === true});
     if (planningErrors?.length) {
       updateSyncStatus({ push: 'error', lastError: { type: 'DeltaPlanError', message: 'Sync could not prepare a complete update. Your local changes are still queued.', at: Date.now() } });
       _syncing = false;
       return { ok: false, skipped: true, reason: 'delta-plan-failed' };
     }
-    // Dirty flushes also use force to bypass a stuck in-flight guard. That
-    // must not give unrelated stale scalars the profile blob's newer clock.
-    // Complete snapshots are reserved for explicit resend/recovery actions.
+    const metadata = await planProfileMetadata(profileId, _getProfiles().find(profile => profile.id === profileId), opts.completeSnapshot === true);
+    if (metadata.plan.ops.length) deltaPlans.push({arrayName: PROFILE_METADATA_SURFACE, plan: metadata.plan});
+    const deltaOpCount = dataDeltaOpCount + metadata.plan.ops.length;
+    const scalarClocks = scalarPayloadClocks(profileId, outboundData, deltaPlans, opts.completeSnapshot === true);
     const dataJson = await buildSyncPayload(profileId, outboundData, remoteChatData, {
-      scalarRowsOnly: !!existing && !opts.completeSnapshot,
-      // Keep genuinely edited scalars in the blob too: query subscriptions
-      // can expose its commit before the corresponding item rows arrive.
-      scalarSnapshots: deltaPlans.map(({ arrayName }) => arrayName),
+      scalarClocks,
+      ...(metadata.profile ? {profileSnapshot: metadata.profile} : {}),
+      completeSnapshot: opts.completeSnapshot === true,
     });
 
     // Evolu's relay quota measures append-only message history, not the size
@@ -196,7 +197,7 @@ export async function pushProfile(profileId: unknown, importedData: unknown, opt
     // payload and delta plan before assigning a new syncedAt clock. Explicit
     // force pushes bypass this guard for relay rebuild/recovery workflows.
     if (!opts.force && existing && deltaOpCount === 0
-        && (existing.dataJson === dataJson || await equivalentSyncPayloadWithoutScalars(existing.dataJson, dataJson))) {
+        && (existing.dataJson === dataJson || await equivalentSyncPayload(existing.dataJson, dataJson))) {
       const skipMsg = `No changes to push ${profileId.slice(0,8)}`;
       _debug(skipMsg);
       logSyncEvent('skip', skipMsg);
@@ -225,7 +226,8 @@ export async function pushProfile(profileId: unknown, importedData: unknown, opt
       };
       const onComplete = () => {
         completed = true;
-        if (!applyCommittedDeltas(profileId, dataJson, deltaPlans, deltaOpCount, _debug)) {
+        if (!applyCommittedDeltas(profileId, dataJson, deltaPlans, deltaOpCount, _debug)
+            || !commitScalarPayloadClocks(profileId, outboundData, scalarClocks)) {
           updateSyncStatus({ push: 'error', pushStartedAt: null, lastError: { type: 'DeltaCommitError', message: 'Sync could not commit a complete update. Your local changes are still queued.', at: Date.now() } });
           finish({ ok: false, reason: 'delta-commit-failed' });
           return;

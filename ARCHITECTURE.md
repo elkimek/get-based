@@ -352,19 +352,18 @@ downgrade is not a database rollback: previous web runtimes cannot open every
 new-format database. The v7 recovery path always retains its separate runtime and
 database identity.
 
-Ordinary v3 profile updates omit unchanged scalar shadows and carry scalar fields
-in per-field delta rows. Edited scalars also retain their blob snapshot until
-query subscriptions expose the corresponding rows. Updates retain array, map
-and unknown extension snapshots in the profile envelope.
-An unrelated save must not assign a newer whole-profile clock to an unchanged
-scalar received from another device. Successful durable pulls acknowledge only
-matching scalar rows; pending local edits and newer committed plans remain
-eligible for publication. First publication and explicit resend, backup recovery
-or relay rebuild retain complete snapshots. Bypassing an in-flight push guard
-alone does not request a complete snapshot. Delta planning failures leave the
-local dirty marker intact and stop publication. Metadata pulls defer pending
-local edits and ignore only exact cached versions replaced by successful local
-pushes; different remote versions remain eligible regardless of clock skew.
+V3 profile snapshots retain scalar values with per-field edit clocks, so an
+unrelated save cannot give an unchanged scalar a newer clock. Full snapshots
+protect peers whose profile and item-row query updates arrive separately.
+Durable scalar version/hash receipts preserve a just-committed local value while
+queries catch up; only matching values are acknowledged after profile persistence.
+Legacy envelopes retain their profile-clock fallback. Explicit recovery also
+re-emits scalar rows, including clears. Planning or row-mutation failures keep
+local dirty markers queued and stop success confirmation.
+Profile metadata carries its own item row and durable edit clock; unrelated data rebroadcasts
+retain it. Legacy metadata uses the envelope clock, and equal-clock metadata
+conflicts resolve deterministically. Pulls defer pending local metadata edits
+and ignore exact cached versions replaced by successful local pushes.
 
 The static assembler externalizes Kit's classic bootstrap to satisfy the existing
 CSP without permitting inline executable scripts. It copies only declared public
