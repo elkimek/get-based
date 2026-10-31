@@ -57,5 +57,6 @@ export function claimsPreparedChatProposal(text: string): boolean {
   const prose = text.replace(/```[\s\S]*?```|^\s*>.*$|`[^`\n]*`|"[^"\n]*"|“[^”\n]*”/gm, '');
   if (!/\b(?:getbased|card|apply)\b/i.test(prose)) return false;
   return /(?:^|[.!?\n])[\s*_]*(?:I(?:['’]ve| have)?|we(?:['’]ve| have)?)\s+(?:(?:just|already|successfully)\s+)?(?:prepared|created|drafted|queued)\b[^.!?\n]{0,180}\b(?:draft|proposal|review|update)\b/i.test(prose)
+    || /(?:^|[.!?\n])[\s*_]*(?:drafted|prepared|queued|created)\b[^.!?\n]{0,180}\b(?:review|waiting|card|proposal|apply)\b/i.test(prose)
     || /(?:^|[.!?\n])[\s*_]*(?:your|the)\s+(?:draft|proposal|review)(?:\s+(?:card|update))?\s+(?:is|['’]s)\s+(?:ready|prepared|waiting)\b/i.test(prose);
 }

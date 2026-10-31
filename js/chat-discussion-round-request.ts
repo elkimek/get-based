@@ -36,6 +36,7 @@ interface RoundAssistantInput {
   thread?: { agentThreadId?: unknown; chatBackend?: unknown; agentModel?: unknown } | null | undefined;
   profileId: string;
   signal?: AbortSignal | undefined;
+  onToolActivity?: Parameters<typeof callCodexAgent>[0]['onToolActivity'];
   onStream?: Parameters<typeof callCodexAgent>[0]['onStream'];
 }
 export interface DiscussionAssistantMessage extends Partial<SerializedLensSources> {
@@ -123,7 +124,7 @@ export async function buildDiscussionRoundRequest({ msgText, roundHistory, signa
   };
 }
 
-export async function callDiscussionRoundAssistant({ request, thread, profileId, signal, onStream }: RoundAssistantInput) {
+export async function callDiscussionRoundAssistant({ request, thread, profileId, signal, onStream, onToolActivity }: RoundAssistantInput) {
   signal?.throwIfAborted();
   if (!request.useCodexAgent) {
     const result = await (callDirectChatWithTools as (options: Omit<Parameters<typeof callDirectChatWithTools>[0], 'messages'> & { messages: DiscussionRoundRequest['apiMessages'] }) => ReturnType<typeof callDirectChatWithTools>)({
@@ -132,7 +133,7 @@ export async function callDiscussionRoundAssistant({ request, thread, profileId,
       messages: request.apiMessages,
       maxTokens: CHAT_RESPONSE_MAX_TOKENS,
       signal,
-      onStream,
+      onStream, onToolActivity,
       webSearch: request.webSearch,
       provider: request.provider,
       modelOverride: request.modelId,
@@ -162,7 +163,7 @@ export async function callDiscussionRoundAssistant({ request, thread, profileId,
       .filter(message => typeof message.content === 'string')
       .map(message => ({ role: message.role, content: message.content })),
     signal,
-    onStream,
+    onStream, onToolActivity,
   });
   signal?.throwIfAborted();
   if (thread) {

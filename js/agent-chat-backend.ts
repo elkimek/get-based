@@ -1,3 +1,4 @@
+import type { ChatToolActivity } from '../shared/chat-tool-activity.js';
 import { claimsPreparedChatProposal, CHAT_PROPOSAL_REPAIR, CHAT_PROPOSAL_MISSING } from '../shared/chat-tool-instructions.js';
 import { captureChatControlAuthorization } from './chat-control-settings.js';
 import { createAgentToolRuntime, getCodexDynamicTools, AGENT_TOOL_CONTRACT_VERSION } from './agent-tool-runtime.js';
@@ -15,6 +16,7 @@ import { getContextDisclosureFingerprint } from './lab-context-settings.js';
 
 import type { AgentTurnOptions } from './agent-chat-client.js';
 interface AgentChatOptions extends Pick<AgentTurnOptions, 'prompt' | 'target' | 'threadId' | 'history' | 'signal' | 'onStream'>, Pick<BrowserKnowledgeSearchOptions, 'onKnowledgeResult'> {
+  onToolActivity?: ((activity: ChatToolActivity) => void) | undefined;
   instructions: string; labContext: string; profileId?: string;
   images?: Array<{ base64: string; mediaType: string }>;
   isCurrent?: () => boolean;
@@ -42,7 +44,7 @@ export async function callCodexAgent(options: AgentChatOptions) {
     }),
     ...createBrowserAgentToolDependencies(options.profileId || '', { signal: options.signal, isCurrent: () => { try { assertCurrent(); return true; } catch { return false; } }, onKnowledgeResult: options.onKnowledgeResult,
       appControlSession: !isPersonalAgentTarget(target) ? options.appControlSession : undefined }),
-    canUseTools: authorization.current, createId: authorization.createId,
+    canUseTools: authorization.current, createId: authorization.createId, onToolActivity: options.onToolActivity,
   });
   const local = !isPersonalAgentTarget(target);
   await connectDetectedAgent(agent, {

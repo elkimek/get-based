@@ -1,5 +1,7 @@
 <script lang="ts">
   import { flushSync } from 'svelte';
+  import ChatToolActivity from './ChatToolActivity.svelte';
+  import type { ChatToolActivity as Activity } from '../../shared/chat-tool-activity.js';
   import ChatMessageActions from './ChatMessageActions.svelte';
   import ChatAttestationBadge from './ChatAttestationBadge.svelte';
   import ChatStoredImages from './ChatStoredImages.svelte';
@@ -9,7 +11,7 @@
   import { ownChatMessageEditorHost, type ChatMessageEditorView } from '../chat-message-editor-component.js';
   import { MESSAGE_BUBBLE, NORMAL_BUBBLE, AUTO_BUBBLE, USER_BUBBLE, ASSISTANT_BUBBLE } from '../chat-transcript-classes.js';
   import type { ChatTranscriptMessage } from '../chat-transcript-presentation.js';
-  let { view, liveText = null, thinking = false }: { view: ChatTranscriptMessage; liveText?: string | null; thinking?: boolean } = $props();
+  let { view, liveText = null, thinking = false, activity = [] }: { view: ChatTranscriptMessage; liveText?: string | null; thinking?: boolean; activity?: Activity[] } = $props();
   let editor = $state<ChatMessageEditorView | null>(null);
   let editorBusy = $state(false);
   function editHost(root: HTMLElement) {
@@ -20,9 +22,10 @@
   class:chat-msg-auto={view.auto} class:chat-avatar-photo={view.avatar.photo} class:chat-avatar-branded={view.avatar.branded}
   id={view.index >= 0 ? `chat-msg-${view.index}` : undefined} role="article" aria-label={view.label}
   data-chat-transcript-message data-chat-avatar-role={view.role} data-chat-avatar-text={view.avatar.text}
-  data-chat-streaming={liveText !== null ? 'true' : undefined} style:display={thinking ? 'none' : null}
+  data-chat-streaming={liveText !== null ? 'true' : undefined} style:display={thinking && !activity.length ? 'none' : null}
   style:--chat-avatar-image={view.avatar.image ? `url("${view.avatar.image}")` : null} style:--chat-avatar-image-size={view.avatar.size}
   use:editHost>
+  <ChatToolActivity activity={liveText !== null ? activity : view.toolActivity} live={liveText !== null} />
   {#if editor}
     <ChatMessageEditor draft={editor.draft} current={editor.current} cancel={editor.cancel} submit={editor.submit} busy={editorBusy}/>
   {:else if liveText !== null}

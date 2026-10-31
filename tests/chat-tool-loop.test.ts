@@ -87,8 +87,8 @@ it('continues a truncated prose answer with the complete tool transcript and acc
 it('repairs a claimed Environment draft that has no actual review card', async () => {
   const options = setup(); let prepared = false;
   options.complete.mockResolvedValueOnce({ text: "I've prepared a draft update to your Environment & Exposures card; check the proposal in getbased and Apply." })
-    .mockResolvedValueOnce({ text: '', toolCalls: [call('actual-read')] })
-    .mockResolvedValueOnce({ text: 'No proposal could be created.' });
+    .mockResolvedValueOnce({ text: JSON.stringify({ reply: '', calls: [{ id: 'actual-read', name: 'getbased_read_context_card', arguments: '{}' }] }) })
+    .mockResolvedValueOnce({ text: JSON.stringify({ reply: 'No proposal could be created.', calls: [] }) });
   options.execute.mockImplementation(async () => { prepared = false; return { success: true, contentItems: [{ type: 'inputText', text: 'Read only. No draft.' }] }; });
   const result = await runChatToolLoop({ ...options, hasPreparedReview: () => prepared });
   expect(result.text).toBe('No proposal could be created.');
@@ -102,7 +102,7 @@ it.each([
   "I have created a proposal for your health card.",
   "Your proposal card is ready to Apply.",
 ])('replaces a repeated unbacked claim with an honest no-change result: %s', async text => {
-  const options = setup(); options.complete.mockResolvedValue({ text, usage: { inputTokens: 4, outputTokens: 2 } });
+  const options = setup(); options.complete.mockResolvedValueOnce({ text, usage: { inputTokens: 4, outputTokens: 2 } }).mockResolvedValueOnce({ text: JSON.stringify({ reply: text, calls: [] }), usage: { inputTokens: 4, outputTokens: 2 } });
   const result = await runChatToolLoop({ ...options, hasPreparedReview: () => false });
   expect(result.text).toBe(CHAT_PROPOSAL_MISSING); expect(result.usage).toEqual({ inputTokens: 8, outputTokens: 4 });
   expect(options.complete).toHaveBeenCalledTimes(2); expect(options.execute).not.toHaveBeenCalled();
@@ -138,4 +138,24 @@ it('does not start a corrective request after the captured tool permission is re
   const options = setup(); options.complete.mockResolvedValue({ text: "I've prepared a draft for your getbased card." });
   const result = await runChatToolLoop({ ...options, hasPreparedReview: () => false, canRepair: () => false });
   expect(result.text).toBe(CHAT_PROPOSAL_MISSING); expect(options.complete).toHaveBeenCalledOnce(); expect(options.execute).not.toHaveBeenCalled();
+});
+
+it('changes silent native-tool narration into structured calls without replaying earlier reads', async () => {
+  const options = setup(); let prepared = false;
+  options.complete.mockResolvedValueOnce({ text: '', toolCalls: [call('before')] })
+    .mockResolvedValueOnce({ text: 'Drafted and waiting for your review. Check the proposal card in getbased and Apply.' })
+    .mockResolvedValueOnce({ text: JSON.stringify({ reply: 'No proposal was created.', calls: [] }) });
+  const result = await runChatToolLoop({ ...options, hasPreparedReview: () => prepared });
+  expect(result.text).toBe('No proposal was created.'); expect(options.execute).toHaveBeenCalledOnce();
+  expect(options.complete.mock.calls[2]![0]).toMatchObject({ jsonMode: true, jsonSchema: expect.any(Object), messages: expect.arrayContaining([expect.objectContaining({ role: 'user', content: expect.stringContaining('getbased tool result') })]) });
+  expect(options.complete.mock.calls[2]![0]).not.toHaveProperty('tools');
+});
+
+it.each([false, true])('handles malformed corrective prose using only actual review availability: %s', async prepared => {
+  const options = setup(); let review = false;
+  options.complete.mockResolvedValueOnce({ text: 'Drafted and waiting. Check the proposal card in getbased and Apply.' })
+    .mockImplementationOnce(async () => { review = prepared; return { text: 'Unstructured provider prose, not a tool call.' }; });
+  const result = await runChatToolLoop({ ...options, hasPreparedReview: () => review });
+  expect(result.text).toBe(prepared ? 'Review the proposal below. Changes require Apply.' : CHAT_PROPOSAL_MISSING);
+  expect(options.execute).not.toHaveBeenCalled();
 });

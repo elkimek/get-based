@@ -1,3 +1,4 @@
+import { normalizeChatToolActivity } from '../shared/chat-tool-activity.js';
 import { normalizeAgentDataProposal, supersedePendingDataProposals } from '../shared/agent-data-contract.js';
 import { normalizeAppControls } from '../shared/agent-control-contract.js';
 import type { ChatThread } from '../types/chat-data.js';
@@ -41,6 +42,7 @@ export interface StoredChatMessage extends Record<string, unknown> {
   usage?: { inputTokens: number; outputTokens: number };
   lensSources?: Array<{ source: string; text: string; score?: number }>;
   agentDrafts?: ReturnType<typeof normalizeAgentDrafts>;
+  toolActivity?: ReturnType<typeof normalizeChatToolActivity>;
   appControls?: ReturnType<typeof normalizeAppControls>;
   discussionPersonaId?: string;
   recSlots?: string[];
@@ -296,6 +298,8 @@ export function normalizeChatMessages(value: unknown) {
     const lensSources = normalizeLensSources(message.lensSources);
     setOptionalChatField(normalized, 'lensSources', lensSources);
 
+    const activity = normalized.role === 'assistant' ? normalizeChatToolActivity(message.toolActivity) : [];
+    setOptionalChatField(normalized, 'toolActivity', activity, normalized.role === 'assistant' && Array.isArray(message.toolActivity) && (message.toolActivity.length === 0 || activity.length > 0));
     const agentDrafts = normalizeAgentDrafts(message.agentDrafts);
     setOptionalChatField(normalized, 'agentDrafts', agentDrafts, agentDrafts?.length);
     const appControls = normalized.role === 'assistant' ? normalizeAppControls(message.appControls) : [];

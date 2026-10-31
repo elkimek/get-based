@@ -165,6 +165,8 @@ Useful health workflows and explicit unit/model/provider/profile commands remain
 available; routine layout, clock format, setup, privacy, personas and saved AI or
 search preferences use the native UI. Excluded controls are absent from shared
 API/CLI discovery and cannot execute through stale cards or invented calls.
+Replies show actual app-tool activity while a step runs, with expandable completed, failed or interrupted steps afterward. This works through API and CLI chat, including discussion rounds. The trace contains tool and card labels, not raw arguments or health values. New replies with no app-tool calls say so; older replies may have no recorded trace. Prepared proposals still require their own review card and Apply.
+
 The same scope policy limits data-resource exposure. Historical proposal payloads
 are retained and shown read-only, with no saved-outcome claim or execution controls.
 

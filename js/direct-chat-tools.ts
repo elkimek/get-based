@@ -1,3 +1,4 @@
+import type { ChatToolActivity } from '../shared/chat-tool-activity.js';
 import { captureChatControlAuthorization, CHAT_CONTROLS_OFF_INSTRUCTIONS } from './chat-control-settings.js';
 import { getContextDisclosureFingerprint } from './lab-context-settings.js';
 // Direct providers share the browser's semantic tool runtime and approval cards.
@@ -15,6 +16,7 @@ import type { ToolCompletion } from './chat-tool-loop.js';
 import type { ProviderRequestOptions } from './api-openai-compatible.js';
 
 export interface DirectChatToolOptions extends ProviderRequestOptions, Pick<BrowserKnowledgeSearchOptions, 'onKnowledgeResult'> {
+  onToolActivity?: ((activity: ChatToolActivity) => void) | undefined;
   provider: string; prompt: string; labContext: string; profileId: string;
   isCurrent?: () => boolean;
   appControlSession?: import('./app-control-session.js').AppControlSession | undefined;
@@ -31,7 +33,7 @@ function recipientIdentity(provider: string) {
 }
 
 export async function callDirectChatWithTools(options: DirectChatToolOptions) {
-  const { provider, prompt, labContext, profileId, isCurrent: ownerCurrent, onKnowledgeResult, appControlSession, ...request } = options;
+  const { provider, prompt, labContext, profileId, isCurrent: ownerCurrent, onKnowledgeResult, appControlSession, onToolActivity: _activity, ...request } = options;
   const model = String(options.modelOverride || getActiveModelId(provider));
   const selectedModel = getActiveModelId(provider), recipient = recipientIdentity(provider);
   const history = state.chatHistory, thread = state.currentThreadId, disclosure = getContextDisclosureFingerprint();
@@ -41,7 +43,7 @@ export async function callDirectChatWithTools(options: DirectChatToolOptions) {
   const runtime = createAgentToolRuntime({ userMessage: prompt,
     readContext: () => ({ context: labContext, profileId }),
     ...createBrowserAgentToolDependencies(profileId, { signal: options.signal, isCurrent: current, onKnowledgeResult, appControlSession }),
-    canUseTools: authorization.current, createId: authorization.createId,
+    canUseTools: authorization.current, createId: authorization.createId, onToolActivity: options.onToolActivity,
   });
   const result = await runChatToolLoop({ ...request, tools: (authorization.current() ? getAgentToolCatalog() : []).map(tool => ({ type: 'function', function: {
     name: tool.name, description: tool.description, parameters: tool.inputSchema,

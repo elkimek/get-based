@@ -1,5 +1,6 @@
 /** Persisted conversation data; extension values require narrowing. */
 interface ChatMessageMetadata {
+  toolActivity?: import('../shared/chat-tool-activity.js').ChatToolActivity[];
   usage?: { inputTokens: number; outputTokens: number };
   context?: Array<{ label: unknown; detail?: string }>;
   personality?: string;

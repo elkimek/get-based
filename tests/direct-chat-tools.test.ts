@@ -106,9 +106,9 @@ it.each(['openrouter', 'venice', 'ppq', 'routstr', 'ollama', 'custom'])('repairs
   const move = { card: 'environment', baseline: '{"note":"Keep existing note","climate":"cold"}', changes: [{ field: 'note', value: 'Keep existing note\nReported move from Sweden to El Salvador.' }], evidence: prompt, reason: 'User reported relocation.' };
   mocks.prepare.mockResolvedValue({ available: true, payload: move, summary: 'Environment & Exposures' });
   mocks.complete.mockResolvedValueOnce({ text: "What a change. I've prepared a draft update to your Environment & Exposures card; check the proposal in getbased and Apply." })
-    .mockResolvedValueOnce({ text: '', toolCalls: [{ id: 'read', type: 'function', function: { name: 'getbased_read_context_card', arguments: '{"card":"environment"}' } }] })
-    .mockResolvedValueOnce({ text: '', toolCalls: [{ id: 'draft', type: 'function', function: { name: 'getbased_draft_context', arguments: JSON.stringify({ ...move, baseline: undefined, snapshotId: 'snapshot' }) } }] })
-    .mockResolvedValueOnce({ text: 'Please review the relocation proposal card.' });
+    .mockResolvedValueOnce({ text: JSON.stringify({ reply: '', calls: [{ id: 'read', name: 'getbased_read_context_card', arguments: '{"card":"environment"}' }] }) })
+    .mockResolvedValueOnce({ text: JSON.stringify({ reply: '', calls: [{ id: 'draft', name: 'getbased_draft_context', arguments: JSON.stringify({ ...move, baseline: undefined, snapshotId: 'snapshot' }) }] }) })
+    .mockResolvedValueOnce({ text: JSON.stringify({ reply: 'Please review the relocation proposal card.', calls: [] }) });
   const result = await callDirectChatWithTools({ ...options(), prompt, messages: [{ role: 'user', content: prompt }] });
   expect(result.text).toBe('Please review the relocation proposal card.');
   expect(result.drafts).toEqual([expect.objectContaining({ kind: 'context', payload: move })]);

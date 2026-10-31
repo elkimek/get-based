@@ -1,3 +1,4 @@
+import { normalizeChatToolActivity, type ChatToolActivity } from '../shared/chat-tool-activity.js';
 import { callDirectChatWithTools } from './direct-chat-tools.js';
 // chat-send.js — direct chat send, streaming, stop button, and typewriter state
 
@@ -158,6 +159,7 @@ export function createTypewriter(el: HTMLElement, typingEl: HTMLElement, contain
   return {
     update(text: unknown) {
       if (!isCurrent()) return;
+      if (typeof text === 'string' && typeof target === 'string' && !text.startsWith(target.slice(0, displayed))) { displayed = 0; publishChatLiveText(el, ''); }
       target = text;
       if (globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
         if (timer) { clearTimeout(timer); timer = null; }
@@ -380,6 +382,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
   const webSearchEnabled = getChatWebSearchEnabled() && webSearchSupported;
   let aiMsgEl: HTMLElement|null = null;
   let liveMessage: ChatLiveMessageHandle | null = null;
+  const toolActivity: ChatToolActivity[] = [];
   let typewriter: ReturnType<typeof createTypewriter>|null = null;
 
   try {
@@ -443,6 +446,13 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
       if (scopeIsCurrent() && !controller.signal.aborted) typewriter!.update(streamedText);
       else { typewriter!.stop(); controller.abort(); }
     };
+    const onToolActivity = (step: ChatToolActivity) => {
+      if (!scopeIsCurrent() || controller.signal.aborted) return;
+      const index = toolActivity.findIndex(old => old.id === step.id);
+      if (index < 0) toolActivity.push(step); else toolActivity[index] = step;
+      stopChatThinkingStatus(typingEl); typingEl.remove();
+      liveMessage?.setToolActivity([...toolActivity]);
+    };
     const onKnowledgeResult = (result: NonNullable<Awaited<ReturnType<typeof queryLensMulti>>>) => {
       if (scopeIsCurrent() && !controller.signal.aborted) _lensResultForMsg = result;
     };
@@ -471,7 +481,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
         })),
         images: attachments.map(attachment => ({ base64: attachment.base64, mediaType: attachment.mediaType })),
         signal: getStreamSignal(),
-        onStream,
+        onStream, onToolActivity,
         onKnowledgeResult,
         appControlSession,
       });
@@ -494,7 +504,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
         messages: apiMessages,
         maxTokens: CHAT_RESPONSE_MAX_TOKENS,
         signal: getStreamSignal(),
-        onStream,
+        onStream, onToolActivity,
         onKnowledgeResult,
         webSearch: webSearchEnabled,
         provider: _msgProvider,
@@ -525,6 +535,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
 
     // Build assistant message object with context snapshot
     const assistantMsg: ChatSendMessage = { role: 'assistant', content: fullText, context: contextSnapshot, personalityName: personality.name, personalityIcon: personality.icon, provider: _msgProvider, agentId: _msgAgentId, modelId: _msgModelId, modelDisplay: _msgModelDisplay };
+    assistantMsg.toolActivity = normalizeChatToolActivity(toolActivity);
     if (Array.isArray(aiResult.drafts) && aiResult.drafts.length) assistantMsg.agentDrafts = aiResult.drafts;
     const appControls = appControlSession.finish();
     if (responseTruncated) for (const record of appControls) if (record.action === 'assistant.persona') record.status = 'expired';
@@ -612,10 +623,10 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
     if (error.name === 'AbortError') {
       streamOutcome = 'stopped';
       // Read partial text from the DOM (typewriter accumulates into textContent)
-      const partialText = aiMsgEl?.textContent?.trim() || '';
-      if (partialText && aiMsgEl) {
+      const partialText = liveMessage?.getText().trim() || '';
+      if ((partialText || toolActivity.length) && aiMsgEl) {
         const personality = getActivePersonality();
-        (state.chatHistory.push as (...messages:unknown[])=>number)({ role: 'assistant', content: partialText, personalityName: personality.name, personalityIcon: personality.icon, provider: _msgProvider, agentId: _msgAgentId, modelId: _msgModelId, modelDisplay: _msgModelDisplay, stopped: true });
+        (state.chatHistory.push as (...messages:unknown[])=>number)({ role: 'assistant', content: partialText || 'Response stopped.', ...(toolActivity.length ? { toolActivity: normalizeChatToolActivity(toolActivity) } : {}), personalityName: personality.name, personalityIcon: personality.icon, provider: _msgProvider, agentId: _msgAgentId, modelId: _msgModelId, modelDisplay: _msgModelDisplay, stopped: true });
         await saveChatHistory();
         if (!scopeIsCurrent()) return;
         renderChatMessages({ preserveScroll: true });
@@ -635,6 +646,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
         (state.chatHistory.push as (...messages:unknown[])=>number)({
           role: 'assistant',
           content: errorMessage,
+          ...(toolActivity.length ? { toolActivity: normalizeChatToolActivity(toolActivity) } : {}),
           error: true,
           errorDetail: technicalMessage,
           personalityName: personality.name,

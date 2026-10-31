@@ -469,8 +469,14 @@ contain only named field changes, the observed baseline, supporting user words,
 and a reason. The model cannot apply them. Prepared-review claims are checked against actual
 turn-local drafts or app-control records. An unbacked affirmative claim gets at
 most one corrective attempt on the same provider and permission lease, within
-the existing tool bounds; repeated claims become an explicit no-proposal result.
-Quoted writing tasks and ordinary conversation do not initiate this repair.
+the existing tool bounds. Direct-provider correction uses the validated structured
+tool protocol, preserving earlier receipts without replaying them; repeated claims become an explicit no-proposal result.
+Common quoted/code forms are excluded from claim detection; raw prose never executes.
+The common runtime emits bounded tool-activity events around actual execution.
+Chat and discussion live views display these steps; persisted history retains only
+public tool/card identifiers and terminal status, never arguments or outputs.
+Running steps restore as interrupted. Older replies without activity metadata
+remain unknown; new empty traces explicitly mean no app tools were used.
 Existing chat proposal controls own
 Apply/Discard and durable duplicate-apply claims. `agent-drafts.ts` revalidates
 field choices and the captured profile, then commits through the existing locked

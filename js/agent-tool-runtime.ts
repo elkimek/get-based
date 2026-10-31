@@ -1,3 +1,4 @@
+import { normalizeChatToolActivity, type ChatToolActivity } from '../shared/chat-tool-activity.js';
 import { validateAppNavigation, LAB_VIEW_RANGES } from '../shared/app-navigation-contract.js';
 import type { AppNavigationRequest } from '../shared/app-navigation-contract.js';
 import { chatAppControlAllowed, chatDataReadAllowed, chatDataChangeAllowed, CHAT_DATA_OPERATIONS, CHAT_APP_REVIEW_ACTIONS, CHAT_NATIVE_UI_NOTICE } from '../shared/chat-control-policy.js';
@@ -57,6 +58,7 @@ export type AgentToolDependencies = {
   readContext: () => string | AgentContextSnapshot | Promise<string | AgentContextSnapshot>;
   userMessage?: string;
   canUseTools?: () => boolean;
+  onToolActivity?: ((activity: ChatToolActivity) => void) | undefined;
   onDraftCreated?: (draft: AgentDraft) => void | Promise<void>;
   canDiscloseDraftReview?: (draft: AgentDraft) => boolean;
   createId?: () => string;
@@ -318,7 +320,7 @@ export function createAgentToolRuntime(dependencies: AgentToolDependencies) {
     return successJson({ draftIds: ids, status: 'pending_user_approval', separateApprovals: ids.length > 1 });
   };
 
-  return Object.freeze({
+  const runtime = Object.freeze({
     tools: permitted() ? getAgentToolCatalog() : [],
     getDrafts: () => permitted() ? drafts.map(draft => ({ ...draft, payload: { ...draft.payload } })) : [],
 
@@ -569,4 +571,14 @@ export function createAgentToolRuntime(dependencies: AgentToolDependencies) {
       }
     },
   });
+  let sequence = 0;
+  return Object.freeze({ ...runtime, async execute(call: AgentToolInvocation | null | undefined) {
+    let card: unknown; try { card = parseToolArguments(call?.arguments).card; } catch { /* The executor reports invalid arguments. */ }
+    const record = normalizeChatToolActivity([{ id: String(++sequence), tool: call?.tool, card, status: 'running' }], true)[0];
+    const publish = (status: ChatToolActivity['status']) => { if (record) try { dependencies.onToolActivity?.({ ...record, status }); } catch { /* UI must not alter execution. */ } };
+    publish('running');
+    try { const result = await runtime.execute(call); publish(result.success ? 'completed' : 'failed'); return result; }
+    catch (error) { publish('failed'); throw error; }
+  } });
+
 }

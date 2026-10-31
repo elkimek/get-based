@@ -140,8 +140,9 @@ it('accepts a real app-review receipt created during corrective CLI tool calls w
     expect(draft.success).toBe(true);
     return { text: "I've prepared a proposal for getbased. Apply it when ready.", threadId: 'signed-session', toolCalls: [], webSearches: [] };
   });
-  const before = localStorage.getItem('labcharts-profile-a-unitSystem');
-  const result = await callCodexAgent({ ...options, prompt, appControlSession: session });
+  const before = localStorage.getItem('labcharts-profile-a-unitSystem'), activity: unknown[] = [];
+  const result = await callCodexAgent({ ...options, prompt, appControlSession: session, onToolActivity: event => activity.push(event) });
+  expect(activity).toEqual([expect.objectContaining({ tool: 'getbased_read_app', status: 'running' }), expect.objectContaining({ tool: 'getbased_read_app', status: 'completed' }), expect.objectContaining({ tool: 'getbased_request_app', status: 'running' }), expect.objectContaining({ tool: 'getbased_request_app', status: 'completed' })]);
   expect(result.text).toContain("I've prepared"); expect(mocks.stream).toHaveBeenCalledTimes(2);
   expect(session.finish()).toEqual([expect.objectContaining({ action: 'display.preferences', status: 'pending' })]);
   expect(localStorage.getItem('labcharts-profile-a-unitSystem')).toBe(before);
