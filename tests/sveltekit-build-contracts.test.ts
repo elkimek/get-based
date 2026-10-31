@@ -93,7 +93,7 @@ it('packs the real maintained prompt losslessly with its original source map', (
   const file = path.resolve('shared/chat-tool-instructions.js'), source = fs.readFileSync(file, 'utf8');
   const result = packStaticChatInstructions(source, file, path.resolve('.'))!;
   expect(result).not.toBeNull(); expect(Buffer.byteLength(source) - Buffer.byteLength(result.code)).toBeGreaterThan(7000);
-  const context = { globalThis: { prompt: '' } };
+  const context = { globalThis: { prompt: '' }, atob, TextDecoder, Uint8Array };
   vm.runInNewContext(result.code.replace(/^export /gm, '') + '\nglobalThis.prompt = CHAT_TOOL_INSTRUCTIONS;', context);
   expect(context.globalThis.prompt).toBe(CHAT_TOOL_INSTRUCTIONS);
   expect(result.map.sourcesContent).toEqual([source]);
@@ -103,4 +103,36 @@ it('does not pack unrelated modules or collide with authored marker text', () =>
   const source = `export const CHAT_TOOL_INSTRUCTIONS = ${JSON.stringify(('Health context review. ').repeat(1000) + '~a')};`;
   expect(packStaticChatInstructions(source, path.join(root, 'shared/chat-tool-instructions.js'), root)).toBeNull();
   expect(packStaticChatInstructions(source, path.join(root, 'js/feature.js'), root)).toBeNull();
+});
+
+it('losslessly packs repeated phrases and preserves punctuation and whitespace', () => {
+  const prompt = ('Read the current profile card. Preserve the current profile card.\n\n' + 'Do not change current profile data. ').repeat(80);
+  const source = `export const CHAT_TOOL_INSTRUCTIONS = ${JSON.stringify(prompt)};`;
+  const result = packStaticChatInstructions(source, path.join(root, 'shared/chat-tool-instructions.js'), root)!;
+  expect(result).not.toBeNull(); expect(Buffer.byteLength(result.code)).toBeLessThan(Buffer.byteLength(source) / 2);
+  const context = { globalThis: { prompt: '' }, atob, TextDecoder, Uint8Array };
+  vm.runInNewContext(result.code.replace(/^export /gm, '') + '\nglobalThis.prompt = CHAT_TOOL_INSTRUCTIONS;', context);
+  expect(context.globalThis.prompt).toBe(prompt); expect(result.map.sourcesContent).toEqual([source]);
+});
+
+it.each([
+  'Mixed UTF-8: café Ελληνικά 中文 🙂.\n'.repeat(300),
+  'a'.repeat(18000),
+  Array.from({ length: 800 }, (_, index) => `Boundary row ${index}: keep exact source bytes.\n`).join(''),
+  ('Unpaired surrogate \ud800 must stay exact. ').repeat(200),
+])('preserves static prompt bytes across Unicode and backreference boundaries', text => {
+  const source = `export const CHAT_TOOL_INSTRUCTIONS = ${JSON.stringify(text)};`;
+  const result = packStaticChatInstructions(source, path.join(root, 'shared/chat-tool-instructions.js'), root)!;
+  expect(result).not.toBeNull(); const context = { globalThis: { prompt: '' }, atob, TextDecoder, Uint8Array };
+  vm.runInNewContext(result.code.replace(/^export /gm, '') + '\nglobalThis.prompt = CHAT_TOOL_INSTRUCTIONS;', context);
+  expect(context.globalThis.prompt).toBe(text); expect(result.map.sourcesContent).toEqual([source]);
+});
+
+it.each(['\uFEFF', '\\uFEFF', '\\u{FEFF}'])('leaves leading BOM literals unchanged when the native AST cannot preserve them', bom => {
+  const text = ('Mixed UTF-8: café 中文 🙂. ').repeat(300);
+  const source = `export const CHAT_TOOL_INSTRUCTIONS = "${bom}${text}";`;
+  expect(packStaticChatInstructions(source, path.join(root, 'shared/chat-tool-instructions.js'), root)).toBeNull();
+  const context = { globalThis: { prompt: '' } };
+  vm.runInNewContext(source.replace(/^export /gm, '') + '\nglobalThis.prompt = CHAT_TOOL_INSTRUCTIONS;', context);
+  expect(context.globalThis.prompt).toBe('\uFEFF' + text);
 });

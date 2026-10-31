@@ -27,8 +27,53 @@ export function rewriteNativeAssetBase(code: string, file: string, root: string)
   return changed ? { code: rewritten.toString(), map: rewritten.generateMap({ hires: true, source: file, includeContent: true }) } : null;
 }
 
+/** Build-only LZSS encoding; runtime decoding is synchronous and has no dependencies. */
+function packPromptBytes(text: string): string | null {
+  const bytes = Buffer.from(text, 'utf8');
+  if (new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes) !== text) return null;
+  const packed: number[] = [], seen = new Map<number, number[]>();
+  const key = (index: number) => (bytes[index]! << 16) | (bytes[index + 1]! << 8) | bytes[index + 2]!;
+  let position = 0;
+  while (position < bytes.length) {
+    const flags = packed.length; packed.push(0);
+    for (let bit = 0; bit < 8 && position < bytes.length; bit++) {
+      let length = 0, distance = 0;
+      const candidates = position + 2 < bytes.length ? seen.get(key(position)) || [] : [];
+      for (let index = candidates.length - 1; index >= 0; index--) {
+        const previous = candidates[index]!, offset = position - previous;
+        if (offset > 4095) break;
+        let count = 0;
+        while (count < 18 && position + count < bytes.length && bytes[previous + count] === bytes[position + count]) count++;
+        if (count >= 3 && count > length) { length = count; distance = offset; if (count === 18) break; }
+      }
+      if (length >= 3) { packed[flags] = packed[flags]! | (1 << bit); packed.push(((length - 3) << 4) | (distance >> 8), distance & 255); }
+      else { packed.push(bytes[position]!); length = 1; }
+      for (let count = 0; count < length; count++) if (position + count + 2 < bytes.length) {
+        const id = key(position + count), previous = seen.get(id) || [];
+        previous.push(position + count); if (previous.length > 64) previous.shift(); seen.set(id, previous);
+      }
+      position += length;
+    }
+  }
+  // Independently reconstruct bytes before emitting any packed source.
+  const restored = new Uint8Array(bytes.length); let input = 0, output = 0;
+  while (input < packed.length) {
+    const flags = packed[input++]!;
+    for (let bit = 0; bit < 8 && input < packed.length; bit++) {
+      if (flags & (1 << bit)) {
+        const value = packed[input++]!, distance = ((value & 15) << 8) | packed[input++]!, length = (value >> 4) + 3;
+        if (!distance || distance > output || output + length > restored.length) throw new Error('Invalid static prompt backreference.');
+        for (let end = output + length; output < end; output++) restored[output] = restored[output - distance]!;
+      } else restored[output++] = packed[input++]!;
+    }
+  }
+  if (output !== bytes.length || !Buffer.from(restored).equals(bytes)) throw new Error('Static prompt byte packing changed its content.');
+  const encoded = JSON.stringify(Buffer.from(packed).toString('base64'));
+  return `((b,n)=>{const d=Uint8Array.from(atob(b),c=>c.charCodeAt(0)),o=new Uint8Array(n);let i=0,j=0;while(i<d.length){const f=d[i++];for(let k=0;k<8&&i<d.length;k++){if(f&(1<<k)){const v=d[i++],s=(v&15)*256+d[i++],l=(v>>4)+3;if(!s||s>j||j+l>n)throw Error('Invalid static prompt');for(let e=j+l;j<e;j++)o[j]=o[j-s]}else o[j++]=d[i++]}}if(j!==n)throw Error('Invalid static prompt');return new TextDecoder('utf-8',{fatal:true,ignoreBOM:true}).decode(o)})(${encoded},${bytes.length})`;
+}
+
 /** Lossless build-only packing keeps the maintained prompt readable in source.
- * Static ASCII dictionary markers expand synchronously; there is no evaluation,
+ * Static word or byte references expand synchronously; there is no evaluation,
  * network dependency, or change to the exported instruction text. */
 export function packStaticChatInstructions(code: string, file: string, root: string) {
   if (path.relative(root, file).replaceAll(path.sep, '/') !== 'shared/chat-tool-instructions.js') return null;
@@ -40,6 +85,9 @@ export function packStaticChatInstructions(code: string, file: string, root: str
         if (!ts.isIdentifier(declaration.name) || declaration.name.text !== 'CHAT_TOOL_INSTRUCTIONS') continue;
         const literal = declaration.initializer;
         if (!literal || !(ts.isStringLiteral(literal) || ts.isNoSubstitutionTemplateLiteral(literal))) throw new Error('Chat instructions must be a static literal for lossless packing.');
+        // The native AST transport drops a leading BOM from literal values.
+        // Leave these authored literals untouched rather than packing altered text.
+        if (/^['"`](?:\uFEFF|\\u(?:feff|\{feff\}))/i.test(code.slice(literal.getStart(source), literal.end))) continue;
         const text = literal.text;
         if (text.includes('~')) continue; // Never collide with authored text.
         const candidates = [...new Set(text.match(/[A-Za-z_][A-Za-z0-9_.-]{3,}/g) || [])]
@@ -56,7 +104,9 @@ export function packStaticChatInstructions(code: string, file: string, root: str
         }
         const expand = (token: string) => words[token.length === 1 ? parseInt(token, 36) : 36 + (token.charCodeAt(0) - 65) * 36 + parseInt(token[1]!, 36)]!;
         if (packed.replace(/~([A-Z][0-9a-z]|[0-9a-z])/g, (_, token: string) => expand(token)) !== text) throw new Error('Chat instruction packing changed the prompt.');
-        const expression = `((d)=>${JSON.stringify(packed)}.replace(/~([A-Z][0-9a-z]|[0-9a-z])/g,(_,c)=>d[c.length===1?parseInt(c,36):36+(c.charCodeAt(0)-65)*36+parseInt(c[1],36)]))(${JSON.stringify(words)})`;
+        const dictionary = `((d)=>${JSON.stringify(packed)}.replace(/~([A-Z][0-9a-z]|[0-9a-z])/g,(_,c)=>d[c.length===1?parseInt(c,36):36+(c.charCodeAt(0)-65)*36+parseInt(c[1],36)]))(${JSON.stringify(words)})`;
+        const bytePacked = packPromptBytes(text);
+        const expression = bytePacked && Buffer.byteLength(bytePacked) < Buffer.byteLength(dictionary) ? bytePacked : dictionary;
         if (Buffer.byteLength(expression) + 256 >= Buffer.byteLength(code.slice(literal.getStart(source), literal.end))) continue;
         rewritten.overwrite(literal.getStart(source), literal.end, expression); changed = true;
       }

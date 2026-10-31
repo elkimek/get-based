@@ -165,7 +165,7 @@ Useful health workflows and explicit unit/model/provider/profile commands remain
 available; routine layout, clock format, setup, privacy, personas and saved AI or
 search preferences use the native UI. Excluded controls are absent from shared
 API/CLI discovery and cannot execute through stale cards or invented calls.
-Actual app-tool progress appears in a separate row outside the response bubble during generation, with a compact expandable summary afterward. This works through API and CLI chat, including discussion rounds. Completed, failed and interrupted steps contain tool and card labels, not raw arguments or health values. Ordinary replies without app-tool calls add no activity UI; older replies may have no recorded trace. Prepared proposals still require their own review card and Apply.
+Actual app-tool progress appears in a separate row outside the response bubble during generation, with a compact expandable summary afterward. This works through API and CLI chat, including discussion rounds. Completed, failed and interrupted steps contain tool and card labels, not raw arguments or health values. Ordinary replies without app-tool calls add no activity UI; older replies may have no recorded trace. Prepared proposals still require their own review card and Apply. Explicit opening requests to update a profile or prepare its reviews use structured tool execution from the first API response, requiring an initial tool step. Markdown card lists are not executable reviews. If no real review is prepared, the app reports that outcome rather than asking the user to apply prose.
 
 The same scope policy limits data-resource exposure. Historical proposal payloads
 are retained and shown read-only, with no saved-outcome claim or execution controls.

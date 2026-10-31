@@ -1,5 +1,5 @@
 import type { ChatToolActivity } from '../shared/chat-tool-activity.js';
-import { claimsPreparedChatProposal, CHAT_PROPOSAL_REPAIR, CHAT_PROPOSAL_MISSING } from '../shared/chat-tool-instructions.js';
+import { claimsPreparedChatProposal, requestsChatProposal, CHAT_PROPOSAL_REPAIR, CHAT_PROPOSAL_MISSING, CHAT_PROPOSAL_NONE } from '../shared/chat-tool-instructions.js';
 import { captureChatControlAuthorization } from './chat-control-settings.js';
 import { createAgentToolRuntime, getCodexDynamicTools, AGENT_TOOL_CONTRACT_VERSION } from './agent-tool-runtime.js';
 import { streamAgentTurn, uploadAgentImage } from './agent-chat-client.js';
@@ -100,13 +100,15 @@ export async function callCodexAgent(options: AgentChatOptions) {
   }
   const hasReview = () => authorization.current() && (runtime.getDrafts().length > 0 || options.appControlSession?.hasPreparedReview() === true);
   assertCurrent();
-  if (!hasReview() && claimsPreparedChatProposal(result.text)) {
+  const reviewRequested = local && requestsChatProposal(options.prompt);
+  if (!hasReview() && (reviewRequested || claimsPreparedChatProposal(result.text))) {
     if (local && authorization.current() && toolCount < 32) {
+      options.onStream?.('');
       const repaired = await run(result.threadId, true); assertCurrent();
       result = { ...repaired, toolCalls: [...result.toolCalls, ...repaired.toolCalls], webSearches: [...result.webSearches, ...repaired.webSearches],
         usage: { inputTokens: (result.usage?.inputTokens || 0) + (repaired.usage?.inputTokens || 0), outputTokens: (result.usage?.outputTokens || 0) + (repaired.usage?.outputTokens || 0) } };
     }
-    if (!hasReview() && claimsPreparedChatProposal(result.text)) result = { ...result, text: CHAT_PROPOSAL_MISSING };
+    if (!hasReview()) result = { ...result, text: claimsPreparedChatProposal(result.text, reviewRequested) || !toolCount ? CHAT_PROPOSAL_MISSING : `${CHAT_PROPOSAL_NONE}\n\n${result.text}` };
     options.onStream?.(result.text);
   }
   return withDrafts(result);

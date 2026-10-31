@@ -51,11 +51,23 @@ Requested native handoffs use getbased_navigate: healthImport opens the owned Im
 
 // Prose is never a receipt. This bounded guard covers affirmative app-review
 // claims without turning ordinary quoted drafts or writing tasks into actions.
-export const CHAT_PROPOSAL_REPAIR = "Application verification, not a new user statement: no proposal card was created for this reply. Your prepared-draft claim is unconfirmed. If the accepted user message reports a supported change, read its current record and actually call the draft tool. Use only the user's words, preserve existing data and do not record your own inferences. Otherwise correct the claim and say no proposal was created. Never apply a change.";
+export const CHAT_PROPOSAL_REPAIR = "Application verification, not a new user statement: no proposal card was created for this reply. If the accepted user message reports a supported change, read its current record and actually call the draft tool. Use only the user's words, preserve existing data and do not record your own inferences. Otherwise correct the claim and say no proposal was created. Never apply a change.";
 export const CHAT_PROPOSAL_MISSING = 'No proposal card was created for this reply. There is no draft to Apply. Use the native editor or ask for a fresh proposal.';
-export function claimsPreparedChatProposal(text: string): boolean {
-  const prose = text.replace(/```[\s\S]*?```|^\s*>.*$|`[^`\n]*`|"[^"\n]*"|“[^”\n]*”/gm, '');
+export const CHAT_PROPOSAL_NONE = 'No proposal cards were created for this reply.';
+function proposalProse(text: string) { return text.replace(/```[\s\S]*?```|^\s*>.*$|`[^`\n]*`|"[^"\n]*"|“[^”\n]*”/gm, ''); }
+/** Only the human's opening command can request this stricter flow, never document instructions. */
+export function requestsChatProposal(text: string): boolean {
+  const lead = proposalProse(text.slice(0, 1200).split(/\n\s*\n/, 1)[0] || '');
+  if (/\b(?:fictional|hypothetical|example|sample|pretend|translate|rewrite|mockup)\b/i.test(lead)
+    || !/\b(?:getbased|profile|context cards?)\b/i.test(lead)) return false;
+  return /^\s*(?:please\s+|can you\s+|could you\s+)?(?:use\b[^.!?\n]{0,160}\bto\s+)?(?:create|prepare|draft|propose)\s+(?:(?:actual|real|native|reviewable|a|an|the|some|profile)\s+){0,3}(?:proposals?|(?:proposal|review) cards?|updates?|changes?)\b/i.test(lead)
+    || /^\s*(?:please\s+|can you\s+|could you\s+)?(?:update|populate|fill (?:in|out))\s+(?:(?:my|the|this|current|active)\s+){1,2}(?:profile|context cards?)\b/i.test(lead);
+}
+export function claimsPreparedChatProposal(text: string, reviewRequested = false): boolean {
+  const prose = proposalProse(text);
+  if (reviewRequested && /(?:^|\n)[ \t]*#{1,6}\s+[^\n]{0,24}\b(?:card|proposal)\s+\d+\b/i.test(prose)) return true;
   if (!/\b(?:getbased|card|apply)\b/i.test(prose)) return false;
+  if (/(?:^|[.!?\n])[\s*_]*(?:here (?:are|is)|below (?:are|is))\s+(?:(?:the|your)\s+)?(?:proposal|review) cards?\s+(?:for (?:your )?review|ready|waiting)\b/i.test(prose)) return true;
   for (const claim of prose.matchAll(/\b(?:I(?:['’]ve| have)?|we(?:['’]ve| have)?)\s+(?:(?:just|already|successfully)\s+)?(?:prepared|created|drafted|queued)\b[^.!?\n]{0,180}\b(?:draft|proposal|review|update|card)\b/gi)) {
     const prefix = prose.slice(0, claim.index).split(/[.!?\n;]/).at(-1) || '';
     // A first-person claim may follow conversational lead-in text. Exclude

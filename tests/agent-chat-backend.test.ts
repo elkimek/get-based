@@ -159,3 +159,11 @@ it('does not repair a CLI claim after the user disables controls during the resp
   mocks.stream.mockImplementationOnce(async () => { await setChatControlsEnabled(false); return { text: "I've prepared a draft for your getbased card." }; });
   const result = await callCodexAgent(options); expect(result.text).toContain('No proposal card was created'); expect(mocks.stream).toHaveBeenCalledOnce();
 });
+
+it('repairs an explicit local review request even when the first answer makes no draft claim', async () => {
+  const prompt = 'Please create actual proposal cards for my current profile.';
+  mocks.stream.mockResolvedValue({ text: 'Understood.', threadId: 'signed-session', toolCalls: [], webSearches: [] });
+  const result = await callCodexAgent({ ...options, prompt });
+  expect(mocks.stream).toHaveBeenCalledTimes(2); expect(result.text).toContain('No proposal card was created'); expect(result.drafts).toEqual([]);
+  expect(mocks.stream.mock.calls[1]![0].threadId).toBe('signed-session');
+});

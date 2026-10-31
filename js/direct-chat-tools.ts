@@ -1,5 +1,5 @@
 import type { ChatToolActivity } from '../shared/chat-tool-activity.js';
-import { captureChatControlAuthorization, CHAT_CONTROLS_OFF_INSTRUCTIONS } from './chat-control-settings.js';
+import { captureChatControlAuthorization, CHAT_CONTROLS_OFF_INSTRUCTIONS, CHAT_CONTROLS_NOTICE } from './chat-control-settings.js';
 import { getContextDisclosureFingerprint } from './lab-context-settings.js';
 // Direct providers share the browser's semantic tool runtime and approval cards.
 import { callClaudeAPI, getAIProvider, getActiveModelId, getVeniceE2EE, isE2EEModel,
@@ -10,7 +10,7 @@ import { createAgentToolRuntime, getAgentToolCatalog } from './agent-tool-runtim
 import { createBrowserAgentToolDependencies, canDiscloseAgentDraftReview } from './agent-tool-bindings.js';
 import type { BrowserKnowledgeSearchOptions } from './agent-tool-bindings.js';
 import { buildAgentDraftReviewContext } from './agent-chat-context.js';
-import { CHAT_TOOL_INSTRUCTIONS } from '../shared/chat-tool-instructions.js';
+import { CHAT_TOOL_INSTRUCTIONS, requestsChatProposal } from '../shared/chat-tool-instructions.js';
 import { runChatToolLoop } from './chat-tool-loop.js';
 import type { ToolCompletion } from './chat-tool-loop.js';
 import type { ProviderRequestOptions } from './api-openai-compatible.js';
@@ -40,6 +40,8 @@ export async function callDirectChatWithTools(options: DirectChatToolOptions) {
   const current = () => state.currentProfile === profileId && state.chatHistory === history && state.currentThreadId === thread
     && getContextDisclosureFingerprint() === disclosure && getAIProvider() === provider && getActiveModelId(provider) === selectedModel && recipientIdentity(provider) === recipient && (!ownerCurrent || ownerCurrent());
   const authorization = captureChatControlAuthorization();
+  const reviewRequested = requestsChatProposal(prompt);
+  if (reviewRequested && !authorization.current()) return { text: CHAT_CONTROLS_NOTICE, drafts: [], toolCalls: [], usage: { inputTokens: 0, outputTokens: 0 }, truncated: false, finishReason: 'stop' };
   const runtime = createAgentToolRuntime({ userMessage: prompt,
     readContext: () => ({ context: labContext, profileId }),
     ...createBrowserAgentToolDependencies(profileId, { signal: options.signal, isCurrent: current, onKnowledgeResult, appControlSession }),
@@ -52,6 +54,7 @@ export async function callDirectChatWithTools(options: DirectChatToolOptions) {
     // Venice's encrypted route carries actions inside encrypted message content.
     protocol: provider === 'venice' && (getVeniceE2EE() || isE2EEModel(model)) ? 'structured' : 'native',
     canRepair: authorization.current,
+    reviewRequested,
     hasPreparedReview: () => authorization.current() && (runtime.getDrafts().length > 0 || appControlSession?.hasPreparedReview() === true),
     isCurrent: current, execute: call => runtime.execute(call),
     complete: async round => {

@@ -121,3 +121,21 @@ it('corrects an unbacked draft claim when controls are off without another infer
   const result = await callDirectChatWithTools(options()); expect(result.drafts).toEqual([]); expect(result.text).toContain('No proposal card was created');
   expect(mocks.complete).toHaveBeenCalledOnce(); expect(mocks.read).not.toHaveBeenCalled();
 });
+
+it.each(['openrouter','venice','ppq','routstr','ollama','custom'])('uses the explicit structured review contract on %s without exposing workflow flags', async provider => {
+  mocks.provider = provider; const request = 'Please create actual proposal cards for my current profile.\n\n' + prompt;
+  mocks.complete.mockResolvedValueOnce({ text: JSON.stringify({ reply: '', calls: [{ id: 'r', name: 'getbased_read_context_card', arguments: '{"card":"healthGoals"}' }] }) })
+    .mockResolvedValueOnce({ text: JSON.stringify({ reply: '', calls: [{ id: 'd', name: 'getbased_draft_context', arguments: JSON.stringify({ ...payload, baseline: undefined, snapshotId: 'snapshot' }) }] }) })
+    .mockResolvedValueOnce({ text: JSON.stringify({ reply: 'Please review the actual proposal.', calls: [] }) });
+  const result = await callDirectChatWithTools({ ...options(), prompt: request, messages: [{ role: 'user', content: request }] });
+  expect(result.drafts).toHaveLength(1); expect(result.toolCalls).toHaveLength(2);
+  expect(mocks.complete.mock.calls[0]![0]).toMatchObject({ jsonMode: true, jsonSchema: { properties: { calls: { minItems: 1 } } } });
+  for (const [round, recipient] of mocks.complete.mock.calls) { expect(recipient).toBe(provider); expect(round.tools).toBeUndefined(); expect(round).not.toHaveProperty('reviewRequested'); expect(JSON.stringify(round)).not.toContain('synthetic-key'); }
+});
+
+it('returns an actionable local notice for an explicit review when controls are off without calling the provider', async () => {
+  localStorage.setItem('getbased-chat-controls', '0:11111111-1111-4111-8111-111111111111');
+  try { const request = 'Please create actual proposal cards for my current profile.'; const result = await callDirectChatWithTools({ ...options(), prompt: request, messages: [{ role: 'user', content: request }] });
+    expect(result.text).toContain('Chat controls are off'); expect(result.drafts).toEqual([]); expect(mocks.complete).not.toHaveBeenCalled();
+  } finally { localStorage.removeItem('getbased-chat-controls'); }
+});
