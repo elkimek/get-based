@@ -74,7 +74,7 @@ export async function runDiscussionRound(personas: unknown, steerPrompt: unknown
       activeRound?.live?.detach();
     } else if (activeRound) {
       activeRound.live?.restore(container);
-      if (!activeRound.live?.element.textContent && !activeRound.typingEl.isConnected) container.appendChild(activeRound.typingEl);
+      if (!activeRound.activity.length && !activeRound.live?.element.textContent && !activeRound.typingEl.isConnected) container.appendChild(activeRound.typingEl);
     }
   });
   const save = () => saveRoundChatHistory(roundThreadId, roundHistory, origin);

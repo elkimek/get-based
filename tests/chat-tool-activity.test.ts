@@ -33,21 +33,41 @@ it('restores interrupted work without replaying it and rejects unsafe activity m
   expect(restored.toolActivity?.[0]?.status).toBe('interrupted'); expect(JSON.stringify(restored.toolActivity)).not.toMatch(/SECRET|PRIVATE/);
   expect(normalizeChatMessages([{ role: 'user', content: 'Example', toolActivity: [record] }])[0]?.toolActivity).toBeUndefined();
 });
-it('distinguishes verified zero app tools from older replies without recorded activity', () => {
+it('keeps zero-call and older ordinary replies free of activity UI while retaining their distinct metadata', () => {
   const host = document.createElement('div'); document.body.append(host);
   state.chatHistory = [{ role: 'assistant', content: 'Old answer' }, { role: 'assistant', content: 'New answer', toolActivity: [] }];
   renderChatTranscript(host, projectChatTranscript(0));
-  expect(host.querySelectorAll('[data-chat-transcript-message]')[0]!.textContent).not.toContain('No app tools used');
-  expect(host.querySelectorAll('[data-chat-transcript-message]')[1]!.textContent).toContain('No app tools used');
+  expect(host.querySelector('[data-chat-tool-activity]')).toBeNull();
+  expect(host.textContent).not.toContain('No app tools used');
+  const restored = normalizeChatMessages(state.chatHistory);
+  expect(restored[0]?.toolActivity).toBeUndefined(); expect(restored[1]?.toolActivity).toEqual([]);
 });
-it('keeps real progress visible inside the live bubble and separate from response text', () => {
+it('shows generation progress outside the bubble, hides the empty bubble, and collapses finished activity', () => {
   const host = document.createElement('div'); document.body.append(host);
   const live = createChatLiveMessage(host, {}, () => true);
   live.setToolActivity([{ id: '1', tool: 'getbased_read_context_card', card: 'environment', status: 'running' }]);
-  expect(live.element.querySelector('[data-tool-status="running"]')).not.toBeNull(); expect(live.getText()).toBe('');
+  const activity = host.querySelector<HTMLDetailsElement>('[data-chat-tool-activity]')!;
+  expect(activity.querySelector('[data-tool-status="running"]')).not.toBeNull();
+  expect(activity.querySelector('summary')?.textContent).toContain('Reading Environment & Exposures');
+  expect(live.element.querySelector('[data-chat-tool-activity]')).toBeNull();
+  expect(activity.closest('.chat-msg')).toBeNull(); expect(live.element.style.display).toBe('none');
+  expect(activity.compareDocumentPosition(live.element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(live.getText()).toBe(''); activity.open = true;
   publishChatLiveText(live.element, 'Actual answer only.'); expect(live.getText()).toBe('Actual answer only.');
+  expect(live.element.style.display).toBe('');
   completeChatLiveMessage(live.element, { role: 'assistant', content: 'Actual answer only.', toolActivity: [{ id: '1', tool: 'getbased_read_context_card', card: 'environment', status: 'completed' }] });
-  expect(live.element.querySelector('[data-tool-status="completed"]')).not.toBeNull(); live.dispose();
+  expect(activity.open).toBe(false); expect(activity.querySelector('summary')?.textContent).toContain('1 action completed');
+  expect(host.querySelector('[data-tool-status="completed"]')).not.toBeNull();
+  expect(live.element.textContent).not.toContain('App activity'); live.dispose();
+});
+it.each(['failed', 'interrupted'] as const)('preserves a visible %s summary outside restored response text', status => {
+  const host = document.createElement('div'); document.body.append(host);
+  state.chatHistory = [{ role: 'assistant', content: 'An ordinary reply.', toolActivity: [{ id: '1', tool: 'getbased_read_context_card', card: 'environment', status }] }];
+  renderChatTranscript(host, projectChatTranscript(0));
+  const activity = host.querySelector('[data-chat-tool-activity]')!;
+  expect(activity.querySelector('summary')?.textContent).toContain(status === 'failed' ? 'Action needs attention' : 'Action interrupted');
+  expect(activity.closest('.chat-msg')).toBeNull();
+  expect(host.querySelector('.chat-msg')?.textContent).not.toMatch(/Action needs attention|Action interrupted|Read Environment/);
 });
 
 it('covers every exposed app tool without accepting arbitrary model-defined labels', () => {

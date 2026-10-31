@@ -2,26 +2,29 @@
   import { chatToolActivityLabel, type ChatToolActivity } from '../../shared/chat-tool-activity.js';
   import ChatMessageIcon from './ChatMessageIcon.svelte';
   let { activity, live = false }: { activity?: ChatToolActivity[] | undefined; live?: boolean } = $props();
+  let details = $state<HTMLDetailsElement>();
+  $effect(() => { if (!live && details) details.open = false; });
   const active = $derived(activity?.findLast(step => step.status === 'running'));
+  const failed = $derived(activity?.some(step => step.status === 'failed'));
+  const interrupted = $derived(activity?.some(step => step.status === 'interrupted'));
+  const summary = $derived(active ? chatToolActivityLabel(active).replace(/^(Read|Prepare|Find|Search|Open|Check) /, word => ({ 'Read ': 'Reading ', 'Prepare ': 'Preparing ', 'Find ': 'Finding ', 'Search ': 'Searching ', 'Open ': 'Opening ', 'Check ': 'Checking ' } as Record<string, string>)[word] || word) + '…'
+    : live ? 'Preparing response…' : failed ? 'Action needs attention' : interrupted ? 'Action interrupted' : `${activity?.length} ${activity?.length === 1 ? 'action' : 'actions'} completed`);
 </script>
 {#if activity?.length}
-  <details class="chat-tool-activity" data-chat-tool-activity aria-label="Tool activity">
-    <summary >
-      <span class:chat-tool-running={live} aria-hidden="true"><ChatMessageIcon name={live ? 'refresh' : activity.some(step => step.status !== 'completed') ? 'x' : 'check'} /></span>
-      <span role={live ? "status" : undefined} aria-live={live ? "polite" : undefined}>{active ? chatToolActivityLabel(active) + '…' : live ? 'Preparing response…' : 'App tool activity'} ({activity.length})</span>
+  <details class="chat-tool-activity" data-chat-tool-activity data-live={live ? 'true' : undefined} aria-label="App activity" bind:this={details}>
+    <summary>
+      <span class="chat-tool-glyph" class:chat-tool-running={live} aria-hidden="true"><ChatMessageIcon name={live ? 'refresh' : failed || interrupted ? 'x' : 'check'} /></span>
+      <span class="chat-tool-summary" role={live ? 'status' : undefined} aria-live={live ? 'polite' : undefined}>{summary}</span>
+      <span class="chat-tool-chevron" aria-hidden="true">›</span>
     </summary>
-    <ol >
+    <ol>
       {#each activity as step (step.id)}
-        <li data-tool-status={step.status} >
-          <span  aria-hidden="true"><ChatMessageIcon name={step.status === 'completed' ? 'check' : step.status === 'running' ? 'refresh' : 'x'} /></span>
-          {chatToolActivityLabel(step)} · {step.status === 'running' ? 'Running' : step.status === 'completed' ? 'Completed' : step.status === 'failed' ? 'Failed' : 'Interrupted'}
+        <li data-tool-status={step.status}>
+          <span class="chat-tool-glyph" aria-hidden="true"><ChatMessageIcon name={step.status === 'completed' ? 'check' : step.status === 'running' ? 'refresh' : 'x'} /></span>
+          <span>{chatToolActivityLabel(step)}<span class="chat-tool-step-status">{step.status === 'running' ? 'Running' : step.status === 'completed' ? 'Completed' : step.status === 'failed' ? 'Failed' : 'Interrupted'}</span></span>
         </li>
       {/each}
     </ol>
-    <p >Tool completion does not save proposed changes. Review cards require Apply.</p>
+    <p>Proposed changes still require Apply.</p>
   </details>
-{/if}
-
-{#if !activity?.length && (live || activity !== undefined)}
-  <p class="chat-tool-activity-empty" role={live ? 'status' : undefined}>{live ? 'Preparing response…' : 'No app tools used'}</p>
 {/if}

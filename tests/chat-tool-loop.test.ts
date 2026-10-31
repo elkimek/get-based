@@ -101,6 +101,9 @@ it.each([
   "I've prepared a draft update to your Environment card; Apply in getbased.",
   "I have created a proposal for your health card.",
   "Your proposal card is ready to Apply.",
+  "Big move — that's genuinely one of the most sleep-relevant things you could tell me, so I've drafted it for your Environment card. It's waiting for review; tap **Apply** in getbased if it looks right.",
+  "That helps, and I've prepared your Environment card for review.",
+  "Thanks for telling me — we have queued your card for review.",
 ])('replaces a repeated unbacked claim with an honest no-change result: %s', async text => {
   const options = setup(); options.complete.mockResolvedValueOnce({ text, usage: { inputTokens: 4, outputTokens: 2 } }).mockResolvedValueOnce({ text: JSON.stringify({ reply: text, calls: [] }), usage: { inputTokens: 4, outputTokens: 2 } });
   const result = await runChatToolLoop({ ...options, hasPreparedReview: () => false });
@@ -117,6 +120,10 @@ it.each([
   '> I have prepared a draft for your getbased card.',
   '```text\nI have prepared a draft for your getbased card.\n```',
   'I have prepared a draft email for you.',
+  'If I prepared a proposal card, you would review it first.',
+  'Imagine we have prepared your card for review.',
+  'For example, I have prepared a draft for the getbased card.',
+  "The example says I've drafted it for your Environment card.",
 ])('does not interrupt ordinary writing, quotations or honest limitations: %s', async text => {
   expect(claimsPreparedChatProposal(text)).toBe(false);
   const options = setup(); options.complete.mockResolvedValue({ text });

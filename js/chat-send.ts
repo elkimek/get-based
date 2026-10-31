@@ -128,7 +128,7 @@ export function restoreChatGenerationUI() {
   const container = (document.getElementById('chat-messages') as HTMLElement|null) || active.container;
   active.container = container;
   active.restore(container);
-  if (!active.aiMsgEl?.textContent && !active.typingEl.isConnected) container.appendChild(active.typingEl);
+  if (!active.hasToolActivity() && !active.aiMsgEl?.textContent && !active.typingEl.isConnected) container.appendChild(active.typingEl);
   setChatStreamStatus(`${active.personalityName} is responding.`, { busy: true });
   notifyChatContentAdded(container);
   return true;
@@ -362,6 +362,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
     labelEl: null,
     personalityName: getActivePersonality().name,
     isCurrent: scopeIsCurrent,
+    hasToolActivity: () => toolActivity.length > 0,
     restore: next => liveMessage?.restore(next),
     dispose: () => liveMessage?.dispose(),
   };

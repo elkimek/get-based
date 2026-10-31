@@ -56,7 +56,12 @@ export const CHAT_PROPOSAL_MISSING = 'No proposal card was created for this repl
 export function claimsPreparedChatProposal(text: string): boolean {
   const prose = text.replace(/```[\s\S]*?```|^\s*>.*$|`[^`\n]*`|"[^"\n]*"|“[^”\n]*”/gm, '');
   if (!/\b(?:getbased|card|apply)\b/i.test(prose)) return false;
-  return /(?:^|[.!?\n])[\s*_]*(?:I(?:['’]ve| have)?|we(?:['’]ve| have)?)\s+(?:(?:just|already|successfully)\s+)?(?:prepared|created|drafted|queued)\b[^.!?\n]{0,180}\b(?:draft|proposal|review|update)\b/i.test(prose)
-    || /(?:^|[.!?\n])[\s*_]*(?:drafted|prepared|queued|created)\b[^.!?\n]{0,180}\b(?:review|waiting|card|proposal|apply)\b/i.test(prose)
+  for (const claim of prose.matchAll(/\b(?:I(?:['’]ve| have)?|we(?:['’]ve| have)?)\s+(?:(?:just|already|successfully)\s+)?(?:prepared|created|drafted|queued)\b[^.!?\n]{0,180}\b(?:draft|proposal|review|update|card)\b/gi)) {
+    const prefix = prose.slice(0, claim.index).split(/[.!?\n;]/).at(-1) || '';
+    // A first-person claim may follow conversational lead-in text. Exclude
+    // hypothetical and attributed examples rather than requiring sentence start.
+    if (!/\b(?:if|unless|suppose|imagine)\s*(?:that\s*)?$|\b(?:example|translation|quotation|quote|caption)\b[^.!?\n]*$/i.test(prefix)) return true;
+  }
+  return /(?:^|[.!?\n])[\s*_]*(?:drafted|prepared|queued|created)\b[^.!?\n]{0,180}\b(?:review|waiting|card|proposal|apply)\b/i.test(prose)
     || /(?:^|[.!?\n])[\s*_]*(?:your|the)\s+(?:draft|proposal|review)(?:\s+(?:card|update))?\s+(?:is|['’]s)\s+(?:ready|prepared|waiting)\b/i.test(prose);
 }

@@ -96,13 +96,17 @@
 @source "../js/components/RestoredThreadList.svelte";
 
 
-/* Actual execution trace, shared by live and saved assistant messages. */
-.chat-tool-activity { @apply gb:my-2 gb:text-xs gb:text-secondary; }
-.chat-tool-activity summary { @apply gb:cursor-pointer gb:pointer-coarse:min-h-11 gb:focus-visible:outline-2 gb:focus-visible:outline-accent gb:focus-visible:outline-offset-2; }
-.chat-tool-activity summary > span { @apply gb:inline-block; }
-.chat-tool-activity ol { @apply gb:mt-2 gb:ml-1.5 gb:list-none gb:border-l gb:border-line gb:pl-3; }
-.chat-tool-activity li { @apply gb:flex gb:items-start gb:gap-2 gb:py-1; }
+/* Execution progress is a separate transcript row, outside response bubbles. */
+.chat-tool-activity { @apply gb:self-start gb:min-w-0 gb:max-w-[calc(100%-36px)] gb:ml-9 gb:my-1 gb:text-xs gb:text-secondary; }
+.chat-tool-activity summary { @apply gb:flex gb:items-center gb:gap-2 gb:list-none gb:min-h-8 gb:cursor-pointer gb:pointer-coarse:min-h-11 gb:focus-visible:outline-2 gb:focus-visible:outline-accent gb:focus-visible:outline-offset-2; }
+.chat-tool-activity summary::-webkit-details-marker { display: none; }
+.chat-tool-glyph { @apply gb:inline-flex gb:shrink-0 gb:items-center gb:justify-center gb:size-4; }
+.chat-tool-summary { @apply gb:min-w-0 gb:[overflow-wrap:anywhere]; }
+.chat-tool-chevron { @apply gb:text-base gb:leading-none; }
+.chat-tool-activity[open] .chat-tool-chevron { @apply gb:rotate-90; }
+.chat-tool-activity ol { @apply gb:mt-1 gb:ml-2 gb:list-none gb:border-l gb:border-line gb:pl-3; }
+.chat-tool-activity li { @apply gb:flex gb:items-start gb:gap-2 gb:py-1.5; }
+.chat-tool-step-status { @apply gb:block gb:text-[11px] gb:opacity-75; }
 .chat-tool-activity li[data-tool-status="failed"] { @apply gb:text-danger-ink; }
-.chat-tool-activity p { @apply gb:mt-2 gb:text-[11px]; }
+.chat-tool-activity p { @apply gb:mt-2 gb:pl-6 gb:text-[11px]; }
 .chat-tool-activity .chat-tool-running svg, .chat-tool-activity li[data-tool-status="running"] svg { @apply gb:animate-spin gb:motion-reduce:animate-none; }
-.chat-tool-activity-empty { @apply gb:text-[11px] gb:text-secondary; }

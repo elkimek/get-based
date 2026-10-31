@@ -128,9 +128,11 @@ test('Venice cannot display or persist repeated phantom review claims without a 
 });
 
 
+const REPORTED_RELOCATION_REPLY = "Big move — that's genuinely one of the most sleep-relevant things you could tell me, so I've drafted it for your Environment card. It's waiting for review; tap **Apply** in getbased if it looks right.";
+
 for (const viewport of [{ width: 1280, height: 720 }, { width: 390, height: 844 }]) test.describe(`Tool activity at ${viewport.width}px`, () => {
-  test.use({ viewport });
-test('Regenerate repairs passive draft narration and exposes real tool progress and a durable trace', async ({ page, context }) => {
+  test.use({ viewport, hasTouch: viewport.width < 500, isMobile: viewport.width < 500 });
+test('Regenerate repairs a conversational draft claim and shows progress outside the answer', async ({ page, context }) => {
   await context.route('https://**/*', route => route.abort());
   await routeJavaScript(page, '**/js/cloud-ai-consent.js', `export * from '/js/cloud-ai-consent.js?activity-consent-original'; export async function requestAIProcessingApproval(){return true;} export async function requireAIProcessingApproval(){}`);
   await routeJavaScript(page, '**/js/agent-profile-record-store.js', `export * from '/js/agent-profile-record-store.js?activity-original'; import { readAgentProfileRecords as original } from '/js/agent-profile-record-store.js?activity-original'; export async function readAgentProfileRecords(profile){if(globalThis.__activityReadGate)await globalThis.__activityReadGate;return original(profile);}`);
@@ -147,7 +149,7 @@ test('Regenerate repairs passive draft narration and exposes real tool progress 
       expect(output.success).toBe(true); const snapshot = JSON.parse(output.contentItems[0].text);
       call = { id: 'draft', type: 'function', function: { name: 'getbased_draft_context', arguments: JSON.stringify({ card: 'environment', snapshotId: snapshot.snapshotId, changes: [{ field: 'note', value: 'Keep this note\nReported move from Sweden to El Salvador.' }], evidence, reason: 'Reported relocation.' }) } };
     }
-    const reply = !regenerated ? 'Let us review the move.' : round === 0 ? 'Drafted and waiting for your review — check the proposal card in getbased and tap Apply if it looks right.' : 'Please review the proposal below.';
+    const reply = !regenerated ? 'Let us review the move.' : round === 0 ? REPORTED_RELOCATION_REPLY : 'Please review the proposal below.';
     if (regenerated) round++;
     if (body.response_format) await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: JSON.stringify({ reply: call ? '' : reply, calls: call ? [{ id: call.id, name: call.function.name, arguments: call.function.arguments }] : [] }) }, finish_reason: 'stop' }] }) });
     else await route.fulfill({ contentType: 'text/event-stream', body: 'data: ' + JSON.stringify({ choices: [{ delta: { content: reply }, finish_reason: 'stop' }] }) + '\n\ndata: [DONE]\n\n' });
@@ -155,15 +157,21 @@ test('Regenerate repairs passive draft narration and exposes real tool progress 
   await seed(page, 'venice'); const before = await stored(page);
   await page.locator('#chat-input').fill(evidence); await page.locator('#chat-send-btn').click();
   await expect(page.locator('#chat-messages')).toContainText('Let us review the move.');
-  await expect(page.locator('#chat-messages')).toContainText('No app tools used');
+  await expect(page.locator('[data-chat-tool-activity]')).toHaveCount(0);
+  await expect(page.locator('#chat-messages')).not.toContainText('No app tools used');
   regenerated = true;
   await page.evaluate(() => { const globals = globalThis as typeof globalThis & { __activityReadGate?: Promise<void>; __releaseActivityRead?: () => void }; globals.__activityReadGate = new Promise(resolve => { globals.__releaseActivityRead = resolve; }); });
   await page.locator('[data-chat-message-action="regenerate-last-message"]').click();
   const activity = page.locator('[data-chat-tool-activity]');
-  await expect(activity.locator('summary')).toContainText('Read Environment & Exposures');
+  await expect(activity.locator('summary')).toContainText('Reading Environment & Exposures');
+  expect(await activity.evaluate(element => element.closest('.chat-msg'))).toBeNull();
+  await expect(page.locator('.chat-ai[data-chat-streaming]')).toBeHidden();
+  await page.evaluate(async () => { const chat = await import('/js/chat-loader.js'); await chat.closeChatPanel(); await chat.openChatPanel(); });
+  await expect(activity.locator('summary')).toContainText('Reading Environment & Exposures');
+  await expect(page.locator('.typing-indicator')).toHaveCount(0);
   await activity.locator('summary').click(); await expect(activity.locator('[data-tool-status="running"]')).toBeVisible();
   await expect(page.locator('.chat-agent-draft')).toHaveCount(0);
-  await expect(page.locator('#chat-messages')).not.toContainText('Drafted and waiting');
+  await expect(page.locator('#chat-messages')).not.toContainText("so I've drafted");
   await expect.poll(() => activity.locator('svg').first().evaluate(icon => getComputedStyle(icon).width)).toBe('13px');
   await expect.poll(() => activity.evaluate(element => getComputedStyle(element).fontSize)).toBe('12px');
   expect((await activity.boundingBox())!.height).toBeLessThan(260);
@@ -171,6 +179,9 @@ test('Regenerate repairs passive draft narration and exposes real tool progress 
   await page.evaluate(() => (globalThis as typeof globalThis & { __releaseActivityRead?: () => void }).__releaseActivityRead?.());
   await expect(page.locator('.chat-agent-draft-pending')).toHaveCount(1); expect(round).toBe(4);
   await expect(activity.locator('[data-tool-status="completed"]')).toHaveCount(2);
+  await expect(activity.locator('summary')).toContainText('2 actions completed');
+  expect(await activity.evaluate(element => (element as HTMLDetailsElement).open)).toBe(false);
+  await expect(page.locator('.chat-ai')).not.toContainText('Read Environment & Exposures');
   expect(await activity.textContent()).not.toMatch(/Sweden|Keep this note|synthetic-key|snapshotId/);
   expect(await stored(page)).toEqual(before);
   await page.locator('.chat-agent-draft-pending [data-chat-message-action="apply-agent-draft"]').click();
@@ -179,10 +190,14 @@ test('Regenerate repairs passive draft narration and exposes real tool progress 
   await expect(page.locator('[data-chat-tool-activity] [data-tool-status="completed"]')).toHaveCount(2);
   const after = await stored(page); expect(after.environment).toEqual({ ...before.environment, note: 'Keep this note\nReported move from Sweden to El Salvador.' });
   await page.locator('[data-chat-tool-activity] summary').click();
-  await page.screenshot({ path: test.info().outputPath('tool-activity-completed.png') });
+  await page.screenshot({ path: test.info().outputPath('tool-progress-expanded.png') });
   expect(await activity.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
   const box = (await activity.boundingBox())!; expect(box.x).toBeGreaterThanOrEqual(0); expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
-  await page.screenshot({ path: test.info().outputPath('tool-activity-mobile.png') });
+  await activity.locator('summary').focus(); await page.keyboard.press('Enter');
+  expect(await activity.evaluate(element => (element as HTMLDetailsElement).open)).toBe(false);
+  const summaryBox = (await activity.locator('summary').boundingBox())!;
+  expect(summaryBox.height).toBeGreaterThanOrEqual(viewport.width < 500 ? 44 : 32);
+  await page.screenshot({ path: test.info().outputPath('tool-progress-completed.png') });
 });
 
 });
