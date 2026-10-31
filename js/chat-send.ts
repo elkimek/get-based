@@ -370,7 +370,6 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
   setSendButtonMode(sendBtn, 'streaming');
   setChatStreamStatus(`${getActivePersonality().name} is responding.`, { busy: true });
   let streamOutcome = 'complete';
-  let deferredPersona: { index: number; ids: string[] } | null = null;
 
   let _msgModelId = useCodexAgent ? 'codex' : getActiveModelId(_msgProvider);
   let _msgModelDisplay = useCodexAgent ? getChatBackendDisplay() : getActiveModelDisplay(_msgProvider);
@@ -539,7 +538,6 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
     assistantMsg.toolActivity = normalizeChatToolActivity(toolActivity);
     if (Array.isArray(aiResult.drafts) && aiResult.drafts.length) assistantMsg.agentDrafts = aiResult.drafts;
     const appControls = appControlSession.finish();
-    if (responseTruncated) for (const record of appControls) if (record.action === 'assistant.persona') record.status = 'expired';
     if (appControls.length) assistantMsg.appControls = appControls;
     if (responseTruncated) {
       assistantMsg.truncated = true;
@@ -593,12 +591,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
     })();
 
     completeChatLiveMessage(aiMsgEl, assistantMsg as (typeof state.chatHistory)[number]);
-    const replySaved = await saveChatHistory();
-    const personaControls = appControls.filter(record => record.action === 'assistant.persona' && record.status === 'pending');
-    if (replySaved && scopeIsCurrent() && !controller.signal.aborted && personaControls.length) {
-      appControlSession.admitDeferredAfterSavedReply(); deferredPersona = { index: state.chatHistory.length - 1, ids: personaControls.map(record => record.id) };
-    }
-    else for (const record of personaControls) record.status = 'expired';
+    await saveChatHistory();
     if (!scopeIsCurrent()) return;
     liveMessage.dispose();
     renderChatMessages({ preserveScroll: true, attentionMessage: assistantMsg });
@@ -667,50 +660,25 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
       }
     }
   } finally {
-    const finishPersona = !!deferredPersona && streamOutcome === 'complete' && !controller.signal.aborted && scopeIsCurrent() && _activeChatGenerationUI === generationUI;
-    if (finishPersona) chatSavePending = true;
-    try {
-      appControlSession.cancel({ preserveDeferred: finishPersona });
-      typewriter?.stop();
-      stopChatThinkingStatus(typingEl);
-      typingEl.remove();
-      liveMessage?.dispose();
-      if (_activeChatGenerationUI === generationUI) {
-        _chatAbortController = null;
-        _activeChatGenerationUI = null;
-        setSendButtonMode(sendBtn, 'idle');
-        updateDiscussButton();
-        updateChatHeaderTitle();
-        notifyChatContentAdded(container);
-        setChatStreamStatus(
-          !scopeIsCurrent() ? '' : streamOutcome === 'complete' ? 'Response complete.'
-            : streamOutcome === 'stopped' ? 'Response stopped. Retry is available.'
-              : 'Response failed. Retry is available.',
-          { busy: false },
-        );
-      }
-      if (finishPersona && deferredPersona) {
-        try {
-          const controls = await import('./chat-app-controls.js');
-          for (const id of deferredPersona.ids) {
-            if (!scopeIsCurrent() || controller.signal.aborted) break;
-            await controls.handleChatAppControl(deferredPersona.index, id, 'apply', () => { if (scopeIsCurrent()) renderChatMessages({ preserveScroll: true }); });
-          }
-          if (scopeIsCurrent()) {
-            const pending = state.chatHistory[deferredPersona.index]?.appControls?.filter(record => deferredPersona!.ids.includes(record.id) && record.status === 'pending') || [];
-            for (const record of pending) record.status = 'expired';
-            if (pending.length) { await saveChatHistory({ preservePersonality: true }); renderChatMessages({ preserveScroll: true }); }
-          }
-        } catch {
-          const message = state.chatHistory[deferredPersona.index];
-          if (scopeIsCurrent()) {
-            for (const record of message?.appControls || []) if (record.action === 'assistant.persona' && record.status === 'pending') record.status = 'expired';
-            renderChatMessages({ preserveScroll: true });
-            showNotification('The queued persona request could not finish. Check the native persona picker before trying again.', 'info');
-          }
-        }
-      }
-    } finally { if (finishPersona) { appControlSession.cancel(); chatSavePending = false; } }
+    appControlSession.cancel();
+    typewriter?.stop();
+    stopChatThinkingStatus(typingEl);
+    typingEl.remove();
+    liveMessage?.dispose();
+    if (_activeChatGenerationUI === generationUI) {
+      _chatAbortController = null;
+      _activeChatGenerationUI = null;
+      setSendButtonMode(sendBtn, 'idle');
+      updateDiscussButton();
+      updateChatHeaderTitle();
+      notifyChatContentAdded(container);
+      setChatStreamStatus(
+        !scopeIsCurrent() ? '' : streamOutcome === 'complete' ? 'Response complete.'
+          : streamOutcome === 'stopped' ? 'Response stopped. Retry is available.'
+            : 'Response failed. Retry is available.',
+        { busy: false },
+      );
+    }
   }
 }
 

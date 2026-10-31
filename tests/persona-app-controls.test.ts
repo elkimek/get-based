@@ -52,7 +52,8 @@ it('cannot create an automatic persona control through a live interactive sessio
   const session = createAppControlSession('Use my custom persona.', () => true, new AbortController().signal), before = footprint();
   expect(session.tools.listAppActions().actions.some(action => String(action.id) === 'assistant.personas')).toBe(false);
   expect(() => session.tools.readAppState({ action: 'assistant.personas' })).toThrow('native settings');
-  await expect(session.deferPersonaSelection({ view: 'chatPersona', marker: '', snapshotId: 'old', recordId: 'custom_private' })).rejects.toThrow('manual persona');
+  expect(session).not.toHaveProperty('deferPersonaSelection');
+  expect(session).not.toHaveProperty('admitDeferredAfterSavedReply');
   expect(session.finish()).toEqual([]); expect(footprint()).toEqual(before); expect(state.currentChatPersonality).toBe('custom_private');
 });
 it.each(['readPersonaDirectory', 'openPersonaEditor', 'openPersonaDeletion', 'preparePersonaSelectionRequest'] as const)('fails closed for the retired direct entry %s', async method => {

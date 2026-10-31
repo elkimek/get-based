@@ -3,6 +3,8 @@ import { knowledgeFileDescriptorDigest } from '../js/knowledge-file-descriptor.j
 import { describe, expect, it } from 'vitest';
 import { buildAgentChatInstructions, buildAgentApplicationContext, buildAgentDraftReviewContext, isPersonalAgentTarget } from '../js/agent-chat-context.js';
 import { state } from '../js/state.js';
+import { CHAT_TOOL_INSTRUCTIONS } from '../shared/chat-tool-instructions.js';
+import { AGENT_BASE_INSTRUCTIONS } from '../lib/agent-host-boundary.js';
 
 describe('agent context routing', () => {
   it.each(['pending', 'changed', 'failed'] as const)('omits retired persona controls in %s state from both provider context formats', status => {
@@ -41,8 +43,8 @@ describe('agent context routing', () => {
     const local = buildAgentChatInstructions(base, context, 'local');
     expect(local).toContain(context);
     expect(local).toContain('Use the bounded getbased tools');
-    expect(local).toContain('getbased_read_context_card(card: healthGoals)');
-    expect(local).toContain('Never use getbased_draft_note or a Profile context note as a substitute');
+    expect(AGENT_BASE_INSTRUCTIONS).toContain('must use getbased_read_context_card with card healthGoals');
+    expect(AGENT_BASE_INSTRUCTIONS).toContain('Never substitute getbased_draft_note or a profile note for a supported goal');
     const remote = buildAgentChatInstructions(base, context, 'gateway-home');
     expect(remote).toContain('## Current User Health and Lab Context');
     expect(remote).toContain('exact enabled getbased context snapshot');
@@ -84,4 +86,16 @@ it('retains exact pending actions for a supported preference and omits historica
     expect(JSON.parse(buildAgentApplicationContext('', [{ appControls: [retired] }])).appControlReviewStatus).toBeUndefined();
     expect(buildAgentDraftReviewContext([{ appControls: [retired] }])).toBe('');
   } finally { state.currentProfile = profile; state.currentThreadId = thread; }
+});
+
+it('assembles local CLI policy once across the browser and trusted Companion instruction channels', () => {
+  const browser = buildAgentChatInstructions('Persona rules retained.', '', 'local', true, true);
+  const assembled = `${AGENT_BASE_INSTRUCTIONS}\n\n${browser}`;
+  expect(browser).not.toContain(CHAT_TOOL_INSTRUCTIONS);
+  expect(assembled.split(CHAT_TOOL_INSTRUCTIONS)).toHaveLength(2);
+  expect(assembled).toContain('Persona rules retained.');
+  expect(assembled).toContain('must use getbased_read_context_card with card healthGoals');
+  expect(assembled).toContain('Never substitute getbased_draft_note');
+  expect(browser).toContain('never send it to web searches');
+  expect(browser).toContain('attached to this turn');
 });

@@ -555,7 +555,7 @@ an unencrypted fallback. `direct-chat-tools.ts` binds each turn to its accepted
 profile, conversation, model and recipient, and returns ordinary pending drafts;
 it never applies them. Explicit opening profile-update/review commands start with a structured first-tool contract rather than optional native calling. A missing actual review permits one bounded corrective attempt; fabricated card prose is not retained as evidence. Empty review outcomes are reported from local receipts, while genuine clarification after a read remains visible. Normal and discussion senders publish the same draft and
 context receipts for direct and local-agent routes. Shared tool instructions live
-in `shared/chat-tool-instructions.ts`; review receipts for all draft kinds obey
+in `shared/chat-tool-instructions.ts`. Direct API chat supplies them once; the trusted Companion supplies the single CLI base policy, while browser CLI instructions carry persona and per-turn context boundaries. Retired persona controls remain historical data without deferred sender execution; review receipts for all draft kinds obey
 their domain disclosure toggle. Native-compatible local requests budget tool
 schemas and transcripts and bypass text-only native fallback serializers.
 

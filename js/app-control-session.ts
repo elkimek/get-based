@@ -5,7 +5,6 @@ import type { AppControlRecord, DisplayControlPatch, AssistantSelection } from '
 import { readDisplayPreferences } from './display-preferences.js';
 import { state } from './state.js';
 import * as assistantSelectionOwner from './assistant-selection.js';
-import type { AppNavigationRequest } from '../shared/app-navigation-contract.js';
 
 /** Created only by an accepted interactive human turn. Tools can prepare, never commit. */
 export function createAppControlSession(userMessage: string, isCurrent: () => boolean, signal: AbortSignal) {
@@ -18,8 +17,6 @@ export function createAppControlSession(userMessage: string, isCurrent: () => bo
   const records: AppControlRecord[] = [];
   const overlaySnapshots = new Map<string, string>();
   let closed = false;
-  let finished = false;
-  const ownsOrigin = () => authorization.current() && !signal.aborted && isCurrent() && state.currentProfile === profileId && state.currentThreadId === threadId && state.importedData === root && state.chatHistory === history;
   const current = () => authorization.current() && !closed && !signal.aborted && isCurrent() && state.currentProfile === profileId
     && state.currentThreadId === threadId && state.importedData === root && state.chatHistory === history;
   const assertCurrent = () => { if (!profileId || !threadId || !current()) throw new Error('The originating interactive chat is no longer current. No app setting was changed.'); };
@@ -77,9 +74,6 @@ export function createAppControlSession(userMessage: string, isCurrent: () => bo
     return { action, snapshotId, values, scope: 'active profile', approval: 'Apply required', canonicalDataUnchanged: true };
   }
   return {
-    async deferPersonaSelection(_request: AppNavigationRequest): Promise<{ controlId: string; status: string; before: unknown; proposed: unknown; saved: false; notice: string }> {
-      throw new Error('Persona management is available only in the manual persona picker and editor.');
-    },
     tools: {
       listAppActions: () => { assertCurrent(); return { actions: APP_CONTROL_ACTIONS, approval: 'Review actions require Apply. Reading and preparing never save settings. Explicit native view commands follow their declared command scope and receipt.' }; },
       readAppState,
@@ -136,9 +130,8 @@ export function createAppControlSession(userMessage: string, isCurrent: () => bo
       },
     },
     hasPreparedReview: () => current() && records.length > 0,
-    finish() { if (!authorization.current()) { closed = true; records.length = 0; return []; } assertCurrent(); closed = true; finished = true; return structuredClone(records); },
-    admitDeferredAfterSavedReply() { if (!finished || !ownsOrigin()) throw new Error('The originating reply cannot admit deferred actions.'); },
-    cancel(_options: { preserveDeferred?: boolean } = {}) { closed = true; records.length = 0; snapshots.clear(); overlaySnapshots.clear(); assistantSnapshots.clear(); connectionSnapshots.clear(); profileSnapshots.clear(); },
+    finish() { if (!authorization.current()) { closed = true; records.length = 0; return []; } assertCurrent(); closed = true; return structuredClone(records); },
+    cancel() { closed = true; records.length = 0; snapshots.clear(); overlaySnapshots.clear(); assistantSnapshots.clear(); connectionSnapshots.clear(); profileSnapshots.clear(); },
   };
 }
 export type AppControlSession = ReturnType<typeof createAppControlSession>;
