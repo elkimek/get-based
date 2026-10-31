@@ -1,4 +1,3 @@
-import { parseAgentDataPatch } from '../shared/agent-data-contract.js';
 import { validateAppNavigation, LAB_VIEW_RANGES } from '../shared/app-navigation-contract.js';
 import type { AppNavigationRequest } from '../shared/app-navigation-contract.js';
 import { chatAppControlAllowed, chatDataReadAllowed, chatDataChangeAllowed, CHAT_DATA_OPERATIONS, CHAT_APP_REVIEW_ACTIONS, CHAT_NATIVE_UI_NOTICE } from '../shared/chat-control-policy.js';
@@ -57,6 +56,7 @@ export type AgentToolDependencies = {
 } & {
   readContext: () => string | AgentContextSnapshot | Promise<string | AgentContextSnapshot>;
   userMessage?: string;
+  canUseTools?: () => boolean;
   onDraftCreated?: (draft: AgentDraft) => void | Promise<void>;
   canDiscloseDraftReview?: (draft: AgentDraft) => boolean;
   createId?: () => string;
@@ -269,8 +269,11 @@ function findSection(sections: AgentContextSection[], query: string) {
  * module never reaches into IndexedDB, global state, or the DOM.
  */
 export function createAgentToolRuntime(dependencies: AgentToolDependencies) {
-  const { readContext } = dependencies;
-  if (typeof readContext !== 'function') throw new TypeError('readContext is required');
+  const permitted = () => dependencies.canUseTools?.() !== false;
+  const assertPermitted = () => { if (!permitted()) throw new Error('Chat controls are disabled or the tool session expired.'); };
+  const { readContext: read } = dependencies;
+  const readContext = async () => { assertPermitted(); const value = await read(); assertPermitted(); return value; };
+  if (typeof read !== 'function') throw new TypeError('readContext is required');
 
   const drafts: AgentDraft[] = [];
   const turnTime = new Date();
@@ -279,7 +282,8 @@ export function createAgentToolRuntime(dependencies: AgentToolDependencies) {
   const runDependency = async <Key extends keyof AgentToolReadOptions>(name: Key, options: AgentToolReadOptions[Key]) => {
     const handler = dependencies[name] as ToolReader<AgentToolReadOptions[Key]> | undefined;
     if (typeof handler !== 'function') throw new Error('tool_unavailable');
-    return handler(options);
+    assertPermitted();
+    const result = await handler(options); assertPermitted(); return result;
   };
 
   const createDraft = async (kind: AgentDraft['kind'], payload: Record<string, unknown>, summary: string, publicReview?: unknown) => {
@@ -293,8 +297,8 @@ export function createAgentToolRuntime(dependencies: AgentToolDependencies) {
       payload: Object.freeze({ ...payload }),
       status: 'pending',
     });
-    drafts.push(draft);
-    await dependencies.onDraftCreated?.(draft);
+    assertPermitted(); drafts.push(draft);
+    await dependencies.onDraftCreated?.(draft); assertPermitted();
     if (publicReview !== undefined && dependencies.canDiscloseDraftReview?.(draft)) {
       const response = { draftId: draft.id, status: 'pending_user_approval', summary, review: publicReview };
       const encoded = JSON.stringify(response);
@@ -315,14 +319,15 @@ export function createAgentToolRuntime(dependencies: AgentToolDependencies) {
   };
 
   return Object.freeze({
-    tools: getAgentToolCatalog(),
-    getDrafts: () => drafts.map(draft => ({ ...draft, payload: { ...draft.payload } })),
+    tools: permitted() ? getAgentToolCatalog() : [],
+    getDrafts: () => permitted() ? drafts.map(draft => ({ ...draft, payload: { ...draft.payload } })) : [],
 
     /**
  * Execute the shape emitted by Codex app-server `item/tool/call`. Other
  * adapters only need to provide the same `tool` and `arguments` fields.
  */
     async execute(call: AgentToolInvocation | null | undefined) {
+      if (!permitted()) return failure('Chat controls are disabled or the tool session expired.');
       if (!call || typeof call !== 'object') return failure('Invalid tool call.');
       if (call.namespace && call.namespace !== 'getbased') {
         return failure(`Unknown tool namespace: ${call.namespace}.`);
@@ -477,11 +482,6 @@ export function createAgentToolRuntime(dependencies: AgentToolDependencies) {
           if (!chatDataChangeAllowed(requiredString(args, 'resource', 80), requiredString(args, 'operation', 80))) return failure(CHAT_NATIVE_UI_NOTICE);
           const evidence = requiredString(args, 'evidence', 1000);
           if (dependencies.userMessage !== undefined && !dependencies.userMessage.includes(evidence)) throw new Error('evidence must quote the current user message exactly.');
-          if (args.resource === 'knowledgeImports') {
-            const patch = parseAgentDataPatch(requiredString(args, 'patch', 16000));
-            if(patch.input==='selectedFiles')throw new Error('input must come from the native file picker, never model-supplied file tokens.');
-            if (patch.input!=='chooseFiles' && (typeof patch.text !== 'string' || typeof dependencies.userMessage !== 'string' || !dependencies.userMessage.includes(patch.text))) throw new Error('text must occur verbatim in the current user message. Use chooseFiles for local files.');
-          }
           const result = await runDependency('prepareDataChange', {
             resource: enumValue(args, 'resource', [...AGENT_DATA_RESOURCES]) as AgentDataResource,
             snapshotId: requiredString(args, 'snapshotId', 128), operation: enumValue(args, 'operation', [...CHAT_DATA_OPERATIONS]) as AgentDataOperation,

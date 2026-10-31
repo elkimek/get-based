@@ -725,3 +725,24 @@ describe('agent host service', () => {
     const response = await service.handleRequest(turnRequest({ applicationContext })); expect(response.status).toBe(400); expect(await response.json()).toEqual({ error: 'invalid_application_context' }); expect(appServer.requests).toEqual([]);
   });
 });
+
+it('requires explicit no-tools chat and does not resume a session with the opposite tool permission', async () => {
+  const appServer = new FakeAppServer();
+  const service = (createAgentHostService as unknown as (options: ServiceFixtureOptions) => ReturnType<typeof createAgentHostService>)({ appServer, token: TOKEN, workspaceRoot: '/tmp/agent-test' });
+  const missing = await service.handleRequest(turnRequest({ tools: [] })); expect(await missing.json()).toEqual({ error: 'no_allowed_tools' });
+  const forged = await service.handleRequest(turnRequest({ chatControlsEnabled: false })); expect(await forged.json()).toEqual({ error: 'chat_controls_disabled' });
+  for (const enabled of [false, true]) {
+    const response = await service.handleRequest(turnRequest({ ...(enabled ? {} : { tools: [], chatControlsEnabled: false }) }));
+    expect(response.status).toBe(200); const reader = response.body!.getReader(), buffer = { value: '' };
+    const session = await nextEvent(reader, new TextDecoder(), buffer);
+    expect(appServer.requests.filter(r => r.method === 'thread/start').at(-1)!.params.dynamicTools).toEqual(enabled ? expect.arrayContaining([expect.objectContaining({ name: 'getbased_lab_context' })]) : []);
+    appServer.emit('notification', { method: 'turn/completed', params: { threadId: 'thread-1', turn: { id: 'turn-1', status: 'completed' } } });
+    await nextEvent(reader, new TextDecoder(), buffer);
+    const switched = await service.handleRequest(turnRequest({ threadId: session.threadId, ...(!enabled ? {} : { tools: [], chatControlsEnabled: false }) }));
+    expect(switched.status).toBe(400); expect(await switched.json()).toEqual({ error: 'invalid_thread_session' });
+    if (!enabled) {
+      const stripped = await service.handleRequest(turnRequest({ threadId: String(session.threadId).slice(6) }));
+      expect(stripped.status).toBe(400); expect(await stripped.json()).toEqual({ error: 'invalid_thread_session' });
+    }
+  }
+});

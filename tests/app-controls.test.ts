@@ -146,3 +146,21 @@ it('bounds restored records and rejects malformed action/identity/baseline paylo
   for (const patch of [{ action: 'execute-code' }, { parameters: { unitSystem: ['US'] } }, { baseline: { unitSystem: 'EU', rangeMode: 'both' } }, { profileId: '../other' }, { reason: '' }]) expect(normalizeAppControls([{ ...record, ...patch }])).toEqual([]);
   expect(normalizeAppControls([record, record])).toHaveLength(1);
 });
+
+import { setChatControlsEnabled } from '../js/chat-control-settings.js';
+it('expires saved app-control reviews across off/on while native display editing stays available', async () => {
+  const old = prepare().record;
+  await setChatControlsEnabled(false); await expect(executeAppControl(old, false, () => true)).rejects.toThrow('Chat controls');
+  expect(readDisplayPreferences('controls-test').unitSystem).toBe('EU'); expect(native.claims.size).toBe(0);
+  await commitDisplayPreferences({ unitSystem: 'US' }, { profileId: 'controls-test' }); expect(readDisplayPreferences('controls-test').unitSystem).toBe('US');
+  await setChatControlsEnabled(true); await expect(executeAppControl(old, false, () => true)).rejects.toThrow('expired');
+  const fresh = prepare('{"unitSystem":"EU"}').record;
+  await executeAppControl(fresh, false, () => true); expect(readDisplayPreferences('controls-test').unitSystem).toBe('EU');
+});
+it('does not publish unfinished controls when the turn permission was revoked', async () => {
+  const session = createAppControlSession(message, () => true, new AbortController().signal);
+  const read = session.tools.readAppState({ action: 'display.preferences' });
+  session.tools.prepareAppControl({ action: 'display.preferences', snapshotId: read.snapshotId, parameters: '{"unitSystem":"US"}', reason: 'Requested', evidence: message });
+  await setChatControlsEnabled(false); await setChatControlsEnabled(true); expect(session.finish()).toEqual([]);
+  expect(readDisplayPreferences('controls-test').unitSystem).toBe('EU'); expect(native.claims.size).toBe(0);
+});

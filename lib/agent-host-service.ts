@@ -492,7 +492,9 @@ export function createAgentHostService(options: AgentHostServiceOptions) {
     }
     const dynamicTools = sanitizeDynamicTools(body.tools);
     const purpose = body.purpose === 'feature' ? 'feature' : 'chat';
-    if (purpose === 'chat' && dynamicTools.length === 0) return jsonResponse({ error: 'no_allowed_tools' }, 400, cors);
+    if (purpose === 'chat' && body.chatControlsEnabled === false && dynamicTools.length) return jsonResponse({ error: 'chat_controls_disabled' }, 400, cors);
+    if (purpose === 'chat' && dynamicTools.length === 0 && body.chatControlsEnabled !== false) return jsonResponse({ error: 'no_allowed_tools' }, 400, cors);
+    if (purpose === 'chat' && requestedSession && (requestedSession.chatControlsEnabled !== false) !== (dynamicTools.length > 0)) return jsonResponse({ error: 'invalid_thread_session' }, 400, cors);
     if (purpose === 'feature' && routedAgent.target?.supportsFeatureJobs === false
       && !(routedAgent.target?.supportsTextFeatureJobs === true && !(body.imageUploadIds as { length?: unknown } | null | undefined)?.length && dynamicTools.length === 0)) {
       return jsonResponse({ error: 'This gateway supports text explanations only. Choose Local CLI for image imports or tool-enabled feature jobs.' }, 400, cors);
@@ -558,7 +560,7 @@ export function createAgentHostService(options: AgentHostServiceOptions) {
         origin: url.origin, bridgePath: options.bundlePath || process.argv[1],
         baseInstructions: routedAgent.target?.kind === 'gateway' ? PERSONAL_AGENT_BASE_INSTRUCTIONS : AGENT_BASE_INSTRUCTIONS,
         requestedInstructions, applicationContext, history, outputSchema, prompt, model, effort, send, close, cleanError,
-        createHandle: sessionId => createThreadHandle(sessionId, token, agentId, instanceId, targetId),
+        createHandle: sessionId => createThreadHandle(sessionId, token, agentId, instanceId, targetId, dynamicTools.length > 0),
       });
       handleStreamCancel = abort;
       if (request.signal.aborted) abort();
@@ -654,7 +656,7 @@ export function createAgentHostService(options: AgentHostServiceOptions) {
         activeTurns.set(threadId, { agentId: 'codex', threadId, turnId, send, cleanup: cleanupTurnUploads });
         send({
           type: 'session',
-          threadId: createThreadHandle(threadId, token),
+          threadId: createThreadHandle(threadId, token, 'codex', instanceId, 'local', dynamicTools.length > 0),
           turnId,
           model: String(threadResult?.model || model || 'Codex'),
           resumed,

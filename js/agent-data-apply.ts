@@ -1,3 +1,4 @@
+import { captureChatControlAuthorization } from './chat-control-settings.js';
 import { chatDataChangeAllowed, CHAT_NATIVE_UI_NOTICE } from '../shared/chat-control-policy.js';
 import { isEMFResource } from './emf-record-fields.js';
 import { normalizeAgentDataProposal } from '../shared/agent-data-contract.js';
@@ -23,11 +24,12 @@ import { isGeneticsResource } from './genetics-proposals.js';
 import { readAgentProfileRecords } from './agent-profile-record-store.js';
 
 function conflict(): never { throw Object.assign(new Error('This record changed since the proposal. Ask for a new proposal. No change was applied.'), { noChangeApplied: true }); }
-export async function applyAgentDataProposal(value: unknown, profileId: string) {
+export async function applyAgentDataProposal(value: unknown, profileId: string, controlsCurrent: () => boolean = () => true) {
+  const authorization = captureChatControlAuthorization(); authorization.assert();
   const proposal = normalizeAgentDataProposal(value);
   if (!proposal) throw new Error('Invalid data proposal.');
   if (!chatDataChangeAllowed(proposal.resource, proposal.operation)) throw Object.assign(new Error(CHAT_NATIVE_UI_NOTICE), { noChangeApplied: true });
-  const authorized = () => state.currentProfile === profileId && isAgentDataEnabled(proposal.resource);
+  const authorized = () => authorization.current() && controlsCurrent() && state.currentProfile === profileId && isAgentDataEnabled(proposal.resource);
   const denied = (): never => { throw Object.assign(new Error('This profile or data source is disabled or no longer authorized. No change was applied.'), { noChangeApplied: true }); };
   if (!authorized()) denied();
 
@@ -41,8 +43,8 @@ export async function applyAgentDataProposal(value: unknown, profileId: string) 
   if (proposal.resource === 'labSamples') { projectAgentDataChange(proposal); return commitReviewedLabSample(profileId, proposal, authorized); }
   if (proposal.resource === 'labResults') { projectAgentDataChange(proposal); return commitReviewedLabResult(profileId, proposal, authorized); }
   if (proposal.resource === 'markerNotes' || proposal.resource === 'markerValueNotes') { projectAgentDataChange(proposal); return commitReviewedMarkerNote(profileId, proposal, authorized); }
-  if (proposal.resource === 'meals') { projectAgentDataChange(proposal); return commitReviewedNutritionRecord(profileId, proposal, () => state.currentProfile === profileId && isAgentDataEnabled('meals')); }
-  if (proposal.resource === 'manualReadings') { projectAgentDataChange(proposal); return commitReviewedManualRecord(profileId, proposal, () => state.currentProfile === profileId && isAgentDataEnabled('manualReadings')); }
+  if (proposal.resource === 'meals') { projectAgentDataChange(proposal); return commitReviewedNutritionRecord(profileId, proposal, authorized); }
+  if (proposal.resource === 'manualReadings') { projectAgentDataChange(proposal); return commitReviewedManualRecord(profileId, proposal, authorized); }
   if (proposal.resource === 'profile') {
     projectAgentDataChange(proposal);
     const before: unknown = JSON.parse(proposal.baseline);

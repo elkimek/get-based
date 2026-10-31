@@ -19,7 +19,7 @@ function click(action = 'apply-agent-draft', index = 0, id = 'draft-1') {
   document.querySelector('button')!.click();
 }
 beforeEach(() => {
-  vi.resetAllMocks();
+  vi.resetAllMocks(); localStorage.removeItem('getbased-chat-controls');
   mocks.save.mockResolvedValue(true);
   mocks.apply.mockResolvedValue('Saved');
   configureChatMessageActionDeps({ renderChatMessages: mocks.render });
@@ -147,4 +147,15 @@ it('leaves the origin untouched if navigation occurs during refreshed-review pre
   draft.kind = 'note'; state.chatHistory.unshift({ role: 'user', content: 'Save my note.' }); const gate = deferred(); mocks.upgrade.mockReturnValue(gate.promise);
   click('apply-agent-draft', 1); await vi.waitFor(() => expect(mocks.upgrade).toHaveBeenCalled()); state.currentProfile = 'b'; state.chatHistory = [];
   gate.resolve!([{ ...draft, id: 'fresh', kind: 'data' }]); await new Promise(resolve => setTimeout(resolve, 0)); expect(draft.status).toBe('pending'); expect(mocks.save).not.toHaveBeenCalled(); expect(mocks.claim).not.toHaveBeenCalled();
+});
+
+import { setChatControlsEnabled } from '../js/chat-control-settings.js';
+it('rejects Apply and Refresh while off but keeps Discard available', async () => {
+  await setChatControlsEnabled(false); click();
+  await vi.waitFor(() => expect(mocks.notify).toHaveBeenCalled());
+  expect(draft.status).toBe('pending'); expect(mocks.apply).not.toHaveBeenCalled(); expect(mocks.claim).not.toHaveBeenCalled(); expect(mocks.save).not.toHaveBeenCalled();
+  draft.kind = 'note'; mocks.notify.mockClear(); click();
+  await vi.waitFor(() => expect(mocks.notify).toHaveBeenCalled()); expect(mocks.upgrade).not.toHaveBeenCalled();
+  click('discard-agent-draft'); await vi.waitFor(() => expect(draft.status).toBe('discarded'));
+  expect(mocks.apply).not.toHaveBeenCalled();
 });

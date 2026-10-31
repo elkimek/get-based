@@ -10,12 +10,14 @@ const choices: readonly AiProviderChoice[] = [
 ];
 export function buildAiSettingsSnapshot(options: {
   enabled: boolean;
+  chatControlsEnabled?: boolean;
   hideProviders: boolean;
   provider: string;
   backend: string;
 }): AiSettingsSnapshot {
   return {
     enabled: options.enabled,
+    chatControlsEnabled: options.chatControlsEnabled ?? true,
     hideProviders: options.hideProviders,
     activeProvider: options.backend === 'codex' ? 'cli' : options.provider,
     choices,

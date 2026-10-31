@@ -1,3 +1,4 @@
+import { captureChatControlAuthorization } from './chat-control-settings.js';
 import { state } from './state.js';
 import { executeAppControl } from './app-control-commands.js';
 import { saveChatHistory } from './chat-history.js';
@@ -16,6 +17,7 @@ export async function handleChatAppControl(index: number, id: string, action: 'a
   const canCommit = () => current() && !isChatRuntimeStreaming()
     && !document.querySelector('.modal-overlay.show,.confirm-overlay.show,[data-modal-focus-trap],[data-chat-message-editor-host] textarea');
   if (!current()) return;
+  if (action !== 'discard') { try { captureChatControlAuthorization(record.id).assert(); } catch (error) { showNotification((error as Error).message, 'info'); return; } }
   if (action !== 'discard' && record.action === 'profile.selection' && message.agentDrafts?.some(draft => draft.status === 'pending')) { showNotification('Resolve the other proposals in this reply before switching profiles. They have been kept.', 'info'); return; }
   if (action !== 'discard' && !canCommit()) { showNotification('Finish the current reply and close any open editor before applying this app control.', 'info'); return; }
   pending.add(record);

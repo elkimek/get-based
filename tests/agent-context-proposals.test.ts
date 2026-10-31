@@ -34,7 +34,7 @@ async function propose(runtime = tools(), changes: AgentContextChange[] = [{ fie
   return { runtime, args, result: await runtime.execute({ tool: 'getbased_draft_context', arguments: args }) };
 }
 beforeEach(() => {
-  vi.resetAllMocks();
+  vi.resetAllMocks(); localStorage.removeItem('getbased-chat-controls');
   mocks.enabled.mockReturnValue(true);
   mocks.save.mockResolvedValue(true);
   state.currentProfile = 'a';
@@ -359,4 +359,24 @@ describe('corrected pending proposals', () => {
       { content: 'Correction declined', agentDrafts: [draft('newer', 'bloating', 'diet', 'a', 'discarded')] }]);
     expect(normalized.map(message => message.agentDrafts![0]!.status)).toEqual(['superseded', 'discarded']);
   });
+});
+
+import { setChatControlsEnabled } from '../js/chat-control-settings.js';
+it('expires context review across off/on, excludes it from prompts and permits a fresh review', async () => {
+  const { runtime } = await propose(); const draft = { ...runtime.getDrafts()[0]!, profileId: 'a' };
+  await setChatControlsEnabled(false); await expect(applyAgentDraft(draft)).rejects.toThrow('Chat controls');
+  expect(buildAgentDraftReviewContext([{ agentDrafts: [draft] }])).toBe('');
+  await setChatControlsEnabled(true); await expect(applyAgentDraft(draft)).rejects.toThrow('expired');
+  expect(buildAgentDraftReviewContext([{ agentDrafts: [draft] }])).toBe(''); expect(mocks.save).not.toHaveBeenCalled();
+  const fresh = (await propose()).runtime.getDrafts()[0]!; expect(fresh.id).not.toBe(draft.id);
+  await expect(applyAgentDraft({ ...fresh, profileId: 'a' })).resolves.toBe('Diet & Digestion updated.');
+});
+it('revokes the final context commit callback after authorization changes while saving', async () => {
+  const { runtime } = await propose();
+  mocks.save.mockImplementationOnce(async (_profile, _next, options) => {
+    await setChatControlsEnabled(false); await setChatControlsEnabled(true);
+    expect(options.canCommit()).toBe(false); return false;
+  });
+  await expect(applyAgentDraft({ ...runtime.getDrafts()[0]!, profileId: 'a' })).rejects.toMatchObject({ noChangeApplied: true });
+  expect(mocks.notify).not.toHaveBeenCalled();
 });

@@ -480,7 +480,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/lab-overlay-controls.js', '/js/lab-overlay-execution.js', '/js/lab-overlay-policy.js',
   '/js/lab-overlay-preferences.js', '/js/lab-overlay-receipts.js', '/js/lab-view-controls.js',
   '/js/marker-range-commands.js', '/js/marker-range-core.js', '/js/marker-range-records.js',
-  '/js/native-command-locks.js', '/js/nutrition-ai-route-commands.js', '/js/nutrition-ai-route-store.js',
+  '/js/chat-control-settings.js', '/js/native-command-locks.js', '/js/nutrition-ai-route-commands.js', '/js/nutrition-ai-route-store.js',
   '/js/nutrition-analysis-request.js', '/js/persona-storage-transaction.js', '/js/profile-chat-state.js',
   '/js/profile-control-receipts.js', '/js/profile-selection-runtime.js', '/js/profile-selection.js',
   '/js/readonly-history-surfaces.js', '/js/record-revision.js', '/js/wearable-fetch-scope.js',

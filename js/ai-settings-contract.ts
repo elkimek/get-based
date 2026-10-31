@@ -10,6 +10,7 @@ export interface AiProviderChoice {
 
 export interface AiSettingsSnapshot {
   enabled: boolean;
+  chatControlsEnabled: boolean;
   hideProviders: boolean;
   activeProvider: string;
   choices: readonly AiProviderChoice[];
@@ -17,12 +18,15 @@ export interface AiSettingsSnapshot {
 
 export interface AiSettingsActions {
   pause(enabled: boolean): unknown;
+  chatControls(enabled: boolean): unknown;
   select(provider: AiProviderId, button: HTMLButtonElement): unknown;
 }
 
 export interface AiSettingsComponentView {
   getSnapshot(): AiSettingsSnapshot;
   setEnabled(enabled: boolean): void;
+  setChatControlsEnabled(enabled: boolean): void;
+  setChatControlsError(message: string): void;
   setSelected(provider: string): void;
   setProviderStatus(phase: 'loading' | 'ready' | 'error'): void;
   setPauseError(message: string): void;

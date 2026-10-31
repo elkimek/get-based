@@ -1,3 +1,4 @@
+import { captureChatControlAuthorization, CHAT_CONTROLS_OFF_INSTRUCTIONS } from './chat-control-settings.js';
 import { getContextDisclosureFingerprint } from './lab-context-settings.js';
 // Direct providers share the browser's semantic tool runtime and approval cards.
 import { callClaudeAPI, getAIProvider, getActiveModelId, getVeniceE2EE, isE2EEModel,
@@ -36,14 +37,16 @@ export async function callDirectChatWithTools(options: DirectChatToolOptions) {
   const history = state.chatHistory, thread = state.currentThreadId, disclosure = getContextDisclosureFingerprint();
   const current = () => state.currentProfile === profileId && state.chatHistory === history && state.currentThreadId === thread
     && getContextDisclosureFingerprint() === disclosure && getAIProvider() === provider && getActiveModelId(provider) === selectedModel && recipientIdentity(provider) === recipient && (!ownerCurrent || ownerCurrent());
+  const authorization = captureChatControlAuthorization();
   const runtime = createAgentToolRuntime({ userMessage: prompt,
     readContext: () => ({ context: labContext, profileId }),
     ...createBrowserAgentToolDependencies(profileId, { signal: options.signal, isCurrent: current, onKnowledgeResult, appControlSession }),
+    canUseTools: authorization.current, createId: authorization.createId,
   });
-  const result = await runChatToolLoop({ ...request, tools: getAgentToolCatalog().map(tool => ({ type: 'function', function: {
+  const result = await runChatToolLoop({ ...request, tools: (authorization.current() ? getAgentToolCatalog() : []).map(tool => ({ type: 'function', function: {
     name: tool.name, description: tool.description, parameters: tool.inputSchema,
   } })),
-    system: `${String(options.system || '')}\n\n${CHAT_TOOL_INSTRUCTIONS}${buildAgentDraftReviewContext(history, canDiscloseAgentDraftReview)}`,
+    system: `${String(options.system || '')}\n\n${authorization.current() ? CHAT_TOOL_INSTRUCTIONS + buildAgentDraftReviewContext(history, canDiscloseAgentDraftReview) : CHAT_CONTROLS_OFF_INSTRUCTIONS}`,
     // Venice's encrypted route carries actions inside encrypted message content.
     protocol: provider === 'venice' && (getVeniceE2EE() || isE2EEModel(model)) ? 'structured' : 'native',
     isCurrent: current, execute: call => runtime.execute(call),

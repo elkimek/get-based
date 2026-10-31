@@ -1,3 +1,4 @@
+import { captureChatControlAuthorization } from './chat-control-settings.js';
 import { chatDataChangeAllowed, CHAT_NATIVE_UI_NOTICE } from '../shared/chat-control-policy.js';
 import { applyAgentDataProposal } from './agent-data-apply.js';
 import { isLegacyAgentDraft } from './agent-draft-upgrade.js';
@@ -23,13 +24,10 @@ export async function confirmAgentDraftSaved(draft: DraftReader | null | undefin
   if (!draft || draft.kind !== 'data' || !['failed', 'applying'].includes(String(draft.status)) || draft.profileId !== profile || state.currentProfile !== profile) throw new Error('Switch back to the originating profile and select an unconfirmed library proposal.');
   const proposal = normalizeAgentDataProposal(draft.payload);
   if (proposal && !chatDataChangeAllowed(proposal.resource, proposal.operation)) throw new Error(CHAT_NATIVE_UI_NOTICE);
-  if (!proposal || !['knowledgeLibraries', 'knowledgeDocuments', 'knowledgeImports'].includes(proposal.resource)) throw new Error('This proposal has no Knowledge Base receipt to check.');
-  if (proposal.resource === 'knowledgeImports') return (await import('./knowledge-import-records.js')).confirmReviewedKnowledgeImport(profile, proposal, () => state.currentProfile === profile);
-  if (proposal.resource === 'knowledgeDocuments') return (await import('./knowledge-document-records.js')).confirmReviewedKnowledgeDocument(profile, proposal, () => state.currentProfile === profile);
-  return (await import('./knowledge-library-records.js')).confirmReviewedKnowledgeLibrary(profile, proposal, () => state.currentProfile === profile);
+  throw new Error('This proposal has no Knowledge Base receipt to check.');
 }
 
-async function applyContext(payload: unknown, profileId: string) {
+async function applyContext(payload: unknown, profileId: string, controlsCurrent: () => boolean) {
   const proposal = normalizeAgentContextProposal(payload);
   if (!proposal) throw new Error('This context proposal is invalid.');
   if (!isContextSourceEnabled(CONTEXT_SOURCE_IDS.INSIGHT_CARDS)) throw new AgentDraftConflictError('Insight Context Cards are disabled. No change was applied.');
@@ -42,7 +40,7 @@ async function applyContext(payload: unknown, profileId: string) {
   }
   let conflict = false, revoked = false;
   const canCommit = () => {
-    if (state.currentProfile !== profileId || state.importedData !== origin || !isContextSourceEnabled(CONTEXT_SOURCE_IDS.INSIGHT_CARDS)) revoked = true;
+    if (!controlsCurrent() || state.currentProfile !== profileId || state.importedData !== origin || !isContextSourceEnabled(CONTEXT_SOURCE_IDS.INSIGHT_CARDS)) revoked = true;
     if (quickEMF && (environmentEMFMode(baseData) !== 'selfReport' || !profileDataValuesEqual(origin.environment ?? null, baseline) || !profileDataValuesEqual(origin.emfAssessment ?? null, baseData.emfAssessment ?? null))) conflict = true;
     if (editor?.hasLifestyleFormDraft(proposal.card)) conflict = true;
     return !revoked && !conflict;
@@ -70,6 +68,7 @@ async function applyContext(payload: unknown, profileId: string) {
 }
 
 export async function applyAgentDraft(draft: DraftReader | null | undefined) {
+  const authorization = captureChatControlAuthorization(draft?.id); authorization.assert();
   if (!draft || draft.status !== 'pending') throw new Error('This proposal is no longer pending.');
   const activeProfileId = getActiveProfileId();
   if (!draft.profileId || draft.profileId !== activeProfileId) {
@@ -77,8 +76,8 @@ export async function applyAgentDraft(draft: DraftReader | null | undefined) {
   }
   if (isLegacyAgentDraft(draft)) throw Object.assign(new Error('This older proposal requires a refreshed exact review before Apply. Nothing was changed.'), { noChangeApplied: true, requiresReview: true });
   let result: string;
-  if (draft.kind === 'data') result = await applyAgentDataProposal(draft.payload, activeProfileId);
-  else if (draft.kind === 'context') result = await applyContext(draft.payload, activeProfileId);
+  if (draft.kind === 'data') result = await applyAgentDataProposal(draft.payload, activeProfileId, authorization.current);
+  else if (draft.kind === 'context') result = await applyContext(draft.payload, activeProfileId, authorization.current);
   else throw new Error('This proposal type is not supported.');
   // Publishing saved data must neither destroy an open editor's draft nor turn
   // an already committed operation into a failed Apply.

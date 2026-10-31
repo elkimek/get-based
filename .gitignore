@@ -4075,3 +4075,5 @@ tests/pwa/sveltekit-island-ownership.spec.js.map
 /tests/pwa/kit-release-server.js
 
 /tests/native-lab-sparse-profile.test.js
+
+/js/chat-control-settings.js

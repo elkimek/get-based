@@ -6,6 +6,7 @@ export const AGENT_HOST_MAX_PROMPT_CHARS = 100_000;
 
 export const AGENT_HOST_CAPABILITIES = Object.freeze({
   CHAT_STREAM: 'chat-stream',
+  PLAIN_CHAT: 'plain-chat',
   APPLICATION_CONTEXT: 'application-context',
   COMPANION_CONTROL: 'companion-control',
   COMPANION_RESTART: 'companion-restart',
@@ -25,8 +26,8 @@ export const AGENT_HOST_CAPABILITIES = Object.freeze({
 
 export const AGENT_HOST_CAPABILITY_LIST = Object.freeze(Object.values(AGENT_HOST_CAPABILITIES));
 /** Sender and connection preflight must agree before publishing a CLI route. */
-export function agentChatRequiredCapabilities(local: boolean, images = false): string[] {
-  return [AGENT_HOST_CAPABILITIES.CHAT_STREAM, AGENT_HOST_CAPABILITIES.DYNAMIC_TOOLS, AGENT_HOST_CAPABILITIES.STRUCTURED_HEALTH_TOOLS,
+export function agentChatRequiredCapabilities(local: boolean, images = false, tools = true): string[] {
+  return [AGENT_HOST_CAPABILITIES.CHAT_STREAM, ...(tools ? [AGENT_HOST_CAPABILITIES.DYNAMIC_TOOLS, AGENT_HOST_CAPABILITIES.STRUCTURED_HEALTH_TOOLS] : [AGENT_HOST_CAPABILITIES.PLAIN_CHAT]),
     ...(local ? [AGENT_HOST_CAPABILITIES.APPLICATION_CONTEXT] : []), ...(images ? [AGENT_HOST_CAPABILITIES.IMAGE_UPLOAD] : [])];
 }
 

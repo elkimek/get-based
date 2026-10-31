@@ -40,6 +40,7 @@ export interface AgentTurnOptions extends AgentHostConnection {
   imageUploadIds?: string[] | undefined;
   outputSchema?: Record<string, unknown> | undefined;
   purpose?: 'chat' | 'feature' | undefined;
+  chatControlsEnabled?: boolean;
   history?: Array<{role: 'user' | 'assistant'; content: string}> | undefined;
   tools: unknown[];
   toolRuntime?: {execute: (call: AgentToolCall) => Promise<{success?: unknown} | null | undefined>} | undefined;
@@ -202,6 +203,7 @@ export async function streamAgentTurn(options: AgentTurnOptions) {
       purpose: options.purpose || 'chat',
       history: options.history || undefined,
       tools: options.tools,
+      ...(options.chatControlsEnabled === false ? { chatControlsEnabled: false } : {}),
     }),
     signal: options.signal,
   } as RequestInit);

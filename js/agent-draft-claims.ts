@@ -1,3 +1,4 @@
+import { captureChatControlAuthorization } from './chat-control-settings.js';
 // Local durable proposal claims survive stale conversation saves and reloads.
 // The journal intentionally contains identifiers only, never proposal payloads.
 import { encryptedGetItem, encryptedSetItem, getEncryptionEnabled, isUnlocked } from './crypto.js';
@@ -7,6 +8,7 @@ import { runNativeCommandWithLocks } from './native-command-locks.js';
 interface StoredClaims { version?: unknown; claims?: Record<string, unknown> | null }
 
 export async function claimAgentDraft(profileId: string, draftId: string) {
+  const authorization = captureChatControlAuthorization(draftId); authorization.assert();
   if (!normalizeChatRecordId(profileId) || !normalizeChatRecordId(draftId)) {
     throw new Error('The proposal has an invalid identifier.');
   }
@@ -14,8 +16,9 @@ export async function claimAgentDraft(profileId: string, draftId: string) {
   if (!locks?.request) throw new Error('This browser cannot safely coordinate proposal changes across tabs.');
   const key = `labcharts-${profileId}-agent-draft-claims`;
   return runNativeCommandWithLocks(locks, [key], async () => {
+    authorization.assert();
     if (getEncryptionEnabled() && !isUnlocked()) throw new Error('Unlock your data before applying a proposal.');
-    const stored = await encryptedGetItem(key, { throwOnDecryptError: true });
+    const stored = await encryptedGetItem(key, { throwOnDecryptError: true }); authorization.assert();
     if (stored === null && localStorage.getItem(key) !== null) throw new Error('Proposal history could not be read.');
     const journal = stored === null ? { version: 1, claims: {} } : JSON.parse(stored) as StoredClaims | null;
     if (journal?.version !== 1 || !journal.claims || typeof journal.claims !== 'object' || Array.isArray(journal.claims)) {

@@ -1,3 +1,4 @@
+import { captureChatControlAuthorization } from './chat-control-settings.js';
 // Execution is called only from the native review button, never from a model tool.
 import { chatAppControlAllowed, CHAT_NATIVE_UI_NOTICE } from '../shared/chat-control-policy.js';
 import { normalizeAppControls, parseDisplayControlPatch, parseAssistantSelection, assistantSelectionsEqual, assistantConnectionId } from '../shared/agent-control-contract.js';
@@ -13,11 +14,12 @@ const equal = (a: DisplayControlPatch, b: DisplayControlPatch) => Object.keys(a)
   && Object.entries(a).every(([key, value]) => b[key as keyof DisplayControlPatch] === value);
 export interface AppControlReceipt { changed: string[]; refreshed: boolean; undoAvailable: boolean; undoNotOffered?: boolean; transitioned?: boolean; receiptSaved?: boolean; destinationProfileId?: string }
 export async function executeAppControl(raw: AppControlRecord, undo: boolean, canCommit: () => boolean): Promise<AppControlReceipt> {
+  const authorization = captureChatControlAuthorization(raw.id); authorization.assert();
   if (!chatAppControlAllowed(raw.action, raw.parameters)) throw new Error(CHAT_NATIVE_UI_NOTICE);
   const record = normalizeAppControls([raw], true)[0];
   if (!record || record.status !== (undo ? 'changed' : 'pending')) throw new Error('This app control is no longer actionable.');
   const root = state.importedData;
-  const current = () => canCommit() && state.currentProfile === record.profileId && state.currentThreadId === record.threadId && state.importedData === root;
+  const current = () => authorization.current() && canCommit() && state.currentProfile === record.profileId && state.currentThreadId === record.threadId && state.importedData === root;
   const assertCurrent = () => { if (!current()) throw new DisplayPreferenceConflict('The originating chat changed. No app setting was changed.'); };
   assertCurrent();
   if (record.action === 'assistant.persona') throw new Error('Persona management is available only in the manual persona picker and editor.');

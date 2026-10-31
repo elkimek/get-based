@@ -436,6 +436,15 @@ in the native UI. Runtime and native execution reject stale or invented excluded
 commands; historical cards cannot Apply or Undo them. Native owners keep their
 manual controls and existing storage safeguards.
 
+Settings → AI owns the browser-wide, UI-only Chat controls permission in
+`chat-control-settings.ts`. It defaults on for existing installations. Disabling
+it leaves ordinary chat and enabled baseline context available, removes the
+API/CLI tool catalog and revokes in-flight tool and commit authorization. Each
+change rotates a persistent epoch; review IDs bind to that epoch, so re-enabling
+cannot revive older pending proposals. Native manual editors remain independent.
+Companion plain-chat capability and signed session permissions prevent resuming
+a CLI session with the opposite tool mode. Only the Settings UI can re-enable it.
+
 Interactive chat tools may propose context updates when a user shares a new
 fact. Local Companion and direct-provider chat share the semantic tool catalog,
 browser bindings, proposal controls, and approval boundary. `agent-context-fields.ts` derives field identities and choices from the

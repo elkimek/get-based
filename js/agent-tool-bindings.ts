@@ -1,3 +1,4 @@
+import { captureChatControlAuthorization } from './chat-control-settings.js';
 import { chatDataChangeAllowed } from '../shared/chat-control-policy.js';
 import { isLabDisplayResource } from './lab-display-core.js';
 import { canDiscloseLabDisplayReview } from './lab-display-records.js';
@@ -369,13 +370,15 @@ export function bindAgentToolDependenciesToProfile(dependencies: BrowserToolDepe
 }
 
 export function createBrowserAgentToolDependencies(profileId = state.currentProfile || '', options: BrowserKnowledgeSearchOptions & { appControlSession?: import('./app-control-session.js').AppControlSession | undefined } = {}) {
-  return { ...bindAgentToolDependenciesToProfile({
+  const authorization = captureChatControlAuthorization();
+  const guarded = { ...options, isCurrent: () => authorization.current() && options.isCurrent?.() !== false };
+  return { canUseTools: authorization.current, createId: authorization.createId, ...bindAgentToolDependenciesToProfile({
     ...createContextCardTools(), ...createAgentDataTools(),
     searchMarkers: searchAgentMarkers,
     readMarkerHistory: readAgentMarkerHistory,
     readNutritionSummary: readAgentNutritionSummary,
     readWearableSeries: readAgentWearableSeries,
-    searchKnowledge: query => searchAgentKnowledge(query, options),
+    searchKnowledge: query => searchAgentKnowledge(query, guarded),
     readKnowledge: async options => {
       const profile = state.currentProfile, root = state.importedData, config = localStorage.getItem(LENS_CONFIG_STORAGE_KEY);
       const module = await import('./knowledge-inventory.js');
@@ -384,7 +387,7 @@ export function createBrowserAgentToolDependencies(profileId = state.currentProf
       if (state.currentProfile !== profile || state.importedData !== root || localStorage.getItem(LENS_CONFIG_STORAGE_KEY) !== config) return unavailable('The profile or Knowledge Base source changed during its inventory read.');
       return result;
     },
-    navigate: request => navigateFromAgent(request, () => !options.signal?.aborted && options.isCurrent?.() !== false),
+    navigate: request => navigateFromAgent(request, () => !options.signal?.aborted && guarded.isCurrent()),
   }, profileId), ...options.appControlSession?.tools, canDiscloseDraftReview: (draft: import('./agent-tool-runtime.js').AgentDraft) => state.currentProfile === profileId && canDiscloseAgentDraftReview({ ...draft, profileId }) };
 }
 

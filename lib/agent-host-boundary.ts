@@ -109,7 +109,8 @@ function signThreadId(payload: string, token: string) {
   return createHmac('sha256', token).update(payload).digest('base64url');
 }
 
-export function createThreadHandle(threadId: string, token: string, agent = 'codex', instanceId = '', target = 'local') {
+export function createThreadHandle(threadId: string, token: string, agent = 'codex', instanceId = '', target = 'local', tools = true): string {
+  if (!tools) return 'plain.' + createThreadHandle(threadId, token + ':plain-chat', agent, instanceId, target);
   if (agent === 'codex' && target === 'local' && /^[A-Za-z0-9-]{1,128}$/.test(threadId)) {
     return `v1.${threadId}.${signThreadId(threadId, token)}`;
   }
@@ -123,7 +124,12 @@ export function createThreadHandle(threadId: string, token: string, agent = 'cod
   return `v3.${payload}.${signThreadId(`${instanceId}.${payload}`, token)}`;
 }
 
-export function readThreadHandle(handle: string, token: string, instanceId = '') {
+export function readThreadHandle(handle: string, token: string, instanceId = ''): { agent: string; target: string; threadId: string; chatControlsEnabled?: false } | null {
+  if (handle.startsWith('plain.')) {
+    if (handle.slice(6).startsWith('plain.')) return null;
+    const session = readThreadHandle(handle.slice(6), token + ':plain-chat', instanceId);
+    return session ? { ...session, chatControlsEnabled: false } : null;
+  }
   const legacy = handle.match(/^v1\.([A-Za-z0-9-]{1,128})\.([A-Za-z0-9_-]{43})$/);
   if (legacy && tokenMatches(legacy[2]!, signThreadId(legacy[1]!, token))) {
     return { agent: 'codex', target: 'local', threadId: legacy[1]! };

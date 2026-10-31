@@ -153,6 +153,13 @@ review the text. Image imports cannot be scrubbed and show a separate warning.
 
 ### Companion and CLI agents
 
+Settings → AI → **Chat controls** lets you turn **Control getbased through chat**
+on or off for this browser. It applies to direct providers and CLI agents. Turning
+it off keeps ordinary chat and its enabled context, removes app tools and expires
+pending reviews. Turning it back on requires fresh proposals. The assistant cannot
+change this setting. CLI plain chat requires a Companion advertising `plain-chat`;
+older Companions need an update. Manual editing is unaffected.
+
 Chat app controls follow [the shared scope policy](../shared/chat-control-policy.ts).
 Useful health workflows and explicit unit/model/provider/profile commands remain
 available; routine layout, clock format, setup, privacy, personas and saved AI or

@@ -1,7 +1,7 @@
 import { AGENT_TOOL_CONTRACT_VERSION } from '../shared/agent-tool-contract.js';
 import type { AgentTurnOptions, uploadAgentImage } from '../js/agent-chat-client.js';
 import type { connectDetectedAgent } from '../js/agent-chat-settings.js';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({ stream: vi.fn<(options: AgentTurnOptions) => Promise<unknown>>(), connect: vi.fn<(...args: Parameters<typeof connectDetectedAgent>) => Promise<unknown>>(), upload: vi.fn<(options: Parameters<typeof uploadAgentImage>[0]) => Promise<string>>() }));
 vi.mock('../js/agent-chat-client.js', () => ({ streamAgentTurn: mocks.stream, uploadAgentImage: mocks.upload }));
@@ -93,4 +93,19 @@ describe('agent backend recovery boundaries', () => {
     await expect(callCodexAgent(options)).rejects.toThrow('invalid thread session');
     expect(mocks.stream).toHaveBeenCalledTimes(2);
   });
+});
+
+import { CHAT_CONTROLS_KEY, setChatControlsEnabled } from '../js/chat-control-settings.js';
+afterEach(() => localStorage.removeItem(CHAT_CONTROLS_KEY));
+it('uses explicit plain chat with enabled baseline context and denies forged callbacks when controls are off', async () => {
+  await setChatControlsEnabled(false);
+  expect(await callCodexAgent(options)).toMatchObject({ text: 'Answer', drafts: [] });
+  const preflight = mocks.connect.mock.calls[0]![1]!;
+  expect(preflight.requiredCapabilities).toEqual(['chat-stream', 'plain-chat', 'application-context']);
+  expect(preflight.requiredToolContractVersion).toBeUndefined();
+  const turn = mocks.stream.mock.calls[0]![0];
+  expect(turn.tools).toEqual([]); expect(turn.chatControlsEnabled).toBe(false);
+  expect(turn.instructions).toContain('Chat controls are disabled'); expect(turn.instructions).not.toContain('proactively draft');
+  expect(JSON.parse(turn.applicationContext!)).toEqual({ enabledContext: options.labContext, proposalReviewStatus: [] });
+  expect(await turn.toolRuntime!.execute({ tool: 'getbased_lab_context', arguments: '{}' })).toMatchObject({ success: false });
 });

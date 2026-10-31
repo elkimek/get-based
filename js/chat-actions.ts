@@ -1,3 +1,4 @@
+import { captureChatControlAuthorization } from './chat-control-settings.js';
 import { releaseKnowledgeImportFiles } from './knowledge-file-inputs.js';
 // chat-actions.js — message action bar rendering and handlers
 
@@ -103,6 +104,7 @@ async function updateAgentDraft(actionEl: HTMLElement, apply: boolean) {
   const message = index == null ? null : state.chatHistory[index];
   const draft = message?.agentDrafts?.find(item => item.id === draftId);
   if (!draft || draft.status !== 'pending' || pendingDraftActions.has(draft)) return false;
+  if (apply) { try { captureChatControlAuthorization(draft.id).assert(); } catch (error) { showNotification((error as Error).message, 'info'); return true; } }
   pendingDraftActions.add(draft);
   const profile = state.currentProfile;
   const thread = state.currentThreadId;

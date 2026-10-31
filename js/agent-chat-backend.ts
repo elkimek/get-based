@@ -1,3 +1,4 @@
+import { captureChatControlAuthorization } from './chat-control-settings.js';
 import { createAgentToolRuntime, getCodexDynamicTools, AGENT_TOOL_CONTRACT_VERSION } from './agent-tool-runtime.js';
 import { streamAgentTurn, uploadAgentImage } from './agent-chat-client.js';
 import {
@@ -30,6 +31,7 @@ export async function callCodexAgent(options: AgentChatOptions) {
   const target = options.target || getAgentHostTarget(agent);
   const model = getAgentHostModel() || getAssistantExecutionRoute().model;
   const effort = getAgentHostEffort();
+  const authorization = captureChatControlAuthorization();
   const runtime = createAgentToolRuntime({
     userMessage: options.prompt,
     readContext: async () => ({
@@ -39,12 +41,13 @@ export async function callCodexAgent(options: AgentChatOptions) {
     }),
     ...createBrowserAgentToolDependencies(options.profileId || '', { signal: options.signal, isCurrent: () => { try { assertCurrent(); return true; } catch { return false; } }, onKnowledgeResult: options.onKnowledgeResult,
       appControlSession: !isPersonalAgentTarget(target) ? options.appControlSession : undefined }),
+    canUseTools: authorization.current, createId: authorization.createId,
   });
   const local = !isPersonalAgentTarget(target);
   await connectDetectedAgent(agent, {
     signal: options.signal,
-    requiredToolContractVersion: !isPersonalAgentTarget(target) ? AGENT_TOOL_CONTRACT_VERSION : undefined,
-    requiredCapabilities: agentChatRequiredCapabilities(local, (options.images || []).length > 0),
+    requiredToolContractVersion: !isPersonalAgentTarget(target) && authorization.current() ? AGENT_TOOL_CONTRACT_VERSION : undefined,
+    requiredCapabilities: agentChatRequiredCapabilities(local, (options.images || []).length > 0, authorization.current()),
   });
   assertCurrent();
   const applicationContext = local ? buildAgentApplicationContext(options.labContext, state.chatHistory, canDiscloseAgentDraftReview) : undefined;
@@ -71,12 +74,13 @@ export async function callCodexAgent(options: AgentChatOptions) {
     model,
     effort,
     prompt: options.prompt,
-    instructions: buildAgentChatInstructions(options.instructions, local ? '' : options.labContext, target, local),
+    instructions: buildAgentChatInstructions(options.instructions, local ? '' : options.labContext, target, local, authorization.current()),
     applicationContext,
     threadId,
     history: options.history,
     imageUploadIds,
-    tools: getCodexDynamicTools(),
+    tools: authorization.current() ? getCodexDynamicTools() : [],
+    chatControlsEnabled: authorization.current(),
     toolRuntime,
     signal: options.signal,
     onStream: options.onStream,

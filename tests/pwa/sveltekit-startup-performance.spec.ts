@@ -92,15 +92,29 @@ async function loadedSources(urls: string[], origin: string) {
       rawScripts.push({url: url.pathname, declaredSourceMap: mapUrl?.pathname ?? null, sourceMapShipped});
       continue;
     }
-    if (!mapReference) {
+    // The production builder deliberately uses sourcemap: 'hidden'. Its exact
+    // sibling map is authoritative only when its file binding, complete source
+    // contents and actual mappings validate. Missing maps retain the strict
+    // executable-code rejection below; filenames and hashes are not exemptions.
+    const mapUrl = new URL(mapReference || url.pathname + '.map', url);
+    let mapText: string | null = null;
+    try { mapText = await fs.readFile(publicFile(mapUrl), 'utf8'); }
+    catch (error) { if (mapReference || (error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
+    if (mapText === null) {
       const helper = unmappedGeneratedScript(code, url, scripts);
       generatedHelpers.push(helper);
       for (const dependency of helper.imports) sources.add(dependency);
       continue;
     }
-    const mapUrl = new URL(mapReference, url);
-    const map = JSON.parse(await fs.readFile(publicFile(mapUrl), 'utf8')) as {sources?: unknown};
+    const map = JSON.parse(mapText) as {version?: unknown; file?: unknown; sources?: unknown; sourcesContent?: unknown; mappings?: unknown};
+    expect(map.version, mapUrl.pathname).toBe(3);
+    expect(map.file, 'Map must name the exact generated script').toBe(path.basename(url.pathname));
     expect(Array.isArray(map.sources), `source inventory: ${mapUrl.pathname}`).toBe(true);
+    expect((map.sources as unknown[]).length).toBeGreaterThan(0);
+    expect(Array.isArray(map.sourcesContent), 'Actual source contents must accompany hidden maps').toBe(true);
+    expect((map.sourcesContent as unknown[]).length).toBe((map.sources as unknown[]).length);
+    for (const content of map.sourcesContent as unknown[]) expect(typeof content).toBe('string');
+    expect(typeof map.mappings).toBe('string'); expect((map.mappings as string).length).toBeGreaterThan(0);
     for (const source of map.sources as unknown[]) {
       expect(typeof source).toBe('string');
       sources.add((source as string).replaceAll('\\', '/'));

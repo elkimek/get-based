@@ -1,4 +1,4 @@
-import { beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({ provider: 'custom', model: 'synthetic', key: 'synthetic-key', encrypted: false, disclosure: 'initial',
   complete: vi.fn(), read: vi.fn(), prepare: vi.fn() }));
 vi.mock('../js/lab-context-settings.js', () => ({ getContextDisclosureFingerprint: () => mocks.disclosure }));
@@ -79,4 +79,23 @@ it('sends all-kind review outcomes into the next turn', async () => {
     return { text: 'Understood.' };
   });
   await callDirectChatWithTools(options());
+});
+
+import { CHAT_CONTROLS_KEY, setChatControlsEnabled } from '../js/chat-control-settings.js';
+afterEach(() => localStorage.removeItem(CHAT_CONTROLS_KEY));
+it.each(['openrouter', 'venice', 'ppq', 'routstr', 'ollama', 'custom'])('keeps %s conversation working with no app tools when controls are off', async provider => {
+  await setChatControlsEnabled(false); mocks.provider = provider; mocks.encrypted = provider === 'venice';
+  mocks.complete.mockResolvedValue({ text: 'Ordinary answer.' });
+  const result = await callDirectChatWithTools(options());
+  expect(result).toMatchObject({ text: 'Ordinary answer.', drafts: [], toolCalls: [] });
+  const request = mocks.complete.mock.calls[0]![0];
+  expect(request.tools).toBeUndefined(); expect(request.jsonMode).toBeUndefined(); expect(request.jsonSchema).toBeUndefined();
+  expect(request.system).toContain('Chat controls are disabled'); expect(request.system).not.toContain('proactively offer');
+  expect(mocks.read).not.toHaveBeenCalled(); expect(mocks.prepare).not.toHaveBeenCalled();
+});
+it('refuses unexpected provider tool calls with controls off', async () => {
+  await setChatControlsEnabled(false);
+  mocks.complete.mockResolvedValue({ text: '', toolCalls: [{ id: 'forged', type: 'function', function: { name: 'getbased_read_context_card', arguments: '{"card":"healthGoals"}' } }] });
+  await expect(callDirectChatWithTools(options())).rejects.toThrow('disabled');
+  expect(mocks.read).not.toHaveBeenCalled(); expect(mocks.prepare).not.toHaveBeenCalled();
 });
