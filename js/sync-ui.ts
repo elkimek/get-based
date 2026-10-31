@@ -248,7 +248,13 @@ function patchSyncChildren(current: Node, next: Node) {
     if (candidate !== cursor) current.insertBefore(candidate, cursor);
     if (candidate instanceof Element && desired instanceof Element) {
       for (const attr of Array.from(candidate.attributes)) if (!desired.hasAttribute(attr.name)) candidate.removeAttribute(attr.name);
-      for (const attr of Array.from(desired.attributes)) if (candidate.getAttribute(attr.name) !== attr.value) candidate.setAttribute(attr.name, attr.value);
+      // The presentation owns this closed attribute set. Keep names literal so
+      // action-ownership audits can classify every emitted native attribute.
+      if (desired.hasAttribute('class') && candidate.getAttribute('class') !== desired.getAttribute('class')) candidate.setAttribute('class', desired.getAttribute('class')!);
+      if (desired.hasAttribute('style') && candidate.getAttribute('style') !== desired.getAttribute('style')) candidate.setAttribute('style', desired.getAttribute('style')!);
+      if (desired.hasAttribute('title') && candidate.getAttribute('title') !== desired.getAttribute('title')) candidate.setAttribute('title', desired.getAttribute('title')!);
+      if (desired.hasAttribute('role') && candidate.getAttribute('role') !== desired.getAttribute('role')) candidate.setAttribute('role', desired.getAttribute('role')!);
+      if (desired.hasAttribute('data-sync-ui-action') && candidate.getAttribute('data-sync-ui-action') !== desired.getAttribute('data-sync-ui-action')) candidate.setAttribute('data-sync-ui-action', desired.getAttribute('data-sync-ui-action')!);
       patchSyncChildren(candidate, desired);
     } else if (candidate.nodeValue !== desired.nodeValue) candidate.nodeValue = desired.nodeValue;
     cursor = candidate.nextSibling;
