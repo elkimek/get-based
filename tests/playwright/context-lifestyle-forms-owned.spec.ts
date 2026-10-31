@@ -5,6 +5,8 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     for (const key of ['emptyTour', 'tour']) localStorage.setItem(`labcharts-default-${key}`, 'completed');
     localStorage.setItem('labcharts-encryption-nudge-dismissed', 'true');
+    localStorage.setItem('labcharts-analytics-consent-seen', '1');
+    localStorage.setItem('labcharts-analytics-disabled', 'true');
   });
 });
 const editors = [
