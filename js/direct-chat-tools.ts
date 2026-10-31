@@ -40,7 +40,7 @@ export async function callDirectChatWithTools(options: DirectChatToolOptions) {
   const authorization = captureChatControlAuthorization();
   const reviewRequested = requestsChatProposal(prompt);
   if (reviewRequested && !authorization.current()) return { text: CHAT_CONTROLS_NOTICE, drafts: [], toolCalls: [], usage: { inputTokens: 0, outputTokens: 0 }, truncated: false, finishReason: 'stop' };
-  const runtime = createAgentToolRuntime({ userMessage: prompt,
+  const runtime = createAgentToolRuntime({ catalogMode: 'current', userMessage: prompt,
     readContext: () => ({ context: labContext, profileId }),
     ...createBrowserAgentToolDependencies(profileId, { signal: options.signal, isCurrent: current, onKnowledgeResult, appControlSession }),
     canUseTools: authorization.current, createId: authorization.createId, onToolActivity: options.onToolActivity,
@@ -54,7 +54,7 @@ export async function callDirectChatWithTools(options: DirectChatToolOptions) {
       protocol: provider === 'venice' && (getVeniceE2EE() || isE2EEModel(model)) ? 'structured' : 'native',
       canRepair: authorization.current,
       reviewRequested,
-      hasPreparedReview: () => authorization.current() && (runtime.getDrafts().length > 0 || appControlSession?.hasPreparedReview() === true),
+      getPreparedReviews: () => authorization.current() ? projectChatTurnReviews(runtime, profileId).outcome.reviews : [],
       isCurrent: current, execute: call => runtime.execute(call),
       complete: async round => {
         const response: unknown = await callClaudeAPI({ ...round, requestCurrent: current, modelOverride: model }, provider);

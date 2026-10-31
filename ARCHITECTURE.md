@@ -569,7 +569,7 @@ and stored-history normalization share the existing limits of 20 data reviews an
 reviews; an oversized turn receives an explicit limit result instead of preparing
 reviews which storage would drop. Already prepared app reviews can close after
 cancellation but cannot execute further tools, and Apply retains its native
-authorization and conflict checks. Tool registrations own their schema, dependency
+authorization and conflict checks. Current chat advertises 16 primary tool definitions when all handlers are bound; the three old meal/measurement/supplement shortcuts remain only in the version60 compatibility catalog and historical-review path. Their health workflows use the current record tools. Tool registrations own their schema, dependency
 binding and activity label; API and CLI discovery use the actual injected turn
 capabilities. Discussion turns omit interactive app-review tools when no owning session
 exists. The Companion resumes Codex only for the same native tool scope; changed or
@@ -1484,6 +1484,12 @@ the higher-layer behavior through a narrow runtime seam.
   `handleBatchPDFs`, marking an item done only when the review reports it saved
   or skipped. It claims the shared import lock only after its last await and
   never commits health data itself.
+- Chat review presentation shares a typed lifecycle for data and app controls;
+  native domain owners retain Apply validation, private leases and Undo receipts.
+  Completion and interrupted-turn recovery use verified review IDs rather than
+  model acknowledgments. Global chat policy covers scope and safety; fresh
+  resource reads supply the detailed fields, operations and domain rules.
+  The static build emits this policy directly without a prompt-specific codec.
 - Agent tools expose semantic projections through an explicit catalog. They do
   not grant raw DOM, storage, credential, arbitrary JavaScript, or shell access;
   data mutations require narrow draft/commit tools and explicit approval.

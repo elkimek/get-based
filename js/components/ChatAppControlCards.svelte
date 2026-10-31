@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { chatReviewLifecycle } from '../../shared/chat-review-contract.js';
   import { chatAppControlAllowed, CHAT_NATIVE_UI_NOTICE } from '../../shared/chat-control-policy.js';
   import type { AppControlRecord } from '../../shared/agent-control-contract.js';
   import { DRAFT_CONTROL } from '../chat-message-actions-classes.js';
@@ -51,7 +52,7 @@
       <p role="status">Persona management is manual-only. This historical request cannot apply or undo changes.</p>
     {:else if !chatAppControlAllowed(control.action, control.parameters)}
       <p role="status">{CHAT_NATIVE_UI_NOTICE}</p>
-    {:else if control.status === 'pending'}
+    {:else if chatReviewLifecycle(control.status).canReview}
       <button type="button" class={DRAFT_CONTROL} data-chat-message-action="apply-app-control" data-chat-message-index={index} data-chat-control-id={control.id}>Apply</button>
       <button type="button" class={DRAFT_CONTROL} data-chat-message-action="discard-app-control" data-chat-message-index={index} data-chat-control-id={control.id}>Discard</button>
     {:else if control.status === 'changed'}

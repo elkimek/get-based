@@ -165,7 +165,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/chat-draft-storage.js', '/js/chat-render-range.js', '/js/chat-message-edit.js', '/js/chat-message-editor-view.js',
   '/js/chat-message-editor-component.js', '/js/chat-message-editor-classes.js', '/js/components/ChatMessageEditor.svelte.native.js', '/js/chat-stream-status.js',
   '/shared/ai-tool-protocol.js', '/shared/chat-tool-instructions.js', '/js/chat-tool-loop.js', '/js/direct-chat-tools.js',
-  '/shared/chat-turn-outcome.js', '/js/chat-turn-scope.js', '/js/chat-turn-recovery.js',
+  '/shared/chat-review-contract.js', '/shared/chat-turn-outcome.js', '/js/chat-turn-scope.js', '/js/chat-turn-recovery.js',
   '/js/chat-history.js', '/js/chat-continuation.js', '/js/chat-prompt-context.js', '/js/chat-context-summary.js',
   '/js/chat-system-prompt.js', '/js/chat-summaries.js', '/js/chat-summary-presentation.js', '/js/components/ChatSummaryPresentation.svelte.html.js',
   '/js/settings.js', '/js/tweaks-presentation.js', '/js/tweaks-rendering.js', '/js/tweaks-classes.js',

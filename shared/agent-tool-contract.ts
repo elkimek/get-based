@@ -130,7 +130,7 @@ export interface AgentToolDefinition {
 export type AgentToolBinding = 'readContext' | 'searchMarkers' | 'readMarkerHistory' | 'readNutritionSummary'
   | 'readWearableSeries' | 'searchKnowledge' | 'readContextCard' | 'readData' | 'prepareDataChange'
   | 'navigate' | 'prepareLegacyDraft' | 'prepareContextChange' | 'listAppActions' | 'readAppState' | 'prepareAppControl';
-interface RegisteredTool extends AgentToolDefinition { binding: AgentToolBinding; label: string }
+interface RegisteredTool extends AgentToolDefinition { binding: AgentToolBinding; label: string; exposure: 'current' | 'compatibility' }
 
 function property(type: ToolSchema['type'], constraints: Omit<ToolSchema, 'type'> = {}): ToolSchema {
   return Object.freeze({ type, ...constraints,
@@ -138,8 +138,8 @@ function property(type: ToolSchema['type'], constraints: Omit<ToolSchema, 'type'
   });
 }
 function tool(binding: AgentToolBinding, label: string, name: string, description: string, access: AgentToolDefinition['access'],
-  properties: Record<string, ToolSchema> = {}, required?: readonly string[]): RegisteredTool {
-  return Object.freeze({ binding, label, name, description, access, inputSchema: Object.freeze({
+  properties: Record<string, ToolSchema> = {}, required?: readonly string[], exposure: RegisteredTool['exposure'] = 'current'): RegisteredTool {
+  return Object.freeze({ binding, label, exposure, name, description, access, inputSchema: Object.freeze({
     type: 'object' as const, properties: Object.freeze(properties),
     ...(required ? { required: Object.freeze(required) } : {}), additionalProperties: false,
   }) });
@@ -239,7 +239,7 @@ const catalog: readonly RegisteredTool[] = Object.freeze([
     fiberG: property('number', {"minimum": 0, "maximum": 1000}),
     fluidMl: property('number', {"minimum": 0, "maximum": 20000}),
     note: property('string', {"maxLength": 500}),
-  }, ["name"]),
+  }, ["name"], 'compatibility'),
   tool('prepareLegacyDraft', 'Prepare measurement review', "getbased_draft_biometric", "Compatibility shortcut for manual weight, blood pressure or pulse. Reads the exact date/metric and prepares the same guarded add/update as manualReadings. Weight requires an explicit unit. An explicitly reported BP plus pulse is reviewed and saved together. Prefer read_data/draft_data for corrections or body methods. Nothing saves until approval.", "draft", {
     metric: property('string', {"enum": ["weight", "bp", "rhr"]}),
     date: date,
@@ -249,14 +249,14 @@ const catalog: readonly RegisteredTool[] = Object.freeze([
     diastolic: property('number', {"minimum": 20, "maximum": 200}),
     pulse: property('number', {"minimum": 20, "maximum": 250}),
     note: property('string', {"maxLength": 500}),
-  }, ["metric"]),
+  }, ["metric"], 'compatibility'),
   tool('prepareLegacyDraft', 'Prepare treatment review', "getbased_draft_supplement", "Compatibility shortcut for a supplement or medication. Reads an unambiguous matching record or prepares a new exact record review. Unreported schedules stay unknown. Different historical start dates require explicit period/restart operations. Nothing saves until approval.", "draft", {
     name: property('string', {"minLength": 1, "maxLength": 160}),
     type: property('string', {"enum": ["supplement", "medication"]}),
     dosage: property('string', {"maxLength": 160}),
     startDate: date,
     note: property('string', {"maxLength": 500}),
-  }, ["name", "type"]),
+  }, ["name", "type"], 'compatibility'),
   tool('listAppActions', 'Check available app actions', 'getbased_app_actions', 'Discover declared app controls, their parameters, scope and review requirements. Use only for an explicit request about operating getbased or changing saved preferences. Ordinary conversation needs no app action.', 'read'),
   tool('readAppState', 'Read app settings', 'getbased_read_app', 'Read declared app state or a bounded prior-conversation search. No changes are saved and no review card is created. For a supported saved change, call getbased_request_app after this read; only its successful pending_user_approval result creates a card. Conversation search requires an explicit historical question and returns quoted excerpts with native source links. Other actions return non-secret state and review snapshots.', 'read', {
     action: property('string', { enum: CHAT_APP_READ_ACTIONS }),
@@ -275,8 +275,8 @@ const catalog: readonly RegisteredTool[] = Object.freeze([
 // Return mutable JSON copies so consumers cannot alter the shared definitions.
 function cloneJson<T>(value: T): T { return JSON.parse(JSON.stringify(value)) as T; }
 export const AGENT_TOOL_ACTIVITY_LABELS: Readonly<Record<string, string>> = Object.freeze(Object.fromEntries(catalog.map(tool => [tool.name, tool.label])));
-export function getAgentToolCatalog(available?: (binding: AgentToolBinding) => boolean): AgentToolDefinition[] {
-  return cloneJson(catalog.filter(tool => !available || available(tool.binding)).map(({ binding: _binding, label: _label, ...definition }) => definition));
+export function getAgentToolCatalog(available?: (binding: AgentToolBinding) => boolean, mode: RegisteredTool['exposure'] = 'compatibility'): AgentToolDefinition[] {
+  return cloneJson(catalog.filter(tool => (mode === 'compatibility' || tool.exposure === 'current') && (!available || available(tool.binding))).map(({ binding: _binding, label: _label, exposure: _exposure, ...definition }) => definition));
 }
 export function getCodexDynamicTools(tools: readonly AgentToolDefinition[] = getAgentToolCatalog()) {
   return tools.map(({ name, description, inputSchema }) => ({

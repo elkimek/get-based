@@ -7,7 +7,7 @@ import { installOfflineStartupDiagnostics } from '../helpers/offline-launch-diag
 import { readyLightArtifact as ready, openLightArtifact as openLight } from '../helpers/light-artifact-navigation.js';
 import type { AIToolCall } from '../../shared/ai-tool-protocol.js';
 
-const owners = ['js/state.js', 'js/agent-data-bindings.js', 'js/agent-data-apply.js', 'js/agent-data-model.js',
+const owners = ['js/state.js', 'js/agent-data-bindings.js', 'js/agent-data-apply.js', 'js/agent-health-data-model.js',
   'js/light-env-mutations.js', 'js/light-env-record-store.js', 'js/light-env-records.js', 'js/light-env-proposals.js',
   'js/light-env-store.js', 'js/light-env-editor.js', 'js/light-env-model.js', 'js/light-env-ai-analysis.js',
   'js/light-screen-ai-analysis.js', 'js/light-tools-ai-analysis.js', 'js/sun-context-environment.js',

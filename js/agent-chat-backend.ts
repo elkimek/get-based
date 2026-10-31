@@ -1,7 +1,8 @@
 import { captureChatTurnScope } from './chat-turn-scope.js';
 import { captureChatTurnFailure, projectChatTurnReviews } from './chat-turn-recovery.js';
 import type { ChatToolActivity } from '../shared/chat-tool-activity.js';
-import { claimsPreparedChatProposal, requestsChatProposal, CHAT_PROPOSAL_REPAIR, CHAT_PROPOSAL_MISSING, CHAT_PROPOSAL_NONE } from '../shared/chat-tool-instructions.js';
+import { requestsChatProposal, CHAT_PROPOSAL_REPAIR } from '../shared/chat-tool-instructions.js';
+import { needsChatReviewRepair, chatReviewCompletionText } from '../shared/chat-review-contract.js';
 import { captureChatControlAuthorization } from './chat-control-settings.js';
 import { createAgentToolRuntime, getCodexDynamicTools, AGENT_TOOL_CONTRACT_VERSION } from './agent-tool-runtime.js';
 import { streamAgentTurn, uploadAgentImage } from './agent-chat-client.js';
@@ -34,7 +35,7 @@ export async function callCodexAgent(options: AgentChatOptions) {
   const effort = getAgentHostEffort();
   const authorization = captureChatControlAuthorization();
   const runtime = createAgentToolRuntime({
-    userMessage: options.prompt,
+    catalogMode: 'current', userMessage: options.prompt,
     readContext: async () => ({
       context: options.labContext,
       profileId: options.profileId || '',
@@ -97,17 +98,17 @@ export async function callCodexAgent(options: AgentChatOptions) {
           && !error.message.includes('thread target mismatch'))) throw error;
       result = await run(undefined);
     }
-    const hasReview = () => authorization.current() && (runtime.getDrafts().length > 0 || options.appControlSession?.hasPreparedReview() === true);
+    const reviews = () => authorization.current() ? projectChatTurnReviews(runtime, options.profileId || '').outcome.reviews : [];
     assertCurrent();
     const reviewRequested = local && requestsChatProposal(options.prompt);
-    if (!hasReview() && (reviewRequested || claimsPreparedChatProposal(result.text))) {
+    if (needsChatReviewRepair(result.text, reviews(), reviewRequested)) {
       if (local && authorization.current() && toolCount < 32) {
         options.onStream?.('');
         const repaired = await run(result.threadId, true); assertCurrent();
         result = { ...repaired, toolCalls: [...result.toolCalls, ...repaired.toolCalls], webSearches: [...result.webSearches, ...repaired.webSearches],
           usage: { inputTokens: (result.usage?.inputTokens || 0) + (repaired.usage?.inputTokens || 0), outputTokens: (result.usage?.outputTokens || 0) + (repaired.usage?.outputTokens || 0) } };
       }
-      if (!hasReview()) result = { ...result, text: claimsPreparedChatProposal(result.text, reviewRequested) || !toolCount ? CHAT_PROPOSAL_MISSING : `${CHAT_PROPOSAL_NONE}\n\n${result.text}` };
+      result = { ...result, text: chatReviewCompletionText(result.text, reviews(), reviewRequested, toolCount) };
       options.onStream?.(result.text);
     }
     return withDrafts(result);

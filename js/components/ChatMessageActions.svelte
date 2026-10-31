@@ -8,6 +8,7 @@
   import ChatAppControlCards from './ChatAppControlCards.svelte';
   import ChatSpeechButton from './ChatSpeechButton.svelte';
   let { view }: { view: ChatMessageActionsView } = $props();
+  let pendingReviews = $derived(view.reviews.filter(review => review.lifecycle.canReview).length);
   let copied = $state<ChatCopyMode>('idle');
   let contextOpen = $state(false);
   function own(root: HTMLElement) { return ownChatMessageActions(root, view.index, {
@@ -26,8 +27,11 @@
       <button class="chat-action-btn chat-edit-retry-action gb:message-actions:[font-family:inherit] gb:message-actions:text-[11px] gb:message-actions:gap-[5px] gb:message-actions:grid gb:message-actions:place-items-center gb:message-actions:size-7 gb:message-actions:p-0 gb:message-actions:border gb:message-actions:border-line gb:message-actions:rounded-lg gb:message-actions:bg-surface gb:message-actions:text-secondary gb:message-actions:shadow-sm gb:message-actions:cursor-pointer gb:message-actions:hover:bg-hover gb:message-actions:hover:text-ink gb:message-actions:pointer-coarse:size-11 {MESSAGE_ACTION_FOCUS}" type="button" data-chat-message-action="edit-user-message" data-chat-message-index={view.index} title="Edit and resend (replaces the current response)" aria-label="Edit and resend your latest message"><ChatMessageIcon name="edit"/></button>
     </div>
   {:else}
-    <ChatAgentDraftCards cards={view.drafts} index={String(view.index)}/>
-    <ChatAppControlCards controls={view.controls} index={view.index}/>
+    {#if pendingReviews}<p class="chat-review-summary gb:message-actions:mt-3 gb:message-actions:text-xs gb:message-actions:text-secondary" role="status">{pendingReviews} {pendingReviews === 1 ? 'change awaiting' : 'changes awaiting'} review. Proposed changes require Apply.</p>{/if}
+    {#each view.reviews as review}
+      {#if review.kind === 'data'}<ChatAgentDraftCards cards={[review.card]} index={String(view.index)}/>
+      {:else}<ChatAppControlCards controls={[review.control]} index={view.index}/>{/if}
+    {/each}
     <div class="chat-action-bar gb:message-actions:flex gb:message-actions:flex-wrap gb:message-actions:gap-1 gb:message-actions:mt-2 gb:message-actions:pt-2 gb:message-actions:border-t gb:message-actions:border-line">
       {#if view.retry}<button class={MESSAGE_ACTION_BUTTON} type="button" data-chat-message-action={view.retry.action} data-chat-message-persona-id={view.retry.personaId} title={view.retry.title}><ChatMessageIcon name="refresh"/><span>{view.retry.label}</span></button>{/if}
       {#if view.resume}<button class={MESSAGE_ACTION_BUTTON} type="button" data-chat-message-action="resume-discussion" title="Retry every remaining discussion response"><span>Resume round</span></button>{/if}

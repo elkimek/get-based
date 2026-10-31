@@ -31,7 +31,7 @@ function agentDraftReviewState(messages: readonly { agentDrafts?: unknown }[], i
     .slice(-20).map(draft => ({
       id: String(draft.id || '').slice(0, 128),
       kind: String(draft.kind || '').slice(0, 40),
-      status: ['pending', 'applying', 'applied', 'discarded', 'failed'].includes(String(draft.status)) ? String(draft.status) : 'unknown',
+      status: ['pending', 'applying', 'applied', 'discarded', 'failed', 'conflict', 'superseded'].includes(String(draft.status)) ? String(draft.status) : 'unknown',
       reviewActions: reviewActions(draft),
       summary: String(draft.summary || '').slice(0, 500),
       evidence: String((draft.payload as { evidence?: unknown } | null)?.evidence || '').slice(0, 1000),

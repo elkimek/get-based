@@ -111,8 +111,8 @@ it('hides disabled marker labels from reads and rendered controls, permits visib
   await executeAppControl(record, false, () => true);
   const read = await readLabOrderingControl(profile, { scopeId: patch.scopeId });
   await expect(previewLabOrderingControl(read.leaseId!, { scopeId: patch.scopeId, reset: true })).rejects.toThrow(/unavailable/);
-  state.chatHistory = [{ role: 'assistant', content: '', appControls: [record] }]; expect(projectChatMessageActions(state.chatHistory, 0)!.controls).toHaveLength(1);
-  setGroupInAIContext('Biochemistry', false); expect(projectChatMessageActions(state.chatHistory, 0)!.controls).toHaveLength(0); expect(buildAgentApplicationContext('', state.chatHistory)).not.toContain('labs.ordering');
+  state.chatHistory = [{ role: 'assistant', content: '', appControls: [record] }]; expect(projectChatMessageActions(state.chatHistory, 0)!.reviews.filter(review => review.kind === 'app').map(review => review.control)).toHaveLength(1);
+  setGroupInAIContext('Biochemistry', false); expect(projectChatMessageActions(state.chatHistory, 0)!.reviews.filter(review => review.kind === 'app').map(review => review.control)).toHaveLength(0); expect(buildAgentApplicationContext('', state.chatHistory)).not.toContain('labs.ordering');
 });
 it('resets a fully disclosed scope and Undo restores its prior custom order as a fresh generation', async () => {
   const first = await prepare(); await executeAppControl(first.record, false, () => true); const before = await stored(), reset = await prepare({ scopeId: patch.scopeId, reset: true });

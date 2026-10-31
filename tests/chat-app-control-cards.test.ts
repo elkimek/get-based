@@ -1,6 +1,7 @@
+import { chatReviewLifecycle } from '../shared/chat-review-contract.js';
 import { expect, it } from 'vitest';
 import { renderHTML as renderActions } from '../js/components/ChatMessageActions.svelte.html.js';
-const renderHTML = ({ controls, index }: { controls: ReturnType<typeof normalizeAppControls>; index: number }) => renderActions({ view: { index, kind: 'assistant', retry: null, resume: false, speech: false, context: [], drafts: [], controls } });
+const renderHTML = ({ controls, index }: { controls: ReturnType<typeof normalizeAppControls>; index: number }) => renderActions({ view: { index, kind: 'assistant', retry: null, resume: false, speech: false, context: [], reviews: controls.map(control => ({ kind: 'app' as const, control, lifecycle: chatReviewLifecycle(control.status) })) } });
 import { normalizeAppControls } from '../shared/agent-control-contract.js';
 const record = { version: 1, id: 'control-test', profileId: 'profile-test', threadId: 'thread-test', action: 'display.preferences',
   parameters: { unitSystem: 'US' }, baseline: { unitSystem: 'EU' }, reason: 'Explicit display preference', evidence: 'Use US units', status: 'pending' };

@@ -131,7 +131,6 @@ export function createAppControlSession(userMessage: string, isCurrent: () => bo
         return { controlId: record.id, status: 'pending_user_approval', before: baseline, proposed: patch, saved: false };
       },
     },
-    hasPreparedReview: () => current() && records.length > 0,
     finish() { if (!authorization.current()) { closed = true; records.length = 0; return []; } if (!profileId || !threadId || !owned()) throw new Error('The originating interactive chat is no longer current.'); closed = true; return structuredClone(records); },
     cancel() { closed = true; records.length = 0; snapshots.clear(); overlaySnapshots.clear(); assistantSnapshots.clear(); connectionSnapshots.clear(); profileSnapshots.clear(); },
   };

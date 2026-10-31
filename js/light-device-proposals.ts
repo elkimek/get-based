@@ -4,6 +4,10 @@ import { agentDataObject, parseAgentDataPatch, validAgentDate, validateFieldName
 import { isLightDeviceResource, lightDeviceFields, lightDeviceSessionFields, LIGHT_DEVICE_TYPES } from './light-device-fields.js';
 import type { LightDeviceResource } from './light-device-fields.js';
 
+export function lightDeviceCapabilities(resource: LightDeviceResource) {
+  return { operations: ['add', 'update', 'remove'], fields: resource === 'lightDevices' ? lightDeviceFields : lightDeviceSessionFields, rules: { identity: 'List exact saved IDs. Adds need reported custom device brand/model or complete session facts. Read the device before selecting a session mode. Device specification changes recalculate linked completed sessions and retain previous inputs. Device removal retains recorded sessions/snapshots and is blocked by active timers. Live timers use their existing controls. Do not infer session time, distance, body area, eye protection or device specifications.' } };
+}
+
 export interface LightDeviceEffects {
   recalculatedSessions: Array<{ id: string; beforeDoses: unknown; afterDoses: unknown; beforeEndedAt: unknown; afterEndedAt: unknown }>;
   retainedSessionCount: number; removedSpecificationCount: number; sourceHistoryRetained: boolean; analysisCleared: boolean;

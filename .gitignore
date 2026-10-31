@@ -4086,3 +4086,5 @@ tests/pwa/sveltekit-island-ownership.spec.js.map
 /shared/chat-turn-outcome.js
 /js/chat-turn-scope.js
 /js/chat-turn-recovery.js
+
+/shared/chat-review-contract.js

@@ -1,4 +1,6 @@
-import { claimsPreparedChatProposal, CHAT_PROPOSAL_REPAIR, CHAT_PROPOSAL_MISSING, CHAT_PROPOSAL_NONE } from '../shared/chat-tool-instructions.js';
+import { CHAT_PROPOSAL_REPAIR } from '../shared/chat-tool-instructions.js';
+import { needsChatReviewRepair, chatReviewCompletionText, chatPreparedReviewNotice } from '../shared/chat-review-contract.js';
+import type { ChatReviewReference } from '../shared/chat-turn-outcome.js';
 // Bounded provider-neutral orchestration. Tools can read or prepare drafts, never Apply.
 import { normalizeAIToolCalls, AIToolsUnsupportedError } from '../shared/ai-tool-protocol.js';
 import type { AIToolCall, AIChatMessage, AIFunctionTool } from '../shared/ai-tool-protocol.js';
@@ -17,7 +19,7 @@ interface ToolLoopOptions extends OpenAICompatibleOptions {
   execute(call: { tool: string; arguments: string }): Promise<unknown>;
   isCurrent(): boolean;
   protocol?: 'native' | 'structured';
-  hasPreparedReview?: () => boolean;
+  getPreparedReviews?: () => readonly ChatReviewReference[];
   canRepair?: () => boolean;
   reviewRequested?: boolean;
 }
@@ -48,7 +50,7 @@ function parseStructuredCompletion(text: string) {
 }
 
 export async function runChatToolLoop(options: ToolLoopOptions) {
-  const { complete, execute, isCurrent, tools, system, messages: input, protocol: initialProtocol = 'native', onStream, hasPreparedReview, canRepair, reviewRequested = false, ...request } = options;
+  const { complete, execute, isCurrent, tools, system, messages: input, protocol: initialProtocol = 'native', onStream, getPreparedReviews, canRepair, reviewRequested = false, ...request } = options;
   const messages = structuredClone(input), seen = new Set<string>(), toolCalls: AgentToolReceipt[] = [];
   const usage = { inputTokens: 0, outputTokens: 0 };
   let protocol = reviewRequested && tools.length ? 'structured' : initialProtocol, responseChars = 0, answerPrefix = '', continuations = 0, repairedClaim = false;
@@ -109,15 +111,15 @@ export async function runChatToolLoop(options: ToolLoopOptions) {
       if (!repairedClaim) throw error;
       // Keep a previously validated review; malformed model prose never becomes
       // an action or a claimed card. The actual local receipt decides this text.
-      const text = hasPreparedReview?.() ? 'Review the proposal below. Changes require Apply.' : CHAT_PROPOSAL_MISSING;
+      const text = chatPreparedReviewNotice(getPreparedReviews?.() || []);
       onStream?.(text); return { ...result, text, usage, toolCalls };
     }
     const calls = envelope?.calls || normalizeAIToolCalls(result.toolCalls);
     if (!calls.length) {
       let text = answerPrefix + (envelope?.reply ?? result.text);
-      if (hasPreparedReview && !hasPreparedReview() && (reviewRequested || claimsPreparedChatProposal(text))) {
+      if (getPreparedReviews && needsChatReviewRepair(text, getPreparedReviews(), reviewRequested)) {
         if (retryReview(round)) continue;
-        text = claimsPreparedChatProposal(text, reviewRequested) || !toolCalls.length ? CHAT_PROPOSAL_MISSING : `${CHAT_PROPOSAL_NONE}\n\n${text}`;
+        text = chatReviewCompletionText(text, getPreparedReviews(), reviewRequested, toolCalls.length);
       }
       if (!text.trim()) throw new Error('The model returned no final chat answer.');
       if (!structured && shouldAutoContinueResponse({ truncated: result.truncated, finishReason: result.finishReason }, text) && continuations < 2) {

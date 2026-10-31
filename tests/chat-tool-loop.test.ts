@@ -5,6 +5,7 @@ import type { ToolCompletion } from '../js/chat-tool-loop.js';
 import type { AIToolCall } from '../shared/ai-tool-protocol.js';
 
 const call = (id: string, name = 'getbased_read_context_card', args = '{}'): AIToolCall => ({ id, type: 'function', function: { name, arguments: args } });
+const reviewRefs = (prepared: boolean): import('../shared/chat-turn-outcome.js').ChatReviewReference[] => prepared ? [{ id: 'native-review', kind: 'context', target: 'sleep' }] : [];
 function setup() {
   return { messages: [{ role: 'user', content: 'Improve my sleep.' }], system: 'Private health data.',
     tools: [{ type: 'function' as const, function: { name: 'getbased_read_context_card', description: 'Read', parameters: { type: 'object' as const } } }],
@@ -90,7 +91,7 @@ it('repairs a claimed Environment draft that has no actual review card', async (
     .mockResolvedValueOnce({ text: JSON.stringify({ reply: '', calls: [{ id: 'actual-read', name: 'getbased_read_context_card', arguments: '{}' }] }) })
     .mockResolvedValueOnce({ text: JSON.stringify({ reply: 'No proposal could be created.', calls: [] }) });
   options.execute.mockImplementation(async () => { prepared = false; return { success: true, contentItems: [{ type: 'inputText', text: 'Read only. No draft.' }] }; });
-  const result = await runChatToolLoop({ ...options, hasPreparedReview: () => prepared });
+  const result = await runChatToolLoop({ ...options, getPreparedReviews: () => reviewRefs(prepared) });
   expect(result.text).toBe('No proposal could be created.');
   expect(options.complete).toHaveBeenCalledTimes(3);
   expect(options.execute).toHaveBeenCalledExactlyOnceWith({ tool: 'getbased_read_context_card', arguments: '{}' });
@@ -106,7 +107,7 @@ it.each([
   "Thanks for telling me — we have queued your card for review.",
 ])('replaces a repeated unbacked claim with an honest no-change result: %s', async text => {
   const options = setup(); options.complete.mockResolvedValueOnce({ text, usage: { inputTokens: 4, outputTokens: 2 } }).mockResolvedValueOnce({ text: JSON.stringify({ reply: text, calls: [] }), usage: { inputTokens: 4, outputTokens: 2 } });
-  const result = await runChatToolLoop({ ...options, hasPreparedReview: () => false });
+  const result = await runChatToolLoop({ ...options, getPreparedReviews: () => [] });
   expect(result.text).toBe(CHAT_PROPOSAL_MISSING); expect(result.usage).toEqual({ inputTokens: 8, outputTokens: 4 });
   expect(options.complete).toHaveBeenCalledTimes(2); expect(options.execute).not.toHaveBeenCalled();
   expect(options.complete.mock.calls[1]![0]).toMatchObject({ messages: expect.arrayContaining([{ role: 'system', content: CHAT_PROPOSAL_REPAIR }]) });
@@ -127,23 +128,23 @@ it.each([
 ])('does not interrupt ordinary writing, quotations or honest limitations: %s', async text => {
   expect(claimsPreparedChatProposal(text)).toBe(false);
   const options = setup(); options.complete.mockResolvedValue({ text });
-  expect((await runChatToolLoop({ ...options, hasPreparedReview: () => false })).text).toBe(text);
+  expect((await runChatToolLoop({ ...options, getPreparedReviews: () => [] })).text).toBe(text);
   expect(options.complete).toHaveBeenCalledOnce(); expect(options.execute).not.toHaveBeenCalled();
 });
 it('never repairs through unavailable tools when controls are off', async () => {
   const options = setup(); options.complete.mockResolvedValue({ text: 'I have prepared a draft for your getbased card.' });
-  expect((await runChatToolLoop({ ...options, tools: [], hasPreparedReview: () => false })).text).toBe(CHAT_PROPOSAL_MISSING);
+  expect((await runChatToolLoop({ ...options, tools: [], getPreparedReviews: () => [] })).text).toBe(CHAT_PROPOSAL_MISSING);
   expect(options.complete).toHaveBeenCalledOnce(); expect(options.execute).not.toHaveBeenCalled();
 });
 it('accepts a receipt-backed acknowledgment without another provider call', async () => {
   const options = setup(); options.complete.mockResolvedValue({ text: 'I have prepared a draft for your getbased card.' });
-  expect((await runChatToolLoop({ ...options, hasPreparedReview: () => true })).text).toContain('prepared');
+  expect((await runChatToolLoop({ ...options, getPreparedReviews: () => reviewRefs(true) })).text).toContain('prepared');
   expect(options.complete).toHaveBeenCalledOnce();
 });
 
 it('does not start a corrective request after the captured tool permission is revoked', async () => {
   const options = setup(); options.complete.mockResolvedValue({ text: "I've prepared a draft for your getbased card." });
-  const result = await runChatToolLoop({ ...options, hasPreparedReview: () => false, canRepair: () => false });
+  const result = await runChatToolLoop({ ...options, getPreparedReviews: () => [], canRepair: () => false });
   expect(result.text).toBe(CHAT_PROPOSAL_MISSING); expect(options.complete).toHaveBeenCalledOnce(); expect(options.execute).not.toHaveBeenCalled();
 });
 
@@ -152,7 +153,7 @@ it('changes silent native-tool narration into structured calls without replaying
   options.complete.mockResolvedValueOnce({ text: '', toolCalls: [call('before')] })
     .mockResolvedValueOnce({ text: 'Drafted and waiting for your review. Check the proposal card in getbased and Apply.' })
     .mockResolvedValueOnce({ text: JSON.stringify({ reply: 'No proposal was created.', calls: [] }) });
-  const result = await runChatToolLoop({ ...options, hasPreparedReview: () => prepared });
+  const result = await runChatToolLoop({ ...options, getPreparedReviews: () => reviewRefs(prepared) });
   expect(result.text).toBe('No proposal was created.'); expect(options.execute).toHaveBeenCalledOnce();
   expect(options.complete.mock.calls[2]![0]).toMatchObject({ jsonMode: true, jsonSchema: expect.any(Object), messages: expect.arrayContaining([expect.objectContaining({ role: 'user', content: expect.stringContaining('getbased tool result') })]) });
   expect(options.complete.mock.calls[2]![0]).not.toHaveProperty('tools');
@@ -162,7 +163,7 @@ it.each([false, true])('handles malformed corrective prose using only actual rev
   const options = setup(); let review = false;
   options.complete.mockResolvedValueOnce({ text: 'Drafted and waiting. Check the proposal card in getbased and Apply.' })
     .mockImplementationOnce(async () => { review = prepared; return { text: 'Unstructured provider prose, not a tool call.' }; });
-  const result = await runChatToolLoop({ ...options, hasPreparedReview: () => review });
+  const result = await runChatToolLoop({ ...options, getPreparedReviews: () => reviewRefs(review) });
   expect(result.text).toBe(prepared ? 'Review the proposal below. Changes require Apply.' : CHAT_PROPOSAL_MISSING);
   expect(options.execute).not.toHaveBeenCalled();
 });
@@ -172,7 +173,7 @@ it('does not accept Markdown cards as a prepared application review', async () =
   const options = setup();
   const text = 'Here are the proposal cards for your review. Nothing is saved — each card only applies if you accept it.\n\n### 🟢 Card 1 — Diet & Digestion (update)\n- **Proposed:** Omnivore diet; moderate bloating.\n\nLet me know which cards to apply.';
   options.complete.mockResolvedValueOnce({ text }).mockResolvedValueOnce({ text: JSON.stringify({ reply: text, calls: [] }) });
-  const result = await runChatToolLoop({ ...options, hasPreparedReview: () => false });
+  const result = await runChatToolLoop({ ...options, getPreparedReviews: () => [] });
   expect(result.text).toBe(CHAT_PROPOSAL_MISSING); expect(options.execute).not.toHaveBeenCalled(); expect(options.complete).toHaveBeenCalledTimes(2);
 });
 
@@ -198,7 +199,7 @@ it('starts an explicit review with a structured first-step contract and retains 
   options.complete.mockResolvedValueOnce({ text: JSON.stringify({ reply: '', calls: [{ id: 'read', name: 'getbased_read_context_card', arguments: '{}' }] }) })
     .mockResolvedValueOnce({ text: JSON.stringify({ reply: 'Which period observation should be corrected?', calls: [] }) })
     .mockResolvedValueOnce({ text: JSON.stringify({ reply: 'Which period observation should be corrected?', calls: [] }) });
-  const result = await runChatToolLoop({ ...options, reviewRequested: true, hasPreparedReview: () => false });
+  const result = await runChatToolLoop({ ...options, reviewRequested: true, getPreparedReviews: () => [] });
   expect(result.text).toBe(CHAT_PROPOSAL_NONE + '\n\nWhich period observation should be corrected?');
   expect(options.execute).toHaveBeenCalledOnce(); expect(options.complete).toHaveBeenCalledTimes(3);
   expect(options.complete.mock.calls[0]![0]).toMatchObject({ jsonMode: true, jsonSchema: { properties: { calls: { minItems: 1, maxItems: 16 } } } });
@@ -206,26 +207,26 @@ it('starts an explicit review with a structured first-step contract and retains 
 });
 it('does not accept silent no-tool completion of an explicit review request', async () => {
   const options = setup(); options.complete.mockResolvedValue({ text: JSON.stringify({ reply: 'All set.', calls: [] }) });
-  const result = await runChatToolLoop({ ...options, reviewRequested: true, hasPreparedReview: () => false });
+  const result = await runChatToolLoop({ ...options, reviewRequested: true, getPreparedReviews: () => [] });
   expect(result.text).toBe(CHAT_PROPOSAL_MISSING); expect(options.complete).toHaveBeenCalledTimes(2); expect(options.execute).not.toHaveBeenCalled();
 });
 it('repairs malformed explicit-review prose once without reusing fabricated fields as evidence', async () => {
   const options = setup(); options.complete.mockResolvedValueOnce({ text: '### Card 1 — Invented unsupported data' })
     .mockResolvedValueOnce({ text: JSON.stringify({ reply: '### Card 1 — More invented data', calls: [] }) });
-  const result = await runChatToolLoop({ ...options, reviewRequested: true, hasPreparedReview: () => false });
+  const result = await runChatToolLoop({ ...options, reviewRequested: true, getPreparedReviews: () => [] });
   expect(result.text).toBe(CHAT_PROPOSAL_MISSING); expect(options.execute).not.toHaveBeenCalled();
   expect(JSON.stringify(options.complete.mock.calls[1]![0])).not.toContain('Invented unsupported data');
 });
 it.each([false, true])('cannot execute explicit-review calls after permission loss or abort: %s', abort => {
   const options = setup(), controller = new AbortController(); let current = true;
   options.complete.mockImplementation(async () => { if (abort) controller.abort(); else current = false; return { text: JSON.stringify({ reply: '', calls: [{ id: 'r', name: 'getbased_read_context_card', arguments: '{}' }] }) }; });
-  return expect(runChatToolLoop({ ...options, reviewRequested: true, hasPreparedReview: () => false, isCurrent: () => current, signal: controller.signal })).rejects.toThrow().then(() => expect(options.execute).not.toHaveBeenCalled());
+  return expect(runChatToolLoop({ ...options, reviewRequested: true, getPreparedReviews: () => [], isCurrent: () => current, signal: controller.signal })).rejects.toThrow().then(() => expect(options.execute).not.toHaveBeenCalled());
 });
 
 it('exposes and accepts only snapshot reads for the first explicit-review step', async () => {
   const options = setup(); options.tools.push({ type: 'function', function: { name: 'getbased_draft_context', description: 'Draft', parameters: { type: 'object' } } });
   options.complete.mockResolvedValue({ text: JSON.stringify({ reply: '', calls: [{ id: 'd', name: 'getbased_draft_context', arguments: '{}' }] }) });
-  await expect(runChatToolLoop({ ...options, reviewRequested: true, hasPreparedReview: () => false })).rejects.toThrow('unavailable tool call');
+  await expect(runChatToolLoop({ ...options, reviewRequested: true, getPreparedReviews: () => [] })).rejects.toThrow('unavailable tool call');
   expect(options.execute).not.toHaveBeenCalled();
   expect(options.complete.mock.calls[0]![0]).toMatchObject({ jsonSchema: { properties: { calls: { items: { properties: { name: { enum: ['getbased_read_context_card'] } } } } } } });
 });

@@ -58,6 +58,7 @@ export type AgentToolDependencies = {
 } & {
   readContext: () => string | AgentContextSnapshot | Promise<string | AgentContextSnapshot>;
   userMessage?: string;
+  catalogMode?: 'current' | 'compatibility';
   canUseTools?: () => boolean;
   onToolActivity?: ((activity: ChatToolActivity) => void) | undefined;
   onDraftCreated?: (draft: AgentDraft) => void | Promise<void>;
@@ -278,7 +279,7 @@ export function createAgentToolRuntime(dependencies: AgentToolDependencies) {
   const readContext = async () => { assertPermitted(); const value = await read(); assertPermitted(); return value; };
   if (typeof read !== 'function') throw new TypeError('readContext is required');
 
-  const tools = getAgentToolCatalog(binding => typeof dependencies[binding] === 'function');
+  const tools = getAgentToolCatalog(binding => typeof dependencies[binding] === 'function', dependencies.catalogMode);
   const supported = new Set(tools.map(tool => tool.name));
   const drafts: AgentDraft[] = [];
   const outcome = createChatTurnOutcome();
