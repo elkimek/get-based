@@ -246,4 +246,11 @@ describe('review findings on PR #1699', () => {
     expect(second.text).toBe(first.text);
     expect(second.replacements).toBe(0);
   });
+
+  it('redacts titled physician names after a label without a colon but keeps headings', () => {
+    const out = redactReportText('Ordering Dr. Sarah Williams\nOrdering Physician\nGlucose 91 mg/dL', {key: 'k', profileName: 'Demo'}).text;
+    expect(out).not.toContain('Williams');
+    expect(out).toContain('Ordering Physician');
+    expect(out).toContain('Glucose 91 mg/dL');
+  });
 });

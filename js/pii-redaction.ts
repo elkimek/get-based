@@ -274,7 +274,7 @@ export function redactReportText(input: string, context: RedactionContext): Reda
   }
 
   const physicians: Person[] = [];
-  const physicianLabel = /(?:^|[^\p{L}])(?:(?:(?:ordering|referring|attending|treating|primary)\s+)?(?:physician|doctor|provider|clinician)(?:\s+name)?|ordering|referring|l[ée]ka[řr]|o[šs]et[řr]uj[íi]c[íi](?:\s+l[ée]ka[řr])?)\s*:\s*/giu;
+  const physicianLabel = /(?:^|[^\p{L}])(?:(?:(?:ordering|referring|attending|treating|primary)\s+)?(?:physician|doctor|provider|clinician)(?:\s+name)?|ordering|referring|l[ée]ka[řr]|o[šs]et[řr]uj[íi]c[íi](?:\s+l[ée]ka[řr])?)(?:\s*:\s*|[ \t]+(?=(?:dr|mudr|md|do|np|pa|prof)\.?[ \t]+\p{Lu}))/giu;
   for (const match of input.matchAll(physicianLabel)) {
     const rest = input.slice(match.index! + match[0].length).split('\n')[0]!;
     const person = parsePersonName(segmentValue(rest));
