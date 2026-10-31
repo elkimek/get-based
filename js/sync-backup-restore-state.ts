@@ -7,6 +7,15 @@ import { createUniqueId } from './unique-id.js';
 
 export const SYNC_BACKUP_RESTORE_PENDING_KEY = 'labcharts-sync-backup-restore-pending';
 
+/** Bind recovery to its intended identity without storing recovery words. */
+export async function fingerprintBackupRestoreOwner(mnemonic: string) {
+  const normalized = mnemonic.normalize('NFKD').trim().toLowerCase().split(/\s+/).join(' ');
+  if (!normalized) throw new Error('Sync identity is unavailable');
+  const bytes = new TextEncoder().encode(`getbased:sync-recovery-owner:${normalized}`);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
 function isSafeProfileId(value: unknown): value is string {
   return typeof value === 'string' && /^[a-zA-Z0-9_-]+$/.test(value);
 }
@@ -16,22 +25,24 @@ function pendingJournal() {
     const raw = localStorage.getItem(SYNC_BACKUP_RESTORE_PENDING_KEY);
     const parsed: unknown = JSON.parse(raw || '[]');
     const entries: unknown[] = Array.isArray(parsed) ? parsed : [];
-    const markers = entries.filter((entry): entry is {kind: string; generation: string} => !!entry && typeof entry === 'object'
+    const markers = entries.filter((entry): entry is {kind: string; generation: string; ownerFingerprint?: unknown} => !!entry && typeof entry === 'object'
       && (entry as {kind?: unknown}).kind === 'restore-generation' && typeof (entry as {generation?: unknown}).generation === 'string');
-    return {readable: true, profileIds: [...new Set(entries.filter(isSafeProfileId))],
+    const ownerFingerprint = markers.length === 1 ? markers[0]!.ownerFingerprint : undefined;
+    return {readable: markers.length <= 1 && (ownerFingerprint === undefined || (typeof ownerFingerprint === 'string' && /^[a-f0-9]{64}$/.test(ownerFingerprint))),
+      ownerFingerprint: typeof ownerFingerprint === 'string' ? ownerFingerprint : undefined, profileIds: [...new Set(entries.filter(isSafeProfileId))],
       generation: markers.length === 1 ? markers[0]!.generation : `legacy:${raw || '[]'}`};
   } catch { return {readable: false, profileIds: [] as string[], generation: ''}; }
 }
 
-function journalValue(profileIds: readonly string[], generation: string) {
+function journalValue(profileIds: readonly string[], generation: string, ownerFingerprint?: string) {
   // Keep an array so older tabs still see every pending profile and ignore
   // this non-profile entry through their existing safe-ID filter.
-  return JSON.stringify([...profileIds, {kind: 'restore-generation', generation}]);
+  return JSON.stringify([...profileIds, {kind: 'restore-generation', generation, ...(ownerFingerprint ? {ownerFingerprint} : {})}]);
 }
 
 export interface BackupRestoreStage { rollback(): boolean }
 
-function writePendingBackupRestore(profileIds: readonly unknown[], required: boolean) {
+function writePendingBackupRestore(profileIds: readonly unknown[], required: boolean, ownerFingerprint?: string) {
   const safeIds = [...new Set((Array.isArray(profileIds) ? profileIds : []).filter(isSafeProfileId))];
   let previous: string | null = null;
   let value: string | undefined;
@@ -47,7 +58,8 @@ function writePendingBackupRestore(profileIds: readonly unknown[], required: boo
   if (safeIds.length === 0) return {profileIds: safeIds, rollback};
   try {
     if (required) previous = localStorage.getItem(SYNC_BACKUP_RESTORE_PENDING_KEY);
-    value = journalValue(safeIds, createUniqueId('restore_'));
+    if (ownerFingerprint !== undefined && !/^[a-f0-9]{64}$/.test(ownerFingerprint)) throw new Error('Invalid recovery owner fingerprint');
+    value = journalValue(safeIds, createUniqueId('restore_'), ownerFingerprint);
     localStorage.setItem(SYNC_BACKUP_RESTORE_PENDING_KEY, value);
     if (required && localStorage.getItem(SYNC_BACKUP_RESTORE_PENDING_KEY) !== value) throw new Error('Recovery journal was not retained');
   } catch {
@@ -61,8 +73,8 @@ export function markBackupRestorePending(profileIds: readonly unknown[], options
 }
 
 /** Confirm durable intent and retain an owned rollback for a rejected owner reset. */
-export function stageBackupRestorePending(profileIds: readonly unknown[]): BackupRestoreStage {
-  return writePendingBackupRestore(profileIds, true);
+export function stageBackupRestorePending(profileIds: readonly unknown[], options: {ownerFingerprint?: string} = {}): BackupRestoreStage {
+  return writePendingBackupRestore(profileIds, true, options.ownerFingerprint);
 }
 
 export function getPendingBackupRestoreProfileIds() {
@@ -74,7 +86,7 @@ function acknowledgeProfile(profileId: string, generation: string) {
   if (!current.readable || current.generation !== generation) return false;
   const remaining = current.profileIds.filter(id => id !== profileId);
   try {
-    if (remaining.length) localStorage.setItem(SYNC_BACKUP_RESTORE_PENDING_KEY, journalValue(remaining, generation));
+    if (remaining.length) localStorage.setItem(SYNC_BACKUP_RESTORE_PENDING_KEY, journalValue(remaining, generation, current.ownerFingerprint));
     else localStorage.removeItem(SYNC_BACKUP_RESTORE_PENDING_KEY);
     return true;
   } catch { return false; }
@@ -83,6 +95,7 @@ function acknowledgeProfile(profileId: string, generation: string) {
 interface RestorePublisher {
   runtime: unknown;
   ownerId: string;
+  ownerMnemonic?: string;
   isCurrent(): boolean;
   getProfiles(): readonly {id?: unknown}[];
   pushProfilesById(ids: readonly string[], options: {force: true; completeSnapshot: true}): Promise<{succeeded: number; skipped: number; failed: number}>;
@@ -104,6 +117,12 @@ export async function republishPendingBackupRestore(deps: RestorePublisher) {
   if (!journal.readable) return deferred('progress-unavailable');
   if (!journal.profileIds.length) return {complete: true, remaining: 0, reason: ''};
   if (!deps.ownerId || !deps.isCurrent()) return deferred('identity-unavailable');
+  if (journal.ownerFingerprint) {
+    let actualFingerprint: string;
+    try { actualFingerprint = await fingerprintBackupRestoreOwner(deps.ownerMnemonic || ''); }
+    catch { return deferred('identity-unavailable'); }
+    if (actualFingerprint !== journal.ownerFingerprint) return deferred('identity-changed');
+  }
   if (!progress || progress.runtime !== deps.runtime || progress.ownerId !== deps.ownerId || progress.generation !== journal.generation) {
     progress = {runtime: deps.runtime, ownerId: deps.ownerId, generation: journal.generation, committed: new Map(), attempts: new Map()};
   }

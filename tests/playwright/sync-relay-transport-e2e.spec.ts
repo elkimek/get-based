@@ -894,3 +894,45 @@ test('rejected identity rotation restores normal incoming sync with an unavailab
     for (const device of devices.reverse()) await device.context.close();
   }
 });
+
+test('same-browser old-owner tab cannot acknowledge an in-flight identity handoff', async ({browser}) => {
+ test.setTimeout(120_000);
+ const a = await createDevice(browser, 'multi-tab handoff device A');
+ try {
+  await setSyntheticData(a.page, 'seed');
+  const previous = await enableNewIdentity(a.page);
+  const other = await a.context.newPage();
+  await other.goto(APP_URL);
+  await waitForOwner(other, previous.ownerId);
+  await a.page.evaluate(async () => {
+   const runtime = await import('/js/sync-runtime.js');
+   const actual = runtime.getSyncEvolu();
+   if (!actual) throw new Error('Missing real SDK');
+   let release!: () => void;
+   const gate = new Promise<void>(resolve => {release=resolve;});
+   const probe=window as unknown as {__handoffRelease:()=>void;__handoffStarted:boolean};
+   probe.__handoffRelease=release; probe.__handoffStarted=false;
+   const held=new Proxy(actual,{get(target,property,receiver){
+    if(property==='restoreAppOwner')return async (mnemonic:string,options?:{reload?:boolean})=>{probe.__handoffStarted=true;await gate;return target.restoreAppOwner(mnemonic,options);};
+    return Reflect.get(target,property,receiver);
+   }});
+   (await import('/js/sync-identity.js')).configureSyncIdentity({getEvolu:()=>held});
+  });
+  const rotating=a.page.evaluate(async () => (await import('/js/sync-diagnose-identity-actions.js')).confirmRotateIdentity());
+  await a.page.locator('#confirm-ok').click();await rotating;
+  await a.page.locator('#rotate-saved-check').check();await a.page.locator('#rotate-apply-btn').click();
+  await expect.poll(()=>a.page.evaluate(()=>(window as unknown as {__handoffStarted:boolean}).__handoffStarted)).toBe(true);
+  const queued=()=>other.evaluate(async()=>(await import('/js/sync-backup-restore-state.js')).getPendingBackupRestoreProfileIds());
+  expect(await queued()).toEqual(['default']);
+  expect((await other.evaluate(async()=>(await import('/js/sync-runtime.js')).getSyncAppOwner()))?.id).toBe(previous.ownerId);
+  await other.evaluate(async()=>(await import('/js/sync.js')).syncNow());
+  expect(await queued()).toEqual(['default']);
+  await other.close();
+  const reloaded=a.page.waitForEvent('load');await a.page.evaluate(()=>(window as unknown as {__handoffRelease:()=>void}).__handoffRelease());await reloaded;
+  await expect.poll(()=>a.page.evaluate(async old=>(await import('/js/sync-runtime.js')).getSyncAppOwner()?.id!==old,previous.ownerId)).toBe(true);
+  await waitForContext(a.page,BASELINE_CONTEXT);
+  await waitForNotes(a.page,['baseline-note']);
+  const peer=await createDevice(browser,'multi-tab fresh peer');
+  try{const identity=await waitForOwner(a.page);await joinIdentity(peer.page,identity.mnemonic,identity.ownerId);await waitForContext(peer.page,BASELINE_CONTEXT);await waitForNotes(peer.page,['baseline-note']);}finally{await peer.context.close();}
+ }finally{await a.context.close();}
+});

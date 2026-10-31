@@ -6,7 +6,7 @@ import { loadScriptOnce, showNotification } from './utils.js';
 import {
   clearSyncDisableStorage,
 } from './sync-disable-cleanup.js';
-import { getPendingBackupRestoreProfileIds, type BackupRestoreStage } from './sync-backup-restore-state.js';
+import { fingerprintBackupRestoreOwner, getPendingBackupRestoreProfileIds, type BackupRestoreStage } from './sync-backup-restore-state.js';
 import { scheduleSyncRuntimeReload } from './sync-runtime.js';
 import { setSyncEnabled, setSyncPublishingSuspended } from './sync-settings-state.js';
 
@@ -20,7 +20,7 @@ let _qrCodeLoad: Promise<QRCodeFactory> | null = null;
 let _getAppOwner: () => SyncAppOwner | null = () => null;
 let _getAppOwnerError: () => unknown = () => null;
 let _getEvolu: () => SyncEvolu | null = () => null;
-let _seedLocalProfiles: () => Promise<BackupRestoreStage | void> = async () => {};
+let _seedLocalProfiles: (options: {ownerFingerprint: string}) => Promise<BackupRestoreStage | void> = async () => {};
 let _pendingRecoveryRollback: {runtime: SyncEvolu; recovery: BackupRestoreStage} | null = null;
 
 export const RESTORE_JOIN_PENDING_KEY = 'labcharts-sync-restore-join-pending';
@@ -209,7 +209,9 @@ export async function restoreFromMnemonic(mnemonic: string, options: { seedLocal
     if (setSyncPublishingSuspended(true)) return false;
     try {
       // Confirm durable recovery before resetting the owner or its database.
-      recovery = await _seedLocalProfiles();
+      const ownerFingerprint = await fingerprintBackupRestoreOwner(normalizedMnemonic);
+      if (currentEvolu() !== evolu) return false;
+      recovery = await _seedLocalProfiles({ownerFingerprint});
     } catch {
       if (currentEvolu() !== evolu) return false;
       setSyncPublishingSuspended(false);

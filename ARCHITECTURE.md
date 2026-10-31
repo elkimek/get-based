@@ -387,6 +387,10 @@ owner. Failed writes/readback retain the original identity and saved Sync state.
 If the SDK rejects a reset while its actual owner is unchanged, restore the exact
 prior journal only while this operation still owns the staged generation. A
 newer journal or an identity changed before startup failed retains its recovery.
+The staged journal also binds to a domain-separated SHA-256 fingerprint of the
+intended mnemonic; recovery words are never stored in the journal. Every
+acknowledgement preserves that binding. A second tab with an older identity
+defers recovery even while the originating tab is awaiting SDK reset.
 Publishing stays suspended in the retiring runtime until replacement; the
 reloaded owner publishes complete recovery. The old owner/query cache cannot
 acknowledge the new owner's recovery.

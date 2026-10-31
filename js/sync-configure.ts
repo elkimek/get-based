@@ -135,7 +135,7 @@ export function configureSyncModules({ enableSync }: {
     getAppOwner: getSyncAppOwner,
     getAppOwnerError: getSyncAppOwnerError,
     getEvolu: getSyncEvolu,
-    seedLocalProfiles: async () => stageBackupRestorePending(getProfiles().map(profile => profile.id)),
+    seedLocalProfiles: async options => stageBackupRestorePending(getProfiles().map(profile => profile.id), options),
   });
 
   configureSyncDiagnostics({

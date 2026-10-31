@@ -6,7 +6,7 @@ import {
   getPendingBackupRestoreProfileIds,
   prepareRestoredProfilesForSync, markBackupRestorePending, republishPendingBackupRestore,
   resetBackupRestoreRetryBudget, SYNC_BACKUP_RESTORE_PENDING_KEY,
-  stageBackupRestorePending,
+  stageBackupRestorePending, fingerprintBackupRestoreOwner,
 } from '../js/sync-backup-restore-state.js';
 
 describe('backup restore sync handoff', () => {
@@ -22,6 +22,46 @@ describe('backup restore sync handoff', () => {
         return {succeeded: 1, failed: 0, skipped: 0};
       })};
   }
+
+  it('binds a staged journal to the intended identity across old tabs and partial progress', async () => {
+    const mnemonic = 'synthetic intended recovery identity';
+    const ownerFingerprint = await fingerprintBackupRestoreOwner(mnemonic);
+    stageBackupRestorePending(['first', 'second'], {ownerFingerprint});
+    expect(localStorage.getItem(SYNC_BACKUP_RESTORE_PENDING_KEY)).not.toContain(mnemonic);
+    const old = {...publisher([{id: 'first'}, {id: 'second'}]), ownerMnemonic: 'synthetic retiring identity'};
+    expect((await republishPendingBackupRestore(old)).reason).toBe('identity-changed');
+    expect(old.pushProfilesById).not.toHaveBeenCalled();
+    expect(getPendingBackupRestoreProfileIds()).toEqual(['first', 'second']);
+    const next = {...publisher([{id: 'first'}]), ownerId: 'new-owner', ownerMnemonic: mnemonic};
+    expect((await republishPendingBackupRestore(next)).complete).toBe(false);
+    expect(getPendingBackupRestoreProfileIds()).toEqual(['second']);
+    expect(JSON.parse(localStorage.getItem(SYNC_BACKUP_RESTORE_PENDING_KEY)!).at(-1).ownerFingerprint).toBe(ownerFingerprint);
+    expect((await republishPendingBackupRestore(old)).reason).toBe('identity-changed');
+    expect(old.pushProfilesById).not.toHaveBeenCalled();
+    next.getProfiles = () => [{id: 'second'}];
+    expect((await republishPendingBackupRestore(next)).complete).toBe(true);
+    expect(next.pushProfilesById.mock.calls.map(([ids]) => ids)).toEqual([['first'], ['second']]);
+  });
+
+  it('normalizes identity fingerprints without retaining recovery words', async () => {
+    expect(await fingerprintBackupRestoreOwner('  SYNTHETIC   target\nidentity  ')).toBe(await fingerprintBackupRestoreOwner('synthetic target identity'));
+    await expect(fingerprintBackupRestoreOwner('   ')).rejects.toThrow('Sync identity is unavailable');
+  });
+
+  it.each(['unavailable', 'malformed', 'ambiguous'] as const)('retains bound recovery when its identity is %s', async kind => {
+    const ownerFingerprint = await fingerprintBackupRestoreOwner('synthetic target identity');
+    stageBackupRestorePending(['first'], {ownerFingerprint});
+    if (kind !== 'unavailable') {
+      const raw = JSON.parse(localStorage.getItem(SYNC_BACKUP_RESTORE_PENDING_KEY)!);
+      if (kind === 'malformed') raw.at(-1).ownerFingerprint = 'invalid';
+      else raw.push({...raw.at(-1)});
+      localStorage.setItem(SYNC_BACKUP_RESTORE_PENDING_KEY, JSON.stringify(raw));
+    }
+    const deps = publisher([{id: 'first'}]);
+    expect((await republishPendingBackupRestore(deps)).complete).toBe(false);
+    expect(deps.pushProfilesById).not.toHaveBeenCalled();
+    expect(getPendingBackupRestoreProfileIds()).toEqual(['first']);
+  });
 
   it('does not roll back a newer journal when a staged owner operation fails', () => {
     markBackupRestorePending(['previous']);

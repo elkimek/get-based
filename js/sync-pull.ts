@@ -276,7 +276,7 @@ async function receiveSync() {
       dbg(`Restore preflight: republishing ${restoredProfileIds.length} restored profile(s)`);
       const ownerId = getSyncAppOwner()?.id || '';
       const restored = await republishPendingBackupRestore({
-        runtime: evolu, ownerId, getProfiles: _getProfiles, pushProfilesById: _pushProfilesById,
+        runtime: evolu, ownerId, ownerMnemonic: getSyncAppOwner()?.mnemonic || '', getProfiles: _getProfiles, pushProfilesById: _pushProfilesById,
         isCurrent: () => currentEvolu() === evolu && getSyncAppOwner()?.id === ownerId && _isSyncEnabled(),
       });
       if (!restored.complete) {

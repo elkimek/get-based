@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { webcrypto } from 'node:crypto';
 import { configureSyncIdentity, restoreFromMnemonic, RESTORE_NOTICE_KEY } from '../js/sync-identity.js';
 import { isSyncEnabled, isSyncPaused, setSyncEnabled, setSyncPaused, setSyncPublishingSuspended, SYNC_STORAGE_KEY } from '../js/sync-settings-state.js';
-import { getPendingBackupRestoreProfileIds, stageBackupRestorePending, SYNC_BACKUP_RESTORE_PENDING_KEY } from '../js/sync-backup-restore-state.js';
+import { fingerprintBackupRestoreOwner, getPendingBackupRestoreProfileIds, stageBackupRestorePending, SYNC_BACKUP_RESTORE_PENDING_KEY } from '../js/sync-backup-restore-state.js';
 import {setSyncEvolu} from '../js/sync-runtime.js';
-beforeEach(() => { localStorage.clear(); sessionStorage.clear(); setSyncPublishingSuspended(false); document.body.innerHTML = '<div id="notification-container"></div>'; });
-afterEach(() => { configureSyncIdentity({ getAppOwner: () => null, getEvolu: () => null, seedLocalProfiles: async () => {} }); setSyncEvolu(null); setSyncPublishingSuspended(false); localStorage.clear(); sessionStorage.clear(); vi.restoreAllMocks(); });
+beforeEach(() => { vi.stubGlobal('crypto', webcrypto); localStorage.clear(); sessionStorage.clear(); setSyncPublishingSuspended(false); document.body.innerHTML = '<div id="notification-container"></div>'; });
+afterEach(() => { configureSyncIdentity({ getAppOwner: () => null, getEvolu: () => null, seedLocalProfiles: async () => {} }); setSyncEvolu(null); setSyncPublishingSuspended(false); localStorage.clear(); sessionStorage.clear(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 for (const failed of [false, true]) {
   it(`does not mutate a replaced runtime after an old restore ${failed ? 'fails' : 'succeeds'}`, async () => {
     let finish!: () => void; let reject!: (error: Error) => void;
@@ -57,12 +58,13 @@ it('persists recovery for the new owner while preventing the retiring runtime fr
       expect(isSyncEnabled()).toBe(false);
     })};
     setSyncEvolu(engine);
-    const seed = vi.fn(async () => {
+    const seed = vi.fn(async (options: {ownerFingerprint: string}) => {
       expect(engine.restoreAppOwner).not.toHaveBeenCalled();
       expect(localStorage.getItem(SYNC_STORAGE_KEY)).toBe('true');
       expect(isSyncPaused()).toBe(true);
       expect(isSyncEnabled()).toBe(false);
-      return stageBackupRestorePending(['first', 'second']);
+      expect(options.ownerFingerprint).toBe(await fingerprintBackupRestoreOwner('new fixture identity'));
+      return stageBackupRestorePending(['first', 'second'], options);
     });
     configureSyncIdentity({getEvolu: () => engine, getAppOwner: () => ({id: 'retiring-owner', mnemonic: 'old fixture identity'}), seedLocalProfiles: seed});
     expect(await restoreFromMnemonic('new fixture identity', {seedLocal: true})).toBe(true);
@@ -73,6 +75,19 @@ it('persists recovery for the new owner while preventing the retiring runtime fr
     setSyncEvolu({});
     expect(isSyncEnabled()).toBe(true);
   } finally { vi.clearAllTimers(); vi.useRealTimers(); }
+});
+
+it('keeps the old owner and journal if its target identity cannot be fingerprinted', async () => {
+  setSyncEnabled(true);
+  localStorage.setItem(SYNC_BACKUP_RESTORE_PENDING_KEY, '["previous"]');
+  const engine = {restoreAppOwner: vi.fn()};
+  const seed = vi.fn(async () => stageBackupRestorePending(['candidate']));
+  vi.spyOn(webcrypto.subtle, 'digest').mockRejectedValueOnce(new Error('Synthetic crypto failure'));
+  configureSyncIdentity({getEvolu: () => engine, getAppOwner: () => ({id: 'retained-owner'}), seedLocalProfiles: seed});
+  expect(await restoreFromMnemonic('synthetic replacement identity', {seedLocal: true})).toBe(false);
+  expect(seed).not.toHaveBeenCalled(); expect(engine.restoreAppOwner).not.toHaveBeenCalled();
+  expect(localStorage.getItem(SYNC_BACKUP_RESTORE_PENDING_KEY)).toBe('["previous"]');
+  expect(isSyncEnabled()).toBe(true);
 });
 
 it.each(['write', 'readback'] as const)('keeps the old identity and paused state when recovery journal %s fails', async failure => {
@@ -151,10 +166,26 @@ it('rolls back its owned staged journal when the runtime changes before the SDK 
     return staged;
   }});
   const task = restoreFromMnemonic('replacement fixture words', {seedLocal: true});
+  await vi.waitFor(() => expect(getPendingBackupRestoreProfileIds()).toEqual(['unavailable']));
   engine = {restoreAppOwner: vi.fn(async () => {})}; setSyncEvolu(engine);
   sessionStorage.setItem(RESTORE_NOTICE_KEY, 'new-runtime-notice');
   finish(); expect(await task).toBe(false);
   expect(first.restoreAppOwner).not.toHaveBeenCalled();
   expect(getPendingBackupRestoreProfileIds()).toEqual([]);
   expect(sessionStorage.getItem(RESTORE_NOTICE_KEY)).toBe('new-runtime-notice');
+});
+
+it('does not stage recovery after its runtime changes during identity fingerprinting', async () => {
+  let finish!: (digest: ArrayBuffer) => void;
+  vi.spyOn(webcrypto.subtle, 'digest').mockReturnValueOnce(new Promise<ArrayBuffer>(resolve => {finish = resolve;}));
+  const first = {restoreAppOwner: vi.fn()}; let engine = first;
+  const seed = vi.fn(async () => stageBackupRestorePending(['candidate']));
+  configureSyncIdentity({getEvolu: () => engine, seedLocalProfiles: seed});
+  const task = restoreFromMnemonic('synthetic target identity', {seedLocal: true});
+  engine = {restoreAppOwner: vi.fn()}; setSyncEvolu(engine);
+  sessionStorage.setItem(RESTORE_NOTICE_KEY, 'replacement-notice');
+  finish(new ArrayBuffer(32)); expect(await task).toBe(false);
+  expect(seed).not.toHaveBeenCalled(); expect(first.restoreAppOwner).not.toHaveBeenCalled();
+  expect(getPendingBackupRestoreProfileIds()).toEqual([]);
+  expect(sessionStorage.getItem(RESTORE_NOTICE_KEY)).toBe('replacement-notice');
 });

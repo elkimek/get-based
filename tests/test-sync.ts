@@ -516,7 +516,7 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
       && syncIdentitySrc.includes('export function getMnemonicResolutionError')
       && syncIdentitySrc.includes('export async function restoreFromMnemonic')
       && syncIdentitySrc.includes('RESTORE_JOIN_PENDING_KEY')
-      && syncConfigureSrc.includes('seedLocalProfiles: async () => stageBackupRestorePending(getProfiles().map(profile => profile.id))')
+      && syncConfigureSrc.includes('seedLocalProfiles: async (options) => stageBackupRestorePending(getProfiles().map(profile => profile.id), options)')
       && exportBlockIncludes(syncSrc, ['getMnemonic', 'getMnemonicResolutionError', 'restoreFromMnemonic']));
   assert('service worker precaches sync-identity.js',
     serviceWorkerSrc.includes("'/js/sync-identity.js'"));
@@ -1642,8 +1642,9 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
   assert('restore-as-source confirms recovery with retiring runtime suspended before changing owner',
     /restoreFromMnemonic\(mnemonic,\s*options = \{\}\)/.test(syncIdentitySrc)
       && sourceRestoreBranch.includes('setSyncPublishingSuspended(true)')
-      && sourceRestoreBranch.indexOf('setSyncPublishingSuspended(true)') < sourceRestoreBranch.indexOf('await _seedLocalProfiles()')
-      && sourceRestoreBranch.includes('await _seedLocalProfiles()')
+      && sourceRestoreBranch.indexOf('setSyncPublishingSuspended(true)') < sourceRestoreBranch.indexOf('await _seedLocalProfiles({ ownerFingerprint })')
+      && sourceRestoreBranch.includes('await _seedLocalProfiles({ ownerFingerprint })')
+      && sourceRestoreBranch.includes('await fingerprintBackupRestoreOwner(normalizedMnemonic)')
       && /restoreMnemonicForDiagnose\(words\.join\(' '\),\s*\{ seedLocal: true \}\)/.test(syncDiagnoseIdentityActionsSrc));
   assert('restore-as-joiner marks first pull to ignore old local tombstones',
     /setRestoreJoinPending\(true\)/.test(syncIdentitySrc)
