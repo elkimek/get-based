@@ -168,7 +168,9 @@ jobs:
       - name: Full unit coverage and unchanged critical behavior floors
         if: needs.prepare.outputs.full == 'true'
         run: |
-          node node_modules/vitest/vitest.mjs run --coverage
+          # Leave room for native TypeScript and nested producer subprocesses.
+          # Keep the complete suite, coverage denominator and deadlines intact.
+          node node_modules/vitest/vitest.mjs run --coverage --maxWorkers=2
           node node_modules/vitest/vitest.mjs run --config vitest.critical.config.js
       - name: Affected unit tests and mandatory changed-source checks
         if: needs.prepare.outputs.full != 'true'
