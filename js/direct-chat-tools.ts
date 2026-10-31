@@ -6,7 +6,7 @@ import { callClaudeAPI, getAIProvider, getActiveModelId, getVeniceE2EE, isE2EEMo
   getVeniceKey, getOpenRouterKey, getPpqKey, getRoutstrKey, getRoutstrNodeUrl,
   getCustomApiUrl, getCustomApiKey, getOllamaConfig } from './api.js';
 import { state } from './state.js';
-import { createAgentToolRuntime, getAgentToolCatalog } from './agent-tool-runtime.js';
+import { createAgentToolRuntime } from './agent-tool-runtime.js';
 import { createBrowserAgentToolDependencies, canDiscloseAgentDraftReview } from './agent-tool-bindings.js';
 import type { BrowserKnowledgeSearchOptions } from './agent-tool-bindings.js';
 import { buildAgentDraftReviewContext } from './agent-chat-context.js';
@@ -47,7 +47,7 @@ export async function callDirectChatWithTools(options: DirectChatToolOptions) {
     ...createBrowserAgentToolDependencies(profileId, { signal: options.signal, isCurrent: current, onKnowledgeResult, appControlSession }),
     canUseTools: authorization.current, createId: authorization.createId, onToolActivity: options.onToolActivity,
   });
-  const result = await runChatToolLoop({ ...request, tools: (authorization.current() ? getAgentToolCatalog() : []).map(tool => ({ type: 'function', function: {
+  const result = await runChatToolLoop({ ...request, tools: runtime.tools.map(tool => ({ type: 'function', function: {
     name: tool.name, description: tool.description, parameters: tool.inputSchema,
   } })),
     system: `${String(options.system || '')}\n\n${authorization.current() ? CHAT_TOOL_INSTRUCTIONS + buildAgentDraftReviewContext(history, canDiscloseAgentDraftReview) : CHAT_CONTROLS_OFF_INSTRUCTIONS}`,

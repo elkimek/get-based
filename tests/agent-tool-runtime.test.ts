@@ -321,3 +321,16 @@ it('does not label disabled or unavailable lookups as successful data disclosure
     expect(result.success).toBe(false); expect(result.contentItems[0].text).toContain('Disabled by user.');
   }
 });
+
+it('advertises only tool handlers bound to this turn, with the same subset for CLI transport', async () => {
+  const runtime = createAgentToolRuntime({ readContext: () => CONTEXT });
+  expect(runtime.tools.map(tool => tool.name)).toEqual(['getbased_lab_context', 'getbased_section']);
+  expect(getCodexDynamicTools(runtime.tools).map(tool => tool.name)).toEqual(['getbased_lab_context', 'getbased_section']);
+  const unavailable = await runtime.execute({ tool: 'getbased_app_actions', arguments: '{}' });
+  expect(unavailable.success).toBe(false);
+  const readAppState = vi.fn(() => ({ available: true }));
+  const bound = createAgentToolRuntime({ readContext: () => CONTEXT, readAppState });
+  expect(bound.tools.map(tool => tool.name)).toEqual(['getbased_lab_context', 'getbased_section', 'getbased_read_app']);
+  expect((await bound.execute({ tool: 'getbased_read_app', arguments: '{"action":"assistant.models"}' })).success).toBe(true);
+  expect(readAppState).toHaveBeenCalledExactlyOnceWith({ action: 'assistant.models' });
+});

@@ -746,3 +746,31 @@ it('requires explicit no-tools chat and does not resume a session with the oppos
     }
   }
 });
+
+it('starts a fresh Codex session when bound tool capabilities change and replays visible history', async () => {
+  const appServer = new FakeAppServer(), original = appServer.request.bind(appServer); let starts = 0;
+  appServer.request = async (method, params) => {
+    const result = await original(method, params);
+    if (method === 'thread/start' && result.thread) result.thread.id = `scope-thread-${++starts}`;
+    return result;
+  };
+  const service = (createAgentHostService as unknown as (options: ServiceFixtureOptions) => ReturnType<typeof createAgentHostService>)({ appServer, token: TOKEN, workspaceRoot: '/tmp/agent-test' });
+  const run = async (body: Record<string, unknown>) => {
+    const response = await service.handleRequest(turnRequest(body)); expect(response.status).toBe(200);
+    const reader = response.body!.getReader(), decoder = new TextDecoder(), buffer = { value: '' };
+    const session = await nextEvent(reader, decoder, buffer); expect(session.type).toBe('session');
+    const threadId = appServer.requests.findLast(request => request.method === 'turn/start')!.params.threadId;
+    appServer.emit('notification', { method: 'turn/completed', params: { threadId, turn: { id: 'turn-1', status: 'completed' } } });
+    expect((await nextEvent(reader, decoder, buffer)).type).toBe('done'); await reader.cancel(); return session;
+  };
+  const first = await run({}); expect(first.resumed).toBe(false);
+  const tools = [{ name: 'getbased_read_context_card' }];
+  const second = await run({ threadId: first.threadId, tools, history: [{ role: 'user', content: 'Visible context retained.' }] });
+  expect(second.resumed).toBe(false); expect(second.threadId).not.toBe(first.threadId);
+  expect(appServer.requests.filter(request => request.method === 'thread/start')).toHaveLength(2);
+  expect(appServer.requests.findLast(request => request.method === 'thread/start')!.params.dynamicTools).toEqual(getCodexDynamicTools().filter(tool => tool.name === 'getbased_read_context_card'));
+  expect(appServer.requests.findLast(request => request.method === 'thread/inject_items')!.params).toEqual({ threadId: 'scope-thread-2', items: [{ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'Visible context retained.' }] }] });
+  const third = await run({ threadId: second.threadId, tools }); expect(third.resumed).toBe(true);
+  expect(appServer.requests.filter(request => request.method === 'thread/start')).toHaveLength(2);
+  expect(appServer.requests.filter(request => request.method === 'thread/resume')).toHaveLength(1);
+});

@@ -83,7 +83,7 @@ export async function callCodexAgent(options: AgentChatOptions) {
     threadId,
     history: options.history,
     imageUploadIds,
-    tools: authorization.current() ? getCodexDynamicTools() : [],
+    tools: authorization.current() ? getCodexDynamicTools(runtime.tools) : [],
     chatControlsEnabled: authorization.current(),
     toolRuntime,
     signal: options.signal,

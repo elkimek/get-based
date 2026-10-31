@@ -277,6 +277,8 @@ export function createAgentToolRuntime(dependencies: AgentToolDependencies) {
   const readContext = async () => { assertPermitted(); const value = await read(); assertPermitted(); return value; };
   if (typeof read !== 'function') throw new TypeError('readContext is required');
 
+  const tools = getAgentToolCatalog(binding => typeof dependencies[binding] === 'function');
+  const supported = new Set(tools.map(tool => tool.name));
   const drafts: AgentDraft[] = [];
   const turnTime = new Date();
   const turnLocalDate = `${turnTime.getFullYear()}-${String(turnTime.getMonth() + 1).padStart(2, '0')}-${String(turnTime.getDate()).padStart(2, '0')}`;
@@ -321,7 +323,7 @@ export function createAgentToolRuntime(dependencies: AgentToolDependencies) {
   };
 
   const runtime = Object.freeze({
-    tools: permitted() ? getAgentToolCatalog() : [],
+    tools: permitted() ? tools : [],
     getDrafts: () => permitted() ? drafts.map(draft => ({ ...draft, payload: { ...draft.payload } })) : [],
 
     /**
@@ -336,7 +338,7 @@ export function createAgentToolRuntime(dependencies: AgentToolDependencies) {
       }
 
       const tool = typeof call.tool === 'string' ? call.tool : '';
-      if (!getAgentToolCatalog().some(definition => definition.name === tool)) {
+      if (!supported.has(tool)) {
         return failure(`Unknown tool: ${tool || '(missing)'}.`);
       }
 

@@ -50,6 +50,7 @@ export function createAgentHostService(options: AgentHostServiceOptions) {
   const startingOrActiveTurns = new Set<string>();
   const mcpSessions = new Map<string, McpSession>();
   const sessionMcp = new Map<string, McpContext>();
+  const codexToolScopes = new Map<string, string>();
 
   const publicRoute = (route: HostRoute) => ({
     id: String(route.id || '').slice(0, 80),
@@ -491,6 +492,7 @@ export function createAgentHostService(options: AgentHostServiceOptions) {
       return jsonResponse({ error: 'thread_turn_already_active' }, 409, cors);
     }
     const dynamicTools = sanitizeDynamicTools(body.tools);
+    const toolScope = dynamicTools.map(tool => tool.name).sort().join(',');
     const purpose = body.purpose === 'feature' ? 'feature' : 'chat';
     if (purpose === 'chat' && body.chatControlsEnabled === false && dynamicTools.length) return jsonResponse({ error: 'chat_controls_disabled' }, 400, cors);
     if (purpose === 'chat' && dynamicTools.length === 0 && body.chatControlsEnabled !== false) return jsonResponse({ error: 'no_allowed_tools' }, 400, cors);
@@ -593,7 +595,9 @@ export function createAgentHostService(options: AgentHostServiceOptions) {
         if (closed) return;
         let threadResult;
         let resumed = false;
-        if (requestedThreadId) {
+        // Codex fixes dynamic tools when a thread starts. Never resume a
+        // different (or unknown) capability scope; replay visible history instead.
+        if (requestedThreadId && codexToolScopes.get(requestedThreadId) === toolScope) {
           try {
             threadResult = await appServer!.request<CodexThreadResult | null>('thread/resume', {
               threadId: requestedThreadId,
@@ -620,6 +624,8 @@ export function createAgentHostService(options: AgentHostServiceOptions) {
         if (closed) return;
         threadId = String(threadResult?.thread?.id || '');
         if (!threadId) throw new Error('Codex did not return a thread ID.');
+        codexToolScopes.delete(threadId); codexToolScopes.set(threadId, toolScope);
+        if (codexToolScopes.size > 128) codexToolScopes.delete(codexToolScopes.keys().next().value!);
         if (!resumed && history.length) {
           await appServer!.request('thread/inject_items', {
             threadId,
