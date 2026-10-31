@@ -823,3 +823,38 @@ test('identity rotation with partial backup recovery stops repeat uploads and la
     for (const device of devices.reverse()) await device.context.close();
   }
 });
+
+test('native identity rotation retains its owner and data when recovery storage is full', async ({browser}) => {
+  const a = await createDevice(browser, 'journal failure device A');
+  try {
+    await setSyntheticData(a.page, 'seed');
+    const previous = await enableNewIdentity(a.page);
+    await a.page.evaluate(async () => (await import('/js/sync.js')).pauseSync());
+    await a.page.evaluate(() => {
+      const original = Storage.prototype.setItem;
+      Storage.prototype.setItem = function(key, value) {
+        if (key === 'labcharts-sync-backup-restore-pending') throw new DOMException('Synthetic full storage', 'QuotaExceededError');
+        return original.call(this, key, value);
+      };
+    });
+    const rotating = a.page.evaluate(async () => (await import('/js/sync-diagnose-identity-actions.js')).confirmRotateIdentity());
+    await a.page.locator('#confirm-ok').click(); await rotating;
+    await a.page.locator('#rotate-saved-check').check();
+    await a.page.locator('#rotate-apply-btn').click();
+    const message = 'Could not save sync recovery progress. Your identity and local data are unchanged. Free browser storage, then retry.';
+    const error = a.page.getByRole('alert').filter({hasText: message});
+    await expect(error).toBeVisible();
+    await expect(error).toHaveText('✗ ' + message);
+    await expect(a.page.locator('#rotate-apply-btn')).toBeEnabled();
+    // Successful rotation schedules a reload after 500ms. A failed durable
+    // preflight must leave the existing owner and snapshot intact instead.
+    await a.page.waitForTimeout(1000);
+    expect((await waitForOwner(a.page)).ownerId).toBe(previous.ownerId);
+    await waitForContext(a.page, BASELINE_CONTEXT);
+    await waitForNotes(a.page, ['baseline-note']);
+    expect(a.errors).toEqual([]);
+  } finally {
+    await a.page.evaluate(async () => (await import('/js/sync.js')).pauseSync()).catch(() => {});
+    await a.context.close();
+  }
+});

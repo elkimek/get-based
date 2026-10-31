@@ -29,12 +29,16 @@ function journalValue(profileIds: readonly string[], generation: string) {
   return JSON.stringify([...profileIds, {kind: 'restore-generation', generation}]);
 }
 
-export function markBackupRestorePending(profileIds: readonly unknown[]) {
+export function markBackupRestorePending(profileIds: readonly unknown[], options: {required?: boolean} = {}) {
   const safeIds = [...new Set((Array.isArray(profileIds) ? profileIds : []).filter(isSafeProfileId))];
   if (safeIds.length === 0) return [];
   try {
-    localStorage.setItem(SYNC_BACKUP_RESTORE_PENDING_KEY, journalValue(safeIds, createUniqueId('restore_')));
-  } catch {}
+    const value = journalValue(safeIds, createUniqueId('restore_'));
+    localStorage.setItem(SYNC_BACKUP_RESTORE_PENDING_KEY, value);
+    if (options.required && localStorage.getItem(SYNC_BACKUP_RESTORE_PENDING_KEY) !== value) throw new Error('Recovery journal was not retained');
+  } catch {
+    if (options.required) throw new Error('Could not save sync recovery progress');
+  }
   return safeIds;
 }
 

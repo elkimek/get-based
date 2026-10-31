@@ -134,7 +134,7 @@ export async function confirmRotateIdentity(btn?: SyncDiagnoseActionElement | nu
       }
       const ok = await restoreMnemonicForDiagnose(words.join(' '), { seedLocal: true });
       if (!ok) {
-        showNotification('Restore returned false — generated mnemonic was rejected', 'error');
+        showNotification('Could not apply sync identity. Resolve the error above, then retry.', 'error');
         applyBtn.disabled = false;
         applyBtn.textContent = 'Apply on this device';
         return;

@@ -8,7 +8,7 @@ import {
 } from './sync-disable-cleanup.js';
 import { getPendingBackupRestoreProfileIds } from './sync-backup-restore-state.js';
 import { scheduleSyncRuntimeReload } from './sync-runtime.js';
-import { setSyncEnabled } from './sync-settings-state.js';
+import { setSyncEnabled, setSyncPublishingSuspended } from './sync-settings-state.js';
 
 interface SyncAppOwner { id?: unknown; mnemonic?: string }
 interface SyncEvolu { restoreAppOwner: (mnemonic: string, options?: { reload?: boolean }) => unknown }
@@ -191,6 +191,20 @@ export async function restoreFromMnemonic(mnemonic: string, options: { seedLocal
   const previousMnemonic = normalizeMnemonic(currentAppOwner()?.mnemonic || '');
   const identityChanged = !previousMnemonic || previousMnemonic !== normalizedMnemonic;
   setRestoreNotice(options?.seedLocal ? 'seed-local' : 'join');
+  if (options?.seedLocal) {
+    if (setSyncPublishingSuspended(true)) return false;
+    try {
+      // Confirm durable recovery before resetting the owner or its database.
+      await _seedLocalProfiles();
+    } catch {
+      if (currentEvolu() !== evolu) return false;
+      setSyncPublishingSuspended(false);
+      clearRestoreNotice();
+      showNotification('Could not save sync recovery progress. Your identity and local data are unchanged. Free browser storage, then retry.', 'error');
+      return false;
+    }
+    if (currentEvolu() !== evolu) return false;
+  }
   try {
     // Keep Evolu 7 from reloading before join/seed finalization. Evolu 8 also
     // accepts this option; GetBased schedules the controlled reload below.
@@ -219,13 +233,8 @@ export async function restoreFromMnemonic(mnemonic: string, options: { seedLocal
       clearSyncDisableStorage();
     }
     if (options?.seedLocal) {
-      // Persisted Sync stays enabled for the controlled reload. The retiring
-      // runtime must not consume the new owner's recovery journal: Evolu 7 can
-      // still expose its old owner/query cache until that reload completes.
-      setSyncEnabled(false, {persist: false});
+      // The retiring owner/query cache stays suspended until the reload.
       setRestoreJoinPending(false);
-      await _seedLocalProfiles();
-      if (currentEvolu() !== evolu) return false;
       showNotification('Restored mnemonic — reloading to publish this device’s data…', 'success');
     } else {
       // This device is joining an existing owner. On first pull, old local
@@ -239,6 +248,7 @@ export async function restoreFromMnemonic(mnemonic: string, options: { seedLocal
     return true;
   } catch {
     if (currentEvolu() !== evolu) return false;
+    if (options?.seedLocal) setSyncPublishingSuspended(false);
     clearRestoreNotice();
     console.error('[sync] Restore failed: invalid or unavailable identity');
     showNotification('Invalid mnemonic', 'error');

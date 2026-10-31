@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { configureSyncIdentity, restoreFromMnemonic, RESTORE_NOTICE_KEY } from '../js/sync-identity.js';
-import { isSyncEnabled, SYNC_STORAGE_KEY } from '../js/sync-settings-state.js';
+import { isSyncEnabled, isSyncPaused, setSyncEnabled, setSyncPaused, setSyncPublishingSuspended, SYNC_STORAGE_KEY } from '../js/sync-settings-state.js';
 import { getPendingBackupRestoreProfileIds, markBackupRestorePending } from '../js/sync-backup-restore-state.js';
-beforeEach(() => { localStorage.clear(); sessionStorage.clear(); });
-afterEach(() => { configureSyncIdentity({ getAppOwner: () => null, getEvolu: () => null, seedLocalProfiles: async () => {} }); localStorage.clear(); sessionStorage.clear(); vi.restoreAllMocks(); });
+import {setSyncEvolu} from '../js/sync-runtime.js';
+beforeEach(() => { localStorage.clear(); sessionStorage.clear(); setSyncPublishingSuspended(false); document.body.innerHTML = '<div id="notification-container"></div>'; });
+afterEach(() => { configureSyncIdentity({ getAppOwner: () => null, getEvolu: () => null, seedLocalProfiles: async () => {} }); setSyncEvolu(null); setSyncPublishingSuspended(false); localStorage.clear(); sessionStorage.clear(); vi.restoreAllMocks(); });
 for (const failed of [false, true]) {
   it(`does not mutate a replaced runtime after an old restore ${failed ? 'fails' : 'succeeds'}`, async () => {
     let finish!: () => void; let reject!: (error: Error) => void;
@@ -50,12 +51,18 @@ it('does not finalize an old seed operation after the runtime changes during per
 it('persists recovery for the new owner while preventing the retiring runtime from publishing it', async () => {
   vi.useFakeTimers();
   try {
-    const engine = {restoreAppOwner: vi.fn(async () => {})};
-    const seed = vi.fn(async () => {
-      expect(engine.restoreAppOwner).toHaveBeenCalledOnce();
-      expect(localStorage.getItem(SYNC_STORAGE_KEY)).toBe('true');
+    setSyncEnabled(true); setSyncPaused(true);
+    const engine = {restoreAppOwner: vi.fn(async () => {
+      expect(getPendingBackupRestoreProfileIds()).toEqual(['first', 'second']);
       expect(isSyncEnabled()).toBe(false);
-      markBackupRestorePending(['first', 'second']);
+    })};
+    setSyncEvolu(engine);
+    const seed = vi.fn(async () => {
+      expect(engine.restoreAppOwner).not.toHaveBeenCalled();
+      expect(localStorage.getItem(SYNC_STORAGE_KEY)).toBe('true');
+      expect(isSyncPaused()).toBe(true);
+      expect(isSyncEnabled()).toBe(false);
+      markBackupRestorePending(['first', 'second'], {required: true});
     });
     configureSyncIdentity({getEvolu: () => engine, getAppOwner: () => ({id: 'retiring-owner', mnemonic: 'old fixture identity'}), seedLocalProfiles: seed});
     expect(await restoreFromMnemonic('new fixture identity', {seedLocal: true})).toBe(true);
@@ -63,5 +70,30 @@ it('persists recovery for the new owner while preventing the retiring runtime fr
     expect(getPendingBackupRestoreProfileIds()).toEqual(['first', 'second']);
     expect(isSyncEnabled()).toBe(false);
     expect(localStorage.getItem(SYNC_STORAGE_KEY)).toBe('true');
+    setSyncEvolu({});
+    expect(isSyncEnabled()).toBe(true);
   } finally { vi.clearAllTimers(); vi.useRealTimers(); }
+});
+
+it.each(['write', 'readback'] as const)('keeps the old identity and paused state when recovery journal %s fails', async failure => {
+  setSyncEnabled(true); setSyncPaused(true);
+  const engine = {restoreAppOwner: vi.fn(async () => {})};
+  localStorage.setItem('synthetic-local-data', 'retained');
+  const key = 'labcharts-sync-backup-restore-pending';
+  if (failure === 'write') {
+    const write = localStorage.setItem.bind(localStorage);
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation((name, value) => { if (name === key) throw new Error('Fixture storage full'); write(name, value); });
+  } else {
+    const read = localStorage.getItem.bind(localStorage);
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(name => name === key ? null : read(name));
+  }
+  configureSyncIdentity({getEvolu: () => engine, getAppOwner: () => ({id: 'old-fixture-owner', mnemonic: 'old fixture words'}),
+    seedLocalProfiles: async () => markBackupRestorePending(['first', 'second'], {required: true})});
+  expect(await restoreFromMnemonic('new fixture words', {seedLocal: true})).toBe(false);
+  expect(engine.restoreAppOwner).not.toHaveBeenCalled();
+  expect(isSyncPaused()).toBe(true);
+  expect(localStorage.getItem(SYNC_STORAGE_KEY)).toBe('true');
+  expect(localStorage.getItem('synthetic-local-data')).toBe('retained');
+  expect(sessionStorage.getItem(RESTORE_NOTICE_KEY)).toBeNull();
+  expect(document.body.textContent).toContain('Could not save sync recovery progress');
 });

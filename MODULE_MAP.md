@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 1867 |
-| Internal import edges | 5714 |
+| Internal import edges | 5715 |
 | Dynamic internal edges | 138 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -4715,7 +4715,7 @@ Native browser modules shipped with the static application.
 - [`js/sync-recovery.ts`](js/sync-recovery.ts) → no in-scope imports
 - [`js/sync-relay-health.ts`](js/sync-relay-health.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/sync-relay-self-service.ts`](js/sync-relay-self-service.ts)
 - [`js/sync-relay-self-service.ts`](js/sync-relay-self-service.ts) → no in-scope imports
-- [`js/sync-runtime.ts`](js/sync-runtime.ts) → [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/provider-wallet-panels.ts`](js/provider-wallet-panels.ts) *(dynamic)*
+- [`js/sync-runtime.ts`](js/sync-runtime.ts) → [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/provider-wallet-panels.ts`](js/provider-wallet-panels.ts) *(dynamic)*, [`js/sync-settings-state.ts`](js/sync-settings-state.ts)
 - [`js/sync-save-hooks-core.ts`](js/sync-save-hooks-core.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/profile-storage-key.ts`](js/profile-storage-key.ts), [`js/profile-sync-policy.ts`](js/profile-sync-policy.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/sync-dirty-state.ts`](js/sync-dirty-state.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts)
 - [`js/sync-save-hooks.ts`](js/sync-save-hooks.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/crypto.ts`](js/crypto.ts), [`js/profile-storage-key.ts`](js/profile-storage-key.ts), [`js/profile-sync-policy.ts`](js/profile-sync-policy.ts), [`js/state.ts`](js/state.ts), [`js/sync-chat-apply.ts`](js/sync-chat-apply.ts), [`js/sync-dirty-state.ts`](js/sync-dirty-state.ts), [`js/sync-messenger.ts`](js/sync-messenger.ts), [`js/sync-save-hooks-core.ts`](js/sync-save-hooks-core.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts)
 - [`js/sync-scalar-snapshot.ts`](js/sync-scalar-snapshot.ts) → [`js/data-merge.ts`](js/data-merge.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/sync-delta-id.ts`](js/sync-delta-id.ts), [`js/sync-delta-surfaces.ts`](js/sync-delta-surfaces.ts), [`js/sync-payload-codec.ts`](js/sync-payload-codec.ts)

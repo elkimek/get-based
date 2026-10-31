@@ -515,7 +515,7 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
       && syncIdentitySrc.includes('export function getMnemonicResolutionError')
       && syncIdentitySrc.includes('export async function restoreFromMnemonic')
       && syncIdentitySrc.includes('RESTORE_JOIN_PENDING_KEY')
-      && syncConfigureSrc.includes('seedLocalProfiles: async () => markBackupRestorePending(getProfiles().map(profile => profile.id))')
+      && /seedLocalProfiles: async \(\) => markBackupRestorePending\(getProfiles\(\)\.map\(profile => profile.id\),\s*\{\s*required: true\s*\}\)/.test(syncConfigureSrc)
       && exportBlockIncludes(syncSrc, ['getMnemonic', 'getMnemonicResolutionError', 'restoreFromMnemonic']));
   assert('service worker precaches sync-identity.js',
     serviceWorkerSrc.includes("'/js/sync-identity.js'"));
@@ -1515,6 +1515,7 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
   // Verify timestamps are cleared AFTER restoreAppOwner within restoreFromMnemonic (not before)
   const restoreIdx = syncIdentitySrc.indexOf('evolu.restoreAppOwner(normalizedMnemonic, { reload: false })');
   const clearTsInRestore = syncIdentitySrc.indexOf('clearSyncDisableStorage();', restoreIdx);
+  const restoreCleanupAfterOwner = restoreIdx > 0 && clearTsInRestore > restoreIdx;
   assert('Sync-ts cleared after restoreAppOwner (not before)', restoreIdx > 0 && clearTsInRestore > restoreIdx,
     `restoreAppOwner at ${restoreIdx}, sync-ts clear at ${clearTsInRestore}`);
 
@@ -1628,11 +1629,11 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
       && /pushAllProfiles[\s\S]{0,1200}readProfileImportedData\(p\.id\)/.test(syncActionsSrc)
       && /pushAllProfiles[\s\S]{0,1200}if \(!dataJson\)/.test(syncActionsSrc));
   const sourceRestoreStart = syncIdentitySrc.indexOf('if (options?.seedLocal)');
-  const sourceRestoreBranch = syncIdentitySrc.slice(sourceRestoreStart, syncIdentitySrc.indexOf('} else {', sourceRestoreStart));
-  assert('restore-as-source queues recovery with retiring runtime disabled before reload',
+  const sourceRestoreBranch = syncIdentitySrc.slice(sourceRestoreStart, syncIdentitySrc.indexOf('await evolu.restoreAppOwner', sourceRestoreStart));
+  assert('restore-as-source confirms recovery with retiring runtime suspended before changing owner',
     /restoreFromMnemonic\(mnemonic,\s*options = \{\}\)/.test(syncIdentitySrc)
-      && /setSyncEnabled\(false,\s*\{\s*persist: false\s*\}\)/.test(sourceRestoreBranch)
-      && sourceRestoreBranch.indexOf('setSyncEnabled(false') < sourceRestoreBranch.indexOf('await _seedLocalProfiles()')
+      && sourceRestoreBranch.includes('setSyncPublishingSuspended(true)')
+      && sourceRestoreBranch.indexOf('setSyncPublishingSuspended(true)') < sourceRestoreBranch.indexOf('await _seedLocalProfiles()')
       && sourceRestoreBranch.includes('await _seedLocalProfiles()')
       && /restoreMnemonicForDiagnose\(words\.join\(' '\),\s*\{ seedLocal: true \}\)/.test(syncDiagnoseIdentityActionsSrc));
   assert('restore-as-joiner marks first pull to ignore old local tombstones',
@@ -2686,10 +2687,10 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
     disableSyncSrc.includes('clearSyncDisableStorage();')
       && /isSyncDisableCleanupKey[\s\S]{0,300}-sync-cutover-v2/.test(syncDisableCleanupSrc));
   assert('restoreFromMnemonic clears delta snapshots',
-    /restoreFromMnemonic[\s\S]{0,2200}clearSyncDisableStorage\(\)/.test(syncIdentitySrc)
+    restoreCleanupAfterOwner
       && /isSyncDisableCleanupKey[\s\S]{0,300}key\.includes\('-delta-'\)/.test(syncDisableCleanupSrc));
   assert('restoreFromMnemonic clears cutover flag',
-    /restoreFromMnemonic[\s\S]{0,2200}clearSyncDisableStorage\(\)/.test(syncIdentitySrc)
+    restoreCleanupAfterOwner
       && /isSyncDisableCleanupKey[\s\S]{0,300}-sync-cutover-v2/.test(syncDisableCleanupSrc));
 
   // Live: proto-pollution defence — verify a malicious key is rejected
@@ -2812,10 +2813,10 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
     disableSyncSrc.includes('clearSyncDisableStorage();')
       && /isSyncDisableCleanupKey[\s\S]{0,300}key\s*===\s*'labcharts-relay-quota-warned'/.test(syncDisableCleanupSrc));
   assert('restoreFromMnemonic clears -relay-bytes- keys',
-    /restoreFromMnemonic[\s\S]{0,2200}clearSyncDisableStorage\(\)/.test(syncIdentitySrc)
+    restoreCleanupAfterOwner
       && /isSyncDisableCleanupKey[\s\S]{0,300}key\.includes\('-relay-bytes-'\)/.test(syncDisableCleanupSrc));
   assert('restoreFromMnemonic clears legacy global quota-warned key',
-    /restoreFromMnemonic[\s\S]{0,2200}clearSyncDisableStorage\(\)/.test(syncIdentitySrc)
+    restoreCleanupAfterOwner
       && /isSyncDisableCleanupKey[\s\S]{0,300}key\s*===\s*'labcharts-relay-quota-warned'/.test(syncDisableCleanupSrc));
 
   // P2: warned-marker key now owner-scoped
