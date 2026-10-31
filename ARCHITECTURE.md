@@ -370,8 +370,10 @@ database identity.
 Overlapping forced pushes retain per-profile generations. A newer push supersedes
 older asynchronous planning and completion; a newer saved edit invalidates an
 older plan before its SDK write. Superseded snapshots cannot write stale deltas,
-acknowledge a newer dirty marker or release another push's in-flight guard. Manual sync retries the current snapshot within its
-existing deadline.
+acknowledge a newer dirty marker or release another push's in-flight guard. A
+superseded plan settles its status before releasing ownership and cannot hide
+another profile's pending send. Manual sync retries the current snapshot within
+its existing deadline.
 
 V3 profile snapshots retain scalar values with per-field edit clocks, so an
 unrelated save cannot give an unchanged scalar a newer clock. Full snapshots

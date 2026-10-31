@@ -139,11 +139,14 @@ export async function pushProfile(profileId: unknown, importedData: unknown, opt
   const updateCurrentStatus = (status: Parameters<typeof updateSyncStatus>[0]) => {
     const ownsStatus = activePushGeneration === generation
       || (isCurrentGeneration() && profilePushGenerations.size === 1);
-    if (!ownsStatus || (status.push === 'confirmed' && profilePushGenerations.size > 1)) return;
+    if (!ownsStatus || ((status.push === 'confirmed' || status.push === 'idle') && profilePushGenerations.size > 1)) return;
     updateSyncStatus(status);
   };
   const superseded = (): SyncPushResult => {
+    // Decide ownership before releasing this generation; another profile may
+    // still own a pending send, or this may be the last outstanding plan.
     updateCurrentStatus({push: 'idle', pushStartedAt: null});
+    releasePush();
     return {ok: false, skipped: true, reason: 'superseded'};
   };
   const outboundData = normalizedImportedDataForPush(importedData as ProfileData);
@@ -217,7 +220,7 @@ export async function pushProfile(profileId: unknown, importedData: unknown, opt
     // Forced startup/recovery sends may overlap another push. Planning and
     // gzip can yield while a newer edit commits; the older snapshot must not
     // assign that stale value a fresh clock or acknowledge the newer save.
-    if (!isCurrentSnapshot()) { releasePush(); return superseded(); }
+    if (!isCurrentSnapshot()) return superseded();
 
     // Evolu's relay quota measures append-only message history, not the size
     // of the current profile. Updating an identical row therefore consumes
@@ -228,9 +231,9 @@ export async function pushProfile(profileId: unknown, importedData: unknown, opt
     // canonical wire payload; its local divergence check can be conservative.
     if ((!opts.force || opts.skipUnchanged) && existing && deltaOpCount === 0
         && (existing.dataJson === dataJson || await equivalentSyncPayload(existing.dataJson, dataJson))) {
-      if (!isCurrentSnapshot()) { releasePush(); return superseded(); }
+      if (!isCurrentSnapshot()) return superseded();
       if (!await commitProfileMetadataClock(profileId, metadataSource, metadata.profile)) throw new Error('Could not retain the metadata edit clock');
-      if (!isCurrentSnapshot()) { releasePush(); return superseded(); }
+      if (!isCurrentSnapshot()) return superseded();
       const skipMsg = `No changes to push ${profileId.slice(0,8)}`;
       _debug(skipMsg);
       logSyncEvent('skip', skipMsg);

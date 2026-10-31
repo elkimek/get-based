@@ -123,3 +123,40 @@ it('a timed-out SDK callback cannot later clear its error or apply retired delta
   expect(getSyncStatus().push).toBe('error'); expect(fixture.itemRows).toEqual([]);
   expect(isSyncPushInFlight()).toBe(false);
 });
+
+it.each([false, true])('a superseded plan settles only its own pending status (newest plan delayed: %s)', async newestDelayed => {
+  vi.useFakeTimers(); const fixture = makeEvolu(); const ids = ['push-plan-a', 'push-plan-b'];
+  const delayedId = ids[newestDelayed ? 1 : 0]!;
+  configureSyncDelta({getEvolu: () => fixture.evolu, getItemRowQuery: () => ITEM_ROW_QUERY});
+  configureSyncPush({getEvolu: () => fixture.evolu, getProfileQuery: () => PROFILE_QUERY,
+    isSyncEnabled: () => true, isPhase2CutoverEnabled: () => false, getProfiles: () => ids.map(id => ({id}))});
+  let entered!: () => void, release!: () => void, completeA!: () => void;
+  const reached = new Promise<void>(resolve => {entered = resolve;});
+  const gate = new Promise<void>(resolve => {release = resolve;}); const actualBuild = payload.buildSyncPayload;
+  vi.spyOn(payload, 'buildSyncPayload').mockImplementation(async (...args) => {
+    if (args[0] === delayedId) {entered(); await gate;}
+    return actualBuild(...args);
+  });
+  if (newestDelayed) {
+    const insert = fixture.evolu.insert;
+    vi.spyOn(fixture.evolu, 'insert').mockImplementation((table, args, options) => {
+      if (table === 'profileData' && args.profileId === ids[0]) {insert(table, args, {}); completeA = options!.onComplete!;}
+      else insert(table, args, options);
+    });
+  }
+  const a = pushProfile(ids[0], {contextNotes: 'profile A'}, {force: true});
+  if (newestDelayed) await vi.waitFor(() => expect(completeA).toBeTypeOf('function'));
+  else await reached;
+  const b = pushProfile(ids[1], {contextNotes: 'profile B'}, {force: true});
+  try {
+    if (newestDelayed) await reached;
+    else expect(await b).toMatchObject({ok: true});
+    const token = markSyncProfileDirty(delayedId); release();
+    expect(await (newestDelayed ? b : a)).toMatchObject({ok: false, reason: 'superseded'});
+    expect(getSyncDirtyToken(delayedId)).toBe(token);
+    expect(isSyncPushInFlight()).toBe(newestDelayed);
+    expect(getSyncStatus().push === 'pending').toBe(newestDelayed);
+    if (newestDelayed) {completeA(); expect(await a).toMatchObject({ok: true});}
+    expect(getSyncStatus().push).not.toBe('pending');
+  } finally {release(); completeA?.(); await Promise.all([a,b]);}
+});
