@@ -7,7 +7,7 @@ import {
 } from './profile.js';
 import { configureRelayHealth } from './sync-relay-health.js';
 import { logSyncEvent, updateSyncStatus } from './sync-state.js';
-import { isSyncConfigured, isSyncEnabled } from './sync-settings-state.js';
+import { isSyncConfigured, isSyncEnabled, SYNC_STORAGE_KEY } from './sync-settings-state.js';
 import { configureSyncDelta } from './sync-delta.js';
 import { configureSyncTombstones, deleteProfileFromRelay } from './sync-tombstones.js';
 import { buildDefaultSyncMessengerContext, configureSyncMessenger, configureSyncMessengerContextPreparation } from './sync-messenger.js';
@@ -58,6 +58,7 @@ export function configureSyncModules({ enableSync }: {
   configureRelayHealth({
     getAppOwner: getSyncAppOwner,
     getSyncRelay,
+    isOwnerProvisional: () => localStorage.getItem(SYNC_STORAGE_KEY) !== 'true',
     onQuotaThreshold(q) {
       if (q.level === 'red') {
         logSyncEvent('skip', `Relay storage ${q.pct}% — pushes will start failing soon; reduce storage`);

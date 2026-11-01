@@ -1,5 +1,6 @@
 // Ordering rows merge by semantic generation/operation identity, never transport LWW.
 import { labOrderingMap, mergeLabOrdering, validLabOrderId } from './lab-ordering-core.js';
+import { compareSyncRows, nextSyncRowTime } from './sync-conflict-order.js';
 import { createDeltaWrite, decodeRowPayload } from './sync-delta-row-codec.js';
 import type { DeltaItemRow, DeltaImportedData, DeltaPlan } from './sync-delta-row-codec.js';
 import { getPlannerItemRows } from './sync-delta-planner-context.js';
@@ -32,17 +33,18 @@ function canonicalJSON(value: unknown) {
 }
 export async function planLabOrderingDelta(profileId: string, raw: unknown): Promise<DeltaPlan> {
   const plannedAt = Date.now(), rows = getPlannerItemRows(profileId, 'labOrdering'), merged = await mergedRows(raw, rows);
+  const mutationTime = nextSyncRowTime(rows);
   const prev = _readDeltaSnapshot(profileId, 'labOrdering'), next = { ...prev }, ops: DeltaPlan['ops'] = [];
   for (const [key, value] of Object.entries(merged)) {
     if (!validLabOrderId(key) || !_isAllowlistSafeId(key)) throw new Error('Review the saved ordering scope before syncing it.');
     const json = canonicalJSON({ k: key, v: value }), hash = _djb2(json); next[key] = hash;
     if (new TextEncoder().encode(json).byteLength > _PER_ROW_DECOMPRESSED_CAP_BYTES) throw new Error('The ordering sync row exceeds the native transport limit.');
-    const existing = rows.filter(row => row.itemId === key).sort((a, b) => String(b.syncedAt || '').localeCompare(String(a.syncedAt || '')) || String(a.id || '').localeCompare(String(b.id || '')))[0];
+    const existing = rows.filter(row => row.itemId === key).sort((a, b) => compareSyncRows(b, a))[0];
     const carrier = existing ? await decodeRowPayload(existing) as { k?: unknown; v?: unknown } | null : null;
     if (prev[key] === hash && !existing?.isDeleted && (!existing || carrier && canonicalJSON({ k: carrier.k, v: carrier.v }) === json)) continue;
     let payload = json;
     if (typeof CompressionStream !== 'undefined' && json.length > 256) payload = `GZ|v1|${_bytesToBase64(await _gzipString(json))}`;
-    ops.push(createDeltaWrite(existing, { profileId, arrayName: 'labOrdering', itemId: key, payload, syncedAt: new Date().toISOString() }, existing?.isDeleted ? { isDeleted: null } : {}));
+    ops.push(createDeltaWrite(existing, { profileId, arrayName: 'labOrdering', itemId: key, payload, syncedAt: mutationTime }, existing?.isDeleted ? { isDeleted: 0 as const } : {}));
   }
   // Missing scopes are partial state, never transport deletion authority.
   return { ops, next, plannedAt };

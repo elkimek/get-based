@@ -15,7 +15,7 @@ export { _planScalarDelta } from './sync-delta-scalar-planner.js';
 export { _writeDeltaSnapshot, clearDeltaSnapshot } from './sync-delta-snapshot.js';
 export { _recordPushTelemetry, getDeltaTelemetry, resetDeltaTelemetry } from './sync-delta-telemetry.js';
 export { getDeltaCutoverReadiness } from './sync-delta-readiness.js';
-export { _mergeItemRowsIntoImported, acknowledgePulledScalarSnapshots } from './sync-delta-merge.js';
+export { _mergeItemRowsIntoImported, acknowledgePulledScalarSnapshots, acknowledgePulledArrayVersions, acknowledgePulledMapSnapshots } from './sync-delta-merge.js';
 
 const deltaQueryAccess = createDeltaQueryAccess<DeltaMutationClient>();
 
@@ -33,19 +33,35 @@ function _currentEvolu() {
 
 // Apply after the blob commits. A partial failure keeps the snapshot unchanged
 // so failed rows are retried on the next push. Continue queuing remaining ops.
-export function _applyArrayDelta(arrayName: string, plan: { ops: readonly DeltaOperation[] }) {
+export function _applyArrayDelta(arrayName: string, plan: { ops: readonly DeltaOperation[] }, onComplete?: (ok: boolean) => void) {
   const evolu = _currentEvolu();
-  if (!evolu) return false;
-  let allOk = true;
+  if (!evolu) { onComplete?.(false); return false; }
+  let allOk = true, remaining = plan.ops.length, queued = false, completed = false;
+  const settle = () => {
+    if (queued && remaining === 0 && !completed) { completed = true; onComplete?.(allOk); }
+  };
   for (const op of plan.ops) {
+    let acknowledged = false;
+    const acknowledge = () => {
+      if (acknowledged) return;
+      acknowledged = true;
+      remaining--;
+      settle();
+    };
     try {
-      if (op.kind === 'insert') evolu.insert("itemRow", op.args);
-      else if (op.kind === 'update') evolu.update("itemRow", op.args);
-      else if (op.kind === 'tombstone') evolu.update("itemRow", op.args);
+      const options = onComplete ? {onComplete: acknowledge} : undefined;
+      if (op.kind === 'insert') evolu.insert("itemRow", op.args, options);
+      else if (op.kind === 'update') evolu.update("itemRow", op.args, options);
+      else if (op.kind === 'tombstone') evolu.update("itemRow", op.args, options);
     } catch (e) {
       allOk = false;
+      acknowledge();
       console.warn(`[sync] delta op ${op.kind} ${arrayName} failed:`, getErrorMessage(e, e));
     }
   }
+  queued = true;
+  settle();
+  // Synchronous rejection already makes this surface ineligible to commit.
+  if (!allOk && remaining > 0 && !completed) { completed = true; onComplete?.(false); }
   return allOk;
 }

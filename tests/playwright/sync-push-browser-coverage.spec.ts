@@ -51,6 +51,7 @@ test('sync push covers browser commit guards cutover drift and watchdog paths', 
             return;
           }
           itemRows.push({ id: `item-row-${itemRows.length + 1}`, ...args });
+          options.onComplete?.();
         },
         update(table: string, args:Record<string,unknown>, options: {onComplete?:()=>unknown} = {}) {
           calls.update.push({ table, args });
@@ -63,6 +64,7 @@ test('sync push covers browser commit guards cutover drift and watchdog paths', 
           const index = itemRows.findIndex(row => row.id === args.id);
           if (index >= 0) itemRows[index] = { ...itemRows[index], ...args };
           else itemRows.push({ ...args });
+          options.onComplete?.();
         },
       };
       return { evolu, calls, profileRows, itemRows };

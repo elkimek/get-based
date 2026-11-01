@@ -42,12 +42,12 @@ it('transport tombstones cannot erase selected ordering or reset history', async
   const reset = replaceLabOrder(a, null, 'reset', 10), imported: DeltaImportedData = { labOrdering: { markers: reset } };
   await mergeLabOrderingRows(imported, [{ ...row(a), isDeleted: 1 }]); expect(imported.labOrdering).toEqual({ markers: reset });
   configure(makeEvolu({ itemRows: [{ ...row(reset), isDeleted: 1 }] })); const push = await _planKeyedMapDelta(PROFILE_ID, 'labOrdering', {});
-  expect(push.ops[0]).toMatchObject({ kind: 'update', args: { isDeleted: null } }); expect(await decodeRowPayload({ payload: push.ops[0]!.args.payload })).toEqual({ k: 'markers', v: reset });
+  expect(push.ops[0]).toMatchObject({ kind: 'update', args: { isDeleted: 0 } }); expect(await decodeRowPayload({ payload: push.ops[0]!.args.payload })).toEqual({ k: 'markers', v: reset });
 });
 it('repairs a tombstoned or regressed carrier even when the local committed snapshot still has the correct hash', async () => {
   const merged = mergeLabOrderRecords(a, b), plan = await _planKeyedMapDelta(PROFILE_ID, 'labOrdering', { markers: merged }); _writeDeltaSnapshot(PROFILE_ID, 'labOrdering', plan.next);
   configure(makeEvolu({ itemRows: [{ ...row(merged), isDeleted: 1 }] }));
-  const resurrection = await _planKeyedMapDelta(PROFILE_ID, 'labOrdering', { markers: merged }); expect(resurrection.ops).toHaveLength(1); expect(resurrection.ops[0]!.args.isDeleted).toBe(null);
+  const resurrection = await _planKeyedMapDelta(PROFILE_ID, 'labOrdering', { markers: merged }); expect(resurrection.ops).toHaveLength(1); expect(resurrection.ops[0]!.args.isDeleted).toBe(0);
   configure(makeEvolu({ itemRows: [row(a)] })); const repair = await _planKeyedMapDelta(PROFILE_ID, 'labOrdering', { markers: merged }); expect(repair.ops).toHaveLength(1);
   expect(await decodeRowPayload({ payload: repair.ops[0]!.args.payload })).toEqual({ k: 'markers', v: merged });
 });
@@ -74,4 +74,15 @@ it('keeps generated rows within the existing native decompression budget', async
   await expect(_planKeyedMapDelta(PROFILE_ID, 'labOrdering', { future: { version: 99, unknown: 'x'.repeat(1024 * 1024) } })).rejects.toThrow(/transport limit/);
   const imported: DeltaImportedData = { labOrdering: { markers: a } }, before = structuredClone(imported);
   await expect(mergeLabOrderingRows(imported, [row({ version: 99, unknown: 'x'.repeat(1024 * 1024) })])).rejects.toThrow(/transport limit/); expect(imported).toEqual(before);
+});
+
+it.each([false, true])('restores the deterministic physical carrier beyond observed future clocks: reversed=%s', async reversed => {
+  const future = '2099-01-01T00:00:00.000Z';
+  const rows = [row(a, 'live', future), { ...row(b, 'deleted', future), isDeleted: 1 }];
+  configure(makeEvolu({ itemRows: reversed ? [...rows].reverse() : rows }));
+  const plan = await _planKeyedMapDelta(PROFILE_ID, 'labOrdering', { markers: a });
+  expect(plan.ops).toHaveLength(1);
+  expect(plan.ops[0]).toMatchObject({ kind: 'update', args: { id: 'deleted', isDeleted: 0 } });
+  expect(Date.parse(String(plan.ops[0]!.args.syncedAt))).toBeGreaterThan(Date.parse(future));
+  expect(await decodeRowPayload({ payload: plan.ops[0]!.args.payload })).toEqual({ k: 'markers', v: mergeLabOrderRecords(a, b) });
 });

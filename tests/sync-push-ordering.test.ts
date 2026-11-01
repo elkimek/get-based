@@ -162,3 +162,37 @@ it.each([false, true])('a superseded plan settles only its own pending status (n
     expect(getSyncStatus().push).not.toBe('pending');
   } finally {release(); completeA?.(); await Promise.all([a,b]);}
 });
+
+it('a missing item-row acknowledgement keeps the push pending and preserves retry state after timeout', async()=>{
+  vi.useFakeTimers(); const fixture=makeEvolu(),id='pending-item-ack';let complete:(()=>void)|undefined;
+  configureSyncDelta({getEvolu:()=>fixture.evolu,getItemRowQuery:()=>ITEM_ROW_QUERY});
+  configureSyncPush({getEvolu:()=>fixture.evolu,getProfileQuery:()=>PROFILE_QUERY,isSyncEnabled:()=>true,isPhase2CutoverEnabled:()=>false,getProfiles:()=>[{id}]});
+  const original=fixture.evolu.insert;
+  vi.spyOn(fixture.evolu,'insert').mockImplementation((table,args,options)=>{
+    if(table==='itemRow'){original(table,args,{});complete=options!.onComplete!;}else original(table,args,options);
+  });
+  const token=markSyncProfileDirty(id),pending=pushProfile(id,{contextNotes:'queued synthetic value'});
+  await vi.waitFor(()=>expect(complete).not.toBeUndefined());
+  expect(isSyncPushInFlight()).toBe(true);expect(getSyncStatus().push).toBe('pending');expect(getSyncDirtyToken(id)).toBe(token);
+  await vi.advanceTimersByTimeAsync(30_000);expect(await pending).toMatchObject({ok:false,reason:'timeout'});
+  complete!();await Promise.resolve();expect(getSyncStatus().push).toBe('error');expect(getSyncDirtyToken(id)).toBe(token);
+  expect(localStorage.getItem(`labcharts-${id}-delta-contextNotes`)).toBeNull();expect(isSyncPushInFlight()).toBe(false);
+});
+
+it.each(['pause', 'runtime replacement', 'identity change'])('a late item-row acknowledgement cannot confirm a retired push after %s',async retirement=>{
+  vi.useFakeTimers(); const fixture=makeEvolu(),original=fixture.evolu.insert,id=`retired-${retirement.replaceAll(' ', '-')}`;
+  const initial=Object.assign(fixture.evolu,{name:'initial-owner'});let current=initial,enabled=true,complete:(()=>void)|undefined;
+  configureSyncDelta({getEvolu:()=>current,getItemRowQuery:()=>ITEM_ROW_QUERY});
+  configureSyncPush({getEvolu:()=>current,getProfileQuery:()=>PROFILE_QUERY,isSyncEnabled:()=>enabled,isPhase2CutoverEnabled:()=>false,getProfiles:()=>[{id}]});
+  vi.spyOn(initial,'insert').mockImplementation((table,args,options)=>{
+    if(table==='itemRow'){original(table,args,{});complete=options!.onComplete!;}else original(table,args,options);
+  });
+  const token=markSyncProfileDirty(id),pending=pushProfile(id,{contextNotes:'synthetic old-owner value'});
+  await vi.waitFor(()=>expect(complete).not.toBeUndefined());
+  if(retirement==='pause')enabled=false;
+  else if(retirement==='runtime replacement')current=Object.assign(makeEvolu().evolu,{name:'another-owner'});
+  else initial.name='another-owner';
+  complete!();expect(await pending).toMatchObject({ok:false,reason:'superseded'});
+  expect(getSyncDirtyToken(id)).toBe(token);expect(getSyncStatus().push).not.toBe('confirmed');
+  expect(localStorage.getItem(`labcharts-${id}-delta-contextNotes`)).toBeNull();expect(isSyncPushInFlight()).toBe(false);
+});

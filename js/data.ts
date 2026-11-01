@@ -3,7 +3,7 @@ import { labDateDeletionState } from './lab-panel-deletions.js';
 import { labSampleIdentityRows } from './lab-panel-identity.js';
 // data.js — Data pipeline, unit conversion, date range, trend detection
 
-import { profileDataValuesEqual, queueProfileDataWrite, profileDataBaseline, rememberProfileData, mergeProfileMutation, adoptProfileData, rebaseLiveProfileData, ProfileWriteConflict } from './profile-data-writes.js';
+import { profileDataValuesEqual, queueProfileDataWrite, noteProfileDataCommit, profileDataBaseline, rememberProfileData, mergeProfileMutation, adoptProfileData, rebaseLiveProfileData, ProfileWriteConflict } from './profile-data-writes.js';
 import { mergeBiologyScoreAIRecords } from './biology-score-persistence.js';
 import { isProfileReadBlocked } from './profile-load-safety.js';
 import { state } from './state.js';
@@ -107,6 +107,7 @@ export const {
   get getConfiguredArrayItemId() { return getConfiguredArrayItemId; },
   get profileDataValuesEqual() { return profileDataValuesEqual; },
   get queueProfileDataWrite() { return queueProfileDataWrite; },
+  get noteProfileDataCommit() { return noteProfileDataCommit; },
   get profileDataBaseline() { return profileDataBaseline; },
   get rememberProfileData() { return rememberProfileData; },
   get mergeProfileMutation() { return mergeProfileMutation; },

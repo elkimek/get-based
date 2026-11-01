@@ -44,13 +44,25 @@ jobs:
   transport:
     needs: scope
     if: github.event_name != 'pull_request' || needs.scope.outputs.sync == 'true'
-    name: Transport (${{ matrix.evolu-client }})
+    name: Transport (${{ matrix.label }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        evolu-client: [v7, v8, v8-mixed]
+        include:
+          - evolu-client: v7
+            peer-browser: chromium
+            label: v7
+          - evolu-client: v8
+            peer-browser: chromium
+            label: v8
+          - evolu-client: v8-mixed
+            peer-browser: chromium
+            label: v8-mixed
+          - evolu-client: v8
+            peer-browser: firefox
+            label: v8, Chromium to Firefox
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -77,16 +89,20 @@ jobs:
           npm ci --prefix .ci/getbased-relay
           npm run build --prefix .ci/getbased-relay
 
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Install browser engines
+        run: |
+          browser_args=(chromium)
+          if [[ "${{ matrix.peer-browser }}" == "firefox" ]]; then browser_args+=(firefox); fi
+          npx playwright install --with-deps "${browser_args[@]}"
 
       - name: Run real-relay transport scenario
         shell: bash
         run: |
           set -euo pipefail
           client="${{ matrix.evolu-client }}"
-          relay_data_dir="${RUNNER_TEMP}/getbased-relay-${client}"
-          relay_log="${RUNNER_TEMP}/getbased-relay-${client}.log"
+          peer="${{ matrix.peer-browser }}"
+          relay_data_dir="${RUNNER_TEMP}/getbased-relay-${client}-${peer}"
+          relay_log="${RUNNER_TEMP}/getbased-relay-${client}-${peer}.log"
           mkdir -p "${relay_data_dir}"
           env \
             DATA_DIR="${relay_data_dir}" \
@@ -121,20 +137,25 @@ jobs:
             exit 1
           fi
 
+          scenario_args=()
+          if [[ "${peer}" == "firefox" ]]; then
+            scenario_args+=(--grep 'all registered sync surfaces')
+          fi
           env \
             SYNC_TRANSPORT_E2E=1 \
             SYNC_TRANSPORT_EVOLU_CLIENT="${client}" \
+            SYNC_TRANSPORT_PEER_BROWSER="${peer}" \
             SYNC_TRANSPORT_RELAY=ws://127.0.0.1:4000 \
             SYNC_TRANSPORT_SELF_URL=http://127.0.0.1:4003 \
-            npx playwright test tests/playwright/sync-relay-transport-e2e.spec.ts --workers=1
+            npx playwright test tests/playwright/sync-relay-transport-e2e.spec.ts --workers=1 "${scenario_args[@]}"
 
       - name: Upload transport logs on failure
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: sync-transport-${{ matrix.evolu-client }}-logs
+          name: sync-transport-${{ matrix.evolu-client }}-${{ matrix.peer-browser }}-logs
           path: |
-            ${{ runner.temp }}/getbased-relay-${{ matrix.evolu-client }}.log
+            ${{ runner.temp }}/getbased-relay-${{ matrix.evolu-client }}-${{ matrix.peer-browser }}.log
             /tmp/getbased-playwright-results
             /tmp/dev-server.log
           if-no-files-found: ignore

@@ -1,3 +1,4 @@
+import { compareSyncRows, nextSyncRowTime } from './sync-conflict-order.js';
 import { createDeltaWrite, decodeRowPayload } from './sync-delta-row-codec.js';
 import { planLabOrderingDelta } from './lab-ordering-delta.js';
 import type { MapIdentityConfig } from './sync-delta-surface-config.js';
@@ -34,11 +35,17 @@ export async function _planKeyedMapDelta(profileId: string, mapName: string, map
     ? cfg.keyIdFn
     : (k => (_isAllowlistSafeId(k) ? k as string : null));
   const prev = _readDeltaSnapshot(profileId, mapName);
+  if (mapObj === undefined && !['genetics.snps', 'geneticsSnpTombstones', 'geneticsLifecycle'].includes(mapName)) return {ops: [], next: prev, plannedAt};
   const next: DeltaPlan['next'] = {};
   const ops: DeltaPlannedOperation[] = [];
 
   const matching = getPlannerItemRows(profileId, mapName);
-  const rowByItemId = new Map(matching.map(r => [r.itemId, r]));
+  const rowByItemId = new Map<string, typeof matching[number]>();
+  for (const row of matching) {
+    const prior = rowByItemId.get(row.itemId);
+    if (!prior || compareSyncRows(row, prior) > 0) rowByItemId.set(row.itemId, row);
+  }
+  const mutationTime = nextSyncRowTime(matching);
 
   let obj = (mapObj && typeof mapObj === 'object' && !Array.isArray(mapObj)) ? mapObj as Record<string, unknown> : {};
   const snpStates = mergeGeneticsSnpStates(mapName === 'genetics.snps' || mapName === 'geneticsSnpTombstones' ? options.geneticsSnpTombstones : null, null);
@@ -66,7 +73,7 @@ export async function _planKeyedMapDelta(profileId: string, mapName: string, map
     // Metadata-only genetics blobs omit SNPs. Rehydrate live rows instead of
     // treating that omission as a request to delete every SNP.
     const fromRows: Record<string, unknown> = Object.create(null);
-    for (const row of matching) {
+    for (const row of rowByItemId.values()) {
       if (!row || row.isDeleted) continue;
       try {
         let json = row.payload;
@@ -108,9 +115,9 @@ export async function _planKeyedMapDelta(profileId: string, mapName: string, map
       try { payload = `GZ|v1|${_bytesToBase64(await _gzipString(json))}`; } catch {}
     }
     const existing = rowByItemId.get(itemId!);
-    const syncedAt = new Date().toISOString();
+    const syncedAt = mutationTime;
     // Clear the LWW deletion register when reusing a tombstoned row.
-    const resurrect = existing?.isDeleted ? { isDeleted: null } : {};
+    const resurrect = existing?.isDeleted ? { isDeleted: 0 as const } : {};
     ops.push(createDeltaWrite(existing, { profileId, arrayName: mapName, itemId: itemId!, payload, syncedAt }, resurrect));
   }
 
@@ -125,7 +132,7 @@ export async function _planKeyedMapDelta(profileId: string, mapName: string, map
       if (!(genomeRemoved ? _isAllowlistSafeId(id) : validGeneticsSnpId(id)) || Object.hasOwn(next, id)) continue;
       if (!genomeRemoved && !geneticsSnpRemoved(snpStates, id)) { if (prev[id]) next[id] = prev[id]!; continue; }
       const row = rowByItemId.get(id);
-      if (row && !row.isDeleted) ops.push({ kind: 'tombstone', args: { id: row.id, isDeleted: 1, syncedAt: new Date().toISOString() } });
+      if (row && !row.isDeleted) ops.push({ kind: 'tombstone', args: { id: row.id, isDeleted: 1, syncedAt: mutationTime } });
     }
     return { ops, next, plannedAt };
   }
@@ -145,7 +152,7 @@ export async function _planKeyedMapDelta(profileId: string, mapName: string, map
       if (Object.prototype.hasOwnProperty.call(next, prevId)) continue;
       const row = rowByItemId.get(prevId);
       if (!row || row.isDeleted) continue;
-      ops.push({ kind: 'tombstone', args: { id: row.id, isDeleted: 1, syncedAt: new Date().toISOString() } });
+      ops.push({ kind: 'tombstone', args: { id: row.id, isDeleted: 1, syncedAt: mutationTime } });
     }
   }
 

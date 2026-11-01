@@ -209,7 +209,8 @@ test('an unreadable duplicate replica does not block preserving the usable remot
   const good = { id: 'good', profileId, dataJson: JSON.stringify({ _v: 4, chatData: payload('remote') }), syncedAt: newDate };
   const bad = { id: 'bad', profileId, dataJson: '{malformed', syncedAt: null };
   let sent: {id?: unknown;dataJson?: unknown} | undefined;
-  (configureSyncPush as unknown as (value: ReplicaDepsFixture) => ReturnType<typeof configureSyncPush>)({ getEvolu: () => ({ getQueryRows: () => [bad, good], update: (_table: unknown, value: {id?: unknown;dataJson?: unknown}, { onComplete }: {onComplete: () => unknown}) => { sent = value; onComplete(); } }),
+  const evolu = { getQueryRows: () => [bad, good], update: (_table: unknown, value: {id?: unknown;dataJson?: unknown}, { onComplete }: {onComplete: () => unknown}) => { sent = value; onComplete(); } };
+  (configureSyncPush as unknown as (value: ReplicaDepsFixture) => ReturnType<typeof configureSyncPush>)({ getEvolu: () => evolu,
     getProfileQuery: () => ({}), isSyncEnabled: () => true, getProfiles: () => [{ id: profileId }], isPhase2CutoverEnabled: () => false });
   expect(await pushProfile(profileId, {})).toMatchObject({ ok: true });
   expect(sent!.id).toBe('good');

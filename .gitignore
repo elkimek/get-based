@@ -4106,6 +4106,8 @@ tests/pwa/sveltekit-island-ownership.spec.js.map
 /tests/legacy-evolu-compaction.test.js
 /tests/chat-discussion-end-persistence.test.js
 /tests/chat-runtime-resume.test.js
+# Sync conflict-order runtime output
+/js/sync-conflict-order.js
 /js/marker-baseline.js
 
 /js/marker-chart-scale.js

@@ -1,3 +1,4 @@
+import {compareSyncRows,syncValueKey} from './sync-conflict-order.js';
 import type { LabEntryDraft } from './lab-entry.js';
 import type { ArrayIdentityConfig, SyncIdentityRecord } from './sync-delta-surface-config.js';
 import type { DeltaItemRow, DeltaImportedData } from './sync-delta-row-codec.js';
@@ -15,7 +16,9 @@ import { expandLabPanelRows, packLabPanelRows } from './lab-panel-identity.js';
 import { filterRemovedLabPanels } from './lab-panel-deletions.js';
 import { recordPullDeltaSurface } from './sync-delta-pull-snapshot.js';
 import { DELTA_ARRAY_CONFIG } from './sync-delta-surface-config.js';
-import { _isAllowlistSafeId } from './sync-delta-id.js';
+import { _djb2, _isAllowlistSafeId } from './sync-delta-id.js';
+import { readArrayVersions, readLegacyArrayVersions } from './sync-delta-snapshot.js';
+import type { ArrayItemVersion } from './sync-delta-snapshot.js';
 import { decodeRowPayload } from './sync-delta-row-codec.js';
 
 function parseRowSyncedAt(row: DeltaItemRow | null | undefined) {
@@ -25,8 +28,12 @@ function parseRowSyncedAt(row: DeltaItemRow | null | undefined) {
 
 export async function mergeArrayRowsIntoImported(
   imported: DeltaImportedData, arrayName: string, arrRows: readonly DeltaItemRow[],
-  options: { baselineItems?: readonly unknown[] | undefined; baselineSyncedAt?: number | undefined } = {},
+  options: { baselineItems?: readonly unknown[] | undefined; baselineSyncedAt?: number | undefined;
+    profileId?: string | undefined; localItems?: readonly unknown[] | undefined;
+    onVersion?: (itemId: string, version: ArrayItemVersion) => void } = {},
 ) {
+  const committedVersions = readArrayVersions(options.profileId, arrayName);
+  const legacyVersions = readLegacyArrayVersions(options.profileId, arrayName);
   // Read/write the target array: flat top-level for most surfaces, dotted-path
   // walk via getAt/setAt for nested ones (e.g. `lightEnvironment.rooms`).
   const isNested = arrayName.includes('.');
@@ -57,8 +64,11 @@ export async function mergeArrayRowsIntoImported(
     const localList = localDel && Array.isArray(localDel[arrayName]) ? localDel[arrayName] : null;
     if (localList) for (const id of localList) if (typeof id === 'string') localTombs.add(id);
   } catch {}
-  const liveById = new Map<string, { item: Record<string, unknown>; ts: number; syncedAt: string }>(); // itemId -> { item, ts, syncedAt }
-  for (const row of arrRows) {
+  const locallyRestored = new Set((options.localItems || []).map(itemIdFn).filter(id => id && committedVersions[id]?.hash === null));
+  const liveById = new Map<string, { item: Record<string, unknown>; ts: number; syncedAt: string; row: DeltaItemRow; wireHash: string }>(); // itemId -> { item, ts, syncedAt }
+  const represented=new Map<string,Set<string>>();
+  const orderedRows = arrayName === 'entries' ? [...arrRows].sort(compareSyncRows) : arrRows;
+  for (const row of orderedRows) {
     if (row.isDeleted) {
       const prev = remoteTombs.get(row.itemId) || 0;
       remoteTombs.set(row.itemId, Math.max(prev, parseRowSyncedAt(row)));
@@ -73,13 +83,19 @@ export async function mergeArrayRowsIntoImported(
         // secondary tiebreak.
         const ts = pickTimestamp(item);
         const sa = String(row.syncedAt || '');
+        const wireHash = _djb2(JSON.stringify(item));
+        const values = represented.get(row.itemId) ?? new Set<string>();
+        values.add(syncValueKey(item));
+        if (arrayName === 'entries') for (const panel of expandLabPanelRows([item])) values.add(syncValueKey(panel));
+        represented.set(row.itemId, values);
         const cur = liveById.get(row.itemId);
         if (arrayName === 'entries' && cur) {
-          liveById.set(row.itemId, { item: mergeLabDayRow(cur.item, item), ts: Math.max(ts, cur.ts), syncedAt: sa > cur.syncedAt ? sa : cur.syncedAt });
+          const canonicalRow = compareSyncRows(row, cur.row) > 0 ? row : cur.row;
+          liveById.set(row.itemId, { item: mergeLabDayRow(item, cur.item), ts: Math.max(ts, cur.ts), syncedAt: String(canonicalRow.syncedAt || ''), row: canonicalRow, wireHash: canonicalRow === row ? wireHash : cur.wireHash });
           continue;
         }
-        if (!cur || ts > cur.ts || (ts === cur.ts && sa > cur.syncedAt)) {
-          liveById.set(row.itemId, { item, ts, syncedAt: sa });
+        if (!cur || ts > cur.ts || (ts === cur.ts && compareSyncRows(row, cur.row) > 0)) {
+          liveById.set(row.itemId, { item, ts, syncedAt: sa, row, wireHash });
         }
       }
     } catch {}
@@ -88,13 +104,20 @@ export async function mergeArrayRowsIntoImported(
     if (!itemId) return false;
     if (localTombs.has(itemId)) return true;
     const tombAt = remoteTombs.get(itemId);
+    // A later profile timestamp can come from an unrelated save. It cannot
+    // undo this item's acknowledged deletion before a live row restores it.
+    const committed = committedVersions[itemId];
+    if (locallyRestored.has(itemId) && (tombAt == null || tombAt <= committed!.clock)) return false;
+    if (committed?.hash === null && committed.clock >= pickTimestamp(item)) return true;
     if (tombAt == null) return false;
     const canonicalBlobAt = baselineItemIds.has(itemId) ? baselineSyncedAt : 0;
     return tombAt >= Math.max(pickTimestamp(item), canonicalBlobAt);
   };
-  const tombstoneWinsOverLiveRow = (itemId: string | null, entry: { ts: number; syncedAt: string } | null | undefined) => {
+  const tombstoneWinsOverLiveRow = (itemId: string | null, entry: { ts: number; syncedAt: string; row: DeltaItemRow } | null | undefined) => {
     if (!itemId) return false;
     if (localTombs.has(itemId)) return true;
+    const committed = committedVersions[itemId];
+    if (committed?.hash === null && committed.clock >= parseRowSyncedAt(entry?.row)) return true;
     const tombAt = remoteTombs.get(itemId);
     if (tombAt == null) return false;
     const liveAt = Math.max(entry?.ts || 0, Date.parse(entry?.syncedAt || '') || 0);
@@ -124,18 +147,31 @@ export async function mergeArrayRowsIntoImported(
   for (const [itemId, entry] of liveById) {
     // Honour blob tombstones seeded above.
     if (tombstoneWinsOverLiveRow(itemId, entry)) continue;
-    const item = arrayName === 'entries' ? packLabPanelRows(expandLabPanelRows([entry.item]).filter(panel => !tombstoneWinsOverLiveRow(itemId, { ts: pickTimestamp(panel), syncedAt: entry.syncedAt })))[0] : entry.item;
+    const item = arrayName === 'entries' ? packLabPanelRows(expandLabPanelRows([entry.item]).filter(panel => !tombstoneWinsOverLiveRow(itemId, { ts: pickTimestamp(panel), syncedAt: entry.syncedAt, row: entry.row })))[0] : entry.item;
     if (!item) continue;
     const idx = seen.get(itemId);
     if (idx !== undefined) {
+      const receipt = committedVersions[itemId] ?? legacyVersions[itemId];
+      const newerCommitted = receipt?.hash === _djb2(JSON.stringify(nextArr[idx]))
+        && parseRowSyncedAt(entry.row) > receipt.clock;
       if (arrayName === 'entries') {
-        nextArr[idx] = mergeLabDayRow(nextArr[idx] as LabEntryDraft, item as LabEntryDraft);
+        const committedLocal = represented.get(itemId)?.has(syncValueKey(nextArr[idx]))
+          || expandLabPanelRows([nextArr[idx]!]).every(panel => represented.get(itemId)?.has(syncValueKey(panel)));
+        nextArr[idx] = committedLocal || newerCommitted
+          ? mergeLabDayRow(item as LabEntryDraft, nextArr[idx] as LabEntryDraft)
+          : mergeLabDayRow(nextArr[idx] as LabEntryDraft, item as LabEntryDraft);
         continue;
       }
       // The blob merge may already contain a fresh local edit that has not
       // reached the per-row relay yet. Keep current on ties too; this must
       // match unionById/localHasRowsRemoteLacks in data-merge.js.
-      if (compareRecordFreshness(item, nextArr[idx]) <= 0) continue;
+      if (compareRecordFreshness(item, nextArr[idx]) <= 0) {
+        // Preserve an unrepresented local edit while its query catches up.
+        // When both conflicting committed values are present, use the same
+        // canonical row on every device instead of preserving each local tie.
+        if (compareRecordFreshness(item, nextArr[idx]) < 0
+            || (!represented.get(itemId)?.has(syncValueKey(nextArr[idx])) && !newerCommitted)) continue;
+      }
       nextArr[idx] = item;
     }
     else nextArr.push(item);
@@ -148,6 +184,18 @@ export async function mergeArrayRowsIntoImported(
   if (cap && cappedArr.length > cap) {
     const trimmed = cappedArr.slice().sort((a, b) => pickTimestamp(b) - pickTimestamp(a));
     writeArr(trimmed.slice(0, cap));
+  }
+  const presentIds = new Set<string>();
+  const acknowledgedItems = arrayName === 'entries' ? packLabPanelRows(readArr()) : readArr();
+  for (const item of acknowledgedItems) {
+    const id = itemIdFn(item), entry = id ? liveById.get(id) : null;
+    if (id) presentIds.add(id);
+    if (!id || !entry || parseRowSyncedAt(entry.row) <= 0 || tombstoneWinsOverLiveRow(id, entry)) continue;
+    const hash = _djb2(JSON.stringify(item));
+    if (hash === entry.wireHash) options.onVersion?.(id, {hash, clock: parseRowSyncedAt(entry.row)});
+  }
+  for (const [id, clock] of remoteTombs) {
+    if (!presentIds.has(id) && clock > 0) options.onVersion?.(id, {hash: null, clock});
   }
   recordPullDeltaSurface(arrayName, { live: liveById.size, tombstones: localTombs.size + remoteTombs.size });
 }

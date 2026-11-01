@@ -225,11 +225,13 @@ export function createDataCore(ports: DataCorePorts) {
       const base = snapshot.base;
       let persisted;
       let changed;
+      let mutationBefore: string | null = null;
       try {
         if (options.canCommit && !options.canCommit()) return false;
         if ((0, ports.isProfileReadBlocked)(profileId)) return false;
         const key = (0, ports.profileStorageKey)(profileId, 'imported');
         const previous = await (0, ports.encryptedGetItem)(key, { throwOnDecryptError: true });
+        mutationBefore = previous;
         // Explicit restores must retry if their reviewed snapshot changed.
         if (options.expectedData !== undefined && previous !== options.expectedData) {
           if (options.notifyOnStaleSnapshot === false) return false;
@@ -308,6 +310,12 @@ export function createDataCore(ports: DataCorePorts) {
       } catch (e) {
         return failedProfileSave(e);
       }
+      try {
+        if (changed) (0, ports.noteProfileDataCommit)(profileId, mutationBefore, persisted);
+        else if (base && !(0, ports.profileDataValuesEqual)(base, intent)) {
+          (0, ports.noteProfileDataCommit)(profileId, JSON.stringify(base), intent);
+        }
+      } catch { /* Observation cannot turn a durable save into a failed save. */ }
       // Storage has committed. Adoption and hooks cannot turn it into a failed save.
       try {
         const live = ports.state.currentProfile === profileId ? ports.state.importedData : null;
@@ -329,7 +337,9 @@ export function createDataCore(ports: DataCorePorts) {
       } catch (e) {
         if ((0, ports.isDebugMode)()) console.warn('Live profile refresh failed after data was persisted:', e);
       }
-      if (!changed && options.activeSave) return true;
+      // A pull may have persisted this live intent while the save waited for
+      // its lock. It still needs an upload marker even without another write.
+      if (!changed && options.activeSave && (!base || (0, ports.profileDataValuesEqual)(base, intent))) return true;
       try {
         (0, ports.broadcastDataChanged)(profileId);
         (0, ports.scheduleAutoBackup)();

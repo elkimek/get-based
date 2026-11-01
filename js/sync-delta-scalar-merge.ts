@@ -1,3 +1,4 @@
+import {compareSyncRows} from './sync-conflict-order.js';
 import type {DeltaItemRow, DeltaImportedData} from './sync-delta-row-codec.js';
 import type {ScalarVersion} from './sync-scalar-snapshot.js';
 import {getAt, setAt} from './data-merge.js';
@@ -16,6 +17,7 @@ export async function mergeScalarRowsIntoImported(
   let live = 0, tombs = 0, chosenAt = '', tombstonedAt = '';
   let chosen: {v?: unknown} | null = null;
   const geneticsCandidates: unknown[] = [];
+  let chosenRow: DeltaItemRow | null = null;
   for (const row of arrRows) {
     if (row.itemId !== arrayName) continue;
     if (row.isDeleted) {tombs++; if (String(row.syncedAt || '') > tombstonedAt) tombstonedAt = String(row.syncedAt || ''); continue;}
@@ -24,7 +26,7 @@ export async function mergeScalarRowsIntoImported(
       if (!parsed || !Object.hasOwn(parsed, 'v')) continue;
       live++;
       if (arrayName === 'genetics') geneticsCandidates.push(parsed.v);
-      if (!chosen || String(row.syncedAt || '') > chosenAt) {chosen = parsed; chosenAt = String(row.syncedAt || '');}
+      if (!chosenRow || compareSyncRows(row, chosenRow) > 0) { chosen = parsed; chosenRow = row; chosenAt = String(row.syncedAt || ''); }
     } catch { /* Malformed rows cannot replace valid data. */ }
   }
   let selected: {value: unknown; clock: number} | null = null;

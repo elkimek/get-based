@@ -305,6 +305,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/sync-delta-planners.js', '/js/sync-delta-planner-context.js', '/js/sync-delta-array-planner.js', '/js/sync-delta-map-planner.js',
   '/js/sync-delta-scalar-planner.js', '/js/sync-delta-snapshot.js', '/js/sync-delta-merge.js', '/js/sync-delta-merge-shapes.js',
   '/js/sync-delta-row-codec.js', '/js/sync-delta-array-merge.js', '/js/sync-delta-map-merge.js', '/js/sync-delta-scalar-merge.js',
+  '/js/sync-conflict-order.js',
   '/js/sync-delta-registry.js', '/js/sync-delta-surfaces.js', '/js/sync-delta-surface-config.js', '/js/sync-delta-id.js',
   '/js/sync-delta-observability.js', '/js/sync-delta-observability-context.js', '/js/sync-delta-pull-snapshot.js', '/js/sync-delta-telemetry.js',
   '/js/sync-delta-readiness.js', '/js/sync-tombstones.js', '/js/sync-messenger.js', '/js/sync-environment.js',

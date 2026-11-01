@@ -8,6 +8,26 @@ import {setSyncEvolu} from '../js/sync-runtime.js';
 beforeEach(() => { vi.stubGlobal('crypto', webcrypto); localStorage.clear(); sessionStorage.clear(); setSyncPublishingSuspended(false); document.body.innerHTML = '<div id="notification-container"></div>'; });
 afterEach(() => { configureSyncIdentity({ getAppOwner: () => null, getEvolu: () => null, seedLocalProfiles: async () => {} }); setSyncEvolu(null); setSyncPublishingSuspended(false); localStorage.clear(); sessionStorage.clear(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
+for (const rejected of [false, true]) it(`suspends ordinary device joins through the controlled reload and resumes rejected joins: ${rejected}`, async () => {
+  vi.useFakeTimers();
+  try {
+    let finish!: () => void;
+    const engine = {restoreAppOwner: () => new Promise<void>((resolve, reject) => {
+      finish = () => rejected ? reject(new Error('Synthetic join rejection')) : resolve();
+    })};
+    setSyncEvolu(engine); setSyncEnabled(true);
+    configureSyncIdentity({getEvolu: () => engine, getAppOwner: () => ({id: 'prior-owner', mnemonic: 'synthetic prior identity'})});
+    const task = restoreFromMnemonic('synthetic joined identity');
+    const duringHandoff = isSyncEnabled();
+    finish();
+    expect(await task).toBe(!rejected);
+    expect(duringHandoff).toBe(false);
+    expect(isSyncEnabled()).toBe(rejected);
+    expect(localStorage.getItem(SYNC_STORAGE_KEY)).toBe('true');
+    if (!rejected) {setSyncEvolu({}); expect(isSyncEnabled()).toBe(true);}
+  } finally {vi.clearAllTimers(); vi.useRealTimers();}
+});
+
 it('carries pending recovery to a deliberately joined identity before resetting the SDK', async () => {
   vi.useFakeTimers();
   try {

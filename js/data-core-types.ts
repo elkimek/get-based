@@ -54,6 +54,7 @@ export interface DataCorePorts {
   readonly getConfiguredArrayItemId: typeof import('./data-merge.js').getConfiguredArrayItemId;
   readonly profileDataValuesEqual: typeof import('./profile-data-writes.js').profileDataValuesEqual;
   readonly queueProfileDataWrite: typeof import('./profile-data-writes.js').queueProfileDataWrite;
+  readonly noteProfileDataCommit: typeof import('./profile-data-writes.js').noteProfileDataCommit;
   readonly profileDataBaseline: typeof import('./profile-data-writes.js').profileDataBaseline;
   readonly rememberProfileData: typeof import('./profile-data-writes.js').rememberProfileData;
   readonly mergeProfileMutation: typeof import('./profile-data-writes.js').mergeProfileMutation;
