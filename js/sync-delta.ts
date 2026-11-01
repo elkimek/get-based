@@ -15,7 +15,7 @@ export { _planScalarDelta } from './sync-delta-scalar-planner.js';
 export { _writeDeltaSnapshot, clearDeltaSnapshot } from './sync-delta-snapshot.js';
 export { _recordPushTelemetry, getDeltaTelemetry, resetDeltaTelemetry } from './sync-delta-telemetry.js';
 export { getDeltaCutoverReadiness } from './sync-delta-readiness.js';
-export { _mergeItemRowsIntoImported } from './sync-delta-merge.js';
+export { _mergeItemRowsIntoImported, acknowledgePulledScalarSnapshots } from './sync-delta-merge.js';
 
 const deltaQueryAccess = createDeltaQueryAccess<DeltaMutationClient>();
 

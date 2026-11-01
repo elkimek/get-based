@@ -3,12 +3,20 @@ import type {DeltaItemRow} from "../../js/sync-delta-row-codec.js";
 import type { Browser } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
+import {readFileSync} from 'node:fs';
+import {stripTypeScriptTypes} from 'node:module';
 
 const TRANSPORT_E2E_ENABLED = process.env.SYNC_TRANSPORT_E2E === '1';
 const RELAY_URL = process.env.SYNC_TRANSPORT_RELAY || 'ws://127.0.0.1:4000';
 const SELF_URL = process.env.SYNC_TRANSPORT_SELF_URL || 'http://127.0.0.1:4003';
 const EVOLU_CLIENT = process.env.SYNC_TRANSPORT_EVOLU_CLIENT || 'v8';
 const APP_URL = EVOLU_CLIENT === 'v7' ? '/app?evolu-client=v7' : '/app';
+// Frozen canonical bridge from c1135b1fc04999cf76ffa854cfe6723e41d7068a.
+// This runs the actual previous web/common graph, without adapting its API to
+// the current client or mocking transport, owner proof, storage, or compaction.
+const previousBridge = EVOLU_CLIENT === 'v8-mixed' ? stripTypeScriptTypes(
+  readFileSync(new URL('../fixtures/evolu8-web-3.1-bridge.ts.txt', import.meta.url), 'utf8'),
+) : null;
 const BASELINE_CONTEXT = 'transport-e2e-baseline';
 const UPDATED_CONTEXT = 'transport-e2e-updated';
 const OFFLINE_CONTEXT = 'transport-e2e-offline-recovery';
@@ -30,6 +38,11 @@ function legalAcceptance() {
 
 async function createDevice(browser: Browser, label: string) {
   const context = await browser.newContext({ serviceWorkers: 'block' });
+  if (previousBridge && label.endsWith('device A')) {
+    await context.route(url => url.pathname === '/js/sync-evolu8-candidate.js', route => route.fulfill({
+      contentType: 'text/javascript', body: previousBridge,
+    }));
+  }
   await context.addInitScript(({ relayUrl, selfUrl, acceptance, debug }) => {
     if (!/^https?:$/.test(location.protocol)) return;
     localStorage.setItem('labcharts-sync-relay', relayUrl);
@@ -551,6 +564,93 @@ test('real relay converges devices, resists no-op bloat, recovers offline, and r
     for (const device of devices.reverse()) {
       await device.context.close().catch(() => {});
     }
+  }
+});
+
+test('a blob-only scalar clear survives a delayed live row through the real SDK and relay', async ({ browser }) => {
+  test.setTimeout(120_000);
+  const devices: Array<Awaited<ReturnType<typeof createDevice>>> = [];
+  try {
+    const a = await createDevice(browser, 'clear device A'); devices.push(a);
+    const identity = await enableNewIdentity(a.page);
+    const b = await createDevice(browser, 'clear device B'); devices.push(b);
+    await joinIdentity(b.page, identity.mnemonic, identity.ownerId);
+    // A durable blob receipt can precede its item-row subscription. Exercise
+    // the resulting native planner/mutation path with both actual SDK graphs.
+    const clocks = await a.page.evaluate(async () => {
+      const [{writeScalarVersion, scalarValueHash}, delta] = await Promise.all([
+        import('/js/sync-scalar-snapshot.js'), import('/js/sync-delta.js'),
+      ]);
+      const before = Date.now();
+      if (!writeScalarVersion('default', 'interpretiveLens', {clock: before, hash: scalarValueHash('interpretiveLens', 'delayed value')})) throw new Error('Receipt not saved');
+      const plan = await delta._planScalarDelta('default', 'interpretiveLens', null);
+      if (plan.ops.length !== 1 || plan.ops[0]!.kind !== 'insert' || !delta._applyArrayDelta('interpretiveLens', plan)) throw new Error('Clear not queued');
+      return {before, clear: Date.parse(String(plan.ops[0]!.args.syncedAt))};
+    });
+    expect(clocks.clear).toBeGreaterThan(clocks.before);
+    const rows = (page: Page) => page.evaluate(async () => {
+      const runtime = await import('/js/sync-runtime.js');
+      const rows = runtime.getSyncEvolu()!.getQueryRows(runtime.getSyncItemRowQuery()) as readonly DeltaItemRow[] | null | undefined;
+      return (rows || []).filter(row => row.profileId === 'default' && row.arrayName === 'interpretiveLens');
+    });
+    await expect.poll(async () => (await rows(b.page)).some(row => row.payload === JSON.stringify({v: null}) && Date.parse(String(row.syncedAt)) === clocks.clear)).toBe(true);
+    await a.page.evaluate(async before => {
+      const runtime = await import('/js/sync-runtime.js');
+      runtime.getSyncEvolu()!.insert('itemRow', {profileId: 'default', arrayName: 'interpretiveLens', itemId: 'interpretiveLens',
+        payload: JSON.stringify({v: 'delayed value'}), syncedAt: new Date(before).toISOString()});
+    }, clocks.before);
+    await expect.poll(async () => (await rows(b.page)).length).toBe(2);
+    for (const device of devices) {
+      await expect.poll(() => device.page.evaluate(async () => {
+        const { _mergeItemRowsIntoImported } = await import('/js/sync-delta.js');
+        return (await _mergeItemRowsIntoImported('default', {interpretiveLens: 'delayed value'})).interpretiveLens;
+      })).toBeNull();
+      expect(device.errors).toEqual([]);
+    }
+  } finally {
+    for (const device of devices.reverse()) await device.context.close().catch(() => {});
+  }
+});
+
+test('paused note edits do not overwrite context changed on another device', async ({ browser }) => {
+  test.setTimeout(150_000);
+  const devices: Array<Awaited<ReturnType<typeof createDevice>>> = [];
+  try {
+    const a = await createDevice(browser, 'device A'); devices.push(a);
+    await setSyntheticData(a.page, 'seed');
+    const identity = await enableNewIdentity(a.page);
+    const b = await createDevice(browser, 'device B'); devices.push(b);
+    await joinIdentity(b.page, identity.mnemonic, identity.ownerId);
+    await waitForContext(b.page, BASELINE_CONTEXT);
+    await setSyntheticData(b.page, 'update-a');
+    await syncNow(b.page); await waitForContext(a.page, UPDATED_CONTEXT);
+    expect(await b.page.evaluate(() => import('/js/sync.js').then(sync => sync.pauseSync()))).toBe(true);
+    await setSyntheticData(a.page, 'offline-context'); await syncNow(a.page);
+    await waitForStableRelayStorage(a.page);
+    await expect.poll(() => contextNotes(b.page)).toBe(UPDATED_CONTEXT);
+    await setSyntheticData(b.page, 'concurrent-b');
+    expect(await b.page.evaluate(() => import('/js/sync.js').then(sync => sync.enableSync()))).toBe(true);
+    for (const device of [a, b]) {
+      await waitForContext(device.page, OFFLINE_CONTEXT);
+      await waitForNotes(device.page, ['baseline-note', 'concurrent-b', 'from-device-a']);
+    }
+    await b.page.evaluate(async () => {
+      const { updateProfileMeta } = await import('/js/profile.js');
+      await updateProfileMeta('default', { name: 'Relay metadata edit', tags: ['transport-e2e'] });
+    });
+    await syncNow(b.page);
+    for (const device of [a, b]) {
+      await expect.poll(() => device.page.evaluate(async () => {
+        const { getProfiles } = await import('/js/profile.js');
+        return getProfiles().find(profile => profile.id === 'default');
+      }), { timeout: 30_000 }).toMatchObject({ name: 'Relay metadata edit', tags: ['transport-e2e'] });
+    }
+  } finally {
+    const first = devices[0]?.page;
+    if (first && !first.isClosed()) await first.evaluate(async () => {
+      try { await (await import('/js/sync.js')).compactOwnerSelfServe(); } catch {}
+    }).catch(() => {});
+    for (const device of devices.reverse()) await device.context.close();
   }
 });
 

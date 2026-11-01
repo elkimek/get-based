@@ -1,92 +1,50 @@
-import type { DeltaItemRow, DeltaImportedData } from './sync-delta-row-codec.js';
-// sync-delta-scalar-merge.js - Pull-side scalar row overlay helper.
-
-import { setAt } from './data-merge.js';
-import { recordPullDeltaSurface } from './sync-delta-pull-snapshot.js';
-import { decodeRowPayload } from './sync-delta-row-codec.js';
+import type {DeltaItemRow, DeltaImportedData} from './sync-delta-row-codec.js';
+import type {ScalarVersion} from './sync-scalar-snapshot.js';
+import {getAt, setAt} from './data-merge.js';
+import {recordPullDeltaSurface} from './sync-delta-pull-snapshot.js';
+import {decodeRowPayload} from './sync-delta-row-codec.js';
+import {readScalarVersion, scalarValue, scalarValueHash} from './sync-scalar-snapshot.js';
 
 export async function mergeScalarRowsIntoImported(
   imported: DeltaImportedData, arrayName: string, arrRows: readonly DeltaItemRow[],
-  options: { hasBaseline?: boolean | undefined; baselineSyncedAt?: number | undefined } = {},
+  options: {hasBaseline?: boolean | undefined; baselineSyncedAt?: number | undefined;
+    clockedBaseline?: boolean; baselineValue?: unknown; profileId?: string | undefined; localValue?: unknown; hasLocal?: boolean;
+    onVersion?: (version: ScalarVersion) => void} = {},
 ) {
-  let live = 0, tombs = 0;
-  let chosen: { v?: unknown } | null = null;
-  let chosenAt = '';
-  let tombstoned = false;
-  let tombstonedAt = '';
+  let live = 0, tombs = 0, chosenAt = '', tombstonedAt = '';
+  let chosen: {v?: unknown} | null = null;
   for (const row of arrRows) {
-    if (row.itemId !== arrayName) continue; // defence: ignore foreign rows in this slot
-    if (row.isDeleted) {
-      if (String(row.syncedAt || '') > tombstonedAt) {
-        tombstoned = true;
-        tombstonedAt = String(row.syncedAt || '');
-      }
-      tombs++;
-      continue;
-    }
+    if (row.itemId !== arrayName) continue;
+    if (row.isDeleted) {tombs++; if (String(row.syncedAt || '') > tombstonedAt) tombstonedAt = String(row.syncedAt || ''); continue;}
     try {
-      const parsed = await decodeRowPayload(row) as { v?: unknown } | null;
-      if (!parsed || typeof parsed !== 'object') continue;
-      // Prefer the most-recently-synced live row when multiples exist.
-      const ts = String(row.syncedAt || '');
-      if (ts > chosenAt) { chosen = parsed; chosenAt = ts; }
+      const parsed = await decodeRowPayload(row) as {v?: unknown} | null;
+      if (!parsed || !Object.hasOwn(parsed, 'v')) continue;
       live++;
-    } catch {}
+      if (!chosen || String(row.syncedAt || '') > chosenAt) {chosen = parsed; chosenAt = String(row.syncedAt || '');}
+    } catch { /* Malformed rows cannot replace valid data. */ }
   }
-  // In dual-write mode the profile blob and scalar rows carry the same value,
-  // but an old replica can surface a stale row after a newer blob has won.
-  // Keep that explicit blob value; v4 row-only payloads have no baseline.
-  const baselineAt = options.hasBaseline && Number.isFinite(options.baselineSyncedAt)
-    ? Number(options.baselineSyncedAt)
-    : 0;
-  const latestRowAt = Math.max(
-    Date.parse(chosenAt || '') || 0,
-    Date.parse(tombstonedAt || '') || 0,
-  );
-  if (baselineAt >= latestRowAt && baselineAt > 0) {
-    recordPullDeltaSurface(arrayName, { live, tombstones: tombs });
-    return;
+  let selected: {value: unknown; clock: number} | null = null;
+  const deleted = !!tombstonedAt && tombstonedAt >= chosenAt;
+  if (deleted || chosen) selected = {value: deleted ? null : chosen!.v,
+    clock: Date.parse(deleted ? tombstonedAt : chosenAt) || 0};
+  const baselineAt = options.hasBaseline ? options.baselineSyncedAt || 0 : 0;
+  if (options.hasBaseline && baselineAt > 0 && baselineAt >= (selected?.clock || 0)) {
+    selected = {value: options.clockedBaseline ? options.baselineValue : getAt(imported, arrayName), clock: baselineAt};
   }
-  // Latest write wins between live + tombstone: tombstone only
-  // overwrites when its syncedAt is at-or-newer than the chosen
-  // live row (otherwise an old delete would obliterate a fresh edit).
-  const isNestedScalar = arrayName.includes('.');
-  if (tombstoned && tombstonedAt >= chosenAt) {
-    // Symmetric snps preservation: the live branch below restores
-    // imported.genetics.snps when the map merge ran first; the tombstone
-    // branch needs the same guard or `genetics.snps` rows get silently
-    // wiped whenever the per-row map merger happens to run before this
-    // scalar branch (byArray iteration order is determined by relay row
-    // ordering, so it's racy).
-    if (arrayName === 'genetics'
-        && imported.genetics && typeof imported.genetics === 'object'
-        && imported.genetics.snps && typeof imported.genetics.snps === 'object'
-        && Object.keys(imported.genetics.snps).length > 0) {
-      imported.genetics = { snps: imported.genetics.snps };
-    } else if (isNestedScalar) {
-      // Dotted-path scalar tombstone clears just the leaf, not the parent.
-      setAt(imported, arrayName, null);
-    } else {
-      imported[arrayName] = null;
+  // Successful local edits can precede both query subscriptions. Preserve only
+  // the exact durably committed value, never an unrelated unsaved draft.
+  const local = options.profileId ? readScalarVersion(options.profileId, arrayName) : null;
+  if (options.hasLocal && local && local.hash === scalarValueHash(arrayName, options.localValue) && local.clock > (selected?.clock || 0)) {
+    selected = {value: scalarValue(arrayName, options.localValue), clock: local.clock};
+  }
+  if (selected) {
+    let value = selected.value;
+    if (arrayName === 'genetics' && imported.genetics?.snps && typeof imported.genetics.snps === 'object') {
+      const snps = imported.genetics.snps;
+      value = value && typeof value === 'object' ? {...value, snps} : {snps};
     }
-  } else if (chosen) {
-    // Preserve nested fields owned by a DELTA_MAPS dotted path. The
-    // scalar payload is metadata-only by contract, so a remote scalar
-    // must not blow away the local map.
-    if (arrayName === 'genetics'
-        && imported.genetics && typeof imported.genetics === 'object'
-        && imported.genetics.snps && typeof imported.genetics.snps === 'object') {
-      const localSnps = imported.genetics.snps;
-      imported.genetics = chosen.v as DeltaImportedData['genetics'];
-      if (imported.genetics && typeof imported.genetics === 'object') {
-        imported.genetics.snps = localSnps;
-      }
-    } else if (isNestedScalar) {
-      // Dotted-path scalar write: only the leaf, not the parent.
-      setAt(imported, arrayName, chosen.v);
-    } else {
-      imported[arrayName] = chosen.v;
-    }
+    setAt(imported, arrayName, value);
+    if (selected.clock > 0) options.onVersion?.({clock: selected.clock, hash: scalarValueHash(arrayName, selected.value)});
   }
-  recordPullDeltaSurface(arrayName, { live, tombstones: tombs });
+  if (arrRows.length) recordPullDeltaSurface(arrayName, {live, tombstones: tombs});
 }

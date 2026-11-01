@@ -157,8 +157,23 @@ async function controller(debug: boolean[] = [false, false], trace: string[] = [
   vi.doMock('../js/settings-runtime-bridge.js', () => ({ getSettingsModuleFunction: () => { throw new Error('Unexpected Settings'); } }));
   return { ui: await import('../js/sync-ui.js'), status: await import('../js/sync-state.js') };
 }
+it.each(['Offline', 'Error'] as const)('does not describe replication %s as connected because the HTTP probe succeeded', async replication => {
+  const {ui, status} = await controller();
+  ui.configureSyncUI({isSyncEnabled: () => true});
+  status.updateSyncStatus({relay: 'connected', replication, devicePersistence: 'Persisted', lastError: {type: 'ProtocolQuotaError', at: 100}});
+  document.body.innerHTML = '<div id="sync-indicator-slot"></div>';
+  ui.renderSyncIndicator(); ui.toggleSyncDetail();
+  const popover = document.getElementById('sync-popover')!;
+  expect(popover.textContent).not.toContain('Connected to relay');
+  expect(popover.textContent).toContain(replication === 'Offline' ? 'Sync connection offline' : 'Sync needs attention');
+  expect(popover.querySelector('[role="status"]')?.textContent).toContain(replication === 'Offline' ? 'Offline.' : 'Relay storage is full');
+});
 describe('public Sync indicator lifetime and original no-render boundaries', () => {
   it.each(fixture.indicators)('retains original public indicator case: $original.name', async ({ original }) => {
+    // Unknown persistence no longer claims durable local storage. Preserve the
+    // complete independent original DOM oracle with only that title corrected.
+    const expected = original.name === 'offline' ? JSON.parse(JSON.stringify(original)
+      .replaceAll('Offline — changes saved locally', 'Offline — waiting to reconnect')) as typeof original : original;
     if (original.name !== 'missing-host') document.body.innerHTML = '<div id="sync-indicator-slot"></div>';
     const { ui, status } = await controller();
     const trace: string[] = []; let reads = 0;
@@ -177,12 +192,12 @@ describe('public Sync indicator lifetime and original no-render boundaries', () 
     });
     ui.renderSyncIndicator();
     const slot = document.getElementById('sync-indicator-slot'); const button = slot?.querySelector('button'); const dot = button?.firstElementChild;
-    expect(slot?.innerHTML ?? null).toBe(expectedSyncIndicator(original.html));
-    const expectedTree = original.html ? [{ type: 8, value: '[' }, ...original.tree!, { type: 8, value: ']' }] : original.tree;
+    expect(slot?.innerHTML ?? null).toBe(expectedSyncIndicator(expected.html));
+    const expectedTree = expected.html ? [{ type: 8, value: '[' }, ...expected.tree!, { type: 8, value: ']' }] : expected.tree;
     expect(slot ? parsed(slot.innerHTML, true) : null).toEqual(expectedTree);
     if (button && dot) { ui.updateSyncIndicator(); expect(slot!.querySelector('button')).toBe(button); expect(button.firstElementChild).toBe(dot); }
-    expect(trace).toEqual(original.trace); expect(assignments).toEqual(original.assignments.map(html => expectedSyncIndicator(html)));
-    expect(slot?.innerHTML ?? null).toBe(expectedSyncIndicator(original.afterHTML)); expect(button?.type ?? null).toBe(original.nativeType);
+    expect(trace).toEqual(original.trace); expect(assignments).toEqual(expected.assignments.map(html => expectedSyncIndicator(html)));
+    expect(slot?.innerHTML ?? null).toBe(expectedSyncIndicator(expected.afterHTML)); expect(button?.type ?? null).toBe(original.nativeType);
     expect(button?.disabled ?? null).toBe(original.nativeDisabled);
   });
   it.each(['raw-kind-symbol', 'raw-kind-throwing', 'event-text-throws', 'quota-pct-throws', 'relay-throws-late'])('preserves original atomic throw and read order: %s', async name => {

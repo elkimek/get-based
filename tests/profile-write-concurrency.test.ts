@@ -1,3 +1,4 @@
+import type {DeltaItemRow, DeltaImportedData} from '../js/sync-delta-row-codec.js';
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import { state } from '../js/state.js';
 import { mergeProfileMutation, rememberProfileData, adoptProfileData } from '../js/profile-data-writes.js';
@@ -14,7 +15,7 @@ import { configureSyncTombstones } from '../js/sync-tombstones.js';
 import { getSyncDirtyToken } from '../js/sync-dirty-state.js';
 import * as syncPayload from '../js/sync-payload.js';
 import { configureSyncPush, pushProfile } from '../js/sync-push.js';
-import { configureSyncDelta } from '../js/sync-delta.js';
+import { configureSyncDelta, _mergeItemRowsIntoImported } from '../js/sync-delta.js';
 
 const profileId = 'profile-write-concurrency';
 const key = profileStorageKey(profileId, 'imported');
@@ -696,7 +697,14 @@ for (const scenario of [
     }
     expect(await pushProfile(profileId, committed)).toMatchObject({ ok: true });
     expect(wire.length).toBeGreaterThan(0);
-    expect((await actualDecode(wire.at(-1))).importedData).toMatchObject({ contextNotes: localText, interpretiveLens: 'independent remote lens' });
+    const latestPayload = (await actualDecode(wire.at(-1))).importedData;
+    const receivedRows = itemRows.map(value => {
+      if (!value || typeof value !== 'object' || !('payload' in value) || !('itemId' in value) || typeof value.itemId !== 'string') throw new Error('Invalid received item row');
+      return value as DeltaItemRow;
+    });
+    configureSyncDelta({ getEvolu: () => ({ getQueryRows: () => receivedRows, insert: write, update: write }), getItemRowQuery: () => ({}) });
+    const imported: DeltaImportedData = { ...(latestPayload as Record<string, unknown>) };
+    expect(await _mergeItemRowsIntoImported(profileId, imported)).toMatchObject({ contextNotes: localText, interpretiveLens: 'independent remote lens' });
     expect(itemRows).toEqual(expect.arrayContaining([expect.objectContaining({ arrayName: 'contextNotes', itemId: 'contextNotes', payload: JSON.stringify({ v: localText }) })]));
     expect(isSyncPulling()).toBe(false);
   } finally {

@@ -1,5 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import http from 'node:http';
+import fs from 'node:fs/promises';
 import { executeClassicServiceWorker } from './helpers/classic-service-worker.js';
 const actualNetworkFetch = globalThis.fetch;
 
@@ -272,8 +273,8 @@ it('never routes SQLite aliases for queries, hashes, cross-origin or non-GET req
   const alias = '/vendor/evolu8/sqlite3.wasm';
   await worker.put(currentKey, '/vendor/evolu/sqlite3.wasm', 'canonical');
   for (const url of [
-    alias + '?foreign=1', alias + '#foreign', '/vendor/evolu8/Db.worker.js',
-    '/vendor/evolu8/Shared.worker.js', '/vendor/evolu8/unqualified.js', '/vendor/evolu8/%73qlite3.wasm',
+    alias + '?foreign=1', alias + '#foreign', '/vendor/evolu8/v8.24.1-web3.6.5/Db.worker.js',
+    '/vendor/evolu8/v8.24.1-web3.6.5/Shared.worker.js', '/vendor/evolu8/unqualified.js', '/vendor/evolu8/%73qlite3.wasm',
   ]) {
     expect(await (await worker.fetch(url))!.text()).toBe('fresh network');
   }
@@ -309,6 +310,52 @@ it('keeps raw/default workers free of SQLite aliases and snapshots the qualified
   mutable['/vendor/evolu8/sqlite3.wasm'] = '/vendor/evolu/foreign.wasm';
   await worker.put(currentKey, '/vendor/evolu/sqlite3.wasm', 'original qualified payload');
   expect(await (await worker.fetch('/vendor/evolu8/sqlite3.wasm'))!.text()).toBe('original qualified payload');
+});
+
+it.each(['evolu-bundle.js', 'Db.worker.js', 'Shared.worker.js'])(
+  'serves the exact previous %s offline from its retained build without copying it into the new precache', async file => {
+    const worker = runtime([client('legacy')]);
+    const url = '/vendor/evolu8/' + file;
+    const bytes = await fs.readFile(new URL('../vendor/evolu8/' + file, import.meta.url));
+    worker.stores.get(oldKey)!.set(origin + url, new Response(bytes, {headers: {'Content-Type': 'text/javascript', 'X-Content-Type-Options': 'nosniff'}}));
+    await worker.put(currentKey, '/vendor/evolu8/v8.24.1-web3.6.5/' + file, 'different current runtime');
+    const response = (await worker.fetch(url))!;
+    expect(Buffer.from(await response.arrayBuffer())).toEqual(bytes);
+    expect(response.headers.get('Content-Type')).toBe('text/javascript');
+    expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff');
+    expect(worker.fetchImpl).not.toHaveBeenCalled();
+    expect(worker.stores.get(currentKey)!.has(origin + url)).toBe(false);
+  },
+);
+
+it('rejects corrupted, incomplete and substituted previous runtime bodies in every cache and on the network', async () => {
+  for (const status of [200, 206, 404, 500]) {
+    const worker = runtime([client('legacy')]); const url = '/vendor/evolu8/Db.worker.js';
+    worker.stores.get(oldKey)!.set(origin + url, new Response('corrupted previous worker', {status}));
+    await worker.put(currentKey, url, 'wrong current cache body');
+    worker.fetchImpl.mockResolvedValueOnce(new Response('substituted network worker'));
+    await expectUnavailableResponse(await worker.fetch(url));
+    expect(worker.fetchImpl).toHaveBeenCalledOnce();
+  }
+});
+
+it('qualifies a previous runtime network response without adding it to the current cache', async () => {
+  const worker = runtime([]); const url = '/vendor/evolu8/evolu-bundle.js';
+  const bytes = await fs.readFile(new URL('../vendor/evolu8/evolu-bundle.js', import.meta.url));
+  worker.fetchImpl.mockResolvedValueOnce(new Response(bytes));
+  expect(Buffer.from(await (await worker.fetch(url))!.arrayBuffer())).toEqual(bytes);
+  expect(worker.stores.get(currentKey)!.has(origin + url)).toBe(false);
+});
+
+it('never substitutes legacy SQLite for the current versioned WASM, including offline misses', async () => {
+  const worker = runtime([client('legacy')], sqliteOptions); const url = '/vendor/evolu8/v8.24.1-web3.6.5/sqlite3.wasm';
+  await worker.put(currentKey, '/vendor/evolu/sqlite3.wasm', 'legacy SQLite');
+  await worker.put(oldKey, url, 'foreign old-cache SQLite');
+  await worker.put(currentKey, url, 'current SQLite');
+  expect(await (await worker.fetch(url))!.text()).toBe('current SQLite');
+  worker.stores.get(currentKey)!.delete(origin + url);
+  const offline = new Error('offline'); worker.fetchImpl.mockRejectedValueOnce(offline);
+  await expect(worker.fetch(url)).rejects.toBe(offline);
 });
 
 it.each([

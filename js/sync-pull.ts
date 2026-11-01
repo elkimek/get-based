@@ -1,3 +1,4 @@
+import {resolveProfileMetadata} from './sync-profile-metadata.js';
 import type { StoredProfileRecord } from './profile-list-store.js';
 import type { SyncProfileRow } from './sync-payload.js';
 import type { ParsedSyncPayload } from './sync-payload-codec.js';
@@ -271,7 +272,7 @@ async function receiveSync() {
     const restoredProfileIds = getPendingBackupRestoreProfileIds();
     if (restoredProfileIds.length > 0) {
       dbg(`Restore preflight: republishing ${restoredProfileIds.length} restored profile(s)`);
-      const restored = await _pushProfilesById(restoredProfileIds, { force: true });
+      const restored = await _pushProfilesById(restoredProfileIds, { force: true, completeSnapshot: true });
       if (restored.failed > 0 || restored.skipped > 0 || restored.succeeded !== restoredProfileIds.length) {
         logSyncEvent('skip', `Pull deferred — ${restored.succeeded}/${restoredProfileIds.length} restored profiles were republished`);
         return;
@@ -347,7 +348,9 @@ async function receiveSync() {
         // routes through DecompressionStream)
         const parsedPayload = await parseSyncPayload(row.dataJson) as ParsedSyncPayload;
         const importedData = sanitizeNutritionProfileData(parsedPayload.importedData);
-        const { profile, aiSettings, chatData, displayPrefs } = parsedPayload;
+        const { aiSettings, chatData, displayPrefs } = parsedPayload;
+        const metadata = await resolveProfileMetadata(profileId, parsedPayload.profile, remoteUpdated);
+        const profile = metadata.profile;
 
         // Older releases could publish demos despite creation-time skip flags.
         // Remove every matching legacy row and never materialize it locally.
@@ -381,7 +384,7 @@ async function receiveSync() {
           needsRebroadcast, remoteBroughtNewRows, localDataChanged, restoreJoinApplied,
         } = await mergePulledImportedData(profileId, importedData as PulledImportedData | null, {
           debug: dbg,
-          remoteUpdated,
+          remoteUpdated, scalarClocks: parsedPayload.scalarClocks,
           // An unknown remote profile had no local data at pull start. A
           // profile created meanwhile is a local mutation against that absence.
           earlyBaseline: earlyBaseline?.ok ? earlyBaseline.value : { stored: null, live: null, baseline: null },
@@ -397,7 +400,7 @@ async function receiveSync() {
         const committedPull = await persistPulledImportedData(localKey, profileId, merged, remoteUpdated);
         if (restoreJoinApplied) clearRestoreJoinPending();
 
-        if (await mergePulledProfile(profileId, profile)) {
+        if (await mergePulledProfile(profileId, profile, metadata.clock)) {
           profilesChanged = true;
           dbg('Merged profile:', profileId, (profile as { name?: unknown }).name);
         }

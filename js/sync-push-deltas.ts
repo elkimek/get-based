@@ -4,6 +4,7 @@ import type { DeltaImportedData, DeltaPlan } from './sync-delta-row-codec.js';
 
 export interface NamedDeltaPlan { arrayName: string; plan: DeltaPlan }
 
+import {writeScalarVersion} from './sync-scalar-snapshot.js';
 import { getErrorMessage } from './caught-error.js';
 import { getAt } from './data-merge.js';
 import {
@@ -12,9 +13,10 @@ import {
   _planScalarDelta, _recordPushTelemetry, _writeDeltaSnapshot,
 } from './sync-delta.js';
 
-export async function planProfileDeltas(profileId: string, importedData: DeltaImportedData | null | undefined) {
+export async function planProfileDeltas(profileId: string, importedData: DeltaImportedData | null | undefined, options: {forceScalars?: boolean} = {}) {
   const deltaPlans: NamedDeltaPlan[] = [];
   let deltaOpCount = 0;
+  const planningErrors: string[] = [];
   if (!importedData || typeof importedData !== 'object') {
     return { deltaPlans, deltaOpCount };
   }
@@ -38,6 +40,7 @@ export async function planProfileDeltas(profileId: string, importedData: DeltaIm
         deltaOpCount += plan.ops.length;
       }
     } catch (e) {
+      planningErrors.push(arrayName);
       console.warn(`[sync] delta-plan ${arrayName} failed:`, getErrorMessage(e, e));
     }
   }
@@ -54,6 +57,7 @@ export async function planProfileDeltas(profileId: string, importedData: DeltaIm
         deltaOpCount += plan.ops.length;
       }
     } catch (e) {
+      planningErrors.push(mapName);
       console.warn(`[sync] delta-plan map ${mapName} failed:`, getErrorMessage(e, e));
     }
   }
@@ -72,17 +76,18 @@ export async function planProfileDeltas(profileId: string, importedData: DeltaIm
       value = metadata;
     }
     try {
-      const plan = await _planScalarDelta(profileId, scalarName, value);
+      const plan = await _planScalarDelta(profileId, scalarName, value, {force: options.forceScalars === true});
       if (plan.ops.length > 0) {
         deltaPlans.push({ arrayName: scalarName, plan });
         deltaOpCount += plan.ops.length;
       }
     } catch (e) {
+      planningErrors.push(scalarName);
       console.warn(`[sync] delta-plan scalar ${scalarName} failed:`, getErrorMessage(e, e));
     }
   }
 
-  return { deltaPlans, deltaOpCount };
+  return { deltaPlans, deltaOpCount, ...(planningErrors.length ? { planningErrors } : {}) };
 }
 
 export function applyCommittedDeltas(
@@ -90,13 +95,19 @@ export function applyCommittedDeltas(
   deltaPlans: readonly NamedDeltaPlan[], deltaOpCount: number, debug: unknown,
 ) {
   const _debug = typeof debug === 'function' ? debug : () => {};
+  let allCommitted = true;
   // Advance a surface snapshot only after all its row mutations succeed.
   if (deltaPlans.length > 0) {
     let snapshotsAdvanced = 0;
     for (const { arrayName, plan } of deltaPlans) {
       // A failed row must remain eligible for the next diff.
       const allOk = _applyArrayDelta(arrayName, plan);
+      if (!allOk) allCommitted = false;
       if (allOk) {
+        if (DELTA_SCALARS.includes(arrayName)) {
+          const clock = Math.max(...plan.ops.map(op => Date.parse(String(op.args.syncedAt || '')) || 0));
+          if (!writeScalarVersion(profileId, arrayName, {clock, hash: typeof plan.next[arrayName] === 'string' ? plan.next[arrayName] as string : null})) {allCommitted = false; continue;}
+        }
         // A delayed completion cannot overwrite a fresher committed snapshot.
         const wrote = _writeDeltaSnapshot(profileId, arrayName, plan.next, plan.plannedAt);
         if (wrote) snapshotsAdvanced++;
@@ -106,4 +117,5 @@ export function applyCommittedDeltas(
   }
   // Empty plans still measure the overhead of shipping an unchanged blob.
   _recordPushTelemetry(profileId, (dataJson || '').length, deltaPlans);
+  return allCommitted;
 }

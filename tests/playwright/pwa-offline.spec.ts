@@ -57,9 +57,10 @@ test('installed PWA completes a cache-only cold offline relaunch', async ({ page
   expect(installed.cachedPaths).toContain('/vendor/fonts/inter-400-7.woff2');
   expect(installed.cachedPaths).toContain('/vendor/evolu/evolu-bundle.js');
   expect(installed.cachedPaths).toContain('/vendor/evolu/Db.worker.js');
-  expect(installed.cachedPaths).toContain('/vendor/evolu8/evolu-bundle.js');
-  expect(installed.cachedPaths).toContain('/vendor/evolu8/Db.worker.js');
-  expect(installed.cachedPaths).toContain('/vendor/evolu8/Shared.worker.js');
+  expect(installed.cachedPaths).toContain('/vendor/evolu8/v8.24.1-web3.6.5/evolu-bundle.js');
+  expect(installed.cachedPaths).toContain('/vendor/evolu8/v8.24.1-web3.6.5/Db.worker.js');
+  expect(installed.cachedPaths).toContain('/vendor/evolu8/v8.24.1-web3.6.5/Shared.worker.js');
+  expect(installed.cachedPaths).toContain('/vendor/evolu8/v8.24.1-web3.6.5/sqlite3.wasm');
 
   await page.evaluate(async identity => {
     const { createEvolu8IdentityVault } = await import('/js/sync-evolu8-identity-vault.js');

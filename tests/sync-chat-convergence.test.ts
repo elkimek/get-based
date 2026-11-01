@@ -7,6 +7,7 @@ import { buildSyncPayload, latestProfileRow, parseSyncPayload } from '../js/sync
 import { configureSyncReconcile, reconcileLocalStorageWithEvolu } from '../js/sync-reconcile.js';
 import { configureSyncPush, pushProfile } from '../js/sync-push.js';
 import { configureSyncDelta } from '../js/sync-delta.js';
+import { makeEvolu, ITEM_ROW_QUERY } from './helpers/sync-runtime-fixture.js';
 import { maybeScheduleRebroadcast } from '../js/sync-pull-rebroadcast.js';
 import { resetSyncStatus } from '../js/sync-state.js';
 
@@ -25,7 +26,8 @@ beforeEach(() => {
   vi.useFakeTimers();
   localStorage.clear(); sessionStorage.clear(); resetSyncStatus();
   state.currentProfile = profileId; (state as { importedData: unknown }).importedData = {};
-  configureSyncDelta({ getEvolu: () => null, getItemRowQuery: () => null });
+  const deltas = makeEvolu();
+  configureSyncDelta({getEvolu: () => deltas.evolu, getItemRowQuery: () => ITEM_ROW_QUERY});
 });
 afterEach(() => { vi.restoreAllMocks(); vi.clearAllTimers(); vi.useRealTimers(); });
 

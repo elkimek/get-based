@@ -10,7 +10,7 @@
       <div>Pull: {view.pullLabel}</div>
       {#if view.quota}<div style={syncInlineStyles.quotaRow}><span style={(syncInlineStyles.quotaDotGeometry + "background:") + view.quota.dot + (";" + syncInlineStyles.inlineDot)}></span><span style={'color:' + view.quota.color}>{view.quota.text}</span></div>{/if}
     </div>
-    {#if view.error}<div style={syncInlineStyles.recentError}>{view.error.type} {view.error.age}</div>{/if}
+    {#if view.error || view.notice}<div style={syncInlineStyles.recentError} role={view.notice ? 'status' : undefined}>{view.notice || view.error?.type} {view.notice ? '' : view.error?.age}</div>{/if}
     {#if view.events.length}
     <div style={syncInlineStyles.eventsPanel}>
       <div style={syncInlineStyles.eventsHeading}>
@@ -21,7 +21,7 @@
     </div>{/if}
     <div style={syncInlineStyles.popoverActions}>
       <button class="ctx-btn-option" style={syncInlineStyles.popoverAction} data-sync-ui-action="sync-now">Sync now</button>
-      {#if view.stuckPush}<button class="ctx-btn-option" style={syncInlineStyles.reloadAction} data-sync-ui-action="reload" title="Reloads the page to re-init the sync worker.">Reload</button>{/if}
+      {#if view.stuckPush || view.reloadRequired}<button class="ctx-btn-option" style={syncInlineStyles.reloadAction} data-sync-ui-action="reload" title="Reloads the page to re-init the sync worker.">Reload</button>{/if}
       <button class="ctx-btn-option" style={syncInlineStyles.popoverAction} data-sync-ui-action="open-settings">Settings</button>
       <button class="ctx-btn-option" style={syncInlineStyles.popoverAction} data-sync-ui-action="show-diagnose">Sync status</button>
       {#if view.debugControls}

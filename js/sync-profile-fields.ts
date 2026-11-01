@@ -5,6 +5,11 @@ export const SYNC_PROFILE_FIELDS = [
   'flagged', 'avatar', 'color',
 ];
 
+export function syncedProfileMetadataClock(profile: unknown, fallback = 0): number {
+  const value = profile && typeof profile === 'object' ? (profile as Record<string, unknown>)._syncMetadataAt : null;
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : fallback;
+}
+
 export function selectSyncedProfile(profile: unknown) {
   if (!profile || typeof profile !== 'object') return null;
   const selected: Record<string, unknown> = {};
@@ -14,5 +19,7 @@ export function selectSyncedProfile(profile: unknown) {
       selected[field] = (profile as Record<string, unknown>)[field];
     }
   }
+  const clock = syncedProfileMetadataClock(profile);
+  if (clock) selected._syncMetadataAt = clock;
   return selected;
 }

@@ -55,7 +55,8 @@
   <div class="gb:records:flex gb:records:gap-2 gb:records:mt-3 gb:records:flex-wrap">
     <button type="button" class={RECORD_PRIMARY} data-settings-action="share-profile">Share Profile</button>
     <button type="button" class={RECORD_SECONDARY} data-settings-action="export-client" title="Portable JSON including locally stored meal records and resized meal photos">Export Client</button>
-    <button type="button" class={RECORD_SECONDARY} data-settings-action="export-all-clients" title="Full portable backup — all profiles, meal records and resized photos, data, and chat history">Export All Clients</button>
+    <button type="button" class={RECORD_SECONDARY} data-settings-action="export-all-clients" title="Portable client data — all profiles, meal records and resized photos, data, and chat history">Export All Clients</button>
     <button type="button" class={RECORD_DANGER} data-settings-action="clear-all-data">Clear All Data</button>
   </div>
+  <p class="gb:records:text-secondary gb:records:text-[13px]">Client exports exclude app settings and API keys. To include API keys, enable passphrase encryption in Security and use Download Backup.</p>
 {/if}

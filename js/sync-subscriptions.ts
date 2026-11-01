@@ -1,11 +1,13 @@
 import { configureRuntimeDependencies, type RuntimeDependencyUpdates } from './runtime-callbacks.js';
-import type { SyncStatus } from './sync-state.js';
+import type { DevicePersistenceStatus, OwnerReplicationStatus, SyncStatus } from './sync-state.js';
 
 interface SubscriptionRow { id?: unknown; profileId?: unknown; syncedAt?: unknown; updatedAt?: unknown; isDeleted?: unknown; }
 export interface SyncSubscriptionClient {
   subscribeQuery: (query: unknown) => (callback: () => void) => () => void;
   getQueryRows: (query: unknown) => readonly SubscriptionRow[] | null | undefined;
   subscribeError: (callback: (error: { type?: string } | null | undefined) => void) => () => void;
+  subscribeOwnerSyncStatus?: (callback: (status: OwnerReplicationStatus) => void) => () => void;
+  subscribeDevicePersistence?: (callback: (status: DevicePersistenceStatus) => void) => () => void;
 }
 interface SyncSubscriptionDependencies {
   isSyncing: () => unknown;
@@ -173,8 +175,25 @@ export function bindSyncSubscriptions({ evolu, profileQuery, tombstoneQuery, ite
     }
   }, 30000);
 
-  // Subscribe to Evolu errors - catches relay connection failures.
+  // Modern Evolu reports transport/route failures separately from database errors.
+  if (evolu.subscribeOwnerSyncStatus) {
+    _unsubscribeCallbacks.push(evolu.subscribeOwnerSyncStatus(status => {
+      const partial: Partial<SyncStatus> = {replication: status.type};
+      if (status.type === 'Error') partial.lastError = {type: status.error.type, at: status.error.at};
+      // A reconciled transport never confirms our persisted owner-storage push.
+      subscriptionDependencies.updateSyncStatus(partial);
+    }));
+  }
+  if (evolu.subscribeDevicePersistence) {
+    _unsubscribeCallbacks.push(evolu.subscribeDevicePersistence(devicePersistence => {
+      subscriptionDependencies.updateSyncStatus({devicePersistence});
+    }));
+  }
+  // Legacy Evolu still reports WebSocket failures through this error channel.
   _unsubscribeCallbacks.push(evolu.subscribeError((error) => {
+    if (!error || ['DatabaseHeldError', 'OtherBuildRunningError', 'UnsupportedDbVersionError', 'UnknownError'].includes(error.type || '')) {
+      subscriptionDependencies.updateSyncStatus({databaseError: error?.type || null});
+    }
     if (!error) return;
     const type = error?.type || 'unknown';
     (0, subscriptionDependencies.debug)('Evolu error:', type);

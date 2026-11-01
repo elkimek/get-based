@@ -78,6 +78,12 @@ jobs:
               - vendor/evolu8/sqlite3-opfs-async-proxy.js
               - vendor/evolu8/sqlite3-worker1-bundler-friendly.mjs
               - vendor/evolu8/sqlite3.wasm
+              - vendor/evolu8/v8.24.1-web3.6.5/evolu-bundle.js
+              - vendor/evolu8/v8.24.1-web3.6.5/Db.worker.js
+              - vendor/evolu8/v8.24.1-web3.6.5/Shared.worker.js
+              - vendor/evolu8/v8.24.1-web3.6.5/sqlite3.wasm
+              - vendor/evolu8/v8.24.1-web3.6.5/LICENSE
+              - vendor/evolu8/v8.24.1-web3.6.5/THIRD_PARTY_NOTICES.md
               - vendor/evolu/sqlite3-bundler-friendly.mjs
               - vendor/evolu/sqlite3-opfs-async-proxy.js
               - vendor/evolu/sqlite3-worker1-bundler-friendly.mjs

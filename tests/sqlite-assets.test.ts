@@ -19,7 +19,9 @@ const exact = [
   ['sqlite3-worker1-bundler-friendly.mjs', 1533,
     '7b771d35011172c6e24cafad78dec56704fc36584715d633adab8d8af7bea259'],
 ] as const;
-const urls = exact.flatMap(([file]) => ['/vendor/evolu/' + file, '/vendor/evolu8/' + file]);
+const modernUrl = '/vendor/evolu8/v8.24.1-web3.6.5/sqlite3.wasm';
+const legacyUrls = exact.flatMap(([file]) => ['/vendor/evolu/' + file, '/vendor/evolu8/' + file]);
+const urls = [...legacyUrls, modernUrl];
 const aliases = Object.fromEntries(exact.map(([file]) => ['/vendor/evolu8/' + file, '/vendor/evolu/' + file]));
 const shell = (entries: readonly string[]) => 'const APP_SHELL = ' + JSON.stringify(entries) + ';';
 const worker = (entries: readonly string[]) =>
@@ -62,8 +64,10 @@ it('measures every full canonical byte with the unchanged app-shell metric and s
     artifactRoot: path.join(root, '.local-notes/nonexistent-sqlite-artifact'),
     sourceRoot: root,
   });
-  expect(before).toEqual({ resources: 8, decodedBytes: 3027108 });
-  expect(after).toEqual({ resources: 4, decodedBytes: 1513554 });
+  expect(before).toEqual({ resources: 9, decodedBytes: 3747565 });
+  expect(after).toEqual({ resources: 5, decodedBytes: 2234011 });
+  expect(parseAppShellEntries(built)).toContain(modernUrl);
+  expect(aliases).not.toHaveProperty(modernUrl);
   expect(built).toContain('const FONT_ALIASES = {};');
   expect(built).toContain('const SQLITE_ASSET_ALIASES = ' + JSON.stringify(aliases) + ';');
 });
@@ -81,14 +85,14 @@ it('assembles native and Kit-style full workers without losing public owners, fo
   await expect(applySqliteAssetPrecache(built, { sourceRoot: root })).rejects.toThrow('injection point');
 });
 
-it.each(urls)('rejects an omitted or duplicated original public URL %s', async url => {
+it.each(legacyUrls)('rejects an omitted or duplicated original public URL %s', async url => {
   await expect(planPrecacheSqliteAssets(
     urls.filter(item => item !== url), { sourceRoot: root },
   )).rejects.toThrow('original public SQLite URL');
   await expect(planPrecacheSqliteAssets([...urls, url], { sourceRoot: root })).rejects.toThrow('Unique original');
 });
 
-it.each(urls)('rejects a changed complete payload at either public identity %s', async url => {
+it.each(legacyUrls)('rejects a changed complete payload at either public identity %s', async url => {
   const read = mutate((file, bytes) => {
     if (file !== url.slice(1)) return bytes;
     const changed = Buffer.from(bytes);
@@ -164,6 +168,35 @@ it('verifies an independent copied Kit asset root without changing source files 
   expect(parseAppShellEntries(built)).toEqual(urls.filter(url => !Object.hasOwn(aliases, url)));
   for (const url of urls) expect(reads).toContain(path.join(assetRoot, url.slice(1)));
 });
+
+it('requires the independent current SQLite binary and never aliases it to either legacy graph', async () => {
+  const payload = await fs.readFile(modernUrl.slice(1));
+  expect(payload.byteLength).toBe(720457);
+  expect(createHash('sha256').update(payload).digest('hex'))
+    .toBe('c620df45173a97416e2849a853e14320f24b3bb5f05c42313747f87e7eb6967a');
+  const legacy = await fs.readFile('vendor/evolu/sqlite3.wasm');
+  expect(payload.equals(legacy)).toBe(false);
+  await expect(planPrecacheSqliteAssets(legacyUrls, {sourceRoot: root})).rejects.toThrow('Exactly one modern SQLite URL');
+  await expect(planPrecacheSqliteAssets([...urls, modernUrl], {sourceRoot: root})).rejects.toThrow('Unique original');
+  const read = mutate((file, bytes) => file === modernUrl.slice(1) ? Buffer.alloc(bytes.length) : bytes);
+  await expect(planPrecacheSqliteAssets(urls, {sourceRoot: root, read})).rejects.toThrow('Exact complete modern SQLite asset');
+});
+
+it.each(['hash', 'source', 'duplicate', 'package-version', 'package-integrity'] as const)(
+  'rejects current SQLite manifest corruption: %s', async kind => {
+    const read = mutate((file, bytes) => {
+      if (file !== 'vendor/evolu8/v8.24.1-web3.6.5/manifest.json') return bytes;
+      const value = JSON.parse(bytes.toString()) as MutableManifest;
+      if (kind === 'hash') value.assets[0]!.sha256 = 'foreign';
+      if (kind === 'source') value.assets[0]!.source = 'foreign';
+      if (kind === 'duplicate') value.assets.push({...value.assets[0]!});
+      if (kind === 'package-version') value.packages['@evolu/sqlite-wasm']!.version = 'foreign';
+      if (kind === 'package-integrity') value.packages['@evolu/sqlite-wasm']!.integrity = 'foreign';
+      return Buffer.from(JSON.stringify(value));
+    });
+    await expect(planPrecacheSqliteAssets(urls, {sourceRoot: root, read})).rejects.toThrow();
+  },
+);
 
 it.each(['missing', 'duplicate', 'foreign'] as const)('rejects an unqualified build injection point: %s', async kind => {
   const source = worker(urls);

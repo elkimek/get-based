@@ -12,22 +12,31 @@ function descendants<Node extends ts.Node>(root: ts.Node, match: (node: ts.Node)
 export function syncPushSourceContracts(source: string) {
   return withParsedSource(source, 'sync-push.js', file => {
     const push = file.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'pushProfile');
-    if (!push) return { commitTracksBytes: false, plansBeforeProfileUpdate: false };
+    if (!push) return { commitTracksBytes: false, plansBeforeProfileUpdate: false, commitOwnsDeltas: false, successOwnedByComplete: false };
     const variables = descendants(push, ts.isVariableDeclaration);
     const complete = variables.find(node => node.name.getText(file) === 'onComplete')?.initializer;
+    const success = descendants(push, ts.isCallExpression).filter(call => call.expression.getText(file) === 'finish'
+      && call.arguments.length === 1 && call.arguments[0]!.getText(file).replace(/\s/g, '') === '{ok:true}');
+    const successOwnedByComplete = success.length === 1 && !!complete && ts.isArrowFunction(complete)
+      && complete.getStart(file) < success[0]!.getStart(file) && success[0]!.getEnd() < complete.getEnd();
     const committed = complete && ts.isArrowFunction(complete)
       ? descendants(complete.body, ts.isTemplateExpression).find(node => node.head.text.startsWith('Push committed ')) : undefined;
     const tracked = complete && ts.isArrowFunction(complete)
       ? descendants(complete.body, ts.isCallExpression).some(call => call.expression.getText(file) === 'trackPushBytes'
         && committed && committed.getStart(file) < call.getStart(file) && call.arguments.length === 1 && call.arguments[0]!.getText(file).replace(/\s/g, '') === "(dataJson||'').length") : false;
     const plan = variables.find(node => ts.isObjectBindingPattern(node.name)
-      && node.name.elements.map(element => element.name!.getText(file)).join(',') === 'deltaPlans,deltaOpCount'
+      && node.name.elements.map(element => element.name!.getText(file)).join(',') === 'deltaPlans,dataDeltaOpCount,planningErrors'
       && node.initializer && ts.isAwaitExpression(node.initializer) && ts.isCallExpression(node.initializer.expression)
       && node.initializer.expression.expression.getText(file) === 'planProfileDeltas'
-      && node.initializer.expression.arguments.map(arg => arg.getText(file)).join(',') === 'profileId,outboundData');
+      && node.initializer.expression.arguments.length === 3
+      && node.initializer.expression.arguments.slice(0, 2).map(arg => arg.getText(file)).join(',') === 'profileId,outboundData'
+      && node.initializer.expression.arguments[2]!.getText(file).replace(/\s/g, '') === '{forceScalars:opts.completeSnapshot===true}');
     const updates = descendants(push, ts.isCallExpression).filter(call => call.expression.getText(file) === 'evolu.update'
       && call.arguments[0] && ts.isStringLiteral(call.arguments[0]) && call.arguments[0].text === 'profileData');
-    return { commitTracksBytes: tracked,
+    const applied = descendants(push, ts.isCallExpression).filter(call => call.expression.getText(file) === 'applyCommittedDeltas');
+    const owned = !!complete && ts.isArrowFunction(complete) && applied.length === 1
+      && applied[0]!.getStart(file) > complete.body.getStart(file) && applied[0]!.getEnd() < complete.body.getEnd();
+    return { commitTracksBytes: tracked, commitOwnsDeltas: owned, successOwnedByComplete,
       plansBeforeProfileUpdate: !!plan && updates.length > 0 && updates.every(update => plan.getStart(file) < update.getStart(file)) };
   });
 }
@@ -148,4 +157,20 @@ export function syncPullEncryptionSourceContract(source: string): boolean {
       &&writes[0]!.arguments.length===2&&text(writes[0]!.arguments[0]!)==='localKey'
       &&text(writes[0]!.arguments[1]!)==='JSON.stringify(committed)'&&second.getStart(file)<writes[0]!.getStart(file);
   });
+}
+
+/** Require the actual post-commit snapshot write to remain guarded by successful row application. */
+export function syncCommittedDeltaSourceContracts(source: string) {
+ return withParsedSource(source, 'sync-push-deltas.js', file => {
+  const fn = file.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'applyCommittedDeltas');
+  if (!fn) return {snapshotsGuarded: false};
+  const text = (node: ts.Node) => node.getText(file).replace(/\s/g, '');
+  const snapshots = descendants(file, ts.isCallExpression).filter(call => text(call.expression) === '_writeDeltaSnapshot');
+  const applies = descendants(fn, ts.isVariableDeclaration).filter(node => text(node.name) === 'allOk' && node.initializer && text(node.initializer) === '_applyArrayDelta(arrayName,plan)');
+  const guards = descendants(fn, ts.isIfStatement).filter(node => text(node.expression) === 'allOk');
+  const write = snapshots[0], apply = applies[0], guard = guards[0];
+  return {snapshotsGuarded: snapshots.length === 1 && applies.length === 1 && guards.length === 1 && !!write && !!apply && !!guard
+   && apply.getStart(file) < guard.getStart(file) && guard.thenStatement.getStart(file) < write.getStart(file) && write.getEnd() < guard.thenStatement.getEnd()
+   && write.arguments.map(text).join(',') === 'profileId,arrayName,plan.next,plan.plannedAt'};
+ });
 }

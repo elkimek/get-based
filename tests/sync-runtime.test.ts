@@ -47,6 +47,8 @@ import {
 } from '../js/sync-pull-rebroadcast.js';
 import { waitForInitialReplicaQuiet } from '../js/sync-init.js';
 import { planProfileDeltas } from '../js/sync-push-deltas.js';
+import * as deltaPlanning from '../js/sync-push-deltas.js';
+import { markSyncProfileDirty, getSyncDirtyToken } from '../js/sync-dirty-state.js';
 import { configureSyncPush, isSyncPushInFlight, pushProfile } from '../js/sync-push.js';
 import {
   configureSyncRuntimeCallbacks,
@@ -650,8 +652,70 @@ describe('sync push runtime behavior', () => {
     expect(fake.calls.insert.length + fake.calls.update.length).toBeGreaterThan(writesAfterFirstPush);
   });
 
+  it('retains scalar snapshots and their original clocks during ordinary forced reconnects', async () => {
+    const fake = makeEvolu();
+    configureRuntimeDeps(fake);
+    const data = { entries: [], contextNotes: 'remote context', notes: [] };
+    await expect(pushProfile(PROFILE_ID, data)).resolves.toEqual({ ok: true });
+    expect((await parseSyncPayload(fake.profileRows[0]!.dataJson)).importedData)
+      .toMatchObject({ contextNotes: 'remote context' });
+
+    await expect(pushProfile(PROFILE_ID, { ...data, notes: [{ id: 'local-note', text: 'queued' }] }, { force: true }))
+      .resolves.toEqual({ ok: true });
+    const ordinary = (await parseSyncPayload(fake.profileRows[0]!.dataJson)).importedData as ProfileData;
+    expect(ordinary.contextNotes).toBe('remote context');
+    const clocks = (await parseSyncPayload(fake.profileRows[0]!.dataJson)).scalarClocks;
+    expect(clocks?.contextNotes).toBeGreaterThan(0);
+    expect(ordinary.notes).toEqual([{ id: 'local-note', text: 'queued' }]);
+    const scalarWrites = [...fake.calls.insert, ...fake.calls.update]
+      .filter(call => call.table === 'itemRow' && call.args.arrayName === 'contextNotes');
+    expect(scalarWrites).toHaveLength(1);
+
+    await expect(pushProfile(PROFILE_ID, { ...data, contextNotes: 'actual edit' }))
+      .resolves.toEqual({ ok: true });
+    expect((await parseSyncPayload(fake.profileRows[0]!.dataJson)).importedData)
+      .toMatchObject({ contextNotes: 'actual edit' });
+
+    await expect(pushProfile(PROFILE_ID, data, { force: true, completeSnapshot: true }))
+      .resolves.toEqual({ ok: true });
+    expect((await parseSyncPayload(fake.profileRows[0]!.dataJson)).importedData)
+      .toMatchObject({ contextNotes: 'remote context' });
+  });
+
+  it('retains dirty edits and the previous scalar snapshot when a delta write fails', async () => {
+    const fake = makeEvolu({ failItemRows: true });
+    configureRuntimeDeps(fake);
+    const token = markSyncProfileDirty(PROFILE_ID);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      await expect(pushProfile(PROFILE_ID, { entries: [], contextNotes: 'queued scalar' }))
+        .resolves.toEqual({ ok: false, reason: 'delta-commit-failed' });
+      expect(getSyncDirtyToken(PROFILE_ID)).toBe(token);
+      expect(localStorage.getItem(`labcharts-${PROFILE_ID}-delta-contextNotes`)).toBeNull();
+      expect(localStorage.getItem(`labcharts-${PROFILE_ID}-sync-ts`)).toBeNull();
+      expect(isSyncPushInFlight()).toBe(false);
+    } finally { warn.mockRestore(); }
+  });
+
+  it('stops incomplete delta planning before publishing a partial profile envelope', async () => {
+    const fake = makeEvolu();
+    configureRuntimeDeps(fake);
+    const token = markSyncProfileDirty(PROFILE_ID);
+    const plan = vi.spyOn(deltaPlanning, 'planProfileDeltas').mockResolvedValueOnce({
+      deltaPlans: [], deltaOpCount: 0, planningErrors: ['contextNotes'],
+    });
+    try {
+      await expect(pushProfile(PROFILE_ID, { entries: [], contextNotes: 'queued scalar' }))
+        .resolves.toEqual({ ok: false, skipped: true, reason: 'delta-plan-failed' });
+      expect(fake.calls.insert).toHaveLength(0);
+      expect(fake.calls.update).toHaveLength(0);
+      expect(getSyncDirtyToken(PROFILE_ID)).toBe(token);
+      expect(isSyncPushInFlight()).toBe(false);
+    } finally { plan.mockRestore(); }
+  });
+
   it('skips concurrent pushes and releases the in-flight flag through the watchdog', async () => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({toFake: ['Date', 'setTimeout', 'clearTimeout']});
     const fake = makeEvolu({ completeProfileWrites: false });
     configureRuntimeDeps(fake);
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -667,6 +731,7 @@ describe('sync push runtime behavior', () => {
     });
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('another push is in-flight'));
 
+    await vi.waitFor(() => expect(fake.calls.insert.some(call => call.table === 'profileData')).toBe(true));
     await vi.advanceTimersByTimeAsync(30_000);
     await expect(firstPush).resolves.toEqual({ ok: false, reason: 'timeout' });
     expect(isSyncPushInFlight()).toBe(false);

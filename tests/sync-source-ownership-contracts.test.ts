@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { syncChatSaveSourceContracts, syncHealthGoalsSourceContracts, syncPullEncryptionSourceContract } from './helpers/sync-push-source-contracts.js';
+import { syncPushSourceContracts, syncCommittedDeltaSourceContracts, syncChatSaveSourceContracts, syncHealthGoalsSourceContracts, syncPullEncryptionSourceContract } from './helpers/sync-push-source-contracts.js';
 
 const chat = readFileSync('js/sync-save-hooks-core.js', 'utf8');
 const goals = readFileSync('js/context-health-goals-view.js', 'utf8');
@@ -88,4 +88,28 @@ it.each(['capture','commit','write'] as const)('rejects an uncalled nested %s en
   changed=change(changed,'const latest = raw ? JSON.parse(raw) : null;','const latest = {};');
  }else changed=change(changed,'await encryptedSetItem(localKey, JSON.stringify(committed));','async function unusedWrite(){await encryptedSetItem(localKey, JSON.stringify(committed));}');
  expect(syncPullEncryptionSourceContract(changed)).toBe(false);
+});
+
+it('requires one delta application owned by onComplete and an awaited plan before profile writes', () => {
+ const push = readFileSync('js/sync-push.js', 'utf8');
+ expect(syncPushSourceContracts(push)).toMatchObject({commitOwnsDeltas: true, plansBeforeProfileUpdate: true, successOwnedByComplete: true});
+ const earlySuccess = change(push, 'const onComplete = async () => {', 'finish({ok: true});\n      const onComplete = async () => {');
+ expect(syncPushSourceContracts(earlySuccess).successOwnedByComplete).toBe(false);
+ const missingSuccess = change(push, 'finish({ ok: true });', 'finish({ ok: false });');
+ expect(syncPushSourceContracts(missingSuccess).successOwnedByComplete).toBe(false);
+ const outside = change(push, 'const onComplete = async () => {', 'applyCommittedDeltas(profileId, dataJson, deltaPlans, deltaOpCount, _debug);\n      const onComplete = async () => {');
+ expect(syncPushSourceContracts(outside).commitOwnsDeltas).toBe(false);
+ const missing = push.replace(/if \(!applyCommittedDeltas\(/, 'if (!skippedDeltas(');
+ expect(missing).not.toBe(push);
+ expect(syncPushSourceContracts(missing).commitOwnsDeltas).toBe(false);
+ const unawaited = push.replace(/await\s+planProfileDeltas\(/, 'planProfileDeltas(');
+ expect(unawaited).not.toBe(push);
+ expect(syncPushSourceContracts(unawaited).plansBeforeProfileUpdate).toBe(false);
+});
+
+it('rejects advancing snapshots when the successful row-application guard is removed', () => {
+ const deltas = readFileSync('js/sync-push-deltas.js', 'utf8');
+ expect(syncCommittedDeltaSourceContracts(deltas).snapshotsGuarded).toBe(true);
+ const bypass = change(deltas, 'if (allOk) {', 'if (true) {');
+ expect(syncCommittedDeltaSourceContracts(bypass).snapshotsGuarded).toBe(false);
 });

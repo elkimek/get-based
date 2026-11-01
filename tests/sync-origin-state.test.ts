@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   clearLocalSyncCommits, isLocalSyncCommitEcho, noteLocalSyncCommit,
+  noteSupersededProfileMetadata, isSupersededProfileMetadata,
 } from '../js/sync-origin-state.js';
 
 afterEach(() => clearLocalSyncCommits());
@@ -24,4 +25,16 @@ describe('local sync commit origins', () => {
     clearLocalSyncCommits();
     expect(isLocalSyncCommitEcho('profile-a', Date.now())).toBe(false);
   });
+});
+
+it('rejects only the exact superseded metadata version, preserving different remote edits and clock-skewed versions', () => {
+  const prior = {id: 'p', name: 'old', tags: []};
+  noteSupersededProfileMetadata('p', [{syncedAt: 100, profile: prior}]);
+  expect(isSupersededProfileMetadata('p', 100, {tags: [], name: 'old', id: 'p'})).toBe(true);
+  expect(isSupersededProfileMetadata('other', 100, prior)).toBe(false);
+  expect(isSupersededProfileMetadata('p', 99, prior)).toBe(false);
+  expect(isSupersededProfileMetadata('p', 101, prior)).toBe(false);
+  expect(isSupersededProfileMetadata('p', 100, {...prior, name: 'remote edit'})).toBe(false);
+  clearLocalSyncCommits();
+  expect(isSupersededProfileMetadata('p', 100, prior)).toBe(false);
 });

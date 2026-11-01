@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { dataModuleSource } from './helpers/data-module-source.js';
-import { syncPushSourceContracts, syncChatSaveSourceContracts, syncHealthGoalsSourceContracts, syncPullEncryptionSourceContract } from './helpers/sync-push-source-contracts.js';
+import { syncPushSourceContracts, syncCommittedDeltaSourceContracts, syncChatSaveSourceContracts, syncHealthGoalsSourceContracts, syncPullEncryptionSourceContract } from './helpers/sync-push-source-contracts.js';
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-sync.js — Verify sync module exports, payload format, settings UI
@@ -8,6 +8,9 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Run: node tests/test-sync.js  (or via npm test)
 
 import './_node-shim.js';
+import {mergeScalarRowsIntoImported} from '../js/sync-delta-scalar-merge.js';
+import {_planScalarDelta} from '../js/sync-delta-scalar-planner.js';
+import {writeScalarVersion, scalarValueHash} from '../js/sync-scalar-snapshot.js';
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -337,7 +340,7 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
       && syncDeltaSrc.includes('configureSyncDeltaPlanners')
       && syncDeltaSrc.includes('configureSyncDeltaMerge')
       && syncDeltaSrc.includes('export function _applyArrayDelta')
-      && syncDeltaSrc.includes('export { _mergeItemRowsIntoImported }'));
+      && /export\s*\{[^}]*\b_mergeItemRowsIntoImported\b[^}]*\backnowledgePulledScalarSnapshots\b[^}]*\}\s*from\s*['"]\.\/sync-delta-merge\.js['"]/.test(syncDeltaSrc));
   assert('service worker precaches sync-delta.js',
     serviceWorkerSrc.includes("'/js/sync-delta.js'"));
   assert('sync-delta-planners.js owns push-side delta planner facade',
@@ -1334,8 +1337,8 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
   // Anchor on "Push committed" — unique to the onComplete arrow function,
   // unlike "onComplete" which also appears in evolu.update call sites.
   assert('pushProfile applies deltas only after onComplete (blob commit)',
-    /Push committed[\s\S]{0,2500}applyCommittedDeltas\(profileId,\s*dataJson,\s*deltaPlans,\s*deltaOpCount,\s*_debug\)/.test(syncPushSrc)
-      && /applyCommittedDeltas[\s\S]{0,1600}_applyArrayDelta\(arrayName,\s*plan\)[\s\S]{0,500}_writeDeltaSnapshot/.test(syncPushDeltasSrc));
+    syncPushContracts.commitOwnsDeltas
+      && syncCommittedDeltaSourceContracts(syncPushDeltasSrc).snapshotsGuarded);
 
   // Pull-side merge contract — per-row authoritative, blob fallback, with
   // fresher local edits protected until their itemRow update lands.
@@ -1348,7 +1351,7 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
       && syncDeltaMergeSrc.includes('baselineItems: Array.isArray(baselineItems) ? baselineItems : []')
       && syncDeltaArrayMergeSrc.includes('baselineItemIds.has(itemId) ? baselineSyncedAt : 0')
       && syncDeltaMergeSrc.includes('hasBaseline: baselineValue !== undefined')
-      && syncDeltaScalarMergeSrc.includes('baselineAt >= latestRowAt'));
+      && syncDeltaScalarMergeSrc.includes('baselineAt >= (selected?.clock || 0)'));
   assert('_mergeItemRowsIntoImported drops tombstoned items from imported arrays',
     /mergeArrayRowsIntoImported[\s\S]{0,12000}let nextArr\s*=\s*curArr\.filter\(it\s*=>\s*!tombstoneWinsOverItem\(itemIdFn\(it\),\s*it\)\)/.test(syncDeltaMergeSearchSrc));
   // Resurrection-prevention seed: blob-side `_deleted[arrayName]` must
@@ -1375,7 +1378,7 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
   assert('Delta snapshot key namespaced per (profile, arrayName)',
     /labcharts-\$\{profileId\}-delta-\$\{arrayName\}/.test(syncDeltaSnapshotSrc));
   assert('Snapshot only writes after onComplete (wedged-push safety)',
-    /Push committed[\s\S]{0,2500}applyCommittedDeltas\(profileId,\s*dataJson,\s*deltaPlans,\s*deltaOpCount,\s*_debug\)/.test(syncPushSrc)
+    syncPushContracts.commitOwnsDeltas
       && /applyCommittedDeltas[\s\S]{0,1800}_writeDeltaSnapshot\(profileId,\s*arrayName,\s*plan\.next,\s*plan\.plannedAt\)/.test(syncPushDeltasSrc));
 
   // Live diff sanity: confirm the diff logic respects content-equality
@@ -1581,7 +1584,7 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
       && syncPushSrc.includes('_syncing = true')
       && syncPushSrc.includes('export function isSyncPushInFlight'));
   assert('pushProfile await resolves only from onComplete/watchdog paths',
-    /return await new Promise\(\(resolve\)[\s\S]{0,1200}const onComplete[\s\S]{0,2400}finish\(\{ ok: true \}\)/.test(syncPushSrc)
+    syncPushSourceContracts(syncPushSrc).successOwnedByComplete
       && /Push NOT committed after 30s[\s\S]{0,800}finish\(\{ ok: false, reason: 'timeout' \}\)/.test(syncPushSrc));
   assert('pushProfile uses insert/update pattern', syncPushSrc.includes('evolu.insert(') && syncPushSrc.includes('evolu.update('));
   // v1.6.3: debounce bumped 2s → 10s. Each push is the full importedData
@@ -2360,31 +2363,42 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
   assert('DELTA_SCALARS includes free-form text fields',
     /'interpretiveLens'/.test(deltaSearchSrc) && /'contextNotes'/.test(deltaSearchSrc));
   assert('_planScalarDelta defined',
-    /async function _planScalarDelta\(profileId,\s*scalarName,\s*scalarValue\)/.test(deltaSearchSrc));
+    /async function _planScalarDelta\(profileId,\s*scalarName,\s*scalarValue,\s*options\s*=\s*\{\}\)/.test(deltaSearchSrc));
   assert('_planScalarDelta wraps payload as {v: value}',
     /_planScalarDelta[\s\S]{0,1500}payloadObj\s*=\s*\{\s*v:\s*scalarValue\s*\}/.test(deltaSearchSrc));
   assert('_planScalarDelta picks most-recently-synced when multiple rows exist',
     /_planScalarDelta[\s\S]{0,800}sort\(\(a,\s*b\)\s*=>\s*String\(b\.syncedAt[\s\S]{0,200}\.localeCompare\(String\(a\.syncedAt/.test(deltaSearchSrc));
-  assert('_planScalarDelta emits tombstones only on non-null → null transition',
-    /_planScalarDelta[\s\S]{0,3000}prev\[scalarName\]\s*&&\s*canonical\s*&&\s*!canonical\.isDeleted[\s\S]{0,800}kind:\s*'tombstone'/.test(deltaSearchSrc));
+  writeScalarVersion('legacy-blob-clear', 'contextNotes', {clock: 200, hash: scalarValueHash('contextNotes', 'observed')});
+  const blobOnlyClear = await _planScalarDelta('legacy-blob-clear', 'contextNotes', null);
+  const neverSetClear = await _planScalarDelta('legacy-unset-clear', 'contextNotes', null, {force: true});
+  assert('_planScalarDelta publishes a confirmed blob-only clear without inserting absent default fields',
+    blobOnlyClear.ops.length === 1 && blobOnlyClear.ops[0]?.kind === 'insert'
+      && blobOnlyClear.ops[0].args.payload === JSON.stringify({v: null}) && !Object.hasOwn(blobOnlyClear.ops[0].args, 'isDeleted')
+      && Date.parse(String(blobOnlyClear.ops[0].args.syncedAt)) > 200
+      && neverSetClear.ops.length === 0);
   assert('_planScalarDelta treats empty-string + null + undefined as absence (parity with blob)',
     /_planScalarDelta[\s\S]{0,2000}hasValue\s*=\s*scalarValue\s*!==\s*null[\s\S]{0,200}!==\s*undefined[\s\S]{0,200}length\s*===\s*0/.test(deltaSearchSrc));
   assert('pushProfile loops DELTA_SCALARS after DELTA_MAPS',
     /for \(const mapName of DELTA_MAPS\)[\s\S]{0,800}for \(const scalarName of DELTA_SCALARS\)/.test(deltaSearchSrc));
   assert('pushProfile uses _planScalarDelta',
-    /_planScalarDelta\(profileId,\s*scalarName,\s*value\)/.test(deltaSearchSrc));
+    /_planScalarDelta\(profileId,\s*scalarName,\s*value,\s*\{\s*force:\s*options\.forceScalars === true\s*\}\)/.test(deltaSearchSrc));
   assert('Pull-side branch routes scalars via _DELTA_SCALARS_SET',
     /_DELTA_SCALARS_SET\s*=\s*new Set\(DELTA_SCALARS\)[\s\S]{0,800}_DELTA_SCALARS_SET\.has\(arrayName\)/.test(deltaSearchSrc));
   assert('Pull-side scalar branch ignores foreign rows in the same slot (defence-in-depth)',
     /row\.itemId\s*!==\s*arrayName[\s\S]{0,80}continue/.test(deltaSearchSrc));
-  assert('Pull-side scalar tombstone wins LWW only when at-or-newer than live',
-    /tombstoned\s*&&\s*tombstonedAt\s*>=\s*chosenAt[\s\S]{0,2500}imported\[arrayName\]\s*=\s*null/.test(deltaSearchSrc));
-  assert('Dotted-path scalar tombstone clears just the leaf via setAt',
-    /isNestedScalar[\s\S]{0,400}setAt\(imported,\s*arrayName,\s*null\)/.test(deltaSearchSrc));
-  assert('Dotted-path scalar live row writes via setAt',
-    /isNestedScalar[\s\S]{0,800}setAt\(imported,\s*arrayName,\s*chosen\.v\)/.test(deltaSearchSrc));
-  assert('Pull-side scalar live row writes imported[arrayName] = chosen.v',
-    /imported\[arrayName\]\s*=\s*chosen\.v/.test(deltaSearchSrc));
+  const scalarRow = (field: string, value: unknown, syncedAt: string, isDeleted = 0) => ({itemId: field, payload: JSON.stringify({v: value}), syncedAt, isDeleted});
+  const scalarLive = {contextNotes: 'old'};
+  await mergeScalarRowsIntoImported(scalarLive, 'contextNotes', [scalarRow('contextNotes', 'new', '2026-03-01'), scalarRow('contextNotes', null, '2026-02-01', 1)]);
+  const scalarDeleted: {contextNotes: string | null} = {contextNotes: 'old'};
+  await mergeScalarRowsIntoImported(scalarDeleted, 'contextNotes', [scalarRow('contextNotes', 'new', '2026-02-01'), scalarRow('contextNotes', null, '2026-03-01', 1)]);
+  assert('Pull-side scalar tombstone wins LWW only when at-or-newer than live', scalarDeleted.contextNotes === null && scalarLive.contextNotes === 'new');
+  const nestedDeleted: {lightEnvironment: {rooms: {id: string}[]; burdenAI: {text: string} | null}} = {lightEnvironment: {rooms: [{id: 'retained'}], burdenAI: {text: 'old'}}};
+  await mergeScalarRowsIntoImported(nestedDeleted, 'lightEnvironment.burdenAI', [scalarRow('lightEnvironment.burdenAI', null, '2026-03-01', 1)]);
+  assert('Dotted-path scalar tombstone clears just the leaf via setAt', nestedDeleted.lightEnvironment.burdenAI === null && nestedDeleted.lightEnvironment.rooms[0]?.id === 'retained');
+  const nestedLive = {lightEnvironment: {rooms: [{id: 'retained'}], burdenAI: {text: 'old'}}};
+  await mergeScalarRowsIntoImported(nestedLive, 'lightEnvironment.burdenAI', [scalarRow('lightEnvironment.burdenAI', {text: 'new'}, '2026-03-01')]);
+  assert('Dotted-path scalar live row writes via setAt', nestedLive.lightEnvironment.burdenAI.text === 'new' && nestedLive.lightEnvironment.rooms[0]?.id === 'retained');
+  assert('Pull-side scalar live row replaces the flat field', scalarLive.contextNotes === 'new');
 
   // ═══════════════════════════════════════
   // 14b. PHASE 1 DUAL-WRITE TELEMETRY (observability for cutover decision)
@@ -2401,7 +2415,7 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
   assert('Telemetry rolling window capped at 50 pushes',
     /_DELTA_TELEMETRY_CAP\s*=\s*50/.test(deltaSearchSrc));
   assert('pushProfile records telemetry from onComplete (not synchronously)',
-    /Push committed[\s\S]{0,3500}applyCommittedDeltas\(profileId,\s*dataJson,\s*deltaPlans,\s*deltaOpCount,\s*_debug\)/.test(syncPushSrc)
+    syncPushContracts.commitOwnsDeltas
       && /applyCommittedDeltas[\s\S]{0,2000}_recordPushTelemetry\(profileId,\s*\(dataJson\s*\|\|\s*''\)\.length,\s*deltaPlans\)/.test(syncPushDeltasSrc));
   assert('Pull-side merge records pull telemetry per array',
     /recordPullDeltaSurface\(arrayName,\s*\{\s*live:\s*liveById\.size,\s*tombstones:\s*localTombs\.size\s*\+\s*remoteTombs\.size\s*\}\)/.test(deltaSearchSrc));
@@ -3136,18 +3150,12 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
 
   // Pull-side preserve: scalar merge sees `arrayName === 'genetics'` and
   // re-injects local snps before assigning back to importedData.
-  assert('Pull-side genetics scalar merge preserves local .snps map',
-    /arrayName\s*===\s*'genetics'[\s\S]{0,800}localSnps\s*=\s*imported\.genetics\.snps[\s\S]{0,400}imported\.genetics\.snps\s*=\s*localSnps/.test(deltaSearchSrc));
-
-  // Pull-side TOMBSTONE branch must mirror the live branch's snps-preserve.
-  // Without this, byArray iteration order (relay-row-ordering-dependent)
-  // determines whether snps survive a stale scalar tombstone. Concrete
-  // failure: device deletes genetics → re-imports → snps tombstones blocked
-  // by storm guard but scalar tombstone propagates → peer's pull picks
-  // tombstone-as-newest-syncedAt → wipes imported.genetics → snps gone
-  // despite live rows in the per-row layer.
-  assert('Pull-side genetics scalar TOMBSTONE branch preserves .snps when present',
-    /tombstoned\s*&&\s*tombstonedAt\s*>=\s*chosenAt[\s\S]{0,1500}arrayName\s*===\s*'genetics'[\s\S]{0,500}imported\.genetics\s*=\s*\{\s*snps:\s*imported\.genetics\.snps\s*\}/.test(deltaSearchSrc));
+  const geneticsLive = {genetics: {source: 'old', snps: {rs123: {genotype: 'AA'}}}};
+  await mergeScalarRowsIntoImported(geneticsLive, 'genetics', [scalarRow('genetics', {source: 'new'}, '2026-03-01')]);
+  assert('Pull-side genetics scalar merge preserves local .snps map', geneticsLive.genetics.source === 'new' && geneticsLive.genetics.snps.rs123.genotype === 'AA');
+  const geneticsDeleted: {genetics: {source?: string; snps: Record<string, {genotype: string}>}} = {genetics: {source: 'old', snps: {rs123: {genotype: 'AA'}}}};
+  await mergeScalarRowsIntoImported(geneticsDeleted, 'genetics', [scalarRow('genetics', null, '2026-03-01', 1)]);
+  assert('Pull-side genetics scalar TOMBSTONE branch preserves .snps when present', !('source' in geneticsDeleted.genetics) && geneticsDeleted.genetics.snps.rs123?.genotype === 'AA');
   assert('Genetics SNP planner rebuilds missing map input from itemRows',
     /mapName\s*===\s*'genetics\.snps'[\s\S]{0,1600}fromRows\[parsed\.k\]\s*=\s*parsed\.v/.test(deltaSearchSrc));
 
@@ -3590,6 +3598,10 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
     'vendor/evolu8/Db.worker.js',
     'vendor/evolu8/Shared.worker.js',
     'vendor/evolu8/sqlite3.wasm',
+    'vendor/evolu8/v8.24.1-web3.6.5/evolu-bundle.js',
+    'vendor/evolu8/v8.24.1-web3.6.5/Db.worker.js',
+    'vendor/evolu8/v8.24.1-web3.6.5/Shared.worker.js',
+    'vendor/evolu8/v8.24.1-web3.6.5/sqlite3.wasm',
   ];
   for (const f of vendorFiles) {
     // Node: existence check on disk. Browser would HTTP HEAD; same intent.

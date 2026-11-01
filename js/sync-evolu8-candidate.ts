@@ -1,6 +1,7 @@
 import type { EvoluIdentity, EvoluIdentityStorage } from './sync-evolu8-identity-vault.js';
 import type { createSyncSchema as buildSyncSchema, SyncQueryClient } from './sync-schema.js';
 import type { SyncRuntimeClient } from './sync-runtime.js';
+import type { DevicePersistenceStatus, OwnerReplicationStatus } from './sync-state.js';
 
 interface LegacyIdentityClient {
   restoreAppOwner(mnemonic: string, options?: { reload?: boolean }): unknown;
@@ -29,9 +30,13 @@ interface EvoluDataClient extends DisposableResource, Pick<SyncRuntimeClient, 'i
   upsert(table: 'profileData' | 'itemRow', args: unknown): unknown;
   loadQueries(queries: readonly unknown[]): unknown;
   exportDatabase(): Promise<unknown>;
+  devicePersistence: Promise<DevicePersistenceStatus>;
 }
 type EvoluError = { type?: string } | null | undefined;
-interface EvoluDeps extends DisposableResource { evoluError: { get(): EvoluError; subscribe(listener: () => void): () => void } }
+interface EvoluDeps extends DisposableResource {
+  evoluError: { get(): EvoluError; subscribe(listener: () => void): () => void };
+  syncState: {get(): unknown; subscribe(listener: () => void): () => void};
+}
 interface EvoluRun extends DisposableResource { ok(task: unknown): Promise<EvoluDataClient> }
 interface ModernEvoluModule {
   id(name: string): unknown;
@@ -43,9 +48,10 @@ interface ModernEvoluModule {
   createAppOwner(secret: unknown): { id: string; mnemonic?: string };
   installPolyfills?(): void;
   createQueryBuilder(schema: SyncSchema): SyncQueryClient<unknown>['createQuery'];
-  createEvoluDeps(options: { onSharedWorkerUnsupported?: (() => void) | undefined }): EvoluDeps;
+  createEvoluDeps(options: { onSharedWorkerUnsupported?: (() => void) | undefined; reloadApp: () => void }): EvoluDeps;
   createRun(deps: EvoluDeps): EvoluRun;
   createEvolu(schema: SyncSchema, options: { appName: string; appOwner: BridgeOwner; transports: { type: 'WebSocket'; url: string }[] }): unknown;
+  syncStateToOwnerSyncStatus(state: unknown, name: string, ownerId: string): OwnerReplicationStatus;
 }
 interface LegacyEvoluModule {
   id(name: string): unknown;
@@ -77,6 +83,7 @@ interface CandidateOptions {
 }
 interface QuerySubscription { query: unknown; listener: () => void; unsubscribe: (() => void) | null }
 interface ErrorSubscription { listener: (error: EvoluError) => void; unsubscribe: (() => void) | null }
+interface ReplicationSubscription {listener: (status: OwnerReplicationStatus) => void; unsubscribe: (() => void) | null}
 
 // Evolu 8 compatibility adapter with an explicit Evolu 7 rollback.
 //
@@ -88,11 +95,12 @@ interface ErrorSubscription { listener: (error: EvoluError) => void; unsubscribe
 import { setSyncAppOwnerError } from './sync-runtime.js';
 import { createEvolu8IdentityVault } from './sync-evolu8-identity-vault.js';
 import { showNotification } from './utils.js';
+import { getSyncStatus, getSyncStatusNotice, updateSyncStatus } from './sync-state.js';
 
 export const EVOLU8_CLIENT_QUERY_PARAM = 'evolu-client';
 export const EVOLU8_GENERATION_KEY = 'labcharts-sync-evolu8-generation';
 const EVOLU_BUNDLE_URL = new URL('../vendor/evolu/evolu-bundle.js', import.meta.url).href;
-const EVOLU8_VENDOR_DIRECTORY = '../vendor/evolu8/';
+const EVOLU8_VENDOR_DIRECTORY = '../vendor/evolu8/v8.24.1-web3.6.5/';
 const EVOLU8_BUNDLE_URL = new URL(`${EVOLU8_VENDOR_DIRECTORY}evolu-bundle.js`, import.meta.url).href;
 
 export function shouldUseEvolu8Client(locationLike: { href?: string; search?: string } | null | undefined = globalThis.location) {
@@ -398,6 +406,18 @@ export async function createEvolu8Candidate({
   let preparedGeneration: number | null = null;
   const querySubscriptions = new Set<QuerySubscription>();
   const errorSubscriptions = new Set<ErrorSubscription>();
+  const replicationSubscriptions = new Set<ReplicationSubscription>();
+  const persistenceSubscriptions = new Set<(value: DevicePersistenceStatus) => void>();
+  const ownerReplicationStatus = (): OwnerReplicationStatus => current?.evolu.appOwner.id
+    ? modern.syncStateToOwnerSyncStatus(current.deps.syncState.get(), current.evolu.name, current.evolu.appOwner.id)
+    : {type: 'NoRelays'};
+  const notifyPersistence = (listener: (value: DevicePersistenceStatus) => void) => {
+    const runtime = current;
+    listener('Unknown');
+    void runtime?.evolu.devicePersistence.then(value => {
+      if (!disposed && runtime === current && persistenceSubscriptions.has(listener)) listener(value);
+    }).catch(() => { /* Unavailable persistence evidence remains Unknown. */ });
+  };
 
   const prepareHistoryReset = () => {
     if (preparedGeneration !== null) return preparedGeneration;
@@ -424,8 +444,31 @@ export async function createEvolu8Candidate({
   const startRuntime = async (identity: EvoluIdentity, nextGeneration: number) => {
     const appOwner = createModernOwner(modern, identity.mnemonic);
     if (appOwner.id !== identity.ownerId) throw new Error('Evolu 8 identity vault owner mismatch');
-    const deps = modern.createEvoluDeps({ onSharedWorkerUnsupported });
+    const deps = modern.createEvoluDeps({
+      onSharedWorkerUnsupported,
+      // Evolu's default reload can discard active form drafts. Surface a durable
+      // blocked state instead; the user finishes edits and chooses Reload.
+      reloadApp: () => {
+        updateSyncStatus({databaseError: 'ReloadRequired'});
+        setSyncAppOwnerError('Finish your edits, close the other app tabs, then reload to continue Sync.');
+      },
+    });
     const run = modern.createRun(deps);
+    // Startup can wait for a held database before the facade exists. Report
+    // that blocked state now, rather than hiding it behind owner readiness.
+    let startupError: string | null = null;
+    const unsubscribeStartupError = deps.evoluError.subscribe(() => {
+      const type = deps.evoluError.get()?.type;
+      if (type && ['DatabaseHeldError', 'OtherBuildRunningError', 'UnsupportedDbVersionError', 'UnknownError'].includes(type)) {
+        startupError = type;
+        updateSyncStatus({databaseError: type});
+        setSyncAppOwnerError(getSyncStatusNotice(getSyncStatus()));
+      } else if (!type && startupError) {
+        startupError = null;
+        updateSyncStatus({databaseError: null});
+        setSyncAppOwnerError(null);
+      }
+    });
     try {
       const evolu = await run.ok(modern.createEvolu(schema, {
         appName: modern.AppName.orThrow(`getbased8g${nextGeneration}`),
@@ -437,11 +480,13 @@ export async function createEvolu8Candidate({
       await disposeResource(run).catch(() => {});
       await disposeResource(deps).catch(() => {});
       throw error;
+    } finally {
+      unsubscribeStartupError();
     }
   };
 
   const unbindSubscriptions = () => {
-    for (const subscription of [...querySubscriptions, ...errorSubscriptions]) {
+    for (const subscription of [...querySubscriptions, ...errorSubscriptions, ...replicationSubscriptions]) {
       try { subscription.unsubscribe?.(); } catch {}
       subscription.unsubscribe = null;
     }
@@ -449,14 +494,22 @@ export async function createEvolu8Candidate({
 
   const bindSubscriptions = async () => {
     if (!current) return;
+    // Errors and persistence must remain visible while a replacement database
+    // waits for its first query, including a held/refused database on restore.
+    for (const subscription of errorSubscriptions) {
+      const notify = () => subscription.listener(current!.deps.evoluError.get());
+      subscription.unsubscribe = current!.deps.evoluError.subscribe(notify);
+      notify();
+    }
+    for (const subscription of replicationSubscriptions) {
+      subscription.unsubscribe = current.deps.syncState.subscribe(() => subscription.listener(ownerReplicationStatus()));
+      subscription.listener(ownerReplicationStatus());
+    }
+    for (const listener of persistenceSubscriptions) notifyPersistence(listener);
     await Promise.all([...querySubscriptions].map(subscription =>
       current!.evolu.loadQuery(subscription.query).catch(() => [])));
     for (const subscription of querySubscriptions) {
       subscription.unsubscribe = current!.evolu.subscribeQuery(subscription.query)(subscription.listener);
-    }
-    for (const subscription of errorSubscriptions) {
-      const notify = () => subscription.listener(current!.deps.evoluError.get());
-      subscription.unsubscribe = current!.deps.evoluError.subscribe(notify);
     }
   };
 
@@ -496,6 +549,21 @@ export async function createEvolu8Candidate({
     prepareHistoryResetForDisable,
     get name() { return current?.evolu?.name; },
     get appOwner() { return Promise.resolve(current?.evolu?.appOwner); },
+    get devicePersistence() { return current?.evolu.devicePersistence ?? Promise.resolve<DevicePersistenceStatus>('Unknown'); },
+    subscribeDevicePersistence: (listener: (value: DevicePersistenceStatus) => void) => {
+      persistenceSubscriptions.add(listener);
+      notifyPersistence(listener);
+      return () => {persistenceSubscriptions.delete(listener);};
+    },
+    subscribeOwnerSyncStatus: (listener: (status: OwnerReplicationStatus) => void) => {
+      const subscription: ReplicationSubscription = {listener, unsubscribe: current!.deps.syncState.subscribe(() => listener(ownerReplicationStatus()))};
+      replicationSubscriptions.add(subscription);
+      listener(ownerReplicationStatus());
+      return () => {
+        if (!replicationSubscriptions.delete(subscription)) return;
+        subscription.unsubscribe?.(); subscription.unsubscribe = null;
+      };
+    },
     createQuery,
     insert: (...args: Parameters<EvoluDataClient['insert']>) => current!.evolu.insert(...args),
     update: (...args: Parameters<EvoluDataClient['update']>) => current!.evolu.update(...args),
@@ -517,6 +585,7 @@ export async function createEvolu8Candidate({
       const notify = () => listener(current!.deps.evoluError.get());
       const subscription: ErrorSubscription = { listener, unsubscribe: current!.deps.evoluError.subscribe(notify) };
       errorSubscriptions.add(subscription);
+      notify();
       return () => {
         if (!errorSubscriptions.delete(subscription)) return;
         try { subscription.unsubscribe?.(); } catch {}
@@ -563,6 +632,7 @@ export async function createEvolu8Candidate({
     [asyncDisposeSymbol]: async () => {
       if (disposed) return;
       disposed = true;
+      persistenceSubscriptions.clear();
       unbindSubscriptions();
       const previous = current;
       current = null;

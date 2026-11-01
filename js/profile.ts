@@ -13,6 +13,7 @@ import { createUniqueId } from './unique-id.js';
 import { getProxyApiUrl } from './proxy-runtime.js';
 import { isOfficialGetbasedHost } from './url-safety.js';
 import { normalizeUnitProfile } from './unit-profiles.js';
+import { selectSyncedProfile, syncedProfileMetadataClock } from './sync-profile-fields.js';
 import {
   configureProfileListStoreDeps,
   getProfiles as getStoredProfiles,
@@ -350,6 +351,7 @@ export async function createProfile(name: string, opts: CreateProfileOptions = {
       height: opts.height || null,
       heightUnit: opts.heightUnit || 'cm',
       createdAt: now,
+      _syncMetadataAt: now,
       lastUpdated: now,
       pinned: false
     });
@@ -364,7 +366,11 @@ function profileEdit(profileId: string, edit: (profile: StoredProfileRecord) => 
   return (profiles: StoredProfileRecord[]) => {
     const profile = profiles.find(candidate => candidate.id === profileId);
     if (!profile) return { changed: false, value: false };
+    const before = JSON.stringify(selectSyncedProfile(profile));
     edit(profile);
+    if (JSON.stringify(selectSyncedProfile(profile)) !== before) {
+      profile._syncMetadataAt = Math.max(Date.now(), syncedProfileMetadataClock(profile) + 1);
+    }
     profile.lastUpdated = Date.now();
     return { changed: true, value: true };
   };

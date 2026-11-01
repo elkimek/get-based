@@ -26,7 +26,10 @@ import {
   _bytesToBase64, _gzipString,
   stripWearableCredentials, stripGeneticsSnpsFromBlob, stripNutritionMealsFromBlob, stripLocalOnlyProfileData,
 } from './sync-payload-codec.js';
-import { selectSyncedProfile } from './sync-profile-fields.js';
+import { selectSyncedProfile, syncedProfileMetadataClock } from './sync-profile-fields.js';
+import {scalarPayloadClocks} from './sync-scalar-snapshot.js';
+import {DELTA_SCALARS} from './sync-delta-surfaces.js';
+import {getAt, setAt} from './data-merge.js';
 import { sanitizeNutritionProfileData } from './nutrition-sync-sanitize.js';
 
 export {
@@ -62,9 +65,12 @@ export function configureSyncPayload(deps: Partial<SyncPayloadDeps> = {}) {
 import { isPhase2CutoverEnabled } from './sync-delta-snapshot.js';
 export { isPhase2CutoverEnabled, enablePhase2CutoverFlag, disablePhase2CutoverFlag } from './sync-delta-snapshot.js';
 
-export async function buildSyncPayload(profileId: string, importedData: unknown, remoteChatData?: unknown) {
+export async function buildSyncPayload(profileId: string, importedData: unknown, remoteChatData?: unknown, options: { scalarClocks?: Record<string, number>; completeSnapshot?: boolean; profileSnapshot?: unknown } = {}) {
   const profiles = syncPayloadDeps.getProfiles();
-  const profile = selectSyncedProfile(profiles.find(p => p.id === profileId));
+  const profile = selectSyncedProfile(options.profileSnapshot === undefined ? profiles.find(p => p.id === profileId) : options.profileSnapshot);
+  // Explicit recovery republishes the chosen metadata as a new edit too.
+  // Ordinary forced reconnects preserve the original metadata edit clock.
+  if (profile && options.completeSnapshot && options.profileSnapshot === undefined) profile._syncMetadataAt = Math.max(Date.now(), syncedProfileMetadataClock(profile) + 1);
   const aiSettings = await collectAISettings();
   const localChatData = await collectChatData(profileId);
   const chatData = remoteChatData
@@ -79,10 +85,15 @@ export async function buildSyncPayload(profileId: string, importedData: unknown,
   ));
   // Phase 2: when cutover is enabled (readiness-gated), drop importedData
   // from the blob. Per-row deltas carry every field.
+  const scalarClocks = options.scalarClocks ?? (options.completeSnapshot ? scalarPayloadClocks(profileId, importedData, [], true) : undefined);
+  if (scalarClocks && safeImported && typeof safeImported === 'object') {
+    for (const field of DELTA_SCALARS) if ((options.completeSnapshot || (scalarClocks[field] || 0) > 0) && getAt(safeImported, field) === undefined) setAt(safeImported, field, null);
+  }
   const cutover = isPhase2CutoverEnabled(profileId);
   const inner = JSON.stringify({
     _v: cutover ? 4 : 3,
     importedData: cutover ? undefined : safeImported,
+    scalarClocks,
     profile: profile || null,
     aiSettings: Object.keys(aiSettings).length > 0 ? aiSettings : undefined,
     chatData: chatData || undefined,

@@ -14,7 +14,9 @@ type BundlerOptionsReader = Omit<BuildOptions, 'treeshake'> & {treeshake: BuildO
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CHECK_ONLY = process.argv.includes('--check');
-const OUTPUT_DIR = 'vendor/evolu8';
+// Keep the previous public graph intact while its tabs/retained builds retire.
+// Worker-relative URLs must never select another SQLite implementation.
+const OUTPUT_DIR = 'vendor/evolu8/v8.24.1-web3.6.5';
 const MANIFEST = `${OUTPUT_DIR}/manifest.json`;
 
 const BUNDLES: EvoluBundleTarget[] = [
@@ -34,17 +36,31 @@ const BUNDLES: EvoluBundleTarget[] = [
   },
 ];
 
-const COPIES = [
-  'sqlite3-bundler-friendly.mjs',
-  'sqlite3-opfs-async-proxy.js',
-  'sqlite3-worker1-bundler-friendly.mjs',
-  'sqlite3.wasm',
-].map(file => ({
-  source: `node_modules/@evolu/sqlite-wasm/sqlite-wasm/jswasm/${file}`,
+const COPIES = [{
+  source: 'node_modules/@evolu/sqlite-wasm/dist/wasm/sqlite3.wasm',
+  output: `${OUTPUT_DIR}/sqlite3.wasm`,
+}, ...['LICENSE', 'THIRD_PARTY_NOTICES.md'].map(file => ({
+  source: `node_modules/@evolu/sqlite-wasm/${file}`,
   output: `${OUTPUT_DIR}/${file}`,
-}));
+}))];
 
 const sha256 = (value: Parameters<ReturnType<typeof createHash>['update']>[0]) => createHash('sha256').update(value).digest('hex');
+// The old public graph is a frozen transition artifact, not output from the
+// current dependency lock. Qualify its original manifest and every whole file
+// before either generating or checking the current runtime.
+const legacyManifestBytes = await fs.readFile(path.join(ROOT, 'vendor/evolu8/manifest.json'));
+if (sha256(legacyManifestBytes) !== '47a5b6e6a40126008715dd3fac3c748427fe0f4eaf40a1863bbbfa06a80815d7') {
+  throw new Error('The frozen previous Evolu 8 manifest changed');
+}
+const legacyManifest = JSON.parse(legacyManifestBytes.toString('utf8')) as {
+  bundles: Array<{output: string; sha256: string}>;
+  assets: Array<{output: string; sha256: string}>;
+};
+for (const target of [...legacyManifest.bundles, ...legacyManifest.assets]) {
+  if (sha256(await fs.readFile(path.join(ROOT, target.output))) !== target.sha256) {
+    throw new Error(`The frozen previous Evolu 8 asset changed: ${target.output}`);
+  }
+}
 const lock: LockReader = JSON.parse(await fs.readFile(path.join(ROOT, 'package-lock.json'), 'utf8'));
 const requiredPackages = ['@evolu/common', '@evolu/web', '@evolu/sqlite-wasm', 'rolldown'];
 const packages: Record<string, {version: unknown; integrity: unknown}> = Object.fromEntries(requiredPackages.map(packageName => {
@@ -55,14 +71,24 @@ const packages: Record<string, {version: unknown; integrity: unknown}> = Object.
   return [packageName, { version: entry.version, integrity: entry.integrity }];
 }));
 
-if (packages['@evolu/common']!.version !== '8.7.0') throw new Error('@evolu/common must be locked to 8.7.0');
-if (packages['@evolu/web']!.version !== '3.1.0') throw new Error('@evolu/web must be locked to 3.1.0');
+if (packages['@evolu/common']!.version !== '8.24.1') throw new Error('@evolu/common must be locked to 8.24.1');
+if (packages['@evolu/web']!.version !== '3.6.5') throw new Error('@evolu/web must be locked to 3.6.5');
+if (packages['@evolu/sqlite-wasm']!.version !== '3.54.1-build3') throw new Error('@evolu/sqlite-wasm must be locked to 3.54.1-build3');
 
 const generatedBundles: Array<EvoluBundleTarget & {bytes: string; sha256: string}> = [];
 for (const target of BUNDLES) {
   const result = await (build as (options: BundlerOptionsReader) => Promise<RolldownOutput>)({
     input: path.join(ROOT, target.entry),
     platform: 'browser',
+    plugins: [{
+      name: 'evolu-sibling-wasm',
+      transform(code, id) {
+        if (!id.replaceAll(path.sep, '/').endsWith('/@evolu/sqlite-wasm/dist/src/WasmUrl.js')) return;
+        const coordinate = 'new URL("../wasm/sqlite3.wasm", import.meta.url);';
+        if (code.split(coordinate).length !== 2) throw new Error('Unexpected Evolu SQLite WASM URL contract');
+        return { code: code.replace(coordinate, 'new URL("./sqlite3.wasm", import.meta.url);'), map: null };
+      },
+    }],
     treeshake: target.treeshake,
     write: false,
     output: {

@@ -23,6 +23,8 @@ export interface SyncPopoverView {
   error: { type: string; age: string } | null;
   events: SyncEventView[];
   stuckPush: boolean;
+  notice?: string | null;
+  reloadRequired?: boolean;
   debugControls: boolean;
 }
 

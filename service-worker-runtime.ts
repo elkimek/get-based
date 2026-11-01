@@ -44,6 +44,14 @@ function installServiceWorkerRuntime({
   // SQLite names. Keep original module and worker URLs: their import.meta.url
   // selects sibling WASM/proxy files, so a canonical Response URL is unsafe.
   const verifiedSqliteAliases = new Map<string, string>();
+  // Frozen previous runtime: not part of a new installation's precache. Open
+  // old tabs/workers can finish offline from retained caches only when the
+  // complete bytes match this independent immutable transition identity.
+  const previousEvoluAssets = new Map([
+    ['/vendor/evolu8/evolu-bundle.js', 'd48fd23aaa1f5f9610d4b5baf9154ca107558b3d045ab1fd272b751a665e8a5d'],
+    ['/vendor/evolu8/Db.worker.js', 'e2cd4f42eb4e870f1be57d86a76e5a509a1f96f2e3ba3181cda38ea7ff7b3817'],
+    ['/vendor/evolu8/Shared.worker.js', '9ef44230768f3e3d43d84d616b1f36d93a74481b5e8e43ecb6f8ec02192bc042'],
+  ]);
   const sqliteNames = ['sqlite3-bundler-friendly.mjs', 'sqlite3.wasm',
     'sqlite3-opfs-async-proxy.js', 'sqlite3-worker1-bundler-friendly.mjs'] as const;
   if (Object.keys(sqliteAssetAliases).length) {
@@ -503,6 +511,24 @@ function installServiceWorkerRuntime({
     return undefined;
   }
 
+  async function previousEvoluResponse(request: Request, expectedHash: string): Promise<Response> {
+    const qualified = async (response: Response | undefined) => response?.status === 200
+      && await retryBodyHash(await response.clone().arrayBuffer()) === expectedHash;
+    try {
+      const current = await matchCurrentCache(request);
+      if (await qualified(current)) return current!;
+      const currentName = await resolveCacheName();
+      for (const name of (await caches.keys()).filter(key => key.startsWith('labcharts-v') && key !== currentName)) {
+        const retained = await (await caches.open(name)).match(request);
+        if (await qualified(retained)) return retained!;
+      }
+      // Do not add a previous runtime to the new build cache. Its URL base and
+      // complete bytes remain unchanged whether served online or offline.
+      const response = await fetch(request);
+      return await qualified(response) ? response : unavailableOwnedResponse();
+    } catch { return unavailableOwnedResponse(); }
+  }
+
   async function matchRetryChunk(event: FetchEvent, url: URL): Promise<Response | undefined> {
     const selectedBuild = clientBuilds.get(event.clientId) || buildId;
     if (!/^[a-f0-9]{64}$/.test(selectedBuild)) return undefined;
@@ -566,6 +592,12 @@ function installServiceWorkerRuntime({
 
     // Cache API only supports GET, and the app cache owns same-origin files only.
     if (event.request.method !== 'GET' || !sameOrigin) return;
+
+    const previousEvoluHash = !url.search && !url.hash ? previousEvoluAssets.get(url.pathname) : undefined;
+    if (buildId && isProduction && previousEvoluHash) {
+      event.respondWith(previousEvoluResponse(event.request, previousEvoluHash));
+      return;
+    }
 
     // Same-origin auto-import feed and report checks mark themselves with this
     // exact URL fragment (js/auto-import-feed.ts) and go straight to the

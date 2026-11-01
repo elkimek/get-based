@@ -12,3 +12,4 @@ export {
 
 export { createEvoluDeps, createRun } from '@evolu/web';
 export { installPolyfills } from '@evolu/common/polyfills';
+export { syncStateToOwnerSyncStatus } from '@evolu/common/local-first';

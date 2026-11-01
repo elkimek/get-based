@@ -45,6 +45,14 @@ it('retains native indicator title, action and button defaults',()=>{
   expect(dom(renderSyncIndicatorView({state,title}))).toEqual(dom(row.original.html));
  }
 });
+it('shows temporary-storage guidance as literal status text with an explicit reload action',()=>{
+ const model=view(rows[0]!.capturedViewWitness);
+ model.stuckPush=false;model.reloadRequired=true;model.notice='Temporary Sync storage <img data-probe src=x> & keep this tab open.';
+ const host=document.createElement('div');host.innerHTML=renderSyncPopoverView(model);
+ expect(host.querySelector('[role="status"]')?.textContent?.trim()).toBe(model.notice);
+ expect(host.querySelectorAll('[data-sync-ui-action="reload"]')).toHaveLength(1);
+ expect(host.querySelectorAll('img,[data-probe]')).toHaveLength(0);
+});
 it('preserves native comparisons that expose every altered style, action, default, node and comment',()=>{
  const model=view(rows.find(row=>row.original.name==='debug-events')!.capturedViewWitness),html=renderSyncPopoverView(model),baseline=dom(html);
  for(const changed of [html.replace('data-sync-ui-action="sync-now"','data-sync-ui-action="wrong"'),html.replace('font-size:12px','font-size:99px'),html.replace('<button','<button disabled'),html.replace('Recent activity','Wrong label'),html.replace('<button','<!--foreign--><button'),html+'<i>Extra</i>']){
