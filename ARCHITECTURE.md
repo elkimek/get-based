@@ -379,6 +379,11 @@ Duplicate physical sync rows use one deterministic order: application edit time,
 deletion on a tied clock, physical row ID, then canonical payload bytes. Query
 order is never a version. Array overlays retain embedded record freshness and
 unpublished local edits; committed duplicate values use the canonical row.
+Per-item array receipts retain the exact committed value hash and row clock.
+They advance only after item-row completion or successful pull persistence,
+and only for values that survived persistence rebasing. A later in-place row
+update can replace that committed value even when its embedded timestamp ties;
+an older query result cannot replace a freshly committed local edit.
 Lab entries retain their per-marker merge rules. A map tombstone suppresses older
 live duplicates, while a later explicit edit can restore the key. New mutations
 advance past observed row clocks even after a device clock moves backwards.

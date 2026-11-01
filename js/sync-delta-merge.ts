@@ -12,7 +12,9 @@ import { decodeRowPayload } from './sync-delta-row-codec.js';
 import { _djb2 } from './sync-delta-id.js';
 import {scalarValueHash, readScalarVersion, writeScalarVersion} from './sync-scalar-snapshot.js';
 import type {ScalarVersions} from './sync-scalar-snapshot.js';
-import { _readDeltaSnapshot, _writeDeltaSnapshot } from './sync-delta-snapshot.js';
+import { _readDeltaSnapshot, _writeDeltaSnapshot, writeArrayVersions } from './sync-delta-snapshot.js';
+import type { PulledArrayVersions } from './sync-delta-snapshot.js';
+import { DELTA_ARRAY_CONFIG } from './sync-delta-surface-config.js';
 import { mergeArrayRowsIntoImported } from './sync-delta-array-merge.js';
 import { mergeMapRowsIntoImported } from './sync-delta-map-merge.js';
 import { mergeScalarRowsIntoImported } from './sync-delta-scalar-merge.js';
@@ -29,6 +31,21 @@ function _currentEvolu() {
 
 function _currentItemRowQuery() {
   return mergeQueryAccess.currentItemRowQuery();
+}
+
+/** Only the exact row value that survived durable pull persistence is a receipt. */
+export function acknowledgePulledArrayVersions(profileId: string, committed: DeltaImportedData, versions: PulledArrayVersions = {}) {
+  for (const [arrayName, candidates] of Object.entries(versions)) {
+    const items = getAt(committed, arrayName);
+    if (!Array.isArray(items)) continue;
+    const itemIdFn = DELTA_ARRAY_CONFIG[arrayName]?.itemIdFn
+      ?? ((item: {id?: unknown}) => typeof item?.id === 'string' ? item.id : null);
+    const matching = Object.fromEntries(items.flatMap(item => {
+      const id = itemIdFn(item), version = id ? candidates[id] : null;
+      return id && version?.hash === _djb2(JSON.stringify(item)) ? [[id, version]] : [];
+    }));
+    writeArrayVersions(profileId, arrayName, matching);
+  }
 }
 
 /** A durable pull also acknowledges a scalar's value. Without this, a device
@@ -82,7 +99,7 @@ export async function acknowledgePulledScalarSnapshots(profileId: string, commit
 // array tombstones left in an old replica after compaction.
 export async function _mergeItemRowsIntoImported<Data extends DeltaImportedData>(
   profileId: unknown, imported: Data,
-  options: { baselineImported?: unknown; baselineSyncedAt?: number | undefined; scalarClocks?: Record<string, number> | undefined; localImported?: unknown; scalarVersions?: ScalarVersions } = {},
+  options: { baselineImported?: unknown; baselineSyncedAt?: number | undefined; scalarClocks?: Record<string, number> | undefined; localImported?: unknown; scalarVersions?: ScalarVersions; arrayVersions?: PulledArrayVersions } = {},
 ): Promise<Data> {
   const evolu = _currentEvolu();
   const itemRowQuery = _currentItemRowQuery();
@@ -110,8 +127,12 @@ export async function _mergeItemRowsIntoImported<Data extends DeltaImportedData>
       ? getAt(options.baselineImported, arrayName)
       : null;
     await mergeArrayRowsIntoImported(imported, arrayName!, arrRows, {
+      profileId: typeof profileId === 'string' ? profileId : undefined,
       baselineItems: Array.isArray(baselineItems) ? baselineItems : [],
       baselineSyncedAt: options.baselineSyncedAt,
+      onVersion: (id, version) => {
+        if (options.arrayVersions) (options.arrayVersions[arrayName!] ??= Object.create(null))[id] = version;
+      },
     });
   }
   for (const field of DELTA_SCALARS) {

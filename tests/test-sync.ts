@@ -1375,7 +1375,7 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
     /remoteTombs\.set\(row\.itemId[\s\S]{0,1800}tombAt\s*>=\s*Math\.max\(pickTimestamp\(item\),\s*canonicalBlobAt\)/.test(syncDeltaArrayMergeSrc));
   assert('_mergeItemRowsIntoImported preserves fresher local non-lab items over stale per-row payloads',
     /compareRecordFreshness\(item,\s*nextArr\[idx\]\)\s*<=\s*0/.test(syncDeltaArrayMergeSrc)
-      && syncDeltaArrayMergeSrc.includes('!represented.get(itemId)?.has(syncValueKey(nextArr[idx]))')
+      && syncDeltaArrayMergeSrc.includes('!represented.get(itemId)?.has(syncValueKey(nextArr[idx])) && !newerCommitted')
       && /nextArr\[idx\]\s*=\s*item/.test(syncDeltaArrayMergeSrc));
   assert('_mergeItemRowsIntoImported merges same-date lab entries instead of replacing marker maps',
     /import\s*\{[^}]*mergeLabEntry[^}]*\}\s*from\s*['"]\.\/data-merge\.js['"]/.test(syncDeltaArrayMergeSrc)
@@ -1390,7 +1390,7 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
     /labcharts-\$\{profileId\}-delta-\$\{arrayName\}/.test(syncDeltaSnapshotSrc));
   assert('Snapshot only writes after onComplete (wedged-push safety)',
     syncPushContracts.commitOwnsDeltas
-      && /applyCommittedDeltas[\s\S]{0,1800}_writeDeltaSnapshot\(profileId,\s*arrayName,\s*plan\.next,\s*plan\.plannedAt\)/.test(syncPushDeltasSrc));
+      && syncCommittedDeltaSourceContracts(syncPushDeltasSrc).snapshotsGuarded);
 
   // Live diff sanity: confirm the diff logic respects content-equality
   if (typeof CompressionStream !== 'undefined') {
@@ -2435,7 +2435,7 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
     /_DELTA_TELEMETRY_CAP\s*=\s*50/.test(deltaSearchSrc));
   assert('pushProfile records telemetry from onComplete (not synchronously)',
     syncPushContracts.commitOwnsDeltas
-      && /applyCommittedDeltas[\s\S]{0,2000}_recordPushTelemetry\(profileId,\s*\(dataJson\s*\|\|\s*''\)\.length,\s*deltaPlans\)/.test(syncPushDeltasSrc));
+      && syncCommittedDeltaSourceContracts(syncPushDeltasSrc).telemetryOwned);
   assert('Pull-side merge records pull telemetry per array',
     /recordPullDeltaSurface\(arrayName,\s*\{\s*live:\s*liveById\.size,\s*tombstones:\s*localTombs\.size\s*\+\s*remoteTombs\.size\s*\}\)/.test(deltaSearchSrc));
   assert('Pull snapshot resets profileId on each merge (no stale carry-over)',

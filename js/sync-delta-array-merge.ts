@@ -14,7 +14,9 @@ import {
 } from './data-merge.js';
 import { recordPullDeltaSurface } from './sync-delta-pull-snapshot.js';
 import { DELTA_ARRAY_CONFIG } from './sync-delta-surface-config.js';
-import { _isAllowlistSafeId } from './sync-delta-id.js';
+import { _djb2, _isAllowlistSafeId } from './sync-delta-id.js';
+import { readArrayVersions } from './sync-delta-snapshot.js';
+import type { ArrayItemVersion } from './sync-delta-snapshot.js';
 import { decodeRowPayload } from './sync-delta-row-codec.js';
 
 function parseRowSyncedAt(row: DeltaItemRow | null | undefined) {
@@ -24,8 +26,10 @@ function parseRowSyncedAt(row: DeltaItemRow | null | undefined) {
 
 export async function mergeArrayRowsIntoImported(
   imported: DeltaImportedData, arrayName: string, arrRows: readonly DeltaItemRow[],
-  options: { baselineItems?: readonly unknown[] | undefined; baselineSyncedAt?: number | undefined } = {},
+  options: { baselineItems?: readonly unknown[] | undefined; baselineSyncedAt?: number | undefined;
+    profileId?: string | undefined; onVersion?: (itemId: string, version: ArrayItemVersion) => void } = {},
 ) {
+  const committedVersions = readArrayVersions(options.profileId, arrayName);
   // Read/write the target array: flat top-level for most surfaces, dotted-path
   // walk via getAt/setAt for nested ones (e.g. `lightEnvironment.rooms`).
   const isNested = arrayName.includes('.');
@@ -134,7 +138,11 @@ export async function mergeArrayRowsIntoImported(
         // Preserve an unrepresented local edit while its query catches up.
         // When both conflicting committed values are present, use the same
         // canonical row on every device instead of preserving each local tie.
-        if(compareRecordFreshness(item,nextArr[idx])<0 || !represented.get(itemId)?.has(syncValueKey(nextArr[idx])))continue;
+        const receipt = committedVersions[itemId];
+        const newerCommitted = receipt?.hash === _djb2(JSON.stringify(nextArr[idx]))
+          && parseRowSyncedAt(entry.row) > receipt.clock;
+        if (compareRecordFreshness(item, nextArr[idx]) < 0
+            || (!represented.get(itemId)?.has(syncValueKey(nextArr[idx])) && !newerCommitted)) continue;
       }
       nextArr[idx] = item;
     }
@@ -148,6 +156,12 @@ export async function mergeArrayRowsIntoImported(
   if (cap && cappedArr.length > cap) {
     const trimmed = cappedArr.slice().sort((a, b) => pickTimestamp(b) - pickTimestamp(a));
     writeArr(trimmed.slice(0, cap));
+  }
+  for (const item of readArr()) {
+    const id = itemIdFn(item), entry = id ? liveById.get(id) : null;
+    if (!id || !entry || parseRowSyncedAt(entry.row) <= 0) continue;
+    const hash = _djb2(JSON.stringify(item));
+    if (hash === _djb2(JSON.stringify(entry.item))) options.onVersion?.(id, {hash, clock: parseRowSyncedAt(entry.row)});
   }
   recordPullDeltaSurface(arrayName, { live: liveById.size, tombstones: localTombs.size + remoteTombs.size });
 }

@@ -416,6 +416,9 @@ async function syncDiagnostics(page: Page) {
       },
       rows,
       profiles,
+      contextVersion: (await import('/js/sync-scalar-snapshot.js')).readScalarVersion((await import('/js/state.js')).state.currentProfile, 'contextNotes'),
+      dirty: (await import('/js/sync-dirty-state.js')).getSyncDirtyToken((await import('/js/state.js')).state.currentProfile),
+      recentEvents: (await import('/js/sync-state.js')).getRecentSyncEvents(),
     };
   });
 }
@@ -642,9 +645,10 @@ test('paused note edits do not overwrite context changed on another device', asy
     await syncNow(b.page); await waitForContext(a.page, UPDATED_CONTEXT);
     expect(await b.page.evaluate(() => import('/js/sync.js').then(sync => sync.pauseSync()))).toBe(true);
     expect(await setSyntheticData(a.page, 'offline-context')).toBe(true);
-    await syncNow(a.page);
+    const manualSync = await syncNow(a.page);
     const afterManualSync = await contextNotes(a.page);
-    if (afterManualSync !== OFFLINE_CONTEXT) console.error('Offline edit lost during manual sync:', JSON.stringify(await syncDiagnostics(a.page)));
+    if (!manualSync?.ok || afterManualSync !== OFFLINE_CONTEXT) console.error('Offline edit lost during manual sync:', JSON.stringify({manualSync, diagnostics: await syncDiagnostics(a.page)}));
+    expect(manualSync?.ok).toBe(true);
     expect(afterManualSync).toBe(OFFLINE_CONTEXT);
     await waitForStableRelayStorage(a.page);
     await expect.poll(() => contextNotes(b.page)).toBe(UPDATED_CONTEXT);
@@ -1173,4 +1177,41 @@ test('duplicate logical rows and a later deletion reconcile through real SDK mut
   await write(b.page,'restored',time+2000);
   for(const device of devices){await expect.poll(async()=> (await rows(device.page)).length).toBe(3);expect(await merged(device.page)).toEqual({transport_duplicate:'restored'});expect(device.errors).toEqual([]);}
  } finally {for(const device of devices.reverse())await device.context.close();}
+});
+
+test('an in-place equal-timestamp array edit reaches a reloaded receiving device', async ({browser}) => {
+  test.setTimeout(120_000);
+  const a = await createDevice(browser, 'array receipt device A'), devices = [a];
+  const readMinutes = (page: Page) => page.evaluate(async () =>
+    ((await import('/js/state.js')).state.importedData.sunSessions || []).find(item => item.id === 'transport_array')?.minutes);
+  const writeMinutes = (page: Page, minutes: number) => page.evaluate(async minutes => {
+    const {state} = await import('/js/state.js');
+    (state.importedData as unknown as {sunSessions: unknown}).sunSessions = [{
+      id: 'transport_array', date: '2026-08-06', minutes, updatedAt: Date.parse('2026-08-06T08:00:00Z'),
+    }];
+    await (await import('/js/data.js')).saveImportedData();
+  }, minutes);
+  const rowIds = (page: Page) => page.evaluate(async () => {
+    const runtime = await import('/js/sync-runtime.js'), sdk = runtime.getSyncEvolu()!, query = runtime.getSyncItemRowQuery();
+    await sdk.loadQuery(query);
+    return sdk.getQueryRows<DeltaItemRow>(query)!.filter(row => row.arrayName === 'sunSessions' && row.itemId === 'transport_array').map(row => String(row.id));
+  });
+  try {
+    await setSyntheticData(a.page, 'seed'); const identity = await enableNewIdentity(a.page);
+    await writeMinutes(a.page, 10); expect((await syncNow(a.page))?.ok).toBe(true);
+    const b = await createDevice(browser, 'array receipt device B'); devices.push(b);
+    await joinIdentity(b.page, identity.mnemonic, identity.ownerId);
+    await expect.poll(() => readMinutes(b.page)).toBe(10);
+    await expect.poll(() => b.page.evaluate(async () => {
+      const state = (await import('/js/state.js')).state;
+      return !!(await import('/js/sync-delta-snapshot.js')).readArrayVersions(state.currentProfile, 'sunSessions').transport_array;
+    })).toBe(true);
+    const originalRows = await rowIds(b.page); expect(originalRows).toHaveLength(1);
+    await b.page.reload({waitUntil: 'load'}); await waitForContext(b.page, BASELINE_CONTEXT);
+    await expect.poll(() => readMinutes(b.page)).toBe(10);
+    await writeMinutes(a.page, 20); expect((await syncNow(a.page))?.ok).toBe(true);
+    await expect.poll(() => readMinutes(b.page), {timeout: 30_000}).toBe(20);
+    expect(await rowIds(b.page)).toEqual(originalRows);
+    for (const device of devices) expect(device.errors).toEqual([]);
+  } finally { for (const device of devices.reverse()) await device.context.close(); }
 });

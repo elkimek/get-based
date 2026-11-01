@@ -7,6 +7,7 @@ export interface NamedDeltaPlan { arrayName: string; plan: DeltaPlan }
 import {writeScalarVersion} from './sync-scalar-snapshot.js';
 import { getErrorMessage } from './caught-error.js';
 import { getAt } from './data-merge.js';
+import { writeArrayVersions } from './sync-delta-snapshot.js';
 import {
   DELTA_ARRAYS, DELTA_MAPS, DELTA_SCALARS,
   _applyArrayDelta, _planArrayDelta, _planKeyedMapDelta,
@@ -123,6 +124,14 @@ export async function applyCommittedDeltas(
       if (options.signal?.aborted || options.isCurrent?.() === false) return false;
       if (!allOk) allCommitted = false;
       if (allOk) {
+        if (DELTA_ARRAYS.includes(arrayName)) {
+          const versions = Object.fromEntries(plan.ops.flatMap(op => {
+            const itemId = op.args.itemId, hash = typeof itemId === 'string' ? plan.next[itemId] : null;
+            const clock = Date.parse(String(op.args.syncedAt || ''));
+            return typeof itemId === 'string' && typeof hash === 'string' && clock > 0 ? [[itemId, {hash, clock}]] : [];
+          }));
+          if (!writeArrayVersions(profileId, arrayName, versions)) { allCommitted = false; continue; }
+        }
         if (DELTA_SCALARS.includes(arrayName)) {
           const clock = Math.max(...plan.ops.map(op => Date.parse(String(op.args.syncedAt || '')) || 0));
           if (!writeScalarVersion(profileId, arrayName, {clock, hash: typeof plan.next[arrayName] === 'string' ? plan.next[arrayName] as string : null})) {allCommitted = false; continue;}

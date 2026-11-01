@@ -121,3 +121,14 @@ it('rejects removing the item-row completion callback or its await before snapsh
   ['_applyArrayDelta(arrayName, plan, finish)','_applyArrayDelta(arrayName, plan)'],
  ] as const)expect(syncCommittedDeltaSourceContracts(change(deltas,before,after)).snapshotsGuarded).toBe(false);
 });
+
+it('requires owned post-commit telemetry and durable pull receipt ordering',()=>{
+ const deltas=readFileSync('js/sync-push-deltas.js','utf8');
+ expect(syncCommittedDeltaSourceContracts(deltas).telemetryOwned).toBe(true);
+ expect(syncCommittedDeltaSourceContracts(change(deltas,"_recordPushTelemetry(profileId, (dataJson || '').length, deltaPlans)","_recordPushTelemetry(profileId, 0, deltaPlans)")).telemetryOwned).toBe(false);
+ const acknowledgement='acknowledgePulledArrayVersions(profileId, committed, baseline?.arrayVersions);';
+ const removed=change(pullMerge,acknowledgement,'');
+ const early=change(removed,'await encryptedSetItem(localKey, JSON.stringify(committed));',acknowledgement+'\n await encryptedSetItem(localKey, JSON.stringify(committed));');
+ expect(syncPullEncryptionSourceContract(early)).toBe(false);
+ expect(syncPullEncryptionSourceContract(change(pullMerge,acknowledgement,'acknowledgePulledArrayVersions(profileId, merged, baseline?.arrayVersions);'))).toBe(false);
+});
