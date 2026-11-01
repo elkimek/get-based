@@ -10,6 +10,10 @@ export function resolveMarkerChartScale(values: readonly number[], bounds: reado
   const dataSpan = Math.max(dataMax - dataMin, Math.max(Math.abs(dataMin), Math.abs(dataMax)) * 0.1);
   const focused = observedCount >= 2 && dataSpan > 0 && fullMax - fullMin > dataSpan * 20;
   const min = focused ? dataMin : fullMin, max = focused ? dataMax : fullMax;
-  const padding = (max - min || dataSpan || 1) * 0.15;
+  // Apply the floor to the visible frame too, not just the focus decision:
+  // otherwise tiny nonzero changes could still fill most of the plot.
+  const frameSpan = focused ? dataSpan : max - min;
+  const padding = (frameSpan || dataSpan || 1) * 0.15
+    + (focused ? (dataSpan - (dataMax - dataMin)) / 2 : 0);
   return { min: min >= 0 ? Math.max(0, min - padding) : min - padding, max: max + padding, focused };
 }

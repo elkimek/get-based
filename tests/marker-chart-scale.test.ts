@@ -28,6 +28,19 @@ describe('marker chart framing', () => {
     expect(resolveMarkerChartScale([5,5,5],[4,6]).focused).toBe(false);
   });
 
+  it('keeps a magnitude-based frame for nearly flat focused readings', () => {
+    const values = [1,1.00001,1.00002];
+    const axis = resolveMarkerChartScale(values,[0,100]);
+    expect(axis.focused).toBe(true);
+    expect(axis.max-axis.min).toBeCloseTo(1.00002*0.1*1.3,12);
+    expect((Math.max(...values)-Math.min(...values))/(axis.max-axis.min)).toBeLessThan(0.001);
+    for (const factor of [100,0.000001]) {
+      const scaled = resolveMarkerChartScale(values.map(value=>value*factor),[0,100*factor]);
+      expect(scaled.min/factor).toBeCloseTo(axis.min,12);
+      expect(scaled.max/factor).toBeCloseTo(axis.max,12);
+    }
+  });
+
   it('is invariant under positive unit conversion, including tiny fractions', () => {
     const values = [0.005,0.006,0.007], bounds = [0,2];
     const original = resolveMarkerChartScale(values,bounds);
