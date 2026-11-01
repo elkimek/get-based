@@ -102,6 +102,38 @@ it('uses the adopted baseline when another save starts during post-save hooks', 
   expect(state.importedData.notes!).toEqual((await read()).notes);
 });
 
+it.each([false, true])('adopts a completed save into a replacement active object without inventing a stale edit (new draft: %s)', async newDraft => {
+  const baseline = structuredClone(state.importedData);
+  let started!: () => void, release!: () => void;
+  const reading = new Promise<void>(resolve => { started = resolve; });
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const originalRead = crypto.encryptedGetItem;
+  let held = false;
+  vi.spyOn(crypto, 'encryptedGetItem').mockImplementation(async (...args) => {
+    if (args[0] === key && !held) { held = true; started(); await gate; }
+    return originalRead(...args);
+  });
+  state.importedData.contextNotes = 'committed local context edit';
+  const saving = saveImportedData();
+  await reading;
+  const replacement = structuredClone(baseline);
+  rememberProfileData(replacement, baseline);
+  if (newDraft) replacement.notes!.push({date: '2026-10-31', text: 'new unsaved replacement note'});
+  state.importedData = replacement;
+  release();
+  expect(await saving).toBe(true);
+  expect((await read()).contextNotes).toBe('committed local context edit');
+  expect(state.importedData).toBe(replacement);
+  expect(state.importedData.contextNotes).toBe('committed local context edit');
+  if (newDraft) {
+    expect(state.importedData.notes).toContainEqual({date: '2026-10-31', text: 'new unsaved replacement note'});
+    expect((await read()).notes).toEqual([]);
+    expect(await saveImportedData()).toBe(true);
+    expect((await read()).contextNotes).toBe('committed local context edit');
+    expect((await read()).notes).toContainEqual({date: '2026-10-31', text: 'new unsaved replacement note'});
+  }
+});
+
 it('merges independent additions, same-entry marker edits, and delete-versus-edit without resurrection', () => {
   const base = { entries: [entry('2026-09-01', { a: 1, b: 2 }), entry('2026-09-02', { a: 2 })] };
   const a = structuredClone(base), b = structuredClone(base);

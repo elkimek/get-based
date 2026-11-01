@@ -45,6 +45,9 @@ let _getProfiles: () => StoredProfileRecord[] = () => [];
 // instead of silently blocking every subsequent push for the session.
 let _syncing = false;
 let _syncingSince = 0;
+let pushSequence = 0;
+let activePushGeneration = 0;
+const profilePushGenerations = new Map<string, number>();
 
 interface SyncPushDependencies {
   getEvolu: typeof _getEvolu;
@@ -121,9 +124,31 @@ export async function pushProfile(profileId: unknown, importedData: unknown, opt
     console.warn('[sync] another push is in-flight');
     return { ok: false, skipped: true, reason: 'in-flight' };
   }
+  const generation = ++pushSequence;
+  activePushGeneration = generation;
+  profilePushGenerations.set(profileId, generation);
   _syncing = true;
   _syncingSince = Date.now();
   const dirtyToken = getSyncDirtyToken(profileId);
+  const isCurrentGeneration = () => profilePushGenerations.get(profileId) === generation;
+  const isCurrentSnapshot = () => isCurrentGeneration() && getSyncDirtyToken(profileId) === dirtyToken;
+  const releasePush = () => {
+    if (profilePushGenerations.get(profileId) === generation) profilePushGenerations.delete(profileId);
+    _syncing = profilePushGenerations.size > 0;
+  };
+  const updateCurrentStatus = (status: Parameters<typeof updateSyncStatus>[0]) => {
+    const ownsStatus = activePushGeneration === generation
+      || (isCurrentGeneration() && profilePushGenerations.size === 1);
+    if (!ownsStatus || ((status.push === 'confirmed' || status.push === 'idle') && profilePushGenerations.size > 1)) return;
+    updateSyncStatus(status);
+  };
+  const superseded = (): SyncPushResult => {
+    // Decide ownership before releasing this generation; another profile may
+    // still own a pending send, or this may be the last outstanding plan.
+    updateCurrentStatus({push: 'idle', pushStartedAt: null});
+    releasePush();
+    return {ok: false, skipped: true, reason: 'superseded'};
+  };
   const outboundData = normalizedImportedDataForPush(importedData as ProfileData);
   // Post-enable schema-drift detection. enablePhase2Cutover gates ON
   // readiness AT FLIP TIME, but if a future commit adds a new write site
@@ -177,8 +202,8 @@ export async function pushProfile(profileId: unknown, importedData: unknown, opt
     const devCount = Array.isArray(outboundData?.lightDevices) ? outboundData.lightDevices.length : 0;
     const { deltaPlans, deltaOpCount: dataDeltaOpCount, planningErrors } = await planProfileDeltas(profileId, outboundData, {forceScalars: opts.completeSnapshot === true});
     if (planningErrors?.length) {
-      updateSyncStatus({ push: 'error', lastError: { type: 'DeltaPlanError', message: 'Sync could not prepare a complete update. Your local changes are still queued.', at: Date.now() } });
-      _syncing = false;
+      updateCurrentStatus({ push: 'error', lastError: { type: 'DeltaPlanError', message: 'Sync could not prepare a complete update. Your local changes are still queued.', at: Date.now() } });
+      releasePush();
       return { ok: false, skipped: true, reason: 'delta-plan-failed' };
     }
     const metadataSource = _getProfiles().find(profile => profile.id === profileId);
@@ -192,22 +217,31 @@ export async function pushProfile(profileId: unknown, importedData: unknown, opt
       completeSnapshot: opts.completeSnapshot === true,
     });
 
+    // Forced startup/recovery sends may overlap another push. Planning and
+    // gzip can yield while a newer edit commits; the older snapshot must not
+    // assign that stale value a fresh clock or acknowledge the newer save.
+    if (!isCurrentSnapshot()) return superseded();
+
     // Evolu's relay quota measures append-only message history, not the size
     // of the current profile. Updating an identical row therefore consumes
     // storage even though the user added nothing. Compare the complete wire
     // payload and delta plan before assigning a new syncedAt clock. Explicit
     // force pushes bypass this guard for relay rebuild/recovery workflows.
-    if (!opts.force && existing && deltaOpCount === 0
+    // Startup may bypass the in-flight guard while still skipping an identical
+    // canonical wire payload; its local divergence check can be conservative.
+    if ((!opts.force || opts.skipUnchanged) && existing && deltaOpCount === 0
         && (existing.dataJson === dataJson || await equivalentSyncPayload(existing.dataJson, dataJson))) {
+      if (!isCurrentSnapshot()) return superseded();
       if (!await commitProfileMetadataClock(profileId, metadataSource, metadata.profile)) throw new Error('Could not retain the metadata edit clock');
+      if (!isCurrentSnapshot()) return superseded();
       const skipMsg = `No changes to push ${profileId.slice(0,8)}`;
       _debug(skipMsg);
       logSyncEvent('skip', skipMsg);
-      updateSyncStatus({
+      updateCurrentStatus({
         push: 'confirmed', pushStartedAt: null, pushConfirmedAt: Date.now(), lastError: null,
       });
       clearSyncProfileDirty(profileId, dirtyToken);
-      _syncing = false;
+      releasePush();
       return { ok: true, skipped: true, reason: 'unchanged' };
     }
 
@@ -216,27 +250,31 @@ export async function pushProfile(profileId: unknown, importedData: unknown, opt
     const queuedAt = Date.now();
     _debug(`${queueMsg} @ ${queuedAt}`);
     logSyncEvent('queue', queueMsg);
-    updateSyncStatus({ push: 'pending', pushStartedAt: queuedAt });
+    updateCurrentStatus({ push: 'pending', pushStartedAt: queuedAt });
 
     return await new Promise<SyncPushResult>((resolve) => {
       let completed = false;
       let watchdogId: ReturnType<typeof setTimeout> | null = null;
       const finish = (result: SyncPushResult) => {
-        _syncing = false;
+        completed = true;
+        releasePush();
         if (watchdogId !== null) { clearTimeout(watchdogId); watchdogId = null; }
         resolve(result);
       };
       const onComplete = async () => {
+        if (completed) return;
         completed = true;
+        if (!isCurrentGeneration()) { finish(superseded()); return; }
         if (!applyCommittedDeltas(profileId, dataJson, deltaPlans, deltaOpCount, _debug)
             || !commitScalarPayloadClocks(profileId, outboundData, scalarClocks)
             || !await commitProfileMetadataClock(profileId, metadataSource, metadata.profile)) {
-          updateSyncStatus({ push: 'error', pushStartedAt: null, lastError: { type: 'DeltaCommitError', message: 'Sync could not commit a complete update. Your local changes are still queued.', at: Date.now() } });
+          updateCurrentStatus({ push: 'error', pushStartedAt: null, lastError: { type: 'DeltaCommitError', message: 'Sync could not commit a complete update. Your local changes are still queued.', at: Date.now() } });
           finish({ ok: false, reason: 'delta-commit-failed' });
           return;
         }
+        if (!isCurrentGeneration()) { finish(superseded()); return; }
         const elapsed = Date.now() - queuedAt;
-        updateSyncStatus({
+        updateCurrentStatus({
           push: 'confirmed', pushStartedAt: null, pushConfirmedAt: Date.now(), lastError: null,
         });
         const okMsg = `Push committed ${profileId.slice(0,8)} (${elapsed}ms) — sun=${sunCount} dev=${devCount}`;
@@ -276,12 +314,13 @@ export async function pushProfile(profileId: unknown, importedData: unknown, opt
         if (!completed) {
           console.warn('[sync] Push NOT committed after 30s');
           logSyncEvent('skip', `Push stuck >30s — try reloading`);
-          updateSyncStatus({ push: 'error', lastError: { type: 'PushStuck', message: 'Evolu replication did not complete in 30s', at: Date.now() } });
+          updateCurrentStatus({ push: 'error', lastError: { type: 'PushStuck', message: 'Evolu replication did not complete in 30s', at: Date.now() } });
           finish({ ok: false, reason: 'timeout' });
         }
       }, 30_000);
 
       try {
+        if (!isCurrentSnapshot()) { completed = true; finish(superseded()); return; }
         if (existing) {
           // profileId is repeated on every update so post-compaction replicas
           // see it on every CRDT message — without this, a relay that drops
@@ -304,15 +343,15 @@ export async function pushProfile(profileId: unknown, importedData: unknown, opt
         // local-sync-ts is now bumped inside onComplete only — see comment there.
       } catch (e) {
         console.error('[sync] Push failed:', e);
-        updateSyncStatus({ push: 'error', lastError: { type: 'PushError', message: getErrorMessage(e), at: Date.now() } });
+        updateCurrentStatus({ push: 'error', lastError: { type: 'PushError', message: getErrorMessage(e), at: Date.now() } });
         finish({ ok: false, error: e });
       }
     });
   } catch (e) {
     console.error('[sync] Push failed:', e);
-    updateSyncStatus({ push: 'error', lastError: { type: 'PushError', message: getErrorMessage(e), at: Date.now() } });
+    updateCurrentStatus({ push: 'error', lastError: { type: 'PushError', message: getErrorMessage(e), at: Date.now() } });
     // Synchronous error path — onComplete will never fire, release the lock.
-    _syncing = false;
+    releasePush();
     return { ok: false, error: e };
   }
   // _syncing now released by onComplete / watchdog / catch — NOT here. The

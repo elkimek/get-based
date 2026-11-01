@@ -99,8 +99,10 @@ export function createSyncSaveHooks({
         return;
       }
       try {
-        const result = await (0, syncSaveHooksDeps.pushProfile)(profileId, importedData);
-        if ((result as { skipped?: unknown } | null | undefined)?.skipped && attempt < 60) scheduleAISettingsPush(profileId, importedData, attempt + 1);
+        const result = await (0, syncSaveHooksDeps.pushProfile)(profileId, importedData) as {ok?: unknown; skipped?: unknown} | null | undefined;
+        // A successful unchanged receipt is terminal, just like a commit.
+        // Only an unsuccessful skipped attempt still needs a retry.
+        if (result?.skipped && result.ok !== true && attempt < 60) scheduleAISettingsPush(profileId, importedData, attempt + 1);
       } catch {}
     }, attempt === 0 ? 250 : 1000);
   }

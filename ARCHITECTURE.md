@@ -47,6 +47,19 @@ checks use the fixed inventory in
 
 ## Presentation and lifecycle contract
 
+Foreground modals and the Sync popover cancel optional Dashboard Chat startup,
+including a request still awaiting module or presentation loading; explicit Chat
+actions retain their normal behavior.
+Optional empty-Dashboard Chat startup owns its reservation by render generation
+and profile. Failed loads or a narrower viewport release it; completion from a
+retired render cannot clear a newer reservation.
+Lazy Chat open/toggle requests retain their initiating profile through module
+loading. Panel opening checks that profile and its open intent after each
+asynchronous load, so a deleted profile's pending request cannot initialize a
+conversation on its temporary sync fallback or another selected profile.
+An interrupted visible opening closes only while it still owns the latest open
+intent, leaving a newer opening intact.
+
 `body-measurement-model.ts` owns method-specific waist/hip/SAD field identities
 and validated portable-mirror projection. `wearables-manual.ts` owns their paired
 numeric writes and deletion clocks through the existing encrypted manual-reading
@@ -88,7 +101,9 @@ before dispatch, publication and persistence. Retired controls cannot start new 
 or update replacement views. Accepted domain writes can finish for their original
 owner after closure; they must not publish into a new owner's UI or adopt unrelated
 unsaved fields. Domain transactions, locks and explicit field baselines decide
-commit/rollback, not component mount lifetime.
+commit/rollback, not component mount lifetime. A save adopting into a replacement
+object for the same profile uses that object's own read baseline, so stale loaded
+values cannot undo the committed edit and newer unsaved fields remain intact.
 
 Keep credentials and private metadata in dedicated live-field/service ports,
 not general display snapshots or action attributes. Existing explicit Sync recovery
@@ -352,6 +367,14 @@ downgrade is not a database rollback: previous web runtimes cannot open every
 new-format database. The v7 recovery path always retains its separate runtime and
 database identity.
 
+Overlapping forced pushes retain per-profile generations. A newer push supersedes
+older asynchronous planning and completion; a newer saved edit invalidates an
+older plan before its SDK write. Superseded snapshots cannot write stale deltas,
+acknowledge a newer dirty marker or release another push's in-flight guard. A
+superseded plan settles its status before releasing ownership and cannot hide
+another profile's pending send. Manual sync retries the current snapshot within
+its existing deadline.
+
 V3 profile snapshots retain scalar values with per-field edit clocks, so an
 unrelated save cannot give an unchanged scalar a newer clock. Full snapshots
 protect peers whose profile and item-row query updates arrive separately.
@@ -363,12 +386,44 @@ insert contract. Never-configured absent fields do not create clear rows.
 Legacy envelopes retain their profile-clock fallback. Explicit recovery also
 re-emits scalar rows, including clears. Planning or row-mutation failures keep
 local dirty markers queued and stop success confirmation.
+
+Backup recovery acknowledges each committed profile independently before relay
+tombstones can apply. Its journal stays readable by older tabs; generation,
+owner and dirty-token checks prevent an old completion from acknowledging a
+newer restore. Demo and explicitly deleted profiles are not republished.
+Explicit local delete intent acknowledges recovery even after the profile leaves
+the saved list; absence alone never discards a recovery entry.
+Unavailable profiles retain their recovery protection without re-uploading
+completed profiles. A failed progress write retains an in-memory commit receipt;
+automatic failed publishes have a bounded retry budget, reset by an explicit
+Sync now/resume or a newer local edit.
+Identity rotation confirms a durable local recovery journal before changing the
+owner. Failed writes/readback retain the original identity and saved Sync state.
+If the SDK rejects a reset while its actual owner is unchanged, restore the exact
+prior journal only while this operation still owns the staged generation. A
+newer journal or an identity changed before startup failed retains its recovery.
+The staged journal also binds to a domain-separated SHA-256 fingerprint of the
+intended mnemonic; recovery words are never stored in the journal. Every
+acknowledgement preserves that binding. A second tab with an older identity
+defers recovery even while the originating tab is awaiting SDK reset.
+Publishing stays suspended in the retiring runtime until replacement; the
+reloaded owner publishes complete recovery. The old owner/query cache cannot
+acknowledge the new owner's recovery. A deliberate join retargets existing
+pending recovery before SDK reset, with the same owned rollback on failure.
+Startup reconciliation may bypass the in-flight guard but retains the canonical
+payload no-op check; an unchanged startup must not append relay history.
+AI-setting retries stop after a successful unchanged receipt; unavailable
+dirty-marker storage must not silently discard the requested check.
 Profile metadata carries its own item row and durable edit clock; unrelated data rebroadcasts
 retain it. Legacy metadata uses the envelope clock, and equal-clock metadata
 conflicts resolve deterministically. Pulls defer pending local metadata edits
 and ignore exact cached versions replaced by successful local pushes. Successful
 recovery durably advances the local metadata clock; metadata edited while the
 push is pending stays queued with a clock beyond that recovery.
+
+Sync status emits only changed fields. An open status popover updates its
+information in place, retaining action-button identity and keyboard focus so
+replication activity cannot interrupt hover or a click in progress.
 
 The static assembler externalizes Kit's classic bootstrap to satisfy the existing
 CSP without permitting inline executable scripts. It copies only declared public

@@ -9,7 +9,7 @@ import MagicString from 'magic-string';
 import {moduleRunnerTransform, transformWithOxc} from 'vite';
 import {decode, encode} from '@jridgewell/sourcemap-codec';
 import type {EncodedSourceMap} from '@jridgewell/trace-mapping';
-import {nativeFunctionMapper, UnmappedNativeFunction} from '../scripts/native-coverage-functions.mjs';
+import {nativeFunctionMapper, nativeFunctionMappers, UnmappedNativeFunction} from '../scripts/native-coverage-functions.mjs';
 import {replayNativeTransform, NATIVE_WRAPPER_PREFIX} from '../scripts/native-coverage-transform.mjs';
 import {nativeDigest, writeNativeBlob} from '../scripts/native-coverage-storage.mjs';
 import {readNativeFunctionCoverage} from '../scripts/native-coverage-receipt.mjs';
@@ -41,6 +41,22 @@ function own(transform: NativeTransform, count: number) {
 }
 
 describe('native own-entry identities and whole public source witnesses', () => {
+  it('keeps exact identities and counters separate across a bounded mapping batch', async () => {
+    const a = await fixture(source), other = '// separate source\nexport function longer(value) { return value + 2; }', b = await fixture(other);
+    const startOffset = b.runtime.indexOf('function longer');
+    const second = {functionName: 'longer', isBlockCoverage: true, ranges: [{startOffset, endOffset: startOffset + other.slice(other.indexOf('function longer')).length, count: 7}]};
+    const transforms = Array.from({length: 16}, (_, index) => index % 2 ? b.transform : a.transform);
+    const maps = nativeFunctionMappers(transforms);
+    for (const [index, map] of maps.entries()) {
+      expect(map(index % 2 ? second : own(a.transform, 0))).toEqual(index % 2
+        ? {start: other.indexOf('export'), end: other.length, count: 7}
+        : {start: 0, end: source.length, count: 0});
+    }
+    expect(() => maps[0]!({...own(a.transform, 1), ranges: [{...own(a.transform, 1).ranges[0]!, startOffset: own(a.transform, 1).ranges[0]!.startOffset + 1}]})).toThrow('RUNTIME_IDENTITY');
+    expect(() => nativeFunctionMappers([...transforms, a.transform])).toThrow('1–16');
+    expect(() => nativeFunctionMappers([])).toThrow('1–16');
+    expect(() => nativeFunctionMappers([{...a.transform, file: a.file + '.txt', canonical: source, runtime: source, code: source, map: null, offset: 0}])).toThrow();
+  });
   it('replays a whole SSR module before rejecting wrapper, source-map and observation corruption', async () => {
     const value = await fixture(source);
     const replay = () => replayNativeTransform(value.root, value.relative, value.canonical, value.runtime, value.snapshot, NATIVE_WRAPPER_PREFIX.length, value.geometry, value.observation, value.environment);

@@ -1,4 +1,5 @@
 // chat-loader.js - cached first-use boundary for the closed Chat composition.
+import { state } from './state.js';
 
 type ChatModule = typeof import('./app-ai-interaction-modules.js');
 
@@ -53,8 +54,9 @@ export function isChatModuleLoaded() {
  * @param {keyof ChatModule} name
  * @param {unknown[]} args
  */
-function callChatModule(name: keyof ChatModule, args: unknown[]) {
+function callChatModule(name: keyof ChatModule, args: unknown[], profileId?: string) {
   return loadChatModule().then(module => {
+    if (profileId !== undefined && state.currentProfile !== profileId) return false;
     const callback = module[name];
     if (typeof callback !== 'function') {
       throw new Error(`Chat action ${String(name)} is unavailable`);
@@ -75,8 +77,8 @@ function callLoadedChatModule(name: keyof ChatModule, args: unknown[], fallback:
     : fallback;
 }
 
-export function openChatPanel(...args: unknown[]) { return callChatModule('openChatPanel', args); }
-export function toggleChatPanel(...args: unknown[]) { return callChatModule('toggleChatPanel', args); }
+export function openChatPanel(...args: unknown[]) { return callChatModule('openChatPanel', args, state.currentProfile); }
+export function toggleChatPanel(...args: unknown[]) { return callChatModule('toggleChatPanel', args, state.currentProfile); }
 export function createNewThread(...args: unknown[]) { return callChatModule('createNewThread', args); }
 export function createThreadProject(...args: unknown[]) { return callChatModule('createThreadProject', args); }
 export function clearChatHistory(...args: unknown[]) { return callChatModule('clearChatHistory', args); }

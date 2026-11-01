@@ -4,6 +4,7 @@ import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { sourcePath } from '../scripts/source-files.js';
 import { fileURLToPath } from 'node:url';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
+import { queueProfileDataWrite } from '../js/profile-data-writes.js';
 // test-light-tools.js — Pure helpers re-exported by light-tools.js:
 // computeRowBanding (flicker FFT), cameraLockStatusLine, saveMeasurement
 // persistence + spectrum auto-fill, getMeasurementsForRoom, deleteMeasurement.
@@ -218,6 +219,9 @@ type FixtureMeasurementStream = Omit<NonNullable<Parameters<typeof lockCameraFor
     assert('getMeasurements tombstones collapsed rows for sync',
       state.importedData._deleted?.lightMeasurements?.includes('old-lux'));
 
+    // Reading the legacy rows schedules their migration save. Finish that real
+    // queued write before replacing the active object for the next fixture.
+    await queueProfileDataWrite(state.currentProfile, () => {});
     reset();
 
   const m1 = await saveMeasurement('lux', 350, { roomId: 'r1', label: 'desk' });

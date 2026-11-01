@@ -15,7 +15,7 @@ on:
         type: choice
         required: false
         default: 'off'
-        options: ['off', 'webkit-lens-wearable', 'webkit-pwa-routstr']
+        options: ['off', 'webkit-lens-wearable', 'webkit-pwa-routstr', 'webkit-evolu-runtime']
   workflow_call:
     inputs:
       full_suite:
@@ -25,14 +25,14 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: tests-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}-${{ inputs.full_suite == true && 'full' || 'scoped' }}${{ github.event_name == 'workflow_dispatch' && inputs.diagnostic == 'webkit-lens-wearable' && '-webkit-diagnostic' || '' }}${{ github.event_name == 'workflow_dispatch' && inputs.diagnostic == 'webkit-pwa-routstr' && '-webkit-pwa-routstr-diagnostic' || '' }}
+  group: tests-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}-${{ inputs.full_suite == true && 'full' || 'scoped' }}${{ github.event_name == 'workflow_dispatch' && inputs.diagnostic == 'webkit-lens-wearable' && '-webkit-diagnostic' || '' }}${{ github.event_name == 'workflow_dispatch' && inputs.diagnostic == 'webkit-pwa-routstr' && '-webkit-pwa-routstr-diagnostic' || '' }}${{ github.event_name == 'workflow_dispatch' && inputs.diagnostic == 'webkit-evolu-runtime' && '-webkit-evolu-diagnostic' || '' }}
   cancel-in-progress: ${{ (github.event_name == 'pull_request' || github.event_name == 'push') && inputs.full_suite != true }}
 env:
   GETBASED_KIT_ARTIFACT: ${{ github.workspace }}/dist
   CI_TEST_PLAN: .local-notes/ci/plan.json
 jobs:
   prepare:
-    if: github.event_name != 'workflow_dispatch' || (inputs.diagnostic != 'webkit-lens-wearable' && inputs.diagnostic != 'webkit-pwa-routstr')
+    if: github.event_name != 'workflow_dispatch' || (inputs.diagnostic != 'webkit-lens-wearable' && inputs.diagnostic != 'webkit-pwa-routstr' && inputs.diagnostic != 'webkit-evolu-runtime')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     outputs:
@@ -168,7 +168,9 @@ jobs:
       - name: Full unit coverage and unchanged critical behavior floors
         if: needs.prepare.outputs.full == 'true'
         run: |
-          node node_modules/vitest/vitest.mjs run --coverage
+          # Leave room for native TypeScript and nested producer subprocesses.
+          # Keep the complete suite, coverage denominator and deadlines intact.
+          node node_modules/vitest/vitest.mjs run --coverage --maxWorkers=2
           node node_modules/vitest/vitest.mjs run --config vitest.critical.config.js
       - name: Affected unit tests and mandatory changed-source checks
         if: needs.prepare.outputs.full != 'true'
@@ -516,9 +518,9 @@ jobs:
           if-no-files-found: error
           retention-days: 14
   test:
-    name: ${{ github.event_name == 'workflow_dispatch' && (inputs.diagnostic == 'webkit-lens-wearable' || inputs.diagnostic == 'webkit-pwa-routstr') && 'DIAGNOSTIC normal gate omitted' || 'test' }}
+    name: ${{ github.event_name == 'workflow_dispatch' && (inputs.diagnostic == 'webkit-lens-wearable' || inputs.diagnostic == 'webkit-pwa-routstr' || inputs.diagnostic == 'webkit-evolu-runtime') && 'DIAGNOSTIC normal gate omitted' || 'test' }}
     needs: [prepare, unit, native, kit, performance, coverage]
-    if: always() && (github.event_name != 'workflow_dispatch' || (inputs.diagnostic != 'webkit-lens-wearable' && inputs.diagnostic != 'webkit-pwa-routstr'))
+    if: always() && (github.event_name != 'workflow_dispatch' || (inputs.diagnostic != 'webkit-lens-wearable' && inputs.diagnostic != 'webkit-pwa-routstr' && inputs.diagnostic != 'webkit-evolu-runtime'))
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -781,4 +783,76 @@ jobs:
             .local-notes/ci/webkit-pwa-routstr-diagnostics/transport/manifest.json
           include-hidden-files: true
           if-no-files-found: warn
+          retention-days: 7
+
+  webkit_evolu_diagnostics:
+    name: DIAGNOSTIC Cocoa Evolu restart (${{ matrix.project }}; not a release gate)
+    if: github.event_name == 'workflow_dispatch' && inputs.diagnostic == 'webkit-evolu-runtime'
+    runs-on: macos-15
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [kit-webkit, kit-mobile-webkit]
+    env:
+      GETBASED_KIT_ACCEPTANCE_GUARD: '1'
+      GETBASED_KIT_GUARD_REPORT: .local-notes/ci/evolu-diagnostic/guard.json
+      PLAYWRIGHT_KIT_OUTPUT_DIR: .local-notes/ci/evolu-diagnostic/results
+      GETBASED_KIT_CASE_SCOPE: all
+      GETBASED_KIT_PROJECT: ${{ matrix.project }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: node scripts/fetch-catalog.mts
+      - run: npm ci
+      - run: npx --no-install playwright install --with-deps webkit
+      - name: Build and verify the actual diagnostic artifact
+        run: |
+          set -euo pipefail
+          node scripts/build-sveltekit.mjs --output dist
+          node scripts/ci-artifact.mjs seal --artifact dist --transport .local-notes/ci/evolu-diagnostic/transport
+          node scripts/ci-artifact.mjs verify --artifact dist --transport .local-notes/ci/evolu-diagnostic/transport --github-env
+      - name: Run the canonical Evolu offline restart case without retries
+        id: diagnostic_case
+        env:
+          PROJECT: ${{ matrix.project }}
+        run: node node_modules/@playwright/test/cli.js test --config=playwright.sveltekit.config.js --project="$PROJECT" --workers=1 --retries=0 tests/pwa/sveltekit-evolu-runtime.spec.ts
+      - name: Require the exact successful diagnostic scope
+        if: always() && steps.diagnostic_case.outcome != 'skipped'
+        env:
+          PROJECT: ${{ matrix.project }}
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          const report = JSON.parse(fs.readFileSync(process.env.GETBASED_KIT_GUARD_REPORT, 'utf8'));
+          assert.equal(report.execution, true);
+          assert.equal(report.status, 'passed');
+          assert.deepEqual(report.issues, []);
+          assert.equal(report.tests.length, 1);
+          const test = report.tests[0];
+          assert.equal(test.file, 'tests/pwa/sveltekit-evolu-runtime.spec.ts');
+          assert.equal(test.project, process.env.PROJECT);
+          assert.equal(test.attemptCount, 1);
+          assert.equal(test.status, 'passed');
+          assert.equal(test.expectedStatus, 'passed');
+          assert.equal(test.declaredExpectedStatus, 'passed');
+          assert.equal(test.outcome, 'expected');
+          for (const annotations of [test.annotations, test.declaredAnnotations]) assert.equal(annotations.some(value => ['skip', 'fixme'].includes(value.type)), false);
+          NODE
+      - name: Label the focused evidence
+        if: always()
+        run: echo 'Focused Cocoa Evolu diagnostics only; the normal release matrix is still required.' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: diagnostic-evolu-${{ matrix.project }}-${{ github.run_id }}
+          path: .local-notes/ci/evolu-diagnostic
+          include-hidden-files: true
+          if-no-files-found: error
           retention-days: 7

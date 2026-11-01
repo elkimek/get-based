@@ -153,6 +153,8 @@ test('sync pull browser force paths update status and skip unsafe rows', async (
     const syncState = (await import(stateUrl) as unknown) as Pick<typeof import('../../js/sync-state.js'), "resetSyncStatus" | "getSyncStatus" | "getRecentSyncEvents">;
     const tombstones = (await import(tombstonesUrl) as unknown) as Pick<typeof import('../../js/sync-tombstones.js'), "configureSyncTombstones">;
     const payload = (await import(payloadUrl) as unknown) as Pick<typeof import('../../js/sync-payload.js'), "buildSyncPayload">;
+    const runtime = await import('/js/sync-runtime.js');
+    const previousOwner = runtime.getSyncAppOwner();
     const outcomes: Record<string, unknown> = {};
     const warnings: string[] = [];
     const debugCalls: string[] = [];
@@ -207,14 +209,13 @@ test('sync pull browser force paths update status and skip unsafe rows', async (
       const restoredProfileId = 'restored_profile';
       const restorePendingKey = 'labcharts-sync-backup-restore-pending';
       const preflightOrder: unknown[] = [];
+      const recoveryEvolu = {getQueryRows() { preflightOrder.push('query'); return []; }};
+      runtime.setSyncAppOwner({id: 'synthetic-recovery-owner'});
       localStorage.setItem(restorePendingKey, JSON.stringify([restoredProfileId]));
       (pull.configureSyncPull as (options:PullFixtureConfig)=>ReturnType<typeof pull.configureSyncPull>)({
-        getEvolu: () => ({
-          getQueryRows() {
-            preflightOrder.push('query');
-            return [];
-          },
-        }),
+        getEvolu: () => recoveryEvolu,
+        getProfiles: () => [{id: restoredProfileId}],
+        isSyncEnabled: () => true,
         getProfileQuery: () => queryToken,
         pushProfilesById: async (profileIds: unknown, options: unknown) => {
           preflightOrder.push(`restore:${(profileIds as {join(separator:string):string}).join(',')}:${(options as {force: unknown})?.force === true}`);
@@ -270,6 +271,7 @@ test('sync pull browser force paths update status and skip unsafe rows', async (
       pull.clearSyncPullTimers();
       outcomes.clearTimersLeavesPullIdle = pull.isSyncPulling() === false;
     } finally {
+      runtime.setSyncAppOwner(previousOwner);
       console.warn = originalWarn;
       pull.clearSyncPullTimers();
       syncState.resetSyncStatus();

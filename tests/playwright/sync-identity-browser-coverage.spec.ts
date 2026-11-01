@@ -52,6 +52,9 @@ test('sync identity browser coverage handles libraries getters pending restore a
 
   const results = await page.evaluate(async ({ identityUrl }) => {
     const identity = (await import(identityUrl) as unknown) as Pick<typeof import('../../js/sync-identity.js'), "RESTORE_NOTICE_KEY" | "getMnemonic" | "getMnemonicResolutionError" | "restoreFromMnemonic" | "configureSyncIdentity" | "isRestoreJoinPending" | "consumeSyncRestoreNotice" | "ensureBip39" | "ensureQRCode" | "getSyncIdentityFingerprint" | "RESTORE_JOIN_PENDING_KEY" | "clearRestoreJoinPending">;
+    const runtimeUrl = '/js/sync-runtime.js';
+    const runtime = await import(runtimeUrl) as typeof import('../../js/sync-runtime.js');
+    const previousRuntime = runtime.getSyncEvolu();
     const expectedOutcomes = [
       'defaultInjectedDepsReturnEmpty',
       'defaultSeedLocalDependencyIsCallable',
@@ -111,8 +114,11 @@ test('sync identity browser coverage handles libraries getters pending restore a
       outcomes.defaultSeedLocalDependencyIsCallable = defaultSeedResult === true
         && identity.isRestoreJoinPending() === false
         && scheduledDelays.includes(500)
-        && notifications().includes('seeded this device')
-        && identity.consumeSyncRestoreNotice()?.includes('data was republished') === true;
+        && notifications().includes('reloading to publish this device')
+        && identity.consumeSyncRestoreNotice() === 'Sync identity restored. Publishing this device’s data…';
+      // This fixture intercepts reload timers; install the replacement runtime
+      // explicitly before starting another independent owner-restore scenario.
+      runtime.setSyncEvolu({...defaultEvolu});
 
       (window as unknown as {bip39?: unknown}).bip39 = { existing: true };
       outcomes.ensureBip39UsesExistingGlobal = await identity.ensureBip39() === (window as unknown as {bip39?: unknown}).bip39;
@@ -227,8 +233,9 @@ test('sync identity browser coverage handles libraries getters pending restore a
         && identityDeleteKeys.every(key => localStorage.getItem(key) === null)
         && identity.isRestoreJoinPending() === false
         && scheduledDelays.includes(500)
-        && notifications().includes('seeded this device')
-        && identity.consumeSyncRestoreNotice()?.includes('data was republished') === true;
+        && notifications().includes('reloading to publish this device')
+        && identity.consumeSyncRestoreNotice() === 'Sync identity restored. Publishing this device’s data…';
+      runtime.setSyncEvolu({...evolu});
 
       identity.configureSyncIdentity({
         getAppOwner: () => ({ id: 'same-owner', mnemonic: 'same owner mnemonic' }),
@@ -256,6 +263,7 @@ test('sync identity browser coverage handles libraries getters pending restore a
       outcomes.restoreWithoutEvoluReturnsFalse = await identity.restoreFromMnemonic('missing evolu') === false
         && notifications().includes('Sync is still starting');
     } finally {
+      runtime.setSyncEvolu(previousRuntime);
       (window as unknown as {setTimeout: (handler: () => void, timeout?:number) => number}).setTimeout = savedSetTimeout;
       if (hadBip39) (window as unknown as {bip39?: unknown}).bip39 = savedBip39;
       else delete (window as unknown as {bip39?: unknown}).bip39;

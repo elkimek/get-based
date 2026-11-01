@@ -814,7 +814,18 @@ test('sync indicator popover renders debug actions and copies activity', async (
       syncUi.toggleSyncDetail();
       if (!document.getElementById('sync-popover')) throw new Error('sync popover did not reopen');
       const originalAppendChild = Element.prototype.appendChild;
+      const originalHTML = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML')!;
+      const retainedPopover = document.getElementById('sync-popover')!;
+      const retainedButtons = Array.from(retainedPopover.querySelectorAll<HTMLElement>('[data-sync-ui-action]'))
+        .filter(button => button.dataset.syncUiAction !== 'reload');
+      const focusedButton = retainedPopover.querySelector<HTMLElement>('[data-sync-ui-action="show-diagnose"]')!;
+      focusedButton.focus();
       let popoverAppendCount = 0;
+      let popoverRenderCount = 0;
+      Object.defineProperty(Element.prototype, 'innerHTML', {...originalHTML, set(value: string) {
+        if (this.id === 'sync-popover') popoverRenderCount += 1;
+        originalHTML.set!.call(this, value);
+      }});
       Element.prototype.appendChild = function<T extends Node>(node:T) {
         if ((node as unknown as {id?:unknown})?.id === 'sync-popover') popoverAppendCount += 1;
         return (originalAppendChild as (this:Element,node:T)=>T).call(this, node);
@@ -822,15 +833,25 @@ test('sync indicator popover renders debug actions and copies activity', async (
       try {
         syncState.updateSyncStatus({ push: 'confirmed', pushConfirmedAt: Date.now(), lastError: null, relay: 'connected' });
         popoverAppendCount = 0;
+        popoverRenderCount = 0;
         syncUi.bindSyncUIStatusUpdates();
         syncUi.bindSyncUIStatusUpdates();
         syncState.updateSyncStatus({ push: 'pending', pushStartedAt: Date.now(), lastError: null, relay: 'connected' });
-        await waitFor(() => popoverAppendCount >= 1, 'status-bound popover repaint');
-        outcomes.bindStatusUpdatesIsIdempotent = popoverAppendCount === 1
-          && !!document.getElementById('sync-popover')
+        await waitFor(() => retainedPopover.textContent!.includes('Pending'), 'status-bound popover update');
+        outcomes.oneStatusRender = popoverRenderCount === 1;
+        outcomes.noPopoverReappend = popoverAppendCount === 0;
+        outcomes.retainedPopoverIdentity = document.getElementById('sync-popover') === retainedPopover;
+        outcomes.retainedPopoverFocus = document.activeElement === focusedButton;
+        outcomes.retainedPopoverButtons = retainedButtons.every(button => retainedPopover.querySelector(`[data-sync-ui-action="${button.dataset.syncUiAction}"]`) === button);
+        outcomes.pendingPushRemovesStaleReload = !retainedPopover.querySelector('[data-sync-ui-action="reload"]');
+        outcomes.bindStatusUpdatesIsIdempotent = popoverRenderCount === 1 && popoverAppendCount === 0
+          && document.getElementById('sync-popover') === retainedPopover
+          && document.activeElement === focusedButton
+          && retainedButtons.every(button => retainedPopover.querySelector(`[data-sync-ui-action="${button.dataset.syncUiAction}"]`) === button)
           && !!slot.querySelector<HTMLElement>('#sync-indicator-btn .sync-dot-syncing');
       } finally {
         Element.prototype.appendChild = originalAppendChild;
+        Object.defineProperty(Element.prototype, 'innerHTML', originalHTML);
       }
     } finally {
       syncUi.configureSyncUI(previousSyncUIDeps);
