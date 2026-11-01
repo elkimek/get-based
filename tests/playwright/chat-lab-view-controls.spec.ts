@@ -4,7 +4,7 @@ import type { AppNavigationRequest } from '../../shared/app-navigation-contract.
 const ranges = [{ range: 'all', count: 4, label: 'All' }, { range: '3m', count: 1, label: '3M' }, { range: '6m', count: 2, label: '6M' }, { range: '1y', count: 2, label: '1Y' }];
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => { localStorage.setItem('labcharts-ai-paused', 'true'); for (const key of ['tour', 'emptyTour']) localStorage.setItem(`labcharts-default-${key}`, 'completed'); });
-  await page.goto('/app');
+  await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor();
   await page.evaluate(async () => {
     const profiles = await import('/js/profile.js'), id = await profiles.createProfile('Synthetic lab views', { sex: 'female', skipInitialSync: true });
     for (const key of ['tour', 'emptyTour']) localStorage.setItem(profiles.profileStorageKey(id, key), 'completed');
@@ -40,7 +40,7 @@ for (const { range, count, label } of ranges) for (const layout of ['charts', 't
   if (layout === 'charts') await expect(page.locator('#view-content .charts-grid canvas').first()).toBeVisible();
   else await expect(page.locator(`#view-content .${layout === 'table' ? 'data-table-wrapper' : 'heatmap-wrapper'}`)).toBeVisible();
   const after = await current(page); expect(after.profile).toEqual(before.profile); expect(after.saved).toBe(before.saved);
-  await page.reload(); expect((await current(page)).saved).toBe(before.saved); expect(errors).toEqual([]);
+  await page.reload(); await page.locator('html[data-app-ready]').waitFor(); expect((await current(page)).saved).toBe(before.saved); expect(errors).toEqual([]);
 });
 
 for (const { range, count } of ranges) test(`native Labs selects ${range} and permits explicit older-history reads`, async ({ page }) => {

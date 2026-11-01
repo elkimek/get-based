@@ -25,7 +25,7 @@ const destinations: Array<{ request: Omit<AppNavigationRequest, 'marker'>; selec
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => { localStorage.setItem('labcharts-ai-paused', 'true'); for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(`labcharts-default-${suffix}`, 'completed'); });
-  await page.goto('/app');
+  await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor();
   await page.evaluate(async () => {
     const profiles = await import('/js/profile.js'), id = await profiles.createProfile('Synthetic native navigation', { sex: 'female', skipInitialSync: true });
     for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(profiles.profileStorageKey(id, suffix), 'completed');

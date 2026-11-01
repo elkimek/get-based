@@ -36,7 +36,7 @@ for (const protocol of ['native', 'structured'] as const) test(`${protocol} chat
     else await route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: reply }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` });
   });
   await page.addInitScript(() => { for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(`labcharts-default-${suffix}`, 'completed'); });
-  await page.goto('/app');
+  await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor();
   await page.evaluate(async () => {
     const profile = await import('/js/profile.js'), id = await profile.createProfile('Synthetic outgoing context test', { sex: 'male', skipInitialSync: true });
     for (const key of ['tour', 'emptyTour']) localStorage.setItem(profile.profileStorageKey(id, key), 'completed');
@@ -62,7 +62,7 @@ for (const protocol of ['native', 'structured'] as const) test(`${protocol} chat
   await expect(page.locator('#chat-messages')).toContainText('Only the enabled sample context is available.'); expect(reviewedDisabled).toBe(true); expect(deniedRead).toBe(true);
   const receipt = await page.evaluate(async () => (await import('/js/state.js')).state.chatHistory.filter(message => message.role === 'assistant').at(-1)?.context);
   expect(JSON.stringify(receipt)).not.toContain('separate samples');
-  await page.reload();
+  await page.reload(); await page.locator('html[data-app-ready]').waitFor();
   const restored = await page.evaluate(async () => {
     const settings = await import('/js/lab-context-settings.js'), { buildChatLabContext } = await import('/js/chat-prompt-context.js');
     return { enabled: settings.isGroupInAIContext('Biochemistry'), context: buildChatLabContext('Explain my samples.') };

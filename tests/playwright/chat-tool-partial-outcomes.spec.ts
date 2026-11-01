@@ -12,7 +12,7 @@ async function saved(page: Page) {
 async function seed(page: Page, provider: 'custom' | 'venice') {
   await routeJavaScript(page, '**/js/cloud-ai-consent.js', `export * from '/js/cloud-ai-consent.js?partial-original'; export async function requestAIProcessingApproval(){return true;} export async function requireAIProcessingApproval(){}`);
   await page.addInitScript(() => { for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(`labcharts-default-${suffix}`, 'completed'); });
-  await page.goto('/app');
+  await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor();
   await page.evaluate(async provider => {
     const profiles = await import('/js/profile.js'), id = await profiles.createProfile('Synthetic partial tool outcome', { sex: 'male', skipInitialSync: true });
     for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(profiles.profileStorageKey(id, suffix), 'completed');

@@ -43,7 +43,7 @@ for (const card of AGENT_CONTEXT_CARDS.filter(card => card !== 'healthGoals')) {
   test(`every declared ${card} scalar field survives review, Apply, clearing and reload without collateral edits`, async ({ page }, info) => {
     test.setTimeout(120_000);
     await page.addInitScript(() => { for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(`labcharts-default-${suffix}`, 'completed'); });
-    await page.goto('/app');
+    await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor();
     const fields = await page.evaluate(async card => {
       const [{ state }, profile, data, { agentContextCardModel }] = await Promise.all([import('/js/state.js'), import('/js/profile.js'), import('/js/data.js'), import('/js/agent-context-fields.js')]);
       const id = await profile.createProfile('Synthetic context integrity', { sex: 'female', skipInitialSync: true });
@@ -71,13 +71,23 @@ for (const card of AGENT_CONTEXT_CARDS.filter(card => card !== 'healthGoals')) {
       expect(await saved(page), `${card}/${field.key} draft must not save`).toEqual(before);
       const review = page.locator('#context-integrity-review');
       await review.locator('[data-chat-message-action="apply-agent-draft"]').click();
-      await expect(review).toContainText('Applied to getbased');
+      try { await expect(review).toContainText('Applied to getbased'); }
+      catch (error) {
+        console.error('Context integrity Apply diagnostics:', await page.evaluate(async card => {
+          const {state} = await import('/js/state.js');
+          return {ready: document.documentElement.hasAttribute('data-app-ready'), profile: state.currentProfile,
+            thread: state.currentThreadId, threads: state.chatThreads.map(thread => thread.id),
+            drafts: state.chatHistory.flatMap(message => (message.agentDrafts || []).map(draft => ({id: draft.id, status: draft.status}))),
+            live: state.importedData[card], saved: JSON.parse((await (await import('/js/crypto.js')).encryptedGetItem((await import('/js/profile.js')).profileStorageKey(state.currentProfile, 'imported')))!)[card]};
+        }, card).catch(error => ({diagnosticError: String(error)})));
+        throw error;
+      }
       await expect(review.locator('[data-chat-message-action="apply-agent-draft"]')).toHaveCount(0);
       const after = await saved(page);
       const protect = (data: Record<string, unknown>) => Object.fromEntries(Object.entries(data).filter(([key]) => ![card, 'changeHistory'].includes(key)));
       expect(protect(after), `${card}/${field.key} must preserve every other root`).toEqual(protect(before));
       if (card !== 'interpretiveLens') expect((after[card] as Record<string, unknown>).extension).toBe('Keep target-card metadata');
-      await page.reload();
+      await page.reload(); await page.locator('html[data-app-ready]').waitFor();
       expect(await currentField(page, card, field.key)).toEqual(field.kind === 'number' ? Number(value) : value);
       const clearBefore = await saved(page);
       await prepare(page, card, field.kind === 'multiple' ? { field: field.key, values: [] } : { field: field.key, value: '' });
@@ -85,7 +95,7 @@ for (const card of AGENT_CONTEXT_CARDS.filter(card => card !== 'healthGoals')) {
       await review.locator('[data-chat-message-action="apply-agent-draft"]').click();
       await expect(review).toContainText('Applied to getbased');
       expect(protect(await saved(page))).toEqual(protect(clearBefore));
-      await page.reload();
+      await page.reload(); await page.locator('html[data-app-ready]').waitFor();
       expect(await currentField(page, card, field.key)).toEqual(field.kind === 'multiple' ? [] : ['single', 'number'].includes(field.kind) ? null : '');
       const rejectedBefore = await saved(page);
       const rejection = await page.evaluate(async ({ card, field }) => {

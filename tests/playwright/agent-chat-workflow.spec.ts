@@ -35,7 +35,7 @@ test('a fresh OpenCode repair retains the user request and produces a real revie
     else if (path === '/v1/targets') await route.fulfill({ json: { targets: [{ id: 'local', label: 'Local CLI', status: 'available' }] } });
     else await route.fulfill({ json: descriptor });
   });
-  await page.goto('/app');
+  await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor();
   const before = await page.evaluate(async () => {
     const [{ state }, profile, settings] = await Promise.all([import('/js/state.js'), import('/js/profile.js'), import('/js/agent-chat-settings.js')]);
     const id = await profile.createProfile('OpenCode repair fixture', { sex: 'male', skipInitialSync: true });
@@ -59,7 +59,7 @@ test('a fresh OpenCode repair retains the user request and produces a real revie
   expect(await saved()).toEqual(before);
   await card.getByRole('button', { name: 'Apply', exact: true }).click(); await expect(page.locator('.chat-agent-draft-applied')).toHaveCount(1);
   expect((await saved()).healthGoals).toMatchObject([{ text: 'Improve sleep' }]); expect((await saved()).contextNotes).toBe(before.contextNotes);
-  await page.evaluate(() => localStorage.setItem('labcharts-ai-paused', 'true')); await page.reload();
+  await page.evaluate(() => localStorage.setItem('labcharts-ai-paused', 'true')); await page.reload(); await page.locator('html[data-app-ready]').waitFor();
   expect((await saved()).healthGoals).toMatchObject([{ text: 'Improve sleep' }]); expect(turns).toHaveLength(2);
 });
 
@@ -100,7 +100,7 @@ test('chat sends through the companion, executes a real marker tool, and persist
     else if (path === '/v1/targets') await route.fulfill({ json: { targets: [{ id: 'local', label: 'Local CLI', status: 'available' }] } });
     else await route.fulfill({ json: companion });
   });
-  await page.goto('/app');
+  await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor();
   await page.evaluate(async () => {
     await (await import('/js/chat-loader.js')).loadChatModule();
     const { state } = await import('/js/state.js');
@@ -144,7 +144,7 @@ test('chat sends through the companion, executes a real marker tool, and persist
   const threadId = await page.evaluate(async () => (await import('/js/state.js')).state.currentThreadId);
   // The persisted-chat assertion must not start background AI refreshes.
   await page.evaluate(() => localStorage.setItem('labcharts-ai-paused', 'true'));
-  await page.reload();
+  await page.reload(); await page.locator('html[data-app-ready]').waitFor();
   await page.evaluate(async threadId => {
     await (await import('/js/chat-loader.js')).loadChatModule();
     await (await import('/js/chat-panel.js')).openChatPanel();
@@ -177,7 +177,7 @@ test('native model selection starts a fresh CLI session with retained transcript
     else if (path === '/v1/targets') await route.fulfill({ json: { targets: [{ id: 'local', label: 'Local CLI', status: 'available' }] } });
     else await route.fulfill({ json: companion });
   });
-  await page.goto('/app');
+  await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor();
   await page.evaluate(async models => {
     const profiles = await import('/js/profile.js'), id = await profiles.createProfile('Synthetic CLI model session', { sex: 'female', skipInitialSync: true });
     for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(profiles.profileStorageKey(id, suffix), 'completed');

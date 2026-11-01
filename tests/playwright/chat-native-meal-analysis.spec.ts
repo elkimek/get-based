@@ -4,7 +4,7 @@ const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAus
 for (const edit of [false, true]) test(`a native meal ${edit ? 'reanalysis' : 'analysis'} handoff runs one requested inference and requires native Save`, async ({ page, context }) => {
   await context.route('https://**/*', route => route.abort());
   await page.addInitScript(() => { localStorage.setItem('labcharts-default-lastViewV1', 'labs'); localStorage.setItem('labcharts-ai-paused', 'true'); localStorage.setItem('labcharts-analytics-disabled', 'true'); localStorage.setItem('labcharts-analytics-consent-seen', '1'); for (const suffix of ['tour', 'emptyTour']) localStorage.setItem('labcharts-default-' + suffix, 'completed'); });
-  await page.goto('/app');
+  await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor();
   const before = await page.evaluate(async ({ edit, png }) => {
     const profile = await import('/js/profile.js'), id = await profile.createProfile('Synthetic native vision handoff', { sex: 'female', skipInitialSync: true }); if (!id) throw new Error('Synthetic profile missing');
     localStorage.setItem(profile.profileStorageKey(id, 'lastViewV1'), 'labs');

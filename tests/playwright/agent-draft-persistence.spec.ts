@@ -37,7 +37,7 @@ for (const status of [undefined, null, '', 'applied ', 'unknown-future-status'])
       (await import('/js/changelog.js')).closeChangelog();
       return JSON.parse((await crypto.encryptedGetItem(profile.profileStorageKey(state.currentProfile, 'imported')))!) as Record<string, unknown>;
     }, status);
-    await page.reload();
+    await page.reload(); await page.locator('html[data-app-ready]').waitFor();
     await page.evaluate(async () => {
       (await import('/js/changelog.js')).closeChangelog();
       await (await import('/js/chat-loader.js')).openChatPanel();
@@ -62,7 +62,7 @@ for (const status of [undefined, null, '', 'applied ', 'unknown-future-status'])
 }
 
 test('a correction retires its older pending card before a stale Apply control can write', async ({ page }) => {
-  await page.goto('/app');
+  await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor();
   await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     const { saveImportedData } = await import('/js/data.js');
@@ -100,7 +100,7 @@ test('a correction retires its older pending card before a stale Apply control c
 
 for (const decision of ['apply', 'discard', 'conflict'] as const) {
   test(`context update proposals require review and retain their ${decision} result`, async ({ page }) => {
-    await page.goto('/app');
+    await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor();
     const original = await page.evaluate(async () => {
       const { state } = await import('/js/state.js');
       const { saveImportedData } = await import('/js/data.js');
@@ -173,7 +173,7 @@ for (const decision of ['apply', 'discard', 'conflict'] as const) {
 
 for (const kind of ['profile-note', 'marker-note', 'supplement']) {
   test(`agent ${kind} rejects an aborted commit and saves successfully on retry`, async ({ page }) => {
-    await page.goto('/app');
+    await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor();
     const result = await page.evaluate(async kind => {
       const { state } = await import('/js/state.js');
       const { saveImportedData } = await import('/js/data.js');
@@ -218,7 +218,7 @@ for (const kind of ['profile-note', 'marker-note', 'supplement']) {
 }
 
 test('proposal action persists its result and remains non-actionable after history reload', async ({ page }) => {
-  await page.goto('/app');
+  await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor();
   await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     const { saveImportedData } = await import('/js/data.js');
@@ -316,7 +316,7 @@ test('two stale tabs can apply a meal proposal only once', async ({ page, contex
   await expect.poll(async () => Promise.all([page, second].map(tab => tab.evaluate(async () => (await import('/js/state.js')).state.chatHistory[0]!.agentDrafts![0]!.status)))).toEqual(expect.arrayContaining(['applied', 'failed']));
   const meals = await page.evaluate(async profile => (await import('/js/nutrition-store.js')).listNutritionMeals(profile), profile);
   expect(meals.map(meal => meal.name)).toEqual(['One proposed lunch']);
-  await second.reload();
+  await second.reload(); await second.locator('html[data-app-ready]').waitFor();
   const retried = await second.evaluate(async ({ profile, id }) => {
     try { await (await import('/js/agent-draft-claims.js')).claimAgentDraft(profile, id); return true; }
     catch { return false; }
@@ -325,7 +325,7 @@ test('two stale tabs can apply a meal proposal only once', async ({ page, contex
 });
 
 test('proposal claims follow encryption and profile cleanup', async ({ page }) => {
-  await page.goto('/app');
+  await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor();
   const result = await page.evaluate(async () => {
     const crypto = await import('/js/crypto.js');
     const { claimAgentDraft } = await import('/js/agent-draft-claims.js');
@@ -344,9 +344,9 @@ test('proposal claims follow encryption and profile cleanup', async ({ page }) =
 });
 
 test('legacy proposal claims migrate before a later tab can reuse an approved draft', async ({ page, context }) => {
-  await page.goto('/app');
+  await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor();
   await page.evaluate(() => localStorage.setItem('labcharts-legacy-claims-agent-draft-claims', JSON.stringify({ version: 1, claims: { 'already-applied': true } })));
-  const second = await context.newPage(); await second.goto('/app');
+  const second = await context.newPage(); await second.goto('/app'); await second.locator('html[data-app-ready]').waitFor();
   for (const tab of [page, second]) {
     const blocked = await tab.evaluate(async () => {
       const { claimAgentDraft } = await import('/js/agent-draft-claims.js');
@@ -369,7 +369,7 @@ for (const scenario of [
   { card: 'interpretiveLens', field: 'text', value: 'Longevity medicine' },
 ]) {
   test(`reviewed ${scenario.card} changes persist with unrelated data intact`, async ({ page }) => {
-    await page.goto('/app');
+    await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor();
     const original = await page.evaluate(async scenario => {
       const { state } = await import('/js/state.js');
       const { saveImportedData } = await import('/js/data.js');
@@ -433,7 +433,7 @@ for (const scenario of [
 }
 
 test('a first approved goal appears in the normal editor and survives reload without pre-seeded profile data', async ({ page }) => {
-  await page.goto('/app');
+  await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor();
   await page.evaluate(async () => {
     const profile = await import('/js/profile.js');
     const { state } = await import('/js/state.js');
@@ -485,7 +485,7 @@ for (const kind of ['context', 'data'] as const) for (const retirement of ['none
       localStorage.setItem('labcharts-analytics-consent-seen', '1'); localStorage.setItem('labcharts-default-lastViewV1', 'labs');
       for (const suffix of ['tour', 'emptyTour']) localStorage.setItem('labcharts-default-' + suffix, 'completed');
     });
-    await page.goto('/app');
+    await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor();
     const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
     const before = await page.evaluate(async kind => {
       const profile = await import('/js/profile.js'), id = await profile.createProfile('Synthetic Apply ownership', { sex: 'female', skipInitialSync: true });
@@ -561,7 +561,7 @@ for (const kind of ['context', 'data'] as const) for (const retirement of ['none
             _deletedClearedAt: { ...original._deletedClearedAt, healthGoals: { ...original._deletedClearedAt?.healthGoals, g_ajn6io: restoredAt } } });
         }
       }
-      await page.reload();
+      await page.reload(); await page.locator('html[data-app-ready]').waitFor();
       expect(await page.evaluate(async key => (await import('/js/crypto.js')).encryptedGetItem(key), before.healthKey)).toBe(after.data);
       expect(errors).toEqual([]);
     } finally {
