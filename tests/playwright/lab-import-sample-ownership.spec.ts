@@ -1,6 +1,7 @@
 import { expect, test } from './coverage-fixture.js';
 
 test('import review chooses a sample, persists exact re-review and removes only its source after reload', async ({ page }) => {
+  await page.addInitScript(() => { for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(`labcharts-default-${suffix}`, 'completed'); });
   await page.goto('/app');
   await page.locator('html[data-app-ready]').waitFor();
   const before = await page.evaluate(async () => {

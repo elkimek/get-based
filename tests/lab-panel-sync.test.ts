@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, expect, it } from 'vitest';
-import { expandLabPanelRows, identifyLabPanels, migrateLabPanelIdentities, packLabPanelRows } from '../js/lab-panel-identity.js';
+import { expandLabPanelRows, identifyLabPanels, labPanelId, migrateLabPanelIdentities, packLabPanelRows } from '../js/lab-panel-identity.js';
 import { mergeImportedData, localHasRowsRemoteLacks, preserveFreshLocalLabEntries } from '../js/data-merge.js';
-import { pickTimestamp } from '../js/data-merge-lab-entries.js';
+import { labPanelPeerIndex, pickTimestamp } from '../js/data-merge-lab-entries.js';
+import { applyLabMarkerCommand } from '../js/lab-marker-mutations.js';
 import { mergeProfileMutation, ProfileWriteConflict } from '../js/profile-data-writes.js';
 import { mergeArrayRowsIntoImported } from '../js/sync-delta-array-merge.js';
 import { decodeRowPayload } from '../js/sync-delta-row-codec.js';
@@ -70,6 +71,26 @@ it('matches a unique legacy source to a migrated peer without creating another c
   const merged = mergeImportedData({ entries: local }, { entries: [remote] });
   expect(merged.entries).toHaveLength(2); expect(merged.entries.find(row => row.specimen === 'serum')!.markers![marker]).toBe(360);
   expect(merged.entries.find(row => row.specimen === 'serum')!.panelId).toBe(local[0]!.panelId);
+});
+it.each([false, true])('syncs a reviewed manual legacy correction once in either direction: reverse=%s', async reverse => {
+  const original: LabEntryDraft = { date: day, markers: { [marker]: 350 }, context: { sampleTime: '08:00' } };
+  const originalCopy = structuredClone(original), edited = { entries: [structuredClone(original)] }, id = labPanelId(original);
+  expect(applyLabMarkerCommand(edited, { kind: 'edit', date: day, panelId: id, dotKey: marker, storedValue: 355, now: Date.parse(day) + 1000, collectionContext: { sampleTime: '09:00' } })).not.toBeNull();
+  expect(edited.entries[0]!.panelId).toBe(id);
+  const stale = { entries: [original] }, merged = reverse ? mergeImportedData(stale, edited) : mergeImportedData(edited, stale);
+  expect(merged.entries).toEqual(edited.entries); expect(original).toEqual(originalCopy);
+  expect(mergeImportedData(merged, stale).entries).toEqual(edited.entries);
+  const delta = await _planArrayDelta(PROFILE_ID, 'entries', merged.entries), replica = { entries: [structuredClone(original)] };
+  expect(delta.ops).toHaveLength(1);
+  await mergeArrayRowsIntoImported(replica, 'entries', [{ ...delta.ops[0]!.args, itemId: day } as DeltaItemRow]);
+  expect(replica.entries).toEqual(edited.entries);
+});
+it('does not guess among duplicate anonymous identities or unrelated named specimens', () => {
+  const original: LabEntryDraft = { date: day, markers: { [marker]: 350 } };
+  const correction = { ...original, panelId: labPanelId(original), markers: { [marker]: 355 } };
+  expect(labPanelPeerIndex([original, structuredClone(original)], correction)).toBe(-1);
+  expect(labPanelPeerIndex([{ ...original, panelId: correction.panelId }, { ...original, panelId: correction.panelId }, original], correction)).toBe(-1);
+  expect(labPanelPeerIndex([{ ...original, panelId: 'independent-sample' }], correction)).toBe(-1);
 });
 it('finds missing panels for rebroadcast rather than matching only the last date row', () => {
   const full = { entries: identifyLabPanels(panels()) };

@@ -64,7 +64,7 @@ export async function callCodexAgent(options: AgentChatOptions) {
       signal: options.signal,
     });
   }));
-  const imageUploadIds = await uploadImages();
+  let imageUploadIds = await uploadImages();
   let toolCount = 0;
   const toolRuntime = { execute: async (call: Parameters<typeof runtime.execute>[0]) => { assertCurrent(); if (++toolCount > 32) throw new Error('This chat exceeded its tool-call limit.'); const result = await runtime.execute(call); assertCurrent(); return result; } };
   const run = (threadId: string | undefined, repair = false) => { assertCurrent(); return streamAgentTurn({
@@ -74,8 +74,8 @@ export async function callCodexAgent(options: AgentChatOptions) {
     target,
     model,
     effort,
-    prompt: repair ? CHAT_PROPOSAL_REPAIR : options.prompt,
-    instructions: buildAgentChatInstructions(options.instructions, local ? '' : options.labContext, target, local, authorization.current()),
+    prompt: options.prompt,
+    instructions: buildAgentChatInstructions(repair ? `${CHAT_PROPOSAL_REPAIR}\n\n${options.instructions}` : options.instructions, local ? '' : options.labContext, target, local, authorization.current()),
     applicationContext,
     threadId,
     history: options.history,
@@ -102,6 +102,8 @@ export async function callCodexAgent(options: AgentChatOptions) {
     if (needsChatReviewRepair(result.text, reviews(), reviewRequested)) {
       if (local && authorization.current() && toolCount < 32) {
         options.onStream?.('');
+        // The Companion consumes upload IDs when a turn starts.
+        imageUploadIds = await uploadImages();
         const repaired = await run(result.threadId, true); assertCurrent();
         result = { ...repaired, toolCalls: [...result.toolCalls, ...repaired.toolCalls], webSearches: [...result.webSearches, ...repaired.webSearches],
           usage: { inputTokens: (result.usage?.inputTokens || 0) + (repaired.usage?.inputTokens || 0), outputTokens: (result.usage?.outputTokens || 0) + (repaired.usage?.outputTokens || 0) } };

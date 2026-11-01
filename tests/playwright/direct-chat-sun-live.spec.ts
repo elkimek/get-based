@@ -5,6 +5,7 @@ import type { AIToolCall } from '../../shared/ai-tool-protocol.js';
 import { installSunWeatherFixture } from '../helpers/sun-weather-fixture.js';
 for (const provider of ['custom', 'venice'] as const) for (const protocol of ['native', 'structured'] as const) {
   test(`${provider} ${protocol} live Sun timer actions remain native-only without changing saved timed inputs`, async ({ page }) => {
+    const fixedNow = Date.now(); await page.clock.setFixedTime(new Date(fixedNow));
     const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
     await routeJavaScript(page, '**/js/cloud-ai-consent.js', `export * from '/js/cloud-ai-consent.js?sun-consent-original'; export async function requestAIProcessingApproval(){return true;} export async function requireAIProcessingApproval(){}`);
     const stages = [
@@ -18,7 +19,7 @@ for (const provider of ['custom', 'venice'] as const) for (const protocol of ['n
     let stage = 0, round = 0;
     const endpoint = provider === 'venice' ? 'https://api.venice.ai/api/v1/chat/completions' : 'https://synthetic-sun-timer-provider.example/v1/chat/completions';
     await page.route('**/*', route => { const url = new URL(route.request().url()); return ['localhost', '127.0.0.1'].includes(url.hostname) || url.href === endpoint ? route.fallback() : route.abort(); });
-    const weatherCalls = await installSunWeatherFixture(page);
+    const weatherCalls = await installSunWeatherFixture(page, fixedNow);
     await page.route(endpoint, async route => {
       const body = route.request().postDataJSON(); expect(body.model).toBe('glm-5-fixture'); expect(JSON.stringify(body)).not.toMatch(/sun-session-private-sentinel|\/private\/|12\.34567|45\.12345/);
       if (/^You (?:evaluate|interpret|summarize)/.test(String(body.messages[0]?.content || ''))) { await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: '{\"dot\":\"gray\",\"tip\":\"Controlled Sun interpretation\",\"detail\":\"Recorded source facts.\"}' }, finish_reason: 'stop' }] }) }); return; }
@@ -55,7 +56,19 @@ for (const provider of ['custom', 'venice'] as const) for (const protocol of ['n
       api.setAIProvider(provider); api.setAIPaused(false); (await import('/js/agent-chat-settings.js')).setChatBackend('direct'); await (await import('/js/chat-loader.js')).openChatPanel();
     }, provider);
     const receipt = () => page.evaluate(async () => { const { state } = await import('/js/state.js'); return JSON.parse((await (await import('/js/crypto.js')).encryptedGetItem((await import('/js/profile.js')).profileStorageKey(state.currentProfile, 'imported')))!); });
+    // Finish the native initial accrual before measuring chat's refusal boundary.
+    // Fixed wall time keeps the live ticker from accruing unrelated new slices.
+    await page.evaluate(async () => {
+      await import('/js/sun.js');
+      await (await import('/js/sun-active-session.js')).prepareSunLiveAction('sun-active');
+      await (await import('/js/sun-sessions-store.js')).persistActiveSunSlice('sun-active');
+    });
     const before = await receipt();
+    expect(before.sunSessions[0]).toMatchObject({ id: 'sun-active', endedAt: null, accumulatedPausedMs: 0,
+      location: { lat: 12.34567, lon: 45.12345, source: '/private/location' },
+      bodyExposure: { preset: 'face_hands', fraction: 0.05, glassBetween: false, sunscreenSPF: 0, rotatedSides: false },
+      aiAnalysis: { detail: 'sun-session-private-sentinel' } });
+    expect(before.sunSessions[0].exposureSegments).toHaveLength(1);
     const weatherBefore = weatherCalls();
     for (stage = 0; stage < stages.length; stage++) {
       round = 0;

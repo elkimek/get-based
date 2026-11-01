@@ -1,13 +1,14 @@
 import { AGENT_TOOL_CONTRACT_VERSION } from '../shared/agent-tool-contract.js';
+import { CHAT_PROPOSAL_REPAIR } from '../shared/chat-tool-instructions.js';
 import type { AgentTurnOptions, uploadAgentImage } from '../js/agent-chat-client.js';
 import type { connectDetectedAgent } from '../js/agent-chat-settings.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ stream: vi.fn<(options: AgentTurnOptions) => Promise<unknown>>(), connect: vi.fn<(...args: Parameters<typeof connectDetectedAgent>) => Promise<unknown>>(), upload: vi.fn<(options: Parameters<typeof uploadAgentImage>[0]) => Promise<string>>() }));
+const mocks = vi.hoisted(() => ({ agent: vi.fn<() => string>(), stream: vi.fn<(options: AgentTurnOptions) => Promise<unknown>>(), connect: vi.fn<(...args: Parameters<typeof connectDetectedAgent>) => Promise<unknown>>(), upload: vi.fn<(options: Parameters<typeof uploadAgentImage>[0]) => Promise<string>>() }));
 vi.mock('../js/agent-chat-client.js', () => ({ streamAgentTurn: mocks.stream, uploadAgentImage: mocks.upload }));
 vi.mock('../js/agent-chat-settings.js', () => ({
   connectDetectedAgent: mocks.connect,
-  getAgentHostAgent: () => 'codex', getAgentHostTarget: () => 'local',
+  getAgentHostAgent: mocks.agent, getAgentHostTarget: () => 'local',
   getAgentHostModel: () => 'synthetic-model', getAgentHostEffort: () => 'low',
   getAgentHostEndpoint: () => 'http://127.0.0.1:8324', getAgentHostToken: () => 'synthetic-token',
 }));
@@ -19,6 +20,7 @@ import { getContextDisclosureFingerprint, isInsightContextCardsEnabled } from '.
 const options = { prompt: 'Synthetic question', instructions: 'Synthetic instructions', labContext: 'Synthetic labs', profileId: 'profile-a', threadId: 'expired' };
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.agent.mockReset().mockReturnValue('codex');
   mocks.connect.mockReset().mockResolvedValue(undefined);
   mocks.stream.mockReset().mockResolvedValue({ text: 'Answer' });
   mocks.upload.mockReset().mockResolvedValue('upload-id');
@@ -115,8 +117,24 @@ it('bounds repeated phantom CLI claims to one corrective turn and reports no cha
   const result = await callCodexAgent(options);
   expect(result.text).toContain('No proposal card was created'); expect(result.drafts).toEqual([]);
   expect(result.usage).toEqual({ inputTokens: 10, outputTokens: 4 }); expect(mocks.stream).toHaveBeenCalledTimes(2);
-  const repair = mocks.stream.mock.calls[1]![0]; expect(repair.threadId).toBe('signed-session'); expect(repair.prompt).toContain('Application verification');
+  const repair = mocks.stream.mock.calls[1]![0]; expect(repair.threadId).toBe('signed-session'); expect(repair.prompt).toBe(options.prompt); expect(repair.instructions).toContain('Application verification');
   expect(repair.toolRuntime).toBe(mocks.stream.mock.calls[0]![0].toolRuntime); expect(mocks.connect).toHaveBeenCalledOnce();
+});
+it.each(['codex', 'opencode', 'hermes', 'grok'])('preserves the current request outside bounded history during %s repair', async agent => {
+  mocks.agent.mockReturnValue(agent);
+  mocks.upload.mockResolvedValueOnce('upload-first').mockResolvedValueOnce('upload-repair');
+  const prompt = `${'Synthetic questionnaire detail.\n'.repeat(2100)}I moved from Sweden to El Salvador. PRIVATE_CURRENT_REPORT`;
+  const history = [{ role: 'assistant' as const, content: 'Prior visible context.\n'.repeat(3000) }];
+  expect(prompt.length).toBeGreaterThan(60_000); expect(prompt.length).toBeLessThan(100_000);
+  mocks.stream.mockResolvedValue({ text: "I've prepared a draft for your getbased card.", threadId: 'synthetic-session', toolCalls: [], webSearches: [] });
+  const result = await callCodexAgent({ ...options, prompt, history, images: [{ base64: 'AA==', mediaType: 'image/png' }] });
+  expect(mocks.stream).toHaveBeenCalledTimes(2); expect(mocks.upload).toHaveBeenCalledTimes(2);
+  const initial = mocks.stream.mock.calls[0]![0], repair = mocks.stream.mock.calls[1]![0];
+  expect(initial.prompt).toBe(prompt); expect(repair.prompt).toBe(prompt); expect(repair.history).toBe(history);
+  expect(initial.instructions).not.toContain(CHAT_PROPOSAL_REPAIR);
+  expect(repair.instructions).toContain(CHAT_PROPOSAL_REPAIR); expect(repair.instructions).not.toContain('PRIVATE_CURRENT_REPORT');
+  expect(repair.toolRuntime).toBe(initial.toolRuntime); expect(initial.imageUploadIds).toEqual(['upload-first']); expect(repair.imageUploadIds).toEqual(['upload-repair']);
+  expect(result.drafts).toEqual([]); expect(result.text).toContain('No proposal card was created');
 });
 it('does not start a corrective CLI turn while chat controls are disabled', async () => {
   await setChatControlsEnabled(false); mocks.stream.mockResolvedValue({ text: "I've prepared a draft for your getbased card. Apply it." });

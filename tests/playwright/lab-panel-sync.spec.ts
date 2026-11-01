@@ -54,6 +54,42 @@ test('separate browser replicas retain same-day panels, sources and independent 
   } finally { await context.close(); }
 });
 
+test('manual legacy result corrections merge once with cold unnamed replicas', async ({ page, browser }) => {
+  await page.addInitScript(() => { for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(`labcharts-default-${suffix}`, 'completed'); localStorage.setItem('labcharts-ai-paused', 'true'); });
+  await page.goto('/app');
+  await page.evaluate(async () => {
+    (await import('/js/views.js')).navigate('labs');
+    const { state } = await import('/js/state.js');
+    state.importedData = (await import('/js/profile.js')).createDefaultProfileData();
+    state.importedData.entries = [{ date: '2026-10-20', markers: { 'hormones.cortisol': 350 } }];
+    state.importedData.contextNotes = 'Retain the editor profile note';
+    if (!await (await import('/js/data.js')).saveImportedData()) throw new Error('Could not seed manual legacy result');
+  });
+  const original = await readStored(page), staleRows = await plan(page);
+  expect(original.entries).toEqual([{ date: '2026-10-20', markers: { 'hormones.cortisol': 350 } }]);
+  const consent = await page.evaluate(() => Object.fromEntries(['labcharts-legal-acceptance', 'labcharts-ai-transparency-acknowledgement'].map(key => [key, localStorage.getItem(key)])));
+  const context = await browser.newContext({ serviceWorkers: 'block' });
+  try {
+    await context.addInitScript(consents => { for (const [key, value] of Object.entries(consents)) if (value) localStorage.setItem(key, value); for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(`labcharts-default-${suffix}`, 'completed'); localStorage.setItem('labcharts-ai-paused', 'true'); }, consent);
+    const peer = await context.newPage(); await peer.goto(new URL('/app', page.url()).href); await peer.locator('html[data-app-ready]').waitFor({ state: 'attached' });
+    await receive(peer, staleRows);
+    expect((await readStored(peer)).entries).toEqual(original.entries);
+    await peer.evaluate(async () => { const { state } = await import('/js/state.js'); state.importedData.contextNotes = 'Retain the peer profile note'; if (!await (await import('/js/data.js')).saveImportedData()) throw new Error('Could not save peer note'); });
+    const id = await page.evaluate(async () => {
+      const { state } = await import('/js/state.js'), panelId = (await import('/js/lab-panel-identity.js')).labPanelId(state.importedData.entries[0]!);
+      if (!await (await import('/js/marker-detail-store.js')).editManualMarkerValue({ dotKey: 'hormones.cortisol', date: '2026-10-20', panelId, storedValue: 355, now: Date.now() })) throw new Error('Could not correct legacy result');
+      return panelId;
+    });
+    const corrected = await readStored(page);
+    expect(corrected.entries).toHaveLength(1); expect(corrected.entries[0]).toMatchObject({ panelId: id, markers: { 'hormones.cortisol': 355 } });
+    await receive(page, staleRows); expect((await readStored(page)).entries).toEqual(corrected.entries);
+    await receive(peer, await plan(page)); await peer.reload(); await peer.locator('html[data-app-ready]').waitFor({ state: 'attached' });
+    const cold = await readStored(peer); expect(cold.entries).toEqual(corrected.entries); expect(cold.contextNotes).toBe('Retain the peer profile note');
+    await receive(page, await plan(peer)); await page.reload();
+    const final = await readStored(page); expect(final.entries).toEqual(corrected.entries); expect(final.contextNotes).toBe(original.contextNotes);
+  } finally { await context.close(); }
+});
+
 test('panel corrections retain independent Revert history and a cold replica honors a panel removal before stale result rows', async ({ page, browser }) => {
   await page.goto('/app');
   const fixture = await page.evaluate(async () => {

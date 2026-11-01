@@ -10,7 +10,7 @@ import {
   recalculateLabEntryHOMAIR,
 } from './lab-entry.js';
 import type { LabEntryDraft, LabMarkerSource } from './lab-entry.js';
-import { expandLabPanelRows, identifyLabPanels, labPanelEvidence, labPanelJSON, labPanelsHaveDistinctCollections, packLabPanelRows, validLabPanelId } from './lab-panel-identity.js';
+import { expandLabPanelRows, identifyLabPanels, labPanelEvidence, labPanelId, labPanelJSON, labPanelsHaveDistinctCollections, packLabPanelRows, validLabPanelId } from './lab-panel-identity.js';
 import { filterRemovedLabPanels, mergeLabPanelTombstones } from './lab-panel-deletions.js';
 export { normalizeTimestamp } from './lab-entry.js';
 
@@ -199,8 +199,12 @@ export function labPanelPeerIndex(rows: readonly LabEntryDraft[], panel: LabEntr
   const candidates = rows.flatMap((row, index) => row.date === panel.date ? [{ row, index }] : []);
   if (validLabPanelId(panel.panelId)) {
     const exact = candidates.filter(({ row }) => row.panelId === panel.panelId);
-    if (exact.length === 1) return exact[0]!.index;
+    if (exact.length) return exact.length === 1 ? exact[0]!.index : -1;
   }
+  // A reviewed edit can assign the unchanged replica's legacy identity before
+  // correcting its value or collection details. Match that exact identity only.
+  const legacy = candidates.filter(({ row }) => !(validLabPanelId(row.panelId) && validLabPanelId(panel.panelId)) && labPanelId(row) === labPanelId(panel));
+  if (legacy.length === 1) return legacy[0]!.index;
   const compatible = candidates.filter(({ row }) => !(validLabPanelId(row.panelId) && validLabPanelId(panel.panelId)) && !labPanelsHaveDistinctCollections(row, panel));
   const plain = (entry: LabEntryDraft) => { const { panelId: _id, ...rest } = entry; return rest; };
   const equal = compatible.filter(({ row }) => labPanelJSON(plain(row)) === labPanelJSON(plain(panel)));
