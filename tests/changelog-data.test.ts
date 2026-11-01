@@ -41,12 +41,12 @@ function archiveLiteral(source:string):string {
 }
 // Appending a new release must preserve the previous current entries and the
 // independently qualified 1.22-and-earlier archive; never replace their pins.
-function previousCurrentLiteral(source:string,version:'1.24.0'|'1.23.0'='1.24.0'):string {
+function previousCurrentLiteral(source:string,version:'1.25.0'|'1.24.0'|'1.23.0'='1.24.0'):string {
  return withParsedSource(source,'js/changelog-data.ts',file=>{
   const statement=file.statements[2];assert(statement&&ts.isVariableStatement(statement));
   const value=statement.declarationList.declarations[0]?.initializer;
   assert(value&&ts.isArrayLiteralExpression(value));
-  const previous=value.elements[version==='1.24.0'?1:2];assert(previous&&ts.isObjectLiteralExpression(previous));
+  const previous=value.elements[version==='1.25.0'?1:version==='1.24.0'?2:3];assert(previous&&ts.isObjectLiteralExpression(previous));
   const property=previous.properties[0];assert(property&&ts.isPropertyAssignment(property));
   assert(ts.isIdentifier(property.name)&&property.name.text==='version');
   assert(ts.isStringLiteral(property.initializer)&&property.initializer.text===version);
@@ -55,6 +55,11 @@ function previousCurrentLiteral(source:string,version:'1.24.0'|'1.23.0'='1.24.0'
 }
 function qualifiedOriginalArchive(source:string):string {
  archiveLiteral(source); // Validate the complete current declaration first.
+ const bodyMeasurements=previousCurrentLiteral(source,'1.25.0');
+ assert.equal(Buffer.byteLength(bodyMeasurements),732);
+ assert.equal(sha(bodyMeasurements),'5f7ac97561d4125f7dafcd32ebdc7e0eec35d6c3f8ca876302deec6667dd9fe1');
+ const bodyMeasurementsInsertion='  '+bodyMeasurements+',\n';
+ assert.equal(source.split(bodyMeasurementsInsertion).length,2,'Exactly one body measurements release entry');
  const previous=previousCurrentLiteral(source);
  assert.equal(Buffer.byteLength(previous),769);
  assert.equal(sha(previous),'e9ebcfe08904e8993151c72666df78a94785f1d58665ecb24f1680f01301267e');
@@ -65,9 +70,12 @@ function qualifiedOriginalArchive(source:string):string {
  assert.equal(source.split(insertion).length,2,'Exactly one previous release entry');
  const typescriptInsertion='  '+typescript+',\n';
  assert.equal(source.split(typescriptInsertion).length,2,'Exactly one TypeScript release entry');
- return archiveLiteral(source.replace(insertion,'').replace(typescriptInsertion,''));
+ return archiveLiteral(source.replace(bodyMeasurementsInsertion,'').replace(insertion,'').replace(typescriptInsertion,''));
 }
-it('keeps the previous app and TypeScript releases byte-exact beside the new body measurements release',()=>{
+it('keeps previous releases byte-exact beside the new baselines and immune markers release',()=>{
+ const bodyMeasurements=previousCurrentLiteral(dataSource,'1.25.0');
+ expect(Buffer.byteLength(bodyMeasurements)).toBe(732);
+ expect(sha(bodyMeasurements)).toBe('5f7ac97561d4125f7dafcd32ebdc7e0eec35d6c3f8ca876302deec6667dd9fe1');
  const literal=previousCurrentLiteral(dataSource);
  expect(Buffer.byteLength(literal)).toBe(769);
  expect(sha(literal)).toBe('e9ebcfe08904e8993151c72666df78a94785f1d58665ecb24f1680f01301267e');
@@ -76,9 +84,9 @@ it('keeps the previous app and TypeScript releases byte-exact beside the new bod
  expect(sha(typescript)).toBe('d5eb37abdea9fd02d4f6518c230143c75367a4de877a5a9c68aad3ffb81bdd1a');
  const versionSource=readFileSync('version.ts','utf8');
  expect(versionSource.match(/self\.APP_VERSION = '([^']+)';/)?.[1]).toBe(CURRENT_RELEASE.version);
- expect(CURRENT_RELEASE.version).toBe('1.25.0');
- expect(CURRENT_RELEASE.date).toBe('2026-10-22');
- expect(CURRENT_RELEASE.title).toBe('Waist measurements and cycle guidance');
+ expect(CURRENT_RELEASE.version).toBe('1.26.0');
+ expect(CURRENT_RELEASE.date).toBe('2026-11-01');
+ expect(CURRENT_RELEASE.title).toBe('Personal baselines and immune markers');
  expect(CURRENT_RELEASE.items).toHaveLength(4);
 });
 it('moves the exact original 82166-byte archive and leaves every controller statement unchanged',()=>{
@@ -129,8 +137,11 @@ it('the independent archive pin rejects changed text, order and force-show metad
 
 it('rejects edits, removal and duplicate insertion of the previous current release',()=>{
  const literal=previousCurrentLiteral(dataSource);
+ const bodyMeasurements=previousCurrentLiteral(dataSource,'1.25.0');
  for(const changed of [dataSource.replace('Migration to TypeScript 7','Migration to TypeScript 8'),
   dataSource.replace('A stronger foundation','An altered foundation'),
+  dataSource.replace('Waist measurements and cycle guidance','An altered body measurements release'),
+  dataSource.replace('  '+bodyMeasurements+',\n',''),dataSource.replace('  '+bodyMeasurements+',\n','  '+bodyMeasurements+',\n  '+bodyMeasurements+',\n'),
   dataSource.replace('  '+literal+',\n',''),dataSource.replace('  '+literal+',\n','  '+literal+',\n  '+literal+',\n')]){
   expect(()=>qualifiedOriginalArchive(changed)).toThrow();
  }
