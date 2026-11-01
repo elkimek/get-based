@@ -7,7 +7,20 @@ export type PIIStreamFunction = (
   signal: AbortSignal,
   onThinking: (chunk: string) => void,
 ) => Promise<unknown>;
-export interface PIIReviewOptions { obfuscatedText?: string; streamFn?: PIIStreamFunction | null; }
+export interface PIIReviewOptions {
+  obfuscatedText?: string;
+  streamFn?: PIIStreamFunction | null;
+  /**
+   * Resolve `PII_REVIEW_UNAVAILABLE` instead of `'cancel'` when the review could
+   * not run (stylesheet failed to load) or is cancelled after the local model
+   * failed without a usable result. Batch imports use it to retry the report
+   * later rather than recording an explicit skip.
+   */
+  reportUnavailable?: boolean;
+}
+
+/** Sentinel returned only to callers that opt in with `reportUnavailable`. */
+export const PII_REVIEW_UNAVAILABLE = '\u0000pii-review-unavailable';
 type PIIReviewDeps = Pick<typeof import('./pii.js'), 'obfuscatePDFText' | 'unloadOllamaPIIModel'>;
 type DiffOperation =
   | { type: 'equal'; original: string; replacement: string }
@@ -181,16 +194,17 @@ export function reviewPIIBeforeSend(
   {
     obfuscatedText = '',
     streamFn = null,
+    reportUnavailable = false,
   }: PIIReviewOptions = {},
   deps: PIIReviewDeps,
 ): Promise<string> {
   if (!isDataProtectionStylesheetLoaded()) {
     return loadDataProtectionStylesheetForAction().then(loaded => {
       if (loaded) {
-        return reviewPIIBeforeSend(originalText, { obfuscatedText, streamFn }, deps);
+        return reviewPIIBeforeSend(originalText, { obfuscatedText, streamFn, reportUnavailable }, deps);
       }
       showNotification('Privacy review could not be loaded. Try again.', 'error');
-      return 'cancel';
+      return reportUnavailable ? PII_REVIEW_UNAVAILABLE : 'cancel';
     });
   }
   return new Promise<string>(resolve => {
@@ -212,6 +226,10 @@ export function reviewPIIBeforeSend(
     const leftPanel = overlay.querySelector<HTMLElement>('.pii-review-viewer > .pii-diff-left');
     const mobileOriginal = overlay.querySelector<HTMLElement>('.pii-mobile-original-body');
     let dirty = false;
+    // True while the local model's last attempt failed and nothing usable
+    // replaced it (a later successful stream or the regex fallback clears it).
+    let modelFailed = false;
+    const unavailableOrCancel = () => (reportUnavailable && modelFailed ? PII_REVIEW_UNAVAILABLE : 'cancel');
 
     searchInput.addEventListener('input', () => {
       const query = searchInput.value.trim();
@@ -316,6 +334,7 @@ export function reviewPIIBeforeSend(
         abortController = null;
       }
       deps.unloadOllamaPIIModel();
+      modelFailed = false;
       showDiffPreview(result.obfuscated);
       sendButton.textContent = 'Send to AI';
       dirty = false;
@@ -329,20 +348,20 @@ export function reviewPIIBeforeSend(
       if (abortController) abortController.abort();
       deps.unloadOllamaPIIModel();
       closePIIOverlay(overlay);
-      resolve('cancel');
+      resolve(unavailableOrCancel());
     });
 
     if (isStreaming) {
       const runStream = (streamFn as PIIStreamFunction);
       if (!statusElement || !stopButton) {
         closePIIOverlay(overlay);
-        resolve('cancel');
+        resolve(reportUnavailable ? PII_REVIEW_UNAVAILABLE : 'cancel');
         return;
       }
       const retryButton = overlay.querySelector<HTMLButtonElement>('#pii-stream-retry');
       if (!retryButton) {
         closePIIOverlay(overlay);
-        resolve('cancel');
+        resolve(reportUnavailable ? PII_REVIEW_UNAVAILABLE : 'cancel');
         return;
       }
       const expectedLength = originalText.length;
@@ -350,7 +369,11 @@ export function reviewPIIBeforeSend(
       const thinkingContent = overlay.querySelector<HTMLElement>('#pii-thinking-content');
 
       const startStream = () => {
-        abortController = new AbortController();
+        const controller = new AbortController();
+        abortController = controller;
+        // A stream that was stopped, replaced by a retry, or abandoned for the
+        // regex fallback must not touch the modal or the failure state.
+        const isStale = () => controller.signal.aborted || abortController !== controller;
         textarea.value = '';
         textarea.style.display = '';
         textarea.readOnly = true;
@@ -414,10 +437,12 @@ export function reviewPIIBeforeSend(
               requestAnimationFrame(flushToTextarea);
             }
           },
-          abortController.signal,
+          controller.signal,
           onThinking,
         ).then(() => {
+          if (isStale()) return;
           flushToTextarea();
+          modelFailed = false;
           textarea.readOnly = false;
           sendButton.disabled = false;
           statusElement.textContent = `Complete \u2014 ${characterCount.toLocaleString()} chars \u2014 click text to edit`;
@@ -430,8 +455,10 @@ export function reviewPIIBeforeSend(
           }
           showDiffPreview(textarea.value);
         }).catch(error => {
+          if (isStale()) return;
           flushToTextarea();
           if (error.name === 'AbortError') return;
+          modelFailed = true;
           textarea.readOnly = false;
           sendButton.disabled = true;
           statusElement.textContent = `Error: ${error.message} Use Regex fallback or retry before sending.`;

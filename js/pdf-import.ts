@@ -11,7 +11,7 @@ import { state } from './state.js';
 import { calculateCost, trackUsage } from './schema.js';
 import { showNotification, isDebugMode, isPIIReviewEnabled, hashString } from './utils.js';
 import { getAIProvider, getActiveModelId, AI_IMPORT_REQUEST_TIMEOUT_MS, startOpenRouterOAuth } from './api.js';
-import { obfuscatePDFText, sanitizeWithOllama, sanitizeWithOllamaStreaming, checkOllamaPII, reviewPIIBeforeSend } from './pii.js';
+import { obfuscatePDFText, sanitizeWithOllama, sanitizeWithOllamaStreaming, checkOllamaPII, isOllamaPIIEnabled, reviewPIIBeforeSend, PII_REVIEW_UNAVAILABLE } from './pii.js';
 import { getProfileLocation, getActiveProfileId } from './profile.js';
 import { maybeShowEncryptionNudge } from './crypto.js';
 import { importDataJSON, loadDemoData } from './export.js';
@@ -527,16 +527,24 @@ async function _processBatchFile(file: File, ollama: Awaited<ReturnType<typeof c
   let privacyOriginal: string | null = null;
   let piiTime = 0;
   let piiMs = 0;
+  const localModelUnreachable = !ollama.available && isOllamaPIIEnabled();
+  const privacyUnavailable = () => {
+    finishBatchBenchmark('failed', { stage: 'privacy', error: 'Local privacy model unavailable' });
+    showNotification(`${file.name}: Local privacy model unavailable \u2014 not imported`, 'error');
+    return 'pii-unavailable' as const;
+  };
 
   if (ollama.available && isPIIReviewEnabled()) {
     // Streaming mode — modal opens immediately, AI streams into it
     const piiStart = performance.now();
     const reviewResult = await reviewPIIBeforeSend(pdfText, {
-      streamFn: (onChunk, signal, onThinking) => sanitizeWithOllamaStreaming(pdfText, onChunk, signal, onThinking)
+      streamFn: (onChunk, signal, onThinking) => sanitizeWithOllamaStreaming(pdfText, onChunk, signal, onThinking),
+      reportUnavailable: true,
     });
     piiMs = Math.round(performance.now() - piiStart);
     piiTime = Math.round(piiMs / 1000);
     scope.assertCurrent();
+    if (reviewResult === PII_REVIEW_UNAVAILABLE) return privacyUnavailable();
     if (reviewResult === 'cancel') { finishBatchBenchmark('cancelled', { stage: 'privacy' }); return 'skipped'; }
     textForAI = reviewResult;
     privacyMethod = 'ollama+review';
@@ -574,8 +582,12 @@ async function _processBatchFile(file: File, ollama: Awaited<ReturnType<typeof c
       finishBatchBenchmark('failed', { stage: 'privacy', error: getErrorMessage(e) }); return 'pii-fail';
     }
     if (isPIIReviewEnabled()) {
-      const reviewResult = await reviewPIIBeforeSend(pdfText, { obfuscatedText: textForAI });
+      const reviewResult = await reviewPIIBeforeSend(pdfText, { obfuscatedText: textForAI, reportUnavailable: true });
       scope.assertCurrent();
+      if (reviewResult === PII_REVIEW_UNAVAILABLE) return privacyUnavailable();
+      // A configured local privacy model that is unreachable is an outage, not
+      // a decision about this report: cancelling here retries it later.
+      if (reviewResult === 'cancel' && localModelUnreachable) return privacyUnavailable();
       if (reviewResult === 'cancel') { finishBatchBenchmark('cancelled', { stage: 'privacy' }); return 'skipped'; }
       textForAI = reviewResult;
     }
@@ -677,7 +689,7 @@ export async function handleBatchPDFs(pdfFiles: File[], options: BatchPDFOptions
       const result = await _processBatchFile(file, ollama, i + 1, pdfFiles.length, scope);
       if (result === 'imported') imported++;
       else if (result === 'skipped') skipped++;
-      else if (result === 'empty' || result === 'pii-fail' || result === 'no-markers') failed++;
+      else if (result === 'empty' || result === 'pii-fail' || result === 'pii-unavailable' || result === 'no-markers') failed++;
       report(file, result === 'imported' || result === 'skipped' ? result : 'failed');
     } catch (err) {
       if (err instanceof BatchImportCancelled) throw err;
