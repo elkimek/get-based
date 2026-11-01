@@ -263,4 +263,14 @@ describe('review findings on PR #1699', () => {
     expect(flag).not.toContain('Jane');
     expect(o('Datum odběru: 20260930')).toContain('20260930');
   });
+
+  it('keeps unrelated lines when labels are empty or share a line with identifiers', () => {
+    const dob = redactReportText('Date of Birth\nGlucose 91 mg/dL', {key: 'k'}).text;
+    expect(dob).toContain('Glucose 91 mg/dL');
+    const sur = redactReportText('Patient: Jane Low\nSurname: Low  Age: 27', {key: 'k'}).text;
+    expect(sur).not.toMatch(/Surname: Low/);
+    const ord = redactReportText('Collected: 20260930  Order: 12345678', {key: 'k'}).text;
+    expect(ord).toContain('Collected: 20260930');
+    expect(ord).not.toContain('12345678');
+  });
 });

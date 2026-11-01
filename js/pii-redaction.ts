@@ -315,7 +315,7 @@ export function redactReportText(input: string, context: RedactionContext): Reda
   }
 
   // A label-adjacent birth date in a format the date matcher does not know: redact it rather than leak it.
-  text = text.replace(new RegExp(`(${DOB_LABEL_SOURCE}\\s*:?[ \\t]*)([^\\n]+)`, 'gi'), (match: string, label: string, rest: string) => {
+  text = text.replace(new RegExp(`(${DOB_LABEL_SOURCE}[ \\t]*:?[ \\t]*)([^\\n]+)`, 'gi'), (match: string, label: string, rest: string) => {
     const value = segmentValue(rest).trim();
     if (!value || /^\uE000/.test(value) || !/\d/.test(value)) return match;
     return label + protect(`[DOB-${code('dob', value.toLowerCase().replace(/\s+/g, ' '))}]`) + rest.slice(rest.indexOf(value) + value.length);
@@ -327,7 +327,7 @@ export function redactReportText(input: string, context: RedactionContext): Reda
     const re = new RegExp(`${NOT_WORD_BEFORE}(?:${patientForms.join('|')})${NOT_WORD_AFTER}`, 'giu');
     text = text.replace(re, (match: string, offset: number, whole: string) => {
       // A surname that doubles as a result flag ("Glucose 60 mg/dL Low") stays in clinical lines.
-      if (RESULT_FLAG_RE.test(match) && /\d/.test(lineAt(whole, offset))) return match;
+      if (RESULT_FLAG_RE.test(match) && UNIT_KEYWORDS.test(lineAt(whole, offset))) return match;
       return protect(PATIENT_PLACEHOLDER);
     });
   }
@@ -416,7 +416,10 @@ export function redactReportText(input: string, context: RedactionContext): Reda
   text = text.replace(/\b\d{8,}\b/g, (match: string, offset: number, whole: string) => {
     const line = lineAt(whole, offset);
     if (UNIT_KEYWORDS.test(line) || /===\s*Page/i.test(line)) return match;
-    if (/^\d{8}$/.test(match) && COLLECTION_LABEL_RE.test(line.slice(0, line.indexOf(match)))) return match;
+    if (/^\d{8}$/.test(match) && new RegExp(`${COLLECTION_LABEL_RE.source}[a-z ]{0,12}[:\\s]*$`, 'i').test(line.slice(0, line.indexOf(match)))) {
+      const y = +match.slice(0, 4), mo = +match.slice(4, 6), d = +match.slice(6, 8);
+      if (y >= 1900 && y <= 2100 && mo >= 1 && mo <= 12 && d >= 1 && d <= 31) return match;
+    }
     return protect(formatPreserving('id', match));
   });
 
