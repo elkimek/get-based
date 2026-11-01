@@ -58,6 +58,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/startup-maintenance-runtime.js', '/js/startup-profile.js', '/js/startup-oauth-callbacks.js', '/js/startup-maintenance.js',
   '/js/startup-ui.js', '/js/import-loader.js', '/js/import-review-draft.js', '/js/import-review-row-actions.js',
   '/js/import-marker-map-modal.js', '/js/secondary-unit-conversions.js', '/js/unit-profiles.js', '/js/import-file-input.js',
+  '/js/pdf-import-lymphocyte-subsets.js',
   '/js/components/ImportPageDrop.svelte.native.js', '/js/import-dispatch.js', '/js/import-drop-zone-events.js',
   '/js/import-page-drop-view.js', '/js/import-page-drop.js', '/js/import-selection-confirmation.js', '/js/import-stylesheet.js',
   '/js/import-drop-zone.js', '/js/import-drop-zone-runtime.js', '/js/ai-verdict-engine-runtime.js', '/js/ai-verdict-engine.js',

@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1869 |
-| Internal import edges | 5722 |
+| Modules | 1871 |
+| Internal import edges | 5724 |
 | Dynamic internal edges | 139 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -2447,7 +2447,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>index</code> family — 2 modules</summary>
 
-- [`js/marker-schema/index.ts`](js/marker-schema/index.ts) → [`js/marker-schema/biochemistry.ts`](js/marker-schema/biochemistry.ts), [`js/marker-schema/body-composition.ts`](js/marker-schema/body-composition.ts), [`js/marker-schema/bone-density.ts`](js/marker-schema/bone-density.ts), [`js/marker-schema/bone-metabolism.ts`](js/marker-schema/bone-metabolism.ts), [`js/marker-schema/calculated-ratios.ts`](js/marker-schema/calculated-ratios.ts), [`js/marker-schema/cardiac.ts`](js/marker-schema/cardiac.ts), [`js/marker-schema/coagulation.ts`](js/marker-schema/coagulation.ts), [`js/marker-schema/diabetes.ts`](js/marker-schema/diabetes.ts), [`js/marker-schema/differential.ts`](js/marker-schema/differential.ts), [`js/marker-schema/electrolytes.ts`](js/marker-schema/electrolytes.ts), [`js/marker-schema/hematology.ts`](js/marker-schema/hematology.ts), [`js/marker-schema/hormones.ts`](js/marker-schema/hormones.ts), [`js/marker-schema/identities.ts`](js/marker-schema/identities.ts), [`js/marker-schema/iron.ts`](js/marker-schema/iron.ts), [`js/marker-schema/lipids.ts`](js/marker-schema/lipids.ts), [`js/marker-schema/proteins.ts`](js/marker-schema/proteins.ts), [`js/marker-schema/thyroid.ts`](js/marker-schema/thyroid.ts), [`js/marker-schema/tumor-markers.ts`](js/marker-schema/tumor-markers.ts), [`js/marker-schema/urinalysis.ts`](js/marker-schema/urinalysis.ts), [`js/marker-schema/vitamins.ts`](js/marker-schema/vitamins.ts)
+- [`js/marker-schema/index.ts`](js/marker-schema/index.ts) → [`js/marker-schema/biochemistry.ts`](js/marker-schema/biochemistry.ts), [`js/marker-schema/body-composition.ts`](js/marker-schema/body-composition.ts), [`js/marker-schema/bone-density.ts`](js/marker-schema/bone-density.ts), [`js/marker-schema/bone-metabolism.ts`](js/marker-schema/bone-metabolism.ts), [`js/marker-schema/calculated-ratios.ts`](js/marker-schema/calculated-ratios.ts), [`js/marker-schema/cardiac.ts`](js/marker-schema/cardiac.ts), [`js/marker-schema/coagulation.ts`](js/marker-schema/coagulation.ts), [`js/marker-schema/diabetes.ts`](js/marker-schema/diabetes.ts), [`js/marker-schema/differential.ts`](js/marker-schema/differential.ts), [`js/marker-schema/electrolytes.ts`](js/marker-schema/electrolytes.ts), [`js/marker-schema/hematology.ts`](js/marker-schema/hematology.ts), [`js/marker-schema/hormones.ts`](js/marker-schema/hormones.ts), [`js/marker-schema/identities.ts`](js/marker-schema/identities.ts), [`js/marker-schema/iron.ts`](js/marker-schema/iron.ts), [`js/marker-schema/lipids.ts`](js/marker-schema/lipids.ts), [`js/marker-schema/lymphocyte-subsets.ts`](js/marker-schema/lymphocyte-subsets.ts), [`js/marker-schema/proteins.ts`](js/marker-schema/proteins.ts), [`js/marker-schema/thyroid.ts`](js/marker-schema/thyroid.ts), [`js/marker-schema/tumor-markers.ts`](js/marker-schema/tumor-markers.ts), [`js/marker-schema/urinalysis.ts`](js/marker-schema/urinalysis.ts), [`js/marker-schema/vitamins.ts`](js/marker-schema/vitamins.ts)
 - [`js/marker-terminology/index.ts`](js/marker-terminology/index.ts) → [`js/marker-terminology/catalogs.ts`](js/marker-terminology/catalogs.ts), [`js/marker-terminology/loinc.ts`](js/marker-terminology/loinc.ts), [`js/marker-terminology/nclp.ts`](js/marker-terminology/nclp.ts), [`js/marker-terminology/npu.ts`](js/marker-terminology/npu.ts)
 
 </details>
@@ -3421,6 +3421,12 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>lymphocyte</code> family — 1 module</summary>
+
+- [`js/marker-schema/lymphocyte-subsets.ts`](js/marker-schema/lymphocyte-subsets.ts) → no in-scope imports
+
+</details>
+
 <details><summary><code>main</code> family — 1 module</summary>
 
 - [`js/main.ts`](js/main.ts) → [`js/app-extension-bootstrap.ts`](js/app-extension-bootstrap.ts), [`js/app-shell-component.ts`](js/app-shell-component.ts), [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts), [`js/constants.ts`](js/constants.ts), [`js/feedback.ts`](js/feedback.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/legal-consent.ts`](js/legal-consent.ts), [`js/light-env-shell-hooks.ts`](js/light-env-shell-hooks.ts), [`js/light-sun-loader.ts`](js/light-sun-loader.ts), [`js/schema.ts`](js/schema.ts), [`js/shell-actions.ts`](js/shell-actions.ts), [`js/startup-orchestrator.ts`](js/startup-orchestrator.ts), [`js/touch-tooltip.ts`](js/touch-tooltip.ts), [`js/tour.ts`](js/tour.ts), [`js/utils.ts`](js/utils.ts), [`js/views-runtime.ts`](js/views-runtime.ts)
@@ -3920,13 +3926,14 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>pdf</code> family — 20 modules</summary>
+<details><summary><code>pdf</code> family — 21 modules</summary>
 
 - [`js/pdf-import-ai-utils.ts`](js/pdf-import-ai-utils.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/api-provider-storage.ts`](js/api-provider-storage.ts), [`js/api.ts`](js/api.ts), [`js/lab-entry.ts`](js/lab-entry.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/pdf-import-commit.ts`](js/pdf-import-commit.ts) → [`js/adapters.ts`](js/adapters.ts), [`js/crypto.ts`](js/crypto.ts), [`js/custom-marker-identity.ts`](js/custom-marker-identity.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/import-benchmarks.ts`](js/import-benchmarks.ts), [`js/import-commit-validation.ts`](js/import-commit-validation.ts), [`js/lab-entry-mutations.ts`](js/lab-entry-mutations.ts), [`js/lab-entry.ts`](js/lab-entry.ts), [`js/mosaic-oat-catalog.ts`](js/mosaic-oat-catalog.ts), [`js/pdf-import-marker-mapping.ts`](js/pdf-import-marker-mapping.ts), [`js/pdf-import-persistence.ts`](js/pdf-import-persistence.ts), [`js/pdf-import-ratio-units.ts`](js/pdf-import-ratio-units.ts), [`js/pdf-import-review.ts`](js/pdf-import-review.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/unique-id.ts`](js/unique-id.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/pdf-import-file-handlers.ts`](js/pdf-import-file-handlers.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/api.ts`](js/api.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/import-benchmarks.ts`](js/import-benchmarks.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/pdf-import-ai-utils.ts`](js/pdf-import-ai-utils.ts), [`js/pdf-import-file-utils.ts`](js/pdf-import-file-utils.ts), [`js/pdf-import-preflight.ts`](js/pdf-import-preflight.ts), [`js/pdf-import-progress.ts`](js/pdf-import-progress.ts), [`js/pdf-import-review.ts`](js/pdf-import-review.ts), [`js/pdf-import-spreadsheet.ts`](js/pdf-import-spreadsheet.ts), [`js/pdf-preflight-rendering.ts`](js/pdf-preflight-rendering.ts), [`js/pii.ts`](js/pii.ts), [`js/privacy-safe-diagnostics.ts`](js/privacy-safe-diagnostics.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/pdf-import-file-utils.ts`](js/pdf-import-file-utils.ts) → [`js/pdf-import-spreadsheet.ts`](js/pdf-import-spreadsheet.ts), [`js/pdfjs-loader.ts`](js/pdfjs-loader.ts)
-- [`js/pdf-import-marker-mapping.ts`](js/pdf-import-marker-mapping.ts) → [`js/adapters.ts`](js/adapters.ts), [`js/mosaic-oat-catalog.ts`](js/mosaic-oat-catalog.ts), [`js/pdf-import-ratio-units.ts`](js/pdf-import-ratio-units.ts), [`js/pdf-import-unit-conversions.ts`](js/pdf-import-unit-conversions.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts)
+- [`js/pdf-import-lymphocyte-subsets.ts`](js/pdf-import-lymphocyte-subsets.ts) → no in-scope imports
+- [`js/pdf-import-marker-mapping.ts`](js/pdf-import-marker-mapping.ts) → [`js/adapters.ts`](js/adapters.ts), [`js/mosaic-oat-catalog.ts`](js/mosaic-oat-catalog.ts), [`js/pdf-import-lymphocyte-subsets.ts`](js/pdf-import-lymphocyte-subsets.ts), [`js/pdf-import-ratio-units.ts`](js/pdf-import-ratio-units.ts), [`js/pdf-import-unit-conversions.ts`](js/pdf-import-unit-conversions.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts)
 - [`js/pdf-import-marker-normalization.ts`](js/pdf-import-marker-normalization.ts) → [`js/adapters.ts`](js/adapters.ts), [`js/pdf-import-marker-mapping.ts`](js/pdf-import-marker-mapping.ts), [`js/pdf-import-organic-acid-normalization.ts`](js/pdf-import-organic-acid-normalization.ts), [`js/schema.ts`](js/schema.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/pdf-import-organic-acid-normalization.ts`](js/pdf-import-organic-acid-normalization.ts) → [`js/adapters.ts`](js/adapters.ts), [`js/mosaic-oat-catalog.ts`](js/mosaic-oat-catalog.ts)
 - [`js/pdf-import-persistence.ts`](js/pdf-import-persistence.ts) → [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/lab-entry.ts`](js/lab-entry.ts), [`js/pdf-import-review-runtime.ts`](js/pdf-import-review-runtime.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)

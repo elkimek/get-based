@@ -47,6 +47,18 @@ checks use the fixed inventory in
 
 ## Presentation and lifecycle contract
 
+`marker-schema/lymphocyte-subsets.ts` authors whole-blood CD3/CD4/CD8 T-cell,
+CD19 B-cell and CD3-negative CD16/CD56 NK-cell counts and percentages. Counts
+store 10^9/L; subset percentages explicitly store 0–100 percent of total
+lymphocytes, separate from the fraction-stored CBC differential. Import review's
+`pdf-import-lymphocyte-subsets.ts` owns subset aliases and definition guards. It
+keeps other denominators, NKT cells and NK activity outside these identities.
+Subset and CD4/CD8 ranges are contextual: reporting laboratory intervals apply,
+with no built-in universal optimal targets or Immune Health Grade. The derived
+CD4/CD8 and LMR ratios use same-date absolute counts in canonical units, guard
+invalid denominators and preserve directly reported ratios. They add no Biology
+Score inputs; LMR and MLR represent reciprocal information.
+
 `marker-baseline.ts` derives descriptive per-draw historical medians from at
 least three distinct prior draws in the preceding two calendar years. The
 active-data projection computes these after unit conversion and before date
