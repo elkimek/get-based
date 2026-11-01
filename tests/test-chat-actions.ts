@@ -636,7 +636,7 @@ assert('Svelte owns discussion picker rendering and selection through its public
     chatDiscussionPickerSrc.includes('export function showDiscussPersonaPicker') &&
     chatDiscussionPickerSrc.includes('publishDiscussionPicker(chatDiscussionScope()') &&
     read('js/chat-discussion-view.ts').includes('picker.selected.length !== discussionPickerLimit(picker)') &&
-    read('js/components/ChatDiscussion.svelte').includes('disabled={count !== limit}') &&
+    read('js/components/ChatDiscussion.svelte').includes('disabled={round?.saving || count !== limit}') &&
     !chatDiscussionPickerSrc.includes('innerHTML') &&
     !chatDiscussionUiSrc.includes("querySelector('.discuss-persona-picker')"),
   'found');

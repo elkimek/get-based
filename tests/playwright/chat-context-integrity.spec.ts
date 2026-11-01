@@ -42,6 +42,7 @@ async function currentField(page: Page, card: AgentContextCard, key: string) {
 for (const card of AGENT_CONTEXT_CARDS.filter(card => card !== 'healthGoals')) {
   test(`every declared ${card} scalar field survives review, Apply, clearing and reload without collateral edits`, async ({ page }, info) => {
     test.setTimeout(120_000);
+    await page.addInitScript(() => { for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(`labcharts-default-${suffix}`, 'completed'); });
     await page.goto('/app');
     const fields = await page.evaluate(async card => {
       const [{ state }, profile, data, { agentContextCardModel }] = await Promise.all([import('/js/state.js'), import('/js/profile.js'), import('/js/data.js'), import('/js/agent-context-fields.js')]);

@@ -395,6 +395,7 @@ test('fresh photo analysis keeps complete nutrient profiles model-owned', async 
 
   await page.locator('#nutrition-meal-type').selectOption('lunch');
   await page.locator('#nutrition-save-btn').click();
+  await expect(page.locator('#notification-container')).toContainText('Meal saved and queued for sync.');
   await expect(page.locator('#detail-modal')).not.toContainText('FNDDS');
   const saved = await page.evaluate(async () => {
     const meals = await (await import('/js/nutrition-store.js')).listActiveProfileMeals();
