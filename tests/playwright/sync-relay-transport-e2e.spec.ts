@@ -1261,12 +1261,35 @@ for (const legacy of [false, true]) test(`an in-place equal-timestamp array edit
     expect(await rowIds(b.page)).toEqual(originalRows);
     await writeMinutes(b.page, 10); expect((await syncNow(b.page))?.ok).toBe(true);
     await expect.poll(() => readMinutes(a.page), {timeout: 30_000}).toBe(10);
-    await b.page.evaluate(async () => {
+    expect(await b.page.evaluate(async () => {
       (await import('/js/state.js')).state.importedData.sunSessions = [];
-      await (await import('/js/data.js')).saveImportedData();
-    });
-    expect((await syncNow(b.page))?.ok).toBe(true);
-    await expect.poll(() => readMinutes(a.page), {timeout: 30_000}).toBeUndefined();
+      return (await import('/js/data.js')).saveImportedData();
+    })).toBe(true);
+    try {
+      expect((await syncNow(b.page))?.ok).toBe(true);
+      await expect.poll(() => readMinutes(a.page), {timeout: 30_000}).toBeUndefined();
+    } catch (error) {
+      for (const device of devices) console.error('Array deletion diagnostics:', JSON.stringify(await device.page.evaluate(async () => {
+        const runtime = await import('/js/sync-runtime.js'), sdk = runtime.getSyncEvolu()!, query = runtime.getSyncItemRowQuery();
+        await sdk.loadQuery(query);
+        const state = (await import('/js/state.js')).state;
+        const snapshots = await import('/js/sync-delta-snapshot.js');
+        const raw = await (await import('/js/crypto.js')).encryptedGetItem((await import('/js/profile.js')).profileStorageKey(state.currentProfile, 'imported'));
+        const baseline = (await import('/js/profile-data-writes.js')).profileDataBaseline(state.importedData);
+        return {
+          rows: sdk.getQueryRows<DeltaItemRow>(query)!.filter(row => row.arrayName === 'sunSessions' && row.itemId === 'transport_array'),
+          live: state.importedData.sunSessions,
+          stored: raw ? (JSON.parse(raw) as {sunSessions?: unknown}).sunSessions : null,
+          baseline: baseline?.sunSessions,
+          receipt: snapshots.readArrayVersions(state.currentProfile, 'sunSessions'),
+          legacyReceipt: snapshots.readLegacyArrayVersions(state.currentProfile, 'sunSessions'),
+          cutover: snapshots.isPhase2CutoverEnabled(state.currentProfile),
+          dirty: (await import('/js/sync-dirty-state.js')).getSyncDirtyToken(state.currentProfile),
+          events: (await import('/js/sync-state.js')).getRecentSyncEvents(),
+        };
+      })));
+      throw error;
+    }
     await writeMinutes(b.page, 10);
     // An incoming pull can start after the local restoration was saved but
     // before its row write is queued. Its old deletion must not erase it.
