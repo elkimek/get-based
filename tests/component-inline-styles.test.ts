@@ -31,6 +31,11 @@ const customMarkerHandoffFixed = `  } else if (action === 'open-custom-marker') 
     if (document.getElementById('sidebar-nav')?.classList.contains('mobile-open')) closeMobileSidebar();
     openCreateMarkerFromNavRuntime();
   } else if (action === 'toggle-group') {`;
+const lightAssessmentHandoffBefore = `  } else if (action === 'open-light-assessment') {
+    navActionDeps.openLightEnvironmentAssessment();`;
+const lightAssessmentHandoffFixed = `  } else if (action === 'open-light-assessment') {
+    if (document.getElementById('sidebar-nav')?.classList.contains('mobile-open')) closeMobileSidebar();
+    navActionDeps.openLightEnvironmentAssessment();`;
 function restoreReviewedComponentSource(file:string,source:string){
  if(file==='js/components/MarkerDetailHistory.svelte'){
   for(const [current,previous,count] of [
@@ -39,6 +44,12 @@ function restoreReviewedComponentSource(file:string,source:string){
   ] as const){expect(source.split(current).length-1).toBe(count);source=source.split(current).join(previous);}
  }
  if(file==='js/nav.ts'){
+  // Qualify the exact native mobile repair independently, preserving every
+  // original ordering/lens/style-port digest and archived fixture below.
+  expect(crypto.createHash('sha256').update(source).digest('hex')).toBe('f24dcd9f4958bc0c4a87ba73201ea56f650659ef0cdc7294b4ef1116c279ac04');
+  expect(source.split(lightAssessmentHandoffFixed)).toHaveLength(2);
+  source=source.replace(lightAssessmentHandoffFixed,lightAssessmentHandoffBefore);
+  expect(crypto.createHash('sha256').update(source).digest('hex')).toBe('5ce1c37f9a797f0c823990833d81a1624ca87218396ee37b1ee5ae37969363e9');
   const orderingEdits=[
    ["import { orderSidebarLabNodes } from './lab-ordering-sidebar.js';\n",''],
    ['getLabCategoryEntriesInSidebarOrder((data as ActiveData).categories, state.importedData?.labOrdering)','getLabCategoryEntriesInSidebarOrder((data as ActiveData).categories)'],
@@ -122,6 +133,12 @@ it.each(producers)('$file closes its opaque style port with only an exact bindin
  restoreSource(source,record);
  expect(record.edits).toHaveLength(2);
  expect(record.edits.filter(edit=>edit.before==='')).toHaveLength(1);
+});
+it('rejects removal of the qualified mobile Light handoff or foreign nav code',()=>{
+ const source=readFileSync('js/nav.ts','utf8');
+ expect(source.split(lightAssessmentHandoffFixed)).toHaveLength(2);
+ expect(()=>restoreReviewedComponentSource('js/nav.ts',source.replace(lightAssessmentHandoffFixed,lightAssessmentHandoffBefore))).toThrow();
+ expect(()=>restoreReviewedComponentSource('js/nav.ts',source+'\n// foreign source\n')).toThrow();
 });
 it.each(styles)('rejects an actual value mutation in $key',async row=>{
  const tree=postcss.parse(input);let changed=false;

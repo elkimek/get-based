@@ -256,13 +256,18 @@ test('proposal action persists its result and remains non-actionable after histo
 });
 
 test('two stale tabs can apply a meal proposal only once', async ({ page, context }) => {
+  await context.addInitScript(() => { for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(`labcharts-default-${suffix}`, 'completed'); });
   await page.goto('/app');
+  await page.locator('html[data-app-ready]').waitFor();
   const profile = await page.evaluate(async () => {
+    (await import('/js/views.js')).navigate('labs');
     const { state } = await import('/js/state.js');
     if (!await (await import('/js/data.js')).saveImportedData()) throw new Error('Fixture save failed');
     return state.currentProfile;
   });
   const second = await context.newPage(); await second.goto('/app');
+  await second.locator('html[data-app-ready]').waitFor();
+  await second.evaluate(async () => { (await import('/js/views.js')).navigate('labs'); });
   const proposalIds: string[] = [];
   for (const tab of [page, second]) {
     proposalIds.push(await tab.evaluate(async profile => {
@@ -294,7 +299,18 @@ test('two stale tabs can apply a meal proposal only once', async ({ page, contex
   }, key);
   await page.waitForFunction(() => (window as Window & {proposalLockHeld?: boolean}).proposalLockHeld);
   try {
-    await Promise.all([page, second].map(tab => tab.locator('#shared-proposal-fixture [data-chat-message-action="apply-agent-draft"]').click()));
+    await page.locator('#shared-proposal-fixture [data-chat-message-action="apply-agent-draft"]').click();
+    await expect.poll(() => page.evaluate(async key => (await navigator.locks.query()).pending!.filter(lock => lock.name === key).length, key)).toBe(1);
+    // Refresh only the native index owner after the first preparatory history
+    // save. Both proposal snapshots remain stale and target the same claim;
+    // an unrelated stale-index refusal must not short-circuit this race.
+    const refreshed = await second.evaluate(async () => {
+      const { state } = await import('/js/state.js'), history = state.chatHistory;
+      const loaded = await (await import('/js/chat-threads.js')).loadChatThreads();
+      return loaded !== false && state.chatHistory === history && state.chatHistory[0]!.agentDrafts![0]!.status === 'pending';
+    });
+    expect(refreshed).toBe(true);
+    await second.locator('#shared-proposal-fixture [data-chat-message-action="apply-agent-draft"]').click();
     await expect.poll(() => page.evaluate(async key => (await navigator.locks.query()).pending!.filter(lock => lock.name === key).length, key)).toBe(2);
   } finally { await page.evaluate(() => (window as Window & {releaseProposalLock?: (()=>void)}).releaseProposalLock!()); }
   await expect.poll(async () => Promise.all([page, second].map(tab => tab.evaluate(async () => (await import('/js/state.js')).state.chatHistory[0]!.agentDrafts![0]!.status)))).toEqual(expect.arrayContaining(['applied', 'failed']));

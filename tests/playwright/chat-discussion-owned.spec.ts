@@ -4,6 +4,8 @@ test.beforeEach(async ({ page, context }) => {
   await installDiscussionFixture(context); await page.goto('/app');
   await expect(page.locator('html[data-app-ready]')).toBeAttached();
   await page.evaluate(async () => {
+    // Start outside the empty dashboard's deferred chat onboarding action.
+    (await import('/js/views.js')).navigate('labs');
     await (await import('/js/chat-loader.js')).openChatPanel();
     const { state } = await import('/js/state.js');
     (await import('/js/chat-discussion-lifecycle.js')).cleanupDiscussionState();

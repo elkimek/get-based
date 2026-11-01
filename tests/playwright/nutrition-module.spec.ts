@@ -1935,13 +1935,17 @@ test('AI Settings can route meal photos to Opus without changing the Grok chat m
   await expect(page.locator('#nutrition-ai-model-settings')).toContainText('Only models with confirmed image input are shown');
   await expect(selector.locator('option').first()).toContainText('Follow chat assistant — Z.ai: GLM 5.3');
   await expect(selector.locator('option').first()).toBeDisabled();
-  await expect(selector).toHaveValue('');
-  await expect(selector).not.toContainText('Venice Vision');
+  // An existing explicit route survives provider/model changes until the user
+  // selects Follow chat assistant; it must not be silently erased on render.
+  await expect(selector).toHaveValue(JSON.stringify({ provider: 'venice', model: 'gemini-3-5-flash' }));
+  await expect(selector.locator('optgroup[label="Saved choice outside current list"]')).toContainText('Venice Vision');
   await expect(selector).not.toContainText('Legacy Opus');
   await expect(selector).not.toContainText('Text-only Sonnet');
   await page.locator('#openrouter-model-select').selectOption('x-ai/grok-4.6');
   await expect(page.locator('[data-settings-action="set-nutrition-ai-route"] option').first()).toContainText('Grok 4.6');
   await expect(page.locator('[data-settings-action="set-nutrition-ai-route"] option').first()).not.toBeDisabled();
+  await selector.selectOption(''); await expect(selector).toHaveValue('');
+  await expect(selector).not.toContainText('Venice Vision');
   const inherited = await page.evaluate(async () => (await import('/js/nutrition-ai-settings.js')).getMealAISelection());
   expect(inherited).toMatchObject({ provider: 'openrouter', model: 'x-ai/grok-4.6', usesChatModel: true });
   await page.locator('#openrouter-model-select').selectOption('anthropic/claude-opus-5.5');
@@ -1950,8 +1954,10 @@ test('AI Settings can route meal photos to Opus without changing the Grok chat m
   await expect(page.locator('[data-settings-action="set-nutrition-ai-route"] option').first()).toContainText('Grok 4.6');
   await page.locator('[data-settings-action="switch-ai-provider"][data-provider="venice"]').click();
   await expect(page.locator('#nutrition-ai-model-settings')).toContainText('Only models with confirmed image input are shown');
-  await expect(page.locator('[data-settings-action="set-nutrition-ai-route"]')).toContainText('Venice Vision');
-  await expect(page.locator('[data-settings-action="set-nutrition-ai-route"]')).not.toContainText('Claude Opus 5.5');
+  // Meal routes list confirmed, curated models across connected providers;
+  // changing the chat provider must keep independent vision routes available.
+  await expect(page.locator('[data-settings-action="set-nutrition-ai-route"]')).toContainText('Claude Opus 5.5');
+  await expect(page.locator('[data-settings-action="set-nutrition-ai-route"]')).not.toContainText('Venice Vision');
   await page.locator('[data-settings-action="switch-ai-provider"][data-provider="openrouter"]').click();
   const openRouterSelector = page.locator('[data-settings-action="set-nutrition-ai-route"]');
   await expect(page.locator('#nutrition-ai-model-settings')).toContainText('Only models with confirmed image input are shown');

@@ -45,7 +45,9 @@ for (const provider of ['custom', 'venice'] as const) for (const protocol of ['n
         await route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify(response)}\n\ndata: [DONE]\n\n` });
       }
     });
+    await page.addInitScript(() => { for (const key of ['tour', 'emptyTour']) localStorage.setItem(`labcharts-default-${key}`, 'completed'); });
     await page.goto('/app');
+    await page.locator('html[data-app-ready]').waitFor();
     await page.evaluate(async provider => {
       const profile = await import('/js/profile.js');
       const id = await profile.createProfile('Direct tool fixture', { sex: 'male', skipInitialSync: true });
@@ -119,7 +121,9 @@ test('a direct provider can stop an existing therapy through the shared record t
     round++;
     await route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: 'Review the proposed stop date.' }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` });
   });
+  await page.addInitScript(() => { for (const key of ['tour', 'emptyTour']) localStorage.setItem(`labcharts-default-${key}`, 'completed'); });
   await page.goto('/app');
+  await page.locator('html[data-app-ready]').waitFor();
   await page.evaluate(async () => {
     const profile = await import('/js/profile.js');
     const id = await profile.createProfile('Direct therapy fixture', { sex: 'male', skipInitialSync: true });

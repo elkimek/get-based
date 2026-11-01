@@ -55,7 +55,8 @@ async function showNotes(page: Page) {
     await page.locator('[data-dashboard-widget-action="open-picker"]:visible').first().click();
     await page.locator('[data-dashboard-widget-id="notes"]').click();
     const close = page.locator('[data-dashboard-widget-action="close-picker"]');
-    if (await close.isVisible()) await close.click();
+    // Selecting a fixed widget closes its picker after the native preference save.
+    await expect(close).toHaveCount(0);
   }
   await expect(add).toBeVisible();
 }

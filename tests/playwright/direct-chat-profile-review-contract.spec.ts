@@ -19,7 +19,9 @@ async function saved(page: Page) {
   return page.evaluate(async () => { const { state } = await import('/js/state.js'); return JSON.parse((await (await import('/js/crypto.js')).encryptedGetItem((await import('/js/profile.js')).profileStorageKey(state.currentProfile, 'imported')))!); });
 }
 async function seed(page: Page, provider: 'venice' | 'custom') {
+  await page.addInitScript(() => { for (const key of ['tour', 'emptyTour']) localStorage.setItem(`labcharts-default-${key}`, 'completed'); });
   await page.goto('/app'); await page.evaluate(async provider => {
+  await page.locator('html[data-app-ready]').waitFor();
     const profile = await import('/js/profile.js'), id = await profile.createProfile('Synthetic native review contract', { sex: 'female', skipInitialSync: true });
     for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(profile.profileStorageKey(id, suffix), 'completed');
     localStorage.setItem(`labcharts-onboard-extras-done-${id}`, '1'); localStorage.setItem(`labcharts-onboard-context-cards-skipped-${id}`, '1'); await profile.switchProfile(id);
