@@ -6,7 +6,7 @@ export interface DiscussionPicker {
   selected: string[];
   addingToExisting: boolean;
 }
-export interface DiscussionRound { participants: string[]; pending: number; progress: string; }
+export interface DiscussionRound { participants: string[]; pending: number; progress: string; saving?: boolean; }
 export interface ChatDiscussionView {
   scope: string;
   visible: boolean;
@@ -54,6 +54,10 @@ export function publishDiscussionProgress(progress: string): void {
   const current = currentChatDiscussion();
   if (current?.round) publish({ ...current, round: { ...current.round, progress } });
 }
+export function publishDiscussionSaving(saving: boolean): void {
+  const current = currentChatDiscussion();
+  if (current?.round) publish({...current, round: {...current.round, saving}});
+}
 export function discussionPickerLimit(picker: DiscussionPicker): number {
   return picker.addingToExisting || picker.options.some(option => option.locked) ? 1 : 2;
 }
@@ -81,7 +85,7 @@ export function closeOwnedDiscussionPicker(root: HTMLElement, focus = false): vo
 }
 /** Do not let controls retained from another conversation dispatch domain actions. */
 export function guardDiscussionAction(root: HTMLElement, event: MouseEvent): void {
-  if (owner?.root !== root || !currentChatDiscussion()) {
+  if (owner?.root !== root || !currentChatDiscussion() || currentChatDiscussion()?.round?.saving) {
     event.preventDefault(); event.stopImmediatePropagation();
   }
 }

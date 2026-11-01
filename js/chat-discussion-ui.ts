@@ -5,6 +5,7 @@ import { refreshChatComposer } from './chat-composer.js';
 import { chatDiscussionScope } from './chat-discussion-picker.js';
 import { publishDiscussionButton, publishDiscussionRound, publishDiscussionProgress } from './chat-discussion-view.js';
 export { readDiscussPersonaPickerSelection, removeDiscussPersonaPicker, showDiscussPersonaPicker } from './chat-discussion-picker.js';
+export { publishDiscussionSaving as setDiscussionSaving } from './chat-discussion-view.js';
 export interface DiscussionUIPersona { icon?: unknown; name?: unknown; }
 export interface DiscussionUIOptions { onPersist?: unknown; pendingPersonas?: unknown; }
 type DiscussionUIState = { _discussionPersonas?: unknown; _discussionOriginalPersonality?: unknown; };

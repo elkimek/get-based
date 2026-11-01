@@ -14,7 +14,7 @@ import {
 } from './chat-discussion-callbacks.js';
 import {
   removeDiscussContinuePrompt, removeDiscussPersonaPicker,
-  showDiscussContinuePrompt as showDiscussContinuePromptUI, updateDiscussButton,
+  showDiscussContinuePrompt as showDiscussContinuePromptUI, updateDiscussButton, setDiscussionSaving,
 } from './chat-discussion-ui.js';
 import {
   isRoundThreadActive, persistDiscussionThreadState,
@@ -66,6 +66,7 @@ export function endDiscussion() {
   const orig = (state as DiscussionLifecycleState)._discussionOriginalPersonality;
   // Keep the discussion controls visible until the locked index save commits.
   // Closing a page as soon as the controls disappear must not lose this action.
+  setDiscussionSaving(true);
   clearCurrentDiscussionThreadState({ clearThread: true, markEnded: true, persist: false });
   if (orig) {
     (state as DiscussionLifecycleState).currentChatPersonality = orig;
@@ -96,7 +97,7 @@ export function endDiscussion() {
     updateDiscussButton(); updateChatHeaderTitle();
     document.getElementById('chat-input')?.focus();
     return true;
-  });
+  }).finally(() => { if (origin.isActive()) setDiscussionSaving(false); });
 }
 
 export function finishDiscussionRound(personas: unknown, originalPersonality: unknown, threadId: unknown = state.currentThreadId, origin?: DiscussionOrigin) {

@@ -598,8 +598,9 @@ evidence. Empty review outcomes are reported from local receipts, while genuine
 clarification after a read remains visible. Normal and discussion senders publish the
 same draft and context receipts for direct and local-agent routes. `chat-turn-scope.ts`
 captures their common conversation/root/disclosure owner independently of cancellation.
-Ending a discussion retains its controls until the native thread-index save
-commits. A failed save restores only that action's unchanged local metadata;
+Ending a discussion disables its actions and shows saving progress until the
+native thread-index save commits. A failed save restores the actions and only
+that action's unchanged local metadata;
 retired profile/thread callbacks cannot clear a replacement conversation.
 The native resume-AI runtime port exposes completion of its locked preference
 write so callers can await the durable result.
