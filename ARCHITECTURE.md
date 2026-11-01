@@ -57,6 +57,13 @@ below the plot, separate from reference/optimal bounds and status colours. Basel
 history, not healthy targets or statistically significant-change thresholds;
 they do not change persisted measurements, ranges or Biology Score inputs.
 
+`marker-chart-scale.ts` owns visual y-axis framing. Only selected range bands
+participate in full-range framing; when their extent overwhelms repeated
+readings, charts use a padded reading frame and mark it as Data scale. Range
+fills stay clipped to the plot, original bounds remain in cards/tooltips, and
+point padding keeps zero-valued observations visible. Scaling never repairs
+units, rewrites measurements or changes their range status.
+
 Foreground modals and the Sync popover cancel optional Dashboard Chat startup,
 including a request still awaiting module or presentation loading; explicit Chat
 actions retain their normal behavior.

@@ -3688,3 +3688,5 @@ tests/pwa/sveltekit-island-ownership.spec.js.map
 /tests/helpers/light-device-catalog-fixture.js.map
 
 /js/marker-baseline.js
+
+/js/marker-chart-scale.js
