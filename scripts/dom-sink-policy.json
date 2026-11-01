@@ -2,3 +2,822 @@
   "schemaVersion": 1,
   "scope": "Every authored JavaScript, TypeScript and Svelte module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
+  "sourceInventoryDigest": "de1bcf775554fcc1c154e4ccd638b29041065635025b3f76275a6b9aededffde",
+  "scannedFiles": 2008,
+  "sinkCount": 303,
+  "files": {
+    "js/biology-scores.js": {
+      "count": 1,
+      "digest": "3b6634d0f70bf7fb29792e9954a2583f1a90cb82aca19eb1779b1a84f408a354",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/category-customization.js": {
+      "count": 1,
+      "digest": "c888e3f32944714a3195c2b2b802e2fc2a32dc021ca5341b00e0efa8f57470f1",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/category-page-view.js": {
+      "count": 7,
+      "digest": "deb7bb46ba5ddb203fb4a29ab11f50a9b096f7adee6bb029ff69e72dcedf6972",
+      "kinds": {
+        "innerHTML": 7
+      }
+    },
+    "js/changelog-impl.js": {
+      "count": 1,
+      "digest": "e1d1f7670ff382d4d1c3e308bfeccafea2d1610ba6d68f964f60b0ab96a63412",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/chat-empty-state.js": {
+      "count": 1,
+      "digest": "b81652a816d3c61ad210a849e0900b972827eafa48b8cbfc53eff05fc04fec8a",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/chat-onboarding.js": {
+      "count": 3,
+      "digest": "681c81adc2e2ee707c7cc9d6a3f9f93c65a8d9bd944cee9d85f25687e1a8de73",
+      "kinds": {
+        "insertAdjacentHTML": 1,
+        "outerHTML": 2
+      }
+    },
+    "js/chat-summaries.js": {
+      "count": 4,
+      "digest": "35739c19c3852676c46049abbc31646992660ee580ed894709fa2e6a60ce144c",
+      "kinds": {
+        "document.write": 1,
+        "innerHTML": 3
+      }
+    },
+    "js/client-list-form.js": {
+      "count": 4,
+      "digest": "1df69f37bfd1f240c7c2456cf22edc3b5c1d135455923980be19fc96eba78985",
+      "kinds": {
+        "innerHTML": 4
+      }
+    },
+    "js/client-list-impl.js": {
+      "count": 3,
+      "digest": "501f86c0ffe581c9b59854a6ca6c7b29b162e345fcd5430ef92f3cb1649f3cb6",
+      "kinds": {
+        "innerHTML": 3
+      }
+    },
+    "js/cloud-ai-consent.js": {
+      "count": 1,
+      "digest": "689cfdf1c579adc8381bb944f7d182014591e5a48bc9af29b4acb802c2af04f3",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/commit-hash.js": {
+      "count": 1,
+      "digest": "ca527f849a353f7dedc15f33c95e8532990e12a92fef53a1266b1308e4ca6128",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/compare-correlations.js": {
+      "count": 10,
+      "digest": "810591d362191e74d72a976a2d7be5c77368579b71acc48b16dd1fe5d6f7b546",
+      "kinds": {
+        "innerHTML": 9,
+        "insertAdjacentHTML": 1
+      }
+    },
+    "js/components/AppExtensionSlot.svelte.native.js": {
+      "count": 1,
+      "digest": "50fac513106c483467d46440fdf964354247c1664a4679d211d332ec0d45132f",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/BiologyAIAnswer.svelte.native.js": {
+      "count": 1,
+      "digest": "d81cbb37100f617ed60c3a3c4bf1824665df3d01222818557c777e8e71e4684e",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/ChangelogPresentation.svelte.native.js": {
+      "count": 1,
+      "digest": "356d1a141bf5ea0974062f63cc015a6d5c983a7e2764a7c61b2a7d1e4afc4f5e",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/ChatMessage.svelte.native.js": {
+      "count": 1,
+      "digest": "c7896e4f949ff86f50b170926e0513086e91c68c00512e02a218f25f83f74ed8",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/ChatProviderSetup.svelte.native.js": {
+      "count": 1,
+      "digest": "9c37f8b90908cb4669ac25f1f75b89dedb5fd0bcad5e1a3f2c650a5f4a524db2",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/ChatSummaryDialog.svelte.native.js": {
+      "count": 1,
+      "digest": "4f7a879f1f398b04aefb05129b7ee53c3c5aeefd9fcfcc469af85cc0222d14a2",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/ChatSummaryPrint.svelte.native.js": {
+      "count": 1,
+      "digest": "4f7a879f1f398b04aefb05129b7ee53c3c5aeefd9fcfcc469af85cc0222d14a2",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/EMFInterpretationBody.svelte.native.js": {
+      "count": 1,
+      "digest": "969fae8ab22eb45eb56eafaff4b92749d8640b2994a4795be397ce0e2bf3f7f6",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/FocusCardBody.svelte.native.js": {
+      "count": 1,
+      "digest": "682c84e4a61639e4636b80288c6b3737aca8ed0aa61f7cd0e648e042d9eae55c",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/LightWeeklyAI.svelte.native.js": {
+      "count": 1,
+      "digest": "81577a641365a8e1d2a09c5b2f90f73aab063b17f2397badcf9db9785b1bcc0d",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/SyncIdentityRotation.svelte.native.js": {
+      "count": 1,
+      "digest": "b78da32e039117fccc97f12630535a7deda433a47b86a29b86f2eca6921d20d8",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/context-card-editor-ui.js": {
+      "count": 1,
+      "digest": "7a470e267803dcbe1373fddf2d54fe3c35a2a2c5da313ae99fd8e8d32916e0ff",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/context-cards.js": {
+      "count": 1,
+      "digest": "fe841c598e2b255d41cc4696ba0cdcaa3c98f5353f15a3cc2b63f10cc5eef1bb",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/cycle-import.js": {
+      "count": 2,
+      "digest": "7aec52559ddb8313949fe373f81bd1a62fb3a0b01d61cc4ec63500456159e8d5",
+      "kinds": {
+        "innerHTML": 2
+      }
+    },
+    "js/cycle.js": {
+      "count": 1,
+      "digest": "699b59f1c705db4d32996987e48d539667e904d4f46fe6c59bde981d33714e17",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/dashboard-page-view.js": {
+      "count": 3,
+      "digest": "b0fa0712e429b7afe1ccd784fe287ab1785520eb109af33169e24fa6c44dc87c",
+      "kinds": {
+        "innerHTML": 3
+      }
+    },
+    "js/dashboard-recommendation-widget.js": {
+      "count": 1,
+      "digest": "cbdee0db380f36a51df034d594df5cb99145ed6cd19cadda1d5b9b10951d0493",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/dashboard-widget-controls.js": {
+      "count": 1,
+      "digest": "3b6634d0f70bf7fb29792e9954a2583f1a90cb82aca19eb1779b1a84f408a354",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/dashboard-widget-renderers.js": {
+      "count": 1,
+      "digest": "e7d83870377d2f455e5365284215ef34395f8f3ceb493f5940ceae72d7451b03",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/data-view-controls.js": {
+      "count": 2,
+      "digest": "5c0a104b1f53b99b4395a781cfe9df5906e2493359d3cdda899a8fbf2eb6f7c1",
+      "kinds": {
+        "innerHTML": 2
+      }
+    },
+    "js/dna-mtdna.js": {
+      "count": 1,
+      "digest": "a71dc5fd7c62611ba9c6f7975f02434160ea77857c63a58dcd6953a5bf6c305c",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/dna-ui.js": {
+      "count": 2,
+      "digest": "fae0bcb7e3f29318ca4211a91fd804c6d7069f0396714abaaa8e969ad7cc7a43",
+      "kinds": {
+        "innerHTML": 2
+      }
+    },
+    "js/emf-editor.js": {
+      "count": 2,
+      "digest": "f0dab63734c20e925f551942c3dce1862777604fc7daccb9360cea449712baac",
+      "kinds": {
+        "innerHTML": 2
+      }
+    },
+    "js/emf-interpretation.js": {
+      "count": 8,
+      "digest": "8dcded0876524503356e4319549d93787b24cfc1310428b9a4a0484951c33dc6",
+      "kinds": {
+        "innerHTML": 8
+      }
+    },
+    "js/emf.js": {
+      "count": 1,
+      "digest": "d3ad45521ec1e922f1478cf41003b40ffc17353250b0f0b3ecbcee28511a2940",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/export-report-builder.js": {
+      "count": 1,
+      "digest": "7165f86b26a73f39938cb9100790cbb04fc965fd138bd9be5995dd444c6c4976",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/export-report-html.js": {
+      "count": 1,
+      "digest": "de5194c38294b04fd8138babefbfaca55112c9424bf9c8d30a5084738aace90a",
+      "kinds": {
+        "document.write": 1
+      }
+    },
+    "js/export-runtime.js": {
+      "count": 1,
+      "digest": "ec631cb332f6d3c60ad2c1b730031feb54b8812920bff67f6a0462add272b9a5",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/feedback-rendering.js": {
+      "count": 1,
+      "digest": "e9a452df2891cc645fde276628a0723de88aadc8efe33b6699ad817907c234b9",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/footer-commit-link-presentation.js": {
+      "count": 2,
+      "digest": "0c6f025b6ac89b242b43219ac64d3235635e574f49f2b5cc6f2c95027fa66987",
+      "kinds": {
+        "innerHTML": 2
+      }
+    },
+    "js/import-marker-map-modal.js": {
+      "count": 3,
+      "digest": "c8791997a86878fa592b63efcd5013f8037933ac4facf591ff1191e8519ca9e4",
+      "kinds": {
+        "innerHTML": 3
+      }
+    },
+    "js/import-review-row-actions.js": {
+      "count": 1,
+      "digest": "1ea05d5eb842912ea476a961c9efefe7d0aaaa7a0f75b572c19d572079f3fc68",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/lab-sample-editor.js": {
+      "count": 1,
+      "digest": "608501df291787d9600f37a5cad6a4241d808cca3636b260b2e4fb7255f82dc5",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/legal-consent.js": {
+      "count": 1,
+      "digest": "e1a33d351f8bbc45e249c5b0bcf27f8623eff4d3c49d4152aaf8b037594a51ea",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/lens-knowledge-base-ui.js": {
+      "count": 10,
+      "digest": "225d96fb8c2f67667b80a7b53589b60e23793333b9c59b961ed5b8394545cd19",
+      "kinds": {
+        "innerHTML": 10
+      }
+    },
+    "js/lens-library.js": {
+      "count": 5,
+      "digest": "d2a2d4525a52691c09059511bcd8a8fb2b59f35e403ad51da5438109193fc3d3",
+      "kinds": {
+        "innerHTML": 5
+      }
+    },
+    "js/lens-pages.js": {
+      "count": 9,
+      "digest": "0de6cdc875ac860c2c2fcd13e5ab991e7f9bdc49c13d21f4d749e53aae406f54",
+      "kinds": {
+        "innerHTML": 9
+      }
+    },
+    "js/lens.js": {
+      "count": 1,
+      "digest": "456ec053d24d4466144a23edb38858f44fcafb9fc5def853c99a3fa131f7887f",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/light-channel-view.js": {
+      "count": 2,
+      "digest": "b79d7024bf121330332f928400b2798c0b681fb3eb0618c634bd9e7cbca76ea2",
+      "kinds": {
+        "innerHTML": 2
+      }
+    },
+    "js/light-conditions-now.js": {
+      "count": 5,
+      "digest": "380bff3d1da23e54cd5c0dca159d6747f264b3351e172d09dd2e09b77a9c777c",
+      "kinds": {
+        "innerHTML": 5
+      }
+    },
+    "js/light-device-session-modal.js": {
+      "count": 2,
+      "digest": "7d0222f3ba327278f792fd51eb666bd9e7c8b480d0f42be6fe6ddb7ffa5640aa",
+      "kinds": {
+        "innerHTML": 2
+      }
+    },
+    "js/light-device-setup-modal.js": {
+      "count": 2,
+      "digest": "abd947edd79a158c6d8015af7389ddc08ef93dfbc2a080ed0f0e32fef817850d",
+      "kinds": {
+        "innerHTML": 2
+      }
+    },
+    "js/light-devices.js": {
+      "count": 3,
+      "digest": "7cbcd2746258eb9ff096605eb98b076c377d7134d8cb79aecdcc32e9e02840ee",
+      "kinds": {
+        "innerHTML": 3
+      }
+    },
+    "js/light-env.js": {
+      "count": 1,
+      "digest": "a71dc5fd7c62611ba9c6f7975f02434160ea77857c63a58dcd6953a5bf6c305c",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/light-page-view.js": {
+      "count": 9,
+      "digest": "918b2f424885cc192f53bfea9318f1e4920833a25355d92c67275c2ec6230d4c",
+      "kinds": {
+        "innerHTML": 3,
+        "outerHTML": 6
+      }
+    },
+    "js/light-sessions-view.js": {
+      "count": 1,
+      "digest": "c237f9629f06b7006afbdae97f6d908c33c0f6908832f766bb525c6c7e3d88eb",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/light-today-ai.js": {
+      "count": 1,
+      "digest": "bb1199524015585757700c6e0c56c3d379b1494429875501c8a85859c2a5a6f8",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/light-tool-cct-meter.js": {
+      "count": 3,
+      "digest": "6b50248e25485ff5918d289e035b2f2781948f411c4f889311f26f846cdfeb28",
+      "kinds": {
+        "innerHTML": 3
+      }
+    },
+    "js/light-tool-darkness-meter.js": {
+      "count": 3,
+      "digest": "91912195c84969001ad7732089b0038e49c57b3cd6dd16843d6cd3dcc1f67e54",
+      "kinds": {
+        "innerHTML": 3
+      }
+    },
+    "js/light-tool-flicker-detector.js": {
+      "count": 4,
+      "digest": "896a2f09f1ca268d21e394ca39a71a080ec911e13afbf97af8145babd7974961",
+      "kinds": {
+        "innerHTML": 4
+      }
+    },
+    "js/light-tool-glass-transmission.js": {
+      "count": 2,
+      "digest": "00c6169902792e9a907327d123d694b6b3c3c98c7c87fc1f77f6f35450ad6a8c",
+      "kinds": {
+        "innerHTML": 2
+      }
+    },
+    "js/light-tool-lux-meter.js": {
+      "count": 4,
+      "digest": "ea2cb2d16a8a72610df8c4bf211c590d35488cebff1059fb9682cbe63f9c8be1",
+      "kinds": {
+        "innerHTML": 4
+      }
+    },
+    "js/light-tool-spectrum-classifier.js": {
+      "count": 4,
+      "digest": "54d3d59429810ab3480d2900839ad6619f49ab05b9f21cf58e7717e446e2cb65",
+      "kinds": {
+        "innerHTML": 4
+      }
+    },
+    "js/light-tools.js": {
+      "count": 5,
+      "digest": "95bfc44e0f8a40d7f9d9826b1e77c370da89158743d7acd30b9b90eea82bd343",
+      "kinds": {
+        "innerHTML": 5
+      }
+    },
+    "js/marker-detail-custom-markers.js": {
+      "count": 1,
+      "digest": "9f1887a44f5ae12965e6dd47780dccc1f7ac7d6f4a0096a24acf07a040b24c5b",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/marker-detail-editing.js": {
+      "count": 1,
+      "digest": "3fcb2291d02b9658d9e7d454f0c90f3164ac5010a170042bea0cb0129e796da8",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/marker-detail-manual-entry.js": {
+      "count": 1,
+      "digest": "6d9e5ef09a435ca28906959416cfea0e1b6bf0942a99d861385e0065ae394458",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/marker-detail-modal-impl.js": {
+      "count": 2,
+      "digest": "d88636cd2ac69cac416bb95edc801fe475c8d13768a5b110567a629598f4d2f2",
+      "kinds": {
+        "innerHTML": 2
+      }
+    },
+    "js/marker-detail-placement.js": {
+      "count": 1,
+      "digest": "d421401b9f2cbbd297a59d92f463bfa465d8b76e542336bb5e9dd5be6536073e",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/mobile-dashboard.js": {
+      "count": 3,
+      "digest": "d05f00a617203a375c570037d0cafdec3bba56df63d5d7875db951efb4b0f1d6",
+      "kinds": {
+        "innerHTML": 1,
+        "insertAdjacentHTML": 1,
+        "outerHTML": 1
+      }
+    },
+    "js/nav.js": {
+      "count": 2,
+      "digest": "35fea5656c15aa800188f229dff1c34f532391dfaed62c2f2fc5bba755b20606",
+      "kinds": {
+        "innerHTML": 2
+      }
+    },
+    "js/notes.js": {
+      "count": 1,
+      "digest": "7409bbb55bf33978b82dcb2737e63cf8b7b6c2b136f853cea72060ed68f9816e",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/nutrition-benchmark-workspace.js": {
+      "count": 2,
+      "digest": "ef3e69e07348e59f891c7f4f56567b3c8b56b22e77753d373d8d0b0492a44add",
+      "kinds": {
+        "innerHTML": 2
+      }
+    },
+    "js/nutrition-comparison-results.js": {
+      "count": 1,
+      "digest": "a9a22920507fd7286db0f422d331dfe4bab57c4ed4f475ce1ebb2ef3fd07705e",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/nutrition-comparison-ui.js": {
+      "count": 6,
+      "digest": "3c1a997b3275f0d7c3b257a0db2453cd142527faf1b5c3b0baba21f53091a139",
+      "kinds": {
+        "innerHTML": 5,
+        "outerHTML": 1
+      }
+    },
+    "js/nutrition-editor-navigation.js": {
+      "count": 2,
+      "digest": "b63b4d490456cb1acca63435e38829006055f0b6a9ddfbb218c71efa44010ace",
+      "kinds": {
+        "innerHTML": 2
+      }
+    },
+    "js/nutrition-render.js": {
+      "count": 1,
+      "digest": "8e1068f66f09f642b2af999c1d8736c0992e1ac9d3a670177b8e95ad31f61ed8",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/nutrition-review-ui.js": {
+      "count": 9,
+      "digest": "b1460cab35b7e7162e0026b34d246fe015a7da0874b2f0bb01cba8624774d27d",
+      "kinds": {
+        "innerHTML": 9
+      }
+    },
+    "js/nutrition-widget-runtime.js": {
+      "count": 2,
+      "digest": "420cadc456437cddbeb3a5d3a14281a3dbfc65a4754c7f86aa82553d0b30f149",
+      "kinds": {
+        "innerHTML": 2
+      }
+    },
+    "js/nutrition.js": {
+      "count": 4,
+      "digest": "74a51ff2b86c7078fe1c0ac01862d55a42de73091fc6490d21db199fbd43aec4",
+      "kinds": {
+        "innerHTML": 3,
+        "outerHTML": 1
+      }
+    },
+    "js/pdf-import-file-handlers.js": {
+      "count": 1,
+      "digest": "f0f14323711d144f54df81a1ce223782ed12b8aace1197bf6567d00d4260af66",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/pdf-import-preflight.js": {
+      "count": 3,
+      "digest": "964a65cd3f69fa0f393f10389949896c300f7d52d1a929f8c3a9bdf432508e4f",
+      "kinds": {
+        "innerHTML": 3
+      }
+    },
+    "js/pdf-import-progress.js": {
+      "count": 4,
+      "digest": "e29b355433d0782731815bf7091c2a285ad4059f7fc4f1b1c054a3c87cdcd84a",
+      "kinds": {
+        "innerHTML": 4
+      }
+    },
+    "js/pdf-import-review.js": {
+      "count": 13,
+      "digest": "f489e89a19b92df3ee5588f5120de7a5440e7b1b122caffe74f0bd698f7653a7",
+      "kinds": {
+        "innerHTML": 13
+      }
+    },
+    "js/pii-review.js": {
+      "count": 5,
+      "digest": "336c2b10fb9ac6115cf2f8a29128c728551fde6fdc335a860b3921d09628fd44",
+      "kinds": {
+        "innerHTML": 5
+      }
+    },
+    "js/profile-share.js": {
+      "count": 3,
+      "digest": "f639d948d4b2c6810420e45a8897ae2f385739684456c130d0e69e975e28b188",
+      "kinds": {
+        "innerHTML": 1,
+        "outerHTML": 2
+      }
+    },
+    "js/provider-panels.js": {
+      "count": 2,
+      "digest": "f8a6d29c2daaf04f4c4b9548937b58174d08fce0ca1e7262776f3056116815fd",
+      "kinds": {
+        "innerHTML": 2
+      }
+    },
+    "js/provider-wallet-panels.js": {
+      "count": 1,
+      "digest": "5a8807a2623ea0ebee9b009078420e625d9356228805bef46ad344c5f46283ab",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/recommendation-actions.js": {
+      "count": 3,
+      "digest": "0f8f64683f7c2542bf40df307d015b4ab448c33cf436f93d0841419e559ec3b1",
+      "kinds": {
+        "innerHTML": 3
+      }
+    },
+    "js/service-worker-update.js": {
+      "count": 3,
+      "digest": "6adae1f2825595ac12b6c4333c76046d8c0c52a0c99a91b57186fbf7dabb7c65",
+      "kinds": {
+        "innerHTML": 3
+      }
+    },
+    "js/settings-provider-bridge.js": {
+      "count": 4,
+      "digest": "d3ee35699cb044e0b84059fb7dccd128beeee1cf9841c845e914550ffb849cc8",
+      "kinds": {
+        "innerHTML": 4
+      }
+    },
+    "js/settings-sync-panel.js": {
+      "count": 2,
+      "digest": "5cac7d5517fd9b9dab0e4c68df5b2c622ed8f4b928c4e9ea40297999588d2aca",
+      "kinds": {
+        "innerHTML": 2
+      }
+    },
+    "js/settings-tweaks.js": {
+      "count": 1,
+      "digest": "32b069d68b1fdc3b2839fef044d14f39c3b9266046c27e30d17d4378e50571bd",
+      "kinds": {
+        "insertAdjacentHTML": 1
+      }
+    },
+    "js/sun-active-session.js": {
+      "count": 10,
+      "digest": "891fd47aad070d1bd59c1d54f2056d7ee093dec4a9883ced6fbc775f2ae9fbf4",
+      "kinds": {
+        "innerHTML": 7,
+        "insertAdjacentHTML": 2,
+        "outerHTML": 1
+      }
+    },
+    "js/sun-body-silhouette.js": {
+      "count": 1,
+      "digest": "fdff6e025e6bcd41f1af644a09b90a499f30e6d0ebb35c9e44a6d0d82d7001b1",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/sun-defaults-setup-ui.js": {
+      "count": 3,
+      "digest": "353c73ba1f8195834f96a584019a2a882b8bca6947179c1831148eb305232716",
+      "kinds": {
+        "innerHTML": 2,
+        "outerHTML": 1
+      }
+    },
+    "js/sun-session-ui.js": {
+      "count": 2,
+      "digest": "967822504dbfe503465890e2f58dfc72879afc5be543ef6ed5a8ad5c90adcf96",
+      "kinds": {
+        "innerHTML": 2
+      }
+    },
+    "js/sun.js": {
+      "count": 1,
+      "digest": "4ffdfd1bb6a4c1b6c50f4aad8da18397847f8551fc8869423fbf9ea3f8552225",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/supplement-dashboard.js": {
+      "count": 1,
+      "digest": "dfa48a391deb467dffb86c7c9e9644d518f7e8c6208b0cd9a173da2223492707",
+      "kinds": {
+        "outerHTML": 1
+      }
+    },
+    "js/supplement-form-ui.js": {
+      "count": 3,
+      "digest": "9ea0949de4fd036a1a8e6582ebf6c31ff59dd8f0b748b9b6521ed1ed82b602e4",
+      "kinds": {
+        "insertAdjacentHTML": 3
+      }
+    },
+    "js/supplement-import-controller.js": {
+      "count": 4,
+      "digest": "836d0b8c2f5d19103da7ddc3cd127fa03a4638d09170e4c552ae508d70268b5e",
+      "kinds": {
+        "innerHTML": 2,
+        "insertAdjacentHTML": 2
+      }
+    },
+    "js/supplements.js": {
+      "count": 7,
+      "digest": "32270f6765dceee686373b7a0a898e02a5b2aa3882001542bf3c52b18c737763",
+      "kinds": {
+        "innerHTML": 4,
+        "insertAdjacentHTML": 1,
+        "outerHTML": 2
+      }
+    },
+    "js/sync-diagnose-identity-actions.js": {
+      "count": 1,
+      "digest": "a3c2cb597d08881d2d8dd5fe4d1a41d2025033a7351832b26d3971aaabe38ce7",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/sync-diagnose-ui-impl.js": {
+      "count": 1,
+      "digest": "a5e9889e931af9eb2d0517f3f5c03ba5e4b101cf611d3d51b982ace7c5f6d90c",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/sync-ui.js": {
+      "count": 3,
+      "digest": "9de52238b916cf55a9b8b59138a78c14bfa119172534a5addc6a98422cac58a2",
+      "kinds": {
+        "innerHTML": 3
+      }
+    },
+    "js/therapy-correlation-view.js": {
+      "count": 5,
+      "digest": "33804c6d878985a2c8232a85965bd58aedd692201eb8d3d1433f4c53023b0a4c",
+      "kinds": {
+        "innerHTML": 5
+      }
+    },
+    "js/tour.js": {
+      "count": 1,
+      "digest": "1ea7dfa9037e33ba7cfbf2b68ae816e794a577650a8ea6c3fc66f69e93f0315f",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/utils.js": {
+      "count": 3,
+      "digest": "d1aab7b4cce5c0d46c825e62d666c5f0bf660490e6284887dac60ec11ff6f665",
+      "kinds": {
+        "innerHTML": 3
+      }
+    },
+    "js/wearables-detail-modal.js": {
+      "count": 1,
+      "digest": "cf4f5cdb346521c43a3e0656c5cf86cface921e4b4e8657f6eb6c26a29aca08a",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/wearables-manual-detail.js": {
+      "count": 4,
+      "digest": "bbbea78d79482960826cebb9879839ca675f2a49f331227138499977e4d0a189",
+      "kinds": {
+        "innerHTML": 4
+      }
+    },
+    "js/wearables-settings-groups.js": {
+      "count": 1,
+      "digest": "0a18889ba4f041dfe1cb2872e68674a558935bc316ec8152c1f2b6e986eaae55",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
+    "js/wearables-strip-actions.js": {
+      "count": 4,
+      "digest": "0b7994c2f2bef3f2c62927fcb76440fde93d84a9d7a0b753ccbc1bf5d18a5d1e",
+      "kinds": {
+        "innerHTML": 4
+      }
+    }
+  }
+}

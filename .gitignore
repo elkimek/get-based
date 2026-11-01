@@ -4094,3 +4094,5 @@ tests/pwa/sveltekit-island-ownership.spec.js.map
 /tests/helpers/chat-native-management.js
 
 /tests/helpers/retired-health-record-actions.js
+
+/tests/sync-chat-rebase.test.js

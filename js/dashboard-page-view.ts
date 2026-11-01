@@ -235,3 +235,102 @@ export function createDashboardPageView(deps: unknown) {
       // welcome hero. Mobile keeps the welcome/import controls unobscured.
       const isDesktopChatOnboardingViewport = (getDashboardPageRuntimeValue('innerWidth') as number) > 768;
       if (!shouldAutoStartEmptyTour && state.chatHistory.length === 0) {
+        const profile = state.currentProfile, onboardingData = state.importedData;
+        const ownsReservation = () => generation === onboardingGeneration && state.currentProfile === profile && state.importedData === onboardingData
+          && main.isConnected && document.getElementById('main-content') === main;
+        const releaseReservation = () => { if (ownsReservation()) document.body.classList.remove('chat-autostart-reserved'); };
+        const hasForegroundOverlay = () => !!document.querySelector('.modal-overlay.show,.confirm-overlay.show,#sync-popover');
+        const canOpen = () => ownsReservation() && document.body.classList.contains('chat-autostart-reserved')
+          && (getDashboardPageRuntimeValue('innerWidth') as number) > 768 && !hasForegroundOverlay();
+        if (isDesktopChatOnboardingViewport && !hasForegroundOverlay() && !document.getElementById('chat-panel')?.classList.contains('open')) {
+          document.body.classList.add('chat-autostart-reserved');
+        }
+        setTimeout(() => {
+          if (!ownsReservation()) return;
+          if (!isDesktopChatOnboardingViewport || (getDashboardPageRuntimeValue('innerWidth') as number) <= 768) { releaseReservation(); return; }
+          // Rendering real data or an explicit chat close removes this
+          // reservation. Treat that as cancellation so a stale onboarding
+          // timer cannot reopen chat after the user has dismissed it.
+          if (!document.body.classList.contains('chat-autostart-reserved')) return;
+          const panel = document.getElementById('chat-panel');
+          if (state.chatHistory.length > 0 || panel?.classList.contains('open')) {
+            document.body.classList.remove('chat-autostart-reserved');
+            return;
+          }
+          if (!canOpen()) { releaseReservation(); return; }
+          // This optional background load may fail if the origin disappears
+          // before the worker controls its in-flight imports. Keep Welcome
+          // usable and never let an old request clear a newer reservation.
+          try {
+            const opened = (dashboardPageRuntimeDeps.openChatPanel as ((message: undefined, options: {canOpen: () => boolean}) => unknown) | null)?.(undefined, {canOpen});
+            void Promise.resolve(opened).then(releaseReservation, releaseReservation);
+          } catch { releaseReservation(); }
+        }, 800);
+      }
+      return;
+    }
+
+    if (isMobileDashboardViewport()) {
+      return (renderMobileDashboard as (data: unknown, options: Parameters<typeof renderMobileDashboard>[1]) => ReturnType<typeof renderMobileDashboard>)(data, { resetScroll: !wasMobileDashboardActive });
+    }
+
+    const request = beginDashboardRenderRequest(main, isMobileDashboardViewport);
+    const render = ({renderDesktopDashboardPage, hydrateDesktopDashboardPage}: NonNullable<ReturnType<typeof getLoadedDesktopDashboardRenderer>>) => {
+      // ── Has data: full dashboard, rendered through modular widgets ──
+      const dashboardCtx = buildDashboardWidgetContext(data) as DashboardPageContext;
+      const dashboardTitle = 'Dashboard Overview';
+      const view = projectDashboardPage(dashboardCtx, dashboardTitle);
+      const html = renderDesktopDashboardPage(view);
+      if (!request.isCurrent()) return false;
+      disposeDashboardPage();
+      main.innerHTML = html;
+      hydrateDesktopDashboardPage(main, view);
+      if (!request.isCurrent()) return false;
+
+      setupDropZone();
+      if (!request.isCurrent()) return false;
+      void import('./dashboard-widget-packing.js')
+        .then(module => { if (request.isCurrent()) module.setupDashboardWidgetPacking(main); })
+        .catch(() => { /* Keep the standard grid if optional packing cannot load. */ });
+
+      // Non-blocking: hydrate cached focus text for LCP, but don't replace stale
+      // cached text with a fresh AI response during startup.
+      if (hasData) loadFocusCard({ refreshStale: false });
+      if (!request.isCurrent()) return false;
+      loadContextHealthDots();
+      loadContextCardTips();
+      if (!request.isCurrent()) return false;
+      loadCommitHash();
+      if (!request.isCurrent()) return false;
+      // Preload catalog so rec sections and sorting use it immediately
+      const catalogPromise = (getRecommendationModuleFunction('loadCatalog') as (() => unknown) | null | undefined)?.();
+      if (catalogPromise && typeof (catalogPromise as {then?: unknown}).then === 'function') {
+        (catalogPromise as {then(callback: typeof setRecommendationsCatalogCache): unknown}).then(catalog => request.isCurrent() ? setRecommendationsCatalogCache(catalog) : null);
+      }
+
+      // Auto-trigger guided tour on first populated dashboard visit as a fallback
+      // for users who imported before seeing the empty-state tour.
+      const _p = getProfiles().find(p => p.id === state.currentProfile);
+      const _hasProfile = _p?.name && _p.name !== 'Default' && state.profileSex;
+      if (_hasProfile && hasData && request.mayRunFocusEffects()) {
+        startTour(true);
+      }
+      return;
+    };
+    const loaded = getLoadedDesktopDashboardRenderer();
+    if (loaded) return render(loaded);
+    showDashboardRendererLoading(main);
+    return loadDesktopDashboardRenderer().then(renderer => {
+      if (!request.isCurrent()) return false;
+      return render(renderer);
+    }).catch(error => {
+      console.error('Failed to load Desktop Dashboard renderer', error);
+      if (request.isCurrent()) showDashboardRendererFailure(main, () => request.isCurrent() ? showDashboard(data) : false);
+      return false;
+    });
+  }
+
+  return {
+    showDashboard,
+  };
+}

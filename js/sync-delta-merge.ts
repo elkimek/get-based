@@ -109,3 +109,29 @@ export async function _mergeItemRowsIntoImported<Data extends DeltaImportedData>
   if (snpHistory) await mergeMapRowsIntoImported(imported, 'geneticsSnpTombstones', snpHistory);
   for (const [arrayName, arrRows] of byArray) {
     if (arrayName === 'geneticsSnpTombstones' || arrayName === 'geneticsLifecycle') continue;
+    if (_DELTA_SCALARS_SET.has(arrayName!) || arrayName === PROFILE_METADATA_SURFACE) continue;
+    if (_DELTA_MAPS_SET.has(arrayName!)) {
+      await mergeMapRowsIntoImported(imported, arrayName!, arrRows);
+      continue;
+    }
+    const baselineItems = options.baselineImported
+      ? getAt(options.baselineImported, arrayName)
+      : null;
+    await mergeArrayRowsIntoImported(imported, arrayName!, arrRows, {
+      baselineItems: Array.isArray(baselineItems) ? baselineItems : [],
+      baselineSyncedAt: options.baselineSyncedAt,
+    });
+  }
+  for (const field of DELTA_SCALARS) {
+    const baselineValue = getAt(options.baselineImported, field);
+    await mergeScalarRowsIntoImported(imported, field, byArray.get(field) || [], {
+      hasBaseline: baselineValue !== undefined,
+      baselineSyncedAt: options.scalarClocks ? options.scalarClocks[field] || 0 : options.baselineSyncedAt,
+      clockedBaseline: options.scalarClocks !== undefined, baselineValue,
+      profileId: typeof profileId === 'string' ? profileId : undefined,
+      localValue: getAt(options.localImported, field), hasLocal: !!options.localImported,
+      onVersion: version => {if (options.scalarVersions) options.scalarVersions[field] = version;},
+    });
+  }
+  reconcileGeneticsSnpState(imported); return imported;
+}

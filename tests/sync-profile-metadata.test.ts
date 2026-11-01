@@ -15,14 +15,15 @@ const previousProfiles = state.profiles;
 let previousDeps: ReturnType<typeof configureProfileDeps>;
 beforeEach(() => {
   state.profiles = [{id, name: 'A', tags: [], _syncMetadataAt: 200, lastUpdated: 1}];
-  previousDeps = configureProfileDeps({encryptedSetItem: async () => {}});
+  localStorage.setItem('labcharts-profiles', JSON.stringify(state.profiles));
+  previousDeps = configureProfileDeps({encryptedGetItem: async key => localStorage.getItem(key), encryptedSetItem: async (key, value) => {localStorage.setItem(key, value);}});
   vi.spyOn(Date, 'now').mockReturnValue(100);
 });
 afterEach(() => {
   configureProfileDeps(previousDeps); state.profiles = previousProfiles;
   configureSyncDelta({getEvolu: () => null, getItemRowQuery: () => null});
   configureSyncPush({getEvolu: () => null, isSyncEnabled: () => false});
-  clearLocalSyncCommits(); localStorage.removeItem(`labcharts-${id}-sync-dirty`); vi.restoreAllMocks();
+  clearLocalSyncCommits(); localStorage.removeItem('labcharts-profiles'); localStorage.removeItem(`labcharts-${id}-sync-dirty`); vi.restoreAllMocks();
 });
 it('stamps actual metadata edits monotonically while ordinary profile activity keeps the edit clock', async () => {
   await updateProfileMeta(id, {name: 'Renamed', tags: ['new']});

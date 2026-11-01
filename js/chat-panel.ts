@@ -7,7 +7,6 @@ import { closePersonalityPickerView } from './chat-personality-picker-view.js';
 
 import { isAIPaused } from './api.js';
 import { readAssistantPreferences, commitAssistantPreferences } from './assistant-preferences.js';
-import { state } from './state.js';
 import { isProfileChatReady } from './profile-chat-state.js';
 import {
   loadChatThreads, ensureActiveThread, renderThreadList, restoreRailState, isChatThreadIndexBlocked,
@@ -327,7 +326,6 @@ export async function openChatPanel(prefillMessage?: Parameters<typeof setChatIn
   if (!liveSessionInProgress) {
     threadsLoaded = await loadChatThreads();
     if (!isCurrent()) return cancelOpening();
-    chatThreadInputBlocked = threadsLoaded === false;
     if (threadsLoaded !== false) ensureActiveThread();
   }
   restoreRailState();

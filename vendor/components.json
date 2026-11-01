@@ -280,6 +280,7 @@
     "vendor/ppq-private-tee.js",
     "vendor/ppq-private-tee.ts",
     "vendor/routstr-crypto.d.ts",
+    "vendor/sha256.d.ts",
     "vendor/tinfoil-browser.d.ts",
     "vendor/venice-dcap.d.ts",
     "vendor/venice-e2ee.d.ts",

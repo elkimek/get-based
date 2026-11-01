@@ -345,6 +345,8 @@ restores unconfirmed writes and retains committed changes, without overwriting
 newer replacements. Persona loaders, sync collection, full backups and encryption
 migrations resolve recovery before reading or transforming the pair. Sync, JSON
 export and full-backup collection hold the same native lock across their persona snapshot.
+`backup-chat-storage.ts` collects raw conversation envelopes and the committed
+persona pair; `backup.ts` retains recovery and collection sequencing.
 Journal transitions and cleanup use a conditional IndexedDB transaction so a
 replaced recovery owner cannot be overwritten between a read and its write.
 Profile cleanup removes the journal backend and its local fence. An unproved recovery

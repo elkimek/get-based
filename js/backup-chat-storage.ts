@@ -1,4 +1,6 @@
 // backup-chat-storage.js - collect raw chat envelopes for full backup snapshots.
+import {profileStorageKey} from './profile-storage-key.js';
+import {withCommittedPersonaStorage} from './persona-storage-transaction.js';
 
 export interface RawChatBackup {
   profileId: string;
@@ -7,6 +9,15 @@ export interface RawChatBackup {
 export interface RawChatBackupDependencies {
   encryptedGetItem(key: string): Promise<string | null>;
   readRawStoredItem(key: string): Promise<string | null>;
+}
+
+export async function collectRawPersonaBackup(profileBackup: RawChatBackup): Promise<void> {
+  await withCommittedPersonaStorage(profileBackup.profileId, () => {
+    for (const suffix of ['chatPersonalityCustom', 'chatPersonalityDeleted']) {
+      const raw = localStorage.getItem(profileStorageKey(profileBackup.profileId, suffix));
+      if (raw === null) delete profileBackup.keys[suffix]; else profileBackup.keys[suffix] = raw;
+    }
+  });
 }
 
 export async function collectRawChatBackup(profileBackup: RawChatBackup, deps: RawChatBackupDependencies): Promise<void> {

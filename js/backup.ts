@@ -6,8 +6,8 @@ import { profileStorageKey } from './profile-storage-key.js';
 import { getBlob, setBlob, shouldUseBlob } from './blob-storage.js';
 import { parseBackupSnapshot, serializeBackupSnapshot } from './backup-serialization.js';
 import { LENS_CONFIG_STORAGE_KEY, replaceLensConfigRaw } from './lens-config-store.js';
-import { collectRawChatBackup } from './backup-chat-storage.js';
-import { personaJournalFence, recoverAllPersonaStorage, withCommittedPersonaStorage } from './persona-storage-transaction.js';
+import { collectRawChatBackup, collectRawPersonaBackup } from './backup-chat-storage.js';
+import { personaJournalFence, recoverAllPersonaStorage } from './persona-storage-transaction.js';
 import { prepareRestoredProfilesForSync } from './sync-backup-restore-state.js';
 import { getDailyRangeRaw, upsertDailyBatchRaw } from './wearables-store.js';
 import { VOICE_BACKUP_KEYS } from './voice-settings-schema.js';
@@ -363,12 +363,7 @@ export async function buildFullBackupSnapshot() {
       if (rawImported != null) p.keys.imported = rawImported;
     }
     await collectRawChatBackup(p, { encryptedGetItem: getBackupRuntimeDeps().encryptedGetItem, readRawStoredItem });
-    await withCommittedPersonaStorage(p.profileId, () => {
-      for (const suffix of ['chatPersonalityCustom', 'chatPersonalityDeleted']) {
-        const raw = localStorage.getItem(profileStorageKey(p.profileId, suffix));
-        if (raw === null) delete p.keys[suffix]; else p.keys[suffix] = raw;
-      }
-    });
+    await collectRawPersonaBackup(p);
   }
   const profileIds = (snap.profiles || []).map(p => p.profileId);
   snap.wearableIDB = await collectWearableIDB(profileIds);
