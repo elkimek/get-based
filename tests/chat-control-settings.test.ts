@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { CHAT_CONTROLS_KEY, captureChatControlAuthorization, isChatControlEnabled, setChatControlsEnabled } from '../js/chat-control-settings.js';
+import { CHAT_CONTROLS_KEY, CHAT_CONTROLS_NOTICE, captureChatControlAuthorization, isChatControlEnabled, setChatControlsEnabled } from '../js/chat-control-settings.js';
 import { createAgentToolRuntime } from '../js/agent-tool-runtime.js';
 import { normalizeChatRecordId } from '../js/chat-storage-safety.js';
 beforeEach(() => localStorage.removeItem(CHAT_CONTROLS_KEY));
@@ -32,7 +32,7 @@ it('expires old reviews across re-enabling and module reload without changing ot
 it.each(['', 'true', '1:bad', 'corrupt', '0:7a12f909-9a2a-41d0-a812-3662105bc1d9'])('fails closed for stored value %s', raw => {
   localStorage.setItem(CHAT_CONTROLS_KEY, raw);
   expect(isChatControlEnabled()).toBe(false); expect(captureChatControlAuthorization().current()).toBe(false);
-  expect(() => captureChatControlAuthorization().createId()).toThrow('Chat controls');
+  expect(() => captureChatControlAuthorization().createId()).toThrow(CHAT_CONTROLS_NOTICE);
 });
 it('does not change the setting for a retired view', async () => {
   await setChatControlsEnabled(false, () => false); expect(isChatControlEnabled()).toBe(true);

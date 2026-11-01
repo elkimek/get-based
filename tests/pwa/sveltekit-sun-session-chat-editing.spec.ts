@@ -8,7 +8,7 @@ import { installSunWeatherFixture } from '../helpers/sun-weather-fixture.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 import { installOfflineStartupDiagnostics } from '../helpers/offline-launch-diagnostics.js';
 import { readyLightArtifact as ready, openLightArtifact as openLight } from '../helpers/light-artifact-navigation.js';
-const owners = ['js/state.js', 'js/agent-data-bindings.js', 'js/agent-data-model.js', 'js/agent-data-apply.js', 'js/agent-draft-presentation.js',
+const owners = ['js/state.js', 'js/agent-data-bindings.js', 'js/agent-health-data-model.js', 'js/agent-data-apply.js', 'js/agent-draft-presentation.js',
   'js/sun-session-proposals.js', 'js/sun-session-commands.js', 'js/sun-session-records.js', 'js/sun-session-record-store.js', 'js/sun-session-mutations.js', 'js/sun-body-regions.js',
   'js/sun-session-model.js', 'js/sun-sessions-store.js', 'js/sun-active-session.js', 'js/sun.js', 'js/sun-session-ui.js', 'js/sun-setup-store.js',
   'js/sun-spectrum.js', 'js/sun-uvdata.js', 'js/sun-uvdata-atmosphere.js', 'js/light-session-presentation.js', 'js/light-session-detail-presentation.js',

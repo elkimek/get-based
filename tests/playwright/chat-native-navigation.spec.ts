@@ -8,6 +8,7 @@ const destinations: Array<{ request: Omit<AppNavigationRequest, 'marker'>; selec
   ...AGENT_CONTEXT_CARDS.map(card => ({ request: { view: 'contextEditor', card }, selector: '#modal-overlay.show #detail-modal', text: AGENT_CONTEXT_CARD_LABELS[card] })),
   { request: { view: 'category', category: 'biochemistry' }, selector: '#main-content', text: 'Biochemistry' },
   { request: { view: 'knowledgeBase' }, selector: '#kb-modal-overlay.show #kb-modal', text: 'Knowledge Base' },
+  { request: { view: 'nutritionHistory' }, selector: '#modal-overlay.show [data-nutrition-history-view]', text: 'Meals & Nutrition' },
   { request: { view: 'nutritionHistory', subview: 'meals' }, selector: '#modal-overlay.show [data-nutrition-history-view]', text: 'Meals & Nutrition' },
   { request: { view: 'nutritionHistory', subview: 'trends' }, selector: '#modal-overlay.show [data-nutrition-history-view]', text: 'Meals & Nutrition' },
   { request: { view: 'nutritionEditor' }, selector: '#modal-overlay.show #nutrition-meal-name' },
@@ -48,25 +49,26 @@ test.beforeEach(async ({ page }) => {
   await page.locator('html[data-app-ready]').waitFor();
 });
 
-for (const { request, selector, text } of destinations) test(`native chat navigation opens ${JSON.stringify(request)} without saving data`, async ({ page }) => {
+for (const { request, selector, text } of destinations) test(`chat navigation scope for ${JSON.stringify(request)} preserves saved data`, async ({ page }) => {
+  const nativeOnly = !!request.subview || ['aiSettings', 'displaySettings', 'voiceSettings', 'privacySettings', 'dataSettings', 'wearablesSettings', 'agentSettings', 'knowledgeBase', 'lightDevices'].includes(request.view);
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   const before = await page.evaluate(async () => { const { state } = await import('/js/state.js'); return { root: structuredClone(state.importedData), saved: await (await import('/js/crypto.js')).encryptedGetItem((await import('/js/profile.js')).profileStorageKey(state.currentProfile, 'imported')) }; });
   const result = await page.evaluate(async request => {
     const { state } = await import('/js/state.js'), runtime = (await import('/js/agent-tool-runtime.js')).createAgentToolRuntime({ readContext: () => '', ...(await import('/js/agent-tool-bindings.js')).createBrowserAgentToolDependencies(state.currentProfile) });
     return runtime.execute({ tool: 'getbased_navigate', arguments: request });
   }, request);
-  expect(result.success).toBe(true); expect(JSON.parse(result.contentItems[0]!.text)).toMatchObject({ changed: true, opened: request.view, dataSaved: false, settingsSaved: request.view === 'nutritionHistory' });
-  if (request.view === 'nutritionHistory') {
-    // The existing native history owner remembers its range/tab on open.
-    // The receipt must report those real preference writes, separately from health data.
-    expect(await page.evaluate(() => ({ range: localStorage.getItem('nutrition-history-range'), tab: localStorage.getItem('nutrition-history-view') }))).toEqual({ range: '30d', tab: request.subview });
+  expect(result.success).toBe(!nativeOnly);
+  expect(JSON.stringify(result)).not.toContain('PRIVATE_UNRELATED');
+  if (nativeOnly) await expect(page.locator(selector)).toHaveCount(0);
+  else {
+    expect(JSON.parse(result.contentItems[0]!.text)).toMatchObject({ changed: true, opened: request.view, dataSaved: false, settingsSaved: false });
+    await expect(page.locator(selector)).toBeVisible();
+    if (text) await expect(page.locator(selector)).toContainText(text);
+    if (request.view === 'nutritionEditor' && request.recordId) await expect(page.locator(selector)).toHaveValue('Stored meal fixture');
+    if (request.view === 'emfAssessment') await expect(page.locator('.emf-assessment-card.expanded [data-emf-action="toggle-assessment"][data-emf-assessment-id="emf-fixture"]')).toBeVisible();
   }
-  expect(JSON.stringify(result)).not.toContain('PRIVATE_UNRELATED'); await expect(page.locator(selector)).toBeVisible();
-  if (text) await expect(page.locator(selector)).toContainText(text);
-  if (request.view === 'nutritionEditor' && request.recordId) await expect(page.locator(selector)).toHaveValue('Stored meal fixture');
-  if (request.view === 'emfAssessment') await expect(page.locator('.emf-assessment-card.expanded [data-emf-action="toggle-assessment"][data-emf-assessment-id="emf-fixture"]')).toBeVisible();
   expect(await page.evaluate(async () => structuredClone((await import('/js/state.js')).state.importedData))).toEqual(before.root);
-  await page.reload();
+  await page.reload(); await page.locator('html[data-app-ready]').waitFor();
   expect(await page.evaluate(async () => { const { state } = await import('/js/state.js'); return await (await import('/js/crypto.js')).encryptedGetItem((await import('/js/profile.js')).profileStorageKey(state.currentProfile, 'imported')); })).toBe(before.saved);
   expect(errors).toEqual([]);
 });
@@ -75,8 +77,14 @@ test('navigation preserves an existing native goal draft and refuses main-route 
   await page.evaluate(async () => { await (await import('/js/agent-tool-bindings.js')).navigateFromAgent({ view: 'contextEditor', card: 'healthGoals', marker: '' }); });
   await page.locator('#goal-text-input').fill('Unsaved native goal');
   for (const view of ['aiSettings', 'knowledgeBase', 'nutritionEditor', 'dashboard']) {
-    const result = await page.evaluate(async view => (await import('/js/agent-tool-bindings.js')).navigateFromAgent({ view, marker: '' }), view);
-    expect(result.changed).toBe(false); await expect(page.locator('#goal-text-input')).toHaveValue('Unsaved native goal');
+    const result = await page.evaluate(async view => {
+      const {state} = await import('/js/state.js');
+      const runtime = (await import('/js/agent-tool-runtime.js')).createAgentToolRuntime({readContext: () => '', ...(await import('/js/agent-tool-bindings.js')).createBrowserAgentToolDependencies(state.currentProfile)});
+      return runtime.execute({tool: 'getbased_navigate', arguments: {view}});
+    }, view);
+    if (view === 'nutritionEditor') { expect(result.success).toBe(true); expect(JSON.parse(result.contentItems[0].text).changed).toBe(false); }
+    else expect(result.success).toBe(false);
+    await expect(page.locator('#goal-text-input')).toHaveValue('Unsaved native goal');
   }
 });
 
@@ -104,7 +112,8 @@ for (const view of ['nutritionEditor', 'lightDevice', 'sunSession', 'deviceSessi
   expect(await page.evaluate(async () => structuredClone((await import('/js/state.js')).state.importedData))).toEqual(before);
 });
 
-for (const protocol of ['native', 'structured'] as const) for (const request of [{ view: 'contextEditor', card: 'healthGoals' }, { view: 'voiceSettings' }]) test(`${protocol} chat opens ${request.view} through the real tool loop and reports opening separately from saving`, async ({ page }) => {
+for (const protocol of ['native', 'structured'] as const) for (const request of [{ view: 'contextEditor', card: 'healthGoals' }, { view: 'voiceSettings' }]) test(`${protocol} chat handles ${request.view} through the real tool loop without saving data`, async ({ page }) => {
+  const nativeOnly = request.view === 'voiceSettings', reply = nativeOnly ? 'Use the native Voice settings. No data was saved.' : 'Opened the requested view. No data was saved.';
   let round = 0; const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await page.route('https://navigation-provider.example/v1/models', route => route.fulfill({ json: { data: [{ id: 'navigation-model' }] } }));
   await page.route('https://navigation-provider.example/v1/chat/completions', async route => {
@@ -114,11 +123,12 @@ for (const protocol of ['native', 'structured'] as const) for (const request of 
     if (round === 0) call = { id: 'open-requested-view', type: 'function', function: { name: 'getbased_navigate', arguments: JSON.stringify(request) } };
     else {
       const text = body.messages.at(-1).content, feedback = protocol === 'native' ? JSON.parse(text) : JSON.parse(text.slice(text.indexOf('{"id":'))).output;
-      expect(feedback.success).toBe(true); expect(JSON.parse(feedback.contentItems[0].text)).toMatchObject({ changed: true, opened: request.view, dataSaved: false, settingsSaved: false });
+      expect(feedback.success).toBe(!nativeOnly);
+      if (!nativeOnly) expect(JSON.parse(feedback.contentItems[0].text)).toMatchObject({ changed: true, opened: request.view, dataSaved: false, settingsSaved: false });
     }
     round++;
-    if (protocol === 'structured') await route.fulfill({ json: { choices: [{ message: { content: JSON.stringify({ reply: call ? '' : 'Opened the requested view. No data was saved.', calls: call ? [{ id: call.id, name: call.function.name, arguments: call.function.arguments }] : [] }) }, finish_reason: 'stop' }] } });
-    else await route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: 'Opened the requested view. No data was saved.' }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` });
+    if (protocol === 'structured') await route.fulfill({ json: { choices: [{ message: { content: JSON.stringify({ reply: call ? '' : reply, calls: call ? [{ id: call.id, name: call.function.name, arguments: call.function.arguments }] : [] }) }, finish_reason: 'stop' }] } });
+    else await route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: reply }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` });
   });
   const baseline = await page.evaluate(async () => {
     const api = await import('/js/api.js'); await api.saveCustomApiConnection('https://navigation-provider.example/v1', 'SYNTHETIC_NAVIGATION_KEY'); api.setCustomApiModel('navigation-model'); api.setAIProvider('custom'); api.setAIPaused(false);
@@ -130,10 +140,11 @@ for (const protocol of ['native', 'structured'] as const) for (const request of 
     const { state } = await import('/js/state.js'); return await (await import('/js/crypto.js')).encryptedGetItem((await import('/js/profile.js')).profileStorageKey(state.currentProfile, 'imported'));
   });
   await page.locator('#chat-input').fill(request.view === 'voiceSettings' ? 'Open Voice settings.' : 'Open my Health Goals editor.'); await page.locator('#chat-send-btn').click();
-  await expect(page.locator('#chat-messages')).toContainText('Opened the requested view. No data was saved.');
-  await expect(page.locator(request.view === 'voiceSettings' ? '#settings-modal-overlay.show #settings-tab-voice.active' : '#modal-overlay.show #goal-text-input')).toBeVisible();
+  await expect(page.locator('#chat-messages')).toContainText(reply);
+  if (nativeOnly) await expect(page.locator('#settings-modal-overlay.show')).toHaveCount(0);
+  else await expect(page.locator('#modal-overlay.show #goal-text-input')).toBeVisible();
   await expect(page.locator('.chat-app-control,.chat-proposal')).toHaveCount(0);
-  await page.reload(); expect(await page.evaluate(async () => { const { state } = await import('/js/state.js'); return await (await import('/js/crypto.js')).encryptedGetItem((await import('/js/profile.js')).profileStorageKey(state.currentProfile, 'imported')); })).toBe(baseline);
+  await page.reload(); await page.locator('html[data-app-ready]').waitFor(); expect(await page.evaluate(async () => { const { state } = await import('/js/state.js'); return await (await import('/js/crypto.js')).encryptedGetItem((await import('/js/profile.js')).profileStorageKey(state.currentProfile, 'imported')); })).toBe(baseline);
   expect(round).toBe(2); expect(errors).toEqual([]);
 });
 
@@ -143,6 +154,19 @@ for (const target of [
   { request: { view: 'nutritionEditor' }, asset: '**/js/nutrition.js' },
   { request: { view: 'wearablesSettings' }, asset: '**/css/wearables.css' },
 ]) test(`a late native ${target.request.view} load cannot open in a different conversation`, async ({ page }) => {
+  if (['knowledgeBase', 'wearablesSettings'].includes(target.request.view)) {
+    let loads = 0; await page.route(target.asset, route => {loads++; return route.continue();});
+    const before = await page.evaluate(async () => JSON.stringify((await import('/js/state.js')).state.importedData));
+    const result = await page.evaluate(async request => {
+      const {state} = await import('/js/state.js');
+      const runtime = (await import('/js/agent-tool-runtime.js')).createAgentToolRuntime({readContext: () => '', ...(await import('/js/agent-tool-bindings.js')).createBrowserAgentToolDependencies(state.currentProfile)});
+      return runtime.execute({tool: 'getbased_navigate', arguments: request});
+    }, target.request);
+    expect(result.success).toBe(false); expect(loads).toBe(0);
+    await expect(page.locator('.modal-overlay.show')).toHaveCount(0);
+    expect(await page.evaluate(async () => JSON.stringify((await import('/js/state.js')).state.importedData))).toBe(before);
+    return;
+  }
   let release!: () => void, reached!: () => void; const blocked = new Promise<void>(resolve => { release = resolve; }), started = new Promise<void>(resolve => { reached = resolve; });
   await page.route(target.asset, async route => { reached(); await blocked; await route.continue(); });
   await page.evaluate(request => { void import('/js/agent-tool-bindings.js').then(async tools => { const result = await tools.navigateFromAgent({ ...request, marker: '' }); (globalThis as typeof globalThis & { lateNativeOpen?: unknown }).lateNativeOpen = result; }); }, target.request);

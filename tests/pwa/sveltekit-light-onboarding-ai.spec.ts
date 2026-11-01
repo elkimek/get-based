@@ -10,7 +10,7 @@ import { readComparisonAcceptanceProfile } from '../helpers/nutrition-comparison
 import { installOfflineStartupDiagnostics } from '../helpers/offline-launch-diagnostics.js';
 import { readyLightArtifact as ready, openLightArtifact as openLight } from '../helpers/light-artifact-navigation.js';
 
-test('static authored onboarding AI first loads offline and preserves literal cached results through setup saves and two cold launches', async ({ page, context }) => {
+test('static authored onboarding AI renders literal cached results and invalidates current analysis after setup saves and two cold launches', async ({ page, context }) => {
   test.setTimeout(120000); await installOfflineStartupDiagnostics(context); await installDiscussionFixture(context);
   const analysis = { status: 'ok' as const, dot: 'yellow', tip: 'Keep daylight <literal>', detail: 'Context & timing', actions: ['Open curtains', '<img src=x onerror="danger()">', 'Dim lamps'], fingerprint: 'saved-setup-context', generatedAt: 1 };
   await context.addInitScript(seedLightPageFixture, { defaults: createDefaultProfileData(), sunDefaults: { fitzpatrick: 'II', completedAt: 1, homeLight: 'led-warm', aiAnalysis: analysis } });
@@ -37,16 +37,19 @@ test('static authored onboarding AI first loads offline and preserves literal ca
     await modal.locator('[data-choice-group=setup-homelight][data-value=incandescent]').click();
     await modal.getByRole('button', { name: 'Next: Light patterns', exact: true }).click();
     await modal.getByRole('button', { name: 'Save changes', exact: true }).click(); await expect(modal).toHaveCount(0);
-    await expect(panel.locator('.sun-detail-ai-tip')).toContainText(analysis.tip);
+    // Changed inputs invalidate current analysis; its literal original survives in history.
+    await expect(panel).toHaveCount(0);
     const saved = await page.evaluate(readComparisonAcceptanceProfile) as ProfileData;
-    expect(saved.sunDefaults).toMatchObject({ fitzpatrick: 'II', homeLight: 'incandescent', completedAt: expect.any(Number), aiAnalysis: analysis });
+    expect(saved.sunDefaults).toMatchObject({ fitzpatrick: 'II', homeLight: 'incandescent', completedAt: expect.any(Number) });
+    expect(saved.sunDefaults?.aiAnalysis).toBeUndefined();
+    expect(saved.sunDefaults?.setupHistory).toEqual([{ recordedAt: saved.sunDefaults!.completedAt, defaults: before.sunDefaults, skinType: before.lightCircadian?.skinType ?? null }]);
     expect(saved.lightCircadian).toMatchObject({ skinType: 'II — fair' });
     expect(saved).toEqual({ ...before, sunDefaults: saved.sunDefaults, lightCircadian: saved.lightCircadian });
-    await panel.screenshot({ path: test.info().outputPath('actual-onboarding-ai-offline.png') }); await page.close();
+    await page.locator('.light-setup-summary').screenshot({ path: test.info().outputPath('actual-onboarding-ai-offline.png') }); await page.close();
     for (let launch = 0; launch < 2; launch++) {
       const cold = await context.newPage(); loading.push({ phase: `offline-cold-${launch + 1}`, readyMs: await ready(cold, server.origin) }); await openLight(cold);
       const result = cold.locator('.light-setup-summary [data-light-onboarding-ai]');
-      await expect(result.locator('.sun-detail-ai-tip')).toContainText(analysis.tip); expect(await result.locator('li').allTextContents()).toEqual(analysis.actions);
+      await expect(result).toHaveCount(0);
       await expect(result.locator('img, script, [onerror]')).toHaveCount(0); expect(await cold.evaluate(readComparisonAcceptanceProfile)).toEqual(saved);
       await cold.locator('.light-setup-summary').getByRole('button', { name: 'Edit', exact: true }).click();
       await cold.getByRole('dialog', { name: 'Personalize Light', exact: true }).getByRole('button', { name: 'Cancel', exact: true }).click();

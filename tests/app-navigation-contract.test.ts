@@ -42,9 +42,9 @@ it.each(AGENT_CONTEXT_CARDS)('accepts the declared %s context editor without pro
   expect(navigate).toHaveBeenCalledExactlyOnceWith({ view: 'contextEditor', card, marker: '' }); expect(tools.getDrafts()).toEqual([]);
 });
 
-it('accepts only a paired source refresh ID and snapshot for the native handoff', async () => {
+it('keeps source refresh handoffs in native UI even with a paired ID and snapshot', async () => {
   const navigate = vi.fn(() => ({ changed: true, opened: 'wearablesSettings', requiresUserAction: true, dataSaved: false }));
   const tools = createAgentToolRuntime({ readContext: () => '', navigate });
-  expect((await tools.execute({ tool: 'getbased_navigate', arguments: { view: 'wearablesSettings', recordId: 'oura', snapshotId: 'fresh' } })).success).toBe(true);
-  expect(navigate).toHaveBeenCalledExactlyOnceWith({ view: 'wearablesSettings', recordId: 'oura', snapshotId: 'fresh', marker: '' });
+  expect((await tools.execute({ tool: 'getbased_navigate', arguments: { view: 'wearablesSettings', recordId: 'oura', snapshotId: 'fresh' } })).success).toBe(false);
+  expect(navigate).not.toHaveBeenCalled(); expect(tools.getDrafts()).toEqual([]);
 });

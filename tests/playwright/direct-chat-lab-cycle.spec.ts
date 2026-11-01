@@ -1,3 +1,4 @@
+import { CHAT_TOOL_INSTRUCTIONS } from '../../shared/chat-tool-instructions.js';
 import { openLabSampleEditorForTest } from '../helpers/open-lab-sample-editor.js';
 import { expect, test } from './coverage-fixture.js';
 import { routeJavaScript } from '../helpers/browser-static-routes.js';
@@ -11,7 +12,7 @@ for (const protocol of ['native', 'structured'] as const) for (const decision of
   await page.route('https://synthetic-cycle-provider.example/v1/chat/completions', async route => {
     const body = route.request().postDataJSON(), system = String(body.messages[0]?.content || '');
     if (!system.includes('getbased_read_context_card')) { await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: 'Synthetic background summary.' } }] }) }); return; }
-    expect(system).toContain('Never infer a phase from a cycle day');
+    expect(system).toContain(CHAT_TOOL_INSTRUCTIONS);
     if (protocol === 'structured' && body.tools) { await route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ error: { message: 'tools not supported' } }) }); return; }
     const message = body.messages.filter((row: { role: string }) => row.role === 'user').map((row: { content: string }) => row.content).findLast((text: string) => text === statement || text === clear)!;
     if (lastMessage !== message) { lastMessage = message; clearing = message === clear; round = 0; }
@@ -20,6 +21,7 @@ for (const protocol of ['native', 'structured'] as const) for (const decision of
     else if (round === 1) {
       const last = body.messages.at(-1), result = protocol === 'native' ? JSON.parse(last.content) : JSON.parse(last.content.slice(last.content.indexOf('{"id":'))).output;
       expect(result.success).toBe(true); const snapshot = JSON.parse(result.contentItems[0].text);
+      expect(snapshot.fields.cyclePhase).toContain('never infer from a cycle day');
       expect(snapshot.current.cycle).toMatchObject(clearing ? { cycleDay: 22, cyclePhase: 'follicular', cyclePhaseSource: 'recorded' } : { cycleDay: 14, cyclePhase: 'follicular', cyclePhaseSource: 'predicted' });
       expect(JSON.stringify(result)).not.toMatch(/private-cycle|secret-source/);
       call = { id: 'draft-cycle-sample', type: 'function', function: { name: 'getbased_draft_data', arguments: JSON.stringify({ resource: 'labSamples', operation: 'update', snapshotId: snapshot.snapshotId,

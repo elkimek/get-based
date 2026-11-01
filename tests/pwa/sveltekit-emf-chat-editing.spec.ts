@@ -7,7 +7,7 @@ import { activate, artifactInputs, cacheReceipt, profile } from './kit-native-re
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 import { installOfflineStartupDiagnostics } from '../helpers/offline-launch-diagnostics.js';
 import { readyLightArtifact as ready } from '../helpers/light-artifact-navigation.js';
-const owners = ['js/state.js', 'js/agent-data-bindings.js', 'js/agent-data-model.js', 'js/agent-data-apply.js', 'js/agent-draft-presentation.js',
+const owners = ['js/state.js', 'js/agent-data-bindings.js', 'js/agent-health-data-model.js', 'js/agent-data-apply.js', 'js/agent-draft-presentation.js',
   'js/emf-record-fields.js', 'js/emf-record-commands.js', 'js/emf-record-proposals.js', 'js/emf-record-store.js', 'js/emf-records.js', 'js/emf-native-records.js', 'js/emf-editor-inputs.js',
   'js/emf.js', 'js/emf-editor.js', 'js/emf-interpretation.js', 'js/components/EMFEditor.svelte', 'js/components/EMFRoomContent.svelte', 'js/components/ChatAgentDraftCards.svelte'] as const;
 async function openEditor(page: Page) {

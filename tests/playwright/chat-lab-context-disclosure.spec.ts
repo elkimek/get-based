@@ -1,3 +1,4 @@
+import { CHAT_TOOL_INSTRUCTIONS } from '../../shared/chat-tool-instructions.js';
 import { expect, test } from './coverage-fixture.js';
 import { routeJavaScript } from '../helpers/browser-static-routes.js';
 
@@ -8,7 +9,7 @@ for (const protocol of ['native', 'structured'] as const) test(`${protocol} chat
     const body = route.request().postDataJSON();
     if (protocol === 'structured' && body.tools) { await route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ error: { message: 'tools not supported' } }) }); return; }
     const system = body.messages[0].content;
-    if (!system.includes('You are the AI assistant inside getbased')) {
+    if (!system.includes(CHAT_TOOL_INSTRUCTIONS)) {
       // The ordinary dashboard can request an independent automatic insight.
       // Its context must honor the same source policy, without chat tool rounds.
       if (stage) expect(JSON.stringify(body.messages)).not.toMatch(/SYNTHETIC_PRIVATE_GLUCOSE|SYNTHETIC_SERUM|SYNTHETIC_PLASMA|01:13|02:27|PRIVATE_MARKER_NOTE|PRIVATE_DATED_NOTE/);

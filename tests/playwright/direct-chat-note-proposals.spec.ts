@@ -13,17 +13,19 @@ for (const protocol of ['native', 'structured'] as const) for (const mode of ['s
       const thanks = body.messages.some((message: { role: string; content: unknown }) => message.role === 'user' && message.content === 'Thanks.');
       let call: AIToolCall | undefined;
       if (thanks) feedback = body.messages[0].content.includes(`"resource":"${mode === 'shortcut' ? 'profileNotes' : 'markerValueNotes'}"`) && body.messages[0].content.includes('"status":"applied"');
-      else if (round === 0) call = { id: 'read-note', type: 'function', function: mode === 'shortcut' ? { name: 'getbased_draft_note', arguments: JSON.stringify({ scope: 'profile', mode: 'append', text: 'Reported note' }) } : { name: 'getbased_read_data', arguments: JSON.stringify({ resource: 'markerValueNotes', recordId }) } };
-      else if (mode === 'dated' && round === 1) {
+      else if (round === 0) call = { id: 'read-note', type: 'function', function: mode === 'shortcut' ? { name: 'getbased_read_data', arguments: JSON.stringify({ resource: 'profileNotes' }) } : { name: 'getbased_read_data', arguments: JSON.stringify({ resource: 'markerValueNotes', recordId }) } };
+      else if (round === 1) {
         const last = body.messages.at(-1), result = protocol === 'native' ? JSON.parse(last.content) : JSON.parse(last.content.slice(last.content.indexOf('{"id":'))).output;
         expect(result.success).toBe(true); const snapshot = JSON.parse(result.contentItems[0].text);
-        call = { id: 'draft-note', type: 'function', function: { name: 'getbased_draft_data', arguments: JSON.stringify({ resource: 'markerValueNotes', operation: 'update', snapshotId: snapshot.snapshotId, patch: JSON.stringify({ text: 'Fasted sample' }), evidence, reason: 'An explicit note correction.' }) } };
+        call = { id: 'draft-note', type: 'function', function: { name: 'getbased_draft_data', arguments: JSON.stringify({ resource: mode === 'shortcut' ? 'profileNotes' : 'markerValueNotes', operation: 'update', snapshotId: snapshot.snapshotId, patch: JSON.stringify(mode === 'shortcut' ? { appendText: 'Reported note' } : { text: 'Fasted sample' }), evidence, reason: 'An explicit note correction.' }) } };
       }
       round++; const reply = thanks ? 'Your note is saved.' : 'Please review the note.';
       if (protocol === 'structured') await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: JSON.stringify({ reply: call ? '' : reply, calls: call ? [{ id: call.id, name: call.function.name, arguments: call.function.arguments }] : [] }) }, finish_reason: 'stop' }] }) });
       else await route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: reply }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` });
     });
+    await page.addInitScript(() => { for (const key of ['tour', 'emptyTour']) localStorage.setItem(`labcharts-default-${key}`, 'completed'); });
     await page.goto('/app');
+    await page.locator('html[data-app-ready]').waitFor();
     recordId = await page.evaluate(async () => {
       const profile = await import('/js/profile.js'), id = await profile.createProfile('Synthetic direct notes', { sex: 'male', skipInitialSync: true });
       for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(profile.profileStorageKey(id, suffix), 'completed');
@@ -41,7 +43,7 @@ for (const protocol of ['native', 'structured'] as const) for (const mode of ['s
     if (mode === 'dated') expect(await page.evaluate(async () => Object.values((await import('/js/state.js')).state.importedData.markerValueNotes))).toEqual(['Original dated note']);
     await card.getByRole('button', { name: 'Apply', exact: true }).click(); await expect(page.locator('.chat-agent-draft-applied')).toHaveCount(1);
     await expect(page.locator('#chat-input')).toBeVisible(); await page.locator('#chat-input').fill('Thanks.'); await page.locator('#chat-send-btn').click(); await expect(page.locator('#chat-messages')).toContainText('Your note is saved.'); expect(feedback).toBe(true);
-    await page.reload();
+    await page.reload(); await page.locator('html[data-app-ready]').waitFor();
     if (mode === 'shortcut') { expect(await page.evaluate(async () => (await import('/js/state.js')).state.importedData.contextNotes)).toBe('Original\n\nReported note'); await expect(page.getByRole('textbox', { name: 'Additional context', exact: true })).toHaveValue('Original\n\nReported note'); }
     else {
       const opened = await page.evaluate(async recordId => {

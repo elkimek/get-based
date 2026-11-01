@@ -6,8 +6,9 @@ import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js'
 import { installOfflineStartupDiagnostics } from '../helpers/offline-launch-diagnostics.js';
 import { readyLightArtifact as ready, openLightArtifact as openLight } from '../helpers/light-artifact-navigation.js';
 import type { AIToolCall } from '../../shared/ai-tool-protocol.js';
+import { CHAT_NATIVE_UI_NOTICE } from '../../shared/chat-control-policy.js';
 
-const owners = ['js/state.js', 'js/agent-data-bindings.js', 'js/agent-data-apply.js', 'js/agent-data-model.js',
+const owners = ['js/state.js', 'js/agent-data-bindings.js', 'js/agent-data-apply.js', 'js/agent-health-data-model.js',
   'js/light-device-fields.js', 'js/light-device-mutations.js', 'js/light-device-proposals.js', 'js/light-device-records.js',
   'js/light-devices-store.js', 'js/light-devices.js', 'js/light-device-session-engine.js', 'js/light-env-record-store.js',
   'js/agent-draft-presentation.js', 'js/components/ChatAgentDraftCards.svelte'] as const;
@@ -15,7 +16,7 @@ async function openChat(page: Page) {
   if (!await page.locator('#chat-panel.open').isVisible()) await activate(page, page.locator('#chat-fab'));
   await expect(page.locator('#chat-input')).toBeVisible();
 }
-test('static device chat corrections and removal retain source history offline through stopped-origin cold launch', async ({ page, context }, info) => {
+test('static device session correction and refused catalog writes retain source history through stopped-origin cold launch', async ({ page, context }, info) => {
   test.setTimeout(180000); const artifact = await artifactInputs(owners, []);
   const seeded = JSON.parse(await fs.readFile(new URL('../fixtures/marker-detail-complete/pwa-profile.json', import.meta.url), 'utf8')) as Record<string, unknown>;
   seeded.entries = (seeded.entries as Record<string, unknown>[]).map((entry, index) => ({ ...entry, panelId: `device-chat-sample-${index}` })); seeded.nutritionMeals = [];
@@ -42,11 +43,11 @@ test('static device chat corrections and removal retain source history offline t
       call = { id: `draft-${stage}`, type: 'function', function: { name: 'getbased_draft_data', arguments: JSON.stringify({ resource, operation: stage === 'removeDevice' ? 'remove' : 'update', snapshotId: current.snapshotId, patch: stage === 'duration' ? '{"durationMin":20,"startedAt":"2026-10-23T10:00:00Z"}' : stage === 'specification' ? '{"mwPerCm2At15cm":40}' : '{}', evidence: statements[stage], reason: 'The user explicitly reported this correction or removal.' }) } };
     }
     if (round === 2) {
-      const result = JSON.parse(body.messages.at(-1).content); expect(result.success).toBe(true); const review = JSON.parse(result.contentItems[0].text).review; expect(review.applied).toBe(false);
-      if (stage === 'removeDevice') expect(review.effects.retainedSessionCount).toBe(1);
-      else { expect(review.effects.recalculatedSessions).toHaveLength(1); expect(review.effects.recalculatedSessions[0].afterDoses.pbm_red).toBeCloseTo(review.effects.recalculatedSessions[0].beforeDoses.pbm_red * 2, 8); }
+      const result = JSON.parse(body.messages.at(-1).content);
+      if (stage === 'duration') { expect(result.success).toBe(true); const review = JSON.parse(result.contentItems[0].text).review; expect(review.applied).toBe(false); expect(review.effects.recalculatedSessions).toHaveLength(1); expect(review.effects.recalculatedSessions[0].afterDoses.pbm_red).toBeCloseTo(review.effects.recalculatedSessions[0].beforeDoses.pbm_red * 2, 8); }
+      else { expect(result.success).toBe(false); expect(result.contentItems[0].text).toBe(`Error: ${CHAT_NATIVE_UI_NOTICE}`); }
     }
-    round++; await route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: 'Review the device/session correction and retained history before applying.' }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` });
+    round++; await route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: stage === 'duration' ? 'Review the device/session correction and retained history before applying.' : `Use the native device editor (${stage}).` }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` });
   });
   page.on('pageerror', error => errors.push(error.message)); context.on('page', target => target.on('pageerror', error => errors.push(error.message)));
   const server = await startKitServer(artifact.directory); let stopped = false; const receipts: Record<string, Awaited<ReturnType<typeof profile>>> = {};
@@ -67,9 +68,17 @@ test('static device chat corrections and removal retain source history offline t
     for (const [index, next] of (['duration', 'specification', 'removeDevice'] as const).entries()) {
       stage = next; round = 0; await expect(page.locator('#chat-send-btn.streaming')).toHaveCount(0);
       await page.locator('#chat-input').fill(statements[stage]); await activate(page, page.locator('#chat-send-btn'));
+      if (stage !== 'duration') {
+        const response = page.locator('#chat-messages').filter({ hasText: `Use the native device editor (${stage}).` }); await expect(response).toBeVisible();
+        await expect(page.locator('.chat-agent-draft-pending')).toHaveCount(0); expect(round).toBe(3);
+        expect(await response.evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
+        expect(await response.evaluate(async node => (await (window as unknown as { axe: typeof import('axe-core') }).axe.run(node, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } })).violations.map(row => row.id))).toEqual([]);
+        receipts[stage] = await profile(page, artifact.state); expect(receipts[stage]).toEqual(receipts.duration);
+        await page.screenshot({ path: info.outputPath(`device-${stage}-native-only-mobile.png`), fullPage: true }); continue;
+      }
       await expect(page.locator('.chat-agent-draft-pending, #cloud-ai-consent-overlay.show')).toBeVisible();
       const consent = page.locator('#cloud-ai-consent-overlay.show'); if (await consent.isVisible()) { await consent.locator('input[type="checkbox"]').check(); await activate(page, consent.locator('[data-ai-processing-action="approve"]')); }
-      const card = page.locator('.chat-agent-draft-pending'); await expect(card).toContainText(stage === 'removeDevice' ? 'Preserved sessions' : 'Recalculated sessions');
+      const card = page.locator('.chat-agent-draft-pending'); await expect(card).toContainText('Recalculated sessions');
       expect((await profile(page, artifact.state)).stored).toEqual((receipts.specification || receipts.duration || receipts.before).stored);
       await page.setViewportSize({ width: 390, height: 844 }); expect(await card.evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
       const violations = await card.evaluate(async node => (await (window as unknown as { axe: typeof import('axe-core') }).axe.run(node, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } })).violations.map(row => row.id)); expect(violations).toEqual([]);
@@ -78,17 +87,18 @@ test('static device chat corrections and removal retain source history offline t
     }
     if (!receipts.removeDevice) throw new Error('The removal receipt is missing.');
     const saved = receipts.removeDevice.stored as typeof seeded, sessions = saved.deviceSessions as Array<{ durationMin: number; startedAt: number; endedAt: number; doses: { pbm_red: number }; deviceSnapshot: { mwPerCm2At15cm: number }; editHistory: unknown[] }>;
-    expect(saved.lightDevices).toEqual([]); expect(sessions).toHaveLength(1); expect(sessions[0]!.durationMin).toBe(20); expect(sessions[0]!.startedAt).toBe(Date.parse('2026-10-23T10:00:00Z')); expect(sessions[0]!.endedAt).toBe(sessions[0]!.startedAt + 20 * 60000); expect(sessions[0]!.doses.pbm_red).toBeCloseTo(session.doses.pbm_red * 4, 8); expect(sessions[0]!.deviceSnapshot.mwPerCm2At15cm).toBe(40); expect(sessions[0]!.editHistory).toHaveLength(2);
+    // Duration doubles dose once; refused catalog writes cannot recalculate it again.
+    expect(saved.lightDevices).toEqual(initial.lightDevices); expect(sessions).toHaveLength(1); expect(sessions[0]!.durationMin).toBe(20); expect(sessions[0]!.startedAt).toBe(Date.parse('2026-10-23T10:00:00Z')); expect(sessions[0]!.endedAt).toBe(sessions[0]!.startedAt + 20 * 60000); expect(sessions[0]!.doses.pbm_red).toBeCloseTo(session.doses.pbm_red * 2, 8); expect(sessions[0]!.deviceSnapshot.mwPerCm2At15cm).toBe(20); expect(sessions[0]!.editHistory).toHaveLength(1);
     const protectedFields = (value: Record<string, unknown>) => Object.fromEntries(Object.entries(value).filter(([key]) => !['lightDevices', 'deviceSessions', '_deleted', '_deletedAt', '_deletedClearedAt'].includes(key)));
     expect(protectedFields(saved)).toEqual(protectedFields(initial)); expect(wire).toHaveLength(9); await cacheReceipt(page, artifact);
     await server.close(); stopped = true; await expect(fetch(server.origin + '/app')).rejects.toThrow(); await page.close(); expect(context.pages()).toHaveLength(0);
     page = await context.newPage(); await ready(page, server.origin); await openLight(page);
     receipts.cold = await profile(page, artifact.state); expect(receipts.cold).toEqual(receipts.removeDevice);
-    await openChat(page); await expect(page.locator('.chat-agent-draft-applied')).toHaveCount(3); await page.setViewportSize({ width: 1280, height: 900 }); await openLight(page);
-    await expect(page.locator(`[data-light-history-row][data-id="${sessionId}"]`)).toContainText('20 min'); await expect(page.locator('.light-device-card')).toHaveCount(0);
+    await openChat(page); await expect(page.locator('.chat-agent-draft-applied')).toHaveCount(1); await page.setViewportSize({ width: 1280, height: 900 }); await openLight(page);
+    await expect(page.locator(`[data-light-history-row][data-id="${sessionId}"]`)).toContainText('20 min'); await expect(page.locator('.light-device-card')).toHaveCount(1);
     expect(errors).toEqual([]); expect(await artifactInputs(owners, [])).toEqual(artifact);
   } finally {
-    await info.attach('static-device-chat-receipt', { body: JSON.stringify({ artifact, receipts, wire, errors, stopped, boundary: 'Actual native baseline form, static public chat/native tool loop/three trusted keyboard approvals, controlled provider output, offline first use, complete receipts, mobile/axe, runtime source/cache hashes and stopped-origin zero-page cold launch. No runtime mutation calls or live provider inference.' }, null, 2), contentType: 'application/json' });
+    await info.attach('static-device-chat-receipt', { body: JSON.stringify({ artifact, receipts, wire, errors, stopped, boundary: 'Actual native baseline form, static public chat/native tool loop/one trusted keyboard approval and two refused catalog writes, controlled provider output, offline first use, complete receipts, mobile/axe, runtime source/cache hashes and stopped-origin zero-page cold launch. No runtime mutation calls or live provider inference.' }, null, 2), contentType: 'application/json' });
     if (!stopped) await server.close();
   }
 });

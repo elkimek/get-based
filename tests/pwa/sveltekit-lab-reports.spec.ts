@@ -6,8 +6,9 @@ import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js'
 import { installOfflineStartupDiagnostics } from '../helpers/offline-launch-diagnostics.js';
 import { readyLightArtifact as ready } from '../helpers/light-artifact-navigation.js';
 import type { AIToolCall } from '../../shared/ai-tool-protocol.js';
+import { CHAT_NATIVE_UI_NOTICE } from '../../shared/chat-control-policy.js';
 
-const owners = ['js/state.js', 'js/agent-data-bindings.js', 'js/agent-data-apply.js', 'js/agent-data-model.js',
+const owners = ['js/state.js', 'js/agent-data-bindings.js', 'js/agent-data-apply.js', 'js/agent-health-data-model.js',
   'js/lab-report-records.js', 'js/lab-report-proposals.js', 'js/lab-report-mutations.js', 'js/lab-report-samples.js', 'js/lab-report-store.js',
   'js/agent-draft-presentation.js', 'js/components/ChatAgentDraftCards.svelte'] as const;
 async function openChat(page: Page) {
@@ -15,7 +16,7 @@ async function openChat(page: Page) {
   await expect(page.locator('#chat-input')).toBeVisible();
 }
 
-test('static report proposal and Apply load from cache and retain exact source effects through a stopped-origin cold launch', async ({ page, context }, info) => {
+test('static report metadata is readable and refused removal retains every source through stopped-origin cold launch', async ({ page, context }, info) => {
   test.setTimeout(180000);
   const artifact = await artifactInputs(owners, []);
   const seeded = JSON.parse(await fs.readFile(new URL('../fixtures/marker-detail-complete/pwa-profile.json', import.meta.url), 'utf8')) as Record<string, unknown>;
@@ -47,14 +48,13 @@ test('static report proposal and Apply load from cache and retain exact source e
     let call: AIToolCall | undefined;
     if (round === 0) call = { id: 'read-report', type: 'function', function: { name: 'getbased_read_data', arguments: JSON.stringify({ resource: 'labReports', recordId: 'evening-report' }) } };
     if (round === 1) {
-      const response = JSON.parse(body.messages.at(-1).content); expect(response.success).toBe(true); const current = JSON.parse(response.contentItems[0].text);
+      const response = JSON.parse(body.messages.at(-1).content); expect(response.success).toBe(true); const current = JSON.parse(response.contentItems[0].text); expect(current.readOnly).toBe(true); expect(current.operations).toEqual([]);
       call = { id: 'draft-report', type: 'function', function: { name: 'getbased_draft_data', arguments: JSON.stringify({ resource: 'labReports', operation: 'remove', snapshotId: current.snapshotId, patch: '{}', evidence, reason: 'The user explicitly requested this saved report removal.' }) } };
     }
     if (round === 2) {
-      const result = JSON.parse(body.messages.at(-1).content), response = JSON.parse(result.contentItems[0].text); expect(result.success).toBe(true); expect(response.review.applied).toBe(false);
-      expect(response.review.effects.results).toContainEqual(expect.objectContaining({ key: 'biochemistry.glucose', before: 7, after: 6 }));
+      const result = JSON.parse(body.messages.at(-1).content); expect(result.success).toBe(false); expect(result.contentItems[0].text).toBe(`Error: ${CHAT_NATIVE_UI_NOTICE}`);
     }
-    round++; await route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: 'Review the saved report removal before applying.' }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` });
+    round++; await route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: 'Use the native report history to remove a report.' }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` });
   });
   page.on('pageerror', error => errors.push(error.message)); context.on('page', target => target.on('pageerror', error => errors.push(error.message)));
   const server = await startKitServer(artifact.directory); let stopped = false;
@@ -63,28 +63,26 @@ test('static report proposal and Apply load from cache and retain exact source e
     await ready(page, server.origin); server.state.offline = true; await openChat(page);
     receipts.before = await profile(page, artifact.state);
     await page.locator('#chat-input').fill(evidence); await activate(page, page.locator('#chat-send-btn'));
-    await expect(page.locator('.chat-agent-draft-pending, #cloud-ai-consent-overlay.show')).toBeVisible();
+    const response = page.locator('#chat-messages').filter({ hasText: 'Use the native report history to remove a report.' });
+    await expect(response.or(page.locator('#cloud-ai-consent-overlay.show'))).toBeVisible();
     const consent = page.locator('#cloud-ai-consent-overlay.show');
     if (await consent.isVisible()) { await consent.locator('input[type="checkbox"]').check(); await activate(page, consent.locator('[data-ai-processing-action="approve"]')); }
-    const card = page.locator('.chat-agent-draft-pending'); await expect(card).toContainText('Lab Reports'); await expect(card).toContainText('7 → 6'); await expect(card).toContainText('Diagnostic benchmark history');
-    receipts.proposed = await profile(page, artifact.state); expect(receipts.proposed.stored).toEqual(receipts.before.stored);
+    const card = response; await expect(card).toBeVisible(); await expect(page.locator('.chat-agent-draft-pending, .chat-agent-draft-applied')).toHaveCount(0);
+    receipts.proposed = await profile(page, artifact.state); expect(receipts.proposed).toEqual(receipts.before);
     await page.setViewportSize({ width: 390, height: 844 }); expect(await card.evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
     const violations = await card.evaluate(async node => (await (window as unknown as { axe: typeof import('axe-core') }).axe.run(node, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } })).violations.map(row => row.id)); expect(violations).toEqual([]);
     await page.screenshot({ path: info.outputPath('report-review-mobile.png'), fullPage: true });
-    await card.getByRole('button', { name: 'Apply', exact: true }).focus(); await page.keyboard.press('Enter'); await expect(page.locator('.chat-agent-draft-applied')).toHaveCount(1);
     receipts.saved = await profile(page, artifact.state);
-    const before = receipts.before.stored as typeof seeded, saved = receipts.saved.stored as typeof seeded, rows = saved.entries as Array<{ panelId: string; markers: Record<string, number>; context: Record<string, unknown> }>;
-    expect(rows[0]).toEqual((before.entries as unknown[])[0]); expect(rows[1]).toMatchObject({ panelId: 'evening', markers: { 'biochemistry.glucose': 6 }, context: { sampleTime: '15:30', fasting: true } });
-    expect((saved.importSnapshots as Array<{ id: string }>).map(row => row.id)).toEqual(['older-evening']); expect(saved.importBenchmarks).toEqual(before.importBenchmarks);
-    const allowed = new Set(['entries', 'importSnapshots', '_deleted', '_deletedAt', '_deletedClearedAt', 'refOverrides']);
-    expect(Object.fromEntries(Object.entries(saved).filter(([key]) => !allowed.has(key)))).toEqual(Object.fromEntries(Object.entries(before).filter(([key]) => !allowed.has(key))));
+    const before = receipts.before.stored as typeof seeded, saved = receipts.saved.stored as typeof seeded;
+    expect(receipts.saved).toEqual(receipts.before);
+    expect(saved.entries).toEqual(before.entries); expect(saved.importSnapshots).toEqual(before.importSnapshots); expect(saved.importBenchmarks).toEqual(before.importBenchmarks);
     expect(wire).toHaveLength(3); await cacheReceipt(page, artifact);
     await server.close(); stopped = true; await expect(fetch(server.origin + '/app')).rejects.toThrow(); await page.close(); expect(context.pages()).toHaveLength(0);
     page = await context.newPage(); await ready(page, server.origin); receipts.cold = await profile(page, artifact.state); expect(receipts.cold).toEqual(receipts.saved);
-    await openChat(page); await expect(page.locator('.chat-agent-draft-applied')).toHaveCount(1); expect(errors).toEqual([]);
+    await openChat(page); await expect(page.locator('.chat-agent-draft-pending, .chat-agent-draft-applied')).toHaveCount(0); expect(errors).toEqual([]);
     expect(await artifactInputs(owners, [])).toEqual(artifact);
   } finally {
-    await info.attach('static-report-receipt', { body: JSON.stringify({ artifact, receipts, wire, errors, stopped, boundary: 'Real static public chat/approval, controlled native provider output, cached first use, mobile/axe/keyboard Apply, complete profile receipts, actual feature-source maps and stopped-origin zero-page cold launch. No runtime mutation calls or live provider inference.' }, null, 2), contentType: 'application/json' });
+    await info.attach('static-report-receipt', { body: JSON.stringify({ artifact, receipts, wire, errors, stopped, boundary: 'Real static public chat, controlled native provider output, read-only metadata and exact refused removal, cached first use, mobile/axe, unchanged whole profile receipts, actual feature-source maps and stopped-origin zero-page cold launch. No runtime mutation calls or live provider inference.' }, null, 2), contentType: 'application/json' });
     if (!stopped) await server.close();
   }
 });

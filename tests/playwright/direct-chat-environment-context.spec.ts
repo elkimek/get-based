@@ -1,3 +1,4 @@
+import { CHAT_TOOL_INSTRUCTIONS } from '../../shared/chat-tool-instructions.js';
 import { expect, test } from './coverage-fixture.js';
 import type { Page } from '@playwright/test';
 import { routeJavaScript } from '../helpers/browser-static-routes.js';
@@ -26,7 +27,7 @@ for (const provider of ['custom', 'venice'] as const) for (const protocol of ['n
     await page.route(endpoint, async route => {
       const body = route.request().postDataJSON(); expect(body.model).toBe('glm-5-fixture');
       if (String(body.messages[0]?.content).startsWith('Based on this person')) { await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: '{}' } }] }) }); return; }
-      expect(body.messages[0].content).toContain('selfReport');
+      expect(body.messages[0].content).toContain(CHAT_TOOL_INSTRUCTIONS);
       if (protocol === 'structured' && body.tools) { rejected++; await route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ error: { message: 'tools not supported' } }) }); return; }
       const result = () => protocol === 'native' ? JSON.parse(body.messages.at(-1).content) : JSON.parse(body.messages.at(-1).content.slice(body.messages.at(-1).content.indexOf('{"id":'))).output;
       let call: AIToolCall | undefined;
@@ -74,7 +75,7 @@ for (const protocol of ['native', 'structured'] as const) for (const decision of
   await page.route('https://api.venice.ai/api/v1/chat/completions', async route => {
     const body = route.request().postDataJSON();
     if (protocol === 'structured' && body.tools) { await route.fulfill({ status: 400, contentType: 'application/json', body: '{"error":{"message":"tools not supported"}}' }); return; }
-    const isChat = body.tools || body.response_format || body.messages.some((message: { content?: unknown }) => String(message.content).includes('You are the AI assistant inside getbased'));
+    const isChat = String(body.messages[0]?.content).includes(CHAT_TOOL_INSTRUCTIONS);
     if (!isChat) { await route.fulfill({ contentType: 'application/json', body: '{"choices":[{"message":{"content":"No additional insight."},"finish_reason":"stop"}]}' }); return; }
     let call: AIToolCall | undefined;
     if (round === 1) { repaired = body.messages.some((message: { role: string; content: string }) => message.role === 'system' && message.content.includes('Application verification')); call = { id: 'read-relocation', type: 'function', function: { name: 'getbased_read_context_card', arguments: '{"card":"environment"}' } }; }
@@ -140,7 +141,7 @@ test('Regenerate repairs a conversational draft claim and shows progress outside
   let regenerated = false, round = 0;
   await page.route('https://api.venice.ai/api/v1/chat/completions', async route => {
     const body = route.request().postDataJSON();
-    const chat = body.tools || String(body.messages[0]?.content).includes('You are the AI assistant inside getbased');
+    const chat = String(body.messages[0]?.content).includes(CHAT_TOOL_INSTRUCTIONS);
     if (!chat) { await route.fulfill({ contentType: 'application/json', body: '{"choices":[{"message":{"content":"No additional insight."},"finish_reason":"stop"}]}' }); return; }
     let call: AIToolCall | undefined;
     if (regenerated && round === 1) { expect(body.tools).toBeUndefined(); expect(body.response_format).toBeDefined(); call = { id: 'read', type: 'function', function: { name: 'getbased_read_context_card', arguments: '{"card":"environment"}' } }; }

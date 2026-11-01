@@ -67,7 +67,7 @@ export function projectChatTranscriptMessage(message: ChatMessage, index: number
     body: message.error ? '' : renderMarkdown(message.content), error: message.error ? String(message.content || '') : null,
     auto: !!message.auto, stopped: !!message.stopped, truncated: !!message.truncated,
     avatar: projectChatMessageAvatar({ role, personalityName: message.personalityName, personalityIcon: message.personalityIcon, agentId: message.agentId }),
-    ...(message.role === 'assistant' && Array.isArray(message.toolActivity) ? { toolActivity: normalizeChatToolActivity(message.toolActivity) } : {}),
+    ...(role === 'assistant' && Object.hasOwn(message, 'toolActivity') && Array.isArray(message.toolActivity) ? { toolActivity: normalizeChatToolActivity(message.toolActivity) } : {}),
     actions: projectChatMessageActions(state.chatHistory, index), images: projectChatStoredImages(message),
     citations: role === 'assistant' ? projectChatCitations(message.lensSources, message.lensSourceName) : null,
     usage, attribution: getAIOutputAttribution(message) === 'Written with Grok' ? 'Written with Grok' : null,

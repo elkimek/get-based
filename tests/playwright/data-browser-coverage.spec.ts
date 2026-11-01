@@ -126,7 +126,8 @@ test('data browser coverage exercises display toggles range refresh and helpers'
       const phaseCheckbox = layersHost!.querySelector<HTMLElement>('[data-lab-data-change="set-phase-overlay"]');
       const phaseCallStart = calls.length;
       phaseCheckbox?.click();
-      await wait(0);
+      // Durable preference writes acquire a Web Lock before publishing state.
+      for (let attempt = 0; attempt < 100 && (state.phaseOverlayMode as string) !== 'on'; attempt++) await wait(10);
       const phaseChanged = (state.phaseOverlayMode as string) === 'on'
         && localStorage.getItem(`labcharts-${profileId}-phaseOverlay`) === 'on'
         && calls.slice(phaseCallStart).some(call => call[0]! === 'navigate' && call[1]! === 'metabolic');
@@ -135,6 +136,10 @@ test('data browser coverage exercises display toggles range refresh and helpers'
         && leakedLayerClicks.length === 0;
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       const closed = dropdown?.classList.contains('open') === false && trigger?.getAttribute('aria-expanded') === 'false';
+      outcomes.chartLayersOpened = opened;
+      outcomes.chartLayersPhaseChanged = phaseChanged;
+      outcomes.chartLayersStayedOpen = stayedOpenAfterLayerClick;
+      outcomes.chartLayersClosed = closed;
       outcomes.chartLayersDropdownOpensAndClosesFromKeyboard = layersHost!.querySelectorAll<HTMLElement>('[onclick],[onchange]').length === 0
         && opened
         && phaseChanged

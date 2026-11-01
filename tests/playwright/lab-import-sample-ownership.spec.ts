@@ -2,6 +2,7 @@ import { expect, test } from './coverage-fixture.js';
 
 test('import review chooses a sample, persists exact re-review and removes only its source after reload', async ({ page }) => {
   await page.goto('/app');
+  await page.locator('html[data-app-ready]').waitFor();
   const before = await page.evaluate(async () => {
     const profile = await import('/js/profile.js'), id = await profile.createProfile('Synthetic report ownership', { sex: 'male', skipInitialSync: true });
     for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(profile.profileStorageKey(id, suffix), 'completed');
@@ -25,6 +26,7 @@ test('import review chooses a sample, persists exact re-review and removes only 
   const saved = await receipt(); expect(saved.entries[0]).toEqual(before.entries[0]); expect(saved.entries[1].markers['biochemistry.glucose']).toBe(8);
   const sourceId = saved.importSnapshots[0].id; expect(saved.importSnapshots[0].panelId).toBe('evening');
   await page.reload();
+  await page.locator('html[data-app-ready]').waitFor();
   await page.evaluate(async id => { (await import('/js/pdf-import.js')).setupDropZone(); (await import('/js/pdf-import-commit.js')).openImportReviewFromSnapshot(id); }, sourceId);
   await expect(page.getByLabel('Sample destination', { exact: true })).toBeDisabled();
   await page.locator('.import-value-input').fill('9'); await page.locator('.import-value-input').press('Tab');

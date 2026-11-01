@@ -16,22 +16,23 @@ beforeEach(() => {
 });
 afterEach(() => { state.dateRangeFilter = before.range; state.categoryView = before.layout; state.currentView = before.view; });
 it('rejects a missing category before publishing a range or loading its view', async () => {
-  expect(await openLabView({ view: 'category', category: 'missing', marker: '', range: '3m' }, () => true)).toMatchObject({ changed: false });
+  expect(await openLabView({ view: 'category', category: 'missing', marker: '' }, () => true)).toMatchObject({ changed: false });
   expect(native.range).not.toHaveBeenCalled(); expect(native.layout).not.toHaveBeenCalled(); expect(native.stylesheet).not.toHaveBeenCalled();
 });
 it('rechecks ownership after native preparation before publishing any session preference', async () => {
   let release!: () => void, owned = true; native.stylesheet.mockImplementationOnce(() => new Promise<void>(resolve => { release = resolve; }));
-  const pending = openLabView({ view: 'category', category: 'biochemistry', marker: '', range: '3m' }, () => owned);
+  const pending = openLabView({ view: 'category', category: 'biochemistry', marker: '' }, () => owned);
   await vi.waitFor(() => expect(native.stylesheet).toHaveBeenCalledOnce()); owned = false; release();
   expect(await pending).toMatchObject({ changed: false }); expect(native.range).not.toHaveBeenCalled(); expect(native.layout).not.toHaveBeenCalled(); expect(native.navigate).not.toHaveBeenCalled();
 });
-it('reports the actual session effect if the native renderer fails after selecting a range', async () => {
-  native.navigate.mockRejectedValueOnce(new Error('Native render failed'));
-  expect(await openLabView({ view: 'labs', marker: '', range: '3m' }, () => true)).toMatchObject({ changed: true, opened: null, labRange: '3m', dataSaved: false, settingsSaved: false });
+it('reports the actual session effect if the native renderer fails after choosing the view', async () => {
+  native.navigate.mockImplementationOnce(async () => {state.currentView = 'labs'; throw new Error('Native render failed');});
+  expect(await openLabView({ view: 'labs', marker: '' }, () => true)).toMatchObject({ changed: true, opened: null, labRange: 'all', dataSaved: false, settingsSaved: false });
+  expect(native.range).not.toHaveBeenCalled(); expect(native.layout).not.toHaveBeenCalled();
 });
 it('does not claim a selection changed when an unavailable native view made no change', async () => {
   native.navigate.mockResolvedValueOnce(false);
-  const result = await openLabView({ view: 'labs', marker: '', range: 'all' }, () => true);
+  const result = await openLabView({ view: 'labs', marker: '' }, () => true);
   expect(result).toMatchObject({ changed: false, opened: null }); expect(result.reason).not.toContain('selection changed');
 });
 

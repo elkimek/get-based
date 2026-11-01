@@ -1,6 +1,7 @@
 import { expect, test } from './coverage-fixture.js';
 import { seedDashboardControlProfile, dashboardHealth } from '../helpers/dashboard-control-fixture.js';
 import { routeJavaScript } from '../helpers/browser-static-routes.js';
+import { CHAT_NATIVE_UI_NOTICE } from '../../shared/chat-control-policy.js';
 
 const retired = [
   { name: 'directory', tool: 'getbased_read_app', arguments: { action: 'assistant.personas' } },
@@ -44,8 +45,15 @@ for (const provider of ['custom', 'venice'] as const) for (const protocol of ['n
     return { key, deleted, profile: state.currentProfile, catalog: localStorage.getItem(key), tombstones: localStorage.getItem(deleted), selected: state.currentChatPersonality, preference: localStorage.getItem('labcharts-' + state.currentProfile + '-chatPersonality') };
   }, provider);
   await page.locator('#chat-input').fill('Manage my custom persona for me.'); await page.locator('#chat-send-btn').click();
-  await expect.poll(() => rejected).toBe(true);
-  await expect(page.locator('#chat-messages')).toContainText('Use the persona picker and editor');
+  if (request.name === 'directory') {
+    // The removed tool name fails batch preflight before any tool dispatch or
+    // follow-up request. Registered navigation calls receive a normal denial.
+    await expect(page.locator('#chat-messages')).toContainText("I couldn't complete this response. Check your provider connection and try again.");
+    expect(round).toBe(1); expect(rejected).toBe(false);
+  } else {
+    await expect.poll(() => rejected).toBe(true);
+    await expect(page.locator('#chat-messages')).toContainText('Use the persona picker and editor');
+  }
   await expect(page.locator('.chat-app-control,#chat-personality-editor-overlay,#confirm-dialog-overlay')).toHaveCount(0);
   const after = await page.evaluate(async before => { const { state } = await import('/js/state.js'); return { catalog: localStorage.getItem(before.key), tombstones: localStorage.getItem(before.deleted), selected: state.currentChatPersonality, preference: localStorage.getItem('labcharts-' + before.profile + '-chatPersonality') }; }, before);
   expect(after).toEqual({ catalog: before.catalog, tombstones: before.tombstones, selected: before.selected, preference: before.preference });
@@ -61,7 +69,7 @@ test('historical persona cards show manual guidance without Apply or Undo', asyn
     state.chatHistory = [{ role: 'assistant', content: 'Historical persona request', appControls: [{ version: 1, id: 'retired-card', profileId: state.currentProfile, threadId: state.currentThreadId!, action: 'assistant.persona', automatic: true, parameters: { personaId: 'custom_previous' }, baseline: { id: 'default', name: 'Default', icon: 'D' }, proposed: { id: 'custom_previous', name: 'Previous persona', icon: 'P' }, leaseId: 'retired-lease', status: 'changed', reason: 'Historical selection', evidence: 'Use my previous persona', undoAvailable: true }] }];
     (await import('/js/chat-render.js')).renderChatMessages();
   });
-  await expect(page.locator('.chat-app-control')).toContainText('Persona management is manual-only');
+  await expect(page.locator('.chat-app-control')).toContainText(CHAT_NATIVE_UI_NOTICE);
   await expect(page.locator('.chat-app-control button')).toHaveCount(0);
   expect(await dashboardHealth(page)).toBe(before);
 });

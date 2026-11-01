@@ -469,7 +469,10 @@ export function filterCorrelationOptions() {
 
 export function toggleCorrelationMarker(key: string) {
   const idx = state.selectedCorrelationMarkers.indexOf(key);
-  if (idx !== -1) state.selectedCorrelationMarkers.splice(idx, 1);
+  if (idx !== -1) {
+    state.selectedCorrelationMarkers.splice(idx, 1);
+    state.correlationView.hidden = (state.correlationView.hidden || []).filter(id => id !== key);
+  }
   else if (state.selectedCorrelationMarkers.length + state.selectedCorrelationSupplements.length < 8) {
     state.selectedCorrelationMarkers.push(key);
     state.correlationView.hidden = (state.correlationView.hidden || []).filter(id => id !== key);
@@ -530,7 +533,11 @@ function canRenderCorrelation() {
 
 export function toggleCorrelationTherapy(id: string) {
   const index = state.selectedCorrelationSupplements.indexOf(id);
-  if (index >= 0) state.selectedCorrelationSupplements.splice(index, 1);
+  if (index >= 0) {
+    state.selectedCorrelationSupplements.splice(index, 1);
+    state.correlationView.hidden = (state.correlationView.hidden || []).filter(key => key !== id);
+    if (state.correlationView.ingredients) delete state.correlationView.ingredients[id];
+  }
   else if (state.selectedCorrelationMarkers.length + state.selectedCorrelationSupplements.length < 8) {
     state.selectedCorrelationSupplements.push(id);
     state.correlationView.hidden = (state.correlationView.hidden || []).filter(hiddenId => hiddenId !== id);

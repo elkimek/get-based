@@ -32,7 +32,9 @@ for (const provider of ['custom', 'venice'] as const) for (const protocol of ['n
       if (protocol === 'structured') await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: JSON.stringify({ reply: call ? '' : reply, calls: call ? [{ id: call.id, name: call.function.name, arguments: call.function.arguments }] : [] }) }, finish_reason: 'stop' }] }) });
       else await route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: reply }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` });
     });
+    await page.addInitScript(() => { for (const key of ['tour', 'emptyTour']) localStorage.setItem(`labcharts-default-${key}`, 'completed'); });
     await page.goto('/app');
+    await page.locator('html[data-app-ready]').waitFor();
     await page.evaluate(async provider => {
       const profile = await import('/js/profile.js'), id = await profile.createProfile('Synthetic genetics proposal', { sex: 'female', skipInitialSync: true });
       for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(profile.profileStorageKey(id, suffix), 'completed');
@@ -67,7 +69,7 @@ for (const provider of ['custom', 'venice'] as const) for (const protocol of ['n
       expect(saved.genetics.apoe).toBe('ε3/ε4'); expect(saved.genetics.mtdna).toEqual(before.genetics.mtdna);
     } else { expect(saved.genetics.mtdna.haplogroup).toBe('J'); expect(saved.genetics.mtdnaHistory).toEqual([before.genetics.mtdna]); expect(saved.genetics.snps).toEqual(before.genetics.snps); }
     await page.locator('#chat-input').fill('Thanks.'); await page.locator('#chat-send-btn').click(); await expect(page.locator('#chat-messages')).toContainText('Your decision is recorded.'); expect(feedback).toBe(true);
-    await page.reload(); await page.waitForFunction(async () => (await import('/js/state.js')).state.currentProfile !== null); expect((await receipt()).genetics).toEqual(saved.genetics);
+    await page.reload(); await page.locator('html[data-app-ready]').waitFor(); await page.waitForFunction(async () => (await import('/js/state.js')).state.currentProfile !== null); expect((await receipt()).genetics).toEqual(saved.genetics);
     if (decision === 'apply') {
       await page.evaluate(async () => { const { state } = await import('/js/state.js'); const runtime = (await import('/js/agent-tool-runtime.js')).createAgentToolRuntime({ readContext: () => '', ...(await import('/js/agent-tool-bindings.js')).createBrowserAgentToolDependencies(state.currentProfile) }); const opened = await runtime.execute({ tool: 'getbased_navigate', arguments: { view: 'genome' } }); if (!opened.success) throw new Error(opened.contentItems[0].text); });
       await expect(page.locator('#main-content [data-widget-id="genome"]')).toContainText(kind === 'snp' ? 'ε3/ε4' : 'mtDNA J');

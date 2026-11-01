@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import {migrateLegacyLabFixture} from '../helpers/legacy-lab-profile-fixture.js';
 import {expect,test,type Page} from '@playwright/test';
 import {startKitServer} from './kit-release-server.js';
 import {artifactInputs,cacheReceipt,profile,sha} from './kit-native-receipts.js';
@@ -7,7 +8,7 @@ import {installOfflineStartupDiagnostics} from '../helpers/offline-launch-diagno
 import {readyLightArtifact as ready} from '../helpers/light-artifact-navigation.js';
 import {flow,installEvents,openDashboard,preferences,protectedPreferences} from '../helpers/dashboard-action-bar-pwa-flow.js';
 const authored=['js/dashboard-action-bar-presentation.js','js/dashboard-action-bar-rendering.js','js/components/DashboardActionBar.svelte.html.js'] as const;
-const modules=[...authored,'js/dashboard-widget-controls.js','js/dashboard-widgets.js','js/dashboard-picker-presentation.js','js/views-runtime.js','js/nav.js','js/state.js','js/profile.js'] as const;
+const modules=[...authored,'js/dashboard-widget-controls.js','js/dashboard-widgets.js','js/dashboard-picker-presentation.js','js/navigation-views.js','js/nav.js','js/state.js','js/profile.js'] as const;
 const sheets=['css/app-shell.css','css/dashboard-core.css','css/dashboard-widgets.css','css/mobile-dashboard.css','css/chat-panel-open.css','css/modal-shared.css'] as const;
 async function wholeProfile(page:Page,artifact:Awaited<ReturnType<typeof artifactInputs>>){
   const active=await profile(page,artifact.state);
@@ -24,7 +25,7 @@ test('Dashboard action bar first offline use and two zero-page cold launches pre
   test.setTimeout(180000);const artifact=await artifactInputs(modules,sheets),sw=await fs.readFile('service-worker-assets.js','utf8');
   for(const module of authored)expect(sw).toContain("'/"+module+"'");
   await installDiscussionFixture(context,{provider:'openrouter',paused:true});await installOfflineStartupDiagnostics(context);
-  const imported=await fs.readFile(new URL('../fixtures/dashboard-action-bar-pwa-profile.json',import.meta.url),'utf8'),registry=JSON.parse(await fs.readFile(new URL('../fixtures/dashboard-action-bar-pwa-registry.json',import.meta.url),'utf8')) as unknown[];
+  const imported=JSON.stringify(migrateLegacyLabFixture(JSON.parse(await fs.readFile(new URL('../fixtures/dashboard-action-bar-pwa-profile.json',import.meta.url),'utf8')))),registry=JSON.parse(await fs.readFile(new URL('../fixtures/dashboard-action-bar-pwa-registry.json',import.meta.url),'utf8')) as unknown[];
   const returningFixture=JSON.parse(await fs.readFile(new URL('../fixtures/startup-banners-returning-user.json',import.meta.url),'utf8')) as {personality:string;threads:unknown[]};
   // A real recent synthetic input timestamp keeps the returning-user backup boundary stable over time.
   const returning={...returningFixture,backupTimestamp:new Date().toISOString()};

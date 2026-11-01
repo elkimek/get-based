@@ -5,9 +5,9 @@ import {activate, artifactInputs, profile} from './kit-native-receipts.js';
 import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
 import {installOfflineStartupDiagnostics} from '../helpers/offline-launch-diagnostics.js';
 import {readyLightArtifact as ready} from '../helpers/light-artifact-navigation.js';
+import type {AIToolCall} from '../../shared/ai-tool-protocol.js';
 
 const glucose = 'biochemistry_glucose', movedGlucose = 'lipids_glucose';
-const custom = 'biochemistry_syntheticManualMarker', customKey = 'biochemistry.syntheticManualMarker';
 const date = '2026-08-02', glucoseNote = 'Manual glucose <literal> & fasting', customNote = 'Custom <literal> & durable';
 const mutationTime = Date.parse('2026-10-17T12:00:00Z');
 const modules = ['js/state.js', 'js/marker-detail-modal-impl.js', 'js/marker-detail-editing.js',
@@ -57,8 +57,9 @@ function protectedFields(value: Record<string, unknown>) {
   return Object.fromEntries(Object.entries(value).filter(([key]) => !allowed.has(key)));
 }
 
-test('sample cycle edits load offline and preserve independent draws, periods and unknown phase facts', async ({ page, context }, info) => {
-  const artifact = await artifactInputs([...modules, 'js/lab-sample-cycle.js', 'js/lab-sample-mutations.js', 'js/lab-sample-records.js', 'js/lab-sample-record-store.js', 'js/lab-sample-editor.js', 'js/components/LabSampleEditor.svelte.html.js'], sheets);
+test('reviewed chat sample cycle edits load offline and preserve independent draws, periods and unknown phase facts', async ({ page, context }, info) => {
+  const cycleOwners = [...modules, 'js/lab-sample-cycle.js', 'js/lab-sample-mutations.js', 'js/lab-sample-records.js', 'js/lab-sample-record-store.js', 'js/agent-data-bindings.js', 'js/agent-health-data-model.js', 'js/agent-data-apply.js', 'js/components/ChatAgentDraftCards.svelte'];
+  const artifact = await artifactInputs(cycleOwners, sheets);
   const seeded = JSON.parse(await fs.readFile(new URL('../fixtures/marker-detail-complete/pwa-profile.json', import.meta.url), 'utf8')) as Record<string, unknown>;
   seeded.entries = [
     { panelId: 'morning', date, markers: { 'biochemistry.glucose': 5 }, context: { sampleTime: '08:00', fasting: true, cycleDay: 14, cyclePhase: 'follicular', cyclePhaseSource: 'predicted' }, updatedAt: 100 },
@@ -73,22 +74,55 @@ test('sample cycle edits load offline and preserve independent draws, periods an
     localStorage.setItem('cycle-sample-seeded', '1'); localStorage.setItem('labcharts-encryption-enabled', 'false');
     localStorage.setItem('labcharts-profiles', JSON.stringify(registry)); localStorage.setItem('labcharts-active-profile', 'default'); localStorage.setItem('labcharts-default-imported', JSON.stringify(seeded));
     localStorage.setItem('labcharts-analytics-disabled', 'true'); localStorage.setItem('labcharts-show-product-recs', 'false'); localStorage.setItem('labcharts-last-manual-backup', new Date().toISOString());
+    localStorage.setItem('labcharts-chat-backend', 'direct'); localStorage.setItem('labcharts-openrouter-key', 'synthetic-cycle-key'); localStorage.setItem('labcharts-openrouter-model', 'openai/synthetic-cycle');
   }, { seeded, registry });
   await context.addInitScript({ path: 'node_modules/axe-core/axe.min.js' });
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message)); context.on('page', target => target.on('pageerror', error => errors.push(error.message)));
   const server = await startKitServer(artifact.directory); let stopped = false;
   const receipts: { before?: Receipt; saved?: Receipt; cleared?: Receipt; final?: Receipt; cold?: Receipt } = {};
+  const changes = [
+    { id: 'morning', evidence: 'My morning sample was cycle day 21, mid-luteal phase.', patch: { cycleDay: 21, cyclePhase: 'luteal', cyclePhaseDetail: 'mid_luteal' } },
+    { id: 'morning', evidence: 'Clear the recorded phase and phase detail on my morning sample, keeping cycle day 21.', patch: { cyclePhase: null, cyclePhaseDetail: null } },
+    { id: 'legacy', evidence: 'My legacy sample was collected at 10:00. Keep all its original cycle details.', patch: { sampleTime: '10:00' } },
+  ];
+  let stage = 0, round = 0;
+  await context.route('https://openrouter.ai/api/v1/chat/completions', async route => {
+    const body = route.request().postDataJSON();
+    if (!body.tools) { await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: '{}' }, finish_reason: 'stop' }] }) }); return; }
+    let call: AIToolCall | undefined; const change = changes[stage]!;
+    if (round === 0) call = { id: 'read-sample', type: 'function', function: { name: 'getbased_read_data', arguments: JSON.stringify({ resource: 'labSamples', recordId: change.id }) } };
+    if (round === 1) {
+      const result = JSON.parse(body.messages.at(-1).content); expect(result.success).toBe(true); const snapshot = JSON.parse(result.contentItems[0].text);
+      if (stage === 0) expect(snapshot.current.cycle).toEqual({ cycleDay: 14, cyclePhase: 'follicular', cyclePhaseDetail: null, cyclePhaseSource: 'predicted' });
+      if (stage === 1) expect(snapshot.current.cycle).toEqual({ cycleDay: 21, cyclePhase: 'luteal', cyclePhaseDetail: 'mid_luteal', cyclePhaseSource: 'recorded' });
+      if (stage === 2) expect(snapshot.current.cycle).toEqual({ cycleDay: 'Legacy day unknown', cyclePhase: 'Late luteal', cyclePhaseDetail: 'Legacy detail', cyclePhaseSource: null });
+      call = { id: 'draft-sample', type: 'function', function: { name: 'getbased_draft_data', arguments: JSON.stringify({ resource: 'labSamples', operation: 'update', snapshotId: snapshot.snapshotId, patch: JSON.stringify(change.patch), evidence: change.evidence, reason: 'Explicit sample fact correction.' }) } };
+    }
+    if (round === 2) { const result = JSON.parse(body.messages.at(-1).content); expect(result.success).toBe(true); expect(JSON.parse(result.contentItems[0].text).review.applied).toBe(false); }
+    round++; await route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: 'Review this sample correction before applying.' }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` });
+  });
+  async function reviewChange() {
+    if (await page.locator('#modal-overlay').isVisible()) await closeMarker(page);
+    if (!await page.locator('#chat-panel.open').isVisible()) await activate(page, page.locator('#chat-fab'));
+    const resume = page.locator('[data-chat-empty-action="resume-ai"]'), input = page.locator('#chat-input');
+    await expect.poll(async () => await resume.isVisible() || await input.isVisible()).toBe(true);
+    if (await resume.isVisible()) await activate(page, resume);
+    await expect(input).toBeVisible();
+    const previous = await profile(page, artifact.state); round = 0;
+    await page.locator('#chat-input').fill(changes[stage]!.evidence); await activate(page, page.locator('#chat-send-btn'));
+    const pending = page.locator('.chat-agent-draft-pending'), consent = page.locator('#cloud-ai-consent-overlay.show'); await expect(pending.or(consent)).toBeVisible();
+    if (await consent.isVisible()) { await consent.locator('input[type="checkbox"]').check(); await activate(page, consent.locator('[data-ai-processing-action="approve"]')); }
+    await expect(pending).toContainText('Lab Samples'); expect(await profile(page, artifact.state)).toEqual(previous);
+    await page.setViewportSize({ width: 390, height: 844 }); expect(await pending.evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
+    expect(await pending.evaluate(async node => (await (window as unknown as { axe: typeof import('axe-core') }).axe.run(node, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } })).violations.map(value => value.id))).toEqual([]);
+    await page.screenshot({ path: info.outputPath(`sample-cycle-${stage}-review-mobile.png`), fullPage: true });
+    await pending.getByRole('button', { name: 'Apply', exact: true }).focus(); await page.keyboard.press('Enter'); await expect(page.locator('.chat-agent-draft-applied')).toHaveCount(stage + 1); expect(round).toBe(3); stage++;
+    await openMarker(page, 'biochemistry', glucose, 'Glucose'); await expect(page.getByRole('button', { name: 'Edit sample', exact: true })).toHaveCount(0);
+  }
   const row = () => page.locator('.marker-history-row').filter({ has: page.locator('[data-marker-detail-action="edit-marker-value"][data-marker-detail-panel-id="morning"]') });
   try {
     await ready(page, server.origin); const before = await profile(page, artifact.state), minimum = await page.evaluate(() => Date.now()); receipts.before = before; server.state.offline = true;
-    await openMarker(page, 'biochemistry', glucose, 'Glucose'); await activate(page, row().getByRole('button', { name: 'Edit sample', exact: true }));
-    const form = page.locator('#lab-sample-form'); await expect(page.getByLabel('Cycle day', { exact: true })).toHaveValue('14');
-    await page.getByLabel('Cycle day', { exact: true }).fill('21'); await page.getByLabel('Cycle phase', { exact: true }).selectOption('luteal'); await page.getByLabel('Cycle phase detail', { exact: true }).selectOption('mid_luteal');
-    await page.setViewportSize({ width: 390, height: 844 }); expect(await form.evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
-    expect(await form.evaluate(async node => (await (window as unknown as { axe: typeof import('axe-core') }).axe.run(node, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } })).violations.map(value => value.id))).toEqual([]);
-    await page.screenshot({ path: info.outputPath('sample-cycle-mobile.png'), fullPage: true });
-    await page.getByLabel('Cycle phase detail', { exact: true }).scrollIntoViewIfNeeded(); await page.screenshot({ path: info.outputPath('sample-cycle-fields-mobile.png') });
-    await page.getByRole('button', { name: 'Save sample', exact: true }).focus(); await page.keyboard.press('Enter'); await expect(form).toHaveCount(0); await expect(row()).toContainText('Mid-luteal'); await expect(row()).toContainText('cycle day 21');
+    await reviewChange(); await expect(row()).toContainText('Mid-luteal'); await expect(row()).toContainText('cycle day 21');
     const saved = await profile(page, artifact.state), current = data(saved); receipts.saved = saved; expect(current.entries[0]!.context).toMatchObject({ cycleDay: 21, cyclePhase: 'luteal', cyclePhaseDetail: 'mid_luteal', cyclePhaseSource: 'recorded' });
     expect(current.entries[1]).toEqual(data(before).entries[1]); expect(protectedFields(current)).toEqual(protectedFields(data(before)));
     const maximum = await page.evaluate(() => Date.now()), originalRegistry = before.profiles as Record<string, unknown>[], savedRegistry = saved.profiles as Record<string, unknown>[];
@@ -98,27 +132,25 @@ test('sample cycle edits load offline and preserve independent draws, periods an
       if (record.id === 'default') { expect({ ...record, lastUpdated: original.lastUpdated }).toEqual(original); expect(record.lastUpdated).toBeGreaterThanOrEqual(minimum); expect(record.lastUpdated).toBeLessThanOrEqual(maximum); }
       else expect(record).toEqual(original);
     }
-    await page.reload(); await ready(page, server.origin); await openMarker(page, 'biochemistry', glucose, 'Glucose'); await activate(page, row().getByRole('button', { name: 'Edit sample', exact: true }));
-    await expect(page.getByLabel('Cycle phase detail', { exact: true })).toHaveValue('mid_luteal'); await page.getByLabel('Cycle phase', { exact: true }).selectOption(''); await activate(page, page.getByRole('button', { name: 'Save sample', exact: true }));
+    await page.reload(); await ready(page, server.origin); await reviewChange();
     await expect(page.locator('#lab-sample-form')).toHaveCount(0); await expect(row()).toContainText('Cycle day 21'); await expect(row()).not.toContainText('Mid-luteal');
     receipts.cleared = await profile(page, artifact.state); const cleared = data(receipts.cleared); expect(cleared.entries[0]!.context).toMatchObject({ cycleDay: 21, cyclePhase: null, cyclePhaseDetail: null, cyclePhaseSource: null }); expect(cleared.entries[1]).toEqual(current.entries[1]); expect(protectedFields(cleared)).toEqual(protectedFields(data(before)));
-    const legacy = page.locator('.marker-history-row').filter({ has: page.locator('[data-marker-detail-action="edit-marker-value"][data-marker-detail-panel-id="legacy"]') });
-    await activate(page, legacy.getByRole('button', { name: 'Edit sample', exact: true })); await expect(page.getByLabel('Cycle day', { exact: true })).toHaveValue('Legacy day unknown');
-    await page.getByLabel('Collection time', { exact: true }).fill('10:00'); await activate(page, page.getByRole('button', { name: 'Save sample', exact: true })); await expect(page.locator('#lab-sample-form')).toHaveCount(0);
+    await reviewChange(); await expect(page.locator('#lab-sample-form')).toHaveCount(0);
     receipts.final = await profile(page, artifact.state); const final = data(receipts.final); expect(final.entries[2]!.context).toEqual({ ...data(before).entries[2]!.context, sampleTime: '10:00' }); expect(final.entries.slice(0, 2)).toEqual(cleared.entries.slice(0, 2)); expect(protectedFields(final)).toEqual(protectedFields(data(before)));
     await closeMarker(page); await server.close(); stopped = true; await expect(fetch(server.origin + '/index.html')).rejects.toThrow();
     await page.close(); expect(context.pages()).toHaveLength(0); page = await context.newPage(); await ready(page, server.origin);
     receipts.cold = await profile(page, artifact.state); expect(receipts.cold).toEqual(receipts.final);
     await openMarker(page, 'biochemistry', glucose, 'Glucose'); await expect(row()).toContainText('Cycle day 21'); await expect(row()).not.toContainText('Mid-luteal');
-    expect(errors).toEqual([]); expect(await artifactInputs([...modules, 'js/lab-sample-cycle.js', 'js/lab-sample-mutations.js', 'js/lab-sample-records.js', 'js/lab-sample-record-store.js', 'js/lab-sample-editor.js', 'js/components/LabSampleEditor.svelte.html.js'], sheets)).toEqual(artifact);
+    expect(stage).toBe(3); expect(errors).toEqual([]); expect(await artifactInputs(cycleOwners, sheets)).toEqual(artifact);
   } finally {
     await info.attach('static-sample-cycle-receipt', { body: JSON.stringify({ artifact, receipts, errors, stopped,
-      boundary: 'Actual static public sample editor, mobile/axe/Enter Save, offline first use, whole live/committed profile receipts, legacy field preservation, and zero-page cold launch with stopped HTTP server. Synthetic profile and paused credential-free AI; no mutation-function calls or live inference.' }, null, 2), contentType: 'application/json' });
+      boundary: 'Actual static public chat read/draft/Enter Apply, mobile/axe, no pre-approval save, offline first use, whole live/committed profile receipts, legacy field preservation, production-hidden sample editor, and zero-page cold launch with stopped HTTP server. Synthetic provider output; no mutation-function calls or live inference.' }, null, 2), contentType: 'application/json' });
     if (!stopped) await server.close();
   }
 });
 
 test('static public marker actions persist manual values, custom edits, reference ranges and canonical placement through an offline cold launch', async ({page, context}, info) => {
+  let custom = '', customKey = '';
   test.setTimeout(180000);
   const artifact = await artifactInputs(modules, sheets);
   const seeded = JSON.parse(await fs.readFile(new URL('../fixtures/marker-detail-complete/pwa-profile.json', import.meta.url), 'utf8')) as Record<string, unknown>;
@@ -196,6 +228,13 @@ test('static public marker actions persist manual values, custom edits, referenc
     await page.locator('#cm-ref-min').fill('1'); await page.locator('#cm-ref-max').fill('10');
     await page.locator('#cm-opt-min').fill('2'); await page.locator('#cm-opt-max').fill('8');
     await activate(page, page.locator(action('save-custom-marker')));
+    await expect(page.locator('#me-value')).toBeFocused();
+    const created = data(await profile(page, artifact.state)).customMarkers;
+    expect(Object.keys(created)).toHaveLength(1);
+    const identity = Object.values(created)[0]!.markerId;
+    expect(identity).toMatch(/^custom:[a-f0-9]{32}$/);
+    customKey = `biochemistry.syntheticManualMarker_${String(identity).slice(-16)}`;
+    expect(Object.keys(created)).toEqual([customKey]); custom = customKey.replace('.', '_');
     await fillManual(page, '3.5', customNote); await activate(page, page.locator(action('save-manual-entry')));
     await historyValue(page, custom, '3.5');
     await activate(page, page.locator(action('edit-marker-value') + '[data-marker-detail-date="' + date + '"]'));
@@ -210,9 +249,9 @@ test('static public marker actions persist manual values, custom edits, referenc
     saved = await profile(page, artifact.state); expect(saved.live).toEqual(saved.stored);
     const committed = data(saved), customDefinition = committed.customMarkers[customKey]; expect(customDefinition).toBeDefined();
     expect(customDefinition!.markerId).toMatch(/^custom:[a-f0-9]{32}$/);
-    expect(committed.customMarkers).toEqual({[customKey]: {markerId: customDefinition!.markerId, name: 'Synthetic Manual Marker', unit: 'AU', refMin: 1, refMax: 10, categoryLabel: 'Biochemistry'}});
+    expect(committed.customMarkers).toEqual({[customKey]: {markerId: customDefinition!.markerId, name: 'Synthetic Manual Marker', unit: 'AU', refMin: 1, refMax: 10, categoryLabel: 'Biochemistry', contextGroup: 'Biochemistry'}});
     expect(committed.refOverrides).toEqual({...data(before).refOverrides,
-      'biochemistry.glucose': {refMin: 4, refMax: 6.2, refSource: 'manual'}, [customKey]: {optimalMin: 2, optimalMax: 8}});
+      'biochemistry.glucose': {refMin: 4, refMax: 6.2, refSource: 'manual'}, [customKey]: {optimalMin: 2, optimalMax: 8, optimalSource: 'manual'}});
     expect(committed.markerPlacements).toEqual({'gb:marker:glucose': {categoryKey: 'lipids'}});
     expect(committed.markerLabels).toEqual({[customKey]: 'Synthetic Renamed Marker'});
     expect(committed.manualValues).toEqual({['biochemistry.glucose:' + date]: true, [customKey + ':' + date]: true});

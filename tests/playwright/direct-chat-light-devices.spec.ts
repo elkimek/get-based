@@ -31,7 +31,9 @@ for (const provider of ['custom', 'venice'] as const) for (const protocol of ['n
       if (protocol === 'structured') await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: JSON.stringify({ reply: call ? '' : reply, calls: call ? [{ id: call.id, name: call.function.name, arguments: call.function.arguments }] : [] }) }, finish_reason: 'stop' }] }) });
       else await route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: reply }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` });
     });
+    await page.addInitScript(() => { for (const key of ['tour', 'emptyTour']) localStorage.setItem(`labcharts-default-${key}`, 'completed'); });
     await page.goto('/app');
+    await page.locator('html[data-app-ready]').waitFor();
     sessionId = await page.evaluate(async provider => {
       const profiles = await import('/js/profile.js'), id = await profiles.createProfile('Synthetic device proposal', { sex: 'female', skipInitialSync: true });
       for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(profiles.profileStorageKey(id, suffix), 'completed');
@@ -65,7 +67,7 @@ for (const provider of ['custom', 'venice'] as const) for (const protocol of ['n
       const protectedFields = (value: Record<string, unknown>) => Object.fromEntries(Object.entries(value).filter(([key]) => !['lightDevices', 'deviceSessions', '_deleted', '_deletedAt', '_deletedClearedAt'].includes(key)));
       expect(protectedFields(saved)).toEqual(protectedFields(before));
     }
-    await page.reload(); await page.waitForFunction(async () => !!(await import('/js/state.js')).state.currentProfile); expect(await receipt()).toEqual(saved);
+    await page.reload(); await page.locator('html[data-app-ready]').waitFor(); await page.waitForFunction(async () => !!(await import('/js/state.js')).state.currentProfile); expect(await receipt()).toEqual(saved);
     await page.evaluate(async () => { const runtime = (await import('/js/agent-tool-runtime.js')).createAgentToolRuntime({ readContext: () => '', ...(await import('/js/agent-tool-bindings.js')).createBrowserAgentToolDependencies((await import('/js/state.js')).state.currentProfile) }); const result = await runtime.execute({ tool: 'getbased_navigate', arguments: { view: 'light' } }); if (!result.success) throw new Error(result.contentItems[0].text); });
     const row = page.locator(`[data-light-history-row][data-id="${sessionId}"]`); await expect(row).toContainText('Synthetic Panel'); await expect(row).toContainText(decision === 'apply' ? '20 min' : '10 min');
     await expect(page.locator('.light-device-card')).toHaveCount(1); expect(errors).toEqual([]);

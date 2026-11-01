@@ -83,7 +83,10 @@ it('preserves the actual saved outcome and withholds Undo after source withdrawa
 it('restores selected workspace preferences without changing clinical records', async () => {
   const before = await crypto.encryptedGetItem(healthKey); await command({ markers }); state.selectedCorrelationMarkers = []; state.correlationView = {}; await restoreCorrelationWorkspace(profile); expect(state.selectedCorrelationMarkers).toEqual(markers); expect(await crypto.encryptedGetItem(healthKey)).toBe(before);
 });
-it('uses the shared provider-neutral tools without creating data proposals or review cards', async () => {
+it('rejects retired correlation preference tools without native work, reviews or data changes', async () => {
   const message = 'Compare glucose and urea trends.', session = createAppControlSession(message, () => true, new AbortController().signal), tools = createAgentToolRuntime({ readContext: () => '', userMessage: message, ...session.tools, navigate: request => openLabCorrelations(request, () => true) });
-  const result = await tools.execute({ tool: 'getbased_read_app', arguments: { action: 'labs.correlations' } }); expect(result.success).toBe(true); const current = JSON.parse(result.contentItems[0].text); const selected = await tools.execute({ tool: 'getbased_navigate', arguments: { view: 'correlations', snapshotId: current.snapshotId, correlation: JSON.stringify({ markers }) } }); expect(selected.success).toBe(true); expect(JSON.parse(selected.contentItems[0].text)).toMatchObject({ settingsSaved: true, dataSaved: false }); expect(session.finish()).toEqual([]); expect(tools.getDrafts()).toEqual([]); expect((await readCorrelationWorkspaceSnapshot(profile)).workspace.markers).toEqual(markers);
+  const before = await readCorrelationWorkspaceSnapshot(profile), health = await crypto.encryptedGetItem(healthKey);
+  const result = await tools.execute({ tool: 'getbased_read_app', arguments: { action: 'labs.correlations' } }); expect(result.success).toBe(false);
+  const selected = await tools.execute({ tool: 'getbased_navigate', arguments: { view: 'correlations', snapshotId: 'retired-snapshot', correlation: JSON.stringify({ markers }) } }); expect(selected.success).toBe(false);
+  expect(session.finish()).toEqual([]); expect(tools.getDrafts()).toEqual([]); expect(await readCorrelationWorkspaceSnapshot(profile)).toEqual(before); expect(await crypto.encryptedGetItem(healthKey)).toBe(health);
 });

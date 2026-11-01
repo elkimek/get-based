@@ -30,8 +30,8 @@ for (const decision of ['apply', 'discard'] as const) {
       const clients = await import('/js/client-list.js');
       await clients.openClientList(); clients.openClientForm((await import('/js/state.js')).state.currentProfile);
     });
-    await expect(page.locator('#cl-height')).toHaveValue(decision === 'apply' ? '70.0' : '170');
-    await expect(page.locator('#cl-height-unit')).toHaveValue(decision === 'apply' ? 'in' : 'cm');
+    await expect(page.locator('#cl-height')).toHaveValue(decision === 'apply' ? '178' : '170');
+    await expect(page.locator('#cl-height-unit')).toHaveValue('cm');
     await expect(page.locator('#cl-country')).toHaveValue(decision === 'apply' ? 'Czechia' : 'Germany');
     await expect(page.locator('#cl-zip')).toHaveValue('12345');
   });

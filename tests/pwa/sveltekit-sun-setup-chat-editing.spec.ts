@@ -7,7 +7,7 @@ import { activate, artifactInputs, cacheReceipt, profile } from './kit-native-re
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 import { installOfflineStartupDiagnostics } from '../helpers/offline-launch-diagnostics.js';
 import { readyLightArtifact as ready, openLightArtifact as openLight } from '../helpers/light-artifact-navigation.js';
-const owners = ['js/state.js', 'js/agent-data-bindings.js', 'js/agent-data-model.js', 'js/agent-data-apply.js', 'js/agent-draft-presentation.js',
+const owners = ['js/state.js', 'js/agent-data-bindings.js', 'js/agent-health-data-model.js', 'js/agent-data-apply.js', 'js/agent-draft-presentation.js',
   'js/sun-setup-proposals.js', 'js/sun-setup-mutations.js', 'js/sun-setup-store.js', 'js/sun-setup-records.js',
   'js/sun-defaults.js', 'js/sun-defaults-session.js', 'js/sun-defaults-model.js', 'js/sun-defaults-setup-ui.js', 'js/sun-defaults-setup-renderer.js',
   'js/components/ChatAgentDraftCards.svelte', 'js/components/LightSetupPresentation.svelte'] as const;

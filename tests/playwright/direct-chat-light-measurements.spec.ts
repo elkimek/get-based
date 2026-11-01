@@ -32,7 +32,9 @@ for (const provider of ['custom', 'venice'] as const) for (const protocol of ['n
       if (protocol === 'structured') await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: JSON.stringify({ reply: call ? '' : reply, calls: call ? [{ id: call.id, name: call.function.name, arguments: call.function.arguments }] : [] }) }, finish_reason: 'stop' }] }) });
       else await route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: reply }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` });
     });
+    await page.addInitScript(() => { for (const key of ['tour', 'emptyTour']) localStorage.setItem(`labcharts-default-${key}`, 'completed'); });
     await page.goto('/app');
+    await page.locator('html[data-app-ready]').waitFor();
     await page.evaluate(async provider => {
       const profiles = await import('/js/profile.js'), id = await profiles.createProfile('Synthetic measurement proposal', { sex: 'female', skipInitialSync: true });
       for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(profiles.profileStorageKey(id, suffix), 'completed');
@@ -63,7 +65,7 @@ for (const provider of ['custom', 'venice'] as const) for (const protocol of ['n
       const protectedFields = (value: Record<string, unknown>) => Object.fromEntries(Object.entries(value).filter(([key]) => !['lightMeasurements', 'lightAudits', 'lightEnvironment', '_deleted', '_deletedAt', '_deletedClearedAt'].includes(key)));
       expect(saved.lightEnvironment).toEqual({ ...before.lightEnvironment, rooms: [] }); expect(protectedFields(saved)).toEqual(protectedFields(before));
     }
-    await page.reload(); await page.waitForFunction(async () => !!(await import('/js/state.js')).state.currentProfile); expect(await receipt()).toEqual(saved);
+    await page.reload(); await page.locator('html[data-app-ready]').waitFor(); await page.waitForFunction(async () => !!(await import('/js/state.js')).state.currentProfile); expect(await receipt()).toEqual(saved);
     await page.evaluate(async () => { (await import('/js/api.js')).setAIPaused(true); const runtime = (await import('/js/agent-tool-runtime.js')).createAgentToolRuntime({ readContext: () => '', ...(await import('/js/agent-tool-bindings.js')).createBrowserAgentToolDependencies((await import('/js/state.js')).state.currentProfile) }); const result = await runtime.execute({ tool: 'getbased_navigate', arguments: { view: 'light' } }); if (!result.success) throw new Error(result.contentItems[0].text); });
     const closeChat = page.getByRole('button', { name: 'Close chat', exact: true }); if (await closeChat.isVisible()) await closeChat.click();
     await page.locator('#sidebar-nav').getByRole('button', { name: /^Light assessment/ }).click();
