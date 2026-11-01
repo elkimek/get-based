@@ -475,3 +475,97 @@ test('a first approved goal appears in the normal editor and survives reload wit
   await page.evaluate(async () => { await (await import('/js/context-card-lifestyle-editors.js')).openHealthGoalsEditor(); });
   await expect(page.locator('[aria-label="Saved health goals"] .goals-text')).toHaveText(['Improve my sleep']);
 });
+
+type ApplyOwnershipPort = { draft: { status?: unknown }; release?: () => void; lock?: Promise<unknown>; deleted?: boolean };
+for (const kind of ['context', 'data'] as const) for (const retirement of ['none', 'thread', 'delete', 'index', 'message', 'review'] as const) {
+  test(`queued ${kind} Apply preserves its exact data boundary when the originating ${retirement} owner is checked`, async ({ page, context }) => {
+    await context.route('https://**/*', route => route.abort());
+    await page.addInitScript(() => {
+      localStorage.setItem('labcharts-ai-paused', 'true'); localStorage.setItem('labcharts-analytics-disabled', 'true');
+      localStorage.setItem('labcharts-analytics-consent-seen', '1'); localStorage.setItem('labcharts-default-lastViewV1', 'labs');
+      for (const suffix of ['tour', 'emptyTour']) localStorage.setItem('labcharts-default-' + suffix, 'completed');
+    });
+    await page.goto('/app');
+    const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+    const before = await page.evaluate(async kind => {
+      const profile = await import('/js/profile.js'), id = await profile.createProfile('Synthetic Apply ownership', { sex: 'female', skipInitialSync: true });
+      if (!id) throw new Error('Synthetic profile missing');
+      localStorage.setItem(profile.profileStorageKey(id, 'lastViewV1'), 'labs');
+      for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(profile.profileStorageKey(id, suffix), 'completed');
+      for (const prefix of ['labcharts-onboard-extras-done-', 'labcharts-onboard-context-cards-skipped-']) localStorage.setItem(prefix + id, '1');
+      await profile.switchProfile(id);
+      const { state } = await import('/js/state.js'), crypto = await import('/js/crypto.js');
+      state.importedData.contextNotes = 'PRIVATE_RETAINED_APPLY_NOTE'; state.importedData.healthGoals = [{ text: 'Retained original goal', severity: 'minor' }];
+      state.importedData.entries = [{ date: '2026-10-20', markers: { 'biochemistry.glucose': 5 } }]; state.importedData.nutritionMeals = [];
+      if (!await (await import('/js/data.js')).saveImportedData({ skipSync: true })) throw new Error('Synthetic health seed failed');
+      await (await import('/js/nutrition-store.js')).reconcileNutritionMealsFromProfileData(id);
+      await (await import('/js/chat-loader.js')).openChatPanel();
+      const threads = await import('/js/chat-threads.js'), history = await import('/js/chat-history.js');
+      const destination = threads.createNewThread({ sync: false }); if (!destination) throw new Error('Destination missing');
+      state.chatHistory = [{ role: 'user', content: 'PRIVATE_DESTINATION_CONVERSATION' }];
+      if (!await history.saveChatHistory()) throw new Error('Destination save failed');
+      const origin = threads.createNewThread({ sync: false }); if (!origin) throw new Error('Origin missing');
+      if (!await threads.saveChatThreadIndex({ sync: false })) throw new Error('Thread setup failed');
+      const evidence = kind === 'context' ? 'Improve my sleep as a high priority health goal.' : 'Set my profile note to the explicit new note.';
+      const runtime = (await import('/js/agent-tool-runtime.js')).createAgentToolRuntime({ readContext: () => '', userMessage: evidence, ...(await import('/js/agent-tool-bindings.js')).createBrowserAgentToolDependencies(id) });
+      const read = await runtime.execute({ tool: kind === 'context' ? 'getbased_read_context_card' : 'getbased_read_data', arguments: kind === 'context' ? { card: 'healthGoals' } : { resource: 'profileNotes' } });
+      if (!read.success) throw new Error(read.contentItems[0]!.text);
+      const snapshotId = JSON.parse(read.contentItems[0]!.text).snapshotId;
+      const drafted = await runtime.execute({ tool: kind === 'context' ? 'getbased_draft_context' : 'getbased_draft_data', arguments: kind === 'context'
+        ? { card: 'healthGoals', snapshotId, changes: [{ field: 'goals', operation: 'add', record: { text: 'Improve sleep', severity: 'major' } }], evidence, reason: 'Explicit goal.' }
+        : { resource: 'profileNotes', operation: 'update', snapshotId, patch: JSON.stringify({ text: 'Explicit new note' }), evidence, reason: 'Explicit note.' } });
+      if (!drafted.success) throw new Error(drafted.contentItems[0]!.text);
+      state.chatHistory = [{ role: 'user', content: evidence }, { role: 'assistant', content: 'Review the explicit change.', agentDrafts: runtime.getDrafts().map(draft => ({ ...draft, profileId: id })) }];
+      if (!await history.saveChatHistory()) throw new Error('Origin save failed');
+      const target = document.getElementById('chat-messages'); if (!target) throw new Error('Native chat missing');
+      const drafts = await import('/js/agent-drafts.js');
+      const render = () => { target.innerHTML = state.chatHistory.map((message, index) => drafts.renderAgentDraftCards(message, index)).join(''); };
+      (await import('/js/chat-actions.js')).configureChatMessageActionDeps({ renderChatMessages: render }); render();
+      const port: ApplyOwnershipPort = { draft: state.chatHistory[1]!.agentDrafts![0]! };
+      (globalThis as typeof globalThis & { applyOwnershipTest?: ApplyOwnershipPort }).applyOwnershipTest = port;
+      const lockName = 'getbased-profile-data:' + id;
+      await new Promise<void>(held => { port.lock = navigator.locks.request(lockName, async () => { held(); await new Promise<void>(release => { port.release = release; }); }); });
+      const healthKey = profile.profileStorageKey(id, 'imported'), destinationKey = profile.profileStorageKey(id, 'chat-t_' + destination.id);
+      return { id, origin: origin.id, destination: destination.id, healthKey, destinationKey, lockName, data: await crypto.encryptedGetItem(healthKey), destinationData: await crypto.encryptedGetItem(destinationKey) };
+    }, kind);
+    try {
+      await page.locator('[data-chat-message-action="apply-agent-draft"]').click();
+      await expect.poll(() => page.evaluate(async name => (await navigator.locks.query()).pending?.filter(lock => lock.name === name).length || 0, before.lockName)).toBe(1);
+      if (retirement === 'thread') await page.evaluate(async id => (await import('/js/chat-threads.js')).switchToThread(id), before.destination);
+      if (retirement === 'delete') {
+        await page.evaluate(async id => { void (await import('/js/chat-threads.js')).deleteThread(id).then(deleted => { (globalThis as typeof globalThis & { applyOwnershipTest: ApplyOwnershipPort }).applyOwnershipTest.deleted = deleted; }); }, before.origin);
+        await page.locator('#confirm-dialog-overlay.show #confirm-ok').click();
+        await expect.poll(() => page.evaluate(() => (globalThis as typeof globalThis & { applyOwnershipTest: ApplyOwnershipPort }).applyOwnershipTest.deleted)).toBe(true);
+      }
+      if (retirement === 'index') await page.evaluate(async id => { const { state } = await import('/js/state.js'); state.chatThreads = state.chatThreads.filter(thread => thread.id !== id); }, before.origin);
+      if (retirement === 'message') await page.evaluate(async () => { (await import('/js/state.js')).state.chatHistory.splice(0); });
+      if (retirement === 'review') await page.evaluate(() => { (globalThis as typeof globalThis & { applyOwnershipTest: ApplyOwnershipPort }).applyOwnershipTest.draft.status = 'superseded'; });
+      await page.evaluate(async () => { const port = (globalThis as typeof globalThis & { applyOwnershipTest: ApplyOwnershipPort }).applyOwnershipTest; port.release!(); await port.lock; });
+      await expect.poll(() => page.evaluate(() => (globalThis as typeof globalThis & { applyOwnershipTest: ApplyOwnershipPort }).applyOwnershipTest.draft.status)).toBe(retirement === 'none' ? 'applied' : 'conflict');
+      const after = await page.evaluate(async ({ id, healthKey, destinationKey }) => {
+        await (await import('/js/profile-data-writes.js')).queueProfileDataWrite(id, () => {});
+        const crypto = await import('/js/crypto.js');
+        return { data: await crypto.encryptedGetItem(healthKey), destinationData: await crypto.encryptedGetItem(destinationKey) };
+      }, before);
+      expect(after.destinationData).toBe(before.destinationData);
+      if (retirement !== 'none') expect(after.data).toBe(before.data);
+      else {
+        const original = JSON.parse(before.data!), saved = JSON.parse(after.data!);
+        if (kind === 'data') expect(saved).toEqual({ ...original, contextNotes: 'Explicit new note' });
+        else {
+          expect(saved.healthGoals).toEqual([...original.healthGoals, expect.objectContaining({ text: 'Improve sleep', severity: 'major' })]);
+          expect(saved.changeHistory).toEqual([...original.changeHistory, expect.objectContaining({ field: 'healthGoals', snapshot: saved.healthGoals })]);
+          const restoredAt = saved._deletedClearedAt?.healthGoals?.g_ajn6io;
+          expect(Number.isSafeInteger(restoredAt) && restoredAt > 0).toBe(true);
+          expect(saved).toEqual({ ...original, healthGoals: saved.healthGoals, changeHistory: saved.changeHistory,
+            _deletedClearedAt: { ...original._deletedClearedAt, healthGoals: { ...original._deletedClearedAt?.healthGoals, g_ajn6io: restoredAt } } });
+        }
+      }
+      await page.reload();
+      expect(await page.evaluate(async key => (await import('/js/crypto.js')).encryptedGetItem(key), before.healthKey)).toBe(after.data);
+      expect(errors).toEqual([]);
+    } finally {
+      await page.evaluate(() => (globalThis as typeof globalThis & { applyOwnershipTest?: ApplyOwnershipPort }).applyOwnershipTest?.release?.()).catch(() => {});
+    }
+  });
+}

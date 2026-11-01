@@ -110,12 +110,15 @@ async function updateAgentDraft(actionEl: HTMLElement, apply: boolean) {
   const profile = state.currentProfile;
   const thread = state.currentThreadId;
   const history = state.chatHistory;
-  const isCurrent = () => profile === state.currentProfile && thread === state.currentThreadId && history === state.chatHistory;
+  const isCurrent = () => profile === state.currentProfile && thread === state.currentThreadId && history === state.chatHistory
+    && state.chatThreads.some(item => item.id === thread)
+    && history.includes(message!) && message!.agentDrafts?.some(item => item === draft) === true;
   const refresh = () => { if (isCurrent()) (chatMessageActionDeps.renderChatMessages as (...args: unknown[]) => unknown)(); };
   let claimAttempted = false;
   let mutationStarted = false;
   let mutationCompleted = false;
   try {
+    if (!isCurrent()) return true;
     const fileProposal=draft.kind==='data'?normalizeAgentDataProposal(draft.payload):null;
     if (apply && fileProposal && !chatDataPatchAllowed(fileProposal.resource, fileProposal.operation, parseAgentDataPatch(fileProposal.patch))) throw Object.assign(new Error(CHAT_NATIVE_UI_NOTICE), { noChangeApplied: true });
     if (apply && isLegacyAgentDraft(draft)) {
@@ -153,7 +156,7 @@ async function updateAgentDraft(actionEl: HTMLElement, apply: boolean) {
     await claimAgentDraft(profile as string, draftId);
     if (!isCurrent()) { draft.status = 'failed'; return true; }
     mutationStarted = true;
-    const notice = await applyAgentDraft({ ...draft, status: 'pending' });
+    const notice = await applyAgentDraft({ ...draft, status: 'pending' }, () => isCurrent() && draft.status === 'applying');
     mutationCompleted = true;
     draft.status = 'applied';
     draft.appliedAt = new Date().toISOString();

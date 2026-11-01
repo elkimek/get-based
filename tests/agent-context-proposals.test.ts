@@ -5,7 +5,7 @@ vi.mock('../js/data.js', () => ({ saveImportedDataForProfile: mocks.save, notify
   getActiveData: vi.fn(), navigateDataViewRuntime: vi.fn(), showDataMarkerDetailRuntime: vi.fn() }));
 vi.mock('../js/profile.js', () => ({ getActiveProfileId: () => 'a' }));
 vi.mock('../js/context-source-registry.js', async original => ({ ...await original<typeof import('../js/context-source-registry.js')>(), isContextSourceEnabled: mocks.enabled }));
-vi.mock('../js/lab-context-wearables.js', () => ({ getSleepContextMismatch: () => null, buildWearableSeriesSection: vi.fn() }));
+vi.mock('../js/lab-context-wearables.js', async original => ({ ...await original<typeof import('../js/lab-context-wearables.js')>(), getSleepContextMismatch: () => null, buildWearableSeriesSection: vi.fn() }));
 vi.mock('../js/lens.js', () => ({ queryLens: vi.fn() }));
 vi.mock('../js/agent-profile-record-store.js', async () => { const { state } = await import('../js/state.js'); return { readAgentProfileRecords: async () => structuredClone(state.importedData) }; });
 import { state } from '../js/state.js';

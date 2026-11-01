@@ -6,6 +6,7 @@ import { readAgentProfileRecords } from './agent-profile-record-store.js';
 // Review-and-approve boundary for changes proposed by a connected CLI agent.
 
 import { state } from './state.js';
+import { captureChatTurnScope } from './chat-turn-scope.js';
 import { saveImportedDataForProfile, notifyProfileDataContextChanged, refreshDataViewRuntime } from './data.js';
 import { normalizeAgentContextProposal } from '../shared/agent-tool-contract.js';
 import { normalizeAgentDataProposal, parseAgentDataPatch } from '../shared/agent-data-contract.js';
@@ -67,7 +68,7 @@ async function applyContext(payload: unknown, profileId: string, controlsCurrent
   return `${agentContextCardModel(proposal.card).title} updated.`;
 }
 
-export async function applyAgentDraft(draft: DraftReader | null | undefined) {
+export async function applyAgentDraft(draft: DraftReader | null | undefined, originCurrent: () => boolean = () => true) {
   const authorization = captureChatControlAuthorization(draft?.id); authorization.assert();
   if (!draft || draft.status !== 'pending') throw new Error('This proposal is no longer pending.');
   const activeProfileId = getActiveProfileId();
@@ -75,14 +76,17 @@ export async function applyAgentDraft(draft: DraftReader | null | undefined) {
     throw new Error('Switch back to the profile where this proposal was created before applying it.');
   }
   if (isLegacyAgentDraft(draft)) throw Object.assign(new Error('This older proposal requires a refreshed exact review before Apply. Nothing was changed.'), { noChangeApplied: true, requiresReview: true });
+  const scope = captureChatTurnScope(activeProfileId, originCurrent);
+  const canCommit = () => authorization.current() && scope.current();
+  if (!canCommit()) throw new AgentDraftConflictError('The originating conversation or review changed. Ask for a fresh proposal. No change was applied.');
   let result: string;
-  if (draft.kind === 'data') result = await applyAgentDataProposal(draft.payload, activeProfileId, authorization.current);
-  else if (draft.kind === 'context') result = await applyContext(draft.payload, activeProfileId, authorization.current);
+  if (draft.kind === 'data') result = await applyAgentDataProposal(draft.payload, activeProfileId, canCommit);
+  else if (draft.kind === 'context') result = await applyContext(draft.payload, activeProfileId, canCommit);
   else throw new Error('This proposal type is not supported.');
   // Publishing saved data must neither destroy an open editor's draft nor turn
   // an already committed operation into a failed Apply.
   try {
-    if (state.currentProfile === activeProfileId && typeof document !== 'undefined' && document.getElementById('main-content')
+    if (scope.current() && typeof document !== 'undefined' && document.getElementById('main-content')
       && !document.querySelector('#main-content form, #main-content [contenteditable="true"]')
       && !document.querySelector('dialog[open], .modal-overlay.show')
       && ![...document.querySelectorAll('[role="dialog"][aria-modal="true"]')].some(dialog => !dialog.closest('#chat-panel') && dialog.getClientRects().length)) refreshDataViewRuntime();

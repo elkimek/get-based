@@ -506,7 +506,11 @@ remain unknown; new empty traces explicitly mean no app tools were used.
 Existing chat proposal controls own
 Apply/Discard and durable duplicate-apply claims. `agent-drafts.ts` revalidates
 field choices and the captured profile, then commits through the existing locked
-context-field expectation and records context history. Stale cards fail without
+context-field expectation and records context history. The originating conversation,
+message and review remain current through each native owner's final `canCommit`.
+Removing the conversation from its index, replacing its history or retiring the
+review cancels a queued write. Navigation after a completed commit cannot undo it
+or write confirmation into another conversation. Stale cards fail without
 overwriting newer answers. Review status and available actions reach the next local
 or direct chat turn. A discarded card stays inactive; an explicitly renewed request
 needs a fresh source read and a new proposal, preserving the earlier decision.

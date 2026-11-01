@@ -24,6 +24,7 @@ beforeEach(() => {
   mocks.apply.mockResolvedValue('Saved');
   configureChatMessageActionDeps({ renderChatMessages: mocks.render });
   state.currentProfile = 'a'; state.currentThreadId = 'thread-a';
+  state.chatThreads = [{ id: 'thread-a', name: 'Source conversation', createdAt: '2026-10-23T00:00:00Z', updatedAt: '2026-10-23T00:00:00Z', messageCount: 1 }];
   draft = { id: 'draft-1', profileId: 'a', kind: 'data', status: 'pending', payload: { resource: 'profileNotes', operation: 'update', recordId: '', baseline: '""', patch: '{"text":"Note"}', effectiveDate: '2026-10-23', recordedAt: 1, evidence: 'Note', reason: 'Explicit note.' } };
   state.chatHistory = [{ role: 'assistant', content: '', agentDrafts: [draft] }];
 });
