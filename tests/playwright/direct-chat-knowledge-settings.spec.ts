@@ -3,8 +3,9 @@ import type { Page } from '@playwright/test';
 import { seedLocalKnowledgeCorpus, knowledgeCorpusReceipt } from '../helpers/knowledge-browser-fixture.js';
 async function seed(page: Page, provider?: 'custom' | 'venice') {
   await page.addInitScript(() => { for (const key of ['tour', 'emptyTour']) localStorage.setItem(`labcharts-default-${key}`, 'completed'); });
-  await page.goto('/app'); await page.evaluate(async provider => {
+  await page.goto('/app');
   await page.locator('html[data-app-ready]').waitFor();
+  await page.evaluate(async provider => {
     const profiles = await import('/js/profile.js'), id = await profiles.createProfile('Synthetic Knowledge Base preferences', { sex: 'male', skipInitialSync: true });
     for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(profiles.profileStorageKey(id, suffix), 'completed'); localStorage.setItem(`labcharts-onboard-extras-done-${id}`, '1'); localStorage.setItem(`labcharts-onboard-context-cards-skipped-${id}`, '1'); await profiles.switchProfile(id);
     const api = await import('/js/api.js'); api.setAIPaused(true); (await import('/js/lens.js')).saveLensConfig({ backend: 'external-server', url: 'https://kb-fixture.invalid/query?token=private-url-sentinel', name: 'Private corpus title', enabled: true, topK: 5, multiQuery: true });

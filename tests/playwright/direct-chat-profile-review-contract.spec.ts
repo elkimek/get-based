@@ -20,8 +20,9 @@ async function saved(page: Page) {
 }
 async function seed(page: Page, provider: 'venice' | 'custom') {
   await page.addInitScript(() => { for (const key of ['tour', 'emptyTour']) localStorage.setItem(`labcharts-default-${key}`, 'completed'); });
-  await page.goto('/app'); await page.evaluate(async provider => {
+  await page.goto('/app');
   await page.locator('html[data-app-ready]').waitFor();
+  await page.evaluate(async provider => {
     const profile = await import('/js/profile.js'), id = await profile.createProfile('Synthetic native review contract', { sex: 'female', skipInitialSync: true });
     for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(profile.profileStorageKey(id, suffix), 'completed');
     localStorage.setItem(`labcharts-onboard-extras-done-${id}`, '1'); localStorage.setItem(`labcharts-onboard-context-cards-skipped-${id}`, '1'); await profile.switchProfile(id);

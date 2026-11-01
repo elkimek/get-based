@@ -5,8 +5,9 @@ import { routeJavaScript } from '../helpers/browser-static-routes.js';
 import type { AIToolCall } from '../../shared/ai-tool-protocol.js';
 async function seed(page: Page, provider?: 'custom' | 'venice') {
   await page.addInitScript(() => { for (const key of ['tour', 'emptyTour']) localStorage.setItem(`labcharts-default-${key}`, 'completed'); });
-  await page.goto('/app'); await page.evaluate(async provider => {
+  await page.goto('/app');
   await page.locator('html[data-app-ready]').waitFor();
+  await page.evaluate(async provider => {
     const profiles = await import('/js/profile.js'), id = await profiles.createProfile('Synthetic self-reported EMF context', { sex: 'male', skipInitialSync: true });
     for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(profiles.profileStorageKey(id, suffix), 'completed'); localStorage.setItem(`labcharts-onboard-extras-done-${id}`, '1'); localStorage.setItem(`labcharts-onboard-context-cards-skipped-${id}`, '1'); await profiles.switchProfile(id);
     const api = await import('/js/api.js'); api.setAIPaused(true); const { state } = await import('/js/state.js'); state.importedData.nutritionMeals = []; state.importedData.contextNotes = 'Keep unrelated context';
