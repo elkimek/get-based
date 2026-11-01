@@ -8,6 +8,7 @@ import { filterRemovedLabDates, filterRemovedLabPanels } from './lab-panel-delet
 import { identifyLabPanels } from './lab-panel-identity.js';
 import { getLabEntryMarkerTombstoneAt, getLabEntryMarkerValueTimestamp } from './lab-entry.js';
 import { convertCanonicalToDisplay } from './unit-profiles.js';
+import { buildMarkerBaselines } from './marker-baseline.js';
 import type { ActiveData, ActiveMarker } from './data-view-types.js';
 import type { LabEntry } from '../types/lab-data.js';
 import type { LabContextOptions } from './lab-context-runtime.js';
@@ -104,6 +105,8 @@ export function createLabContextDisclosure(options: Pick<LabContextOptions, 'ski
           return value;
         });
         const next = { ...marker, values, contextSampleCount: visibleEntries.filter(entry => finite(entry.markers?.[key]) && (counts.get(`${key}:${entry.date}`) || 0) > 1).length };
+        // Rebuild the display baseline after source and date permissions below.
+        delete next.personalBaselines;
         for (const field of dateFields) if (Array.isArray(marker[field])) {
           // Do not attach one draw's phase or contextual range to another draw.
           Object.assign(next, { [field]: marker[field]!.map((value, i) => multiple.has(valueDates[i] || '') || field.startsWith('phase') && !sourceEnabled('insight-cards') || values[i] == null ? null : value) });
@@ -114,12 +117,15 @@ export function createLabContextDisclosure(options: Pick<LabContextOptions, 'ski
     }
     const visibleDates = new Set(visibleEntries.map(entry => entry.date));
     const indices = dates.flatMap((date, i) => visibleDates.has(date) || Object.values(categories).some(category => Object.values(category.markers).some(marker => !marker.singlePoint && marker.values[i] != null)) ? [i] : []);
+    const projectedDates = indices.map(i => dates[i]!);
     for (const category of Object.values(categories)) for (const marker of Object.values(category.markers)) if (!marker.singlePoint && !category.singlePoint) {
       marker.values = indices.map(i => marker.values[i]!);
+      const baselines = buildMarkerBaselines(marker.values, projectedDates);
+      if (baselines.some(Boolean)) marker.personalBaselines = baselines;
       for (const field of [...dateFields, 'contextDependencies'] as const) if (Array.isArray(marker[field])) Object.assign(marker, { [field]: indices.map(i => marker[field]![i]) });
     }
     const contextExcludedMarkers = Object.entries(registry).flatMap(([category, row]) => Object.keys(row.markers).map(key => `${category}.${key}`)).filter(key => !allows(key));
-    const result: ActiveData = { ...data, categories, contextExcludedMarkers, dates: indices.map(i => dates[i]!), dateLabels: indices.map(i => data.dateLabels?.[i] || dates[i]!),
+    const result: ActiveData = { ...data, categories, contextExcludedMarkers, dates: projectedDates, dateLabels: indices.map(i => data.dateLabels?.[i] || dates[i]!),
       entryContextByDate: Object.fromEntries([...contexts].filter(([date, rows]) => rows.length === 1 && !multiple.has(date)).map(([date, rows]) => [date, rows[0]!.context || {}])) };
     delete result.phaseLabels; delete result.phaseDisplayLabels; delete result.phaseCycleDays; delete result.phaseSources;
     return result;

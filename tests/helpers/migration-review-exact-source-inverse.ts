@@ -9,6 +9,29 @@ import labPanelEdits from '../fixtures/lab-panel-controller-inverse.json' with {
 // exact replacement and restored intermediate hash is required; original oracles
 // retain their separate immutable hashes in the consuming tests.
 const records = [
+  // Baseline accessibility additions reverse exactly before the original style-port proof.
+{
+  "file": "js/category-view-renderers.ts",
+  "currentSHA256": "c2d1458c786e13c6822cfa80637e4051cc46d9b1a0b5568ec5c5b70b2d41035c",
+  "previousSHA256": "3d8621d317c23a33967618eb4e81027e5c273bf91d6b4b7999eb28ffa962aa60",
+  "edits": [
+    {
+      "start": 1308,
+      "before": ".js';\nimport { baselineForDate, projectMarkerBaseline } from './marker-baseline",
+      "after": ""
+    },
+    {
+      "start": 10700,
+      "before": "baselineDate = chartDates[latestIdx];\n  const baseline = typeof baselineDate === 'string' && Object.prototype.hasOwnProperty.call(marker, 'personalBaselines')\n    ? baselineForDate(marker, latestIdx, baselineDate) : null;\n  const baselineSummary = projectMarkerBaseline(baseline, String(latestUnit), formatValue);\n  const baselineLabel = baselineSummary && baseline ? ` Personal baseline ${baselineSummary.value}, median of ${baseline.count} prior draws. ${baselineSummary.comparison}.` : '';\n  const ",
+      "after": ""
+    },
+    {
+      "start": 11237,
+      "before": "Label + baseline",
+      "after": ""
+    }
+  ]
+},
   {
     "file": "js/marker-detail-editing.ts",
     "currentSHA256": "2684c2d004979d68fd1e9a914f4d51878f869f87d587d82d2ce5bada526530e5",

@@ -137,6 +137,38 @@ it('annotates and filters automatic ratios while retaining an independent report
   const visible = project(); expect(visible.categories.calculatedRatios!.markers.tgHdlRatio!.values).toEqual([null]); expect(visible.categories.calculatedRatios!.markers.cholHdlRatio!.values).toEqual([4]);
   expect(getActiveData()).toBe(original); expect(original.categories.calculatedRatios!.markers.tgHdlRatio!.values).toEqual([2]);
 });
+for (const [key, components, expected] of [
+  ['cd4Cd8Ratio', [['lymphocyteSubsets.cd4', 400], ['lymphocyteSubsets.cd8', 200]], 2],
+  ['lmr', [['differential.lymphocytes', 3], ['differential.monocytes', 0.5]], 6],
+] as const) it(`withholds automatic ${key} inputs while retaining an independently reported ratio`, () => {
+  const markers = { [glucose]: 5, ...Object.fromEntries(components) }, dependencies = components.map(([key]) => key);
+  seed([{ panelId: 'ratio', date: day, markers }]);
+  const original = getActiveData(), marker = original.categories.calculatedRatios!.markers[key]!;
+  expect(marker.values).toEqual([expected]); expect(marker.contextDependencies).toEqual([dependencies]);
+  setGroupInAIContext(group(dependencies[0]!), false);
+  const before = JSON.stringify(state.importedData);
+  expect(project().categories.calculatedRatios!.markers[key]!.values).toEqual([null]);
+  expect(project().categories.biochemistry!.markers.glucose!.values).toEqual([5]);
+  expect(marker.values).toEqual([expected]); expect(JSON.stringify(state.importedData)).toBe(before);
+  seed([{ panelId: 'reported-ratio', date: day, markers: { ...markers, [`calculatedRatios.${key}`]: 9.123 } }]);
+  expect(getActiveData().categories.calculatedRatios!.markers[key]!.contextDependencies).toEqual([[]]);
+  expect(project().categories.calculatedRatios!.markers[key]!.values).toEqual([9.123]);
+});
+for (const hidden of [false, true]) it(`derives AI baselines from permitted history while preserving the native view: hidden=${hidden}`, () => {
+  seed([17, 18, 19, 20].map((date, index) => ({ panelId: `draw-${date}`, date: `2026-10-${date}`, markers: { [glucose]: 5 + index } })));
+  const original = getActiveData(), marker = original.categories.biochemistry!.markers.glucose!;
+  const baselines = structuredClone(marker.personalBaselines);
+  expect(baselines?.find(value => value?.comparedDate === day)).toMatchObject({ median: 6, count: 3, delta: 2 });
+  if (hidden) {
+    state.importedData.entries[0]!.deletedMarkers = { [glucose]: 1100 };
+    state.importedData.entries[0]!.markerSources = { [glucose]: { file: null, at: 1000 } };
+  }
+  const before = JSON.stringify(state.importedData), projected = project().categories.biochemistry!.markers.glucose!;
+  expect(projected.values).toEqual(hidden ? [6, 7, 8] : [5, 6, 7, 8]);
+  if (hidden) expect(projected).not.toHaveProperty('personalBaselines');
+  else expect(projected.personalBaselines).toEqual(baselines);
+  expect(marker.personalBaselines).toEqual(baselines); expect(JSON.stringify(state.importedData)).toBe(before);
+});
 it('prevents score fallback recipes from recreating a disabled calculated group', () => {
   seed([{ panelId: 'ratio', date: day, markers: { 'lipids.triglycerides': 2, 'lipids.hdl': 1 } }]);
   expect(getMarkerHit(getActiveData(), 'calculatedRatios.tgHdlRatio')).not.toBeNull();

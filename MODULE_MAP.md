@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 2084 |
-| Internal import edges | 7007 |
+| Modules | 2088 |
+| Internal import edges | 7015 |
 | Dynamic internal edges | 216 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -706,7 +706,7 @@ Native browser modules shipped with the static application.
 - [`js/category-page-runtime.ts`](js/category-page-runtime.ts) → [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`shared/app-navigation-contract.ts`](shared/app-navigation-contract.ts)
 - [`js/category-page-view.ts`](js/category-page-view.ts) → [`js/category-glyphs.ts`](js/category-glyphs.ts), [`js/category-page-presentation.ts`](js/category-page-presentation.ts), [`js/category-page-runtime.ts`](js/category-page-runtime.ts), [`js/category-presentation.ts`](js/category-presentation.ts), [`js/category-view-renderers.ts`](js/category-view-renderers.ts), [`js/chart-card-recs.ts`](js/chart-card-recs.ts), [`js/data.ts`](js/data.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/lab-ordering-view.ts`](js/lab-ordering-view.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/category-presentation.ts`](js/category-presentation.ts) → [`js/components/CategoryChartCard.svelte`](js/components/CategoryChartCard.svelte), [`js/components/CategoryDataTable.svelte`](js/components/CategoryDataTable.svelte), [`js/components/CategoryFattyAcids.svelte`](js/components/CategoryFattyAcids.svelte), [`js/components/CategoryHeatmap.svelte`](js/components/CategoryHeatmap.svelte), [`js/components/CategoryTableColgroup.svelte`](js/components/CategoryTableColgroup.svelte)
-- [`js/category-view-renderers.ts`](js/category-view-renderers.ts) → [`js/category-presentation.ts`](js/category-presentation.ts), [`js/charts-runtime.ts`](js/charts-runtime.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/state.ts`](js/state.ts), [`js/theme.ts`](js/theme.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/category-view-renderers.ts`](js/category-view-renderers.ts) → [`js/category-presentation.ts`](js/category-presentation.ts), [`js/charts-runtime.ts`](js/charts-runtime.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/marker-baseline.ts`](js/marker-baseline.ts), [`js/state.ts`](js/state.ts), [`js/theme.ts`](js/theme.ts), [`js/utils.ts`](js/utils.ts)
 
 </details>
 
@@ -848,7 +848,7 @@ Native browser modules shipped with the static application.
 <details><summary><code>charts</code> family — 2 modules</summary>
 
 - [`js/charts-runtime.ts`](js/charts-runtime.ts) → no in-scope imports
-- [`js/charts.ts`](js/charts.ts) → [`js/chart-theme-refresh.ts`](js/chart-theme-refresh.ts), [`js/charts-runtime.ts`](js/charts-runtime.ts), [`js/lab-date-range.ts`](js/lab-date-range.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/state.ts`](js/state.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts), [`js/theme.ts`](js/theme.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/charts.ts`](js/charts.ts) → [`js/chart-theme-refresh.ts`](js/chart-theme-refresh.ts), [`js/charts-runtime.ts`](js/charts-runtime.ts), [`js/lab-date-range.ts`](js/lab-date-range.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/marker-baseline.ts`](js/marker-baseline.ts), [`js/marker-chart-scale.ts`](js/marker-chart-scale.ts), [`js/state.ts`](js/state.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts), [`js/theme.ts`](js/theme.ts), [`js/utils.ts`](js/utils.ts)
 
 </details>
 
@@ -2017,7 +2017,7 @@ Native browser modules shipped with the static application.
 
 - [`js/data-calculated-markers.ts`](js/data-calculated-markers.ts) → [`js/marker-context-ranges.ts`](js/marker-context-ranges.ts), [`js/profile-context.ts`](js/profile-context.ts), [`js/state.ts`](js/state.ts)
 - [`js/data-core-types.ts`](js/data-core-types.ts) → no in-scope imports
-- [`js/data-core.ts`](js/data-core.ts) → [`js/custom-marker-core.ts`](js/custom-marker-core.ts), [`js/lab-ordering-view.ts`](js/lab-ordering-view.ts), [`js/marker-range-core.ts`](js/marker-range-core.ts)
+- [`js/data-core.ts`](js/data-core.ts) → [`js/custom-marker-core.ts`](js/custom-marker-core.ts), [`js/lab-ordering-view.ts`](js/lab-ordering-view.ts), [`js/marker-baseline.ts`](js/marker-baseline.ts), [`js/marker-range-core.ts`](js/marker-range-core.ts)
 - [`js/data-custom-markers.ts`](js/data-custom-markers.ts) → no in-scope imports
 - [`js/data-merge-lab-entries.ts`](js/data-merge-lab-entries.ts) → [`js/lab-entry.ts`](js/lab-entry.ts), [`js/lab-panel-deletions.ts`](js/lab-panel-deletions.ts), [`js/lab-panel-identity.ts`](js/lab-panel-identity.ts)
 - [`js/data-merge.ts`](js/data-merge.ts) → [`js/custom-marker-lifecycle.ts`](js/custom-marker-lifecycle.ts), [`js/data-merge-lab-entries.ts`](js/data-merge-lab-entries.ts), [`js/genetics-lifecycle.ts`](js/genetics-lifecycle.ts), [`js/genetics-snp-lifecycle.ts`](js/genetics-snp-lifecycle.ts), [`js/lab-entry.ts`](js/lab-entry.ts), [`js/lab-ordering-core.ts`](js/lab-ordering-core.ts), [`js/lab-panel-deletions.ts`](js/lab-panel-deletions.ts), [`js/sync-delta-id.ts`](js/sync-delta-id.ts), [`js/sync-delta-surface-config.ts`](js/sync-delta-surface-config.ts)
@@ -2560,7 +2560,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>index</code> family — 2 modules</summary>
 
-- [`js/marker-schema/index.ts`](js/marker-schema/index.ts) → [`js/marker-schema/biochemistry.ts`](js/marker-schema/biochemistry.ts), [`js/marker-schema/body-composition.ts`](js/marker-schema/body-composition.ts), [`js/marker-schema/bone-density.ts`](js/marker-schema/bone-density.ts), [`js/marker-schema/bone-metabolism.ts`](js/marker-schema/bone-metabolism.ts), [`js/marker-schema/calculated-ratios.ts`](js/marker-schema/calculated-ratios.ts), [`js/marker-schema/cardiac.ts`](js/marker-schema/cardiac.ts), [`js/marker-schema/coagulation.ts`](js/marker-schema/coagulation.ts), [`js/marker-schema/diabetes.ts`](js/marker-schema/diabetes.ts), [`js/marker-schema/differential.ts`](js/marker-schema/differential.ts), [`js/marker-schema/electrolytes.ts`](js/marker-schema/electrolytes.ts), [`js/marker-schema/hematology.ts`](js/marker-schema/hematology.ts), [`js/marker-schema/hormones.ts`](js/marker-schema/hormones.ts), [`js/marker-schema/identities.ts`](js/marker-schema/identities.ts), [`js/marker-schema/iron.ts`](js/marker-schema/iron.ts), [`js/marker-schema/lipids.ts`](js/marker-schema/lipids.ts), [`js/marker-schema/proteins.ts`](js/marker-schema/proteins.ts), [`js/marker-schema/thyroid.ts`](js/marker-schema/thyroid.ts), [`js/marker-schema/tumor-markers.ts`](js/marker-schema/tumor-markers.ts), [`js/marker-schema/urinalysis.ts`](js/marker-schema/urinalysis.ts), [`js/marker-schema/vitamins.ts`](js/marker-schema/vitamins.ts)
+- [`js/marker-schema/index.ts`](js/marker-schema/index.ts) → [`js/marker-schema/biochemistry.ts`](js/marker-schema/biochemistry.ts), [`js/marker-schema/body-composition.ts`](js/marker-schema/body-composition.ts), [`js/marker-schema/bone-density.ts`](js/marker-schema/bone-density.ts), [`js/marker-schema/bone-metabolism.ts`](js/marker-schema/bone-metabolism.ts), [`js/marker-schema/calculated-ratios.ts`](js/marker-schema/calculated-ratios.ts), [`js/marker-schema/cardiac.ts`](js/marker-schema/cardiac.ts), [`js/marker-schema/coagulation.ts`](js/marker-schema/coagulation.ts), [`js/marker-schema/diabetes.ts`](js/marker-schema/diabetes.ts), [`js/marker-schema/differential.ts`](js/marker-schema/differential.ts), [`js/marker-schema/electrolytes.ts`](js/marker-schema/electrolytes.ts), [`js/marker-schema/hematology.ts`](js/marker-schema/hematology.ts), [`js/marker-schema/hormones.ts`](js/marker-schema/hormones.ts), [`js/marker-schema/identities.ts`](js/marker-schema/identities.ts), [`js/marker-schema/iron.ts`](js/marker-schema/iron.ts), [`js/marker-schema/lipids.ts`](js/marker-schema/lipids.ts), [`js/marker-schema/lymphocyte-subsets.ts`](js/marker-schema/lymphocyte-subsets.ts), [`js/marker-schema/proteins.ts`](js/marker-schema/proteins.ts), [`js/marker-schema/thyroid.ts`](js/marker-schema/thyroid.ts), [`js/marker-schema/tumor-markers.ts`](js/marker-schema/tumor-markers.ts), [`js/marker-schema/urinalysis.ts`](js/marker-schema/urinalysis.ts), [`js/marker-schema/vitamins.ts`](js/marker-schema/vitamins.ts)
 - [`js/marker-terminology/index.ts`](js/marker-terminology/index.ts) → [`js/marker-terminology/catalogs.ts`](js/marker-terminology/catalogs.ts), [`js/marker-terminology/loinc.ts`](js/marker-terminology/loinc.ts), [`js/marker-terminology/nclp.ts`](js/marker-terminology/nclp.ts), [`js/marker-terminology/npu.ts`](js/marker-terminology/npu.ts)
 
 </details>
@@ -2682,7 +2682,7 @@ Native browser modules shipped with the static application.
 - [`js/lab-context-cache.ts`](js/lab-context-cache.ts) → [`js/lab-context-settings.ts`](js/lab-context-settings.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/lab-context-change-timeline.ts`](js/lab-context-change-timeline.ts) → [`js/context-source-registry.ts`](js/context-source-registry.ts), [`js/lab-context-output.ts`](js/lab-context-output.ts)
 - [`js/lab-context-collection.ts`](js/lab-context-collection.ts) → [`js/lab-entry.ts`](js/lab-entry.ts), [`js/lab-panel-identity.ts`](js/lab-panel-identity.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/unit-profiles.ts`](js/unit-profiles.ts)
-- [`js/lab-context-disclosure.ts`](js/lab-context-disclosure.ts) → [`js/context-source-registry.ts`](js/context-source-registry.ts), [`js/lab-context-settings.ts`](js/lab-context-settings.ts), [`js/lab-entry.ts`](js/lab-entry.ts), [`js/lab-panel-deletions.ts`](js/lab-panel-deletions.ts), [`js/lab-panel-identity.ts`](js/lab-panel-identity.ts), [`js/lab-tool-markers.ts`](js/lab-tool-markers.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/state.ts`](js/state.ts), [`js/unit-profiles.ts`](js/unit-profiles.ts)
+- [`js/lab-context-disclosure.ts`](js/lab-context-disclosure.ts) → [`js/context-source-registry.ts`](js/context-source-registry.ts), [`js/lab-context-settings.ts`](js/lab-context-settings.ts), [`js/lab-entry.ts`](js/lab-entry.ts), [`js/lab-panel-deletions.ts`](js/lab-panel-deletions.ts), [`js/lab-panel-identity.ts`](js/lab-panel-identity.ts), [`js/lab-tool-markers.ts`](js/lab-tool-markers.ts), [`js/marker-baseline.ts`](js/marker-baseline.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/state.ts`](js/state.ts), [`js/unit-profiles.ts`](js/unit-profiles.ts)
 - [`js/lab-context-loader.ts`](js/lab-context-loader.ts) → [`js/lab-context.ts`](js/lab-context.ts) *(dynamic)*, [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts)
 - [`js/lab-context-output.ts`](js/lab-context-output.ts) → no in-scope imports
 - [`js/lab-context-runtime.ts`](js/lab-context-runtime.ts) → [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts)
@@ -3618,6 +3618,12 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>lymphocyte</code> family — 1 module</summary>
+
+- [`js/marker-schema/lymphocyte-subsets.ts`](js/marker-schema/lymphocyte-subsets.ts) → no in-scope imports
+
+</details>
+
 <details><summary><code>main</code> family — 1 module</summary>
 
 - [`js/main.ts`](js/main.ts) → [`js/app-extension-bootstrap.ts`](js/app-extension-bootstrap.ts), [`js/app-navigation-loader.ts`](js/app-navigation-loader.ts), [`js/app-shell-component.ts`](js/app-shell-component.ts), [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts), [`js/constants.ts`](js/constants.ts), [`js/feedback.ts`](js/feedback.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/legal-consent.ts`](js/legal-consent.ts), [`js/light-env-shell-hooks.ts`](js/light-env-shell-hooks.ts), [`js/light-sun-loader.ts`](js/light-sun-loader.ts), [`js/navigation-views.ts`](js/navigation-views.ts), [`js/schema.ts`](js/schema.ts), [`js/shell-actions.ts`](js/shell-actions.ts), [`js/startup-orchestrator.ts`](js/startup-orchestrator.ts), [`js/touch-tooltip.ts`](js/touch-tooltip.ts), [`js/tour.ts`](js/tour.ts), [`js/utils.ts`](js/utils.ts)
@@ -3658,9 +3664,11 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>marker</code> family — 29 modules</summary>
+<details><summary><code>marker</code> family — 31 modules</summary>
 
-- [`js/marker-analysis.ts`](js/marker-analysis.ts) → [`js/marker-placement.ts`](js/marker-placement.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/marker-analysis.ts`](js/marker-analysis.ts) → [`js/marker-baseline.ts`](js/marker-baseline.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/marker-baseline.ts`](js/marker-baseline.ts) → no in-scope imports
+- [`js/marker-chart-scale.ts`](js/marker-chart-scale.ts) → no in-scope imports
 - [`js/marker-context-ranges.ts`](js/marker-context-ranges.ts) → no in-scope imports
 - [`js/marker-detail-actions.ts`](js/marker-detail-actions.ts) → [`js/utils.ts`](js/utils.ts)
 - [`js/marker-detail-complete-presentation.ts`](js/marker-detail-complete-presentation.ts) → [`js/components/MarkerDetailBioAge.svelte`](js/components/MarkerDetailBioAge.svelte), [`js/components/MarkerDetailChrome.svelte`](js/components/MarkerDetailChrome.svelte), [`js/components/MarkerDetailNotes.svelte`](js/components/MarkerDetailNotes.svelte)
@@ -4138,13 +4146,14 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>pdf</code> family — 20 modules</summary>
+<details><summary><code>pdf</code> family — 21 modules</summary>
 
 - [`js/pdf-import-ai-utils.ts`](js/pdf-import-ai-utils.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/api-provider-storage.ts`](js/api-provider-storage.ts), [`js/api.ts`](js/api.ts), [`js/lab-entry.ts`](js/lab-entry.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/pdf-import-commit.ts`](js/pdf-import-commit.ts) → [`js/adapters.ts`](js/adapters.ts), [`js/crypto.ts`](js/crypto.ts), [`js/custom-marker-identity.ts`](js/custom-marker-identity.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/import-benchmarks.ts`](js/import-benchmarks.ts), [`js/import-commit-validation.ts`](js/import-commit-validation.ts), [`js/lab-entry.ts`](js/lab-entry.ts), [`js/lab-report-mutations.ts`](js/lab-report-mutations.ts), [`js/lab-report-samples.ts`](js/lab-report-samples.ts), [`js/lab-report-store.ts`](js/lab-report-store.ts), [`js/lab-sample-mutations.ts`](js/lab-sample-mutations.ts), [`js/mosaic-oat-catalog.ts`](js/mosaic-oat-catalog.ts), [`js/pdf-import-marker-mapping.ts`](js/pdf-import-marker-mapping.ts), [`js/pdf-import-persistence.ts`](js/pdf-import-persistence.ts), [`js/pdf-import-ratio-units.ts`](js/pdf-import-ratio-units.ts), [`js/pdf-import-review.ts`](js/pdf-import-review.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/unique-id.ts`](js/unique-id.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/pdf-import-file-handlers.ts`](js/pdf-import-file-handlers.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/api.ts`](js/api.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/import-benchmarks.ts`](js/import-benchmarks.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/pdf-import-ai-utils.ts`](js/pdf-import-ai-utils.ts), [`js/pdf-import-file-utils.ts`](js/pdf-import-file-utils.ts), [`js/pdf-import-preflight.ts`](js/pdf-import-preflight.ts), [`js/pdf-import-progress.ts`](js/pdf-import-progress.ts), [`js/pdf-import-review.ts`](js/pdf-import-review.ts), [`js/pdf-import-spreadsheet.ts`](js/pdf-import-spreadsheet.ts), [`js/pdf-preflight-rendering.ts`](js/pdf-preflight-rendering.ts), [`js/pii.ts`](js/pii.ts), [`js/privacy-safe-diagnostics.ts`](js/privacy-safe-diagnostics.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/pdf-import-file-utils.ts`](js/pdf-import-file-utils.ts) → [`js/pdf-import-spreadsheet.ts`](js/pdf-import-spreadsheet.ts), [`js/pdfjs-loader.ts`](js/pdfjs-loader.ts)
-- [`js/pdf-import-marker-mapping.ts`](js/pdf-import-marker-mapping.ts) → [`js/adapters.ts`](js/adapters.ts), [`js/mosaic-oat-catalog.ts`](js/mosaic-oat-catalog.ts), [`js/pdf-import-ratio-units.ts`](js/pdf-import-ratio-units.ts), [`js/pdf-import-unit-conversions.ts`](js/pdf-import-unit-conversions.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts)
+- [`js/pdf-import-lymphocyte-subsets.ts`](js/pdf-import-lymphocyte-subsets.ts) → no in-scope imports
+- [`js/pdf-import-marker-mapping.ts`](js/pdf-import-marker-mapping.ts) → [`js/adapters.ts`](js/adapters.ts), [`js/mosaic-oat-catalog.ts`](js/mosaic-oat-catalog.ts), [`js/pdf-import-lymphocyte-subsets.ts`](js/pdf-import-lymphocyte-subsets.ts), [`js/pdf-import-ratio-units.ts`](js/pdf-import-ratio-units.ts), [`js/pdf-import-unit-conversions.ts`](js/pdf-import-unit-conversions.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts)
 - [`js/pdf-import-marker-normalization.ts`](js/pdf-import-marker-normalization.ts) → [`js/adapters.ts`](js/adapters.ts), [`js/pdf-import-marker-mapping.ts`](js/pdf-import-marker-mapping.ts), [`js/pdf-import-organic-acid-normalization.ts`](js/pdf-import-organic-acid-normalization.ts), [`js/schema.ts`](js/schema.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/pdf-import-organic-acid-normalization.ts`](js/pdf-import-organic-acid-normalization.ts) → [`js/adapters.ts`](js/adapters.ts), [`js/mosaic-oat-catalog.ts`](js/mosaic-oat-catalog.ts)
 - [`js/pdf-import-persistence.ts`](js/pdf-import-persistence.ts) → [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/lab-entry.ts`](js/lab-entry.ts), [`js/pdf-import-review-runtime.ts`](js/pdf-import-review-runtime.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)

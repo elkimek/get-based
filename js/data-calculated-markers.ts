@@ -75,6 +75,21 @@ export function populateCalculatedMarkers({ data, sortedDates, entryContextByDat
     setReportedRatio('nlr', 'differential', 'neutrophils', 'differential', 'lymphocytes');
     setReportedRatio('plr', 'hematology', 'platelets', 'differential', 'lymphocytes');
     setReportedRatio('mlr', 'differential', 'monocytes', 'differential', 'lymphocytes');
+    // Count ratios use matching canonical units and one date column. Never
+    // substitute percentages, borrow another date or invert a rounded MLR.
+    const setCountRatio = (markerKey: string, category: string, numerator: string, denominator: string) => {
+      const nValues = getVals(category, numerator);
+      const dValues = getVals(category, denominator);
+      const computed = sortedDates.map((_, i) => {
+        const n = nValues?.[i], d = dValues?.[i];
+        if (n == null || d == null || !Number.isFinite(n) || !Number.isFinite(d) || n < 0 || d <= 0) return null;
+        const ratio = Math.round((n / d) * 1000) / 1000;
+        return Number.isFinite(ratio) ? ratio : null;
+      });
+      ratios.markers[markerKey]!.values = preferDirectReport(getVals('calculatedRatios', markerKey), computed);
+    };
+    setCountRatio('cd4Cd8Ratio', 'lymphocyteSubsets', 'cd4', 'cd8');
+    setCountRatio('lmr', 'differential', 'lymphocytes', 'monocytes');
     setReportedRatio('deRitisRatio', 'biochemistry', 'ast', 'biochemistry', 'alt');
     setReportedRatio('copperZincRatio', 'electrolytes', 'copper', 'electrolytes', 'zinc');
     setReportedRatio('ft3ft4Ratio', 'thyroid', 'ft3', 'thyroid', 'ft4');
@@ -386,6 +401,8 @@ export function populateCalculatedMarkers({ data, sortedDates, entryContextByDat
       cholHdlRatio: ['lipids.cholesterol', 'lipids.hdl'], apoBapoAIRatio: ['lipids.apoB', 'lipids.apoAI'],
       nlr: ['differential.neutrophils', 'differential.lymphocytes'], plr: ['hematology.platelets', 'differential.lymphocytes'],
       mlr: ['differential.monocytes', 'differential.lymphocytes'], deRitisRatio: ['biochemistry.ast', 'biochemistry.alt'],
+      cd4Cd8Ratio: ['lymphocyteSubsets.cd4', 'lymphocyteSubsets.cd8'],
+      lmr: ['differential.lymphocytes', 'differential.monocytes'],
       copperZincRatio: ['electrolytes.copper', 'electrolytes.zinc'], ft3ft4Ratio: ['thyroid.ft3', 'thyroid.ft4'],
       bunCreatRatio: ['biochemistry.urea', 'biochemistry.creatinine'],
       freeWaterDeficit: ['electrolytes.sodium', '@wearables', '@insight-cards'],

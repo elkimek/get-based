@@ -1,3 +1,5 @@
+import type { MarkerBaseline } from './marker-baseline.js';
+
 /** Numeric marker projection used by custom-marker and calculated-marker helpers. */
 export type MarkerValues = Array<number | null | undefined>;
 export interface MarkerViewRange {
@@ -45,6 +47,7 @@ export interface CustomMarkerViewDefinition extends MarkerViewDefinition {
 export interface ActiveMarker extends MarkerViewDefinition {
   values: Array<number | null>;
   contextSampleCount?: number | null;
+  personalBaselines?: Array<MarkerBaseline | null>;
   optimalMin?: number | null | undefined;
   optimalMax?: number | null | undefined;
   refMin_f?: number | null;

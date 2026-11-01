@@ -2,6 +2,7 @@ import { applyBaseMarkerRanges } from './marker-range-core.js';
 import { customMarkerState } from './custom-marker-core.js';
 import { applyLabOrderingToView } from './lab-ordering-view.js';
 // Canonical data projection and serialized profile saves, with explicit service ports.
+import { buildMarkerBaselines } from './marker-baseline.js';
 import type { ProfileData as ImportedDataRecord } from '../types/app-state.js';
 import type { LabEntry, LabCollectionContext } from '../types/lab-data.js';
 import type { ActiveData, ActiveCategory, ActiveMarker, MarkerViewRange } from './data-view-types.js';
@@ -615,6 +616,17 @@ export function createDataCore(ports: DataCorePorts) {
       refOverrides,
     });
     applyUnitConversion(data, ports.state.unitSystem);
+    // Derive from full history before UI date filtering; never persist this
+    // descriptive comparison or use it to replace clinical/optimal ranges.
+    for (const category of Object.values(data.categories)) {
+      for (const marker of Object.values(category.markers)) {
+        if (!marker.singlePoint && !category.singlePoint) {
+          const baselines = buildMarkerBaselines(marker.values, data.dates);
+          if (baselines.some(Boolean)) marker.personalBaselines = baselines;
+          else delete marker.personalBaselines;
+        }
+      }
+    }
     // Values, calculations, and unit conversions always run against immutable
     // storage dotkeys. Category placement is a final view projection only.
     (0, ports.applyMarkerPlacements)(data.categories, ports.state.importedData || {});
@@ -730,6 +742,7 @@ export function createDataCore(ports: DataCorePorts) {
           filteredCat.markers[mKey] = {
             ...marker,
             values: indices.map(i => marker.values[i] as number | null),
+            ...(marker.personalBaselines && { personalBaselines: indices.map(i => marker.personalBaselines![i] ?? null) }),
             ...(marker.phaseRefRanges && { phaseRefRanges: indices.map(i => marker.phaseRefRanges![i]) }),
             ...(marker.phaseLabels && { phaseLabels: indices.map(i => marker.phaseLabels![i]) }),
             ...(marker.phaseDisplayLabels && { phaseDisplayLabels: indices.map(i => marker.phaseDisplayLabels![i]) }),

@@ -17,6 +17,21 @@ test('pdf import marker mapping browser coverage handles percent hints and urine
     const mapping = (await import(mappingUrl) as unknown) as Pick<typeof import('../../js/pdf-import-marker-mapping.js'), '_cleanImportedMarkerDisplayName' | 'convertGenericImportValueUnit' | 'convertImportValueUnit' | 'reconcileImportMarkerMappings'>;
     const outcomes: Record<string, boolean> = {};
 
+    const subsetRows: NonNullable<Parameters<typeof mapping.reconcileImportMarkerMappings>[0]> = [
+      { rawName: 'CD4', unit: 'cells/µL', value: 800, mappedKey: 'lymphocyteSubsets.cd4Pct', matched: true },
+      { rawName: 'CD4', unit: '%', value: 40, mappedKey: 'lymphocyteSubsets.cd4', matched: true },
+      { rawName: 'CD4/CD8 ratio', unit: '', value: 2, mappedKey: null, matched: false },
+      { rawName: 'LMR', unit: '', value: 5.5, mappedKey: null, matched: false },
+      { rawName: 'CD8 (% of CD3+)', unit: '%', value: 30, mappedKey: 'lymphocyteSubsets.cd8Pct', matched: true },
+      { rawName: 'NK activity', unit: '%', value: 20, mappedKey: 'lymphocyteSubsets.nkCellsPct', matched: true },
+    ];
+    mapping.reconcileImportMarkerMappings(subsetRows, { testType: 'blood' });
+    outcomes.subsetCountsPercentagesAndRatiosStayDistinct = JSON.stringify(subsetRows.map(row => row!.mappedKey))
+      === JSON.stringify(['lymphocyteSubsets.cd4', 'lymphocyteSubsets.cd4Pct', 'calculatedRatios.cd4Cd8Ratio', 'calculatedRatios.lmr', null, null]);
+    outcomes.subsetCountAndIntervalUnitsRoundTrip = mapping.convertImportValueUnit('lymphocyteSubsets.cd4', 800, 'cells/µL', '10^9/l') === 0.8
+      && mapping.convertImportValueUnit('lymphocyteSubsets.cd4', 0.365, '10^9/l', 'cells/µL') === 365
+      && mapping.convertImportValueUnit('lymphocyteSubsets.cd4Pct', 0.5, '%', '%') === 0.5;
+
     const differentialMarkers: NonNullable<Parameters<typeof mapping.reconcileImportMarkerMappings>[0]> = [{
       rawName: 'B Neutrofily %',
       unit: '%',

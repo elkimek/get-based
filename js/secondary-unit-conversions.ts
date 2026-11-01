@@ -32,6 +32,18 @@ function cellCountUnits(): SecondaryUnitConversion[] {
   return multiplyUnits(['g/l', 1], ['10^3/µl', 1]);
 }
 
+function lymphocyteSubsetCountUnits(): SecondaryUnitConversion[] {
+  return multiplyUnits(
+    ['/µl', 1000], ['cells/µl', 1000], ['cells/mcl', 1000],
+    ['cells/mm3', 1000], ['cells/mm^3', 1000], ['10^6/l', 1000],
+    ['K/µl', 1], ['10^3/µl', 1],
+  );
+}
+
+function lymphocyteSubsetPercentUnits(): SecondaryUnitConversion[] {
+  return multiplyUnits(['pct', 1], ['percent', 1], ['percentage', 1], ['fraction', 0.01], ['1', 0.01], ['l/l', 0.01]);
+}
+
 export const SECONDARY_UNIT_CONVERSIONS: Record<string, SecondaryUnitConversion[]> = {
   // Biochemistry
   'biochemistry.glucose': multiplyUnits(['mg/l', 180.18], ['g/l', 0.18018]),
@@ -138,6 +150,16 @@ export const SECONDARY_UNIT_CONVERSIONS: Record<string, SecondaryUnitConversion[
   'vitamins.folate': multiplyUnits(['µg/l', 0.4413], ['nmol/l', 1]),
 
   // Hematology
+  'lymphocyteSubsets.cd3': lymphocyteSubsetCountUnits(),
+  'lymphocyteSubsets.cd4': lymphocyteSubsetCountUnits(),
+  'lymphocyteSubsets.cd8': lymphocyteSubsetCountUnits(),
+  'lymphocyteSubsets.cd19': lymphocyteSubsetCountUnits(),
+  'lymphocyteSubsets.nkCells': lymphocyteSubsetCountUnits(),
+  'lymphocyteSubsets.cd3Pct': lymphocyteSubsetPercentUnits(),
+  'lymphocyteSubsets.cd4Pct': lymphocyteSubsetPercentUnits(),
+  'lymphocyteSubsets.cd8Pct': lymphocyteSubsetPercentUnits(),
+  'lymphocyteSubsets.cd19Pct': lymphocyteSubsetPercentUnits(),
+  'lymphocyteSubsets.nkCellsPct': lymphocyteSubsetPercentUnits(),
   'hematology.wbc': cellCountUnits(),
   'hematology.rbc': multiplyUnits(['T/l', 1], ['10^6/µl', 1]),
   'hematology.hemoglobin': multiplyUnits(['mmol/l', 0.06206], ['g/L', 1]),

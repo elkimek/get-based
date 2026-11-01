@@ -250,7 +250,7 @@ describe('manual WebKit diagnostic isolation', () => {
     expect(diagnostic).toContain('This run does not execute the normal matrix or provide the test release gate.');
     expect(diagnostic).toContain('name: diagnostic-webkit-pwa-routstr-${{ github.run_id }}-${{ github.run_attempt }}');
     for (const file of ['results', 'guard.json', 'scope.json', 'case.log', 'build.log', 'build-seal.json', 'build-verify.json', 'build-metrics.json', 'transport/manifest.json']) expect(diagnostic).toContain('.local-notes/ci/webkit-pwa-routstr-diagnostics/' + file);
-    for (const pin of ['actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1', 'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020', 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a']) expect(diagnostic).toContain(pin);
+    for (const pin of ['actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1', 'actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1', 'actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9']) expect(diagnostic).toContain(pin);
     const canonical = fs.readFileSync('tests/pwa/sveltekit-routstr-model-settings.spec.ts', 'utf8');
     expect(canonical.match(/^test\('/gm)).toHaveLength(1);
     expect(canonical).toContain("test('static Routstr models retain private and regular choices through unavailable-origin cold launch'");
