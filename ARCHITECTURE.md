@@ -538,6 +538,19 @@ the higher-layer behavior through a narrow runtime seam.
 - Secrets and sensitive rows use the existing encryption and IndexedDB paths.
   Do not introduce plaintext fallbacks for OAuth tokens, AI keys, wallet
   proofs, genetics, or health records.
+- Full backups include supported provider credentials only with passphrase
+  protection enabled; device-key envelopes remain excluded from unencrypted
+  snapshots and files. Backup settings explain how to include API keys.
+  General JSON import recognizes full backups and delegates to the confirmed
+  full-restore pipeline, including side stores and the publish-before-pull
+  Sync handoff. A full-backup selection ends the import batch, including after
+  cancellation or failure, so later files cannot mutate the pre-reload profile.
+  Restore Backup also recognizes version 2 Export All Clients bundles and asks
+  before delegating to the existing client merge importer through a shell-wired
+  service port with `preserveGlobalSettings` enabled, including the selected
+  Routstr node. Ordinary JSON client imports retain their existing node import
+  behavior. Client bundles exclude app settings and credentials; only full
+  passphrase-protected snapshots include supported API keys.
 - Raw vendor wearable and cycle stores remain device-local. Explicit user-entered
   weight, blood pressure and pulse use the encrypted `manualBodyReadings` Sync
   map, keyed by metric and date; source histories from vendors or file imports
