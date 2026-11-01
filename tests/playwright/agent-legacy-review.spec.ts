@@ -1,7 +1,8 @@
 import { expect, test } from './coverage-fixture.js';
 
 for (const scenario of ['note', 'bp', 'undated'] as const) test(`saved legacy ${scenario} refreshes safely before any Apply`, async ({ page }) => {
-  await page.goto('/app');
+  await page.addInitScript(() => { for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(`labcharts-default-${suffix}`, 'completed'); localStorage.setItem('labcharts-ai-paused', 'true'); });
+  await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor();
   await page.evaluate(async scenario => {
     const { state } = await import('/js/state.js'); state.importedData.contextNotes = 'Original';
     await (await import('/js/data.js')).saveImportedData();
@@ -25,15 +26,17 @@ for (const scenario of ['note', 'bp', 'undated'] as const) test(`saved legacy ${
   if (scenario === 'bp') {
     await expect(fixture).toContainText('60 bpm → 62 bpm'); expect(await page.evaluate(async () => { const { state } = await import('/js/state.js'); return (await import('/js/wearables-store.js')).getDaily(state.currentProfile, 'manual', '2026-10-20'); })).toMatchObject({ bp_systolic: 120, rhr: 60 });
   }
-  await page.reload();
+  await page.reload(); await page.locator('html[data-app-ready]').waitFor();
   await page.evaluate(async () => {
-    const { state } = await import('/js/state.js'); state.currentThreadId = 'legacy-review'; await (await import('/js/chat-history.js')).loadChatHistory();
+    const { state } = await import('/js/state.js');
+    if (!await (await import('/js/chat-threads.js')).loadChatThreads() || !state.chatThreads.some(thread => thread.id === 'legacy-review')) throw new Error('Saved legacy conversation index was not restored');
+    state.currentThreadId = 'legacy-review'; if (!await (await import('/js/chat-history.js')).loadChatHistory()) throw new Error('Saved legacy conversation body was not restored');
     const fixture = document.createElement('div'); fixture.id = 'legacy-fixture'; fixture.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:white;color:black;overflow:auto'; document.body.append(fixture);
     const { renderAgentDraftCards } = await import('/js/agent-drafts.js'), render = () => { fixture.innerHTML = renderAgentDraftCards(state.chatHistory[1], 1); };
     (await import('/js/chat-actions.js')).configureChatMessageActionDeps({ renderChatMessages: render }); render();
   });
   await expect(fixture.getByRole('button', { name: 'Apply', exact: true })).toHaveCount(1); await fixture.getByRole('button', { name: 'Apply', exact: true }).click(); await expect(fixture.locator('.chat-agent-draft-applied')).toHaveCount(1);
-  await page.reload();
+  await page.reload(); await page.locator('html[data-app-ready]').waitFor();
   if (scenario === 'note') expect(await page.evaluate(async () => (await import('/js/state.js')).state.importedData.contextNotes)).toBe('Original\n\nNew note');
   else {
     await page.evaluate(async () => (await import('/js/wearables-detail-modal.js')).openWearableDetail('bp_systolic'));
