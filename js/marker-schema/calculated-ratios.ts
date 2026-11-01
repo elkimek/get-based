@@ -11,6 +11,8 @@ import type { MarkerCategory } from './types.js';
 export const CALCULATED_RATIOS_CATEGORY = {
   label: "Calculated Ratios", icon: "\uD83D\uDCD0", calculated: true,
   markers: {
+    cd4Cd8Ratio: { name: "CD4/CD8 Ratio", unit: "", refMin: null, refMax: null, rangePolicy: "contextual", desc: "CD4 T-cell count divided by CD8 T-cell count from the same recorded date, with matching count units. Prefer a laboratory-reported ratio; otherwise derive from absolute counts. Interpret using the laboratory interval and clinical context; no universal optimal range or automatic Immune Health Grade." },
+    lmr: { name: "Lymphocyte-Monocyte Ratio (LMR)", unit: "", refMin: null, refMax: null, rangePolicy: "contextual", desc: "Absolute lymphocytes divided by absolute monocytes from the same recorded date; the reciprocal of MLR when both counts are positive. Published prognostic cutoffs vary by population and disease; no universal optimal range. Do not count LMR and MLR as independent evidence." },
     tgHdlRatio: { name: "TG/HDL Ratio", unit: "", refMin: 0, refMax: 1.75, desc: "Triglycerides divided by HDL; a strong surrogate marker for insulin resistance and small dense LDL particles." },
     ldlHdlRatio: { name: "LDL/HDL Ratio", unit: "", refMin: 0, refMax: 2.5, refMax_f: 2.0, desc: "Balance of atherogenic to protective cholesterol; a simple predictor of coronary heart disease risk." },
     apoBapoAIRatio: { name: "ApoB/ApoA-I Ratio", unit: "", refMin: 0, refMax: 0.9, refMax_f: 0.8, desc: "Ratio of atherogenic to protective lipoprotein particles; considered the best single lipid marker for cardiovascular risk." },

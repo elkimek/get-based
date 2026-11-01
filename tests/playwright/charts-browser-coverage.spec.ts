@@ -302,7 +302,9 @@ test('charts browser coverage exercises annotation supplement and theme callback
       && yTickCallback(12.34567) === '12.3'
       && yTickCallback(1.23456) === '1.23'
       && yTickCallback(0.123456) === '0.123'
-      && (captured.config as CapturedChartConfig).options.scales.y.min === 0;
+      // The selected optimal range frames the chart; the unselected 0.17
+      // reference bound must not pull the y-axis down to zero.
+      && (captured.config as CapturedChartConfig).options.scales.y.min === 0.7050000000000001;
     outcomes.createLineChartTooltipCallbacksFormatValuesAndRanges = tooltipCallbacksOk || {
       labelText,
       afterLabelText,

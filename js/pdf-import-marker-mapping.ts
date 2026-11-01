@@ -19,6 +19,7 @@ import {
 } from './schema.js';
 import { SPECIALTY_MARKER_DEFS } from './adapters.js';
 import { MOSAIC_MOAT_MARKERS, MOSAIC_OAT_MARKERS } from './mosaic-oat-catalog.js';
+import { hasUnsupportedSubsetDefinition, resolveLymphocyteSubsetImportKey } from './pdf-import-lymphocyte-subsets.js';
 import {
   annotateImportedRatioUnitConventions,
   IMPORTABLE_CALCULATED_MARKER_KEYS,
@@ -125,7 +126,7 @@ function _differentialStemFromCompactBase(compactBase: unknown) {
 }
 
 function _hasImportAbsoluteHint(rawName: unknown, unit: unknown) {
-  return /#|\babs\b|absolute/i.test(String(rawName || '')) || String(unit || '').includes('10^9');
+  return /#|\babs\b|absolute/i.test(String(rawName || '')) || /10\^9|\/(?:ul|mcl|mm\^?3)$/.test(String(unit || ''));
 }
 
 function _hasImportPercentHint(rawName: unknown, unit: unknown, compactBase: unknown) {
@@ -333,6 +334,13 @@ const BLOOD_IMPORT_ALIASES = new Map([
   ['monocytelymphocyteratio', 'calculatedRatios.mlr'],
   ['monocytetolymphocyteratio', 'calculatedRatios.mlr'],
   ['mlr', 'calculatedRatios.mlr'],
+  ['lmr', 'calculatedRatios.lmr'],
+  ['lymphocytemonocyteratio', 'calculatedRatios.lmr'],
+  ['lymphocytetomonocyteratio', 'calculatedRatios.lmr'],
+  ['cd4cd8', 'calculatedRatios.cd4Cd8Ratio'],
+  ['cd4cd8ratio', 'calculatedRatios.cd4Cd8Ratio'],
+  ['t4t8ratio', 'calculatedRatios.cd4Cd8Ratio'],
+  ['helpersuppressorratio', 'calculatedRatios.cd4Cd8Ratio'],
   ['deritisratio', 'calculatedRatios.deRitisRatio'],
   ['astalt', 'calculatedRatios.deRitisRatio'],
   ['astaltratio', 'calculatedRatios.deRitisRatio'],
@@ -615,6 +623,9 @@ function _resolveStandardBloodImportKey(
     return null;
   }
 
+  const subsetKey = resolveLymphocyteSubsetImportKey({ compactName: compactBase, unit,
+    absolute: _hasImportAbsoluteHint(rawName, unit), percent: _hasImportPercentHint(rawName, unit, compactBase) });
+  if (subsetKey && refLookup[subsetKey]) return subsetKey;
   if (unit === 'arb.j.' || unit.includes('/ul')) return null;
 
   const hasAbsoluteHint = _hasImportAbsoluteHint(rawName, unit);
@@ -679,6 +690,12 @@ export function reconcileImportMarkerMappings<T extends Array<ImportReviewMarker
     if (testType === 'blood' && resolvedKey && !preferredSuggestedKey) {
       resolvedKey = _preferImportAbsoluteHintKey(resolvedKey, marker, refLookup, existingKeys);
       resolvedKey = _preferImportPercentSiblingKey(resolvedKey, marker, refLookup, existingKeys);
+    }
+    if (resolvedKey && hasUnsupportedSubsetDefinition(marker.rawName || marker.suggestedName, resolvedKey)) {
+      marker.mappedKey = null;
+      marker.matched = false;
+      marker.suggestedKey = null;
+      continue;
     }
     if (resolvedKey) {
       marker.mappedKey = resolvedKey;

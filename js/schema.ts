@@ -105,6 +105,12 @@ export const UNIT_CONVERSIONS: Record<string, PrimaryUnitConversion> = {
   'differential.monocytesPct': { factor: 100, usUnit: '%', type: 'multiply' },
   'differential.eosinophilsPct': { factor: 100, usUnit: '%', type: 'multiply' },
   'differential.basophilsPct': { factor: 100, usUnit: '%', type: 'multiply' },
+  // Subset percentages already store whole %; absolute counts use SI storage.
+  'lymphocyteSubsets.cd3': { factor: 1000, usUnit: 'cells/µL', type: 'multiply' },
+  'lymphocyteSubsets.cd4': { factor: 1000, usUnit: 'cells/µL', type: 'multiply' },
+  'lymphocyteSubsets.cd8': { factor: 1000, usUnit: 'cells/µL', type: 'multiply' },
+  'lymphocyteSubsets.cd19': { factor: 1000, usUnit: 'cells/µL', type: 'multiply' },
+  'lymphocyteSubsets.nkCells': { factor: 1000, usUnit: 'cells/µL', type: 'multiply' },
   'boneMetabolism.osteocalcin': { factor: 1, usUnit: 'ng/ml', type: 'multiply' },
   'boneMetabolism.p1np': { factor: 1, usUnit: 'ng/ml', type: 'multiply' },
   'boneMetabolism.ctx': { factor: 1, usUnit: 'pg/ml', type: 'multiply' },
@@ -577,6 +583,10 @@ export const OPTIMAL_RANGES: Record<string, OptimalRange> = {
   'diabetes.cPeptide': { optimalMin: 0.8, optimalMax: 2.5 },
   'diabetes.fructosamine': { optimalMin: 205, optimalMax: 250 },
   // Hematology
+  // WBC/differential wellness bands are existing guidance, not validated
+  // diagnostic thresholds. Cohort associations do not establish a universal
+  // intervention target (PMID 28213596; DOI 10.1016/j.jacc.2007.01.076).
+  // Do not substitute the narrower Substack bands or HIV-derived subset targets.
   'hematology.wbc': { optimalMin: 5.0, optimalMax: 7.0 },
   'hematology.rbc': { optimalMin: 4.4, optimalMax: 5.0, optimalMin_f: 4.0, optimalMax_f: 4.5 },
   'hematology.hemoglobin': { optimalMin: 140, optimalMax: 170, optimalMin_f: 125, optimalMax_f: 155 },

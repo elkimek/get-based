@@ -14,6 +14,8 @@ export const IMPORTABLE_CALCULATED_MARKER_KEYS = new Set([
   'calculatedRatios.nlr',
   'calculatedRatios.plr',
   'calculatedRatios.mlr',
+  'calculatedRatios.lmr',
+  'calculatedRatios.cd4Cd8Ratio',
   'calculatedRatios.deRitisRatio',
   'calculatedRatios.copperZincRatio',
   'calculatedRatios.ft3ft4Ratio',
