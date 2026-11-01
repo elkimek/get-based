@@ -3,10 +3,11 @@ import { stoppedChatCompletion } from '../helpers/http-responses.js';
 const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZcL8AAAAASUVORK5CYII=';
 for (const edit of [false, true]) test(`a native meal ${edit ? 'reanalysis' : 'analysis'} handoff runs one requested inference and requires native Save`, async ({ page, context }) => {
   await context.route('https://**/*', route => route.abort());
-  await page.addInitScript(() => { localStorage.setItem('labcharts-ai-paused', 'true'); localStorage.setItem('labcharts-analytics-disabled', 'true'); for (const suffix of ['tour', 'emptyTour']) localStorage.setItem('labcharts-default-' + suffix, 'completed'); });
+  await page.addInitScript(() => { localStorage.setItem('labcharts-default-lastViewV1', 'labs'); localStorage.setItem('labcharts-ai-paused', 'true'); localStorage.setItem('labcharts-analytics-disabled', 'true'); for (const suffix of ['tour', 'emptyTour']) localStorage.setItem('labcharts-default-' + suffix, 'completed'); });
   await page.goto('/app');
   const before = await page.evaluate(async ({ edit, png }) => {
-    const profile = await import('/js/profile.js'), id = await profile.createProfile('Synthetic native vision handoff', { skipInitialSync: true }); if (!id) throw new Error('Synthetic profile missing');
+    const profile = await import('/js/profile.js'), id = await profile.createProfile('Synthetic native vision handoff', { sex: 'female', skipInitialSync: true }); if (!id) throw new Error('Synthetic profile missing');
+    localStorage.setItem(profile.profileStorageKey(id, 'lastViewV1'), 'labs');
     for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(profile.profileStorageKey(id, suffix), 'completed'); for (const prefix of ['labcharts-onboard-extras-done-', 'labcharts-onboard-context-cards-skipped-']) localStorage.setItem(prefix + id, '1'); await profile.switchProfile(id);
     const { state } = await import('/js/state.js'); state.importedData.entries = []; state.importedData.contextNotes = 'Preserve unrelated native health context'; state.importedData.nutritionMeals = [];
     if (!await (await import('/js/data.js')).saveImportedData()) throw new Error('Native analysis fixture save failed');
@@ -15,11 +16,15 @@ for (const edit of [false, true]) test(`a native meal ${edit ? 'reanalysis' : 'a
     const api = await import('/js/api.js'); await api.saveVeniceKey('synthetic-native-vision-key'); api.setVeniceModel('native-vision'); api.setVeniceE2EE(false);
     localStorage.setItem('labcharts-venice-models', JSON.stringify([{ id: 'native-vision', name: 'Native vision', model_spec: { capabilities: { supportsVision: true } } }])); localStorage.setItem('labcharts-venice-vision-models', '["native-vision"]'); localStorage.setItem('labcharts-venice-e2ee-models', '[]'); localStorage.setItem('labcharts-venice-pricing', '{"native-vision":{"input":1,"output":1}}');
     api.setAIProvider('venice'); api.setAIPaused(false); (await import('/js/agent-chat-settings.js')).setChatBackend('direct'); (await import('/js/nutrition-ai-settings.js')).setNutritionAIRoute({ provider: 'venice', model: 'native-vision' });
+    // A user invokes this handoff from an initialized conversation. Loading Chat
+    // during navigation would replace its owner and correctly retire the request.
+    await (await import('/js/chat-loader.js')).openChatPanel();
     const runtime = (await import('/js/agent-tool-runtime.js')).createAgentToolRuntime({ readContext: () => '', userMessage: edit ? 'Open my exact saved meal for reanalysis.' : 'Open native meal photo analysis.', ...(await import('/js/agent-tool-bindings.js')).createBrowserAgentToolDependencies(id) });
     const read = await runtime.execute({ tool: 'getbased_read_data', arguments: { resource: 'meals', ...(edit ? { recordId: 'analysis-target' } : { create: true }) } }); if (!read.success) throw new Error('Native target read unavailable');
     const opened = await runtime.execute({ tool: 'getbased_navigate', arguments: { view: 'nutritionEditor', ...(edit ? { recordId: 'analysis-target' } : {}) } }); if (!opened.success) throw new Error('Native photo handoff unavailable');
-    return { canonical: await (await import('/js/crypto.js')).encryptedGetItem(profile.profileStorageKey(id, 'imported')), meals: await store.listNutritionMeals(id) };
+    return { canonical: await (await import('/js/crypto.js')).encryptedGetItem(profile.profileStorageKey(id, 'imported')), meals: await store.listNutritionMeals(id), opened };
   }, { edit, png });
+  expect(JSON.parse(before.opened.contentItems[0]!.text), JSON.stringify(before.opened)).toMatchObject({ changed: true, opened: 'nutritionEditor', dataSaved: false, settingsSaved: false });
   let calls = 0, release!: () => void; const pending = new Promise<void>(resolve => { release = resolve; });
   await page.route('https://api.venice.ai/api/v1/chat/completions', async route => {
     const body = route.request().postDataJSON(); calls++; expect(calls).toBe(1); expect(body.model).toBe('native-vision'); expect(JSON.stringify(body.messages)).toContain('data:image/png;base64,' + png); await pending;
