@@ -52,8 +52,8 @@ least three distinct prior draws in the preceding two calendar years. The
 active-data projection computes these after unit conversion and before date
 filtering; filtered projections retain the corresponding per-draw comparison.
 Charts, marker-detail charts and lab chat context consume that same derived history.
-Baseline guides use a neutral dotted line with a short label, separate from
-reference/optimal bounds and status colours. Baselines are unadjusted recorded
+Baseline guides use a neutral dotted line and a short key in reserved space
+below the plot, separate from reference/optimal bounds and status colours. Baselines are unadjusted recorded
 history, not healthy targets or statistically significant-change thresholds;
 they do not change persisted measurements, ranges or Biology Score inputs.
 

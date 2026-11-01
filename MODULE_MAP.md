@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 1868 |
-| Internal import edges | 5720 |
+| Internal import edges | 5721 |
 | Dynamic internal edges | 139 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -681,7 +681,7 @@ Native browser modules shipped with the static application.
 - [`js/category-page-runtime.ts`](js/category-page-runtime.ts) → [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts)
 - [`js/category-page-view.ts`](js/category-page-view.ts) → [`js/category-glyphs.ts`](js/category-glyphs.ts), [`js/category-page-presentation.ts`](js/category-page-presentation.ts), [`js/category-page-runtime.ts`](js/category-page-runtime.ts), [`js/category-presentation.ts`](js/category-presentation.ts), [`js/category-view-renderers.ts`](js/category-view-renderers.ts), [`js/chart-card-recs.ts`](js/chart-card-recs.ts), [`js/data.ts`](js/data.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/category-presentation.ts`](js/category-presentation.ts) → [`js/components/CategoryChartCard.svelte`](js/components/CategoryChartCard.svelte), [`js/components/CategoryDataTable.svelte`](js/components/CategoryDataTable.svelte), [`js/components/CategoryFattyAcids.svelte`](js/components/CategoryFattyAcids.svelte), [`js/components/CategoryHeatmap.svelte`](js/components/CategoryHeatmap.svelte), [`js/components/CategoryTableColgroup.svelte`](js/components/CategoryTableColgroup.svelte)
-- [`js/category-view-renderers.ts`](js/category-view-renderers.ts) → [`js/category-presentation.ts`](js/category-presentation.ts), [`js/charts-runtime.ts`](js/charts-runtime.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/state.ts`](js/state.ts), [`js/theme.ts`](js/theme.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/category-view-renderers.ts`](js/category-view-renderers.ts) → [`js/category-presentation.ts`](js/category-presentation.ts), [`js/charts-runtime.ts`](js/charts-runtime.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/marker-baseline.ts`](js/marker-baseline.ts), [`js/state.ts`](js/state.ts), [`js/theme.ts`](js/theme.ts), [`js/utils.ts`](js/utils.ts)
 
 </details>
 

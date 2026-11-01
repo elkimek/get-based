@@ -182,7 +182,7 @@ export const optimalBandPlugin = {
   }
 };
 
-/** Dotted neutral guide, distinct from dashed range boundaries; no healthy-band fill. */
+/** Keep the guide behind readings and its key outside the plot's coloured bands. */
 export const personalBaselinePlugin = {
   id: 'personalBaseline',
   beforeDatasetsDraw(chart: DrawingChart) {
@@ -195,21 +195,30 @@ export const personalBaselinePlugin = {
     const { ctx } = chart;
     const colors = getChartColors();
     ctx.save();
-    ctx.strokeStyle = colors.tickColor;
-    ctx.lineWidth = 1.5;
     ctx.lineCap = 'round';
     ctx.setLineDash([1, 5]);
-    ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(right, y); ctx.stroke();
+    // The wider card-colour underlay separates dots from either range fill.
+    for (const [color, width] of [[colors.tooltipBg, 3.5], [colors.tooltipTitle, 1.25]] as const) {
+      ctx.strokeStyle = color; ctx.lineWidth = width;
+      ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(right, y); ctx.stroke();
+    }
+    ctx.restore();
+  },
+  afterDraw(chart: DrawingChart) {
+    const baseline = chart.options.plugins.personalBaseline;
+    if (!baseline || !Number.isFinite(baseline.median) || !chart.chartArea) return;
+    const { left, bottom } = chart.chartArea;
+    const { ctx } = chart;
+    const y = bottom + 15;
+    ctx.save();
+    ctx.strokeStyle = getChartColors().tooltipTitle;
+    ctx.fillStyle = ctx.strokeStyle;
+    ctx.lineWidth = 1.25; ctx.lineCap = 'round'; ctx.setLineDash([1, 5]);
+    ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(left + 16, y); ctx.stroke();
     ctx.setLineDash([]);
     ctx.font = '11px Inter, sans-serif';
-    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
-    const label = `◆ Baseline ${formatValue(baseline.median)}`;
-    const width = ctx.measureText(label).width + 8;
-    const labelY = Math.max(top + 10, Math.min(bottom - 10, y - 10));
-    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg-card').trim() || colors.tooltipBg;
-    ctx.fillRect(Math.max(left, right - width), labelY - 8, Math.min(width, right - left), 16);
-    ctx.fillStyle = colors.tickColor;
-    ctx.fillText(label, right - 3, labelY);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText(`Baseline ${formatValue(baseline.median)}`, left + 24, y);
     ctx.restore();
   },
 };
@@ -676,7 +685,7 @@ export function createLineChart(id: string, marker: ActiveMarker, dateLabels: st
         noteAnnotations: chartNotes.length ? { notes: chartNotes, chartDates: visibleRangeDates } : false,
         supplementBars: chartSupps.length ? { supplements: chartSupps, chartDates: visibleRangeDates } : false,
         phaseBands: (phaseLabels && phaseLabels.some(p => p) && state.phaseOverlayMode === 'on') ? { phases: phaseLabels, chartDates: rawDates, observed: values.map(v => v != null), cycleDays: phaseMetadata.cycleDays, sources: phaseMetadata.sources } : false},
-      layout: { padding: { top: (chartSupps.length ? chartSupps.length * 14 + 6 : 0) + ((phaseLabels?.some(p => p) && state.phaseOverlayMode === 'on') ? 20 : 0) } },
+      layout: { padding: { top: (chartSupps.length ? chartSupps.length * 14 + 6 : 0) + ((phaseLabels?.some(p => p) && state.phaseOverlayMode === 'on') ? 20 : 0), bottom: baseline ? 26 : 0 } },
       scales: { x: xScale,
         y:{min:axisMin, max:maxV+pad, ticks:{color:tc.tickColor,font:{size:10},callback:formatChartTickValue}, grid:{color:tc.gridColor}}}
     },
