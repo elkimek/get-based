@@ -100,14 +100,26 @@ beforeAll(async () => {
   // These five bodies are intentionally assembled; their independent contracts
   // below check the document, identity, worker and companion. All copied public
   // bodies stay exact, including all stylesheets and font/SQLite aliases.
+  // Two frozen legacy JS bodies use independently pinned compact encodings;
+  // their complete syntax and notices are also checked by the build.
   // Public JSON removes only outside-string whitespace; every literal byte
   // and its original field/duplicate-key order remains exact.
   const assembled = new Set(['/app', '/index.html', '/version.js', '/service-worker-assets.js', '/getbased-companion.mjs']);
+  const legacyEncodings = new Map([
+    ['/vendor/evolu/Db.worker.js', ['f25e314ec4ba8581575537ddc0f290f58ece113a64a8a2cfd049ceb772094e10', '5e04be37348b943afec706709331291f11555180719fa6a6cb4cd0cc65ebf734']],
+    ['/vendor/evolu/evolu-bundle.js', ['95027ae3c7fa7d26ebac2468e3f6d9c70e79e21b40c624919d2fa9fd38ef789a', '1d7aaa40fdc632d47b5d3ae9e265d2903b8ecb7160bad8e2cb634ee5259e0103']],
+  ]);
   for (const url of parseAppShellEntries(rawWorker)) {
     if (assembled.has(url)) continue;
     const supplied = await fs.realpath(path.join(outputRoot, url.slice(1)));
     assert(supplied.startsWith(outputRoot + path.sep), 'Public asset stays inside the artifact: ' + url);
     const canonical = await fs.readFile(path.join(root, url.slice(1)));
+    const encoding = legacyEncodings.get(url);
+    if (encoding) {
+      assert.equal(createHash('sha256').update(canonical).digest('hex'), encoding[0], 'Exact frozen legacy source: ' + url);
+      assert.equal(createHash('sha256').update(await fs.readFile(supplied)).digest('hex'), encoding[1], 'Exact complete compact encoding: ' + url);
+      continue;
+    }
     let expected = canonical;
     if (url.startsWith('/data/') && url.endsWith('.json')) {
       // Independent character scan, separate from the producer's regex.

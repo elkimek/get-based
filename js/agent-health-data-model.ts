@@ -7,6 +7,7 @@ import type { AgentDataProposal, AgentDataResource } from '../shared/agent-data-
 import { normalizeNutritionTargets, NUTRITION_WIDGET_NUTRIENTS } from './nutrition-targets.js';
 import { appendImportedArrayItem, replaceImportedArrayItem, deleteImportedArrayItem, clearTombstone, getConfiguredArrayItemId } from './data-merge.js';
 import { projectSupplementCommand, supplementEditableFields } from './supplement-record-commands.js';
+import { isSupplementQualityIncludedInAI } from './supplement-quality.js';
 import { displayProfileRecord, profileEditableFields, projectProfileRecord } from './profile-record-commands.js';
 import { displayMealRecord, mealEditableFields, parseMealRecordSnapshot, projectMealCommand } from './nutrition-record-commands.js';
 import type { ProfileData } from '../types/app-state.js';
@@ -114,7 +115,9 @@ export function agentDataDisplay(resource: AgentDataResource, value: unknown): u
   const result = Object.fromEntries(Object.entries(value).filter(([key]) => allowed.includes(key)));
   if (resource === 'supplements') {
     for (const [key, fields] of Object.entries({ periods: ['start', 'end', 'dose', 'endReason', 'schedule', 'ingredientDoses'], ingredients: ['name', 'amount', 'amountValue', 'amountUnit', 'timesPerDay'], qualityTests: ['category', 'analyte', 'resultText', 'comparator', 'value', 'unit', 'basis', 'status', 'includeInAIContext'] })) {
-      if (Array.isArray(result[key])) result[key] = result[key].map((row: unknown, index: number) => ({ index, ...Object.fromEntries(Object.entries(agentDataObject(row)).filter(([field]) => fields.includes(field))) }));
+      if (Array.isArray(result[key])) result[key] = result[key].flatMap((row: unknown, index: number) =>
+        key === 'qualityTests' && !isSupplementQualityIncludedInAI(agentDataObject(row), agentDataObject(value)) ? []
+          : [{ index, ...Object.fromEntries(Object.entries(agentDataObject(row)).filter(([field]) => fields.includes(field))) }]);
     }
     const select = (value: unknown, fields: string[]) => Object.fromEntries(Object.entries(agentDataObject(value)).filter(([key]) => fields.includes(key)));
     const scheduleFields = ['mode', 'timesPerDay', 'details', 'daysOfWeek', 'intervalDays', 'maxPerDay'];

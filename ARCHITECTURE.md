@@ -635,7 +635,11 @@ validation, confirmation, provenance, concurrency and recovery contracts.
 Semantic record tools use `agent-data-contract.ts` for bounded proposals and
 `agent-data-bindings.ts` for per-turn read snapshots. `agent-health-data-model.ts`
 and `supplement-record-commands.ts` project the same normalized change for review and
-Apply. Native-only management projections remain in the separate
+Apply. Supplement reads, list summaries, searches and proposal previews all honor
+the native quality-test AI inclusion policy and retain original row indices.
+Replacing visible quality rows preserves excluded rows locally; chat cannot
+target those excluded rows by index or label identity.
+Native-only management projections remain in the separate
 `agent-data-model.ts` facade and cannot enter the chat dependency graph. Dated
 notes and therapy records use the ordinary sync identities and
 array/tombstone helpers. Accepted record edits carry per-record expectations into
@@ -1243,6 +1247,11 @@ are qualified separately and never alias the legacy SQLite. The frozen previous
 Evolu 8 JavaScript remains public but is omitted from new precaches; old tabs and
 workers can use exact hash-qualified copies from retained build caches. Current
 runtime and legacy recovery assets count against the unchanged offline budget.
+The static Kit build compacts only the two pinned legacy Evolu 7 JavaScript
+bundles with compression and name mangling disabled. Complete executable trees
+and ordered legal notices must remain equivalent; tagged template raw text stays
+exact. Original and output hashes are pinned independently. Source vendor files,
+public URLs, workers and both SQLite binaries remain unchanged and available.
 
 The Evolu adapter projects owner replication status from its current runtime and
 keeps it separate from the signed owner-storage confirmation of a pushed profile.

@@ -3,6 +3,7 @@ import { agentDataObject, validAgentDate, validateFieldNames } from '../shared/a
 import type { AgentDataProposal } from '../shared/agent-data-contract.js';
 import { getSupplementPeriods, getSupplementRecordId, recordSupplementSchedule, recordIngredientDoseChange, SUPPLEMENT_RECORD_VERSION } from './supplement-medication-domain.js';
 import type { SupplementRecord } from '../types/supplement-data.js';
+import { isSupplementQualityIncludedInAI } from './supplement-quality.js';
 
 const routes = ['', 'oral', 'sublingual', 'topical', 'transdermal', 'inhaled', 'nasal', 'injection', 'ophthalmic', 'otic', 'rectal', 'vaginal', 'other'];
 const evidenceScopes = ['unknown', 'matching-lot', 'different-lot', 'general-specification'];
@@ -14,7 +15,7 @@ export const supplementEditableFields = Object.fromEntries([
   ['schedule', 'Object: mode (daily/multiple/selected-days/interval/prn/course/cycle/phased/other), timesPerDay, details, daysOfWeek (0–6), intervalDays, maxPerDay'],
   ['servingSize', 'Object: value (positive number), unit (text)'],
   ['ingredients', 'Replacement array: index (optional original index), name (required), amount, amountValue, amountUnit, timesPerDay'],
-  ['inactiveIngredients', 'Array of text'], ['qualityTests', 'Replacement array: index (optional original index), category, analyte, resultText, comparator, value, unit, basis, status, includeInAIContext'],
+  ['inactiveIngredients', 'Array of text'], ['qualityTests', 'Replacement array of AI-visible rows; excluded rows stay private and are retained locally. index (optional original index), category, analyte, resultText, comparator, value, unit, basis, status, includeInAIContext'],
   ['date', 'Effective YYYY-MM-DD for pause/stop/restart/changeDose; defaults to the turn date'],
 ]);
 function string(value: unknown, label: string): string {
@@ -73,6 +74,25 @@ function listOfObjects(value: unknown, allowed: readonly string[], required: rea
     }
     return result;
   });
+}
+function projectQualityTests(value: unknown, previous: SupplementRecord | null) {
+  const original = previous?.qualityTests ?? [];
+  if (!Array.isArray(value) || value.length > 100) throw new Error('Supply a bounded list of quality tests.');
+  for (const raw of value) {
+    const row = agentDataObject(raw);
+    const targets = row.index !== undefined ? [original[Number(row.index)]]
+      : original.filter(test => test.category === row.category && test.analyte === row.analyte);
+    if (targets.some(test => test && !isSupplementQualityIncludedInAI(test, previous)))
+      throw new Error('An excluded quality test can only be changed in its native editor.');
+  }
+  const updates = listOfObjects(value, ['category', 'analyte', 'resultText', 'comparator', 'value', 'unit', 'basis', 'status', 'includeInAIContext'], [], ['value'], original, ['category', 'analyte']);
+  let next = 0;
+  const result: Record<string, unknown>[] = [];
+  for (const test of original) {
+    if (!isSupplementQualityIncludedInAI(test, previous)) result.push(test);
+    else if (next < updates.length) result.push(updates[next++]!);
+  }
+  return result.concat(updates.slice(next));
 }
 export function projectSupplementCommand(before: unknown, proposal: AgentDataProposal, patch: Record<string, unknown>): SupplementRecord | null {
   const { operation, effectiveDate: turnDate, recordedAt } = proposal;
@@ -135,7 +155,7 @@ export function projectSupplementCommand(before: unknown, proposal: AgentDataPro
       else { const value = agentDataObject(patch.servingSize); validateFieldNames(value, ['value', 'unit']); result.servingSize = { value: number(value.value, 'serving size', 0.000001), unit: string(value.unit, 'serving unit') }; }
     }
     if (Object.hasOwn(patch, 'ingredients')) result.ingredients = listOfObjects(patch.ingredients, ['name', 'amount', 'amountValue', 'amountUnit', 'timesPerDay'], ['name'], ['amountValue', 'timesPerDay'], previous?.ingredients) as NonNullable<SupplementRecord['ingredients']>;
-    if (Object.hasOwn(patch, 'qualityTests')) result.qualityTests = listOfObjects(patch.qualityTests, ['category', 'analyte', 'resultText', 'comparator', 'value', 'unit', 'basis', 'status', 'includeInAIContext'], [], ['value'], previous?.qualityTests, ['category', 'analyte']);
+    if (Object.hasOwn(patch, 'qualityTests')) result.qualityTests = projectQualityTests(patch.qualityTests, previous);
     if (Object.hasOwn(patch, 'inactiveIngredients')) {
       if (!Array.isArray(patch.inactiveIngredients)) throw new Error('Supply an array of inactive ingredients.');
       result.inactiveIngredients = patch.inactiveIngredients.map(value => string(value, 'inactive ingredient'));

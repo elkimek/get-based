@@ -195,6 +195,52 @@ it('pauses and removes only the selected therapy while retaining its peers', asy
   expect(saved._deleted.supplements).toContain('therapy-a');
 });
 
+function privateQualityRows() {
+  return [
+    {category: 'contaminant', analyte: 'Private analyte', resultText: 'Excluded result secret', includeInAIContext: false, privateSource: 'retain'},
+    {category: 'potency', analyte: 'Example ingredient', status: 'pass', resultText: 'Informational potency secret'},
+    {category: 'contaminant', analyte: 'Lead', value: 1, unit: 'mcg', privateSource: 'visible row provenance'},
+    {category: 'potency', analyte: 'Example ingredient', status: 'pass', value: 100, includeInAIContext: true},
+  ];
+}
+it('discloses only included quality rows through reads, summaries, queries and draft previews with original indices', async () => {
+  const original = privateQualityRows(); state.importedData.supplements[0]!.qualityTests = original;
+  const runtime = tools();
+  const read = json(await runtime.execute({tool: 'getbased_read_data', arguments: {resource: 'supplements', recordId: 'therapy-a'}}));
+  expect(read.current!.qualityTests).toEqual([
+    {index: 2, category: 'contaminant', analyte: 'Lead', value: 1, unit: 'mcg'},
+    {index: 3, category: 'potency', analyte: 'Example ingredient', status: 'pass', value: 100, includeInAIContext: true},
+  ]);
+  const list = json(await runtime.execute({tool: 'getbased_read_data', arguments: {resource: 'supplements'}}));
+  const query = json(await runtime.execute({tool: 'getbased_read_data', arguments: {resource: 'supplements', query: 'Excluded result secret'}}));
+  expect(query.total).toBe(0); expect(query.records).toEqual([]);
+  const draft = await runtime.execute({tool: 'getbased_draft_data', arguments: {resource: 'supplements', operation: 'update', snapshotId: read.snapshotId,
+    patch: JSON.stringify({qualityTests: [{index: 2, category: 'contaminant', analyte: 'Lead', value: 2}, {index: 3, category: 'potency', analyte: 'Example ingredient'}]}), reason: 'Reported correction', evidence}});
+  expect(draft.success).toBe(true);
+  for (const reply of [read, list, query, draft]) {
+    expect(JSON.stringify(reply)).not.toContain('Excluded result secret');
+    expect(JSON.stringify(reply)).not.toContain('Informational potency secret');
+    expect(JSON.stringify(reply)).not.toContain('Private analyte');
+  }
+  expect(state.importedData.supplements[0]!.qualityTests).toEqual(original); expect(mocks.save).not.toHaveBeenCalled();
+  await applyAgentDraft({...runtime.getDrafts()[0]!, profileId: 'a'});
+  expect((mocks.save.mock.calls[0]![1] as ProfileData).supplements[0]!.qualityTests).toEqual([
+    original[0], original[1], {...original[2], value: 2}, original[3],
+  ]);
+});
+it('retains excluded quality rows when all visible rows are removed', async () => {
+  const original = privateQualityRows(); state.importedData.supplements[0]!.qualityTests = original;
+  const {draft, result} = await proposal('supplements', 'update', {qualityTests: []}, 'therapy-a');
+  expect(result.success).toBe(true); await applyAgentDraft(draft);
+  expect((mocks.save.mock.calls[0]![1] as ProfileData).supplements[0]!.qualityTests).toEqual(original.slice(0, 2));
+});
+it.each([{index: 0}, {category: 'contaminant', analyte: 'Private analyte'}])('rejects targeting an excluded quality row through chat: %j', async identity => {
+  const original = privateQualityRows(); state.importedData.supplements[0]!.qualityTests = original;
+  const {result} = await proposal('supplements', 'update', {qualityTests: [{...identity, value: 7, includeInAIContext: true}]}, 'therapy-a');
+  expect(result.success).toBe(false); expect(mocks.save).not.toHaveBeenCalled();
+  expect(state.importedData.supplements[0]!.qualityTests).toEqual(original);
+});
+
 it('adds a dated note using its canonical identity and rejects invalid calendar dates', async () => {
   const added = await proposal('datedNotes', 'add', { date: '2026-10-23', text: 'New observation' });
   expect(added.result.success).toBe(true); await applyAgentDraft(added.draft);
