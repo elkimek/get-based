@@ -30,7 +30,7 @@ export async function planProfileDeltas(profileId: string, importedData: DeltaIm
     const raw = arrayName.includes('.')
       ? getAt(importedData, arrayName)
       : importedData[arrayName];
-    const items = Array.isArray(raw) ? raw : [];
+    const items = raw === undefined ? undefined : Array.isArray(raw) ? raw : [];
     const deletedAtPath = importedData._deleted?.[arrayName];
     const explicitTombstoneIds = Array.isArray(deletedAtPath) ? deletedAtPath : [];
     try {
@@ -90,9 +90,26 @@ export async function planProfileDeltas(profileId: string, importedData: DeltaIm
   return { deltaPlans, deltaOpCount, ...(planningErrors.length ? { planningErrors } : {}) };
 }
 
-export function applyCommittedDeltas(
+function applyAcknowledgedDelta(arrayName: string, plan: DeltaPlan, signal?: AbortSignal): Promise<boolean> {
+  return new Promise<boolean>(resolve => {
+    let settled = false;
+    const finish = (ok: boolean) => {
+      if (settled) return;
+      settled = true;
+      signal?.removeEventListener('abort', abort);
+      resolve(ok);
+    };
+    const abort = () => finish(false);
+    if (signal?.aborted) { finish(false); return; }
+    signal?.addEventListener('abort', abort, {once: true});
+    _applyArrayDelta(arrayName, plan, finish);
+  });
+}
+
+export async function applyCommittedDeltas(
   profileId: string, dataJson: string | null | undefined,
   deltaPlans: readonly NamedDeltaPlan[], deltaOpCount: number, debug: unknown,
+  options: {signal?: AbortSignal; isCurrent?: () => boolean} = {},
 ) {
   const _debug = typeof debug === 'function' ? debug : () => {};
   let allCommitted = true;
@@ -101,7 +118,9 @@ export function applyCommittedDeltas(
     let snapshotsAdvanced = 0;
     for (const { arrayName, plan } of deltaPlans) {
       // A failed row must remain eligible for the next diff.
-      const allOk = _applyArrayDelta(arrayName, plan);
+      if (options.signal?.aborted || options.isCurrent?.() === false) return false;
+      const allOk = await applyAcknowledgedDelta(arrayName, plan, options.signal);
+      if (options.signal?.aborted || options.isCurrent?.() === false) return false;
       if (!allOk) allCommitted = false;
       if (allOk) {
         if (DELTA_SCALARS.includes(arrayName)) {

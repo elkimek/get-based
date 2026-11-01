@@ -99,7 +99,7 @@ it('requires one delta application owned by onComplete and an awaited plan befor
  expect(syncPushSourceContracts(missingSuccess).successOwnedByComplete).toBe(false);
  const outside = change(push, 'const onComplete = async () => {', 'applyCommittedDeltas(profileId, dataJson, deltaPlans, deltaOpCount, _debug);\n      const onComplete = async () => {');
  expect(syncPushSourceContracts(outside).commitOwnsDeltas).toBe(false);
- const missing = push.replace(/if \(!applyCommittedDeltas\(/, 'if (!skippedDeltas(');
+ const missing = push.replace(/await applyCommittedDeltas\(/, 'await skippedDeltas(');
  expect(missing).not.toBe(push);
  expect(syncPushSourceContracts(missing).commitOwnsDeltas).toBe(false);
  const unawaited = push.replace(/await\s+planProfileDeltas\(/, 'planProfileDeltas(');
@@ -112,4 +112,12 @@ it('rejects advancing snapshots when the successful row-application guard is rem
  expect(syncCommittedDeltaSourceContracts(deltas).snapshotsGuarded).toBe(true);
  const bypass = change(deltas, 'if (allOk) {', 'if (true) {');
  expect(syncCommittedDeltaSourceContracts(bypass).snapshotsGuarded).toBe(false);
+});
+
+it('rejects removing the item-row completion callback or its await before snapshot advancement',()=>{
+ const deltas=readFileSync('js/sync-push-deltas.js','utf8');
+ for(const [before,after] of [
+  ['await applyAcknowledgedDelta(arrayName, plan, options.signal)','applyAcknowledgedDelta(arrayName, plan, options.signal)'],
+  ['_applyArrayDelta(arrayName, plan, finish)','_applyArrayDelta(arrayName, plan)'],
+ ] as const)expect(syncCommittedDeltaSourceContracts(change(deltas,before,after)).snapshotsGuarded).toBe(false);
 });

@@ -1,3 +1,4 @@
+import {compareSyncRows,syncValueKey} from './sync-conflict-order.js';
 import type { LabEntryDraft } from './lab-entry.js';
 import type { ArrayIdentityConfig, SyncIdentityRecord } from './sync-delta-surface-config.js';
 import type { DeltaItemRow, DeltaImportedData } from './sync-delta-row-codec.js';
@@ -55,7 +56,8 @@ export async function mergeArrayRowsIntoImported(
     const localList = localDel && Array.isArray(localDel[arrayName]) ? localDel[arrayName] : null;
     if (localList) for (const id of localList) if (typeof id === 'string') localTombs.add(id);
   } catch {}
-  const liveById = new Map<string, { item: Record<string, unknown>; ts: number; syncedAt: string }>(); // itemId -> { item, ts, syncedAt }
+  const liveById = new Map<string, { item: Record<string, unknown>; ts: number; syncedAt: string; row: DeltaItemRow }>(); // itemId -> { item, ts, syncedAt }
+  const represented=new Map<string,Set<string>>();
   for (const row of arrRows) {
     if (row.isDeleted) {
       const prev = remoteTombs.get(row.itemId) || 0;
@@ -71,9 +73,10 @@ export async function mergeArrayRowsIntoImported(
         // secondary tiebreak.
         const ts = pickTimestamp(item);
         const sa = String(row.syncedAt || '');
+        const values=represented.get(row.itemId)??new Set<string>();values.add(syncValueKey(item));represented.set(row.itemId,values);
         const cur = liveById.get(row.itemId);
-        if (!cur || ts > cur.ts || (ts === cur.ts && sa > cur.syncedAt)) {
-          liveById.set(row.itemId, { item, ts, syncedAt: sa });
+        if (!cur || ts > cur.ts || (ts === cur.ts && compareSyncRows(row,cur.row)>0)) {
+          liveById.set(row.itemId, { item, ts, syncedAt: sa, row });
         }
       }
     } catch {}
@@ -86,7 +89,7 @@ export async function mergeArrayRowsIntoImported(
     const canonicalBlobAt = baselineItemIds.has(itemId) ? baselineSyncedAt : 0;
     return tombAt >= Math.max(pickTimestamp(item), canonicalBlobAt);
   };
-  const tombstoneWinsOverLiveRow = (itemId: string | null, entry: { ts: number; syncedAt: string } | null | undefined) => {
+  const tombstoneWinsOverLiveRow = (itemId: string | null, entry: { ts: number; syncedAt: string; row: DeltaItemRow } | null | undefined) => {
     if (!itemId) return false;
     if (localTombs.has(itemId)) return true;
     const tombAt = remoteTombs.get(itemId);
@@ -127,7 +130,12 @@ export async function mergeArrayRowsIntoImported(
       // The blob merge may already contain a fresh local edit that has not
       // reached the per-row relay yet. Keep current on ties too; this must
       // match unionById/localHasRowsRemoteLacks in data-merge.js.
-      if (compareRecordFreshness(item, nextArr[idx]) <= 0) continue;
+      if (compareRecordFreshness(item, nextArr[idx]) <= 0) {
+        // Preserve an unrepresented local edit while its query catches up.
+        // When both conflicting committed values are present, use the same
+        // canonical row on every device instead of preserving each local tie.
+        if(compareRecordFreshness(item,nextArr[idx])<0 || !represented.get(itemId)?.has(syncValueKey(nextArr[idx])))continue;
+      }
       nextArr[idx] = item;
     }
     else nextArr.push(item);

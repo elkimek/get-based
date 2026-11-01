@@ -695,7 +695,7 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
     serviceWorkerSrc.includes("'/js/sync-push.js'"));
   assert('sync-push-deltas.js owns push delta planning/application',
     syncPushDeltasSrc.includes('export async function planProfileDeltas')
-      && syncPushDeltasSrc.includes('export function applyCommittedDeltas')
+      && syncPushDeltasSrc.includes('export async function applyCommittedDeltas')
       && syncPushDeltasSrc.includes('for (const arrayName of DELTA_ARRAYS)')
       && syncPushDeltasSrc.includes('for (const mapName of DELTA_MAPS)')
       && syncPushDeltasSrc.includes('for (const scalarName of DELTA_SCALARS)')
@@ -1336,7 +1336,9 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
   assert('_planArrayDelta is conservative on missing rows (no phantom delete)',
     /safer to no-op[\s\S]{0,100}phantom delete/.test(syncDeltaPlannerSearchSrc));
   assert('_applyArrayDelta dispatches insert/update/tombstone',
-    /_applyArrayDelta[\s\S]{0,400}evolu\.insert\("itemRow"[\s\S]{0,200}evolu\.update\("itemRow"/.test(syncDeltaSrc));
+    /if \(op.kind === 'insert'\)\s*evolu\.insert\("itemRow", op.args, options\)/.test(syncDeltaSrc)
+      && /if \(op.kind === 'update'\)\s*evolu\.update\("itemRow", op.args, options\)/.test(syncDeltaSrc)
+      && /if \(op.kind === 'tombstone'\)\s*evolu\.update\("itemRow", op.args, options\)/.test(syncDeltaSrc));
 
   // Push integration in pushProfile
   assert('pushProfile plans deltas before evolu.update on profileData',
@@ -1372,7 +1374,8 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
   assert('_mergeItemRowsIntoImported ignores stale remote tombstones when local item is newer',
     /remoteTombs\.set\(row\.itemId[\s\S]{0,1800}tombAt\s*>=\s*Math\.max\(pickTimestamp\(item\),\s*canonicalBlobAt\)/.test(syncDeltaArrayMergeSrc));
   assert('_mergeItemRowsIntoImported preserves fresher local non-lab items over stale per-row payloads',
-    /compareRecordFreshness\(item,\s*nextArr\[idx\]\)\s*<=\s*0[\s\S]{0,120}continue/.test(syncDeltaArrayMergeSrc)
+    /compareRecordFreshness\(item,\s*nextArr\[idx\]\)\s*<=\s*0/.test(syncDeltaArrayMergeSrc)
+      && syncDeltaArrayMergeSrc.includes('!represented.get(itemId)?.has(syncValueKey(nextArr[idx]))')
       && /nextArr\[idx\]\s*=\s*item/.test(syncDeltaArrayMergeSrc));
   assert('_mergeItemRowsIntoImported merges same-date lab entries instead of replacing marker maps',
     /import\s*\{[^}]*mergeLabEntry[^}]*\}\s*from\s*['"]\.\/data-merge\.js['"]/.test(syncDeltaArrayMergeSrc)
@@ -2230,7 +2233,8 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
   assert('Map-shape pull rebuilds map under ORIGINAL rawKey, not synth itemId',
     /for \(const \[rawKey, entry\] of liveByRawKey\)[\s\S]{0,500}curMap\[rawKey\]\s*=\s*entry\.v/.test(deltaSearchSrc));
   assert('Map-shape pull guards rawKey against proto-pollution at write site',
-    /for \(const \[rawKey, entry\] of liveByRawKey\)[\s\S]{0,400}_isProtoPollutionKey\(rawKey\)[\s\S]{0,100}curMap\[rawKey\]\s*=\s*entry\.v/.test(deltaSearchSrc));
+    /if \(_isProtoPollutionKey\(rawKey\)\)\s*continue;/.test(syncDeltaMapMergeSrc)
+      && syncDeltaMapMergeSrc.indexOf('_isProtoPollutionKey(rawKey)') < syncDeltaMapMergeSrc.indexOf('curMap[rawKey] = entry.v'));
 
   // Live: round-trip the manualValues keyIdFn — `:` collapses to `_`,
   // result is allowlist-safe, original key recoverable on pull via
@@ -2313,7 +2317,8 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
   assert('Map-shape merge writes to the resolved map container (preserves original key, dotted-path-safe)',
     /curMap\[rawKey\]\s*=\s*entry\.v/.test(deltaSearchSrc));
   assert('Map-shape merge deletes tombstoned keys from the resolved map via synth-id reverse-lookup',
-    /tombItemIds\.has\(synth\)[\s\S]{0,200}delete curMap\[k\]/.test(deltaSearchSrc));
+    /tomb = synth \? tombRows.get\(synth\) : null/.test(syncDeltaMapMergeSrc)
+      && /if \(tomb && \(!live \|\| compareSyncRows\(tomb, live.row\) >= 0\)\)\s*delete curMap\[k\]/.test(syncDeltaMapMergeSrc));
   // Dotted-path support — required for genetics.snps and any other
   // nested map registered in DELTA_MAPS. Without isNestedMap → getAt
   // walk, per-key writes would land at a flat top-level sibling and
@@ -2381,7 +2386,7 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
   assert('_planScalarDelta wraps payload as {v: value}',
     /_planScalarDelta[\s\S]{0,1500}payloadObj\s*=\s*\{\s*v:\s*scalarValue\s*\}/.test(deltaSearchSrc));
   assert('_planScalarDelta picks most-recently-synced when multiple rows exist',
-    /_planScalarDelta[\s\S]{0,800}sort\(\(a,\s*b\)\s*=>\s*String\(b\.syncedAt[\s\S]{0,200}\.localeCompare\(String\(a\.syncedAt/.test(deltaSearchSrc));
+    /matching.slice\(\).sort\(\(a, b\) => compareSyncRows\(b, a\)\)\[0\]/.test(syncDeltaScalarPlannerSrc));
   writeScalarVersion('legacy-blob-clear', 'contextNotes', {clock: 200, hash: scalarValueHash('contextNotes', 'observed')});
   const blobOnlyClear = await _planScalarDelta('legacy-blob-clear', 'contextNotes', null);
   const neverSetClear = await _planScalarDelta('legacy-unset-clear', 'contextNotes', null, {force: true});
@@ -2654,7 +2659,7 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
   assert('_isAllowlistSafeId combines regex + private proto-key predicate',
     /_isAllowlistSafeId[\s\S]{0,300}\^\[a-zA-Z0-9_\.-\]\+\$[\s\S]{0,200}_isProtoPollutionKey\(id\)/.test(deltaSearchSrc));
   assert('_planArrayDelta uses _isAllowlistSafeId (not bare regex)',
-    /_planArrayDelta[\s\S]{0,1500}_isAllowlistSafeId\(id\)/.test(deltaSearchSrc));
+    /\.filter\(\(\[, id\]\) => _isAllowlistSafeId\(id\) && !explicitTombstones.has\(id\)\)/.test(syncDeltaArrayPlannerSrc));
   assert('_planKeyedMapDelta uses _isAllowlistSafeId on derived itemId',
     /_planKeyedMapDelta[\s\S]{0,3500}!_isAllowlistSafeId\(itemId\)/.test(deltaSearchSrc));
   assert('Map-shape pull wraps keyIdFn with _isAllowlistSafeId guard',
@@ -2666,7 +2671,7 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
 
   // Resurrect-after-tombstone fix
   assert('_planArrayDelta resurrects tombstoned row by clearing isDeleted',
-    /_planArrayDelta[\s\S]{0,2500}existing\?\.isDeleted\s*\?\s*\{\s*isDeleted:\s*null\s*\}\s*:\s*\{\}/.test(deltaSearchSrc));
+    /const resurrect = existing\?\.isDeleted \? \{ isDeleted: null \} : \{\};\s*ops.push\(createDeltaWrite\(existing, \{ profileId, arrayName, itemId: itemId, payload, syncedAt \}, resurrect\)\)/.test(syncDeltaArrayPlannerSrc));
   assert('_planKeyedMapDelta resurrects tombstoned row by clearing isDeleted',
     /_planKeyedMapDelta[\s\S]{0,4700}existing\?\.isDeleted\s*\?\s*\{\s*isDeleted:\s*null\s*\}\s*:\s*\{\}/.test(deltaSearchSrc));
   assert('_planScalarDelta resurrects tombstoned row by clearing isDeleted',
@@ -2740,9 +2745,9 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
 
   // Snapshot-poisoning fix
   assert('_applyArrayDelta returns boolean success',
-    /function _applyArrayDelta[\s\S]{0,800}let allOk\s*=\s*true[\s\S]{0,400}return allOk/.test(deltaSyntaxSearchSrc));
-  assert('onComplete advances snapshot only when _applyArrayDelta returned true',
-    /const allOk\s*=\s*_applyArrayDelta\(arrayName,\s*plan\)[\s\S]{0,200}if \(allOk\)[\s\S]{0,500}_writeDeltaSnapshot/.test(deltaSearchSrc));
+    /let allOk\s*=\s*true/.test(syncDeltaSrc) && /return allOk;\s*\}/.test(syncDeltaSrc));
+  assert('onComplete advances snapshot only after item-row acknowledgement succeeds',
+    syncCommittedDeltaSourceContracts(syncPushDeltasSrc).snapshotsGuarded);
   assert('onComplete logs partial-failure ratio',
     /snapshotsAdvanced\}\/\$\{deltaPlans\.length\}/.test(deltaSearchSrc));
 

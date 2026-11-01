@@ -1,3 +1,4 @@
+import { compareSyncRows } from './sync-conflict-order.js';
 import { createDeltaWrite } from './sync-delta-row-codec.js';
 import type { DeltaPlan, DeltaPlannedOperation } from './sync-delta-row-codec.js';
 // sync-delta-scalar-planner.js - Push-side singleton scalar delta planner.
@@ -21,7 +22,7 @@ export async function _planScalarDelta(profileId: string, scalarName: string, sc
   // Repair old duplicate rows by updating the most recently synced row.
   const canonical = matching.length === 0
     ? null
-    : matching.slice().sort((a, b) => String(b.syncedAt || '').localeCompare(String(a.syncedAt || '')))[0];
+    : matching.slice().sort((a, b) => compareSyncRows(b, a))[0];
   const editTimestamp = () => new Date(Math.max(Date.now(), (committed?.clock || 0) + 1,
     (Date.parse(String(canonical?.syncedAt || '')) || 0) + 1)).toISOString();
   // Empty / null / undefined are absence. Clearing a confirmed value is

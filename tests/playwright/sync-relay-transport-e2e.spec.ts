@@ -1138,3 +1138,39 @@ test('a delayed Force resend cannot roll back a newer committed edit', async ({b
     for (const device of devices.reverse()) await device.context.close();
   }
 });
+
+test('duplicate logical rows and a later deletion reconcile through real SDK mutations',async({browser})=>{
+ test.setTimeout(120_000);
+ const a=await createDevice(browser,'duplicate rows device A'),devices=[a];
+ try {
+  await setSyntheticData(a.page,'seed');const identity=await enableNewIdentity(a.page);
+  const b=await createDevice(browser,'duplicate rows device B');devices.push(b);
+  await joinIdentity(b.page,identity.mnemonic,identity.ownerId);await waitForContext(b.page,BASELINE_CONTEXT);
+  for(const device of devices)expect(await device.page.evaluate(async()=> (await import('/js/sync.js')).pauseSync())).toBe(true);
+  const time=Date.now();
+  const write=async(page:Page,value:string,clock:number,id?:string)=>page.evaluate(async({value,clock,id})=>{
+   const runtime=await import('/js/sync-runtime.js'),state=(await import('/js/state.js')).state;
+   const sdk=runtime.getSyncEvolu()!,query=runtime.getSyncItemRowQuery();
+   const fields={profileId:state.currentProfile,arrayName:'markerNotes',itemId:'transport_duplicate',payload:JSON.stringify({k:'transport_duplicate',v:value}),syncedAt:new Date(clock).toISOString()};
+   await new Promise<void>(resolve=>{if(id)sdk.update('itemRow',{id,...fields,isDeleted:1},{onComplete:resolve});else sdk.insert('itemRow',fields,{onComplete:resolve});});
+   await sdk.loadQuery(query);
+   return String(sdk.getQueryRows<DeltaItemRow>(query)!.find(row=>row.arrayName===fields.arrayName&&row.itemId===fields.itemId&&row.payload===fields.payload)!.id);
+  },{value,clock,id});
+  const first=await write(a.page,'alpha',time);await write(b.page,'beta',time);
+  const rows=async(page:Page)=>page.evaluate(async()=>{
+   const runtime=await import('/js/sync-runtime.js'),sdk=runtime.getSyncEvolu()!,query=runtime.getSyncItemRowQuery();await sdk.loadQuery(query);
+   return sdk.getQueryRows<DeltaItemRow>(query)!.filter(row=>row.arrayName==='markerNotes'&&row.itemId==='transport_duplicate').map(row=>({id:String(row.id),deleted:!!row.isDeleted}));
+  });
+  for(const device of devices)await expect.poll(async()=> (await rows(device.page)).length).toBe(2);
+  const merged=async(page:Page)=>page.evaluate(async()=>{
+   const runtime=await import('/js/sync-runtime.js'),sdk=runtime.getSyncEvolu()!,query=runtime.getSyncItemRowQuery();await sdk.loadQuery(query);
+   const matching=sdk.getQueryRows<DeltaItemRow>(query)!.filter(row=>row.arrayName==='markerNotes'&&row.itemId==='transport_duplicate');
+   const data={markerNotes:{}};await (await import('/js/sync-delta-map-merge.js')).mergeMapRowsIntoImported(data,'markerNotes',matching);return data.markerNotes;
+  });
+  expect(await merged(a.page)).toEqual(await merged(b.page));
+  await write(a.page,'deleted',time+1000,first);
+  for(const device of devices){await expect.poll(async()=> (await rows(device.page)).some(row=>row.id===first&&row.deleted)).toBe(true);expect(await merged(device.page)).toEqual({});}
+  await write(b.page,'restored',time+2000);
+  for(const device of devices){await expect.poll(async()=> (await rows(device.page)).length).toBe(3);expect(await merged(device.page)).toEqual({transport_duplicate:'restored'});expect(device.errors).toEqual([]);}
+ } finally {for(const device of devices.reverse())await device.context.close();}
+});

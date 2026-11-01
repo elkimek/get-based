@@ -375,6 +375,28 @@ superseded plan settles its status before releasing ownership and cannot hide
 another profile's pending send. Manual sync retries the current snapshot within
 its existing deadline.
 
+Duplicate physical sync rows use one deterministic order: application edit time,
+deletion on a tied clock, physical row ID, then canonical payload bytes. Query
+order is never a version. Array overlays retain embedded record freshness and
+unpublished local edits; committed duplicate values use the canonical row.
+Lab entries retain their per-marker merge rules. A map tombstone suppresses older
+live duplicates, while a later explicit edit can restore the key. New mutations
+advance past observed row clocks even after a device clock moves backwards.
+Profile pulls select among decodable payloads so a newer incomplete duplicate
+cannot hide a usable profile. These rules preserve the existing wire schema and
+legacy-client paths.
+
+An SDK mutation being queued is not its persistence acknowledgement. Push waits
+for each item-row mutation's own completion before advancing that surface's
+snapshot or scalar receipt. The existing push deadline also covers this wait;
+failure, timeout, pause, and runtime replacement retain retry state and prevent
+late completions from acknowledging retired work. An omitted array or map is
+unknown membership, not a clear request. Explicit empty collections and recorded
+delete intent retain their existing behavior and safeguards. Separate query
+notifications and a quiet interval do not prove that every peer row has arrived.
+This overlay protection does not establish atomic multi-row delivery or replace
+the existing Phase 2 readiness contract.
+
 V3 profile snapshots retain scalar values with per-field edit clocks, so an
 unrelated save cannot give an unchanged scalar a newer clock. Full snapshots
 protect peers whose profile and item-row query updates arrive separately.

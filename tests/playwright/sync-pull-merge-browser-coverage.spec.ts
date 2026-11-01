@@ -83,8 +83,9 @@ test('sync pull merge browser coverage exercises row recovery merge persistence 
 
       const preparedRows = await (pullMerge.prepareSyncPullRows as (rows:readonly (NonNullable<Parameters<typeof pullMerge.prepareSyncPullRows>[0]>[number] & {marker?:unknown})[]) => Promise<(Awaited<ReturnType<typeof pullMerge.prepareSyncPullRows>>[number] & {marker?:unknown})[]>)([
         { profileId: '', dataJson: payloadForProfile('dedupe_one'), syncedAt: '2026-06-01T00:00:00.000Z' },
-        { profileId: 'dedupe_one', dataJson: '{}', syncedAt: '2026-06-04T00:00:00.000Z', marker: 'newer' },
-        { profileId: 'dedupe_two', dataJson: '{}', syncedAt: '2026-06-03T00:00:00.000Z' },
+        { profileId: 'dedupe_one', dataJson: payloadForProfile('dedupe_one'), syncedAt: '2026-06-04T00:00:00.000Z', marker: 'newer' },
+        { profileId: 'dedupe_one', dataJson: null, syncedAt: '2026-06-05T00:00:00.000Z' },
+        { profileId: 'dedupe_two', dataJson: payloadForProfile('dedupe_two'), syncedAt: '2026-06-03T00:00:00.000Z' },
       ]);
       const explicitDedupe = (pullMerge.dedupeSyncPullRows as (rows:readonly (NonNullable<Parameters<typeof pullMerge.dedupeSyncPullRows>[0]>[number] & {marker?:unknown})[]) => (Awaited<ReturnType<typeof pullMerge.dedupeSyncPullRows>>[number] & {marker?:unknown})[])([
         { profileId: 'dedupe_three', syncedAt: '2026-06-01T00:00:00.000Z' },

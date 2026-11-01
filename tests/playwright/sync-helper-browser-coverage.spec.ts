@@ -285,8 +285,8 @@ test('sync delta planners and committed apply cover row mutation contracts', asy
       (syncDelta.configureSyncDelta as unknown as (options: {getEvolu:()=>unknown;getItemRowQuery:()=>unknown}) => ReturnType<typeof syncDelta.configureSyncDelta>)({
         getEvolu: () => ({
           getQueryRows: () => itemRows,
-          insert: (table:unknown, args:Record<string,unknown>) => { applied.push({ table, kind: 'insert', args }); },
-          update: (table:unknown, args:Record<string,unknown>) => { applied.push({ table, kind: 'update', args }); },
+          insert: (table:unknown, args:Record<string,unknown>, options?:{onComplete?:()=>void}) => { applied.push({ table, kind: 'insert', args });options?.onComplete?.(); },
+          update: (table:unknown, args:Record<string,unknown>, options?:{onComplete?:()=>void}) => { applied.push({ table, kind: 'update', args });options?.onComplete?.(); },
         }),
         getItemRowQuery: () => ({}),
       });
@@ -447,7 +447,7 @@ test('sync delta planners and committed apply cover row mutation contracts', asy
         plannedAt: Date.now(),
       };
       syncDelta.resetDeltaTelemetry(profileId);
-      pushDeltas.applyCommittedDeltas(
+      await pushDeltas.applyCommittedDeltas(
         profileId,
         JSON.stringify({ lightDevices: [{ id: 'device-committed' }] }),
         [{ arrayName: 'lightDevices', plan: committedPlan }],

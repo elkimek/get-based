@@ -167,10 +167,12 @@ export function syncCommittedDeltaSourceContracts(source: string) {
   if (!fn) return {snapshotsGuarded: false};
   const text = (node: ts.Node) => node.getText(file).replace(/\s/g, '');
   const snapshots = descendants(file, ts.isCallExpression).filter(call => text(call.expression) === '_writeDeltaSnapshot');
-  const applies = descendants(fn, ts.isVariableDeclaration).filter(node => text(node.name) === 'allOk' && node.initializer && text(node.initializer) === '_applyArrayDelta(arrayName,plan)');
+  const applies = descendants(fn, ts.isVariableDeclaration).filter(node => text(node.name) === 'allOk' && node.initializer && text(node.initializer) === 'awaitapplyAcknowledgedDelta(arrayName,plan,options.signal)');
+  const acknowledgement = file.statements.find(node=>ts.isFunctionDeclaration(node)&&node.name?.text==='applyAcknowledgedDelta');
+  const nativeApply=acknowledgement?descendants(acknowledgement,ts.isCallExpression).filter(call=>text(call.expression)==='_applyArrayDelta'&&call.arguments.map(text).join(',')==='arrayName,plan,finish'):[];
   const guards = descendants(fn, ts.isIfStatement).filter(node => text(node.expression) === 'allOk');
   const write = snapshots[0], apply = applies[0], guard = guards[0];
-  return {snapshotsGuarded: snapshots.length === 1 && applies.length === 1 && guards.length === 1 && !!write && !!apply && !!guard
+  return {snapshotsGuarded: nativeApply.length===1 && snapshots.length === 1 && applies.length === 1 && guards.length === 1 && !!write && !!apply && !!guard
    && apply.getStart(file) < guard.getStart(file) && guard.thenStatement.getStart(file) < write.getStart(file) && write.getEnd() < guard.thenStatement.getEnd()
    && write.arguments.map(text).join(',') === 'profileId,arrayName,plan.next,plan.plannedAt'};
  });

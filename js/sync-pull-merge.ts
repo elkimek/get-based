@@ -1,3 +1,4 @@
+import {compareSyncRows} from './sync-conflict-order.js';
 import type {ScalarVersions} from './sync-scalar-snapshot.js';
 import type { ProfileData, NormalizedProfileData } from '../types/app-state.js';
 import type { StoredProfileRecord } from './profile-list-store.js';
@@ -90,9 +91,8 @@ export async function recoverSyncPullRows(rawRows: readonly (SyncProfileRow | nu
 export function dedupeSyncPullRows(enrichedRows: readonly RecoveredRow[] | null | undefined) {
   const byProfile = new Map<unknown, RecoveredRow>();
   for (const row of enrichedRows || []) {
-    const ts = row.syncedAt ? new Date(row.syncedAt as string).getTime() : 0;
     const prev = byProfile.get(row.profileId);
-    if (!prev || ts > (prev.syncedAt ? new Date(prev.syncedAt as string).getTime() : 0)) {
+    if (!prev || compareSyncRows(row,prev)>0) {
       byProfile.set(row.profileId, row);
     }
   }
@@ -104,7 +104,18 @@ export function dedupeSyncPullRows(enrichedRows: readonly RecoveredRow[] | null 
 }
 
 export async function prepareSyncPullRows(rawRows: readonly (SyncProfileRow | null | undefined)[] | null | undefined) {
-  return dedupeSyncPullRows(await recoverSyncPullRows(rawRows));
+  const complete: RecoveredRow[] = [];
+  for (const row of await recoverSyncPullRows(rawRows)) {
+    if (typeof row.dataJson !== 'string' || !row.dataJson) continue;
+    try {
+      const parsed = await parseSyncPayload(row.dataJson);
+      if (isMalformedPulledImportedData(parsed.importedData)) continue;
+      complete.push(row);
+    } catch (error) {
+      console.error('[sync] Pull failed for row:', error);
+    }
+  }
+  return dedupeSyncPullRows(complete);
 }
 
 
